@@ -5,8 +5,8 @@
 
 #include <memory>
 
-#include "src/continuation.h"
 #include "src/direction.h"
+#include "src/futures/futures.h"
 #include "src/line.h"
 #include "src/modifiers.h"
 #include "src/structure.h"
@@ -72,7 +72,7 @@ class Transformation {
   };
 
   virtual ~Transformation() {}
-  virtual DelayedValue<Result> Apply(const Input& input) const = 0;
+  virtual futures::DelayedValue<Result> Apply(const Input& input) const = 0;
   virtual std::unique_ptr<Transformation> Clone() const = 0;
 };
 

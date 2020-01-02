@@ -17,7 +17,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
     return L"SwitchCaseTransformation();";
   }
 
-  DelayedValue<Output> Apply(Input input) const override {
+  futures::DelayedValue<Output> Apply(Input input) const override {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(input.editor, L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << input.position << ": "

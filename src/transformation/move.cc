@@ -16,7 +16,7 @@
 namespace afc::editor {
 namespace {
 class MoveCursorTransformation : public Transformation {
-  DelayedValue<Result> Apply(const Input& input) const override {
+  futures::DelayedValue<Result> Apply(const Input& input) const override {
     auto active_cursors = input.buffer->active_cursors();
     if (input.position != *active_cursors->active()) {
       LOG(INFO) << "Skipping cursor.";
@@ -50,7 +50,7 @@ class MoveTransformation : public CompositeTransformation {
 
   std::wstring Serialize() const override { return L"MoveTransformation()"; }
 
-  DelayedValue<Output> Apply(Input input) const override {
+  futures::DelayedValue<Output> Apply(Input input) const override {
     CHECK(input.buffer != nullptr);
     VLOG(1) << "Move Transformation starts: "
             << input.buffer->Read(buffer_variables::name) << " "

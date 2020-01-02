@@ -45,7 +45,6 @@ src/command_mode.h \
 src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
 src/const_tree.h \
-src/continuation.h \
 src/cursors.cc \
 src/cursors.h \
 src/cursors_transformation.cc \
@@ -64,6 +63,7 @@ src/file_link_mode.cc \
 src/file_descriptor_reader.cc \
 src/file_descriptor_reader.h \
 src/find_mode.cc \
+src/futures/futures.h \
 src/fuzz.h \
 src/fuzz.cc \
 src/fuzz_testable.h \

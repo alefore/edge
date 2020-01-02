@@ -40,7 +40,7 @@ const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
 const wchar_t* kExactMatchEnvironmentVariable = L"predictor_exact_match";
 
 void SignalEndOfFile(OpenBuffer* buffer,
-                     ValueReceiver<PredictorOutput> receiver) {
+                     futures::ValueReceiver<PredictorOutput> receiver) {
   buffer->EndOfFile();
   buffer->AddEndOfFileObserver(
       [receiver = std::move(receiver)]() { receiver.Set(PredictorOutput()); });
@@ -322,7 +322,8 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   });
 }
 
-DelayedValue<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
+futures::DelayedValue<PredictorOutput> FilePredictor(
+    PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   struct AsyncInput {
     OpenBuffer::LockFunction get_buffer;
@@ -330,7 +331,7 @@ DelayedValue<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
     vector<wstring> search_paths;
     ResolvePathOptions resolve_path_options;
     std::wregex noise_regex;
-    ValueReceiver<PredictorOutput> output_receiver;
+    futures::ValueReceiver<PredictorOutput> output_receiver;
   };
 
   AsyncProcessor<AsyncInput, int>::Options options;
@@ -378,7 +379,7 @@ DelayedValue<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   };
   static AsyncProcessor<AsyncInput, int> async_processor(std::move(options));
 
-  Future<PredictorOutput> future;
+  futures::Future<PredictorOutput> future;
   AsyncInput input{
       .get_buffer = predictor_input.predictions->GetLockFunction(),
       .path = predictor_input.editor->expand_path(predictor_input.input),
@@ -394,8 +395,8 @@ DelayedValue<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   return future.Value();
 }
 
-DelayedValue<PredictorOutput> EmptyPredictor(PredictorInput input) {
-  Future<PredictorOutput> future;
+futures::DelayedValue<PredictorOutput> EmptyPredictor(PredictorInput input) {
+  futures::Future<PredictorOutput> future;
   SignalEndOfFile(input.predictions, future.Receiver());
   return future.Value();
 }
@@ -450,7 +451,7 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
         break;
       }
     }
-    Future<PredictorOutput> future;
+    futures::Future<PredictorOutput> future;
     SignalEndOfFile(input.predictions, future.Receiver());
     return future.Value();
   };
@@ -503,7 +504,7 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
       input.predictions->AppendToLastLine(*line_contents);
       input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
     }
-    Future<PredictorOutput> future;
+    futures::Future<PredictorOutput> future;
     SignalEndOfFile(input.predictions, future.Receiver());
     return future.Value();
   };

@@ -18,6 +18,7 @@ extern "C" {
 #include "src/editor_mode.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
+#include "src/futures/futures.h"
 #include "src/lazy_string_append.h"
 #include "src/parse_tree.h"
 #include "src/substring.h"
@@ -39,7 +40,7 @@ namespace afc::editor {
 namespace {
 class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }
-  DelayedValue<Output> Apply(Input input) const override {
+  futures::DelayedValue<Output> Apply(Input input) const override {
     const ColumnNumber column = input.position.column;
     auto line = input.buffer->LineAt(input.position.line);
     if (line == nullptr) return futures::ImmediateValue(Output());
@@ -84,7 +85,7 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
   std::wstring Serialize() const override { return L""; }
-  DelayedValue<Output> Apply(Input input) const override {
+  futures::DelayedValue<Output> Apply(Input input) const override {
     if (direction_ == BACKWARDS) {
       ++input.position.line;
     }

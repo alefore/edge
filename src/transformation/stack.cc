@@ -16,10 +16,10 @@ void TransformationStack::PushFront(
   stack_->push_front(std::move(transformation));
 }
 
-DelayedValue<Transformation::Result> TransformationStack::Apply(
+futures::DelayedValue<Transformation::Result> TransformationStack::Apply(
     const Input& input) const {
   auto output = std::make_shared<Result>(input.position);
-  return DelayedValue<Transformation::Result>::Transform(
+  return futures::DelayedValue<Transformation::Result>::Transform(
       futures::ForEach(
           stack_->begin(), stack_->end(),
           [output, input, stack = stack_](
@@ -27,15 +27,16 @@ DelayedValue<Transformation::Result> TransformationStack::Apply(
             Input sub_input(input.buffer);
             sub_input.position = output->position;
             sub_input.mode = input.mode;
-            return DelayedValue<futures::IterationControlCommand>::Transform(
-                transformation->Apply(sub_input),
-                [output](const Transformation::Result& result) {
-                  output->MergeFrom(result);
-                  return futures::ImmediateValue(
-                      output->success
-                          ? futures::IterationControlCommand::kContinue
-                          : futures::IterationControlCommand::kStop);
-                });
+            return futures::DelayedValue<futures::IterationControlCommand>::
+                Transform(
+                    transformation->Apply(sub_input),
+                    [output](const Transformation::Result& result) {
+                      output->MergeFrom(result);
+                      return futures::ImmediateValue(
+                          output->success
+                              ? futures::IterationControlCommand::kContinue
+                              : futures::IterationControlCommand::kStop);
+                    });
           }),
       [output](futures::IterationControlCommand) {
         return futures::ImmediateValue(std::move(*output));

@@ -40,7 +40,7 @@ class SetPositionTransformation : public Transformation {
     }
   }
 
-  DelayedValue<Result> Apply(const Input& input) const override {
+  futures::DelayedValue<Result> Apply(const Input& input) const override {
     Result result(LineColumn(line_.value_or(input.position.line), column_));
     result.undo_stack->PushFront(NewSetPositionTransformation(
         line_.has_value() ? std::optional<LineNumber>(input.position.line)

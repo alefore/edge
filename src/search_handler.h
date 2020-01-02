@@ -6,6 +6,7 @@
 
 #include "src/async_processor.h"
 #include "src/buffer_contents.h"
+#include "src/futures/futures.h"
 #include "src/line_column.h"
 #include "src/predictor.h"
 
@@ -18,7 +19,8 @@ class EditorState;
 class OpenBuffer;
 struct LineColumn;
 
-DelayedValue<PredictorOutput> SearchHandlerPredictor(PredictorInput input);
+futures::DelayedValue<PredictorOutput> SearchHandlerPredictor(
+    PredictorInput input);
 
 struct SearchOptions {
   // The buffer in which to search.

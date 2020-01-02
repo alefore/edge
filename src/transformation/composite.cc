@@ -12,8 +12,8 @@ CompositeTransformationAdapter::CompositeTransformationAdapter(
     : modifiers_(std::move(modifiers)),
       composite_transformation_(std::move(composite_transformation)) {}
 
-DelayedValue<Transformation::Result> CompositeTransformationAdapter::Apply(
-    const Input& transformation_input) const {
+futures::DelayedValue<Transformation::Result>
+CompositeTransformationAdapter::Apply(const Input& transformation_input) const {
   CompositeTransformation::Input input;
   input.buffer = transformation_input.buffer;
   input.original_position = transformation_input.position;
@@ -23,7 +23,7 @@ DelayedValue<Transformation::Result> CompositeTransformationAdapter::Apply(
   input.range =
       transformation_input.buffer->FindPartialRange(modifiers_, input.position);
   input.modifiers = modifiers_;
-  return DelayedValue<Transformation::Result>::Transform(
+  return futures::DelayedValue<Transformation::Result>::Transform(
       composite_transformation_->Apply(std::move(input)),
       [transformation_input](const CompositeTransformation::Output& output) {
         return output.transformations_->Apply(transformation_input);

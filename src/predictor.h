@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "src/continuation.h"
+#include "src/futures/futures.h"
 #include "src/status.h"
 #include "src/structure.h"
 
@@ -46,7 +46,8 @@ struct PredictorInput {
 };
 
 struct PredictorOutput {};
-using Predictor = std::function<DelayedValue<PredictorOutput>(PredictorInput)>;
+using Predictor =
+    std::function<futures::DelayedValue<PredictorOutput>(PredictorInput)>;
 
 const wstring& PredictionsBufferName();
 
@@ -97,9 +98,9 @@ struct PredictOptions {
 // unambiguous completion for input).
 void Predict(PredictOptions predict_options);
 
-DelayedValue<PredictorOutput> FilePredictor(PredictorInput input);
+futures::DelayedValue<PredictorOutput> FilePredictor(PredictorInput input);
 
-DelayedValue<PredictorOutput> EmptyPredictor(PredictorInput input);
+futures::DelayedValue<PredictorOutput> EmptyPredictor(PredictorInput input);
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);

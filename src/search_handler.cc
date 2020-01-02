@@ -184,7 +184,8 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
   return head;
 }
 
-DelayedValue<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
+futures::DelayedValue<PredictorOutput> SearchHandlerPredictor(
+    PredictorInput input) {
   auto search_buffer = input.source_buffer;
   CHECK(search_buffer != nullptr);
   CHECK(input.predictions != nullptr);
@@ -197,7 +198,7 @@ DelayedValue<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   options.starting_position = search_buffer->position();
   auto positions = PerformSearchWithDirection(input.editor, options);
   if (!positions.has_value()) {
-    Future<PredictorOutput> future;
+    futures::Future<PredictorOutput> future;
     input.predictions->EndOfFile();
     input.predictions->AddEndOfFileObserver(
         [receiver = future.Receiver()] { receiver.Set(PredictorOutput()); });
@@ -224,7 +225,7 @@ DelayedValue<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     input.predictions->AppendToLastLine(NewLazyString(std::move(match)));
     input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
   }
-  Future<PredictorOutput> future;
+  futures::Future<PredictorOutput> future;
   input.predictions->EndOfFile();
   input.predictions->AddEndOfFileObserver(
       [receiver = future.Receiver()] { receiver.Set(PredictorOutput()); });

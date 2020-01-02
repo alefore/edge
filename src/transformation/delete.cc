@@ -118,7 +118,7 @@ class DeleteTransformation : public Transformation {
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
-  DelayedValue<Result> Apply(const Input& original_input) const {
+  futures::DelayedValue<Result> Apply(const Input& original_input) const {
     Input input = original_input;
     CHECK(input.buffer != nullptr);
     input.mode = options_.mode.value_or(input.mode);
@@ -165,7 +165,7 @@ class DeleteTransformation : public Transformation {
     input.buffer->DeleteRange(range);
     output->modified_buffer = true;
 
-    return DelayedValue<Result>::Transform(
+    return futures::DelayedValue<Result>::Transform(
         NewSetPositionTransformation(range.begin)->Apply(input),
         [this, range, output, input,
          delete_buffer](const Result& result) mutable {
@@ -192,7 +192,7 @@ class DeleteTransformation : public Transformation {
                   ? LineModifier::GREEN
                   : LineModifier::RED};
           input.position = range.begin;
-          return DelayedValue<Result>::Transform(
+          return futures::DelayedValue<Result>::Transform(
               NewInsertBufferTransformation(std::move(insert_options))
                   ->Apply(input),
               [output](const Result& result) {

@@ -1,6 +1,7 @@
 #include "src/transformation/tree_navigate.h"
 
 #include "src/buffer.h"
+#include "src/futures/futures.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"
 #include "src/transformation/composite.h"
@@ -11,7 +12,7 @@ namespace afc::editor {
 namespace {
 class TreeNavigate : public CompositeTransformation {
   std::wstring Serialize() const override { return L"TreeNavigate()"; }
-  DelayedValue<Output> Apply(Input input) const override {
+  futures::DelayedValue<Output> Apply(Input input) const override {
     auto root = input.buffer->parse_tree();
     if (root == nullptr) return futures::ImmediateValue(Output());
     const ParseTree* tree = root.get();

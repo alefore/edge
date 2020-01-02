@@ -41,7 +41,7 @@ class InsertBufferTransformation : public Transformation {
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
-  DelayedValue<Result> Apply(const Input& input) const override {
+  futures::DelayedValue<Result> Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
     if (buffer_to_insert_length_ == 0) {
       return futures::ImmediateValue(Result(input.position));
@@ -73,12 +73,12 @@ class InsertBufferTransformation : public Transformation {
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
       delete_options.copy_to_paste_buffer = false;
       delayed_shared_result =
-          DelayedValue<std::shared_ptr<Transformation::Result>>::Transform(
+          futures::DelayedValue<std::shared_ptr<Result>>::Transform(
               TransformationAtPosition(
                   result->position,
                   NewDeleteTransformation(std::move(delete_options)))
                   ->Apply(input),
-              [result](const Transformation::Result& inner_result) {
+              [result](const Result& inner_result) {
                 result->MergeFrom(inner_result);
                 return futures::ImmediateValue(result);
               });
@@ -89,7 +89,7 @@ class InsertBufferTransformation : public Transformation {
             ? start_position
             : final_position);
 
-    return DelayedValue<Transformation::Result>::Transform(
+    return futures::DelayedValue<Transformation::Result>::Transform(
         delayed_shared_result,
         [position](const std::shared_ptr<Transformation::Result>& result) {
           result->position = position;

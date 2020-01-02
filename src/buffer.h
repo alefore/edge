@@ -14,6 +14,7 @@
 #include "src/buffer_terminal.h"
 #include "src/cursors.h"
 #include "src/file_descriptor_reader.h"
+#include "src/futures/futures.h"
 #include "src/lazy_string.h"
 #include "src/line.h"
 #include "src/line_column.h"
@@ -251,11 +252,13 @@ class OpenBuffer {
   wstring TransformKeyboardText(wstring input);
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
-  DelayedValue<bool> ApplyToCursors(unique_ptr<Transformation> transformation);
-  DelayedValue<bool> ApplyToCursors(unique_ptr<Transformation> transformation,
-                                    Modifiers::CursorsAffected cursors_affected,
-                                    Transformation::Input::Mode mode);
-  DelayedValue<bool> RepeatLastTransformation();
+  futures::DelayedValue<bool> ApplyToCursors(
+      unique_ptr<Transformation> transformation);
+  futures::DelayedValue<bool> ApplyToCursors(
+      unique_ptr<Transformation> transformation,
+      Modifiers::CursorsAffected cursors_affected,
+      Transformation::Input::Mode mode);
+  futures::DelayedValue<bool> RepeatLastTransformation();
 
   void PushTransformationStack();
   void PopTransformationStack();
@@ -425,7 +428,7 @@ class OpenBuffer {
   };
   static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
 
-  DelayedValue<Transformation::Result> Apply(
+  futures::DelayedValue<Transformation::Result> Apply(
       unique_ptr<Transformation> transformation, LineColumn position,
       Transformation::Input::Mode mode);
   void UpdateTreeParser();

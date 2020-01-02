@@ -824,7 +824,7 @@ bool EditorState::MovePositionsStack(Direction direction) {
 Status* EditorState::status() { return &status_; }
 const Status* EditorState::status() const { return &status_; }
 
-DelayedValue<bool> EditorState::ApplyToCurrentBuffer(
+futures::DelayedValue<bool> EditorState::ApplyToCurrentBuffer(
     unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(has_current_buffer());

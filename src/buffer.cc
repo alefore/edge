@@ -21,13 +21,13 @@ extern "C" {
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command_with_modifiers.h"
-#include "src/continuation.h"
 #include "src/cpp_parse_tree.h"
 #include "src/cursors_transformation.h"
 #include "src/dirname.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
+#include "src/futures/futures.h"
 #include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_functional.h"
@@ -1808,7 +1808,7 @@ void OpenBuffer::Set(const EdgeVariable<double>* variable, double value) {
   double_variables_.Set(variable, value);
 }
 
-DelayedValue<bool> OpenBuffer::ApplyToCursors(
+futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
     unique_ptr<Transformation> transformation) {
   return ApplyToCursors(std::move(transformation),
                         Read(buffer_variables::multiple_cursors)
@@ -1817,7 +1817,7 @@ DelayedValue<bool> OpenBuffer::ApplyToCursors(
                         Transformation::Input::Mode::kFinal);
 }
 
-DelayedValue<bool> OpenBuffer::ApplyToCursors(
+futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
     unique_ptr<Transformation> transformation,
     Modifiers::CursorsAffected cursors_affected,
     Transformation::Input::Mode mode) {
@@ -1842,7 +1842,7 @@ DelayedValue<bool> OpenBuffer::ApplyToCursors(
     CHECK(cursors != nullptr);
     return cursors_tracker_.ApplyTransformationToCursors(
         cursors, [this, &transformation, mode](LineColumn position) {
-          return DelayedValue<LineColumn>::Transform(
+          return futures::DelayedValue<LineColumn>::Transform(
               Apply(transformation->Clone(), position, mode),
               [](const Transformation::Result& result) {
                 return futures::ImmediateValue(result.position);
@@ -1850,7 +1850,7 @@ DelayedValue<bool> OpenBuffer::ApplyToCursors(
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-    return DelayedValue<bool>::Transform(
+    return futures::DelayedValue<bool>::Transform(
         Apply(transformation->Clone(), position(), mode),
         [this](const Transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
@@ -1859,7 +1859,7 @@ DelayedValue<bool> OpenBuffer::ApplyToCursors(
   }
 }
 
-DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
+futures::DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
     std::unique_ptr<Transformation> transformation, LineColumn position,
     Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
@@ -1889,7 +1889,7 @@ DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
   return output;
 }
 
-DelayedValue<bool> OpenBuffer::RepeatLastTransformation() {
+futures::DelayedValue<bool> OpenBuffer::RepeatLastTransformation() {
   int repetitions = options_.editor->repetitions();
   options_.editor->ResetRepetitions();
   return ApplyToCursors(NewApplyRepetitionsTransformation(
@@ -1933,7 +1933,7 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
     }
     Transformation::Input input(this);
     input.position = position();
-    return DelayedValue<futures::IterationControlCommand>::Transform(
+    return futures::DelayedValue<futures::IterationControlCommand>::Transform(
         data->source->back()->Apply(input),
         [this, undo_mode, data](const Transformation::Result& result) {
           data->target->push_back(result.undo_stack->CloneStack());

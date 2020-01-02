@@ -1,9 +1,9 @@
 #include <functional>
 
-#ifndef __AFC_EDITOR_CONTINUATION_H__
-#define __AFC_EDITOR_CONTINUATION_H__
+#ifndef __AFC_EDITOR_FUTURES_FUTURES_H__
+#define __AFC_EDITOR_FUTURES_FUTURES_H__
 
-namespace afc::editor {
+namespace afc::futures {
 
 template <typename Type>
 class ValueReceiver;
@@ -100,7 +100,6 @@ class Future {
   std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
 };
 
-namespace futures {
 template <typename Type>
 DelayedValue<Type> ImmediateValue(Type value) {
   Future<Type> output;
@@ -156,7 +155,6 @@ DelayedValue<IterationControlCommand> While(Callable callable) {
   resume(resume);
   return output.Value();
 }
-}  // namespace futures
-}  // namespace afc::editor
+}  // namespace afc::futures
 
-#endif  // __AFC_EDITOR_CONTINUATION_H__
+#endif  // __AFC_EDITOR_FUTURES_FUTURES_H__

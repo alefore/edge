@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "src/buffer_contents.h"
-#include "src/continuation.h"
+#include "src/futures/futures.h"
 #include "src/transformation.h"
 #include "src/transformation/stack.h"
 #include "src/vm/public/environment.h"
@@ -18,7 +18,8 @@ class CompositeTransformationAdapter : public Transformation {
       Modifiers modifiers,
       std::unique_ptr<CompositeTransformation> composite_transformation);
 
-  DelayedValue<Result> Apply(const Input& transformation_input) const override;
+  futures::DelayedValue<Result> Apply(
+      const Input& transformation_input) const override;
 
   std::unique_ptr<Transformation> Clone() const override;
 
@@ -61,7 +62,7 @@ class CompositeTransformation {
     friend CompositeTransformationAdapter;
     std::unique_ptr<TransformationStack> transformations_;
   };
-  virtual DelayedValue<Output> Apply(Input input) const = 0;
+  virtual futures::DelayedValue<Output> Apply(Input input) const = 0;
   virtual std::unique_ptr<CompositeTransformation> Clone() const = 0;
 };
 

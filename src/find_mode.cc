@@ -22,7 +22,7 @@ class FindTransformation : public CompositeTransformation {
   FindTransformation(wchar_t c) : c_(c) {}
 
   std::wstring Serialize() const override { return L"FindTransformation();"; }
-  DelayedValue<Output> Apply(Input input) const override {
+  futures::DelayedValue<Output> Apply(Input input) const override {
     auto line = input.buffer->LineAt(input.position.line);
     if (line == nullptr) return futures::ImmediateValue(Output());
     ColumnNumber column = min(input.position.column, line->EndColumn());
