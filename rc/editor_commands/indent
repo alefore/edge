@@ -12,7 +12,7 @@ int GetBeginningOfCurrentLine() {
   return column == -1 ? line.size() : column;
 }
 
-int InsertSpacesAtBeginningOfLine() {
+void InsertSpacesAtBeginningOfLine() {
   int line = buffer.position().line();
 
   int desired_column = buffer.position().column();
