@@ -1841,10 +1841,12 @@ futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
+    std::shared_ptr<Transformation> transformation_shared =
+        std::move(transformation);
     return cursors_tracker_.ApplyTransformationToCursors(
-        cursors, [this, &transformation, mode](LineColumn position) {
+        cursors, [this, transformation_shared, mode](LineColumn position) {
           return futures::DelayedValue<LineColumn>::Transform(
-              Apply(transformation->Clone(), position, mode),
+              Apply(transformation_shared->Clone(), position, mode),
               [](const Transformation::Result& result) {
                 return futures::ImmediateValue(result.position);
               });
