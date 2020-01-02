@@ -126,7 +126,7 @@ Automatically adjust the width of the view to fit the screen.
 
 ## VM
 
-LineNumber and LineColumn types should be exposed to extensions?
+LineNumber and ColumnNumber types should be exposed to extensions?
 
 Add support for templates, so that we can do "vector<string>".
 
