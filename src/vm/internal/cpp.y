@@ -188,36 +188,10 @@ assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. 
 
 function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
     function_declaration_arguments(ARGS) RPAREN . {
-  assert(RETURN_TYPE->type == VMType::VM_SYMBOL);
-  assert(NAME->type == VMType::VM_SYMBOL);
-
-  if (ARGS == nullptr) {
-    OUT = nullptr;
-  } else {
-    const VMType* return_type_def =
-        compilation->environment->LookupType(RETURN_TYPE->str);
-    if (return_type_def == nullptr) {
-      compilation->errors.push_back(
-          L"Unknown return type: \"" + RETURN_TYPE->str + L"\"");
-      OUT = nullptr;
-    } else {
-      OUT = new UserFunction();
-      OUT->name = NAME->str;
-      OUT->type.type = VMType::FUNCTION;
-      OUT->type.type_arguments.push_back(*return_type_def);
-      for (pair<VMType, wstring> arg : *ARGS) {
-        OUT->type.type_arguments.push_back(arg.first);
-        OUT->argument_names.push_back(arg.second);
-      }
-      compilation->environment->Define(
-          NAME->str, unique_ptr<Value>(new Value(OUT->type)));
-      compilation->environment = new Environment(compilation->environment);
-      for (pair<VMType, wstring> arg : *ARGS) {
-        compilation->environment
-            ->Define(arg.second, unique_ptr<Value>(new Value(arg.first)));
-      }
-    }
-  }
+  CHECK_EQ(RETURN_TYPE->type, VMType::VM_SYMBOL);
+  CHECK_EQ(NAME->type, VMType::VM_SYMBOL);
+  OUT = UserFunction::New(compilation, RETURN_TYPE->str, NAME->str, ARGS)
+            .release();
   delete RETURN_TYPE;
   delete NAME;
 }

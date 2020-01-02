@@ -38,6 +38,41 @@ using std::to_wstring;
 namespace {
 
 struct UserFunction {
+  static std::unique_ptr<UserFunction> New(
+      Compilation* compilation, std::wstring return_type,
+      std::optional<std::wstring> name,
+      std::vector<std::pair<VMType, wstring>>* args) {
+    if (args == nullptr) {
+      return nullptr;
+    }
+    const VMType* return_type_def =
+        compilation->environment->LookupType(return_type);
+    if (return_type_def == nullptr) {
+      compilation->errors.push_back(L"Unknown return type: \"" + return_type +
+                                    L"\"");
+      return nullptr;
+    }
+
+    auto output = std::make_unique<UserFunction>();
+    output->type.type = VMType::FUNCTION;
+    output->type.type_arguments.push_back(*return_type_def);
+    for (pair<VMType, wstring> arg : *args) {
+      output->type.type_arguments.push_back(arg.first);
+      output->argument_names.push_back(arg.second);
+    }
+    if (name.has_value()) {
+      output->name = name.value();
+      compilation->environment->Define(name.value(),
+                                       std::make_unique<Value>(output->type));
+    }
+    compilation->environment = new Environment(compilation->environment);
+    for (pair<VMType, wstring> arg : *args) {
+      compilation->environment->Define(arg.second,
+                                       std::make_unique<Value>(arg.first));
+    }
+    return output;
+  }
+
   wstring name;
   VMType type;
   vector<wstring> argument_names;
