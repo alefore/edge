@@ -44,7 +44,7 @@ class InsertBufferTransformation : public Transformation {
   DelayedValue<Result> Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
     if (buffer_to_insert_length_ == 0) {
-      return Delay(Result(input.position));
+      return futures::ImmediateValue(Result(input.position));
     }
 
     auto result = std::make_shared<Result>(input.buffer->AdjustLineColumn(
@@ -67,7 +67,7 @@ class InsertBufferTransformation : public Transformation {
         start_position,
         NewDeleteTransformation(GetCharactersDeleteOptions(chars_inserted))));
 
-    auto delayed_shared_result = Delay(result);
+    auto delayed_shared_result = futures::ImmediateValue(result);
     if (options_.modifiers.insertion == Modifiers::REPLACE) {
       DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
@@ -80,7 +80,7 @@ class InsertBufferTransformation : public Transformation {
                   ->Apply(input),
               [result](const Transformation::Result& inner_result) {
                 result->MergeFrom(inner_result);
-                return Delay(result);
+                return futures::ImmediateValue(result);
               });
     }
 
@@ -93,7 +93,7 @@ class InsertBufferTransformation : public Transformation {
         delayed_shared_result,
         [position](const std::shared_ptr<Transformation::Result>& result) {
           result->position = position;
-          return Delay(std::move(*result));
+          return futures::ImmediateValue(std::move(*result));
         });
   }
 

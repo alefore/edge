@@ -20,21 +20,26 @@ DelayedValue<Transformation::Result> TransformationStack::Apply(
     const Input& input) const {
   auto output = std::make_shared<Result>(input.position);
   return DelayedValue<Transformation::Result>::Transform(
-      ForEach(stack_->begin(), stack_->end(),
-              [output, input, stack = stack_](
-                  const std::unique_ptr<Transformation>& transformation) {
-                Input sub_input(input.buffer);
-                sub_input.position = output->position;
-                sub_input.mode = input.mode;
-                return DelayedValue<ForEachControl>::Transform(
-                    transformation->Apply(sub_input),
-                    [output](const Transformation::Result& result) {
-                      output->MergeFrom(result);
-                      return Delay(output->success ? ForEachControl::kSuccess
-                                                   : ForEachControl::kStop);
-                    });
-              }),
-      [output](ForEachControl) { return Delay(std::move(*output)); });
+      futures::ForEach(
+          stack_->begin(), stack_->end(),
+          [output, input, stack = stack_](
+              const std::unique_ptr<Transformation>& transformation) {
+            Input sub_input(input.buffer);
+            sub_input.position = output->position;
+            sub_input.mode = input.mode;
+            return DelayedValue<futures::IterationControlCommand>::Transform(
+                transformation->Apply(sub_input),
+                [output](const Transformation::Result& result) {
+                  output->MergeFrom(result);
+                  return futures::ImmediateValue(
+                      output->success
+                          ? futures::IterationControlCommand::kContinue
+                          : futures::IterationControlCommand::kStop);
+                });
+          }),
+      [output](futures::IterationControlCommand) {
+        return futures::ImmediateValue(std::move(*output));
+      });
 }
 
 std::unique_ptr<Transformation> TransformationStack::Clone() const {

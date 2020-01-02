@@ -54,13 +54,6 @@ class DelayedValue {
   std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
 };
 
-template <typename Type>
-DelayedValue<Type> Delay(Type value) {
-  Future<Type> output;
-  output.Receiver().Set(std::move(value));
-  return output.Value();
-}
-
 enum class ValueReceiverSetResult { kAccepted, kRejected };
 
 template <typename Type>
@@ -107,27 +100,35 @@ class Future {
   std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
 };
 
-enum class ForEachControl { kSuccess, kStop };
+namespace futures {
+template <typename Type>
+DelayedValue<Type> ImmediateValue(Type value) {
+  Future<Type> output;
+  output.Receiver().Set(std::move(value));
+  return output.Value();
+}
+
+enum class IterationControlCommand { kContinue, kStop };
 
 // Evaluate `callable` for each element in the range [begin, end). `callable`
 // receives a reference to each element and must return a
-// DelayedValue<ForEachControl>.
+// DelayedValue<IterationControlCommand>.
 //
 // The returned value can be used to check whether the entire evaluation
 // succeeded and/or to detect when it's finished.
 template <typename Iterator, typename Callable>
-DelayedValue<ForEachControl> ForEach(Iterator begin, Iterator end,
-                                     Callable callable) {
-  Future<ForEachControl> output;
+DelayedValue<IterationControlCommand> ForEach(Iterator begin, Iterator end,
+                                              Callable callable) {
+  Future<IterationControlCommand> output;
   auto resume = [receiver = output.Receiver(), end, callable](
                     Iterator begin, auto resume) mutable {
     if (begin == end) {
-      receiver.Set(ForEachControl::kSuccess);
+      receiver.Set(IterationControlCommand::kContinue);
       return;
     }
-    callable(*begin).AddListener([receiver, begin, end, callable,
-                                  resume](ForEachControl result) mutable {
-      if (result == ForEachControl::kStop) {
+    callable(*begin).AddListener([receiver, begin, end, callable, resume](
+                                     IterationControlCommand result) mutable {
+      if (result == IterationControlCommand::kStop) {
         receiver.Set(result);
       } else {
         resume(++begin, resume);
@@ -138,15 +139,14 @@ DelayedValue<ForEachControl> ForEach(Iterator begin, Iterator end,
   return output.Value();
 }
 
-namespace futures {
 template <typename Callable>
-DelayedValue<ForEachControl> While(Callable callable) {
-  Future<ForEachControl> output;
+DelayedValue<IterationControlCommand> While(Callable callable) {
+  Future<IterationControlCommand> output;
   auto resume = [receiver = output.Receiver(),
                  callable](auto resume) mutable -> void {
     callable().AddListener(
-        [receiver, callable, resume](ForEachControl result) mutable {
-          if (result == ForEachControl::kStop) {
+        [receiver, callable, resume](IterationControlCommand result) mutable {
+          if (result == IterationControlCommand::kStop) {
             receiver.Set(result);
           } else {
             resume(resume);

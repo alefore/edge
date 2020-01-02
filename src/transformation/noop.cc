@@ -19,7 +19,9 @@ class Noop : public CompositeTransformation {
   }
 
   std::wstring Serialize() const override { return L"NoopTransformation();"; }
-  DelayedValue<Output> Apply(Input) const override { return Delay(Output()); }
+  DelayedValue<Output> Apply(Input) const override {
+    return futures::ImmediateValue(Output());
+  }
   std::unique_ptr<CompositeTransformation> Clone() const override {
     return std::make_unique<Noop>();
   }

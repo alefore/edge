@@ -24,7 +24,7 @@ class FindTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"FindTransformation();"; }
   DelayedValue<Output> Apply(Input input) const override {
     auto line = input.buffer->LineAt(input.position.line);
-    if (line == nullptr) return Delay(Output());
+    if (line == nullptr) return futures::ImmediateValue(Output());
     ColumnNumber column = min(input.position.column, line->EndColumn());
     for (size_t i = 0; i < input.modifiers.repetitions; i++) {
       auto candidate = SeekOnce(*line, column, input.modifiers);
@@ -32,9 +32,9 @@ class FindTransformation : public CompositeTransformation {
       column = candidate.value();
     }
     if (column == input.position.column) {
-      return Delay(Output());
+      return futures::ImmediateValue(Output());
     }
-    return Delay(Output::SetColumn(column));
+    return futures::ImmediateValue(Output::SetColumn(column));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

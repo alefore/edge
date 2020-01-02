@@ -133,7 +133,7 @@ class DeleteTransformation : public Transformation {
     CHECK_LE(range.begin, range.end);
     if (range.IsEmpty()) {
       VLOG(5) << "No repetitions.";
-      return Delay(std::move(*output));
+      return futures::ImmediateValue(std::move(*output));
     }
 
     if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
@@ -159,7 +159,7 @@ class DeleteTransformation : public Transformation {
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
         input.mode == Transformation::Input::Mode::kFinal) {
       LOG(INFO) << "Not actually deleting region.";
-      return Delay(std::move(*output));
+      return futures::ImmediateValue(std::move(*output));
     }
 
     input.buffer->DeleteRange(range);
@@ -183,7 +183,7 @@ class DeleteTransformation : public Transformation {
               NewSetPositionTransformation(range.begin));
 
           if (input.mode != Transformation::Input::Mode::kPreview) {
-            return Delay(std::move(*output));
+            return futures::ImmediateValue(std::move(*output));
           }
           LOG(INFO) << "Inserting preview at: " << range.begin;
           insert_options.modifiers_set = {
@@ -197,7 +197,7 @@ class DeleteTransformation : public Transformation {
                   ->Apply(input),
               [output](const Result& result) {
                 output->MergeFrom(result);
-                return Delay(std::move(*output));
+                return futures::ImmediateValue(std::move(*output));
               });
         });
   }

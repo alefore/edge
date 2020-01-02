@@ -13,7 +13,7 @@ class TreeNavigate : public CompositeTransformation {
   std::wstring Serialize() const override { return L"TreeNavigate()"; }
   DelayedValue<Output> Apply(Input input) const override {
     auto root = input.buffer->parse_tree();
-    if (root == nullptr) return Delay(Output());
+    if (root == nullptr) return futures::ImmediateValue(Output());
     const ParseTree* tree = root.get();
     auto next_position = input.position;
     Seek(*input.buffer->contents(), &next_position).Once();
@@ -42,7 +42,7 @@ class TreeNavigate : public CompositeTransformation {
 
     auto last_position = tree->range().end;
     Seek(*input.buffer->contents(), &last_position).Backwards().Once();
-    return Delay(Output::SetPosition(
+    return futures::ImmediateValue(Output::SetPosition(
         input.position == last_position ? tree->range().begin : last_position));
   }
 

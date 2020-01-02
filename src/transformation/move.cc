@@ -20,13 +20,13 @@ class MoveCursorTransformation : public Transformation {
     auto active_cursors = input.buffer->active_cursors();
     if (input.position != *active_cursors->active()) {
       LOG(INFO) << "Skipping cursor.";
-      return Delay(Result(input.position));
+      return futures::ImmediateValue(Result(input.position));
     }
 
     Result output(input.buffer->FindNextCursor(input.position));
     if (output.position == input.position) {
       LOG(INFO) << "Cursor didn't move.";
-      return Delay(std::move(output));
+      return futures::ImmediateValue(std::move(output));
     }
 
     VLOG(5) << "Moving cursor from " << input.position << " to "
@@ -36,7 +36,7 @@ class MoveCursorTransformation : public Transformation {
     CHECK(next_it != active_cursors->end());
     active_cursors->erase(next_it);
     active_cursors->insert(input.position);
-    return Delay(std::move(output));
+    return futures::ImmediateValue(std::move(output));
   }
 
   std::unique_ptr<Transformation> Clone() const override {
@@ -70,14 +70,15 @@ class MoveTransformation : public CompositeTransformation {
       position =
           MoveMark(input.buffer, input.original_position, input.modifiers);
     } else if (structure == StructureCursor()) {
-      return Delay(Output(std::make_unique<MoveCursorTransformation>()));
+      return futures::ImmediateValue(
+          Output(std::make_unique<MoveCursorTransformation>()));
     } else {
       input.buffer->status()->SetWarningText(L"Unhandled structure: " +
                                              structure->ToString());
-      return Delay(Output());
+      return futures::ImmediateValue(Output());
     }
     if (!position.has_value()) {
-      return Delay(Output());
+      return futures::ImmediateValue(Output());
     }
     if (input.modifiers.repetitions > 1) {
       input.editor->PushPosition(position.value());
@@ -85,7 +86,7 @@ class MoveTransformation : public CompositeTransformation {
 
     LOG(INFO) << "Move from " << input.original_position << " to "
               << position.value() << " " << input.modifiers;
-    return Delay(Output::SetPosition(position.value()));
+    return futures::ImmediateValue(Output::SetPosition(position.value()));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

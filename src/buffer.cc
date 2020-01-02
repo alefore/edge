@@ -1845,7 +1845,7 @@ DelayedValue<bool> OpenBuffer::ApplyToCursors(
           return DelayedValue<LineColumn>::Transform(
               Apply(transformation->Clone(), position, mode),
               [](const Transformation::Result& result) {
-                return Delay(result.position);
+                return futures::ImmediateValue(result.position);
               });
         });
   } else {
@@ -1854,7 +1854,7 @@ DelayedValue<bool> OpenBuffer::ApplyToCursors(
         Apply(transformation->Clone(), position(), mode),
         [this](const Transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
-          return Delay(true);
+          return futures::ImmediateValue(true);
         });
   }
 }
@@ -1929,11 +1929,11 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
   }
   futures::While([this, undo_mode, data] {
     if (data->repetitions == editor()->repetitions() || data->source->empty()) {
-      return Delay(ForEachControl::kStop);
+      return futures::ImmediateValue(futures::IterationControlCommand::kStop);
     }
     Transformation::Input input(this);
     input.position = position();
-    return DelayedValue<ForEachControl>::Transform(
+    return DelayedValue<futures::IterationControlCommand>::Transform(
         data->source->back()->Apply(input),
         [this, undo_mode, data](const Transformation::Result& result) {
           data->target->push_back(result.undo_stack->CloneStack());
@@ -1942,7 +1942,8 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
               undo_mode == OpenBuffer::UndoMode::kOnlyOne) {
             data->repetitions++;
           }
-          return Delay(ForEachControl::kSuccess);
+          return futures::ImmediateValue(
+              futures::IterationControlCommand::kContinue);
         });
   });
 }

@@ -67,7 +67,7 @@ class GotoCharTransformation : public CompositeTransformation {
     const wstring& line_prefix_characters =
         input.buffer->Read(buffer_variables::line_prefix_characters);
     const auto& line = input.buffer->LineAt(input.position.line);
-    if (line == nullptr) return Delay(Output());
+    if (line == nullptr) return futures::ImmediateValue(Output());
     ColumnNumber start =
         FindFirstColumnWithPredicate(*line->contents(), [&](ColumnNumber,
                                                             wchar_t c) {
@@ -84,7 +84,7 @@ class GotoCharTransformation : public CompositeTransformation {
         start.column, end.column, line->EndColumn().column, editor->direction(),
         editor->repetitions(), editor->structure_range(), calls_));
     CHECK_LE(column, line->EndColumn());
-    return Delay(Output::SetColumn(column));
+    return futures::ImmediateValue(Output::SetColumn(column));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

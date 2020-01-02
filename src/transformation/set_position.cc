@@ -47,7 +47,7 @@ class SetPositionTransformation : public Transformation {
                           : std::nullopt,
         input.position.column));
     result.made_progress = result.position != input.position;
-    return Delay(std::move(result));
+    return futures::ImmediateValue(std::move(result));
   }
 
   std::unique_ptr<Transformation> Clone() const override {

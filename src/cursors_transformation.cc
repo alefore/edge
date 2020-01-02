@@ -28,7 +28,7 @@ class SetCursorsTransformation : public Transformation {
       }
     }
     input.buffer->set_active_cursors(positions);
-    return Delay(Result(input.position));
+    return futures::ImmediateValue(Result(input.position));
   }
 
   unique_ptr<Transformation> Clone() const override {

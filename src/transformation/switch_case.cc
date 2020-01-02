@@ -61,7 +61,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
     if (input.mode == Transformation::Input::Mode::kPreview) {
       output.Push(NewSetPositionTransformation(input.position));
     }
-    return Delay(std::move(output));
+    return futures::ImmediateValue(std::move(output));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

@@ -23,14 +23,14 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     const wstring& superfluous_characters = input.buffer->Read(
         buffer_variables::line_suffix_superfluous_characters);
     const auto line = input.buffer->LineAt(input.position.line);
-    if (line == nullptr) return Delay(Output());
+    if (line == nullptr) return futures::ImmediateValue(Output());
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&
            superfluous_characters.find(
                line->get(column - ColumnNumberDelta(1))) != string::npos) {
       --column;
     }
-    if (column == line->EndColumn()) return Delay(Output());
+    if (column == line->EndColumn()) return futures::ImmediateValue(Output());
     CHECK_LT(column, line->EndColumn());
     Output output = Output::SetColumn(column);
 
@@ -39,7 +39,7 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
         (line->EndColumn() - column).column_delta;
     delete_options.copy_to_paste_buffer = false;
     output.Push(NewDeleteTransformation(delete_options));
-    return Delay(std::move(output));
+    return futures::ImmediateValue(std::move(output));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {
@@ -64,23 +64,25 @@ class ApplyRepetitionsTransformation : public Transformation {
     return DelayedValue<Transformation::Result>::Transform(
         futures::While([this, data, input]() mutable {
           if (data->index == repetitions_) {
-            return Delay(ForEachControl::kStop);
+            return futures::ImmediateValue(
+                futures::IterationControlCommand::kStop);
           }
           data->index++;
           Input current_input(input.buffer);
           current_input.mode = input.mode;
           current_input.position = data->output->position;
-          return DelayedValue<ForEachControl>::Transform(
+          return DelayedValue<futures::IterationControlCommand>::Transform(
               delegate_->Apply(current_input), [data](const Result& result) {
                 bool made_progress = result.made_progress;
                 data->output->MergeFrom(result);
-                return Delay(made_progress && data->output->success
-                                 ? ForEachControl::kSuccess
-                                 : ForEachControl::kStop);
+                return futures::ImmediateValue(
+                    made_progress && data->output->success
+                        ? futures::IterationControlCommand::kContinue
+                        : futures::IterationControlCommand::kStop);
               });
         }),
-        [data](const ForEachControl&) {
-          return Delay(std::move(*data->output));
+        [data](const futures::IterationControlCommand&) {
+          return futures::ImmediateValue(std::move(*data->output));
         });
   }
 
