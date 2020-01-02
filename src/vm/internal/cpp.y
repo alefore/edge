@@ -78,27 +78,16 @@ statement(OUT) ::= function_declaration_params(FUNC)
   if (FUNC == nullptr || BODY == nullptr) {
     OUT = nullptr;
   } else {
-    std::unique_ptr<Expression> body(BODY);
-    BODY = nullptr;
-
-    auto function_environment =
-        std::make_shared<Environment>(compilation->environment);
-    compilation->environment = compilation->environment->parent_environment();
-
-    std::vector<VMType> argument_types(FUNC->type.type_arguments.cbegin() + 1,
-                                       FUNC->type.type_arguments.cend());
-
     std::wstring error;
-    auto value = NewFunctionValue(
-        FUNC->name, *FUNC->type.type_arguments.cbegin(), argument_types,
-        FUNC->argument_names, std::move(body), std::move(function_environment),
-        &error);
-
+    auto value = FUNC->Build(compilation, std::unique_ptr<Expression>(BODY),
+                             &error);
+    BODY = nullptr;
     if (value == nullptr) {
       compilation->errors.push_back(error);
       OUT = nullptr;
     } else {
-      compilation->environment->Define(FUNC->name, std::move(value));
+      CHECK(FUNC->name.has_value());
+      compilation->environment->Define(FUNC->name.value(), std::move(value));
       OUT = NewVoidExpression().release();
     }
   }
@@ -247,6 +236,19 @@ non_empty_function_declaration_arguments(OUT) ::=
   delete NAME;
 }
 
+%type lambda_declaration_params { UserFunction* }
+%destructor lambda_declaration_params { delete $$; }
+
+// Lambda expression
+lambda_declaration_params(OUT) ::= LBRACE RBRACE
+    LPAREN function_declaration_arguments(ARGS) RPAREN
+    MINUS GREATER_THAN SYMBOL(RETURN_TYPE) . {
+  CHECK_EQ(RETURN_TYPE->type, VMType::VM_SYMBOL);
+  OUT = UserFunction::New(compilation, RETURN_TYPE->str, std::nullopt, ARGS)
+            .release();
+  delete RETURN_TYPE;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Expressions
 ////////////////////////////////////////////////////////////////////////////////
@@ -269,6 +271,27 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
   A = B;
   B = nullptr;
 }
+
+expr(OUT) ::= lambda_declaration_params(FUNC)
+    LBRACKET statement_list(BODY) RBRACKET . {
+  if (FUNC == nullptr || BODY == nullptr) {
+    OUT = nullptr;
+  } else {
+    std::wstring error;
+    auto value = FUNC->Build(compilation, std::unique_ptr<Expression>(BODY),
+                             &error);
+    BODY = nullptr;
+
+    if (value == nullptr) {
+      compilation->errors.push_back(error);
+      OUT = nullptr;
+    } else {
+      OUT = NewConstantExpression(std::move(value)).release();
+    }
+  }
+}
+
+
 
 expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
   OUT = NewAssignExpression(compilation, NAME->str,

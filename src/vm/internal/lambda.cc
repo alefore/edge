@@ -7,6 +7,7 @@
 #include "../public/value.h"
 
 namespace afc::vm {
+// TODO: Nothing seems to be using `name`. Remove it?
 std::unique_ptr<Value> NewFunctionValue(
     std::wstring name, VMType expected_return_type,
     std::vector<VMType> argument_types,

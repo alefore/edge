@@ -73,7 +73,23 @@ struct UserFunction {
     return output;
   }
 
-  wstring name;
+  std::unique_ptr<Value> Build(Compilation* compilation,
+                               std::unique_ptr<Expression> body,
+                               std::wstring* error) {
+    auto function_environment =
+        std::make_shared<Environment>(compilation->environment);
+    compilation->environment = compilation->environment->parent_environment();
+
+    std::vector<VMType> argument_types(type.type_arguments.cbegin() + 1,
+                                       type.type_arguments.cend());
+
+    return NewFunctionValue(name.value_or(L"(anonymous)"),
+                            *type.type_arguments.cbegin(), argument_types,
+                            argument_names, std::move(body),
+                            std::move(function_environment), error);
+  }
+
+  std::optional<std::wstring> name;
   VMType type;
   vector<wstring> argument_names;
 };
@@ -216,6 +232,16 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
         }
         compilation->AddError(L"Unhandled character: &");
         return;
+
+      case '[':
+        pos++;
+        token = LBRACE;
+        break;
+
+      case ']':
+        pos++;
+        token = RBRACE;
+        break;
 
       case '|':
         pos++;
