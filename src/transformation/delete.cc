@@ -118,21 +118,22 @@ class DeleteTransformation : public Transformation {
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
-  Result Apply(const Input& original_input) const {
+  DelayedValue<Result> Apply(const Input& original_input) const {
     Input input = original_input;
     CHECK(input.buffer != nullptr);
     input.mode = options_.mode.value_or(input.mode);
 
-    Result output(input.buffer->AdjustLineColumn(input.position));
+    auto output = std::make_shared<Result>(
+        input.buffer->AdjustLineColumn(input.position));
     Range range =
-        input.buffer->FindPartialRange(options_.modifiers, output.position);
-    range.begin = min(range.begin, output.position);
-    range.end = max(range.end, output.position);
+        input.buffer->FindPartialRange(options_.modifiers, output->position);
+    range.begin = min(range.begin, output->position);
+    range.end = max(range.end, output->position);
 
     CHECK_LE(range.begin, range.end);
     if (range.IsEmpty()) {
       VLOG(5) << "No repetitions.";
-      return output;
+      return Delay(std::move(*output));
     }
 
     if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
@@ -145,46 +146,60 @@ class DeleteTransformation : public Transformation {
       }
     }
 
-    output.success = true;
-    output.made_progress = true;
+    output->success = true;
+    output->made_progress = true;
 
     auto delete_buffer = GetDeletedTextBuffer(*input.buffer, range);
     if (options_.copy_to_paste_buffer &&
         input.mode == Transformation::Input::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
-      output.delete_buffer = delete_buffer;
+      output->delete_buffer = delete_buffer;
     }
 
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
         input.mode == Transformation::Input::Mode::kFinal) {
       LOG(INFO) << "Not actually deleting region.";
-      return output;
+      return Delay(std::move(*output));
     }
 
     input.buffer->DeleteRange(range);
-    output.modified_buffer = true;
+    output->modified_buffer = true;
 
-    output.MergeFrom(NewSetPositionTransformation(range.begin)->Apply(input));
+    return DelayedValue<Result>::Transform(
+        NewSetPositionTransformation(range.begin)->Apply(input),
+        [this, range, output, input,
+         delete_buffer](const Result& result) mutable {
+          output->MergeFrom(result);
 
-    InsertOptions insert_options;
-    insert_options.buffer_to_insert = std::move(delete_buffer);
-    insert_options.final_position = options_.modifiers.direction == FORWARDS
-                                        ? InsertOptions::FinalPosition::kStart
-                                        : InsertOptions::FinalPosition::kEnd;
-    output.undo_stack->PushFront(NewInsertBufferTransformation(insert_options));
-    output.undo_stack->PushFront(NewSetPositionTransformation(range.begin));
+          InsertOptions insert_options;
+          insert_options.buffer_to_insert = std::move(delete_buffer);
+          insert_options.final_position =
+              options_.modifiers.direction == FORWARDS
+                  ? InsertOptions::FinalPosition::kStart
+                  : InsertOptions::FinalPosition::kEnd;
+          output->undo_stack->PushFront(
+              NewInsertBufferTransformation(insert_options));
+          output->undo_stack->PushFront(
+              NewSetPositionTransformation(range.begin));
 
-    if (input.mode != Transformation::Input::Mode::kPreview) return output;
-    LOG(INFO) << "Inserting preview at: " << range.begin;
-    insert_options.modifiers_set = {
-        LineModifier::UNDERLINE,
-        options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS
-            ? LineModifier::GREEN
-            : LineModifier::RED};
-    input.position = range.begin;
-    output.MergeFrom(
-        NewInsertBufferTransformation(std::move(insert_options))->Apply(input));
-    return output;
+          if (input.mode != Transformation::Input::Mode::kPreview) {
+            return Delay(std::move(*output));
+          }
+          LOG(INFO) << "Inserting preview at: " << range.begin;
+          insert_options.modifiers_set = {
+              LineModifier::UNDERLINE,
+              options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS
+                  ? LineModifier::GREEN
+                  : LineModifier::RED};
+          input.position = range.begin;
+          return DelayedValue<Result>::Transform(
+              NewInsertBufferTransformation(std::move(insert_options))
+                  ->Apply(input),
+              [output](const Result& result) {
+                output->MergeFrom(result);
+                return Delay(std::move(*output));
+              });
+        });
   }
 
   unique_ptr<Transformation> Clone() const override {

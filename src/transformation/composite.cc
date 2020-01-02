@@ -12,7 +12,7 @@ CompositeTransformationAdapter::CompositeTransformationAdapter(
     : modifiers_(std::move(modifiers)),
       composite_transformation_(std::move(composite_transformation)) {}
 
-Transformation::Result CompositeTransformationAdapter::Apply(
+DelayedValue<Transformation::Result> CompositeTransformationAdapter::Apply(
     const Input& transformation_input) const {
   CompositeTransformation::Input input;
   input.buffer = transformation_input.buffer;

@@ -3,34 +3,50 @@
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
+TransformationStack::TransformationStack()
+    : stack_(std::make_shared<std::list<std::unique_ptr<Transformation>>>()) {}
+
 void TransformationStack::PushBack(
     std::unique_ptr<Transformation> transformation) {
-  stack_.push_back(std::move(transformation));
+  stack_->push_back(std::move(transformation));
 }
 
 void TransformationStack::PushFront(
     std::unique_ptr<Transformation> transformation) {
-  stack_.push_front(std::move(transformation));
+  stack_->push_front(std::move(transformation));
 }
 
-Transformation::Result TransformationStack::Apply(const Input& input) const {
-  Result output(input.position);
-  for (auto& it : stack_) {
-    Input sub_input(input.buffer);
-    sub_input.position = output.position;
-    sub_input.mode = input.mode;
-    output.MergeFrom(it->Apply(sub_input));
-    if (!output.success) break;
-  }
-  return output;
+DelayedValue<Transformation::Result> TransformationStack::Apply(
+    const Input& input) const {
+  auto output = std::make_shared<Result>(input.position);
+  return DelayedValue<Transformation::Result>::Transform(
+      ForEach(stack_->begin(), stack_->end(),
+              [output, input, stack = stack_](
+                  const std::unique_ptr<Transformation>& transformation) {
+                Input sub_input(input.buffer);
+                sub_input.position = output->position;
+                sub_input.mode = input.mode;
+                return DelayedValue<ForEachControl>::Transform(
+                    transformation->Apply(sub_input),
+                    [output](const Transformation::Result& result) {
+                      output->MergeFrom(result);
+                      return Delay(output->success ? ForEachControl::kSuccess
+                                                   : ForEachControl::kStop);
+                    });
+              }),
+      [output](ForEachControl) { return Delay(std::move(*output)); });
 }
 
 std::unique_ptr<Transformation> TransformationStack::Clone() const {
+  return CloneStack();
+}
+
+std::unique_ptr<TransformationStack> TransformationStack::CloneStack() const {
   auto output = std::make_unique<TransformationStack>();
-  for (auto& it : stack_) {
+  for (auto& it : *stack_) {
     output->PushBack(it->Clone());
   }
-  return std::move(output);
+  return output;
 }
 
 std::unique_ptr<Transformation> ComposeTransformation(

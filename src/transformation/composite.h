@@ -17,7 +17,7 @@ class CompositeTransformationAdapter : public Transformation {
       Modifiers modifiers,
       std::unique_ptr<CompositeTransformation> composite_transformation);
 
-  Result Apply(const Input& transformation_input) const override;
+  DelayedValue<Result> Apply(const Input& transformation_input) const override;
 
   std::unique_ptr<Transformation> Clone() const override;
 

@@ -16,17 +16,17 @@
 namespace afc::editor {
 namespace {
 class MoveCursorTransformation : public Transformation {
-  Result Apply(const Input& input) const override {
+  DelayedValue<Result> Apply(const Input& input) const override {
     auto active_cursors = input.buffer->active_cursors();
     if (input.position != *active_cursors->active()) {
       LOG(INFO) << "Skipping cursor.";
-      return Result(input.position);
+      return Delay(Result(input.position));
     }
 
     Result output(input.buffer->FindNextCursor(input.position));
     if (output.position == input.position) {
       LOG(INFO) << "Cursor didn't move.";
-      return output;
+      return Delay(std::move(output));
     }
 
     VLOG(5) << "Moving cursor from " << input.position << " to "
@@ -36,7 +36,7 @@ class MoveCursorTransformation : public Transformation {
     CHECK(next_it != active_cursors->end());
     active_cursors->erase(next_it);
     active_cursors->insert(input.position);
-    return output;
+    return Delay(std::move(output));
   }
 
   std::unique_ptr<Transformation> Clone() const override {

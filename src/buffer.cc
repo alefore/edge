@@ -1845,7 +1845,7 @@ DelayedValue<bool> OpenBuffer::ApplyToCursors(
           return DelayedValue<LineColumn>::Transform(
               Apply(transformation->Clone(), position, mode),
               [](const Transformation::Result& result) {
-                return result.position;
+                return Delay(result.position);
               });
         });
   } else {
@@ -1854,7 +1854,7 @@ DelayedValue<bool> OpenBuffer::ApplyToCursors(
         Apply(transformation->Clone(), position(), mode),
         [this](const Transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
-          return true;
+          return Delay(true);
         });
   }
 }
@@ -1867,23 +1867,26 @@ DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
   Transformation::Input input(this);
   input.mode = mode;
   input.position = position;
-  Transformation::Result result = transformation->Apply(input);
+  auto output = transformation->Apply(input);
+  output.AddListener([this, transformation_raw = transformation.release()](
+                         const Transformation::Result& result) {
+    std::unique_ptr<Transformation> transformation(transformation_raw);
+    if (result.delete_buffer != nullptr &&
+        Read(buffer_variables::delete_into_paste_buffer)) {
+      (*editor()
+            ->buffers())[result.delete_buffer->Read(buffer_variables::name)] =
+          result.delete_buffer;
+    }
 
-  if (result.delete_buffer != nullptr &&
-      Read(buffer_variables::delete_into_paste_buffer)) {
-    (*editor()->buffers())[result.delete_buffer->Read(buffer_variables::name)] =
-        result.delete_buffer;
-  }
+    if (result.modified_buffer) {
+      editor()->StartHandlingInterrupts();
+      last_transformation_ = std::move(transformation);
+    }
 
-  if (result.modified_buffer) {
-    editor()->StartHandlingInterrupts();
-    last_transformation_ = std::move(transformation);
-  }
-
-  CHECK(!undo_past_.empty());
-  undo_past_.back()->PushFront(std::move(result.undo_stack));
-
-  return DelayedValue<Transformation::Result>(std::move(result));
+    CHECK(!undo_past_.empty());
+    undo_past_.back()->PushFront(result.undo_stack->Clone());
+  });
+  return output;
 }
 
 DelayedValue<bool> OpenBuffer::RepeatLastTransformation() {
@@ -1911,30 +1914,37 @@ void OpenBuffer::PopTransformationStack() {
 }
 
 void OpenBuffer::Undo(UndoMode undo_mode) {
-  std::list<std::unique_ptr<TransformationStack>>* source;
-  std::list<std::unique_ptr<TransformationStack>>* target;
+  struct Data {
+    std::list<std::unique_ptr<TransformationStack>>* source;
+    std::list<std::unique_ptr<TransformationStack>>* target;
+    size_t repetitions = 0;
+  };
+  auto data = std::make_shared<Data>();
   if (editor()->direction() == FORWARDS) {
-    source = &undo_past_;
-    target = &undo_future_;
+    data->source = &undo_past_;
+    data->target = &undo_future_;
   } else {
-    source = &undo_future_;
-    target = &undo_past_;
+    data->source = &undo_future_;
+    data->target = &undo_past_;
   }
-  for (size_t i = 0; i < editor()->repetitions(); i++) {
-    bool done = false;
-    while (!done && !source->empty()) {
-      Transformation::Input input(this);
-      input.position = position();
-      auto result = source->back()->Apply(input);
-      target->emplace_back(std::move(result.undo_stack));
-      source->pop_back();
-      done =
-          result.modified_buffer || undo_mode == OpenBuffer::UndoMode::kOnlyOne;
+  futures::While([this, undo_mode, data] {
+    if (data->repetitions == editor()->repetitions() || data->source->empty()) {
+      return Delay(ForEachControl::kStop);
     }
-    if (source->empty()) {
-      return;
-    }
-  }
+    Transformation::Input input(this);
+    input.position = position();
+    return DelayedValue<ForEachControl>::Transform(
+        data->source->back()->Apply(input),
+        [this, undo_mode, data](const Transformation::Result& result) {
+          data->target->push_back(result.undo_stack->CloneStack());
+          data->source->pop_back();
+          if (result.modified_buffer ||
+              undo_mode == OpenBuffer::UndoMode::kOnlyOne) {
+            data->repetitions++;
+          }
+          return Delay(ForEachControl::kSuccess);
+        });
+  });
 }
 
 void OpenBuffer::set_filter(unique_ptr<Value> filter) {

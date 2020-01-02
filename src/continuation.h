@@ -4,19 +4,6 @@
 #define __AFC_EDITOR_CONTINUATION_H__
 
 namespace afc::editor {
-// Evaluate `callable` for each element in the range [begin, end). `callable`
-// must receive two elements: the dereferenced iterator, and the callback that
-// it should use to resume the evaluation.
-template <typename Iterator, typename Callable, typename Done>
-void ForEach(Iterator begin, Iterator end, Callable callable, Done done) {
-  if (begin == end) {
-    done();
-  } else {
-    callable(*begin(), [begin, end, callable, done]() {
-      ForEach(++begin, end, callable, done);
-    });
-  }
-}
 
 template <typename Type>
 class ValueReceiver;
@@ -29,19 +16,20 @@ class DelayedValue {
  public:
   using Listener = std::function<void(const Type&)>;
 
+  // Callable must return a DelayedValue<Type> given an OtherType value.
   template <typename OtherType, typename Callable>
   static DelayedValue<Type> Transform(DelayedValue<OtherType> delayed_value,
                                       Callable callable) {
     Future<Type> output;
-    delayed_value.AddListener(
-        [receiver = output.Receiver(),
-         callable = std::move(callable)](const OtherType& other_type) mutable {
-          receiver.Set(callable(other_type));
-        });
+    delayed_value.AddListener([receiver = output.Receiver(),
+                               callable = std::move(callable)](
+                                  const OtherType& other_value) mutable {
+      callable(other_value).AddListener([receiver](const Type& value) mutable {
+        receiver.Set(value);
+      });
+    });
     return output.Value();
   }
-
-  DelayedValue<Type>(Type value) { data_->value.emplace(std::move(value)); }
 
   const std::optional<Type>& Get() const { return data_->value; }
   void AddListener(Listener listener) {
@@ -65,6 +53,13 @@ class DelayedValue {
 
   std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
 };
+
+template <typename Type>
+DelayedValue<Type> Delay(Type value) {
+  Future<Type> output;
+  output.Receiver().Set(std::move(value));
+  return output.Value();
+}
 
 enum class ValueReceiverSetResult { kAccepted, kRejected };
 
@@ -111,6 +106,57 @@ class Future {
 
   std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
 };
+
+enum class ForEachControl { kSuccess, kStop };
+
+// Evaluate `callable` for each element in the range [begin, end). `callable`
+// receives a reference to each element and must return a
+// DelayedValue<ForEachControl>.
+//
+// The returned value can be used to check whether the entire evaluation
+// succeeded and/or to detect when it's finished.
+template <typename Iterator, typename Callable>
+DelayedValue<ForEachControl> ForEach(Iterator begin, Iterator end,
+                                     Callable callable) {
+  Future<ForEachControl> output;
+  auto resume = [receiver = output.Receiver(), end, callable](
+                    Iterator begin, auto resume) mutable {
+    if (begin == end) {
+      receiver.Set(ForEachControl::kSuccess);
+      return;
+    }
+    callable(*begin).AddListener([receiver, begin, end, callable,
+                                  resume](ForEachControl result) mutable {
+      if (result == ForEachControl::kStop) {
+        receiver.Set(result);
+      } else {
+        resume(++begin, resume);
+      }
+    });
+  };
+  resume(begin, resume);
+  return output.Value();
+}
+
+namespace futures {
+template <typename Callable>
+DelayedValue<ForEachControl> While(Callable callable) {
+  Future<ForEachControl> output;
+  auto resume = [receiver = output.Receiver(),
+                 callable](auto resume) mutable -> void {
+    callable().AddListener(
+        [receiver, callable, resume](ForEachControl result) mutable {
+          if (result == ForEachControl::kStop) {
+            receiver.Set(result);
+          } else {
+            resume(resume);
+          }
+        });
+  };
+  resume(resume);
+  return output.Value();
+}
+}  // namespace futures
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_CONTINUATION_H__
