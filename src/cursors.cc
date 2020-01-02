@@ -404,7 +404,9 @@ futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
 
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size()
             << ", active is: " << *cursors->active();
-  auto apply_next = [this, data](auto& apply_next) {
+  auto apply_next = [this, data](auto apply_next) {
+    CHECK(data != nullptr);
+    CHECK(data->callback != nullptr);
     if (data->cursors->empty()) {
       data->cursors->swap(&already_applied_cursors_);
       LOG(INFO) << "Current cursor at: " << *data->cursors->active();
