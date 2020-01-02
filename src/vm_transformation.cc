@@ -6,11 +6,14 @@
 #include "src/char_buffer.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
 #include "src/transformation/noop.h"
 #include "src/transformation/set_position.h"
 #include "src/vm/public/callbacks.h"
+#include "src/vm/public/constant_expression.h"
+#include "src/vm/public/function_call.h"
 #include "src/vm/public/types.h"
 
 namespace afc {
@@ -34,18 +37,74 @@ Value::Ptr VMTypeMapper<editor::Transformation*>::New(
                             delete static_cast<editor::Transformation*>(v);
                           }));
 }
-
 }  // namespace vm
 namespace editor {
+namespace {
+class FunctionTransformation : public CompositeTransformation {
+ public:
+  FunctionTransformation(std::unique_ptr<vm::Value> function)
+      : function_(std::move(function)) {
+    CHECK(function_ != nullptr);
+  }
+
+  std::wstring Serialize() const override {
+    return L"FunctionTransformation()";
+  }
+
+  futures::DelayedValue<Output> Apply(Input input) const override {
+    futures::Future<Output> output;
+    std::vector<std::unique_ptr<vm::Value>> args;
+    args.emplace_back(VMTypeMapper<std::shared_ptr<Input>>::New(
+        std::make_shared<Input>(input)));
+    vm::Call(
+        *function_, std::move(args),
+        [receiver = output.Receiver()](std::unique_ptr<Value> value) {
+          receiver.Set(std::move(
+              *VMTypeMapper<std::shared_ptr<Output>>::get(value.get())));
+        },
+        [work_queue =
+             input.buffer->work_queue()](std::function<void()> callback) {
+          work_queue->Schedule(std::move(callback));
+        });
+    return output.Value();
+  }
+
+  std::unique_ptr<CompositeTransformation> Clone() const override {
+    return std::make_unique<FunctionTransformation>(
+        std::make_unique<Value>(*function_));
+  }
+
+ private:
+  const std::unique_ptr<vm::Value> function_;
+};
+}  // namespace
 void RegisterTransformations(EditorState* editor,
                              vm::Environment* environment) {
   environment->DefineType(L"Transformation",
                           std::make_unique<vm::ObjectType>(L"Transformation"));
 
+  environment->Define(
+      L"FunctionTransformation",
+      vm::Value::NewFunction(
+          {VMTypeMapper<editor::Transformation*>::vmtype,
+           VMType::Function(
+               {VMTypeMapper<
+                    std::shared_ptr<CompositeTransformation::Output>>::vmtype,
+                VMTypeMapper<
+                    std::shared_ptr<CompositeTransformation::Input>>::vmtype})},
+          [](vector<unique_ptr<vm::Value>> args) {
+            CHECK_EQ(args.size(), 1);
+            return vm::VMTypeMapper<editor::Transformation*>::New(
+                NewTransformation(Modifiers(),
+                                  std::make_unique<FunctionTransformation>(
+                                      std::move(args[0])))
+                    .release());
+          }));
   RegisterInsertTransformation(editor, environment);
   RegisterDeleteTransformation(environment);
   RegisterNoopTransformation(environment);
   RegisterSetPositionTransformation(environment);
+  RegisterCompositeTransformation(environment);
 }
 }  // namespace editor
 }  // namespace afc

@@ -61,8 +61,9 @@ using std::to_string;
 using std::vector;
 using std::wstring;
 
+template <typename MethodReturnType>
 void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
-                          void (OpenBuffer::*method)(void)) {
+                          MethodReturnType (OpenBuffer::*method)(void)) {
   auto callback = std::make_unique<Value>(VMType::FUNCTION);
   // Returns nothing.
   callback->type.type_arguments = {VMType(VMType::VM_VOID),
@@ -823,11 +824,11 @@ bool EditorState::MovePositionsStack(Direction direction) {
 Status* EditorState::status() { return &status_; }
 const Status* EditorState::status() const { return &status_; }
 
-void EditorState::ApplyToCurrentBuffer(
+futures::DelayedValue<bool> EditorState::ApplyToCurrentBuffer(
     unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(has_current_buffer());
-  current_buffer()->ApplyToCursors(std::move(transformation));
+  return current_buffer()->ApplyToCursors(std::move(transformation));
 }
 
 wstring EditorState::expand_path(const wstring& path) const {

@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "src/direction.h"
+#include "src/futures/futures.h"
 #include "src/line.h"
 #include "src/modifiers.h"
 #include "src/structure.h"
@@ -41,10 +42,11 @@ class Transformation {
 
   struct Result {
     Result(LineColumn position);
+    Result(const Result&);
     Result(Result&&);
     ~Result();
 
-    void MergeFrom(Result result);
+    void MergeFrom(const Result& result);
 
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.
@@ -70,7 +72,7 @@ class Transformation {
   };
 
   virtual ~Transformation() {}
-  virtual Result Apply(const Input& input) const = 0;
+  virtual futures::DelayedValue<Result> Apply(const Input& input) const = 0;
   virtual std::unique_ptr<Transformation> Clone() const = 0;
 };
 

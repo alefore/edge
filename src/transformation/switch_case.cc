@@ -17,8 +17,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
     return L"SwitchCaseTransformation();";
   }
 
-  void Apply(Input input) const override {
-    input.push(NewSetPositionTransformation(input.range.begin));
+  futures::DelayedValue<Output> Apply(Input input) const override {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(input.editor, L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << input.position << ": "
@@ -40,12 +39,14 @@ class SwitchCaseTransformation : public CompositeTransformation {
       }
     }
 
+    Output output = Output::SetPosition(input.range.begin);
+
     DeleteOptions delete_options;
     delete_options.copy_to_paste_buffer = false;
     delete_options.modifiers.repetitions =
         buffer_to_insert->contents()->CountCharacters();
     delete_options.mode = Transformation::Input::Mode::kFinal;
-    input.push(NewDeleteTransformation(std::move(delete_options)));
+    output.Push(NewDeleteTransformation(std::move(delete_options)));
 
     InsertOptions insert_options;
     insert_options.buffer_to_insert = buffer_to_insert;
@@ -56,10 +57,11 @@ class SwitchCaseTransformation : public CompositeTransformation {
       insert_options.modifiers_set = {LineModifier::UNDERLINE,
                                       LineModifier::BLUE};
     }
-    input.push(NewInsertBufferTransformation(std::move(insert_options)));
+    output.Push(NewInsertBufferTransformation(std::move(insert_options)));
     if (input.mode == Transformation::Input::Mode::kPreview) {
-      input.push(NewSetPositionTransformation(input.position));
+      output.Push(NewSetPositionTransformation(input.position));
     }
+    return futures::ImmediateValue(std::move(output));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

@@ -1,5 +1,6 @@
 #include "src/transformation/noop.h"
 
+#include "src/futures/futures.h"
 #include "src/transformation/composite.h"
 #include "src/vm_transformation.h"
 
@@ -19,7 +20,9 @@ class Noop : public CompositeTransformation {
   }
 
   std::wstring Serialize() const override { return L"NoopTransformation();"; }
-  void Apply(Input) const override {}
+  futures::DelayedValue<Output> Apply(Input) const override {
+    return futures::ImmediateValue(Output());
+  }
   std::unique_ptr<CompositeTransformation> Clone() const override {
     return std::make_unique<Noop>();
   }

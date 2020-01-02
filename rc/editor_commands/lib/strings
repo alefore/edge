@@ -106,5 +106,5 @@ void ScrollBackToBeginningOfParagraph(string prefix) {
       line--;
     }
   }
-  buffer.set_position(LineColumn(line, 0));
+  buffer.ApplyTransformation(SetPositionTransformation(LineColumn(line, 0)));
 }

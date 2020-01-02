@@ -19,26 +19,27 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     return L"DeleteSuffixSuperfluousCharacters()";
   }
 
-  void Apply(Input input) const override {
+  futures::DelayedValue<Output> Apply(Input input) const override {
     const wstring& superfluous_characters = input.buffer->Read(
         buffer_variables::line_suffix_superfluous_characters);
     const auto line = input.buffer->LineAt(input.position.line);
-    if (line == nullptr) return;
+    if (line == nullptr) return futures::ImmediateValue(Output());
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&
            superfluous_characters.find(
                line->get(column - ColumnNumberDelta(1))) != string::npos) {
       --column;
     }
-    if (column == line->EndColumn()) return;
+    if (column == line->EndColumn()) return futures::ImmediateValue(Output());
     CHECK_LT(column, line->EndColumn());
-    input.push(NewSetPositionTransformation(std::nullopt, column));
+    Output output = Output::SetColumn(column);
 
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions =
         (line->EndColumn() - column).column_delta;
     delete_options.copy_to_paste_buffer = false;
-    input.push(NewDeleteTransformation(delete_options));
+    output.Push(NewDeleteTransformation(delete_options));
+    return futures::ImmediateValue(std::move(output));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {
@@ -52,26 +53,38 @@ class ApplyRepetitionsTransformation : public Transformation {
                                  unique_ptr<Transformation> delegate)
       : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
-  Result Apply(const Input& input) const override {
+  futures::DelayedValue<Result> Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
-    Result output(input.position);
-    for (size_t i = 0; i < repetitions_; i++) {
-      Input current_input(input.buffer);
-      current_input.mode = input.mode;
-      current_input.position = output.position;
-      auto result = delegate_->Apply(current_input);
-      bool made_progress = result.made_progress;
-      output.MergeFrom(std::move(result));
-      if (!made_progress) {
-        LOG(INFO) << "Application " << i << " didn't make progress, giving up.";
-        break;
-      }
-      if (!output.success) {
-        LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
-        break;
-      }
-    }
-    return output;
+    struct Data {
+      size_t index = 0;
+      std::unique_ptr<Result> output;
+    };
+    auto data = std::make_shared<Data>();
+    data->output = std::make_unique<Result>(input.position);
+    return futures::DelayedValue<Transformation::Result>::Transform(
+        futures::While([this, data, input]() mutable {
+          if (data->index == repetitions_) {
+            return futures::ImmediateValue(
+                futures::IterationControlCommand::kStop);
+          }
+          data->index++;
+          Input current_input(input.buffer);
+          current_input.mode = input.mode;
+          current_input.position = data->output->position;
+          return futures::DelayedValue<futures::IterationControlCommand>::
+              Transform(delegate_->Apply(current_input),
+                        [data](const Result& result) {
+                          bool made_progress = result.made_progress;
+                          data->output->MergeFrom(result);
+                          return futures::ImmediateValue(
+                              made_progress && data->output->success
+                                  ? futures::IterationControlCommand::kContinue
+                                  : futures::IterationControlCommand::kStop);
+                        });
+        }),
+        [data](const futures::IterationControlCommand&) {
+          return futures::ImmediateValue(std::move(*data->output));
+        });
   }
 
   unique_ptr<Transformation> Clone() const override {
@@ -86,21 +99,29 @@ class ApplyRepetitionsTransformation : public Transformation {
 
 Transformation::Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
 
+Transformation::Result::Result(const Result& other)
+    : success(other.success),
+      made_progress(other.made_progress),
+      modified_buffer(other.modified_buffer),
+      undo_stack(other.undo_stack->CloneStack()),
+      delete_buffer(other.delete_buffer),
+      position(other.position) {}
+
 Transformation::Result::Result(LineColumn position)
     : undo_stack(std::make_unique<TransformationStack>()), position(position) {}
 
 Transformation::Result::Result(Result&&) = default;
 Transformation::Result::~Result() = default;
 
-void Transformation::Result::MergeFrom(Result sub_result) {
+void Transformation::Result::MergeFrom(const Result& sub_result) {
   success &= sub_result.success;
   made_progress |= sub_result.made_progress;
   modified_buffer |= sub_result.modified_buffer;
-  undo_stack->PushFront(std::move(sub_result.undo_stack));
+  undo_stack->PushFront(sub_result.undo_stack->Clone());
   if (sub_result.delete_buffer != nullptr) {
-    delete_buffer = std::move(sub_result.delete_buffer);
+    delete_buffer = sub_result.delete_buffer;
   }
-  position = std::move(sub_result.position);
+  position = sub_result.position;
 }
 
 unique_ptr<Transformation> TransformationAtPosition(

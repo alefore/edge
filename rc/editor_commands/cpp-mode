@@ -10,17 +10,13 @@ void build() {
 
   string path = buffer.path().shell_escape();
   ForkCommandOptions options = ForkCommandOptions();
-  options.set_command("if " + cpp_build_command + "; then "
-                      + "edge --run 'Buffer build_buffer = OpenFile(\""
-                      + path + "\", false); "
-                      + "build_buffer.SetStatus(\"🗸 build success\");';"
-                      + " else "
-                      + "STATUS=$?;"
-                      + "edge --run 'Buffer build_buffer = OpenFile(\""
-                      + path + "\", false); "
-                      + "build_buffer.SetStatus(\"💥 build fail\");';"
-                      + "exit $STATUS;"
-                      + "fi");
+  options.set_command(
+      "if " + cpp_build_command + "; then " +
+      "edge --run 'Buffer build_buffer = OpenFile(\"" + path + "\", false); " +
+      "build_buffer.SetStatus(\"🗸 build success\");';" + " else " +
+      "STATUS=$?;" + "edge --run 'Buffer build_buffer = OpenFile(\"" + path +
+      "\", false); " + "build_buffer.SetStatus(\"💥 build fail\");';" +
+      "exit $STATUS;" + "fi");
   options.set_insertion_type("only_list");
   options.set_name("build: " + cpp_build_command);
   Buffer build_buffer = ForkCommand(options);
@@ -28,27 +24,35 @@ void build() {
 }
 
 void StdMove() {
-  buffer.InsertText("std::move()");
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text("std::move()").build());
   LineColumn position = buffer.position();
-  buffer.set_position(LineColumn(position.line(), position.column() - 1));
+  buffer.ApplyTransformation(SetPositionTransformation(
+      LineColumn(position.line(), position.column() - 1)));
 }
 
 void StdUniquePtr() {
-  buffer.InsertText("std::unique_ptr<>");
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text("std::unique_ptr<>").build());
   LineColumn position = buffer.position();
-  buffer.set_position(LineColumn(position.line(), position.column() - 1));
+  buffer.ApplyTransformation(SetPositionTransformation(
+      LineColumn(position.line(), position.column() - 1)));
 }
 
 void StdSharedPtr() {
-  buffer.InsertText("std::shared_ptr<>");
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text("std::shared_ptr<>").build());
   LineColumn position = buffer.position();
-  buffer.set_position(LineColumn(position.line(), position.column() - 1));
+  buffer.ApplyTransformation(SetPositionTransformation(
+      LineColumn(position.line(), position.column() - 1)));
 }
 
 void StdFunction() {
-  buffer.InsertText("std::function<()>");
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text("std::function<()>").build());
   LineColumn position = buffer.position();
-  buffer.set_position(LineColumn(position.line(), position.column() - 3));
+  buffer.ApplyTransformation(SetPositionTransformation(
+      LineColumn(position.line(), position.column() - 3)));
 }
 
 void CppMode() {

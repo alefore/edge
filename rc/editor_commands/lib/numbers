@@ -13,18 +13,19 @@ double min(double a, int b) { return a <= b ? a : b + 0.0; }
 int abs(int a) { return a < 0 ? -a : a; }
 double abs(double a) { return a < 0 ? -a : a; }
 
-string IntegerAtPosition(LineColumn position) {
+string IntegerAsString(LineColumn position) {
   string line = buffer.line(position.line());
   line = line.substr(position.column(), line.size() - position.column());
   string numbers = "-0123456789";
-  for (int i = 0; i < line.size() && numbers.find(line.substr(i, 1), 0) != -1;
-       i++) {
+  int i = 0;
+  while (i < line.size() && numbers.find(line.substr(i, 1), 0) != -1) {
     numbers = "0123456789";  // Disallow "-".
+    i++;
   }
   return line.substr(0, i);
 }
 
-LineColumn AdvanceToInt(LineColumn position) {
+LineColumn FindNextNumber(LineColumn position) {
   while (true) {
     string line = buffer.line(position.line());
     int column = line.find_first_of("-0123456789", position.column());
@@ -38,23 +39,27 @@ LineColumn AdvanceToInt(LineColumn position) {
   }
 }
 
-void AddToIntegerAtPosition(LineColumn position, int delta) {
-  position = AdvanceToInt(position);
+// TODO: Use a lambda rather than communicating state through this global
+// variable.
+int delta_to_add = 0;
 
-  buffer.PushTransformationStack();
+TransformationOutput AddToIntegerTransformationCallback(
+    TransformationInput input) {
+  auto position = FindNextNumber(input.position());
+  string integer_str = IntegerAsString(position);
+  return TransformationOutput()
+      .push(SetPositionTransformation(position))
+      .push(DeleteTransformationBuilder()
+                .set_modifiers(Modifiers().set_repetitions(integer_str.size()))
+                .build())
+      .push(InsertTransformationBuilder()
+                .set_text((integer_str.toint() + delta_to_add).tostring())
+                .build())
+      .push(SetPositionTransformation(position));
+}
 
-  string integer = IntegerAtPosition(position);
-  buffer.ApplyTransformation(SetPositionTransformation(position));
-
-  Modifiers modifiers = Modifiers();
-  modifiers.set_repetitions(integer.size());
+void AddToIntegerTransformation(int delta) {
+  delta_to_add = delta;
   buffer.ApplyTransformation(
-      DeleteTransformationBuilder().set_modifiers(modifiers).build());
-
-  buffer.ApplyTransformation(InsertTransformationBuilder()
-                                 .set_position(position)
-                                 .set_text((integer.toint() + delta).tostring())
-                                 .build());
-
-  buffer.PopTransformationStack();
+      FunctionTransformation(AddToIntegerTransformationCallback));
 }

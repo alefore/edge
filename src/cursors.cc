@@ -389,40 +389,48 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   transformations->emplace_back(transformation, &last);
 }
 
-void CursorsTracker::ApplyTransformationToCursors(
-    CursorsSet* cursors, std::function<LineColumn(LineColumn)> callback) {
-  CHECK(cursors != nullptr);
-  CHECK(cursors != &already_applied_cursors_);
-  CHECK(!cursors->empty());
-  CHECK(cursors->active() != cursors->end());
+futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
+    CursorsSet* cursors,
+    std::function<futures::DelayedValue<LineColumn>(LineColumn)> callback) {
+  struct Data {
+    CursorsSet* cursors;
+    std::function<futures::DelayedValue<LineColumn>(LineColumn)> callback;
+    futures::Future<bool> done;
+    bool adjusted_active_cursor = false;
+  };
+  auto data = std::make_shared<Data>();
+  data->cursors = cursors;
+  data->callback = std::move(callback);
 
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size()
             << ", active is: " << *cursors->active();
-  CHECK(already_applied_cursors_.empty());
-  CHECK(already_applied_cursors_.active() == already_applied_cursors_.end());
-  bool adjusted_active_cursor = false;
-  while (!cursors->empty()) {
-    VLOG(6) << "Adjusting cursor: " << *cursors->begin();
-    auto insert_result =
-        already_applied_cursors_.insert(callback(*cursors->begin()));
-    VLOG(7) << "Cursor moved to: " << *insert_result;
-    if (!adjusted_active_cursor && cursors->begin() == cursors->active()) {
-      VLOG(6) << "Adjusting default cursor (multiple): " << *insert_result;
-      already_applied_cursors_.set_active(insert_result);
-      adjusted_active_cursor = true;
+  auto apply_next = [this, data](auto apply_next) {
+    CHECK(data != nullptr);
+    CHECK(data->callback != nullptr);
+    if (data->cursors->empty()) {
+      data->cursors->swap(&already_applied_cursors_);
+      LOG(INFO) << "Current cursor at: " << *data->cursors->active();
+      data->done.Receiver().Set(true);
+      return;
     }
-    cursors->erase(cursors->begin());
-  }
-
-  CHECK(already_applied_cursors_.active() != already_applied_cursors_.end());
-  CHECK(cursors->active() == cursors->end());
-  VLOG(5) << "Before swap, active: " << *already_applied_cursors_.active();
-  cursors->swap(&already_applied_cursors_);
-  CHECK(already_applied_cursors_.empty());
-  CHECK(already_applied_cursors_.active() == already_applied_cursors_.end());
-  CHECK(cursors->active() != cursors->end());
-
-  LOG(INFO) << "Current cursor at: " << *cursors->active();
+    VLOG(6) << "Adjusting cursor: " << *data->cursors->begin();
+    data->callback(*data->cursors->begin())
+        .AddListener([this, data, apply_next](LineColumn column) {
+          auto insert_result = already_applied_cursors_.insert(column);
+          VLOG(7) << "Cursor moved to: " << *insert_result;
+          if (!data->adjusted_active_cursor &&
+              data->cursors->begin() == data->cursors->active()) {
+            VLOG(6) << "Adjusting default cursor (multiple): "
+                    << *insert_result;
+            already_applied_cursors_.set_active(insert_result);
+            data->adjusted_active_cursor = true;
+          }
+          data->cursors->erase(data->cursors->begin());
+          apply_next(apply_next);
+        });
+  };
+  apply_next(apply_next);
+  return data->done.Value();
 }
 
 size_t CursorsTracker::Push() {

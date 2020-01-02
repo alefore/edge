@@ -63,6 +63,7 @@ src/file_link_mode.cc \
 src/file_descriptor_reader.cc \
 src/file_descriptor_reader.h \
 src/find_mode.cc \
+src/futures/futures.h \
 src/fuzz.h \
 src/fuzz.cc \
 src/fuzz_testable.h \

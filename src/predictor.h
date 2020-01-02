@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "src/futures/futures.h"
 #include "src/status.h"
 #include "src/structure.h"
 
@@ -35,8 +36,6 @@ struct PredictorInput {
   // predictor is done running, the buffer must have an empty line at the end
   // (and not at the beginning).
   OpenBuffer* predictions = nullptr;
-  // Once the predictor is done running, it must run the callback given.
-  std::function<void()> callback;
 
   // If the completion is specific to a given buffer (as opposed to in a global
   // status, with no corresponding buffer), this will be pointing to the buffer.
@@ -45,7 +44,10 @@ struct PredictorInput {
   // affecting the prediction).
   std::shared_ptr<OpenBuffer> source_buffer = nullptr;
 };
-using Predictor = std::function<void(PredictorInput)>;
+
+struct PredictorOutput {};
+using Predictor =
+    std::function<futures::DelayedValue<PredictorOutput>(PredictorInput)>;
 
 const wstring& PredictionsBufferName();
 
@@ -96,9 +98,9 @@ struct PredictOptions {
 // unambiguous completion for input).
 void Predict(PredictOptions predict_options);
 
-void FilePredictor(PredictorInput input);
+futures::DelayedValue<PredictorOutput> FilePredictor(PredictorInput input);
 
-void EmptyPredictor(PredictorInput input);
+futures::DelayedValue<PredictorOutput> EmptyPredictor(PredictorInput input);
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);

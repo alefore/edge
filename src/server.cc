@@ -165,7 +165,7 @@ void Daemonize(const std::unordered_set<int>& surviving_fds) {
   }
 }
 
-void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
+void GenerateContents(OpenBuffer* target) {
   wstring address = target->Read(buffer_variables::path);
   LOG(INFO) << L"Server starts: " << address;
   int fd = open(ToByteString(address).c_str(), O_RDONLY | O_NDELAY);
@@ -205,9 +205,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
   options.editor = editor_state;
   options.name = editor_state->GetUnusedBufferName(L"- server");
   options.path = address;
-  options.generate_contents = [editor_state](OpenBuffer* buffer) {
-    GenerateContents(editor_state, buffer);
-  };
+  options.generate_contents = GenerateContents;
 
   auto buffer = std::make_shared<OpenBuffer>(options);
   buffer->Set(buffer_variables::clear_on_reload, false);

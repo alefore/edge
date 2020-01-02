@@ -3,6 +3,7 @@
 #include "src/char_buffer.h"
 #include "src/server.h"
 #include "src/transformation/delete.h"
+#include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
 #include "src/vm_transformation.h"
 
@@ -40,40 +41,60 @@ class InsertBufferTransformation : public Transformation {
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
-  Result Apply(const Input& input) const override {
+  futures::DelayedValue<Result> Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
-    Result result(input.buffer->AdjustLineColumn(
-        options_.position.value_or(input.position)));
-    LineColumn start_position = result.position;
-    for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
-      result.position = input.buffer->InsertInPosition(
-          *options_.buffer_to_insert, result.position, options_.modifiers_set);
+    if (buffer_to_insert_length_ == 0) {
+      return futures::ImmediateValue(Result(input.position));
     }
+
+    auto result = std::make_shared<Result>(input.buffer->AdjustLineColumn(
+        options_.position.value_or(input.position)));
+
+    result->modified_buffer = true;
+    result->made_progress = true;
+
+    LineColumn start_position = result->position;
+    for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
+      result->position = input.buffer->InsertInPosition(
+          *options_.buffer_to_insert, result->position, options_.modifiers_set);
+    }
+    LineColumn final_position = result->position;
 
     size_t chars_inserted =
         buffer_to_insert_length_ * options_.modifiers.repetitions;
-    result.undo_stack->PushFront(TransformationAtPosition(
+    result->undo_stack->PushFront(NewSetPositionTransformation(input.position));
+    result->undo_stack->PushFront(TransformationAtPosition(
         start_position,
         NewDeleteTransformation(GetCharactersDeleteOptions(chars_inserted))));
 
+    auto delayed_shared_result = futures::ImmediateValue(result);
     if (options_.modifiers.insertion == Modifiers::REPLACE) {
       DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
       delete_options.copy_to_paste_buffer = false;
-      result.MergeFrom(TransformationAtPosition(
-                           result.position,
-                           NewDeleteTransformation(std::move(delete_options)))
-                           ->Apply(input));
+      delayed_shared_result =
+          futures::DelayedValue<std::shared_ptr<Result>>::Transform(
+              TransformationAtPosition(
+                  result->position,
+                  NewDeleteTransformation(std::move(delete_options)))
+                  ->Apply(input),
+              [result](const Result& inner_result) {
+                result->MergeFrom(inner_result);
+                return futures::ImmediateValue(result);
+              });
     }
 
-    if (options_.final_position == InsertOptions::FinalPosition::kStart &&
-        !options_.position.has_value()) {
-      result.position = start_position;
-    }
+    LineColumn position = options_.position.value_or(
+        options_.final_position == InsertOptions::FinalPosition::kStart
+            ? start_position
+            : final_position);
 
-    result.modified_buffer = true;
-    result.made_progress = true;
-    return result;
+    return futures::DelayedValue<Transformation::Result>::Transform(
+        delayed_shared_result,
+        [position](const std::shared_ptr<Transformation::Result>& result) {
+          result->position = position;
+          return futures::ImmediateValue(std::move(*result));
+        });
   }
 
   unique_ptr<Transformation> Clone() const override {

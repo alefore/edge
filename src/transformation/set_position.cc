@@ -40,13 +40,14 @@ class SetPositionTransformation : public Transformation {
     }
   }
 
-  Result Apply(const Input& input) const override {
+  futures::DelayedValue<Result> Apply(const Input& input) const override {
     Result result(LineColumn(line_.value_or(input.position.line), column_));
     result.undo_stack->PushFront(NewSetPositionTransformation(
         line_.has_value() ? std::optional<LineNumber>(input.position.line)
                           : std::nullopt,
         input.position.column));
-    return result;
+    result.made_progress = result.position != input.position;
+    return futures::ImmediateValue(std::move(result));
   }
 
   std::unique_ptr<Transformation> Clone() const override {

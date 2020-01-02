@@ -4,6 +4,7 @@
 
 #include "src/buffer.h"
 #include "src/editor.h"
+#include "src/futures/futures.h"
 #include "src/lazy_string_append.h"
 #include "src/transformation/delete.h"
 
@@ -16,7 +17,7 @@ class SetCursorsTransformation : public Transformation {
   SetCursorsTransformation(CursorsSet cursors, LineColumn active)
       : cursors_(std::move(cursors)), active_(active) {}
 
-  Result Apply(const Input& input) const override {
+  futures::DelayedValue<Result> Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
     vector<LineColumn> positions = {active_};
     bool skipped = false;
@@ -28,7 +29,7 @@ class SetCursorsTransformation : public Transformation {
       }
     }
     input.buffer->set_active_cursors(positions);
-    return Result(input.position);
+    return futures::ImmediateValue(Result(input.position));
   }
 
   unique_ptr<Transformation> Clone() const override {

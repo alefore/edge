@@ -1,20 +1,32 @@
-Buffer b = CurrentBuffer();
-LineColumn position = b.position();
-string line = b.line(position.line());
+LineColumn position = buffer.position();
+string line = buffer.line(position.line());
 SetStatus(line);
 
 if (line == "#include <>") {
-  b.set_position(LineColumn(position.line(), 9));
-  b.DeleteCharacters(2);
-  b.InsertText("\"\"");
-  b.set_position(LineColumn(position.line(), 10));
+  buffer.ApplyTransformation(
+      SetPositionTransformation(LineColumn(position.line(), 9)));
+  buffer.ApplyTransformation(DeleteTransformationBuilder()
+                                 .set_modifiers(Modifiers().set_repetitions(2))
+                                 .build());
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text("\"\"").build());
+  buffer.ApplyTransformation(
+      SetPositionTransformation(LineColumn(position.line(), 10)));
 } else if (line == "#include \"\"") {
-  b.set_position(LineColumn(position.line(), 9));
-  b.DeleteCharacters(2);
-  b.InsertText("<>");
-  b.set_position(LineColumn(position.line(), 10));
+  buffer.ApplyTransformation(
+      SetPositionTransformation(LineColumn(position.line(), 9)));
+  buffer.ApplyTransformation(DeleteTransformationBuilder()
+                                 .set_modifiers(Modifiers().set_repetitions(2))
+                                 .build());
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text("<>").build());
+  buffer.ApplyTransformation(
+      SetPositionTransformation(LineColumn(position.line(), 10)));
 } else {
-  b.set_position(LineColumn(position.line(), 0));
-  b.InsertText("#include <>\n");
-  b.set_position(LineColumn(position.line(), 10));
+  buffer.ApplyTransformation(
+      SetPositionTransformation(LineColumn(position.line(), 0)));
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text("#include <>\n").build());
+  buffer.ApplyTransformation(
+      SetPositionTransformation(LineColumn(position.line(), 10)));
 }

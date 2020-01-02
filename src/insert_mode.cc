@@ -18,6 +18,7 @@ extern "C" {
 #include "src/editor_mode.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
+#include "src/futures/futures.h"
 #include "src/lazy_string_append.h"
 #include "src/parse_tree.h"
 #include "src/substring.h"
@@ -39,13 +40,13 @@ namespace afc::editor {
 namespace {
 class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }
-  void Apply(Input input) const override {
+  futures::DelayedValue<Output> Apply(Input input) const override {
     const ColumnNumber column = input.position.column;
     auto line = input.buffer->LineAt(input.position.line);
-    if (line == nullptr) return;
+    if (line == nullptr) return futures::ImmediateValue(Output());
     if (input.buffer->Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn())
-      return;
+      return futures::ImmediateValue(Output());
     const wstring& line_prefix_characters(
         input.buffer->Read(buffer_variables::line_prefix_characters));
     ColumnNumber prefix_end;
@@ -57,6 +58,7 @@ class NewLineTransformation : public CompositeTransformation {
       }
     }
 
+    Output output;
     {
       auto buffer_to_insert =
           std::make_shared<OpenBuffer>(input.editor, L"- text inserted");
@@ -64,13 +66,14 @@ class NewLineTransformation : public CompositeTransformation {
           Line::Options(*line).DeleteSuffix(prefix_end)));
       InsertOptions insert_options;
       insert_options.buffer_to_insert = buffer_to_insert;
-      input.push(NewInsertBufferTransformation(std::move(insert_options)));
+      output.Push(NewInsertBufferTransformation(std::move(insert_options)));
     }
 
-    input.push(NewSetPositionTransformation(input.position));
-    input.push(NewDeleteSuffixSuperfluousCharacters());
-    input.push(NewSetPositionTransformation(
+    output.Push(NewSetPositionTransformation(input.position));
+    output.Push(NewDeleteSuffixSuperfluousCharacters());
+    output.Push(NewSetPositionTransformation(
         LineColumn(input.position.line + LineNumberDelta(1), prefix_end)));
+    return futures::ImmediateValue(std::move(output));
   }
 
   unique_ptr<CompositeTransformation> Clone() const override {
@@ -82,15 +85,15 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
   std::wstring Serialize() const override { return L""; }
-  void Apply(Input input) const override {
+  futures::DelayedValue<Output> Apply(Input input) const override {
     if (direction_ == BACKWARDS) {
       ++input.position.line;
     }
-    input.push(
-        NewSetPositionTransformation(input.position.line, ColumnNumber(0)));
-    input.push(NewTransformation(Modifiers(),
-                                 std::make_unique<NewLineTransformation>()));
-    input.push(NewSetPositionTransformation(input.position));
+    Output output = Output::SetPosition(LineColumn(input.position.line));
+    output.Push(NewTransformation(Modifiers(),
+                                  std::make_unique<NewLineTransformation>()));
+    output.Push(NewSetPositionTransformation(input.position));
+    return futures::ImmediateValue(std::move(output));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {
@@ -231,7 +234,6 @@ class AutocompleteMode : public EditorMode {
         ComposeTransformation(
             NewDeleteTransformation(delete_options),
             NewInsertBufferTransformation(std::move(insert_options)))));
-
     word_length_ = ColumnNumberDelta(insert->size());
   }
 
@@ -420,20 +422,24 @@ class InsertMode : public EditorMode {
       case Terminal::ESCAPE:
         ResetScrollBehavior();
         buffer->MaybeAdjustPositionCol();
-        buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
-        buffer->PopTransformationStack();
-        editor_state->set_repetitions(editor_state->repetitions() - 1);
-        buffer->RepeatLastTransformation();
-        buffer->PopTransformationStack();
-        editor_state->PushCurrentPosition();
-        buffer->status()->Reset();
-        editor_state->status()->Reset();
-        CHECK(options_.escape_handler);
-        options_.escape_handler();  // Probably deletes us.
-        editor_state->ResetRepetitions();
-        editor_state->ResetInsertionModifier();
-        editor_state->current_buffer()->ResetMode();
-        editor_state->set_keyboard_redirect(nullptr);
+        buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
+            .AddListener([buffer, editor_state, this](bool) {
+              buffer->PopTransformationStack();
+              editor_state->set_repetitions(editor_state->repetitions() - 1);
+              buffer->RepeatLastTransformation().AddListener(
+                  [buffer, editor_state, this](bool) {
+                    buffer->PopTransformationStack();
+                    editor_state->PushCurrentPosition();
+                    buffer->status()->Reset();
+                    editor_state->status()->Reset();
+                    CHECK(options_.escape_handler);
+                    options_.escape_handler();  // Probably deletes us.
+                    editor_state->ResetRepetitions();
+                    editor_state->ResetInsertionModifier();
+                    editor_state->current_buffer()->ResetMode();
+                    editor_state->set_keyboard_redirect(nullptr);
+                  });
+            });
         return;
 
       case Terminal::UP_ARROW:
@@ -471,8 +477,8 @@ class InsertMode : public EditorMode {
           delete_options.modifiers.direction = BACKWARDS;
         }
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
-        options_.modify_handler();
+        buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
+            .AddListener([this](bool) { options_.modify_handler(); });
       }
         return;
 
@@ -513,8 +519,8 @@ class InsertMode : public EditorMode {
         delete_options.modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
         delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
-        options_.modify_handler();
+        buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
+            .AddListener([this](bool) { options_.modify_handler(); });
         return;
       }
 

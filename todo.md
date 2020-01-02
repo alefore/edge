@@ -130,7 +130,7 @@ Automatically adjust the width of the view to fit the screen.
 
 Create a hook for start of the editor, so that we can do more expensive things (without having to evaluate them for each buffer reload).
 
-LineNumber and LineColumn types should be exposed to extensions?
+LineNumber and ColumnNumber types should be exposed to extensions?
 
 Add support for templates, so that we can do "vector<string>".
 

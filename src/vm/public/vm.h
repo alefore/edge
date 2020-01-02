@@ -31,22 +31,8 @@ class Expression;
 
 class Trampoline {
  public:
-  // A consumer of a value receives the value and an ongoing evaluation.
-  //
-  // We allow "trampoline" style execution. Suppose we need to evaluate
-  // F(G(value)). This means we'd feed the value to G' (a continuation bound to)
-  // G, which would already know that its continuation is F'. Without
-  // OngoingEvaluation, this means we could have a long chain of recursive
-  // calls. Instead, G' receives the value, transforms it (applies G), and then
-  // just adjusts `consumer` and `expression_for_trampoline` in its
-  // continuation.
-  //
-  // G may be an asynchronous transformation. In this case, G' will start its
-  // execution and return (leaving `expression_for_trampoline` as nullptr and
-  // thus effectively jumping out of the trampoline). When G(value) becomes
-  // available, G' will need to create a new trampoline. Thus when G' resumes
-  // F', the Trampoline may be different than when F' was created by G'. And
-  // this is the reason the Continuation receives the Trampoline.
+  // The continuation receives the current trampoline because it may change
+  // during the execution of an expression.
   using Continuation = std::function<void(std::unique_ptr<Value>, Trampoline*)>;
 
   struct Options {
@@ -129,8 +115,12 @@ class Expression {
   // Implementation details, not relevant for customers.
   // TODO: Figure out a nice way to hide this.
 
-  // Must arrange for either Trampoline::Return, Trampoline::Continue, or
-  // Trampoline::Bounce to be called (whether before or after returning).
+  // Must call either Trampoline::Return, Trampoline::Continue,
+  // Trampoline::Bounce, or Trampoline::Interrupt before returning.
+  //
+  // The caller must ensure that the expression doesn't get deleted before the
+  // trampoline receives the value (i.e., either Trampoline::Return or
+  // Trampoline::Continue).
   virtual void Evaluate(Trampoline* evaluation, const VMType& type) = 0;
 };
 

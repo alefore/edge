@@ -28,7 +28,7 @@ class WhileExpression : public Expression {
   }
 
   void Evaluate(Trampoline* trampoline, const VMType&) override {
-    DVLOG(4) << "Evaluating condition...";
+    DVLOG(4) << "Starting iteration.";
     Iterate(trampoline, condition_, body_);
   }
 
@@ -43,6 +43,7 @@ class WhileExpression : public Expression {
     trampoline->Bounce(condition.get(), VMType::Bool(),
                        [condition, body](std::unique_ptr<Value> cond_value,
                                          Trampoline* trampoline) {
+                         CHECK(cond_value->IsBool());
                          if (!cond_value->boolean) {
                            DVLOG(3) << "Iteration is done.";
                            trampoline->Continue(Value::NewVoid());

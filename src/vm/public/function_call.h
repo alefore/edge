@@ -24,7 +24,7 @@ std::unique_ptr<Expression> NewFunctionCall(
     std::vector<std::unique_ptr<Expression>> args);
 
 // TODO: Remove the nullptr default value and force all callers to pass a value.
-void Call(Value* func, vector<Value::Ptr> args,
+void Call(const Value& func, vector<Value::Ptr> args,
           std::function<void(Value::Ptr)> consumer,
           std::function<void(std::function<void()>)> yield_callback = nullptr);
 

@@ -12,8 +12,11 @@ bool CanRemovePreviousPrefix(string prefix) {
   if (line.substr(column - prefix.size(), prefix.size()) != prefix) {
     return false;
   }
-  buffer.set_position(
-      LineColumn(buffer.position().line(), column - prefix.size()));
-  buffer.DeleteCharacters(prefix.size());
+  buffer.ApplyTransformation(SetPositionTransformation(
+      LineColumn(buffer.position().line(), column - prefix.size())));
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder()
+          .set_modifiers(Modifiers().set_repetitions(prefix.size()))
+          .build());
   return true;
 }

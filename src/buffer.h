@@ -14,6 +14,7 @@
 #include "src/buffer_terminal.h"
 #include "src/cursors.h"
 #include "src/file_descriptor_reader.h"
+#include "src/futures/futures.h"
 #include "src/lazy_string.h"
 #include "src/line.h"
 #include "src/line_column.h"
@@ -251,11 +252,13 @@ class OpenBuffer {
   wstring TransformKeyboardText(wstring input);
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
-  void ApplyToCursors(unique_ptr<Transformation> transformation);
-  void ApplyToCursors(unique_ptr<Transformation> transformation,
-                      Modifiers::CursorsAffected cursors_affected,
-                      Transformation::Input::Mode mode);
-  void RepeatLastTransformation();
+  futures::DelayedValue<bool> ApplyToCursors(
+      unique_ptr<Transformation> transformation);
+  futures::DelayedValue<bool> ApplyToCursors(
+      unique_ptr<Transformation> transformation,
+      Modifiers::CursorsAffected cursors_affected,
+      Transformation::Input::Mode mode);
+  futures::DelayedValue<bool> RepeatLastTransformation();
 
   void PushTransformationStack();
   void PopTransformationStack();
@@ -295,7 +298,7 @@ class OpenBuffer {
   bool EvaluateFile(const wstring& path,
                     std::function<void(std::unique_ptr<Value>)> consumer);
 
-  WorkQueue* work_queue();
+  WorkQueue* work_queue() const;
   void ExecutePendingWork();
   WorkQueue::State GetPendingWorkState() const;
 
@@ -425,8 +428,9 @@ class OpenBuffer {
   };
   static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
 
-  LineColumn Apply(unique_ptr<Transformation> transformation,
-                   LineColumn position, Transformation::Input::Mode mode);
+  futures::DelayedValue<Transformation::Result> Apply(
+      unique_ptr<Transformation> transformation, LineColumn position,
+      Transformation::Input::Mode mode);
   void UpdateTreeParser();
 
   void ProcessCommandInput(shared_ptr<LazyString> str);

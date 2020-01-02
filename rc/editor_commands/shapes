@@ -15,24 +15,35 @@ void ShapesSetStatus(string description) {
 }
 
 void PadToLineColumn(LineColumn position) {
-  buffer.set_position(position);
+  buffer.ApplyTransformation(SetPositionTransformation(position));
   if (buffer.line_count() <= position.line()) {
-    buffer.set_position(LineColumn(buffer.line_count(), 0));
-    buffer.InsertText("\n" * (position.line() + 1 - buffer.line_count()));
+    buffer.ApplyTransformation(
+        InsertTransformationBuilder()
+            .set_position(LineColumn(buffer.line_count(), 0))
+            .set_text("\n" * (position.line() + 1 - buffer.line_count()))
+            .build());
   }
   string line = buffer.line(position.line());
   int insertions = max(0, position.column() - line.size());
-  buffer.set_position(position);
-  buffer.InsertText(" " * insertions);
+  buffer.ApplyTransformation(InsertTransformationBuilder()
+                                 .set_position(position)
+                                 .set_text(" " * insertions)
+                                 .build());
 }
 
 void DrawPosition(LineColumn position, string text) {
+  if (text.empty()) return;
   string line = buffer.line(position.line());
   PadToLineColumn(position);
   if (line.size() > position.column()) {
-    buffer.DeleteCharacters(min(line.size() - position.column(), text.size()));
+    buffer.ApplyTransformation(
+        DeleteTransformationBuilder()
+            .set_modifiers(Modifiers().set_repetitions(
+                min(line.size() - position.column(), text.size())))
+            .build());
   }
-  buffer.InsertText(text);
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text(text).build());
 }
 
 string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
@@ -450,7 +461,7 @@ void ShapesAddSquareInPositions(LineColumn a, LineColumn b) {
 void ShapesAddSquare() {
   LineColumn position = buffer.position();
   ShapesAddSquareInPositions(position, source);
-  buffer.set_position(position);
+  buffer.ApplyTransformation(SetPositionTransformation(position));
   source = position;
 }
 
@@ -533,7 +544,7 @@ void ShapesSquareCenter() {
     }
     DrawPosition(LineColumn(start.line() + i, start.column()), input);
   }
-  buffer.set_position(a);
+  buffer.ApplyTransformation(SetPositionTransformation(a));
 }
 
 void ShapesAddLineToPosition(LineColumn a, LineColumn b) {
@@ -546,7 +557,7 @@ void ShapesAddLineToPosition(LineColumn a, LineColumn b) {
 void ShapesAddLine() {
   LineColumn position = buffer.position();
   ShapesAddLineToPosition(position, source);
-  buffer.set_position(position);
+  buffer.ApplyTransformation(SetPositionTransformation(position));
   source = position;
 }
 
@@ -734,7 +745,8 @@ void DrawNouns(int start, VectorString nouns, int column_width,
       LineColumn position = LineColumn(base_position.line() + line + 1,
                                        base_position.column() + 1);
       PadToLineColumn(position);
-      buffer.InsertText(noun_lines.get(line));
+      buffer.ApplyTransformation(
+          InsertTransformationBuilder().set_text(noun_lines.get(line)).build());
     }
 
     ShapesAddSquareInPositions(
@@ -754,7 +766,8 @@ void ShapesDrawDiagramInner() {
   int lines = GetDiagramInputLinesCount();
   VectorString nouns = GetDiagramNouns(lines);
 
-  buffer.set_position(LineColumn(buffer.line_count(), 0));
+  buffer.ApplyTransformation(
+      SetPositionTransformation(LineColumn(buffer.line_count(), 0)));
 
   int start = buffer.position().line();
   int column_width = GetMaxNounWidth(nouns) + 6;
