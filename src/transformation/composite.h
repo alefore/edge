@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "src/buffer_contents.h"
+#include "src/continuation.h"
 #include "src/transformation.h"
 #include "src/transformation/stack.h"
 #include "src/vm/public/environment.h"
@@ -60,7 +61,7 @@ class CompositeTransformation {
     friend CompositeTransformationAdapter;
     std::unique_ptr<TransformationStack> transformations_;
   };
-  virtual Output Apply(Input input) const = 0;
+  virtual DelayedValue<Output> Apply(Input input) const = 0;
   virtual std::unique_ptr<CompositeTransformation> Clone() const = 0;
 };
 

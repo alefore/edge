@@ -17,7 +17,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
     return L"SwitchCaseTransformation();";
   }
 
-  Output Apply(Input input) const override {
+  DelayedValue<Output> Apply(Input input) const override {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(input.editor, L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << input.position << ": "
@@ -61,7 +61,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
     if (input.mode == Transformation::Input::Mode::kPreview) {
       output.Push(NewSetPositionTransformation(input.position));
     }
-    return output;
+    return Delay(std::move(output));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

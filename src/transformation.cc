@@ -19,18 +19,18 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     return L"DeleteSuffixSuperfluousCharacters()";
   }
 
-  Output Apply(Input input) const override {
+  DelayedValue<Output> Apply(Input input) const override {
     const wstring& superfluous_characters = input.buffer->Read(
         buffer_variables::line_suffix_superfluous_characters);
     const auto line = input.buffer->LineAt(input.position.line);
-    if (line == nullptr) return Output();
+    if (line == nullptr) return Delay(Output());
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&
            superfluous_characters.find(
                line->get(column - ColumnNumberDelta(1))) != string::npos) {
       --column;
     }
-    if (column == line->EndColumn()) return Output();
+    if (column == line->EndColumn()) return Delay(Output());
     CHECK_LT(column, line->EndColumn());
     Output output = Output::SetColumn(column);
 
@@ -39,7 +39,7 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
         (line->EndColumn() - column).column_delta;
     delete_options.copy_to_paste_buffer = false;
     output.Push(NewDeleteTransformation(delete_options));
-    return output;
+    return Delay(std::move(output));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

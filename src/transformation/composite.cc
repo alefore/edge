@@ -23,8 +23,11 @@ DelayedValue<Transformation::Result> CompositeTransformationAdapter::Apply(
   input.range =
       transformation_input.buffer->FindPartialRange(modifiers_, input.position);
   input.modifiers = modifiers_;
-  return composite_transformation_->Apply(std::move(input))
-      .transformations_->Apply(transformation_input);
+  return DelayedValue<Transformation::Result>::Transform(
+      composite_transformation_->Apply(std::move(input)),
+      [transformation_input](const CompositeTransformation::Output& output) {
+        return output.transformations_->Apply(transformation_input);
+      });
 }
 
 std::unique_ptr<Transformation> CompositeTransformationAdapter::Clone() const {
