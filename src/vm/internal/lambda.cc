@@ -7,10 +7,9 @@
 #include "../public/value.h"
 
 namespace afc::vm {
-// TODO: Nothing seems to be using `name`. Remove it?
+namespace {
 std::unique_ptr<Value> NewFunctionValue(
-    std::wstring name, VMType expected_return_type,
-    std::vector<VMType> argument_types,
+    VMType expected_return_type, std::vector<VMType> argument_types,
     std::vector<std::wstring> argument_names, std::unique_ptr<Expression> body,
     std::shared_ptr<Environment> environment, std::wstring* error) {
   auto deduced_types = body->ReturnTypes();
@@ -37,7 +36,7 @@ std::unique_ptr<Value> NewFunctionValue(
     output->type.type_arguments.push_back(argument_type);
   }
   output->callback =
-      [name, body = std::shared_ptr<Expression>(std::move(body)), environment,
+      [body = std::shared_ptr<Expression>(std::move(body)), environment,
        argument_names](vector<unique_ptr<Value>> args, Trampoline* trampoline) {
         CHECK_EQ(args.size(), argument_names.size())
             << "Invalid number of arguments for function.";
@@ -63,4 +62,56 @@ std::unique_ptr<Value> NewFunctionValue(
       };
   return output;
 }
+}  // namespace
+
+std::unique_ptr<UserFunction> UserFunction::New(
+    Compilation* compilation, std::wstring return_type,
+    std::optional<std::wstring> name,
+    std::vector<std::pair<VMType, wstring>>* args) {
+  if (args == nullptr) {
+    return nullptr;
+  }
+  const VMType* return_type_def =
+      compilation->environment->LookupType(return_type);
+  if (return_type_def == nullptr) {
+    compilation->errors.push_back(L"Unknown return type: \"" + return_type +
+                                  L"\"");
+    return nullptr;
+  }
+
+  auto output = std::make_unique<UserFunction>();
+  output->type.type = VMType::FUNCTION;
+  output->type.type_arguments.push_back(*return_type_def);
+  for (pair<VMType, wstring> arg : *args) {
+    output->type.type_arguments.push_back(arg.first);
+    output->argument_names.push_back(arg.second);
+  }
+  if (name.has_value()) {
+    output->name = name.value();
+    compilation->environment->Define(name.value(),
+                                     std::make_unique<Value>(output->type));
+  }
+  compilation->environment = new Environment(compilation->environment);
+  for (pair<VMType, wstring> arg : *args) {
+    compilation->environment->Define(arg.second,
+                                     std::make_unique<Value>(arg.first));
+  }
+  return output;
+}
+
+std::unique_ptr<Value> UserFunction::Build(Compilation* compilation,
+                                           std::unique_ptr<Expression> body,
+                                           std::wstring* error) {
+  auto function_environment =
+      std::make_shared<Environment>(compilation->environment);
+  compilation->environment = compilation->environment->parent_environment();
+
+  std::vector<VMType> argument_types(type.type_arguments.cbegin() + 1,
+                                     type.type_arguments.cend());
+
+  return NewFunctionValue(*type.type_arguments.cbegin(), argument_types,
+                          argument_names, std::move(body),
+                          std::move(function_environment), error);
+}
+
 }  // namespace afc::vm
