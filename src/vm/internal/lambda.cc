@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "../internal/compilation.h"
+#include "../public/constant_expression.h"
 #include "../public/environment.h"
 #include "../public/value.h"
 
@@ -99,9 +100,9 @@ std::unique_ptr<UserFunction> UserFunction::New(
   return output;
 }
 
-std::unique_ptr<Value> UserFunction::Build(Compilation* compilation,
-                                           std::unique_ptr<Expression> body,
-                                           std::wstring* error) {
+std::unique_ptr<Value> UserFunction::BuildValue(
+    Compilation* compilation, std::unique_ptr<Expression> body,
+    std::wstring* error) {
   auto function_environment =
       std::make_shared<Environment>(compilation->environment);
   compilation->environment = compilation->environment->parent_environment();
@@ -112,6 +113,14 @@ std::unique_ptr<Value> UserFunction::Build(Compilation* compilation,
   return NewFunctionValue(*type.type_arguments.cbegin(), argument_types,
                           argument_names, std::move(body),
                           std::move(function_environment), error);
+}
+
+std::unique_ptr<Expression> UserFunction::BuildExpression(
+    Compilation* compilation, std::unique_ptr<Expression> body,
+    std::wstring* error) {
+  auto value = BuildValue(compilation, std::move(body), error);
+  if (value == nullptr) return nullptr;
+  return NewConstantExpression(std::move(value));
 }
 
 }  // namespace afc::vm

@@ -79,8 +79,8 @@ statement(OUT) ::= function_declaration_params(FUNC)
     OUT = nullptr;
   } else {
     std::wstring error;
-    auto value = FUNC->Build(compilation, std::unique_ptr<Expression>(BODY),
-                             &error);
+    auto value = FUNC->BuildValue(
+        compilation, std::unique_ptr<Expression>(BODY), &error);
     BODY = nullptr;
     if (value == nullptr) {
       compilation->errors.push_back(error);
@@ -278,15 +278,15 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
     OUT = nullptr;
   } else {
     std::wstring error;
-    auto value = FUNC->Build(compilation, std::unique_ptr<Expression>(BODY),
-                             &error);
+    auto value = FUNC->BuildExpression(
+        compilation, std::unique_ptr<Expression>(BODY), &error);
     BODY = nullptr;
 
     if (value == nullptr) {
       compilation->errors.push_back(error);
       OUT = nullptr;
     } else {
-      OUT = NewConstantExpression(std::move(value)).release();
+      OUT = value.release();
     }
   }
 }

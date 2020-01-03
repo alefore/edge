@@ -17,9 +17,13 @@ struct UserFunction {
       std::optional<std::wstring> name,
       std::vector<std::pair<VMType, wstring>>* args);
 
-  std::unique_ptr<Value> Build(Compilation* compilation,
-                               std::unique_ptr<Expression> body,
-                               std::wstring* error);
+  std::unique_ptr<Expression> BuildExpression(Compilation* compilation,
+                                              std::unique_ptr<Expression> body,
+                                              std::wstring* error);
+
+  std::unique_ptr<Value> BuildValue(Compilation* compilation,
+                                    std::unique_ptr<Expression> body,
+                                    std::wstring* error);
 
   std::optional<std::wstring> name;
   VMType type;
