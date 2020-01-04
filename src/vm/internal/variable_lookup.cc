@@ -25,9 +25,10 @@ class VariableLookup : public Expression {
   void Evaluate(Trampoline* trampoline, const VMType& type) override {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
+    CHECK(trampoline != nullptr);
+    CHECK(trampoline->environment() != nullptr);
     Value* result = trampoline->environment()->Lookup(symbol_, type);
     CHECK(result != nullptr);
-    CHECK(trampoline != nullptr);
     DVLOG(5) << "Variable lookup: " << *result;
     trampoline->Continue(std::make_unique<Value>(*result));
   }

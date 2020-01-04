@@ -36,7 +36,7 @@ class Trampoline {
   using Continuation = std::function<void(std::unique_ptr<Value>, Trampoline*)>;
 
   struct Options {
-    Environment* environment = nullptr;
+    std::shared_ptr<Environment> environment;
     Continuation return_continuation;
     std::function<void(std::function<void()>)> yield_callback;
   };
@@ -46,8 +46,8 @@ class Trampoline {
   // Must ensure expression lives until return_continuation is called.
   void Enter(Expression* expression);
 
-  void SetEnvironment(Environment* environment);
-  Environment* environment() const;
+  void SetEnvironment(std::shared_ptr<Environment> environment);
+  const std::shared_ptr<Environment>& environment() const;
 
   void SetReturnContinuation(Continuation continuation);
   Continuation return_continuation() const;
@@ -65,7 +65,7 @@ class Trampoline {
   void Continue(std::unique_ptr<Value> value);
 
  private:
-  Environment* environment_ = nullptr;
+  std::shared_ptr<Environment> environment_;
 
   Continuation return_continuation_;
   Continuation continuation_;
@@ -130,17 +130,18 @@ std::optional<std::unordered_set<VMType>> CombineReturnTypes(
     std::unordered_set<VMType> a, std::unordered_set<VMType> b,
     std::wstring* error);
 
-unique_ptr<Expression> CompileFile(const string& path, Environment* environment,
+unique_ptr<Expression> CompileFile(const string& path,
+                                   std::shared_ptr<Environment> environment,
                                    wstring* error_description);
 
 unique_ptr<Expression> CompileString(const wstring& str,
-                                     Environment* environment,
+                                     std::shared_ptr<Environment> environment,
                                      wstring* error_description);
 
 // Caller must make sure expr lives until consumer runs. `yield_callback` is an
 // optional function that must ensure that the callback it receives will run
 // in the future.
-void Evaluate(Expression* expr, Environment* environment,
+void Evaluate(Expression* expr, std::shared_ptr<Environment> environment,
               std::function<void(std::unique_ptr<Value>)> consumer,
               std::function<void(std::function<void()>)> yield_callback);
 

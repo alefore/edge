@@ -287,7 +287,7 @@ class OpenBuffer {
   /////////////////////////////////////////////////////////////////////////////
   // Extensions
 
-  Environment* environment() { return &environment_; }
+  const std::shared_ptr<Environment>& environment() { return environment_; }
 
   unique_ptr<Expression> CompileString(const wstring& str,
                                        wstring* error_description);
@@ -495,7 +495,7 @@ class OpenBuffer {
   std::list<std::unique_ptr<TransformationStack>> undo_future_;
 
   list<unique_ptr<Value>> keyboard_text_transformers_;
-  Environment environment_;
+  const std::shared_ptr<Environment> environment_;
 
   mutable WorkQueue work_queue_;
 

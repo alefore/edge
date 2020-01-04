@@ -270,7 +270,7 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
           {VMType::Void(), VMType::ObjectType(buffer.get()),
            vm::VMTypeMapper<editor::Transformation*>::vmtype},
           [](std::vector<std::unique_ptr<Value>> args, Trampoline* trampoline) {
-            CHECK_EQ(args.size(), 2);
+            CHECK_EQ(args.size(), 2ul);
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
             auto transformation =
                 static_cast<Transformation*>(args[1]->user_value.get());
@@ -407,7 +407,7 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
             CHECK(buffer != nullptr);
             buffer->default_commands_->Add(args[1]->str, args[2]->str,
                                            std::move(args[3]),
-                                           &buffer->environment_);
+                                           buffer->environment_);
             return Value::NewVoid();
           }));
 
@@ -492,7 +492,8 @@ OpenBuffer::OpenBuffer(Options options)
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
-      environment_(options_.editor->environment()),
+      environment_(
+          std::make_shared<Environment>(options_.editor->environment())),
       work_queue_(
           [editor = options_.editor] { editor->NotifyInternalEvent(); }),
       filter_version_(0),
@@ -521,7 +522,7 @@ OpenBuffer::OpenBuffer(Options options)
       }()) {
   UpdateTreeParser();
 
-  environment_.Define(
+  environment_->Define(
       L"buffer",
       Value::NewObject(L"Buffer", shared_ptr<void>(this, [](void*) {})));
 
@@ -549,7 +550,7 @@ OpenBuffer::OpenBuffer(Options options)
   }
 }
 
-OpenBuffer::~OpenBuffer() = default;
+OpenBuffer::~OpenBuffer() { environment_->Clear(); }
 
 EditorState* OpenBuffer::editor() const { return options_.editor; }
 
@@ -623,7 +624,6 @@ void OpenBuffer::PrepareToClose(std::function<void()> success,
 }
 
 void OpenBuffer::Close() {
-  LOG(INFO) << "Closing buffer: " << Read(buffer_variables::name);
   if (dirty() && Read(buffer_variables::save_on_close)) {
     LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
     Save();
@@ -1060,12 +1060,12 @@ void OpenBuffer::AppendToLastLine(Line line) {
 
 unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,
                                                  wstring* error_description) {
-  return afc::vm::CompileString(code, &environment_, error_description);
+  return afc::vm::CompileString(code, environment_, error_description);
 }
 
 void OpenBuffer::EvaluateExpression(
     Expression* expr, std::function<void(std::unique_ptr<Value>)> consumer) {
-  Evaluate(expr, &environment_, consumer,
+  Evaluate(expr, environment_, consumer,
            [work_queue = work_queue()](std::function<void()> callback) {
              work_queue->Schedule(std::move(callback));
            });
@@ -1093,14 +1093,14 @@ bool OpenBuffer::EvaluateFile(
     const wstring& path, std::function<void(std::unique_ptr<Value>)> callback) {
   wstring error_description;
   std::shared_ptr<Expression> expression =
-      CompileFile(ToByteString(path), &environment_, &error_description);
+      CompileFile(ToByteString(path), environment_, &error_description);
   if (expression == nullptr) {
     status_.SetWarningText(path + L": error: " + error_description);
     return false;
   }
   LOG(INFO) << "Evaluating file: " << path;
   Evaluate(
-      expression.get(), &environment_,
+      expression.get(), environment_,
       [path, callback, expression](std::unique_ptr<Value> value) {
         LOG(INFO) << "Evaluation of file completed: " << path;
         callback(std::move(value));

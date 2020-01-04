@@ -27,7 +27,8 @@ struct UserFunction {
 
   std::optional<std::wstring> name;
   VMType type;
-  vector<wstring> argument_names;
+  std::shared_ptr<std::vector<std::wstring>> argument_names =
+      std::make_shared<std::vector<std::wstring>>();
 };
 }  // namespace afc::vm
 

@@ -80,10 +80,11 @@ class CppCommand : public Command {
 
 }  // namespace
 
-std::unique_ptr<Command> NewCppCommand(afc::vm::Environment* environment,
-                                       wstring code) {
+std::unique_ptr<Command> NewCppCommand(
+    std::shared_ptr<afc::vm::Environment> environment, wstring code) {
   wstring error_description;
-  auto expr = afc::vm::CompileString(code, environment, &error_description);
+  auto expr =
+      afc::vm::CompileString(code, std::move(environment), &error_description);
   if (expr == nullptr) {
     LOG(ERROR) << "Failed compilation of command: " << code << ": "
                << error_description;

@@ -175,7 +175,7 @@ void RunCppCommandShellHandler(const std::wstring& command,
   buffer->ResetMode();
 
   auto parsed_command =
-      Parse(*NewLazyString(std::move(command)), buffer->environment());
+      Parse(*NewLazyString(std::move(command)), buffer->environment().get());
   if (parsed_command.error.has_value()) {
     if (!parsed_command.error.value().empty()) {
       buffer->status()->SetWarningText(parsed_command.error.value());
@@ -193,7 +193,7 @@ void RunCppCommandShellChangeHandler(
     return;
   }
   auto line = prompt_buffer->LineAt(LineNumber(0));
-  auto parsed_command = Parse(*line->contents(), buffer->environment());
+  auto parsed_command = Parse(*line->contents(), buffer->environment().get());
 
   LineModifierSet modifiers;
   if (!parsed_command.error.has_value()) {

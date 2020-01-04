@@ -10,8 +10,8 @@
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Command> NewCppCommand(afc::vm::Environment* environment,
-                                       const std::wstring code);
+std::unique_ptr<Command> NewCppCommand(
+    std::shared_ptr<afc::vm::Environment> environment, const std::wstring code);
 
 }  // namespace editor
 }  // namespace afc

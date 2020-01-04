@@ -25,8 +25,8 @@ template <>
 const VMType VMTypeMapper<std::set<int>*>::vmtype =
     VMType::ObjectType(L"SetInt");
 
-std::unique_ptr<Environment> BuildDefaultEnvironment() {
-  auto environment = std::make_unique<Environment>();
+std::shared_ptr<Environment> BuildDefaultEnvironment() {
+  auto environment = std::make_shared<Environment>();
   RegisterStringType(environment.get());
 
   auto bool_type = std::make_unique<ObjectType>(VMType::Bool());
@@ -52,19 +52,19 @@ std::unique_ptr<Environment> BuildDefaultEnvironment() {
 
   VMTypeMapper<std::vector<int>*>::Export(environment.get());
   VMTypeMapper<std::set<int>*>::Export(environment.get());
-  return environment;
+  return std::move(environment);
 }
 
 }  // namespace
 
-Environment::Environment() : parent_environment_(nullptr) {}
+void Environment::Clear() {
+  object_types_.clear();
+  table_.clear();
+}
 
-Environment::Environment(Environment* parent_environment)
-    : parent_environment_(parent_environment) {}
-
-/* static */ Environment* Environment::GetDefault() {
-  static auto environment = BuildDefaultEnvironment();
-  return environment.get();
+/* static */ const std::shared_ptr<Environment>& Environment::GetDefault() {
+  static std::shared_ptr<Environment> environment = BuildDefaultEnvironment();
+  return environment;
 }
 
 const ObjectType* Environment::LookupObjectType(const wstring& symbol) {
@@ -92,6 +92,11 @@ const VMType* Environment::LookupType(const wstring& symbol) {
   auto object_type = LookupObjectType(symbol);
   return object_type == nullptr ? nullptr : &object_type->type();
 }
+
+Environment::Environment() = default;
+
+Environment::Environment(std::shared_ptr<Environment> parent_environment)
+    : parent_environment_(std::move(parent_environment)) {}
 
 void Environment::DefineType(const wstring& name,
                              unique_ptr<ObjectType> value) {

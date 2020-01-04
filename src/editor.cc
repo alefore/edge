@@ -114,11 +114,12 @@ WorkQueue::State EditorState::GetPendingWorkState() const {
 
 WorkQueue* EditorState::work_queue() const { return &work_queue_; }
 
-Environment EditorState::BuildEditorEnvironment() {
-  Environment environment(afc::vm::Environment::GetDefault());
+std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
+  auto environment =
+      std::make_shared<Environment>(afc::vm::Environment::GetDefault());
 
-  environment.Define(L"terminal_control_u",
-                     Value::NewString({Terminal::CTRL_U}));
+  environment->Define(L"terminal_control_u",
+                      Value::NewString({Terminal::CTRL_U}));
 
   auto editor_type = std::make_unique<ObjectType>(L"Editor");
 
@@ -225,7 +226,7 @@ Environment EditorState::BuildEditorEnvironment() {
   // still compile code that will depend (at run time) on getting the current
   // buffer. Otherwise we could just use the "buffer" variable (that is declared
   // in the environment of each buffer).
-  environment.Define(
+  environment->Define(
       L"CurrentBuffer",
       Value::NewFunction({VMType::ObjectType(L"Buffer")},
                          [this](vector<unique_ptr<Value>> args) {
@@ -243,15 +244,16 @@ Environment EditorState::BuildEditorEnvironment() {
                            return Value::NewObject(L"Buffer", buffer);
                          }));
 
-  environment.Define(L"ProcessInput", vm::NewCallback(std::function<void(int)>(
-                                          [this](int c) { ProcessInput(c); })));
+  environment->Define(L"ProcessInput",
+                      vm::NewCallback(std::function<void(int)>(
+                          [this](int c) { ProcessInput(c); })));
 
-  environment.Define(
+  environment->Define(
       L"ConnectTo",
       vm::NewCallback(std::function<void(wstring)>(
           [this](wstring target) { OpenServerBuffer(this, target); })));
 
-  environment.Define(
+  environment->Define(
       L"WaitForClose",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(L"SetString")},
@@ -282,7 +284,7 @@ Environment EditorState::BuildEditorEnvironment() {
             }
           }));
 
-  environment.Define(
+  environment->Define(
       L"SendExitTo",
       vm::NewCallback(std::function<void(wstring)>([](wstring args) {
         int fd = open(ToByteString(args).c_str(), O_WRONLY);
@@ -291,27 +293,27 @@ Environment EditorState::BuildEditorEnvironment() {
         close(fd);
       })));
 
-  environment.Define(L"Exit",
-                     vm::NewCallback(std::function<void(int)>([](int status) {
-                       LOG(INFO) << "Exit: " << status;
-                       exit(status);
-                     })));
+  environment->Define(L"Exit",
+                      vm::NewCallback(std::function<void(int)>([](int status) {
+                        LOG(INFO) << "Exit: " << status;
+                        exit(status);
+                      })));
 
-  environment.Define(
+  environment->Define(
       L"SetStatus", vm::NewCallback(std::function<void(wstring)>(
                         [this](wstring s) { status_.SetInformationText(s); })));
 
-  environment.Define(
+  environment->Define(
       L"set_screen_needs_hard_redraw",
       vm::NewCallback(std::function<void(bool)>(
           [this](bool value) { set_screen_needs_hard_redraw(value); })));
 
-  environment.Define(
+  environment->Define(
       L"set_exit_value",
       vm::NewCallback(std::function<void(int)>(
           [this](int exit_value) { exit_value_ = exit_value; })));
 
-  environment.Define(
+  environment->Define(
       L"SetPositionColumn",
       vm::NewCallback(std::function<void(int)>([this](int value) {
         auto buffer = current_buffer();
@@ -322,7 +324,7 @@ Environment EditorState::BuildEditorEnvironment() {
             LineColumn(buffer->position().line, ColumnNumber(value)));
       })));
 
-  environment.Define(
+  environment->Define(
       L"Line",
       vm::NewCallback(std::function<wstring(void)>([this]() -> wstring {
         auto buffer = current_buffer();
@@ -332,7 +334,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return buffer->current_line()->ToString();
       })));
 
-  environment.Define(
+  environment->Define(
       L"ForkCommand",
       vm::NewCallback(
           std::function<std::shared_ptr<OpenBuffer>(ForkCommandOptions*)>(
@@ -340,16 +342,16 @@ Environment EditorState::BuildEditorEnvironment() {
                 return ForkCommand(this, *options);
               })));
 
-  environment.Define(L"repetitions",
-                     vm::NewCallback(std::function<int()>([this]() {
-                       return static_cast<int>(repetitions());
-                     })));
+  environment->Define(L"repetitions",
+                      vm::NewCallback(std::function<int()>([this]() {
+                        return static_cast<int>(repetitions());
+                      })));
 
-  environment.Define(L"set_repetitions",
-                     vm::NewCallback(std::function<void(int)>(
-                         [this](int times) { set_repetitions(times); })));
+  environment->Define(L"set_repetitions",
+                      vm::NewCallback(std::function<void(int)>(
+                          [this](int times) { set_repetitions(times); })));
 
-  environment.Define(
+  environment->Define(
       L"OpenFile",
       Value::NewFunction(
           {VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
@@ -383,18 +385,20 @@ Environment EditorState::BuildEditorEnvironment() {
                        &OpenBuffer::DestroyOtherCursors);
   RegisterBufferMethod(editor_type.get(), L"RepeatLastTransformation",
                        &OpenBuffer::RepeatLastTransformation);
-  environment.DefineType(L"Editor", std::move(editor_type));
+  environment->DefineType(L"Editor", std::move(editor_type));
 
-  environment.Define(
+  environment->Define(
       L"editor",
       Value::NewObject(L"Editor", shared_ptr<void>(this, [](void*) {})));
 
-  OpenBuffer::RegisterBufferType(this, &environment);
+  OpenBuffer::RegisterBufferType(this, environment.get());
 
-  InitShapes(&environment);
-  RegisterTransformations(this, &environment);
-  Modifiers::Register(&environment);
-  ForkCommandOptions::Register(&environment);
+  InitShapes(environment.get());
+  RegisterTransformations(this, environment.get());
+  Modifiers::Register(environment.get());
+  ForkCommandOptions::Register(environment.get());
+  LineColumn::Register(environment.get());
+  Range::Register(environment.get());
   return environment;
 }
 
@@ -415,10 +419,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       audio_player_(audio_player),
       buffer_tree_(std::make_unique<WidgetListHorizontal>(BufferWidget::New())),
       status_(GetConsole(), audio_player_),
-      work_queue_([this] { NotifyInternalEvent(); }) {
-  LineColumn::Register(&environment_);
-  Range::Register(&environment_);
-}
+      work_queue_([this] { NotifyInternalEvent(); }) {}
 
 EditorState::~EditorState() {
   // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
@@ -427,6 +428,8 @@ EditorState::~EditorState() {
   for (auto& buffer : buffers_) {
     buffer.second->Close();
   }
+
+  environment_->Clear();  // We may have loops. This helps break them.
 }
 
 void EditorState::CheckPosition() {
