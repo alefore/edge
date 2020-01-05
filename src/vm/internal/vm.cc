@@ -648,20 +648,22 @@ void Trampoline::SetContinuation(Continuation continuation) {
   continuation_ = continuation;
 }
 
-void Evaluate(Expression* expr, std::shared_ptr<Environment> environment,
-              std::function<void(std::unique_ptr<Value>)> consumer,
-              std::function<void(std::function<void()>)> yield_callback) {
+futures::DelayedValue<std::unique_ptr<Value>> Evaluate(
+    Expression* expr, std::shared_ptr<Environment> environment,
+    std::function<void(std::function<void()>)> yield_callback) {
   CHECK(expr != nullptr);
   Trampoline::Options options;
   options.environment = environment;
-  options.return_continuation = [consumer](std::unique_ptr<Value> value,
-                                           Trampoline*) {
+  futures::Future<std::unique_ptr<Value>> future;
+  options.return_continuation = [receiver = future.Receiver()](
+                                    std::unique_ptr<Value> value, Trampoline*) {
     DVLOG(4) << "Evaluation done.";
     DVLOG(5) << "Result: " << *value;
-    consumer(std::move(value));
+    receiver.Set(std::move(value));
   };
   options.yield_callback = yield_callback;
   Trampoline(std::move(options)).Enter(expr);
+  return future.Value();
 }
 
 }  // namespace vm

@@ -416,9 +416,9 @@ class ForkEditorCommand : public Command {
           L"Unable to compile (type mismatch).");
       return;
     }
-    prompt_state->original_buffer->EvaluateExpression(
-        expression.get(),
-        [prompt_state, expression, prompt_buffer](Value::Ptr value) {
+    prompt_state->original_buffer->EvaluateExpression(expression.get())
+        .AddListener([prompt_state, expression,
+                      prompt_buffer](const std::unique_ptr<Value>& value) {
           CHECK(value->IsString());
           auto base_command = value->str;
           if (prompt_state->base_command == base_command) {
@@ -440,6 +440,7 @@ class ForkEditorCommand : public Command {
           help_buffer->Set(buffer_variables::follow_end_of_file, false);
           help_buffer->set_position({});
           prompt_buffer->editor()->status()->set_prompt_context(help_buffer);
+          return;
         });
   }
 };

@@ -107,9 +107,10 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
   std::shared_ptr<Expression> expr = vm::NewFunctionCall(
       vm::NewConstantExpression(std::make_unique<Value>(*callback)), {});
   Evaluate(
-      expr.get(), buffer->environment(), [expr](Value::Ptr) {},
+      expr.get(), buffer->environment(),
       [work_queue = target_buffer->work_queue()](
-          std::function<void()> callback) { work_queue->Schedule(callback); });
+          std::function<void()> callback) { work_queue->Schedule(callback); })
+      .AddListener([expr](const std::unique_ptr<Value>&) { /* Nothing. */ });
 }
 
 class DeleteTransformation : public Transformation {

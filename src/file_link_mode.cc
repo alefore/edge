@@ -373,8 +373,7 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
   buffer->ClearModified();
   buffer->status()->SetInformationText(L"🖫 Saved: " + path);
   for (const auto& dir : editor_state->edge_path()) {
-    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc",
-                         [](std::unique_ptr<Value>) {});
+    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
   }
   if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write)) {
     for (auto& it : *editor_state->buffers()) {

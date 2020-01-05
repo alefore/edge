@@ -77,6 +77,8 @@ const VMType VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype =
     VMType::ObjectType(L"Buffer");
 }  // namespace vm
 namespace editor {
+using futures::IterationControlCommand;
+
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
 
@@ -122,57 +124,6 @@ using std::to_wstring;
 
 /* static */ const wstring OpenBuffer::kBuffersName = L"- buffers";
 /* static */ const wstring OpenBuffer::kPasteBuffer = L"- paste buffer";
-
-// TODO: Once we can capture std::unique_ptr, turn transformation into one.
-void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
-                             Value::Callback map_callback,
-                             TransformationStack* transformation,
-                             Trampoline* trampoline) {
-  if ((line + LineNumberDelta(1)).ToDelta() >= buffer->lines_size()) {
-    buffer
-        ->Apply(std::unique_ptr<Transformation>(transformation),
-                buffer->position(), Transformation::Input::Mode::kFinal)
-        .AddListener([trampoline](const Transformation::Result&) {
-          trampoline->Return(Value::NewVoid());
-        });
-    return;
-  }
-  wstring current_line = buffer->LineAt(line)->ToString();
-
-  std::vector<std::unique_ptr<vm::Expression>> args_expr;
-  args_expr.emplace_back(
-      vm::NewConstantExpression(Value::NewString(std::move(current_line))));
-  // TODO: Use unique_ptr and capture by value.
-  std::shared_ptr<vm::Expression> map_line =
-      vm::NewFunctionCall(vm::NewConstantExpression(Value::NewFunction(
-                              {VMType::String()}, map_callback)),
-                          std::move(args_expr));
-
-  Evaluate(
-      map_line.get(), trampoline->environment(),
-      [buffer, line, map_callback, transformation, trampoline, current_line,
-       map_line](Value::Ptr value) {
-        if (value->str != current_line) {
-          DeleteOptions delete_options;
-          delete_options.copy_to_paste_buffer = false;
-          delete_options.modifiers.structure = StructureLine();
-          transformation->PushBack(
-              NewDeleteTransformation(std::move(delete_options)));
-          InsertOptions insert_options;
-          auto buffer_to_insert =
-              std::make_shared<OpenBuffer>(buffer->editor(), L"tmp buffer");
-          buffer_to_insert->AppendLine(NewLazyString(std::move(value->str)));
-          insert_options.buffer_to_insert = std::move(buffer_to_insert);
-          transformation->PushBack(
-              NewInsertBufferTransformation(std::move(insert_options)));
-        }
-        EvaluateMap(buffer, line + LineNumberDelta(1), std::move(map_callback),
-                    transformation, trampoline);
-      },
-      [work_queue = buffer->work_queue()](std::function<void()> callback) {
-        work_queue->Schedule(std::move(callback));
-      });
-}
 
 /* static */
 OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
@@ -280,20 +231,6 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
                   resume(Value::NewVoid());
                 });
           }));
-
-  buffer->AddField(
-      L"Map", Value::NewFunction(
-                  {VMType::Void(), VMType::ObjectType(buffer.get()),
-                   VMType::Function({VMType::String(), VMType::String()})},
-                  [](vector<unique_ptr<Value>> args, Trampoline* evaluation) {
-                    CHECK_EQ(args.size(), size_t(2));
-                    CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-                    EvaluateMap(
-                        static_cast<OpenBuffer*>(args[0]->user_value.get()),
-                        LineNumber(0), args[1]->callback,
-                        std::make_unique<TransformationStack>().release(),
-                        evaluation);
-                  }));
 
 #if 0
   buffer->AddField(
@@ -426,9 +363,7 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
                       options.path = path;
                       if (auto results = ResolvePath(std::move(options));
                           results.has_value()) {
-                        buffer->EvaluateFile(results->path,
-                                             [](std::unique_ptr<Value>) {});
-
+                        buffer->EvaluateFile(results->path);
                       } else {
                         buffer->status()->SetWarningText(
                             L"Unable to resolve: " + path);
@@ -455,7 +390,7 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
       vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>, wstring)>(
           [](std::shared_ptr<OpenBuffer> buffer, wstring path) {
             LOG(INFO) << "Evaluating file: " << path;
-            buffer->EvaluateFile(path, [](std::unique_ptr<Value>) {});
+            buffer->EvaluateFile(path);
           })));
 
   environment->DefineType(L"Buffer", std::move(buffer));
@@ -546,7 +481,7 @@ OpenBuffer::OpenBuffer(Options options)
     if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
       continue;
     }
-    EvaluateFile(state_path, [](std::unique_ptr<Value>) {});
+    EvaluateFile(state_path);
   }
 }
 
@@ -934,13 +869,17 @@ void OpenBuffer::Reload() {
       return;
   }
 
-  // We need to wait until all instances of buffer-reload.cc have been
-  // evaluated. To achieve that, we simply pass a function that depends on a
-  // shared_ptr as the continuation. Once that function is deallocated, we'll
-  // know that we're ready to run.
-  std::shared_ptr<bool> reloader(new bool(), [this](bool* value) {
-    delete value;
-    if (options_.editor->exit_value().has_value()) return;
+  auto paths = editor()->edge_path();
+  futures::ForEach(paths.begin(), paths.end(), [this](const std::wstring& dir) {
+    auto value = EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
+    if (!value.has_value())
+      return futures::ImmediateValue(IterationControlCommand::kContinue);
+    return futures::DelayedValue<IterationControlCommand>::Transform(
+        value.value(), [](const std::unique_ptr<Value>&) {
+          return futures::ImmediateValue(IterationControlCommand::kContinue);
+        });
+  }).AddListener([this](const IterationControlCommand&) {
+    if (editor()->exit_value().has_value()) return;
     ClearModified();
     LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
     if (options_.generate_contents != nullptr) {
@@ -959,11 +898,6 @@ void OpenBuffer::Reload() {
         Reload();
     }
   });
-
-  for (const auto& dir : editor()->edge_path()) {
-    EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"),
-                 [reloader](std::unique_ptr<Value>) {});
-  }
 }
 
 void OpenBuffer::Save() {
@@ -1063,16 +997,16 @@ unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,
   return afc::vm::CompileString(code, environment_, error_description);
 }
 
-void OpenBuffer::EvaluateExpression(
-    Expression* expr, std::function<void(std::unique_ptr<Value>)> consumer) {
-  Evaluate(expr, environment_, consumer,
-           [work_queue = work_queue()](std::function<void()> callback) {
-             work_queue->Schedule(std::move(callback));
-           });
+futures::DelayedValue<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
+    Expression* expr) {
+  return Evaluate(expr, environment_,
+                  [work_queue = work_queue()](std::function<void()> callback) {
+                    work_queue->Schedule(std::move(callback));
+                  });
 }
 
-bool OpenBuffer::EvaluateString(
-    const wstring& code, std::function<void(std::unique_ptr<Value>)> consumer) {
+std::optional<futures::DelayedValue<std::unique_ptr<Value>>>
+OpenBuffer::EvaluateString(const wstring& code) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
   // TODO: Use unique_ptr and capture by value.
@@ -1080,36 +1014,34 @@ bool OpenBuffer::EvaluateString(
       CompileString(code, &error_description);
   if (expression == nullptr) {
     status_.SetWarningText(L"🐜Compilation error: " + error_description);
-    return false;
+    return std::nullopt;
   }
   LOG(INFO) << "Code compiled, evaluating.";
-  EvaluateExpression(
-      expression.get(),
-      [expression, consumer](Value::Ptr value) { consumer(std::move(value)); });
-  return true;
+  auto output = EvaluateExpression(expression.get());
+  output.AddListener(
+      [expression](const std::unique_ptr<Value>&) { /* Nothing. */ });
+  return output;
 }
 
-bool OpenBuffer::EvaluateFile(
-    const wstring& path, std::function<void(std::unique_ptr<Value>)> callback) {
+std::optional<futures::DelayedValue<std::unique_ptr<Value>>>
+OpenBuffer::EvaluateFile(const wstring& path) {
   wstring error_description;
   std::shared_ptr<Expression> expression =
       CompileFile(ToByteString(path), environment_, &error_description);
   if (expression == nullptr) {
     status_.SetWarningText(path + L": error: " + error_description);
-    return false;
+    return std::nullopt;
   }
   LOG(INFO) << "Evaluating file: " << path;
-  Evaluate(
-      expression.get(), environment_,
-      [path, callback, expression](std::unique_ptr<Value> value) {
-        LOG(INFO) << "Evaluation of file completed: " << path;
-        callback(std::move(value));
-      },
-      [path, work_queue = work_queue()](std::function<void()> resume) {
-        LOG(INFO) << "Evaluation of file yields: " << path;
-        work_queue->Schedule(std::move(resume));
-      });
-  return true;
+  auto output =
+      Evaluate(expression.get(), environment_,
+               [path, work_queue = work_queue()](std::function<void()> resume) {
+                 LOG(INFO) << "Evaluation of file yields: " << path;
+                 work_queue->Schedule(std::move(resume));
+               });
+  output.AddListener(
+      [expression](const std::unique_ptr<Value>&) { /* Nothing. */ });
+  return output;
 }
 
 WorkQueue* OpenBuffer::work_queue() const { return &work_queue_; }
@@ -1569,19 +1501,32 @@ void OpenBuffer::PushSignal(int sig) {
 
 Viewers* OpenBuffer::viewers() { return &viewers_; }
 
-wstring OpenBuffer::TransformKeyboardText(wstring input) {
+futures::DelayedValue<std::wstring> OpenBuffer::TransformKeyboardText(
+    std::wstring input) {
   using afc::vm::VMType;
-  for (Value::Ptr& t : keyboard_text_transformers_) {
-    vector<Value::Ptr> args;
-    args.push_back(Value::NewString(std::move(input)));
-    Call(
-        *t, std::move(args),
-        [&input](Value::Ptr value) { input = std::move(value->str); },
-        [work_queue = work_queue()](std::function<void()> callback) {
-          work_queue->Schedule(std::move(callback));
-        });
-  }
-  return input;
+  auto input_shared = std::make_shared<std::wstring>(input);
+  return futures::DelayedValue<std::wstring>::Transform(
+      futures::ForEach(
+          keyboard_text_transformers_.begin(),
+          keyboard_text_transformers_.end(),
+          [this, input_shared](const std::unique_ptr<Value>& t) {
+            vector<Value::Ptr> args;
+            args.push_back(Value::NewString(std::move(*input_shared)));
+            return futures::DelayedValue<IterationControlCommand>::Transform(
+                Call(*t, std::move(args),
+                     [work_queue =
+                          work_queue()](std::function<void()> callback) {
+                       work_queue->Schedule(std::move(callback));
+                     }),
+                [&input_shared](const std::unique_ptr<Value>& value) {
+                  *input_shared = std::move(value->str);
+                  return futures::ImmediateValue(
+                      IterationControlCommand::kContinue);
+                });
+          }),
+      [input_shared](IterationControlCommand) {
+        return futures::ImmediateValue(std::move(*input_shared));
+      });
 }
 
 bool OpenBuffer::AddKeyboardTextTransformer(unique_ptr<Value> transformer) {
@@ -1932,11 +1877,11 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
   }
   futures::While([this, undo_mode, data] {
     if (data->repetitions == editor()->repetitions() || data->source->empty()) {
-      return futures::ImmediateValue(futures::IterationControlCommand::kStop);
+      return futures::ImmediateValue(IterationControlCommand::kStop);
     }
     Transformation::Input input(this);
     input.position = position();
-    return futures::DelayedValue<futures::IterationControlCommand>::Transform(
+    return futures::DelayedValue<IterationControlCommand>::Transform(
         data->source->back()->Apply(input),
         [this, undo_mode, data](const Transformation::Result& result) {
           data->target->push_back(result.undo_stack->CloneStack());
@@ -1945,8 +1890,7 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
               undo_mode == OpenBuffer::UndoMode::kOnlyOne) {
             data->repetitions++;
           }
-          return futures::ImmediateValue(
-              futures::IterationControlCommand::kContinue);
+          return futures::ImmediateValue(IterationControlCommand::kContinue);
         });
   });
 }
@@ -1954,27 +1898,6 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
 void OpenBuffer::set_filter(unique_ptr<Value> filter) {
   filter_ = std::move(filter);
   filter_version_++;
-}
-
-bool OpenBuffer::IsLineFiltered(LineNumber line_number) {
-  if (line_number > contents_.EndLine()) {
-    return true;
-  }
-  const auto& old_line = *LineAt(line_number);
-  if (old_line.filter_version() >= filter_version_) {
-    return old_line.filtered();
-  }
-
-  bool filtered;
-  vector<Value::Ptr> args;
-  args.push_back(Value::NewString(old_line.ToString()));
-  Call(*filter_, std::move(args),
-       [&filtered](Value::Ptr value) { filtered = value->boolean; });
-
-  auto new_line = std::make_shared<Line>(old_line);
-  new_line->set_filtered(filtered, filter_version_);
-  contents_.set_line(line_number, new_line);
-  return filtered;
 }
 
 const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {

@@ -22,7 +22,7 @@ void RunCppCommandLiteralHandler(const wstring& name,
     return;
   }
   buffer->ResetMode();
-  buffer->EvaluateString(name, [](std::unique_ptr<Value>) { /* Nothing. */ });
+  buffer->EvaluateString(name);
 }
 
 struct Token {
@@ -162,8 +162,9 @@ void Execute(std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
     buffer->status()->SetWarningText(L"Unable to compile (type mismatch).");
     return;
   }
-  buffer->EvaluateExpression(
-      expression.get(), [buffer, expression](Value::Ptr) { /* Nothing. */ });
+  buffer->EvaluateExpression(expression.get())
+      .AddListener([buffer, expression](
+                       const std::unique_ptr<Value>&) { /* Nothing. */ });
 }
 
 void RunCppCommandShellHandler(const std::wstring& command,

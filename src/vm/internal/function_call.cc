@@ -285,9 +285,9 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
   return nullptr;
 }
 
-void Call(const Value& func, vector<Value::Ptr> args,
-          std::function<void(Value::Ptr)> consumer,
-          std::function<void(std::function<void()>)> yield_callback) {
+futures::DelayedValue<std::unique_ptr<Value>> Call(
+    const Value& func, vector<Value::Ptr> args,
+    std::function<void(std::function<void()>)> yield_callback) {
   CHECK_EQ(func.type.type, VMType::FUNCTION);
   std::vector<std::unique_ptr<Expression>> args_expr;
   for (auto& a : args) {
@@ -298,12 +298,10 @@ void Call(const Value& func, vector<Value::Ptr> args,
       NewFunctionCall(NewConstantExpression(Value::NewFunction(
                           func.type.type_arguments, func.callback)),
                       std::move(args_expr));
-  Evaluate(
-      function_expr.get(), nullptr,
-      [function_expr, consumer](Value::Ptr value) {
-        consumer(std::move(value));
-      },
-      yield_callback);
+  auto output = Evaluate(function_expr.get(), nullptr, yield_callback);
+  output.AddListener(
+      [function_expr](const std::unique_ptr<Value>&) { /* Nothing. */ });
+  return output;
 }
 
 }  // namespace vm

@@ -29,8 +29,6 @@ ColumnNumber GetCurrentColumn(OpenBuffer* buffer) {
     return ColumnNumber(0);
   } else if (buffer->position().line > buffer->EndLine()) {
     return buffer->contents()->back()->EndColumn();
-  } else if (!buffer->IsLineFiltered(buffer->position().line)) {
-    return ColumnNumber(0);
   } else {
     return min(buffer->position().column,
                buffer->LineAt(buffer->position().line)->EndColumn());

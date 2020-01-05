@@ -505,10 +505,10 @@ class InsertMode : public EditorMode {
               L"Unable to compile (type mismatch).");
           return;
         }
-        buffer->EvaluateExpression(
-            expression.get(),
-            [buffer, expression,
-             callback = options_.modify_handler](Value::Ptr) { callback(); });
+        buffer->EvaluateExpression(expression.get())
+            .AddListener(
+                [buffer, expression, callback = options_.modify_handler](
+                    const std::unique_ptr<Value>&) { callback(); });
         return;
       }
 
@@ -528,20 +528,22 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
     }
 
-    {
-      auto buffer_to_insert =
-          std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-      buffer_to_insert->AppendToLastLine(
-          NewLazyString(buffer->TransformKeyboardText(wstring(1, c))));
+    buffer->TransformKeyboardText(wstring(1, c))
+        .AddListener([this, editor_state, buffer](std::wstring value) {
+          auto buffer_to_insert =
+              std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
-      InsertOptions insert_options;
-      insert_options.modifiers.insertion = editor_state->modifiers().insertion;
-      insert_options.buffer_to_insert = buffer_to_insert;
-      buffer->ApplyToCursors(
-          NewInsertBufferTransformation(std::move(insert_options)));
-    }
+          buffer_to_insert->AppendToLastLine(NewLazyString(value));
 
-    options_.modify_handler();
+          InsertOptions insert_options;
+          insert_options.modifiers.insertion =
+              editor_state->modifiers().insertion;
+          insert_options.buffer_to_insert = buffer_to_insert;
+          buffer->ApplyToCursors(
+              NewInsertBufferTransformation(std::move(insert_options)));
+
+          options_.modify_handler();
+        });
   }
 
  private:

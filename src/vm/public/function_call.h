@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/futures/futures.h"
 #include "value.h"
 
 namespace afc {
@@ -24,9 +25,9 @@ std::unique_ptr<Expression> NewFunctionCall(
     std::vector<std::unique_ptr<Expression>> args);
 
 // TODO: Remove the nullptr default value and force all callers to pass a value.
-void Call(const Value& func, vector<Value::Ptr> args,
-          std::function<void(Value::Ptr)> consumer,
-          std::function<void(std::function<void()>)> yield_callback = nullptr);
+futures::DelayedValue<std::unique_ptr<Value>> Call(
+    const Value& func, vector<Value::Ptr> args,
+    std::function<void(std::function<void()>)> yield_callback = nullptr);
 
 std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                                             std::unique_ptr<Expression> object,

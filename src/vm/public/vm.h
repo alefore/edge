@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "src/futures/futures.h"
 #include "types.h"
 
 namespace afc {
@@ -141,9 +142,9 @@ unique_ptr<Expression> CompileString(const wstring& str,
 // Caller must make sure expr lives until consumer runs. `yield_callback` is an
 // optional function that must ensure that the callback it receives will run
 // in the future.
-void Evaluate(Expression* expr, std::shared_ptr<Environment> environment,
-              std::function<void(std::unique_ptr<Value>)> consumer,
-              std::function<void(std::function<void()>)> yield_callback);
+futures::DelayedValue<std::unique_ptr<Value>> Evaluate(
+    Expression* expr, std::shared_ptr<Environment> environment,
+    std::function<void(std::function<void()>)> yield_callback);
 
 }  // namespace vm
 }  // namespace afc

@@ -63,12 +63,11 @@ class CppCommand : public Command {
 
     Evaluate(
         expression_.get(), editor_state->environment(),
-        [expression](std::unique_ptr<Value>) {
-          DVLOG(5) << "CppCommand finished.";
-        },
         [work_queue = buffer->work_queue()](std::function<void()> callback) {
           work_queue->Schedule(std::move(callback));
-        });
+        })
+        .AddListener(
+            [expression](const std::unique_ptr<Value>&) { /* Nothing. */ });
   }
 
  private:
