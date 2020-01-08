@@ -68,8 +68,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
   // Returns nothing.
   callback->type.type_arguments = {VMType(VMType::VM_VOID),
                                    VMType::ObjectType(editor_type)};
-  callback->callback = [method](vector<unique_ptr<Value>> args,
-                                Trampoline* trampoline) {
+  callback->callback = [method](vector<unique_ptr<Value>> args, Trampoline*) {
     CHECK_EQ(args.size(), size_t(1));
     CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
 
@@ -81,7 +80,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
       (*buffer.*method)();
       editor->ResetModifiers();
     }
-    trampoline->Return(Value::NewVoid());
+    return futures::ImmediateValue(EvaluationOutput::New(Value::NewVoid()));
   };
   editor_type->AddField(name, std::move(callback));
 }
@@ -257,31 +256,33 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       L"WaitForClose",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(L"SetString")},
-          [this](vector<Value::Ptr> args, Trampoline* trampoline) {
+          [this](vector<Value::Ptr> args, Trampoline*) {
             CHECK_EQ(args.size(), 1u);
             const auto& buffers_to_wait =
                 *static_cast<std::set<wstring>*>(args[0]->user_value.get());
 
             auto pending = std::make_shared<int>(0);
-            auto continuation = trampoline->Interrupt();
+            futures::Future<EvaluationOutput> future;
             for (const auto& buffer_name : buffers_to_wait) {
               auto buffer_it = buffers()->find(buffer_name);
               if (buffer_it == buffers()->end()) {
                 continue;
               }
               (*pending)++;
-              buffer_it->second->AddCloseObserver([pending, continuation]() {
-                LOG(INFO) << "Buffer is closing, with: " << *pending;
-                CHECK_GT(*pending, 0);
-                if (--(*pending) == 0) {
-                  LOG(INFO) << "Resuming!";
-                  continuation(Value::NewVoid());
-                }
-              });
+              buffer_it->second->AddCloseObserver(
+                  [pending, consumer = future.consumer()]() {
+                    LOG(INFO) << "Buffer is closing, with: " << *pending;
+                    CHECK_GT(*pending, 0);
+                    if (--(*pending) == 0) {
+                      LOG(INFO) << "Resuming!";
+                      consumer(EvaluationOutput::Return(Value::NewVoid()));
+                    }
+                  });
             }
             if (pending == 0) {
-              trampoline->Return(Value::NewVoid());
+              future.consumer()(EvaluationOutput::Return(Value::NewVoid()));
             }
+            return future.value();
           }));
 
   environment->Define(

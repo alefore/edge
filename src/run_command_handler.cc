@@ -417,8 +417,8 @@ class ForkEditorCommand : public Command {
       return;
     }
     prompt_state->original_buffer->EvaluateExpression(expression.get())
-        .AddListener([prompt_state, expression,
-                      prompt_buffer](const std::unique_ptr<Value>& value) {
+        .SetConsumer([prompt_state, expression,
+                      prompt_buffer](std::unique_ptr<Value> value) {
           CHECK(value->IsString());
           auto base_command = value->str;
           if (prompt_state->base_command == base_command) {

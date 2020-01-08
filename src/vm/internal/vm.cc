@@ -557,75 +557,22 @@ std::unique_ptr<Expression> CompileString(
 
 Trampoline::Trampoline(Options options)
     : environment_(options.environment),
-      return_continuation_(std::move(options.return_continuation)),
-      continuation_(return_continuation_),
       yield_callback_(std::move(options.yield_callback)) {}
 
-void Trampoline::Enter(Expression* start_expression) {
-  CHECK(expression_ == nullptr);
-  CHECK(start_expression != nullptr);
-  CHECK(!start_expression->Types().empty());
-  expression_ = start_expression;
-  desired_type_ = start_expression->Types()[0];
-  while (expression_) {
-    Expression* current_expression = expression_;
-    expression_ = nullptr;
-
-    static size_t kMaximumJumps = 100;
-    if (jumps_ > kMaximumJumps && yield_callback_) {
-      DVLOG(5) << "Yielding.";
-      yield_callback_([trampoline = std::make_shared<Trampoline>(*this),
-                       current_expression]() {
-        trampoline->jumps_ = 0;
-        trampoline->Enter(current_expression);
-      });
-      return;
-    }
-    DVLOG(7) << "Jumping in the evaluation trampoline...";
-    jumps_++;
-    current_expression->Evaluate(this, desired_type_);
-    DVLOG(10) << "Landed in the evaluation trampoline...";
+futures::DelayedValue<EvaluationOutput> Trampoline::Bounce(
+    Expression* expression, VMType type) {
+  CHECK(expression->SupportsType(type));
+  static size_t kMaximumJumps = 100;
+  if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr) {
+    return expression->Evaluate(this, type);
   }
-  DVLOG(4) << "Leaving evaluation trampoline...";
-}
 
-std::function<void(Value::Ptr)> Trampoline::Interrupt() {
-  DVLOG(5) << "Interrupting trampoline.";
-  CHECK(expression_ == nullptr);
-  return [trampoline = std::make_shared<Trampoline>(*this)](Value::Ptr value) {
-    DVLOG(5) << "Resuming trampoline.";
-    trampoline->Continue(std::move(value));
-    if (trampoline->expression_ != nullptr) {
-      Expression* expression_copy = trampoline->expression_;
-      trampoline->expression_ = nullptr;
-      trampoline->Enter(expression_copy);
-    }
-  };
-}
-
-void Trampoline::Bounce(Expression* new_expression, VMType type,
-                        Continuation new_continuation) {
-  DVLOG(6) << "Bouncing in the trampoline.";
-  CHECK(expression_ == nullptr);
-  Continuation original_continuation = std::move(continuation_);
-  expression_ = new_expression;
-  desired_type_ = std::move(type);
-  CHECK(expression_->SupportsType(desired_type_));
-  continuation_ = [original_continuation, new_continuation](
-                      Value::Ptr value, Trampoline* trampoline) {
-    // We do this copy because the assignment below may delete us.
-    auto new_continuation_copy = std::move(new_continuation);
-    trampoline->continuation_ = std::move(original_continuation);
-    new_continuation_copy(std::move(value), trampoline);
-  };
-}
-
-void Trampoline::Continue(std::unique_ptr<Value> value) {
-  continuation_(std::move(value), this);
-}
-
-void Trampoline::Return(std::unique_ptr<Value> value) {
-  return_continuation_(std::move(value), this);
+  futures::Future<EvaluationOutput> future;
+  yield_callback_([this, expression, type, consumer = future.consumer()]() {
+    jumps_ = 0;
+    Bounce(expression, type).SetConsumer(consumer);
+  });
+  return future.value();
 }
 
 void Trampoline::SetEnvironment(std::shared_ptr<Environment> environment) {
@@ -636,34 +583,21 @@ const std::shared_ptr<Environment>& Trampoline::environment() const {
   return environment_;
 }
 
-void Trampoline::SetReturnContinuation(Continuation continuation) {
-  return_continuation_ = continuation;
-}
-
-Trampoline::Continuation Trampoline::return_continuation() const {
-  return return_continuation_;
-}
-
-void Trampoline::SetContinuation(Continuation continuation) {
-  continuation_ = continuation;
-}
-
 futures::DelayedValue<std::unique_ptr<Value>> Evaluate(
     Expression* expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK(expr != nullptr);
   Trampoline::Options options;
   options.environment = environment;
-  futures::Future<std::unique_ptr<Value>> future;
-  options.return_continuation = [receiver = future.Receiver()](
-                                    std::unique_ptr<Value> value, Trampoline*) {
-    DVLOG(4) << "Evaluation done.";
-    DVLOG(5) << "Result: " << *value;
-    receiver.Set(std::move(value));
-  };
   options.yield_callback = yield_callback;
-  Trampoline(std::move(options)).Enter(expr);
-  return future.Value();
+  auto trampoline = std::make_shared<Trampoline>(options);
+  return futures::DelayedValue<std::unique_ptr<Value>>::ImmediateTransform(
+      trampoline->Bounce(expr, expr->Types()[0]),
+      [trampoline](EvaluationOutput value) {
+        DVLOG(4) << "Evaluation done.";
+        DVLOG(5) << "Result: " << *value.value;
+        return std::move(value.value);
+      });
 }
 
 }  // namespace vm

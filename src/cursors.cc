@@ -410,12 +410,12 @@ futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
     if (data->cursors->empty()) {
       data->cursors->swap(&already_applied_cursors_);
       LOG(INFO) << "Current cursor at: " << *data->cursors->active();
-      data->done.Receiver().Set(true);
+      data->done.consumer()(true);
       return;
     }
     VLOG(6) << "Adjusting cursor: " << *data->cursors->begin();
     data->callback(*data->cursors->begin())
-        .AddListener([this, data, apply_next](LineColumn column) {
+        .SetConsumer([this, data, apply_next](LineColumn column) {
           auto insert_result = already_applied_cursors_.insert(column);
           VLOG(7) << "Cursor moved to: " << *insert_result;
           if (!data->adjusted_active_cursor &&
@@ -430,7 +430,7 @@ futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
         });
   };
   apply_next(apply_next);
-  return data->done.Value();
+  return data->done.value();
 }
 
 size_t CursorsTracker::Push() {

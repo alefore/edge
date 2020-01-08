@@ -29,54 +29,32 @@ class Evaluation;
 struct VMType;
 
 class Expression;
+struct EvaluationOutput;
 
 class Trampoline {
  public:
-  // The continuation receives the current trampoline because it may change
-  // during the execution of an expression.
-  using Continuation = std::function<void(std::unique_ptr<Value>, Trampoline*)>;
-
   struct Options {
     std::shared_ptr<Environment> environment;
-    Continuation return_continuation;
     std::function<void(std::function<void()>)> yield_callback;
   };
 
   Trampoline(Options options);
 
-  // Must ensure expression lives until return_continuation is called.
-  void Enter(Expression* expression);
+  // Must ensure expression lives until the value is notified.
+  futures::DelayedValue<std::unique_ptr<Value>> Enter(Expression* expression);
 
   void SetEnvironment(std::shared_ptr<Environment> environment);
   const std::shared_ptr<Environment>& environment() const;
 
-  void SetReturnContinuation(Continuation continuation);
-  Continuation return_continuation() const;
-
-  void SetContinuation(Continuation continuation);
-
-  // Returns the function that can resume. Roughly equivalent to Continue, but
-  // allows us to return and resume continuation later.
-  std::function<void(std::unique_ptr<Value>)> Interrupt();
-
-  // Must ensure new_expression lives until new_contination is called.
-  void Bounce(Expression* new_expression, VMType type,
-              Continuation new_continuation);
-  void Return(std::unique_ptr<Value> value);
-  void Continue(std::unique_ptr<Value> value);
+  // Must ensure expression lives until the future is notified.
+  futures::DelayedValue<EvaluationOutput> Bounce(Expression* expression,
+                                                 VMType expression_type);
 
  private:
   std::shared_ptr<Environment> environment_;
 
-  Continuation return_continuation_;
-  Continuation continuation_;
-
   std::function<void(std::function<void()>)> yield_callback_;
   size_t jumps_ = 0;
-
-  // Set by Bounce (and Enter), read by Enter.
-  Expression* expression_ = nullptr;
-  VMType desired_type_;
 };
 
 class Expression {
@@ -113,16 +91,33 @@ class Expression {
   // Returns a new copy of this expression.
   virtual std::unique_ptr<Expression> Clone() = 0;
 
-  // Implementation details, not relevant for customers.
-  // TODO: Figure out a nice way to hide this.
-
   // Must call either Trampoline::Return, Trampoline::Continue,
   // Trampoline::Bounce, or Trampoline::Interrupt before returning.
   //
   // The caller must ensure that the expression doesn't get deleted before the
   // trampoline receives the value (i.e., either Trampoline::Return or
   // Trampoline::Continue).
-  virtual void Evaluate(Trampoline* evaluation, const VMType& type) = 0;
+  virtual futures::DelayedValue<EvaluationOutput> Evaluate(
+      Trampoline* evaluation, const VMType& type) = 0;
+};
+
+struct EvaluationOutput {
+  enum class OutputType { kReturn, kContinue };
+
+  static EvaluationOutput New(std::unique_ptr<Value> value) {
+    EvaluationOutput output;
+    output.value = std::move(value);
+    return output;
+  }
+  static EvaluationOutput Return(std::unique_ptr<Value> value) {
+    EvaluationOutput output;
+    output.value = std::move(value);
+    output.type = OutputType::kReturn;
+    return output;
+  }
+
+  std::unique_ptr<Value> value;
+  OutputType type = OutputType::kContinue;
 };
 
 // Combine the return types of two sub-expressions (see Expression::ReturnType).

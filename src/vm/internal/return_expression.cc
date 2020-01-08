@@ -22,13 +22,14 @@ class ReturnExpression : public Expression {
     return {types.cbegin(), types.cend()};
   }
 
-  void Evaluate(Trampoline* trampoline, const VMType&) override {
-    auto expr = expr_;
-    trampoline->Bounce(expr.get(), expr->Types()[0],
-                       // We do this silly dance just to capture expr.
-                       [expr](Value::Ptr value, Trampoline* trampoline) {
-                         trampoline->Return(std::move(value));
-                       });
+  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType&) override {
+    return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+        trampoline->Bounce(expr_.get(), expr_->Types()[0]),
+        [expr = expr_](EvaluationOutput expr_output) {
+          expr_output.type = EvaluationOutput::OutputType::kReturn;
+          return expr_output;
+        });
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -42,7 +43,7 @@ class ReturnExpression : public Expression {
 }  // namespace
 
 std::unique_ptr<Expression> NewReturnExpression(
-    Compilation* compilation, std::unique_ptr<Expression> expr) {
+    Compilation*, std::unique_ptr<Expression> expr) {
   if (expr == nullptr) {
     return nullptr;
   }

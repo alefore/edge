@@ -73,7 +73,8 @@ class FunctionCall : public Expression {
 
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
-  void Evaluate(Trampoline* trampoline, const VMType& type) {
+  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType& type) {
     DVLOG(3) << "Function call evaluation starts.";
     auto args_types = args_;
     auto func = func_;
@@ -83,16 +84,17 @@ class FunctionCall : public Expression {
       type_arguments.push_back(arg->Types()[0]);
     }
 
-    trampoline->Bounce(func_.get(), VMType::Function(std::move(type_arguments)),
-                       [func, args_types](std::unique_ptr<Value> callback,
-                                          Trampoline* trampoline) {
-                         DVLOG(6) << "Got function: " << *callback;
-                         CHECK(callback->callback != nullptr);
-                         CaptureArgs(
-                             trampoline, args_types,
-                             std::make_shared<vector<unique_ptr<Value>>>(),
-                             std::move(callback));
-                       });
+    futures::Future<EvaluationOutput> output;
+    trampoline->Bounce(func_.get(), VMType::Function(std::move(type_arguments)))
+        .SetConsumer([func, args_types, trampoline,
+                      consumer = output.consumer()](EvaluationOutput callback) {
+          DVLOG(6) << "Got function: " << *callback.value;
+          CHECK(callback.value->callback != nullptr);
+          CaptureArgs(trampoline, consumer, args_types,
+                      std::make_shared<vector<unique_ptr<Value>>>(),
+                      std::move(callback.value));
+        });
+    return output.value();
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -102,48 +104,35 @@ class FunctionCall : public Expression {
  private:
   static void CaptureArgs(
       Trampoline* trampoline,
+      futures::DelayedValue<EvaluationOutput>::Consumer consumer,
       std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_types,
       std::shared_ptr<std::vector<unique_ptr<Value>>> values,
       std::shared_ptr<Value> callback) {
     CHECK(args_types != nullptr);
     CHECK(values != nullptr);
-    CHECK(callback != nullptr);
     CHECK_EQ(callback->type.type, VMType::FUNCTION);
     CHECK(callback->callback != nullptr);
 
     DVLOG(5) << "Evaluating function parameters, args: " << args_types->size();
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
-      trampoline->SetReturnContinuation(
-          [original_trampoline = *trampoline](std::unique_ptr<Value> value,
-                                              Trampoline* trampoline) {
-            CHECK(value != nullptr);
-            DVLOG(3) << "Got returned value: " << *value;
-            // We have to make a copy because assigning to *trampoline may
-            // delete us (and thus deletes original_trampoline as it is being
-            // read).
-            Trampoline tmp_copy = original_trampoline;
-            *trampoline = tmp_copy;
-            trampoline->Continue(std::move(value));
+      callback->callback(std::move(*values), trampoline)
+          .SetConsumer([consumer, callback](EvaluationOutput return_value) {
+            consumer(EvaluationOutput::New(std::move(return_value.value)));
           });
-      trampoline->SetContinuation(trampoline->return_continuation());
-      callback->callback(std::move(*values), trampoline);
       return;
     }
     auto arg = args_types->at(values->size()).get();
-    trampoline->Bounce(
-        arg, arg->Types()[0],
-        [args_types, values, callback](std::unique_ptr<Value> value,
-                                       Trampoline* trampoline) {
+    trampoline->Bounce(arg, arg->Types()[0])
+        .SetConsumer([trampoline, consumer, args_types, values,
+                      callback](EvaluationOutput value) {
           CHECK(values != nullptr);
+          CHECK(value.value != nullptr);
           DVLOG(5) << "Received results of parameter " << values->size() + 1
-                   << " (of " << args_types->size() << "): " << *value;
-          values->push_back(std::move(value));
+                   << " (of " << args_types->size() << "): " << *value.value;
+          values->push_back(std::move(value.value));
           DVLOG(6) << "Recursive call.";
-          CHECK(callback != nullptr);
-          CHECK_EQ(callback->type.type, VMType::FUNCTION);
-          CHECK(callback->callback);
-          CaptureArgs(trampoline, args_types, values, callback);
+          CaptureArgs(trampoline, consumer, args_types, values, callback);
         });
   }
 
@@ -251,18 +240,20 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                                                       delegate_);
       }
 
-      void Evaluate(Trampoline* evaluation, const VMType& type) override {
-        evaluation->Bounce(
-            obj_expr_.get(), obj_expr_->Types()[0],
+      futures::DelayedValue<EvaluationOutput> Evaluate(
+          Trampoline* trampoline, const VMType& type) override {
+        return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+            trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0]),
             [type, shared_type = type_, shared_obj_expr = obj_expr_,
-             shared_delegate = delegate_](Value::Ptr obj,
-                                          Trampoline* trampoline) {
-              trampoline->Continue(Value::NewFunction(
+             shared_delegate = delegate_](EvaluationOutput output) {
+              return EvaluationOutput::New(Value::NewFunction(
                   shared_type->type_arguments,
-                  [obj = std::shared_ptr(std::move(obj)), shared_delegate](
-                      std::vector<Value::Ptr> args, Trampoline* trampoline) {
+                  [obj = std::shared_ptr(std::move(output.value)),
+                   shared_delegate](std::vector<Value::Ptr> args,
+                                    Trampoline* trampoline) {
                     args.emplace(args.begin(), std::make_unique<Value>(*obj));
-                    shared_delegate->callback(std::move(args), trampoline);
+                    return shared_delegate->callback(std::move(args),
+                                                     trampoline);
                   }));
             });
       }
@@ -298,10 +289,11 @@ futures::DelayedValue<std::unique_ptr<Value>> Call(
       NewFunctionCall(NewConstantExpression(Value::NewFunction(
                           func.type.type_arguments, func.callback)),
                       std::move(args_expr));
-  auto output = Evaluate(function_expr.get(), nullptr, yield_callback);
-  output.AddListener(
-      [function_expr](const std::unique_ptr<Value>&) { /* Nothing. */ });
-  return output;
+  return futures::DelayedValue<std::unique_ptr<Value>>::ImmediateTransform(
+      Evaluate(function_expr.get(), nullptr, yield_callback),
+      [function_expr](std::unique_ptr<Value> value) {
+        return std::move(value); /* Keeps `expr` alive. */
+      });
 }
 
 }  // namespace vm

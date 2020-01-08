@@ -110,7 +110,7 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
       expr.get(), buffer->environment(),
       [work_queue = target_buffer->work_queue()](
           std::function<void()> callback) { work_queue->Schedule(callback); })
-      .AddListener([expr](const std::unique_ptr<Value>&) { /* Nothing. */ });
+      .SetConsumer([expr](std::unique_ptr<Value>) { /* Keep expr alive. */ });
 }
 
 class DeleteTransformation : public Transformation {

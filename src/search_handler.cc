@@ -201,8 +201,8 @@ futures::DelayedValue<PredictorOutput> SearchHandlerPredictor(
     futures::Future<PredictorOutput> future;
     input.predictions->EndOfFile();
     input.predictions->AddEndOfFileObserver(
-        [receiver = future.Receiver()] { receiver.Set(PredictorOutput()); });
-    return future.Value();
+        [consumer = future.consumer()] { consumer(PredictorOutput()); });
+    return future.value();
   }
 
   // Get the first kMatchesLimit matches:
@@ -228,8 +228,8 @@ futures::DelayedValue<PredictorOutput> SearchHandlerPredictor(
   futures::Future<PredictorOutput> future;
   input.predictions->EndOfFile();
   input.predictions->AddEndOfFileObserver(
-      [receiver = future.Receiver()] { receiver.Set(PredictorOutput()); });
-  return future.Value();
+      [consumer = future.consumer()] { consumer(PredictorOutput()); });
+  return future.value();
 }
 
 vector<LineColumn> SearchHandler(EditorState* editor_state,

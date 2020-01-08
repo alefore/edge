@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "src/futures/futures.h"
 #include "types.h"
 
 namespace afc::vm {
@@ -17,6 +18,7 @@ using std::string;
 using std::vector;
 
 class Trampoline;
+struct EvaluationOutput;
 
 struct Value {
   using Ptr = std::unique_ptr<Value>;
@@ -24,7 +26,8 @@ struct Value {
   Value(const VMType::Type& t) : type(t) {}
   Value(const VMType& t) : type(t) {}
 
-  using Callback = std::function<void(std::vector<Ptr>, Trampoline*)>;
+  using Callback = std::function<futures::DelayedValue<EvaluationOutput>(
+      std::vector<Ptr>, Trampoline*)>;
   static unique_ptr<Value> NewVoid();
   static unique_ptr<Value> NewBool(bool value);
   static unique_ptr<Value> NewInteger(int value);

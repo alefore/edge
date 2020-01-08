@@ -423,10 +423,10 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
         buffer->MaybeAdjustPositionCol();
         buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
-            .AddListener([buffer, editor_state, this](bool) {
+            .SetConsumer([buffer, editor_state, this](bool) {
               buffer->PopTransformationStack();
               editor_state->set_repetitions(editor_state->repetitions() - 1);
-              buffer->RepeatLastTransformation().AddListener(
+              buffer->RepeatLastTransformation().SetConsumer(
                   [buffer, editor_state, this](bool) {
                     buffer->PopTransformationStack();
                     editor_state->PushCurrentPosition();
@@ -478,7 +478,7 @@ class InsertMode : public EditorMode {
         }
         delete_options.copy_to_paste_buffer = false;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
-            .AddListener([this](bool) { options_.modify_handler(); });
+            .SetConsumer([this](bool) { options_.modify_handler(); });
       }
         return;
 
@@ -506,9 +506,9 @@ class InsertMode : public EditorMode {
           return;
         }
         buffer->EvaluateExpression(expression.get())
-            .AddListener(
+            .SetConsumer(
                 [buffer, expression, callback = options_.modify_handler](
-                    const std::unique_ptr<Value>&) { callback(); });
+                    std::unique_ptr<Value>) { callback(); });
         return;
       }
 
@@ -520,7 +520,7 @@ class InsertMode : public EditorMode {
         delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
         delete_options.copy_to_paste_buffer = false;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
-            .AddListener([this](bool) { options_.modify_handler(); });
+            .SetConsumer([this](bool) { options_.modify_handler(); });
         return;
       }
 
@@ -529,7 +529,7 @@ class InsertMode : public EditorMode {
     }
 
     buffer->TransformKeyboardText(wstring(1, c))
-        .AddListener([this, editor_state, buffer](std::wstring value) {
+        .SetConsumer([this, editor_state, buffer](std::wstring value) {
           auto buffer_to_insert =
               std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 

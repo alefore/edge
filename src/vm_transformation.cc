@@ -55,19 +55,15 @@ class FunctionTransformation : public CompositeTransformation {
     std::vector<std::unique_ptr<vm::Value>> args;
     args.emplace_back(VMTypeMapper<std::shared_ptr<Input>>::New(
         std::make_shared<Input>(input)));
-    futures::Future<Output> output;
-    // We use `AddListener` rather than `Transform` because `Output` isn't
-    // moveable.
-    vm::Call(*function_, std::move(args),
-             [buffer = input.buffer](std::function<void()> callback) {
-               buffer->work_queue()->Schedule(std::move(callback));
-             })
-        .AddListener([receiver = output.Receiver()](
-                         const std::unique_ptr<Value>& value) {
-          receiver.Set(std::move(
-              *VMTypeMapper<std::shared_ptr<Output>>::get(value.get())));
+    return futures::DelayedValue<Output>::ImmediateTransform(
+        vm::Call(*function_, std::move(args),
+                 [buffer = input.buffer](std::function<void()> callback) {
+                   buffer->work_queue()->Schedule(std::move(callback));
+                 }),
+        [](std::unique_ptr<Value> value) {
+          return std::move(
+              *VMTypeMapper<std::shared_ptr<Output>>::get(value.get()));
         });
-    return output.Value();
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

@@ -51,9 +51,11 @@ class LambdaExpression : public Expression {
   std::vector<VMType> Types() { return {type_}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
-  void Evaluate(Trampoline* trampoline, const VMType& type) {
+  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType& type) {
     CHECK_EQ(type, type_);
-    trampoline->Continue(BuildValue(trampoline->environment()));
+    return futures::ImmediateValue(
+        EvaluationOutput::New(BuildValue(trampoline->environment())));
   }
 
   std::unique_ptr<Value> BuildValue(
@@ -70,22 +72,16 @@ class LambdaExpression : public Expression {
           for (size_t i = 0; i < args.size(); i++) {
             environment->Define(argument_names->at(i), std::move(args.at(i)));
           }
-          trampoline->SetReturnContinuation(
-              [original_trampoline = *trampoline](std::unique_ptr<Value> value,
-                                                  Trampoline* trampoline) {
-                CHECK(value != nullptr);
-                // We have to make a copy because assigning to *trampoline may
-                // delete us (and thus deletes original_trampoline as it is
-                // being read).
-                Trampoline tmp_copy = original_trampoline;
-                *trampoline = tmp_copy;
-                trampoline->Return(std::move(value));
-              });
+          auto original_trampoline = *trampoline;
           trampoline->SetEnvironment(environment);
-          trampoline->Bounce(body.get(), body->Types()[0],
-                             [body](Value::Ptr value, Trampoline* trampoline) {
-                               trampoline->Return(std::move(value));
-                             });
+          return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+              trampoline->Bounce(body.get(), body->Types()[0]),
+              [original_trampoline, trampoline,
+               body](EvaluationOutput body_output) {
+                *trampoline = original_trampoline;
+                body_output.type = EvaluationOutput::OutputType::kContinue;
+                return body_output;
+              });
         };
     return output;
   }

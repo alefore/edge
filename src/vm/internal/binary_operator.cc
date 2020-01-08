@@ -24,19 +24,20 @@ std::unordered_set<VMType> BinaryOperator::ReturnTypes() const {
   return a_->ReturnTypes();
 }
 
-void BinaryOperator::Evaluate(Trampoline* trampoline, const VMType& type) {
+futures::DelayedValue<EvaluationOutput> BinaryOperator::Evaluate(
+    Trampoline* trampoline, const VMType& type) {
   CHECK(type_ == type);
-  trampoline->Bounce(
-      a_.get(), a_->Types()[0],
-      [a = a_, b = b_, type = type_, op = operator_](
-          std::unique_ptr<Value> a_value, Trampoline* trampoline) {
-        trampoline->Bounce(
-            b.get(), b->Types()[0],
-            [a_value = std::shared_ptr<Value>(std::move(a_value)), b, type, op](
-                std::unique_ptr<Value> b_value, Trampoline* trampoline) {
+  return futures::DelayedValue<EvaluationOutput>::Transform(
+      trampoline->Bounce(a_.get(), a_->Types()[0]),
+      [a = a_, b = b_, type = type_, op = operator_,
+       trampoline](EvaluationOutput a_value) {
+        return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+            trampoline->Bounce(b.get(), b->Types()[0]),
+            [a_value = std::make_shared<Value>(std::move(*a_value.value)), b,
+             type, op](EvaluationOutput b_value) {
               auto output = std::make_unique<Value>(type);
-              op(*a_value, *b_value, output.get());
-              trampoline->Continue(std::move(output));
+              op(*a_value, *b_value.value, output.get());
+              return EvaluationOutput::New(std::move(output));
             });
       });
 }

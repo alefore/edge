@@ -100,7 +100,7 @@ void MapModeCommands::Add(wstring name, wstring description,
                              CHECK(buffer != nullptr);
                              buffer->work_queue()->Schedule(callback);
                            })
-                      .AddListener([expression](const std::unique_ptr<Value>&) {
+                      .SetConsumer([expression](std::unique_ptr<Value>) {
                         /* Nothing. */
                       });
                 },

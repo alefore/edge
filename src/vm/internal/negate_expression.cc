@@ -20,14 +20,14 @@ class NegateExpression : public Expression {
     return expr_->ReturnTypes();
   }
 
-  void Evaluate(Trampoline* trampoline, const VMType&) override {
-    auto negate = negate_;
-    auto expr = expr_;
-    trampoline->Bounce(
-        expr.get(), expr->Types()[0],
-        [negate, expr](std::unique_ptr<Value> value, Trampoline* trampoline) {
-          negate(value.get());
-          trampoline->Continue(std::move(value));
+  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType&) override {
+    return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+        trampoline->Bounce(expr_.get(), expr_->Types()[0]),
+        [negate = negate_, expr = expr_](EvaluationOutput expr_output) {
+          CHECK(expr_output.value != nullptr);
+          negate(expr_output.value.get());
+          return EvaluationOutput::New(std::move(expr_output.value));
         });
   }
 

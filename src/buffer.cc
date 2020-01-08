@@ -220,16 +220,17 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()),
            vm::VMTypeMapper<editor::Transformation*>::vmtype},
-          [](std::vector<std::unique_ptr<Value>> args, Trampoline* trampoline) {
+          [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
             CHECK_EQ(args.size(), 2ul);
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
             auto transformation =
                 static_cast<Transformation*>(args[1]->user_value.get());
-            buffer->ApplyToCursors(transformation->Clone())
-                .AddListener([resume = trampoline->Interrupt()](bool) {
-                  LOG(INFO) << "ApplyTransformation returning.";
-                  resume(Value::NewVoid());
-                });
+            return futures::DelayedValue<vm::EvaluationOutput>::
+                ImmediateTransform(
+                    buffer->ApplyToCursors(transformation->Clone()), [](bool) {
+                      LOG(INFO) << "ApplyTransformation returning.";
+                      return EvaluationOutput::Return(Value::NewVoid());
+                    });
           }));
 
 #if 0
@@ -874,11 +875,11 @@ void OpenBuffer::Reload() {
     auto value = EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
     if (!value.has_value())
       return futures::ImmediateValue(IterationControlCommand::kContinue);
-    return futures::DelayedValue<IterationControlCommand>::Transform(
-        value.value(), [](const std::unique_ptr<Value>&) {
-          return futures::ImmediateValue(IterationControlCommand::kContinue);
+    return futures::DelayedValue<IterationControlCommand>::ImmediateTransform(
+        value.value(), [](std::unique_ptr<Value>) -> IterationControlCommand {
+          return IterationControlCommand::kContinue;
         });
-  }).AddListener([this](const IterationControlCommand&) {
+  }).SetConsumer([this](IterationControlCommand) {
     if (editor()->exit_value().has_value()) return;
     ClearModified();
     LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
@@ -1017,10 +1018,11 @@ OpenBuffer::EvaluateString(const wstring& code) {
     return std::nullopt;
   }
   LOG(INFO) << "Code compiled, evaluating.";
-  auto output = EvaluateExpression(expression.get());
-  output.AddListener(
-      [expression](const std::unique_ptr<Value>&) { /* Nothing. */ });
-  return output;
+  return futures::DelayedValue<std::unique_ptr<Value>>::ImmediateTransform(
+      EvaluateExpression(expression.get()),
+      [expression](std::unique_ptr<Value> value) {
+        return value;  // Keep `expression` alive.
+      });
 }
 
 std::optional<futures::DelayedValue<std::unique_ptr<Value>>>
@@ -1033,15 +1035,15 @@ OpenBuffer::EvaluateFile(const wstring& path) {
     return std::nullopt;
   }
   LOG(INFO) << "Evaluating file: " << path;
-  auto output =
+  return futures::DelayedValue<std::unique_ptr<Value>>::ImmediateTransform(
       Evaluate(expression.get(), environment_,
                [path, work_queue = work_queue()](std::function<void()> resume) {
                  LOG(INFO) << "Evaluation of file yields: " << path;
                  work_queue->Schedule(std::move(resume));
-               });
-  output.AddListener(
-      [expression](const std::unique_ptr<Value>&) { /* Nothing. */ });
-  return output;
+               }),
+      [expression](std::unique_ptr<Value> value) {
+        return value;  // Keep `value` alive.
+      });
 }
 
 WorkQueue* OpenBuffer::work_queue() const { return &work_queue_; }
@@ -1512,17 +1514,17 @@ futures::DelayedValue<std::wstring> OpenBuffer::TransformKeyboardText(
           [this, input_shared](const std::unique_ptr<Value>& t) {
             vector<Value::Ptr> args;
             args.push_back(Value::NewString(std::move(*input_shared)));
-            return futures::DelayedValue<IterationControlCommand>::Transform(
-                Call(*t, std::move(args),
-                     [work_queue =
-                          work_queue()](std::function<void()> callback) {
-                       work_queue->Schedule(std::move(callback));
-                     }),
-                [&input_shared](const std::unique_ptr<Value>& value) {
-                  *input_shared = std::move(value->str);
-                  return futures::ImmediateValue(
-                      IterationControlCommand::kContinue);
-                });
+            return futures::DelayedValue<IterationControlCommand>::
+                ImmediateTransform(
+                    Call(*t, std::move(args),
+                         [work_queue =
+                              work_queue()](std::function<void()> callback) {
+                           work_queue->Schedule(std::move(callback));
+                         }),
+                    [&input_shared](const std::unique_ptr<Value>& value) {
+                      *input_shared = std::move(value->str);
+                      return IterationControlCommand::kContinue;
+                    });
           }),
       [input_shared](IterationControlCommand) {
         return futures::ImmediateValue(std::move(*input_shared));
@@ -1815,9 +1817,11 @@ futures::DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
   Transformation::Input input(this);
   input.mode = mode;
   input.position = position;
-  auto output = transformation->Apply(input);
-  output.AddListener([this, transformation_raw = transformation.release()](
-                         const Transformation::Result& result) {
+  futures::Future<Transformation::Result> output;
+  auto nested = transformation->Apply(input);
+  nested.SetConsumer([this, transformation_raw = transformation.release(),
+                      consumer =
+                          output.consumer()](Transformation::Result result) {
     std::unique_ptr<Transformation> transformation(transformation_raw);
     if (result.delete_buffer != nullptr &&
         Read(buffer_variables::delete_into_paste_buffer)) {
@@ -1833,8 +1837,9 @@ futures::DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
 
     CHECK(!undo_past_.empty());
     undo_past_.back()->PushFront(result.undo_stack->Clone());
+    consumer(std::move(result));
   });
-  return output;
+  return output.value();
 }
 
 futures::DelayedValue<bool> OpenBuffer::RepeatLastTransformation() {

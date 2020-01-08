@@ -22,19 +22,19 @@ class AssignExpression : public Expression {
     return value_->ReturnTypes();
   }
 
-  void Evaluate(Trampoline* trampoline, const VMType& type) override {
-    auto expression = value_;
-    auto symbol = symbol_;
-    trampoline->Bounce(expression.get(), type,
-                       [expression, symbol](std::unique_ptr<Value> value,
-                                            Trampoline* trampoline) {
-                         DVLOG(3) << "Setting value for: " << symbol;
-                         DVLOG(4) << "Value: " << *value;
-                         trampoline->environment()->Assign(symbol,
-                                                           std::move(value));
-                         // TODO: This seems wrong: shouldn't it be `value`?
-                         trampoline->Continue(Value::NewVoid());
-                       });
+  futures::DelayedValue<EvaluationOutput> Evaluate(
+      Trampoline* trampoline, const VMType& type) override {
+    return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+        trampoline->Bounce(value_.get(), type),
+        [trampoline, value = value_,
+         symbol = symbol_](EvaluationOutput value_output) {
+          DVLOG(3) << "Setting value for: " << symbol;
+          DVLOG(4) << "Value: " << *value_output.value;
+          trampoline->environment()->Assign(symbol,
+                                            std::move(value_output.value));
+          // TODO: This seems wrong: shouldn't it be `value`?
+          return EvaluationOutput::New(Value::NewVoid());
+        });
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -94,8 +94,7 @@ std::unique_ptr<Expression> NewAssignExpression(
   compilation->environment->PolyLookup(symbol, &variables);
   for (auto& v : variables) {
     if (value->SupportsType(v->type)) {
-      return std::make_unique<AssignExpression>(symbol,
-                                                std::move(value));
+      return std::make_unique<AssignExpression>(symbol, std::move(value));
     }
   }
 

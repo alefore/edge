@@ -21,11 +21,20 @@ class AppendExpression : public Expression {
     return return_types_;
   }
 
-  void Evaluate(Trampoline* trampoline, const VMType& type) override {
-    trampoline->Bounce(e0_.get(), e0_->Types()[0],
-                       [e1 = e1_, type](Value::Ptr, Trampoline* trampoline) {
-                         e1->Evaluate(trampoline, type);
-                       });
+  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType&) override {
+    return futures::DelayedValue<EvaluationOutput>::Transform(
+        trampoline->Bounce(e0_.get(), e0_->Types()[0]),
+        [trampoline, e0 = e0_, e1 = e1_](EvaluationOutput e0_output) {
+          if (e0_output.type == EvaluationOutput::OutputType::kReturn) {
+            return futures::ImmediateValue(std::move(e0_output));
+          }
+          return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+              trampoline->Bounce(e1.get(), e1->Types()[0]),
+              [e1](EvaluationOutput e1_output) {
+                return e1_output;  // Keep `e1` alive.
+              });
+        });
   }
 
   std::unique_ptr<Expression> Clone() override {

@@ -1,10 +1,10 @@
 #ifndef __AFC_VM_PUBLIC_CALLBACKS_H__
 #define __AFC_VM_PUBLIC_CALLBACKS_H__
 
+#include <glog/logging.h>
+
 #include <memory>
 #include <type_traits>
-
-#include <glog/logging.h>
 
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
@@ -173,13 +173,14 @@ Value::Ptr RunCallback(std::function<void(A0, A1, A2, A3)> callback,
 
 template <typename ReturnType, typename... Args>
 Value::Ptr NewCallback(std::function<ReturnType(Args...)> callback) {
-  Value::Ptr callback_wrapper(new Value(VMType::FUNCTION));
+  auto callback_wrapper = std::make_unique<Value>(VMType::FUNCTION);
   callback_wrapper->type.type_arguments.push_back(
       VMTypeMapper<ReturnType>().vmtype);
   AddArgs<Args...>::Run(&callback_wrapper->type.type_arguments);
   callback_wrapper->callback = [callback](vector<Value::Ptr> args,
-                                          Trampoline* trampoline) {
-    trampoline->Return(RunCallback<ReturnType, Args...>(callback, args));
+                                          Trampoline*) {
+    return futures::ImmediateValue(EvaluationOutput::New(
+        RunCallback<ReturnType, Args...>(callback, args)));
   };
   return callback_wrapper;
 }

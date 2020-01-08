@@ -22,7 +22,8 @@ class VariableLookup : public Expression {
   std::vector<VMType> Types() override { return types_; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
-  void Evaluate(Trampoline* trampoline, const VMType& type) override {
+  futures::DelayedValue<EvaluationOutput> Evaluate(
+      Trampoline* trampoline, const VMType& type) override {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
     CHECK(trampoline != nullptr);
@@ -30,7 +31,8 @@ class VariableLookup : public Expression {
     Value* result = trampoline->environment()->Lookup(symbol_, type);
     CHECK(result != nullptr);
     DVLOG(5) << "Variable lookup: " << *result;
-    trampoline->Continue(std::make_unique<Value>(*result));
+    return futures::ImmediateValue(
+        EvaluationOutput::New(std::make_unique<Value>(*result)));
   }
 
   std::unique_ptr<Expression> Clone() override {
