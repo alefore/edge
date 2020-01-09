@@ -19,9 +19,9 @@ running and which may or may not have a full terminal (pts).
     [buffer-reload.cc](https://github.com/alefore/edge/blob/master/rc/hooks/buffer-reload.cc)
     for an example extension.
 
-  * All buffers have *variables* that control their behavior. For
-    example, variable `scrollbar` controls whether the scrollbar should be shown
-    in the current buffer. In the extension language, this can be set with
+  * All buffers have *variables* that control their behavior. For example,
+    variable `scrollbar` controls whether the scrollbar should be shown in the
+    current buffer. In the extension language, this can be set with
     `buffer.set_scrollbar(!buffer.scrollbar());` (and the binding `vS` will
     toggle its value).
 
