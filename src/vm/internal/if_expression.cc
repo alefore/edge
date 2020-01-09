@@ -36,15 +36,11 @@ class IfExpression : public Expression {
       Trampoline* trampoline, const VMType& type) override {
     return futures::DelayedValue<EvaluationOutput>::Transform(
         trampoline->Bounce(cond_.get(), VMType::Bool()),
-        [type, cond = cond_, true_case = true_case_, false_case = false_case_,
+        [type, true_case = true_case_, false_case = false_case_,
          trampoline](EvaluationOutput cond_output) {
-          return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
-              trampoline->Bounce(cond_output.value->boolean ? true_case.get()
-                                                            : false_case.get(),
-                                 type),
-              [true_case, false_case](EvaluationOutput output) {
-                return output;
-              });
+          return trampoline->Bounce(
+              cond_output.value->boolean ? true_case.get() : false_case.get(),
+              type);
         });
   }
 

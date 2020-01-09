@@ -86,7 +86,7 @@ class FunctionCall : public Expression {
 
     futures::Future<EvaluationOutput> output;
     trampoline->Bounce(func_.get(), VMType::Function(std::move(type_arguments)))
-        .SetConsumer([func, args_types, trampoline,
+        .SetConsumer([args_types, trampoline,
                       consumer = output.consumer()](EvaluationOutput callback) {
           DVLOG(6) << "Got function: " << *callback.value;
           CHECK(callback.value->callback != nullptr);
@@ -244,7 +244,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
           Trampoline* trampoline, const VMType& type) override {
         return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
             trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0]),
-            [type, shared_type = type_, shared_obj_expr = obj_expr_,
+            [type, shared_type = type_,
              shared_delegate = delegate_](EvaluationOutput output) {
               return EvaluationOutput::New(Value::NewFunction(
                   shared_type->type_arguments,

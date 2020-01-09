@@ -24,7 +24,7 @@ class NegateExpression : public Expression {
                                                    const VMType&) override {
     return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
         trampoline->Bounce(expr_.get(), expr_->Types()[0]),
-        [negate = negate_, expr = expr_](EvaluationOutput expr_output) {
+        [negate = negate_](EvaluationOutput expr_output) {
           CHECK(expr_output.value != nullptr);
           negate(expr_output.value.get());
           return EvaluationOutput::New(std::move(expr_output.value));

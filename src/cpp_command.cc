@@ -65,10 +65,7 @@ class CppCommand : public Command {
         expression_.get(), editor_state->environment(),
         [work_queue = buffer->work_queue()](std::function<void()> callback) {
           work_queue->Schedule(std::move(callback));
-        })
-        .SetConsumer(
-            [expression](std::unique_ptr<Value>) {  // Keep `expression` alive.
-            });
+        });
   }
 
  private:

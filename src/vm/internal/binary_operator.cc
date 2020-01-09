@@ -29,12 +29,12 @@ futures::DelayedValue<EvaluationOutput> BinaryOperator::Evaluate(
   CHECK(type_ == type);
   return futures::DelayedValue<EvaluationOutput>::Transform(
       trampoline->Bounce(a_.get(), a_->Types()[0]),
-      [a = a_, b = b_, type = type_, op = operator_,
+      [b = b_, type = type_, op = operator_,
        trampoline](EvaluationOutput a_value) {
         return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
             trampoline->Bounce(b.get(), b->Types()[0]),
-            [a_value = std::make_shared<Value>(std::move(*a_value.value)), b,
-             type, op](EvaluationOutput b_value) {
+            [a_value = std::make_shared<Value>(std::move(*a_value.value)), type,
+             op](EvaluationOutput b_value) {
               auto output = std::make_unique<Value>(type);
               op(*a_value, *b_value.value, output.get());
               return EvaluationOutput::New(std::move(output));

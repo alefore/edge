@@ -26,8 +26,7 @@ class AssignExpression : public Expression {
       Trampoline* trampoline, const VMType& type) override {
     return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
         trampoline->Bounce(value_.get(), type),
-        [trampoline, value = value_,
-         symbol = symbol_](EvaluationOutput value_output) {
+        [trampoline, symbol = symbol_](EvaluationOutput value_output) {
           DVLOG(3) << "Setting value for: " << symbol;
           DVLOG(4) << "Value: " << *value_output.value;
           trampoline->environment()->Assign(symbol,

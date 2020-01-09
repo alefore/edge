@@ -26,7 +26,7 @@ class ReturnExpression : public Expression {
                                                    const VMType&) override {
     return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
         trampoline->Bounce(expr_.get(), expr_->Types()[0]),
-        [expr = expr_](EvaluationOutput expr_output) {
+        [](EvaluationOutput expr_output) {
           expr_output.type = EvaluationOutput::OutputType::kReturn;
           return expr_output;
         });

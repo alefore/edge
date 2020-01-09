@@ -27,15 +27,10 @@ class LogicalExpression : public Expression {
       Trampoline* trampoline, const VMType& type) override {
     return futures::DelayedValue<EvaluationOutput>::Transform(
         trampoline->Bounce(expr_a_.get(), VMType::Bool()),
-        [type, trampoline, identity = identity_, expr_a = expr_a_,
+        [type, trampoline, identity = identity_,
          expr_b = expr_b_](EvaluationOutput a_output) {
           return a_output.value->boolean == identity
-                     ? futures::DelayedValue<EvaluationOutput>::
-                           ImmediateTransform(
-                               trampoline->Bounce(expr_b.get(), type),
-                               [expr_b](EvaluationOutput result) {
-                                 return result;  // But keep `expr_b` alive.
-                               })
+                     ? trampoline->Bounce(expr_b.get(), type)
                      : futures::ImmediateValue(std::move(a_output));
         });
   }

@@ -568,10 +568,12 @@ futures::DelayedValue<EvaluationOutput> Trampoline::Bounce(
   }
 
   futures::Future<EvaluationOutput> future;
-  yield_callback_([this, expression, type, consumer = future.consumer()]() {
-    jumps_ = 0;
-    Bounce(expression, type).SetConsumer(consumer);
-  });
+  yield_callback_(
+      [this, expression = std::shared_ptr<Expression>(expression->Clone()),
+       type, consumer = future.consumer()]() {
+        jumps_ = 0;
+        Bounce(expression.get(), type).SetConsumer(consumer);
+      });
   return future.value();
 }
 

@@ -874,7 +874,7 @@ void OpenBuffer::Reload() {
   futures::ForEach(paths.begin(), paths.end(), [this](const std::wstring& dir) {
     auto value = EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
     if (!value.has_value())
-      return futures::ImmediateValue(IterationControlCommand::kContinue);
+      return ImmediateValue(IterationControlCommand::kContinue);
     return futures::DelayedValue<IterationControlCommand>::ImmediateTransform(
         value.value(), [](std::unique_ptr<Value>) -> IterationControlCommand {
           return IterationControlCommand::kContinue;
@@ -1018,11 +1018,7 @@ OpenBuffer::EvaluateString(const wstring& code) {
     return std::nullopt;
   }
   LOG(INFO) << "Code compiled, evaluating.";
-  return futures::DelayedValue<std::unique_ptr<Value>>::ImmediateTransform(
-      EvaluateExpression(expression.get()),
-      [expression](std::unique_ptr<Value> value) {
-        return value;  // Keep `expression` alive.
-      });
+  return EvaluateExpression(expression.get());
 }
 
 std::optional<futures::DelayedValue<std::unique_ptr<Value>>>
@@ -1035,14 +1031,11 @@ OpenBuffer::EvaluateFile(const wstring& path) {
     return std::nullopt;
   }
   LOG(INFO) << "Evaluating file: " << path;
-  return futures::DelayedValue<std::unique_ptr<Value>>::ImmediateTransform(
-      Evaluate(expression.get(), environment_,
-               [path, work_queue = work_queue()](std::function<void()> resume) {
-                 LOG(INFO) << "Evaluation of file yields: " << path;
-                 work_queue->Schedule(std::move(resume));
-               }),
-      [expression](std::unique_ptr<Value> value) {
-        return value;  // Keep `value` alive.
+  return Evaluate(
+      expression.get(), environment_,
+      [path, work_queue = work_queue()](std::function<void()> resume) {
+        LOG(INFO) << "Evaluation of file yields: " << path;
+        work_queue->Schedule(std::move(resume));
       });
 }
 
@@ -1792,19 +1785,17 @@ futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
         std::move(transformation);
     return cursors_tracker_.ApplyTransformationToCursors(
         cursors, [this, transformation_shared, mode](LineColumn position) {
-          return futures::DelayedValue<LineColumn>::Transform(
+          return futures::DelayedValue<LineColumn>::ImmediateTransform(
               Apply(transformation_shared->Clone(), position, mode),
-              [](const Transformation::Result& result) {
-                return futures::ImmediateValue(result.position);
-              });
+              [](Transformation::Result result) { return result.position; });
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-    return futures::DelayedValue<bool>::Transform(
+    return futures::DelayedValue<bool>::ImmediateTransform(
         Apply(std::move(transformation), position(), mode),
         [this](const Transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
-          return futures::ImmediateValue(true);
+          return true;
         });
   }
 }
