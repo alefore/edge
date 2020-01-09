@@ -25,7 +25,7 @@ class LogicalExpression : public Expression {
 
   futures::DelayedValue<EvaluationOutput> Evaluate(
       Trampoline* trampoline, const VMType& type) override {
-    return futures::DelayedValue<EvaluationOutput>::Transform(
+    return futures::Transform(
         trampoline->Bounce(expr_a_.get(), VMType::Bool()),
         [type, trampoline, identity = identity_,
          expr_b = expr_b_](EvaluationOutput a_output) {

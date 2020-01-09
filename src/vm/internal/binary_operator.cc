@@ -27,11 +27,11 @@ std::unordered_set<VMType> BinaryOperator::ReturnTypes() const {
 futures::DelayedValue<EvaluationOutput> BinaryOperator::Evaluate(
     Trampoline* trampoline, const VMType& type) {
   CHECK(type_ == type);
-  return futures::DelayedValue<EvaluationOutput>::Transform(
+  return futures::Transform(
       trampoline->Bounce(a_.get(), a_->Types()[0]),
       [b = b_, type = type_, op = operator_,
        trampoline](EvaluationOutput a_value) {
-        return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+        return futures::ImmediateTransform(
             trampoline->Bounce(b.get(), b->Types()[0]),
             [a_value = std::make_shared<Value>(std::move(*a_value.value)), type,
              op](EvaluationOutput b_value) {

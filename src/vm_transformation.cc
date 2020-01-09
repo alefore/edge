@@ -55,7 +55,7 @@ class FunctionTransformation : public CompositeTransformation {
     std::vector<std::unique_ptr<vm::Value>> args;
     args.emplace_back(VMTypeMapper<std::shared_ptr<Input>>::New(
         std::make_shared<Input>(input)));
-    return futures::DelayedValue<Output>::ImmediateTransform(
+    return futures::ImmediateTransform(
         vm::Call(*function_, std::move(args),
                  [buffer = input.buffer](std::function<void()> callback) {
                    buffer->work_queue()->Schedule(std::move(callback));

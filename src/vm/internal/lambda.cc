@@ -74,7 +74,7 @@ class LambdaExpression : public Expression {
           }
           auto original_trampoline = *trampoline;
           trampoline->SetEnvironment(environment);
-          return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+          return futures::ImmediateTransform(
               trampoline->Bounce(body.get(), body->Types()[0]),
               [original_trampoline, trampoline,
                body](EvaluationOutput body_output) {

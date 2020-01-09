@@ -68,7 +68,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
     if (!evaluation.has_value())
       return futures::ImmediateValue(IterationControlCommand::kStop);
     ++*index;
-    return futures::DelayedValue<IterationControlCommand>::Transform(
+    return futures::Transform(
         evaluation.value(), [](const std::unique_ptr<Value>&) {
           return futures::ImmediateValue(IterationControlCommand::kContinue);
         });

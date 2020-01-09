@@ -23,7 +23,7 @@ class AppendExpression : public Expression {
 
   futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                                    const VMType&) override {
-    return futures::DelayedValue<EvaluationOutput>::Transform(
+    return futures::Transform(
         trampoline->Bounce(e0_.get(), e0_->Types()[0]),
         [trampoline, e1 = e1_](EvaluationOutput e0_output) {
           return e0_output.type == EvaluationOutput::OutputType::kReturn

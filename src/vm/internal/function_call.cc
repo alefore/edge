@@ -242,7 +242,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
       futures::DelayedValue<EvaluationOutput> Evaluate(
           Trampoline* trampoline, const VMType& type) override {
-        return futures::DelayedValue<EvaluationOutput>::ImmediateTransform(
+        return futures::ImmediateTransform(
             trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0]),
             [type, shared_type = type_,
              shared_delegate = delegate_](EvaluationOutput output) {
@@ -284,16 +284,11 @@ futures::DelayedValue<std::unique_ptr<Value>> Call(
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));
   }
-  // TODO: Use unique_ptr and capture by std::move.
-  std::shared_ptr<Expression> function_expr =
-      NewFunctionCall(NewConstantExpression(Value::NewFunction(
-                          func.type.type_arguments, func.callback)),
-                      std::move(args_expr));
-  return futures::DelayedValue<std::unique_ptr<Value>>::ImmediateTransform(
-      Evaluate(function_expr.get(), nullptr, yield_callback),
-      [function_expr](std::unique_ptr<Value> value) {
-        return std::move(value); /* Keeps `expr` alive. */
-      });
+  return Evaluate(NewFunctionCall(NewConstantExpression(Value::NewFunction(
+                                      func.type.type_arguments, func.callback)),
+                                  std::move(args_expr))
+                      .get(),
+                  nullptr, yield_callback);
 }
 
 }  // namespace vm

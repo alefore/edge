@@ -225,12 +225,11 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
             auto transformation =
                 static_cast<Transformation*>(args[1]->user_value.get());
-            return futures::DelayedValue<vm::EvaluationOutput>::
-                ImmediateTransform(
-                    buffer->ApplyToCursors(transformation->Clone()), [](bool) {
-                      LOG(INFO) << "ApplyTransformation returning.";
-                      return EvaluationOutput::Return(Value::NewVoid());
-                    });
+            return futures::ImmediateTransform(
+                buffer->ApplyToCursors(transformation->Clone()), [](bool) {
+                  LOG(INFO) << "ApplyTransformation returning.";
+                  return EvaluationOutput::Return(Value::NewVoid());
+                });
           }));
 
 #if 0
@@ -875,8 +874,8 @@ void OpenBuffer::Reload() {
     auto value = EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
     if (!value.has_value())
       return ImmediateValue(IterationControlCommand::kContinue);
-    return futures::DelayedValue<IterationControlCommand>::ImmediateTransform(
-        value.value(), [](std::unique_ptr<Value>) -> IterationControlCommand {
+    return futures::ImmediateTransform(
+        value.value(), [](std::unique_ptr<Value>) {
           return IterationControlCommand::kContinue;
         });
   }).SetConsumer([this](IterationControlCommand) {
@@ -1500,24 +1499,23 @@ futures::DelayedValue<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {
   using afc::vm::VMType;
   auto input_shared = std::make_shared<std::wstring>(input);
-  return futures::DelayedValue<std::wstring>::Transform(
+  return futures::Transform(
       futures::ForEach(
           keyboard_text_transformers_.begin(),
           keyboard_text_transformers_.end(),
           [this, input_shared](const std::unique_ptr<Value>& t) {
             vector<Value::Ptr> args;
             args.push_back(Value::NewString(std::move(*input_shared)));
-            return futures::DelayedValue<IterationControlCommand>::
-                ImmediateTransform(
-                    Call(*t, std::move(args),
-                         [work_queue =
-                              work_queue()](std::function<void()> callback) {
-                           work_queue->Schedule(std::move(callback));
-                         }),
-                    [&input_shared](const std::unique_ptr<Value>& value) {
-                      *input_shared = std::move(value->str);
-                      return IterationControlCommand::kContinue;
-                    });
+            return futures::ImmediateTransform(
+                Call(*t, std::move(args),
+                     [work_queue =
+                          work_queue()](std::function<void()> callback) {
+                       work_queue->Schedule(std::move(callback));
+                     }),
+                [&input_shared](const std::unique_ptr<Value>& value) {
+                  *input_shared = std::move(value->str);
+                  return IterationControlCommand::kContinue;
+                });
           }),
       [input_shared](IterationControlCommand) {
         return futures::ImmediateValue(std::move(*input_shared));
@@ -1785,13 +1783,13 @@ futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
         std::move(transformation);
     return cursors_tracker_.ApplyTransformationToCursors(
         cursors, [this, transformation_shared, mode](LineColumn position) {
-          return futures::DelayedValue<LineColumn>::ImmediateTransform(
+          return futures::ImmediateTransform(
               Apply(transformation_shared->Clone(), position, mode),
               [](Transformation::Result result) { return result.position; });
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-    return futures::DelayedValue<bool>::ImmediateTransform(
+    return futures::ImmediateTransform(
         Apply(std::move(transformation), position(), mode),
         [this](const Transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
@@ -1877,7 +1875,7 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
     }
     Transformation::Input input(this);
     input.position = position();
-    return futures::DelayedValue<IterationControlCommand>::Transform(
+    return futures::ImmediateTransform(
         data->source->back()->Apply(input),
         [this, undo_mode, data](const Transformation::Result& result) {
           data->target->push_back(result.undo_stack->CloneStack());
@@ -1886,7 +1884,7 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
               undo_mode == OpenBuffer::UndoMode::kOnlyOne) {
             data->repetitions++;
           }
-          return futures::ImmediateValue(IterationControlCommand::kContinue);
+          return IterationControlCommand::kContinue;
         });
   });
 }

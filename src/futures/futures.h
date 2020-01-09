@@ -15,34 +15,7 @@ template <typename Type>
 class DelayedValue {
  public:
   using Consumer = std::function<void(Type)>;
-
-  // Callable must return a DelayedValue<Type> given an OtherType value.
-  template <typename OtherType, typename Callable>
-  static DelayedValue<Type> Transform(DelayedValue<OtherType> delayed_value,
-                                      Callable callable) {
-    Future<Type> output;
-    delayed_value.SetConsumer(
-        [consumer = output.consumer(),
-         callable = std::move(callable)](OtherType other_value) mutable {
-          callable(std::move(other_value)).SetConsumer(std::move(consumer));
-        });
-    return output.value();
-  }
-
-  // TODO: Move this to the top-level and infer `Type` using std::invoke_result
-  // or similar.
-  template <typename OtherType, typename Callable>
-  static DelayedValue<Type> ImmediateTransform(
-      DelayedValue<OtherType> delayed_value, Callable callable) {
-    Future<Type> output;
-    delayed_value.SetConsumer(
-        [consumer = output.consumer(),
-         callable = std::move(callable)](OtherType other_value) mutable {
-          Type type = callable(std::move(other_value));
-          consumer(std::move(type));
-        });
-    return output.value();
-  }
+  using type = Type;
 
   const std::optional<Type>& Get() const { return data_->value; }
 
@@ -152,6 +125,32 @@ DelayedValue<IterationControlCommand> While(Callable callable) {
   resume(resume);
   return output.value();
 }
+
+template <typename OtherType, typename Callable>
+auto Transform(DelayedValue<OtherType> delayed_value, Callable callable) {
+  Future<typename decltype(callable(std::declval<OtherType>()))::type> output;
+  delayed_value.SetConsumer(
+      [consumer = output.consumer(),
+       callable = std::move(callable)](OtherType other_value) mutable {
+        callable(std::move(other_value)).SetConsumer(std::move(consumer));
+      });
+  return output.value();
+}
+
+template <typename OtherType, typename Callable>
+auto ImmediateTransform(DelayedValue<OtherType> delayed_value,
+                        Callable callable) {
+  using Type = decltype(callable(std::declval<OtherType>()));
+  Future<Type> output;
+  delayed_value.SetConsumer(
+      [consumer = output.consumer(),
+       callable = std::move(callable)](OtherType other_value) mutable {
+        Type type = callable(std::move(other_value));
+        consumer(std::move(type));
+      });
+  return output.value();
+}
+
 }  // namespace afc::futures
 
 #endif  // __AFC_EDITOR_FUTURES_FUTURES_H__

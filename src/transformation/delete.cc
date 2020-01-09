@@ -166,10 +166,9 @@ class DeleteTransformation : public Transformation {
     input.buffer->DeleteRange(range);
     output->modified_buffer = true;
 
-    return futures::DelayedValue<Result>::Transform(
+    return futures::Transform(
         NewSetPositionTransformation(range.begin)->Apply(input),
-        [this, range, output, input,
-         delete_buffer](const Result& result) mutable {
+        [this, range, output, input, delete_buffer](Result result) mutable {
           output->MergeFrom(result);
 
           InsertOptions insert_options;
@@ -193,12 +192,12 @@ class DeleteTransformation : public Transformation {
                   ? LineModifier::GREEN
                   : LineModifier::RED};
           input.position = range.begin;
-          return futures::DelayedValue<Result>::Transform(
+          return futures::ImmediateTransform(
               NewInsertBufferTransformation(std::move(insert_options))
                   ->Apply(input),
-              [output](const Result& result) {
+              [output](Result result) {
                 output->MergeFrom(result);
-                return futures::ImmediateValue(std::move(*output));
+                return std::move(*output);
               });
         });
   }

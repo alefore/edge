@@ -34,7 +34,7 @@ class IfExpression : public Expression {
 
   futures::DelayedValue<EvaluationOutput> Evaluate(
       Trampoline* trampoline, const VMType& type) override {
-    return futures::DelayedValue<EvaluationOutput>::Transform(
+    return futures::Transform(
         trampoline->Bounce(cond_.get(), VMType::Bool()),
         [type, true_case = true_case_, false_case = false_case_,
          trampoline](EvaluationOutput cond_output) {
