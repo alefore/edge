@@ -48,8 +48,6 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
   * Make sure that the section with the actual cursor is shown.
 
-  * s+ and s-: Should support multiple cursors.
-
 ### Autocomplete
 
 Add an AutoComplete mode that autocompletes based on the path.
@@ -132,11 +130,9 @@ Add support for templates, so that we can do "vector<string>".
 
 Improve polymorphism: support polymorphic methods (rather than only global functions).
 
-Support in-line functions and/or lambda forms. Tricky.
+Improve in-line functions and/or lambda forms. Right now the body binds the entire containing environment. Instead, I suppose it'd be more compatible with C++ to only capture explicitly specified values.
 
 Improve support for `for`: the environments aren't properly nested as they should be.
-
-Don't crash on this: buffer.set_view_start_line(-1);
 
 Allow extensions to define classes or structures.
 
