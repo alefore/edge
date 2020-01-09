@@ -40,9 +40,6 @@ class Trampoline {
 
   Trampoline(Options options);
 
-  // Must ensure expression lives until the value is notified.
-  futures::DelayedValue<std::unique_ptr<Value>> Enter(Expression* expression);
-
   void SetEnvironment(std::shared_ptr<Environment> environment);
   const std::shared_ptr<Environment>& environment() const;
 
@@ -59,7 +56,7 @@ class Trampoline {
 
 class Expression {
  public:
-  virtual ~Expression() {}
+  virtual ~Expression() = default;
   virtual std::vector<VMType> Types() = 0;
   // If the expression can cause a `return` statement to be evaluated, this
   // should return the type. Most expressions will return an empty set.
@@ -91,12 +88,8 @@ class Expression {
   // Returns a new copy of this expression.
   virtual std::unique_ptr<Expression> Clone() = 0;
 
-  // Must call either Trampoline::Return, Trampoline::Continue,
-  // Trampoline::Bounce, or Trampoline::Interrupt before returning.
-  //
-  // The caller must ensure that the expression doesn't get deleted before the
-  // trampoline receives the value (i.e., either Trampoline::Return or
-  // Trampoline::Continue).
+  // The expression may be deleted as soon as `Evaluate` returns, even before
+  // the returned DelayedValue has been given a value.
   virtual futures::DelayedValue<EvaluationOutput> Evaluate(
       Trampoline* evaluation, const VMType& type) = 0;
 };
