@@ -61,14 +61,14 @@ class LambdaExpression : public Expression {
   std::unique_ptr<Value> BuildValue(
       std::shared_ptr<Environment> parent_environment) {
     CHECK(parent_environment != nullptr);
-    auto environment = std::make_shared<Environment>(parent_environment);
     auto output = std::make_unique<Value>(VMType::FUNCTION);
     output->type = type_;
     output->callback =
-        [body = body_, environment, argument_names = argument_names_](
+        [body = body_, parent_environment, argument_names = argument_names_](
             vector<unique_ptr<Value>> args, Trampoline* trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
+          auto environment = std::make_shared<Environment>(parent_environment);
           for (size_t i = 0; i < args.size(); i++) {
             environment->Define(argument_names->at(i), std::move(args.at(i)));
           }
