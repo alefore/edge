@@ -9,6 +9,7 @@ bool delete_mode = false;
 bool bold_mode = false;
 
 LineColumn source = LineColumn(0, 0);
+LineColumn bezier_middle_position = LineColumn(0, 0);
 
 void ShapesSetStatus(string description) {
   SetStatus("Shapes: " + description);
@@ -561,6 +562,17 @@ void ShapesAddLine() {
   source = position;
 }
 
+void ShapesAddBezier() {
+  auto position = buffer.position();
+  SetLineColumn output_right = SetLineColumn();
+  SetLineColumn output_down = SetLineColumn();
+  FindBoundariesBezier(source, bezier_middle_position, position, output_right,
+                       output_down);
+  DrawLineColumns(output_right, output_down, "");
+  buffer.ApplyTransformation(SetPositionTransformation(position));
+  source = position;
+}
+
 void ShapesToggleDeleteMode() {
   delete_mode = !delete_mode;
   ShapesSetStatus(delete_mode ? "Delete" : "Insert");
@@ -574,6 +586,11 @@ void ShapesToggleBoldMode() {
 void ShapesSet() {
   ShapesSetStatus("Set source position.");
   source = buffer.position();
+}
+
+void ShapesSetBezierMiddlePoint() {
+  ShapesSetStatus("Set Bezier middle position.");
+  bezier_middle_position = buffer.position();
 }
 
 int GetDiagramInputLinesCount() {
@@ -785,4 +802,7 @@ buffer.AddBinding("Sd", "shapes: delete_mode = !delete_mode",
                   ShapesToggleDeleteMode);
 buffer.AddBinding("S=", "shapes: set source", ShapesSet);
 buffer.AddBinding("Sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
+buffer.AddBinding("SB", "shapes: bezier: draw", ShapesAddBezier);
+buffer.AddBinding("SM", "shapes: bezier: set middle point",
+                  ShapesSetBezierMiddlePoint);
 buffer.AddBinding("SD", "shapes: Draw a diagram", ShapesDrawDiagram);

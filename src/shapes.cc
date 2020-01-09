@@ -101,6 +101,89 @@ void FindBoundariesLine(LineColumn start, LineColumn end,
   }
 }
 
+struct Point {
+  static Point New(LineColumn position) {
+    return Point{.x = static_cast<double>(position.column.column),
+                 .y = static_cast<double>(position.line.line)};
+  }
+
+  LineColumn ToLineColumn() {
+    CHECK_GE(x, 0.0);
+    CHECK_GE(y, 0.0);
+    return LineColumn(LineNumber(static_cast<size_t>(y)),
+                      ColumnNumber(static_cast<size_t>(x)));
+  }
+
+  double x = 0;
+  double y = 0;
+};
+
+Point PointInLine(Point a, Point b, double delta) {
+  CHECK_GE(delta, 0.0);
+  CHECK_LE(delta, 1.0);
+  return Point{.x = a.x * (1.0 - delta) + b.x * delta,
+               .y = a.y * (1.0 - delta) + b.y * delta};
+}
+
+bool Adjacent(LineColumn a, LineColumn b) {
+  return (a.line == b.line && (a.column == b.column + ColumnNumberDelta(1) ||
+                               b.column == a.column + ColumnNumberDelta(1))) ||
+         (a.column == b.column && (a.line == b.line + LineNumberDelta(1) ||
+                                   b.line == a.line + LineNumberDelta(1)));
+}
+
+void InternalFindBoundariesBezier(Point a, Point b, Point c, double start,
+                                  double end, LineColumn start_position,
+                                  LineColumn end_position,
+                                  std::vector<LineColumn>* output) {
+  if (start_position == end_position ||
+      Adjacent(start_position, end_position)) {
+    output->push_back(start_position);
+    output->push_back(end_position);
+    return;
+  }
+  LOG(INFO) << "Evaluating range: " << start << " (" << start_position
+            << ") to " << end << " (" << end_position << "): ";
+  double delta = (start + end) / 2;
+  LineColumn position =
+      PointInLine(PointInLine(a, b, delta), PointInLine(b, c, delta), delta)
+          .ToLineColumn();
+  InternalFindBoundariesBezier(a, b, c, start, delta, start_position, position,
+                               output);
+  LOG(INFO) << "At: " << delta << " found: " << position;
+  output->push_back(position);
+  InternalFindBoundariesBezier(a, b, c, delta, end, position, end_position,
+                               output);
+}
+
+void FindBoundariesBezier(LineColumn a, LineColumn b, LineColumn c,
+                          std::set<LineColumn>* output_right,
+                          std::set<LineColumn>* output_down) {
+  LOG(INFO) << "FindBoundariesBezier starts: " << a << ", " << b << ", " << c;
+  CHECK(output_right != nullptr);
+  CHECK(output_down != nullptr);
+
+  std::vector<LineColumn> journey;
+  InternalFindBoundariesBezier(Point::New(a), Point::New(b), Point::New(c), 0.0,
+                               1.0, a, c, &journey);
+  LineColumn last_point = a;
+  for (auto& position : journey) {
+    if (last_point == position) {
+      continue;
+    }
+    LOG(INFO) << "Now: " << position;
+    if (last_point.column != position.column) {
+      output_right->insert(last_point.column < position.column ? last_point
+                                                               : position);
+    }
+    if (last_point.line != position.line) {
+      output_down->insert(last_point.line < position.line ? last_point
+                                                          : position);
+    }
+    last_point = position;
+  }
+}
+
 void InitShapes(vm::Environment* environment) {
   environment->Define(
       L"ShapesReflow",
@@ -123,6 +206,12 @@ void InitShapes(vm::Environment* environment) {
       vm::NewCallback(
           std::function<void(LineColumn, LineColumn, std::set<LineColumn>*,
                              std::set<LineColumn>*)>(&FindBoundariesLine)));
+  environment->Define(
+      L"FindBoundariesBezier",
+      vm::NewCallback(
+          std::function<void(LineColumn, LineColumn, LineColumn,
+                             std::set<LineColumn>*, std::set<LineColumn>*)>(
+              &FindBoundariesBezier)));
 }
 
 }  // namespace editor
