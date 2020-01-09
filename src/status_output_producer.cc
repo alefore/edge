@@ -61,13 +61,15 @@ class InfoProducer : public OutputProducer {
               output += marks_text + L" ";
             }
 
-            auto active_cursors = buffer_->active_cursors()->size();
-            if (active_cursors != 1) {
+            auto active_cursors = buffer_->active_cursors();
+            if (active_cursors->size() != 1) {
               output += L" " +
                         (buffer_->Read(buffer_variables::multiple_cursors)
                              ? std::wstring(L"CURSORS")
                              : std::wstring(L"cursors")) +
-                        L":" + std::to_wstring(active_cursors) + L" ";
+                        L":" +
+                        std::to_wstring(active_cursors->current_index() + 1) +
+                        L"/" + std::to_wstring(active_cursors->size()) + L" ";
             }
 
             auto flags = buffer_->Flags();

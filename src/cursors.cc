@@ -114,6 +114,10 @@ void CursorsSet::set_active(iterator iterator) {
   CHECK(cursors_.find(*iterator) != cursors_.end());
 }
 
+size_t CursorsSet::current_index() const {
+  return empty() ? 0 : std::distance(begin(), active());
+}
+
 bool RangeContains(const Range& range,
                    const CursorsTracker::Transformation& transformation) {
   return range.Contains(transformation.range);
