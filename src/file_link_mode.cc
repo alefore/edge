@@ -114,17 +114,16 @@ void ShowFiles(EditorState* editor_state, wstring name,
   if (entries.empty()) {
     return;
   }
+  std::sort(entries.begin(), entries.end(),
+            [](const dirent& a, const dirent& b) {
+              return strcmp(a.d_name, b.d_name) < 0;
+            });
+
   target->AppendLine(NewLazyString(L"## " + name + L" (" +
                                    std::to_wstring(entries.size()) + L")"));
-  auto start = target->contents()->size();
   for (auto& entry : entries) {
     AddLine(editor_state, target, entry);
   }
-  target->SortContents(
-      LineNumber(0) + start, LineNumber(0) + target->contents()->size(),
-      [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
-        return *a->contents() < *b->contents();
-      });
   target->AppendEmptyLine();
 }
 
