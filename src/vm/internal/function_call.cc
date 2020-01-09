@@ -76,7 +76,6 @@ class FunctionCall : public Expression {
   futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                                    const VMType& type) {
     DVLOG(3) << "Function call evaluation starts.";
-    auto args_types = args_;
     auto func = func_;
 
     std::vector<VMType> type_arguments = {type};
@@ -86,15 +85,16 @@ class FunctionCall : public Expression {
 
     futures::Future<EvaluationOutput> output;
     trampoline->Bounce(func_.get(), VMType::Function(std::move(type_arguments)))
-        .SetConsumer([args_types, trampoline,
-                      consumer = output.consumer()](EvaluationOutput callback) {
-          DVLOG(6) << "Got function: " << *callback.value;
-          CHECK(callback.value->callback != nullptr);
-          CaptureArgs(trampoline, consumer, args_types,
-                      std::make_shared<vector<unique_ptr<Value>>>(),
-                      std::move(callback.value));
-        });
-    return output.value();
+        .SetConsumer(
+            [trampoline, args_types = args_,
+             consumer = std::move(output.consumer)](EvaluationOutput callback) {
+              DVLOG(6) << "Got function: " << *callback.value;
+              CHECK(callback.value->callback != nullptr);
+              CaptureArgs(trampoline, std::move(consumer), args_types,
+                          std::make_shared<vector<unique_ptr<Value>>>(),
+                          std::move(callback.value));
+            });
+    return std::move(output.value);
   }
 
   std::unique_ptr<Expression> Clone() override {

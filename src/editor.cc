@@ -252,6 +252,9 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       vm::NewCallback(std::function<void(wstring)>(
           [this](wstring target) { OpenServerBuffer(this, target); })));
 
+  // TODO: Simplify this function. Instead, add logic to `futures` to have a
+  // loop that evaluates all futures concurrently and runs a function when all
+  // results are known.
   environment->Define(
       L"WaitForClose",
       Value::NewFunction(
@@ -270,7 +273,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
               }
               (*pending)++;
               buffer_it->second->AddCloseObserver(
-                  [pending, consumer = future.consumer()]() {
+                  [pending, consumer = future.consumer]() {
                     LOG(INFO) << "Buffer is closing, with: " << *pending;
                     CHECK_GT(*pending, 0);
                     if (--(*pending) == 0) {
@@ -280,9 +283,9 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                   });
             }
             if (pending == 0) {
-              future.consumer()(EvaluationOutput::Return(Value::NewVoid()));
+              future.consumer(EvaluationOutput::Return(Value::NewVoid()));
             }
-            return future.value();
+            return future.value;
           }));
 
   environment->Define(

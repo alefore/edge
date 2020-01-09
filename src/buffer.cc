@@ -1806,29 +1806,26 @@ futures::DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
   Transformation::Input input(this);
   input.mode = mode;
   input.position = position;
-  futures::Future<Transformation::Result> output;
-  auto nested = transformation->Apply(input);
-  nested.SetConsumer([this, transformation_raw = transformation.release(),
-                      consumer =
-                          output.consumer()](Transformation::Result result) {
-    std::unique_ptr<Transformation> transformation(transformation_raw);
-    if (result.delete_buffer != nullptr &&
-        Read(buffer_variables::delete_into_paste_buffer)) {
-      (*editor()
-            ->buffers())[result.delete_buffer->Read(buffer_variables::name)] =
-          result.delete_buffer;
-    }
+  auto inner_future = transformation->Apply(input);
+  return futures::ImmediateTransform(
+      inner_future, [this, transformation_raw = transformation.release()](
+                        Transformation::Result result) {
+        std::unique_ptr<Transformation> transformation(transformation_raw);
+        if (result.delete_buffer != nullptr &&
+            Read(buffer_variables::delete_into_paste_buffer)) {
+          (*editor()->buffers())[result.delete_buffer->Read(
+              buffer_variables::name)] = result.delete_buffer;
+        }
 
-    if (result.modified_buffer) {
-      editor()->StartHandlingInterrupts();
-      last_transformation_ = std::move(transformation);
-    }
+        if (result.modified_buffer) {
+          editor()->StartHandlingInterrupts();
+          last_transformation_ = std::move(transformation);
+        }
 
-    CHECK(!undo_past_.empty());
-    undo_past_.back()->PushFront(result.undo_stack->Clone());
-    consumer(std::move(result));
-  });
-  return output.value();
+        CHECK(!undo_past_.empty());
+        undo_past_.back()->PushFront(result.undo_stack->Clone());
+        return result;
+      });
 }
 
 futures::DelayedValue<bool> OpenBuffer::RepeatLastTransformation() {

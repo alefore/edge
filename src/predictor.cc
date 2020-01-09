@@ -379,7 +379,7 @@ futures::DelayedValue<PredictorOutput> FilePredictor(
   };
   static AsyncProcessor<AsyncInput, int> async_processor(std::move(options));
 
-  futures::Future<PredictorOutput> future;
+  futures::Future<PredictorOutput> output;
   AsyncInput input{
       .get_buffer = predictor_input.predictions->GetLockFunction(),
       .path = predictor_input.editor->expand_path(predictor_input.input),
@@ -389,16 +389,16 @@ futures::DelayedValue<PredictorOutput> FilePredictor(
                          ? std::wregex(predictor_input.source_buffer->Read(
                                buffer_variables::directory_noise))
                          : std::wregex(),
-      .output_consumer = future.consumer()};
+      .output_consumer = output.consumer};
   GetSearchPaths(predictor_input.editor, &input.search_paths);
   async_processor.Push(std::move(input));
-  return future.value();
+  return output.value;
 }
 
 futures::DelayedValue<PredictorOutput> EmptyPredictor(PredictorInput input) {
-  futures::Future<PredictorOutput> future;
-  SignalEndOfFile(input.predictions, future.consumer());
-  return future.value();
+  futures::Future<PredictorOutput> output;
+  SignalEndOfFile(input.predictions, output.consumer);
+  return output.value;
 }
 
 namespace {
@@ -451,9 +451,9 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
         break;
       }
     }
-    futures::Future<PredictorOutput> future;
-    SignalEndOfFile(input.predictions, future.consumer());
-    return future.value();
+    futures::Future<PredictorOutput> output;
+    SignalEndOfFile(input.predictions, output.consumer);
+    return output.value;
   };
 }
 
@@ -505,8 +505,8 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
       input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
     }
     futures::Future<PredictorOutput> future;
-    SignalEndOfFile(input.predictions, future.consumer());
-    return future.value();
+    SignalEndOfFile(input.predictions, future.consumer);
+    return future.value;
   };
 }
 

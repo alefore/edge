@@ -198,11 +198,11 @@ futures::DelayedValue<PredictorOutput> SearchHandlerPredictor(
   options.starting_position = search_buffer->position();
   auto positions = PerformSearchWithDirection(input.editor, options);
   if (!positions.has_value()) {
-    futures::Future<PredictorOutput> future;
+    futures::Future<PredictorOutput> output;
     input.predictions->EndOfFile();
     input.predictions->AddEndOfFileObserver(
-        [consumer = future.consumer()] { consumer(PredictorOutput()); });
-    return future.value();
+        [consumer = output.consumer] { consumer(PredictorOutput()); });
+    return output.value;
   }
 
   // Get the first kMatchesLimit matches:
@@ -225,11 +225,11 @@ futures::DelayedValue<PredictorOutput> SearchHandlerPredictor(
     input.predictions->AppendToLastLine(NewLazyString(std::move(match)));
     input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
   }
-  futures::Future<PredictorOutput> future;
+  futures::Future<PredictorOutput> output;
   input.predictions->EndOfFile();
   input.predictions->AddEndOfFileObserver(
-      [consumer = future.consumer()] { consumer(PredictorOutput()); });
-  return future.value();
+      [consumer = output.consumer] { consumer(PredictorOutput()); });
+  return output.value;
 }
 
 vector<LineColumn> SearchHandler(EditorState* editor_state,

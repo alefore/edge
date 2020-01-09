@@ -395,12 +395,15 @@ futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
   struct Data {
     CursorsSet* cursors;
     std::function<futures::DelayedValue<LineColumn>(LineColumn)> callback;
-    futures::Future<bool> done;
+    futures::DelayedValue<bool>::Consumer done;
     bool adjusted_active_cursor = false;
   };
+
+  futures::Future<bool> output;
   auto data = std::make_shared<Data>();
   data->cursors = cursors;
   data->callback = std::move(callback);
+  data->done = output.consumer;
 
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size()
             << ", active is: " << *cursors->active();
@@ -410,7 +413,7 @@ futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
     if (data->cursors->empty()) {
       data->cursors->swap(&already_applied_cursors_);
       LOG(INFO) << "Current cursor at: " << *data->cursors->active();
-      data->done.consumer()(true);
+      data->done(true);
       return;
     }
     VLOG(6) << "Adjusting cursor: " << *data->cursors->begin();
@@ -430,7 +433,7 @@ futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
         });
   };
   apply_next(apply_next);
-  return data->done.value();
+  return output.value;
 }
 
 size_t CursorsTracker::Push() {

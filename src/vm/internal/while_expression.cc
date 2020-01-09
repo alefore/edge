@@ -31,8 +31,8 @@ class WhileExpression : public Expression {
                                                    const VMType&) override {
     DVLOG(4) << "Starting iteration.";
     futures::Future<EvaluationOutput> output;
-    Iterate(trampoline, condition_, body_, output.consumer());
-    return output.value();
+    Iterate(trampoline, condition_, body_, std::move(output.consumer));
+    return output.value;
   }
 
   std::unique_ptr<Expression> Clone() override {

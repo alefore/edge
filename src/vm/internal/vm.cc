@@ -567,14 +567,14 @@ futures::DelayedValue<EvaluationOutput> Trampoline::Bounce(
     return expression->Evaluate(this, type);
   }
 
-  futures::Future<EvaluationOutput> future;
-  yield_callback_(
-      [this, expression = std::shared_ptr<Expression>(expression->Clone()),
-       type, consumer = future.consumer()]() {
-        jumps_ = 0;
-        Bounce(expression.get(), type).SetConsumer(consumer);
-      });
-  return future.value();
+  futures::Future<EvaluationOutput> output;
+  yield_callback_([this, expression_raw = expression->Clone().release(), type,
+                   consumer = std::move(output.consumer)]() mutable {
+    std::unique_ptr<Expression> expression(expression_raw);
+    jumps_ = 0;
+    Bounce(expression.get(), type).SetConsumer(std::move(consumer));
+  });
+  return std::move(output.value);
 }
 
 void Trampoline::SetEnvironment(std::shared_ptr<Environment> environment) {

@@ -46,34 +46,36 @@ class DelayedValue {
 };
 
 template <typename Type>
-class Future {
+struct Future {
  public:
-  typename DelayedValue<Type>::Consumer consumer() {
-    return [data = data_](Type value) {
-      CHECK(!data->value.has_value());
-      CHECK(!data->consumer.has_value() || data->consumer.value() != nullptr);
-      if (data->consumer.has_value()) {
-        data->consumer.value()(std::move(value));
-        data->consumer = nullptr;
-      } else {
-        data->value.emplace(std::move(value));
-      }
-    };
-  }
+  Future() : Future(std::make_shared<FutureData>()) {}
 
-  DelayedValue<Type> value() { return DelayedValue<Type>(data_); }
+  typename DelayedValue<Type>::Consumer consumer;
+  DelayedValue<Type> value;
 
  private:
   using FutureData = typename DelayedValue<Type>::FutureData;
 
-  std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
+  Future(std::shared_ptr<FutureData> data)
+      : consumer([data](Type value) {
+          CHECK(!data->value.has_value());
+          CHECK(!data->consumer.has_value() ||
+                data->consumer.value() != nullptr);
+          if (data->consumer.has_value()) {
+            data->consumer.value()(std::move(value));
+            data->consumer = nullptr;
+          } else {
+            data->value.emplace(std::move(value));
+          }
+        }),
+        value(std::move(data)) {}
 };
 
 template <typename Type>
 DelayedValue<Type> ImmediateValue(Type value) {
   Future<Type> output;
-  output.consumer()(std::move(value));
-  return output.value();
+  output.consumer(std::move(value));
+  return output.value;
 }
 
 enum class IterationControlCommand { kContinue, kStop };
@@ -88,7 +90,7 @@ template <typename Iterator, typename Callable>
 DelayedValue<IterationControlCommand> ForEach(Iterator begin, Iterator end,
                                               Callable callable) {
   Future<IterationControlCommand> output;
-  auto resume = [consumer = output.consumer(), end, callable](
+  auto resume = [consumer = output.consumer, end, callable](
                     Iterator begin, auto resume) mutable {
     if (begin == end) {
       consumer(IterationControlCommand::kContinue);
@@ -104,13 +106,13 @@ DelayedValue<IterationControlCommand> ForEach(Iterator begin, Iterator end,
     });
   };
   resume(begin, resume);
-  return output.value();
+  return output.value;
 }
 
 template <typename Callable>
 DelayedValue<IterationControlCommand> While(Callable callable) {
   Future<IterationControlCommand> output;
-  auto resume = [consumer = output.consumer(),
+  auto resume = [consumer = output.consumer,
                  callable](auto resume) mutable -> void {
     callable().SetConsumer([consumer = std::move(consumer),
                             callable = std::move(callable),
@@ -123,18 +125,18 @@ DelayedValue<IterationControlCommand> While(Callable callable) {
     });
   };
   resume(resume);
-  return output.value();
+  return output.value;
 }
 
 template <typename OtherType, typename Callable>
 auto Transform(DelayedValue<OtherType> delayed_value, Callable callable) {
   Future<typename decltype(callable(std::declval<OtherType>()))::type> output;
   delayed_value.SetConsumer(
-      [consumer = output.consumer(),
+      [consumer = output.consumer,
        callable = std::move(callable)](OtherType other_value) mutable {
         callable(std::move(other_value)).SetConsumer(std::move(consumer));
       });
-  return output.value();
+  return output.value;
 }
 
 template <typename OtherType, typename Callable>
@@ -143,12 +145,12 @@ auto ImmediateTransform(DelayedValue<OtherType> delayed_value,
   using Type = decltype(callable(std::declval<OtherType>()));
   Future<Type> output;
   delayed_value.SetConsumer(
-      [consumer = output.consumer(),
+      [consumer = output.consumer,
        callable = std::move(callable)](OtherType other_value) mutable {
         Type type = callable(std::move(other_value));
         consumer(std::move(type));
       });
-  return output.value();
+  return output.value;
 }
 
 }  // namespace afc::futures
