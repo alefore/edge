@@ -163,8 +163,7 @@ void Execute(std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
     return;
   }
   buffer->EvaluateExpression(expression.get())
-      .SetConsumer(
-          [buffer, expression](std::unique_ptr<Value>) { /* Nothing. */ });
+      .SetConsumer([buffer](std::unique_ptr<Value>) { /* Nothing. */ });
 }
 
 void RunCppCommandShellHandler(const std::wstring& command,

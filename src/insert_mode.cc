@@ -506,9 +506,8 @@ class InsertMode : public EditorMode {
           return;
         }
         buffer->EvaluateExpression(expression.get())
-            .SetConsumer(
-                [buffer, expression, callback = options_.modify_handler](
-                    std::unique_ptr<Value>) { callback(); });
+            .SetConsumer([buffer, callback = options_.modify_handler](
+                             std::unique_ptr<Value>) { callback(); });
         return;
       }
 

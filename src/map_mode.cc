@@ -99,10 +99,7 @@ void MapModeCommands::Add(wstring name, wstring description,
                              auto buffer = editor_state->current_buffer();
                              CHECK(buffer != nullptr);
                              buffer->work_queue()->Schedule(callback);
-                           })
-                      .SetConsumer([expression](std::unique_ptr<Value>) {
-                        /* Nothing. */
-                      });
+                           });
                 },
                 description));
 }
