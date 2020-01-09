@@ -42,7 +42,6 @@ class Transformation {
 
   struct Result {
     Result(LineColumn position);
-    Result(const Result&);
     Result(Result&&);
     ~Result();
 

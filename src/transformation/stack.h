@@ -16,8 +16,6 @@ class TransformationStack : public Transformation {
   futures::DelayedValue<Result> Apply(const Input& input) const override;
 
   std::unique_ptr<Transformation> Clone() const override;
-  // Same as `Clone` but returns the specific type.
-  std::unique_ptr<TransformationStack> CloneStack() const;
 
  private:
   // We use a shared_ptr so that a TransformationStack can be deleted while the

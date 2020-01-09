@@ -1874,8 +1874,8 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
     input.position = position();
     return futures::ImmediateTransform(
         data->source->back()->Apply(input),
-        [this, undo_mode, data](const Transformation::Result& result) {
-          data->target->push_back(result.undo_stack->CloneStack());
+        [this, undo_mode, data](Transformation::Result result) {
+          data->target->push_back(std::move(result.undo_stack));
           data->source->pop_back();
           if (result.modified_buffer ||
               undo_mode == OpenBuffer::UndoMode::kOnlyOne) {

@@ -97,14 +97,6 @@ class ApplyRepetitionsTransformation : public Transformation {
 
 Transformation::Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
 
-Transformation::Result::Result(const Result& other)
-    : success(other.success),
-      made_progress(other.made_progress),
-      modified_buffer(other.modified_buffer),
-      undo_stack(other.undo_stack->CloneStack()),
-      delete_buffer(other.delete_buffer),
-      position(other.position) {}
-
 Transformation::Result::Result(LineColumn position)
     : undo_stack(std::make_unique<TransformationStack>()), position(position) {}
 

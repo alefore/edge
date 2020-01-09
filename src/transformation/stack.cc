@@ -42,10 +42,6 @@ futures::DelayedValue<Transformation::Result> TransformationStack::Apply(
 }
 
 std::unique_ptr<Transformation> TransformationStack::Clone() const {
-  return CloneStack();
-}
-
-std::unique_ptr<TransformationStack> TransformationStack::CloneStack() const {
   auto output = std::make_unique<TransformationStack>();
   for (auto& it : *stack_) {
     output->PushBack(it->Clone());
