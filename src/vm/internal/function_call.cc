@@ -60,7 +60,7 @@ std::vector<VMType> DeduceTypes(
 
 class FunctionCall : public Expression {
  public:
-  FunctionCall(std::shared_ptr<Expression> func,
+  FunctionCall(std::unique_ptr<Expression> func,
                std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args)
       : func_(std::move(func)),
         args_(std::move(args)),
@@ -97,7 +97,7 @@ class FunctionCall : public Expression {
   }
 
   std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<FunctionCall>(func_, args_);
+    return std::make_unique<FunctionCall>(func_->Clone(), args_);
   }
 
  private:
@@ -135,7 +135,7 @@ class FunctionCall : public Expression {
         });
   }
 
-  const std::shared_ptr<Expression> func_;
+  const std::unique_ptr<Expression> func_;
   const std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_;
   const std::vector<VMType> types_;
 };
