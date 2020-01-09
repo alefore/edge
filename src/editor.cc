@@ -252,9 +252,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       vm::NewCallback(std::function<void(wstring)>(
           [this](wstring target) { OpenServerBuffer(this, target); })));
 
-  // TODO: Simplify this function. Instead, add logic to `futures` to have a
-  // loop that evaluates all futures concurrently and runs a function when all
-  // results are known.
   environment->Define(
       L"WaitForClose",
       Value::NewFunction(
@@ -264,28 +261,32 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             const auto& buffers_to_wait =
                 *static_cast<std::set<wstring>*>(args[0]->user_value.get());
 
-            auto pending = std::make_shared<int>(0);
-            futures::Future<EvaluationOutput> future;
+            auto values =
+                std::make_shared<std::vector<futures::DelayedValue<bool>>>();
             for (const auto& buffer_name : buffers_to_wait) {
               auto buffer_it = buffers()->find(buffer_name);
               if (buffer_it == buffers()->end()) {
                 continue;
               }
-              (*pending)++;
+              futures::Future<bool> future;
               buffer_it->second->AddCloseObserver(
-                  [pending, consumer = future.consumer]() {
-                    LOG(INFO) << "Buffer is closing, with: " << *pending;
-                    CHECK_GT(*pending, 0);
-                    if (--(*pending) == 0) {
-                      LOG(INFO) << "Resuming!";
-                      consumer(EvaluationOutput::Return(Value::NewVoid()));
-                    }
+                  [consumer = future.consumer]() {
+                    LOG(INFO) << "Buffer is closing";
+                    consumer(true);
                   });
+              values->push_back(std::move(future.value));
             }
-            if (pending == 0) {
-              future.consumer(EvaluationOutput::Return(Value::NewVoid()));
-            }
-            return future.value;
+            return futures::ImmediateTransform(
+                futures::ForEach(
+                    values->begin(), values->end(),
+                    [values](futures::DelayedValue<bool> future) {
+                      return futures::ImmediateTransform(future, [](bool) {
+                        return futures::IterationControlCommand::kContinue;
+                      });
+                    }),
+                [](futures::IterationControlCommand) {
+                  return EvaluationOutput::Return(Value::NewVoid());
+                });
           }));
 
   environment->Define(

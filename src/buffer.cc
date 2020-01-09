@@ -870,7 +870,7 @@ void OpenBuffer::Reload() {
   }
 
   auto paths = editor()->edge_path();
-  futures::ForEach(paths.begin(), paths.end(), [this](const std::wstring& dir) {
+  futures::ForEach(paths.begin(), paths.end(), [this](std::wstring dir) {
     auto value = EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
     if (!value.has_value())
       return ImmediateValue(IterationControlCommand::kContinue);
