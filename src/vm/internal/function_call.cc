@@ -84,8 +84,7 @@ class FunctionCall : public Expression {
     return futures::Transform(
         trampoline->Bounce(func_.get(),
                            VMType::Function(std::move(type_arguments))),
-        [trampoline, args_types = args_,
-         consumer = std::move(output.consumer)](EvaluationOutput callback) {
+        [trampoline, args_types = args_](EvaluationOutput callback) {
           DVLOG(6) << "Got function: " << *callback.value;
           CHECK(callback.value->callback != nullptr);
           futures::Future<EvaluationOutput> output;

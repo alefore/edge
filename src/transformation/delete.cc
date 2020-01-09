@@ -169,7 +169,7 @@ class DeleteTransformation : public Transformation {
     return futures::Transform(
         NewSetPositionTransformation(range.begin)->Apply(input),
         [this, range, output, input, delete_buffer](Result result) mutable {
-          output->MergeFrom(result);
+          output->MergeFrom(std::move(result));
 
           InsertOptions insert_options;
           insert_options.buffer_to_insert = std::move(delete_buffer);
@@ -196,7 +196,7 @@ class DeleteTransformation : public Transformation {
               NewInsertBufferTransformation(std::move(insert_options))
                   ->Apply(input),
               [output](Result result) {
-                output->MergeFrom(result);
+                output->MergeFrom(std::move(result));
                 return std::move(*output);
               });
         });

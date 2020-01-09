@@ -72,9 +72,9 @@ class ApplyRepetitionsTransformation : public Transformation {
           current_input.mode = input.mode;
           current_input.position = data->output->position;
           return futures::ImmediateTransform(
-              delegate_->Apply(current_input), [data](const Result& result) {
+              delegate_->Apply(current_input), [data](Result result) {
                 bool made_progress = result.made_progress;
-                data->output->MergeFrom(result);
+                data->output->MergeFrom(std::move(result));
                 return made_progress && data->output->success
                            ? futures::IterationControlCommand::kContinue
                            : futures::IterationControlCommand::kStop;
@@ -111,13 +111,13 @@ Transformation::Result::Result(LineColumn position)
 Transformation::Result::Result(Result&&) = default;
 Transformation::Result::~Result() = default;
 
-void Transformation::Result::MergeFrom(const Result& sub_result) {
+void Transformation::Result::MergeFrom(Result sub_result) {
   success &= sub_result.success;
   made_progress |= sub_result.made_progress;
   modified_buffer |= sub_result.modified_buffer;
-  undo_stack->PushFront(sub_result.undo_stack->Clone());
+  undo_stack->PushFront(std::move(sub_result.undo_stack));
   if (sub_result.delete_buffer != nullptr) {
-    delete_buffer = sub_result.delete_buffer;
+    delete_buffer = std::move(sub_result.delete_buffer);
   }
   position = sub_result.position;
 }

@@ -30,7 +30,7 @@ futures::DelayedValue<Transformation::Result> TransformationStack::Apply(
             return futures::ImmediateTransform(
                 transformation->Apply(sub_input),
                 [output](Transformation::Result result) {
-                  output->MergeFrom(result);
+                  output->MergeFrom(std::move(result));
                   return output->success
                              ? futures::IterationControlCommand::kContinue
                              : futures::IterationControlCommand::kStop;

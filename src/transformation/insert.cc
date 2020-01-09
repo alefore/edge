@@ -78,7 +78,7 @@ class InsertBufferTransformation : public Transformation {
               NewDeleteTransformation(std::move(delete_options)))
               ->Apply(input),
           [result](Result inner_result) {
-            result->MergeFrom(inner_result);
+            result->MergeFrom(std::move(inner_result));
             return result;
           });
     }
