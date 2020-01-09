@@ -23,36 +23,23 @@ void build() {
   SetAsCompiler(build_buffer);
 }
 
-void StdMove() {
-  buffer.ApplyTransformation(
-      InsertTransformationBuilder().set_text("std::move()").build());
-  LineColumn position = buffer.position();
-  buffer.ApplyTransformation(SetPositionTransformation(
-      LineColumn(position.line(), position.column() - 1)));
+TransformationOutput StdMoveTransformation(TransformationInput input,
+                                           string text_to_insert,
+                                           int delta_from_end) {
+  return TransformationOutput()
+      .push(InsertTransformationBuilder().set_text(text_to_insert).build())
+      .push(SetColumnTransformation(input.position().column() +
+                                    text_to_insert.size() - delta_from_end));
 }
 
-void StdUniquePtr() {
-  buffer.ApplyTransformation(
-      InsertTransformationBuilder().set_text("std::unique_ptr<>").build());
-  LineColumn position = buffer.position();
-  buffer.ApplyTransformation(SetPositionTransformation(
-      LineColumn(position.line(), position.column() - 1)));
-}
-
-void StdSharedPtr() {
-  buffer.ApplyTransformation(
-      InsertTransformationBuilder().set_text("std::shared_ptr<>").build());
-  LineColumn position = buffer.position();
-  buffer.ApplyTransformation(SetPositionTransformation(
-      LineColumn(position.line(), position.column() - 1)));
-}
-
-void StdFunction() {
-  buffer.ApplyTransformation(
-      InsertTransformationBuilder().set_text("std::function<()>").build());
-  LineColumn position = buffer.position();
-  buffer.ApplyTransformation(SetPositionTransformation(
-      LineColumn(position.line(), position.column() - 3)));
+void RegisterSimpleCppBinding(string keys, string text_to_insert,
+                              int delta_from_end) {
+  buffer.AddBinding(keys, "C++: Insert `" + text_to_insert + "`", []() -> void {
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          return StdMoveTransformation(input, text_to_insert, delta_from_end);
+        }));
+  });
 }
 
 void CppMode() {
@@ -82,8 +69,8 @@ void CppMode() {
       "true false nullptr NULL");
   buffer.set_tree_parser("cpp");
 
-  buffer.AddBinding("Sm", "C++: Insert `std::move()`", StdMove);
-  buffer.AddBinding("Su", "C++: Insert `std::unique_ptr<>`", StdUniquePtr);
-  buffer.AddBinding("Ss", "C++: Insert `std::unique_ptr<>`", StdSharedPtr);
-  buffer.AddBinding("Sf", "C++: Insert `std::function<()>`", StdFunction);
+  RegisterSimpleCppBinding("Sm", "std::move()", 1);
+  RegisterSimpleCppBinding("Su", "std::unique_ptr<>", 1);
+  RegisterSimpleCppBinding("Ss", "std::shared_ptr<>", 1);
+  RegisterSimpleCppBinding("Sf", "std::function<()>", 2);
 }
