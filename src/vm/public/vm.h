@@ -75,10 +75,7 @@ class Expression {
   // one will be selected).
   virtual std::unordered_set<VMType> ReturnTypes() const = 0;
 
-  bool SupportsType(const VMType& type) {
-    auto types = Types();
-    return std::find(types.begin(), types.end(), type) != types.end();
-  }
+  bool SupportsType(const VMType& type);
 
   bool IsBool() { return SupportsType(VMType::Bool()); }
   bool IsInteger() { return SupportsType(VMType::Integer()); };

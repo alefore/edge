@@ -585,6 +585,11 @@ const std::shared_ptr<Environment>& Trampoline::environment() const {
   return environment_;
 }
 
+bool Expression::SupportsType(const VMType& type) {
+  auto types = Types();
+  return std::find(types.begin(), types.end(), type) != types.end();
+}
+
 futures::DelayedValue<std::unique_ptr<Value>> Evaluate(
     Expression* expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
