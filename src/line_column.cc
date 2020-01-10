@@ -632,7 +632,7 @@ namespace fuzz {
                    {VMType::Integer(), VMType::ObjectType(line_column.get())},
                    [](std::vector<Value::Ptr> args) {
                      CHECK_EQ(args.size(), size_t(1));
-                     CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+                     CHECK_EQ(args[0]->type, VMType::ObjectType(L"LineColumn"));
                      auto line_column =
                          static_cast<LineColumn*>(args[0]->user_value.get());
                      CHECK(line_column != nullptr);
@@ -644,7 +644,8 @@ namespace fuzz {
                      {VMType::Integer(), VMType::ObjectType(line_column.get())},
                      [](std::vector<Value::Ptr> args) {
                        CHECK_EQ(args.size(), size_t(1));
-                       CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+                       CHECK_EQ(args[0]->type,
+                                VMType::ObjectType(L"LineColumn"));
                        auto line_column =
                            static_cast<LineColumn*>(args[0]->user_value.get());
                        CHECK(line_column != nullptr);
@@ -657,7 +658,7 @@ namespace fuzz {
           {VMType::String(), VMType::ObjectType(line_column.get())},
           [](std::vector<Value::Ptr> args) {
             CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            CHECK_EQ(args[0]->type, VMType::ObjectType(L"LineColumn"));
             auto line_column =
                 static_cast<LineColumn*>(args[0]->user_value.get());
             CHECK(line_column != nullptr);
@@ -678,45 +679,14 @@ namespace fuzz {
   // Methods for Range.
   environment->Define(
       L"Range",
-      Value::NewFunction(
-          {VMType::ObjectType(range.get()), VMType::ObjectType(L"LineColumn"),
-           VMType::ObjectType(L"LineColumn")},
-          [](std::vector<Value::Ptr> args) {
-            CHECK_EQ(args.size(), size_t(2));
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-            CHECK_EQ(args[1]->type, VMType::OBJECT_TYPE);
-            return Value::NewObject(
-                L"Range",
-                std::make_shared<Range>(
-                    *static_cast<LineColumn*>(args[0]->user_value.get()),
-                    *static_cast<LineColumn*>(args[1]->user_value.get())));
-          }));
+      vm::NewCallback(std::function<Range(LineColumn, LineColumn)>(
+          [](LineColumn begin, LineColumn end) { return Range(begin, end); })));
 
-  range->AddField(
-      L"begin",
-      Value::NewFunction(
-          {VMType::ObjectType(L"LineColumn"), VMType::ObjectType(range.get())},
-          [](std::vector<Value::Ptr> args) {
-            CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-            auto range = static_cast<Range*>(args[0]->user_value.get());
-            CHECK(range != nullptr);
-            return Value::NewObject(L"LineColumn",
-                                    std::make_shared<LineColumn>(range->begin));
-          }));
+  range->AddField(L"begin", vm::NewCallback(std::function<LineColumn(Range)>(
+                                [](Range range) { return range.begin; })));
 
-  range->AddField(
-      L"end",
-      Value::NewFunction(
-          {VMType::ObjectType(L"LineColumn"), VMType::ObjectType(range.get())},
-          [](std::vector<Value::Ptr> args) {
-            CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-            auto range = static_cast<Range*>(args[0]->user_value.get());
-            CHECK(range != nullptr);
-            return Value::NewObject(L"LineColumn",
-                                    std::make_shared<LineColumn>(range->end));
-          }));
+  range->AddField(L"end", vm::NewCallback(std::function<LineColumn(Range)>(
+                              [](Range range) { return range.end; })));
 
   environment->DefineType(L"Range", std::move(range));
   vm::VMTypeMapper<std::vector<LineColumn>*>::Export(environment);
@@ -745,5 +715,24 @@ Value::Ptr VMTypeMapper<editor::LineColumn>::New(editor::LineColumn value) {
 
 const VMType VMTypeMapper<editor::LineColumn>::vmtype =
     VMType::ObjectType(L"LineColumn");
+
+/* static */
+editor::Range VMTypeMapper<editor::Range>::get(Value* value) {
+  CHECK(value != nullptr);
+  CHECK(value->type.type == VMType::OBJECT_TYPE);
+  CHECK(value->type.object_type == L"LineColumn");
+  CHECK(value->user_value != nullptr);
+  return *static_cast<editor::Range*>(value->user_value.get());
+}
+
+/* static */
+Value::Ptr VMTypeMapper<editor::Range>::New(editor::Range range) {
+  return Value::NewObject(
+      L"Range", shared_ptr<void>(new editor::Range(range), [](void* v) {
+        delete static_cast<editor::Range*>(v);
+      }));
+}
+
+const VMType VMTypeMapper<editor::Range>::vmtype = VMType::ObjectType(L"Range");
 }  // namespace vm
 }  // namespace afc

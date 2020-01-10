@@ -630,8 +630,7 @@ class ActivateLink : public Command {
       auto target_position = buffer->current_line()->environment()->Lookup(
           L"buffer_position", vm::VMTypeMapper<LineColumn>::vmtype);
       if (target_position != nullptr &&
-          target_position->type.type == VMType::OBJECT_TYPE &&
-          target_position->type.object_type == L"LineColumn") {
+          target_position->type == VMType::ObjectType(L"LineColumn")) {
         target->set_position(
             *static_cast<LineColumn*>(target_position->user_value.get()));
       }

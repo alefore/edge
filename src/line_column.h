@@ -338,6 +338,13 @@ struct VMTypeMapper<editor::LineColumn> {
   static Value::Ptr New(editor::LineColumn value);
   static const VMType vmtype;
 };
+// TODO: Drop the std::shared_ptr.
+template <>
+struct VMTypeMapper<editor::Range> {
+  static editor::Range get(Value* value);
+  static Value::Ptr New(editor::Range value);
+  static const VMType vmtype;
+};
 }  // namespace vm
 }  // namespace afc
 

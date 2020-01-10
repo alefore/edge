@@ -37,8 +37,8 @@ bool TypeMatchesArguments(const VMType& type,
   for (size_t argument = 0; argument < args.size(); argument++) {
     if (!args[argument]->SupportsType(type.type_arguments[1 + argument])) {
       *error = L"Type mismatch in argument " + std::to_wstring(argument) +
-               L": Expected " + type.type_arguments[1 + argument].ToString() +
-               L" but found " + TypesToString(args[argument]->Types());
+               L": Expected `" + type.type_arguments[1 + argument].ToString() +
+               L"` but found " + TypesToString(args[argument]->Types());
       return false;
     }
   }
