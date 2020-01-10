@@ -75,6 +75,8 @@ class CursorsSet {
   iterator active();
   void set_active(iterator iterator);
 
+  size_t current_index() const;
+
  private:
   std::multiset<LineColumn> cursors_;
   // Must be equal to cursors_.end() iff cursors_ is empty.

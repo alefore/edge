@@ -23,19 +23,15 @@ class LogicalExpression : public Expression {
   std::vector<VMType> Types() override { return {VMType::Bool()}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
-  void Evaluate(Trampoline* trampoline, const VMType& type) override {
-    auto identity = identity_;
-    auto expr_a_copy = expr_a_;
-    auto expr_b_copy = expr_b_;
-    trampoline->Bounce(
-        expr_a_copy.get(), VMType::Bool(),
-        [type, identity, expr_a_copy, expr_b_copy](std::unique_ptr<Value> value,
-                                                   Trampoline* trampoline) {
-          if (value->boolean == identity) {
-            expr_b_copy->Evaluate(trampoline, type);
-          } else {
-            trampoline->Continue(std::move(value));
-          }
+  futures::DelayedValue<EvaluationOutput> Evaluate(
+      Trampoline* trampoline, const VMType& type) override {
+    return futures::Transform(
+        trampoline->Bounce(expr_a_.get(), VMType::Bool()),
+        [type, trampoline, identity = identity_,
+         expr_b = expr_b_](EvaluationOutput a_output) {
+          return a_output.value->boolean == identity
+                     ? trampoline->Bounce(expr_b.get(), type)
+                     : futures::ImmediateValue(std::move(a_output));
         });
   }
 

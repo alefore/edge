@@ -229,7 +229,7 @@ int main(int argc, const char** argv) {
     LOG(INFO) << "Creating curses screen.";
     screen_curses = NewScreenCurses();
   }
-  RegisterScreenType(editor_state()->environment());
+  RegisterScreenType(editor_state()->environment().get());
   editor_state()->environment()->Define(
       L"screen", afc::vm::Value::NewObject(L"Screen", screen_curses));
 

@@ -114,6 +114,10 @@ void CursorsSet::set_active(iterator iterator) {
   CHECK(cursors_.find(*iterator) != cursors_.end());
 }
 
+size_t CursorsSet::current_index() const {
+  return empty() ? 0 : std::distance(begin(), active());
+}
+
 bool RangeContains(const Range& range,
                    const CursorsTracker::Transformation& transformation) {
   return range.Contains(transformation.range);
@@ -395,12 +399,15 @@ futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
   struct Data {
     CursorsSet* cursors;
     std::function<futures::DelayedValue<LineColumn>(LineColumn)> callback;
-    futures::Future<bool> done;
+    futures::DelayedValue<bool>::Consumer done;
     bool adjusted_active_cursor = false;
   };
+
+  futures::Future<bool> output;
   auto data = std::make_shared<Data>();
   data->cursors = cursors;
   data->callback = std::move(callback);
+  data->done = output.consumer;
 
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size()
             << ", active is: " << *cursors->active();
@@ -410,12 +417,12 @@ futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
     if (data->cursors->empty()) {
       data->cursors->swap(&already_applied_cursors_);
       LOG(INFO) << "Current cursor at: " << *data->cursors->active();
-      data->done.Receiver().Set(true);
+      data->done(true);
       return;
     }
     VLOG(6) << "Adjusting cursor: " << *data->cursors->begin();
     data->callback(*data->cursors->begin())
-        .AddListener([this, data, apply_next](LineColumn column) {
+        .SetConsumer([this, data, apply_next](LineColumn column) {
           auto insert_result = already_applied_cursors_.insert(column);
           VLOG(7) << "Cursor moved to: " << *insert_result;
           if (!data->adjusted_active_cursor &&
@@ -430,7 +437,7 @@ futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
         });
   };
   apply_next(apply_next);
-  return data->done.Value();
+  return output.value;
 }
 
 size_t CursorsTracker::Push() {

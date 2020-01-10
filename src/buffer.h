@@ -249,7 +249,7 @@ class OpenBuffer {
   std::map<wstring, wstring> Flags() const;
   static wstring FlagsToString(std::map<wstring, wstring> flags);
 
-  wstring TransformKeyboardText(wstring input);
+  futures::DelayedValue<std::wstring> TransformKeyboardText(std::wstring input);
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
   futures::DelayedValue<bool> ApplyToCursors(
@@ -277,7 +277,6 @@ class OpenBuffer {
   void Undo(UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);
-  bool IsLineFiltered(LineNumber line);
 
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
@@ -287,16 +286,16 @@ class OpenBuffer {
   /////////////////////////////////////////////////////////////////////////////
   // Extensions
 
-  Environment* environment() { return &environment_; }
+  const std::shared_ptr<Environment>& environment() { return environment_; }
 
   unique_ptr<Expression> CompileString(const wstring& str,
                                        wstring* error_description);
-  void EvaluateExpression(Expression* expr,
-                          std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateString(const wstring& str,
-                      std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateFile(const wstring& path,
-                    std::function<void(std::unique_ptr<Value>)> consumer);
+  futures::DelayedValue<std::unique_ptr<Value>> EvaluateExpression(
+      Expression* expr);
+  std::optional<futures::DelayedValue<std::unique_ptr<Value>>> EvaluateString(
+      const wstring& str);
+  std::optional<futures::DelayedValue<std::unique_ptr<Value>>> EvaluateFile(
+      const wstring& path);
 
   WorkQueue* work_queue() const;
   void ExecutePendingWork();
@@ -495,7 +494,7 @@ class OpenBuffer {
   std::list<std::unique_ptr<TransformationStack>> undo_future_;
 
   list<unique_ptr<Value>> keyboard_text_transformers_;
-  Environment environment_;
+  const std::shared_ptr<Environment> environment_;
 
   mutable WorkQueue work_queue_;
 

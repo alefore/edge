@@ -114,17 +114,16 @@ void ShowFiles(EditorState* editor_state, wstring name,
   if (entries.empty()) {
     return;
   }
+  std::sort(entries.begin(), entries.end(),
+            [](const dirent& a, const dirent& b) {
+              return strcmp(a.d_name, b.d_name) < 0;
+            });
+
   target->AppendLine(NewLazyString(L"## " + name + L" (" +
                                    std::to_wstring(entries.size()) + L")"));
-  auto start = target->contents()->size();
   for (auto& entry : entries) {
     AddLine(editor_state, target, entry);
   }
-  target->SortContents(
-      LineNumber(0) + start, LineNumber(0) + target->contents()->size(),
-      [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
-        return *a->contents() < *b->contents();
-      });
   target->AppendEmptyLine();
 }
 
@@ -373,8 +372,7 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
   buffer->ClearModified();
   buffer->status()->SetInformationText(L"🖫 Saved: " + path);
   for (const auto& dir : editor_state->edge_path()) {
-    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc",
-                         [](std::unique_ptr<Value>) {});
+    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
   }
   if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write)) {
     for (auto& it : *editor_state->buffers()) {

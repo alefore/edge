@@ -73,9 +73,9 @@ CompositeTransformationAdapter::Apply(const Input& transformation_input) const {
   input.range =
       transformation_input.buffer->FindPartialRange(modifiers_, input.position);
   input.modifiers = modifiers_;
-  return futures::DelayedValue<Transformation::Result>::Transform(
+  return futures::Transform(
       composite_transformation_->Apply(std::move(input)),
-      [transformation_input](const CompositeTransformation::Output& output) {
+      [transformation_input](CompositeTransformation::Output output) {
         return output.transformations_->Apply(transformation_input);
       });
 }

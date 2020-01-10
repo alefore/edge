@@ -32,16 +32,15 @@ class IfExpression : public Expression {
     return return_types_;
   }
 
-  void Evaluate(Trampoline* trampoline, const VMType& type) override {
-    auto cond_copy = cond_;
-    auto true_copy = true_case_;
-    auto false_copy = false_case_;
-    trampoline->Bounce(
-        cond_.get(), VMType::Bool(),
-        [type, cond_copy, true_copy, false_copy](std::unique_ptr<Value> result,
-                                                 Trampoline* trampoline) {
-          (result->boolean ? true_copy : false_copy)
-              ->Evaluate(trampoline, type);
+  futures::DelayedValue<EvaluationOutput> Evaluate(
+      Trampoline* trampoline, const VMType& type) override {
+    return futures::Transform(
+        trampoline->Bounce(cond_.get(), VMType::Bool()),
+        [type, true_case = true_case_, false_case = false_case_,
+         trampoline](EvaluationOutput cond_output) {
+          return trampoline->Bounce(
+              cond_output.value->boolean ? true_case.get() : false_case.get(),
+              type);
         });
   }
 

@@ -107,9 +107,10 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
   std::shared_ptr<Expression> expr = vm::NewFunctionCall(
       vm::NewConstantExpression(std::make_unique<Value>(*callback)), {});
   Evaluate(
-      expr.get(), buffer->environment(), [expr](Value::Ptr) {},
+      expr.get(), buffer->environment(),
       [work_queue = target_buffer->work_queue()](
-          std::function<void()> callback) { work_queue->Schedule(callback); });
+          std::function<void()> callback) { work_queue->Schedule(callback); })
+      .SetConsumer([expr](std::unique_ptr<Value>) { /* Keep expr alive. */ });
 }
 
 class DeleteTransformation : public Transformation {
@@ -165,11 +166,10 @@ class DeleteTransformation : public Transformation {
     input.buffer->DeleteRange(range);
     output->modified_buffer = true;
 
-    return futures::DelayedValue<Result>::Transform(
+    return futures::Transform(
         NewSetPositionTransformation(range.begin)->Apply(input),
-        [this, range, output, input,
-         delete_buffer](const Result& result) mutable {
-          output->MergeFrom(result);
+        [this, range, output, input, delete_buffer](Result result) mutable {
+          output->MergeFrom(std::move(result));
 
           InsertOptions insert_options;
           insert_options.buffer_to_insert = std::move(delete_buffer);
@@ -192,12 +192,12 @@ class DeleteTransformation : public Transformation {
                   ? LineModifier::GREEN
                   : LineModifier::RED};
           input.position = range.begin;
-          return futures::DelayedValue<Result>::Transform(
+          return futures::ImmediateTransform(
               NewInsertBufferTransformation(std::move(insert_options))
                   ->Apply(input),
-              [output](const Result& result) {
-                output->MergeFrom(result);
-                return futures::ImmediateValue(std::move(*output));
+              [output](Result result) {
+                output->MergeFrom(std::move(result));
+                return std::move(*output);
               });
         });
   }

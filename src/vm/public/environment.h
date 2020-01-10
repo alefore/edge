@@ -20,12 +20,17 @@ class ObjectType;
 class Environment {
  public:
   Environment();
+  Environment(std::shared_ptr<Environment> parent_environment);
 
-  Environment(Environment* parent_environment);
+  // TODO: Implement proper garbage collection for the environment and get rid
+  // of this method.
+  void Clear();
 
-  Environment* parent_environment() const { return parent_environment_; }
+  const std::shared_ptr<Environment>& parent_environment() const {
+    return parent_environment_;
+  }
 
-  static Environment* GetDefault();
+  static const std::shared_ptr<Environment>& GetDefault();
 
   const ObjectType* LookupObjectType(const wstring& symbol);
   const VMType* LookupType(const wstring& symbol);
@@ -46,7 +51,9 @@ class Environment {
  private:
   map<wstring, unique_ptr<ObjectType>> object_types_;
   map<wstring, std::unordered_map<VMType, unique_ptr<Value>>> table_;
-  Environment* parent_environment_;
+
+  // TODO: Consider whether the parent environment should itself be const?
+  const std::shared_ptr<Environment> parent_environment_;
 };
 
 }  // namespace vm

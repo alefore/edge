@@ -22,7 +22,7 @@ void RunCppCommandLiteralHandler(const wstring& name,
     return;
   }
   buffer->ResetMode();
-  buffer->EvaluateString(name, [](std::unique_ptr<Value>) { /* Nothing. */ });
+  buffer->EvaluateString(name);
 }
 
 struct Token {
@@ -162,8 +162,8 @@ void Execute(std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
     buffer->status()->SetWarningText(L"Unable to compile (type mismatch).");
     return;
   }
-  buffer->EvaluateExpression(
-      expression.get(), [buffer, expression](Value::Ptr) { /* Nothing. */ });
+  buffer->EvaluateExpression(expression.get())
+      .SetConsumer([buffer](std::unique_ptr<Value>) { /* Nothing. */ });
 }
 
 void RunCppCommandShellHandler(const std::wstring& command,
@@ -175,7 +175,7 @@ void RunCppCommandShellHandler(const std::wstring& command,
   buffer->ResetMode();
 
   auto parsed_command =
-      Parse(*NewLazyString(std::move(command)), buffer->environment());
+      Parse(*NewLazyString(std::move(command)), buffer->environment().get());
   if (parsed_command.error.has_value()) {
     if (!parsed_command.error.value().empty()) {
       buffer->status()->SetWarningText(parsed_command.error.value());
@@ -193,7 +193,7 @@ void RunCppCommandShellChangeHandler(
     return;
   }
   auto line = prompt_buffer->LineAt(LineNumber(0));
-  auto parsed_command = Parse(*line->contents(), buffer->environment());
+  auto parsed_command = Parse(*line->contents(), buffer->environment().get());
 
   LineModifierSet modifiers;
   if (!parsed_command.error.has_value()) {

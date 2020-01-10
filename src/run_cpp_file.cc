@@ -58,17 +58,21 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
     return;
   }
 
-  // Recursive function that receives the number of evaluations.
-  auto execute = std::make_shared<std::function<void(size_t)>>();
-  *execute = [buffer, total = editor_state->repetitions(),
-              adjusted_input = resolved_path->path, execute](size_t i) {
-    if (i >= total) return;
-    buffer->EvaluateFile(adjusted_input, [execute, i](std::unique_ptr<Value>) {
-      (*execute)(i + 1);
-    });
-  };
-  (*execute)(0);
-
+  using futures::IterationControlCommand;
+  auto index = std::make_shared<size_t>(0);
+  futures::While([buffer, total = editor_state->repetitions(),
+                  adjusted_input = resolved_path->path, index]() {
+    if (*index >= total)
+      return futures::ImmediateValue(IterationControlCommand::kStop);
+    auto evaluation = buffer->EvaluateFile(adjusted_input);
+    if (!evaluation.has_value())
+      return futures::ImmediateValue(IterationControlCommand::kStop);
+    ++*index;
+    return futures::Transform(
+        evaluation.value(), [](const std::unique_ptr<Value>&) {
+          return futures::ImmediateValue(IterationControlCommand::kContinue);
+        });
+  });
   editor_state->ResetRepetitions();
 }
 

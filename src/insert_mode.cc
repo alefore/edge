@@ -423,10 +423,10 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
         buffer->MaybeAdjustPositionCol();
         buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
-            .AddListener([buffer, editor_state, this](bool) {
+            .SetConsumer([buffer, editor_state, this](bool) {
               buffer->PopTransformationStack();
               editor_state->set_repetitions(editor_state->repetitions() - 1);
-              buffer->RepeatLastTransformation().AddListener(
+              buffer->RepeatLastTransformation().SetConsumer(
                   [buffer, editor_state, this](bool) {
                     buffer->PopTransformationStack();
                     editor_state->PushCurrentPosition();
@@ -478,7 +478,7 @@ class InsertMode : public EditorMode {
         }
         delete_options.copy_to_paste_buffer = false;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
-            .AddListener([this](bool) { options_.modify_handler(); });
+            .SetConsumer([this](bool) { options_.modify_handler(); });
       }
         return;
 
@@ -505,10 +505,9 @@ class InsertMode : public EditorMode {
               L"Unable to compile (type mismatch).");
           return;
         }
-        buffer->EvaluateExpression(
-            expression.get(),
-            [buffer, expression,
-             callback = options_.modify_handler](Value::Ptr) { callback(); });
+        buffer->EvaluateExpression(expression.get())
+            .SetConsumer([buffer, callback = options_.modify_handler](
+                             std::unique_ptr<Value>) { callback(); });
         return;
       }
 
@@ -520,7 +519,7 @@ class InsertMode : public EditorMode {
         delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
         delete_options.copy_to_paste_buffer = false;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
-            .AddListener([this](bool) { options_.modify_handler(); });
+            .SetConsumer([this](bool) { options_.modify_handler(); });
         return;
       }
 
@@ -528,20 +527,22 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
     }
 
-    {
-      auto buffer_to_insert =
-          std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-      buffer_to_insert->AppendToLastLine(
-          NewLazyString(buffer->TransformKeyboardText(wstring(1, c))));
+    buffer->TransformKeyboardText(wstring(1, c))
+        .SetConsumer([this, editor_state, buffer](std::wstring value) {
+          auto buffer_to_insert =
+              std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
-      InsertOptions insert_options;
-      insert_options.modifiers.insertion = editor_state->modifiers().insertion;
-      insert_options.buffer_to_insert = buffer_to_insert;
-      buffer->ApplyToCursors(
-          NewInsertBufferTransformation(std::move(insert_options)));
-    }
+          buffer_to_insert->AppendToLastLine(NewLazyString(value));
 
-    options_.modify_handler();
+          InsertOptions insert_options;
+          insert_options.modifiers.insertion =
+              editor_state->modifiers().insertion;
+          insert_options.buffer_to_insert = buffer_to_insert;
+          buffer->ApplyToCursors(
+              NewInsertBufferTransformation(std::move(insert_options)));
+
+          options_.modify_handler();
+        });
   }
 
  private:

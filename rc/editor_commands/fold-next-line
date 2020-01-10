@@ -20,27 +20,26 @@ string LeadingPrefix(string text) {
   }
 }
 
-void FoldNextLine() {
-  buffer.PushTransformationStack();
+TransformationOutput FoldNextLine(TransformationInput input) {
+  TransformationOutput output = TransformationOutput();
+  int column = buffer.line(input.position().line()).size();
   for (int i = 0; i < repetitions(); i++) {
-    int line = buffer.position().line();
-    if (line != buffer.line_count()) {
-      int column = buffer.line(line).size();
-      buffer.ApplyTransformation(
-          SetPositionTransformation(LineColumn(line, column)));
-      buffer.ApplyTransformation(
+    output.push(SetColumnTransformation(column));
+    int next_line = input.position().line() + i + 1;
+    if (next_line < buffer.line_count()) {
+      auto prefix_size = LeadingPrefix(buffer.line(next_line)).size();
+      output.push(
           DeleteTransformationBuilder()
-              .set_modifiers(Modifiers().set_repetitions(
-                  (1 + LeadingPrefix(buffer.line(line + 1)).size())))
+              .set_modifiers(Modifiers().set_repetitions((1 + prefix_size)))
               .build());
-      if (buffer.line(line).size() > column) {
-        buffer.ApplyTransformation(
-            InsertTransformationBuilder().set_text(" ").build());
+      if (buffer.line(next_line).size() > prefix_size) {
+        column += buffer.line(next_line).size() - prefix_size + 1;
+        output.push(InsertTransformationBuilder().set_text(" ").build());
       }
     }
   }
-  buffer.PopTransformationStack();
   set_repetitions(1);
+  return output;
 }
 
-FoldNextLine();
+buffer.ApplyTransformation(FunctionTransformation(FoldNextLine));

@@ -72,16 +72,15 @@ class InsertBufferTransformation : public Transformation {
       DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
       delete_options.copy_to_paste_buffer = false;
-      delayed_shared_result =
-          futures::DelayedValue<std::shared_ptr<Result>>::Transform(
-              TransformationAtPosition(
-                  result->position,
-                  NewDeleteTransformation(std::move(delete_options)))
-                  ->Apply(input),
-              [result](const Result& inner_result) {
-                result->MergeFrom(inner_result);
-                return futures::ImmediateValue(result);
-              });
+      delayed_shared_result = futures::ImmediateTransform(
+          TransformationAtPosition(
+              result->position,
+              NewDeleteTransformation(std::move(delete_options)))
+              ->Apply(input),
+          [result](Result inner_result) {
+            result->MergeFrom(std::move(inner_result));
+            return result;
+          });
     }
 
     LineColumn position = options_.position.value_or(
@@ -89,11 +88,11 @@ class InsertBufferTransformation : public Transformation {
             ? start_position
             : final_position);
 
-    return futures::DelayedValue<Transformation::Result>::Transform(
+    return futures::ImmediateTransform(
         delayed_shared_result,
-        [position](const std::shared_ptr<Transformation::Result>& result) {
+        [position](std::shared_ptr<Transformation::Result> result) {
           result->position = position;
-          return futures::ImmediateValue(std::move(*result));
+          return std::move(*result);
         });
   }
 

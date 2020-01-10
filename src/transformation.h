@@ -42,11 +42,10 @@ class Transformation {
 
   struct Result {
     Result(LineColumn position);
-    Result(const Result&);
     Result(Result&&);
     ~Result();
 
-    void MergeFrom(const Result& result);
+    void MergeFrom(Result result);
 
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.

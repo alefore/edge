@@ -35,7 +35,7 @@ class MapModeCommands {
   // Adds an entry mapping a given string to a given command.
   void Add(wstring name, std::unique_ptr<Command> value);
   void Add(wstring name, wstring description, std::unique_ptr<vm::Value> value,
-           vm::Environment* environment);
+           std::shared_ptr<vm::Environment> environment);
   void Add(wstring name, std::function<void(EditorState*)> value,
            wstring description);
 

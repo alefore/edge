@@ -63,9 +63,6 @@ class CppCommand : public Command {
 
     Evaluate(
         expression_.get(), editor_state->environment(),
-        [expression](std::unique_ptr<Value>) {
-          DVLOG(5) << "CppCommand finished.";
-        },
         [work_queue = buffer->work_queue()](std::function<void()> callback) {
           work_queue->Schedule(std::move(callback));
         });
@@ -80,10 +77,11 @@ class CppCommand : public Command {
 
 }  // namespace
 
-std::unique_ptr<Command> NewCppCommand(afc::vm::Environment* environment,
-                                       wstring code) {
+std::unique_ptr<Command> NewCppCommand(
+    std::shared_ptr<afc::vm::Environment> environment, wstring code) {
   wstring error_description;
-  auto expr = afc::vm::CompileString(code, environment, &error_description);
+  auto expr =
+      afc::vm::CompileString(code, std::move(environment), &error_description);
   if (expr == nullptr) {
     LOG(ERROR) << "Failed compilation of command: " << code << ": "
                << error_description;

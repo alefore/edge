@@ -61,7 +61,7 @@ class ApplyRepetitionsTransformation : public Transformation {
     };
     auto data = std::make_shared<Data>();
     data->output = std::make_unique<Result>(input.position);
-    return futures::DelayedValue<Transformation::Result>::Transform(
+    return futures::ImmediateTransform(
         futures::While([this, data, input]() mutable {
           if (data->index == repetitions_) {
             return futures::ImmediateValue(
@@ -71,19 +71,17 @@ class ApplyRepetitionsTransformation : public Transformation {
           Input current_input(input.buffer);
           current_input.mode = input.mode;
           current_input.position = data->output->position;
-          return futures::DelayedValue<futures::IterationControlCommand>::
-              Transform(delegate_->Apply(current_input),
-                        [data](const Result& result) {
-                          bool made_progress = result.made_progress;
-                          data->output->MergeFrom(result);
-                          return futures::ImmediateValue(
-                              made_progress && data->output->success
-                                  ? futures::IterationControlCommand::kContinue
-                                  : futures::IterationControlCommand::kStop);
-                        });
+          return futures::ImmediateTransform(
+              delegate_->Apply(current_input), [data](Result result) {
+                bool made_progress = result.made_progress;
+                data->output->MergeFrom(std::move(result));
+                return made_progress && data->output->success
+                           ? futures::IterationControlCommand::kContinue
+                           : futures::IterationControlCommand::kStop;
+              });
         }),
         [data](const futures::IterationControlCommand&) {
-          return futures::ImmediateValue(std::move(*data->output));
+          return std::move(*data->output);
         });
   }
 
@@ -99,27 +97,19 @@ class ApplyRepetitionsTransformation : public Transformation {
 
 Transformation::Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
 
-Transformation::Result::Result(const Result& other)
-    : success(other.success),
-      made_progress(other.made_progress),
-      modified_buffer(other.modified_buffer),
-      undo_stack(other.undo_stack->CloneStack()),
-      delete_buffer(other.delete_buffer),
-      position(other.position) {}
-
 Transformation::Result::Result(LineColumn position)
     : undo_stack(std::make_unique<TransformationStack>()), position(position) {}
 
 Transformation::Result::Result(Result&&) = default;
 Transformation::Result::~Result() = default;
 
-void Transformation::Result::MergeFrom(const Result& sub_result) {
+void Transformation::Result::MergeFrom(Result sub_result) {
   success &= sub_result.success;
   made_progress |= sub_result.made_progress;
   modified_buffer |= sub_result.modified_buffer;
-  undo_stack->PushFront(sub_result.undo_stack->Clone());
+  undo_stack->PushFront(std::move(sub_result.undo_stack));
   if (sub_result.delete_buffer != nullptr) {
-    delete_buffer = sub_result.delete_buffer;
+    delete_buffer = std::move(sub_result.delete_buffer);
   }
   position = sub_result.position;
 }

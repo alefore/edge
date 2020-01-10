@@ -1,4 +1,7 @@
+#include <glog/logging.h>
+
 #include <functional>
+#include <type_traits>
 
 #ifndef __AFC_EDITOR_FUTURES_FUTURES_H__
 #define __AFC_EDITOR_FUTURES_FUTURES_H__
@@ -6,46 +9,34 @@
 namespace afc::futures {
 
 template <typename Type>
-class ValueReceiver;
-
-template <typename Type>
 class Future;
 
 template <typename Type>
 class DelayedValue {
  public:
-  using Listener = std::function<void(const Type&)>;
-
-  // Callable must return a DelayedValue<Type> given an OtherType value.
-  template <typename OtherType, typename Callable>
-  static DelayedValue<Type> Transform(DelayedValue<OtherType> delayed_value,
-                                      Callable callable) {
-    Future<Type> output;
-    delayed_value.AddListener([receiver = output.Receiver(),
-                               callable = std::move(callable)](
-                                  const OtherType& other_value) mutable {
-      callable(other_value).AddListener([receiver](const Type& value) mutable {
-        receiver.Set(value);
-      });
-    });
-    return output.Value();
-  }
+  using Consumer = std::function<void(Type)>;
+  using type = Type;
 
   const std::optional<Type>& Get() const { return data_->value; }
-  void AddListener(Listener listener) {
+
+  void SetConsumer(Consumer consumer) {
+    CHECK(!data_->consumer.has_value());
     if (data_->value.has_value()) {
-      listener(data_->value.value());
+      consumer(std::move(data_->value.value()));
+      data_->consumer = nullptr;
+      data_->value = std::nullopt;
     } else {
-      data_->listeners.push_back(std::move(listener));
+      data_->consumer = std::move(consumer);
     }
   }
 
  private:
-  friend ValueReceiver<Type>;
   friend Future<Type>;
 
   struct FutureData {
-    std::vector<Listener> listeners;
+    // std::nullopt before a consumer is set. nullptr when a consumer has
+    // already been executed.
+    std::optional<Consumer> consumer;
     std::optional<Type> value;
   };
 
@@ -54,57 +45,37 @@ class DelayedValue {
   std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
 };
 
-enum class ValueReceiverSetResult { kAccepted, kRejected };
-
 template <typename Type>
-class ValueReceiver {
+struct Future {
  public:
-  ValueReceiverSetResult Set(Type value) const {
-    if (data_->value.has_value()) {
-      return ValueReceiverSetResult::kRejected;
-    }
-    data_->value.emplace(std::move(value));
-    for (const auto& l : data_->listeners) {
-      l(data_->value.value());
-    }
-    data_->listeners.empty();
-    return ValueReceiverSetResult::kAccepted;
-  }
+  Future() : Future(std::make_shared<FutureData>()) {}
 
- private:
-  friend Future<Type>;
-
-  using FutureData = typename DelayedValue<Type>::FutureData;
-  ValueReceiver(std::shared_ptr<FutureData> data) : data_(std::move(data)) {}
-
-  std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
-};
-
-template <typename Type>
-class Future {
- public:
-  static ValueReceiver<Type> ReceiverForListener(
-      typename DelayedValue<Type>::Listener listener) {
-    Future<Type> output;
-    output.Value().AddListener(std::move(listener));
-    return output.Receiver();
-  }
-
-  ValueReceiver<Type> Receiver() { return ValueReceiver<Type>(data_); }
-
-  DelayedValue<Type> Value() { return DelayedValue<Type>(data_); }
+  typename DelayedValue<Type>::Consumer consumer;
+  DelayedValue<Type> value;
 
  private:
   using FutureData = typename DelayedValue<Type>::FutureData;
 
-  std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
+  Future(std::shared_ptr<FutureData> data)
+      : consumer([data](Type value) {
+          CHECK(!data->value.has_value());
+          CHECK(!data->consumer.has_value() ||
+                data->consumer.value() != nullptr);
+          if (data->consumer.has_value()) {
+            data->consumer.value()(std::move(value));
+            data->consumer = nullptr;
+          } else {
+            data->value.emplace(std::move(value));
+          }
+        }),
+        value(std::move(data)) {}
 };
 
 template <typename Type>
 DelayedValue<Type> ImmediateValue(Type value) {
   Future<Type> output;
-  output.Receiver().Set(std::move(value));
-  return output.Value();
+  output.consumer(std::move(value));
+  return output.value;
 }
 
 enum class IterationControlCommand { kContinue, kStop };
@@ -119,42 +90,69 @@ template <typename Iterator, typename Callable>
 DelayedValue<IterationControlCommand> ForEach(Iterator begin, Iterator end,
                                               Callable callable) {
   Future<IterationControlCommand> output;
-  auto resume = [receiver = output.Receiver(), end, callable](
+  auto resume = [consumer = output.consumer, end, callable](
                     Iterator begin, auto resume) mutable {
     if (begin == end) {
-      receiver.Set(IterationControlCommand::kContinue);
+      consumer(IterationControlCommand::kContinue);
       return;
     }
-    callable(*begin).AddListener([receiver, begin, end, callable, resume](
+    callable(*begin).SetConsumer([consumer, begin, end, callable, resume](
                                      IterationControlCommand result) mutable {
       if (result == IterationControlCommand::kStop) {
-        receiver.Set(result);
+        consumer(result);
       } else {
         resume(++begin, resume);
       }
     });
   };
   resume(begin, resume);
-  return output.Value();
+  return output.value;
 }
 
 template <typename Callable>
 DelayedValue<IterationControlCommand> While(Callable callable) {
   Future<IterationControlCommand> output;
-  auto resume = [receiver = output.Receiver(),
+  auto resume = [consumer = output.consumer,
                  callable](auto resume) mutable -> void {
-    callable().AddListener(
-        [receiver, callable, resume](IterationControlCommand result) mutable {
-          if (result == IterationControlCommand::kStop) {
-            receiver.Set(result);
-          } else {
-            resume(resume);
-          }
-        });
+    callable().SetConsumer([consumer = std::move(consumer),
+                            callable = std::move(callable),
+                            resume](IterationControlCommand result) mutable {
+      if (result == IterationControlCommand::kStop) {
+        consumer(result);
+      } else {
+        resume(resume);
+      }
+    });
   };
   resume(resume);
-  return output.Value();
+  return output.value;
 }
+
+template <typename OtherType, typename Callable>
+auto Transform(DelayedValue<OtherType> delayed_value, Callable callable) {
+  Future<typename decltype(callable(std::declval<OtherType>()))::type> output;
+  delayed_value.SetConsumer(
+      [consumer = output.consumer,
+       callable = std::move(callable)](OtherType other_value) mutable {
+        callable(std::move(other_value)).SetConsumer(std::move(consumer));
+      });
+  return output.value;
+}
+
+template <typename OtherType, typename Callable>
+auto ImmediateTransform(DelayedValue<OtherType> delayed_value,
+                        Callable callable) {
+  using Type = decltype(callable(std::declval<OtherType>()));
+  Future<Type> output;
+  delayed_value.SetConsumer(
+      [consumer = output.consumer,
+       callable = std::move(callable)](OtherType other_value) mutable {
+        Type type = callable(std::move(other_value));
+        consumer(std::move(type));
+      });
+  return output.value;
+}
+
 }  // namespace afc::futures
 
 #endif  // __AFC_EDITOR_FUTURES_FUTURES_H__

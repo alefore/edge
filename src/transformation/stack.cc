@@ -19,7 +19,7 @@ void TransformationStack::PushFront(
 futures::DelayedValue<Transformation::Result> TransformationStack::Apply(
     const Input& input) const {
   auto output = std::make_shared<Result>(input.position);
-  return futures::DelayedValue<Transformation::Result>::Transform(
+  return futures::ImmediateTransform(
       futures::ForEach(
           stack_->begin(), stack_->end(),
           [output, input, stack = stack_](
@@ -27,27 +27,21 @@ futures::DelayedValue<Transformation::Result> TransformationStack::Apply(
             Input sub_input(input.buffer);
             sub_input.position = output->position;
             sub_input.mode = input.mode;
-            return futures::DelayedValue<futures::IterationControlCommand>::
-                Transform(
-                    transformation->Apply(sub_input),
-                    [output](const Transformation::Result& result) {
-                      output->MergeFrom(result);
-                      return futures::ImmediateValue(
-                          output->success
-                              ? futures::IterationControlCommand::kContinue
-                              : futures::IterationControlCommand::kStop);
-                    });
+            return futures::ImmediateTransform(
+                transformation->Apply(sub_input),
+                [output](Transformation::Result result) {
+                  output->MergeFrom(std::move(result));
+                  return output->success
+                             ? futures::IterationControlCommand::kContinue
+                             : futures::IterationControlCommand::kStop;
+                });
           }),
       [output](futures::IterationControlCommand) {
-        return futures::ImmediateValue(std::move(*output));
+        return std::move(*output);
       });
 }
 
 std::unique_ptr<Transformation> TransformationStack::Clone() const {
-  return CloneStack();
-}
-
-std::unique_ptr<TransformationStack> TransformationStack::CloneStack() const {
   auto output = std::make_unique<TransformationStack>();
   for (auto& it : *stack_) {
     output->PushBack(it->Clone());

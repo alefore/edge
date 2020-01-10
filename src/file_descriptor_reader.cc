@@ -107,8 +107,7 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   if (options_->buffer->Read(buffer_variables::vm_exec)) {
     LOG(INFO) << options_->buffer->Read(buffer_variables::name)
               << ": Evaluating VM code: " << buffer_wrapper->ToString();
-    options_->buffer->EvaluateString(buffer_wrapper->ToString(),
-                                     [](std::unique_ptr<Value>) {});
+    options_->buffer->EvaluateString(buffer_wrapper->ToString());
   }
 
   clock_gettime(0, &last_input_received_);

@@ -180,7 +180,7 @@ class EditorState {
   futures::DelayedValue<bool> ApplyToCurrentBuffer(
       unique_ptr<Transformation> transformation);
 
-  Environment* environment() { return &environment_; }
+  std::shared_ptr<Environment> environment() { return environment_; }
 
   wstring expand_path(const wstring& path) const;
 
@@ -212,7 +212,7 @@ class EditorState {
   WorkQueue* work_queue() const;
 
  private:
-  Environment BuildEditorEnvironment();
+  std::shared_ptr<Environment> BuildEditorEnvironment();
 
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
@@ -220,7 +220,7 @@ class EditorState {
   const wstring home_directory_;
   vector<wstring> edge_path_;
 
-  Environment environment_;
+  const std::shared_ptr<Environment> environment_;
 
   wstring last_search_query_;
 

@@ -39,12 +39,8 @@ LineColumn FindNextNumber(LineColumn position) {
   }
 }
 
-// TODO: Use a lambda rather than communicating state through this global
-// variable.
-int delta_to_add = 0;
-
 TransformationOutput AddToIntegerTransformationCallback(
-    TransformationInput input) {
+    int delta, TransformationInput input) {
   auto position = FindNextNumber(input.position());
   string integer_str = IntegerAsString(position);
   return TransformationOutput()
@@ -53,13 +49,14 @@ TransformationOutput AddToIntegerTransformationCallback(
                 .set_modifiers(Modifiers().set_repetitions(integer_str.size()))
                 .build())
       .push(InsertTransformationBuilder()
-                .set_text((integer_str.toint() + delta_to_add).tostring())
+                .set_text((integer_str.toint() + delta).tostring())
                 .build())
       .push(SetPositionTransformation(position));
 }
 
 void AddToIntegerTransformation(int delta) {
-  delta_to_add = delta;
-  buffer.ApplyTransformation(
-      FunctionTransformation(AddToIntegerTransformationCallback));
+  buffer.ApplyTransformation(FunctionTransformation(
+      [](TransformationInput input) -> TransformationOutput {
+        return AddToIntegerTransformationCallback(delta, input);
+      }));
 }

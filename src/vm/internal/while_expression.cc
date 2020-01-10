@@ -27,9 +27,12 @@ class WhileExpression : public Expression {
     return body_->ReturnTypes();
   }
 
-  void Evaluate(Trampoline* trampoline, const VMType&) override {
+  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType&) override {
     DVLOG(4) << "Starting iteration.";
-    Iterate(trampoline, condition_, body_);
+    futures::Future<EvaluationOutput> output;
+    Iterate(trampoline, condition_, body_, std::move(output.consumer));
+    return output.value;
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -37,27 +40,32 @@ class WhileExpression : public Expression {
   }
 
  private:
-  static void Iterate(Trampoline* trampoline,
-                      std::shared_ptr<Expression> condition,
-                      std::shared_ptr<Expression> body) {
-    trampoline->Bounce(condition.get(), VMType::Bool(),
-                       [condition, body](std::unique_ptr<Value> cond_value,
-                                         Trampoline* trampoline) {
-                         CHECK(cond_value->IsBool());
-                         if (!cond_value->boolean) {
-                           DVLOG(3) << "Iteration is done.";
-                           trampoline->Continue(Value::NewVoid());
-                           return;
-                         }
+  static void Iterate(
+      Trampoline* trampoline, std::shared_ptr<Expression> condition,
+      std::shared_ptr<Expression> body,
+      futures::DelayedValue<EvaluationOutput>::Consumer consumer) {
+    trampoline->Bounce(condition.get(), VMType::Bool())
+        .SetConsumer([condition, body, consumer,
+                      trampoline](EvaluationOutput condition_output) {
+          CHECK(condition_output.value->IsBool());
+          if (!condition_output.value->boolean) {
+            DVLOG(3) << "Iteration is done.";
+            consumer(EvaluationOutput::New(Value::NewVoid()));
+            return;
+          }
 
-                         DVLOG(5) << "Iterating...";
-                         trampoline->Bounce(
-                             body.get(), body->Types()[0],
-                             [condition, body](std::unique_ptr<Value>,
-                                               Trampoline* trampoline) {
-                               Iterate(trampoline, condition, body);
-                             });
-                       });
+          DVLOG(5) << "Iterating...";
+          trampoline->Bounce(body.get(), body->Types()[0])
+              .SetConsumer([condition, body, consumer,
+                            trampoline](EvaluationOutput body_output) {
+                if (body_output.type == EvaluationOutput::OutputType::kReturn) {
+                  consumer(std::move(body_output));
+                } else {
+                  Iterate(trampoline, std::move(condition), std::move(body),
+                          std::move(consumer));
+                }
+              });
+        });
   }
 
   const std::shared_ptr<Expression> condition_;

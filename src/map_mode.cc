@@ -84,27 +84,24 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Command> value) {
 
 void MapModeCommands::Add(wstring name, wstring description,
                           std::unique_ptr<Value> value,
-                          vm::Environment* environment) {
+                          std::shared_ptr<vm::Environment> environment) {
   CHECK(value != nullptr);
   CHECK_EQ(value->type.type, VMType::FUNCTION);
   CHECK(value->type.type_arguments == std::vector<VMType>({VMType::Void()}));
   // TODO: Make a unique_ptr (once capture of unique_ptr is feasible).
   std::shared_ptr<vm::Expression> expression =
       NewFunctionCall(NewConstantExpression(std::move(value)), {});
-  Add(name,
-      std::make_unique<CommandFromFunction>(
-          [expression, environment](EditorState* editor_state) {
-            LOG(INFO) << "Evaluating expression from Value::Ptr...";
-            Evaluate(
-                expression.get(), environment,
-                [expression](Value::Ptr) { LOG(INFO) << "Done evaluating."; },
-                [editor_state](std::function<void()> callback) {
-                  auto buffer = editor_state->current_buffer();
-                  CHECK(buffer != nullptr);
-                  buffer->work_queue()->Schedule(callback);
-                });
-          },
-          description));
+  Add(name, std::make_unique<CommandFromFunction>(
+                [expression, environment](EditorState* editor_state) {
+                  LOG(INFO) << "Evaluating expression from Value::Ptr...";
+                  Evaluate(expression.get(), environment,
+                           [editor_state](std::function<void()> callback) {
+                             auto buffer = editor_state->current_buffer();
+                             CHECK(buffer != nullptr);
+                             buffer->work_queue()->Schedule(callback);
+                           });
+                },
+                description));
 }
 
 void MapModeCommands::Add(wstring name,
