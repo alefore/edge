@@ -77,110 +77,21 @@ struct AddArgs<Arg0, Args...> {
   }
 };
 
-template <typename ReturnType>
-Value::Ptr RunCallback(std::function<ReturnType()> callback,
-                       const vector<Value::Ptr>& args) {
-  CHECK(args.empty());
-  return VMTypeMapper<ReturnType>::New(callback());
-}
-
-template <>
-Value::Ptr RunCallback(std::function<void()> callback,
-                       const vector<Value::Ptr>& args);
-
-template <typename ReturnType, typename A0>
-Value::Ptr RunCallback(std::function<ReturnType(A0)> callback,
-                       const vector<Value::Ptr>& args) {
-  CHECK_EQ(args.size(), size_t(1));
+template <typename ReturnType, typename... A, size_t... I>
+Value::Ptr RunCallback(const std::function<ReturnType(A...)>& callback,
+                       std::vector<Value::Ptr> args,
+                       std::index_sequence<I...>) {
+  CHECK_EQ(args.size(), sizeof...(A));
   return VMTypeMapper<ReturnType>::New(
-      callback(VMTypeMapper<A0>::get(args[0].get())));
+      callback(VMTypeMapper<A>::get(args.at(I).get())...));
 }
 
-template <typename ReturnType, typename A0>
-Value::Ptr RunCallback(std::function<void(A0)> callback,
-                       const vector<Value::Ptr>& args) {
-  CHECK_EQ(args.size(), size_t(1));
-  callback(VMTypeMapper<A0>::get(args[0].get()));
-  return Value::NewVoid();
-}
-
-template <typename ReturnType, typename A0, typename A1>
-Value::Ptr RunCallback(
-    std::function<ReturnType(A0, A1)> callback, const vector<Value::Ptr>& args,
-    typename std::enable_if<!std::is_void<ReturnType>::value>::type* = 0) {
-  CHECK_EQ(args.size(), size_t(2));
-  return VMTypeMapper<ReturnType>::New(
-      callback(VMTypeMapper<A0>::get(args[0].get()),
-               VMTypeMapper<A1>::get(args[1].get())));
-}
-
-template <typename ReturnType, typename A0, typename A1>
-Value::Ptr RunCallback(std::function<void(A0, A1)> callback,
-                       const vector<Value::Ptr>& args) {
-  CHECK_EQ(args.size(), size_t(2));
-  callback(VMTypeMapper<A0>::get(args[0].get()),
-           VMTypeMapper<A1>::get(args[1].get()));
-  return Value::NewVoid();
-}
-
-template <typename ReturnType, typename A0, typename A1, typename A2>
-Value::Ptr RunCallback(
-    std::function<ReturnType(A0, A1, A2)> callback,
-    const vector<Value::Ptr>& args,
-    typename std::enable_if<!std::is_void<ReturnType>::value>::type* = 0) {
-  CHECK_EQ(args.size(), size_t(3));
-  return VMTypeMapper<ReturnType>::New(
-      callback(VMTypeMapper<A0>::get(args[0].get()),
-               VMTypeMapper<A1>::get(args[1].get()),
-               VMTypeMapper<A2>::get(args[2].get())));
-}
-
-template <typename ReturnType, typename A0, typename A1, typename A2>
-Value::Ptr RunCallback(std::function<void(A0, A1, A2)> callback,
-                       const vector<Value::Ptr>& args) {
-  CHECK_EQ(args.size(), size_t(3));
-  callback(VMTypeMapper<A0>::get(args[0].get()),
-           VMTypeMapper<A1>::get(args[1].get()),
-           VMTypeMapper<A2>::get(args[2].get()));
-  return Value::NewVoid();
-}
-
-template <typename ReturnType, typename A0, typename A1, typename A2,
-          typename A3>
-Value::Ptr RunCallback(
-    std::function<ReturnType(A0, A1, A2, A3)> callback,
-    const vector<Value::Ptr>& args,
-    typename std::enable_if<!std::is_void<ReturnType>::value>::type* = 0) {
-  CHECK_EQ(args.size(), 4u);
-  return VMTypeMapper<ReturnType>::New(
-      callback(VMTypeMapper<A0>::get(args[0].get()),
-               VMTypeMapper<A1>::get(args[1].get()),
-               VMTypeMapper<A2>::get(args[2].get()),
-               VMTypeMapper<A3>::get(args[3].get())));
-}
-
-template <typename ReturnType, typename A0, typename A1, typename A2,
-          typename A3, typename A4>
-Value::Ptr RunCallback(std::function<void(A0, A1, A2, A3, A4)> callback,
-                       const vector<Value::Ptr>& args) {
-  CHECK_EQ(args.size(), 5u);
-  callback(VMTypeMapper<A0>::get(args[0].get()),
-           VMTypeMapper<A1>::get(args[1].get()),
-           VMTypeMapper<A2>::get(args[2].get()),
-           VMTypeMapper<A3>::get(args[3].get()),
-           VMTypeMapper<A4>::get(args[4].get()));
-  return Value::NewVoid();
-}
-
-template <typename ReturnType, typename A0, typename A1, typename A2,
-          typename A3>
-Value::Ptr RunCallback(std::function<void(A0, A1, A2, A3)> callback,
-                       const vector<Value::Ptr>& args) {
-  CHECK_EQ(args.size(), 4u);
-  callback(VMTypeMapper<A0>::get(args[0].get()),
-           VMTypeMapper<A1>::get(args[1].get()),
-           VMTypeMapper<A2>::get(args[2].get()),
-           VMTypeMapper<A3>::get(args[3].get()));
+template <typename... A, size_t... I>
+Value::Ptr RunCallback(const std::function<void(A...)>& callback,
+                       std::vector<Value::Ptr> args,
+                       std::index_sequence<I...>) {
+  CHECK_EQ(args.size(), sizeof...(A));
+  callback(VMTypeMapper<A>::get(args.at(I).get())...);
   return Value::NewVoid();
 }
 
@@ -190,10 +101,10 @@ Value::Ptr NewCallback(std::function<ReturnType(Args...)> callback) {
   callback_wrapper->type.type_arguments.push_back(
       VMTypeMapper<ReturnType>().vmtype);
   AddArgs<Args...>::Run(&callback_wrapper->type.type_arguments);
-  callback_wrapper->callback = [callback](vector<Value::Ptr> args,
-                                          Trampoline*) {
-    return futures::ImmediateValue(EvaluationOutput::New(
-        RunCallback<ReturnType, Args...>(callback, args)));
+  callback_wrapper->callback = [callback = std::move(callback)](
+                                   vector<Value::Ptr> args, Trampoline*) {
+    return futures::ImmediateValue(EvaluationOutput::New(RunCallback(
+        callback, std::move(args), std::index_sequence_for<Args...>())));
   };
   return callback_wrapper;
 }

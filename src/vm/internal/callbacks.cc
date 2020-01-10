@@ -1,4 +1,5 @@
 #include "../public/callbacks.h"
+
 #include "../public/types.h"
 
 namespace afc {
@@ -9,14 +10,6 @@ const VMType VMTypeMapper<bool>::vmtype = VMType(VMType::VM_BOOLEAN);
 const VMType VMTypeMapper<int>::vmtype = VMType(VMType::VM_INTEGER);
 const VMType VMTypeMapper<double>::vmtype = VMType(VMType::VM_DOUBLE);
 const VMType VMTypeMapper<wstring>::vmtype = VMType(VMType::VM_STRING);
-
-template <>
-Value::Ptr RunCallback(std::function<void()> callback,
-                       const vector<Value::Ptr>& args) {
-  CHECK(args.empty());
-  callback();
-  return Value::NewVoid();
-}
 
 }  // namespace vm
 }  // namespace afc
