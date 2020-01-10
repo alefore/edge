@@ -100,21 +100,18 @@ void RegisterBufferFields(
     // Getter.
     object_type->AddField(
         variable->name(),
-        vm::NewCallback(std::function<FieldValue(std::shared_ptr<OpenBuffer>)>(
-            [reader, variable](std::shared_ptr<OpenBuffer> buffer) {
-              DVLOG(4) << "Buffer field reader is returning.";
-              return (buffer.get()->*reader)(variable);
-            })));
+        vm::NewCallback([reader, variable](std::shared_ptr<OpenBuffer> buffer) {
+          DVLOG(4) << "Buffer field reader is returning.";
+          return (buffer.get()->*reader)(variable);
+        }));
 
     // Setter.
     object_type->AddField(
         L"set_" + variable->name(),
-        vm::NewCallback(
-            std::function<void(std::shared_ptr<OpenBuffer>, FieldValue)>(
-                [variable, setter](std::shared_ptr<OpenBuffer> buffer,
-                                   FieldValue value) {
-                  (buffer.get()->*setter)(variable, value);
-                })));
+        vm::NewCallback([variable, setter](std::shared_ptr<OpenBuffer> buffer,
+                                           FieldValue value) {
+          (buffer.get()->*setter)(variable, value);
+        }));
   }
 }
 }  // namespace
@@ -178,42 +175,34 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
 
   buffer->AddField(
       L"SetStatus",
-      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>, wstring)>(
-          [](std::shared_ptr<OpenBuffer> buffer, wstring s) {
-            buffer->status()->SetInformationText(s);
-          })));
+      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, wstring s) {
+        buffer->status()->SetInformationText(s);
+      }));
 
   buffer->AddField(
-      L"line_count",
-      vm::NewCallback(std::function<int(std::shared_ptr<OpenBuffer>)>(
-          [](std::shared_ptr<OpenBuffer> buffer) {
-            return int(buffer->contents()->size().line_delta);
-          })));
+      L"line_count", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+        return static_cast<int>(buffer->contents()->size().line_delta);
+      }));
 
-  buffer->AddField(
-      L"set_position",
-      vm::NewCallback(
-          std::function<void(std::shared_ptr<OpenBuffer>, LineColumn)>(
-              [](std::shared_ptr<OpenBuffer> buffer, LineColumn position) {
-                buffer->set_position(position);
-              })));
+  buffer->AddField(L"set_position",
+                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer,
+                                      LineColumn position) {
+                     buffer->set_position(position);
+                   }));
 
-  buffer->AddField(
-      L"position",
-      vm::NewCallback(std::function<LineColumn(std::shared_ptr<OpenBuffer>)>(
-          [](std::shared_ptr<OpenBuffer> buffer) {
-            return LineColumn(buffer->position());
-          })));
+  buffer->AddField(L"position",
+                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+                     return LineColumn(buffer->position());
+                   }));
 
   buffer->AddField(
       L"line",
-      vm::NewCallback(std::function<wstring(std::shared_ptr<OpenBuffer>, int)>(
-          [](std::shared_ptr<OpenBuffer> buffer, int line_input) {
-            LineNumber line =
-                min(LineNumber(max(line_input, 0)),
-                    LineNumber(0) + buffer->lines_size() - LineNumberDelta(1));
-            return buffer->contents()->at(line)->ToString();
-          })));
+      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, int line_input) {
+        LineNumber line =
+            min(LineNumber(max(line_input, 0)),
+                LineNumber(0) + buffer->lines_size() - LineNumberDelta(1));
+        return buffer->contents()->at(line)->ToString();
+      }));
 
   buffer->AddField(
       L"ApplyTransformation",
@@ -278,19 +267,15 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
           }));
 #endif
 
-  buffer->AddField(
-      L"PushTransformationStack",
-      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
-          [](std::shared_ptr<OpenBuffer> buffer) {
-            buffer->PushTransformationStack();
-          })));
+  buffer->AddField(L"PushTransformationStack",
+                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+                     buffer->PushTransformationStack();
+                   }));
 
-  buffer->AddField(
-      L"PopTransformationStack",
-      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
-          [](std::shared_ptr<OpenBuffer> buffer) {
-            buffer->PopTransformationStack();
-          })));
+  buffer->AddField(L"PopTransformationStack",
+                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+                     buffer->PopTransformationStack();
+                   }));
 
   buffer->AddField(
       L"AddKeyboardTextTransformer",
@@ -322,15 +307,14 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
                        return Value::NewVoid();
                      }));
 
-  buffer->AddField(
-      L"Reload",
-      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
-          [](std::shared_ptr<OpenBuffer> buffer) { buffer->Reload(); })));
+  buffer->AddField(L"Reload",
+                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+                     buffer->Reload();
+                   }));
 
   buffer->AddField(
-      L"Save",
-      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
-          [](std::shared_ptr<OpenBuffer> buffer) { buffer->Save(); })));
+      L"Save", vm::NewCallback(
+                   [](std::shared_ptr<OpenBuffer> buffer) { buffer->Save(); }));
 
   buffer->AddField(
       L"AddBinding",
@@ -352,48 +336,42 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
 
   buffer->AddField(
       L"AddBindingToFile",
-      vm::NewCallback(
-          std::function<void(std::shared_ptr<OpenBuffer>, wstring, wstring)>(
-              [editor_state](std::shared_ptr<OpenBuffer> buffer, wstring keys,
-                             wstring path) {
-                LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
-                buffer->default_commands_->Add(
-                    keys,
-                    [buffer, path](EditorState* editor_state) {
-                      wstring resolved_path;
-                      auto options = ResolvePathOptions::New(editor_state);
-                      options.path = path;
-                      if (auto results = ResolvePath(std::move(options));
-                          results.has_value()) {
-                        buffer->EvaluateFile(results->path);
-                      } else {
-                        buffer->status()->SetWarningText(
-                            L"Unable to resolve: " + path);
-                      }
-                    },
-                    L"Load file: " + path);
-              })));
+      vm::NewCallback([editor_state](std::shared_ptr<OpenBuffer> buffer,
+                                     wstring keys, wstring path) {
+        LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
+        buffer->default_commands_->Add(
+            keys,
+            [buffer, path](EditorState* editor_state) {
+              wstring resolved_path;
+              auto options = ResolvePathOptions::New(editor_state);
+              options.path = path;
+              if (auto results = ResolvePath(std::move(options));
+                  results.has_value()) {
+                buffer->EvaluateFile(results->path);
+              } else {
+                buffer->status()->SetWarningText(L"Unable to resolve: " + path);
+              }
+            },
+            L"Load file: " + path);
+      }));
 
   buffer->AddField(
-      L"ShowTrackers",
-      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
-          [](std::shared_ptr<OpenBuffer> buffer) {
-            for (auto& data : Tracker::GetData()) {
-              buffer->AppendLine(StringAppend(
-                  StringAppend(NewLazyString(data.name), NewLazyString(L": ")),
-                  NewLazyString(std::to_wstring(data.executions)),
-                  NewLazyString(L" "),
-                  NewLazyString(std::to_wstring(data.seconds))));
-            }
-          })));
+      L"ShowTrackers", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+        for (auto& data : Tracker::GetData()) {
+          buffer->AppendLine(StringAppend(
+              StringAppend(NewLazyString(data.name), NewLazyString(L": ")),
+              NewLazyString(std::to_wstring(data.executions)),
+              NewLazyString(L" "),
+              NewLazyString(std::to_wstring(data.seconds))));
+        }
+      }));
 
   buffer->AddField(
       L"EvaluateFile",
-      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>, wstring)>(
-          [](std::shared_ptr<OpenBuffer> buffer, wstring path) {
-            LOG(INFO) << "Evaluating file: " << path;
-            buffer->EvaluateFile(path);
-          })));
+      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, wstring path) {
+        LOG(INFO) << "Evaluating file: " << path;
+        buffer->EvaluateFile(path);
+      }));
 
   environment->DefineType(L"Buffer", std::move(buffer));
 }

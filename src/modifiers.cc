@@ -49,45 +49,34 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary) {
 void Modifiers::Register(vm::Environment* environment) {
   auto modifiers_type = std::make_unique<vm::ObjectType>(L"Modifiers");
 
-  environment->Define(
-      L"Modifiers", vm::NewCallback(std::function<std::shared_ptr<Modifiers>()>(
-                        []() { return std::make_shared<Modifiers>(); })));
+  environment->Define(L"Modifiers",
+                      vm::NewCallback(std::make_shared<Modifiers>));
 
   modifiers_type->AddField(
-      L"set_backwards",
-      vm::NewCallback(
-          std::function<std::shared_ptr<Modifiers>(std::shared_ptr<Modifiers>)>(
-              [](std::shared_ptr<Modifiers> output) {
-                output->direction = BACKWARDS;
-                return output;
-              })));
+      L"set_backwards", vm::NewCallback([](std::shared_ptr<Modifiers> output) {
+        output->direction = BACKWARDS;
+        return output;
+      }));
 
   modifiers_type->AddField(
-      L"set_line",
-      vm::NewCallback(
-          std::function<std::shared_ptr<Modifiers>(std::shared_ptr<Modifiers>)>(
-              [](std::shared_ptr<Modifiers> output) {
-                output->structure = StructureLine();
-                return output;
-              })));
+      L"set_line", vm::NewCallback([](std::shared_ptr<Modifiers> output) {
+        output->structure = StructureLine();
+        return output;
+      }));
 
   modifiers_type->AddField(
       L"set_repetitions",
-      vm::NewCallback(std::function<std::shared_ptr<Modifiers>(
-                          std::shared_ptr<Modifiers>, int)>(
-          [](std::shared_ptr<Modifiers> output, int repetitions) {
-            output->repetitions = repetitions;
-            return output;
-          })));
+      vm::NewCallback([](std::shared_ptr<Modifiers> output, int repetitions) {
+        output->repetitions = repetitions;
+        return output;
+      }));
 
   modifiers_type->AddField(
       L"set_boundary_end_neighbor",
-      vm::NewCallback(
-          std::function<std::shared_ptr<Modifiers>(std::shared_ptr<Modifiers>)>(
-              [](std::shared_ptr<Modifiers> output) {
-                output->boundary_end = LIMIT_NEIGHBOR;
-                return output;
-              })));
+      vm::NewCallback([](std::shared_ptr<Modifiers> output) {
+        output->boundary_end = LIMIT_NEIGHBOR;
+        return output;
+      }));
 
   environment->DefineType(L"Modifiers", std::move(modifiers_type));
 }

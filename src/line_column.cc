@@ -677,16 +677,16 @@ namespace fuzz {
   auto range = std::make_unique<ObjectType>(L"Range");
 
   // Methods for Range.
-  environment->Define(
-      L"Range",
-      vm::NewCallback(std::function<Range(LineColumn, LineColumn)>(
-          [](LineColumn begin, LineColumn end) { return Range(begin, end); })));
+  environment->Define(L"Range",
+                      vm::NewCallback([](LineColumn begin, LineColumn end) {
+                        return Range(begin, end);
+                      }));
 
-  range->AddField(L"begin", vm::NewCallback(std::function<LineColumn(Range)>(
-                                [](Range range) { return range.begin; })));
+  range->AddField(L"begin",
+                  vm::NewCallback([](Range range) { return range.begin; }));
 
-  range->AddField(L"end", vm::NewCallback(std::function<LineColumn(Range)>(
-                              [](Range range) { return range.end; })));
+  range->AddField(L"end",
+                  vm::NewCallback([](Range range) { return range.end; }));
 
   environment->DefineType(L"Range", std::move(range));
   vm::VMTypeMapper<std::vector<LineColumn>*>::Export(environment);

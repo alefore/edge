@@ -104,9 +104,9 @@ void AddLine(EditorState* editor_state, OpenBuffer* target,
 
   target->AppendRawLine(line);
   target->contents()->back()->environment()->Define(
-      L"EdgeLineDeleteHandler",
-      vm::NewCallback(std::function<void()>(
-          [editor_state, path]() { StartDeleteFile(editor_state, path); })));
+      L"EdgeLineDeleteHandler", vm::NewCallback([editor_state, path]() {
+        StartDeleteFile(editor_state, path);
+      }));
 }
 
 void ShowFiles(EditorState* editor_state, wstring name,

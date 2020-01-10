@@ -152,41 +152,36 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
   editor_type->AddField(
       L"AddVerticalSplit",
-      vm::NewCallback(std::function<void(EditorState*)>(
-          [](EditorState* editor) { editor->AddVerticalSplit(); })));
+      vm::NewCallback([](EditorState* editor) { editor->AddVerticalSplit(); }));
 
-  editor_type->AddField(
-      L"AddHorizontalSplit",
-      vm::NewCallback(std::function<void(EditorState*)>(
-          [](EditorState* editor) { editor->AddHorizontalSplit(); })));
+  editor_type->AddField(L"AddHorizontalSplit",
+                        vm::NewCallback([](EditorState* editor) {
+                          editor->AddHorizontalSplit();
+                        }));
 
   editor_type->AddField(L"SetHorizontalSplitsWithAllBuffers",
-                        vm::NewCallback(std::function<void(EditorState*)>(
-                            [](EditorState* editor) {
-                              editor->SetHorizontalSplitsWithAllBuffers();
-                            })));
+                        vm::NewCallback([](EditorState* editor) {
+                          editor->SetHorizontalSplitsWithAllBuffers();
+                        }));
 
   editor_type->AddField(L"SetActiveBuffer",
-                        vm::NewCallback(std::function<void(EditorState*, int)>(
-                            [](EditorState* editor, int delta) {
-                              editor->SetActiveBuffer(delta);
-                            })));
+                        vm::NewCallback([](EditorState* editor, int delta) {
+                          editor->SetActiveBuffer(delta);
+                        }));
 
   editor_type->AddField(L"AdvanceActiveBuffer",
-                        vm::NewCallback(std::function<void(EditorState*, int)>(
-                            [](EditorState* editor, int delta) {
-                              editor->AdvanceActiveBuffer(delta);
-                            })));
+                        vm::NewCallback([](EditorState* editor, int delta) {
+                          editor->AdvanceActiveBuffer(delta);
+                        }));
 
   editor_type->AddField(L"AdvanceActiveLeaf",
-                        vm::NewCallback(std::function<void(EditorState*, int)>(
-                            [](EditorState* editor, int delta) {
-                              editor->AdvanceActiveLeaf(delta);
-                            })));
+                        vm::NewCallback([](EditorState* editor, int delta) {
+                          editor->AdvanceActiveLeaf(delta);
+                        }));
 
-  editor_type->AddField(
-      L"ZoomToLeaf", vm::NewCallback(std::function<void(EditorState*)>(
-                         [](EditorState* editor) { editor->ZoomToLeaf(); })));
+  editor_type->AddField(L"ZoomToLeaf", vm::NewCallback([](EditorState* editor) {
+                          editor->ZoomToLeaf();
+                        }));
 
   editor_type->AddField(
       L"SaveCurrentBuffer",
@@ -215,10 +210,9 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             return Value::NewVoid();
           }));
 
-  editor_type->AddField(
-      L"home",
-      vm::NewCallback(std::function<wstring(EditorState*)>(
-          [](EditorState* editor) { return editor->home_directory(); })));
+  editor_type->AddField(L"home", vm::NewCallback([](EditorState* editor) {
+                          return editor->home_directory();
+                        }));
 
   // A callback to return the current buffer. This is needed so that at a time
   // when there's no current buffer (i.e. EditorState is being created) we can
@@ -244,13 +238,11 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                          }));
 
   environment->Define(L"ProcessInput",
-                      vm::NewCallback(std::function<void(int)>(
-                          [this](int c) { ProcessInput(c); })));
+                      vm::NewCallback([this](int c) { ProcessInput(c); }));
 
-  environment->Define(
-      L"ConnectTo",
-      vm::NewCallback(std::function<void(wstring)>(
-          [this](wstring target) { OpenServerBuffer(this, target); })));
+  environment->Define(L"ConnectTo", vm::NewCallback([this](wstring target) {
+                        OpenServerBuffer(this, target);
+                      }));
 
   environment->Define(
       L"WaitForClose",
@@ -289,72 +281,60 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 });
           }));
 
-  environment->Define(
-      L"SendExitTo",
-      vm::NewCallback(std::function<void(wstring)>([](wstring args) {
-        int fd = open(ToByteString(args).c_str(), O_WRONLY);
-        string command = "Exit(0);\n";
-        write(fd, command.c_str(), command.size());
-        close(fd);
-      })));
+  environment->Define(L"SendExitTo", vm::NewCallback([](wstring args) {
+                        int fd = open(ToByteString(args).c_str(), O_WRONLY);
+                        string command = "Exit(0);\n";
+                        write(fd, command.c_str(), command.size());
+                        close(fd);
+                      }));
 
-  environment->Define(L"Exit",
-                      vm::NewCallback(std::function<void(int)>([](int status) {
+  environment->Define(L"Exit", vm::NewCallback([](int status) {
                         LOG(INFO) << "Exit: " << status;
                         exit(status);
-                      })));
+                      }));
 
-  environment->Define(
-      L"SetStatus", vm::NewCallback(std::function<void(wstring)>(
-                        [this](wstring s) { status_.SetInformationText(s); })));
+  environment->Define(L"SetStatus", vm::NewCallback([this](wstring s) {
+                        status_.SetInformationText(s);
+                      }));
 
-  environment->Define(
-      L"set_screen_needs_hard_redraw",
-      vm::NewCallback(std::function<void(bool)>(
-          [this](bool value) { set_screen_needs_hard_redraw(value); })));
+  environment->Define(L"set_screen_needs_hard_redraw",
+                      vm::NewCallback([this](bool value) {
+                        set_screen_needs_hard_redraw(value);
+                      }));
 
   environment->Define(
       L"set_exit_value",
-      vm::NewCallback(std::function<void(int)>(
-          [this](int exit_value) { exit_value_ = exit_value; })));
+      vm::NewCallback([this](int exit_value) { exit_value_ = exit_value; }));
 
-  environment->Define(
-      L"SetPositionColumn",
-      vm::NewCallback(std::function<void(int)>([this](int value) {
-        auto buffer = current_buffer();
-        if (buffer == nullptr) {
-          return;
-        }
-        buffer->set_position(
-            LineColumn(buffer->position().line, ColumnNumber(value)));
-      })));
+  environment->Define(L"SetPositionColumn", vm::NewCallback([this](int value) {
+                        auto buffer = current_buffer();
+                        if (buffer == nullptr) {
+                          return;
+                        }
+                        buffer->set_position(LineColumn(buffer->position().line,
+                                                        ColumnNumber(value)));
+                      }));
 
-  environment->Define(
-      L"Line",
-      vm::NewCallback(std::function<wstring(void)>([this]() -> wstring {
-        auto buffer = current_buffer();
-        if (buffer == nullptr) {
-          return L"";
-        }
-        return buffer->current_line()->ToString();
-      })));
+  environment->Define(L"Line", vm::NewCallback([this]() -> wstring {
+                        auto buffer = current_buffer();
+                        if (buffer == nullptr) {
+                          return L"";
+                        }
+                        return buffer->current_line()->ToString();
+                      }));
 
-  environment->Define(
-      L"ForkCommand",
-      vm::NewCallback(
-          std::function<std::shared_ptr<OpenBuffer>(ForkCommandOptions*)>(
-              [this](ForkCommandOptions* options) {
-                return ForkCommand(this, *options);
-              })));
+  environment->Define(L"ForkCommand",
+                      vm::NewCallback([this](ForkCommandOptions* options) {
+                        return ForkCommand(this, *options);
+                      }));
 
-  environment->Define(L"repetitions",
-                      vm::NewCallback(std::function<int()>([this]() {
+  environment->Define(L"repetitions", vm::NewCallback([this]() {
                         return static_cast<int>(repetitions());
-                      })));
+                      }));
 
-  environment->Define(L"set_repetitions",
-                      vm::NewCallback(std::function<void(int)>(
-                          [this](int times) { set_repetitions(times); })));
+  environment->Define(L"set_repetitions", vm::NewCallback([this](int times) {
+                        set_repetitions(times);
+                      }));
 
   environment->Define(
       L"OpenFile",

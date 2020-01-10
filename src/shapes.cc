@@ -16,8 +16,8 @@ namespace editor {
 
 using namespace afc::vm;
 
-std::unique_ptr<std::vector<wstring>> Justify(
-    const std::vector<wstring>* input_raw, int width) {
+std::unique_ptr<std::vector<wstring>> Justify(std::vector<wstring>* input_raw,
+                                              int width) {
   auto input = *input_raw;
   LOG(INFO) << "Evaluating breaks with inputs: " << input.size();
 
@@ -205,20 +205,11 @@ void FindBoundariesBezier(std::vector<LineColumn>* positions,
 }
 
 void InitShapes(vm::Environment* environment) {
-  environment->Define(
-      L"ShapesReflow",
-      vm::NewCallback(std::function<std::unique_ptr<std::vector<std::wstring>>(
-                          std::vector<std::wstring>*, int)>(&Justify)));
-  environment->Define(
-      L"FindBoundariesLine",
-      vm::NewCallback(
-          std::function<void(LineColumn, LineColumn, std::set<LineColumn>*,
-                             std::set<LineColumn>*)>(&FindBoundariesLine)));
-  environment->Define(
-      L"FindBoundariesBezier",
-      vm::NewCallback(
-          std::function<void(std::vector<LineColumn>*, std::set<LineColumn>*,
-                             std::set<LineColumn>*)>(&FindBoundariesBezier)));
+  environment->Define(L"ShapesReflow", vm::NewCallback(Justify));
+  environment->Define(L"FindBoundariesLine",
+                      vm::NewCallback(FindBoundariesLine));
+  environment->Define(L"FindBoundariesBezier",
+                      vm::NewCallback(FindBoundariesBezier));
 }
 
 }  // namespace editor

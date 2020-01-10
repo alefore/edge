@@ -116,87 +116,69 @@ void RegisterScreenType(Environment* environment) {
           }));
 
   // Methods for Screen.
-  screen_type->AddField(
-      L"Flush",
-      vm::NewCallback(std::function<void(Screen*)>([](Screen* screen) {
-        CHECK(screen != nullptr);
-        screen->Flush();
-      })));
+  screen_type->AddField(L"Flush", vm::NewCallback([](Screen* screen) {
+                          CHECK(screen != nullptr);
+                          screen->Flush();
+                        }));
 
-  screen_type->AddField(
-      L"HardRefresh",
-      vm::NewCallback(std::function<void(Screen*)>([](Screen* screen) {
-        CHECK(screen != nullptr);
-        screen->HardRefresh();
-      })));
+  screen_type->AddField(L"HardRefresh", vm::NewCallback([](Screen* screen) {
+                          CHECK(screen != nullptr);
+                          screen->HardRefresh();
+                        }));
 
-  screen_type->AddField(
-      L"Refresh",
-      vm::NewCallback(std::function<void(Screen*)>([](Screen* screen) {
-        CHECK(screen != nullptr);
-        screen->Refresh();
-      })));
+  screen_type->AddField(L"Refresh", vm::NewCallback([](Screen* screen) {
+                          CHECK(screen != nullptr);
+                          screen->Refresh();
+                        }));
 
-  screen_type->AddField(
-      L"Clear",
-      vm::NewCallback(std::function<void(Screen*)>([](Screen* screen) {
-        CHECK(screen != nullptr);
-        screen->Clear();
-      })));
+  screen_type->AddField(L"Clear", vm::NewCallback([](Screen* screen) {
+                          CHECK(screen != nullptr);
+                          screen->Clear();
+                        }));
 
   screen_type->AddField(
       L"SetCursorVisibility",
-      vm::NewCallback(std::function<void(Screen*, wstring)>(
-          [](Screen* screen, wstring cursor_visibility) {
-            CHECK(screen != nullptr);
-            screen->SetCursorVisibility(Screen::CursorVisibilityFromString(
-                ToByteString(cursor_visibility)));
-          })));
+      vm::NewCallback([](Screen* screen, wstring cursor_visibility) {
+        CHECK(screen != nullptr);
+        screen->SetCursorVisibility(Screen::CursorVisibilityFromString(
+            ToByteString(cursor_visibility)));
+      }));
 
   screen_type->AddField(L"Move",
-                        vm::NewCallback(std::function<void(Screen*, int, int)>(
-                            [](Screen* screen, int y, int x) {
-                              CHECK(screen != nullptr);
-                              screen->Move(LineNumber(y), ColumnNumber(x));
-                            })));
+                        vm::NewCallback([](Screen* screen, int y, int x) {
+                          CHECK(screen != nullptr);
+                          screen->Move(LineNumber(y), ColumnNumber(x));
+                        }));
 
   screen_type->AddField(L"WriteString",
-                        vm::NewCallback(std::function<void(Screen*, wstring)>(
-                            [](Screen* screen, wstring str) {
-                              CHECK(screen != nullptr);
-                              DVLOG(5) << "Writing string: " << str;
-                              screen->WriteString(str);
-                            })));
+                        vm::NewCallback([](Screen* screen, wstring str) {
+                          CHECK(screen != nullptr);
+                          DVLOG(5) << "Writing string: " << str;
+                          screen->WriteString(str);
+                        }));
 
   screen_type->AddField(
-      L"SetModifier",
-      vm::NewCallback(std::function<void(Screen*, wstring)>(
-          [](Screen* screen, wstring str) {
-            CHECK(screen != nullptr);
-            screen->SetModifier(ModifierFromString(ToByteString(str)));
-          })));
-
-  screen_type->AddField(
-      L"set_size", vm::NewCallback(std::function<void(Screen*, int, int)>(
-                       [](Screen* screen, int columns, int lines) {
-                         ScreenVm* screen_vm = dynamic_cast<ScreenVm*>(screen);
-                         CHECK(screen != nullptr);
-                         screen_vm->set_size(ColumnNumberDelta(columns),
-                                             LineNumberDelta(lines));
-                       })));
-
-  screen_type->AddField(
-      L"columns",
-      vm::NewCallback(std::function<int(Screen*)>([](Screen* screen) {
+      L"SetModifier", vm::NewCallback([](Screen* screen, wstring str) {
         CHECK(screen != nullptr);
-        return screen->columns().column_delta;
-      })));
+        screen->SetModifier(ModifierFromString(ToByteString(str)));
+      }));
 
   screen_type->AddField(
-      L"lines", vm::NewCallback(std::function<int(Screen*)>([](Screen* screen) {
+      L"set_size", vm::NewCallback([](Screen* screen, int columns, int lines) {
+        ScreenVm* screen_vm = dynamic_cast<ScreenVm*>(screen);
         CHECK(screen != nullptr);
-        return screen->lines().line_delta;
-      })));
+        screen_vm->set_size(ColumnNumberDelta(columns), LineNumberDelta(lines));
+      }));
+
+  screen_type->AddField(L"columns", vm::NewCallback([](Screen* screen) {
+                          CHECK(screen != nullptr);
+                          return screen->columns().column_delta;
+                        }));
+
+  screen_type->AddField(L"lines", vm::NewCallback([](Screen* screen) {
+                          CHECK(screen != nullptr);
+                          return screen->lines().line_delta;
+                        }));
 
   environment->DefineType(L"Screen", std::move(screen_type));
 }
