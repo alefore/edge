@@ -9,7 +9,7 @@ bool delete_mode = false;
 bool bold_mode = false;
 
 LineColumn source = LineColumn(0, 0);
-LineColumn bezier_middle_position = LineColumn(0, 0);
+VectorLineColumn bezier_points = VectorLineColumn();
 
 void ShapesSetStatus(string description) {
   SetStatus("Shapes: " + description);
@@ -566,11 +566,17 @@ void ShapesAddBezier() {
   auto position = buffer.position();
   SetLineColumn output_right = SetLineColumn();
   SetLineColumn output_down = SetLineColumn();
-  FindBoundariesBezier(source, bezier_middle_position, position, output_right,
-                       output_down);
+  VectorLineColumn points = VectorLineColumn();
+  points.push_back(source);
+  for (int i = 0; i < bezier_points.size(); i++) {
+    points.push_back(bezier_points.get(i));
+  }
+  points.push_back(position);
+  FindBoundariesBezier(points, output_right, output_down);
   DrawLineColumns(output_right, output_down, "");
   buffer.ApplyTransformation(SetPositionTransformation(position));
   source = position;
+  bezier_points = VectorLineColumn();
 }
 
 void ShapesToggleDeleteMode() {
@@ -588,9 +594,9 @@ void ShapesSet() {
   source = buffer.position();
 }
 
-void ShapesSetBezierMiddlePoint() {
-  ShapesSetStatus("Set Bezier middle position.");
-  bezier_middle_position = buffer.position();
+void ShapesPushBezierPoint() {
+  bezier_points.push_back(buffer.position());
+  ShapesSetStatus("Add Bezier point (" + bezier_points.size().tostring() + ")");
 }
 
 int GetDiagramInputLinesCount() {
@@ -804,5 +810,5 @@ buffer.AddBinding("S=", "shapes: set source", ShapesSet);
 buffer.AddBinding("Sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
 buffer.AddBinding("SB", "shapes: bezier: draw", ShapesAddBezier);
 buffer.AddBinding("SM", "shapes: bezier: set middle point",
-                  ShapesSetBezierMiddlePoint);
+                  ShapesPushBezierPoint);
 buffer.AddBinding("SD", "shapes: Draw a diagram", ShapesDrawDiagram);
