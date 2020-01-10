@@ -39,7 +39,7 @@ class CursorsSet {
   void DeleteCurrentCursor();
 
   size_t size() const;
-  bool empty();
+  bool empty() const;
   iterator insert(LineColumn line);
 
   iterator lower_bound(LineColumn line);
