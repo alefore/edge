@@ -240,7 +240,7 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
            VMType::String()},
           [](vector<Value::Ptr> args, Trampoline* trampoline) {
             CHECK_EQ(args.size(), 2u);
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
             // TODO: Don't ignore the buffer! Apply it to it!
             // auto buffer =
@@ -299,7 +299,8 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
            VMType::Function({VMType::String(), VMType::String()})},
           [](vector<unique_ptr<Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
+
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
             CHECK(buffer != nullptr);
             return Value::NewBool(
@@ -312,7 +313,8 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
                       VMType::Function({VMType::Bool(), VMType::String()})},
                      [](vector<unique_ptr<Value>> args) {
                        CHECK_EQ(args.size(), size_t(2));
-                       CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+                       CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
+
                        auto buffer =
                            static_cast<OpenBuffer*>(args[0]->user_value.get());
                        CHECK(buffer != nullptr);
@@ -337,7 +339,7 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
            VMType::String(), VMType::Function({VMType::Void()})},
           [editor_state](vector<unique_ptr<Value>> args) {
             CHECK_EQ(args.size(), 4u);
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
             CHECK_EQ(args[2]->type, VMType::VM_STRING);
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());

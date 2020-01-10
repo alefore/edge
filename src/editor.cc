@@ -70,7 +70,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
                                    VMType::ObjectType(editor_type)};
   callback->callback = [method](vector<unique_ptr<Value>> args, Trampoline*) {
     CHECK_EQ(args.size(), size_t(1));
-    CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+    CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
 
     auto editor = static_cast<EditorState*>(args[0]->user_value.get());
     CHECK(editor != nullptr);
@@ -129,7 +129,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
           {VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get())},
           [](vector<unique_ptr<Value>> args) {
             CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
 
             auto editor = static_cast<EditorState*>(args[0]->user_value.get());
             CHECK(editor != nullptr);
@@ -194,7 +194,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
           {VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get())},
           [](vector<unique_ptr<Value>> args) {
             CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
 
             auto editor = static_cast<EditorState*>(args[0]->user_value.get());
             CHECK(editor != nullptr);

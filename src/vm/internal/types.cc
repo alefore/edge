@@ -17,7 +17,8 @@ namespace afc {
 namespace vm {
 
 bool operator==(const VMType& lhs, const VMType& rhs) {
-  return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments;
+  return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments &&
+         lhs.object_type == rhs.object_type;
 }
 
 /* static */ const VMType& VMType::Void() {
