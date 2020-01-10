@@ -14,10 +14,14 @@ namespace vm {
 
 // Defines a vector type.
 //
-// To use it, define the vmtype of the vector<MyType> type in your module:
+// To use it, define the vmtypes in your module:
 //
 //     template <>
 //     const VMType VMTypeMapper<std::vector<MyType>*>::vmtype =
+//         VMType::ObjectType(L"VectorMyType");
+//
+//     template <>
+//     const VMType VMTypeMapper<std::unique_ptr<std::vector<MyType>>>::vmtype =
 //         VMType::ObjectType(L"VectorMyType");
 //
 // Then initialize it in an environment:
@@ -69,6 +73,19 @@ struct VMTypeMapper<std::vector<T>*> {
 
     environment->DefineType(name, std::move(vector_type));
   }
+};
+
+// Allow safer construction than with VMTypeMapper<std::vector<T>>::New.
+template <typename T>
+struct VMTypeMapper<std::unique_ptr<std::vector<T>>> {
+  static Value::Ptr New(std::unique_ptr<std::vector<T>> value) {
+    std::shared_ptr<void> void_ptr(value.release(), [](void* value) {
+      delete static_cast<std::vector<T>*>(value);
+    });
+    return Value::NewObject(vmtype.object_type, void_ptr);
+  }
+
+  static const VMType vmtype;
 };
 
 }  // namespace vm

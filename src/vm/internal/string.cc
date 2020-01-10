@@ -18,6 +18,10 @@ const VMType VMTypeMapper<std::vector<wstring>*>::vmtype =
     VMType::ObjectType(L"VectorString");
 
 template <>
+const VMType VMTypeMapper<std::unique_ptr<std::vector<wstring>>>::vmtype =
+    VMType::ObjectType(L"VectorString");
+
+template <>
 const VMType VMTypeMapper<std::set<wstring>*>::vmtype =
     VMType::ObjectType(L"SetString");
 

@@ -16,7 +16,9 @@ namespace editor {
 
 using namespace afc::vm;
 
-std::vector<wstring> Justify(std::vector<wstring> input, int width) {
+std::unique_ptr<std::vector<wstring>> Justify(
+    const std::vector<wstring>* input_raw, int width) {
+  auto input = *input_raw;
   LOG(INFO) << "Evaluating breaks with inputs: " << input.size();
 
   // Push back a dummy string for the end. This is the goal of our graph search.
@@ -48,7 +50,7 @@ std::vector<wstring> Justify(std::vector<wstring> input, int width) {
       length += 1 + input[next].size();
     }
   }
-  std::vector<wstring> output;
+  auto output = std::make_unique<std::vector<wstring>>();
   auto route = std::get<1>(options.back());
   for (size_t line = 0; line < route.size(); line++) {
     size_t previous_word = line == 0 ? 0 : route[line - 1];
@@ -56,9 +58,9 @@ std::vector<wstring> Justify(std::vector<wstring> input, int width) {
     for (int word = previous_word; word < route[line]; word++) {
       output_line += (output_line.empty() ? L"" : L" ") + input[word];
     }
-    output.push_back(output_line);
+    output->push_back(output_line);
   }
-  LOG(INFO) << "Returning breaks: " << output.size() << ", cost "
+  LOG(INFO) << "Returning breaks: " << output->size() << ", cost "
             << std::get<0>(options.back());
   return output;
 }
@@ -205,20 +207,8 @@ void FindBoundariesBezier(std::vector<LineColumn>* positions,
 void InitShapes(vm::Environment* environment) {
   environment->Define(
       L"ShapesReflow",
-      Value::NewFunction(
-          {VMType::ObjectType(L"VectorString"),
-           VMType::ObjectType(L"VectorString"), VMType::Integer()},
-          [](std::vector<Value::Ptr> args) {
-            CHECK_EQ(args.size(), 2u);
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-            CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
-            auto input =
-                static_cast<std::vector<wstring>*>(args[0]->user_value.get());
-            CHECK(input != nullptr);
-            return Value::NewObject(L"VectorString",
-                                    std::make_shared<std::vector<wstring>>(
-                                        Justify(*input, args[1]->integer)));
-          }));
+      vm::NewCallback(std::function<std::unique_ptr<std::vector<std::wstring>>(
+                          std::vector<std::wstring>*, int)>(&Justify)));
   environment->Define(
       L"FindBoundariesLine",
       vm::NewCallback(

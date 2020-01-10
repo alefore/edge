@@ -698,8 +698,7 @@ namespace vm {
 /* static */
 editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value* value) {
   CHECK(value != nullptr);
-  CHECK(value->type.type == VMType::OBJECT_TYPE);
-  CHECK(value->type.object_type == L"LineColumn");
+  CHECK_EQ(value->type, VMTypeMapper<editor::LineColumn>::vmtype);
   CHECK(value->user_value != nullptr);
   return *static_cast<editor::LineColumn*>(value->user_value.get());
 }
@@ -707,7 +706,7 @@ editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value* value) {
 /* static */
 Value::Ptr VMTypeMapper<editor::LineColumn>::New(editor::LineColumn value) {
   return Value::NewObject(
-      L"LineColumn",
+      VMTypeMapper<editor::LineColumn>::vmtype.object_type,
       shared_ptr<void>(new editor::LineColumn(value), [](void* v) {
         delete static_cast<editor::LineColumn*>(v);
       }));
@@ -719,8 +718,7 @@ const VMType VMTypeMapper<editor::LineColumn>::vmtype =
 /* static */
 editor::Range VMTypeMapper<editor::Range>::get(Value* value) {
   CHECK(value != nullptr);
-  CHECK(value->type.type == VMType::OBJECT_TYPE);
-  CHECK(value->type.object_type == L"LineColumn");
+  CHECK_EQ(value->type, VMTypeMapper<editor::Range>::vmtype);
   CHECK(value->user_value != nullptr);
   return *static_cast<editor::Range*>(value->user_value.get());
 }
