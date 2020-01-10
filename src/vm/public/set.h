@@ -1,11 +1,11 @@
 #ifndef __AFC_VM_PUBLIC_SET_H__
 #define __AFC_VM_PUBLIC_SET_H__
 
+#include <glog/logging.h>
+
 #include <memory>
 #include <set>
 #include <type_traits>
-
-#include <glog/logging.h>
 
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
@@ -29,8 +29,6 @@ struct VMTypeMapper<std::set<T>*> {
   static std::set<T>* get(Value* value) {
     return static_cast<std::set<T>*>(value->user_value.get());
   }
-
-  static Value::Ptr New(std::set<T> value) { return Value::NewInteger(0); }
 
   static const VMType vmtype;
 

@@ -118,12 +118,13 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
 
   if (function_vector != nullptr) {
     output.function = function_vector;
-    std::vector<std::wstring> argument_values;
+    auto argument_values = std::make_unique<std::vector<std::wstring>>();
     for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
-      argument_values.push_back(it->value);
+      argument_values->push_back(it->value);
     }
     output.inputs.push_back(vm::NewConstantExpression(
-        VMTypeMapper<std::vector<std::wstring>*>::New(&argument_values)));
+        VMTypeMapper<std::unique_ptr<std::vector<std::wstring>>>::New(
+            std::move(argument_values))));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output.function = type_match_functions[0];

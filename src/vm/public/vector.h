@@ -27,18 +27,15 @@ namespace vm {
 // Then initialize it in an environment:
 //
 //     VMTypeMapper<std::vector<MyType>*>::Export(&environment);
+//
+// You can then define a function that operates in vectors such as:
+//
+//    vm::NewCallback(
+//        std::function<std::unique_ptr<std::vector<T>>(std::vector<T>*)>(...));
 template <typename T>
 struct VMTypeMapper<std::vector<T>*> {
   static std::vector<T>* get(Value* value) {
     return static_cast<std::vector<T>*>(value->user_value.get());
-  }
-
-  static Value::Ptr New(std::vector<T>* value) {
-    // TODO: It's lame that we have to copy the values. :-/ We should find a way
-    // to avoid that.
-    auto value_copy = std::make_shared<std::vector<T>>(*value);
-    std::shared_ptr<void> void_ptr(value_copy, value_copy.get());
-    return Value::NewObject(vmtype.object_type, void_ptr);
   }
 
   static const VMType vmtype;
