@@ -613,59 +613,23 @@ namespace fuzz {
 
   // Methods for LineColumn.
   environment->Define(
-      L"LineColumn",
-      Value::NewFunction({VMType::ObjectType(line_column.get()),
-                          VMType::Integer(), VMType::Integer()},
-                         [](std::vector<Value::Ptr> args) {
-                           CHECK_EQ(args.size(), size_t(2));
-                           CHECK_EQ(args[0]->type, VMType::VM_INTEGER);
-                           CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
-                           return Value::NewObject(
-                               L"LineColumn",
-                               std::make_shared<LineColumn>(
-                                   LineNumber(args[0]->integer),
-                                   ColumnNumber(args[1]->integer)));
-                         }));
+      L"LineColumn", vm::NewCallback([](int line_number, int column_number) {
+        return LineColumn(LineNumber(line_number), ColumnNumber(column_number));
+      }));
+
+  line_column->AddField(L"line", vm::NewCallback([](LineColumn line_column) {
+                          return static_cast<int>(line_column.line.line);
+                        }));
+
+  line_column->AddField(L"column", vm::NewCallback([](LineColumn line_column) {
+                          return static_cast<int>(line_column.column.column);
+                        }));
 
   line_column->AddField(
-      L"line", Value::NewFunction(
-                   {VMType::Integer(), VMType::ObjectType(line_column.get())},
-                   [](std::vector<Value::Ptr> args) {
-                     CHECK_EQ(args.size(), size_t(1));
-                     CHECK_EQ(args[0]->type, VMType::ObjectType(L"LineColumn"));
-                     auto line_column =
-                         static_cast<LineColumn*>(args[0]->user_value.get());
-                     CHECK(line_column != nullptr);
-                     return Value::NewInteger(line_column->line.line);
-                   }));
-
-  line_column->AddField(
-      L"column", Value::NewFunction(
-                     {VMType::Integer(), VMType::ObjectType(line_column.get())},
-                     [](std::vector<Value::Ptr> args) {
-                       CHECK_EQ(args.size(), size_t(1));
-                       CHECK_EQ(args[0]->type,
-                                VMType::ObjectType(L"LineColumn"));
-                       auto line_column =
-                           static_cast<LineColumn*>(args[0]->user_value.get());
-                       CHECK(line_column != nullptr);
-                       return Value::NewInteger(line_column->column.column);
-                     }));
-
-  line_column->AddField(
-      L"tostring",
-      Value::NewFunction(
-          {VMType::String(), VMType::ObjectType(line_column.get())},
-          [](std::vector<Value::Ptr> args) {
-            CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::ObjectType(L"LineColumn"));
-            auto line_column =
-                static_cast<LineColumn*>(args[0]->user_value.get());
-            CHECK(line_column != nullptr);
-            return Value::NewString(
-                std::to_wstring(line_column->line.line) + L", " +
-                std::to_wstring(line_column->column.column));
-          }));
+      L"tostring", vm::NewCallback([](LineColumn line_column) {
+        return std::to_wstring(line_column.line.line) + L", " +
+               std::to_wstring(line_column.column.column);
+      }));
 
   environment->DefineType(L"LineColumn", std::move(line_column));
 }

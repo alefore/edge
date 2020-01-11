@@ -124,31 +124,22 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
   // Methods for Editor.
   editor_type->AddField(
-      L"ReloadCurrentBuffer",
-      Value::NewFunction(
-          {VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get())},
-          [](vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
+      L"ReloadCurrentBuffer", vm::NewCallback([](EditorState* editor) {
+        CHECK(editor != nullptr);
+        auto buffer = editor->current_buffer();
+        if (buffer == nullptr) {
+          return;
+        }
 
-            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-            CHECK(editor != nullptr);
-
-            auto buffer = editor->current_buffer();
-            if (buffer == nullptr) {
-              return Value::NewVoid();
-            }
-
-            if (editor->structure() == StructureLine()) {
-              auto target_buffer = buffer->GetBufferFromCurrentLine();
-              if (target_buffer != nullptr) {
-                buffer = target_buffer;
-              }
-            }
-            buffer->Reload();
-            editor->ResetModifiers();
-            return Value::NewVoid();
-          }));
+        if (editor->structure() == StructureLine()) {
+          auto target_buffer = buffer->GetBufferFromCurrentLine();
+          if (target_buffer != nullptr) {
+            buffer = target_buffer;
+          }
+        }
+        buffer->Reload();
+        editor->ResetModifiers();
+      }));
 
   editor_type->AddField(
       L"AddVerticalSplit",
@@ -184,31 +175,22 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                         }));
 
   editor_type->AddField(
-      L"SaveCurrentBuffer",
-      Value::NewFunction(
-          {VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get())},
-          [](vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
+      L"SaveCurrentBuffer", vm::NewCallback([](EditorState* editor) {
+        CHECK(editor != nullptr);
+        auto buffer = editor->current_buffer();
+        if (buffer == nullptr) {
+          return;
+        }
 
-            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-            CHECK(editor != nullptr);
-
-            auto buffer = editor->current_buffer();
-            if (buffer == nullptr) {
-              return Value::NewVoid();
-            }
-
-            if (editor->structure() == StructureLine()) {
-              auto target_buffer = buffer->GetBufferFromCurrentLine();
-              if (target_buffer != nullptr) {
-                buffer = target_buffer;
-              }
-            }
-            buffer->Save();
-            editor->ResetModifiers();
-            return Value::NewVoid();
-          }));
+        if (editor->structure() == StructureLine()) {
+          auto target_buffer = buffer->GetBufferFromCurrentLine();
+          if (target_buffer != nullptr) {
+            buffer = target_buffer;
+          }
+        }
+        buffer->Save();
+        editor->ResetModifiers();
+      }));
 
   editor_type->AddField(L"home", vm::NewCallback([](EditorState* editor) {
                           return editor->home_directory();
