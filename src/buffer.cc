@@ -1478,13 +1478,14 @@ Viewers* OpenBuffer::viewers() { return &viewers_; }
 futures::DelayedValue<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {
   using afc::vm::VMType;
-  auto input_shared = std::make_shared<std::wstring>(input);
+  auto input_shared = std::make_shared<std::wstring>(std::move(input));
   return futures::Transform(
       futures::ForEach(
           keyboard_text_transformers_.begin(),
           keyboard_text_transformers_.end(),
           [this, input_shared](const std::unique_ptr<Value>& t) {
-            vector<Value::Ptr> args;
+            CHECK(t != nullptr);
+            std::vector<Value::Ptr> args;
             args.push_back(Value::NewString(std::move(*input_shared)));
             return futures::ImmediateTransform(
                 Call(*t, std::move(args),
@@ -1492,7 +1493,9 @@ futures::DelayedValue<std::wstring> OpenBuffer::TransformKeyboardText(
                           work_queue()](std::function<void()> callback) {
                        work_queue->Schedule(std::move(callback));
                      }),
-                [&input_shared](const std::unique_ptr<Value>& value) {
+                [input_shared](const std::unique_ptr<Value>& value) {
+                  CHECK(value != nullptr);
+                  CHECK(value->IsString());
                   *input_shared = std::move(value->str);
                   return IterationControlCommand::kContinue;
                 });
