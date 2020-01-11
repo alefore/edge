@@ -1,0 +1,12 @@
+#include "lib/can-remove-previous-prefix"
+
+string HandleGuillemet(string input) {
+  if (input == "<") {
+    return CanRemovePreviousPrefix("<") ? "«" : "<";
+  } else if (input == ">") {
+    return CanRemovePreviousPrefix(">") ? "»" : ">";
+  }
+  return input;
+}
+
+buffer.AddKeyboardTextTransformer(HandleGuillemet);

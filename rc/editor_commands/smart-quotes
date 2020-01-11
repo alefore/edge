@@ -1,6 +1,8 @@
 // Transforms plain quotes and apostrophes (“"” and “’”) into curvy ones (““”,
 // “””, “‘”, and “’”).
 
+#include "lib/can-remove-previous-prefix"
+
 // Returns true if the quote that we’re inserting should be an opening quote.
 // This is checked just by looking at whether the preceding character is a
 // space.
@@ -17,7 +19,12 @@ string TransformQuotes(string input) {
   if (input == "\"") {
     return IsOpeningQuote() ? "“" : "”";
   } else if (input == "'") {
+    if (CanRemovePreviousPrefix("'") || CanRemovePreviousPrefix("’")) {
+      return "“";
+    }
     return IsOpeningQuote() ? "‘" : "’";
+  } else if (input == ",") {
+    return CanRemovePreviousPrefix(",") ? "„" : ",";
   }
   return input;
 }
