@@ -34,7 +34,7 @@ void CursorsSet::DeleteCurrentCursor() {
 
 size_t CursorsSet::size() const { return cursors_.size(); }
 
-bool CursorsSet::empty() { return cursors_.empty(); }
+bool CursorsSet::empty() const { return cursors_.empty(); }
 
 CursorsSet::iterator CursorsSet::insert(LineColumn line) {
   iterator it = cursors_.insert(line);
