@@ -19,11 +19,10 @@ class ConstantExpression : public Expression {
   std::vector<VMType> Types() { return {value_->type}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
-  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline*,
-                                                   const VMType& type) {
+  futures::Value<EvaluationOutput> Evaluate(Trampoline*, const VMType& type) {
     CHECK_EQ(type, value_->type);
     DVLOG(5) << "Evaluating constant value: " << *value_;
-    return futures::ImmediateValue(
+    return futures::Past(
         EvaluationOutput::New(std::make_unique<Value>(*value_)));
   }
 

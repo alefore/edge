@@ -184,8 +184,7 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
   return head;
 }
 
-futures::DelayedValue<PredictorOutput> SearchHandlerPredictor(
-    PredictorInput input) {
+futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   auto search_buffer = input.source_buffer;
   CHECK(search_buffer != nullptr);
   CHECK(input.predictions != nullptr);

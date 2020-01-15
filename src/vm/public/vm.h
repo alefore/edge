@@ -44,8 +44,8 @@ class Trampoline {
   const std::shared_ptr<Environment>& environment() const;
 
   // Must ensure expression lives until the future is notified.
-  futures::DelayedValue<EvaluationOutput> Bounce(Expression* expression,
-                                                 VMType expression_type);
+  futures::Value<EvaluationOutput> Bounce(Expression* expression,
+                                          VMType expression_type);
 
  private:
   std::shared_ptr<Environment> environment_;
@@ -86,9 +86,9 @@ class Expression {
   virtual std::unique_ptr<Expression> Clone() = 0;
 
   // The expression may be deleted as soon as `Evaluate` returns, even before
-  // the returned DelayedValue has been given a value.
-  virtual futures::DelayedValue<EvaluationOutput> Evaluate(
-      Trampoline* evaluation, const VMType& type) = 0;
+  // the returned Value has been given a value.
+  virtual futures::Value<EvaluationOutput> Evaluate(Trampoline* evaluation,
+                                                    const VMType& type) = 0;
 };
 
 struct EvaluationOutput {
@@ -127,7 +127,7 @@ unique_ptr<Expression> CompileString(const wstring& str,
 // Caller must make sure expr lives until consumer runs. `yield_callback` is an
 // optional function that must ensure that the callback it receives will run
 // in the future.
-futures::DelayedValue<std::unique_ptr<Value>> Evaluate(
+futures::Value<std::unique_ptr<Value>> Evaluate(
     Expression* expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback);
 

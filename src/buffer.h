@@ -249,16 +249,16 @@ class OpenBuffer {
   std::map<wstring, wstring> Flags() const;
   static wstring FlagsToString(std::map<wstring, wstring> flags);
 
-  futures::DelayedValue<std::wstring> TransformKeyboardText(std::wstring input);
+  futures::Value<std::wstring> TransformKeyboardText(std::wstring input);
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
-  futures::DelayedValue<bool> ApplyToCursors(
+  futures::Value<bool> ApplyToCursors(
       unique_ptr<Transformation> transformation);
-  futures::DelayedValue<bool> ApplyToCursors(
+  futures::Value<bool> ApplyToCursors(
       unique_ptr<Transformation> transformation,
       Modifiers::CursorsAffected cursors_affected,
       Transformation::Input::Mode mode);
-  futures::DelayedValue<bool> RepeatLastTransformation();
+  futures::Value<bool> RepeatLastTransformation();
 
   void PushTransformationStack();
   void PopTransformationStack();
@@ -290,11 +290,10 @@ class OpenBuffer {
 
   unique_ptr<Expression> CompileString(const wstring& str,
                                        wstring* error_description);
-  futures::DelayedValue<std::unique_ptr<Value>> EvaluateExpression(
-      Expression* expr);
-  std::optional<futures::DelayedValue<std::unique_ptr<Value>>> EvaluateString(
+  futures::Value<std::unique_ptr<Value>> EvaluateExpression(Expression* expr);
+  std::optional<futures::Value<std::unique_ptr<Value>>> EvaluateString(
       const wstring& str);
-  std::optional<futures::DelayedValue<std::unique_ptr<Value>>> EvaluateFile(
+  std::optional<futures::Value<std::unique_ptr<Value>>> EvaluateFile(
       const wstring& path);
 
   WorkQueue* work_queue() const;
@@ -427,7 +426,7 @@ class OpenBuffer {
   };
   static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
 
-  futures::DelayedValue<Transformation::Result> Apply(
+  futures::Value<Transformation::Result> Apply(
       unique_ptr<Transformation> transformation, LineColumn position,
       Transformation::Input::Mode mode);
   void UpdateTreeParser();

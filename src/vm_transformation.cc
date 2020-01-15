@@ -51,7 +51,7 @@ class FunctionTransformation : public CompositeTransformation {
     return L"FunctionTransformation()";
   }
 
-  futures::DelayedValue<Output> Apply(Input input) const override {
+  futures::Value<Output> Apply(Input input) const override {
     std::vector<std::unique_ptr<vm::Value>> args;
     args.emplace_back(VMTypeMapper<std::shared_ptr<Input>>::New(
         std::make_shared<Input>(input)));

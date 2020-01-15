@@ -13,7 +13,7 @@ class TransformationStack : public Transformation {
   void PushBack(std::unique_ptr<Transformation> transformation);
   void PushFront(std::unique_ptr<Transformation> transformation);
 
-  futures::DelayedValue<Result> Apply(const Input& input) const override;
+  futures::Value<Result> Apply(const Input& input) const override;
 
   std::unique_ptr<Transformation> Clone() const override;
 

@@ -62,15 +62,14 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   auto index = std::make_shared<size_t>(0);
   futures::While([buffer, total = editor_state->repetitions(),
                   adjusted_input = resolved_path->path, index]() {
-    if (*index >= total)
-      return futures::ImmediateValue(IterationControlCommand::kStop);
+    if (*index >= total) return futures::Past(IterationControlCommand::kStop);
     auto evaluation = buffer->EvaluateFile(adjusted_input);
     if (!evaluation.has_value())
-      return futures::ImmediateValue(IterationControlCommand::kStop);
+      return futures::Past(IterationControlCommand::kStop);
     ++*index;
     return futures::Transform(
         evaluation.value(), [](const std::unique_ptr<Value>&) {
-          return futures::ImmediateValue(IterationControlCommand::kContinue);
+          return futures::Past(IterationControlCommand::kContinue);
         });
   });
   editor_state->ResetRepetitions();

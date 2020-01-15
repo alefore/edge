@@ -16,17 +16,17 @@
 namespace afc::editor {
 namespace {
 class MoveCursorTransformation : public Transformation {
-  futures::DelayedValue<Result> Apply(const Input& input) const override {
+  futures::Value<Result> Apply(const Input& input) const override {
     auto active_cursors = input.buffer->active_cursors();
     if (input.position != *active_cursors->active()) {
       LOG(INFO) << "Skipping cursor.";
-      return futures::ImmediateValue(Result(input.position));
+      return futures::Past(Result(input.position));
     }
 
     Result output(input.buffer->FindNextCursor(input.position));
     if (output.position == input.position) {
       LOG(INFO) << "Cursor didn't move.";
-      return futures::ImmediateValue(std::move(output));
+      return futures::Past(std::move(output));
     }
 
     VLOG(5) << "Moving cursor from " << input.position << " to "
@@ -36,7 +36,7 @@ class MoveCursorTransformation : public Transformation {
     CHECK(next_it != active_cursors->end());
     active_cursors->erase(next_it);
     active_cursors->insert(input.position);
-    return futures::ImmediateValue(std::move(output));
+    return futures::Past(std::move(output));
   }
 
   std::unique_ptr<Transformation> Clone() const override {
@@ -50,7 +50,7 @@ class MoveTransformation : public CompositeTransformation {
 
   std::wstring Serialize() const override { return L"MoveTransformation()"; }
 
-  futures::DelayedValue<Output> Apply(Input input) const override {
+  futures::Value<Output> Apply(Input input) const override {
     CHECK(input.buffer != nullptr);
     VLOG(1) << "Move Transformation starts: "
             << input.buffer->Read(buffer_variables::name) << " "
@@ -70,15 +70,15 @@ class MoveTransformation : public CompositeTransformation {
       position =
           MoveMark(input.buffer, input.original_position, input.modifiers);
     } else if (structure == StructureCursor()) {
-      return futures::ImmediateValue(
+      return futures::Past(
           Output(std::make_unique<MoveCursorTransformation>()));
     } else {
       input.buffer->status()->SetWarningText(L"Unhandled structure: " +
                                              structure->ToString());
-      return futures::ImmediateValue(Output());
+      return futures::Past(Output());
     }
     if (!position.has_value()) {
-      return futures::ImmediateValue(Output());
+      return futures::Past(Output());
     }
     if (input.modifiers.repetitions > 1) {
       input.editor->PushPosition(position.value());
@@ -86,7 +86,7 @@ class MoveTransformation : public CompositeTransformation {
 
     LOG(INFO) << "Move from " << input.original_position << " to "
               << position.value() << " " << input.modifiers;
-    return futures::ImmediateValue(Output::SetPosition(position.value()));
+    return futures::Past(Output::SetPosition(position.value()));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

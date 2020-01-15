@@ -40,13 +40,13 @@ namespace afc::editor {
 namespace {
 class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }
-  futures::DelayedValue<Output> Apply(Input input) const override {
+  futures::Value<Output> Apply(Input input) const override {
     const ColumnNumber column = input.position.column;
     auto line = input.buffer->LineAt(input.position.line);
-    if (line == nullptr) return futures::ImmediateValue(Output());
+    if (line == nullptr) return futures::Past(Output());
     if (input.buffer->Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn())
-      return futures::ImmediateValue(Output());
+      return futures::Past(Output());
     const wstring& line_prefix_characters(
         input.buffer->Read(buffer_variables::line_prefix_characters));
     ColumnNumber prefix_end;
@@ -73,7 +73,7 @@ class NewLineTransformation : public CompositeTransformation {
     output.Push(NewDeleteSuffixSuperfluousCharacters());
     output.Push(NewSetPositionTransformation(
         LineColumn(input.position.line + LineNumberDelta(1), prefix_end)));
-    return futures::ImmediateValue(std::move(output));
+    return futures::Past(std::move(output));
   }
 
   unique_ptr<CompositeTransformation> Clone() const override {
@@ -85,7 +85,7 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
   std::wstring Serialize() const override { return L""; }
-  futures::DelayedValue<Output> Apply(Input input) const override {
+  futures::Value<Output> Apply(Input input) const override {
     if (direction_ == BACKWARDS) {
       ++input.position.line;
     }
@@ -93,7 +93,7 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
     output.Push(NewTransformation(Modifiers(),
                                   std::make_unique<NewLineTransformation>()));
     output.Push(NewSetPositionTransformation(input.position));
-    return futures::ImmediateValue(std::move(output));
+    return futures::Past(std::move(output));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

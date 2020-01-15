@@ -53,8 +53,7 @@ namespace vm {
     std::vector<VMType> arguments,
     std::function<Value::Ptr(std::vector<Value::Ptr>)> callback) {
   return NewFunction(arguments, [callback](std::vector<Ptr> args, Trampoline*) {
-    return futures::ImmediateValue(
-        EvaluationOutput::New(callback(std::move(args))));
+    return futures::Past(EvaluationOutput::New(callback(std::move(args))));
   });
 }
 

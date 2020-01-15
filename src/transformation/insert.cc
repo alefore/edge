@@ -41,10 +41,10 @@ class InsertBufferTransformation : public Transformation {
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
-  futures::DelayedValue<Result> Apply(const Input& input) const override {
+  futures::Value<Result> Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
     if (buffer_to_insert_length_ == 0) {
-      return futures::ImmediateValue(Result(input.position));
+      return futures::Past(Result(input.position));
     }
 
     auto result = std::make_shared<Result>(input.buffer->AdjustLineColumn(
@@ -67,7 +67,7 @@ class InsertBufferTransformation : public Transformation {
         start_position,
         NewDeleteTransformation(GetCharactersDeleteOptions(chars_inserted))));
 
-    auto delayed_shared_result = futures::ImmediateValue(result);
+    auto delayed_shared_result = futures::Past(result);
     if (options_.modifiers.insertion == Modifiers::REPLACE) {
       DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;

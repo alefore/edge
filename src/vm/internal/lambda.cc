@@ -51,10 +51,10 @@ class LambdaExpression : public Expression {
   std::vector<VMType> Types() { return {type_}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
-  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                                   const VMType& type) {
+  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                            const VMType& type) {
     CHECK_EQ(type, type_);
-    return futures::ImmediateValue(
+    return futures::Past(
         EvaluationOutput::New(BuildValue(trampoline->environment())));
   }
 

@@ -559,8 +559,8 @@ Trampoline::Trampoline(Options options)
     : environment_(options.environment),
       yield_callback_(std::move(options.yield_callback)) {}
 
-futures::DelayedValue<EvaluationOutput> Trampoline::Bounce(
-    Expression* expression, VMType type) {
+futures::Value<EvaluationOutput> Trampoline::Bounce(Expression* expression,
+                                                    VMType type) {
   CHECK(expression->SupportsType(type));
   static size_t kMaximumJumps = 100;
   if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr) {
@@ -590,7 +590,7 @@ bool Expression::SupportsType(const VMType& type) {
   return std::find(types.begin(), types.end(), type) != types.end();
 }
 
-futures::DelayedValue<std::unique_ptr<Value>> Evaluate(
+futures::Value<std::unique_ptr<Value>> Evaluate(
     Expression* expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK(expr != nullptr);

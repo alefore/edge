@@ -22,8 +22,8 @@ class BinaryOperator : public Expression {
   std::vector<VMType> Types() override;
   std::unordered_set<VMType> ReturnTypes() const override;
 
-  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* evaluation,
-                                                   const VMType& type) override;
+  futures::Value<EvaluationOutput> Evaluate(Trampoline* evaluation,
+                                            const VMType& type) override;
 
   std::unique_ptr<Expression> Clone() override;
 

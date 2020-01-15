@@ -19,18 +19,18 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     return L"DeleteSuffixSuperfluousCharacters()";
   }
 
-  futures::DelayedValue<Output> Apply(Input input) const override {
+  futures::Value<Output> Apply(Input input) const override {
     const wstring& superfluous_characters = input.buffer->Read(
         buffer_variables::line_suffix_superfluous_characters);
     const auto line = input.buffer->LineAt(input.position.line);
-    if (line == nullptr) return futures::ImmediateValue(Output());
+    if (line == nullptr) return futures::Past(Output());
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&
            superfluous_characters.find(
                line->get(column - ColumnNumberDelta(1))) != string::npos) {
       --column;
     }
-    if (column == line->EndColumn()) return futures::ImmediateValue(Output());
+    if (column == line->EndColumn()) return futures::Past(Output());
     CHECK_LT(column, line->EndColumn());
     Output output = Output::SetColumn(column);
 
@@ -39,7 +39,7 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
         (line->EndColumn() - column).column_delta;
     delete_options.copy_to_paste_buffer = false;
     output.Push(NewDeleteTransformation(delete_options));
-    return futures::ImmediateValue(std::move(output));
+    return futures::Past(std::move(output));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {
@@ -53,7 +53,7 @@ class ApplyRepetitionsTransformation : public Transformation {
                                  unique_ptr<Transformation> delegate)
       : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
-  futures::DelayedValue<Result> Apply(const Input& input) const override {
+  futures::Value<Result> Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
     struct Data {
       size_t index = 0;
@@ -64,8 +64,7 @@ class ApplyRepetitionsTransformation : public Transformation {
     return futures::ImmediateTransform(
         futures::While([this, data, input]() mutable {
           if (data->index == repetitions_) {
-            return futures::ImmediateValue(
-                futures::IterationControlCommand::kStop);
+            return futures::Past(futures::IterationControlCommand::kStop);
           }
           data->index++;
           Input current_input(input.buffer);

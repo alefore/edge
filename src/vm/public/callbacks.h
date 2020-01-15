@@ -119,7 +119,7 @@ Value::Ptr NewCallback(Callable callback) {
   AddArgs<typename ft::ArgTuple, 0>(&callback_wrapper->type.type_arguments);
   callback_wrapper->callback = [callback = std::move(callback)](
                                    vector<Value::Ptr> args, Trampoline*) {
-    return futures::ImmediateValue(EvaluationOutput::New(
+    return futures::Past(EvaluationOutput::New(
         RunCallback(callback, std::move(args),
                     std::make_index_sequence<
                         std::tuple_size<typename ft::ArgTuple>::value>())));

@@ -39,9 +39,8 @@ const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
     L"predictor_longest_directory_match";
 const wchar_t* kExactMatchEnvironmentVariable = L"predictor_exact_match";
 
-void SignalEndOfFile(
-    OpenBuffer* buffer,
-    futures::DelayedValue<PredictorOutput>::Consumer consumer) {
+void SignalEndOfFile(OpenBuffer* buffer,
+                     futures::Value<PredictorOutput>::Consumer consumer) {
   buffer->EndOfFile();
   buffer->AddEndOfFileObserver(
       [consumer = std::move(consumer)]() { consumer(PredictorOutput()); });
@@ -322,8 +321,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   });
 }
 
-futures::DelayedValue<PredictorOutput> FilePredictor(
-    PredictorInput predictor_input) {
+futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   struct AsyncInput {
     OpenBuffer::LockFunction get_buffer;
@@ -331,7 +329,7 @@ futures::DelayedValue<PredictorOutput> FilePredictor(
     vector<wstring> search_paths;
     ResolvePathOptions resolve_path_options;
     std::wregex noise_regex;
-    futures::DelayedValue<PredictorOutput>::Consumer output_consumer;
+    futures::Value<PredictorOutput>::Consumer output_consumer;
   };
 
   AsyncProcessor<AsyncInput, int>::Options options;
@@ -395,7 +393,7 @@ futures::DelayedValue<PredictorOutput> FilePredictor(
   return output.value;
 }
 
-futures::DelayedValue<PredictorOutput> EmptyPredictor(PredictorInput input) {
+futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {
   futures::Future<PredictorOutput> output;
   SignalEndOfFile(input.predictions, output.consumer);
   return output.value;

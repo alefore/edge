@@ -393,13 +393,13 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   transformations->emplace_back(transformation, &last);
 }
 
-futures::DelayedValue<bool> CursorsTracker::ApplyTransformationToCursors(
+futures::Value<bool> CursorsTracker::ApplyTransformationToCursors(
     CursorsSet* cursors,
-    std::function<futures::DelayedValue<LineColumn>(LineColumn)> callback) {
+    std::function<futures::Value<LineColumn>(LineColumn)> callback) {
   struct Data {
     CursorsSet* cursors;
-    std::function<futures::DelayedValue<LineColumn>(LineColumn)> callback;
-    futures::DelayedValue<bool>::Consumer done;
+    std::function<futures::Value<LineColumn>(LineColumn)> callback;
+    futures::Value<bool>::Consumer done;
     bool adjusted_active_cursor = false;
   };
 

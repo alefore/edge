@@ -22,8 +22,8 @@ class ReturnExpression : public Expression {
     return {types.cbegin(), types.cend()};
   }
 
-  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                                   const VMType&) override {
+  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                            const VMType&) override {
     return futures::ImmediateTransform(
         trampoline->Bounce(expr_.get(), expr_->Types()[0]),
         [](EvaluationOutput expr_output) {

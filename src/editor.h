@@ -177,7 +177,7 @@ class EditorState {
   const wstring& home_directory() const { return home_directory_; }
   const vector<wstring>& edge_path() const { return edge_path_; }
 
-  futures::DelayedValue<bool> ApplyToCurrentBuffer(
+  futures::Value<bool> ApplyToCurrentBuffer(
       unique_ptr<Transformation> transformation);
 
   std::shared_ptr<Environment> environment() { return environment_; }

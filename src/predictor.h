@@ -47,7 +47,7 @@ struct PredictorInput {
 
 struct PredictorOutput {};
 using Predictor =
-    std::function<futures::DelayedValue<PredictorOutput>(PredictorInput)>;
+    std::function<futures::Value<PredictorOutput>(PredictorInput)>;
 
 const wstring& PredictionsBufferName();
 
@@ -98,9 +98,9 @@ struct PredictOptions {
 // unambiguous completion for input).
 void Predict(PredictOptions predict_options);
 
-futures::DelayedValue<PredictorOutput> FilePredictor(PredictorInput input);
+futures::Value<PredictorOutput> FilePredictor(PredictorInput input);
 
-futures::DelayedValue<PredictorOutput> EmptyPredictor(PredictorInput input);
+futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input);
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);

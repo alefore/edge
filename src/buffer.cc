@@ -852,8 +852,7 @@ void OpenBuffer::Reload() {
   auto paths = editor()->edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](std::wstring dir) {
     auto value = EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
-    if (!value.has_value())
-      return ImmediateValue(IterationControlCommand::kContinue);
+    if (!value.has_value()) return Past(IterationControlCommand::kContinue);
     return futures::ImmediateTransform(
         value.value(), [](std::unique_ptr<Value>) {
           return IterationControlCommand::kContinue;
@@ -977,7 +976,7 @@ unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,
   return afc::vm::CompileString(code, environment_, error_description);
 }
 
-futures::DelayedValue<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
+futures::Value<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
     Expression* expr) {
   return Evaluate(expr, environment_,
                   [work_queue = work_queue()](std::function<void()> callback) {
@@ -985,7 +984,7 @@ futures::DelayedValue<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
                   });
 }
 
-std::optional<futures::DelayedValue<std::unique_ptr<Value>>>
+std::optional<futures::Value<std::unique_ptr<Value>>>
 OpenBuffer::EvaluateString(const wstring& code) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
@@ -1000,8 +999,8 @@ OpenBuffer::EvaluateString(const wstring& code) {
   return EvaluateExpression(expression.get());
 }
 
-std::optional<futures::DelayedValue<std::unique_ptr<Value>>>
-OpenBuffer::EvaluateFile(const wstring& path) {
+std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
+    const wstring& path) {
   wstring error_description;
   std::shared_ptr<Expression> expression =
       CompileFile(ToByteString(path), environment_, &error_description);
@@ -1475,7 +1474,7 @@ void OpenBuffer::PushSignal(int sig) {
 
 Viewers* OpenBuffer::viewers() { return &viewers_; }
 
-futures::DelayedValue<std::wstring> OpenBuffer::TransformKeyboardText(
+futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {
   using afc::vm::VMType;
   auto input_shared = std::make_shared<std::wstring>(std::move(input));
@@ -1501,7 +1500,7 @@ futures::DelayedValue<std::wstring> OpenBuffer::TransformKeyboardText(
                 });
           }),
       [input_shared](IterationControlCommand) {
-        return futures::ImmediateValue(std::move(*input_shared));
+        return futures::Past(std::move(*input_shared));
       });
 }
 
@@ -1730,7 +1729,7 @@ void OpenBuffer::Set(const EdgeVariable<double>* variable, double value) {
   double_variables_.Set(variable, value);
 }
 
-futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
+futures::Value<bool> OpenBuffer::ApplyToCursors(
     std::unique_ptr<Transformation> transformation) {
   return ApplyToCursors(std::move(transformation),
                         Read(buffer_variables::multiple_cursors)
@@ -1739,7 +1738,7 @@ futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
                         Transformation::Input::Mode::kFinal);
 }
 
-futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
+futures::Value<bool> OpenBuffer::ApplyToCursors(
     std::unique_ptr<Transformation> transformation,
     Modifiers::CursorsAffected cursors_affected,
     Transformation::Input::Mode mode) {
@@ -1781,7 +1780,7 @@ futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
   }
 }
 
-futures::DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
+futures::Value<typename Transformation::Result> OpenBuffer::Apply(
     std::unique_ptr<Transformation> transformation, LineColumn position,
     Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
@@ -1811,7 +1810,7 @@ futures::DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
       });
 }
 
-futures::DelayedValue<bool> OpenBuffer::RepeatLastTransformation() {
+futures::Value<bool> OpenBuffer::RepeatLastTransformation() {
   int repetitions = options_.editor->repetitions();
   options_.editor->ResetRepetitions();
   return ApplyToCursors(NewApplyRepetitionsTransformation(
@@ -1851,7 +1850,7 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
   }
   futures::While([this, undo_mode, data] {
     if (data->repetitions == editor()->repetitions() || data->source->empty()) {
-      return futures::ImmediateValue(IterationControlCommand::kStop);
+      return futures::Past(IterationControlCommand::kStop);
     }
     Transformation::Input input(this);
     input.position = position();

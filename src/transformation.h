@@ -71,7 +71,7 @@ class Transformation {
   };
 
   virtual ~Transformation() {}
-  virtual futures::DelayedValue<Result> Apply(const Input& input) const = 0;
+  virtual futures::Value<Result> Apply(const Input& input) const = 0;
   virtual std::unique_ptr<Transformation> Clone() const = 0;
 };
 

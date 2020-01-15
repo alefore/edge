@@ -17,7 +17,7 @@ class SetCursorsTransformation : public Transformation {
   SetCursorsTransformation(CursorsSet cursors, LineColumn active)
       : cursors_(std::move(cursors)), active_(active) {}
 
-  futures::DelayedValue<Result> Apply(const Input& input) const override {
+  futures::Value<Result> Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
     vector<LineColumn> positions = {active_};
     bool skipped = false;
@@ -29,7 +29,7 @@ class SetCursorsTransformation : public Transformation {
       }
     }
     input.buffer->set_active_cursors(positions);
-    return futures::ImmediateValue(Result(input.position));
+    return futures::Past(Result(input.position));
   }
 
   unique_ptr<Transformation> Clone() const override {

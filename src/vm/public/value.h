@@ -26,7 +26,7 @@ struct Value {
   Value(const VMType::Type& t) : type(t) {}
   Value(const VMType& t) : type(t) {}
 
-  using Callback = std::function<futures::DelayedValue<EvaluationOutput>(
+  using Callback = std::function<futures::Value<EvaluationOutput>(
       std::vector<Ptr>, Trampoline*)>;
   static unique_ptr<Value> NewVoid();
   static unique_ptr<Value> NewBool(bool value);

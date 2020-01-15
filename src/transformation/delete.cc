@@ -119,7 +119,7 @@ class DeleteTransformation : public Transformation {
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
-  futures::DelayedValue<Result> Apply(const Input& original_input) const {
+  futures::Value<Result> Apply(const Input& original_input) const {
     Input input = original_input;
     CHECK(input.buffer != nullptr);
     input.mode = options_.mode.value_or(input.mode);
@@ -134,7 +134,7 @@ class DeleteTransformation : public Transformation {
     CHECK_LE(range.begin, range.end);
     if (range.IsEmpty()) {
       VLOG(5) << "No repetitions.";
-      return futures::ImmediateValue(std::move(*output));
+      return futures::Past(std::move(*output));
     }
 
     if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
@@ -160,7 +160,7 @@ class DeleteTransformation : public Transformation {
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
         input.mode == Transformation::Input::Mode::kFinal) {
       LOG(INFO) << "Not actually deleting region.";
-      return futures::ImmediateValue(std::move(*output));
+      return futures::Past(std::move(*output));
     }
 
     input.buffer->DeleteRange(range);
@@ -183,7 +183,7 @@ class DeleteTransformation : public Transformation {
               NewSetPositionTransformation(range.begin));
 
           if (input.mode != Transformation::Input::Mode::kPreview) {
-            return futures::ImmediateValue(std::move(*output));
+            return futures::Past(std::move(*output));
           }
           LOG(INFO) << "Inserting preview at: " << range.begin;
           insert_options.modifiers_set = {

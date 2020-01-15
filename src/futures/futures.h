@@ -12,7 +12,7 @@ template <typename Type>
 class Future;
 
 template <typename Type>
-class DelayedValue {
+class Value {
  public:
   using Consumer = std::function<void(Type)>;
   using type = Type;
@@ -40,7 +40,7 @@ class DelayedValue {
     std::optional<Type> value;
   };
 
-  DelayedValue(std::shared_ptr<FutureData> data) : data_(std::move(data)) {}
+  Value(std::shared_ptr<FutureData> data) : data_(std::move(data)) {}
 
   std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
 };
@@ -50,11 +50,11 @@ struct Future {
  public:
   Future() : Future(std::make_shared<FutureData>()) {}
 
-  typename DelayedValue<Type>::Consumer consumer;
-  DelayedValue<Type> value;
+  typename Value<Type>::Consumer consumer;
+  Value<Type> value;
 
  private:
-  using FutureData = typename DelayedValue<Type>::FutureData;
+  using FutureData = typename Value<Type>::FutureData;
 
   Future(std::shared_ptr<FutureData> data)
       : consumer([data](Type value) {
@@ -72,7 +72,7 @@ struct Future {
 };
 
 template <typename Type>
-DelayedValue<Type> ImmediateValue(Type value) {
+static Value<Type> Past(Type value) {
   Future<Type> output;
   output.consumer(std::move(value));
   return output.value;
@@ -82,13 +82,13 @@ enum class IterationControlCommand { kContinue, kStop };
 
 // Evaluate `callable` for each element in the range [begin, end). `callable`
 // receives a reference to each element and must return a
-// DelayedValue<IterationControlCommand>.
+// Value<IterationControlCommand>.
 //
 // The returned value can be used to check whether the entire evaluation
 // succeeded and/or to detect when it's finished.
 template <typename Iterator, typename Callable>
-DelayedValue<IterationControlCommand> ForEach(Iterator begin, Iterator end,
-                                              Callable callable) {
+Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
+                                       Callable callable) {
   Future<IterationControlCommand> output;
   auto resume = [consumer = output.consumer, end, callable](
                     Iterator begin, auto resume) mutable {
@@ -110,7 +110,7 @@ DelayedValue<IterationControlCommand> ForEach(Iterator begin, Iterator end,
 }
 
 template <typename Callable>
-DelayedValue<IterationControlCommand> While(Callable callable) {
+Value<IterationControlCommand> While(Callable callable) {
   Future<IterationControlCommand> output;
   auto resume = [consumer = output.consumer,
                  callable](auto resume) mutable -> void {
@@ -129,7 +129,7 @@ DelayedValue<IterationControlCommand> While(Callable callable) {
 }
 
 template <typename OtherType, typename Callable>
-auto Transform(DelayedValue<OtherType> delayed_value, Callable callable) {
+auto Transform(Value<OtherType> delayed_value, Callable callable) {
   Future<typename decltype(callable(std::declval<OtherType>()))::type> output;
   delayed_value.SetConsumer(
       [consumer = output.consumer,
@@ -140,8 +140,7 @@ auto Transform(DelayedValue<OtherType> delayed_value, Callable callable) {
 }
 
 template <typename OtherType, typename Callable>
-auto ImmediateTransform(DelayedValue<OtherType> delayed_value,
-                        Callable callable) {
+auto ImmediateTransform(Value<OtherType> delayed_value, Callable callable) {
   using Type = decltype(callable(std::declval<OtherType>()));
   Future<Type> output;
   delayed_value.SetConsumer(

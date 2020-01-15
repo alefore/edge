@@ -73,8 +73,8 @@ class FunctionCall : public Expression {
 
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
-  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                                   const VMType& type) {
+  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                            const VMType& type) {
     DVLOG(3) << "Function call evaluation starts.";
     std::vector<VMType> type_arguments = {type};
     for (auto& arg : *args_) {
@@ -102,7 +102,7 @@ class FunctionCall : public Expression {
  private:
   static void CaptureArgs(
       Trampoline* trampoline,
-      futures::DelayedValue<EvaluationOutput>::Consumer consumer,
+      futures::Value<EvaluationOutput>::Consumer consumer,
       std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_types,
       std::shared_ptr<std::vector<unique_ptr<Value>>> values,
       std::shared_ptr<Value> callback) {
@@ -238,8 +238,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                                                       delegate_);
       }
 
-      futures::DelayedValue<EvaluationOutput> Evaluate(
-          Trampoline* trampoline, const VMType& type) override {
+      futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                const VMType& type) override {
         return futures::ImmediateTransform(
             trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0]),
             [type, shared_type = type_,
@@ -274,7 +274,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
   return nullptr;
 }
 
-futures::DelayedValue<std::unique_ptr<Value>> Call(
+futures::Value<std::unique_ptr<Value>> Call(
     const Value& func, vector<Value::Ptr> args,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK_EQ(func.type.type, VMType::FUNCTION);

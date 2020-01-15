@@ -27,8 +27,8 @@ class WhileExpression : public Expression {
     return body_->ReturnTypes();
   }
 
-  futures::DelayedValue<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                                   const VMType&) override {
+  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                            const VMType&) override {
     DVLOG(4) << "Starting iteration.";
     futures::Future<EvaluationOutput> output;
     Iterate(trampoline, condition_, body_, std::move(output.consumer));
@@ -40,10 +40,10 @@ class WhileExpression : public Expression {
   }
 
  private:
-  static void Iterate(
-      Trampoline* trampoline, std::shared_ptr<Expression> condition,
-      std::shared_ptr<Expression> body,
-      futures::DelayedValue<EvaluationOutput>::Consumer consumer) {
+  static void Iterate(Trampoline* trampoline,
+                      std::shared_ptr<Expression> condition,
+                      std::shared_ptr<Expression> body,
+                      futures::Value<EvaluationOutput>::Consumer consumer) {
     trampoline->Bounce(condition.get(), VMType::Bool())
         .SetConsumer([condition, body, consumer,
                       trampoline](EvaluationOutput condition_output) {

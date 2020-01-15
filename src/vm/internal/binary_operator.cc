@@ -24,7 +24,7 @@ std::unordered_set<VMType> BinaryOperator::ReturnTypes() const {
   return a_->ReturnTypes();
 }
 
-futures::DelayedValue<EvaluationOutput> BinaryOperator::Evaluate(
+futures::Value<EvaluationOutput> BinaryOperator::Evaluate(
     Trampoline* trampoline, const VMType& type) {
   CHECK(type_ == type);
   return futures::Transform(

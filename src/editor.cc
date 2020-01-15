@@ -80,7 +80,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
       (*buffer.*method)();
       editor->ResetModifiers();
     }
-    return futures::ImmediateValue(EvaluationOutput::New(Value::NewVoid()));
+    return futures::Past(EvaluationOutput::New(Value::NewVoid()));
   };
   editor_type->AddField(name, std::move(callback));
 }
@@ -235,8 +235,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             const auto& buffers_to_wait =
                 *static_cast<std::set<wstring>*>(args[0]->user_value.get());
 
-            auto values =
-                std::make_shared<std::vector<futures::DelayedValue<bool>>>();
+            auto values = std::make_shared<std::vector<futures::Value<bool>>>();
             for (const auto& buffer_name : buffers_to_wait) {
               auto buffer_it = buffers()->find(buffer_name);
               if (buffer_it == buffers()->end()) {
@@ -253,7 +252,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             return futures::ImmediateTransform(
                 futures::ForEach(
                     values->begin(), values->end(),
-                    [values](futures::DelayedValue<bool> future) {
+                    [values](futures::Value<bool> future) {
                       return futures::ImmediateTransform(future, [](bool) {
                         return futures::IterationControlCommand::kContinue;
                       });
@@ -794,7 +793,7 @@ bool EditorState::MovePositionsStack(Direction direction) {
 Status* EditorState::status() { return &status_; }
 const Status* EditorState::status() const { return &status_; }
 
-futures::DelayedValue<bool> EditorState::ApplyToCurrentBuffer(
+futures::Value<bool> EditorState::ApplyToCurrentBuffer(
     unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(has_current_buffer());

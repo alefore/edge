@@ -18,7 +18,7 @@ class CompositeTransformationAdapter : public Transformation {
       Modifiers modifiers,
       std::unique_ptr<CompositeTransformation> composite_transformation);
 
-  futures::DelayedValue<Result> Apply(
+  futures::Value<Result> Apply(
       const Input& transformation_input) const override;
 
   std::unique_ptr<Transformation> Clone() const override;
@@ -62,7 +62,7 @@ class CompositeTransformation {
     friend CompositeTransformationAdapter;
     std::unique_ptr<TransformationStack> transformations_;
   };
-  virtual futures::DelayedValue<Output> Apply(Input input) const = 0;
+  virtual futures::Value<Output> Apply(Input input) const = 0;
   virtual std::unique_ptr<CompositeTransformation> Clone() const = 0;
 };
 

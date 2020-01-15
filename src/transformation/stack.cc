@@ -16,7 +16,7 @@ void TransformationStack::PushFront(
   stack_->push_front(std::move(transformation));
 }
 
-futures::DelayedValue<Transformation::Result> TransformationStack::Apply(
+futures::Value<Transformation::Result> TransformationStack::Apply(
     const Input& input) const {
   auto output = std::make_shared<Result>(input.position);
   return futures::ImmediateTransform(

@@ -168,9 +168,9 @@ class CursorsTracker {
   // Iterate over all cursors, running callback for each of them. callback
   // receives the cursor's position and must notify the receiver with the
   // position to which the cursor moves.
-  futures::DelayedValue<bool> ApplyTransformationToCursors(
+  futures::Value<bool> ApplyTransformationToCursors(
       CursorsSet* cursors,
-      std::function<futures::DelayedValue<LineColumn>(LineColumn)> callback);
+      std::function<futures::Value<LineColumn>(LineColumn)> callback);
 
   // Push current cursors into cursors_stack_ and returns size of stack.
   size_t Push();
