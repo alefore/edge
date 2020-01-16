@@ -70,6 +70,7 @@ void CppMode() {
   buffer.set_tree_parser("cpp");
 
   RegisterSimpleCppBinding("Sm", "std::move()", 1);
+  RegisterSimpleCppBinding("So", "std::optional<>", 1);
   RegisterSimpleCppBinding("Su", "std::unique_ptr<>", 1);
   RegisterSimpleCppBinding("Ss", "std::shared_ptr<>", 1);
   RegisterSimpleCppBinding("Sf", "std::function<()>", 2);
