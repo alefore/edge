@@ -10,6 +10,7 @@
 #include "src/direction.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
+#include "src/transformation/composite.h"
 
 namespace afc {
 namespace editor {
@@ -34,10 +35,82 @@ struct NavigateOptions {
   std::function<size_t(LineColumn)> position_to_index;
 };
 
+struct CursorState {
+  SearchRange current;
+  SearchRange initial;
+};
+
+struct State {
+  std::unordered_map<LineColumn, CursorState> cursors;
+  NavigateOptions navigate_options;
+};
+
+class NavigateTransformation : public CompositeTransformation {
+ public:
+  NavigateTransformation(std::weak_ptr<State> state, Direction direction)
+      : state_(state), direction_(direction){};
+
+  std::wstring Serialize() const { return L""; }
+
+  futures::Value<Output> Apply(Input input) const {
+    auto global_state = state_.lock();
+    if (global_state == nullptr) return futures::Past(Output());
+    auto insert_results =
+        global_state->cursors.insert({input.position, CursorState{}});
+    CursorState state = insert_results.first->second;
+    if (insert_results.second) {
+      state.initial = global_state->navigate_options.initial_range(
+          input.buffer, input.position);
+    }
+    size_t index;
+    if (direction_ == FORWARDS) {
+      if (insert_results.second) {
+        state.current.end = state.initial.end;
+        LOG(INFO) << "Navigating forward; end: " << state.current.end;
+      }
+      state.current.begin =
+          global_state->navigate_options.position_to_index(input.position);
+      index = MidPoint(state.current);
+      if (index == state.current.begin && index < state.initial.end) {
+        state.current.begin++;
+        state.current.end++;
+        index++;
+      }
+    } else {
+      if (insert_results.second) {
+        state.current.begin = state.initial.begin;
+        LOG(INFO) << "Navigating backward; start: " << state.current.begin;
+      }
+      state.current.end =
+          global_state->navigate_options.position_to_index(input.position);
+      index = MidPoint(state.current);
+      if (index == state.current.end && index > state.initial.begin) {
+        state.current.begin--;
+        state.current.end--;
+        index--;
+      }
+    }
+    auto position =
+        global_state->navigate_options.write_index(input.position, index);
+    global_state->cursors[position] = std::move(state);
+    return futures::Past(Output::SetPosition(position));
+  }
+
+  std::unique_ptr<CompositeTransformation> Clone() const override {
+    return std::make_unique<NavigateTransformation>(state_, direction_);
+  }
+
+ private:
+  const std::weak_ptr<State> state_;
+  const Direction direction_;
+};
+
 class NavigateMode : public EditorMode {
  public:
   NavigateMode(NavigateOptions options, Modifiers modifiers)
-      : options_(std::move(options)), modifiers_(std::move(modifiers)) {}
+      : modifiers_(std::move(modifiers)),
+        state_(std::make_shared<State>(
+            State{.cursors = {}, .navigate_options = std::move(options)})) {}
   virtual ~NavigateMode() = default;
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
@@ -50,9 +123,11 @@ class NavigateMode : public EditorMode {
     switch (c) {
       case 'l':
       case 'h':
-        Navigate(buffer.get(), c == 'l'
-                                   ? modifiers_.direction
-                                   : ReverseDirection(modifiers_.direction));
+        buffer->ApplyToCursors(NewTransformation(
+            Modifiers(),
+            std::make_unique<NavigateTransformation>(
+                state_, c == 'l' ? modifiers_.direction
+                                 : ReverseDirection(modifiers_.direction))));
         break;
 
       default:
@@ -62,44 +137,8 @@ class NavigateMode : public EditorMode {
   }
 
  private:
-  void Navigate(OpenBuffer* buffer, Direction direction) {
-    size_t index;
-    if (direction == FORWARDS) {
-      if (!initial_range_.has_value()) {
-        initial_range_ = options_.initial_range(buffer, buffer->position());
-        range_.end = initial_range_.value().end;
-        LOG(INFO) << "Navigating forward; end: " << range_.end;
-      }
-      range_.begin = options_.position_to_index(buffer->position());
-      index = MidPoint(range_);
-      if (index == range_.begin && index < initial_range_.value().end) {
-        range_.begin++;
-        range_.end++;
-        index++;
-      }
-    } else {
-      if (!initial_range_.has_value()) {
-        initial_range_ = options_.initial_range(buffer, buffer->position());
-        range_.begin = initial_range_.value().begin;
-        LOG(INFO) << "Navigating backward; start: " << range_.begin;
-      }
-      range_.end = options_.position_to_index(buffer->position());
-      index = MidPoint(range_);
-      if (index == range_.end && index > initial_range_.value().end) {
-        range_.begin--;
-        range_.end--;
-        index--;
-      }
-    }
-    buffer->set_position(options_.write_index(buffer->position(), index));
-  }
-
-  const NavigateOptions options_;
   const Modifiers modifiers_;
-
-  // Starts empty and gets initialized when we first move.
-  std::optional<SearchRange> initial_range_;
-  SearchRange range_;
+  const std::shared_ptr<State> state_;
 };
 
 class NavigateCommand : public Command {
