@@ -391,6 +391,7 @@ OpenBuffer::OpenBuffer(Options options)
           syntax_data_state_ = SyntaxDataState::kPending;
           work_queue_.Schedule([this] {
             syntax_data_state_ = SyntaxDataState::kDone;
+            CHECK(tree_parser_ != nullptr);
             if (!TreeParser::IsNull(tree_parser_.get())) {
               SyntaxDataInput input;
               input.contents = contents_.copy();

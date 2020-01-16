@@ -20,6 +20,7 @@
 #include "src/line_column.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
+#include "src/parse_tree.h"
 #include "src/status.h"
 #include "src/substring.h"
 #include "src/transformation.h"
@@ -556,7 +557,7 @@ class OpenBuffer {
     kDone
   };
   SyntaxDataState syntax_data_state_ = SyntaxDataState::kDone;
-  std::shared_ptr<TreeParser> tree_parser_;
+  std::shared_ptr<TreeParser> tree_parser_ = NewNullTreeParser();
   AsyncProcessor<SyntaxDataInput, SyntaxDataOutput> syntax_data_;
   mutable AsyncProcessor<SyntaxDataZoomInput, int> syntax_data_zoom_;
   // Caches the last parse done (by syntax_data_zoom_) for a given view size.
