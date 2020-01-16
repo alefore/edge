@@ -773,12 +773,6 @@ ScrollBehaviorFactory::Default() {
   return std::make_unique<DefaultScrollBehaviorFactory>();
 }
 
-void EnterInsertMode(EditorState* editor_state) {
-  InsertModeOptions options;
-  options.editor_state = editor_state;
-  EnterInsertMode(options);
-}
-
 void EnterInsertMode(InsertModeOptions options) {
   EditorState* editor_state = options.editor_state;
   CHECK(editor_state != nullptr);

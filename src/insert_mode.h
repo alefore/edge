@@ -6,10 +6,7 @@
 #include "command.h"
 #include "editor.h"
 
-namespace afc {
-namespace editor {
-
-using std::unique_ptr;
+namespace afc::editor {
 
 std::unique_ptr<Command> NewFindCompletionCommand();
 
@@ -68,12 +65,8 @@ struct InsertModeOptions {
   std::function<bool()> start_completion;
 };
 
-// Default insert mode.
-void EnterInsertMode(EditorState* editor_state);
-
 void EnterInsertMode(InsertModeOptions options);
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif

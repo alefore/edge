@@ -438,12 +438,23 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
 
 class EnterInsertModeCommand : public Command {
  public:
+  EnterInsertModeCommand(std::optional<Modifiers> modifiers)
+      : modifiers_(std::move(modifiers)) {}
+
   wstring Description() const override { return L"enters insert mode"; }
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    EnterInsertMode(editor_state);
+    if (modifiers_.has_value()) {
+      editor_state->set_modifiers(modifiers_.value());
+    }
+    InsertModeOptions options;
+    options.editor_state = editor_state;
+    EnterInsertMode(options);
   }
+
+ private:
+  const std::optional<Modifiers> modifiers_;
 };
 
 class EnterFindMode : public Command {
@@ -840,7 +851,12 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
           L"editor.SetActiveCursorsToMarks();"));
 
   commands->Add(L"N", NewNavigationBufferCommand());
-  commands->Add(L"i", std::make_unique<EnterInsertModeCommand>());
+  commands->Add(L"i", std::make_unique<EnterInsertModeCommand>(std::nullopt));
+  commands->Add(L"I", std::make_unique<EnterInsertModeCommand>([] {
+                  Modifiers output;
+                  output.insertion = Modifiers::REPLACE;
+                  return output;
+                }()));
   commands->Add(L"f", std::make_unique<EnterFindMode>());
   commands->Add(L"r", std::make_unique<ReverseDirectionCommand>());
   commands->Add(L"R", std::make_unique<InsertionModifierCommand>());
