@@ -132,23 +132,17 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
 
   auto output_type = std::make_unique<ObjectType>(L"TransformationOutput");
   environment->Define(
-      L"TransformationOutput",
-      vm::NewCallback(
-          std::function<std::shared_ptr<CompositeTransformation::Output>()>([] {
-            return std::make_shared<CompositeTransformation::Output>();
-          })));
+      L"TransformationOutput", vm::NewCallback([] {
+        return std::make_shared<CompositeTransformation::Output>();
+      }));
 
   output_type->AddField(
-      L"push",
-      vm::NewCallback(
-          std::function<std::shared_ptr<CompositeTransformation::Output>(
-              std::shared_ptr<CompositeTransformation::Output>,
-              Transformation*)>(
-              [](std::shared_ptr<CompositeTransformation::Output> output,
-                 Transformation* transformation) {
-                output->Push(transformation->Clone());
-                return output;
-              })));
+      L"push", vm::NewCallback(
+                   [](std::shared_ptr<CompositeTransformation::Output> output,
+                      Transformation* transformation) {
+                     output->Push(transformation->Clone());
+                     return output;
+                   }));
 
   environment->DefineType(L"TransformationOutput", std::move(output_type));
 }
