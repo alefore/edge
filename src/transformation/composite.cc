@@ -119,11 +119,10 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
 
   input_type->AddField(
       L"position",
-      vm::NewCallback(std::function<LineColumn(
-                          std::shared_ptr<CompositeTransformation::Input>)>(
+      vm::NewCallback(
           [](std::shared_ptr<CompositeTransformation::Input> input) {
             return input->position;
-          })));
+          }));
   environment->DefineType(L"TransformationInput", std::move(input_type));
 
   auto output_type = std::make_unique<ObjectType>(L"TransformationOutput");
