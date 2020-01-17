@@ -275,7 +275,7 @@ class OpenBuffer {
     // modifications).
     kOnlyOne
   };
-  void Undo(UndoMode undo_mode);
+  futures::Value<bool> Undo(UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);
 

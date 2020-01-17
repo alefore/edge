@@ -1835,7 +1835,7 @@ void OpenBuffer::PopTransformationStack() {
   }
 }
 
-void OpenBuffer::Undo(UndoMode undo_mode) {
+futures::Value<bool> OpenBuffer::Undo(UndoMode undo_mode) {
   struct Data {
     std::list<std::unique_ptr<TransformationStack>>* source;
     std::list<std::unique_ptr<TransformationStack>>* target;
@@ -1849,24 +1849,27 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
     data->source = &undo_future_;
     data->target = &undo_past_;
   }
-  futures::While([this, undo_mode, data] {
-    if (data->repetitions == editor()->repetitions() || data->source->empty()) {
-      return futures::Past(IterationControlCommand::kStop);
-    }
-    Transformation::Input input(this);
-    input.position = position();
-    return futures::ImmediateTransform(
-        data->source->back()->Apply(input),
-        [this, undo_mode, data](Transformation::Result result) {
-          data->target->push_back(std::move(result.undo_stack));
-          data->source->pop_back();
-          if (result.modified_buffer ||
-              undo_mode == OpenBuffer::UndoMode::kOnlyOne) {
-            data->repetitions++;
-          }
-          return IterationControlCommand::kContinue;
-        });
-  });
+  return futures::ImmediateTransform(
+      futures::While([this, undo_mode, data] {
+        if (data->repetitions == editor()->repetitions() ||
+            data->source->empty()) {
+          return futures::Past(IterationControlCommand::kStop);
+        }
+        Transformation::Input input(this);
+        input.position = position();
+        return futures::ImmediateTransform(
+            data->source->back()->Apply(input),
+            [this, undo_mode, data](Transformation::Result result) {
+              data->target->push_back(std::move(result.undo_stack));
+              data->source->pop_back();
+              if (result.modified_buffer ||
+                  undo_mode == OpenBuffer::UndoMode::kOnlyOne) {
+                data->repetitions++;
+              }
+              return IterationControlCommand::kContinue;
+            });
+      }),
+      [](IterationControlCommand) { return true; });
 }
 
 void OpenBuffer::set_filter(unique_ptr<Value> filter) {
