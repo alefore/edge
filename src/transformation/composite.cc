@@ -118,6 +118,11 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
   auto input_type = std::make_unique<ObjectType>(L"TransformationInput");
 
   input_type->AddField(
+      L"range", vm::NewCallback(
+                    [](std::shared_ptr<CompositeTransformation::Input> input) {
+                      return input->range;
+                    }));
+  input_type->AddField(
       L"position",
       vm::NewCallback(
           [](std::shared_ptr<CompositeTransformation::Input> input) {
