@@ -128,6 +128,12 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
           [](std::shared_ptr<CompositeTransformation::Input> input) {
             return input->position;
           }));
+  input_type->AddField(
+      L"final_mode",
+      vm::NewCallback(
+          [](std::shared_ptr<CompositeTransformation::Input> input) {
+            return input->mode == Transformation::Input::Mode::kFinal;
+          }));
   environment->DefineType(L"TransformationInput", std::move(input_type));
 
   auto output_type = std::make_unique<ObjectType>(L"TransformationOutput");
