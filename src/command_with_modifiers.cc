@@ -202,9 +202,11 @@ wstring TransformationArgumentBuildStatus(const Modifiers& modifiers,
 class CommandWithModifiersMode : public EditorMode {
  public:
   CommandWithModifiersMode(wstring name, EditorState* editor_state,
+                           Modifiers initial_value,
                            CommandWithModifiersHandler handler)
       : name_(std::move(name)),
         buffer_(editor_state->current_buffer()),
+        initial_value_(std::move(initial_value)),
         handler_(std::move(handler)) {
     CHECK(buffer_ != nullptr);
     RunHandler(editor_state, Transformation::Input::Mode::kPreview);
@@ -248,12 +250,7 @@ class CommandWithModifiersMode : public EditorMode {
   }
 
   Modifiers BuildModifiers() {
-    Modifiers modifiers;
-    modifiers.cursors_affected =
-        buffer_->Read(buffer_variables::multiple_cursors)
-            ? Modifiers::AFFECT_ALL_CURSORS
-            : Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
-    modifiers.repetitions = 0;
+    auto modifiers = initial_value_;
     for (const auto& c : modifiers_string_) {
       TransformationArgumentApplyChar(c, &modifiers);
     }
@@ -267,6 +264,7 @@ class CommandWithModifiersMode : public EditorMode {
 
   const wstring name_;
   const std::shared_ptr<OpenBuffer> buffer_;
+  const Modifiers initial_value_;
   const CommandWithModifiersHandler handler_;
   wstring modifiers_string_;
 };
@@ -282,10 +280,15 @@ class CommandWithModifiers : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
     auto buffer = editor_state->current_buffer();
-    if (buffer != nullptr) {
-      buffer->set_mode(std::make_unique<CommandWithModifiersMode>(
-          name_, editor_state, handler_));
-    }
+    if (buffer == nullptr) return;
+    Modifiers initial_modifiers;
+    initial_modifiers.cursors_affected =
+        buffer->Read(buffer_variables::multiple_cursors)
+            ? Modifiers::AFFECT_ALL_CURSORS
+            : Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
+    initial_modifiers.repetitions = 0;
+    buffer->set_mode(std::make_unique<CommandWithModifiersMode>(
+        name_, editor_state, initial_modifiers, handler_));
   }
 
  private:
