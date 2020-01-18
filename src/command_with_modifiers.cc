@@ -148,6 +148,57 @@ bool TransformationArgumentApplyChar(wchar_t c, Modifiers* modifiers) {
   return true;
 }
 
+wstring TransformationArgumentBuildStatus(const Modifiers& modifiers,
+                                          std::wstring name) {
+  wstring status = name;
+  if (modifiers.structure != StructureChar()) {
+    status += L" " + modifiers.structure->ToString();
+  }
+  if (modifiers.direction == BACKWARDS) {
+    status += L" reverse";
+  }
+  if (modifiers.structure_range ==
+      Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION) {
+    status += L" backward";
+  } else if (modifiers.structure_range ==
+             Modifiers::FROM_CURRENT_POSITION_TO_END) {
+    status += L" forward";
+  }
+  if (modifiers.cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
+    status += L" cursors";
+  }
+  if (modifiers.repetitions > 1) {
+    status += L" " + std::to_wstring(modifiers.repetitions);
+  }
+  if (modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
+    status += L" preserve";
+  }
+
+  status += L" ";
+  switch (modifiers.boundary_begin) {
+    case Modifiers::LIMIT_NEIGHBOR:
+      status += L"<";
+      break;
+    case Modifiers::LIMIT_CURRENT:
+      status += L"(";
+      break;
+    case Modifiers::CURRENT_POSITION:
+      status += L"[";
+  }
+  switch (modifiers.boundary_end) {
+    case Modifiers::LIMIT_NEIGHBOR:
+      status += L">";
+      break;
+    case Modifiers::LIMIT_CURRENT:
+      status += L")";
+      break;
+    case Modifiers::CURRENT_POSITION:
+      status += L"]";
+  }
+
+  return status;
+}
+
 class CommandWithModifiersMode : public EditorMode {
  public:
   CommandWithModifiersMode(wstring name, EditorState* editor_state,
@@ -209,58 +260,9 @@ class CommandWithModifiersMode : public EditorMode {
     if (modifiers.repetitions == 0) {
       modifiers.repetitions = 1;
     }
-    buffer_->status()->SetInformationText(BuildStatus(modifiers));
+    buffer_->status()->SetInformationText(
+        TransformationArgumentBuildStatus(modifiers, name_));
     return modifiers;
-  }
-
-  wstring BuildStatus(const Modifiers& modifiers) {
-    wstring status = name_;
-    if (modifiers.structure != StructureChar()) {
-      status += L" " + modifiers.structure->ToString();
-    }
-    if (modifiers.direction == BACKWARDS) {
-      status += L" reverse";
-    }
-    if (modifiers.structure_range ==
-        Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION) {
-      status += L" backward";
-    } else if (modifiers.structure_range ==
-               Modifiers::FROM_CURRENT_POSITION_TO_END) {
-      status += L" forward";
-    }
-    if (modifiers.cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
-      status += L" cursors";
-    }
-    if (modifiers.repetitions > 1) {
-      status += L" " + std::to_wstring(modifiers.repetitions);
-    }
-    if (modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
-      status += L" preserve";
-    }
-
-    status += L" ";
-    switch (modifiers.boundary_begin) {
-      case Modifiers::LIMIT_NEIGHBOR:
-        status += L"<";
-        break;
-      case Modifiers::LIMIT_CURRENT:
-        status += L"(";
-        break;
-      case Modifiers::CURRENT_POSITION:
-        status += L"[";
-    }
-    switch (modifiers.boundary_end) {
-      case Modifiers::LIMIT_NEIGHBOR:
-        status += L">";
-        break;
-      case Modifiers::LIMIT_CURRENT:
-        status += L")";
-        break;
-      case Modifiers::CURRENT_POSITION:
-        status += L"]";
-    }
-
-    return status;
   }
 
   const wstring name_;
