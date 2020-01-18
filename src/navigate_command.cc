@@ -48,8 +48,9 @@ struct NavigateOptions {
 };
 
 struct NavigateOperation {
-  enum class Type { kForward, kBackward };
+  enum class Type { kForward, kBackward, kNumber };
   Type type;
+  size_t number = 0;
 };
 
 struct NavigateState {
@@ -66,6 +67,19 @@ bool TransformationArgumentApplyChar(wint_t c, NavigateState* state) {
 
     case 'h':
       state->operations.push_back({NavigateOperation::Type::kBackward});
+      return true;
+
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      state->operations.push_back({NavigateOperation::Type::kNumber,
+                                   .number = static_cast<size_t>(c - '1')});
       return true;
   }
   return false;
@@ -97,6 +111,18 @@ LineColumn AdjustPosition(const NavigateState& navigate_state,
         if (index == range.begin() && index > initial_range.begin()) {
           range = SearchRange(range.begin() - 1, range.end() - 1);
         }
+        break;
+      case NavigateOperation::Type::kNumber: {
+        size_t slice_width = max(1ul, range.size() / 9);
+        size_t new_begin =
+            min(range.begin() + slice_width * operation.number, range.end());
+        int overlap = slice_width / 2;
+        range = SearchRange(
+            max(range.begin(), static_cast<size_t>(max(
+                                   0, static_cast<int>(new_begin) - overlap))),
+            min(new_begin + slice_width + overlap, range.end()));
+        break;
+      }
     }
     index = range.MidPoint();
   }
