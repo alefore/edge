@@ -274,7 +274,7 @@ LineNumber LineNumber::next() const {
 }
 
 LineNumber LineNumber::previous() const {
-  CHECK(line != 0);
+  CHECK_GT(line, 0);
   return LineNumber(line - 1);
 }
 
@@ -404,6 +404,18 @@ std::wstring ColumnNumber::ToUserString() const {
 }
 
 std::wstring ColumnNumber::Serialize() const { return std::to_wstring(column); }
+
+ColumnNumber ColumnNumber::next() const {
+  if (column == std::numeric_limits<size_t>::max()) {
+    return *this;
+  }
+  return ColumnNumber(column + 1);
+}
+
+ColumnNumber ColumnNumber::previous() const {
+  CHECK_GT(column, 0);
+  return ColumnNumber(column - 1);
+}
 
 ColumnNumber ColumnNumber::MinusHandlingOverflow(
     const ColumnNumberDelta& value) const {

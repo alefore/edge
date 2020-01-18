@@ -158,6 +158,9 @@ struct ColumnNumber {
   std::wstring ToUserString() const;
   std::wstring Serialize() const;
 
+  ColumnNumber next() const;
+  ColumnNumber previous() const;
+
   // a.MinusHadlingOverflow(value) is equivalent to `a - value` if `a` is
   // greater than or equal to `value` (and `ColumnNumber(0)` otherwise).
   ColumnNumber MinusHandlingOverflow(const ColumnNumberDelta& value) const;
