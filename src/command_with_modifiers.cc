@@ -58,10 +58,6 @@ bool TransformationArgumentApplyChar(wchar_t c, Modifiers* modifiers) {
       modifiers->repetitions = 10 * modifiers->repetitions + c - '0';
       break;
 
-    case Terminal::BACKSPACE:
-      modifiers->repetitions--;
-      break;
-
     case '(':
       modifiers->boundary_begin = Modifiers::CURRENT_POSITION;
       break;
@@ -166,17 +162,28 @@ class CommandWithModifiersMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) override {
     buffer_->Undo(OpenBuffer::UndoMode::kOnlyOne)
         .SetConsumer([this, c, editor_state](bool) {
-          if (!TransformationArgumentApplyChar(c, nullptr)) {
-            RunHandler(editor_state, Transformation::Input::Mode::kFinal);
-            buffer_->ResetMode();
-            buffer_->status()->Reset();
-            editor_state->status()->Reset();
-            if (c != L'\n') {
-              editor_state->ProcessInput(c);
-            }
-          } else {
-            modifiers_string_.push_back(c);
-            RunHandler(editor_state, Transformation::Input::Mode::kPreview);
+          switch (c) {
+            case Terminal::BACKSPACE:
+              if (!modifiers_string_.empty()) {
+                modifiers_string_.pop_back();
+              }
+              RunHandler(editor_state, Transformation::Input::Mode::kPreview);
+              break;
+            default:
+              if (!TransformationArgumentApplyChar(c, nullptr)) {
+                if (static_cast<int>(c) != Terminal::ESCAPE) {
+                  RunHandler(editor_state, Transformation::Input::Mode::kFinal);
+                }
+                buffer_->ResetMode();
+                buffer_->status()->Reset();
+                editor_state->status()->Reset();
+                if (c != L'\n') {
+                  editor_state->ProcessInput(c);
+                }
+              } else {
+                modifiers_string_.push_back(c);
+                RunHandler(editor_state, Transformation::Input::Mode::kPreview);
+              }
           }
         });
   }
