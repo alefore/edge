@@ -254,9 +254,6 @@ class CommandWithModifiersMode : public EditorMode {
     for (const auto& c : modifiers_string_) {
       TransformationArgumentApplyChar(c, &modifiers);
     }
-    if (modifiers.repetitions == 0) {
-      modifiers.repetitions = 1;
-    }
     buffer_->status()->SetInformationText(
         TransformationArgumentBuildStatus(modifiers, name_));
     return modifiers;

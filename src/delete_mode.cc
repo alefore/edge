@@ -15,10 +15,13 @@ std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
                                                    Modifiers modifiers) {
   CHECK(editor_state != nullptr);
   CHECK(buffer != nullptr);
-  DeleteOptions options;
-  options.modifiers = modifiers;
-  options.copy_to_paste_buffer = true;
+  if (modifiers.repetitions == 0) {
+    modifiers.repetitions = 1;
+  }
 
+  DeleteOptions options;
+  options.modifiers = std::move(modifiers);
+  options.copy_to_paste_buffer = true;
   return NewDeleteTransformation(options);
 }
 
