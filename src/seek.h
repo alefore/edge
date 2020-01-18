@@ -25,6 +25,8 @@ class Seek {
   wchar_t read() const;
 
   Result Once() const;
+  // If seeking backwards, leaves the position at the end of the previous line.
+  Result ToNextLine() const;
   Result WhileCurrentCharIsUpper() const;
   Result WhileCurrentCharIsLower() const;
   Result UntilCurrentCharIsUpper() const;

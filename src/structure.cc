@@ -379,6 +379,74 @@ Structure* StructureCursor() {
   return &output;
 }
 
+Structure* StructureSentence() {
+  static const std::wstring exclamation_signs = L".?!:";
+  static const std::wstring spaces = L" \n*#";
+  // The exclamation signs at the end are considered part of the sentence.
+  class Impl : public Structure {
+   public:
+    wstring ToString() override { return L"sentence"; }
+
+    Structure* Lower() override { return StructureSymbol(); }
+
+    SpaceBehavior space_behavior() override {
+      return SpaceBehavior::kBackwards;
+    }
+
+    SearchQuery search_query() override { return SearchQuery::kPrompt; }
+
+    SearchRange search_range() override { return SearchRange::kRegion; }
+
+    void SeekToNext(OpenBuffer* buffer, Direction direction,
+                    LineColumn* position) override {
+      Seek(*buffer->contents(), position)
+          .WithDirection(direction)
+          .WrappingLines()
+          .UntilCurrentCharNotIn(spaces);
+    }
+
+    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+                     LineColumn* position) override {
+      StartSeekToLimit(buffer, position);
+      if (direction == BACKWARDS) {
+        Seek(*buffer->contents(), position)
+            .Backwards()
+            .WrappingLines()
+            .UntilCurrentCharNotIn(exclamation_signs + spaces);
+      }
+
+      while (true) {
+        Seek seek(*buffer->contents(), position);
+        seek.WithDirection(direction);
+        if (seek.UntilCurrentCharIn(exclamation_signs) == Seek::DONE) {
+          if (direction == FORWARDS) {
+            return seek.UntilCurrentCharNotIn(exclamation_signs) == Seek::DONE;
+          }
+          return seek.WithDirection(FORWARDS)
+                     .WrappingLines()
+                     .UntilNextCharNotIn(spaces + exclamation_signs) ==
+                 Seek::DONE;
+        }
+        if (seek.ToNextLine() == Seek::UNABLE_TO_ADVANCE) {
+          return false;
+        }
+        if (buffer->contents()->at(position->line)->EndColumn() ==
+            ColumnNumber(0)) {
+          if (direction == FORWARDS) {
+            return false;
+          }
+          return seek.WithDirection(FORWARDS)
+                     .WrappingLines()
+                     .UntilNextCharNotIn(spaces + exclamation_signs) ==
+                 Seek::DONE;
+        }
+      }
+    }
+  };
+  static Impl output;
+  return &output;
+};
+
 Structure* StructureParagraph() {
   class Impl : public Structure {
    public:

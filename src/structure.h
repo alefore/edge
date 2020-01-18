@@ -73,6 +73,7 @@ Structure* StructurePage();
 Structure* StructureSearch();
 Structure* StructureTree();
 Structure* StructureCursor();
+Structure* StructureSentence();
 Structure* StructureParagraph();
 Structure* StructureBuffer();
 

@@ -127,6 +127,10 @@ bool TransformationArgumentApplyChar(wchar_t c, Modifiers* modifiers) {
       set_structure(StructureTree());
       break;
 
+    case 'S':
+      set_structure(StructureSentence());
+      break;
+
     case 'P':
       set_structure(StructureParagraph());
       break;

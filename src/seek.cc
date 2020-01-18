@@ -37,6 +37,25 @@ Seek::Result Seek::Once() const {
   return Advance(position_) ? DONE : UNABLE_TO_ADVANCE;
 }
 
+Seek::Result Seek::ToNextLine() const {
+  LineColumn next_position;
+  if (direction_ == FORWARDS) {
+    next_position.line = position_->line.next();
+  } else {
+    if (position_->line == LineNumber(0)) {
+      return UNABLE_TO_ADVANCE;
+    }
+    next_position.line = position_->line.previous();
+    next_position.column = contents_.at(next_position.line)->EndColumn();
+  }
+
+  if (!range_.Contains(next_position)) {
+    return UNABLE_TO_ADVANCE;
+  }
+  *position_ = next_position;
+  return DONE;
+}
+
 Seek::Result Seek::WhileCurrentCharIsUpper() const {
   while (iswupper(read())) {
     if (!Advance(position_)) {
