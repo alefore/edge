@@ -10,6 +10,148 @@ namespace afc {
 namespace editor {
 
 namespace {
+bool TransformationArgumentApplyChar(wchar_t c, Modifiers* modifiers) {
+  Modifiers dummy;
+  if (modifiers == nullptr) {
+    modifiers = &dummy;
+  }
+  auto set_structure = [modifiers](Structure* structure) {
+    modifiers->structure =
+        modifiers->structure == structure ? StructureChar() : structure;
+  };
+
+  switch (c) {
+    case '+':
+      if (modifiers->repetitions == 0) {
+        modifiers->repetitions = 1;
+      }
+      modifiers->repetitions++;
+      break;
+
+    case '-':
+      if (modifiers->repetitions > 0) {
+        modifiers->repetitions--;
+      }
+      break;
+
+    case '*':
+      switch (modifiers->cursors_affected) {
+        case Modifiers::AFFECT_ONLY_CURRENT_CURSOR:
+          modifiers->cursors_affected = Modifiers::AFFECT_ALL_CURSORS;
+          break;
+        case Modifiers::AFFECT_ALL_CURSORS:
+          modifiers->cursors_affected = Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
+          break;
+      }
+      break;
+
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      modifiers->repetitions = 10 * modifiers->repetitions + c - '0';
+      break;
+
+    case Terminal::BACKSPACE:
+      modifiers->repetitions--;
+      break;
+
+    case '(':
+      modifiers->boundary_begin = Modifiers::CURRENT_POSITION;
+      break;
+
+    case '[':
+      modifiers->boundary_begin = Modifiers::LIMIT_CURRENT;
+      break;
+
+    case '{':
+      modifiers->boundary_begin = Modifiers::LIMIT_NEIGHBOR;
+      break;
+
+    case ')':
+      modifiers->boundary_end = Modifiers::CURRENT_POSITION;
+      break;
+
+    case ']':
+      if (modifiers->boundary_end == Modifiers::CURRENT_POSITION) {
+        modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
+      } else if (modifiers->boundary_end == Modifiers::LIMIT_CURRENT) {
+        modifiers->boundary_end = Modifiers::LIMIT_NEIGHBOR;
+      } else if (modifiers->boundary_end == Modifiers::LIMIT_NEIGHBOR) {
+        modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
+        if (modifiers->repetitions == 0) {
+          modifiers->repetitions = 1;
+        }
+        modifiers->repetitions++;
+      }
+      break;
+
+    case 'r':
+      modifiers->direction = ReverseDirection(modifiers->direction);
+      break;
+
+    case 'f':
+      modifiers->structure_range =
+          modifiers->structure_range == Modifiers::FROM_CURRENT_POSITION_TO_END
+              ? Modifiers::ENTIRE_STRUCTURE
+              : Modifiers::FROM_CURRENT_POSITION_TO_END;
+      break;
+
+    case 'b':
+      modifiers->structure_range =
+          modifiers->structure_range ==
+                  Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
+              ? Modifiers::ENTIRE_STRUCTURE
+              : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+      break;
+
+    case 'e':
+      set_structure(StructureLine());
+      break;
+
+    case 'w':
+      set_structure(StructureWord());
+      break;
+
+    case 'W':
+      set_structure(StructureSymbol());
+      break;
+
+    case 'B':
+      set_structure(StructureBuffer());
+      break;
+
+    case 'c':
+      set_structure(StructureCursor());
+      break;
+
+    case 't':
+      set_structure(StructureTree());
+      break;
+
+    case 'P':
+      set_structure(StructureParagraph());
+      break;
+
+    case 'p':
+      modifiers->delete_type =
+          modifiers->delete_type == Modifiers::DELETE_CONTENTS
+              ? Modifiers::PRESERVE_CONTENTS
+              : Modifiers::DELETE_CONTENTS;
+      break;
+
+    default:
+      return false;
+  }
+  return true;
+}
+
 class CommandWithModifiersMode : public EditorMode {
  public:
   CommandWithModifiersMode(wstring name, EditorState* editor_state,
@@ -24,7 +166,7 @@ class CommandWithModifiersMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) override {
     buffer_->Undo(OpenBuffer::UndoMode::kOnlyOne)
         .SetConsumer([this, c, editor_state](bool) {
-          if (!ApplyChar(c, nullptr)) {
+          if (!TransformationArgumentApplyChar(c, nullptr)) {
             RunHandler(editor_state, Transformation::Input::Mode::kFinal);
             buffer_->ResetMode();
             buffer_->status()->Reset();
@@ -55,156 +197,13 @@ class CommandWithModifiersMode : public EditorMode {
             : Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
     modifiers.repetitions = 0;
     for (const auto& c : modifiers_string_) {
-      ApplyChar(c, &modifiers);
+      TransformationArgumentApplyChar(c, &modifiers);
     }
     if (modifiers.repetitions == 0) {
       modifiers.repetitions = 1;
     }
     buffer_->status()->SetInformationText(BuildStatus(modifiers));
     return modifiers;
-  }
-
-  static bool ApplyChar(wchar_t c, Modifiers* modifiers) {
-    Modifiers dummy;
-    if (modifiers == nullptr) {
-      modifiers = &dummy;
-    }
-    switch (c) {
-      case '+':
-        if (modifiers->repetitions == 0) {
-          modifiers->repetitions = 1;
-        }
-        modifiers->repetitions++;
-        break;
-
-      case '-':
-        if (modifiers->repetitions > 0) {
-          modifiers->repetitions--;
-        }
-        break;
-
-      case '*':
-        switch (modifiers->cursors_affected) {
-          case Modifiers::AFFECT_ONLY_CURRENT_CURSOR:
-            modifiers->cursors_affected = Modifiers::AFFECT_ALL_CURSORS;
-            break;
-          case Modifiers::AFFECT_ALL_CURSORS:
-            modifiers->cursors_affected = Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
-            break;
-        }
-        break;
-
-      case '0':
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-      case '9':
-        modifiers->repetitions = 10 * modifiers->repetitions + c - '0';
-        break;
-
-      case Terminal::BACKSPACE:
-        modifiers->repetitions--;
-        break;
-
-      case '(':
-        modifiers->boundary_begin = Modifiers::CURRENT_POSITION;
-        break;
-
-      case '[':
-        modifiers->boundary_begin = Modifiers::LIMIT_CURRENT;
-        break;
-
-      case '{':
-        modifiers->boundary_begin = Modifiers::LIMIT_NEIGHBOR;
-        break;
-
-      case ')':
-        modifiers->boundary_end = Modifiers::CURRENT_POSITION;
-        break;
-
-      case ']':
-        if (modifiers->boundary_end == Modifiers::CURRENT_POSITION) {
-          modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
-        } else if (modifiers->boundary_end == Modifiers::LIMIT_CURRENT) {
-          modifiers->boundary_end = Modifiers::LIMIT_NEIGHBOR;
-        } else if (modifiers->boundary_end == Modifiers::LIMIT_NEIGHBOR) {
-          modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
-          if (modifiers->repetitions == 0) {
-            modifiers->repetitions = 1;
-          }
-          modifiers->repetitions++;
-        }
-        break;
-
-      case 'r':
-        modifiers->direction = ReverseDirection(modifiers->direction);
-        break;
-
-      case 'f':
-        modifiers->structure_range =
-            modifiers->structure_range ==
-                    Modifiers::FROM_CURRENT_POSITION_TO_END
-                ? Modifiers::ENTIRE_STRUCTURE
-                : Modifiers::FROM_CURRENT_POSITION_TO_END;
-        break;
-
-      case 'b':
-        modifiers->structure_range =
-            modifiers->structure_range ==
-                    Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
-                ? Modifiers::ENTIRE_STRUCTURE
-                : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-        break;
-
-      case 'e':
-        SetStructure(StructureLine(), modifiers);
-        break;
-
-      case 'w':
-        SetStructure(StructureWord(), modifiers);
-        break;
-
-      case 'W':
-        SetStructure(StructureSymbol(), modifiers);
-        break;
-
-      case 'B':
-        SetStructure(StructureBuffer(), modifiers);
-        break;
-
-      case 'c':
-        SetStructure(StructureCursor(), modifiers);
-        break;
-
-      case 't':
-        SetStructure(StructureTree(), modifiers);
-        break;
-
-      case 'P':
-        SetStructure(StructureParagraph(), modifiers);
-        break;
-
-      case 'p':
-        modifiers->delete_type =
-            modifiers->delete_type == Modifiers::DELETE_CONTENTS
-                ? Modifiers::PRESERVE_CONTENTS
-                : Modifiers::DELETE_CONTENTS;
-        break;
-
-      default:
-        return false;
-    }
-    return true;
-  }
-
-  static void SetStructure(Structure* structure, Modifiers* modifiers) {
-    modifiers->structure =
-        modifiers->structure == structure ? StructureChar() : structure;
   }
 
   wstring BuildStatus(const Modifiers& modifiers) {
