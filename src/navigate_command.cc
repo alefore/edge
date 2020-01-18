@@ -228,10 +228,6 @@ class NavigateCommand : public Command {
                   std::make_unique<NavigateTransformation>(std::move(state)));
             }));
   }
-
- private:
-  const map<wchar_t, Command*> commands_;
-  const wstring mode_description_;
 };
 
 std::unique_ptr<Command> NewNavigateCommand() {
