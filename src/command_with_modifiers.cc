@@ -199,17 +199,26 @@ wstring TransformationArgumentBuildStatus(const Modifiers& modifiers,
   return status;
 }
 
-class CommandWithModifiersMode : public EditorMode {
+Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
+    const Modifiers& modifiers) {
+  return modifiers.cursors_affected;
+}
+
+template <typename Argument>
+class TransformationArgumentMode : public EditorMode {
  public:
-  CommandWithModifiersMode(wstring name, EditorState* editor_state,
-                           Modifiers initial_value,
-                           CommandWithModifiersHandler handler)
+  using TransformationFactory = std::function<std::unique_ptr<Transformation>(
+      EditorState*, OpenBuffer*, Argument)>;
+
+  TransformationArgumentMode(wstring name, EditorState* editor_state,
+                             Argument initial_value,
+                             TransformationFactory transformation_factory)
       : name_(std::move(name)),
         buffer_(editor_state->current_buffer()),
         initial_value_(std::move(initial_value)),
-        handler_(std::move(handler)) {
+        transformation_factory_(std::move(transformation_factory)) {
     CHECK(buffer_ != nullptr);
-    RunHandler(editor_state, Transformation::Input::Mode::kPreview);
+    Transform(editor_state, Transformation::Input::Mode::kPreview);
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
@@ -217,15 +226,15 @@ class CommandWithModifiersMode : public EditorMode {
         .SetConsumer([this, c, editor_state](bool) {
           switch (c) {
             case Terminal::BACKSPACE:
-              if (!modifiers_string_.empty()) {
-                modifiers_string_.pop_back();
+              if (!argument_string_.empty()) {
+                argument_string_.pop_back();
               }
-              RunHandler(editor_state, Transformation::Input::Mode::kPreview);
+              Transform(editor_state, Transformation::Input::Mode::kPreview);
               break;
             default:
               if (!TransformationArgumentApplyChar(c, nullptr)) {
                 if (static_cast<int>(c) != Terminal::ESCAPE) {
-                  RunHandler(editor_state, Transformation::Input::Mode::kFinal);
+                  Transform(editor_state, Transformation::Input::Mode::kFinal);
                 }
                 buffer_->ResetMode();
                 buffer_->status()->Reset();
@@ -234,36 +243,33 @@ class CommandWithModifiersMode : public EditorMode {
                   editor_state->ProcessInput(c);
                 }
               } else {
-                modifiers_string_.push_back(c);
-                RunHandler(editor_state, Transformation::Input::Mode::kPreview);
+                argument_string_.push_back(c);
+                Transform(editor_state, Transformation::Input::Mode::kPreview);
               }
           }
         });
   }
 
  private:
-  void RunHandler(EditorState* editor_state,
-                  Transformation::Input::Mode apply_mode) {
-    Modifiers modifiers = BuildModifiers();
-    buffer_->ApplyToCursors(handler_(editor_state, buffer_.get(), modifiers),
-                            modifiers.cursors_affected, apply_mode);
-  }
-
-  Modifiers BuildModifiers() {
-    auto modifiers = initial_value_;
-    for (const auto& c : modifiers_string_) {
-      TransformationArgumentApplyChar(c, &modifiers);
+  void Transform(EditorState* editor_state,
+                 Transformation::Input::Mode apply_mode) {
+    auto argument = initial_value_;
+    for (const auto& c : argument_string_) {
+      TransformationArgumentApplyChar(c, &argument);
     }
     buffer_->status()->SetInformationText(
-        TransformationArgumentBuildStatus(modifiers, name_));
-    return modifiers;
+        TransformationArgumentBuildStatus(argument, name_));
+    auto cursors_affected = TransformationArgumentCursorsAffected(argument);
+    buffer_->ApplyToCursors(transformation_factory_(editor_state, buffer_.get(),
+                                                    std::move(argument)),
+                            cursors_affected, apply_mode);
   }
 
   const wstring name_;
   const std::shared_ptr<OpenBuffer> buffer_;
-  const Modifiers initial_value_;
-  const CommandWithModifiersHandler handler_;
-  wstring modifiers_string_;
+  const Argument initial_value_;
+  const TransformationFactory transformation_factory_;
+  wstring argument_string_;
 };
 
 class CommandWithModifiers : public Command {
@@ -284,7 +290,7 @@ class CommandWithModifiers : public Command {
             ? Modifiers::AFFECT_ALL_CURSORS
             : Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
     initial_modifiers.repetitions = 0;
-    buffer->set_mode(std::make_unique<CommandWithModifiersMode>(
+    buffer->set_mode(std::make_unique<TransformationArgumentMode<Modifiers>>(
         name_, editor_state, initial_modifiers, handler_));
   }
 
