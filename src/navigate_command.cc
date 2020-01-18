@@ -20,9 +20,21 @@ namespace editor {
 
 using std::unique_ptr;
 
-struct SearchRange {
-  size_t begin;
-  size_t end;
+class SearchRange {
+ public:
+  SearchRange(size_t begin, size_t end) : begin_(begin), end_(end) {
+    CHECK_LE(begin_, end_);
+  }
+
+  size_t begin() const { return begin_; }
+  size_t end() const { return end_; }
+  size_t size() const { return end_ - begin_; }
+
+  size_t MidPoint() const { return (begin_ + end_) / 2; }
+
+ private:
+  size_t begin_;
+  size_t end_;
 };
 
 struct NavigateOptions {
@@ -46,8 +58,6 @@ struct NavigateState {
   std::vector<NavigateOperation> operations;
 };
 
-size_t MidPoint(const SearchRange& r) { return (r.begin + r.end) / 2; }
-
 bool TransformationArgumentApplyChar(wint_t c, NavigateState* state) {
   switch (c) {
     case 'l':
@@ -66,24 +76,22 @@ LineColumn AdjustPosition(const NavigateState& navigate_state,
   const SearchRange initial_range =
       navigate_state.navigate_options.initial_range(buffer, position);
   auto range = initial_range;
-  size_t index = MidPoint(range);
+  size_t index = range.MidPoint();
   for (auto& operation : navigate_state.operations) {
     switch (operation.type) {
       case NavigateOperation::Type::kForward:
-        range.begin = index;
-        index = MidPoint(range);
-        if (index == range.begin && index < initial_range.end) {
-          range.begin++;
-          range.end++;
+        if (range.size() > 1) range = SearchRange(index, range.end());
+        index = range.MidPoint();
+        if (index == range.begin() && index < initial_range.end()) {
+          range = SearchRange(range.begin() + 1, range.end() + 1);
         }
         break;
 
       case NavigateOperation::Type::kBackward:
-        range.end = index;
-        index = MidPoint(range);
-        if (index == range.end && index > initial_range.begin) {
-          range.begin--;
-          range.end--;
+        if (range.size() > 1) range = SearchRange(range.begin(), index);
+        index = range.MidPoint();
+        if (index == range.begin() && index > initial_range.begin()) {
+          range = SearchRange(range.begin() - 1, range.end() - 1);
         }
     }
   }
@@ -116,12 +124,14 @@ class NavigateTransformation : public CompositeTransformation {
       for (auto& direction : directions) {
         auto state_copy = state_;
         state_copy.operations.push_back(NavigateOperation{direction});
+        auto marker = AdjustPosition(state_copy, input.buffer, input.position);
+        if (marker == input.position) continue;
+        output.Push(NewSetPositionTransformation(marker));
+
         DeleteOptions delete_options;
         delete_options.copy_to_paste_buffer = false;
         delete_options.mode = Transformation::Input::Mode::kPreview;
         delete_options.modifiers.delete_type = Modifiers::PRESERVE_CONTENTS;
-        output.Push(NewSetPositionTransformation(
-            AdjustPosition(state_copy, input.buffer, input.position)));
         output.Push(NewDeleteTransformation(std::move(delete_options)));
       }
     }
@@ -173,22 +183,17 @@ class NavigateCommand : public Command {
           [](const OpenBuffer* buffer, LineColumn position) {
             auto contents = buffer->LineAt(position.line);
             auto contents_str = contents->ToString();
-            SearchRange output;
-
             size_t previous_space = contents_str.find_last_not_of(
                 buffer->Read(buffer_variables::symbol_characters),
                 buffer->position().column.column);
-            output.begin =
-                previous_space == wstring::npos ? 0 : previous_space + 1;
 
             size_t next_space = contents_str.find_first_not_of(
                 buffer->Read(buffer_variables::symbol_characters),
                 buffer->position().column.column);
-            output.end = next_space == wstring::npos
-                             ? contents->EndColumn().column
-                             : next_space;
-
-            return output;
+            return SearchRange(
+                previous_space == wstring::npos ? 0 : previous_space + 1,
+                next_space == wstring::npos ? contents->EndColumn().column
+                                            : next_space);
           };
 
       initial_state.navigate_options.write_index = [](LineColumn position,
