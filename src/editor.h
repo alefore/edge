@@ -113,13 +113,6 @@ class EditorState {
   void set_structure(Structure* structure) { modifiers_.structure = structure; }
   void ResetStructure() { modifiers_.ResetStructure(); }
 
-  Modifiers::StructureRange structure_range() const {
-    return modifiers_.structure_range;
-  }
-  void set_structure_range(Modifiers::StructureRange structure_range) {
-    modifiers_.structure_range = structure_range;
-  }
-
   bool sticky_structure() const { return modifiers_.sticky_structure; }
   void set_sticky_structure(bool sticky_structure) {
     modifiers_.sticky_structure = sticky_structure;

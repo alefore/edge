@@ -31,12 +31,6 @@ struct Modifiers {
 
   std::wstring Serialize() const;
 
-  enum StructureRange {
-    ENTIRE_STRUCTURE,
-    FROM_BEGINNING_TO_CURRENT_POSITION,
-    FROM_CURRENT_POSITION_TO_END,
-  };
-
   enum class Strength {
     kNormal,
     kStrong,
@@ -53,7 +47,6 @@ struct Modifiers {
   // of stickyness.
   void ResetHard() {
     structure = StructureChar();
-    structure_range = Modifiers::ENTIRE_STRUCTURE;
     default_direction = FORWARDS;
     default_insertion = INSERT;
     ResetSoft();
@@ -73,7 +66,6 @@ struct Modifiers {
     if (!sticky_structure) {
       structure = StructureChar();
     }
-    structure_range = ENTIRE_STRUCTURE;
   }
 
   void ResetDirection() { direction = default_direction; }
@@ -84,7 +76,6 @@ struct Modifiers {
 
   // Fields follow.
   Structure* structure = StructureChar();
-  StructureRange structure_range = ENTIRE_STRUCTURE;
   bool sticky_structure = false;
 
   Strength strength = Strength::kNormal;

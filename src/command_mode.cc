@@ -565,28 +565,6 @@ class SetStrengthCommand : public Command {
   }
 };
 
-class SetStructureModifierCommand : public Command {
- public:
-  SetStructureModifierCommand(Modifiers::StructureRange value,
-                              const wstring& description)
-      : value_(value), description_(description) {}
-
-  wstring Description() const override {
-    return L"sets the structure modifier: " + description_;
-  }
-  wstring Category() const override { return L"Modifiers"; }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_structure_range(editor_state->structure_range() == value_
-                                          ? Modifiers::ENTIRE_STRUCTURE
-                                          : value_);
-  }
-
- private:
-  Modifiers::StructureRange value_;
-  const wstring description_;
-};
-
 class NumberMode : public Command {
  public:
   NumberMode(function<void(EditorState*, int)> consumer)
@@ -924,12 +902,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
 
   commands->Add({Terminal::ESCAPE}, std::make_unique<ResetStateCommand>());
 
-  commands->Add(L"[", std::make_unique<SetStructureModifierCommand>(
-                          Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
-                          L"from the beggining to the current position"));
-  commands->Add(L"]", std::make_unique<SetStructureModifierCommand>(
-                          Modifiers::FROM_CURRENT_POSITION_TO_END,
-                          L"from the current position to the end"));
   commands->Add({Terminal::CTRL_L}, std::make_unique<HardRedrawCommand>());
   commands->Add(L"*", std::make_unique<SetStrengthCommand>());
   commands->Add(L"0", std::make_unique<NumberMode>(SetRepetitions));

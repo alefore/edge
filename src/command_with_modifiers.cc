@@ -88,21 +88,6 @@ bool TransformationArgumentApplyChar(wchar_t c, Modifiers* modifiers) {
       modifiers->direction = ReverseDirection(modifiers->direction);
       break;
 
-    case 'f':
-      modifiers->structure_range =
-          modifiers->structure_range == Modifiers::FROM_CURRENT_POSITION_TO_END
-              ? Modifiers::ENTIRE_STRUCTURE
-              : Modifiers::FROM_CURRENT_POSITION_TO_END;
-      break;
-
-    case 'b':
-      modifiers->structure_range =
-          modifiers->structure_range ==
-                  Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
-              ? Modifiers::ENTIRE_STRUCTURE
-              : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-      break;
-
     case 'e':
       set_structure(StructureLine());
       break;
@@ -156,13 +141,6 @@ std::wstring TransformationArgumentBuildStatus(const Modifiers& modifiers,
   }
   if (modifiers.direction == BACKWARDS) {
     status += L" reverse";
-  }
-  if (modifiers.structure_range ==
-      Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION) {
-    status += L" backward";
-  } else if (modifiers.structure_range ==
-             Modifiers::FROM_CURRENT_POSITION_TO_END) {
-    status += L" forward";
   }
   if (modifiers.cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
     status += L" cursors";

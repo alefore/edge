@@ -29,24 +29,15 @@ namespace {
 //       reverses the direction.
 //   calls: The number of consecutive number of times this command has run.
 size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
-                       Direction direction, size_t repetitions,
-                       Modifiers::StructureRange structure_range,
-                       size_t calls) {
+                       Direction direction, size_t repetitions, size_t calls) {
   CHECK_LE(prefix_len, suffix_start);
   CHECK_LE(suffix_start, elements);
   if (calls > 1) {
     return ComputePosition(prefix_len, suffix_start, elements,
-                           ReverseDirection(direction), repetitions,
-                           structure_range, calls - 2);
+                           ReverseDirection(direction), repetitions, calls - 2);
   }
   if (calls == 1) {
-    return ComputePosition(0, elements, elements, direction, repetitions,
-                           structure_range, 0);
-  }
-  if (structure_range == Modifiers::FROM_CURRENT_POSITION_TO_END) {
-    return ComputePosition(prefix_len, suffix_start, elements,
-                           ReverseDirection(direction), repetitions,
-                           Modifiers::ENTIRE_STRUCTURE, calls);
+    return ComputePosition(0, elements, elements, direction, repetitions, 0);
   }
 
   if (direction == FORWARDS) {
@@ -81,9 +72,9 @@ class GotoCharTransformation : public CompositeTransformation {
       end--;
     }
     auto editor = input.buffer->editor();
-    ColumnNumber column = ColumnNumber(ComputePosition(
-        start.column, end.column, line->EndColumn().column, editor->direction(),
-        editor->repetitions(), editor->structure_range(), calls_));
+    ColumnNumber column = ColumnNumber(
+        ComputePosition(start.column, end.column, line->EndColumn().column,
+                        editor->direction(), editor->repetitions(), calls_));
     CHECK_LE(column, line->EndColumn());
     return futures::Past(Output::SetColumn(column));
   }
@@ -151,8 +142,7 @@ class GotoCommand : public Command {
       size_t lines = buffer->EndLine().line;
       LineNumber line =
           LineNumber(ComputePosition(0, lines, lines, editor_state->direction(),
-                                     editor_state->repetitions(),
-                                     editor_state->structure_range(), calls_));
+                                     editor_state->repetitions(), calls_));
       CHECK_LE(line, LineNumber(0) + buffer->contents()->size());
       buffer->set_current_position_line(line);
     } else if (structure == StructureMark()) {
@@ -164,9 +154,9 @@ class GotoCommand : public Command {
                           const pair<size_t, LineMarks::Mark>& entry2) {
                          return (entry1.first == entry2.first);
                        });
-      size_t position = ComputePosition(
-          0, lines.size(), lines.size(), editor_state->direction(),
-          editor_state->repetitions(), editor_state->structure_range(), calls_);
+      size_t position = ComputePosition(0, lines.size(), lines.size(),
+                                        editor_state->direction(),
+                                        editor_state->repetitions(), calls_);
       CHECK_LE(position, lines.size());
       buffer->set_current_position_line(LineNumber(lines.at(position).first));
     } else if (structure == StructurePage()) {
@@ -179,8 +169,7 @@ class GotoCommand : public Command {
       LineNumber position =
           LineNumber(0) +
           lines * ComputePosition(0, pages, pages, editor_state->direction(),
-                                  editor_state->repetitions(),
-                                  editor_state->structure_range(), calls_);
+                                  editor_state->repetitions(), calls_);
       CHECK_LT(position, LineNumber(0) + buffer->contents()->size());
       buffer->set_current_position_line(position);
     } else if (structure == StructureSearch()) {
@@ -189,9 +178,9 @@ class GotoCommand : public Command {
       GotoCursor(editor_state);
     } else if (structure == StructureBuffer()) {
       size_t buffers = editor_state->buffers()->size();
-      size_t position = ComputePosition(
-          0, buffers, buffers, editor_state->direction(),
-          editor_state->repetitions(), editor_state->structure_range(), calls_);
+      size_t position =
+          ComputePosition(0, buffers, buffers, editor_state->direction(),
+                          editor_state->repetitions(), calls_);
       CHECK_LT(position, editor_state->buffers()->size());
       auto it = editor_state->buffers()->begin();
       advance(it, position);
