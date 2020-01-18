@@ -80,20 +80,25 @@ LineColumn AdjustPosition(const NavigateState& navigate_state,
   for (auto& operation : navigate_state.operations) {
     switch (operation.type) {
       case NavigateOperation::Type::kForward:
-        if (range.size() > 1) range = SearchRange(index, range.end());
-        index = range.MidPoint();
+        if (range.size() > 1) {
+          range = SearchRange(index, range.end());
+          index = range.MidPoint();
+        }
         if (index == range.begin() && index < initial_range.end()) {
           range = SearchRange(range.begin() + 1, range.end() + 1);
         }
         break;
 
       case NavigateOperation::Type::kBackward:
-        if (range.size() > 1) range = SearchRange(range.begin(), index);
-        index = range.MidPoint();
+        if (range.size() > 1) {
+          range = SearchRange(range.begin(), index);
+          index = range.MidPoint();
+        }
         if (index == range.begin() && index > initial_range.begin()) {
           range = SearchRange(range.begin() - 1, range.end() - 1);
         }
     }
+    index = range.MidPoint();
   }
   return navigate_state.navigate_options.write_index(position, index);
 }
