@@ -23,26 +23,17 @@ class CommandWithModifiersMode : public EditorMode {
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
     buffer_->Undo(OpenBuffer::UndoMode::kOnlyOne);
-    switch (static_cast<int>(c)) {
-      case Terminal::ESCAPE:
-        buffer_->ResetMode();
-        buffer_->status()->Reset();
-        editor_state->status()->Reset();
-        break;
-
-      default:
-        if (!ApplyChar(c, nullptr)) {
-          RunHandler(editor_state, Transformation::Input::Mode::kFinal);
-          buffer_->ResetMode();
-          buffer_->status()->Reset();
-          editor_state->status()->Reset();
-          if (c != L'\n') {
-            editor_state->ProcessInput(c);
-          }
-        } else {
-          modifiers_string_.push_back(c);
-          RunHandler(editor_state, Transformation::Input::Mode::kPreview);
-        }
+    if (!ApplyChar(c, nullptr)) {
+      RunHandler(editor_state, Transformation::Input::Mode::kFinal);
+      buffer_->ResetMode();
+      buffer_->status()->Reset();
+      editor_state->status()->Reset();
+      if (c != L'\n') {
+        editor_state->ProcessInput(c);
+      }
+    } else {
+      modifiers_string_.push_back(c);
+      RunHandler(editor_state, Transformation::Input::Mode::kPreview);
     }
   }
 
