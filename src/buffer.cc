@@ -1902,13 +1902,15 @@ bool OpenBuffer::IsPastPosition(LineColumn position) const {
 void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>* source) {
   CHECK(source != nullptr);
   CHECK(*source != nullptr);
-  if ((*source)->ReadData() == FileDescriptorReader::ReadResult::kDone) {
-    RegisterProgress();
-    (*source) = nullptr;
-    if (fd_ == nullptr && fd_error_ == nullptr) {
-      EndOfFile();
-    }
-  }
+  (*source)->ReadData().SetConsumer(
+      [this, source](FileDescriptorReader::ReadResult value) {
+        if (value != FileDescriptorReader::ReadResult::kDone) return;
+        RegisterProgress();
+        (*source) = nullptr;
+        if (fd_ == nullptr && fd_error_ == nullptr) {
+          EndOfFile();
+        }
+      });
 }
 
 }  // namespace editor

@@ -40,7 +40,8 @@ std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
   return output;
 }
 
-FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
+futures::Value<FileDescriptorReader::ReadResult>
+FileDescriptorReader::ReadData() {
   LOG(INFO) << "Reading input from " << options_->fd << " for buffer "
             << options_->buffer->Read(buffer_variables::name);
   static const size_t kLowBufferSize = 1024 * 60;
@@ -52,15 +53,13 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
                                  kLowBufferSize - low_buffer_length_);
   LOG(INFO) << "Read returns: " << characters_read;
   if (characters_read == -1) {
-    if (errno == EAGAIN) {
-      return ReadResult::kContinue;
-    }
-    return ReadResult::kDone;
+    return futures::Past(errno == EAGAIN ? ReadResult::kContinue
+                                         : ReadResult::kDone);
   }
   CHECK_GE(characters_read, 0);
   CHECK_LE(characters_read, ssize_t(kLowBufferSize - low_buffer_length_));
   if (characters_read == 0) {
-    return ReadResult::kDone;
+    return futures::Past(ReadResult::kDone);
   }
   low_buffer_length_ += characters_read;
 
@@ -112,14 +111,15 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
 
   clock_gettime(0, &last_input_received_);
   options_->buffer->RegisterProgress();
-  if (options_->terminal != nullptr) {
-    options_->terminal->ProcessCommandInput(buffer_wrapper, [this]() {
-      lines_read_rate_->IncrementAndGetEventsPerSecond(1.0);
-    });
-  } else {
-    ParseAndInsertLines(buffer_wrapper);
+  if (options_->terminal == nullptr) {
+    return futures::ImmediateTransform(
+        ParseAndInsertLines(buffer_wrapper),
+        [](bool) { return ReadResult::kContinue; });
   }
-  return ReadResult::kContinue;
+  options_->terminal->ProcessCommandInput(buffer_wrapper, [this]() {
+    lines_read_rate_->IncrementAndGetEventsPerSecond(1.0);
+  });
+  return futures::Past(ReadResult::kContinue);
 }
 
 std::vector<std::shared_ptr<Line>> CreateLineInstances(
@@ -174,9 +174,9 @@ void InsertLines(const FileDescriptorReader::Options& options,
   }
 }
 
-void FileDescriptorReader::ParseAndInsertLines(
+futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
     std::shared_ptr<LazyString> contents) {
-  futures::ImmediateTransform(
+  return futures::ImmediateTransform(
       options_->read_evaluator->Run(
           // TODO: Find a way to remove the `std::function`, letting the read
           // evaluator somehow detect the return type. Not sure why it doesn't

@@ -61,10 +61,11 @@ class FileDescriptorReader {
     // continue to call ReadData once it detects that more data is available.
     kContinue
   };
-  ReadResult ReadData();
+  futures::Value<ReadResult> ReadData();
 
  private:
-  void ParseAndInsertLines(std::shared_ptr<LazyString> contents);
+  futures::Value<bool> ParseAndInsertLines(
+      std::shared_ptr<LazyString> contents);
 
   const std::shared_ptr<const Options> options_;
 
