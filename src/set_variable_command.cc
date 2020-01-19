@@ -52,6 +52,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   }
 
   PromptOptions options;
+  options.editor_state = editor_state;
   options.prompt = name + L" := ";
   options.history_file = L"values",
   options.status = PromptOptions::Status::kBuffer;
@@ -71,7 +72,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       };
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       options.predictor = var->predictor();
-      Prompt(editor_state, std::move(options));
+      Prompt(std::move(options));
       return;
     }
   }
@@ -101,7 +102,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
         buffer->ResetMode();
       };
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-      Prompt(editor_state, std::move(options));
+      Prompt(std::move(options));
       return;
     }
   }
@@ -124,7 +125,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
         buffer->ResetMode();
       };
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-      Prompt(editor_state, std::move(options));
+      Prompt(std::move(options));
       return;
     }
   }
@@ -141,9 +142,10 @@ Predictor VariablesPredictor() {
 }
 }  // namespace
 
-unique_ptr<Command> NewSetVariableCommand() {
+unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state) {
   static Predictor variables_predictor = VariablesPredictor();
   PromptOptions options;
+  options.editor_state = editor_state;
   options.prompt = L"🔧 ";
   options.history_file = L"variables";
   options.handler = SetVariableHandler;

@@ -24,6 +24,7 @@ class RunCppFileCommand : public Command {
     }
     auto buffer = editor_state->current_buffer();
     PromptOptions options;
+    options.editor_state = editor_state;
     options.prompt = L"cmd ";
     options.history_file = L"editor_commands";
     options.initial_value =
@@ -31,7 +32,7 @@ class RunCppFileCommand : public Command {
     options.handler = RunCppFileHandler;
     options.cancel_handler = [](EditorState*) { /* Nothing. */ };
     options.predictor = FilePredictor;
-    Prompt(editor_state, std::move(options));
+    Prompt(std::move(options));
   }
 };
 }  // namespace

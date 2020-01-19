@@ -233,7 +233,7 @@ class LinePromptCommand : public Command {
   wstring Category() const override { return L"Prompt"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    Prompt(editor_state, options_(editor_state));
+    Prompt(options_(editor_state));
   }
 
  private:
@@ -246,8 +246,10 @@ class LinePromptCommand : public Command {
 using std::shared_ptr;
 using std::unique_ptr;
 
-void Prompt(EditorState* editor_state, PromptOptions options) {
+void Prompt(PromptOptions options) {
   CHECK(options.handler);
+  auto editor_state = options.editor_state;
+  CHECK(editor_state != nullptr);
   auto history = GetHistoryBuffer(editor_state, options.history_file)->second;
   history->set_current_position_line(LineNumber(0) +
                                      history->contents()->size());
@@ -282,7 +284,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.modify_handler = [editor_state, original_buffer, buffer,
                                         status, options]() {
     editor_state->set_current_buffer(original_buffer);
-    options.change_notifier(buffer);
+    options.change_handler(buffer);
   };
 
   insert_mode_options.scroll_behavior =
@@ -369,7 +371,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             buffer->ApplyToCursors(
                 NewInsertBufferTransformation(std::move(insert_options)));
 
-            options.change_notifier(buffer);
+            options.change_handler(buffer);
           } else {
             LOG(INFO) << "Prediction didn't advance.";
             auto buffers = editor_state->buffers();

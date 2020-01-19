@@ -363,11 +363,12 @@ class ForkEditorCommand : public Command {
               VMType::Function({VMType::String(), VMType::String()}))});
 
       PromptOptions options;
+      options.editor_state = editor_state;
       wstring children_path = GetChildrenPath(editor_state);
       options.prompt = children_path + L"$ ";
       options.history_file = L"commands";
       if (prompt_state->context_command_callback != nullptr) {
-        options.change_notifier =
+        options.change_handler =
             [prompt_state](const std::shared_ptr<OpenBuffer>& prompt_buffer) {
               PromptChange(prompt_state.get(), prompt_buffer);
             };
@@ -376,7 +377,7 @@ class ForkEditorCommand : public Command {
                                         EditorState* editor_state) {
         RunCommandHandler(name, editor_state, 0, 1, children_path);
       };
-      Prompt(editor_state, options);
+      Prompt(options);
     } else if (editor_state->structure() == StructureLine()) {
       auto buffer = editor_state->current_buffer();
       if (buffer == nullptr || buffer->current_line() == nullptr) {

@@ -8,7 +8,7 @@
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Command> NewSetVariableCommand();
+std::unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

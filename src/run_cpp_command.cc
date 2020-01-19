@@ -128,7 +128,8 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output.function = type_match_functions[0];
-    CHECK_GE(output.function->type.type_arguments.size(), 1 /* return type */);
+    CHECK_GE(output.function->type.type_arguments.size(),
+             1ul /* return type */);
     size_t expected_arguments = output.function->type.type_arguments.size() - 1;
     if (output.tokens.size() - 1 > expected_arguments) {
       return ParsedCommand::Error(L"Too many arguments given for `" +
@@ -233,6 +234,7 @@ class RunCppCommand : public Command {
     }
 
     PromptOptions options;
+    options.editor_state = editor_state;
     std::wstring prompt;
     switch (mode_) {
       case CppCommandMode::kLiteral:
@@ -241,7 +243,7 @@ class RunCppCommand : public Command {
         break;
       case CppCommandMode::kShell:
         options.handler = RunCppCommandShellHandler;
-        options.change_notifier = RunCppCommandShellChangeHandler;
+        options.change_handler = RunCppCommandShellChangeHandler;
         prompt = L":";
         break;
     }
@@ -254,7 +256,7 @@ class RunCppCommand : public Command {
       options.history_file = prompt;
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       options.status = PromptOptions::Status::kBuffer;
-      Prompt(editor_state, options);
+      Prompt(options);
     }
   }
 

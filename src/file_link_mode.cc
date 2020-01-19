@@ -44,6 +44,7 @@ using std::unique_ptr;
 
 void StartDeleteFile(EditorState* editor_state, wstring path) {
   PromptOptions options;
+  options.editor_state = editor_state;
   options.prompt = L"unlink " + path + L"? [yes/no] ",
   options.history_file = L"confirmation";
   options.handler = [path](const wstring input, EditorState* editor_state) {
@@ -65,7 +66,7 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
     }
   };
   options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
-  Prompt(editor_state, std::move(options));
+  Prompt(std::move(options));
 }
 
 void AddLine(EditorState* editor_state, OpenBuffer* target,

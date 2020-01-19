@@ -28,6 +28,8 @@ Support more languages:
 
 ## Editing
 
+Make it possible to edit multiple files simultaneously.
+
 Add structures for English editing:
 - Sentence clause. Initially probably just based on punctuation, ideally would be smart enough to parse the sentence, lol.
 

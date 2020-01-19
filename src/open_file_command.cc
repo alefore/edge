@@ -139,10 +139,11 @@ std::unique_ptr<Command> NewOpenFileCommand() {
     }
   };
   options.predictor = FilePredictor;
-  options.change_notifier = AdjustPath;
+  options.change_handler = AdjustPath;
   return NewLinePromptCommand(
       L"loads a file", [options](EditorState* editor_state) {
         PromptOptions options_copy = options;
+        options_copy.editor_state = editor_state;
         auto buffer = editor_state->current_buffer();
 
         if (buffer != nullptr) {

@@ -139,6 +139,7 @@ class SearchCommand : public Command {
     }
 
     PromptOptions options;
+    options.editor_state = editor_state;
     options.prompt = L"🔎 ";
     options.history_file = L"search";
     options.handler = [search_options](const wstring& input,
@@ -150,9 +151,9 @@ class SearchCommand : public Command {
     std::shared_ptr<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>
         async_search_processor = NewAsyncSearchProcessor();
 
-    options.change_notifier = [async_search_processor, search_options,
-                               editor_state](
-                                  const std::shared_ptr<OpenBuffer>& buffer) {
+    options.change_handler = [async_search_processor, search_options,
+                              editor_state](
+                                 const std::shared_ptr<OpenBuffer>& buffer) {
       CHECK(buffer != nullptr);
       CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
       auto line = buffer->LineAt(LineNumber(0));
@@ -179,7 +180,7 @@ class SearchCommand : public Command {
     options.predictor = SearchHandlerPredictor;
     options.source_buffer = buffer;
     options.status = PromptOptions::Status::kBuffer;
-    Prompt(editor_state, std::move(options));
+    Prompt(std::move(options));
   }
 };
 }  // namespace

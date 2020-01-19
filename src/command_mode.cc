@@ -764,7 +764,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"aw", NewCppCommand(editor_state->environment(),
                                      L"// Buffers: Save the current buffer.\n"
                                      L"editor.SaveCurrentBuffer();"));
-  commands->Add(L"av", NewSetVariableCommand());
+  commands->Add(L"av", NewSetVariableCommand(editor_state));
   commands->Add(L"ac", NewRunCppFileCommand());
   commands->Add(L"aC", NewRunCppCommand(CppCommandMode::kLiteral));
   commands->Add(L":", NewRunCppCommand(CppCommandMode::kShell));
@@ -777,6 +777,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"ao", NewOpenFileCommand());
   {
     PromptOptions options;
+    options.editor_state = editor_state;
     options.prompt = L"...$ ";
     options.history_file = L"commands";
     options.handler = RunMultipleCommandsHandler;

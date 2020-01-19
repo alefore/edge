@@ -13,6 +13,8 @@ namespace editor {
 using std::unique_ptr;
 
 struct PromptOptions {
+  EditorState* editor_state = nullptr;
+
   // Text to show in the prompt.
   wstring prompt;
 
@@ -32,11 +34,8 @@ struct PromptOptions {
   //
   // auto line = buffer->LineAt(LineNumber(0));
   //
-  // TODO(easy): Rename to `change_handler`, which is more consistent with the
-  // names of other fields in this class.
-  //
   // TODO(easy): Turn this into an options structure.
-  std::function<void(const std::shared_ptr<OpenBuffer>&)> change_notifier =
+  std::function<void(const std::shared_ptr<OpenBuffer>&)> change_handler =
       [](const std::shared_ptr<OpenBuffer>&) {};
 
   // Function to run when the prompt receives the final input.
@@ -58,7 +57,7 @@ struct PromptOptions {
 };
 
 // TODO: Move editor_state to PromptOptions.
-void Prompt(EditorState* editor_state, PromptOptions options);
+void Prompt(PromptOptions options);
 
 unique_ptr<Command> NewLinePromptCommand(
     wstring description, std::function<PromptOptions(EditorState*)> options);
