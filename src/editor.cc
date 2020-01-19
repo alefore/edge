@@ -713,7 +713,7 @@ void EditorState::PushPosition(LineColumn position) {
     options.editor_state = this;
     options.name = kPositionsBufferName;
     if (!edge_path().empty()) {
-      options.path = PathJoin(*edge_path().begin(), L"positions");
+      options.path = PathJoin(edge_path().front(), L"positions");
     }
     options.insertion_type = BuffersList::AddBufferType::kIgnore;
     buffer_it = OpenFile(options);
