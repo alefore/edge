@@ -33,6 +33,7 @@ void FoldNextLineWhilePrefixIs(string prefix) {
     buffer.ApplyTransformation(
         DeleteTransformationBuilder()
             .set_modifiers(Modifiers().set_repetitions(1 + prefix_to_delete))
+            .set_copy_to_paste_buffer(false)
             .build());
     first_line = false;
   }
@@ -45,6 +46,7 @@ void BreakAt(string prefix, int start, int length) {
   buffer.ApplyTransformation(
       DeleteTransformationBuilder()
           .set_modifiers(Modifiers().set_repetitions(length))
+          .set_copy_to_paste_buffer(false)
           .build());
   buffer.ApplyTransformation(
       InsertTransformationBuilder().set_text("\n" + prefix).build());

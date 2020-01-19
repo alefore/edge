@@ -31,6 +31,7 @@ TransformationOutput FoldNextLine(TransformationInput input) {
       output.push(
           DeleteTransformationBuilder()
               .set_modifiers(Modifiers().set_repetitions((1 + prefix_size)))
+              .set_copy_to_paste_buffer(false)
               .build());
       if (buffer.line(next_line).size() > prefix_size) {
         column += buffer.line(next_line).size() - prefix_size + 1;
