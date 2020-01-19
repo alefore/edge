@@ -99,8 +99,8 @@ bool TransformationArgumentApplyChar(wint_t c, NavigateState* state) {
   return false;
 }
 
-LineColumn AdjustPosition(const NavigateState& navigate_state,
-                          const OpenBuffer* buffer, LineColumn position) {
+SearchRange GetRange(const NavigateState& navigate_state,
+                     const OpenBuffer* buffer, LineColumn position) {
   const SearchRange initial_range =
       navigate_state.navigate_options.initial_range(buffer, position);
   auto range = initial_range;
@@ -141,7 +141,7 @@ LineColumn AdjustPosition(const NavigateState& navigate_state,
     }
     index = range.MidPoint();
   }
-  return navigate_state.navigate_options.write_index(position, index);
+  return range;
 }
 
 std::wstring TransformationArgumentBuildStatus(const NavigateState& state,
@@ -166,6 +166,8 @@ class NavigateTransformation : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const {
     Output output;
+    auto range = GetRange(state_, input.buffer, input.position);
+
     if (input.mode == Transformation::Input::Mode::kPreview) {
       std::vector<NavigateOperation::Type> directions = {
           NavigateOperation::Type::kForward,
@@ -173,7 +175,12 @@ class NavigateTransformation : public CompositeTransformation {
       for (auto& direction : directions) {
         auto state_copy = state_;
         state_copy.operations.push_back(NavigateOperation{direction});
-        auto marker = AdjustPosition(state_copy, input.buffer, input.position);
+        size_t marker_index =
+            GetRange(state_copy, input.buffer, input.position).MidPoint();
+        if (marker_index <= range.begin() || marker_index >= range.end())
+          continue;
+        LineColumn marker = state_copy.navigate_options.write_index(
+            input.position, marker_index);
         if (marker == input.position) continue;
         output.Push(NewSetPositionTransformation(marker));
 
@@ -183,9 +190,13 @@ class NavigateTransformation : public CompositeTransformation {
         delete_options.modifiers.delete_type = Modifiers::PRESERVE_CONTENTS;
         output.Push(NewDeleteTransformation(std::move(delete_options)));
       }
+
+      DeleteExterior(range.begin(), BACKWARDS, input.position, &output);
+      DeleteExterior(range.end(), FORWARDS, input.position, &output);
     }
+
     output.Push(NewSetPositionTransformation(
-        AdjustPosition(state_, input.buffer, input.position)));
+        state_.navigate_options.write_index(input.position, range.MidPoint())));
     return futures::Past(std::move(output));
   }
 
@@ -194,6 +205,28 @@ class NavigateTransformation : public CompositeTransformation {
   }
 
  private:
+  // Receives one of the ends of the range (as `index`) and deletes from that
+  // point on (in the direction specified).
+  void DeleteExterior(size_t index, Direction direction, LineColumn position,
+                      Output* output) const {
+    if (index == 0 && direction == BACKWARDS) {
+      // Otherwise we'll be saying that we want to delete the previous line.
+      return;
+    }
+    output->Push(NewSetPositionTransformation(WriteIndex(position, index)));
+    DeleteOptions options;
+    options.modifiers.structure = StructureLine();
+    options.modifiers.direction = direction;
+    options.copy_to_paste_buffer = false;
+    options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
+    options.mode = Transformation::Input::Mode::kPreview;
+    output->Push(NewDeleteTransformation(std::move(options)));
+  }
+
+  LineColumn WriteIndex(LineColumn position, size_t index) const {
+    return state_.navigate_options.write_index(position, index);
+  }
+
   const NavigateState state_;
 };
 
