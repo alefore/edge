@@ -564,8 +564,7 @@ class OpenBuffer {
   mutable std::unordered_map<LineNumberDelta, SyntaxDataZoomOutput>
       zoomed_out_parse_trees_;
 
-  BackgroundCallbackRunner background_read_runner_ =
-      NewBackgroundCallbackRunner(L"BackgroundReadRunner");
+  AsyncEvaluator async_read_evaluator_;
 };
 
 }  // namespace editor

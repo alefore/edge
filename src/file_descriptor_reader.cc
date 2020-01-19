@@ -18,7 +18,7 @@ FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::make_shared<Options>(std::move(options))) {
   CHECK(options_->buffer != nullptr);
   CHECK(options_->fd != -1);
-  CHECK(options_->background_callback_runner != nullptr);
+  CHECK(options_->read_evaluator != nullptr);
 }
 
 FileDescriptorReader::~FileDescriptorReader() { close(options_->fd); }
@@ -176,16 +176,22 @@ void InsertLines(const FileDescriptorReader::Options& options,
 
 void FileDescriptorReader::ParseAndInsertLines(
     std::shared_ptr<LazyString> contents) {
-  options_->background_callback_runner->Push(
-      [options = options_, lines_read_rate = lines_read_rate_,
-       contents]() mutable {
-        auto lines =
-            CreateLineInstances(std::move(contents), options->modifiers);
-        options->buffer->work_queue()->Schedule(
-            [options, lines_read_rate, lines = std::move(lines)]() mutable {
-              lines_read_rate->IncrementAndGetEventsPerSecond(lines.size() - 1);
-              InsertLines(*options, std::move(lines));
-            });
+  futures::ImmediateTransform(
+      options_->read_evaluator->Run(
+          // TODO: Find a way to remove the `std::function`, letting the read
+          // evaluator somehow detect the return type. Not sure why it doesn't
+          // work.
+          std::function<std::vector<std::shared_ptr<Line>>()>(
+              [modifiers = options_->modifiers,
+               contents = std::move(contents)]() mutable {
+                return CreateLineInstances(std::move(contents),
+                                           std::move(modifiers));
+              })),
+      [options = options_, lines_read_rate = lines_read_rate_](
+          std::vector<std::shared_ptr<Line>> lines) {
+        lines_read_rate->IncrementAndGetEventsPerSecond(lines.size() - 1);
+        InsertLines(*options, std::move(lines));
+        return true;
       });
 }
 }  // namespace afc::editor

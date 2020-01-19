@@ -435,7 +435,8 @@ OpenBuffer::OpenBuffer(Options options)
             AsyncProcessor<SyntaxDataZoomInput,
                            int>::Options::QueueBehavior::kWait;
         return options;
-      }()) {
+      }()),
+      async_read_evaluator_(L"ReadEvaluator", &work_queue_) {
   UpdateTreeParser();
 
   environment_->Define(
@@ -1539,7 +1540,7 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
     options.terminal = terminal_.get();
     options.fd = fd;
     options.modifiers = std::move(modifiers);
-    options.background_callback_runner = &background_read_runner_;
+    options.read_evaluator = &async_read_evaluator_;
     return std::make_unique<FileDescriptorReader>(std::move(options));
   };
 

@@ -11,8 +11,13 @@
 #include <thread>
 
 #include "glog/logging.h"
+#include "src/function_traits.h"
+#include "src/futures/futures.h"
+#include "src/work_queue.h"
 
 namespace afc::editor {
+
+// TODO: This module should really only expose the AsyncEvaluator interface.
 
 // Function that runs `supplier` asynchronously (with a background thread) and
 // allows the user to trigger execution and fetch the results of the last
@@ -168,6 +173,32 @@ class AsyncProcessor {
 using BackgroundCallbackRunner = AsyncProcessor<std::function<void()>, int>;
 
 BackgroundCallbackRunner NewBackgroundCallbackRunner(std::wstring name);
+
+class AsyncEvaluator {
+ public:
+  AsyncEvaluator(std::wstring name, WorkQueue* work_queue)
+      : background_callback_runner_(NewBackgroundCallbackRunner(name)),
+        work_queue_(work_queue) {}
+
+  template <typename Callable>
+
+  auto Run(Callable callable) {
+    using ft = function_traits<Callable>;
+    futures::Future<typename ft::ReturnType> output;
+    background_callback_runner_.Push(
+        [this, callable = std::move(callable),
+         consumer = std::move(output.consumer)]() mutable {
+          work_queue_->Schedule(
+              [this, consumer = std::move(consumer),
+               value = callable()]() mutable { consumer(std::move(value)); });
+        });
+    return std::move(output.value);
+  }
+
+ private:
+  BackgroundCallbackRunner background_callback_runner_;
+  WorkQueue* work_queue_;
+};
 
 }  // namespace afc::editor
 
