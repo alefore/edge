@@ -18,6 +18,12 @@ namespace editor {
 //
 // When an operation starts, just call tracker. Capture the returned value and
 // discard it when the operation completes:
+//
+//     if (something) {
+//       static Tracker tracker(...);
+//       auto call = tracker.Call();
+//       ... heavy evaluation ...
+//     }
 class Tracker {
  public:
   struct Data {
