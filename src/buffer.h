@@ -401,20 +401,12 @@ class OpenBuffer {
   std::unique_ptr<BufferTerminal> NewTerminal();  // Public for testing.
 
  private:
-  struct SyntaxDataInput {
-    std::unique_ptr<const BufferContents> contents;
-    std::shared_ptr<TreeParser> parser;
-  };
-  struct SyntaxDataOutput {
-    std::shared_ptr<const ParseTree> parse_tree;
-    std::shared_ptr<const ParseTree> simplified_parse_tree;
-  };
+  void MaybeStartUpdatingSyntaxTrees();
 
   static void EvaluateMap(OpenBuffer* buffer, LineNumber line,
                           Value::Callback map_callback,
                           TransformationStack* transformation,
                           Trampoline* trampoline);
-  static SyntaxDataOutput UpdateSyntaxData(SyntaxDataInput input);
 
   futures::Value<Transformation::Result> Apply(
       unique_ptr<Transformation> transformation, LineColumn position,
@@ -547,14 +539,18 @@ class OpenBuffer {
   };
   SyntaxDataState syntax_data_state_ = SyntaxDataState::kDone;
   std::shared_ptr<TreeParser> tree_parser_ = NewNullTreeParser();
-  AsyncProcessor<SyntaxDataInput, SyntaxDataOutput> syntax_data_;
-  mutable AsyncEvaluator syntax_data_zoom_;
-  struct SyntaxDataZoomOutput {
-    std::shared_ptr<const ParseTree> simplified_parse_tree;
-    std::shared_ptr<const ParseTree> zoomed_parse_tree;
-  };
+
+  mutable AsyncEvaluator syntax_data_;
+
+  // Never nullptr.
+  std::shared_ptr<const ParseTree> parse_tree_ =
+      std::make_shared<ParseTree>(Range());
+  // Never nullptr.
+  std::shared_ptr<const ParseTree> simplified_parse_tree_ =
+      std::make_shared<ParseTree>(Range());
+
   // Caches the last parse done (by syntax_data_zoom_) for a given view size.
-  mutable std::unordered_map<LineNumberDelta, SyntaxDataZoomOutput>
+  mutable std::unordered_map<LineNumberDelta, std::shared_ptr<const ParseTree>>
       zoomed_out_parse_trees_;
 
   AsyncEvaluator async_read_evaluator_;
