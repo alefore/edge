@@ -1386,6 +1386,9 @@ std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
     syntax_data_zoom_
         .Run([this, lines_size = lines_size(), view_size,
               current_tree]() -> std::shared_ptr<ParseTree> {
+          static Tracker tracker(
+              L"OpenBuffer::current_zoomed_out_parse_tree::produce");
+          auto tracker_call = tracker.Call();
           if (simplified_parse_tree() != current_tree) {
             return nullptr;  // Parse tree changed in the meantime.
           }
