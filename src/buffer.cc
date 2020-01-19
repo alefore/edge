@@ -1084,8 +1084,12 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
-CursorsSet* OpenBuffer::FindCursors(const wstring& name) {
+CursorsSet* OpenBuffer::FindOrCreateCursors(const wstring& name) {
   return cursors_tracker_.FindOrCreateCursors(name);
+}
+
+const CursorsSet* OpenBuffer::FindCursors(const wstring& name) const {
+  return cursors_tracker_.FindCursors(name);
 }
 
 CursorsSet* OpenBuffer::active_cursors() {
@@ -1094,9 +1098,7 @@ CursorsSet* OpenBuffer::active_cursors() {
 }
 
 const CursorsSet* OpenBuffer::active_cursors() const {
-  // TODO: Remove const cast. Ugh.
-  return const_cast<OpenBuffer*>(this)->FindCursors(
-      options_.editor->modifiers().active_cursors);
+  return FindCursors(options_.editor->modifiers().active_cursors);
 }
 
 void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
@@ -1104,7 +1106,7 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
     return;
   }
   auto cursors = active_cursors();
-  FindCursors(kOldCursors)->swap(cursors);
+  FindOrCreateCursors(kOldCursors)->swap(cursors);
   cursors->clear();
   cursors->insert(positions.begin(), positions.end());
 
@@ -1117,7 +1119,7 @@ void OpenBuffer::ToggleActiveCursors() {
   LineColumn desired_position = position();
 
   auto cursors = active_cursors();
-  FindCursors(kOldCursors)->swap(cursors);
+  FindOrCreateCursors(kOldCursors)->swap(cursors);
 
   // TODO: Maybe it'd be best to pick the nearest after the cursor?
   // TODO: This should probably be merged somewhat with set_active_cursors?

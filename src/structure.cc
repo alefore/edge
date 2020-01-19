@@ -9,10 +9,9 @@
 #include "src/seek.h"
 #include "src/transformation/delete.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 namespace {
-Seek StartSeekToLimit(OpenBuffer* buffer, LineColumn* position) {
+Seek StartSeekToLimit(const OpenBuffer* buffer, LineColumn* position) {
   CHECK_GT(buffer->lines_size(), LineNumberDelta(0));
   position->line = std::min(buffer->EndLine(), position->line);
   if (position->column >= buffer->LineAt(position->line)->EndColumn()) {
@@ -39,9 +38,9 @@ Structure* StructureChar() {
 
     SearchRange search_range() override { return SearchRange::kBuffer; }
 
-    void SeekToNext(OpenBuffer*, Direction, LineColumn*) override {}
+    void SeekToNext(const OpenBuffer*, Direction, LineColumn*) override {}
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       return StartSeekToLimit(buffer, position)
                  .WrappingLines()
@@ -66,7 +65,7 @@ Structure* StructureWord() {
 
     SearchRange search_range() override { return SearchRange::kBuffer; }
 
-    void SeekToNext(OpenBuffer* buffer, Direction direction,
+    void SeekToNext(const OpenBuffer* buffer, Direction direction,
                     LineColumn* position) override {
       Seek(*buffer->contents(), position)
           .WithDirection(direction)
@@ -74,7 +73,7 @@ Structure* StructureWord() {
           .UntilCurrentCharIsAlpha();
     }
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       auto seek = Seek(*buffer->contents(), position)
@@ -111,7 +110,7 @@ Structure* StructureSymbol() {
 
     SearchRange search_range() override { return SearchRange::kBuffer; }
 
-    void SeekToNext(OpenBuffer* buffer, Direction direction,
+    void SeekToNext(const OpenBuffer* buffer, Direction direction,
                     LineColumn* position) override {
       Seek(*buffer->contents(), position)
           .WithDirection(direction)
@@ -120,7 +119,7 @@ Structure* StructureSymbol() {
               buffer->Read(buffer_variables::symbol_characters));
     }
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       return Seek(*buffer->contents(), position)
@@ -149,7 +148,7 @@ Structure* StructureLine() {
 
     SearchRange search_range() override { return SearchRange::kRegion; }
 
-    void SeekToNext(OpenBuffer* buffer, Direction direction,
+    void SeekToNext(const OpenBuffer* buffer, Direction direction,
                     LineColumn* position) override {
       if (direction == FORWARDS) {
         auto seek = Seek(*buffer->contents(), position).WrappingLines();
@@ -159,7 +158,7 @@ Structure* StructureLine() {
       }
     }
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       position->column = direction == BACKWARDS
@@ -191,9 +190,9 @@ Structure* StructureMark() {
 
     SearchRange search_range() override { return SearchRange::kBuffer; }
 
-    void SeekToNext(OpenBuffer*, Direction, LineColumn*) override {}
+    void SeekToNext(const OpenBuffer*, Direction, LineColumn*) override {}
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       // TODO: Implement.
@@ -217,9 +216,9 @@ Structure* StructurePage() {
 
     SearchRange search_range() override { return SearchRange::kBuffer; }
 
-    void SeekToNext(OpenBuffer*, Direction, LineColumn*) override {}
+    void SeekToNext(const OpenBuffer*, Direction, LineColumn*) override {}
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       // TODO: Implement.
@@ -243,9 +242,9 @@ Structure* StructureSearch() {
 
     SearchRange search_range() override { return SearchRange::kBuffer; }
 
-    void SeekToNext(OpenBuffer*, Direction, LineColumn*) override {}
+    void SeekToNext(const OpenBuffer*, Direction, LineColumn*) override {}
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       // TODO: Implement.
@@ -269,7 +268,7 @@ Structure* StructureTree() {
 
     SearchRange search_range() override { return SearchRange::kRegion; }
 
-    void SeekToNext(OpenBuffer* buffer, Direction direction,
+    void SeekToNext(const OpenBuffer* buffer, Direction direction,
                     LineColumn* position) override {
       Range range;
       if (!FindTreeRange(buffer, *position, direction, &range)) {
@@ -280,7 +279,7 @@ Structure* StructureTree() {
       }
     }
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       Range range;
@@ -292,7 +291,7 @@ Structure* StructureTree() {
     }
 
    private:
-    bool FindTreeRange(OpenBuffer* buffer, LineColumn position,
+    bool FindTreeRange(const OpenBuffer* buffer, LineColumn position,
                        Direction direction, Range* output) {
       auto root = buffer->parse_tree();
       if (root == nullptr) {
@@ -346,15 +345,15 @@ Structure* StructureCursor() {
 
     SearchRange search_range() override { return SearchRange::kRegion; }
 
-    void SeekToNext(OpenBuffer*, Direction, LineColumn*) override {}
+    void SeekToNext(const OpenBuffer*, Direction, LineColumn*) override {}
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       bool has_boundary = false;
       LineColumn boundary;
       auto cursors = buffer->FindCursors(L"");
-      CHECK(cursors != nullptr);
+      if (cursors == nullptr) return false;
       for (const auto& candidate : *cursors) {
         if (direction == FORWARDS ? (candidate > *position &&
                                      (!has_boundary || candidate < boundary))
@@ -397,7 +396,7 @@ Structure* StructureSentence() {
 
     SearchRange search_range() override { return SearchRange::kRegion; }
 
-    void SeekToNext(OpenBuffer* buffer, Direction direction,
+    void SeekToNext(const OpenBuffer* buffer, Direction direction,
                     LineColumn* position) override {
       Seek(*buffer->contents(), position)
           .WithDirection(direction)
@@ -405,7 +404,7 @@ Structure* StructureSentence() {
           .UntilCurrentCharNotIn(spaces);
     }
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       if (direction == BACKWARDS) {
@@ -460,7 +459,7 @@ Structure* StructureParagraph() {
 
     SearchRange search_range() override { return SearchRange::kRegion; }
 
-    void SeekToNext(OpenBuffer* buffer, Direction direction,
+    void SeekToNext(const OpenBuffer* buffer, Direction direction,
                     LineColumn* position) override {
       Seek(*buffer->contents(), position)
           .WithDirection(direction)
@@ -468,7 +467,7 @@ Structure* StructureParagraph() {
               buffer->Read(buffer_variables::line_prefix_characters));
     }
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       return StartSeekToLimit(buffer, position)
                  .WithDirection(direction)
@@ -494,9 +493,9 @@ Structure* StructureBuffer() {
 
     SearchRange search_range() override { return SearchRange::kBuffer; }
 
-    void SeekToNext(OpenBuffer*, Direction, LineColumn*) override {}
+    void SeekToNext(const OpenBuffer*, Direction, LineColumn*) override {}
 
-    bool SeekToLimit(OpenBuffer* buffer, Direction direction,
+    bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
       if (direction == BACKWARDS) {
@@ -512,6 +511,4 @@ Structure* StructureBuffer() {
   static Impl output;
   return &output;
 }
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
