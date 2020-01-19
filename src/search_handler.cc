@@ -190,7 +190,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   CHECK(input.predictions != nullptr);
   CHECK(input.predictions->status()->prompt_buffer() != nullptr);
   SearchOptions options;
-  options.buffer = search_buffer.get();
+  options.buffer = search_buffer;
   options.search_query = input.input;
   options.case_sensitive =
       search_buffer->Read(buffer_variables::search_case_sensitive);

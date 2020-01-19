@@ -112,7 +112,7 @@ void AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
   options.predictor = FilePredictor;
   options.status = buffer->editor()->status();
   if (auto buffer = options.editor_state->current_buffer(); buffer != nullptr) {
-    options.source_buffer = buffer;
+    options.source_buffer = buffer.get();
   }
   options.input_buffer = buffer;
   options.input_selection_structure = StructureLine();

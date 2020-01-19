@@ -39,12 +39,6 @@ const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
     L"predictor_longest_directory_match";
 const wchar_t* kExactMatchEnvironmentVariable = L"predictor_exact_match";
 
-void SignalEndOfFile(OpenBuffer* buffer,
-                     futures::Value<PredictorOutput>::Consumer consumer) {
-  buffer->EndOfFile();
-  consumer(PredictorOutput());
-}
-
 PredictResults HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer) {
   CHECK(predictions_buffer != nullptr);
 
@@ -357,7 +351,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
     input.get_buffer([output_consumer = std::move(input.output_consumer)](
                          OpenBuffer* buffer) {
       LOG(INFO) << "Signaling end of file.";
-      SignalEndOfFile(buffer, std::move(output_consumer));
+      buffer->EndOfFile();
+      output_consumer(PredictorOutput());
     });
     return 0;
   };
@@ -380,9 +375,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
 }
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {
-  futures::Future<PredictorOutput> output;
-  SignalEndOfFile(input.predictions, output.consumer);
-  return output.value;
+  input.predictions->EndOfFile();
+  return futures::Past(PredictorOutput());
 }
 
 namespace {
@@ -435,9 +429,8 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
         break;
       }
     }
-    futures::Future<PredictorOutput> output;
-    SignalEndOfFile(input.predictions, output.consumer);
-    return output.value;
+    input.predictions->EndOfFile();
+    return futures::Past(PredictorOutput());
   };
 }
 
@@ -487,11 +480,50 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
       }
       input.predictions->AppendToLastLine(*line_contents);
       input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
+
+      ++line;
     }
-    futures::Future<PredictorOutput> future;
-    SignalEndOfFile(input.predictions, future.consumer);
-    return future.value;
+    input.predictions->EndOfFile();
+    return futures::Past(PredictorOutput());
   };
+}
+
+void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
+                    std::set<std::wstring>* words) {
+  DCHECK(words != nullptr);
+  if (tree.children().empty() &&
+      tree.range().begin.line == tree.range().end.line) {
+    CHECK_LE(tree.range().begin.column, tree.range().end.column);
+    auto line = buffer.LineAt(tree.range().begin.line);
+    CHECK_LE(tree.range().end.column, line->EndColumn());
+    auto word =
+        line->Substring(tree.range().begin.column,
+                        tree.range().end.column - tree.range().begin.column)
+            ->ToString();
+    if (!word.empty()) {
+      DVLOG(5) << "Found leave: " << word;
+      words->insert(word);
+    }
+  }
+  for (auto& child : tree.children()) {
+    RegisterLeaves(buffer, child, words);
+  }
+}
+
+futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
+  if (input.source_buffer == nullptr) return futures::Past(PredictorOutput());
+  std::set<std::wstring> words;
+  RegisterLeaves(*input.source_buffer, *input.source_buffer->parse_tree(),
+                 &words);
+  std::wistringstream keywords(
+      input.source_buffer->Read(buffer_variables::language_keywords));
+  words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
+               std::istream_iterator<wstring, wchar_t>());
+  auto dictionary = std::make_shared<OpenBuffer>(input.editor, L"Dictionary");
+  for (auto& word : words) {
+    dictionary->AppendLine(NewLazyString(std::move(word)));
+  }
+  return DictionaryPredictor(std::move(dictionary))(input);
 }
 
 }  // namespace afc::editor

@@ -17,7 +17,8 @@ namespace afc::editor {
 namespace {
 std::wstring GetToken(const CompositeTransformation::Input& input,
                       EdgeVariable<wstring>* characters_variable) {
-  ColumnNumber end = input.position.column.previous();
+  if (input.position.column < ColumnNumber(2)) return L"";
+  ColumnNumber end = input.position.column.previous().previous();
   auto line = input.buffer->LineAt(input.position.line);
   auto line_str = line->ToString();
 
@@ -30,7 +31,7 @@ std::wstring GetToken(const CompositeTransformation::Input& input,
     symbol_start = ColumnNumber(index_before_symbol + 1);
   }
   return line_str.substr(symbol_start.column,
-                         (end - symbol_start).column_delta);
+                         (end - symbol_start).column_delta + 1);
 }
 
 std::unique_ptr<Transformation> DeleteLastCharacters(int characters) {
@@ -55,6 +56,13 @@ class PredictorTransformation : public CompositeTransformation {
     predict_options.editor_state = input.buffer->editor();
     predict_options.predictor = predictor_;
     predict_options.text = text_;
+    // TODO: Ugh, the const_cast below is fucking ugly. I have a lake in my
+    // model: should PredictionOptions::source_buffer be `const` so that it can
+    // be applied here? But then... search handler can't really be mapped to a
+    // predictor, since it wants to modify the buffer. Perhaps the answer is to
+    // make search handler not modify the buffer, but rather do that on the
+    // caller, based on its outputs.
+    predict_options.source_buffer = const_cast<OpenBuffer*>(input.buffer);
     return futures::ImmediateTransform(
         Predict(std::move(predict_options)),
         [text_size = text_.size(),
@@ -150,6 +158,13 @@ class ExpandTransformation : public CompositeTransformation {
         output.Push(NewTransformation(
             Modifiers(),
             std::make_unique<PredictorTransformation>(FilePredictor, path)));
+      } break;
+      case ' ': {
+        auto symbol = GetToken(input, buffer_variables::symbol_characters);
+        output.Push(DeleteLastCharacters(1));
+        output.Push(NewTransformation(Modifiers(),
+                                      std::make_unique<PredictorTransformation>(
+                                          SyntaxBasedPredictor, symbol)));
       } break;
     }
     return futures::Past(std::move(output));
