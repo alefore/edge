@@ -408,8 +408,6 @@ class OpenBuffer {
   struct SyntaxDataOutput {
     std::shared_ptr<const ParseTree> parse_tree;
     std::shared_ptr<const ParseTree> simplified_parse_tree;
-    std::map<LineNumberDelta, std::shared_ptr<const ParseTree>>
-        zoomed_out_parse_trees;
   };
 
   static void EvaluateMap(OpenBuffer* buffer, LineNumber line,
