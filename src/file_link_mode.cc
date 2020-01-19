@@ -164,7 +164,7 @@ BackgroundReadDirOutput ReadDir(std::wstring path, std::wregex noise_regex) {
   return output;
 }
 
-void GenerateContents(
+futures::Value<bool> GenerateContents(
     EditorState* editor_state, std::shared_ptr<struct stat> stat_buffer,
     std::shared_ptr<AsyncEvaluator> background_stat,
     std::shared_ptr<AsyncEvaluator> background_file_opener,
@@ -173,75 +173,75 @@ void GenerateContents(
   CHECK(!target->modified());
   const wstring path = target->Read(buffer_variables::path);
   LOG(INFO) << "GenerateContents: " << path;
-  background_stat
-      ->Run(std::function<
-            std::optional<struct stat>()>([path]()
-                                              -> std::optional<struct stat> {
-        struct stat output;
-        if (path.empty() || stat(ToByteString(path).c_str(), &output) == -1) {
-          return {};
-        }
-        return output;
-      }))
-      .SetConsumer([editor_state, stat_buffer, background_file_opener,
-                    background_directory_reader, target,
-                    path](std::optional<struct stat> stat_results) {
+  return futures::Transform(
+      background_stat->Run(std::function<std::optional<struct stat>()>(
+          [path]() -> std::optional<struct stat> {
+            struct stat output;
+            if (path.empty() ||
+                stat(ToByteString(path).c_str(), &output) == -1) {
+              return {};
+            }
+            return output;
+          })),
+      [editor_state, stat_buffer, background_file_opener,
+       background_directory_reader, target,
+       path](std::optional<struct stat> stat_results) {
         if ((path.empty() || stat_results.has_value()) &&
             target->Read(buffer_variables::clear_on_reload)) {
           target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
           target->ClearModified();
         }
         if (!stat_results.has_value()) {
-          return;
+          return futures::Past(true);
         }
         *stat_buffer = stat_results.value();
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
           // target capture here should really be std::shared_ptr, to ensure
           // that the ubffer won't be deallocated.
-          background_file_opener
-              ->Run(std::function<int()>([path]() {
+          return futures::ImmediateTransform(
+              background_file_opener->Run(std::function<int()>([path]() {
                 return open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
-              }))
-              .SetConsumer([target](int fd) {
+              })),
+              [target](int fd) {
                 target->SetInputFiles(fd, -1, false, -1);
+                return true;
               });
-          return;
         }
 
         target->Set(buffer_variables::atomic_lines, true);
         target->Set(buffer_variables::allow_dirty_delete, true);
         target->Set(buffer_variables::tree_parser, L"md");
+        return futures::ImmediateTransform(
+            background_directory_reader->Run(
+                std::function<BackgroundReadDirOutput()>(
+                    [path, noise_regexp = target->Read(
+                               buffer_variables::directory_noise)]() {
+                      return ReadDir(path, std::wregex(noise_regexp));
+                    })),
+            [editor_state, target, path](BackgroundReadDirOutput results) {
+              if (results.error_description.has_value()) {
+                target->status()->SetInformationText(
+                    results.error_description.value());
+                target->AppendLine(NewLazyString(
+                    std::move(results.error_description.value())));
+                return true;
+              }
 
-        background_directory_reader
-            ->Run(std::function<BackgroundReadDirOutput()>(
-                [path, noise_regexp =
-                           target->Read(buffer_variables::directory_noise)]() {
-                  return ReadDir(path, std::wregex(noise_regexp));
-                }))
-            .SetConsumer(
-                [editor_state, target, path](BackgroundReadDirOutput results) {
-                  if (results.error_description.has_value()) {
-                    target->status()->SetInformationText(
-                        results.error_description.value());
-                    target->AppendLine(NewLazyString(
-                        std::move(results.error_description.value())));
-                    return;
-                  }
+              target->AppendToLastLine(
+                  NewLazyString(L"# 🗁  File listing: " + path));
+              target->AppendEmptyLine();
 
-                  target->AppendToLastLine(
-                      NewLazyString(L"# 🗁  File listing: " + path));
-                  target->AppendEmptyLine();
+              ShowFiles(editor_state, L"🗁  Directories",
+                        std::move(results.directories), target);
+              ShowFiles(editor_state, L"🗀  Files",
+                        std::move(results.regular_files), target);
+              ShowFiles(editor_state, L"🗐  Noise", std::move(results.noise),
+                        target);
 
-                  ShowFiles(editor_state, L"🗁  Directories",
-                            std::move(results.directories), target);
-                  ShowFiles(editor_state, L"🗀  Files",
-                            std::move(results.regular_files), target);
-                  ShowFiles(editor_state, L"🗐  Noise",
-                            std::move(results.noise), target);
-
-                  target->ClearModified();
-                });
+              target->ClearModified();
+              return true;
+            });
       });
 }
 
@@ -530,9 +530,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   buffer_options.generate_contents =
       [editor_state, stat_buffer, background_stat, background_file_opener,
        background_directory_reader](OpenBuffer* target) {
-        GenerateContents(editor_state, stat_buffer, background_stat,
-                         background_file_opener, background_directory_reader,
-                         target);
+        return GenerateContents(editor_state, stat_buffer, background_stat,
+                                background_file_opener,
+                                background_directory_reader, target);
       };
   buffer_options.handle_visit = [editor_state,
                                  stat_buffer](OpenBuffer* buffer) {

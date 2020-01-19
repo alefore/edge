@@ -50,7 +50,8 @@ void AdjustLastLine(OpenBuffer* target, std::shared_ptr<OpenBuffer> buffer) {
       L"buffer", Value::NewObject(L"Buffer", buffer));
 }
 
-void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
+futures::Value<bool> GenerateContents(EditorState* editor_state,
+                                      OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   bool show_in_buffers_list =
       target->Read(buffer_variables::show_in_buffers_list);
@@ -157,6 +158,7 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
       ++index;
     }
   }
+  return futures::Past(true);
 }
 
 class ListBuffersCommand : public Command {
@@ -172,7 +174,7 @@ class ListBuffersCommand : public Command {
       options.editor = editor_state;
       options.name = OpenBuffer::kBuffersName;
       options.generate_contents = [editor_state](OpenBuffer* target) {
-        GenerateContents(editor_state, target);
+        return GenerateContents(editor_state, target);
       };
       auto buffer = std::make_shared<OpenBuffer>(std::move(options));
       buffer->Set(buffer_variables::reload_on_enter, true);

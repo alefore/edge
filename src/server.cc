@@ -165,7 +165,8 @@ void Daemonize(const std::unordered_set<int>& surviving_fds) {
   }
 }
 
-void GenerateContents(OpenBuffer* target) {
+futures::Value<bool> GenerateContents(OpenBuffer* target) {
+  // TODO(easy): Do the open asynchronously.
   wstring address = target->Read(buffer_variables::path);
   LOG(INFO) << L"Server starts: " << address;
   int fd = open(ToByteString(address).c_str(), O_RDONLY | O_NDELAY);
@@ -176,6 +177,7 @@ void GenerateContents(OpenBuffer* target) {
 
   LOG(INFO) << "Server received connection: " << fd;
   target->SetInputFiles(fd, -1, false, -1);
+  return futures::Past(true);
 }
 
 bool StartServer(EditorState* editor_state, wstring address,

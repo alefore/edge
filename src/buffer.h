@@ -69,7 +69,13 @@ class OpenBuffer {
     //
     // This will be run when the buffer is first created or when its contents
     // need to be reloaded.
-    std::function<void(OpenBuffer*)> generate_contents;
+    //
+    // The returned future must be notified when the function is done executing.
+    // This is typically used to offload to background threads IO operations.
+    // When the future is notified, the contents are typically not yet ready:
+    // they still need to be read. However, we'll know that `fd_` will have been
+    // set at that point. That allows us to more correctly detect EOF.
+    std::function<futures::Value<bool>(OpenBuffer*)> generate_contents;
 
     // Optional function to generate additional information for the status of
     // this buffer (see OpenBuffer::FlagsString). The generated string must

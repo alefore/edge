@@ -524,7 +524,8 @@ void OpenBuffer::Close() {
 }
 
 void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
-  if (fd_ == nullptr && fd_error_ == nullptr) {
+  if (fd_ == nullptr && fd_error_ == nullptr &&
+      reload_state_ == ReloadState::kDone) {
     observer();
     return;
   }
@@ -836,21 +837,28 @@ void OpenBuffer::Reload() {
     if (editor()->exit_value().has_value()) return;
     ClearModified();
     LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
-    if (options_.generate_contents != nullptr) {
-      options_.generate_contents(this);
-    }
 
-    switch (reload_state_) {
-      case ReloadState::kDone:
-        LOG(FATAL) << "Invalid reload state! Can't be kDone.";
-        break;
-      case ReloadState::kOngoing:
-        reload_state_ = ReloadState::kDone;
-        break;
-      case ReloadState::kPending:
-        reload_state_ = ReloadState::kDone;
-        Reload();
-    }
+    (options_.generate_contents != nullptr ? options_.generate_contents(this)
+                                           : futures::Past(true))
+        .SetConsumer([this](bool) {
+          switch (reload_state_) {
+            case ReloadState::kDone:
+              LOG(FATAL) << "Invalid reload state! Can't be kDone.";
+              break;
+            case ReloadState::kOngoing:
+              reload_state_ = ReloadState::kDone;
+              if (fd_ == nullptr && fd_error_ == nullptr) {
+                EndOfFile();
+              }
+              break;
+            case ReloadState::kPending:
+              reload_state_ = ReloadState::kDone;
+              if (fd_ == nullptr && fd_error_ == nullptr) {
+                EndOfFile();
+              }
+              Reload();
+          }
+        });
   });
 }
 

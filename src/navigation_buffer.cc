@@ -96,9 +96,9 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
   }
 }
 
-void GenerateContents(EditorState* editor_state,
-                      std::weak_ptr<OpenBuffer> source_weak,
-                      OpenBuffer* target) {
+futures::Value<bool> GenerateContents(EditorState* editor_state,
+                                      std::weak_ptr<OpenBuffer> source_weak,
+                                      OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   for (const auto& dir : editor_state->edge_path()) {
     target->EvaluateFile(PathJoin(dir, L"hooks/navigation-buffer-reload.cc"));
@@ -106,13 +106,13 @@ void GenerateContents(EditorState* editor_state,
   auto source = source_weak.lock();
   if (source == nullptr) {
     target->AppendToLastLine(NewLazyString(L"Source buffer no longer loaded."));
-    return;
+    return futures::Past(true);
   }
 
   auto tree = source->simplified_parse_tree();
   if (tree == nullptr) {
     target->AppendToLastLine(NewLazyString(L"Target has no tree."));
-    return;
+    return futures::Past(true);
   }
 
   target->AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
@@ -120,6 +120,7 @@ void GenerateContents(EditorState* editor_state,
       target->environment()->Lookup(kDepthSymbol, VMType::Integer());
   int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
   DisplayTree(source, depth, *tree, EmptyString(), target);
+  return futures::Past(true);
 }
 
 class NavigationBufferCommand : public Command {
@@ -150,7 +151,7 @@ class NavigationBufferCommand : public Command {
       std::weak_ptr<OpenBuffer> source_weak = source;
       options.generate_contents = [editor_state,
                                    source_weak](OpenBuffer* target) {
-        GenerateContents(editor_state, source_weak, target);
+        return GenerateContents(editor_state, source_weak, target);
       };
       auto buffer = std::make_shared<OpenBuffer>(std::move(options));
       buffer->Set(buffer_variables::show_in_buffers_list, false);

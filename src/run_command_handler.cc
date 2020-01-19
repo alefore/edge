@@ -78,9 +78,9 @@ map<wstring, wstring> LoadEnvironmentVariables(
   return environment;
 }
 
-void GenerateContents(EditorState* editor_state,
-                      std::map<wstring, wstring> environment, CommandData* data,
-                      OpenBuffer* target) {
+futures::Value<bool> GenerateContents(EditorState* editor_state,
+                                      std::map<wstring, wstring> environment,
+                                      CommandData* data, OpenBuffer* target) {
   int pipefd_out[2];
   int pipefd_err[2];
   static const int parent_fd = 0;
@@ -120,7 +120,7 @@ void GenerateContents(EditorState* editor_state,
   if (child_pid == -1) {
     target->status()->SetWarningText(L"fork failed: " +
                                      FromByteString(strerror(errno)));
-    return;
+    return futures::Past(true);
   }
   if (child_pid == 0) {
     LOG(INFO) << "I am the children. Life is beautiful!";
@@ -208,6 +208,7 @@ void GenerateContents(EditorState* editor_state,
     }
     time(&data->time_end);
   });
+  return futures::Past(true);
 }
 
 wstring DurationToString(size_t duration) {
@@ -537,7 +538,8 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
     buffer_options.generate_contents = [editor_state,
                                         environment = options.environment,
                                         command_data](OpenBuffer* target) {
-      GenerateContents(editor_state, environment, command_data.get(), target);
+      return GenerateContents(editor_state, environment, command_data.get(),
+                              target);
     };
     buffer_options.describe_status = [command_data](const OpenBuffer& buffer) {
       return Flags(*command_data, buffer);
