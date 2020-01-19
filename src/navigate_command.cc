@@ -53,6 +53,20 @@ struct NavigateOperation {
   size_t number = 0;
 };
 
+std::wstring DescribeForStatus(const NavigateOperation& operation) {
+  switch (operation.type) {
+    case NavigateOperation::Type::kForward:
+      return L"⮞";
+    case NavigateOperation::Type::kBackward:
+      return L"⮜";
+    case NavigateOperation::Type::kNumber:
+      return std::to_wstring(operation.number + 1);
+    default:
+      LOG(FATAL) << "Invalid operation type.";
+      return L"";
+  }
+}
+
 struct NavigateState {
   NavigateOptions navigate_options;
   Modifiers::CursorsAffected cursors_affected;
@@ -112,6 +126,7 @@ LineColumn AdjustPosition(const NavigateState& navigate_state,
           range = SearchRange(range.begin() - 1, range.end() - 1);
         }
         break;
+
       case NavigateOperation::Type::kNumber: {
         size_t slice_width = max(1ul, range.size() / 9);
         size_t new_begin =
@@ -129,10 +144,13 @@ LineColumn AdjustPosition(const NavigateState& navigate_state,
   return navigate_state.navigate_options.write_index(position, index);
 }
 
-std::wstring TransformationArgumentBuildStatus(const NavigateState&,
+std::wstring TransformationArgumentBuildStatus(const NavigateState& state,
                                                std::wstring name) {
-  // TODO(easy): Show information from the state?
-  return name;
+  auto output = name;
+  for (const auto& operation : state.operations) {
+    output = output + L" " + DescribeForStatus(operation);
+  }
+  return output;
 }
 
 Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
