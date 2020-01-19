@@ -88,15 +88,14 @@ struct PredictOptions {
 
   // Given to the predictor (see `PredictorInput::source_buffer`).
   std::shared_ptr<OpenBuffer> source_buffer;
-
-  // Called if all the predicted entries have a common prefix that's longer than
-  // the query.
-  std::function<void(PredictResults)> callback;
 };
 // Create a new buffer running a given predictor on the input in a given status
-// prompt. When that's done, runs consumer on the results (on the longest
-// unambiguous completion for input).
-void Predict(PredictOptions predict_options);
+// prompt. When that's done, notifies the returned future.
+//
+// The vaue will be absent if the prediction finished when it was too late (for
+// example, because the query has changed in the meantime).
+futures::Value<std::optional<PredictResults>> Predict(
+    PredictOptions predict_options);
 
 futures::Value<PredictorOutput> FilePredictor(PredictorInput input);
 

@@ -111,16 +111,17 @@ void AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
   options.editor_state = buffer->editor();
   options.predictor = FilePredictor;
   options.status = buffer->editor()->status();
-  options.callback = [buffer, line](PredictResults results) {
-    VLOG(5) << "Prediction results: " << results;
-    DrawPath(buffer, line, results);
-  };
   if (auto buffer = options.editor_state->current_buffer(); buffer != nullptr) {
     options.source_buffer = buffer;
   }
   options.input_buffer = buffer;
   options.input_selection_structure = StructureLine();
-  Predict(std::move(options));
+  Predict(std::move(options))
+      .SetConsumer([buffer, line](std::optional<PredictResults> results) {
+        if (!results.has_value()) return;
+        VLOG(5) << "Prediction results: " << results.value();
+        DrawPath(buffer, line, std::move(results));
+      });
   DrawPath(buffer, line, std::nullopt);
 }
 }  // namespace

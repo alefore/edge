@@ -343,47 +343,49 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     predict_options.input_buffer = buffer;
     predict_options.input_selection_structure = StructureLine();
     predict_options.status = status;
-    predict_options.callback = [editor_state, options, original_buffer, buffer,
-                                status, input](PredictResults results) {
-      if (results.common_prefix.has_value() &&
-          !results.common_prefix.value().empty() &&
-          input != results.common_prefix.value()) {
-        LOG(INFO) << "Prediction advanced from " << input << " to " << results;
+    Predict(std::move(predict_options))
+        .SetConsumer([editor_state, options, original_buffer, buffer, status,
+                      input](std::optional<PredictResults> results) {
+          if (!results.has_value()) return;
+          if (results.value().common_prefix.has_value() &&
+              !results.value().common_prefix.value().empty() &&
+              input != results.value().common_prefix.value()) {
+            LOG(INFO) << "Prediction advanced from " << input << " to "
+                      << results.value();
 
-        DeleteOptions delete_options;
-        delete_options.copy_to_paste_buffer = false;
-        delete_options.modifiers.structure = StructureLine();
-        delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
-        delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
+            DeleteOptions delete_options;
+            delete_options.copy_to_paste_buffer = false;
+            delete_options.modifiers.structure = StructureLine();
+            delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+            delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+            buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
 
-        auto buffer_to_insert =
-            std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-        buffer_to_insert->AppendToLastLine(
-            NewLazyString(results.common_prefix.value()));
-        InsertOptions insert_options;
-        insert_options.buffer_to_insert = buffer_to_insert;
-        buffer->ApplyToCursors(
-            NewInsertBufferTransformation(std::move(insert_options)));
+            auto buffer_to_insert =
+                std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
+            buffer_to_insert->AppendToLastLine(
+                NewLazyString(results.value().common_prefix.value()));
+            InsertOptions insert_options;
+            insert_options.buffer_to_insert = buffer_to_insert;
+            buffer->ApplyToCursors(
+                NewInsertBufferTransformation(std::move(insert_options)));
 
-        options.change_notifier(buffer);
-      } else {
-        LOG(INFO) << "Prediction didn't advance.";
-        auto buffers = editor_state->buffers();
-        auto name = PredictionsBufferName();
-        if (auto it = buffers->find(name); it != buffers->end()) {
-          it->second->set_current_position_line(LineNumber(0));
-          editor_state->set_current_buffer(it->second);
-          if (editor_state->status()->prompt_buffer() == nullptr) {
-            it->second->status()->CopyFrom(*status);
+            options.change_notifier(buffer);
+          } else {
+            LOG(INFO) << "Prediction didn't advance.";
+            auto buffers = editor_state->buffers();
+            auto name = PredictionsBufferName();
+            if (auto it = buffers->find(name); it != buffers->end()) {
+              it->second->set_current_position_line(LineNumber(0));
+              editor_state->set_current_buffer(it->second);
+              if (editor_state->status()->prompt_buffer() == nullptr) {
+                it->second->status()->CopyFrom(*status);
+              }
+            } else {
+              editor_state->status()->SetWarningText(
+                  L"Error: Predict: predictions buffer not found: " + name);
+            }
           }
-        } else {
-          editor_state->status()->SetWarningText(
-              L"Error: Predict: predictions buffer not found: " + name);
-        }
-      }
-    };
-    Predict(std::move(predict_options));
+        });
     return true;
   };
 

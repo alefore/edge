@@ -46,8 +46,7 @@ void SignalEndOfFile(OpenBuffer* buffer,
       [consumer = std::move(consumer)]() { consumer(PredictorOutput()); });
 }
 
-void HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer,
-                     std::function<void(PredictResults)> consumer) {
+PredictResults HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer) {
   CHECK(predictions_buffer != nullptr);
 
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
@@ -123,7 +122,7 @@ void HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer,
 
   predict_results.matches = predictions_buffer->lines_size().line_delta - 1;
   predict_results.predictions_buffer = std::move(predictions_buffer);
-  consumer(std::move(predict_results));
+  return predict_results;
 }
 
 std::wstring GetPredictInput(const PredictOptions& options) {
@@ -141,26 +140,7 @@ std::wstring GetPredictInput(const PredictOptions& options) {
                       : line->EndColumn() - range.begin.column)
       ->ToString();
 }
-
-// Wrap `consumer` with a consumer that verifies that `prompt_buffer` hasn't
-// expired and that its text hasn't changed.
-std::function<void(PredictResults)> GuardConsumer(
-    const PredictOptions& options, std::wstring initial_text,
-    std::function<void(PredictResults)> consumer) {
-  return [consumer, options, initial_text](PredictResults predict_results) {
-    auto current_text = GetPredictInput(options);
-    if (current_text != initial_text) {
-      LOG(INFO) << "Text has changed from \"" << initial_text << "\" to \""
-                << current_text << "\"";
-      return;
-    }
-    LOG(INFO) << "Running on prediction: "
-              << predict_results.common_prefix.value_or(L"<missing value>");
-    consumer(std::move(predict_results));
-  };
-}
 }  // namespace
-
 std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
   os << "[PredictResults";
   if (lc.common_prefix.has_value()) {
@@ -175,18 +155,19 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
   return os;
 }
 
-void Predict(PredictOptions options) {
+futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   std::shared_ptr<OpenBuffer>& predictions_buffer =
       (*options.editor_state->buffers())[PredictionsBufferName()];
+  futures::Future<std::optional<PredictResults>> output;
   OpenBuffer::Options buffer_options;
   buffer_options.editor = options.editor_state;
   buffer_options.name = PredictionsBufferName();
   auto weak_predictions_buffer = std::make_shared<std::weak_ptr<OpenBuffer>>();
 
   auto input = GetPredictInput(options);
-  options.callback = GuardConsumer(options, input, std::move(options.callback));
   buffer_options.generate_contents =
-      [options, input, weak_predictions_buffer](OpenBuffer* buffer) {
+      [options, input, weak_predictions_buffer,
+       consumer = std::move(output.consumer)](OpenBuffer* buffer) {
         buffer->environment()->Define(kLongestPrefixEnvironmentVariable,
                                       vm::Value::NewInteger(0));
         buffer->environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
@@ -203,9 +184,13 @@ void Predict(PredictOptions options) {
                         .input = std::move(input),
                         .predictions = buffer,
                         .source_buffer = options.source_buffer})
-            .SetConsumer([options, shared_predictions_buffer](PredictorOutput) {
+            .SetConsumer([options, input, shared_predictions_buffer,
+                          consumer](PredictorOutput) {
               shared_predictions_buffer->set_current_cursor(LineColumn());
-              HandleEndOfFile(shared_predictions_buffer, options.callback);
+              auto results = HandleEndOfFile(shared_predictions_buffer);
+              consumer(GetPredictInput(options) == input
+                           ? std::optional<PredictResults>(results)
+                           : std::nullopt);
             });
       };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
@@ -214,6 +199,7 @@ void Predict(PredictOptions options) {
   predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer->Set(buffer_variables::paste_mode, true);
   predictions_buffer->Reload();
+  return output.value;
 }
 
 struct DescendDirectoryTreeOutput {
