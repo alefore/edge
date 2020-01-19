@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace afc {
@@ -55,6 +56,7 @@ struct VMType {
 };
 
 wstring TypesToString(const std::vector<VMType>& types);
+wstring TypesToString(const std::unordered_set<VMType>& types);
 
 bool operator==(const VMType& lhs, const VMType& rhs);
 

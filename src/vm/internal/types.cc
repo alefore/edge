@@ -56,6 +56,10 @@ wstring TypesToString(const std::vector<VMType>& types) {
   return output;
 }
 
+std::wstring TypesToString(const std::unordered_set<VMType>& types) {
+  return TypesToString(std::vector<VMType>(types.cbegin(), types.cend()));
+}
+
 /* static */ VMType VMType::ObjectType(afc::vm::ObjectType* type) {
   return ObjectType(type->type().object_type);
 }

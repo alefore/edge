@@ -46,7 +46,7 @@ statement_list(L) ::= . {
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
-  OUT = NewAppendExpression(unique_ptr<Expression>(A),
+  OUT = NewAppendExpression(compilation, unique_ptr<Expression>(A),
                             unique_ptr<Expression>(B)).release();
   A = nullptr;
   B = nullptr;
@@ -127,12 +127,10 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
   A = NewIfExpression(
       compilation,
       unique_ptr<Expression>(CONDITION),
-      NewAppendExpression(
-          unique_ptr<Expression>(TRUE_CASE),
-          NewVoidExpression()),
-      NewAppendExpression(
-          unique_ptr<Expression>(FALSE_CASE),
-          NewVoidExpression()))
+      NewAppendExpression(compilation, unique_ptr<Expression>(TRUE_CASE),
+                          NewVoidExpression()),
+      NewAppendExpression(compilation, unique_ptr<Expression>(FALSE_CASE),
+                          NewVoidExpression()))
       .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;
@@ -143,9 +141,8 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
   A = NewIfExpression(
       compilation,
       unique_ptr<Expression>(CONDITION),
-      NewAppendExpression(
-          unique_ptr<Expression>(TRUE_CASE),
-          NewVoidExpression()),
+      NewAppendExpression(compilation, unique_ptr<Expression>(TRUE_CASE),
+                          NewVoidExpression()),
       NewVoidExpression())
       .release();
   CONDITION = nullptr;

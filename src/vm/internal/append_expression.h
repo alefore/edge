@@ -6,12 +6,12 @@
 namespace afc {
 namespace vm {
 
-using std::unique_ptr;
-
 class Expression;
+class Compilation;
 
-unique_ptr<Expression> NewAppendExpression(unique_ptr<Expression> a,
-                                           unique_ptr<Expression> b);
+std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
+                                                std::unique_ptr<Expression> a,
+                                                std::unique_ptr<Expression> b);
 
 }  // namespace vm
 }  // namespace afc

@@ -100,10 +100,10 @@ std::unique_ptr<Expression> NewForExpression(
     return nullptr;
   }
   return NewAppendExpression(
-      std::move(init),
-      NewWhileExpression(
-          compilation, std::move(condition),
-          NewAppendExpression(std::move(body), std::move(update))));
+      compilation, std::move(init),
+      NewWhileExpression(compilation, std::move(condition),
+                         NewAppendExpression(compilation, std::move(body),
+                                             std::move(update))));
 }
 
 }  // namespace vm

@@ -2,6 +2,7 @@
 
 #include "../public/value.h"
 #include "../public/vm.h"
+#include "src/vm/internal/compilation.h"
 
 namespace afc {
 namespace vm {
@@ -44,7 +45,8 @@ class AppendExpression : public Expression {
 
 }  // namespace
 
-std::unique_ptr<Expression> NewAppendExpression(std::unique_ptr<Expression> a,
+std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
+                                                std::unique_ptr<Expression> a,
                                                 std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr) {
     return nullptr;
@@ -53,6 +55,9 @@ std::unique_ptr<Expression> NewAppendExpression(std::unique_ptr<Expression> a,
   auto return_types =
       CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes(), &error);
   if (!return_types.has_value()) {
+    compilation->errors.push_back(L"Incompatible return types found: " +
+                                  TypesToString(a->ReturnTypes()) + L" and " +
+                                  TypesToString(b->ReturnTypes()));
     return nullptr;  // TODO(easy): Don't shallow the error.
   }
 
