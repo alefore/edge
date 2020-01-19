@@ -26,6 +26,7 @@ extern "C" {
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
+#include "src/transformation/expand.h"
 #include "src/transformation/insert.h"
 #include "src/transformation/move.h"
 #include "src/transformation/set_position.h"
@@ -104,287 +105,6 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
   Direction direction_;
 };
 
-class AutocompleteMode : public EditorMode {
- public:
-  struct Options {
-    std::shared_ptr<EditorMode> delegate;
-
-    std::shared_ptr<const Line> prefix;
-
-    // TODO: Make these shared_ptr weak_ptrs.
-    std::shared_ptr<OpenBuffer> dictionary;
-    std::shared_ptr<OpenBuffer> buffer;
-
-    // The position where the matches begin.
-    LineNumber line_start;
-    ColumnNumber column_start;
-    ColumnNumber column_end;
-  };
-
-  AutocompleteMode(Options options)
-      : options_(std::move(options)),
-        line_current_(options_.line_start),
-        word_length_(options_.column_end - options_.column_start),
-        original_text_(options_.buffer->LineAt(options_.buffer->position().line)
-                           ->Substring(options_.column_start, word_length_)) {}
-
-  void DrawCurrentMatch(EditorState* editor_state) {
-    wstring status;
-    const LineNumberDelta kPrefixLength = LineNumberDelta(3);
-    LineNumber start = line_current_ > options_.line_start + kPrefixLength
-                           ? line_current_ - kPrefixLength
-                           : options_.line_start;
-    for (size_t i = 0;
-         i < 10 && start + LineNumberDelta(i) < options_.dictionary->EndLine();
-         i++) {
-      LineNumber current = start + LineNumberDelta(i);
-      bool is_current = current == line_current_;
-      wstring number_prefix;
-      if (current > line_current_) {
-        number_prefix =
-            std::to_wstring((current - line_current_).line_delta) + L":";
-      }
-      status += wstring(status.empty() ? L"" : L" ") +
-                wstring(is_current ? L"[" : L"") + number_prefix +
-                options_.dictionary->LineAt(current)->ToString() +
-                wstring(is_current ? L"]" : L"");
-    }
-    options_.buffer->status()->SetInformationText(status);
-
-    ReplaceCurrentText(editor_state,
-                       options_.dictionary->LineAt(line_current_)->contents());
-  }
-
-  void ProcessInput(wint_t c, EditorState* editor_state) {
-    switch (static_cast<int>(c)) {
-      case '\t':
-      case 'j':
-      case 'l':
-      case Terminal::DOWN_ARROW:
-      case Terminal::RIGHT_ARROW:
-        line_current_++;
-        if (line_current_ > options_.dictionary->EndLine()) {
-          line_current_ = options_.line_start;
-        }
-        break;
-
-      case 'k':
-      case 'h':
-      case Terminal::UP_ARROW:
-      case Terminal::LEFT_ARROW:
-        if (line_current_ <= options_.line_start) {
-          line_current_ = options_.dictionary->EndLine();
-        } else {
-          --line_current_;
-        }
-        break;
-
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-      case '9':
-        line_current_ += LineNumberDelta(c - '0');
-        if (line_current_ > options_.dictionary->EndLine()) {
-          line_current_ = options_.line_start;
-        }
-        break;
-
-      case Terminal::ESCAPE:
-        CHECK(original_text_ != nullptr);
-        LOG(INFO) << "Inserting original text: " << original_text_->ToString();
-        ReplaceCurrentText(editor_state, original_text_);
-        // Fall through.
-      default:
-        editor_state->current_buffer()->set_mode(std::move(options_.delegate));
-        editor_state->current_buffer()->status()->Reset();
-        editor_state->status()->Reset();
-        if (c != '\n') {
-          editor_state->ProcessInput(c);
-        }
-        return;
-    }
-
-    DrawCurrentMatch(editor_state);
-    LOG(INFO) << "Updating variables for next completion.";
-  }
-
- private:
-  void ReplaceCurrentText(EditorState* editor_state,
-                          std::shared_ptr<LazyString> insert) {
-    auto buffer_to_insert =
-        std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
-    buffer_to_insert->AppendToLastLine(insert);
-    DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString()
-               << " (len: " << insert->size()
-               << ", word_length: " << word_length_ << ").";
-    DeleteOptions delete_options;
-    delete_options.modifiers.repetitions = word_length_.column_delta;
-    delete_options.copy_to_paste_buffer = false;
-    // TODO: Somewhat wrong. Should find the autocompletion for each position.
-    // Also, should apply the deletions/insertions at the right positions.
-    InsertOptions insert_options;
-    insert_options.buffer_to_insert = buffer_to_insert;
-    options_.buffer->ApplyToCursors(TransformationAtPosition(
-        LineColumn(options_.buffer->position().line, options_.column_start),
-        ComposeTransformation(
-            NewDeleteTransformation(delete_options),
-            NewInsertBufferTransformation(std::move(insert_options)))));
-    word_length_ = ColumnNumberDelta(insert->size());
-  }
-
-  Options options_;
-  // The position of the line with the current match.
-  LineNumber line_current_;
-
-  // The number of characters that need to be erased (starting at
-  // options_.column_start) for the next insertion. Initially, this is computed
-  // from options_.column_start and options_.column_end; however, after an
-  // insertion, it gets updated with the length of the insertion.
-  ColumnNumberDelta word_length_;
-
-  // The original text (that the autocompletion is replacing).
-  const std::shared_ptr<LazyString> original_text_;
-};
-
-void FindCompletion(EditorState* editor_state,
-                    std::shared_ptr<OpenBuffer> buffer,
-                    std::shared_ptr<OpenBuffer> dictionary) {
-  if (buffer == nullptr || dictionary == nullptr) {
-    LOG(INFO) << "Buffer or dictionary have expired, giving up.";
-    return;
-  }
-
-  AutocompleteMode::Options options;
-
-  options.column_end = buffer->position().column;
-  if (options.column_end.IsZero()) {
-    LOG(INFO) << "No completion at very beginning of line.";
-    return;
-  }
-
-  if (dictionary->contents()->size() <= LineNumberDelta(1)) {
-    static std::vector<wstring> errors(
-        {L"No completions are available.",
-         L"The autocomplete dictionary is empty.",
-         L"Maybe set the `dictionary` variable?",
-         L"Sorry, I can't autocomplete with an empty dictionary."});
-    buffer->status()->SetInformationText(errors[rand() % errors.size()]);
-    return;
-  }
-
-  LOG(INFO) << "Dictionary size: " << dictionary->contents()->size();
-
-  auto line = buffer->current_line();
-  auto line_str = line->ToString();
-  size_t index_before_symbol = line_str.find_last_not_of(
-      buffer->Read(buffer_variables::symbol_characters),
-      (options.column_end - ColumnNumberDelta(1)).column);
-  if (index_before_symbol == wstring::npos) {
-    options.column_start = ColumnNumber(0);
-  } else {
-    options.column_start = ColumnNumber(index_before_symbol + 1);
-  }
-  LOG(INFO) << "Positions: start: " << options.column_start
-            << ", end: " << options.column_end;
-  options.prefix = std::make_shared<const Line>(
-      Line::Options(Substring(line->contents(), options.column_start,
-                              options.column_end - options.column_start)));
-
-  options.delegate = buffer->ResetMode();
-  options.dictionary = dictionary;
-  options.buffer = buffer;
-
-  LOG(INFO) << "Find completion for \"" << options.prefix->ToString()
-            << "\" among options: " << dictionary->contents()->size();
-  options.line_start = dictionary->contents()->upper_bound(
-      options.prefix,
-      [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
-        return a->ToString() < b->ToString();
-      });
-
-  if (options.line_start == LineNumber(0) + dictionary->lines_size()) {
-    options.line_start = LineNumber(0);
-  }
-
-  auto autocomplete_mode =
-      std::make_unique<AutocompleteMode>(std::move(options));
-  autocomplete_mode->DrawCurrentMatch(editor_state);
-  editor_state->current_buffer()->set_mode(std::move(autocomplete_mode));
-}
-
-void StartCompletionFromDictionary(EditorState* editor_state,
-                                   std::shared_ptr<OpenBuffer> buffer,
-                                   wstring path) {
-  OpenFileOptions options;
-  options.path = path;
-  DCHECK(!options.path.empty());
-  options.editor_state = editor_state;
-  options.insertion_type = BuffersList::AddBufferType::kIgnore;
-  auto file = OpenFile(options);
-  file->second->Set(buffer_variables::show_in_buffers_list, false);
-  LOG(INFO) << "Loading dictionary.";
-  std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
-  std::weak_ptr<OpenBuffer> weak_buffer = buffer;
-  file->second->AddEndOfFileObserver([editor_state, weak_buffer,
-                                      weak_dictionary]() {
-    FindCompletion(editor_state, weak_buffer.lock(), weak_dictionary.lock());
-  });
-}
-
-void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
-                    std::set<wstring>* words) {
-  DCHECK(words != nullptr);
-  if (tree.children().empty() &&
-      tree.range().begin.line == tree.range().end.line) {
-    CHECK_LE(tree.range().begin.column, tree.range().end.column);
-    auto line = buffer.LineAt(tree.range().begin.line);
-    CHECK_LE(tree.range().end.column, line->EndColumn());
-    auto word =
-        line->Substring(tree.range().begin.column,
-                        tree.range().end.column - tree.range().begin.column)
-            ->ToString();
-    if (!word.empty()) {
-      DVLOG(5) << "Found leave: " << word;
-      words->insert(word);
-    }
-  }
-  for (auto& child : tree.children()) {
-    RegisterLeaves(buffer, child, words);
-  }
-}
-
-bool StartCompletion(EditorState* editor_state,
-                     std::shared_ptr<OpenBuffer> buffer) {
-  auto path = buffer->Read(buffer_variables::dictionary);
-  if (!path.empty()) {
-    StartCompletionFromDictionary(editor_state, buffer, path);
-    return true;
-  }
-
-  std::set<wstring> words;
-  auto root = buffer->parse_tree();
-  RegisterLeaves(*buffer, *buffer->current_tree(root.get()), &words);
-  LOG(INFO) << "Leaves found: " << words.size();
-
-  std::wistringstream keywords(
-      buffer->Read(buffer_variables::language_keywords));
-  words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
-               std::istream_iterator<wstring, wchar_t>());
-
-  auto dictionary = std::make_shared<OpenBuffer>(editor_state, L"Dictionary");
-  for (auto& word : words) {
-    dictionary->AppendLine(NewLazyString(std::move(word)));
-  }
-
-  FindCompletion(editor_state, buffer, dictionary);
-  return true;
-}
-
 class FindCompletionCommand : public Command {
  public:
   wstring Description() const override {
@@ -397,7 +117,7 @@ class FindCompletionCommand : public Command {
     if (buffer == nullptr) {
       return;
     }
-    StartCompletion(editor_state, buffer);
+    buffer->ApplyToCursors(NewExpandTransformation());
   }
 };
 
@@ -812,7 +532,8 @@ void EnterInsertMode(InsertModeOptions options) {
   if (!options.start_completion) {
     options.start_completion = [editor_state, buffer = options.buffer]() {
       LOG(INFO) << "Start default completion.";
-      return StartCompletion(editor_state, buffer);
+      buffer->ApplyToCursors(NewExpandTransformation());
+      return true;
     };
   }
 

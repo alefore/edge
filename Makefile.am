@@ -151,6 +151,8 @@ src/transformation/composite.cc \
 src/transformation/composite.h \
 src/transformation/delete.cc \
 src/transformation/delete.h \
+src/transformation/expand.cc \
+src/transformation/expand.h \
 src/transformation/insert.cc \
 src/transformation/insert.h \
 src/transformation/move.cc \
