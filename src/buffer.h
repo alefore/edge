@@ -412,21 +412,6 @@ class OpenBuffer {
                           Trampoline* trampoline);
   static SyntaxDataOutput UpdateSyntaxData(SyntaxDataInput input);
 
-  // Given a simplified_parse_tree and a desired view size, computes the zoomed
-  // out parse tree.
-  struct SyntaxDataZoomInput {
-    const OpenBuffer* buffer;
-    // Total number of lines in the buffer.
-    LineNumberDelta lines_size;
-    LineNumberDelta view_size;
-    std::shared_ptr<const ParseTree> simplified_parse_tree;
-  };
-  struct SyntaxDataZoomOutput {
-    std::shared_ptr<const ParseTree> simplified_parse_tree;
-    std::shared_ptr<const ParseTree> zoomed_parse_tree;
-  };
-  static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
-
   futures::Value<Transformation::Result> Apply(
       unique_ptr<Transformation> transformation, LineColumn position,
       Transformation::Input::Mode mode);
@@ -559,7 +544,11 @@ class OpenBuffer {
   SyntaxDataState syntax_data_state_ = SyntaxDataState::kDone;
   std::shared_ptr<TreeParser> tree_parser_ = NewNullTreeParser();
   AsyncProcessor<SyntaxDataInput, SyntaxDataOutput> syntax_data_;
-  mutable AsyncProcessor<SyntaxDataZoomInput, int> syntax_data_zoom_;
+  mutable AsyncEvaluator syntax_data_zoom_;
+  struct SyntaxDataZoomOutput {
+    std::shared_ptr<const ParseTree> simplified_parse_tree;
+    std::shared_ptr<const ParseTree> zoomed_parse_tree;
+  };
   // Caches the last parse done (by syntax_data_zoom_) for a given view size.
   mutable std::unordered_map<LineNumberDelta, SyntaxDataZoomOutput>
       zoomed_out_parse_trees_;

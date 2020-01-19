@@ -137,25 +137,6 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
   return output;
 }
 
-/* static */
-int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
-  if (input.buffer->simplified_parse_tree() != input.simplified_parse_tree) {
-    return 0;  // Parse tree changed in the meantime.
-  }
-
-  auto zoomed_parse_tree = std::make_shared<ParseTree>(ZoomOutTree(
-      *input.simplified_parse_tree, input.lines_size, input.view_size));
-  input.buffer->work_queue_.Schedule([input, zoomed_parse_tree]() mutable {
-    if (input.buffer->simplified_parse_tree() != input.simplified_parse_tree) {
-      return;  // Parse tree changed in the meantime.
-    }
-    input.buffer->zoomed_out_parse_trees_[input.view_size] = {
-        .simplified_parse_tree = std::move(input.simplified_parse_tree),
-        .zoomed_parse_tree = std::move(zoomed_parse_tree)};
-  });
-  return 0;
-}
-
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
   auto buffer = std::make_unique<ObjectType>(L"Buffer");
@@ -427,15 +408,7 @@ OpenBuffer::OpenBuffer(Options options)
         };
         return options;
       }()),
-      syntax_data_zoom_([this]() {
-        AsyncProcessor<SyntaxDataZoomInput, int>::Options options;
-        options.name = L"SyntaxDataZoom";
-        options.factory = UpdateSyntaxDataZoom;
-        options.push_behavior =
-            AsyncProcessor<SyntaxDataZoomInput,
-                           int>::Options::QueueBehavior::kWait;
-        return options;
-      }()),
+      syntax_data_zoom_(L"SyntaxDataZoom", &work_queue_),
       async_read_evaluator_(L"ReadEvaluator", &work_queue_) {
   UpdateTreeParser();
 
@@ -1402,12 +1375,24 @@ std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
   if (it == zoomed_out_parse_trees_.end() ||
       it->second.simplified_parse_tree != current_tree) {
     VLOG(5) << "Starting new zoomed out tree.";
-    SyntaxDataZoomInput input;
-    input.buffer = this;
-    input.lines_size = lines_size();
-    input.view_size = view_size;
-    input.simplified_parse_tree = current_tree;
-    syntax_data_zoom_.Push(std::move(input));
+    syntax_data_zoom_
+        .Run([this, lines_size = lines_size(), view_size,
+              current_tree]() -> std::shared_ptr<ParseTree> {
+          if (simplified_parse_tree() != current_tree) {
+            return nullptr;  // Parse tree changed in the meantime.
+          }
+          return std::make_shared<ParseTree>(
+              ZoomOutTree(*current_tree, lines_size, view_size));
+        })
+        .SetConsumer([this, view_size, current_tree](
+                         std::shared_ptr<ParseTree> zoomed_parse_tree) mutable {
+          if (simplified_parse_tree() != current_tree) {
+            return;  // Parse tree changed in the meantime.
+          }
+          zoomed_out_parse_trees_[view_size] = SyntaxDataZoomOutput{
+              .simplified_parse_tree = std::move(current_tree),
+              .zoomed_parse_tree = std::move(zoomed_parse_tree)};
+        });
   }
   return it == zoomed_out_parse_trees_.end()
              ? std::make_shared<ParseTree>(Range())

@@ -127,96 +127,6 @@ void ShowFiles(EditorState* editor_state, wstring name,
   target->AppendEmptyLine();
 }
 
-// Wrapper of AsyncProcessor that:
-//
-// - Receives a consumer of the output (whereas `AsyncProcessor` requires it to
-//   be given at construction).
-//
-// - Ensures that the consumer executes in the main thread (through the buffer's
-//   OpenBuffer::SchedulePendingWork).
-//
-// - Displays a status text while the background operation is executing.
-template <typename Input, typename Output>
-class BufferAsyncProcessor {
-  struct FullInput {
-    Input input;
-    // TODO: buffer should really be a std::shared_ptr. There's a crash if the
-    // buffer gets deallocated while this is running. Buffer's will
-    // implicitly depend on the `BufferAsyncProcessor` instances but, during
-    // destruction, they may still have some fields destroyed first.
-    OpenBuffer* buffer;
-    std::shared_ptr<StatusExpirationControl> status_expiration_control;
-    std::function<void(const Output&)> consumer;
-  };
-
- public:
-  BufferAsyncProcessor(std::wstring operation_status,
-                       std::function<Output(Input)> factory)
-      : operation_status_(operation_status), async_processor_([&] {
-          typename AsyncProcessor<FullInput, int>::Options options;
-          options.name = L"BufferAsyncProcessor::" + operation_status;
-
-          options.factory = [factory](FullInput input) {
-            input.buffer->work_queue()->Schedule(
-                [consumer = std::move(input.consumer),
-                 output = factory(std::move(input.input)),
-                 expiration = std::move(input.status_expiration_control)]() {
-                  consumer(output);
-                });
-            return 0;
-          };
-          return options;
-        }()) {}
-
-  void Push(OpenBuffer* buffer, Input input,
-            std::function<void(const Output&)> consumer) {
-    FullInput full_input;
-    full_input.input = std::move(input);
-    full_input.buffer = buffer;
-    full_input.status_expiration_control =
-        buffer->status()->SetExpiringInformationText(operation_status_ +
-                                                     L" ...");
-    full_input.consumer = std::move(consumer);
-    async_processor_.Push(std::move(full_input));
-  }
-
- private:
-  const std::wstring operation_status_;
-  const std::function<Output(Input)> callback_;
-
-  // The return value is ignored, but we can't use `void` (due to
-  // limitations of `AsyncProcessor`).
-  AsyncProcessor<FullInput, int> async_processor_;
-};
-
-class BackgroundOpen : public BufferAsyncProcessor<std::wstring, int> {
- public:
-  BackgroundOpen()
-      : BufferAsyncProcessor<std::wstring, int>(L"Open", [](std::wstring path) {
-          return open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
-        }) {}
-};
-
-class BackgroundStat
-    : public BufferAsyncProcessor<std::wstring, std::optional<struct stat>> {
- public:
-  BackgroundStat()
-      : BufferAsyncProcessor<std::wstring, std::optional<struct stat>>(
-            L"Stat", [](std::wstring path) -> std::optional<struct stat> {
-              struct stat output;
-              if (path.empty() ||
-                  stat(ToByteString(path).c_str(), &output) == -1) {
-                return std::nullopt;
-              }
-              return output;
-            }) {}
-};
-
-struct BackgroundReadDirInput {
-  wstring path;
-  std::wregex noise_regex;
-};
-
 struct BackgroundReadDirOutput {
   std::optional<std::wstring> error_description;
   std::vector<dirent> directories;
@@ -224,59 +134,58 @@ struct BackgroundReadDirOutput {
   std::vector<dirent> noise;
 };
 
-class BackgroundReadDir : public BufferAsyncProcessor<BackgroundReadDirInput,
-                                                      BackgroundReadDirOutput> {
- public:
-  BackgroundReadDir()
-      : BufferAsyncProcessor<BackgroundReadDirInput, BackgroundReadDirOutput>(
-            L"ReadDirectory", InternalRead) {}
-
- private:
-  static BackgroundReadDirOutput InternalRead(BackgroundReadDirInput input) {
-    BackgroundReadDirOutput output;
-    auto dir = OpenDir(input.path);
-    if (dir == nullptr) {
-      output.error_description =
-          L"Unable to open directory: " + FromByteString(strerror(errno));
-      return output;
-    }
-    struct dirent* entry;
-    while ((entry = readdir(dir.get())) != nullptr) {
-      auto path = FromByteString(entry->d_name);
-      if (strcmp(entry->d_name, ".") == 0) {
-        continue;  // Showing the link to itself is rather pointless.
-      }
-
-      if (std::regex_match(path, input.noise_regex)) {
-        output.noise.push_back(*entry);
-        continue;
-      }
-
-      if (entry->d_type == DT_DIR) {
-        output.directories.push_back(*entry);
-        continue;
-      }
-
-      output.regular_files.push_back(*entry);
-    }
+BackgroundReadDirOutput ReadDir(std::wstring path, std::wregex noise_regex) {
+  BackgroundReadDirOutput output;
+  auto dir = OpenDir(path);
+  if (dir == nullptr) {
+    output.error_description =
+        L"Unable to open directory: " + FromByteString(strerror(errno));
     return output;
   }
-};
+  struct dirent* entry;
+  while ((entry = readdir(dir.get())) != nullptr) {
+    auto path = FromByteString(entry->d_name);
+    if (strcmp(entry->d_name, ".") == 0) {
+      continue;  // Showing the link to itself is rather pointless.
+    }
+
+    if (std::regex_match(path, noise_regex)) {
+      output.noise.push_back(*entry);
+      continue;
+    }
+
+    if (entry->d_type == DT_DIR) {
+      output.directories.push_back(*entry);
+      continue;
+    }
+
+    output.regular_files.push_back(*entry);
+  }
+  return output;
+}
 
 void GenerateContents(
     EditorState* editor_state, std::shared_ptr<struct stat> stat_buffer,
-    std::shared_ptr<BackgroundStat> background_stat,
-    std::shared_ptr<BackgroundOpen> background_file_opener,
-    std::shared_ptr<BackgroundReadDir> background_directory_reader,
+    std::shared_ptr<AsyncEvaluator> background_stat,
+    std::shared_ptr<AsyncEvaluator> background_file_opener,
+    std::shared_ptr<AsyncEvaluator> background_directory_reader,
     OpenBuffer* target) {
   CHECK(!target->modified());
   const wstring path = target->Read(buffer_variables::path);
   LOG(INFO) << "GenerateContents: " << path;
-  background_stat->Push(
-      target, path,
-      [editor_state, stat_buffer, background_file_opener,
-       background_directory_reader, target,
-       path](std::optional<struct stat> stat_results) {
+  background_stat
+      ->Run(std::function<
+            std::optional<struct stat>()>([path]()
+                                              -> std::optional<struct stat> {
+        struct stat output;
+        if (path.empty() || stat(ToByteString(path).c_str(), &output) == -1) {
+          return {};
+        }
+        return output;
+      }))
+      .SetConsumer([editor_state, stat_buffer, background_file_opener,
+                    background_directory_reader, target,
+                    path](std::optional<struct stat> stat_results) {
         if ((path.empty() || stat_results.has_value()) &&
             target->Read(buffer_variables::clear_on_reload)) {
           target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
@@ -288,11 +197,15 @@ void GenerateContents(
         *stat_buffer = stat_results.value();
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
-          // target capture here should really be std::shared_ptr. See comments
-          // in BufferAsyncProcessor.
-          background_file_opener->Push(target, path, [target](int fd) {
-            target->SetInputFiles(fd, -1, false, -1);
-          });
+          // target capture here should really be std::shared_ptr, to ensure
+          // that the ubffer won't be deallocated.
+          background_file_opener
+              ->Run(std::function<int()>([path]() {
+                return open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
+              }))
+              .SetConsumer([target](int fd) {
+                target->SetInputFiles(fd, -1, false, -1);
+              });
           return;
         }
 
@@ -300,35 +213,35 @@ void GenerateContents(
         target->Set(buffer_variables::allow_dirty_delete, true);
         target->Set(buffer_variables::tree_parser, L"md");
 
-        BackgroundReadDirInput directory_read;
-        directory_read.path = path;
-        directory_read.noise_regex =
-            target->Read(buffer_variables::directory_noise);
-        background_directory_reader->Push(
-            target, std::move(directory_read),
-            [editor_state, target,
-             path](const BackgroundReadDirOutput results) {
-              if (results.error_description.has_value()) {
-                target->status()->SetInformationText(
-                    results.error_description.value());
-                target->AppendLine(NewLazyString(
-                    std::move(results.error_description.value())));
-                return;
-              }
+        background_directory_reader
+            ->Run(std::function<BackgroundReadDirOutput()>(
+                [path, noise_regexp =
+                           target->Read(buffer_variables::directory_noise)]() {
+                  return ReadDir(path, std::wregex(noise_regexp));
+                }))
+            .SetConsumer(
+                [editor_state, target, path](BackgroundReadDirOutput results) {
+                  if (results.error_description.has_value()) {
+                    target->status()->SetInformationText(
+                        results.error_description.value());
+                    target->AppendLine(NewLazyString(
+                        std::move(results.error_description.value())));
+                    return;
+                  }
 
-              target->AppendToLastLine(
-                  NewLazyString(L"# 🗁  File listing: " + path));
-              target->AppendEmptyLine();
+                  target->AppendToLastLine(
+                      NewLazyString(L"# 🗁  File listing: " + path));
+                  target->AppendEmptyLine();
 
-              ShowFiles(editor_state, L"🗁  Directories",
-                        std::move(results.directories), target);
-              ShowFiles(editor_state, L"🗀  Files",
-                        std::move(results.regular_files), target);
-              ShowFiles(editor_state, L"🗐  Noise", std::move(results.noise),
-                        target);
+                  ShowFiles(editor_state, L"🗁  Directories",
+                            std::move(results.directories), target);
+                  ShowFiles(editor_state, L"🗀  Files",
+                            std::move(results.regular_files), target);
+                  ShowFiles(editor_state, L"🗐  Noise",
+                            std::move(results.noise), target);
 
-              target->ClearModified();
-            });
+                  target->ClearModified();
+                });
       });
 }
 
@@ -608,9 +521,12 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   OpenBuffer::Options buffer_options;
   buffer_options.editor = editor_state;
 
-  auto background_stat = std::make_shared<BackgroundStat>();
-  auto background_file_opener = std::make_shared<BackgroundOpen>();
-  auto background_directory_reader = std::make_shared<BackgroundReadDir>();
+  auto background_stat = std::make_shared<AsyncEvaluator>(
+      L"Stat", options.editor_state->work_queue());
+  auto background_file_opener = std::make_shared<AsyncEvaluator>(
+      L"Open", options.editor_state->work_queue());
+  auto background_directory_reader = std::make_shared<AsyncEvaluator>(
+      L"ReadDir", options.editor_state->work_queue());
   buffer_options.generate_contents =
       [editor_state, stat_buffer, background_stat, background_file_opener,
        background_directory_reader](OpenBuffer* target) {
