@@ -128,14 +128,15 @@ SearchRange GetRange(const NavigateState& navigate_state,
         break;
 
       case NavigateOperation::Type::kNumber: {
-        size_t slice_width = max(1ul, range.size() / 9);
-        size_t new_begin =
-            min(range.begin() + slice_width * operation.number, range.end());
-        int overlap = slice_width / 2;
+        double slice_width = max(1.0, range.size() / 9.0);
+        double overlap = slice_width / 2;
+        double new_begin = min(range.begin() + slice_width * operation.number,
+                               static_cast<double>(range.end()));
         range = SearchRange(
-            max(range.begin(), static_cast<size_t>(max(
-                                   0, static_cast<int>(new_begin) - overlap))),
-            min(new_begin + slice_width + overlap, range.end()));
+            max(range.begin(),
+                static_cast<size_t>(max(0.0, new_begin - overlap))),
+            min(static_cast<size_t>(new_begin + slice_width + overlap),
+                range.end()));
         break;
       }
     }
