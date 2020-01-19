@@ -125,6 +125,7 @@ PredictResults HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer) {
 }
 
 std::wstring GetPredictInput(const PredictOptions& options) {
+  if (options.text.has_value()) return options.text.value();
   auto buffer = options.input_buffer;
   Modifiers modifiers;
   modifiers.direction = Direction::BACKWARDS;

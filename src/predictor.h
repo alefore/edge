@@ -42,7 +42,7 @@ struct PredictorInput {
   // That allows the predictor to inspect the buffer contents (e.g., searching
   // in the buffer) or variables (e.g., honoring variables in the buffer
   // affecting the prediction).
-  std::shared_ptr<OpenBuffer> source_buffer = nullptr;
+  std::shared_ptr<const OpenBuffer> source_buffer = nullptr;
 };
 
 struct PredictorOutput {};
@@ -81,13 +81,17 @@ struct PredictOptions {
   Predictor predictor;
   Status* status;
 
-  // The buffer that contains the input to use for the prediction.
-  std::shared_ptr<OpenBuffer> input_buffer;
+  // The text to use for the prediction. If not set, it'll be extracted from
+  // `input_buffer` based on `input_selection_structure`.
+  std::optional<std::wstring> text;
 
+  // The buffer that contains the input to use for the prediction. Only read if
+  // `text` is absent.
+  std::shared_ptr<OpenBuffer> input_buffer;
   Structure* input_selection_structure = StructureLine();
 
   // Given to the predictor (see `PredictorInput::source_buffer`).
-  std::shared_ptr<OpenBuffer> source_buffer;
+  std::shared_ptr<const OpenBuffer> source_buffer;
 };
 // Create a new buffer running a given predictor on the input in a given status
 // prompt. When that's done, notifies the returned future.
