@@ -1261,7 +1261,7 @@ void OpenBuffer::DestroyOtherCursors() {
 }
 
 Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
-                                   LineColumn position) {
+                                   LineColumn position) const {
   Range output;
   const auto forward = modifiers.direction;
   const auto backward = ReverseDirection(forward);
@@ -1269,7 +1269,9 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   position.line = min(contents_.EndLine(), position.line);
   if (position.column > LineAt(position.line)->EndColumn()) {
     if (Read(buffer_variables::extend_lines)) {
-      MaybeExtendLine(position);
+      // TODO: Somehow move this to a more suitable location. Here it clashes
+      // with the desired constness of this method.
+      // MaybeExtendLine(position);
     } else {
       position.column = LineAt(position.line)->EndColumn();
     }
