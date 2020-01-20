@@ -3,6 +3,7 @@
 // This program mainly sets several buffer variables depending on properties
 // of the buffer (such as the extension of the file being loaded).
 
+#include "../editor_commands/camelcase.cc"
 #include "../editor_commands/compiler"
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
@@ -271,6 +272,12 @@ buffer.AddBinding("s+", "Numbers: Increment the number under the cursor.",
                   IncrementNumber);
 buffer.AddBinding("s-", "Numbers: Decrement the number under the cursor.",
                   DecrementNumber);
+
+void Camel() {
+  buffer.ApplyTransformation(FunctionTransformation(CamelCaseTransformation));
+}
+
+buffer.AddBinding("Cc", "Edit: Adjust identifier to or from CamelCase.", Camel);
 
 void RunLocalShell() {
   auto options = ForkCommandOptions();
