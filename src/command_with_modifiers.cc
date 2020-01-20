@@ -198,9 +198,12 @@ Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
 namespace {
 class CommandWithModifiers : public Command {
  public:
-  CommandWithModifiers(wstring name, wstring description,
+  CommandWithModifiers(wstring name, wstring description, Modifiers modifiers,
                        CommandWithModifiersHandler handler)
-      : name_(name), description_(description), handler_(handler) {}
+      : name_(name),
+        description_(description),
+        initial_modifiers_(std::move(modifiers)),
+        handler_(handler) {}
 
   wstring Description() const override { return description_; }
   wstring Category() const override { return L"Edit"; }
@@ -208,27 +211,30 @@ class CommandWithModifiers : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) override {
     auto buffer = editor_state->current_buffer();
     if (buffer == nullptr) return;
-    Modifiers initial_modifiers;
-    initial_modifiers.cursors_affected =
+    auto modifiers = initial_modifiers_;
+    modifiers.cursors_affected =
         buffer->Read(buffer_variables::multiple_cursors)
             ? Modifiers::CursorsAffected::kAll
             : Modifiers::CursorsAffected::kOnlyCurrent;
-    initial_modifiers.repetitions = 0;
+    modifiers.repetitions = 0;
     buffer->set_mode(std::make_unique<TransformationArgumentMode<Modifiers>>(
-        name_, editor_state, initial_modifiers, handler_));
+        name_, editor_state, modifiers, handler_));
   }
 
  private:
   const wstring name_;
   const wstring description_;
+  const Modifiers initial_modifiers_;
   CommandWithModifiersHandler handler_;
 };
 }  // namespace
 
 std::unique_ptr<Command> NewCommandWithModifiers(
-    wstring name, wstring description, CommandWithModifiersHandler handler) {
+    wstring name, wstring description, Modifiers modifiers,
+    CommandWithModifiersHandler handler) {
   return std::make_unique<CommandWithModifiers>(
-      std::move(name), std::move(description), std::move(handler));
+      std::move(name), std::move(description), std::move(modifiers),
+      std::move(handler));
 }
 
 }  // namespace editor

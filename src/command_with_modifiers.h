@@ -112,7 +112,8 @@ using CommandWithModifiersHandler =
                                                   Modifiers)>;
 
 std::unique_ptr<Command> NewCommandWithModifiers(
-    wstring name, wstring description, CommandWithModifiersHandler handler);
+    wstring name, wstring description, Modifiers initial_modifiers,
+    CommandWithModifiersHandler handler);
 
 }  // namespace editor
 }  // namespace afc
