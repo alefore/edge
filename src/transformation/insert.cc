@@ -68,7 +68,7 @@ class InsertBufferTransformation : public Transformation {
         NewDeleteTransformation(GetCharactersDeleteOptions(chars_inserted))));
 
     auto delayed_shared_result = futures::Past(result);
-    if (options_.modifiers.insertion == Modifiers::REPLACE) {
+    if (options_.modifiers.insertion == Modifiers::InsertionMode::kReplace) {
       DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
       delete_options.modifiers.paste_buffer_behavior =

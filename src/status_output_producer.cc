@@ -82,9 +82,11 @@ class InfoProducer : public OutputProducer {
               flags.insert({L"reverse", L""});
             }
 
-            if (modifiers_.default_insertion == Modifiers::REPLACE) {
+            if (modifiers_.default_insertion ==
+                Modifiers::InsertionMode::kReplace) {
               flags.insert({L"REPLACE", L""});
-            } else if (modifiers_.insertion == Modifiers::REPLACE) {
+            } else if (modifiers_.insertion ==
+                       Modifiers::InsertionMode::kReplace) {
               flags.insert({L"replace", L""});
             }
 

@@ -36,11 +36,11 @@ struct Modifiers {
     kStrong,
   };
 
-  enum Insertion {
+  enum class InsertionMode {
     // Default.  Text inserted pushes previous contents backwards.
-    INSERT,
+    kAdd,
     // Text inserted overwrites previous contents.
-    REPLACE
+    kReplace
   };
 
   // Sets the modifiers to their default values, including resetting any form
@@ -48,7 +48,7 @@ struct Modifiers {
   void ResetHard() {
     structure = StructureChar();
     default_direction = FORWARDS;
-    default_insertion = INSERT;
+    default_insertion = InsertionMode::kAdd;
     ResetSoft();
   }
 
@@ -83,8 +83,8 @@ struct Modifiers {
   Direction direction = FORWARDS;
   Direction default_direction = FORWARDS;
 
-  Insertion insertion = INSERT;
-  Insertion default_insertion = INSERT;
+  InsertionMode insertion = InsertionMode::kAdd;
+  InsertionMode default_insertion = InsertionMode::kAdd;
 
   size_t repetitions = 1;
 
