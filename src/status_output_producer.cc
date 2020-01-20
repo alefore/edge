@@ -83,11 +83,11 @@ class InfoProducer : public OutputProducer {
             }
 
             if (modifiers_.default_insertion ==
-                Modifiers::InsertionMode::kReplace) {
-              flags.insert({L"REPLACE", L""});
+                Modifiers::ModifyMode::kOverwrite) {
+              flags.insert({L"OVERWRITE", L""});
             } else if (modifiers_.insertion ==
-                       Modifiers::InsertionMode::kReplace) {
-              flags.insert({L"replace", L""});
+                       Modifiers::ModifyMode::kOverwrite) {
+              flags.insert({L"overwrite", L""});
             }
 
             if (modifiers_.strength == Modifiers::Strength::kStrong) {

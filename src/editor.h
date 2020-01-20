@@ -118,18 +118,18 @@ class EditorState {
     modifiers_.sticky_structure = sticky_structure;
   }
 
-  Modifiers::InsertionMode insertion_modifier() const {
+  Modifiers::ModifyMode insertion_modifier() const {
     return modifiers_.insertion;
   }
-  void set_insertion_modifier(Modifiers::InsertionMode insertion_modifier) {
+  void set_insertion_modifier(Modifiers::ModifyMode insertion_modifier) {
     modifiers_.insertion = insertion_modifier;
   }
   void ResetInsertionModifier() { modifiers_.ResetInsertion(); }
-  Modifiers::InsertionMode default_insertion_modifier() const {
+  Modifiers::ModifyMode default_insertion_modifier() const {
     return modifiers_.default_insertion;
   }
   void set_default_insertion_modifier(
-      Modifiers::InsertionMode default_insertion_modifier) {
+      Modifiers::ModifyMode default_insertion_modifier) {
     modifiers_.default_insertion = default_insertion_modifier;
   }
 

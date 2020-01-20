@@ -200,6 +200,21 @@ class InsertMode : public EditorMode {
             Modifiers::PasteBufferBehavior::kDoNothing;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
             .SetConsumer([this](bool) { options_.modify_handler(); });
+        if (editor_state->modifiers().insertion ==
+            Modifiers::ModifyMode::kOverwrite) {
+          auto buffer_to_insert =
+              std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
+          buffer_to_insert->AppendToLastLine(NewLazyString(L" "));
+          InsertOptions insert_options;
+          insert_options.buffer_to_insert = buffer_to_insert;
+          if (c == wint_t(Terminal::BACKSPACE)) {
+            insert_options.final_position =
+                InsertOptions::FinalPosition::kStart;
+          }
+          buffer->ApplyToCursors(
+              NewInsertBufferTransformation(std::move(insert_options)));
+        }
+        options_.modify_handler();
       }
         return;
 

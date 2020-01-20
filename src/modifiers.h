@@ -36,11 +36,17 @@ struct Modifiers {
     kStrong,
   };
 
-  enum class InsertionMode {
-    // Default.  Text inserted pushes previous contents backwards.
-    kAdd,
-    // Text inserted overwrites previous contents.
-    kReplace
+  // Specifies what happens to characters near the cursor when a modification
+  // is applied.
+  enum class ModifyMode {
+    // Default.  Characters move. In an insertion, they just move to the right,
+    // to make space (in the file) for the newly inserted contents. In a
+    // deletion, they get "consumed" (destroyed).
+    kShift,
+    // Characters never move. Characters at the right of an insertion will get
+    // overwritten. For a deletion, characters just get blanked (set to space),
+    // but not actually deleted.
+    kOverwrite
   };
 
   // Sets the modifiers to their default values, including resetting any form
@@ -48,7 +54,7 @@ struct Modifiers {
   void ResetHard() {
     structure = StructureChar();
     default_direction = FORWARDS;
-    default_insertion = InsertionMode::kAdd;
+    default_insertion = ModifyMode::kShift;
     ResetSoft();
   }
 
@@ -83,8 +89,8 @@ struct Modifiers {
   Direction direction = FORWARDS;
   Direction default_direction = FORWARDS;
 
-  InsertionMode insertion = InsertionMode::kAdd;
-  InsertionMode default_insertion = InsertionMode::kAdd;
+  ModifyMode insertion = ModifyMode::kShift;
+  ModifyMode default_insertion = ModifyMode::kShift;
 
   size_t repetitions = 1;
 

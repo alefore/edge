@@ -483,15 +483,15 @@ class InsertionModifierCommand : public Command {
   wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (editor_state->insertion_modifier() == Modifiers::InsertionMode::kAdd) {
-      editor_state->set_insertion_modifier(Modifiers::InsertionMode::kReplace);
+    if (editor_state->insertion_modifier() == Modifiers::ModifyMode::kShift) {
+      editor_state->set_insertion_modifier(Modifiers::ModifyMode::kOverwrite);
     } else if (editor_state->default_insertion_modifier() ==
-               Modifiers::InsertionMode::kAdd) {
+               Modifiers::ModifyMode::kShift) {
       editor_state->set_default_insertion_modifier(
-          Modifiers::InsertionMode::kReplace);
+          Modifiers::ModifyMode::kOverwrite);
     } else {
       editor_state->set_default_insertion_modifier(
-          Modifiers::InsertionMode::kAdd);
+          Modifiers::ModifyMode::kShift);
       editor_state->ResetInsertionModifier();
     }
   }
@@ -839,7 +839,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"i", std::make_unique<EnterInsertModeCommand>(std::nullopt));
   commands->Add(L"I", std::make_unique<EnterInsertModeCommand>([] {
                   Modifiers output;
-                  output.insertion = Modifiers::InsertionMode::kReplace;
+                  output.insertion = Modifiers::ModifyMode::kOverwrite;
                   return output;
                 }()));
   commands->Add(L"f", std::make_unique<EnterFindMode>());
