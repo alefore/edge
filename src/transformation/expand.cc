@@ -38,7 +38,8 @@ std::unique_ptr<Transformation> DeleteLastCharacters(int characters) {
   DeleteOptions delete_options;
   delete_options.modifiers.direction = BACKWARDS;
   delete_options.modifiers.repetitions = characters;
-  delete_options.copy_to_paste_buffer = false;
+  delete_options.modifiers.paste_buffer_behavior =
+      Modifiers::PasteBufferBehavior::kDoNothing;
   return NewDeleteTransformation(std::move(delete_options));
 }
 

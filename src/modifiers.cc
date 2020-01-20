@@ -29,6 +29,15 @@ ostream& operator<<(ostream& os, const Modifiers& m) {
       os << "backwards";
       break;
   }
+  os << "][paste_buffer_behavior: ";
+  switch (m.paste_buffer_behavior) {
+    case Modifiers::PasteBufferBehavior::kDeleteInto:
+      os << "kDeleteInto";
+      break;
+    case Modifiers::PasteBufferBehavior::kDoNothing:
+      os << "kDoNothing";
+      break;
+  }
   os << "][repetitions: " << m.repetitions << "]";
   return os;
 }
@@ -61,6 +70,16 @@ void Modifiers::Register(vm::Environment* environment) {
   modifiers_type->AddField(
       L"set_line", vm::NewCallback([](std::shared_ptr<Modifiers> output) {
         output->structure = StructureLine();
+        return output;
+      }));
+
+  modifiers_type->AddField(
+      L"set_paste_buffer_behavior",
+      vm::NewCallback([](std::shared_ptr<Modifiers> output,
+                         bool paste_buffer_behavior) {
+        output->paste_buffer_behavior =
+            paste_buffer_behavior ? Modifiers::PasteBufferBehavior::kDeleteInto
+                                  : Modifiers::PasteBufferBehavior::kDoNothing;
         return output;
       }));
 

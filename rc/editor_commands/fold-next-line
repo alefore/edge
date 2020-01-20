@@ -30,8 +30,9 @@ TransformationOutput FoldNextLine(TransformationInput input) {
       auto prefix_size = LeadingPrefix(buffer.line(next_line)).size();
       output.push(
           DeleteTransformationBuilder()
-              .set_modifiers(Modifiers().set_repetitions((1 + prefix_size)))
-              .set_copy_to_paste_buffer(false)
+              .set_modifiers(
+                  Modifiers().set_paste_buffer_behavior(false).set_repetitions(
+                      (1 + prefix_size)))
               .build());
       if (buffer.line(next_line).size() > prefix_size) {
         column += buffer.line(next_line).size() - prefix_size + 1;

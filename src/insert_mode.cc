@@ -196,7 +196,8 @@ class InsertMode : public EditorMode {
         if (c == wint_t(Terminal::BACKSPACE)) {
           delete_options.modifiers.direction = BACKWARDS;
         }
-        delete_options.copy_to_paste_buffer = false;
+        delete_options.modifiers.paste_buffer_behavior =
+            Modifiers::PasteBufferBehavior::kDoNothing;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
             .SetConsumer([this](bool) { options_.modify_handler(); });
       }
@@ -237,7 +238,8 @@ class InsertMode : public EditorMode {
         delete_options.modifiers.structure = StructureLine();
         delete_options.modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
         delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-        delete_options.copy_to_paste_buffer = false;
+        delete_options.modifiers.paste_buffer_behavior =
+            Modifiers::PasteBufferBehavior::kDoNothing;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
             .SetConsumer([this](bool) { options_.modify_handler(); });
         return;

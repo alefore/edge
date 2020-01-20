@@ -117,11 +117,19 @@ bool TransformationArgumentApplyChar(wchar_t c, Modifiers* modifiers) {
       set_structure(StructureSentence());
       break;
 
-    case 'P':
+    case 'p':
       set_structure(StructureParagraph());
       break;
 
-    case 'p':
+    case 'P':
+      modifiers->paste_buffer_behavior =
+          modifiers->paste_buffer_behavior ==
+                  Modifiers::PasteBufferBehavior::kDeleteInto
+              ? Modifiers::PasteBufferBehavior::kDoNothing
+              : Modifiers::PasteBufferBehavior::kDeleteInto;
+      break;
+
+    case 'k':
       modifiers->delete_behavior =
           modifiers->delete_behavior == Modifiers::DeleteBehavior::kDeleteText
               ? Modifiers::DeleteBehavior::kDoNothing
@@ -151,6 +159,10 @@ std::wstring TransformationArgumentBuildStatus(const Modifiers& modifiers,
   }
   if (modifiers.delete_behavior == Modifiers::DeleteBehavior::kDoNothing) {
     status += L" keep";
+  }
+  if (modifiers.paste_buffer_behavior ==
+      Modifiers::PasteBufferBehavior::kDoNothing) {
+    status += L" nuke";
   }
 
   status += L" ";

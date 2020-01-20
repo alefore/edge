@@ -21,7 +21,6 @@ std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
 
   DeleteOptions options;
   options.modifiers = std::move(modifiers);
-  options.copy_to_paste_buffer = true;
   return NewDeleteTransformation(options);
 }
 

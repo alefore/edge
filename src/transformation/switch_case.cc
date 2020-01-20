@@ -42,7 +42,8 @@ class SwitchCaseTransformation : public CompositeTransformation {
     Output output = Output::SetPosition(input.range.begin);
 
     DeleteOptions delete_options;
-    delete_options.copy_to_paste_buffer = false;
+    delete_options.modifiers.paste_buffer_behavior =
+        Modifiers::PasteBufferBehavior::kDoNothing;
     delete_options.modifiers.repetitions =
         buffer_to_insert->contents()->CountCharacters();
     delete_options.mode = Transformation::Input::Mode::kFinal;

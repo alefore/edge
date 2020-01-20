@@ -71,7 +71,8 @@ class InsertBufferTransformation : public Transformation {
     if (options_.modifiers.insertion == Modifiers::REPLACE) {
       DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
-      delete_options.copy_to_paste_buffer = false;
+      delete_options.modifiers.paste_buffer_behavior =
+          Modifiers::PasteBufferBehavior::kDoNothing;
       delayed_shared_result = futures::ImmediateTransform(
           TransformationAtPosition(
               result->position,
@@ -105,7 +106,8 @@ class InsertBufferTransformation : public Transformation {
   static DeleteOptions GetCharactersDeleteOptions(size_t repetitions) {
     DeleteOptions output;
     output.modifiers.repetitions = repetitions;
-    output.copy_to_paste_buffer = false;
+    output.modifiers.paste_buffer_behavior =
+        Modifiers::PasteBufferBehavior::kDoNothing;
     return output;
   }
 

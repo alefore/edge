@@ -42,17 +42,13 @@ const VMType VMTypeMapper<std::shared_ptr<editor::DeleteOptions>>::vmtype =
 }  // namespace vm
 namespace editor {
 std::ostream& operator<<(std::ostream& os, const DeleteOptions& options) {
-  os << "[DeleteOptions: copy_to_paste_buffer:" << options.copy_to_paste_buffer
-     << ", modifiers:" << options.modifiers << "]";
+  os << "[DeleteOptions: modifiers:" << options.modifiers << "]";
   return os;
 }
 
 std::wstring DeleteOptions::Serialize() const {
   std::wstring output = L"DeleteTransformationBuilder()";
   output += L".set_modifiers(" + modifiers.Serialize() + L")";
-  if (!copy_to_paste_buffer) {
-    output += L".set_copy_to_paste_buffer(false)";
-  }
   if (line_end_behavior != LineEndBehavior::kDelete) {
     output += L".set_line_end_behavior(\"stop\")";
   }
@@ -152,7 +148,8 @@ class DeleteTransformation : public Transformation {
     output->made_progress = true;
 
     auto delete_buffer = GetDeletedTextBuffer(*input.buffer, range);
-    if (options_.copy_to_paste_buffer &&
+    if (options_.modifiers.paste_buffer_behavior ==
+            Modifiers::PasteBufferBehavior::kDeleteInto &&
         input.mode == Transformation::Input::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
       output->delete_buffer = delete_buffer;
@@ -238,17 +235,6 @@ void RegisterDeleteTransformation(vm::Environment* environment) {
                 options->modifiers = *modifiers;
                 return options;
               })));
-
-  builder->AddField(
-      L"set_copy_to_paste_buffer",
-      vm::NewCallback(std::function<std::shared_ptr<DeleteOptions>(
-                          std::shared_ptr<DeleteOptions>, bool)>(
-          [](std::shared_ptr<DeleteOptions> options,
-             bool copy_to_paste_buffer) {
-            CHECK(options != nullptr);
-            options->copy_to_paste_buffer = copy_to_paste_buffer;
-            return options;
-          })));
 
   builder->AddField(
       L"set_line_end_behavior",

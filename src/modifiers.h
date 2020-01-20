@@ -91,6 +91,9 @@ struct Modifiers {
   enum class DeleteBehavior { kDeleteText, kDoNothing };
   DeleteBehavior delete_behavior = DeleteBehavior::kDeleteText;
 
+  enum class PasteBufferBehavior { kDeleteInto, kDoNothing };
+  PasteBufferBehavior paste_buffer_behavior = PasteBufferBehavior::kDeleteInto;
+
   enum Boundary {
     // At the current cursor position.
     CURRENT_POSITION,

@@ -186,7 +186,8 @@ class NavigateTransformation : public CompositeTransformation {
         output.Push(NewSetPositionTransformation(marker));
 
         DeleteOptions delete_options;
-        delete_options.copy_to_paste_buffer = false;
+        delete_options.modifiers.paste_buffer_behavior =
+            Modifiers::PasteBufferBehavior::kDoNothing;
         delete_options.mode = Transformation::Input::Mode::kPreview;
         delete_options.modifiers.delete_behavior =
             Modifiers::DeleteBehavior::kDoNothing;
@@ -219,7 +220,8 @@ class NavigateTransformation : public CompositeTransformation {
     DeleteOptions options;
     options.modifiers.structure = StructureLine();
     options.modifiers.direction = direction;
-    options.copy_to_paste_buffer = false;
+    options.modifiers.paste_buffer_behavior =
+        Modifiers::PasteBufferBehavior::kDoNothing;
     options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
     options.mode = Transformation::Input::Mode::kPreview;
     output->Push(NewDeleteTransformation(std::move(options)));

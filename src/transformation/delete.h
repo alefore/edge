@@ -12,7 +12,6 @@ struct DeleteOptions {
   std::wstring Serialize() const;
 
   Modifiers modifiers;
-  bool copy_to_paste_buffer = true;
 
   enum class LineEndBehavior { kStop, kDelete };
   LineEndBehavior line_end_behavior = LineEndBehavior::kDelete;

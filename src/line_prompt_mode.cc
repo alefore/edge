@@ -176,7 +176,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
     }
 
     DeleteOptions delete_options;
-    delete_options.copy_to_paste_buffer = false;
+    delete_options.modifiers.paste_buffer_behavior =
+        Modifiers::PasteBufferBehavior::kDoNothing;
     delete_options.modifiers.structure = StructureLine();
     delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
     delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
@@ -356,7 +357,8 @@ void Prompt(PromptOptions options) {
                       << results.value();
 
             DeleteOptions delete_options;
-            delete_options.copy_to_paste_buffer = false;
+            delete_options.modifiers.paste_buffer_behavior =
+                Modifiers::PasteBufferBehavior::kDoNothing;
             delete_options.modifiers.structure = StructureLine();
             delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
             delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
