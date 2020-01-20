@@ -1718,8 +1718,8 @@ futures::Value<bool> OpenBuffer::ApplyToCursors(
     std::unique_ptr<Transformation> transformation) {
   return ApplyToCursors(std::move(transformation),
                         Read(buffer_variables::multiple_cursors)
-                            ? Modifiers::AFFECT_ALL_CURSORS
-                            : Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
+                            ? Modifiers::CursorsAffected::kAll
+                            : Modifiers::CursorsAffected::kOnlyCurrent,
                         Transformation::Input::Mode::kFinal);
 }
 
@@ -1742,7 +1742,7 @@ futures::Value<bool> OpenBuffer::ApplyToCursors(
   undo_past_.back()->PushFront(
       NewSetCursorsTransformation(*active_cursors(), position()));
 
-  if (cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
+  if (cursors_affected == Modifiers::CursorsAffected::kAll) {
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);

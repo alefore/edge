@@ -32,11 +32,12 @@ bool TransformationArgumentApplyChar(wchar_t c, Modifiers* modifiers) {
 
     case '*':
       switch (modifiers->cursors_affected) {
-        case Modifiers::AFFECT_ONLY_CURRENT_CURSOR:
-          modifiers->cursors_affected = Modifiers::AFFECT_ALL_CURSORS;
+        case Modifiers::CursorsAffected::kOnlyCurrent:
+          modifiers->cursors_affected = Modifiers::CursorsAffected::kAll;
           break;
-        case Modifiers::AFFECT_ALL_CURSORS:
-          modifiers->cursors_affected = Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
+        case Modifiers::CursorsAffected::kAll:
+          modifiers->cursors_affected =
+              Modifiers::CursorsAffected::kOnlyCurrent;
           break;
       }
       break;
@@ -121,10 +122,10 @@ bool TransformationArgumentApplyChar(wchar_t c, Modifiers* modifiers) {
       break;
 
     case 'p':
-      modifiers->delete_type =
-          modifiers->delete_type == Modifiers::DELETE_CONTENTS
-              ? Modifiers::PRESERVE_CONTENTS
-              : Modifiers::DELETE_CONTENTS;
+      modifiers->delete_behavior =
+          modifiers->delete_behavior == Modifiers::DeleteBehavior::kDeleteText
+              ? Modifiers::DeleteBehavior::kDoNothing
+              : Modifiers::DeleteBehavior::kDeleteText;
       break;
 
     default:
@@ -142,14 +143,14 @@ std::wstring TransformationArgumentBuildStatus(const Modifiers& modifiers,
   if (modifiers.direction == BACKWARDS) {
     status += L" reverse";
   }
-  if (modifiers.cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
+  if (modifiers.cursors_affected == Modifiers::CursorsAffected::kAll) {
     status += L" cursors";
   }
   if (modifiers.repetitions > 1) {
     status += L" " + std::to_wstring(modifiers.repetitions);
   }
-  if (modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
-    status += L" preserve";
+  if (modifiers.delete_behavior == Modifiers::DeleteBehavior::kDoNothing) {
+    status += L" keep";
   }
 
   status += L" ";
@@ -198,8 +199,8 @@ class CommandWithModifiers : public Command {
     Modifiers initial_modifiers;
     initial_modifiers.cursors_affected =
         buffer->Read(buffer_variables::multiple_cursors)
-            ? Modifiers::AFFECT_ALL_CURSORS
-            : Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
+            ? Modifiers::CursorsAffected::kAll
+            : Modifiers::CursorsAffected::kOnlyCurrent;
     initial_modifiers.repetitions = 0;
     buffer->set_mode(std::make_unique<TransformationArgumentMode<Modifiers>>(
         name_, editor_state, initial_modifiers, handler_));

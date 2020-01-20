@@ -68,7 +68,8 @@ class Delete : public Command {
   Delete(DeleteOptions delete_options) : delete_options_(delete_options) {}
 
   wstring Description() const override {
-    if (delete_options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS) {
+    if (delete_options_.modifiers.delete_behavior ==
+        Modifiers::DeleteBehavior::kDeleteText) {
       return L"deletes the current item (char, word, line...)";
     }
     return L"copies current item (char, word, ...) to the paste buffer.";
@@ -863,7 +864,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"p", std::make_unique<Paste>());
 
   DeleteOptions copy_options;
-  copy_options.modifiers.delete_type = Modifiers::PRESERVE_CONTENTS;
+  copy_options.modifiers.delete_behavior =
+      Modifiers::DeleteBehavior::kDoNothing;
   commands->Add(L"u", std::make_unique<UndoCommand>());
   commands->Add(L"\n", std::make_unique<ActivateLink>());
 

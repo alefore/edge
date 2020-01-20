@@ -188,7 +188,8 @@ class NavigateTransformation : public CompositeTransformation {
         DeleteOptions delete_options;
         delete_options.copy_to_paste_buffer = false;
         delete_options.mode = Transformation::Input::Mode::kPreview;
-        delete_options.modifiers.delete_type = Modifiers::PRESERVE_CONTENTS;
+        delete_options.modifiers.delete_behavior =
+            Modifiers::DeleteBehavior::kDoNothing;
         output.Push(NewDeleteTransformation(std::move(delete_options)));
       }
 
@@ -246,8 +247,8 @@ class NavigateCommand : public Command {
     NavigateState initial_state;
     initial_state.cursors_affected =
         buffer->Read(buffer_variables::multiple_cursors)
-            ? Modifiers::AFFECT_ALL_CURSORS
-            : Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
+            ? Modifiers::CursorsAffected::kAll
+            : Modifiers::CursorsAffected::kOnlyCurrent;
     if (structure == StructureChar()) {
       initial_state.navigate_options.initial_range =
           [](const OpenBuffer* buffer, LineColumn position) {

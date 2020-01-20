@@ -88,11 +88,8 @@ struct Modifiers {
 
   size_t repetitions = 1;
 
-  enum DeleteType {
-    DELETE_CONTENTS,
-    PRESERVE_CONTENTS,
-  };
-  DeleteType delete_type = DELETE_CONTENTS;
+  enum class DeleteBehavior { kDeleteText, kDoNothing };
+  DeleteBehavior delete_behavior = DeleteBehavior::kDeleteText;
 
   enum Boundary {
     // At the current cursor position.
@@ -108,15 +105,15 @@ struct Modifiers {
   Boundary boundary_begin = CURRENT_POSITION;
   Boundary boundary_end = LIMIT_CURRENT;
 
-  enum CursorsAffected {
+  enum class CursorsAffected {
     // The transformation only affects the current cursor.
-    AFFECT_ONLY_CURRENT_CURSOR,
+    kOnlyCurrent,
 
     // The transformation affects all cursors.
-    AFFECT_ALL_CURSORS,
+    kAll,
   };
 
-  CursorsAffected cursors_affected = AFFECT_ONLY_CURRENT_CURSOR;
+  CursorsAffected cursors_affected = CursorsAffected::kOnlyCurrent;
 
   // The currently active cursors.
   std::wstring active_cursors;

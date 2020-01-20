@@ -137,7 +137,8 @@ class DeleteTransformation : public Transformation {
       return futures::Past(std::move(*output));
     }
 
-    if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
+    if (options_.modifiers.delete_behavior ==
+            Modifiers::DeleteBehavior::kDeleteText &&
         input.mode == Transformation::Input::Mode::kFinal) {
       LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
       for (LineColumn delete_position = range.begin;
@@ -157,7 +158,8 @@ class DeleteTransformation : public Transformation {
       output->delete_buffer = delete_buffer;
     }
 
-    if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
+    if (options_.modifiers.delete_behavior ==
+            Modifiers::DeleteBehavior::kDoNothing &&
         input.mode == Transformation::Input::Mode::kFinal) {
       LOG(INFO) << "Not actually deleting region.";
       return futures::Past(std::move(*output));
@@ -188,7 +190,8 @@ class DeleteTransformation : public Transformation {
           LOG(INFO) << "Inserting preview at: " << range.begin;
           insert_options.modifiers_set = {
               LineModifier::UNDERLINE,
-              options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS
+              options_.modifiers.delete_behavior ==
+                      Modifiers::DeleteBehavior::kDoNothing
                   ? LineModifier::GREEN
                   : LineModifier::RED};
           input.position = range.begin;
