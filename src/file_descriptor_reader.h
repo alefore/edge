@@ -69,6 +69,9 @@ class FileDescriptorReader {
 
   const std::shared_ptr<const Options> options_;
 
+  enum State { kIdle, kParsing };
+  State state_ = State::kIdle;
+
   // We read directly into low_buffer_ and then drain from that into
   // options_.buffer. It's possible that not all bytes read can be converted
   // (for example, if the reading stops in the middle of a wide character).

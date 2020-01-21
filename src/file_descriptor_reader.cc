@@ -34,6 +34,7 @@ double FileDescriptorReader::lines_read_rate() const {
 }
 
 std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
+  if (state_ == State::kParsing) return std::nullopt;
   struct pollfd output;
   output.fd = fd();
   output.events = POLLIN | POLLPRI;
@@ -112,9 +113,12 @@ FileDescriptorReader::ReadData() {
   clock_gettime(0, &last_input_received_);
   options_->buffer->RegisterProgress();
   if (options_->terminal == nullptr) {
-    return futures::ImmediateTransform(
-        ParseAndInsertLines(buffer_wrapper),
-        [](bool) { return ReadResult::kContinue; });
+    state_ = State::kParsing;
+    return futures::ImmediateTransform(ParseAndInsertLines(buffer_wrapper),
+                                       [this](bool) {
+                                         state_ = State::kIdle;
+                                         return ReadResult::kContinue;
+                                       });
   }
   options_->terminal->ProcessCommandInput(buffer_wrapper, [this]() {
     lines_read_rate_->IncrementAndGetEventsPerSecond(1.0);
