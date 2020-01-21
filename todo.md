@@ -55,10 +55,6 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
 ### Autocomplete
 
-Add an AutoComplete mode that autocompletes based on the path.
-
-When a user is typing a path to open, cache the contents of the directory. If the prefix entered uniquely matches a directory, start reading the contents of the directory proactively.
-
 ## Navigation
 
 Make M center the widget around the current line.

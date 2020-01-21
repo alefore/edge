@@ -46,19 +46,21 @@ std::vector<LineColumn> SearchHandler(EditorState* editor_state,
 
 void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options);
 
-struct AsyncSearchOutput {
-  enum class Results { kInvalidPattern, kNoMatches, kOneMatch, kManyMatches };
-  Results results;
-};
+class AsyncSearchProcessor {
+ public:
+  AsyncSearchProcessor(WorkQueue* work_queue);
 
-struct AsyncSearchInput {
-  SearchOptions search_options;
-  std::unique_ptr<BufferContents> buffer;
-  std::function<void(const AsyncSearchOutput&)> callback;
-};
+  struct Output {
+    enum class Results { kInvalidPattern, kNoMatches, kOneMatch, kManyMatches };
+    Results results;
+  };
 
-std::unique_ptr<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>
-NewAsyncSearchProcessor();
+  futures::Value<Output> Search(SearchOptions search_options,
+                                std::unique_ptr<BufferContents> buffer);
+
+ private:
+  AsyncEvaluator evaluator_;
+};
 
 }  // namespace editor
 }  // namespace afc

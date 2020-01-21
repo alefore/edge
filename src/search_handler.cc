@@ -77,35 +77,34 @@ SearchResults PerformSearch(const SearchOptions& options,
   return output;
 }
 
-AsyncSearchOutput DoAsyncSearch(AsyncSearchInput input) {
-  CHECK(input.buffer != nullptr);
-  input.search_options.required_positions = 2;
-  auto search_results = PerformSearch(input.search_options, *input.buffer);
-  VLOG(5) << "Async search completed for \""
-          << input.search_options.search_query
-          << "\", found results: " << search_results.positions.size();
-  AsyncSearchOutput output;
-  if (search_results.error.has_value()) {
-    output.results = AsyncSearchOutput::Results::kInvalidPattern;
-  } else if (search_results.positions.empty()) {
-    output.results = AsyncSearchOutput::Results::kNoMatches;
-  } else if (search_results.positions.size() == 1) {
-    output.results = AsyncSearchOutput::Results::kOneMatch;
-  } else {
-    output.results = AsyncSearchOutput::Results::kManyMatches;
-  }
-  input.callback(output);
-  return output;
-}
-
 }  // namespace
 
-std::unique_ptr<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>
-NewAsyncSearchProcessor() {
-  AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>::Options options;
-  options.factory = DoAsyncSearch;
-  return std::make_unique<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>(
-      std::move(options));
+AsyncSearchProcessor::AsyncSearchProcessor(WorkQueue* work_queue)
+    : evaluator_(L"search", work_queue) {}
+
+futures::Value<AsyncSearchProcessor::Output> AsyncSearchProcessor::Search(
+    SearchOptions search_options, std::unique_ptr<BufferContents> buffer) {
+  CHECK(buffer != nullptr);
+  search_options.required_positions = 2;
+  return evaluator_.Run(
+      [search_options,
+       buffer = std::shared_ptr<BufferContents>(std::move(buffer))] {
+        auto search_results = PerformSearch(search_options, *buffer);
+        VLOG(5) << "Async search completed for \""
+                << search_options.search_query
+                << "\", found results: " << search_results.positions.size();
+        Output output;
+        if (search_results.error.has_value()) {
+          output.results = Output::Results::kInvalidPattern;
+        } else if (search_results.positions.empty()) {
+          output.results = Output::Results::kNoMatches;
+        } else if (search_results.positions.size() == 1) {
+          output.results = Output::Results::kOneMatch;
+        } else {
+          output.results = Output::Results::kManyMatches;
+        }
+        return output;
+      });
 }
 
 std::wstring RegexEscape(std::shared_ptr<LazyString> str) {
@@ -188,7 +187,6 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   auto search_buffer = input.source_buffer;
   CHECK(search_buffer != nullptr);
   CHECK(input.predictions != nullptr);
-  CHECK(input.predictions->status()->prompt_buffer() != nullptr);
   SearchOptions options;
   options.buffer = search_buffer;
   options.search_query = input.input;

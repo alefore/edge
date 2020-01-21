@@ -20,7 +20,7 @@ static void DoSearch(EditorState* editor_state, const SearchOptions& options) {
 
 void DrawSearchResults(OpenBuffer* buffer,
                        const std::shared_ptr<const Line>& original_line,
-                       AsyncSearchOutput results) {
+                       AsyncSearchProcessor::Output results) {
   CHECK(buffer != nullptr);
   CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
   auto line = buffer->LineAt(LineNumber(0));
@@ -32,15 +32,15 @@ void DrawSearchResults(OpenBuffer* buffer,
   VLOG(5) << "DrawSearchResults";
   LineModifierSet modifiers;
   switch (results.results) {
-    case AsyncSearchOutput::Results::kInvalidPattern:
+    case AsyncSearchProcessor::Output::Results::kInvalidPattern:
       modifiers.insert(LineModifier::RED);
       break;
-    case AsyncSearchOutput::Results::kNoMatches:
+    case AsyncSearchProcessor::Output::Results::kNoMatches:
       break;
-    case AsyncSearchOutput::Results::kOneMatch:
+    case AsyncSearchProcessor::Output::Results::kOneMatch:
       modifiers.insert(LineModifier::CYAN);
       break;
-    case AsyncSearchOutput::Results::kManyMatches:
+    case AsyncSearchProcessor::Output::Results::kManyMatches:
       modifiers.insert(LineModifier::GREEN);
       break;
   }
@@ -148,34 +148,32 @@ class SearchCommand : public Command {
       options.search_query = input;
       DoSearch(editor_state, options);
     };
-    std::shared_ptr<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>
-        async_search_processor = NewAsyncSearchProcessor();
+    auto async_search_processor =
+        std::make_shared<AsyncSearchProcessor>(editor_state->work_queue());
 
-    options.change_handler = [async_search_processor, search_options,
-                              editor_state](
-                                 const std::shared_ptr<OpenBuffer>& buffer) {
-      CHECK(buffer != nullptr);
-      CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
-      auto line = buffer->LineAt(LineNumber(0));
-      if (line->empty()) {
-        return;
-      }
-      VLOG(5) << "Triggering async search.";
+    options.change_handler =
+        [async_search_processor, search_options,
+         editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
+          CHECK(buffer != nullptr);
+          CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
+          auto line = buffer->LineAt(LineNumber(0));
+          if (line->empty()) {
+            return;
+          }
+          VLOG(5) << "Triggering async search.";
 
-      AsyncSearchInput async_search_input;
-      async_search_input.search_options = search_options;
-      async_search_input.search_options.search_query = line->ToString();
-      async_search_input.buffer =
-          editor_state->current_buffer()->contents()->copy();
-      async_search_input.callback = [buffer, line](AsyncSearchOutput results) {
-        VLOG(5) << "Scheduling drawing of search results.";
-        buffer->work_queue()->Schedule([buffer, line, results]() {
-          VLOG(5) << "Drawing of search results.";
-          DrawSearchResults(buffer.get(), line, results);
-        });
-      };
-      async_search_processor->Push(std::move(async_search_input));
-    };
+          auto search_options_copy = search_options;
+          search_options_copy.search_query = line->ToString();
+          futures::ImmediateTransform(
+              async_search_processor->Search(
+                  search_options_copy,
+                  editor_state->current_buffer()->contents()->copy()),
+              [buffer, line](AsyncSearchProcessor::Output results) {
+                VLOG(5) << "Drawing of search results.";
+                DrawSearchResults(buffer.get(), line, std::move(results));
+                return true;
+              });
+        };
 
     options.predictor = SearchHandlerPredictor;
     options.source_buffer = buffer;
