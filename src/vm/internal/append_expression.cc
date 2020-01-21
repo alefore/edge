@@ -58,7 +58,7 @@ std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
     compilation->errors.push_back(L"Incompatible return types found: " +
                                   TypesToString(a->ReturnTypes()) + L" and " +
                                   TypesToString(b->ReturnTypes()));
-    return nullptr;  // TODO(easy): Don't shallow the error.
+    return nullptr;
   }
 
   return std::make_unique<AppendExpression>(std::move(a), std::move(b),
