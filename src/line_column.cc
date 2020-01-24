@@ -274,7 +274,7 @@ LineNumber LineNumber::next() const {
 }
 
 LineNumber LineNumber::previous() const {
-  CHECK_GT(line, 0);
+  CHECK_GT(line, 0ul);
   return LineNumber(line - 1);
 }
 
@@ -282,6 +282,8 @@ LineNumber LineNumber::MinusHandlingOverflow(
     const LineNumberDelta& value) const {
   return this->ToDelta() > value ? *this - value : LineNumber(0);
 }
+
+bool LineNumber::IsZero() const { return *this == LineNumber(); }
 
 bool operator==(const LineNumber& a, const LineNumber& b) {
   return a.line == b.line;

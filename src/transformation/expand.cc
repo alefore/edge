@@ -116,13 +116,18 @@ class ReadAndInsert : public CompositeTransformation {
     }
     futures::Future<Output> output;
     buffer_it->second->AddEndOfFileObserver(
-        [path_size = path_.size(), consumer = std::move(output.consumer),
+        [consumer = std::move(output.consumer),
          buffer_to_insert = buffer_it->second, input = std::move(input)] {
           Output output;
-          output.Push(DeleteLastCharacters(path_size));
           InsertOptions options;
           options.buffer_to_insert = buffer_to_insert;
           output.Push(NewInsertBufferTransformation(std::move(options)));
+          LineColumn position = buffer_to_insert->position();
+          if (position.line.IsZero()) {
+            position.column += input.position.column.ToDelta();
+          }
+          position.line += input.position.line.ToDelta();
+          output.Push(NewSetPositionTransformation(position));
           consumer(std::move(output));
         });
     return output.value;
@@ -149,7 +154,7 @@ class ExpandTransformation : public CompositeTransformation {
     switch (c) {
       case 'r': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output.Push(DeleteLastCharacters(1));
+        output.Push(DeleteLastCharacters(1 + symbol.size()));
         output.Push(NewTransformation(Modifiers(),
                                       std::make_unique<ReadAndInsert>(symbol)));
       } break;

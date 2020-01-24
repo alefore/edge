@@ -116,6 +116,8 @@ struct LineNumber {
   // greater than or equal to `value` (and `LineNumber(0)` otherwise).
   LineNumber MinusHandlingOverflow(const LineNumberDelta& value) const;
 
+  bool IsZero() const;
+
   size_t line = 0;
 };
 
