@@ -117,6 +117,16 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   auto environment =
       std::make_shared<Environment>(afc::vm::Environment::GetDefault());
 
+  environment->Define(L"terminal_backspace",
+                      Value::NewString({Terminal::BACKSPACE}));
+  environment->Define(L"terminal_control_a",
+                      Value::NewString({Terminal::CTRL_A}));
+  environment->Define(L"terminal_control_e",
+                      Value::NewString({Terminal::CTRL_E}));
+  environment->Define(L"terminal_control_d",
+                      Value::NewString({Terminal::CTRL_D}));
+  environment->Define(L"terminal_control_k",
+                      Value::NewString({Terminal::CTRL_K}));
   environment->Define(L"terminal_control_u",
                       Value::NewString({Terminal::CTRL_U}));
 
