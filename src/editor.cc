@@ -170,6 +170,27 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                           return editor->home_directory();
                         }));
 
+  editor_type->AddField(
+      L"ForEachActiveBuffer",
+      Value::NewFunction(
+          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
+           VMType::Function(
+               {VMType::Void(),
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
+          [](std::vector<std::unique_ptr<Value>> input,
+             Trampoline* trampoline) {
+            EditorState* editor =
+                VMTypeMapper<EditorState*>::get(input[0].get());
+            auto buffer = editor->current_buffer();
+            if (buffer == nullptr)
+              return futures::Past(EvaluationOutput::Return(Value::NewVoid()));
+            std::vector<std::unique_ptr<Value>> args;
+            args.push_back(
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
+                    std::move(buffer)));
+            return input[1]->callback(std::move(args), trampoline);
+          }));
+
   // A callback to return the current buffer. This is needed so that at a time
   // when there's no current buffer (i.e. EditorState is being created) we can
   // still compile code that will depend (at run time) on getting the current
