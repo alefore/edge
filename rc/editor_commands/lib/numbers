@@ -13,7 +13,7 @@ double min(double a, int b) { return a <= b ? a : b + 0.0; }
 int abs(int a) { return a < 0 ? -a : a; }
 double abs(double a) { return a < 0 ? -a : a; }
 
-string IntegerAsString(LineColumn position) {
+string IntegerAsString(Buffer buffer, LineColumn position) {
   string line = buffer.line(position.line());
   line = line.substr(position.column(), line.size() - position.column());
   string numbers = "-0123456789";
@@ -25,7 +25,7 @@ string IntegerAsString(LineColumn position) {
   return line.substr(0, i);
 }
 
-LineColumn FindNextNumber(LineColumn position) {
+LineColumn FindNextNumber(Buffer buffer, LineColumn position) {
   while (true) {
     string line = buffer.line(position.line());
     int column = line.find_first_of("-0123456789", position.column());
@@ -40,9 +40,9 @@ LineColumn FindNextNumber(LineColumn position) {
 }
 
 TransformationOutput AddToIntegerTransformationCallback(
-    int delta, TransformationInput input) {
-  auto position = FindNextNumber(input.position());
-  string integer_str = IntegerAsString(position);
+    Buffer buffer, int delta, TransformationInput input) {
+  auto position = FindNextNumber(buffer, input.position());
+  string integer_str = IntegerAsString(buffer, position);
   return TransformationOutput()
       .push(SetPositionTransformation(position))
       .push(DeleteTransformationBuilder()
@@ -54,9 +54,9 @@ TransformationOutput AddToIntegerTransformationCallback(
       .push(SetPositionTransformation(position));
 }
 
-void AddToIntegerTransformation(int delta) {
+void AddToIntegerTransformation(Buffer buffer, int delta) {
   buffer.ApplyTransformation(FunctionTransformation(
       [](TransformationInput input) -> TransformationOutput {
-        return AddToIntegerTransformationCallback(delta, input);
+        return AddToIntegerTransformationCallback(buffer, delta, input);
       }));
 }

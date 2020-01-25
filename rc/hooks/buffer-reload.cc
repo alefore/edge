@@ -16,60 +16,6 @@
 // Optimizes the buffer for visualizing a patch (output of a `diff` command).
 void DiffMode() { buffer.set_tree_parser("diff"); }
 
-void GoToBeginningOfLine() {
-  buffer.ApplyTransformation(SetColumnTransformation(0));
-}
-
-void GoToEndOfLine() {
-  buffer.ApplyTransformation(SetColumnTransformation(999999999999));
-}
-
-void DeleteCurrentLine() {
-  buffer.PushTransformationStack();
-  buffer.ApplyTransformation(SetColumnTransformation(0));
-
-  buffer.ApplyTransformation(
-      DeleteTransformationBuilder()
-          .set_modifiers(Modifiers()
-                             .set_line()
-                             .set_repetitions(repetitions())
-                             .set_boundary_end_neighbor())
-          .build());
-
-  buffer.PopTransformationStack();
-  set_repetitions(1);
-}
-
-void HandleKeyboardControlU() {
-  buffer.PushTransformationStack();
-  auto modifiers = Modifiers();
-  modifiers.set_backwards();
-
-  if (buffer.contents_type() == "path") {
-    auto position = buffer.position();
-    string line = buffer.line(position.line());
-    int column = position.column();
-    if (column > 1 && line.substr(column - 1, 1) == "/") {
-      column--;
-    }
-    if (column == 0) {
-      return;
-    }
-    int last_slash = line.find_last_of("/", min(column - 1, line.size()));
-    if (last_slash == -1) {
-      modifiers.set_line();
-    } else {
-      modifiers.set_repetitions(position.column() - last_slash - 1);
-    }
-  } else {
-    // Edit: Delete to the beginning of line.
-    modifiers.set_line();
-  }
-  buffer.ApplyTransformation(
-      DeleteTransformationBuilder().set_modifiers(modifiers).build());
-  buffer.PopTransformationStack();
-}
-
 void CenterScreenAroundCurrentLine() {
   int size = screen.lines();
   size--;  // The status line doesn't count.
@@ -206,43 +152,7 @@ if (path == "") {
   HandleFileTypes(basename, extension);
 }
 
-buffer.AddBinding(terminal_backspace, "Edit: Delete previous character.",
-                  []() -> void {
-                    buffer.ApplyTransformation(
-                        DeleteTransformationBuilder()
-                            .set_modifiers(Modifiers().set_backwards())
-                            .build());
-                  });
-
-buffer.AddBinding("^", "Go to the beginning of the current line",
-                  GoToBeginningOfLine);
-buffer.AddBinding(terminal_control_a,
-                  "Navigate: Move to the beginning of line.",
-                  GoToBeginningOfLine);
-
-buffer.AddBinding(terminal_control_d, "Edit: Delete current character.",
-                  []() -> void {
-                    buffer.ApplyTransformation(
-                        DeleteTransformationBuilder().build());
-                  });
-
-buffer.AddBinding("$", "Go to the end of the current line", GoToEndOfLine);
-buffer.AddBinding(terminal_control_e, "Navigate: Move to the end of line.",
-                  GoToEndOfLine);
-
 buffer.AddBindingToFile("J", buffer.editor_commands_path() + "fold-next-line");
-buffer.AddBinding("K", "Edit: Delete the current line", DeleteCurrentLine);
-
-buffer.AddBinding(terminal_control_k, "Edit: Delete to end of line.",
-                  []() -> void {
-                    buffer.ApplyTransformation(
-                        DeleteTransformationBuilder()
-                            .set_modifiers(Modifiers().set_line())
-                            .build());
-                  });
-
-buffer.AddBinding(terminal_control_u, "Edit: Delete the current line",
-                  HandleKeyboardControlU);
 
 if (!buffer.pts()) {
   buffer.AddBinding("M", "Center the screen around the current line.",
@@ -257,52 +167,12 @@ buffer.AddBinding("_",
 buffer.AddBinding("ar", "Buffers: Reload the current buffer.", buffer.Reload);
 buffer.AddBinding("aw", "Buffers: Save the current buffer.", buffer.Save);
 
-// Logic to handle the tree of visible buffers.
-void RewindActiveBuffer() {
-  editor.AdvanceActiveBuffer(-repetitions());
-  set_repetitions(1);
-}
-void AdvanceActiveBuffer() {
-  editor.AdvanceActiveBuffer(repetitions());
-  set_repetitions(1);
-}
-void SetActiveBuffer() {
-  editor.SetActiveBuffer(repetitions() - 1);
-  set_repetitions(1);
-}
-void RewindActiveLeaf() {
-  editor.AdvanceActiveLeaf(-repetitions());
-  set_repetitions(1);
-}
-void AdvanceActiveLeaf() {
-  editor.AdvanceActiveLeaf(repetitions());
-  set_repetitions(1);
-}
-
-buffer.AddBinding("a=", "Frames: Zoom to the active leaf", editor.ZoomToLeaf);
-buffer.AddBinding("ah", "Frames: Move to the previous buffer",
-                  RewindActiveBuffer);
-buffer.AddBinding("al", "Frames: Move to the next buffer", AdvanceActiveBuffer);
-buffer.AddBinding("ak", "Frames: Move to the previous active leaf",
-                  RewindActiveLeaf);
-buffer.AddBinding("aj", "Frames: Move to the next active leaf",
-                  AdvanceActiveLeaf);
-buffer.AddBinding("ag", "Frames: Set the active buffer (by repetitions)",
-                  SetActiveBuffer);
-buffer.AddBinding("a+j", "Frames: Add a horizontal split",
-                  editor.AddHorizontalSplit);
-buffer.AddBinding("a+l", "Frames: Add a vertical split",
-                  editor.AddVerticalSplit);
-
-buffer.AddBinding("aR", "Frames: Show all open buffers",
-                  editor.SetHorizontalSplitsWithAllBuffers);
-
 void IncrementNumber() {
-  AddToIntegerTransformation(repetitions());
+  AddToIntegerTransformation(buffer, repetitions());
   set_repetitions(1);
 }
 void DecrementNumber() {
-  AddToIntegerTransformation(-repetitions());
+  AddToIntegerTransformation(buffer, -repetitions());
   set_repetitions(1);
 }
 

@@ -402,6 +402,8 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
     std::shared_ptr<Expression> expression =
         CompileFile(ToByteString(path), environment_, &error_description);
     if (expression == nullptr) {
+      LOG(INFO) << "Compilation error for " << path << ": "
+                << error_description;
       status_.SetWarningText(path + L": error: " + error_description);
       return futures::Past(futures::IterationControlCommand::kContinue);
     }
