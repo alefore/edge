@@ -791,50 +791,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   }
   commands->Add(L"af", NewForkCommand());
 
-  commands->Add(
-      L"+", NewCppCommand(
-                editor_state->environment(),
-                L"// Cursors: Create a new cursor at the current position.\n"
-                L"editor.CreateCursor();"));
-  commands->Add(
-      L"-",
-      NewCppCommand(editor_state->environment(),
-                    L"// Cursors: Destroy current cursor(s) and jump to next.\n"
-                    L"editor.DestroyCursor();"));
-  commands->Add(
-      L"=",
-      NewCppCommand(editor_state->environment(),
-                    L"// Cursors: Destroy cursors other than the current one.\n"
-                    L"editor.DestroyOtherCursors();"));
-  commands->Add(
-      L"_",
-      NewCppCommand(
-          editor_state->environment(),
-          L"// Cursors: Toggles whether operations apply to all cursors.\n"
-          L"CurrentBuffer().set_multiple_cursors(\n"
-          L"    !CurrentBuffer().multiple_cursors());"));
-  commands->Add(
-      L"Ct",
-      NewCppCommand(
-          editor_state->environment(),
-          L"// Cursors: Toggles the active cursors with the previous set.\n"
-          L"editor.ToggleActiveCursors();"));
-  commands->Add(
-      L"C+",
-      NewCppCommand(editor_state->environment(),
-                    L"// Cursors: Pushes the active cursors to the stack.\n"
-                    L"editor.PushActiveCursors();"));
-  commands->Add(
-      L"C-", NewCppCommand(editor_state->environment(),
-                           L"// Cursors: Pops active cursors from the stack.\n"
-                           L"editor.PopActiveCursors();"));
-  commands->Add(
-      L"C!",
-      NewCppCommand(
-          editor_state->environment(),
-          L"// Cursors: Set active cursors to the marks on this buffer.\n"
-          L"editor.SetActiveCursorsToMarks();"));
-
   commands->Add(L"N", NewNavigationBufferCommand());
   commands->Add(L"i", std::make_unique<EnterInsertModeCommand>(std::nullopt));
   commands->Add(L"I", std::make_unique<EnterInsertModeCommand>([] {

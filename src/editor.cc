@@ -335,6 +335,20 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             return Value::NewObject(L"Buffer", OpenFile(options)->second);
           }));
 
+  environment->Define(
+      L"AddBinding",
+      Value::NewFunction({VMType::Void(), VMType::String(), VMType::String(),
+                          VMType::Function({VMType::Void()})},
+                         [this](vector<unique_ptr<Value>> args) {
+                           CHECK_EQ(args.size(), 3u);
+                           CHECK_EQ(args[0]->type, VMType::VM_STRING);
+                           CHECK_EQ(args[1]->type, VMType::VM_STRING);
+                           default_commands_->Add(args[0]->str, args[1]->str,
+                                                  std::move(args[2]),
+                                                  environment_);
+                           return Value::NewVoid();
+                         }));
+
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
   RegisterBufferMethod(editor_type.get(), L"PushActiveCursors",
@@ -385,7 +399,30 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       audio_player_(audio_player),
       buffer_tree_(std::make_unique<WidgetListHorizontal>(BufferWidget::New())),
       status_(GetConsole(), audio_player_),
-      work_queue_([this] { NotifyInternalEvent(); }) {}
+      work_queue_([this] { NotifyInternalEvent(); }) {
+  auto paths = edge_path();
+  futures::ForEach(paths.begin(), paths.end(), [this](std::wstring dir) {
+    auto path = PathJoin(dir, L"hooks/start.cc");
+    wstring error_description;
+    std::shared_ptr<Expression> expression =
+        CompileFile(ToByteString(path), environment_, &error_description);
+    if (expression == nullptr) {
+      status_.SetWarningText(path + L": error: " + error_description);
+      return futures::Past(futures::IterationControlCommand::kContinue);
+    }
+    LOG(INFO) << "Evaluating file: " << path;
+    return futures::ImmediateTransform(
+        Evaluate(
+            expression.get(), environment_,
+            [path, work_queue = work_queue()](std::function<void()> resume) {
+              LOG(INFO) << "Evaluation of file yields: " << path;
+              work_queue->Schedule(std::move(resume));
+            }),
+        [](std::unique_ptr<Value>) {
+          return futures::IterationControlCommand::kContinue;
+        });
+  });
+}
 
 EditorState::~EditorState() {
   // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify

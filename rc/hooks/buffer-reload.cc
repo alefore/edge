@@ -219,8 +219,11 @@ if (!buffer.pts()) {
                     CenterScreenAroundCurrentLine);
 }
 
-buffer.AddBinding(".", "Edit: Repeats the last command.",
-                  editor.RepeatLastTransformation);
+buffer.AddBinding("_",
+                  "Cursors: Toggles whether operations apply to all cursors.",
+                  []() -> void {
+                    buffer.set_multiple_cursors(!buffer.multiple_cursors());
+                  });
 
 // Logic to handle the tree of visible buffers.
 void RewindActiveBuffer() {
