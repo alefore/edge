@@ -278,26 +278,26 @@ using std::to_wstring;
 
   buffer->AddField(L"Reload",
                    vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     if (editor()->structure() == StructureLine()) {
+                     if (buffer->editor()->structure() == StructureLine()) {
                        auto target_buffer = buffer->GetBufferFromCurrentLine();
                        if (target_buffer != nullptr) {
                          buffer = target_buffer;
                        }
                      }
                      buffer->Reload();
-                     editor()->ResetModifiers();
+                     buffer->editor()->ResetModifiers();
                    }));
 
   buffer->AddField(L"Save",
                    vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     if (editor()->structure() == StructureLine()) {
+                     if (buffer->editor()->structure() == StructureLine()) {
                        auto target_buffer = buffer->GetBufferFromCurrentLine();
                        if (target_buffer != nullptr) {
                          buffer = target_buffer;
                        }
                      }
                      buffer->Save();
-                     editor()->ResetModifiers();
+                     buffer->editor()->ResetModifiers();
                    }));
 
   buffer->AddField(

@@ -199,20 +199,50 @@ if (path == "") {
       dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);
 
-  buffer.AddBinding("^", "Go to the beginning of the current line",
-                    GoToBeginningOfLine);
-  buffer.AddBinding("$", "Go to the end of the current line", GoToEndOfLine);
-  buffer.AddBindingToFile("J",
-                          buffer.editor_commands_path() + "fold-next-line");
-  buffer.AddBinding("K", "Edit: Delete the current line", DeleteCurrentLine);
-  buffer.AddBinding(terminal_control_u, "Edit: Delete the current line",
-                    HandleKeyboardControlU);
   buffer.AddBindingToFile("#", buffer.editor_commands_path() + "reflow");
 
   buffer.set_typos("overriden optoins");
 
   HandleFileTypes(basename, extension);
 }
+
+buffer.AddBinding(terminal_backspace, "Edit: Delete previous character.",
+                  []() -> void {
+                    buffer.ApplyTransformation(
+                        DeleteTransformationBuilder()
+                            .set_modifiers(Modifiers().set_backwards())
+                            .build());
+                  });
+
+buffer.AddBinding("^", "Go to the beginning of the current line",
+                  GoToBeginningOfLine);
+buffer.AddBinding(terminal_control_a,
+                  "Navigate: Move to the beginning of line.",
+                  GoToBeginningOfLine);
+
+buffer.AddBinding(terminal_control_d, "Edit: Delete current character.",
+                  []() -> void {
+                    buffer.ApplyTransformation(
+                        DeleteTransformationBuilder().build());
+                  });
+
+buffer.AddBinding("$", "Go to the end of the current line", GoToEndOfLine);
+buffer.AddBinding(terminal_control_e, "Navigate: Move to the end of line.",
+                  GoToEndOfLine);
+
+buffer.AddBindingToFile("J", buffer.editor_commands_path() + "fold-next-line");
+buffer.AddBinding("K", "Edit: Delete the current line", DeleteCurrentLine);
+
+buffer.AddBinding(terminal_control_k, "Edit: Delete to end of line.",
+                  []() -> void {
+                    buffer.ApplyTransformation(
+                        DeleteTransformationBuilder()
+                            .set_modifiers(Modifiers().set_line())
+                            .build());
+                  });
+
+buffer.AddBinding(terminal_control_u, "Edit: Delete the current line",
+                  HandleKeyboardControlU);
 
 if (!buffer.pts()) {
   buffer.AddBinding("M", "Center the screen around the current line.",
