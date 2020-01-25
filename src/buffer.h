@@ -553,7 +553,15 @@ class OpenBuffer {
       std::make_shared<ParseTree>(Range());
 
   // Caches the last parse done (by syntax_data_zoom_) for a given view size.
-  mutable std::unordered_map<LineNumberDelta, std::shared_ptr<const ParseTree>>
+  struct ZoomedOutParseTreeData {
+    // The input parse tree from which zoomed_out_parse_tree was computed. This
+    // is kept so that we can detect when the parse tree has changed and thus
+    // we need to start updating the zoomed_out_parse_tree (if the view is still
+    // active).
+    std::shared_ptr<const ParseTree> simplified_parse_tree;
+    std::shared_ptr<const ParseTree> zoomed_out_parse_tree;
+  };
+  mutable std::unordered_map<LineNumberDelta, ZoomedOutParseTreeData>
       zoomed_out_parse_trees_;
 
   AsyncEvaluator async_read_evaluator_;

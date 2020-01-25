@@ -766,9 +766,9 @@ void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
             return output;
           }))
       .SetConsumer([this](Output output) {
+        LOG(INFO) << "Installing new parse trees.";
         parse_tree_ = std::move(output.parse_tree);
         simplified_parse_tree_ = std::move(output.simplified_parse_tree);
-        zoomed_out_parse_trees_.clear();
       });
 }
 
@@ -1372,29 +1372,38 @@ const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
 
 std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
     LineNumberDelta view_size) const {
-  auto fixed_tree = simplified_parse_tree();
-  if (auto it = zoomed_out_parse_trees_.find(view_size);
-      it != zoomed_out_parse_trees_.end()) {
-    return it->second;
+  auto simplified_tree = simplified_parse_tree();
+  auto it = zoomed_out_parse_trees_.find(view_size);
+  if (it == zoomed_out_parse_trees_.end() ||
+      it->second.simplified_parse_tree != simplified_tree) {
+    syntax_data_
+        .Run([lines_size = lines_size(), view_size,
+              simplified_tree]() -> std::shared_ptr<ParseTree> {
+          static Tracker tracker(
+              L"OpenBuffer::current_zoomed_out_parse_tree::produce");
+          auto tracker_call = tracker.Call();
+          return std::make_shared<ParseTree>(
+              ZoomOutTree(*simplified_tree, lines_size, view_size));
+        })
+        .SetConsumer([this, view_size, simplified_tree](
+                         std::shared_ptr<ParseTree> zoomed_parse_tree) mutable {
+          if (simplified_parse_tree() != simplified_tree) {
+            LOG(INFO) << "Parse tree changed in the meantime, discarding.";
+            return;
+          }
+          LOG(INFO) << "Installing tree.";
+          zoomed_out_parse_trees_[view_size] = {
+              .simplified_parse_tree = std::move(simplified_tree),
+              .zoomed_out_parse_tree = std::move(zoomed_parse_tree)};
+        });
   }
-  VLOG(5) << "Starting new zoomed out tree.";
-  syntax_data_
-      .Run([lines_size = lines_size(), view_size,
-            fixed_tree]() -> std::shared_ptr<ParseTree> {
-        static Tracker tracker(
-            L"OpenBuffer::current_zoomed_out_parse_tree::produce");
-        auto tracker_call = tracker.Call();
-        return std::make_shared<ParseTree>(
-            ZoomOutTree(*fixed_tree, lines_size, view_size));
-      })
-      .SetConsumer([this, view_size, fixed_tree](
-                       std::shared_ptr<ParseTree> zoomed_parse_tree) mutable {
-        if (simplified_parse_tree() != fixed_tree) {
-          return;  // Parse tree changed in the meantime.
-        }
-        zoomed_out_parse_trees_[view_size] = std::move(zoomed_parse_tree);
-      });
-  return std::make_shared<ParseTree>(Range());
+  // We don't check if it's still current: we prefer returning a stale tree over
+  // an empty tree. The empty tree would just cause flickering as the user is
+  // typing; the stale tree is almost always correct (and, when it isn't, it'll
+  // be refreshed very shortly).
+  return it != zoomed_out_parse_trees_.end()
+             ? it->second.zoomed_out_parse_tree
+             : std::make_shared<ParseTree>(Range());
 }
 
 std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
