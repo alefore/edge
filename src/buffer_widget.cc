@@ -331,9 +331,15 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
   BufferOutputProducerInput input;
   input.output_producer_options = std::move(options);
   input.buffer = buffer;
-  input.view_start = view_start_;
+  input.view_start = view_start();
   auto output = CreateBufferOutputProducer(std::move(input));
-  view_start_ = output.view_start;
+  // We avoid updating the desired view_start while the buffer is still being
+  // read.
+  if (buffer != nullptr &&
+      buffer->lines_size() >= buffer->position().line.ToDelta() &&
+      (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
+    buffer->Set(buffer_variables::view_start, output.view_start);
+  }
   return std::move(output.producer);
 }
 
@@ -358,7 +364,11 @@ int BufferWidget::AdvanceActiveLeafWithoutWrapping(int delta) { return delta; }
 
 void BufferWidget::SetActiveLeavesAtStart() {}
 
-LineColumn BufferWidget::view_start() const { return view_start_; }
+LineColumn BufferWidget::view_start() const {
+  auto buffer = leaf_.lock();
+  return buffer == nullptr ? LineColumn()
+                           : buffer->Read(buffer_variables::view_start);
+}
 
 std::shared_ptr<OpenBuffer> BufferWidget::Lock() const { return leaf_.lock(); }
 

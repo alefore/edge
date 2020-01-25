@@ -138,6 +138,9 @@ using std::to_wstring;
   RegisterBufferFields<EdgeStruct<double>, double>(
       buffer_variables::DoubleStruct(), buffer.get(), &OpenBuffer::Read,
       &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<LineColumn>, LineColumn>(
+      buffer_variables::LineColumnStruct(), buffer.get(), &OpenBuffer::Read,
+      &OpenBuffer::Set);
 
   buffer->AddField(
       L"SetStatus",
@@ -369,6 +372,8 @@ OpenBuffer::OpenBuffer(Options options)
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
+      line_column_variables_(
+          buffer_variables::LineColumnStruct()->NewInstance()),
       environment_(
           std::make_shared<Environment>(options_.editor->environment())),
       work_queue_(
@@ -599,6 +604,14 @@ bool OpenBuffer::PersistState() const {
     contents.push_back(L"buffer.set_" + variable.first + L"(" +
                        (Read(variable.second.get()) ? L"true" : L"false") +
                        L");");
+  }
+  contents.push_back(L"");
+
+  contents.push_back(L"// LineColumn variables");
+  for (const auto& variable :
+       buffer_variables::LineColumnStruct()->variables()) {
+    contents.push_back(L"buffer.set_" + variable.first + L"(" +
+                       Read(variable.second.get()).ToCppString() + L");");
   }
   contents.push_back(L"");
 
@@ -1721,6 +1734,16 @@ const double& OpenBuffer::Read(const EdgeVariable<double>* variable) const {
 
 void OpenBuffer::Set(const EdgeVariable<double>* variable, double value) {
   double_variables_.Set(variable, value);
+}
+
+const LineColumn& OpenBuffer::Read(
+    const EdgeVariable<LineColumn>* variable) const {
+  return line_column_variables_.Get(variable);
+}
+
+void OpenBuffer::Set(const EdgeVariable<LineColumn>* variable,
+                     LineColumn value) {
+  line_column_variables_.Set(variable, value);
 }
 
 futures::Value<bool> OpenBuffer::ApplyToCursors(

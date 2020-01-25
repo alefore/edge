@@ -13,7 +13,8 @@ namespace afc::editor {
 
 struct BufferOutputProducerOutput {
   std::unique_ptr<OutputProducer> producer;
-  // Typically a copy of `view_start`, but may have been adjusted.
+  // Typically a copy of `BufferOutputProducerInput::view_start`, but may have
+  // been adjusted.
   LineColumn view_start;
 };
 
@@ -68,10 +69,6 @@ class BufferWidget : public Widget {
 
  private:
   std::weak_ptr<OpenBuffer> leaf_;
-
-  // The position in the buffer where the view begins.
-  // TODO: Find a better way than making this mutable.
-  mutable LineColumn view_start_;
 };
 
 }  // namespace afc::editor

@@ -418,6 +418,14 @@ EdgeVariable<double>* const beep_frequency_failure =
         L"error. If 0, disables the beep.",
         440.0);
 
+EdgeStruct<LineColumn>* LineColumnStruct() {
+  static EdgeStruct<LineColumn>* output = new EdgeStruct<LineColumn>();
+  return output;
+}
+
+EdgeVariable<LineColumn>* const view_start =
+    LineColumnStruct()->AddVariable(L"view_start", L"...", LineColumn());
+
 }  // namespace buffer_variables
 }  // namespace editor
 }  // namespace afc

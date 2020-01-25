@@ -385,6 +385,9 @@ class OpenBuffer {
   const double& Read(const EdgeVariable<double>* variable) const;
   void Set(const EdgeVariable<double>* variable, double value);
 
+  const LineColumn& Read(const EdgeVariable<LineColumn>* variable) const;
+  void Set(const EdgeVariable<LineColumn>* variable, LineColumn value);
+
   //////////////////////////////////////////////////////////////////////////////
   // Parse tree
 
@@ -471,6 +474,7 @@ class OpenBuffer {
   EdgeStructInstance<wstring> string_variables_;
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<double> double_variables_;
+  EdgeStructInstance<LineColumn> line_column_variables_;
 
   // When a transformation is done, we append its result to
   // transformations_past_, so that it can be undone.

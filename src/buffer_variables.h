@@ -71,6 +71,9 @@ extern EdgeVariable<double>* const margin_lines_ratio;
 extern EdgeVariable<double>* const beep_frequency_success;
 extern EdgeVariable<double>* const beep_frequency_failure;
 
+EdgeStruct<LineColumn>* LineColumnStruct();
+extern EdgeVariable<LineColumn>* const view_start;
+
 // No variables currently, but we'll likely add some later.
 EdgeStruct<unique_ptr<vm::Value>>* ValueStruct();
 
