@@ -14,8 +14,13 @@ namespace vm {
 namespace {
 class AssignExpression : public Expression {
  public:
-  AssignExpression(wstring symbol, unique_ptr<Expression> value)
-      : symbol_(std::move(symbol)), value_(std::move(value)) {}
+  enum class AssignmentType { kDefine, kAssign };
+
+  AssignExpression(AssignmentType assignment_type, wstring symbol,
+                   unique_ptr<Expression> value)
+      : assignment_type_(assignment_type),
+        symbol_(std::move(symbol)),
+        value_(std::move(value)) {}
 
   std::vector<VMType> Types() override { return value_->Types(); }
   std::unordered_set<VMType> ReturnTypes() const override {
@@ -26,27 +31,35 @@ class AssignExpression : public Expression {
                                             const VMType& type) override {
     return futures::ImmediateTransform(
         trampoline->Bounce(value_.get(), type),
-        [trampoline, symbol = symbol_](EvaluationOutput value_output) {
+        [trampoline, symbol = symbol_,
+         assignment_type = assignment_type_](EvaluationOutput value_output) {
           DVLOG(3) << "Setting value for: " << symbol;
           DVLOG(4) << "Value: " << *value_output.value;
-          trampoline->environment()->Assign(symbol,
-                                            std::move(value_output.value));
+          if (assignment_type == AssignmentType::kDefine) {
+            trampoline->environment()->Define(symbol,
+                                              std::move(value_output.value));
+          } else {
+            trampoline->environment()->Assign(symbol,
+                                              std::move(value_output.value));
+          }
           // TODO: This seems wrong: shouldn't it be `value`?
           return EvaluationOutput::New(Value::NewVoid());
         });
   }
 
   std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<AssignExpression>(symbol_, value_->Clone());
+    return std::make_unique<AssignExpression>(assignment_type_, symbol_,
+                                              value_->Clone());
   }
 
  private:
+  const AssignmentType assignment_type_;
   const wstring symbol_;
   const std::shared_ptr<Expression> value_;
 };
 }  // namespace
 
-std::unique_ptr<Expression> NewAssignExpression(
+std::unique_ptr<Expression> NewDefineExpression(
     Compilation* compilation, std::wstring type, std::wstring symbol,
     std::unique_ptr<Expression> value) {
   if (value == nullptr) {
@@ -79,8 +92,9 @@ std::unique_ptr<Expression> NewAssignExpression(
     }
   }
   compilation->environment->Define(symbol, std::make_unique<Value>(type_def));
-  return std::make_unique<AssignExpression>(std::move(symbol),
-                                            std::move(value));
+  return std::make_unique<AssignExpression>(
+      AssignExpression::AssignmentType::kDefine, std::move(symbol),
+      std::move(value));
 }
 
 std::unique_ptr<Expression> NewAssignExpression(
@@ -93,7 +107,8 @@ std::unique_ptr<Expression> NewAssignExpression(
   compilation->environment->PolyLookup(symbol, &variables);
   for (auto& v : variables) {
     if (value->SupportsType(v->type)) {
-      return std::make_unique<AssignExpression>(symbol, std::move(value));
+      return std::make_unique<AssignExpression>(
+          AssignExpression::AssignmentType::kAssign, symbol, std::move(value));
     }
   }
 

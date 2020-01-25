@@ -158,7 +158,7 @@ assignment_statement(A) ::= expr(VALUE) SEMICOLON. {
 }
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
-  A = NewAssignExpression(compilation, TYPE->str, NAME->str,
+  A = NewDefineExpression(compilation, TYPE->str, NAME->str,
                           unique_ptr<Expression>(VALUE)).release();
   delete TYPE;
   delete NAME;
