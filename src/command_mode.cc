@@ -893,10 +893,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"sr", NewRecordCommand());
   commands->Add(L"\t", NewFindCompletionCommand());
 
-  commands->Add(L".", NewCppCommand(editor_state->environment(),
-                                    L"// Edit: Repeats the last command.\n"
-                                    L"editor.RepeatLastTransformation();"));
-
   ToggleBoolVariable(editor_state, L"va", L"atomic_lines", commands.get());
   ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands.get());
   ToggleBoolVariable(editor_state, L"vS", L"scrollbar", commands.get());

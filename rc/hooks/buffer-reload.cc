@@ -219,6 +219,9 @@ if (!buffer.pts()) {
                     CenterScreenAroundCurrentLine);
 }
 
+buffer.AddBinding(".", "Edit: Repeats the last command.",
+                  editor.RepeatLastTransformation);
+
 // Logic to handle the tree of visible buffers.
 void RewindActiveBuffer() {
   editor.AdvanceActiveBuffer(-repetitions());
