@@ -111,29 +111,6 @@ void MapModeCommands::Add(wstring name,
                                                   std::move(description)));
 }
 
-void MapModeCommands::RegisterVariableCommand(wstring variable_name,
-                                              wstring command_name) {
-  CHECK(!frames_.empty());
-  frames_.front()->variable_commands[variable_name].insert(command_name);
-}
-
-std::map<std::wstring, std::set<std::wstring>>
-MapModeCommands::GetVariableCommands() const {
-  std::map<std::wstring, std::set<std::wstring>> output;
-  std::set<wstring> already_seen;  // Avoid showing unreachable commands.
-  for (const auto& frame : frames_) {
-    for (const auto& variable_it : frame->variable_commands) {
-      wstring variable_name = variable_it.first;
-      for (const wstring& command_name : variable_it.second) {
-        if (already_seen.insert(command_name).second) {
-          output[variable_name].insert(command_name);
-        }
-      }
-    }
-  }
-  return output;
-}
-
 MapMode::MapMode(std::shared_ptr<MapModeCommands> commands)
     : commands_(std::move(commands)) {}
 

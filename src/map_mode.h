@@ -39,9 +39,6 @@ class MapModeCommands {
   void Add(wstring name, std::function<void(EditorState*)> value,
            wstring description);
 
-  void RegisterVariableCommand(wstring variable_name, wstring command_name);
-  std::map<std::wstring, std::set<std::wstring>> GetVariableCommands() const;
-
  private:
   friend class MapMode;
 

@@ -742,7 +742,6 @@ void ToggleVariable(EditorState* editor_state,
   LOG(INFO) << "Command: " << command;
   map_mode->Add(L"v" + variable->key(),
                 NewCppCommand(editor_state->environment(), command));
-  map_mode->RegisterVariableCommand(name, L"v" + variable->key());
 }
 
 void ToggleVariable(EditorState* editor_state,
@@ -756,7 +755,6 @@ void ToggleVariable(EditorState* editor_state,
   LOG(INFO) << "Command: " << command;
   map_mode->Add(L"v" + variable->key(),
                 NewCppCommand(editor_state->environment(), command));
-  map_mode->RegisterVariableCommand(name, L"v" + variable->key());
 }
 
 template <typename T>
