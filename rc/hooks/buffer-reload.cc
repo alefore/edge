@@ -224,6 +224,8 @@ buffer.AddBinding("_",
                   []() -> void {
                     buffer.set_multiple_cursors(!buffer.multiple_cursors());
                   });
+buffer.AddBinding("ar", "Buffers: Reload the current buffer.", buffer.Reload);
+buffer.AddBinding("aw", "Buffers: Save the current buffer.", buffer.Save);
 
 // Logic to handle the tree of visible buffers.
 void RewindActiveBuffer() {

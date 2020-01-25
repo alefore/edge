@@ -764,18 +764,12 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"aq", NewQuitCommand(0));
   commands->Add(L"aQ", NewQuitCommand(1));
   commands->Add(L"ad", NewCloseBufferCommand());
-  commands->Add(L"aw", NewCppCommand(editor_state->environment(),
-                                     L"// Buffers: Save the current buffer.\n"
-                                     L"editor.SaveCurrentBuffer();"));
   commands->Add(L"av", NewSetVariableCommand(editor_state));
   commands->Add(L"ac", NewRunCppFileCommand());
   commands->Add(L"aC", NewRunCppCommand(CppCommandMode::kLiteral));
   commands->Add(L":", NewRunCppCommand(CppCommandMode::kShell));
   commands->Add(L"a.", NewOpenDirectoryCommand());
   commands->Add(L"aL", NewListBuffersCommand());
-  commands->Add(L"ar", NewCppCommand(editor_state->environment(),
-                                     L"// Buffers: Reload the current buffer.\n"
-                                     L"editor.ReloadCurrentBuffer();"));
   commands->Add(L"ae", NewSendEndOfFileCommand());
   commands->Add(L"ao", NewOpenFileCommand());
   {

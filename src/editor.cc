@@ -124,24 +124,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
   // Methods for Editor.
   editor_type->AddField(
-      L"ReloadCurrentBuffer", vm::NewCallback([](EditorState* editor) {
-        CHECK(editor != nullptr);
-        auto buffer = editor->current_buffer();
-        if (buffer == nullptr) {
-          return;
-        }
-
-        if (editor->structure() == StructureLine()) {
-          auto target_buffer = buffer->GetBufferFromCurrentLine();
-          if (target_buffer != nullptr) {
-            buffer = target_buffer;
-          }
-        }
-        buffer->Reload();
-        editor->ResetModifiers();
-      }));
-
-  editor_type->AddField(
       L"AddVerticalSplit",
       vm::NewCallback([](EditorState* editor) { editor->AddVerticalSplit(); }));
 
@@ -173,24 +155,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(L"ZoomToLeaf", vm::NewCallback([](EditorState* editor) {
                           editor->ZoomToLeaf();
                         }));
-
-  editor_type->AddField(
-      L"SaveCurrentBuffer", vm::NewCallback([](EditorState* editor) {
-        CHECK(editor != nullptr);
-        auto buffer = editor->current_buffer();
-        if (buffer == nullptr) {
-          return;
-        }
-
-        if (editor->structure() == StructureLine()) {
-          auto target_buffer = buffer->GetBufferFromCurrentLine();
-          if (target_buffer != nullptr) {
-            buffer = target_buffer;
-          }
-        }
-        buffer->Save();
-        editor->ResetModifiers();
-      }));
 
   editor_type->AddField(L"home", vm::NewCallback([](EditorState* editor) {
                           return editor->home_directory();
