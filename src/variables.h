@@ -27,25 +27,28 @@ class EdgeStruct;
 template <typename T>
 struct EdgeVariable {
  public:
-  const wstring& name() const { return name_; }
-  const wstring& description() const { return description_; }
+  const std::wstring& name() const { return name_; }
+  const std::wstring& description() const { return description_; }
+  const std::wstring& key() const { return key_; }
   const T& default_value() const { return default_value_; }
   const size_t& position() const { return position_; }
   const Predictor& predictor() const { return predictor_; }
 
  private:
-  // Instantiate it through EdgeStruct::AddVariable.
-  EdgeVariable(const wstring& name, const wstring& description,
-               const T& default_value, size_t position,
+  // Instantiate it through EdgeStruct::Add.
+  EdgeVariable(const std::wstring& name, const std::wstring& description,
+               const std::wstring key, const T& default_value, size_t position,
                const Predictor& predictor)
       : name_(name),
         description_(description),
+        key_(key),
         default_value_(default_value),
         position_(position),
         predictor_(predictor) {}
 
-  wstring name_;
-  wstring description_;
+  std::wstring name_;
+  std::wstring description_;
+  std::wstring key_;
   T default_value_;
   size_t position_;
   // Used to predict values.
@@ -125,7 +128,7 @@ template <typename T>
 class VariableBuilder {
  public:
   EdgeVariable<T>* Build() {
-    return parent_->AddVariable(name_, description_, default_value_,
+    return parent_->AddVariable(name_, description_, key_, default_value_,
                                 predictor_);
   };
 
@@ -136,6 +139,11 @@ class VariableBuilder {
 
   VariableBuilder& Description(std::wstring description) {
     description_ = description;
+    return *this;
+  }
+
+  VariableBuilder& Key(std::wstring key) {
+    key_ = key;
     return *this;
   }
 
@@ -156,6 +164,7 @@ class VariableBuilder {
   EdgeStruct<T>* const parent_;
   std::wstring name_;
   std::wstring description_;
+  std::wstring key_;
   afc::editor::Predictor predictor_ = EmptyPredictor;
   T default_value_ = T();
 };
@@ -194,8 +203,9 @@ class EdgeStruct {
  private:
   friend class VariableBuilder<T>;
 
-  EdgeVariable<T>* AddVariable(const wstring& name, const wstring& description,
-                               const T& default_value,
+  EdgeVariable<T>* AddVariable(const std::wstring& name,
+                               const std::wstring& description,
+                               const std::wstring& key, const T& default_value,
                                const Predictor& predictor);
 
   map<wstring, unique_ptr<EdgeVariable<T>>> variables_;
@@ -272,14 +282,15 @@ void EdgeStructInstance<unique_ptr<T>>::Set(
 }
 
 template <typename T>
-EdgeVariable<T>* EdgeStruct<T>::AddVariable(const wstring& name,
-                                            const wstring& description,
+EdgeVariable<T>* EdgeStruct<T>::AddVariable(const std::wstring& name,
+                                            const std::wstring& description,
+                                            const std::wstring& key,
                                             const T& default_value,
                                             const Predictor& predictor) {
-  auto it = variables_.emplace(make_pair(
-      name,
-      unique_ptr<EdgeVariable<T>>(new EdgeVariable<T>(
-          name, description, default_value, variables_.size(), predictor))));
+  auto it = variables_.emplace(
+      make_pair(name, unique_ptr<EdgeVariable<T>>(new EdgeVariable<T>(
+                          name, description, key, default_value,
+                          variables_.size(), predictor))));
   CHECK(it.second);
   return it.first->second.get();
 }

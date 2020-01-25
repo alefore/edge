@@ -731,28 +731,45 @@ class TreeNavigateCommand : public Command {
   }
 };
 
-void ToggleBoolVariable(EditorState* editor_state, wstring binding,
-                        wstring variable_name, MapModeCommands* map_mode) {
-  wstring command = L"// Variables: Toggle buffer variable: " + variable_name +
-                    L"\nBuffer tmp_buffer = CurrentBuffer(); tmp_buffer.set_" +
-                    variable_name + L"(!tmp_buffer." + variable_name +
-                    L"()); SetStatus((tmp_buffer." + variable_name +
-                    L"() ? \"🗸\" : \"⛶\") + \" " + variable_name + L"\");";
+void ToggleVariable(EditorState* editor_state,
+                    const EdgeVariable<bool>* variable,
+                    MapModeCommands* map_mode) {
+  auto name = variable->name();
+  wstring command = L"// Variables: Toggle buffer variable: " + name +
+                    L"\nCurrentBuffer().set_" + name + L"(!CurrentBuffer()." +
+                    name + L"()); SetStatus((CurrentBuffer()." + name +
+                    L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\");";
   LOG(INFO) << "Command: " << command;
-  map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
-  map_mode->RegisterVariableCommand(variable_name, binding);
+  map_mode->Add(L"v" + variable->key(),
+                NewCppCommand(editor_state->environment(), command));
+  map_mode->RegisterVariableCommand(name, L"v" + variable->key());
 }
 
-void ToggleIntVariable(EditorState* editor_state, wstring binding, wstring name,
-                       MapModeCommands* map_mode) {
+void ToggleVariable(EditorState* editor_state,
+                    const EdgeVariable<int>* variable,
+                    MapModeCommands* map_mode) {
+  auto name = variable->name();
   wstring command = L"// Variables: Toggle buffer variable: " + name +
-                    L"\nBuffer tmp_buffer = CurrentBuffer();" +
-                    L"tmp_buffer.set_" + name +
+                    L"\nCurrentBuffer().set_" + name +
                     L"(repetitions());set_repetitions(1);SetStatus(\"" + name +
-                    L" := \" + tmp_buffer." + name + L"().tostring());";
+                    L" := \" + CurrentBuffer()." + name + L"().tostring());";
   LOG(INFO) << "Command: " << command;
-  map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
-  map_mode->RegisterVariableCommand(name, binding);
+  map_mode->Add(L"v" + variable->key(),
+                NewCppCommand(editor_state->environment(), command));
+  map_mode->RegisterVariableCommand(name, L"v" + variable->key());
+}
+
+template <typename T>
+void RegisterVariableKeys(EditorState* editor_state, EdgeStruct<T>* edge_struct,
+                          MapModeCommands* map_mode) {
+  std::vector<std::wstring> variable_names;
+  edge_struct->RegisterVariableNames(&variable_names);
+  for (const wstring& name : variable_names) {
+    auto variable = edge_struct->find_variable(name);
+    if (!variable->key().empty()) {
+      ToggleVariable(editor_state, variable, map_mode);
+    }
+  }
 }
 }  // namespace
 
@@ -843,20 +860,10 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"sr", NewRecordCommand());
   commands->Add(L"\t", NewFindCompletionCommand());
 
-  ToggleBoolVariable(editor_state, L"va", L"atomic_lines", commands.get());
-  ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands.get());
-  ToggleBoolVariable(editor_state, L"vS", L"scrollbar", commands.get());
-  ToggleBoolVariable(editor_state, L"vW", L"wrap_long_lines", commands.get());
-  ToggleBoolVariable(editor_state, L"vs", L"show_in_buffers_list",
-                     commands.get());
-
-  ToggleBoolVariable(editor_state, L"vf", L"follow_end_of_file",
-                     commands.get());
-  ToggleBoolVariable(editor_state, L"v/c", L"search_case_sensitive",
-                     commands.get());
-  ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines",
-                    commands.get());
-  ToggleIntVariable(editor_state, L"vw", L"line_width", commands.get());
+  RegisterVariableKeys(editor_state, buffer_variables::BoolStruct(),
+                       commands.get());
+  RegisterVariableKeys(editor_state, buffer_variables::IntStruct(),
+                       commands.get());
 
   commands->Add({Terminal::ESCAPE}, std::make_unique<ResetStateCommand>());
 

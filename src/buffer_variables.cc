@@ -85,6 +85,7 @@ EdgeVariable<bool>* const atomic_lines =
     BoolStruct()
         ->Add()
         .Name(L"atomic_lines")
+        .Key(L"a")
         .Description(
             L"If true, lines can't be joined (e.g. you can't delete the last "
             L"character in a line unless the line is empty). In this case, "
@@ -133,6 +134,7 @@ EdgeVariable<bool>* const paste_mode =
     BoolStruct()
         ->Add()
         .Name(L"paste_mode")
+        .Key(L"p")
         .Description(
             L"When paste_mode is enabled in a buffer, it will be displayed in "
             L"a way that makes it possible to select (with a mouse) parts of "
@@ -145,6 +147,7 @@ EdgeVariable<bool>* const follow_end_of_file =
     BoolStruct()
         ->Add()
         .Name(L"follow_end_of_file")
+        .Key(L"f")
         .Description(L"Should the cursor stay at the end of the file?")
         .Build();
 
@@ -229,6 +232,7 @@ EdgeVariable<bool>* const show_in_buffers_list =
     BoolStruct()
         ->Add()
         .Name(L"show_in_buffers_list")
+        .Key(L"s")
         .Description(L"If set to true, includes this in the list of buffers.")
         .DefaultValue(true)
         .Build();
@@ -260,6 +264,7 @@ EdgeVariable<bool>* const scrollbar =
     BoolStruct()
         ->Add()
         .Name(L"scrollbar")
+        .Key(L"S")
         .Description(L"If set to true, the scrollbar will be shown.")
         .DefaultValue(true)
         .Build();
@@ -268,6 +273,7 @@ EdgeVariable<bool>* const search_case_sensitive =
     BoolStruct()
         ->Add()
         .Name(L"search_case_sensitive")
+        .Key(L"/c")
         .Description(
             L"If set to true, search (through \"/\") is case sensitive.")
         .Build();
@@ -286,6 +292,7 @@ EdgeVariable<bool>* const wrap_long_lines =
     BoolStruct()
         ->Add()
         .Name(L"wrap_long_lines")
+        .Key(L"W")
         .Description(
             L"If set to true, long lines will be wrapped (only for "
             L"displaying). Otherwise, they get trimmed at the end.")
@@ -531,6 +538,7 @@ EdgeVariable<int>* const line_width =
     IntStruct()
         ->Add()
         .Name(L"line_width")
+        .Key(L"w")
         .Description(
             L"Desired maximum width of a line. The syntax information, scroll "
             L"bar, and other relevant information (when available) will be "
@@ -546,6 +554,7 @@ EdgeVariable<int>* const buffer_list_context_lines =
     IntStruct()
         ->Add()
         .Name(L"buffer_list_context_lines")
+        .Key(L"c")
         .Description(
             L"Number of lines of context from this buffer to show in the list "
             L"of buffers.")
