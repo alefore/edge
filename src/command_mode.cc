@@ -72,10 +72,6 @@ class Paste : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
-      return;
-    }
-    auto buffer = editor_state->current_buffer();
     auto it = editor_state->buffers()->find(OpenBuffer::kPasteBuffer);
     if (it == editor_state->buffers()->end()) {
       const static wstring errors[] = {
@@ -94,51 +90,71 @@ class Paste : public Command {
           L"",
       };
       static int current_message = 0;
-      buffer->status()->SetWarningText(errors[current_message++]);
+      editor_state->status()->SetWarningText(errors[current_message++]);
       if (errors[current_message].empty()) {
         current_message = 0;
       }
       return;
     }
-    if (it->second == editor_state->current_buffer()) {
-      const static wstring errors[] = {
-          L"You shall not paste into the paste buffer.",
-          L"Nope.",
-          L"Bad things would happen if you pasted into the buffer.",
-          L"There could be endless loops if you pasted into this buffer.",
-          L"This is not supported.",
-          L"Go to a different buffer first?",
-          L"The paste buffer is not for pasting into.",
-          L"This editor is too important for me to allow you to jeopardize it.",
-          L"",
-      };
-      static int current_message = 0;
-      buffer->status()->SetWarningText(errors[current_message++]);
-      if (errors[current_message].empty()) {
-        current_message = 0;
-      }
-      return;
-    }
-    if (buffer->fd() != nullptr) {
-      string text = ToByteString(it->second->ToString());
-      for (size_t i = 0; i < editor_state->repetitions(); i++) {
-        if (write(buffer->fd()->fd(), text.c_str(), text.size()) == -1) {
-          buffer->status()->SetWarningText(L"Unable to paste.");
-          break;
-        }
-      }
-    } else {
-      buffer->CheckPosition();
-      buffer->MaybeAdjustPositionCol();
-      InsertOptions insert_options;
-      insert_options.buffer_to_insert = it->second;
-      insert_options.modifiers.insertion = editor_state->modifiers().insertion;
-      insert_options.modifiers.repetitions = editor_state->repetitions();
-      editor_state->ApplyToCurrentBuffer(
-          NewInsertBufferTransformation(std::move(insert_options)));
-      editor_state->ResetInsertionModifier();
-    }
-    editor_state->ResetRepetitions();
+    std::shared_ptr<OpenBuffer> paste_buffer = it->second;
+    auto buffers = editor_state->active_buffers();
+    futures::ImmediateTransform(
+        futures::ForEachWithCopy(
+            buffers.begin(), buffers.end(),
+            [editor_state,
+             paste_buffer](const std::shared_ptr<OpenBuffer>& buffer) {
+              if (paste_buffer == buffer) {
+                const static wstring errors[] = {
+                    L"You shall not paste into the paste buffer.",
+                    L"Nope.",
+                    L"Bad things would happen if you pasted into the buffer.",
+                    L"There could be endless loops if you pasted into this "
+                    L"buffer.",
+                    L"This is not supported.",
+                    L"Go to a different buffer first?",
+                    L"The paste buffer is not for pasting into.",
+                    L"This editor is too important for me to allow you to "
+                    L"jeopardize it.",
+                    L"",
+                };
+                static int current_message = 0;
+                buffer->status()->SetWarningText(errors[current_message++]);
+                if (errors[current_message].empty()) {
+                  current_message = 0;
+                }
+                return futures::Past(
+                    futures::IterationControlCommand::kContinue);
+              }
+              if (buffer->fd() != nullptr) {
+                string text = ToByteString(paste_buffer->ToString());
+                for (size_t i = 0; i < editor_state->repetitions(); i++) {
+                  if (write(buffer->fd()->fd(), text.c_str(), text.size()) ==
+                      -1) {
+                    buffer->status()->SetWarningText(L"Unable to paste.");
+                    break;
+                  }
+                }
+                return futures::Past(
+                    futures::IterationControlCommand::kContinue);
+              }
+              buffer->CheckPosition();
+              buffer->MaybeAdjustPositionCol();
+              InsertOptions insert_options;
+              insert_options.buffer_to_insert = paste_buffer;
+              insert_options.modifiers.insertion =
+                  editor_state->modifiers().insertion;
+              insert_options.modifiers.repetitions =
+                  editor_state->repetitions();
+              return futures::Transform(
+                  buffer->ApplyToCursors(
+                      NewInsertBufferTransformation(std::move(insert_options))),
+                  futures::Past(futures::IterationControlCommand::kContinue));
+            }),
+        [editor_state](futures::IterationControlCommand) {
+          editor_state->ResetInsertionModifier();
+          editor_state->ResetRepetitions();
+          return futures::Past(true);
+        });
   }
 };
 
