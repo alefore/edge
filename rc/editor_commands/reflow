@@ -89,26 +89,30 @@ void BreakLine(string prefix, int line_width) {
   }
 }
 
-buffer.PushTransformationStack();
+void Reflow(Buffer buffer) {
+  buffer.PushTransformationStack();
 
-string prefix = GetPrefix(buffer.line(buffer.position().line()),
-                          buffer.line_prefix_characters());
+  string prefix = GetPrefix(buffer.line(buffer.position().line()),
+                            buffer.line_prefix_characters());
 
-ScrollBackToBeginningOfParagraph(prefix);
-LineColumn starting_position = buffer.position();
+  ScrollBackToBeginningOfParagraph(prefix);
+  LineColumn starting_position = buffer.position();
 
-// This is in case the first line in the paragraph has spaces that should be
-// removed.
-buffer.ApplyTransformation(SetPositionTransformation(
-    LineColumn(starting_position.line(), prefix.size())));
-buffer.ApplyTransformation(
-    InsertTransformationBuilder().set_text("\n" + prefix).build());
-buffer.ApplyTransformation(SetPositionTransformation(starting_position));
+  // This is in case the first line in the paragraph has spaces that should be
+  // removed.
+  buffer.ApplyTransformation(SetPositionTransformation(
+      LineColumn(starting_position.line(), prefix.size())));
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text("\n" + prefix).build());
+  buffer.ApplyTransformation(SetPositionTransformation(starting_position));
 
-FoldNextLineWhilePrefixIs(prefix);
-buffer.ApplyTransformation(SetPositionTransformation(starting_position));
+  FoldNextLineWhilePrefixIs(prefix);
+  buffer.ApplyTransformation(SetPositionTransformation(starting_position));
 
-BreakLine(prefix, buffer.line_width());
-buffer.ApplyTransformation(SetPositionTransformation(starting_position));
+  BreakLine(prefix, buffer.line_width());
+  buffer.ApplyTransformation(SetPositionTransformation(starting_position));
 
-buffer.PopTransformationStack();
+  buffer.PopTransformationStack();
+}
+
+Reflow(buffer);

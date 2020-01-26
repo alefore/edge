@@ -28,7 +28,7 @@ void CenterScreenAroundCurrentLine() {
     buffer.SetStatus("Near end of file.");
     start_line = (buffer.line_count() > size ? buffer.line_count() - size : 0);
   }
-  // buffer.set_view_start_line(start_line);
+  buffer.set_view_start(LineColumn(start_line, 0));
 }
 
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
@@ -159,38 +159,8 @@ if (!buffer.pts()) {
                     CenterScreenAroundCurrentLine);
 }
 
-void IncrementNumber() {
-  AddToIntegerTransformation(buffer, repetitions());
-  set_repetitions(1);
-}
-void DecrementNumber() {
-  AddToIntegerTransformation(buffer, -repetitions());
-  set_repetitions(1);
-}
-
-buffer.AddBinding("s+", "Numbers: Increment the number under the cursor.",
-                  IncrementNumber);
-buffer.AddBinding("s-", "Numbers: Decrement the number under the cursor.",
-                  DecrementNumber);
-
 void Camel() {
   buffer.ApplyTransformation(FunctionTransformation(CamelCaseTransformation));
 }
 
 buffer.AddBinding("Cc", "Edit: Adjust identifier to or from CamelCase.", Camel);
-
-void RunLocalShell() {
-  auto options = ForkCommandOptions();
-  options.set_command("sh -l");
-  string path = buffer.path();
-  if (!path.empty()) {
-    path = Dirname(path);
-    options.set_children_path(path);
-  }
-  options.set_insertion_type("visit");
-  options.set_name("💻 shell");
-  ForkCommand(options).SetStatus("Children path: " + path);
-}
-
-buffer.AddBinding("ss", "Run a shell in the directory of the current buffer.",
-                  RunLocalShell);

@@ -1,4 +1,5 @@
 #include "../editor_commands/lib/numbers"
+#include "../editor_commands/lib/paths"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Cursors
@@ -66,6 +67,22 @@ AddBinding("ar", "Buffers: Reload the current buffer.", []() -> void {
 AddBinding("aw", "Buffers: Save the current buffer.", []() -> void {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void { buffer.Save(); });
 });
+
+AddBinding("ss", "Run a shell in the directory of the current buffer.",
+           []() -> void {
+             editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+               auto options = ForkCommandOptions();
+               options.set_command("sh -l");
+               string path = buffer.path();
+               if (!path.empty()) {
+                 path = Dirname(path);
+                 options.set_children_path(path);
+               }
+               options.set_insertion_type("visit");
+               options.set_name("💻 shell");
+               ForkCommand(options).SetStatus("Children path: " + path);
+             });
+           });
 
 ////////////////////////////////////////////////////////////////////////////////
 // Editing commands
@@ -142,6 +159,19 @@ void HandleKeyboardControlU(Buffer buffer) {
 AddBinding(terminal_control_u, "Edit: Delete the current line", []() -> void {
   editor.ForEachActiveBuffer(HandleKeyboardControlU);
 });
+
+void IncrementNumber(int direction) {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    AddToIntegerTransformation(buffer, repetitions());
+  });
+  set_repetitions(1);
+  return;
+}
+
+AddBinding("s+", "Numbers: Increment the number under the cursor.",
+           []() -> void { IncrementNumber(1); });
+AddBinding("s-", "Numbers: Decrement the number under the cursor.",
+           []() -> void { IncrementNumber(-1); });
 
 void GoToBeginningOfLine() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
