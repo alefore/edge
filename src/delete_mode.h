@@ -8,7 +8,6 @@
 namespace afc {
 namespace editor {
 std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
-                                                   OpenBuffer* buffer,
                                                    Modifiers modifiers);
 }  // namespace editor
 }  // namespace afc

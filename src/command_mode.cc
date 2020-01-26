@@ -709,7 +709,6 @@ class HardRedrawCommand : public Command {
 };
 
 std::unique_ptr<Transformation> ApplySwitchCaseCommand(EditorState*,
-                                                       OpenBuffer*,
                                                        Modifiers modifiers) {
   if (modifiers.repetitions == 0) {
     modifiers.repetitions = 1;

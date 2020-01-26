@@ -217,8 +217,9 @@ class CommandWithModifiers : public Command {
             ? Modifiers::CursorsAffected::kAll
             : Modifiers::CursorsAffected::kOnlyCurrent;
     modifiers.repetitions = 0;
-    buffer->set_mode(std::make_unique<TransformationArgumentMode<Modifiers>>(
-        name_, editor_state, modifiers, handler_));
+    editor_state->set_keyboard_redirect(
+        std::make_unique<TransformationArgumentMode<Modifiers>>(
+            name_, editor_state, modifiers, handler_));
   }
 
  private:

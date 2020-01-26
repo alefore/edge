@@ -11,10 +11,8 @@ namespace afc {
 namespace editor {
 
 std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
-                                                   OpenBuffer* buffer,
                                                    Modifiers modifiers) {
   CHECK(editor_state != nullptr);
-  CHECK(buffer != nullptr);
   if (modifiers.repetitions == 0) {
     modifiers.repetitions = 1;
   }

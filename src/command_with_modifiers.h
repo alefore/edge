@@ -41,75 +41,109 @@ enum class CommandApplyMode {
 template <typename Argument>
 class TransformationArgumentMode : public EditorMode {
  public:
-  using TransformationFactory = std::function<std::unique_ptr<Transformation>(
-      EditorState*, OpenBuffer*, Argument)>;
+  using TransformationFactory =
+      std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>;
 
   TransformationArgumentMode(wstring name, EditorState* editor_state,
                              Argument initial_value,
                              TransformationFactory transformation_factory)
       : name_(std::move(name)),
-        buffer_(editor_state->current_buffer()),
+        buffers_(editor_state->active_buffers()),
         initial_value_(std::move(initial_value)),
         transformation_factory_(std::move(transformation_factory)) {
-    CHECK(buffer_ != nullptr);
     Transform(editor_state, Transformation::Input::Mode::kPreview);
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
-    buffer_->Undo(OpenBuffer::UndoMode::kOnlyOne)
-        .SetConsumer([this, c, editor_state](bool) {
+    futures::Transform(
+        ForEachBuffer([](const std::shared_ptr<OpenBuffer>& buffer) {
+          return futures::ImmediateTransform(
+              buffer->Undo(OpenBuffer::UndoMode::kOnlyOne),
+              [](bool) { return futures::IterationControlCommand::kContinue; });
+        }),
+        [this, c, editor_state](bool) {
           switch (c) {
             case Terminal::BACKSPACE:
               if (!argument_string_.empty()) {
                 argument_string_.pop_back();
               }
-              Transform(editor_state, Transformation::Input::Mode::kPreview);
-              break;
+              return Transform(editor_state,
+                               Transformation::Input::Mode::kPreview);
             default:
               Argument dummy;
-              if (!TransformationArgumentApplyChar(c, &dummy)) {
-                if (static_cast<int>(c) != Terminal::ESCAPE) {
-                  Transform(editor_state, Transformation::Input::Mode::kFinal);
-                }
-                buffer_->ResetMode();
-                buffer_->status()->Reset();
-                editor_state->status()->Reset();
-                if (c != L'\n') {
-                  editor_state->ProcessInput(c);
-                }
-              } else {
+              if (TransformationArgumentApplyChar(c, &dummy)) {
                 argument_string_.push_back(c);
-                Transform(editor_state, Transformation::Input::Mode::kPreview);
+                return Transform(editor_state,
+                                 Transformation::Input::Mode::kPreview);
               }
+              return futures::Transform(
+                  static_cast<int>(c) == Terminal::ESCAPE
+                      ? futures::Past(true)
+                      : Transform(editor_state,
+                                  Transformation::Input::Mode::kFinal),
+                  [this, editor_state](bool) {
+                    return ForEachBuffer(
+                        [editor_state](
+                            const std::shared_ptr<OpenBuffer>& buffer) {
+                          buffer->status()->Reset();
+                          editor_state->status()->Reset();
+                          return futures::Past(
+                              futures::IterationControlCommand::kContinue);
+                        });
+                  },
+                  [editor_state, c](bool) {
+                    auto editor_state_copy = editor_state;
+                    editor_state->set_keyboard_redirect(nullptr);
+                    if (c != L'\n') {
+                      editor_state_copy->ProcessInput(c);
+                    }
+                    return futures::Past(true);
+                  });
           }
         });
   }
 
  private:
-  void Transform(EditorState* editor_state,
-                 Transformation::Input::Mode apply_mode) {
-    auto argument = initial_value_;
-    for (const auto& c : argument_string_) {
-      TransformationArgumentApplyChar(c, &argument);
-    }
-    buffer_->status()->SetInformationText(
-        TransformationArgumentBuildStatus(argument, name_));
-    auto cursors_affected = TransformationArgumentCursorsAffected(argument);
-    buffer_->ApplyToCursors(transformation_factory_(editor_state, buffer_.get(),
-                                                    std::move(argument)),
-                            cursors_affected, apply_mode);
+  futures::Value<bool> ForEachBuffer(
+      const std::function<futures::Value<futures::IterationControlCommand>(
+          const std::shared_ptr<OpenBuffer>&)>& callback) {
+    return futures::ImmediateTransform(
+        futures::ForEach(buffers_.begin(), buffers_.end(), callback),
+        [](futures::IterationControlCommand) { return true; });
+  }
+
+  futures::Value<bool> Transform(EditorState* editor_state,
+                                 Transformation::Input::Mode apply_mode) {
+    return ForEachBuffer([transformation_factory = transformation_factory_,
+                          initial_value = initial_value_,
+                          argument_string = argument_string_, name = name_,
+                          editor_state, apply_mode](
+                             const std::shared_ptr<OpenBuffer>& buffer) {
+      auto argument = initial_value;
+      for (const auto& c : argument_string) {
+        TransformationArgumentApplyChar(c, &argument);
+      }
+
+      buffer->status()->SetInformationText(
+          TransformationArgumentBuildStatus(argument, name));
+      auto cursors_affected = TransformationArgumentCursorsAffected(argument);
+      return futures::ImmediateTransform(
+          buffer->ApplyToCursors(
+              transformation_factory(editor_state, std::move(argument)),
+              cursors_affected, apply_mode),
+          [](bool) { return futures::IterationControlCommand::kContinue; });
+    });
   }
 
   const wstring name_;
-  const std::shared_ptr<OpenBuffer> buffer_;
+  const std::vector<std::shared_ptr<OpenBuffer>> buffers_;
   const Argument initial_value_;
   const TransformationFactory transformation_factory_;
   wstring argument_string_;
 };
 
 using CommandWithModifiersHandler =
-    std::function<std::unique_ptr<Transformation>(EditorState*, OpenBuffer*,
-                                                  Modifiers)>;
+    std::function<std::unique_ptr<Transformation>(EditorState*, Modifiers)>;
 
 std::unique_ptr<Command> NewCommandWithModifiers(
     wstring name, wstring description, Modifiers initial_modifiers,

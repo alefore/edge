@@ -139,6 +139,11 @@ auto Transform(Value<OtherType> delayed_value, Callable callable) {
   return output.value;
 }
 
+template <typename T0, typename T1, typename T2>
+auto Transform(Value<T0> t0, T1 t1, T2 t2) {
+  return Transform(Transform(std::move(t0), std::move(t1)), std::move(t2));
+}
+
 template <typename OtherType, typename Callable>
 auto ImmediateTransform(Value<OtherType> delayed_value, Callable callable) {
   using Type = decltype(callable(std::declval<OtherType>()));
@@ -150,6 +155,12 @@ auto ImmediateTransform(Value<OtherType> delayed_value, Callable callable) {
         consumer(std::move(type));
       });
   return output.value;
+}
+
+template <typename T0, typename T1, typename T2>
+auto ImmediateTransform(Value<T0> t0, T1 t1, T2 t2) {
+  return ImmediateTransform(ImmediateTransform(std::move(t0), std::move(t1)),
+                            std::move(t2));
 }
 
 }  // namespace afc::futures

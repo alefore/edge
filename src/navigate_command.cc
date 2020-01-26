@@ -310,10 +310,10 @@ class NavigateCommand : public Command {
       return;
     }
 
-    buffer->set_mode(
+    editor_state->set_keyboard_redirect(
         std::make_unique<TransformationArgumentMode<NavigateState>>(
             L"navigate", editor_state, std::move(initial_state),
-            [](EditorState*, OpenBuffer*, NavigateState state) {
+            [](EditorState*, NavigateState state) {
               return NewTransformation(
                   Modifiers(),
                   std::make_unique<NavigateTransformation>(std::move(state)));
