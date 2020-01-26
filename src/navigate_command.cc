@@ -242,8 +242,20 @@ class NavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) return;
+    editor_state->set_keyboard_redirect(
+        std::make_unique<TransformationArgumentMode<NavigateState>>(
+            L"navigate", editor_state, &InitialState,
+            [](EditorState*, NavigateState state) {
+              return NewTransformation(
+                  Modifiers(),
+                  std::make_unique<NavigateTransformation>(std::move(state)));
+            }));
+  }
+
+ private:
+  static NavigateState InitialState(const std::shared_ptr<OpenBuffer>& buffer) {
+    CHECK(buffer != nullptr);
+    auto editor_state = buffer->editor();
     auto structure = editor_state->modifiers().structure;
     // TODO: Move to Structure.
     NavigateState initial_state;
@@ -306,18 +318,8 @@ class NavigateCommand : public Command {
     } else {
       buffer->status()->SetInformationText(
           L"Navigate not handled for current mode.");
-      buffer->ResetMode();
-      return;
     }
-
-    editor_state->set_keyboard_redirect(
-        std::make_unique<TransformationArgumentMode<NavigateState>>(
-            L"navigate", editor_state, std::move(initial_state),
-            [](EditorState*, NavigateState state) {
-              return NewTransformation(
-                  Modifiers(),
-                  std::make_unique<NavigateTransformation>(std::move(state)));
-            }));
+    return initial_state;
   }
 };
 

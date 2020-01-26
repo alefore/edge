@@ -44,12 +44,14 @@ class TransformationArgumentMode : public EditorMode {
   using TransformationFactory =
       std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>;
 
-  TransformationArgumentMode(wstring name, EditorState* editor_state,
-                             Argument initial_value,
-                             TransformationFactory transformation_factory)
+  TransformationArgumentMode(
+      wstring name, EditorState* editor_state,
+      std::function<Argument(const std::shared_ptr<OpenBuffer>&)>
+          initial_value_factory,
+      TransformationFactory transformation_factory)
       : name_(std::move(name)),
         buffers_(editor_state->active_buffers()),
-        initial_value_(std::move(initial_value)),
+        initial_value_factory_(std::move(initial_value_factory)),
         transformation_factory_(std::move(transformation_factory)) {
     Transform(editor_state, Transformation::Input::Mode::kPreview);
   }
@@ -115,11 +117,11 @@ class TransformationArgumentMode : public EditorMode {
   futures::Value<bool> Transform(EditorState* editor_state,
                                  Transformation::Input::Mode apply_mode) {
     return ForEachBuffer([transformation_factory = transformation_factory_,
-                          initial_value = initial_value_,
+                          initial_value_factory = initial_value_factory_,
                           argument_string = argument_string_, name = name_,
                           editor_state, apply_mode](
                              const std::shared_ptr<OpenBuffer>& buffer) {
-      auto argument = initial_value;
+      auto argument = initial_value_factory(buffer);
       for (const auto& c : argument_string) {
         TransformationArgumentApplyChar(c, &argument);
       }
@@ -137,7 +139,8 @@ class TransformationArgumentMode : public EditorMode {
 
   const wstring name_;
   const std::vector<std::shared_ptr<OpenBuffer>> buffers_;
-  const Argument initial_value_;
+  const std::function<Argument(const std::shared_ptr<OpenBuffer>&)>
+      initial_value_factory_;
   const TransformationFactory transformation_factory_;
   wstring argument_string_;
 };

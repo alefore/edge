@@ -209,20 +209,29 @@ class CommandWithModifiers : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) return;
-    auto modifiers = initial_modifiers_;
+    editor_state->set_keyboard_redirect(
+        std::make_unique<TransformationArgumentMode<Modifiers>>(
+            name_, editor_state,
+            [modifiers = initial_modifiers_](
+                const std::shared_ptr<OpenBuffer>& buffer) {
+              return InitialState(modifiers, buffer);
+            },
+            handler_));
+  }
+
+ private:
+  static Modifiers InitialState(Modifiers initial_modifiers,
+                                const std::shared_ptr<OpenBuffer>& buffer) {
+    CHECK(buffer != nullptr);
+    auto modifiers = initial_modifiers;
     modifiers.cursors_affected =
         buffer->Read(buffer_variables::multiple_cursors)
             ? Modifiers::CursorsAffected::kAll
             : Modifiers::CursorsAffected::kOnlyCurrent;
     modifiers.repetitions = 0;
-    editor_state->set_keyboard_redirect(
-        std::make_unique<TransformationArgumentMode<Modifiers>>(
-            name_, editor_state, modifiers, handler_));
+    return modifiers;
   }
 
- private:
   const wstring name_;
   const wstring description_;
   const Modifiers initial_modifiers_;
