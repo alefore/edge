@@ -495,10 +495,10 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
       tree.range().begin.line == tree.range().end.line) {
     CHECK_LE(tree.range().begin.column, tree.range().end.column);
     auto line = buffer.LineAt(tree.range().begin.line);
-    CHECK_LE(tree.range().end.column, line->EndColumn());
     auto word =
         line->Substring(tree.range().begin.column,
-                        tree.range().end.column - tree.range().begin.column)
+                        min(tree.range().end.column, line->EndColumn()) -
+                            tree.range().begin.column)
             ->ToString();
     if (!word.empty()) {
       DVLOG(5) << "Found leave: " << word;
