@@ -150,13 +150,16 @@ class UndoCommand : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
-    buffer->Undo(OpenBuffer::UndoMode::kLoop);
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();
+    auto buffers = editor_state->active_buffers();
+    futures::ForEachWithCopy(
+        buffers.begin(), buffers.end(),
+        [](const std::shared_ptr<OpenBuffer>& buffer) {
+          return futures::Transform(
+              buffer->Undo(OpenBuffer::UndoMode::kLoop),
+              futures::Past(futures::IterationControlCommand::kContinue));
+        });
   }
 };
 
