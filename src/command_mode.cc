@@ -731,22 +731,37 @@ class TreeNavigateCommand : public Command {
   }
 };
 
+enum class VariableLocation { kBuffer, kEditor };
+
 void ToggleVariable(EditorState* editor_state,
+                    VariableLocation variable_location,
                     const EdgeVariable<bool>* variable,
                     MapModeCommands* map_mode) {
   auto name = variable->name();
-  wstring command = L"// Variables: Toggle buffer variable: " + name +
-                    L"\nCurrentBuffer().set_" + name + L"(!CurrentBuffer()." +
-                    name + L"()); SetStatus((CurrentBuffer()." + name +
-                    L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\");";
+  wstring command;
+  switch (variable_location) {
+    case VariableLocation::kBuffer:
+      command = L"// Variables: Toggle buffer variable: " + name +
+                L"\nCurrentBuffer().set_" + name + L"(!CurrentBuffer()." +
+                name + L"()); SetStatus((CurrentBuffer()." + name +
+                L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\");";
+      break;
+    case VariableLocation::kEditor:
+      command = L"// Variables: Toggle editor variable: " + name +
+                L"\neditor.set_" + name + L"(!editor." + name +
+                L"()); SetStatus((editor." + name +
+                L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\");";
+      break;
+  }
   LOG(INFO) << "Command: " << command;
   map_mode->Add(L"v" + variable->key(),
                 NewCppCommand(editor_state->environment(), command));
 }
 
-void ToggleVariable(EditorState* editor_state,
+void ToggleVariable(EditorState* editor_state, VariableLocation,
                     const EdgeVariable<int>* variable,
                     MapModeCommands* map_mode) {
+  // TODO: Honor variable_location.
   auto name = variable->name();
   wstring command = L"// Variables: Toggle buffer variable: " + name +
                     L"\nCurrentBuffer().set_" + name +
@@ -759,13 +774,14 @@ void ToggleVariable(EditorState* editor_state,
 
 template <typename T>
 void RegisterVariableKeys(EditorState* editor_state, EdgeStruct<T>* edge_struct,
+                          VariableLocation variable_location,
                           MapModeCommands* map_mode) {
   std::vector<std::wstring> variable_names;
   edge_struct->RegisterVariableNames(&variable_names);
   for (const wstring& name : variable_names) {
     auto variable = edge_struct->find_variable(name);
     if (!variable->key().empty()) {
-      ToggleVariable(editor_state, variable, map_mode);
+      ToggleVariable(editor_state, variable_location, variable, map_mode);
     }
   }
 }
@@ -858,10 +874,12 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"sr", NewRecordCommand());
   commands->Add(L"\t", NewFindCompletionCommand());
 
+  RegisterVariableKeys(editor_state, editor_variables::BoolStruct(),
+                       VariableLocation::kEditor, commands.get());
   RegisterVariableKeys(editor_state, buffer_variables::BoolStruct(),
-                       commands.get());
+                       VariableLocation::kBuffer, commands.get());
   RegisterVariableKeys(editor_state, buffer_variables::IntStruct(),
-                       commands.get());
+                       VariableLocation::kBuffer, commands.get());
 
   commands->Add({Terminal::ESCAPE}, std::make_unique<ResetStateCommand>());
 
