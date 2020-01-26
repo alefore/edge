@@ -395,7 +395,8 @@ std::pair<int, int> BuildPipe() {
 }
 
 EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
-    : home_directory_(args.home_directory),
+    : bool_variables_(editor_variables::BoolStruct()->NewInstance()),
+      home_directory_(args.home_directory),
       edge_path_(args.config_paths),
       environment_(BuildEditorEnvironment()),
       default_commands_(NewCommandMode(this)),
@@ -439,6 +440,18 @@ EditorState::~EditorState() {
   }
 
   environment_->Clear();  // We may have loops. This helps break them.
+}
+
+const bool& EditorState::Read(const EdgeVariable<bool>* variable) const {
+  return bool_variables_.Get(variable);
+}
+
+void EditorState::Set(const EdgeVariable<bool>* variable, bool value) {
+  bool_variables_.Set(variable, value);
+}
+
+void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
+  Set(variable, !Read(variable));
 }
 
 void EditorState::CheckPosition() {

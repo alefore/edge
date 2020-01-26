@@ -57,6 +57,9 @@ src/dirname.cc \
 src/dirname.h \
 src/direction.cc \
 src/editor.cc \
+src/editor.h \
+src/editor_variables.cc \
+src/editor_variables.h \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
 src/file_link_mode.cc \

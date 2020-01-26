@@ -17,6 +17,7 @@
 #include "src/command_mode.h"
 #include "src/direction.h"
 #include "src/editor_mode.h"
+#include "src/editor_variables.h"
 #include "src/lazy_string.h"
 #include "src/line_marks.h"
 #include "src/modifiers.h"
@@ -49,6 +50,10 @@ class EditorState {
 
   EditorState(CommandLineValues args, AudioPlayer* audio_player);
   ~EditorState();
+
+  const bool& Read(const EdgeVariable<bool>* variable) const;
+  void Set(const EdgeVariable<bool>* variable, bool value);
+  void toggle_bool_variable(const EdgeVariable<bool>* variable);
 
   void CheckPosition();
 
@@ -206,6 +211,8 @@ class EditorState {
 
  private:
   std::shared_ptr<Environment> BuildEditorEnvironment();
+
+  EdgeStructInstance<bool> bool_variables_;
 
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
