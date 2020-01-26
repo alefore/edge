@@ -916,13 +916,6 @@ bool EditorState::MovePositionsStack(Direction direction) {
 Status* EditorState::status() { return &status_; }
 const Status* EditorState::status() const { return &status_; }
 
-futures::Value<bool> EditorState::ApplyToCurrentBuffer(
-    unique_ptr<Transformation> transformation) {
-  CHECK(transformation != nullptr);
-  CHECK(has_current_buffer());
-  return current_buffer()->ApplyToCursors(std::move(transformation));
-}
-
 wstring EditorState::expand_path(const wstring& path) const {
   // TODO: Also support ~user/foo.
   if (path == L"~" || (path.size() > 2 && path.substr(0, 2) == L"~/")) {
