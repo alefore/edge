@@ -379,14 +379,22 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
 }
 
 /* static */ void MoveForwards::Move(int, EditorState* editor_state) {
-  if (!editor_state->has_current_buffer()) {
-    return;
-  }
-  editor_state->ApplyToCurrentBuffer(
-      NewMoveTransformation(editor_state->modifiers()));
-  editor_state->ResetRepetitions();
-  editor_state->ResetStructure();
-  editor_state->ResetDirection();
+  auto buffers = editor_state->active_buffers();
+  futures::ImmediateTransform(
+      futures::ForEachWithCopy(
+          buffers.begin(), buffers.end(),
+          [editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
+            return futures::Transform(
+                buffer->ApplyToCursors(
+                    NewMoveTransformation(editor_state->modifiers())),
+                futures::Past(futures::IterationControlCommand::kContinue));
+          }),
+      [editor_state](futures::IterationControlCommand) {
+        editor_state->ResetRepetitions();
+        editor_state->ResetStructure();
+        editor_state->ResetDirection();
+        return true;
+      });
 }
 
 wstring MoveBackwards::Description() const { return L"moves backwards"; }
