@@ -739,13 +739,14 @@ void ToggleVariable(EditorState* editor_state,
                     const EdgeVariable<bool>* variable,
                     MapModeCommands* map_mode) {
   auto name = variable->name();
-  wstring command;
+  std::wstring command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
-      command = L"// Variables: Toggle buffer variable: " + name +
-                L"\nCurrentBuffer().set_" + name + L"(!CurrentBuffer()." +
-                name + L"()); SetStatus((CurrentBuffer()." + name +
-                L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\");";
+      command = L"// Variables: Toggle buffer variable (bool): " + name +
+                L"\neditor.ForEachActiveBuffer([](Buffer buffer) -> void {\n"
+                L"buffer.set_" +
+                name + L"(!buffer." + name + L"()); buffer.SetStatus((buffer." +
+                name + L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\"); });";
       break;
     case VariableLocation::kEditor:
       command = L"// Variables: Toggle editor variable: " + name +
@@ -759,15 +760,26 @@ void ToggleVariable(EditorState* editor_state,
                 NewCppCommand(editor_state->environment(), command));
 }
 
-void ToggleVariable(EditorState* editor_state, VariableLocation,
+void ToggleVariable(EditorState* editor_state,
+                    VariableLocation variable_location,
                     const EdgeVariable<int>* variable,
                     MapModeCommands* map_mode) {
   // TODO: Honor variable_location.
   auto name = variable->name();
-  wstring command = L"// Variables: Toggle buffer variable: " + name +
-                    L"\nCurrentBuffer().set_" + name +
-                    L"(repetitions());set_repetitions(1);SetStatus(\"" + name +
-                    L" := \" + CurrentBuffer()." + name + L"().tostring());";
+  std::wstring command;
+  switch (variable_location) {
+    case VariableLocation::kBuffer:
+      command = L"// Variables: Toggle buffer variable (int): " + name +
+                L"\neditor.ForEachActiveBuffer([](Buffer buffer) -> void {\n"
+                L"buffer.set_" +
+                name + L"(repetitions());buffer.SetStatus(\"" + name +
+                L" := \" + buffer." + name +
+                L"().tostring()); }); set_repetitions(1);\n";
+      break;
+    case VariableLocation::kEditor:
+      CHECK(false) << "Not implemented.";
+      break;
+  }
   LOG(INFO) << "Command: " << command;
   map_mode->Add(L"v" + variable->key(),
                 NewCppCommand(editor_state->environment(), command));
