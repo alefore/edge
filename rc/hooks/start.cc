@@ -53,35 +53,37 @@ AddBinding(terminal_control_k, "Edit: Delete to end of line.", []() -> void {
   });
 });
 
-AddBinding(terminal_control_u, "Edit: Delete the current line", []() -> void {
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    buffer.PushTransformationStack();
-    Modifiers modifiers = Modifiers();
-    modifiers.set_backwards();
-    if (buffer.contents_type() == "path") {
-      LineColumn position = buffer.position();
-      string line = buffer.line(position.line());
-      int column = position.column();
-      if (column > 1 && line.substr(column - 1, 1) == "/") {
-        column--;
-      }
-      if (column == 0) {
-        return;
-      }
-      int last_slash = line.find_last_of("/", min(column - 1, line.size()));
-      if (last_slash == -1) {
-        modifiers.set_line();
-      } else {
-        modifiers.set_repetitions(position.column() - last_slash - 1);
-      }
-    } else {
-      // Edit: Delete to the beginning of line.
-      modifiers.set_line();
+void HandleKeyboardControlU(Buffer buffer) {
+  buffer.PushTransformationStack();
+  Modifiers modifiers = Modifiers();
+  modifiers.set_backwards();
+  if (buffer.contents_type() == "path") {
+    LineColumn position = buffer.position();
+    string line = buffer.line(position.line());
+    int column = position.column();
+    if (column > 1 && line.substr(column - 1, 1) == "/") {
+      column--;
     }
-    buffer.ApplyTransformation(
-        DeleteTransformationBuilder().set_modifiers(modifiers).build());
-    buffer.PopTransformationStack();
-  });
+    if (column == 0) {
+      return;
+    }
+    int last_slash = line.find_last_of("/", min(column - 1, line.size()));
+    if (last_slash == -1) {
+      modifiers.set_line();
+    } else {
+      modifiers.set_repetitions(position.column() - last_slash - 1);
+    }
+  } else {
+    // Edit: Delete to the beginning of line.
+    modifiers.set_line();
+  }
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder().set_modifiers(modifiers).build());
+  buffer.PopTransformationStack();
+}
+
+AddBinding(terminal_control_u, "Edit: Delete the current line", []() -> void {
+  editor.ForEachActiveBuffer(HandleKeyboardControlU);
 });
 
 // Logic to handle the tree of visible buffers.

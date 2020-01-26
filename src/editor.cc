@@ -181,9 +181,18 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
              Trampoline* trampoline) {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
-            auto buffer = editor->current_buffer();
-            if (buffer == nullptr)
-              return futures::Past(EvaluationOutput::Return(Value::NewVoid()));
+            std::shared_ptr<OpenBuffer> buffer;
+            if (editor->status()->GetType() == Status::Type::kPrompt) {
+              buffer = editor->status()->prompt_buffer();
+            } else {
+              buffer = editor->current_buffer();
+              if (buffer == nullptr)
+                return futures::Past(
+                    EvaluationOutput::Return(Value::NewVoid()));
+              if (buffer->status()->GetType() == Status::Type::kPrompt) {
+                buffer = buffer->status()->prompt_buffer();
+              }
+            }
             std::vector<std::unique_ptr<Value>> args;
             args.push_back(
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
