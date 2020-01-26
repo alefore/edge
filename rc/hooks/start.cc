@@ -1,3 +1,4 @@
+#include "../editor_commands/fold-next-line"
 #include "../editor_commands/lib/numbers"
 #include "../editor_commands/lib/paths"
 
@@ -118,6 +119,15 @@ void DeleteCurrentLine(Buffer buffer) {
 
 AddBinding("K", "Edit: Delete the current line",
            []() -> void { editor.ForEachActiveBuffer(DeleteCurrentLine); });
+
+AddBinding("J", "Edit: Fold next line into the current line", []() -> void {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          return FoldNextLine(buffer, input);
+        }));
+  });
+});
 
 AddBinding(terminal_control_k, "Edit: Delete to end of line.", []() -> void {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {

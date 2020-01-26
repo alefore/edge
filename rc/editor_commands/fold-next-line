@@ -1,4 +1,4 @@
-string ExtractToken(string text) {
+string ExtractToken(Buffer buffer, string text) {
   int pos_start = text.find_first_not_of(buffer.line_prefix_characters(), 0);
   if (pos_start == -1) {
     return text;
@@ -10,8 +10,8 @@ string ExtractToken(string text) {
   return text.substr(0, pos_end);
 }
 
-string LeadingPrefix(string text) {
-  string prefix = ExtractToken(text);
+string LeadingPrefix(Buffer buffer, string text) {
+  string prefix = ExtractToken(buffer, text);
   int pos_end = prefix.find_first_not_of(buffer.line_prefix_characters(), 0);
   if (pos_end == -1) {
     return prefix;
@@ -20,14 +20,14 @@ string LeadingPrefix(string text) {
   }
 }
 
-TransformationOutput FoldNextLine(TransformationInput input) {
+TransformationOutput FoldNextLine(Buffer buffer, TransformationInput input) {
   TransformationOutput output = TransformationOutput();
   int column = buffer.line(input.position().line()).size();
   for (int i = 0; i < repetitions(); i++) {
     output.push(SetColumnTransformation(column));
     int next_line = input.position().line() + i + 1;
     if (next_line < buffer.line_count()) {
-      auto prefix_size = LeadingPrefix(buffer.line(next_line)).size();
+      auto prefix_size = LeadingPrefix(buffer, buffer.line(next_line)).size();
       output.push(
           DeleteTransformationBuilder()
               .set_modifiers(
@@ -43,5 +43,3 @@ TransformationOutput FoldNextLine(TransformationInput input) {
   set_repetitions(1);
   return output;
 }
-
-buffer.ApplyTransformation(FunctionTransformation(FoldNextLine));

@@ -152,8 +152,6 @@ if (path == "") {
   HandleFileTypes(basename, extension);
 }
 
-buffer.AddBindingToFile("J", buffer.editor_commands_path() + "fold-next-line");
-
 if (!buffer.pts()) {
   buffer.AddBinding("M", "Center the screen around the current line.",
                     CenterScreenAroundCurrentLine);
