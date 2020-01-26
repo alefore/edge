@@ -211,10 +211,12 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
              Trampoline* trampoline) {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
-            auto buffers = editor->active_buffers();
+            auto buffers =
+                std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
+                    editor->active_buffers());
             return futures::ImmediateTransform(
                 futures::ForEach(
-                    buffers.begin(), buffers.end(),
+                    buffers->begin(), buffers->end(),
                     [callback = std::move(input[1]->callback),
                      trampoline](std::shared_ptr<OpenBuffer> buffer) {
                       std::vector<std::unique_ptr<Value>> args;
@@ -227,7 +229,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                             return futures::IterationControlCommand::kContinue;
                           });
                     }),
-                [](futures::IterationControlCommand) {
+                [buffers](futures::IterationControlCommand) {
                   return EvaluationOutput::Return(Value::NewVoid());
                 });
           }));
