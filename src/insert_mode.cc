@@ -177,20 +177,18 @@ class InsertMode : public EditorMode {
       case Terminal::ESCAPE:
         ResetScrollBehavior();
         buffer->MaybeAdjustPositionCol();
-        // TODO(easy): turn into form: futures::Transform(a, b, c);
         return futures::Transform(
             buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters()),
             [buffer, editor_state, this](bool) {
               buffer->PopTransformationStack();
               editor_state->set_repetitions(editor_state->repetitions() - 1);
-              return futures::ImmediateTransform(
-                  buffer->RepeatLastTransformation(),
-                  [buffer, editor_state, this](bool) {
-                    buffer->PopTransformationStack();
-                    editor_state->PushCurrentPosition();
-                    buffer->status()->Reset();
-                    return true;
-                  });
+              return buffer->RepeatLastTransformation();
+            },
+            [buffer, editor_state, this](bool) {
+              buffer->PopTransformationStack();
+              editor_state->PushCurrentPosition();
+              buffer->status()->Reset();
+              return futures::Past(true);
             });
 
       case Terminal::UP_ARROW:
@@ -229,25 +227,30 @@ class InsertMode : public EditorMode {
         }
         delete_options.modifiers.paste_buffer_behavior =
             Modifiers::PasteBufferBehavior::kDoNothing;
-        CallModifyHandler(buffer, buffer->ApplyToCursors(
-                                      NewDeleteTransformation(delete_options)));
-        if (editor_state->modifiers().insertion ==
-            Modifiers::ModifyMode::kOverwrite) {
-          auto buffer_to_insert =
-              std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-          buffer_to_insert->AppendToLastLine(NewLazyString(L" "));
-          InsertOptions insert_options;
-          insert_options.buffer_to_insert = buffer_to_insert;
-          if (c == wint_t(Terminal::BACKSPACE)) {
-            insert_options.final_position =
-                InsertOptions::FinalPosition::kStart;
-          }
-          buffer->ApplyToCursors(
-              NewInsertBufferTransformation(std::move(insert_options)));
-        }
-        // TODO(easy): Transform the above expression to return a correct
-        // future. I.e. don't ignore ApplyToCursors.
-        return options_.modify_handler(buffer);
+        return futures::Transform(
+            CallModifyHandler(buffer,
+                              buffer->ApplyToCursors(NewDeleteTransformation(
+                                  std::move(delete_options)))),
+            [editor_state, c, buffer](bool) {
+              if (editor_state->modifiers().insertion !=
+                  Modifiers::ModifyMode::kOverwrite)
+                return futures::Past(true);
+
+              auto buffer_to_insert = std::make_shared<OpenBuffer>(
+                  editor_state, L"- text inserted");
+              buffer_to_insert->AppendToLastLine(NewLazyString(L" "));
+              InsertOptions insert_options;
+              insert_options.buffer_to_insert = buffer_to_insert;
+              if (c == wint_t(Terminal::BACKSPACE)) {
+                insert_options.final_position =
+                    InsertOptions::FinalPosition::kStart;
+              }
+              return buffer->ApplyToCursors(
+                  NewInsertBufferTransformation(std::move(insert_options)));
+            },
+            [handler = options_.modify_handler, buffer](bool) {
+              return handler(buffer);
+            });
       }
 
       case '\n':
