@@ -63,37 +63,6 @@ using std::advance;
 using std::ceil;
 using std::make_pair;
 
-class Delete : public Command {
- public:
-  Delete(DeleteOptions delete_options) : delete_options_(delete_options) {}
-
-  wstring Description() const override {
-    if (delete_options_.modifiers.delete_behavior ==
-        Modifiers::DeleteBehavior::kDeleteText) {
-      return L"deletes the current item (char, word, line...)";
-    }
-    return L"copies current item (char, word, ...) to the paste buffer.";
-  }
-
-  wstring Category() const override { return L"Edit"; }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
-      return;
-    }
-    DeleteOptions options = delete_options_;
-    options.modifiers = editor_state->modifiers();
-    editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(options));
-
-    LOG(INFO) << "After applying delete transformation: "
-              << editor_state->modifiers();
-    editor_state->ResetModifiers();
-  }
-
- private:
-  const DeleteOptions delete_options_;
-};
-
 // TODO: Replace with insert.  Insert should be called 'type'.
 class Paste : public Command {
  public:
