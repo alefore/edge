@@ -716,13 +716,19 @@ class TreeNavigateCommand : public Command {
  public:
   wstring Description() const override {
     return L"Navigates to the start/end of the current children of the "
-           L"syntax "
-           L"tree";
+           L"syntax tree";
   }
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->ApplyToCurrentBuffer(NewTreeNavigateTransformation());
+    auto buffers = editor_state->active_buffers();
+    futures::ForEachWithCopy(
+        buffers.begin(), buffers.end(),
+        [](const std::shared_ptr<OpenBuffer>& buffer) {
+          return futures::Transform(
+              buffer->ApplyToCursors(NewTreeNavigateTransformation()),
+              futures::Past(futures::IterationControlCommand::kContinue));
+        });
   }
 };
 
