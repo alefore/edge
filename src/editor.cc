@@ -113,6 +113,34 @@ WorkQueue::State EditorState::GetPendingWorkState() const {
 
 WorkQueue* EditorState::work_queue() const { return &work_queue_; }
 
+template <typename EdgeStruct, typename FieldValue>
+void RegisterVariableFields(
+    EdgeStruct* edge_struct, afc::vm::ObjectType* editor_type,
+    const FieldValue& (EditorState::*reader)(const EdgeVariable<FieldValue>*)
+        const,
+    void (EditorState::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
+  vector<wstring> variable_names;
+  edge_struct->RegisterVariableNames(&variable_names);
+  for (const wstring& name : variable_names) {
+    auto variable = edge_struct->find_variable(name);
+    CHECK(variable != nullptr);
+    // Getter.
+    editor_type->AddField(
+        variable->name(),
+        vm::NewCallback([reader, variable](EditorState* editor) {
+          return (editor->*reader)(variable);
+        }));
+
+    // Setter.
+    editor_type->AddField(
+        L"set_" + variable->name(),
+        vm::NewCallback(
+            [variable, setter](EditorState* editor, FieldValue value) {
+              (editor->*setter)(variable, value);
+            }));
+  }
+}
+
 std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   auto environment =
       std::make_shared<Environment>(afc::vm::Environment::GetDefault());
@@ -133,6 +161,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   auto editor_type = std::make_unique<ObjectType>(L"Editor");
 
   // Methods for Editor.
+  RegisterVariableFields(editor_variables::BoolStruct(), editor_type.get(),
+                         &EditorState::Read, &EditorState::Set);
   editor_type->AddField(
       L"AddVerticalSplit",
       vm::NewCallback([](EditorState* editor) { editor->AddVerticalSplit(); }));
