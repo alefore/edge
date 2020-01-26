@@ -133,7 +133,9 @@ Value<IterationControlCommand> While(Callable callable) {
 }
 
 template <typename OtherType, typename Callable>
-auto Transform(Value<OtherType> delayed_value, Callable callable) {
+Value<typename decltype(
+    std::declval<Callable>()(std::declval<OtherType>()))::type>
+Transform(Value<OtherType> delayed_value, Callable callable) {
   Future<typename decltype(callable(std::declval<OtherType>()))::type> output;
   delayed_value.SetConsumer(
       [consumer = output.consumer,
@@ -141,6 +143,13 @@ auto Transform(Value<OtherType> delayed_value, Callable callable) {
         callable(std::move(other_value)).SetConsumer(std::move(consumer));
       });
   return output.value;
+}
+
+template <typename OtherType, typename Type>
+auto Transform(Value<OtherType> delayed_value, Value<Type> value) {
+  return Transform(delayed_value, [value = std::move(value)](const OtherType&) {
+    return value;
+  });
 }
 
 template <typename T0, typename T1, typename T2>
