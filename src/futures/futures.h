@@ -86,6 +86,10 @@ enum class IterationControlCommand { kContinue, kStop };
 //
 // The returned value can be used to check whether the entire evaluation
 // succeeded and/or to detect when it's finished.
+//
+// Must ensure that the iterators won't expire before the iteration is done. If
+// that's a problem, `ForEachWithCopy` is provided below (which will make a copy
+// of the entire container).
 template <typename Iterator, typename Callable>
 Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
                                        Callable callable) {
@@ -161,6 +165,17 @@ template <typename T0, typename T1, typename T2>
 auto ImmediateTransform(Value<T0> t0, T1 t1, T2 t2) {
   return ImmediateTransform(ImmediateTransform(std::move(t0), std::move(t1)),
                             std::move(t2));
+}
+
+template <typename Iterator, typename Callable>
+Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
+                                               Callable callable) {
+  auto copy = std::make_shared<
+      std::vector<typename std::remove_reference<decltype(*begin)>::type>>(
+      begin, end);
+  return futures::ImmediateTransform(
+      ForEach(copy->begin(), copy->end(), std::move(callable)),
+      [copy](IterationControlCommand output) { return output; });
 }
 
 }  // namespace afc::futures
