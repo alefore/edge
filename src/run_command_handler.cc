@@ -370,7 +370,7 @@ class ForkEditorCommand : public Command {
       if (prompt_state->context_command_callback != nullptr) {
         options.change_handler =
             [prompt_state](const std::shared_ptr<OpenBuffer>& prompt_buffer) {
-              PromptChange(prompt_state.get(), prompt_buffer);
+              return PromptChange(prompt_state.get(), prompt_buffer);
             };
       }
       options.handler = [children_path](const wstring& name,
@@ -398,8 +398,9 @@ class ForkEditorCommand : public Command {
   }
 
  private:
-  static void PromptChange(PromptState* prompt_state,
-                           const std::shared_ptr<OpenBuffer>& prompt_buffer) {
+  static futures::Value<bool> PromptChange(
+      PromptState* prompt_state,
+      const std::shared_ptr<OpenBuffer>& prompt_buffer) {
     CHECK(prompt_state != nullptr);
     CHECK(prompt_state->context_command_callback);
     CHECK(prompt_buffer->editor()->status()->GetType() ==
@@ -416,21 +417,21 @@ class ForkEditorCommand : public Command {
       prompt_buffer->editor()->status()->set_prompt_context(nullptr);
       prompt_state->original_buffer->status()->SetWarningText(
           L"Unable to compile (type mismatch).");
-      return;
+      return futures::Past(true);
     }
-    prompt_state->original_buffer->EvaluateExpression(expression.get())
-        .SetConsumer([prompt_state,
-                      prompt_buffer](std::unique_ptr<Value> value) {
+    return futures::ImmediateTransform(
+        prompt_state->original_buffer->EvaluateExpression(expression.get()),
+        [prompt_state, prompt_buffer](std::unique_ptr<Value> value) {
           CHECK(value->IsString());
           auto base_command = value->str;
           if (prompt_state->base_command == base_command) {
-            return;
+            return true;
           }
 
           if (base_command.empty()) {
             prompt_state->base_command = std::nullopt;
             prompt_buffer->editor()->status()->set_prompt_context(nullptr);
-            return;
+            return true;
           }
 
           prompt_state->base_command = base_command;
@@ -442,7 +443,7 @@ class ForkEditorCommand : public Command {
           help_buffer->Set(buffer_variables::follow_end_of_file, false);
           help_buffer->set_position({});
           prompt_buffer->editor()->status()->set_prompt_context(help_buffer);
-          return;
+          return true;
         });
   }
 };

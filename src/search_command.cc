@@ -18,15 +18,15 @@ static void DoSearch(EditorState* editor_state, const SearchOptions& options) {
   editor_state->ResetStructure();
 }
 
-void DrawSearchResults(OpenBuffer* buffer,
-                       const std::shared_ptr<const Line>& original_line,
-                       AsyncSearchProcessor::Output results) {
+futures::Value<bool> DrawSearchResults(
+    OpenBuffer* buffer, const std::shared_ptr<const Line>& original_line,
+    AsyncSearchProcessor::Output results) {
   CHECK(buffer != nullptr);
   CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
   auto line = buffer->LineAt(LineNumber(0));
   if (original_line->ToString() != line->ToString()) {
     LOG(INFO) << "Line has changed, ignoring call to `DrawSearchResults`.";
-    return;
+    return futures::Past(true);
   }
 
   VLOG(5) << "DrawSearchResults";
@@ -51,6 +51,7 @@ void DrawSearchResults(OpenBuffer* buffer,
   buffer->EraseLines(LineNumber(0), LineNumber(1));
 
   CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
+  return futures::Past(true);
 }
 
 class SearchCommand : public Command {
@@ -151,29 +152,28 @@ class SearchCommand : public Command {
     auto async_search_processor =
         std::make_shared<AsyncSearchProcessor>(editor_state->work_queue());
 
-    options.change_handler =
-        [async_search_processor, search_options,
-         editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
-          CHECK(buffer != nullptr);
-          CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
-          auto line = buffer->LineAt(LineNumber(0));
-          if (line->empty()) {
-            return;
-          }
-          VLOG(5) << "Triggering async search.";
+    options.change_handler = [async_search_processor, search_options,
+                              editor_state](
+                                 const std::shared_ptr<OpenBuffer>& buffer) {
+      CHECK(buffer != nullptr);
+      CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
+      auto line = buffer->LineAt(LineNumber(0));
+      if (line->empty()) {
+        return futures::Past(true);
+      }
+      VLOG(5) << "Triggering async search.";
 
-          auto search_options_copy = search_options;
-          search_options_copy.search_query = line->ToString();
-          futures::ImmediateTransform(
-              async_search_processor->Search(
-                  search_options_copy,
-                  editor_state->current_buffer()->contents()->copy()),
-              [buffer, line](AsyncSearchProcessor::Output results) {
-                VLOG(5) << "Drawing of search results.";
-                DrawSearchResults(buffer.get(), line, std::move(results));
-                return true;
-              });
-        };
+      auto search_options_copy = search_options;
+      search_options_copy.search_query = line->ToString();
+      return futures::Transform(
+          async_search_processor->Search(
+              search_options_copy,
+              editor_state->current_buffer()->contents()->copy()),
+          [buffer, line](AsyncSearchProcessor::Output results) {
+            VLOG(5) << "Drawing of search results.";
+            return DrawSearchResults(buffer.get(), line, std::move(results));
+          });
+    };
 
     options.predictor = SearchHandlerPredictor;
     options.source_buffer = buffer;

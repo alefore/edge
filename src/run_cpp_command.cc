@@ -188,11 +188,11 @@ void RunCppCommandShellHandler(const std::wstring& command,
   Execute(buffer, std::move(parsed_command));
 }
 
-void RunCppCommandShellChangeHandler(
+futures::Value<bool> RunCppCommandShellChangeHandler(
     const std::shared_ptr<OpenBuffer>& prompt_buffer) {
   auto buffer = prompt_buffer->editor()->current_buffer();
   if (buffer == nullptr) {
-    return;
+    return futures::Past(true);
   }
   auto line = prompt_buffer->LineAt(LineNumber(0));
   auto parsed_command = Parse(*line->contents(), buffer->environment().get());
@@ -208,6 +208,7 @@ void RunCppCommandShellChangeHandler(
   prompt_buffer->EraseLines(LineNumber(0), LineNumber(1));
 
   CHECK_EQ(prompt_buffer->lines_size(), LineNumberDelta(1));
+  return futures::Past(true);
 }
 
 class RunCppCommand : public Command {

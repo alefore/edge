@@ -1,4 +1,4 @@
-#include "src/buffer_variables.h"
+#include "src/editor_variables.h"
 
 namespace afc::editor::editor_variables {
 

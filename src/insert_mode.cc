@@ -128,63 +128,94 @@ class InsertMode : public EditorMode {
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    auto buffer = options_.buffer;
+    CHECK(options_.buffers.has_value());
+    auto value = futures::ForEach(
+        options_.buffers.value().begin(), options_.buffers.value().end(),
+        [this, c, editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
+          return futures::ImmediateTransform(
+              DeliverInputToBuffer(c, editor_state, buffer), [this](bool) {
+                return futures::IterationControlCommand::kContinue;
+              });
+        });
+    if (static_cast<int>(c) == Terminal::ESCAPE) {
+      value.SetConsumer(
+          [editor_state, escape_handler = options_.escape_handler](
+              futures::IterationControlCommand) {
+            editor_state->status()->Reset();
+            CHECK(escape_handler != nullptr);
+            escape_handler();  // Probably deletes us.
+            editor_state->ResetRepetitions();
+            editor_state->ResetInsertionModifier();
+            editor_state->current_buffer()->ResetMode();
+            editor_state->set_keyboard_redirect(nullptr);
+          });
+    }
+  }
+
+ private:
+  template <typename T>
+  futures::Value<bool> CallModifyHandler(
+      const std::shared_ptr<OpenBuffer>& buffer, futures::Value<T> value) {
+    return futures::Transform(value, [this, buffer](const T&) {
+      return options_.modify_handler(buffer);
+    });
+  }
+
+  futures::Value<bool> DeliverInputToBuffer(
+      wint_t c, EditorState* editor_state,
+      const std::shared_ptr<OpenBuffer>& buffer) {
     CHECK(buffer != nullptr);
     switch (static_cast<int>(c)) {
       case '\t':
         ResetScrollBehavior();
-        if (options_.start_completion()) {
+        if (options_.start_completion(buffer)) {
           LOG(INFO) << "Completion has started, avoid inserting '\\t'.";
-          return;
+          return futures::Past(true);
         }
         break;
 
       case Terminal::ESCAPE:
         ResetScrollBehavior();
         buffer->MaybeAdjustPositionCol();
-        buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
-            .SetConsumer([buffer, editor_state, this](bool) {
+        // TODO(easy): turn into form: futures::Transform(a, b, c);
+        return futures::Transform(
+            buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters()),
+            [buffer, editor_state, this](bool) {
               buffer->PopTransformationStack();
               editor_state->set_repetitions(editor_state->repetitions() - 1);
-              buffer->RepeatLastTransformation().SetConsumer(
+              return futures::ImmediateTransform(
+                  buffer->RepeatLastTransformation(),
                   [buffer, editor_state, this](bool) {
                     buffer->PopTransformationStack();
                     editor_state->PushCurrentPosition();
                     buffer->status()->Reset();
-                    editor_state->status()->Reset();
-                    CHECK(options_.escape_handler);
-                    options_.escape_handler();  // Probably deletes us.
-                    editor_state->ResetRepetitions();
-                    editor_state->ResetInsertionModifier();
-                    editor_state->current_buffer()->ResetMode();
-                    editor_state->set_keyboard_redirect(nullptr);
+                    return true;
                   });
             });
-        return;
 
       case Terminal::UP_ARROW:
         GetScrollBehavior()->Up(editor_state, buffer.get());
-        return;
+        return futures::Past(true);
 
       case Terminal::DOWN_ARROW:
         GetScrollBehavior()->Down(editor_state, buffer.get());
-        return;
+        return futures::Past(true);
 
       case Terminal::LEFT_ARROW:
         GetScrollBehavior()->Left(editor_state, buffer.get());
-        return;
+        return futures::Past(true);
 
       case Terminal::RIGHT_ARROW:
         GetScrollBehavior()->Right(editor_state, buffer.get());
-        return;
+        return futures::Past(true);
 
       case Terminal::CTRL_A:
         GetScrollBehavior()->Begin(editor_state, buffer.get());
-        return;
+        return futures::Past(true);
 
       case Terminal::CTRL_E:
         GetScrollBehavior()->End(editor_state, buffer.get());
-        return;
+        return futures::Past(true);
 
       case Terminal::CTRL_D:
       case Terminal::DELETE:
@@ -198,8 +229,8 @@ class InsertMode : public EditorMode {
         }
         delete_options.modifiers.paste_buffer_behavior =
             Modifiers::PasteBufferBehavior::kDoNothing;
-        buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
-            .SetConsumer([this](bool) { options_.modify_handler(); });
+        CallModifyHandler(buffer, buffer->ApplyToCursors(
+                                      NewDeleteTransformation(delete_options)));
         if (editor_state->modifiers().insertion ==
             Modifiers::ModifyMode::kOverwrite) {
           auto buffer_to_insert =
@@ -214,18 +245,19 @@ class InsertMode : public EditorMode {
           buffer->ApplyToCursors(
               NewInsertBufferTransformation(std::move(insert_options)));
         }
-        options_.modify_handler();
+        // TODO(easy): Transform the above expression to return a correct
+        // future. I.e. don't ignore ApplyToCursors.
+        return options_.modify_handler(buffer);
       }
-        return;
 
       case '\n':
         ResetScrollBehavior();
-        options_.new_line_handler();
-        return;
+        return options_.new_line_handler(buffer);
 
       case Terminal::CTRL_U: {
         ResetScrollBehavior();
-        // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
+        // TODO: Find a way to set `copy_to_paste_buffer` in the
+        // transformation.
         Value* callback = buffer->environment()->Lookup(
             L"HandleKeyboardControlU",
             VMType::Function(
@@ -234,7 +266,7 @@ class InsertMode : public EditorMode {
         if (callback == nullptr) {
           LOG(INFO) << "Didn't find HandleKeyboardControlU function: "
                     << buffer->Read(buffer_variables::name);
-          return;
+          return futures::Past(true);
         }
         std::vector<std::unique_ptr<vm::Expression>> args;
         args.push_back(vm::NewConstantExpression(
@@ -245,12 +277,10 @@ class InsertMode : public EditorMode {
         if (expression->Types().empty()) {
           buffer->status()->SetWarningText(
               L"Unable to compile (type mismatch).");
-          return;
+          return futures::Past(true);
         }
-        buffer->EvaluateExpression(expression.get())
-            .SetConsumer([buffer, callback = options_.modify_handler](
-                             std::unique_ptr<Value>) { callback(); });
-        return;
+        return CallModifyHandler(buffer,
+                                 buffer->EvaluateExpression(expression.get()));
       }
 
       case Terminal::CTRL_K: {
@@ -261,17 +291,18 @@ class InsertMode : public EditorMode {
         delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
         delete_options.modifiers.paste_buffer_behavior =
             Modifiers::PasteBufferBehavior::kDoNothing;
-        buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
-            .SetConsumer([this](bool) { options_.modify_handler(); });
-        return;
+        return CallModifyHandler(
+            buffer,
+            buffer->ApplyToCursors(NewDeleteTransformation(delete_options)));
       }
 
       default:
         ResetScrollBehavior();
     }
 
-    buffer->TransformKeyboardText(wstring(1, c))
-        .SetConsumer([this, editor_state, buffer](std::wstring value) {
+    return futures::Transform(
+        buffer->TransformKeyboardText(wstring(1, c)),
+        [this, editor_state, buffer](std::wstring value) {
           auto buffer_to_insert =
               std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
@@ -281,14 +312,13 @@ class InsertMode : public EditorMode {
           insert_options.modifiers.insertion =
               editor_state->modifiers().insertion;
           insert_options.buffer_to_insert = buffer_to_insert;
-          buffer->ApplyToCursors(
-              NewInsertBufferTransformation(std::move(insert_options)));
 
-          options_.modify_handler();
+          return CallModifyHandler(
+              buffer, buffer->ApplyToCursors(NewInsertBufferTransformation(
+                          std::move(insert_options))));
         });
   }
 
- private:
   ScrollBehavior* GetScrollBehavior() {
     if (scroll_behavior_ == nullptr) {
       CHECK(options_.scroll_behavior != nullptr);
@@ -445,22 +475,24 @@ class RawInputTypeMode : public EditorMode {
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
-  if (options.buffer->Read(buffer_variables::extend_lines)) {
-    options.buffer->MaybeExtendLine(options.buffer->position());
-  } else {
-    options.buffer->MaybeAdjustPositionCol();
+  for (auto& buffer : options.buffers.value()) {
+    if (buffer->Read(buffer_variables::extend_lines)) {
+      buffer->MaybeExtendLine(buffer->position());
+    } else {
+      buffer->MaybeAdjustPositionCol();
+    }
+    buffer->status()->SetInformationText(L"🔡");
   }
-  options.buffer->status()->SetInformationText(L"🔡");
 
   auto handler = std::make_unique<InsertMode>(options);
-  if (options.editor_state->current_buffer() == options.buffer) {
-    options.editor_state->current_buffer()->set_mode(std::move(handler));
-  } else {
-    options.editor_state->set_keyboard_redirect(std::move(handler));
-  }
+  options.editor_state->set_keyboard_redirect(std::move(handler));
 
-  if (options.buffer->active_cursors()->size() > 1 &&
-      options.buffer->Read(buffer_variables::multiple_cursors)) {
+  bool beep = false;
+  for (auto& buffer : options.buffers.value()) {
+    beep = buffer->active_cursors()->size() > 1 &&
+           buffer->Read(buffer_variables::multiple_cursors);
+  }
+  if (beep) {
     BeepFrequencies(options.editor_state->audio_player(), {659.25, 1046.50});
   }
 }
@@ -520,20 +552,25 @@ void EnterInsertMode(InsertModeOptions options) {
   EditorState* editor_state = options.editor_state;
   CHECK(editor_state != nullptr);
 
-  if (options.buffer == nullptr) {
-    if (!editor_state->has_current_buffer()) {
-      OpenAnonymousBuffer(editor_state);
-    }
-    options.buffer = editor_state->current_buffer();
+  if (!options.buffers.has_value()) {
+    options.buffers = editor_state->active_buffers();
   }
 
-  auto target_buffer = options.buffer->GetBufferFromCurrentLine();
-  if (target_buffer != nullptr) {
-    options.buffer = target_buffer;
+  if (options.buffers.value().empty()) {
+    options.buffers.value().push_back(OpenAnonymousBuffer(editor_state));
+  }
+
+  for (auto& buffer : options.buffers.value()) {
+    auto target_buffer = buffer->GetBufferFromCurrentLine();
+    if (target_buffer != nullptr) {
+      buffer = target_buffer;
+    }
   }
 
   if (!options.modify_handler) {
-    options.modify_handler = []() { /* Nothing. */ };
+    options.modify_handler = [](const std::shared_ptr<OpenBuffer>&) {
+      return futures::Past(true); /* Nothing. */
+    };
   }
 
   if (options.scroll_behavior == nullptr) {
@@ -545,15 +582,14 @@ void EnterInsertMode(InsertModeOptions options) {
   }
 
   if (!options.new_line_handler) {
-    auto buffer = options.buffer;
-    options.new_line_handler = [buffer, editor_state]() {
-      buffer->ApplyToCursors(NewTransformation(
+    options.new_line_handler = [](const std::shared_ptr<OpenBuffer>& buffer) {
+      return buffer->ApplyToCursors(NewTransformation(
           Modifiers(), std::make_unique<NewLineTransformation>()));
     };
   }
 
   if (!options.start_completion) {
-    options.start_completion = [editor_state, buffer = options.buffer]() {
+    options.start_completion = [](const std::shared_ptr<OpenBuffer>& buffer) {
       LOG(INFO) << "Start default completion.";
       buffer->ApplyToCursors(NewExpandTransformation());
       return true;
@@ -561,24 +597,30 @@ void EnterInsertMode(InsertModeOptions options) {
   }
 
   options.editor_state->status()->Reset();
-  options.buffer->status()->Reset();
+  for (auto& buffer : options.buffers.value()) {
+    buffer->status()->Reset();
+  }
 
-  if (options.buffer->fd() != nullptr) {
-    options.buffer->status()->SetInformationText(L"🔡 (raw)");
-    editor_state->current_buffer()->set_mode(
-        std::make_unique<RawInputTypeMode>(options.buffer));
-  } else if (editor_state->structure() == StructureChar()) {
-    options.buffer->CheckPosition();
-    options.buffer->PushTransformationStack();
-    options.buffer->PushTransformationStack();
-    EnterInsertCharactersMode(options);
-  } else if (editor_state->structure() == StructureLine()) {
-    options.buffer->CheckPosition();
-    options.buffer->PushTransformationStack();
-    options.buffer->PushTransformationStack();
-    options.buffer->ApplyToCursors(NewTransformation(
-        Modifiers(), std::make_unique<InsertEmptyLineTransformation>(
-                         editor_state->direction())));
+  // TODO: Merge `RawInputTypeMode` back to normal insert mode, so that it works
+  // better in multi buffers mode.
+  auto first_buffer = options.buffers.value()[0];
+  if (options.buffers.value().size() == 1 && first_buffer->fd() != nullptr) {
+    first_buffer->status()->SetInformationText(L"🔡 (raw)");
+    first_buffer->set_mode(std::make_unique<RawInputTypeMode>(first_buffer));
+  } else if (editor_state->structure() == StructureChar() ||
+             editor_state->structure() == StructureLine()) {
+    for (auto& buffer : options.buffers.value()) {
+      buffer->CheckPosition();
+      buffer->PushTransformationStack();
+      buffer->PushTransformationStack();
+    }
+    if (editor_state->structure() == StructureLine()) {
+      for (auto& buffer : options.buffers.value()) {
+        buffer->ApplyToCursors(NewTransformation(
+            Modifiers(), std::make_unique<InsertEmptyLineTransformation>(
+                             editor_state->direction())));
+      }
+    }
     EnterInsertCharactersMode(options);
   }
   editor_state->ResetDirection();

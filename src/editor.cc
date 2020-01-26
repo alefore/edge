@@ -181,23 +181,25 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
              Trampoline* trampoline) {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
-            std::shared_ptr<OpenBuffer> buffer;
-            if (editor->status()->GetType() == Status::Type::kPrompt) {
-              buffer = editor->status()->prompt_buffer();
-            } else {
-              buffer = editor->current_buffer();
-              if (buffer == nullptr)
-                return futures::Past(
-                    EvaluationOutput::Return(Value::NewVoid()));
-              if (buffer->status()->GetType() == Status::Type::kPrompt) {
-                buffer = buffer->status()->prompt_buffer();
-              }
-            }
-            std::vector<std::unique_ptr<Value>> args;
-            args.push_back(
-                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
-                    std::move(buffer)));
-            return input[1]->callback(std::move(args), trampoline);
+            auto buffers = editor->active_buffers();
+            return futures::ImmediateTransform(
+                futures::ForEach(
+                    buffers.begin(), buffers.end(),
+                    [callback = std::move(input[1]->callback),
+                     trampoline](std::shared_ptr<OpenBuffer> buffer) {
+                      std::vector<std::unique_ptr<Value>> args;
+                      args.push_back(
+                          VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::
+                              New(std::move(buffer)));
+                      return futures::ImmediateTransform(
+                          callback(std::move(args), trampoline),
+                          [](EvaluationOutput) {
+                            return futures::IterationControlCommand::kContinue;
+                          });
+                    }),
+                [](futures::IterationControlCommand) {
+                  return EvaluationOutput::Return(Value::NewVoid());
+                });
           }));
 
   // A callback to return the current buffer. This is needed so that at a time
@@ -590,6 +592,47 @@ shared_ptr<OpenBuffer> EditorState::current_buffer() {
 }
 const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
   return buffer_tree_.GetActiveLeaf()->Lock();
+}
+
+std::vector<std::shared_ptr<OpenBuffer>> EditorState::active_buffers() const {
+  std::vector<std::shared_ptr<OpenBuffer>> output;
+  if (status()->GetType() == Status::Type::kPrompt) {
+    output.push_back(status()->prompt_buffer());
+  } else if (Read(editor_variables::multiple_buffers)) {
+    std::set<const Widget*> widgets;
+    std::set<const Widget*> widgets_to_expand;
+    widgets_to_expand.insert(&buffer_tree_);
+    while (!widgets_to_expand.empty()) {
+      const Widget* widget = *widgets_to_expand.begin();
+      widgets_to_expand.erase(widgets_to_expand.begin());
+      if (!widgets.insert(widget).second) continue;
+      widget->ForEachBufferWidgetConst([&](const BufferWidget* widget) {
+        widgets_to_expand.insert(widget);
+      });
+    }
+
+    std::unordered_set<const BufferWidget*> leafs;
+    for (auto* widget : widgets) {
+      auto leaf = widget->GetActiveLeaf();
+      if (leaf != nullptr) {
+        leafs.insert(leaf);
+      }
+    }
+
+    std::set<OpenBuffer*> buffers_seen;
+    for (auto* leaf : leafs) {
+      auto buffer = leaf->Lock();
+      if (buffer != nullptr && buffers_seen.insert(buffer.get()).second) {
+        output.push_back(buffer);
+      }
+    }
+  } else if (auto buffer = current_buffer(); buffer != nullptr) {
+    if (buffer->status()->GetType() == Status::Type::kPrompt) {
+      buffer = buffer->status()->prompt_buffer();
+    }
+    output.push_back(buffer);
+  }
+  return output;
 }
 
 wstring GetBufferName(const wstring& prefix, size_t count) {

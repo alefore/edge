@@ -280,13 +280,14 @@ void Prompt(PromptOptions options) {
 
   InsertModeOptions insert_mode_options;
   insert_mode_options.editor_state = editor_state;
-  insert_mode_options.buffer = buffer;
+  insert_mode_options.buffers = {buffer};
 
-  insert_mode_options.modify_handler = [editor_state, original_buffer, buffer,
-                                        status, options]() {
-    editor_state->set_current_buffer(original_buffer);
-    options.change_handler(buffer);
-  };
+  insert_mode_options.modify_handler =
+      [editor_state, original_buffer, status,
+       options](const std::shared_ptr<OpenBuffer>& buffer) {
+        editor_state->set_current_buffer(original_buffer);
+        return options.change_handler(buffer);
+      };
 
   insert_mode_options.scroll_behavior =
       std::make_unique<HistoryScrollBehaviorFactory>(
@@ -312,31 +313,35 @@ void Prompt(PromptOptions options) {
     editor_state->set_keyboard_redirect(nullptr);
   };
 
-  insert_mode_options.new_line_handler = [editor_state, options, buffer, status,
-                                          original_buffer,
-                                          original_modifiers]() {
-    editor_state->set_current_buffer(original_buffer);
-    auto input = buffer->current_line()->contents();
-    if (input->size() != ColumnNumberDelta(0)) {
-      auto history =
-          GetHistoryBuffer(editor_state, options.history_file)->second;
-      CHECK(history != nullptr);
-      if (history->contents()->size() == LineNumberDelta(0) ||
-          (history->contents()->at(history->EndLine())->ToString() !=
-           input->ToString())) {
-        history->AppendLine(input);
-      }
-    }
-    auto ensure_survival_of_current_closure = editor_state->keyboard_redirect();
-    editor_state->set_keyboard_redirect(nullptr);
-    status->Reset();
-    editor_state->set_modifiers(original_modifiers);
-    options.handler(input->ToString(), editor_state);
-    (void)ensure_survival_of_current_closure;
-  };
+  insert_mode_options.new_line_handler =
+      [editor_state, options, status, original_buffer,
+       original_modifiers](const std::shared_ptr<OpenBuffer>& buffer) {
+        editor_state->set_current_buffer(original_buffer);
+        auto input = buffer->current_line()->contents();
+        if (input->size() != ColumnNumberDelta(0)) {
+          auto history =
+              GetHistoryBuffer(editor_state, options.history_file)->second;
+          CHECK(history != nullptr);
+          if (history->contents()->size() == LineNumberDelta(0) ||
+              (history->contents()->at(history->EndLine())->ToString() !=
+               input->ToString())) {
+            history->AppendLine(input);
+          }
+        }
+        auto ensure_survival_of_current_closure =
+            editor_state->keyboard_redirect();
+        editor_state->set_keyboard_redirect(nullptr);
+        status->Reset();
+        editor_state->set_modifiers(original_modifiers);
+        // TODO(easy): Make handler return a future.
+        options.handler(input->ToString(), editor_state);
+        (void)ensure_survival_of_current_closure;
+        return futures::Past(true);
+      };
 
-  insert_mode_options.start_completion = [editor_state, options,
-                                          original_buffer, buffer, status]() {
+  insert_mode_options
+      .start_completion = [editor_state, options, original_buffer,
+                           status](const std::shared_ptr<OpenBuffer>& buffer) {
     auto input = buffer->current_line()->contents()->ToString();
     LOG(INFO) << "Triggering predictions from: " << input;
     PredictOptions predict_options;
@@ -395,7 +400,7 @@ void Prompt(PromptOptions options) {
 
   EnterInsertMode(insert_mode_options);
   status->set_prompt(options.prompt, buffer);
-  insert_mode_options.modify_handler();
+  insert_mode_options.modify_handler(buffer);
 }
 
 std::unique_ptr<Command> NewLinePromptCommand(

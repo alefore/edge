@@ -35,8 +35,10 @@ struct PromptOptions {
   // auto line = buffer->LineAt(LineNumber(0));
   //
   // TODO(easy): Turn this into an options structure.
-  std::function<void(const std::shared_ptr<OpenBuffer>&)> change_handler =
-      [](const std::shared_ptr<OpenBuffer>&) {};
+  std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+      change_handler = [](const std::shared_ptr<OpenBuffer>&) {
+        return futures::Past(true);  // Nothing.
+      };
 
   // Function to run when the prompt receives the final input.
   std::function<void(const wstring& input, EditorState* editor)> handler;

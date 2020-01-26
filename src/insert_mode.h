@@ -42,11 +42,12 @@ class ScrollBehaviorFactory {
 struct InsertModeOptions {
   EditorState* editor_state = nullptr;
 
-  // The buffer to insert into. If nullptr, defaults to the current buffer.
-  shared_ptr<OpenBuffer> buffer;
+  // The buffers to insert into. If absent, defaults to the active buffers.
+  std::optional<std::vector<std::shared_ptr<OpenBuffer>>> buffers;
 
   // Optional function to run whenever the contents of the buffer are modified.
-  std::function<void()> modify_handler;
+  std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+      modify_handler;
 
   std::shared_ptr<ScrollBehaviorFactory> scroll_behavior =
       ScrollBehaviorFactory::Default();
@@ -57,12 +58,13 @@ struct InsertModeOptions {
 
   // Optional function to run when a new line is received. Defaults to inserting
   // a new line and moving to it.
-  std::function<void()> new_line_handler;
+  std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+      new_line_handler;
 
   // Optional function to run when the user presses Tab for completions. Returns
   // true if completions are being attempted; false if autocompletion is not
   // enabled.
-  std::function<bool()> start_completion;
+  std::function<bool(const std::shared_ptr<OpenBuffer>&)> start_completion;
 };
 
 void EnterInsertMode(InsertModeOptions options);
