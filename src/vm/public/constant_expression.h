@@ -8,13 +8,11 @@
 namespace afc {
 namespace vm {
 
-using std::unique_ptr;
-
 class Expression;
 struct Value;
 
-unique_ptr<Expression> NewVoidExpression();
-unique_ptr<Expression> NewConstantExpression(Value::Ptr value);
+std::unique_ptr<Expression> NewVoidExpression();
+std::unique_ptr<Expression> NewConstantExpression(Value::Ptr value);
 
 }  // namespace vm
 }  // namespace afc
