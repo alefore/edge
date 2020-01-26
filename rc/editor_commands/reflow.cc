@@ -2,7 +2,7 @@
 // and `paragraph_line_prefix_characters`, to make each line (save for the last
 // one) as long as possible but shorter than the value of variable `line_width`.
 
-#include "lib/strings"
+#include "lib/strings.cc"
 
 // Should words longer than `line_width` be broken? If false, we'll only break
 // lines at spaces (never breaking a word). If true, we'll never let lines

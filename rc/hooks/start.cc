@@ -1,7 +1,7 @@
-#include "../editor_commands/fold-next-line"
-#include "../editor_commands/lib/numbers"
-#include "../editor_commands/lib/paths"
-#include "../editor_commands/reflow"
+#include "../editor_commands/fold-next-line.cc"
+#include "../editor_commands/lib/numbers.cc"
+#include "../editor_commands/lib/paths.cc"
+#include "../editor_commands/reflow.cc"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Cursors

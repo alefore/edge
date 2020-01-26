@@ -8,9 +8,9 @@
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
 #include "../editor_commands/lib/clang-format"
-#include "../editor_commands/lib/numbers"
-#include "../editor_commands/lib/paths"
-#include "../editor_commands/lib/strings"
+#include "../editor_commands/lib/numbers.cc"
+#include "../editor_commands/lib/paths.cc"
+#include "../editor_commands/lib/strings.cc"
 #include "../editor_commands/prompt-context.cc"
 
 // Optimizes the buffer for visualizing a patch (output of a `diff` command).
@@ -53,7 +53,6 @@ void HandleFileTypes(string basename, string extension) {
   if (extension == "java") {
     JavaMode();
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
     buffer.SetStatus("🔡 Java file (" + extension + ")");
     return;
   }

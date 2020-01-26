@@ -1,5 +1,5 @@
-#include "lib/numbers"
-#include "lib/strings"
+#include "lib/numbers.cc"
+#include "lib/strings.cc"
 
 double total_columns = 80.0;
 double total_lines = 25.0;

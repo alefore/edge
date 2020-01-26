@@ -1,4 +1,4 @@
-#include "lib/strings"
+#include "lib/strings.cc"
 
 SetString shell_prompt_help_programs_man = SetString();
 shell_prompt_help_programs_man.insert("look");
