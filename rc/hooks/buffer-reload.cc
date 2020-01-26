@@ -145,8 +145,6 @@ if (path == "") {
       dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);
 
-  buffer.AddBindingToFile("#", buffer.editor_commands_path() + "reflow");
-
   buffer.set_typos("overriden optoins");
 
   HandleFileTypes(basename, extension);

@@ -58,12 +58,12 @@ string GetPrefix(string text, string prefix_characters) {
 // Checks if a given line starts with the prefix. The line must have an
 // additional character after the prefix for this to be true (in other words,
 // this is false if the line is just equal to the prefix).
-bool LineHasPrefix(string prefix, int line) {
+bool LineHasPrefix(Buffer buffer, string prefix, int line) {
   string contents = buffer.line(line);
   return contents.starts_with(prefix) && contents.size() > prefix.size();
 }
 
-bool LineIsInParagraph(string prefix, int line) {
+bool LineIsInParagraph(Buffer buffer, string prefix, int line) {
   string contents = buffer.line(line);
   return GetPrefix(contents, buffer.paragraph_line_prefix_characters())
                  .size() >= prefix.size() &&
@@ -93,16 +93,16 @@ bool LineIsInParagraph(string prefix, int line) {
 //   * bar foo hey
 //
 // That is: the paragraph begins at "bar", not at "foo" nor at "alejandro".
-void ScrollBackToBeginningOfParagraph(string prefix) {
+void ScrollBackToBeginningOfParagraph(Buffer buffer, string prefix) {
   SetStatus("Scrolling back to beginning of paragraph.");
   int line = buffer.position().line();
   if (GetPrefix(buffer.line(line),
                 buffer.paragraph_line_prefix_characters()) == prefix) {
-    while (line > 0 && LineHasPrefix(prefix, line - 1)) {
+    while (line > 0 && LineHasPrefix(buffer, prefix, line - 1)) {
       line--;
     }
 
-    if (line > 0 && LineIsInParagraph(prefix, line - 1)) {
+    if (line > 0 && LineIsInParagraph(buffer, prefix, line - 1)) {
       line--;
     }
   }

@@ -1,6 +1,7 @@
 #include "../editor_commands/fold-next-line"
 #include "../editor_commands/lib/numbers"
 #include "../editor_commands/lib/paths"
+#include "../editor_commands/reflow"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Cursors
@@ -128,6 +129,9 @@ AddBinding("J", "Edit: Fold next line into the current line", []() -> void {
         }));
   });
 });
+
+AddBinding("#", "Edit: Reflow current paragraph",
+           []() -> void { editor.ForEachActiveBuffer(Reflow); });
 
 AddBinding(terminal_control_k, "Edit: Delete to end of line.", []() -> void {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {

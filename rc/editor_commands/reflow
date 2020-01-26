@@ -12,11 +12,12 @@ bool break_words = false;
 // Folds into the current line all lines in the current paragraph (according to
 // LineHasPrefix). The end result is that the current line will contain the
 // entire paragraph (probably being far larger than `buffer.line_width()`).
-void FoldNextLineWhilePrefixIs(string prefix) {
+void FoldNextLineWhilePrefixIs(Buffer buffer, string prefix) {
   SetStatus("Folding paragraph into a single line.");
   int line = buffer.position().line();
   bool first_line = true;
-  while (line + 1 < buffer.line_count() && LineHasPrefix(prefix, line + 1) &&
+  while (line + 1 < buffer.line_count() &&
+         LineHasPrefix(buffer, prefix, line + 1) &&
          (first_line || GetPrefix(buffer.line(line + 1),
                                   buffer.paragraph_line_prefix_characters()) ==
                             GetPrefix(buffer.line(line + 1),
@@ -41,7 +42,7 @@ void FoldNextLineWhilePrefixIs(string prefix) {
 }
 
 // Deletes length characters starting at start and breaks the line.
-void BreakAt(string prefix, int start, int length) {
+void BreakAt(Buffer buffer, string prefix, int start, int length) {
   buffer.ApplyTransformation(
       SetPositionTransformation(LineColumn(buffer.position().line(), start)));
   buffer.ApplyTransformation(
@@ -54,7 +55,7 @@ void BreakAt(string prefix, int start, int length) {
       InsertTransformationBuilder().set_text("\n" + prefix).build());
 }
 
-void BreakLine(string prefix, int line_width) {
+void BreakLine(Buffer buffer, string prefix, int line_width) {
   SetStatus("Breaking line by line width: " + line_width.tostring());
   while (buffer.line(buffer.position().line()).size() > line_width) {
     string s = buffer.line(buffer.position().line());
@@ -70,7 +71,7 @@ void BreakLine(string prefix, int line_width) {
         SetStatus("Giving up: couldn't find start of break.");
         return;
       }
-      BreakAt(prefix, last_char + 1, last_space - last_char);
+      BreakAt(buffer, prefix, last_char + 1, last_space - last_char);
     } else {  // No space found after the prefix and before line_width.
       // Find the first non-space character after line_width.
       int break_at =
@@ -84,7 +85,7 @@ void BreakLine(string prefix, int line_width) {
         SetStatus("We're done: Only spaces now.");
         return;
       }
-      BreakAt(prefix, break_at, next_char - break_at);
+      BreakAt(buffer, prefix, break_at, next_char - break_at);
     }
   }
 }
@@ -95,7 +96,7 @@ void Reflow(Buffer buffer) {
   string prefix = GetPrefix(buffer.line(buffer.position().line()),
                             buffer.line_prefix_characters());
 
-  ScrollBackToBeginningOfParagraph(prefix);
+  ScrollBackToBeginningOfParagraph(buffer, prefix);
   LineColumn starting_position = buffer.position();
 
   // This is in case the first line in the paragraph has spaces that should be
@@ -106,13 +107,11 @@ void Reflow(Buffer buffer) {
       InsertTransformationBuilder().set_text("\n" + prefix).build());
   buffer.ApplyTransformation(SetPositionTransformation(starting_position));
 
-  FoldNextLineWhilePrefixIs(prefix);
+  FoldNextLineWhilePrefixIs(buffer, prefix);
   buffer.ApplyTransformation(SetPositionTransformation(starting_position));
 
-  BreakLine(prefix, buffer.line_width());
+  BreakLine(buffer, prefix, buffer.line_width());
   buffer.ApplyTransformation(SetPositionTransformation(starting_position));
 
   buffer.PopTransformationStack();
 }
-
-Reflow(buffer);
