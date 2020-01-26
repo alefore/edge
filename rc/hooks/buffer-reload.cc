@@ -159,14 +159,6 @@ if (!buffer.pts()) {
                     CenterScreenAroundCurrentLine);
 }
 
-buffer.AddBinding("_",
-                  "Cursors: Toggles whether operations apply to all cursors.",
-                  []() -> void {
-                    buffer.set_multiple_cursors(!buffer.multiple_cursors());
-                  });
-buffer.AddBinding("ar", "Buffers: Reload the current buffer.", buffer.Reload);
-buffer.AddBinding("aw", "Buffers: Save the current buffer.", buffer.Save);
-
 void IncrementNumber() {
   AddToIntegerTransformation(buffer, repetitions());
   set_repetitions(1);

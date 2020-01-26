@@ -1,11 +1,19 @@
 #include "../editor_commands/lib/numbers"
 
-AddBinding(".", "Edit: Repeats the last command.",
-           editor.RepeatLastTransformation);
+////////////////////////////////////////////////////////////////////////////////
+// Cursors
+////////////////////////////////////////////////////////////////////////////////
+
 AddBinding("+", "Cursors: Create a new cursor at the current position.",
            editor.CreateCursor);
 AddBinding("-", "Cursors: Destroy current cursor(s) and jump to next.",
            editor.DestroyCursor);
+AddBinding("_", "Cursors: Toggles whether operations apply to all cursors.",
+           []() -> void {
+             editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+               buffer.set_multiple_cursors(!buffer.multiple_cursors());
+             });
+           });
 AddBinding("=", "Cursors: Destroy cursors other than the current one.",
            editor.DestroyOtherCursors);
 AddBinding("Ct", "Cursors: Toggles the active cursors with the previous set.",
@@ -16,6 +24,55 @@ AddBinding("C-", "Cursors: Pops active cursors from the stack.",
            editor.PopActiveCursors);
 AddBinding("C!", "Cursors: Set active cursors to the marks on this buffer.",
            editor.SetActiveCursorsToMarks);
+
+////////////////////////////////////////////////////////////////////////////////
+// Frames / widget manipulation
+////////////////////////////////////////////////////////////////////////////////
+
+AddBinding("a=", "Frames: Zoom to the active leaf", editor.ZoomToLeaf);
+AddBinding("ah", "Frames: Move to the previous buffer", []() -> void {
+  editor.AdvanceActiveBuffer(-repetitions());
+  set_repetitions(1);
+});
+AddBinding("al", "Frames: Move to the next buffer", []() -> void {
+  editor.AdvanceActiveBuffer(repetitions());
+  set_repetitions(1);
+});
+AddBinding("ak", "Frames: Move to the previous active leaf", []() -> void {
+  editor.AdvanceActiveLeaf(-repetitions());
+  set_repetitions(1);
+});
+AddBinding("aj", "Frames: Move to the next active leaf", []() -> void {
+  editor.AdvanceActiveLeaf(repetitions());
+  set_repetitions(1);
+});
+AddBinding("ag", "Frames: Set the active buffer (by repetitions)",
+           []() -> void {
+             editor.SetActiveBuffer(repetitions() - 1);
+             set_repetitions(1);
+           });
+AddBinding("a+j", "Frames: Add a horizontal split", editor.AddHorizontalSplit);
+AddBinding("a+l", "Frames: Add a vertical split", editor.AddVerticalSplit);
+AddBinding("aR", "Frames: Show all open buffers",
+           editor.SetHorizontalSplitsWithAllBuffers);
+
+////////////////////////////////////////////////////////////////////////////////
+// Buffers manipulation (saving, reloading...)
+////////////////////////////////////////////////////////////////////////////////
+
+AddBinding("ar", "Buffers: Reload the current buffer.", []() -> void {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void { buffer.Reload(); });
+});
+AddBinding("aw", "Buffers: Save the current buffer.", []() -> void {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void { buffer.Save(); });
+});
+
+////////////////////////////////////////////////////////////////////////////////
+// Editing commands
+////////////////////////////////////////////////////////////////////////////////
+
+AddBinding(".", "Edit: Repeats the last command.",
+           editor.RepeatLastTransformation);
 
 AddBinding(terminal_backspace, "Edit: Delete previous character.",
            []() -> void {
@@ -85,34 +142,6 @@ void HandleKeyboardControlU(Buffer buffer) {
 AddBinding(terminal_control_u, "Edit: Delete the current line", []() -> void {
   editor.ForEachActiveBuffer(HandleKeyboardControlU);
 });
-
-// Logic to handle the tree of visible buffers.
-AddBinding("a=", "Frames: Zoom to the active leaf", editor.ZoomToLeaf);
-AddBinding("ah", "Frames: Move to the previous buffer", []() -> void {
-  editor.AdvanceActiveBuffer(-repetitions());
-  set_repetitions(1);
-});
-AddBinding("al", "Frames: Move to the next buffer", []() -> void {
-  editor.AdvanceActiveBuffer(repetitions());
-  set_repetitions(1);
-});
-AddBinding("ak", "Frames: Move to the previous active leaf", []() -> void {
-  editor.AdvanceActiveLeaf(-repetitions());
-  set_repetitions(1);
-});
-AddBinding("aj", "Frames: Move to the next active leaf", []() -> void {
-  editor.AdvanceActiveLeaf(repetitions());
-  set_repetitions(1);
-});
-AddBinding("ag", "Frames: Set the active buffer (by repetitions)",
-           []() -> void {
-             editor.SetActiveBuffer(repetitions() - 1);
-             set_repetitions(1);
-           });
-AddBinding("a+j", "Frames: Add a horizontal split", editor.AddHorizontalSplit);
-AddBinding("a+l", "Frames: Add a vertical split", editor.AddVerticalSplit);
-AddBinding("aR", "Frames: Show all open buffers",
-           editor.SetHorizontalSplitsWithAllBuffers);
 
 void GoToBeginningOfLine() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
