@@ -212,7 +212,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
             auto buffers = editor->active_buffers();
-            return futures::ImmediateTransform(
+            return futures::Transform(
                 futures::ForEachWithCopy(
                     buffers.begin(), buffers.end(),
                     [callback = std::move(input[1]->callback),
@@ -221,15 +221,12 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                       args.push_back(
                           VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::
                               New(std::move(buffer)));
-                      return futures::ImmediateTransform(
+                      return futures::Transform(
                           callback(std::move(args), trampoline),
-                          [](EvaluationOutput) {
-                            return futures::IterationControlCommand::kContinue;
-                          });
+                          futures::Past(
+                              futures::IterationControlCommand::kContinue));
                     }),
-                [](futures::IterationControlCommand) {
-                  return EvaluationOutput::Return(Value::NewVoid());
-                });
+                futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
   // A callback to return the current buffer. This is needed so that at a time
@@ -285,17 +282,16 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                   });
               values->push_back(std::move(future.value));
             }
-            return futures::ImmediateTransform(
+            return futures::Transform(
                 futures::ForEach(
                     values->begin(), values->end(),
                     [values](futures::Value<bool> future) {
-                      return futures::ImmediateTransform(future, [](bool) {
-                        return futures::IterationControlCommand::kContinue;
-                      });
+                      return futures::Transform(
+                          future,
+                          futures::Past(
+                              futures::IterationControlCommand::kContinue));
                     }),
-                [](futures::IterationControlCommand) {
-                  return EvaluationOutput::Return(Value::NewVoid());
-                });
+                futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
   environment->Define(L"SendExitTo", vm::NewCallback([](wstring args) {
@@ -450,16 +446,14 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       return futures::Past(futures::IterationControlCommand::kContinue);
     }
     LOG(INFO) << "Evaluating file: " << path;
-    return futures::ImmediateTransform(
+    return futures::Transform(
         Evaluate(
             expression.get(), environment_,
             [path, work_queue = work_queue()](std::function<void()> resume) {
               LOG(INFO) << "Evaluation of file yields: " << path;
               work_queue->Schedule(std::move(resume));
             }),
-        [](std::unique_ptr<Value>) {
-          return futures::IterationControlCommand::kContinue;
-        });
+        futures::Past(futures::IterationControlCommand::kContinue));
   });
 }
 

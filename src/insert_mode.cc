@@ -132,10 +132,9 @@ class InsertMode : public EditorMode {
     auto value = futures::ForEach(
         options_.buffers.value().begin(), options_.buffers.value().end(),
         [this, c, editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
-          return futures::ImmediateTransform(
-              DeliverInputToBuffer(c, editor_state, buffer), [this](bool) {
-                return futures::IterationControlCommand::kContinue;
-              });
+          return futures::Transform(
+              DeliverInputToBuffer(c, editor_state, buffer),
+              futures::Past(futures::IterationControlCommand::kContinue));
         });
     if (static_cast<int>(c) == Terminal::ESCAPE) {
       value.SetConsumer(

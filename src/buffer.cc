@@ -183,11 +183,9 @@ using std::to_wstring;
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
             auto transformation =
                 static_cast<Transformation*>(args[1]->user_value.get());
-            return futures::ImmediateTransform(
-                buffer->ApplyToCursors(transformation->Clone()), [](bool) {
-                  LOG(INFO) << "ApplyTransformation returning.";
-                  return EvaluationOutput::Return(Value::NewVoid());
-                });
+            return futures::Transform(
+                buffer->ApplyToCursors(transformation->Clone()),
+                futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
 #if 0
@@ -850,10 +848,8 @@ void OpenBuffer::Reload() {
   futures::ForEach(paths.begin(), paths.end(), [this](std::wstring dir) {
     auto value = EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
     if (!value.has_value()) return Past(IterationControlCommand::kContinue);
-    return futures::ImmediateTransform(
-        value.value(), [](std::unique_ptr<Value>) {
-          return IterationControlCommand::kContinue;
-        });
+    return futures::Transform(
+        value.value(), futures::Past(IterationControlCommand::kContinue));
   }).SetConsumer([this](IterationControlCommand) {
     if (editor()->exit_value().has_value()) return;
     ClearModified();
@@ -1880,7 +1876,7 @@ futures::Value<bool> OpenBuffer::Undo(UndoMode undo_mode) {
     data->source = &undo_future_;
     data->target = &undo_past_;
   }
-  return futures::ImmediateTransform(
+  return futures::Transform(
       futures::While([this, undo_mode, data] {
         if (data->repetitions == editor()->repetitions() ||
             data->source->empty()) {
@@ -1900,7 +1896,7 @@ futures::Value<bool> OpenBuffer::Undo(UndoMode undo_mode) {
               return IterationControlCommand::kContinue;
             });
       }),
-      [](IterationControlCommand) { return true; });
+      futures::Past(true));
 }
 
 void OpenBuffer::set_filter(unique_ptr<Value> filter) {
