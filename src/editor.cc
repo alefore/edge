@@ -546,7 +546,7 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
 }
 
 void EditorState::SetActiveBuffer(size_t position) {
-  buffer_tree_.GetActiveLeaf()->SetBuffer(
+  set_current_buffer(
       buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()));
 }
 
@@ -579,8 +579,7 @@ void EditorState::AdvanceActiveBuffer(int delta) {
   } else {
     delta %= total;
   }
-  buffer_tree_.GetActiveLeaf()->SetBuffer(
-      buffer_tree_.GetBuffer(delta % total));
+  set_current_buffer(buffer_tree_.GetBuffer(delta % total));
 }
 
 void EditorState::ZoomToLeaf() {
@@ -722,7 +721,7 @@ void EditorState::ProcessInput(int c) {
   } else {
     auto buffer = OpenAnonymousBuffer(this);
     if (!has_current_buffer()) {
-      buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
+      set_current_buffer(buffer);
     }
     handler = buffer->mode();
     CHECK(has_current_buffer());
