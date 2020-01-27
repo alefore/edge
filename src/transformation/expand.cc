@@ -74,7 +74,7 @@ class PredictorTransformation : public CompositeTransformation {
           output.Push(DeleteLastCharacters(text_size));
 
           auto buffer_to_insert =
-              std::make_shared<OpenBuffer>(editor, L"- text inserted");
+              OpenBuffer::New({.editor = editor, .name = L"- text inserted"});
           buffer_to_insert->AppendLazyString(
               NewLazyString(results.value().common_prefix.value()));
           buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));

@@ -546,7 +546,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
     buffer_options.describe_status = [command_data](const OpenBuffer& buffer) {
       return Flags(*command_data, buffer);
     };
-    auto buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
+    auto buffer = OpenBuffer::New(std::move(buffer_options));
     buffer->Set(buffer_variables::children_path, options.children_path);
     buffer->Set(buffer_variables::command, options.command);
     it.first->second = std::move(buffer);

@@ -209,7 +209,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
   options.path = address;
   options.generate_contents = GenerateContents;
 
-  auto buffer = std::make_shared<OpenBuffer>(options);
+  auto buffer = OpenBuffer::New(std::move(options));
   buffer->Set(buffer_variables::clear_on_reload, false);
   buffer->Set(buffer_variables::vm_exec, true);
   buffer->Set(buffer_variables::show_in_buffers_list, false);

@@ -151,8 +151,8 @@ void RegisterInsertTransformation(EditorState* editor,
                           std::shared_ptr<InsertOptions>, wstring)>(
           [editor](std::shared_ptr<InsertOptions> options, wstring text) {
             CHECK(options != nullptr);
-            auto buffer_to_insert =
-                std::make_shared<OpenBuffer>(editor, L"- text inserted");
+            auto buffer_to_insert = OpenBuffer::New(OpenBuffer::Options(
+                {.editor = editor, .name = L"- text inserted"}));
             if (!text.empty()) {
               buffer_to_insert->AppendLazyString(
                   NewLazyString(std::move(text)));

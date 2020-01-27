@@ -187,7 +187,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
           return true;
         });
   };
-  predictions_buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
+  predictions_buffer = OpenBuffer::New(std::move(buffer_options));
   *weak_predictions_buffer = predictions_buffer;
   predictions_buffer->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
@@ -519,7 +519,8 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
       input.source_buffer->Read(buffer_variables::language_keywords));
   words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
                std::istream_iterator<wstring, wchar_t>());
-  auto dictionary = std::make_shared<OpenBuffer>(input.editor, L"Dictionary");
+  auto dictionary =
+      OpenBuffer::New({.editor = input.editor, .name = L"Dictionary"});
   for (auto& word : words) {
     dictionary->AppendLine(NewLazyString(std::move(word)));
   }

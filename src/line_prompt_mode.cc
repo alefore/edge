@@ -64,7 +64,8 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
               history_buffer->Read(buffer_variables::name) + L": " + filter;
   auto element = editor_state->buffers()->insert({name, nullptr}).first;
   if (element->second == nullptr) {
-    auto filter_buffer = std::make_shared<OpenBuffer>(editor_state, name);
+    auto filter_buffer =
+        OpenBuffer::New({.editor = editor_state, .name = name});
     filter_buffer->Set(buffer_variables::allow_dirty_delete, true);
     filter_buffer->Set(buffer_variables::show_in_buffers_list, false);
     filter_buffer->Set(buffer_variables::delete_into_paste_buffer, false);
@@ -105,7 +106,8 @@ shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
   auto& element =
       *editor_state->buffers()->insert(make_pair(L"- prompt", nullptr)).first;
   if (element.second == nullptr) {
-    element.second = std::make_shared<OpenBuffer>(editor_state, element.first);
+    element.second =
+        OpenBuffer::New({.editor = editor_state, .name = element.first});
     element.second->Set(buffer_variables::allow_dirty_delete, true);
     element.second->Set(buffer_variables::show_in_buffers_list, false);
     element.second->Set(buffer_variables::delete_into_paste_buffer, false);
@@ -155,7 +157,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer,
                      LineNumberDelta delta) const {
     auto buffer_to_insert =
-        std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
+        OpenBuffer::New({.editor = editor_state, .name = L"- text inserted"});
 
     if (history_ != nullptr &&
         history_->contents()->size() > LineNumberDelta(1)) {
@@ -269,7 +271,7 @@ void Prompt(PromptOptions options) {
 
   {
     auto buffer_to_insert =
-        std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
+        OpenBuffer::New({.editor = editor_state, .name = L"- text inserted"});
     buffer_to_insert->AppendToLastLine(
         NewLazyString(std::move(options.initial_value)));
     InsertOptions insert_options;
@@ -369,8 +371,8 @@ void Prompt(PromptOptions options) {
             delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
             buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
 
-            auto buffer_to_insert =
-                std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
+            auto buffer_to_insert = OpenBuffer::New(
+                {.editor = editor_state, .name = L"- text inserted"});
             buffer_to_insert->AppendToLastLine(
                 NewLazyString(results.value().common_prefix.value()));
             InsertOptions insert_options;

@@ -19,7 +19,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     auto buffer_to_insert =
-        std::make_shared<OpenBuffer>(input.editor, L"- text inserted");
+        OpenBuffer::New({.editor = input.editor, .name = L"- text inserted"});
     VLOG(5) << "Switch Case Transformation at " << input.position << ": "
             << input.modifiers << ": Range: " << input.range;
     LineColumn i = input.range.begin;

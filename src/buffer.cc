@@ -358,15 +358,12 @@ using std::to_wstring;
   environment->DefineType(L"Buffer", std::move(buffer));
 }
 
-OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
-    : OpenBuffer([=]() {
-        Options options;
-        options.editor = editor_state;
-        options.name = name;
-        return options;
-      }()) {}
+/* static */ std::shared_ptr<OpenBuffer> OpenBuffer::New(Options options) {
+  return std::make_shared<OpenBuffer>(ConstructorAccessTag(),
+                                      std::move(options));
+}
 
-OpenBuffer::OpenBuffer(Options options)
+OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       contents_([this](const CursorsTracker::Transformation& transformation) {
         if (syntax_data_state_ == SyntaxDataState::kDone) {
