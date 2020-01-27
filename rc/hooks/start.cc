@@ -1,5 +1,6 @@
 #include "../editor_commands/camelcase.cc"
 #include "../editor_commands/fold-next-line.cc"
+#include "../editor_commands/header"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
 #include "../editor_commands/reflow.cc"
@@ -86,6 +87,9 @@ AddBinding("ss", "Run a shell in the directory of the current buffer.",
                ForkCommand(options).SetStatus("Children path: " + path);
              });
            });
+
+AddBinding("sh", "Buffers: Navigate to the header / implementation.",
+           []() -> void { editor.ForEachActiveBuffer(ShowHeader); });
 
 ////////////////////////////////////////////////////////////////////////////////
 // Editing commands

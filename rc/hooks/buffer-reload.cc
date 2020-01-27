@@ -36,7 +36,6 @@ void HandleFileTypes(string basename, string extension) {
   if (extension == "cc" || extension == "h" || extension == "c" ||
       extension == "cpp") {
     CppMode();
-    buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
     buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.SetStatus("🔡 C++ file (" + extension + ")");
