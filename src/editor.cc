@@ -229,29 +229,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
-  // A callback to return the current buffer. This is needed so that at a time
-  // when there's no current buffer (i.e. EditorState is being created) we can
-  // still compile code that will depend (at run time) on getting the current
-  // buffer. Otherwise we could just use the "buffer" variable (that is declared
-  // in the environment of each buffer).
-  environment->Define(
-      L"CurrentBuffer",
-      Value::NewFunction({VMType::ObjectType(L"Buffer")},
-                         [this](vector<unique_ptr<Value>> args) {
-                           CHECK_EQ(args.size(), size_t(0));
-                           auto buffer = current_buffer();
-                           CHECK(buffer != nullptr);
-                           if (structure() == StructureLine()) {
-                             auto target_buffer =
-                                 buffer->GetBufferFromCurrentLine();
-                             ResetStructure();
-                             if (target_buffer != nullptr) {
-                               buffer = target_buffer;
-                             }
-                           }
-                           return Value::NewObject(L"Buffer", buffer);
-                         }));
-
   environment->Define(L"ProcessInput",
                       vm::NewCallback([this](int c) { ProcessInput(c); }));
 
