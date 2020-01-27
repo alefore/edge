@@ -128,6 +128,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
       Handler<CommandLineValues>({L"mute"}, L"Disable audio output")
           .Set(&CommandLineValues::mute, true),
 
+      Handler<CommandLineValues>({L"ao"}, L"Prompt for a path to open")
+          .Set(&CommandLineValues::prompt_for_path, true),
+
       Handler<CommandLineValues>({L"bg"},
                                  L"Open buffers given to -f in background")
           .Set(&CommandLineValues::background, true),

@@ -43,6 +43,10 @@ struct CommandLineValues {
   };
 
   NestedEdgeBehavior nested_edge_behavior = NestedEdgeBehavior::kWaitForClose;
+
+  // If true, after creating all buffers specified by other command line flags,
+  // start a prompt for opening a file.
+  bool prompt_for_path = false;
 };
 
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&

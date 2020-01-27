@@ -23,6 +23,7 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/dirname.h"
 #include "src/file_link_mode.h"
+#include "src/open_file_command.h"
 #include "src/run_command_handler.h"
 #include "src/server.h"
 #include "src/shapes.h"
@@ -285,6 +286,10 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
   environment->Define(L"SetStatus", vm::NewCallback([this](wstring s) {
                         status_.SetInformationText(s);
+                      }));
+
+  environment->Define(L"PromptAndOpenFile", vm::NewCallback([this]() {
+                        NewOpenFileCommand()->ProcessInput(0, this);
                       }));
 
   environment->Define(L"set_screen_needs_hard_redraw",
