@@ -365,6 +365,8 @@ using std::to_wstring;
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
+      work_queue_(
+          [editor = options_.editor] { editor->NotifyInternalEvent(); }),
       contents_([this](const CursorsTracker::Transformation& transformation) {
         if (syntax_data_state_ == SyntaxDataState::kDone) {
           syntax_data_state_ = SyntaxDataState::kPending;
@@ -386,8 +388,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
           buffer_variables::LineColumnStruct()->NewInstance()),
       environment_(
           std::make_shared<Environment>(options_.editor->environment())),
-      work_queue_(
-          [editor = options_.editor] { editor->NotifyInternalEvent(); }),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor->default_commands()->NewChild()),

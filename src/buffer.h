@@ -469,6 +469,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Optional function to execute when a sub-process exits.
   std::function<void()> on_exit_handler_;
 
+  mutable WorkQueue work_queue_;
+
   BufferContents contents_;
 
   bool modified_ = false;
@@ -487,8 +489,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   list<unique_ptr<Value>> keyboard_text_transformers_;
   const std::shared_ptr<Environment> environment_;
-
-  mutable WorkQueue work_queue_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be
