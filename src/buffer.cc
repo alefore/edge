@@ -393,7 +393,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
-      tree_parser_(NewNullTreeParser()),
       syntax_data_(L"SyntaxData", &work_queue_),
       async_read_evaluator_(L"ReadEvaluator", &work_queue_) {
   UpdateTreeParser();
