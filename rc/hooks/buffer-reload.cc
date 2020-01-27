@@ -3,7 +3,6 @@
 // This program mainly sets several buffer variables depending on properties
 // of the buffer (such as the extension of the file being loaded).
 
-#include "../editor_commands/camelcase.cc"
 #include "../editor_commands/compiler"
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
@@ -153,9 +152,3 @@ if (!buffer.pts()) {
   buffer.AddBinding("M", "Center the screen around the current line.",
                     CenterScreenAroundCurrentLine);
 }
-
-void Camel() {
-  buffer.ApplyTransformation(FunctionTransformation(CamelCaseTransformation));
-}
-
-buffer.AddBinding("Cc", "Edit: Adjust identifier to or from CamelCase.", Camel);

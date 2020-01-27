@@ -1,3 +1,4 @@
+#include "../editor_commands/camelcase.cc"
 #include "../editor_commands/fold-next-line.cc"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
@@ -202,6 +203,15 @@ void GoToEndOfLine() {
 AddBinding("^", "Go to the beginning of the current line", GoToBeginningOfLine);
 AddBinding(terminal_control_a, "Navigate: Move to the beginning of line.",
            GoToBeginningOfLine);
+
+AddBinding("Cc", "Edit: Adjust identifier to or from CamelCase.", []() -> void {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          return CamelCaseTransformation(buffer, input);
+        }));
+  });
+});
 
 AddBinding(terminal_control_d, "Edit: Delete current character.", []() -> void {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
