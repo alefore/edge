@@ -28,7 +28,7 @@ void LoadFileWithExtension(string old_path, int dot, string extension) {
 }
 
 void ShowHeader(Buffer buffer) {
-  string path = buffer().path();
+  string path = buffer.path();
   int dot = path.find_last_of(".", path.size());
   if (dot == -1) {
     SetStatus("Unable to extract extension: " + path);
