@@ -153,6 +153,8 @@ Support `LineColumn line;` (rather than having to use `LineColumn line = LineCol
 
 ## Misc
 
+Add a command-line flag that, when running as a client, causes paths to be resolved by the server, rather than as an absolute path in the client. This allows the server to apply EDGE_PATH and such.
+
 Support variables scoped at the Editor level (i.e. not specific to a given buffer).
 
 Don't do any blocking operations.
