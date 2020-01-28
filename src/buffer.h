@@ -311,7 +311,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
       const wstring& path);
 
   WorkQueue* work_queue() const;
-  void ExecutePendingWork();
   WorkQueue::State GetPendingWorkState() const;
 
   // Asynchronous threads that need to interact with the buffer shouldn't be

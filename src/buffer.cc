@@ -1040,7 +1040,6 @@ std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
 
 WorkQueue* OpenBuffer::work_queue() const { return &work_queue_; }
 
-void OpenBuffer::ExecutePendingWork() { work_queue_.Execute(); }
 WorkQueue::State OpenBuffer::GetPendingWorkState() const {
   return work_queue_.state();
 }
