@@ -96,12 +96,7 @@ void EditorState::NotifyInternalEvent() {
 }
 
 // Executes pending work from all buffers.
-void EditorState::ExecutePendingWork() {
-  for (auto& buffer : buffers_) {
-    buffer.second->ExecutePendingWork();
-  }
-  work_queue_.Execute();
-}
+void EditorState::ExecutePendingWork() { work_queue_.Execute(); }
 
 WorkQueue::State EditorState::GetPendingWorkState() const {
   for (auto& buffer : buffers_) {

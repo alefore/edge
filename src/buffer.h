@@ -411,6 +411,10 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::unique_ptr<BufferTerminal> NewTerminal();  // Public for testing.
 
  private:
+  // Code that would normally be in the constructor, but which may require the
+  // use of `shared_from_this`. This function will be called by `New` after the
+  // instance has been successfully installed into a shared_ptr.
+  void Initialize();
   void MaybeStartUpdatingSyntaxTrees();
 
   static void EvaluateMap(OpenBuffer* buffer, LineNumber line,
