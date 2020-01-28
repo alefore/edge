@@ -594,14 +594,14 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   } else if (buffer_options.path.empty()) {
     buffer_options.name =
         editor_state->GetUnusedBufferName(L"anonymous buffer");
-    buffer = std::make_shared<OpenBuffer>(buffer_options);
+    buffer = OpenBuffer::New(buffer_options);
   } else {
     buffer_options.name = buffer_options.path;
   }
   auto it = editor_state->buffers()->insert({buffer_options.name, buffer});
   if (it.second) {
     if (it.first->second.get() == nullptr) {
-      it.first->second = std::make_shared<OpenBuffer>(buffer_options);
+      it.first->second = OpenBuffer::New(std::move(buffer_options));
       it.first->second->Set(buffer_variables::persist_state, true);
     }
     it.first->second->Reload();

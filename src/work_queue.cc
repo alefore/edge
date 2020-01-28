@@ -24,6 +24,7 @@ void WorkQueue::Execute() {
     c();
   }
 }
+
 WorkQueue::State WorkQueue::state() const {
   std::unique_lock<std::mutex> lock(mutex_);
   return callbacks_.empty() ? State::kIdle : State::kScheduled;

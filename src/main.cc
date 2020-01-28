@@ -118,8 +118,11 @@ wstring CommandsToRun(CommandLineValues args) {
     }
     commands_to_run += L"WaitForClose(buffers_to_watch);\n";
   }
+  if (args.prompt_for_path) {
+    commands_to_run += L"PromptAndOpenFile();";
+  }
   if (commands_to_run.empty()) {
-    return kDefaultCommandsToRun;
+    commands_to_run = kDefaultCommandsToRun;
   }
   return commands_to_run;
 }

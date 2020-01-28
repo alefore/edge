@@ -62,7 +62,7 @@ class NewLineTransformation : public CompositeTransformation {
     Output output;
     {
       auto buffer_to_insert =
-          std::make_shared<OpenBuffer>(input.editor, L"- text inserted");
+          OpenBuffer::New({.editor = input.editor, .name = L"- text inserted"});
       buffer_to_insert->AppendRawLine(std::make_shared<Line>(
           Line::Options(*line).DeleteSuffix(prefix_end)));
       InsertOptions insert_options;
@@ -235,8 +235,8 @@ class InsertMode : public EditorMode {
                   Modifiers::ModifyMode::kOverwrite)
                 return futures::Past(true);
 
-              auto buffer_to_insert = std::make_shared<OpenBuffer>(
-                  editor_state, L"- text inserted");
+              auto buffer_to_insert = OpenBuffer::New(
+                  {.editor = editor_state, .name = L"- text inserted"});
               buffer_to_insert->AppendToLastLine(NewLazyString(L" "));
               InsertOptions insert_options;
               insert_options.buffer_to_insert = buffer_to_insert;
@@ -305,8 +305,8 @@ class InsertMode : public EditorMode {
     return futures::Transform(
         buffer->TransformKeyboardText(wstring(1, c)),
         [this, editor_state, buffer](std::wstring value) {
-          auto buffer_to_insert =
-              std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
+          auto buffer_to_insert = OpenBuffer::New(
+              {.editor = editor_state, .name = L"- text inserted"});
 
           buffer_to_insert->AppendToLastLine(NewLazyString(value));
 

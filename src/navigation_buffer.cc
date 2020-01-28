@@ -153,7 +153,7 @@ class NavigationBufferCommand : public Command {
                                    source_weak](OpenBuffer* target) {
         return GenerateContents(editor_state, source_weak, target);
       };
-      auto buffer = std::make_shared<OpenBuffer>(std::move(options));
+      auto buffer = OpenBuffer::New(std::move(options));
       buffer->Set(buffer_variables::show_in_buffers_list, false);
       buffer->Set(buffer_variables::push_positions_to_history, false);
       buffer->Set(buffer_variables::allow_dirty_delete, true);

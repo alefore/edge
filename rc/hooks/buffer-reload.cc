@@ -3,7 +3,6 @@
 // This program mainly sets several buffer variables depending on properties
 // of the buffer (such as the extension of the file being loaded).
 
-#include "../editor_commands/camelcase.cc"
 #include "../editor_commands/compiler"
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
@@ -37,7 +36,6 @@ void HandleFileTypes(string basename, string extension) {
   if (extension == "cc" || extension == "h" || extension == "c" ||
       extension == "cpp") {
     CppMode();
-    buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
     buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.SetStatus("🔡 C++ file (" + extension + ")");
@@ -61,6 +59,7 @@ void HandleFileTypes(string basename, string extension) {
     buffer.ApplyTransformation(SetPositionTransformation(LineColumn(0, 0)));
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
+    buffer.set_trigger_reload_on_buffer_write(false);
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
     buffer.SetStatus("🔡 Git commit message");
     return;
@@ -153,9 +152,3 @@ if (!buffer.pts()) {
   buffer.AddBinding("M", "Center the screen around the current line.",
                     CenterScreenAroundCurrentLine);
 }
-
-void Camel() {
-  buffer.ApplyTransformation(FunctionTransformation(CamelCaseTransformation));
-}
-
-buffer.AddBinding("Cc", "Edit: Adjust identifier to or from CamelCase.", Camel);

@@ -61,16 +61,21 @@ extern "C" {
 
 namespace afc {
 namespace vm {
+struct BufferWrapper {
+  std::shared_ptr<editor::OpenBuffer> buffer;
+};
+
 std::shared_ptr<editor::OpenBuffer>
 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value* value) {
-  return std::shared_ptr<editor::OpenBuffer>(
-      static_cast<editor::OpenBuffer*>(value->user_value.get()),
-      [dependency = value->user_value](editor::OpenBuffer*) { /* Nothing. */ });
+  return static_cast<BufferWrapper*>(value->user_value.get())->buffer;
 }
 
 /* static */ Value::Ptr VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
     std::shared_ptr<editor::OpenBuffer> value) {
-  return Value::NewObject(L"Buffer", shared_ptr<void>(value, value.get()));
+  auto wrapper = std::make_shared<BufferWrapper>();
+  wrapper->buffer = std::move(value);
+  return Value::NewObject(L"Buffer",
+                          std::shared_ptr<void>(wrapper, wrapper.get()));
 }
 
 const VMType VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype =
@@ -180,7 +185,9 @@ using std::to_wstring;
            vm::VMTypeMapper<editor::Transformation*>::vmtype},
           [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
             CHECK_EQ(args.size(), 2ul);
-            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+            auto buffer =
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
+                    args[0].get());
             auto transformation =
                 static_cast<Transformation*>(args[1]->user_value.get());
             return futures::Transform(
@@ -252,27 +259,29 @@ using std::to_wstring;
           [](vector<unique_ptr<Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
-
-            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+            auto buffer =
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
+                    args[0].get());
             CHECK(buffer != nullptr);
             return Value::NewBool(
                 buffer->AddKeyboardTextTransformer(std::move(args[1])));
           }));
 
   buffer->AddField(
-      L"Filter", Value::NewFunction(
-                     {VMType::Void(), VMType::ObjectType(buffer.get()),
-                      VMType::Function({VMType::Bool(), VMType::String()})},
-                     [](vector<unique_ptr<Value>> args) {
-                       CHECK_EQ(args.size(), size_t(2));
-                       CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
-
-                       auto buffer =
-                           static_cast<OpenBuffer*>(args[0]->user_value.get());
-                       CHECK(buffer != nullptr);
-                       buffer->set_filter(std::move(args[1]));
-                       return Value::NewVoid();
-                     }));
+      L"Filter",
+      Value::NewFunction(
+          {VMType::Void(), VMType::ObjectType(buffer.get()),
+           VMType::Function({VMType::Bool(), VMType::String()})},
+          [](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), size_t(2));
+            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
+            auto buffer =
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
+                    args[0].get());
+            CHECK(buffer != nullptr);
+            buffer->set_filter(std::move(args[1]));
+            return Value::NewVoid();
+          }));
 
   buffer->AddField(L"Reload",
                    vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
@@ -308,7 +317,9 @@ using std::to_wstring;
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
             CHECK_EQ(args[2]->type, VMType::VM_STRING);
-            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+            auto buffer =
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
+                    args[0].get());
             CHECK(buffer != nullptr);
             buffer->default_commands_->Add(args[1]->str, args[2]->str,
                                            std::move(args[3]),
@@ -358,16 +369,21 @@ using std::to_wstring;
   environment->DefineType(L"Buffer", std::move(buffer));
 }
 
-OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
-    : OpenBuffer([=]() {
-        Options options;
-        options.editor = editor_state;
-        options.name = name;
-        return options;
-      }()) {}
+/* static */ std::shared_ptr<OpenBuffer> OpenBuffer::New(Options options) {
+  auto output =
+      std::make_shared<OpenBuffer>(ConstructorAccessTag(), std::move(options));
+  output->Initialize();
+  return output;
+}
 
-OpenBuffer::OpenBuffer(Options options)
+OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
+      work_queue_([this] {
+        options_.editor->work_queue()->Schedule(
+            [shared_this = shared_from_this()] {
+              shared_this->work_queue()->Execute();
+            });
+      }),
       contents_([this](const CursorsTracker::Transformation& transformation) {
         if (syntax_data_state_ == SyntaxDataState::kDone) {
           syntax_data_state_ = SyntaxDataState::kPending;
@@ -389,47 +405,18 @@ OpenBuffer::OpenBuffer(Options options)
           buffer_variables::LineColumnStruct()->NewInstance()),
       environment_(
           std::make_shared<Environment>(options_.editor->environment())),
-      work_queue_(
-          [editor = options_.editor] { editor->NotifyInternalEvent(); }),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
-      tree_parser_(NewNullTreeParser()),
       syntax_data_(L"SyntaxData", &work_queue_),
-      async_read_evaluator_(L"ReadEvaluator", &work_queue_) {
-  UpdateTreeParser();
+      async_read_evaluator_(L"ReadEvaluator", &work_queue_) {}
 
-  environment_->Define(
-      L"buffer",
-      Value::NewObject(L"Buffer", shared_ptr<void>(this, [](void*) {})));
-
-  Set(buffer_variables::name, options_.name);
-  Set(buffer_variables::path, options_.path);
-  Set(buffer_variables::pts_path, L"");
-  Set(buffer_variables::command, L"");
-  Set(buffer_variables::reload_after_exit, false);
-  if (Read(buffer_variables::name) == kPasteBuffer) {
-    Set(buffer_variables::allow_dirty_delete, true);
-    Set(buffer_variables::show_in_buffers_list, false);
-    Set(buffer_variables::delete_into_paste_buffer, false);
-  }
-  ClearContents(BufferContents::CursorsBehavior::kUnmodified);
-
-  for (const auto& dir : options_.editor->edge_path()) {
-    auto state_path =
-        PathJoin(PathJoin(dir, L"state"),
-                 PathJoin(Read(buffer_variables::path), L".edge_state"));
-    struct stat stat_buffer;
-    if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
-      continue;
-    }
-    EvaluateFile(state_path);
-  }
+OpenBuffer::~OpenBuffer() {
+  LOG(INFO) << "Start destructor.";
+  environment_->Clear();
 }
-
-OpenBuffer::~OpenBuffer() { environment_->Clear(); }
 
 EditorState* OpenBuffer::editor() const { return options_.editor; }
 
@@ -768,6 +755,40 @@ std::shared_ptr<const ParseTree> OpenBuffer::simplified_parse_tree() const {
   return simplified_parse_tree_;
 }
 
+void OpenBuffer::Initialize() {
+  UpdateTreeParser();
+
+  // We use the aliasing constructor or else ... we'll never actually be
+  // reclaimed.
+  environment_->Define(
+      L"buffer",
+      VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
+          std::shared_ptr<OpenBuffer>(std::shared_ptr<OpenBuffer>(), this)));
+
+  Set(buffer_variables::name, options_.name);
+  Set(buffer_variables::path, options_.path);
+  Set(buffer_variables::pts_path, L"");
+  Set(buffer_variables::command, L"");
+  Set(buffer_variables::reload_after_exit, false);
+  if (Read(buffer_variables::name) == kPasteBuffer) {
+    Set(buffer_variables::allow_dirty_delete, true);
+    Set(buffer_variables::show_in_buffers_list, false);
+    Set(buffer_variables::delete_into_paste_buffer, false);
+  }
+  ClearContents(BufferContents::CursorsBehavior::kUnmodified);
+
+  for (const auto& dir : options_.editor->edge_path()) {
+    auto state_path =
+        PathJoin(PathJoin(dir, L"state"),
+                 PathJoin(Read(buffer_variables::path), L".edge_state"));
+    struct stat stat_buffer;
+    if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
+      continue;
+    }
+    EvaluateFile(state_path);
+  }
+}
+
 void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
   if (TreeParser::IsNull(tree_parser_.get())) return;
 
@@ -857,7 +878,7 @@ void OpenBuffer::Reload() {
 
     (options_.generate_contents != nullptr ? options_.generate_contents(this)
                                            : futures::Past(true))
-        .SetConsumer([this](bool) {
+        .SetConsumer([shared_this = shared_from_this(), this](bool) {
           switch (reload_state_) {
             case ReloadState::kDone:
               LOG(FATAL) << "Invalid reload state! Can't be kDone.";
@@ -1019,7 +1040,6 @@ std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
 
 WorkQueue* OpenBuffer::work_queue() const { return &work_queue_; }
 
-void OpenBuffer::ExecutePendingWork() { work_queue_.Execute(); }
 WorkQueue::State OpenBuffer::GetPendingWorkState() const {
   return work_queue_.state();
 }

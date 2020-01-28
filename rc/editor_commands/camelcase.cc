@@ -6,7 +6,7 @@ bool LessThan(LineColumn a, LineColumn b) {
          (a.line() == b.line() && a.column() < b.column());
 }
 
-LineColumn FindSymbolBegin(LineColumn position) {
+LineColumn FindSymbolBegin(Buffer buffer, LineColumn position) {
   auto line = buffer.line(position.line());
   int column = position.column();
   while (column > 0) {
@@ -17,7 +17,7 @@ LineColumn FindSymbolBegin(LineColumn position) {
   return LineColumn(position.line(), column);
 }
 
-LineColumn FindSymbolEnd(LineColumn position) {
+LineColumn FindSymbolEnd(Buffer buffer, LineColumn position) {
   auto line = buffer.line(position.line());
   int column = position.column();
   while (column + 1 < line.size()) {
@@ -60,10 +60,11 @@ string TransformCase(string input) {
   return input;
 }
 
-TransformationOutput CamelCaseTransformation(TransformationInput input) {
+TransformationOutput CamelCaseTransformation(Buffer buffer,
+                                             TransformationInput input) {
   TransformationOutput output = TransformationOutput();
-  auto begin = FindSymbolBegin(input.position());
-  auto end = FindSymbolEnd(begin);
+  auto begin = FindSymbolBegin(buffer, input.position());
+  auto end = FindSymbolEnd(buffer, begin);
   output.push(SetPositionTransformation(begin));
   auto text = buffer.line(input.position().line())
                   .substr(begin.column(), end.column() - begin.column());

@@ -176,7 +176,7 @@ class ListBuffersCommand : public Command {
       options.generate_contents = [editor_state](OpenBuffer* target) {
         return GenerateContents(editor_state, target);
       };
-      auto buffer = std::make_shared<OpenBuffer>(std::move(options));
+      auto buffer = OpenBuffer::New(std::move(options));
       buffer->Set(buffer_variables::reload_on_enter, true);
       buffer->Set(buffer_variables::atomic_lines, true);
       buffer->Set(buffer_variables::reload_on_display, true);

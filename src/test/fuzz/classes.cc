@@ -33,11 +33,11 @@ int main(int argc, char** argv) {
   EditorState editor(CommandLineValues(), audio_player.get());
   OpenBuffer::Options options;
   options.editor = &editor;
-  OpenBuffer buffer(options);
+  auto buffer = OpenBuffer::New(options);
   if (class_name == "BufferContents") {
     fuzz_testable = std::make_unique<BufferContents>();
   } else if (class_name == "BufferTerminal") {
-    fuzz_testable = buffer.NewTerminal();
+    fuzz_testable = buffer->NewTerminal();
   }
   CHECK(fuzz_testable != nullptr)
       << "Invalid parameter for class name: " << class_name;

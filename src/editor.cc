@@ -23,6 +23,7 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/dirname.h"
 #include "src/file_link_mode.h"
+#include "src/open_file_command.h"
 #include "src/run_command_handler.h"
 #include "src/server.h"
 #include "src/shapes.h"
@@ -95,12 +96,7 @@ void EditorState::NotifyInternalEvent() {
 }
 
 // Executes pending work from all buffers.
-void EditorState::ExecutePendingWork() {
-  for (auto& buffer : buffers_) {
-    buffer.second->ExecutePendingWork();
-  }
-  work_queue_.Execute();
-}
+void EditorState::ExecutePendingWork() { work_queue_.Execute(); }
 
 WorkQueue::State EditorState::GetPendingWorkState() const {
   for (auto& buffer : buffers_) {
@@ -229,29 +225,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
-  // A callback to return the current buffer. This is needed so that at a time
-  // when there's no current buffer (i.e. EditorState is being created) we can
-  // still compile code that will depend (at run time) on getting the current
-  // buffer. Otherwise we could just use the "buffer" variable (that is declared
-  // in the environment of each buffer).
-  environment->Define(
-      L"CurrentBuffer",
-      Value::NewFunction({VMType::ObjectType(L"Buffer")},
-                         [this](vector<unique_ptr<Value>> args) {
-                           CHECK_EQ(args.size(), size_t(0));
-                           auto buffer = current_buffer();
-                           CHECK(buffer != nullptr);
-                           if (structure() == StructureLine()) {
-                             auto target_buffer =
-                                 buffer->GetBufferFromCurrentLine();
-                             ResetStructure();
-                             if (target_buffer != nullptr) {
-                               buffer = target_buffer;
-                             }
-                           }
-                           return Value::NewObject(L"Buffer", buffer);
-                         }));
-
   environment->Define(L"ProcessInput",
                       vm::NewCallback([this](int c) { ProcessInput(c); }));
 
@@ -308,6 +281,10 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
   environment->Define(L"SetStatus", vm::NewCallback([this](wstring s) {
                         status_.SetInformationText(s);
+                      }));
+
+  environment->Define(L"PromptAndOpenFile", vm::NewCallback([this]() {
+                        NewOpenFileCommand()->ProcessInput(0, this);
                       }));
 
   environment->Define(L"set_screen_needs_hard_redraw",
@@ -564,7 +541,7 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
 }
 
 void EditorState::SetActiveBuffer(size_t position) {
-  buffer_tree_.GetActiveLeaf()->SetBuffer(
+  set_current_buffer(
       buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()));
 }
 
@@ -597,8 +574,7 @@ void EditorState::AdvanceActiveBuffer(int delta) {
   } else {
     delta %= total;
   }
-  buffer_tree_.GetActiveLeaf()->SetBuffer(
-      buffer_tree_.GetBuffer(delta % total));
+  set_current_buffer(buffer_tree_.GetBuffer(delta % total));
 }
 
 void EditorState::ZoomToLeaf() {
@@ -740,7 +716,7 @@ void EditorState::ProcessInput(int c) {
   } else {
     auto buffer = OpenAnonymousBuffer(this);
     if (!has_current_buffer()) {
-      buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
+      set_current_buffer(buffer);
     }
     handler = buffer->mode();
     CHECK(has_current_buffer());
@@ -871,7 +847,8 @@ static BufferPosition PositionFromLine(const wstring& line) {
 std::shared_ptr<OpenBuffer> EditorState::GetConsole() {
   auto it = buffers_.insert(make_pair(L"- console", nullptr));
   if (it.second) {  // Inserted the entry.
-    it.first->second = std::make_shared<OpenBuffer>(this, it.first->first);
+    it.first->second =
+        OpenBuffer::New({.editor = this, .name = it.first->first});
     it.first->second->Set(buffer_variables::allow_dirty_delete, true);
     it.first->second->Set(buffer_variables::show_in_buffers_list, false);
   }

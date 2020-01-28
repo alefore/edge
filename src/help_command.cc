@@ -96,7 +96,7 @@ class HelpCommand : public Command {
     auto original_buffer = editor_state->current_buffer();
     const wstring name = L"- help: " + mode_description_;
 
-    auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
+    auto buffer = OpenBuffer::New({.editor = editor_state, .name = name});
     buffer->Set(buffer_variables::tree_parser, L"md");
     buffer->Set(buffer_variables::wrap_from_content, true);
     buffer->Set(buffer_variables::allow_dirty_delete, true);

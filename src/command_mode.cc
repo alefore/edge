@@ -160,23 +160,39 @@ class Paste : public Command {
 
 class UndoCommand : public Command {
  public:
+  UndoCommand(std::optional<Direction> direction) : direction_(direction) {}
+
   wstring Description() const override {
-    return L"undoes the last change to the current buffer";
+    if (direction_.value_or(FORWARDS) == BACKWARDS) {
+      return L"re-does the last change to the current buffer";
+    }
+    return L"un-does the last change to the current buffer";
   }
+
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    editor_state->ResetRepetitions();
-    editor_state->ResetDirection();
     auto buffers = editor_state->active_buffers();
-    futures::ForEachWithCopy(
-        buffers.begin(), buffers.end(),
-        [](const std::shared_ptr<OpenBuffer>& buffer) {
-          return futures::Transform(
-              buffer->Undo(OpenBuffer::UndoMode::kLoop),
-              futures::Past(futures::IterationControlCommand::kContinue));
+    if (direction_.has_value()) {
+      editor_state->set_direction(direction_.value());
+    }
+    futures::ImmediateTransform(
+        futures::ForEachWithCopy(
+            buffers.begin(), buffers.end(),
+            [](const std::shared_ptr<OpenBuffer>& buffer) {
+              return futures::Transform(
+                  buffer->Undo(OpenBuffer::UndoMode::kLoop),
+                  futures::Past(futures::IterationControlCommand::kContinue));
+            }),
+        [editor_state](futures::IterationControlCommand) {
+          editor_state->ResetRepetitions();
+          editor_state->ResetDirection();
+          return true;
         });
   }
+
+ private:
+  const std::optional<Direction> direction_;
 };
 
 class GotoPreviousPositionCommand : public Command {
@@ -869,7 +885,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   DeleteOptions copy_options;
   copy_options.modifiers.delete_behavior =
       Modifiers::DeleteBehavior::kDoNothing;
-  commands->Add(L"u", std::make_unique<UndoCommand>());
+  commands->Add(L"u", std::make_unique<UndoCommand>(std::nullopt));
+  commands->Add(L"U", std::make_unique<UndoCommand>(BACKWARDS));
   commands->Add(L"\n", std::make_unique<ActivateLink>());
 
   commands->Add(L"b", std::make_unique<GotoPreviousPositionCommand>());

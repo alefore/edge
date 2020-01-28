@@ -50,7 +50,9 @@ using namespace afc::vm;
 class ParseTree;
 class TreeParser;
 
-class OpenBuffer {
+class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
+  struct ConstructorAccessTag {};
+
  public:
   // Name of a special buffer that shows the list of buffers.
   static const wstring kBuffersName;
@@ -60,9 +62,9 @@ class OpenBuffer {
                                  Environment* environment);
 
   struct Options {
-    EditorState* editor;
-    wstring name;
-    wstring path;
+    EditorState* editor = nullptr;
+    wstring name = L"";
+    wstring path = L"";
 
     // Optional function that will be run to generate the contents of the
     // buffer.
@@ -75,24 +77,29 @@ class OpenBuffer {
     // When the future is notified, the contents are typically not yet ready:
     // they still need to be read. However, we'll know that `fd_` will have been
     // set at that point. That allows us to more correctly detect EOF.
-    std::function<futures::Value<bool>(OpenBuffer*)> generate_contents;
+    //
+    // The caller (OpenBuffer) guarantees that the buffer won't be deleted until
+    // the return future has received a value.
+    std::function<futures::Value<bool>(OpenBuffer*)> generate_contents =
+        nullptr;
 
     // Optional function to generate additional information for the status of
     // this buffer (see OpenBuffer::FlagsString). The generated string must
     // begin with a space.
-    std::function<map<wstring, wstring>(const OpenBuffer&)> describe_status;
+    std::function<map<wstring, wstring>(const OpenBuffer&)> describe_status =
+        nullptr;
 
     // Optional function that listens on visits to the buffer (i.e., the user
     // entering the buffer from other buffers).
-    std::function<void(OpenBuffer*)> handle_visit;
+    std::function<void(OpenBuffer*)> handle_visit = nullptr;
 
     // Optional function that saves the buffer. If not provided, attempts to
     // save the buffer will fail.
-    std::function<void(OpenBuffer*)> handle_save;
+    std::function<void(OpenBuffer*)> handle_save = nullptr;
   };
 
-  OpenBuffer(EditorState* editor_state, const wstring& name);
-  OpenBuffer(Options options);
+  static std::shared_ptr<OpenBuffer> New(Options options);
+  OpenBuffer(ConstructorAccessTag, Options options);
   ~OpenBuffer();
 
   EditorState* editor() const;
@@ -307,7 +314,6 @@ class OpenBuffer {
       const wstring& path);
 
   WorkQueue* work_queue() const;
-  void ExecutePendingWork();
   WorkQueue::State GetPendingWorkState() const;
 
   // Asynchronous threads that need to interact with the buffer shouldn't be
@@ -407,6 +413,10 @@ class OpenBuffer {
   std::unique_ptr<BufferTerminal> NewTerminal();  // Public for testing.
 
  private:
+  // Code that would normally be in the constructor, but which may require the
+  // use of `shared_from_this`. This function will be called by `New` after the
+  // instance has been successfully installed into a shared_ptr.
+  void Initialize();
   void MaybeStartUpdatingSyntaxTrees();
 
   static void EvaluateMap(OpenBuffer* buffer, LineNumber line,
@@ -465,6 +475,8 @@ class OpenBuffer {
   // Optional function to execute when a sub-process exits.
   std::function<void()> on_exit_handler_;
 
+  mutable WorkQueue work_queue_;
+
   BufferContents contents_;
 
   bool modified_ = false;
@@ -483,8 +495,6 @@ class OpenBuffer {
 
   list<unique_ptr<Value>> keyboard_text_transformers_;
   const std::shared_ptr<Environment> environment_;
-
-  mutable WorkQueue work_queue_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be
