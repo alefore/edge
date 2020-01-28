@@ -77,6 +77,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     // When the future is notified, the contents are typically not yet ready:
     // they still need to be read. However, we'll know that `fd_` will have been
     // set at that point. That allows us to more correctly detect EOF.
+    //
+    // The caller (OpenBuffer) guarantees that the buffer won't be deleted until
+    // the return future has received a value.
     std::function<futures::Value<bool>(OpenBuffer*)> generate_contents =
         nullptr;
 

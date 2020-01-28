@@ -878,7 +878,7 @@ void OpenBuffer::Reload() {
 
     (options_.generate_contents != nullptr ? options_.generate_contents(this)
                                            : futures::Past(true))
-        .SetConsumer([this](bool) {
+        .SetConsumer([shared_this = shared_from_this(), this](bool) {
           switch (reload_state_) {
             case ReloadState::kDone:
               LOG(FATAL) << "Invalid reload state! Can't be kDone.";

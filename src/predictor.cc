@@ -39,7 +39,7 @@ const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
     L"predictor_longest_directory_match";
 const wchar_t* kExactMatchEnvironmentVariable = L"predictor_exact_match";
 
-PredictResults HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer) {
+PredictResults HandleEndOfFile(OpenBuffer* predictions_buffer) {
   CHECK(predictions_buffer != nullptr);
 
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
@@ -114,7 +114,7 @@ PredictResults HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer) {
   }
 
   predict_results.matches = predictions_buffer->lines_size().line_delta - 1;
-  predict_results.predictions_buffer = std::move(predictions_buffer);
+  predict_results.predictions_buffer = predictions_buffer->shared_from_this();
   return predict_results;
 }
 
@@ -150,45 +150,37 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
 }
 
 futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
-  std::shared_ptr<OpenBuffer>& predictions_buffer =
-      (*options.editor_state->buffers())[PredictionsBufferName()];
   futures::Future<std::optional<PredictResults>> output;
   OpenBuffer::Options buffer_options;
   buffer_options.editor = options.editor_state;
   buffer_options.name = PredictionsBufferName();
-  auto weak_predictions_buffer = std::make_shared<std::weak_ptr<OpenBuffer>>();
 
   auto input = GetPredictInput(options);
-  buffer_options.generate_contents = [options, input, weak_predictions_buffer,
-                                      consumer = std::move(output.consumer)](
-                                         OpenBuffer* buffer) {
-    buffer->environment()->Define(kLongestPrefixEnvironmentVariable,
-                                  vm::Value::NewInteger(0));
-    buffer->environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
-                                  vm::Value::NewInteger(0));
-    buffer->environment()->Define(kExactMatchEnvironmentVariable,
-                                  vm::Value::NewBool(false));
+  buffer_options.generate_contents =
+      [options, input,
+       consumer = std::move(output.consumer)](OpenBuffer* buffer) {
+        buffer->environment()->Define(kLongestPrefixEnvironmentVariable,
+                                      vm::Value::NewInteger(0));
+        buffer->environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
+                                      vm::Value::NewInteger(0));
+        buffer->environment()->Define(kExactMatchEnvironmentVariable,
+                                      vm::Value::NewBool(false));
 
-    auto shared_predictions_buffer = weak_predictions_buffer->lock();
-    if (shared_predictions_buffer == nullptr) return futures::Past(true);
-    CHECK_EQ(shared_predictions_buffer.get(), buffer);
-
-    return futures::ImmediateTransform(
-        options.predictor({.editor = options.editor_state,
-                           .input = std::move(input),
-                           .predictions = buffer,
-                           .source_buffer = options.source_buffer}),
-        [options, input, shared_predictions_buffer, consumer](PredictorOutput) {
-          shared_predictions_buffer->set_current_cursor(LineColumn());
-          auto results = HandleEndOfFile(shared_predictions_buffer);
-          consumer(GetPredictInput(options) == input
-                       ? std::optional<PredictResults>(results)
-                       : std::nullopt);
-          return true;
-        });
-  };
-  predictions_buffer = OpenBuffer::New(std::move(buffer_options));
-  *weak_predictions_buffer = predictions_buffer;
+        return futures::ImmediateTransform(
+            options.predictor({.editor = options.editor_state,
+                               .input = std::move(input),
+                               .predictions = buffer,
+                               .source_buffer = options.source_buffer}),
+            [options, input, buffer, consumer](PredictorOutput) {
+              buffer->set_current_cursor(LineColumn());
+              auto results = HandleEndOfFile(buffer);
+              consumer(GetPredictInput(options) == input
+                           ? std::optional<PredictResults>(results)
+                           : std::nullopt);
+              return true;
+            });
+      };
+  auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
   predictions_buffer->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer->Set(buffer_variables::paste_mode, true);
