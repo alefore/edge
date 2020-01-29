@@ -292,16 +292,16 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     LineDown::Move(c, editor_state, structure);
     return;
   }
-  auto buffer = editor_state->current_buffer();
-  if (buffer == nullptr) {
-    return;
-  }
   // TODO: Move to Structure.
   if (structure == StructureChar()) {
     editor_state->set_structure(StructureLine());
     MoveBackwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
+      return;
+    }
     auto view_size = buffer->viewers()->view_size();
     auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
     editor_state->set_repetitions(
