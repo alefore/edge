@@ -21,6 +21,7 @@ extern "C" {
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/file_system_driver.h"
 #include "src/lazy_string.h"
 #include "src/vm/public/vm.h"
 #include "src/wstring.h"
@@ -165,19 +166,22 @@ void Daemonize(const std::unordered_set<int>& surviving_fds) {
   }
 }
 
-futures::Value<bool> GenerateContents(OpenBuffer* target) {
-  // TODO(easy): Do the open asynchronously.
+futures::Value<bool> GenerateContents(
+    std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer* target) {
   wstring address = target->Read(buffer_variables::path);
   LOG(INFO) << L"Server starts: " << address;
-  int fd = open(ToByteString(address).c_str(), O_RDONLY | O_NDELAY);
-  if (fd == -1) {
-    LOG(FATAL) << address << ": Server: GenerateContents: Open failed: "
-               << strerror(errno);
-  }
+  return futures::ImmediateTransform(
+      file_system_driver->Open(address, O_RDONLY | O_NDELAY),
+      [target, address](int fd) {
+        if (fd == -1) {
+          LOG(FATAL) << address << ": Server: GenerateContents: Open failed: "
+                     << strerror(errno);
+        }
 
-  LOG(INFO) << "Server received connection: " << fd;
-  target->SetInputFiles(fd, -1, false, -1);
-  return futures::Past(true);
+        LOG(INFO) << "Server received connection: " << fd;
+        target->SetInputFiles(fd, -1, false, -1);
+        return true;
+      });
 }
 
 bool StartServer(EditorState* editor_state, wstring address,
@@ -207,7 +211,11 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
   options.editor = editor_state;
   options.name = editor_state->GetUnusedBufferName(L"- server");
   options.path = address;
-  options.generate_contents = GenerateContents;
+  options.generate_contents =
+      [file_system_driver = std::make_shared<FileSystemDriver>(
+           editor_state->work_queue())](OpenBuffer* target) {
+        return GenerateContents(file_system_driver, target);
+      };
 
   auto buffer = OpenBuffer::New(std::move(options));
   buffer->Set(buffer_variables::clear_on_reload, false);

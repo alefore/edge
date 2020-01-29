@@ -5,14 +5,14 @@
 #include <string>
 
 #include "command.h"
+#include "src/futures/futures.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
-void RunCppFileHandler(const std::wstring& input, EditorState* editor_state);
+futures::Value<bool> RunCppFileHandler(const std::wstring& input,
+                                       EditorState* editor_state);
 std::unique_ptr<Command> NewRunCppFileCommand();
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_RUN_CPP_FILE_H__

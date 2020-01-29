@@ -37,10 +37,12 @@ class RunCppFileCommand : public Command {
 };
 }  // namespace
 
-void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
+futures::Value<bool> RunCppFileHandler(const wstring& input,
+                                       EditorState* editor_state) {
+  // TODO(easy): Honor `multiple_buffers`.
   auto buffer = editor_state->current_buffer();
   if (buffer == nullptr) {
-    return;
+    return futures::Past(true);
   }
   if (editor_state->structure() == StructureLine()) {
     auto target = buffer->GetBufferFromCurrentLine();
@@ -56,24 +58,29 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   auto resolved_path = ResolvePath(std::move(options));
   if (!resolved_path.has_value()) {
     buffer->status()->SetWarningText(L"🗱  File not found: " + input);
-    return;
+    return futures::Past(true);
   }
 
   using futures::IterationControlCommand;
   auto index = std::make_shared<size_t>(0);
-  futures::While([buffer, total = editor_state->repetitions(),
-                  adjusted_input = resolved_path->path, index]() {
-    if (*index >= total) return futures::Past(IterationControlCommand::kStop);
-    auto evaluation = buffer->EvaluateFile(adjusted_input);
-    if (!evaluation.has_value())
-      return futures::Past(IterationControlCommand::kStop);
-    ++*index;
-    return futures::Transform(
-        evaluation.value(), [](const std::unique_ptr<Value>&) {
-          return futures::Past(IterationControlCommand::kContinue);
-        });
-  });
-  editor_state->ResetRepetitions();
+  return futures::ImmediateTransform(
+      futures::While([buffer, total = editor_state->repetitions(),
+                      adjusted_input = resolved_path->path, index]() {
+        if (*index >= total)
+          return futures::Past(IterationControlCommand::kStop);
+        auto evaluation = buffer->EvaluateFile(adjusted_input);
+        if (!evaluation.has_value())
+          return futures::Past(IterationControlCommand::kStop);
+        ++*index;
+        return futures::Transform(
+            evaluation.value(), [](const std::unique_ptr<Value>&) {
+              return futures::Past(IterationControlCommand::kContinue);
+            });
+      }),
+      [editor_state](IterationControlCommand) {
+        editor_state->ResetRepetitions();
+        return true;
+      });
 }
 
 std::unique_ptr<Command> NewRunCppFileCommand() {
