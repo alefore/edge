@@ -509,8 +509,6 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   OpenBuffer::Options buffer_options;
   buffer_options.editor = editor_state;
 
-  auto background_stat = std::make_shared<AsyncEvaluator>(
-      L"Stat", options.editor_state->work_queue());
   auto file_system_driver =
       std::make_shared<FileSystemDriver>(options.editor_state->work_queue());
   auto background_directory_reader = std::make_shared<AsyncEvaluator>(
