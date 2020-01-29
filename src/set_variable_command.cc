@@ -33,15 +33,17 @@ wstring TrimWhitespace(const wstring& in) {
   return in.substr(begin, end - begin + 1);
 }
 
-void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
+futures::Value<bool> SetVariableHandler(const wstring& input_name,
+                                        EditorState* editor_state) {
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) {
-    return;
+    return futures::Past(true);
   }
 
+  // TODO: Honor `multiple_buffers`.
   auto buffer = editor_state->current_buffer();
   if (buffer == nullptr) {
-    return;
+    return futures::Past(true);
   }
   if (editor_state->modifiers().structure == StructureLine()) {
     auto target_buffer = buffer->GetBufferFromCurrentLine();
@@ -63,17 +65,18 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       options.initial_value = buffer->Read(var);
       options.handler = [var, buffer](const wstring& input, EditorState*) {
         if (buffer == nullptr) {
-          return;
+          return futures::Past(true);
         }
         buffer->Set(var, input);
         // ResetMode causes the prompt to be deleted, and the captures of
         // this lambda go away with it.
         buffer->ResetMode();
+        return futures::Past(true);
       };
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       options.predictor = var->predictor();
       Prompt(std::move(options));
-      return;
+      return futures::Past(true);
     }
   }
   {
@@ -82,7 +85,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       editor_state->toggle_bool_variable(var);
       editor_state->status()->SetInformationText(
           (editor_state->Read(var) ? L"🗸 " : L"⛶ ") + name);
-      return;
+      return futures::Past(true);
     }
   }
   {
@@ -91,7 +94,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       buffer->toggle_bool_variable(var);
       buffer->status()->SetInformationText(
           (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
-      return;
+      return futures::Past(true);
     }
   }
   {
@@ -109,10 +112,11 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
         // ResetMode causes the prompt to be deleted, and the captures of
         // this lambda go away with it.
         buffer->ResetMode();
+        return futures::Past(true);
       };
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       Prompt(std::move(options));
-      return;
+      return futures::Past(true);
     }
   }
   {
@@ -132,13 +136,15 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
         // ResetMode causes the prompt to be deleted, and the captures of
         // this lambda go away with it.
         buffer->ResetMode();
+        return futures::Past(true);
       };
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       Prompt(std::move(options));
-      return;
+      return futures::Past(true);
     }
   }
   buffer->status()->SetWarningText(L"Unknown variable: " + name);
+  return futures::Past(true);
 }
 
 Predictor VariablesPredictor() {

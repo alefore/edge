@@ -15,14 +15,16 @@
 namespace afc::editor {
 namespace {
 
-void RunCppCommandLiteralHandler(const wstring& name,
-                                 EditorState* editor_state) {
+futures::Value<bool> RunCppCommandLiteralHandler(const wstring& name,
+                                                 EditorState* editor_state) {
+  // TODO(easy): Honor `multiple_buffers`.
   auto buffer = editor_state->current_buffer();
   if (buffer == nullptr) {
-    return;
+    return futures::Past(true);
   }
   buffer->ResetMode();
   buffer->EvaluateString(name);
+  return futures::Past(true);
 }
 
 struct Token {
@@ -154,7 +156,8 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
   return output;
 }
 
-void Execute(std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
+futures::Value<bool> Execute(std::shared_ptr<OpenBuffer> buffer,
+                             ParsedCommand parsed_command) {
   std::shared_ptr<Expression> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(
           std::make_unique<vm::Value>(*parsed_command.function)),
@@ -162,17 +165,18 @@ void Execute(std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
   if (expression->Types().empty()) {
     // TODO: Show the error.
     buffer->status()->SetWarningText(L"Unable to compile (type mismatch).");
-    return;
+    return futures::Past(true);
   }
-  buffer->EvaluateExpression(expression.get())
-      .SetConsumer([buffer](std::unique_ptr<Value>) { /* Nothing. */ });
+  return futures::ImmediateTransform(
+      buffer->EvaluateExpression(expression.get()),
+      [buffer](std::unique_ptr<Value>) { return true; });
 }
 
-void RunCppCommandShellHandler(const std::wstring& command,
-                               EditorState* editor_state) {
+futures::Value<bool> RunCppCommandShellHandler(const std::wstring& command,
+                                               EditorState* editor_state) {
   auto buffer = editor_state->current_buffer();
   if (buffer == nullptr) {
-    return;
+    return futures::Past(true);
   }
   buffer->ResetMode();
 
@@ -182,10 +186,10 @@ void RunCppCommandShellHandler(const std::wstring& command,
     if (!parsed_command.error.value().empty()) {
       buffer->status()->SetWarningText(parsed_command.error.value());
     }
-    return;
+    return futures::Past(true);
   }
 
-  Execute(buffer, std::move(parsed_command));
+  return Execute(buffer, std::move(parsed_command));
 }
 
 futures::Value<bool> RunCppCommandShellChangeHandler(

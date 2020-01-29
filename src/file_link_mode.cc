@@ -65,6 +65,7 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
     if (buffer != nullptr) {
       buffer->ResetMode();
     }
+    return futures::Past(true);
   };
   options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
   Prompt(std::move(options));

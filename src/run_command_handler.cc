@@ -312,8 +312,9 @@ void RunCommand(const wstring& name, const wstring& input,
   ForkCommand(editor_state, options);
 }
 
-void RunCommandHandler(const wstring& input, EditorState* editor_state,
-                       size_t i, size_t n, wstring children_path) {
+futures::Value<bool> RunCommandHandler(const wstring& input,
+                                       EditorState* editor_state, size_t i,
+                                       size_t n, wstring children_path) {
   map<wstring, wstring> environment = {{L"EDGE_RUN", std::to_wstring(i)},
                                        {L"EDGE_RUNS", std::to_wstring(n)}};
   wstring name = children_path + L"$";
@@ -329,6 +330,7 @@ void RunCommandHandler(const wstring& input, EditorState* editor_state,
   }
   name += L" " + input;
   RunCommand(name, input, environment, editor_state, std::move(children_path));
+  return futures::Past(true);
 }
 
 wstring GetChildrenPath(EditorState* editor_state) {
@@ -375,7 +377,7 @@ class ForkEditorCommand : public Command {
       }
       options.handler = [children_path](const wstring& name,
                                         EditorState* editor_state) {
-        RunCommandHandler(name, editor_state, 0, 1, children_path);
+        return RunCommandHandler(name, editor_state, 0, 1, children_path);
       };
       Prompt(options);
     } else if (editor_state->structure() == StructureLine()) {
@@ -566,24 +568,28 @@ std::unique_ptr<Command> NewForkCommand() {
   return std::make_unique<ForkEditorCommand>();
 }
 
-void RunCommandHandler(const wstring& input, EditorState* editor_state,
-                       map<wstring, wstring> environment) {
+futures::Value<bool> RunCommandHandler(const wstring& input,
+                                       EditorState* editor_state,
+                                       map<wstring, wstring> environment) {
   RunCommand(L"$ " + input, input, environment, editor_state,
              GetChildrenPath(editor_state));
+  return futures::Past(true);
 }
 
-void RunMultipleCommandsHandler(const wstring& input,
-                                EditorState* editor_state) {
+futures::Value<bool> RunMultipleCommandsHandler(const wstring& input,
+                                                EditorState* editor_state) {
+  // TODO(easy): Honor multiple_buffers.
   auto buffer = editor_state->current_buffer();
   if (input.empty() || buffer == nullptr) {
     editor_state->status()->Reset();
-    return;
+    return futures::Past(true);
   }
   buffer->contents()->ForEach([editor_state, input](wstring arg) {
     map<wstring, wstring> environment = {{L"ARG", arg}};
     RunCommand(L"$ " + input + L" " + arg, input, environment, editor_state,
                GetChildrenPath(editor_state));
   });
+  return futures::Past(true);
 }
 
 }  // namespace editor

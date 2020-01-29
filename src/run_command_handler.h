@@ -6,6 +6,7 @@
 #include <string>
 
 #include "src/command.h"
+#include "src/futures/futures.h"
 #include "src/widget_list.h"
 
 namespace afc {
@@ -43,10 +44,11 @@ class OpenBuffer;
 std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
                                         const ForkCommandOptions& options);
 
-void RunCommandHandler(const wstring& input, EditorState* editor_state,
-                       std::map<wstring, wstring> environment);
-void RunMultipleCommandsHandler(const wstring& input,
-                                EditorState* editor_state);
+futures::Value<bool> RunCommandHandler(const wstring& input,
+                                       EditorState* editor_state,
+                                       std::map<wstring, wstring> environment);
+futures::Value<bool> RunMultipleCommandsHandler(const wstring& input,
+                                                EditorState* editor_state);
 }  // namespace editor
 namespace vm {
 template <>

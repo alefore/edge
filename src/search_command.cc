@@ -148,6 +148,7 @@ class SearchCommand : public Command {
       SearchOptions options = search_options;
       options.search_query = input;
       DoSearch(editor_state, options);
+      return futures::Past(true);
     };
     auto async_search_processor =
         std::make_shared<AsyncSearchProcessor>(editor_state->work_queue());
