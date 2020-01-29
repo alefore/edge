@@ -11,7 +11,6 @@
 #include <thread>
 
 #include "glog/logging.h"
-#include "src/function_traits.h"
 #include "src/futures/futures.h"
 #include "src/work_queue.h"
 
@@ -183,8 +182,7 @@ class AsyncEvaluator {
   template <typename Callable>
 
   auto Run(Callable callable) {
-    using ft = function_traits<Callable>;
-    futures::Future<typename ft::ReturnType> output;
+    futures::Future<decltype(callable())> output;
     background_callback_runner_.Push(
         [this, callable = std::move(callable),
          consumer = std::move(output.consumer)]() mutable {

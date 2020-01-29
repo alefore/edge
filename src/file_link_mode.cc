@@ -176,7 +176,6 @@ futures::Value<bool> GenerateContents(
   LOG(INFO) << "GenerateContents: " << path;
   return futures::Transform(
       file_system_driver->Stat(path),
-
       [editor_state, stat_buffer, file_system_driver,
        background_directory_reader, target,
        path](std::optional<struct stat> stat_results) {
@@ -204,11 +203,10 @@ futures::Value<bool> GenerateContents(
         target->Set(buffer_variables::tree_parser, L"md");
         return futures::ImmediateTransform(
             background_directory_reader->Run(
-                std::function<BackgroundReadDirOutput()>(
-                    [path, noise_regexp = target->Read(
-                               buffer_variables::directory_noise)]() {
-                      return ReadDir(path, std::wregex(noise_regexp));
-                    })),
+                [path, noise_regexp =
+                           target->Read(buffer_variables::directory_noise)]() {
+                  return ReadDir(path, std::wregex(noise_regexp));
+                }),
             [editor_state, target, path](BackgroundReadDirOutput results) {
               if (results.error_description.has_value()) {
                 target->status()->SetInformationText(
