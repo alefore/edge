@@ -425,9 +425,6 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
     MoveForwards::Move(c, editor_state);
     return;
   }
-  if (!editor_state->has_current_buffer()) {
-    return;
-  }
   editor_state->set_direction(ReverseDirection(editor_state->direction()));
   MoveForwards::Move(c, editor_state);
   return;
