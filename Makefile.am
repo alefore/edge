@@ -63,6 +63,8 @@ src/editor_variables.h \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
 src/file_link_mode.cc \
+src/file_system_driver.cc \
+src/file_system_driver.h \
 src/file_descriptor_reader.cc \
 src/file_descriptor_reader.h \
 src/find_mode.cc \

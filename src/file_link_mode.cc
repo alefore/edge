@@ -25,6 +25,7 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/dirname.h"
 #include "src/editor.h"
+#include "src/file_system_driver.h"
 #include "src/lazy_string_append.h"
 #include "src/line_prompt_mode.h"
 #include "src/run_command_handler.h"
@@ -167,24 +168,16 @@ BackgroundReadDirOutput ReadDir(std::wstring path, std::wregex noise_regex) {
 
 futures::Value<bool> GenerateContents(
     EditorState* editor_state, std::shared_ptr<struct stat> stat_buffer,
-    std::shared_ptr<AsyncEvaluator> background_stat,
-    std::shared_ptr<AsyncEvaluator> background_file_opener,
+    std::shared_ptr<FileSystemDriver> file_system_driver,
     std::shared_ptr<AsyncEvaluator> background_directory_reader,
     OpenBuffer* target) {
   CHECK(!target->modified());
   const wstring path = target->Read(buffer_variables::path);
   LOG(INFO) << "GenerateContents: " << path;
   return futures::Transform(
-      background_stat->Run(std::function<std::optional<struct stat>()>(
-          [path]() -> std::optional<struct stat> {
-            struct stat output;
-            if (path.empty() ||
-                stat(ToByteString(path).c_str(), &output) == -1) {
-              return {};
-            }
-            return output;
-          })),
-      [editor_state, stat_buffer, background_file_opener,
+      file_system_driver->Stat(path),
+
+      [editor_state, stat_buffer, file_system_driver,
        background_directory_reader, target,
        path](std::optional<struct stat> stat_results) {
         if ((path.empty() || stat_results.has_value()) &&
@@ -198,12 +191,8 @@ futures::Value<bool> GenerateContents(
         *stat_buffer = stat_results.value();
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
-          // target capture here should really be std::shared_ptr, to ensure
-          // that the ubffer won't be deallocated.
           return futures::ImmediateTransform(
-              background_file_opener->Run(std::function<int()>([path]() {
-                return open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
-              })),
+              file_system_driver->Open(path, O_RDONLY | O_NONBLOCK),
               [target](int fd) {
                 target->SetInputFiles(fd, -1, false, -1);
                 return true;
@@ -524,15 +513,14 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
 
   auto background_stat = std::make_shared<AsyncEvaluator>(
       L"Stat", options.editor_state->work_queue());
-  auto background_file_opener = std::make_shared<AsyncEvaluator>(
-      L"Open", options.editor_state->work_queue());
+  auto file_system_driver =
+      std::make_shared<FileSystemDriver>(options.editor_state->work_queue());
   auto background_directory_reader = std::make_shared<AsyncEvaluator>(
       L"ReadDir", options.editor_state->work_queue());
   buffer_options.generate_contents =
-      [editor_state, stat_buffer, background_stat, background_file_opener,
+      [editor_state, stat_buffer, file_system_driver,
        background_directory_reader](OpenBuffer* target) {
-        return GenerateContents(editor_state, stat_buffer, background_stat,
-                                background_file_opener,
+        return GenerateContents(editor_state, stat_buffer, file_system_driver,
                                 background_directory_reader, target);
       };
   buffer_options.handle_visit = [editor_state,
