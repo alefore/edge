@@ -10,12 +10,11 @@
 
 namespace afc::editor {
 namespace {
-static void DoSearch(EditorState* editor_state, const SearchOptions& options) {
-  auto buffer = editor_state->current_buffer();
-  buffer->set_active_cursors(SearchHandler(editor_state, options));
+using futures::IterationControlCommand;
+
+static void DoSearch(OpenBuffer* buffer, SearchOptions options) {
+  buffer->set_active_cursors(SearchHandler(buffer->editor(), options));
   buffer->ResetMode();
-  editor_state->ResetDirection();
-  editor_state->ResetStructure();
 }
 
 futures::Value<bool> DrawSearchResults(
@@ -60,82 +59,58 @@ class SearchCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
-    SearchOptions search_options;
-    search_options.buffer = buffer.get();
-
-    search_options.case_sensitive =
-        buffer->Read(buffer_variables::search_case_sensitive);
-
-    if (editor_state->structure()->search_range() ==
-        Structure::SearchRange::kBuffer) {
-      search_options.starting_position = buffer->position();
-    } else {
-      Range range = buffer->FindPartialRange(editor_state->modifiers(),
-                                             buffer->position());
-      if (range.begin == range.end) {
-        buffer->status()->SetInformationText(L"Unable to extract region.");
-        return;
-      }
-      CHECK_LE(range.begin, range.end);
-      if (editor_state->modifiers().direction == BACKWARDS) {
-        search_options.starting_position = range.end;
-        search_options.limit_position = range.begin;
-      } else {
-        search_options.starting_position = range.begin;
-        search_options.limit_position = range.end;
-      }
-      editor_state->ResetStructure();
-      LOG(INFO) << "Searching region: " << search_options.starting_position
-                << " to " << search_options.limit_position.value();
-    }
-
     if (editor_state->structure()->search_query() ==
         Structure::SearchQuery::kRegion) {
-      Range range = buffer->FindPartialRange(editor_state->modifiers(),
-                                             buffer->position());
-      if (range.begin == range.end) {
-        editor_state->ResetStructure();
-        return;
-      }
-      VLOG(5) << "FindPartialRange: [position:" << buffer->position()
-              << "][range:" << range
-              << "][modifiers:" << editor_state->modifiers() << "]";
-      editor_state->ResetStructure();
-      CHECK_LT(range.begin, range.end);
-      if (range.end.line > range.begin.line) {
-        // This can happen when repetitions are used (to find multiple
-        // words). We just cap it at the start/end of the line.
-        if (editor_state->direction() == BACKWARDS) {
-          range.begin = LineColumn(range.end.line);
-        } else {
-          range.end = LineColumn(range.begin.line,
-                                 buffer->LineAt(range.begin.line)->EndColumn());
-        }
-      }
-      CHECK_EQ(range.begin.line, range.end.line);
-      if (range.begin == range.end) {
-        editor_state->ResetStructure();
-        return;
-      }
-      CHECK_LT(range.begin.column, range.end.column);
-      buffer->set_position(range.begin);
-      search_options.search_query =
-          buffer->LineAt(range.begin.line)
-              ->Substring(range.begin.column,
-                          range.end.column - range.begin.column)
-              ->ToString();
-      search_options.starting_position = buffer->position();
-      search_options.case_sensitive =
-          buffer->Read(buffer_variables::search_case_sensitive);
-      DoSearch(editor_state, search_options);
+      auto buffers = editor_state->active_buffers();
+      futures::ImmediateTransform(
+          futures::ForEachWithCopy(
+              buffers.begin(), buffers.end(),
+              [editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
+                SearchOptions search_options;
+                search_options.buffer = buffer.get();
 
-      buffer->ResetMode();
-      editor_state->ResetDirection();
-      editor_state->ResetStructure();
+                Range range = buffer->FindPartialRange(
+                    editor_state->modifiers(), buffer->position());
+                if (range.begin == range.end) {
+                  return futures::Past(IterationControlCommand::kContinue);
+                }
+                VLOG(5) << "FindPartialRange: [position:" << buffer->position()
+                        << "][range:" << range
+                        << "][modifiers:" << editor_state->modifiers() << "]";
+                CHECK_LT(range.begin, range.end);
+                if (range.end.line > range.begin.line) {
+                  // This can happen when repetitions are used (to find multiple
+                  // words). We just cap it at the start/end of the line.
+                  if (editor_state->direction() == BACKWARDS) {
+                    range.begin = LineColumn(range.end.line);
+                  } else {
+                    range.end = LineColumn(
+                        range.begin.line,
+                        buffer->LineAt(range.begin.line)->EndColumn());
+                  }
+                }
+                CHECK_EQ(range.begin.line, range.end.line);
+                if (range.begin == range.end) {
+                  return futures::Past(IterationControlCommand::kContinue);
+                }
+                CHECK_LT(range.begin.column, range.end.column);
+                buffer->set_position(range.begin);
+                search_options.search_query =
+                    buffer->LineAt(range.begin.line)
+                        ->Substring(range.begin.column,
+                                    range.end.column - range.begin.column)
+                        ->ToString();
+                search_options.starting_position = buffer->position();
+                search_options.case_sensitive =
+                    buffer->Read(buffer_variables::search_case_sensitive);
+                DoSearch(buffer.get(), search_options);
+                return futures::Past(IterationControlCommand::kContinue);
+              }),
+          [editor_state](IterationControlCommand) {
+            editor_state->ResetStructure();
+            editor_state->ResetDirection();
+            return true;
+          });
       return;
     }
 
@@ -143,43 +118,104 @@ class SearchCommand : public Command {
     options.editor_state = editor_state;
     options.prompt = L"🔎 ";
     options.history_file = L"search";
-    options.handler = [search_options](const wstring& input,
-                                       EditorState* editor_state) {
-      SearchOptions options = search_options;
-      options.search_query = input;
-      DoSearch(editor_state, options);
-      return futures::Past(true);
+    options.handler = [](const wstring& input, EditorState* editor_state) {
+      auto buffers = editor_state->active_buffers();
+      return futures::ImmediateTransform(
+          futures::ForEachWithCopy(
+              buffers.begin(), buffers.end(),
+              [editor_state, input](const std::shared_ptr<OpenBuffer>& buffer) {
+                auto search_options =
+                    BuildPromptSearchOptions(input, buffer.get());
+                if (search_options.has_value()) {
+                  DoSearch(buffer.get(), search_options.value());
+                }
+                return futures::Past(IterationControlCommand::kContinue);
+              }),
+          [editor_state](IterationControlCommand) {
+            editor_state->ResetDirection();
+            editor_state->ResetStructure();
+            return true;
+          });
     };
     auto async_search_processor =
         std::make_shared<AsyncSearchProcessor>(editor_state->work_queue());
 
-    options.change_handler = [async_search_processor, search_options,
-                              editor_state](
-                                 const std::shared_ptr<OpenBuffer>& buffer) {
-      CHECK(buffer != nullptr);
-      CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
-      auto line = buffer->LineAt(LineNumber(0));
-      if (line->empty()) {
-        return futures::Past(true);
-      }
-      VLOG(5) << "Triggering async search.";
-
-      auto search_options_copy = search_options;
-      search_options_copy.search_query = line->ToString();
-      return futures::Transform(
-          async_search_processor->Search(
-              search_options_copy,
-              editor_state->current_buffer()->contents()->copy()),
-          [buffer, line](AsyncSearchProcessor::Output results) {
-            VLOG(5) << "Drawing of search results.";
-            return DrawSearchResults(buffer.get(), line, std::move(results));
-          });
-    };
+    options.change_handler =
+        [editor_state, async_search_processor](
+            const std::shared_ptr<OpenBuffer>& prompt_buffer) {
+          CHECK(prompt_buffer != nullptr);
+          CHECK_EQ(prompt_buffer->lines_size(), LineNumberDelta(1));
+          auto line = prompt_buffer->LineAt(LineNumber(0));
+          if (line->empty()) {
+            return futures::Past(true);
+          }
+          VLOG(5) << "Triggering async search.";
+          auto buffers = editor_state->active_buffers();
+          return futures::Transform(
+              futures::ForEachWithCopy(
+                  buffers.begin(), buffers.end(),
+                  [editor_state, async_search_processor, prompt_buffer,
+                   line](const std::shared_ptr<OpenBuffer>& buffer) {
+                    auto search_options = BuildPromptSearchOptions(
+                        line->ToString(), buffer.get());
+                    if (!search_options.has_value()) {
+                      return futures::Past(IterationControlCommand::kContinue);
+                    }
+                    return futures::Transform(
+                        async_search_processor->Search(
+                            search_options.value(), buffer->contents()->copy()),
+                        [prompt_buffer,
+                         line](AsyncSearchProcessor::Output results) {
+                          VLOG(5) << "Drawing of search results.";
+                          return DrawSearchResults(prompt_buffer.get(), line,
+                                                   std::move(results));
+                        },
+                        [](bool) {
+                          // TODO(easy): Keep going here! Just merge the
+                          // results, and apply them at the end.
+                          return futures::Past(IterationControlCommand::kStop);
+                        });
+                  }),
+              futures::Past(true));
+        };
 
     options.predictor = SearchHandlerPredictor;
-    options.source_buffer = buffer;
     options.status = PromptOptions::Status::kBuffer;
     Prompt(std::move(options));
+  }
+
+ private:
+  static std::optional<SearchOptions> BuildPromptSearchOptions(
+      std::wstring input, OpenBuffer* buffer) {
+    auto editor = buffer->editor();
+    SearchOptions search_options;
+    search_options.search_query = input;
+    search_options.buffer = buffer;
+    search_options.case_sensitive =
+        buffer->Read(buffer_variables::search_case_sensitive);
+
+    if (editor->structure()->search_range() ==
+        Structure::SearchRange::kBuffer) {
+      search_options.starting_position = buffer->position();
+    } else {
+      Range range =
+          buffer->FindPartialRange(editor->modifiers(), buffer->position());
+      if (range.begin == range.end) {
+        buffer->status()->SetInformationText(L"Unable to extract region.");
+        return std::nullopt;
+      }
+      CHECK_LE(range.begin, range.end);
+      if (editor->modifiers().direction == BACKWARDS) {
+        search_options.starting_position = range.end;
+        search_options.limit_position = range.begin;
+      } else {
+        search_options.starting_position = range.begin;
+        search_options.limit_position = range.end;
+      }
+      LOG(INFO) << "Searching region: " << search_options.starting_position
+                << " to " << search_options.limit_position.value();
+    }
+    return search_options;
   }
 };
 }  // namespace

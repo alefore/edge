@@ -31,6 +31,8 @@ struct SearchOptions {
   // The regular expression to search.
   wstring search_query;
 
+  // TODO(easy): Get rid of this? Have search just take it from the buffer's
+  // variable?
   bool case_sensitive = false;
 
   // An optional position where the search should stop.
