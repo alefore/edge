@@ -61,18 +61,15 @@ class SearchCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->structure()->search_query() ==
         Structure::SearchQuery::kRegion) {
-      auto buffers = editor_state->active_buffers();
       futures::ImmediateTransform(
-          futures::ForEachWithCopy(
-              buffers.begin(), buffers.end(),
+          editor_state->ForEachActiveBuffer(
               [editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
                 SearchOptions search_options;
                 search_options.buffer = buffer.get();
-
                 Range range = buffer->FindPartialRange(
                     editor_state->modifiers(), buffer->position());
                 if (range.begin == range.end) {
-                  return futures::Past(IterationControlCommand::kContinue);
+                  return futures::Past(true);
                 }
                 VLOG(5) << "FindPartialRange: [position:" << buffer->position()
                         << "][range:" << range
@@ -91,7 +88,7 @@ class SearchCommand : public Command {
                 }
                 CHECK_EQ(range.begin.line, range.end.line);
                 if (range.begin == range.end) {
-                  return futures::Past(IterationControlCommand::kContinue);
+                  return futures::Past(true);
                 }
                 CHECK_LT(range.begin.column, range.end.column);
                 buffer->set_position(range.begin);
@@ -104,9 +101,9 @@ class SearchCommand : public Command {
                 search_options.case_sensitive =
                     buffer->Read(buffer_variables::search_case_sensitive);
                 DoSearch(buffer.get(), search_options);
-                return futures::Past(IterationControlCommand::kContinue);
+                return futures::Past(true);
               }),
-          [editor_state](IterationControlCommand) {
+          [editor_state](bool) {
             editor_state->ResetStructure();
             editor_state->ResetDirection();
             return true;
@@ -119,19 +116,17 @@ class SearchCommand : public Command {
     options.prompt = L"🔎 ";
     options.history_file = L"search";
     options.handler = [](const wstring& input, EditorState* editor_state) {
-      auto buffers = editor_state->active_buffers();
       return futures::ImmediateTransform(
-          futures::ForEachWithCopy(
-              buffers.begin(), buffers.end(),
+          editor_state->ForEachActiveBuffer(
               [editor_state, input](const std::shared_ptr<OpenBuffer>& buffer) {
                 auto search_options =
                     BuildPromptSearchOptions(input, buffer.get());
                 if (search_options.has_value()) {
                   DoSearch(buffer.get(), search_options.value());
                 }
-                return futures::Past(IterationControlCommand::kContinue);
+                return futures::Past(true);
               }),
-          [editor_state](IterationControlCommand) {
+          [editor_state](bool) {
             editor_state->ResetDirection();
             editor_state->ResetStructure();
             return true;
@@ -150,16 +145,14 @@ class SearchCommand : public Command {
             return futures::Past(true);
           }
           VLOG(5) << "Triggering async search.";
-          auto buffers = editor_state->active_buffers();
           return futures::Transform(
-              futures::ForEachWithCopy(
-                  buffers.begin(), buffers.end(),
+              editor_state->ForEachActiveBuffer(
                   [editor_state, async_search_processor, prompt_buffer,
                    line](const std::shared_ptr<OpenBuffer>& buffer) {
                     auto search_options = BuildPromptSearchOptions(
                         line->ToString(), buffer.get());
                     if (!search_options.has_value()) {
-                      return futures::Past(IterationControlCommand::kContinue);
+                      return futures::Past(true);
                     }
                     return futures::Transform(
                         async_search_processor->Search(
@@ -167,13 +160,10 @@ class SearchCommand : public Command {
                         [prompt_buffer,
                          line](AsyncSearchProcessor::Output results) {
                           VLOG(5) << "Drawing of search results.";
+                          // TODO(easy): Merge the results and apply them at the
+                          // end?
                           return DrawSearchResults(prompt_buffer.get(), line,
                                                    std::move(results));
-                        },
-                        [](bool) {
-                          // TODO(easy): Keep going here! Just merge the
-                          // results, and apply them at the end.
-                          return futures::Past(IterationControlCommand::kStop);
                         });
                   }),
               futures::Past(true));

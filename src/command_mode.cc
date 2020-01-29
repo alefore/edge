@@ -97,10 +97,8 @@ class Paste : public Command {
       return;
     }
     std::shared_ptr<OpenBuffer> paste_buffer = it->second;
-    auto buffers = editor_state->active_buffers();
     futures::ImmediateTransform(
-        futures::ForEachWithCopy(
-            buffers.begin(), buffers.end(),
+        editor_state->ForEachActiveBuffer(
             [editor_state,
              paste_buffer](const std::shared_ptr<OpenBuffer>& buffer) {
               if (paste_buffer == buffer) {
@@ -122,8 +120,7 @@ class Paste : public Command {
                 if (errors[current_message].empty()) {
                   current_message = 0;
                 }
-                return futures::Past(
-                    futures::IterationControlCommand::kContinue);
+                return futures::Past(true);
               }
               if (buffer->fd() != nullptr) {
                 string text = ToByteString(paste_buffer->ToString());
@@ -134,8 +131,7 @@ class Paste : public Command {
                     break;
                   }
                 }
-                return futures::Past(
-                    futures::IterationControlCommand::kContinue);
+                return futures::Past(true);
               }
               buffer->CheckPosition();
               buffer->MaybeAdjustPositionCol();
@@ -148,9 +144,9 @@ class Paste : public Command {
               return futures::Transform(
                   buffer->ApplyToCursors(
                       NewInsertBufferTransformation(std::move(insert_options))),
-                  futures::Past(futures::IterationControlCommand::kContinue));
+                  futures::Past(true));
             }),
-        [editor_state](futures::IterationControlCommand) {
+        [editor_state](bool) {
           editor_state->ResetInsertionModifier();
           editor_state->ResetRepetitions();
           return futures::Past(true);
@@ -172,19 +168,15 @@ class UndoCommand : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    auto buffers = editor_state->active_buffers();
     if (direction_.has_value()) {
       editor_state->set_direction(direction_.value());
     }
     futures::ImmediateTransform(
-        futures::ForEachWithCopy(
-            buffers.begin(), buffers.end(),
+        editor_state->ForEachActiveBuffer(
             [](const std::shared_ptr<OpenBuffer>& buffer) {
-              return futures::Transform(
-                  buffer->Undo(OpenBuffer::UndoMode::kLoop),
-                  futures::Past(futures::IterationControlCommand::kContinue));
+              return buffer->Undo(OpenBuffer::UndoMode::kLoop);
             }),
-        [editor_state](futures::IterationControlCommand) {
+        [editor_state](bool) {
           editor_state->ResetRepetitions();
           editor_state->ResetDirection();
           return true;
@@ -411,22 +403,14 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
 }
 
 /* static */ void MoveForwards::Move(int, EditorState* editor_state) {
-  auto buffers = editor_state->active_buffers();
-  futures::ImmediateTransform(
-      futures::ForEachWithCopy(
-          buffers.begin(), buffers.end(),
-          [editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
-            return futures::Transform(
-                buffer->ApplyToCursors(
-                    NewMoveTransformation(editor_state->modifiers())),
-                futures::Past(futures::IterationControlCommand::kContinue));
-          }),
-      [editor_state](futures::IterationControlCommand) {
-        editor_state->ResetRepetitions();
-        editor_state->ResetStructure();
-        editor_state->ResetDirection();
-        return true;
+  editor_state->ForEachActiveBuffer(
+      [modifiers = editor_state->modifiers()](
+          const std::shared_ptr<OpenBuffer>& buffer) {
+        return buffer->ApplyToCursors(NewMoveTransformation(modifiers));
       });
+  editor_state->ResetRepetitions();
+  editor_state->ResetStructure();
+  editor_state->ResetDirection();
 }
 
 wstring MoveBackwards::Description() const { return L"moves backwards"; }
@@ -737,13 +721,9 @@ class TreeNavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    auto buffers = editor_state->active_buffers();
-    futures::ForEachWithCopy(
-        buffers.begin(), buffers.end(),
+    editor_state->ForEachActiveBuffer(
         [](const std::shared_ptr<OpenBuffer>& buffer) {
-          return futures::Transform(
-              buffer->ApplyToCursors(NewTreeNavigateTransformation()),
-              futures::Past(futures::IterationControlCommand::kContinue));
+          return buffer->ApplyToCursors(NewTreeNavigateTransformation());
         });
   }
 };

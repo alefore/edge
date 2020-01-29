@@ -211,21 +211,20 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
              Trampoline* trampoline) {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
-            auto buffers = editor->active_buffers();
             return futures::Transform(
-                futures::ForEachWithCopy(
-                    buffers.begin(), buffers.end(),
-                    [callback = std::move(input[1]->callback),
-                     trampoline](std::shared_ptr<OpenBuffer> buffer) {
-                      std::vector<std::unique_ptr<Value>> args;
-                      args.push_back(
-                          VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::
-                              New(std::move(buffer)));
-                      return futures::Transform(
-                          callback(std::move(args), trampoline),
-                          futures::Past(
-                              futures::IterationControlCommand::kContinue));
-                    }),
+                editor->ForEachActiveBuffer([callback =
+                                                 std::move(input[1]->callback),
+                                             trampoline](
+                                                std::shared_ptr<OpenBuffer>
+                                                    buffer) {
+                  std::vector<std::unique_ptr<Value>> args;
+                  args.push_back(
+                      VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
+                          std::move(buffer)));
+                  return futures::Transform(
+                      callback(std::move(args), trampoline),
+                      futures::Past(true));
+                }),
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
