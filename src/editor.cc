@@ -75,13 +75,17 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
 
     auto editor = static_cast<EditorState*>(args[0]->user_value.get());
     CHECK(editor != nullptr);
-
-    auto buffer = editor->current_buffer();
-    if (buffer != nullptr) {
-      (*buffer.*method)();
-      editor->ResetModifiers();
-    }
-    return futures::Past(EvaluationOutput::New(Value::NewVoid()));
+    return futures::ImmediateTransform(
+        editor->ForEachActiveBuffer(
+            [method](const std::shared_ptr<OpenBuffer>& buffer) {
+              CHECK(buffer != nullptr);
+              (*buffer.*method)();
+              return futures::Past(true);
+            }),
+        [editor](bool) {
+          editor->ResetModifiers();
+          return EvaluationOutput::New(Value::NewVoid());
+        });
   };
   editor_type->AddField(name, std::move(callback));
 }
@@ -633,6 +637,21 @@ std::vector<std::shared_ptr<OpenBuffer>> EditorState::active_buffers() const {
     output.push_back(buffer);
   }
   return output;
+}
+
+futures::Value<bool> EditorState::ForEachActiveBuffer(
+    std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+        callback) {
+  auto buffers = active_buffers();
+  return futures::Transform(
+      futures::ForEachWithCopy(
+          buffers.begin(), buffers.end(),
+          [callback](const std::shared_ptr<OpenBuffer>& buffer) {
+            return futures::Transform(
+                callback(buffer),
+                futures::Past(futures::IterationControlCommand::kContinue));
+          }),
+      futures::Past(true));
 }
 
 wstring GetBufferName(const wstring& prefix, size_t count) {
