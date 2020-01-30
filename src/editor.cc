@@ -299,23 +299,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       L"set_exit_value",
       vm::NewCallback([this](int exit_value) { exit_value_ = exit_value; }));
 
-  environment->Define(L"SetPositionColumn", vm::NewCallback([this](int value) {
-                        auto buffer = current_buffer();
-                        if (buffer == nullptr) {
-                          return;
-                        }
-                        buffer->set_position(LineColumn(buffer->position().line,
-                                                        ColumnNumber(value)));
-                      }));
-
-  environment->Define(L"Line", vm::NewCallback([this]() -> wstring {
-                        auto buffer = current_buffer();
-                        if (buffer == nullptr) {
-                          return L"";
-                        }
-                        return buffer->current_line()->ToString();
-                      }));
-
   environment->Define(L"ForkCommand",
                       vm::NewCallback([this](ForkCommandOptions* options) {
                         return ForkCommand(this, *options);
