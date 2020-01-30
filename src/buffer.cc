@@ -1511,6 +1511,7 @@ void OpenBuffer::PushSignal(int sig) {
 }
 
 Viewers* OpenBuffer::viewers() { return &viewers_; }
+const Viewers* OpenBuffer::viewers() const { return &viewers_; }
 
 futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {

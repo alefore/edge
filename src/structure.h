@@ -62,6 +62,9 @@ class Structure {
   // position outside of the structure.
   virtual bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
                            LineColumn* position) = 0;
+
+  virtual std::optional<LineColumn> ComputeGoToPosition(
+      const OpenBuffer* buffer, LineColumn position, int calls) = 0;
 };
 
 Structure* StructureChar();
