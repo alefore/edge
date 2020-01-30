@@ -912,15 +912,11 @@ void EditorState::ProcessSignals() {
     switch (signal) {
       case SIGINT:
       case SIGTSTP:
-        auto buffer = current_buffer();
-        if (buffer == nullptr) {
-          return;
-        }
-        auto target_buffer = buffer->GetBufferFromCurrentLine();
-        if (target_buffer != nullptr) {
-          buffer = target_buffer;
-        }
-        buffer->PushSignal(signal);
+        ForEachActiveBuffer(
+            [signal](const std::shared_ptr<OpenBuffer>& buffer) {
+              buffer->PushSignal(signal);
+              return futures::Past(true);
+            });
     }
   }
 }
