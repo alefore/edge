@@ -163,7 +163,6 @@ class HistoryScrollBehavior : public ScrollBehavior {
         history_->contents()->size() > LineNumberDelta(1)) {
       auto previous_buffer = editor_state->current_buffer();
       editor_state->set_current_buffer(history_);
-      history_->set_mode(previous_buffer->ResetMode());
 
       LineColumn position = history_->position();
       position.line += delta;
