@@ -54,6 +54,6 @@ std::unique_ptr<Transformation> ComposeTransformation(
   auto stack = std::make_unique<TransformationStack>();
   stack->PushBack(std::move(a));
   stack->PushBack(std::move(b));
-  return std::move(stack);
+  return stack;
 }
 }  // namespace afc::editor
