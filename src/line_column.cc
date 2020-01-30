@@ -133,12 +133,6 @@ LineNumberDelta operator--(LineNumberDelta& a, int) {
   return NewLazyString(length, fill);
 }
 
-ColumnNumberDelta& ColumnNumberDelta::operator=(
-    const ColumnNumberDelta& delta) {
-  column_delta = delta.column_delta;
-  return *this;
-}
-
 bool operator==(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
   return a.column_delta == b.column_delta;
 }
@@ -252,11 +246,6 @@ bool operator<(const LineColumnDelta& a, const LineColumnDelta& b) {
 }
 
 LineNumber::LineNumber(size_t value) : line(value) {}
-
-LineNumber& LineNumber::operator=(const LineNumber& other) {
-  line = other.line;
-  return *this;
-}
 
 LineNumberDelta LineNumber::ToDelta() const { return *this - LineNumber(0); }
 
@@ -391,11 +380,6 @@ std::optional<LineNumber> Reader<LineNumber>::Read(Stream& input_stream) {
 }  // namespace fuzz
 
 ColumnNumber::ColumnNumber(size_t value) : column(value) {}
-
-ColumnNumber& ColumnNumber::operator=(const ColumnNumber& other) {
-  column = other.column;
-  return *this;
-}
 
 ColumnNumberDelta ColumnNumber::ToDelta() const {
   return *this - ColumnNumber(0);
