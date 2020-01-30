@@ -79,12 +79,8 @@ class GotoCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
     if (c != 'g') {
-      buffer->ResetMode();
+      editor_state->set_keyboard_redirect(nullptr);
       editor_state->ProcessInput(c);
       return;
     }
@@ -93,8 +89,11 @@ class GotoCommand : public Command {
         structure == StructureLine() || structure == StructureMark() ||
         structure == StructurePage() || structure == StructureSearch() ||
         structure == StructureCursor()) {
-      buffer->ApplyToCursors(NewTransformation(
-          Modifiers(), std::make_unique<GotoTransformation>(calls_)));
+      editor_state->ForEachActiveBuffer(
+          [calls = calls_](const std::shared_ptr<OpenBuffer>& buffer) {
+            return buffer->ApplyToCursors(NewTransformation(
+                Modifiers(), std::make_unique<GotoTransformation>(calls)));
+          });
     } else if (structure == StructureBuffer()) {
       size_t buffers = editor_state->buffers()->size();
       size_t position =
@@ -112,7 +111,8 @@ class GotoCommand : public Command {
     editor_state->ResetStructure();
     editor_state->ResetDirection();
     editor_state->ResetRepetitions();
-    buffer->set_mode(std::make_unique<GotoCommand>(calls_ + 1));
+    editor_state->set_keyboard_redirect(
+        std::make_unique<GotoCommand>(calls_ + 1));
   }
 
  private:
