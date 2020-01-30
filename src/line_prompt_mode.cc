@@ -70,6 +70,7 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     filter_buffer->Set(buffer_variables::show_in_buffers_list, false);
     filter_buffer->Set(buffer_variables::delete_into_paste_buffer, false);
     filter_buffer->Set(buffer_variables::atomic_lines, true);
+    filter_buffer->Set(buffer_variables::line_width, 1);
 
     struct Data {
       // The sum of the line positions at which it occurs. If it
