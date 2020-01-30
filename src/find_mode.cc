@@ -72,14 +72,20 @@ class FindTransformation : public CompositeTransformation {
 class FindMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();
-    auto buffer = editor_state->current_buffer();
-    if (buffer != nullptr) {
-      buffer->ApplyToCursors(NewTransformation(
-          editor_state->modifiers(), std::make_unique<FindTransformation>(c)));
-      buffer->ResetMode();
-    }
-    editor_state->ResetRepetitions();
-    editor_state->ResetDirection();
+    futures::ImmediateTransform(
+        editor_state->ForEachActiveBuffer(
+            [c](const std::shared_ptr<OpenBuffer>& buffer) {
+              buffer->ApplyToCursors(
+                  NewTransformation(buffer->editor()->modifiers(),
+                                    std::make_unique<FindTransformation>(c)));
+              buffer->ResetMode();
+              return futures::Past(true);
+            }),
+        [editor_state](bool) {
+          editor_state->ResetRepetitions();
+          editor_state->ResetDirection();
+          return true;
+        });
   }
 };
 
