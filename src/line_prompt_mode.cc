@@ -71,29 +71,41 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     filter_buffer->Set(buffer_variables::delete_into_paste_buffer, false);
     filter_buffer->Set(buffer_variables::atomic_lines, true);
 
-    // Second value is the sum of the line positions at which it occurs. If it
-    // only occurs once, it'll be just the position in which it occurred. This
-    // is a simple way to try to put more relevant things towards the bottom:
-    // things that have been used more frequently and more recently.
-    std::map<wstring, size_t> previous_lines;
+    struct Data {
+      // The sum of the line positions at which it occurs. If it
+      // only occurs once, it'll be just the position in which it occurred. This
+      // is a simple way to try to put more relevant things towards the bottom:
+      // things that have been used more frequently and more recently.
+      size_t lines_sum = 0;
+      size_t match_position = 0;
+    };
+    std::map<wstring, Data> matches;
     history_buffer->contents()->EveryLine(
         [&](LineNumber position, const Line& line) {
           auto s = line.ToString();
-          if (s.find(filter) != wstring::npos) {
-            previous_lines[line.ToString()] += position.line;
+          if (auto match = s.find(filter); match != wstring::npos) {
+            auto& output = matches[line.ToString()];
+            output.lines_sum += position.line;
+            output.match_position = match;
           }
           return true;
         });
 
     // For sorting.
-    std::vector<std::pair<double, wstring>> previous_lines_vector;
-    for (auto& line : previous_lines) {
-      previous_lines_vector.push_back({line.second, line.first});
+    std::vector<std::pair<size_t, wstring>> matches_by_lines_sum;
+    for (auto& [line_key, data] : matches) {
+      matches_by_lines_sum.push_back({data.lines_sum, line_key});
     }
-    sort(previous_lines_vector.begin(), previous_lines_vector.end());
+    sort(matches_by_lines_sum.begin(), matches_by_lines_sum.end());
 
-    for (auto& line : previous_lines_vector) {
-      filter_buffer->AppendLine(NewLazyString(std::move(line.second)));
+    for (auto& [_, key] : matches_by_lines_sum) {
+      const auto match_position = matches[key].match_position;
+      Line::Options options;
+      options.AppendString(key.substr(0, match_position), {});
+      options.AppendString(key.substr(match_position, filter.size()),
+                           LineModifierSet{LineModifier::GREEN});
+      options.AppendString(key.substr(match_position + filter.size()), {});
+      filter_buffer->AppendRawLine(std::make_shared<Line>(std::move(options)));
     }
 
     element->second = std::move(filter_buffer);
