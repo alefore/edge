@@ -508,10 +508,6 @@ class ReverseDirectionCommand : public Command {
   }
 };
 
-void SetRepetitions(EditorState* editor_state, int number) {
-  editor_state->set_repetitions(number);
-}
-
 class SetStructureCommand : public Command {
  public:
   SetStructureCommand(Structure* structure) : structure_(structure) {}
@@ -559,31 +555,21 @@ class SetStrengthCommand : public Command {
 
 class NumberMode : public Command {
  public:
-  NumberMode(function<void(EditorState*, int)> consumer)
-      : description_(L""), consumer_(consumer) {}
+  NumberMode() : description_(L"") {}
 
-  NumberMode(const wstring& description,
-             function<void(EditorState*, int)> consumer)
-      : description_(description), consumer_(consumer) {}
+  NumberMode(const wstring& description) : description_(description) {}
 
   wstring Description() const override { return description_; }
   wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
-    buffer->set_mode(NewRepeatMode(consumer_));
-    if (c < '0' || c > '9') {
-      return;
-    }
-    buffer->mode()->ProcessInput(c, editor_state);
+    editor_state->set_keyboard_redirect(NewRepeatMode(
+        [editor_state](int number) { editor_state->set_repetitions(number); }));
+    editor_state->ProcessInput(c);
   }
 
  private:
   const wstring description_;
-  function<void(EditorState*, int)> consumer_;
 };
 
 class ActivateLink : public Command {
@@ -888,16 +874,16 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
 
   commands->Add({Terminal::CTRL_L}, std::make_unique<HardRedrawCommand>());
   commands->Add(L"*", std::make_unique<SetStrengthCommand>());
-  commands->Add(L"0", std::make_unique<NumberMode>(SetRepetitions));
-  commands->Add(L"1", std::make_unique<NumberMode>(SetRepetitions));
-  commands->Add(L"2", std::make_unique<NumberMode>(SetRepetitions));
-  commands->Add(L"3", std::make_unique<NumberMode>(SetRepetitions));
-  commands->Add(L"4", std::make_unique<NumberMode>(SetRepetitions));
-  commands->Add(L"5", std::make_unique<NumberMode>(SetRepetitions));
-  commands->Add(L"6", std::make_unique<NumberMode>(SetRepetitions));
-  commands->Add(L"7", std::make_unique<NumberMode>(SetRepetitions));
-  commands->Add(L"8", std::make_unique<NumberMode>(SetRepetitions));
-  commands->Add(L"9", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"0", std::make_unique<NumberMode>());
+  commands->Add(L"1", std::make_unique<NumberMode>());
+  commands->Add(L"2", std::make_unique<NumberMode>());
+  commands->Add(L"3", std::make_unique<NumberMode>());
+  commands->Add(L"4", std::make_unique<NumberMode>());
+  commands->Add(L"5", std::make_unique<NumberMode>());
+  commands->Add(L"6", std::make_unique<NumberMode>());
+  commands->Add(L"7", std::make_unique<NumberMode>());
+  commands->Add(L"8", std::make_unique<NumberMode>());
+  commands->Add(L"9", std::make_unique<NumberMode>());
 
   commands->Add({Terminal::DOWN_ARROW}, std::make_unique<LineDown>());
   commands->Add({Terminal::UP_ARROW}, std::make_unique<LineUp>());

@@ -10,26 +10,22 @@ using namespace afc::editor;
 
 class RepeatMode : public EditorMode {
  public:
-  RepeatMode(std::function<void(EditorState*, int)> consumer)
+  RepeatMode(std::function<void(int)> consumer)
       : consumer_(consumer), result_(0) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
     if (c < '0' || c > '9') {
-      consumer_(editor_state, result_);
-      buffer->ResetMode();
-      buffer->mode()->ProcessInput(c, editor_state);
+      consumer_(result_);
+      editor_state->set_keyboard_redirect(nullptr);
+      editor_state->ProcessInput(c);
       return;
     }
     result_ = 10 * result_ + c - '0';
-    consumer_(editor_state, result_);
+    consumer_(result_);
   }
 
  private:
-  function<void(EditorState*, int)> consumer_;
+  std::function<void(int)> consumer_;
   int result_;
 };
 }  // namespace
@@ -37,8 +33,7 @@ class RepeatMode : public EditorMode {
 namespace afc {
 namespace editor {
 
-std::unique_ptr<EditorMode> NewRepeatMode(
-    std::function<void(EditorState*, int)> consumer) {
+std::unique_ptr<EditorMode> NewRepeatMode(std::function<void(int)> consumer) {
   return std::make_unique<RepeatMode>(std::move(consumer));
 }
 
