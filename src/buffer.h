@@ -358,6 +358,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void PushSignal(int signal);
 
   Viewers* viewers();
+  const Viewers* viewers() const;
 
   /////////////////////////////////////////////////////////////////////////////
   // Cursors

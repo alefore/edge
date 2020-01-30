@@ -55,8 +55,6 @@ struct ColumnNumberDelta {
   ColumnNumberDelta() = default;
   explicit ColumnNumberDelta(int value) : column_delta(value) {}
 
-  ColumnNumberDelta& operator=(const ColumnNumberDelta& delta);
-
   int column_delta = 0;
 };
 
@@ -99,8 +97,6 @@ bool operator<(const LineColumnDelta& a, const LineColumnDelta& b);
 struct LineNumber {
   LineNumber() = default;
   explicit LineNumber(size_t column);
-
-  LineNumber& operator=(const LineNumber& value);
 
   LineNumberDelta ToDelta() const;
 
@@ -150,8 +146,6 @@ struct Reader<LineNumber> {
 struct ColumnNumber {
   ColumnNumber() = default;
   explicit ColumnNumber(size_t column);
-
-  ColumnNumber& operator=(const ColumnNumber& value);
 
   ColumnNumberDelta ToDelta() const;
 

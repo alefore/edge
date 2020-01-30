@@ -44,10 +44,10 @@ std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
   CHECK(b != nullptr);
 
   if (a->size() == ColumnNumberDelta()) {
-    return std::move(b);
+    return b;
   }
   if (b->size() == ColumnNumberDelta()) {
-    return std::move(a);
+    return a;
   }
 
   return std::make_shared<StringAppendImpl>(
