@@ -78,12 +78,12 @@ class FindMode : public EditorMode {
               buffer->ApplyToCursors(
                   NewTransformation(buffer->editor()->modifiers(),
                                     std::make_unique<FindTransformation>(c)));
-              buffer->ResetMode();
               return futures::Past(true);
             }),
         [editor_state](bool) {
           editor_state->ResetRepetitions();
           editor_state->ResetDirection();
+          editor_state->set_keyboard_redirect(nullptr);
           return true;
         });
   }

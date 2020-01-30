@@ -460,11 +460,7 @@ class EnterFindMode : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
-    buffer->set_mode(NewFindMode());
+    editor_state->set_keyboard_redirect(NewFindMode());
   }
 };
 
