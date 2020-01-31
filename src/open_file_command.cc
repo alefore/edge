@@ -37,7 +37,7 @@ void SetStatusContext(const OpenBuffer& buffer, const PredictResults& results,
     open_file_options.ignore_if_not_found = true;
     if (auto result = OpenFile(open_file_options);
         result != editor->buffers()->end()) {
-      status->set_prompt_context(OpenFile(open_file_options)->second);
+      status->set_prompt_context(result->second);
       return;
     }
   }
