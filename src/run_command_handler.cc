@@ -443,6 +443,7 @@ class ForkEditorCommand : public Command {
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
           auto help_buffer = ForkCommand(prompt_buffer->editor(), options);
           help_buffer->Set(buffer_variables::follow_end_of_file, false);
+          help_buffer->Set(buffer_variables::show_in_buffers_list, false);
           help_buffer->set_position({});
           prompt_buffer->editor()->status()->set_prompt_context(help_buffer);
           return true;
