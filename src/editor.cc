@@ -922,15 +922,21 @@ void EditorState::ProcessSignals() {
 }
 
 bool EditorState::handling_stop_signals() const {
-  auto buffer = current_buffer();
-  if (buffer == nullptr) {
-    return false;
-  }
-  auto target_buffer = buffer->GetBufferFromCurrentLine();
-  if (target_buffer != nullptr) {
-    buffer = target_buffer;
-  }
-  return buffer->Read(buffer_variables::pts);
+  auto buffers = active_buffers();
+  return futures::ImmediateTransform(
+             futures::ForEachWithCopy(
+                 buffers.begin(), buffers.end(),
+                 [](const std::shared_ptr<OpenBuffer>& buffer) {
+                   return futures::Past(
+                       buffer->Read(buffer_variables::pts)
+                           ? futures::IterationControlCommand::kStop
+                           : futures::IterationControlCommand::kContinue);
+                 }),
+             [](futures::IterationControlCommand c) {
+               return c == futures::IterationControlCommand::kStop;
+             })
+      .Get()
+      .value();
 }
 
 }  // namespace editor
