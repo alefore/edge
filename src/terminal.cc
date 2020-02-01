@@ -54,10 +54,15 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   rows[1].lines = status_supplier.lines();
   rows[0].lines = screen->lines() - rows[1].lines;
 
+  auto buffer = editor_state->current_buffer();
   rows[0].producer = editor_state->buffer_tree()->CreateOutputProducer(
       {.size = LineColumnDelta(rows[0].lines, screen->columns()),
        .main_cursor_behavior =
-           Widget::OutputProducerOptions::MainCursorBehavior::kIgnore});
+           (editor_state->status()->GetType() == Status::Type::kPrompt ||
+            (buffer != nullptr &&
+             buffer->status()->GetType() == Status::Type::kPrompt))
+               ? Widget::OutputProducerOptions::MainCursorBehavior::kHighlight
+               : Widget::OutputProducerOptions::MainCursorBehavior::kIgnore});
 
   rows[1].producer = status_supplier.CreateOutputProducer(
       LineColumnDelta(rows[1].lines, screen->columns()));
@@ -70,7 +75,6 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     WriteLine(screen, line, producer.Next());
   }
 
-  auto buffer = editor_state->current_buffer();
   if (editor_state->status()->GetType() == Status::Type::kPrompt ||
       (buffer != nullptr &&
        buffer->status()->GetType() == Status::Type::kPrompt) ||
