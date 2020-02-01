@@ -9,6 +9,8 @@
 namespace afc {
 namespace editor {
 
+// Unlike `CreateBufferOutputProducer`, doesn't do much beyond just displaying
+// the contents of the buffer (with syntax highlighting).
 class BufferOutputProducer : public OutputProducer {
  public:
   BufferOutputProducer(

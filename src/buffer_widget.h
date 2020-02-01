@@ -24,6 +24,8 @@ struct BufferOutputProducerInput {
   LineColumn view_start;
 };
 
+// Handles things like `multiple_cursors`, `paste_mode`, `scrollbar`, displaying
+// metadata, line numbers, etc..
 BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input);
 
