@@ -201,39 +201,40 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
 }
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
-  auto search_buffer = input.source_buffer;
-  CHECK(search_buffer != nullptr);
   CHECK(input.predictions != nullptr);
-  SearchOptions options;
-  options.buffer = search_buffer;
-  options.search_query = input.input;
-  options.case_sensitive =
-      search_buffer->Read(buffer_variables::search_case_sensitive);
-  options.starting_position = search_buffer->position();
-  auto positions = PerformSearchWithDirection(input.editor, options);
-  if (!positions.has_value()) {
+  std::set<wstring> matches;
+  for (auto& search_buffer : input.source_buffers) {
+    CHECK(search_buffer != nullptr);
+    SearchOptions options;
+    options.buffer = search_buffer.get();
+    options.search_query = input.input;
+    options.case_sensitive =
+        search_buffer->Read(buffer_variables::search_case_sensitive);
+    options.starting_position = search_buffer->position();
+    auto positions = PerformSearchWithDirection(input.editor, options);
+    if (!positions.has_value()) continue;
+
+    // Get the first kMatchesLimit matches:
+    const int kMatchesLimit = 100;
+    for (size_t i = 0;
+         i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
+      auto position = positions.value()[i];
+      if (i == 0) {
+        search_buffer->set_position(position);
+      }
+      CHECK_LT(position.line, search_buffer->EndLine());
+      auto line = search_buffer->LineAt(position.line);
+      CHECK_LT(position.column, line->EndColumn());
+      matches.insert(RegexEscape(line->Substring(position.column)));
+    }
+  }
+  if (matches.empty()) {
     futures::Future<PredictorOutput> output;
     input.predictions->EndOfFile();
     input.predictions->AddEndOfFileObserver(
         [consumer = output.consumer] { consumer(PredictorOutput()); });
     return output.value;
   }
-
-  // Get the first kMatchesLimit matches:
-  const int kMatchesLimit = 100;
-  std::set<wstring> matches;
-  for (size_t i = 0;
-       i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
-    auto position = positions.value()[i];
-    if (i == 0) {
-      search_buffer->set_position(position);
-    }
-    CHECK_LT(position.line, search_buffer->EndLine());
-    auto line = search_buffer->LineAt(position.line);
-    CHECK_LT(position.column, line->EndColumn());
-    matches.insert(RegexEscape(line->Substring(position.column)));
-  }
-
   // Add the matches to the predictions buffer.
   for (auto& match : matches) {
     input.predictions->AppendToLastLine(NewLazyString(std::move(match)));

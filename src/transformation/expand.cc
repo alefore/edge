@@ -63,7 +63,8 @@ class PredictorTransformation : public CompositeTransformation {
     // predictor, since it wants to modify the buffer. Perhaps the answer is to
     // make search handler not modify the buffer, but rather do that on the
     // caller, based on its outputs.
-    predict_options.source_buffer = const_cast<OpenBuffer*>(input.buffer);
+    predict_options.source_buffers.push_back(
+        std::const_pointer_cast<OpenBuffer>(input.buffer->shared_from_this()));
     return futures::ImmediateTransform(
         Predict(std::move(predict_options)),
         [text_size = text_.size(),

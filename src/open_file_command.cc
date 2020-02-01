@@ -114,9 +114,7 @@ futures::Value<bool> AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
   options.editor_state = buffer->editor();
   options.predictor = FilePredictor;
   options.status = buffer->editor()->status();
-  if (auto buffer = options.editor_state->current_buffer(); buffer != nullptr) {
-    options.source_buffer = buffer.get();
-  }
+  options.source_buffers = options.editor_state->active_buffers();
   options.input_buffer = buffer;
   options.input_selection_structure = StructureLine();
   return futures::Transform(
@@ -150,10 +148,9 @@ std::unique_ptr<Command> NewOpenFileCommand() {
       L"loads a file", [options](EditorState* editor_state) {
         PromptOptions options_copy = options;
         options_copy.editor_state = editor_state;
-        auto buffer = editor_state->current_buffer();
-
-        if (buffer != nullptr) {
-          options_copy.source_buffer = buffer;
+        options_copy.source_buffers = editor_state->active_buffers();
+        if (!options_copy.source_buffers.empty()) {
+          auto buffer = options_copy.source_buffers[0];
           wstring path = buffer->Read(buffer_variables::path);
           struct stat stat_buffer;
           if (stat(ToByteString(path).c_str(), &stat_buffer) == -1 ||

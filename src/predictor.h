@@ -43,9 +43,9 @@ struct PredictorInput {
   // in the buffer) or variables (e.g., honoring variables in the buffer
   // affecting the prediction).
   //
-  // TODO: Mark this as const. Unfortunately, the search handler wants to modify
-  // it.
-  OpenBuffer* source_buffer = nullptr;
+  // TODO: Mark the buffers as const. Unfortunately, the search handler wants to
+  // modify them.
+  std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
 };
 
 struct PredictorOutput {};
@@ -93,12 +93,12 @@ struct PredictOptions {
   std::shared_ptr<OpenBuffer> input_buffer;
   Structure* input_selection_structure = StructureLine();
 
-  // Given to the predictor (see `PredictorInput::source_buffer`). The caller
+  // Given to the predictor (see `PredictorInput::source_buffers`). The caller
   // must ensure it doesn't get deallocated until the future returned by the
   // predictor is done running.
   //
-  // TODO: Mark this as const. See comments in `PredictorInput`.
-  OpenBuffer* source_buffer;
+  // TODO: Mark the buffers as const. See comments in `PredictorInput`.
+  std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
 };
 
 // Create a new buffer running a given predictor on the input in a given status

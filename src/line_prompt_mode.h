@@ -51,9 +51,9 @@ struct PromptOptions {
   // Optional. Useful for automatic completion.
   Predictor predictor = EmptyPredictor;
 
-  // Source buffer to give to the predictor. See
-  // `PredictorInput::source_buffer`.
-  std::shared_ptr<OpenBuffer> source_buffer;
+  // Source buffers to give to the predictor. See
+  // `PredictorInput::source_buffers`.
+  std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
 
   enum class Status { kEditor, kBuffer };
   Status status = Status::kEditor;

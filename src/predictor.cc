@@ -170,7 +170,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
             options.predictor({.editor = options.editor_state,
                                .input = std::move(input),
                                .predictions = buffer,
-                               .source_buffer = options.source_buffer}),
+                               .source_buffers = options.source_buffers}),
             [options, input, buffer, consumer](PredictorOutput) {
               buffer->set_current_cursor(LineColumn());
               auto results = HandleEndOfFile(buffer);
@@ -356,10 +356,11 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       .path = predictor_input.editor->expand_path(predictor_input.input),
       .search_paths = {},
       .resolve_path_options = ResolvePathOptions::New(predictor_input.editor),
-      .noise_regex = predictor_input.source_buffer != nullptr
-                         ? std::wregex(predictor_input.source_buffer->Read(
-                               buffer_variables::directory_noise))
-                         : std::wregex(),
+      // TODO: Don't use sources_buffers[0], ignoring the other buffers.
+      .noise_regex = predictor_input.source_buffers.empty()
+                         ? std::wregex()
+                         : std::wregex(predictor_input.source_buffers[0]->Read(
+                               buffer_variables::directory_noise)),
       .output_consumer = std::move(output.consumer)};
   GetSearchPaths(predictor_input.editor, &input.search_paths);
   async_processor.Push(std::move(input));
@@ -503,14 +504,15 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
 }
 
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
-  if (input.source_buffer == nullptr) return futures::Past(PredictorOutput());
+  if (input.source_buffers.empty()) return futures::Past(PredictorOutput());
   std::set<std::wstring> words;
-  RegisterLeaves(*input.source_buffer, *input.source_buffer->parse_tree(),
-                 &words);
-  std::wistringstream keywords(
-      input.source_buffer->Read(buffer_variables::language_keywords));
-  words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
-               std::istream_iterator<wstring, wchar_t>());
+  for (auto& buffer : input.source_buffers) {
+    RegisterLeaves(*buffer, *buffer->parse_tree(), &words);
+    std::wistringstream keywords(
+        buffer->Read(buffer_variables::language_keywords));
+    words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
+                 std::istream_iterator<wstring, wchar_t>());
+  }
   auto dictionary =
       OpenBuffer::New({.editor = input.editor, .name = L"Dictionary"});
   for (auto& word : words) {
