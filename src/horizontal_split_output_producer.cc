@@ -31,7 +31,7 @@ OutputProducer::Generator HorizontalSplitOutputProducer::Next() {
       delegate.inputs_hash = std::hash<size_t>{}(delegate.inputs_hash.value()) +
                              std::hash<size_t>{}(329ul);
     }
-    delegate.generate = [generate = std::move(delegate.generate)]() {
+    delegate.generate = [generate = std::move(delegate.generate)] {
       auto output = generate();
       output.cursor = std::nullopt;
       return output;
