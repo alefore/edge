@@ -28,10 +28,6 @@ Support more languages:
 
 ## Editing
 
-Pending layers that need to honor `multiple_buffers`:
-* Display of cursors.
-* Navigation keys (`h`, `j`, `k`, `l`).
-
 Add structures for English editing:
 - Sentence clause. Initially probably just based on punctuation, ideally would be smart enough to parse the sentence, lol.
 
