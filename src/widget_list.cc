@@ -244,6 +244,10 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
           {std::make_unique<FrameOutputProducer>(std::move(frame_options)),
            LineNumberDelta(1)});
       child_options.size.line -= nested_rows.back().lines;
+      child_options.main_cursor_behavior =
+          index == active_
+              ? options.main_cursor_behavior
+              : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
       nested_rows.push_back(
           {children_[index]->CreateOutputProducer(child_options),
            child_options.size.line});
@@ -307,6 +311,10 @@ std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer(
     OutputProducerOptions child_options = options;
     CHECK(column.width.has_value());
     child_options.size.column = column.width.value();
+    child_options.main_cursor_behavior =
+        index == active_
+            ? options.main_cursor_behavior
+            : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
     column.producer =
         children_[index]->CreateOutputProducer(std::move(child_options));
     CHECK(column.producer != nullptr);

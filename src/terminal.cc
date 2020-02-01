@@ -55,7 +55,9 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   rows[0].lines = screen->lines() - rows[1].lines;
 
   rows[0].producer = editor_state->buffer_tree()->CreateOutputProducer(
-      {.size = LineColumnDelta(rows[0].lines, screen->columns())});
+      {.size = LineColumnDelta(rows[0].lines, screen->columns()),
+       .main_cursor_behavior =
+           Widget::OutputProducerOptions::MainCursorBehavior::kIgnore});
 
   rows[1].producer = status_supplier.CreateOutputProducer(
       LineColumnDelta(rows[1].lines, screen->columns()));

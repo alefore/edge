@@ -50,10 +50,11 @@ ColumnNumber GetDesiredViewStartColumn(OpenBuffer* buffer,
 std::unique_ptr<OutputProducer> LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,
     std::shared_ptr<LineScrollControl> line_scroll_control,
-    LineColumnDelta output_size, size_t sections_count) {
+    Widget::OutputProducerOptions output_producer_options,
+    size_t sections_count) {
   std::unique_ptr<OutputProducer> main_contents =
       std::make_unique<BufferOutputProducer>(
-          buffer, line_scroll_control->NewReader(), output_size);
+          buffer, line_scroll_control->NewReader(), output_producer_options);
 
   if (buffer->Read(buffer_variables::paste_mode)) {
     return main_contents;
@@ -65,18 +66,20 @@ std::unique_ptr<OutputProducer> LinesSpanView(
       buffer, line_scroll_control->NewReader());
   auto width = line_numbers->width();
   if (sections_count > 1) {
-    columns.push_back(
-        {std::make_unique<SectionBracketsProducer>(output_size.line),
-         ColumnNumberDelta(1)});
+    columns.push_back({std::make_unique<SectionBracketsProducer>(
+                           output_producer_options.size.line),
+                       ColumnNumberDelta(1)});
   }
 
   columns.push_back({std::move(line_numbers), width});
-  columns.push_back({std::move(main_contents), output_size.column});
   columns.push_back(
-      {std::make_unique<BufferMetadataOutputProducer>(
-           buffer, line_scroll_control->NewReader(), output_size.line,
-           buffer->current_zoomed_out_parse_tree(output_size.line)),
-       std::nullopt});
+      {std::move(main_contents), output_producer_options.size.column});
+  columns.push_back({std::make_unique<BufferMetadataOutputProducer>(
+                         buffer, line_scroll_control->NewReader(),
+                         output_producer_options.size.line,
+                         buffer->current_zoomed_out_parse_tree(
+                             output_producer_options.size.line)),
+                     std::nullopt});
   return std::make_unique<VerticalSplitOutputProducer>(
       std::move(columns), sections_count > 1 ? 2 : 1);
 }
@@ -116,7 +119,8 @@ std::set<Range> ExpandSections(LineNumber end_line,
 }
 
 std::unique_ptr<OutputProducer> ViewMultipleCursors(
-    std::shared_ptr<OpenBuffer> buffer, LineColumnDelta output_size,
+    std::shared_ptr<OpenBuffer> buffer,
+    Widget::OutputProducerOptions output_producer_options,
     const LineScrollControl::Options line_scroll_control_options) {
   std::set<Range> sections;
   for (auto& cursor : *buffer->active_cursors()) {
@@ -125,8 +129,9 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
         LineColumn(min(buffer->EndLine(), cursor.line + LineNumberDelta(1)))));
   }
   bool first_run = true;
-  while (first_run || SumSectionsLines(sections) <
-                          min(output_size.line, buffer->contents()->size())) {
+  while (first_run ||
+         SumSectionsLines(sections) < min(output_producer_options.size.line,
+                                          buffer->contents()->size())) {
     VLOG(4) << "Expanding " << sections.size()
             << " with size: " << SumSectionsLines(sections);
     sections =
@@ -142,10 +147,13 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
     options.lines_shown = section.end.line - section.begin.line;
     // TODO: Maybe take columns into account? Ugh.
     options.begin = LineColumn(section.begin.line);
+    Widget::OutputProducerOptions section_output_producer_options =
+        output_producer_options;
+    section_output_producer_options.size = LineColumnDelta(
+        options.lines_shown, output_producer_options.size.column);
     rows.push_back(
         {LinesSpanView(buffer, LineScrollControl::New(options),
-                       LineColumnDelta(options.lines_shown, output_size.column),
-                       sections.size()),
+                       section_output_producer_options, sections.size()),
          options.lines_shown});
 
     if (section.Contains(buffer->position())) {
@@ -259,16 +267,16 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     }
   }
 
-  LineColumnDelta buffer_output_size(buffer_lines,
-                                     line_scroll_control_options.columns_shown);
+  input.output_producer_options.size =
+      LineColumnDelta(buffer_lines, line_scroll_control_options.columns_shown);
 
   if (buffer->Read(buffer_variables::multiple_cursors)) {
-    output.producer = ViewMultipleCursors(buffer, buffer_output_size,
+    output.producer = ViewMultipleCursors(buffer, input.output_producer_options,
                                           line_scroll_control_options);
   } else {
     output.producer = LinesSpanView(
         buffer, LineScrollControl::New(line_scroll_control_options),
-        buffer_output_size, 1);
+        input.output_producer_options, 1);
   }
 
   if (status_lines > LineNumberDelta(0)) {

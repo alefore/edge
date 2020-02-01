@@ -152,10 +152,10 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
 BufferOutputProducer::BufferOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
     std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-    LineColumnDelta output_size)
+    Widget::OutputProducerOptions output_producer_options)
     : buffer_(std::move(buffer)),
       line_scroll_control_reader_(std::move(line_scroll_control_reader)),
-      output_size_(output_size),
+      output_producer_options_(output_producer_options),
       root_(buffer_->parse_tree()),
       current_tree_(buffer_->current_tree(root_.get())) {
   CHECK(line_scroll_control_reader_ != nullptr);
@@ -190,11 +190,13 @@ OutputProducer::Generator BufferOutputProducer::Next() {
 
   line_scroll_control_reader_->RangeDone();
 
-  output.inputs_hash =
-      hash_combine(std::hash<Range>{}(range), std::hash<bool>{}(atomic_lines),
-                   std::hash<bool>{}(multiple_cursors),
-                   std::hash<ColumnNumberDelta>{}(output_size_.column),
-                   line_contents->GetHash());
+  output.inputs_hash = hash_combine(
+      std::hash<Range>{}(range), std::hash<bool>{}(atomic_lines),
+      std::hash<bool>{}(multiple_cursors),
+      std::hash<ColumnNumberDelta>{}(output_producer_options_.size.column),
+      std::hash<size_t>{}(static_cast<std::size_t>(
+          output_producer_options_.main_cursor_behavior)),
+      line_contents->GetHash());
   if (position.line == line) {
     output.inputs_hash = hash_combine(output.inputs_hash.value(),
                                       std::hash<LineColumn>{}(position));
@@ -204,17 +206,18 @@ OutputProducer::Generator BufferOutputProducer::Next() {
         hash_combine(output.inputs_hash.value(), std::hash<ColumnNumber>{}(c));
   }
 
-  output.generate = [line_contents, range, atomic_lines, multiple_cursors,
-                     output_columns = output_size_.column, position,
-                     cursors]() {
+  output.generate = [output_producer_options = output_producer_options_,
+                     line_contents, range, atomic_lines, multiple_cursors,
+                     position, cursors]() {
     Line::OutputOptions options;
     options.initial_column = range.begin.column;
     if (range.begin.line == range.end.line) {
       CHECK_GE(range.end.column, range.begin.column);
-      CHECK_LE(range.end.column - range.begin.column, output_columns);
+      CHECK_LE(range.end.column - range.begin.column,
+               output_producer_options.size.column);
       options.width = range.end.column - range.begin.column;
     } else {
-      options.width = output_columns;
+      options.width = output_producer_options.size.column;
     }
 
     if (!atomic_lines) {
@@ -225,6 +228,12 @@ OutputProducer::Generator BufferOutputProducer::Next() {
         } else {
           options.inactive_cursor_columns.insert(c);
         }
+      }
+      if (output_producer_options.main_cursor_behavior ==
+          Widget::OutputProducerOptions::MainCursorBehavior::kHighlight) {
+        options.modifiers_main_cursor = {
+            LineModifier::REVERSE,
+            multiple_cursors ? LineModifier::GREEN : LineModifier::CYAN};
       }
       options.modifiers_inactive_cursors = {
           LineModifier::REVERSE,

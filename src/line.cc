@@ -306,6 +306,15 @@ OutputProducer::LineWithCursor Line::Output(
     if (options.active_cursor_column.has_value() &&
         options.active_cursor_column.value() == input_column) {
       line_with_cursor.cursor = output_column;
+      if (!options.modifiers_main_cursor.empty()) {
+        line_output.modifiers[output_column + ColumnNumberDelta(1)] =
+            line_output.modifiers.empty()
+                ? LineModifierSet()
+                : line_output.modifiers.rbegin()->second;
+        line_output.modifiers[output_column].insert(
+            options.modifiers_main_cursor.begin(),
+            options.modifiers_main_cursor.end());
+      }
     } else if (options.inactive_cursor_columns.find(input_column) !=
                options.inactive_cursor_columns.end()) {
       line_output.modifiers[output_column + ColumnNumberDelta(1)] =
