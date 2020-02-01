@@ -56,7 +56,7 @@ std::unique_ptr<OutputProducer> LinesSpanView(
           buffer, line_scroll_control->NewReader(), output_size);
 
   if (buffer->Read(buffer_variables::paste_mode)) {
-    return std::move(main_contents);
+    return main_contents;
   }
 
   std::vector<VerticalSplitOutputProducer::Column> columns;
