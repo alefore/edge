@@ -74,6 +74,7 @@ SearchResults PerformSearch(const SearchOptions& options,
     return !options.required_positions.has_value() ||
            options.required_positions.value() > output.positions.size();
   });
+  VLOG(5) << "Perform search found matches: " << output.positions.size();
   return output;
 }
 
@@ -81,6 +82,22 @@ SearchResults PerformSearch(const SearchOptions& options,
 
 AsyncSearchProcessor::AsyncSearchProcessor(WorkQueue* work_queue)
     : evaluator_(L"search", work_queue) {}
+
+std::wstring AsyncSearchProcessor::Output::ToString() const {
+  switch (results) {
+    case AsyncSearchProcessor::Output::Results::kInvalidPattern:
+      return L"invalid pattern";
+    case AsyncSearchProcessor::Output::Results::kNoMatches:
+      return L"no matches";
+    case AsyncSearchProcessor::Output::Results::kOneMatch:
+      return L"one match";
+    case AsyncSearchProcessor::Output::Results::kManyMatches:
+      return L"many matches";
+    default:
+      LOG(FATAL) << "Invalid value in AsyncSearchProcessor::Output.";
+      return L"invalid";
+  }
+}
 
 futures::Value<AsyncSearchProcessor::Output> AsyncSearchProcessor::Search(
     SearchOptions search_options, std::unique_ptr<BufferContents> buffer) {

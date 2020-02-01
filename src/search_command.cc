@@ -12,6 +12,33 @@ namespace afc::editor {
 namespace {
 using futures::IterationControlCommand;
 
+static void MergeInto(AsyncSearchProcessor::Output current_results,
+                      AsyncSearchProcessor::Output* final_results) {
+  switch (current_results.results) {
+    case AsyncSearchProcessor::Output::Results::kInvalidPattern:
+    case AsyncSearchProcessor::Output::Results::kManyMatches:
+      final_results->results = current_results.results;
+      break;
+    case AsyncSearchProcessor::Output::Results::kNoMatches:
+      break;
+    case AsyncSearchProcessor::Output::Results::kOneMatch:
+      switch (final_results->results) {
+        case AsyncSearchProcessor::Output::Results::kInvalidPattern:
+        case AsyncSearchProcessor::Output::Results::kManyMatches:
+          break;
+        case AsyncSearchProcessor::Output::Results::kNoMatches:
+          final_results->results =
+              AsyncSearchProcessor::Output::Results::kOneMatch;
+          break;
+        case AsyncSearchProcessor::Output::Results::kOneMatch:
+          final_results->results =
+              AsyncSearchProcessor::Output::Results::kManyMatches;
+          break;
+      }
+      break;
+  }
+}
+
 static void DoSearch(OpenBuffer* buffer, SearchOptions options) {
   buffer->set_active_cursors(SearchHandler(buffer->editor(), options));
   buffer->ResetMode();
@@ -136,7 +163,9 @@ class SearchCommand : public Command {
         std::make_shared<AsyncSearchProcessor>(editor_state->work_queue());
 
     options.change_handler =
-        [editor_state, async_search_processor](
+        [editor_state, async_search_processor,
+         buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
+             editor_state->active_buffers())](
             const std::shared_ptr<OpenBuffer>& prompt_buffer) {
           CHECK(prompt_buffer != nullptr);
           CHECK_EQ(prompt_buffer->lines_size(), LineNumberDelta(1));
@@ -145,28 +174,37 @@ class SearchCommand : public Command {
             return futures::Past(true);
           }
           VLOG(5) << "Triggering async search.";
+          auto results = std::make_shared<AsyncSearchProcessor::Output>();
+          results->results = AsyncSearchProcessor::Output::Results::kNoMatches;
           return futures::Transform(
-              editor_state->ForEachActiveBuffer(
-                  [editor_state, async_search_processor, prompt_buffer,
-                   line](const std::shared_ptr<OpenBuffer>& buffer) {
+              futures::ForEach(
+                  buffers->begin(), buffers->end(),
+                  [editor_state, async_search_processor, prompt_buffer, line,
+                   results](const std::shared_ptr<OpenBuffer>& buffer) {
                     auto search_options = BuildPromptSearchOptions(
                         line->ToString(), buffer.get());
                     if (!search_options.has_value()) {
-                      return futures::Past(true);
+                      VLOG(6) << "search_options has no value.";
+                      return futures::Past(
+                          futures::IterationControlCommand::kContinue);
                     }
-                    return futures::Transform(
+                    VLOG(5) << "Starting search in buffer: "
+                            << buffer->Read(buffer_variables::name);
+                    return futures::ImmediateTransform(
                         async_search_processor->Search(
                             search_options.value(), buffer->contents()->copy()),
-                        [prompt_buffer,
-                         line](AsyncSearchProcessor::Output results) {
-                          VLOG(5) << "Drawing of search results.";
-                          // TODO(easy): Merge the results and apply them at the
-                          // end?
-                          return DrawSearchResults(prompt_buffer.get(), line,
-                                                   std::move(results));
+                        [prompt_buffer, results,
+                         line](AsyncSearchProcessor::Output current_results) {
+                          MergeInto(current_results, results.get());
+                          return futures::IterationControlCommand::kContinue;
                         });
                   }),
-              futures::Past(true));
+              [results, prompt_buffer, buffers,
+               line](futures::IterationControlCommand) {
+                VLOG(5) << "Drawing of search results.";
+                return DrawSearchResults(prompt_buffer.get(), line,
+                                         std::move(*results));
+              });
         };
 
     options.predictor = SearchHandlerPredictor;
