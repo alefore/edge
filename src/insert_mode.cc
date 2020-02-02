@@ -113,6 +113,7 @@ class FindCompletionCommand : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
+    // TODO(multiple_buffers): Honor.
     auto buffer = editor_state->current_buffer();
     if (buffer == nullptr) {
       return;

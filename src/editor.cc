@@ -636,6 +636,15 @@ futures::Value<bool> EditorState::ForEachActiveBuffer(
       futures::Past(true));
 }
 
+futures::Value<bool> EditorState::ApplyToActiveBuffers(
+    std::unique_ptr<Transformation> transformation) {
+  return ForEachActiveBuffer([transformation = std::shared_ptr<Transformation>(
+                                  std::move(transformation))](
+                                 const std::shared_ptr<OpenBuffer>& buffer) {
+    return buffer->ApplyToCursors(transformation->Clone());
+  });
+}
+
 wstring GetBufferName(const wstring& prefix, size_t count) {
   return prefix + L" " + std::to_wstring(count);
 }

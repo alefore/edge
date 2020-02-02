@@ -83,6 +83,9 @@ class EditorState {
   futures::Value<bool> ForEachActiveBuffer(
       std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
           callback);
+  // Convenience wrapper of `ForEachActiveBuffer` that applies `transformation`.
+  futures::Value<bool> ApplyToActiveBuffers(
+      std::unique_ptr<Transformation> transformation);
 
   wstring GetUnusedBufferName(const wstring& prefix);
   std::optional<int> exit_value() const { return exit_value_; }

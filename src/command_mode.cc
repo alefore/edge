@@ -403,11 +403,8 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
 }
 
 /* static */ void MoveForwards::Move(int, EditorState* editor_state) {
-  editor_state->ForEachActiveBuffer(
-      [modifiers = editor_state->modifiers()](
-          const std::shared_ptr<OpenBuffer>& buffer) {
-        return buffer->ApplyToCursors(NewMoveTransformation(modifiers));
-      });
+  editor_state->ApplyToActiveBuffers(
+      NewMoveTransformation(editor_state->modifiers()));
   editor_state->ResetRepetitions();
   editor_state->ResetStructure();
   editor_state->ResetDirection();
@@ -687,10 +684,7 @@ class TreeNavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->ForEachActiveBuffer(
-        [](const std::shared_ptr<OpenBuffer>& buffer) {
-          return buffer->ApplyToCursors(NewTreeNavigateTransformation());
-        });
+    editor_state->ApplyToActiveBuffers(NewTreeNavigateTransformation());
   }
 };
 

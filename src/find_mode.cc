@@ -71,13 +71,9 @@ class FindMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();
     futures::ImmediateTransform(
-        editor_state->ForEachActiveBuffer(
-            [c](const std::shared_ptr<OpenBuffer>& buffer) {
-              buffer->ApplyToCursors(
-                  NewTransformation(buffer->editor()->modifiers(),
-                                    std::make_unique<FindTransformation>(c)));
-              return futures::Past(true);
-            }),
+        editor_state->ApplyToActiveBuffers(
+            NewTransformation(editor_state->modifiers(),
+                              std::make_unique<FindTransformation>(c))),
         [editor_state](bool) {
           editor_state->ResetRepetitions();
           editor_state->ResetDirection();
