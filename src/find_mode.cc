@@ -7,6 +7,7 @@
 #include "src/buffer_variables.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
+#include "src/set_mode_command.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
@@ -95,30 +96,17 @@ class FindMode : public EditorMode {
  private:
   const Direction initial_direction_;
 };
-
-class FindModeCommand : public Command {
- public:
-  FindModeCommand(Direction initial_direction)
-      : initial_direction_(initial_direction) {}
-
-  wstring Description() const override {
-    return L"Waits for a character to be typed and moves the cursor to its "
-           L"next occurrence in the current line.";
-  }
-  wstring Category() const override { return L"Navigate"; }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_keyboard_redirect(
-        std::make_unique<FindMode>(initial_direction_));
-  }
-
- private:
-  const Direction initial_direction_;
-};
 }  // namespace
 
 std::unique_ptr<Command> NewFindModeCommand(Direction initial_direction) {
-  return std::make_unique<FindModeCommand>(initial_direction);
+  return NewSetModeCommand(
+      {.description =
+           L"Waits for a character to be typed and moves the cursor to its "
+           L"next occurrence in the current line.",
+       .category = L"Navigate",
+       .factory = [initial_direction] {
+         return std::make_unique<FindMode>(initial_direction);
+       }});
 }
 
 }  // namespace afc::editor

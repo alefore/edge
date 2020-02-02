@@ -139,7 +139,10 @@ src/seek.cc \
 src/seek.h \
 src/send_end_of_file_command.cc \
 src/server.cc \
+src/set_mode_command.cc \
+src/set_mode_command.h \
 src/set_variable_command.cc \
+src/set_variable_command.h \
 src/shapes.cc \
 src/shapes.h \
 src/status.cc \

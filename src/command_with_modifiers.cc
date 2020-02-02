@@ -4,6 +4,7 @@
 
 #include "src/buffer_variables.h"
 #include "src/editor.h"
+#include "src/set_mode_command.h"
 #include "src/terminal.h"
 
 namespace afc::editor {
@@ -172,68 +173,49 @@ std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
 }  // namespace
 
 namespace {
-class CommandWithModifiers : public Command {
- public:
-  CommandWithModifiers(wstring name, wstring description, Modifiers modifiers,
-                       CommandWithModifiersHandler handler)
-      : name_(name),
-        description_(description),
-        initial_modifiers_(std::move(modifiers)),
-        handler_(handler) {}
+Modifiers InitialState(Modifiers initial_modifiers,
+                       const std::shared_ptr<OpenBuffer>& buffer) {
+  CHECK(buffer != nullptr);
+  auto modifiers = initial_modifiers;
+  modifiers.cursors_affected = buffer->Read(buffer_variables::multiple_cursors)
+                                   ? Modifiers::CursorsAffected::kAll
+                                   : Modifiers::CursorsAffected::kOnlyCurrent;
+  modifiers.repetitions = 0;
+  return modifiers;
+}
 
-  wstring Description() const override { return description_; }
-  wstring Category() const override { return L"Edit"; }
-
-  void ProcessInput(wint_t, EditorState* editor_state) override {
-    const auto characters_map = std::make_shared<std::unordered_map<
-        wint_t, TransformationArgumentMode<Modifiers>::CharHandler>>(GetMap());
-    editor_state->set_keyboard_redirect(
-        std::make_unique<TransformationArgumentMode<Modifiers>>(
-            TransformationArgumentMode<Modifiers>::Options{
-                .editor_state = editor_state,
-                .initial_value_factory =
-                    [modifiers = initial_modifiers_](
-                        const std::shared_ptr<OpenBuffer>& buffer) {
-                      return InitialState(modifiers, buffer);
-                    },
-                .transformation_factory = handler_,
-                .characters = characters_map,
-                .status_factory =
-                    [name = name_](const Modifiers& modifiers) {
-                      return BuildStatus(name, modifiers);
-                    },
-                .cursors_affected_factory =
-                    [](const Modifiers& modifiers) {
-                      return modifiers.cursors_affected;
-                    }}));
-  }
-
- private:
-  static Modifiers InitialState(Modifiers initial_modifiers,
-                                const std::shared_ptr<OpenBuffer>& buffer) {
-    CHECK(buffer != nullptr);
-    auto modifiers = initial_modifiers;
-    modifiers.cursors_affected =
-        buffer->Read(buffer_variables::multiple_cursors)
-            ? Modifiers::CursorsAffected::kAll
-            : Modifiers::CursorsAffected::kOnlyCurrent;
-    modifiers.repetitions = 0;
-    return modifiers;
-  }
-
-  const wstring name_;
-  const wstring description_;
-  const Modifiers initial_modifiers_;
-  const CommandWithModifiersHandler handler_;
-};
+;
 }  // namespace
 
 std::unique_ptr<Command> NewCommandWithModifiers(
     wstring name, wstring description, Modifiers modifiers,
-    CommandWithModifiersHandler handler) {
-  return std::make_unique<CommandWithModifiers>(
-      std::move(name), std::move(description), std::move(modifiers),
-      std::move(handler));
+    CommandWithModifiersHandler handler, EditorState* editor_state) {
+  return NewSetModeCommand(
+      {.description = description,
+       .category = L"Edit",
+       .factory = [editor_state, name, modifiers,
+                   handler = std::move(handler)] {
+         const auto characters_map = std::make_shared<std::unordered_map<
+             wint_t, TransformationArgumentMode<Modifiers>::CharHandler>>(
+             GetMap());
+         return std::make_unique<TransformationArgumentMode<Modifiers>>(
+             TransformationArgumentMode<Modifiers>::Options{
+                 .editor_state = editor_state,
+                 .initial_value_factory =
+                     [modifiers](const std::shared_ptr<OpenBuffer>& buffer) {
+                       return InitialState(modifiers, buffer);
+                     },
+                 .transformation_factory = handler,
+                 .characters = characters_map,
+                 .status_factory =
+                     [name](const Modifiers& modifiers) {
+                       return BuildStatus(name, modifiers);
+                     },
+                 .cursors_affected_factory =
+                     [](const Modifiers& modifiers) {
+                       return modifiers.cursors_affected;
+                     }});
+       }});
 }
 
 }  // namespace afc::editor

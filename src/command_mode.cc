@@ -816,10 +816,10 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                             output.direction = Direction::kBackwards;
                             return output;
                           }(),
-                          ApplyDeleteCommand));
-  commands->Add(L"d",
-                NewCommandWithModifiers(L"✀ ", L"starts a new delete command",
-                                        Modifiers(), ApplyDeleteCommand));
+                          ApplyDeleteCommand, editor_state));
+  commands->Add(L"d", NewCommandWithModifiers(
+                          L"✀ ", L"starts a new delete command", Modifiers(),
+                          ApplyDeleteCommand, editor_state));
   commands->Add(L"p", std::make_unique<Paste>());
 
   DeleteOptions copy_options;
@@ -830,7 +830,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"\n", std::make_unique<ActivateLink>());
 
   commands->Add(L"b", std::make_unique<GotoPreviousPositionCommand>());
-  commands->Add(L"n", NewNavigateCommand());
+  commands->Add(L"n", NewNavigateCommand(editor_state));
   commands->Add(L"j", std::make_unique<LineDown>());
   commands->Add(L"k", std::make_unique<LineUp>());
   commands->Add(L"l", std::make_unique<MoveForwards>());
@@ -838,7 +838,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
 
   commands->Add(L"~", NewCommandWithModifiers(
                           L"🔠🔡", L"Switches the case of the current character.",
-                          Modifiers(), ApplySwitchCaseCommand));
+                          Modifiers(), ApplySwitchCaseCommand, editor_state));
 
   commands->Add(L"%", std::make_unique<TreeNavigateCommand>());
   commands->Add(L"sr", NewRecordCommand());

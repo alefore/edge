@@ -149,7 +149,7 @@ using CommandWithModifiersHandler =
 
 std::unique_ptr<Command> NewCommandWithModifiers(
     wstring name, wstring description, Modifiers initial_modifiers,
-    CommandWithModifiersHandler handler);
+    CommandWithModifiersHandler handler, EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

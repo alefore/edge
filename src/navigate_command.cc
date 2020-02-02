@@ -11,6 +11,7 @@
 #include "src/direction.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
+#include "src/set_mode_command.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
@@ -231,110 +232,104 @@ class NavigateTransformation : public CompositeTransformation {
   const NavigateState state_;
 };
 
-class NavigateCommand : public Command {
- public:
-  NavigateCommand() {}
+NavigateState InitialState(const std::shared_ptr<OpenBuffer>& buffer) {
+  CHECK(buffer != nullptr);
+  auto editor_state = buffer->editor();
+  auto structure = editor_state->modifiers().structure;
+  // TODO: Move to Structure.
+  NavigateState initial_state;
+  initial_state.cursors_affected =
+      buffer->Read(buffer_variables::multiple_cursors)
+          ? Modifiers::CursorsAffected::kAll
+          : Modifiers::CursorsAffected::kOnlyCurrent;
+  if (structure == StructureChar()) {
+    initial_state.navigate_options.initial_range = [](const OpenBuffer* buffer,
+                                                      LineColumn position) {
+      return SearchRange{0, buffer->LineAt(position.line)->EndColumn().column};
+    };
+    initial_state.navigate_options.write_index = [](LineColumn position,
+                                                    size_t target) {
+      position.column = ColumnNumber(target);
+      return position;
+    };
+    initial_state.navigate_options.position_to_index = [](LineColumn position) {
+      return position.column.column;
+    };
+  } else if (structure == StructureSymbol()) {
+    initial_state.navigate_options.initial_range = [](const OpenBuffer* buffer,
+                                                      LineColumn position) {
+      auto contents = buffer->LineAt(position.line);
+      auto contents_str = contents->ToString();
+      size_t previous_space = contents_str.find_last_not_of(
+          buffer->Read(buffer_variables::symbol_characters),
+          buffer->position().column.column);
 
-  wstring Description() const override { return L"activates navigate mode."; }
-  wstring Category() const override { return L"Navigate"; }
+      size_t next_space = contents_str.find_first_not_of(
+          buffer->Read(buffer_variables::symbol_characters),
+          buffer->position().column.column);
+      return SearchRange(
+          previous_space == wstring::npos ? 0 : previous_space + 1,
+          next_space == wstring::npos ? contents->EndColumn().column
+                                      : next_space);
+    };
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    const auto characters_map = std::make_shared<std::unordered_map<
-        wint_t, TransformationArgumentMode<NavigateState>::CharHandler>>(
-        GetMap());
-    editor_state->set_keyboard_redirect(
-        std::make_unique<TransformationArgumentMode<NavigateState>>(
-            TransformationArgumentMode<NavigateState>::Options{
-                .editor_state = editor_state,
-                .initial_value_factory = &InitialState,
-                .transformation_factory =
-                    [](EditorState*, NavigateState state) {
-                      return NewTransformation(
-                          Modifiers(), std::make_unique<NavigateTransformation>(
-                                           std::move(state)));
-                    },
-                .characters = characters_map,
-                .status_factory = BuildStatus,
-                .cursors_affected_factory =
-                    [](const NavigateState& state) {
-                      return state.cursors_affected;
-                    }}));
+    initial_state.navigate_options.write_index = [](LineColumn position,
+                                                    size_t target) {
+      position.column = ColumnNumber(target);
+      return position;
+    };
+
+    initial_state.navigate_options.position_to_index = [](LineColumn position) {
+      return position.column.column;
+    };
+  } else if (structure == StructureLine()) {
+    initial_state.navigate_options.initial_range = [](const OpenBuffer* buffer,
+                                                      LineColumn) {
+      return SearchRange{
+          0, static_cast<size_t>(buffer->contents()->size().line_delta)};
+    };
+    initial_state.navigate_options.write_index = [](LineColumn position,
+                                                    size_t target) {
+      position.line = LineNumber(target);
+      return position;
+    };
+    initial_state.navigate_options.position_to_index = [](LineColumn position) {
+      return position.line.line;
+    };
+  } else {
+    buffer->status()->SetInformationText(
+        L"Navigate not handled for current mode.");
   }
-
- private:
-  static NavigateState InitialState(const std::shared_ptr<OpenBuffer>& buffer) {
-    CHECK(buffer != nullptr);
-    auto editor_state = buffer->editor();
-    auto structure = editor_state->modifiers().structure;
-    // TODO: Move to Structure.
-    NavigateState initial_state;
-    initial_state.cursors_affected =
-        buffer->Read(buffer_variables::multiple_cursors)
-            ? Modifiers::CursorsAffected::kAll
-            : Modifiers::CursorsAffected::kOnlyCurrent;
-    if (structure == StructureChar()) {
-      initial_state.navigate_options.initial_range =
-          [](const OpenBuffer* buffer, LineColumn position) {
-            return SearchRange{
-                0, buffer->LineAt(position.line)->EndColumn().column};
-          };
-      initial_state.navigate_options.write_index = [](LineColumn position,
-                                                      size_t target) {
-        position.column = ColumnNumber(target);
-        return position;
-      };
-      initial_state.navigate_options.position_to_index =
-          [](LineColumn position) { return position.column.column; };
-    } else if (structure == StructureSymbol()) {
-      initial_state.navigate_options.initial_range =
-          [](const OpenBuffer* buffer, LineColumn position) {
-            auto contents = buffer->LineAt(position.line);
-            auto contents_str = contents->ToString();
-            size_t previous_space = contents_str.find_last_not_of(
-                buffer->Read(buffer_variables::symbol_characters),
-                buffer->position().column.column);
-
-            size_t next_space = contents_str.find_first_not_of(
-                buffer->Read(buffer_variables::symbol_characters),
-                buffer->position().column.column);
-            return SearchRange(
-                previous_space == wstring::npos ? 0 : previous_space + 1,
-                next_space == wstring::npos ? contents->EndColumn().column
-                                            : next_space);
-          };
-
-      initial_state.navigate_options.write_index = [](LineColumn position,
-                                                      size_t target) {
-        position.column = ColumnNumber(target);
-        return position;
-      };
-
-      initial_state.navigate_options.position_to_index =
-          [](LineColumn position) { return position.column.column; };
-    } else if (structure == StructureLine()) {
-      initial_state.navigate_options.initial_range =
-          [](const OpenBuffer* buffer, LineColumn) {
-            return SearchRange{
-                0, static_cast<size_t>(buffer->contents()->size().line_delta)};
-          };
-      initial_state.navigate_options.write_index = [](LineColumn position,
-                                                      size_t target) {
-        position.line = LineNumber(target);
-        return position;
-      };
-      initial_state.navigate_options.position_to_index =
-          [](LineColumn position) { return position.line.line; };
-    } else {
-      buffer->status()->SetInformationText(
-          L"Navigate not handled for current mode.");
-    }
-    return initial_state;
-  }
-};
+  return initial_state;
+}
 }  // namespace
 
-std::unique_ptr<Command> NewNavigateCommand() {
-  return std::make_unique<NavigateCommand>();
+std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
+  return NewSetModeCommand(
+      {.description = L"activates navigate mode.",
+       .category = L"Navigate",
+       .factory = [editor_state] {
+         const auto characters_map = std::make_shared<std::unordered_map<
+             wint_t, TransformationArgumentMode<NavigateState>::CharHandler>>(
+             GetMap());
+         return std::make_unique<TransformationArgumentMode<NavigateState>>(
+             TransformationArgumentMode<NavigateState>::Options{
+                 .editor_state = editor_state,
+                 .initial_value_factory = &InitialState,
+                 .transformation_factory =
+                     [](EditorState*, NavigateState state) {
+                       return NewTransformation(
+                           Modifiers(),
+                           std::make_unique<NavigateTransformation>(
+                               std::move(state)));
+                     },
+                 .characters = characters_map,
+                 .status_factory = BuildStatus,
+                 .cursors_affected_factory =
+                     [](const NavigateState& state) {
+                       return state.cursors_affected;
+                     }});
+       }});
 }
 
 }  // namespace afc::editor
