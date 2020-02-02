@@ -38,6 +38,7 @@ std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
   struct pollfd output;
   output.fd = fd();
   output.events = POLLIN | POLLPRI;
+  output.revents = 0;
   return output;
 }
 
