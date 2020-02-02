@@ -1,6 +1,7 @@
 #include "../editor_commands/camelcase.cc"
 #include "../editor_commands/fold-next-line.cc"
 #include "../editor_commands/header"
+#include "../editor_commands/indent.cc"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
 #include "../editor_commands/reflow.cc"
@@ -29,6 +30,29 @@ AddBinding("C-", "Cursors: Pops active cursors from the stack.",
            editor.PopActiveCursors);
 AddBinding("C!", "Cursors: Set active cursors to the marks on this buffer.",
            editor.SetActiveCursorsToMarks);
+
+void CenterScreenAroundCurrentLine(Buffer buffer) {
+  if (buffer.pts()) return;
+  // TODO(easy): Fix this. Requires defining `screen` in EditorState, which it
+  // currently isn't. Or, alternatively, loading this file later than at
+  // construction of EditorState. Ugh.
+  int size = 80;  // screen.lines();
+  size--;         // The status line doesn't count.
+  int line = buffer.position().line();
+  int start_line = line - size / 2;
+  if (start_line < 0) {
+    buffer.SetStatus("Near beginning of file.");
+    start_line = 0;
+  } else if (start_line + size > buffer.line_count()) {
+    buffer.SetStatus("Near end of file.");
+    start_line = (buffer.line_count() > size ? buffer.line_count() - size : 0);
+  }
+  buffer.set_view_start(LineColumn(start_line, 0));
+}
+
+AddBinding("M", "Center the screen around the current line.", []() -> void {
+  editor.ForEachActiveBuffer(CenterScreenAroundCurrentLine);
+});
 
 ////////////////////////////////////////////////////////////////////////////////
 // Frames / widget manipulation
@@ -226,3 +250,6 @@ AddBinding(terminal_control_d, "Edit: Delete current character.", []() -> void {
 AddBinding("$", "Go to the end of the current line", GoToEndOfLine);
 AddBinding(terminal_control_e, "Navigate: Move to the end of line.",
            GoToEndOfLine);
+
+AddBinding("si", "Edit: Indent the current line to the cursor's position.",
+           []() -> void { editor.ForEachActiveBuffer(Indent); });
