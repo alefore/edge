@@ -20,6 +20,8 @@ struct LineNumberDelta {
   explicit LineNumberDelta(int value) : line_delta(value) {}
 
   int line_delta = 0;
+
+  bool IsZero() const;
 };
 
 bool operator==(const LineNumberDelta& a, const LineNumberDelta& b);
