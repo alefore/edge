@@ -451,19 +451,6 @@ class EnterInsertModeCommand : public Command {
   const std::optional<Modifiers> modifiers_;
 };
 
-class EnterFindMode : public Command {
- public:
-  wstring Description() const override {
-    return L"Waits for a character to be typed and moves the cursor to its "
-           L"next occurrence in the current line.";
-  }
-  wstring Category() const override { return L"Navigate"; }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_keyboard_redirect(NewFindMode());
-  }
-};
-
 class InsertionModifierCommand : public Command {
  public:
   wstring Description() const override {
@@ -811,7 +798,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                   output.insertion = Modifiers::ModifyMode::kOverwrite;
                   return output;
                 }()));
-  commands->Add(L"f", std::make_unique<EnterFindMode>());
+  commands->Add(L"f", NewFindModeCommand());
   commands->Add(L"r", std::make_unique<ReverseDirectionCommand>());
   commands->Add(L"R", std::make_unique<InsertionModifierCommand>());
 

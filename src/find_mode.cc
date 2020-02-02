@@ -11,11 +11,9 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+namespace {
 using std::shared_ptr;
-using std::unique_ptr;
 
 class FindTransformation : public CompositeTransformation {
  public:
@@ -67,7 +65,7 @@ class FindTransformation : public CompositeTransformation {
   }
 
   const wchar_t c_;
-};  // namespace editor
+};
 
 class FindMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
@@ -89,9 +87,22 @@ class FindMode : public EditorMode {
   }
 };
 
-std::unique_ptr<EditorMode> NewFindMode() {
-  return std::make_unique<FindMode>();
+class FindModeCommand : public Command {
+ public:
+  wstring Description() const override {
+    return L"Waits for a character to be typed and moves the cursor to its "
+           L"next occurrence in the current line.";
+  }
+  wstring Category() const override { return L"Navigate"; }
+
+  void ProcessInput(wint_t, EditorState* editor_state) {
+    editor_state->set_keyboard_redirect(std::make_unique<FindMode>());
+  }
+};
+}  // namespace
+
+std::unique_ptr<Command> NewFindModeCommand() {
+  return std::make_unique<FindModeCommand>();
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
