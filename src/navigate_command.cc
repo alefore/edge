@@ -182,8 +182,9 @@ class NavigateTransformation : public CompositeTransformation {
           continue;
         LineColumn marker = state_copy.navigate_options.write_index(
             input.position, marker_index);
-        if (marker == input.position) continue;
-        output.Push(NewSetPositionTransformation(marker));
+        if (marker != input.position) {
+          output.Push(NewSetPositionTransformation(marker));
+        }
 
         DeleteOptions delete_options;
         delete_options.modifiers.paste_buffer_behavior =
@@ -224,6 +225,7 @@ class NavigateTransformation : public CompositeTransformation {
         Modifiers::PasteBufferBehavior::kDoNothing;
     options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
     options.mode = Transformation::Input::Mode::kPreview;
+    options.preview_modifiers = {LineModifier::DIM};
     output->Push(NewDeleteTransformation(std::move(options)));
   }
 

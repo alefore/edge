@@ -185,12 +185,12 @@ class DeleteTransformation : public Transformation {
             return futures::Past(std::move(*output));
           }
           LOG(INFO) << "Inserting preview at: " << range.begin;
-          insert_options.modifiers_set = {
-              LineModifier::UNDERLINE,
+          insert_options.modifiers_set =
               options_.modifiers.delete_behavior ==
                       Modifiers::DeleteBehavior::kDoNothing
-                  ? LineModifier::GREEN
-                  : LineModifier::RED};
+                  ? LineModifierSet{LineModifier::UNDERLINE,
+                                    LineModifier::GREEN}
+                  : options_.preview_modifiers;
           input.position = range.begin;
           return futures::ImmediateTransform(
               NewInsertBufferTransformation(std::move(insert_options))
