@@ -21,7 +21,6 @@ void HandleFileTypes(string basename, string extension) {
   if (extension == "cc" || extension == "h" || extension == "c" ||
       extension == "cpp") {
     CppMode();
-    buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
     buffer.SetStatus("🔡 C++ file (" + extension + ")");
     return;
   }
@@ -43,7 +42,6 @@ void HandleFileTypes(string basename, string extension) {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
     buffer.set_trigger_reload_on_buffer_write(false);
-    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
     buffer.SetStatus("🔡 Git commit message");
     return;
   }
@@ -57,7 +55,6 @@ void HandleFileTypes(string basename, string extension) {
 
   if (extension == "txt" || extension == "md") {
     buffer.set_wrap_from_content(true);
-    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
   }
 
   if (extension == "md") {

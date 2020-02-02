@@ -1,6 +1,7 @@
 #include "../editor_commands/camelcase.cc"
 #include "../editor_commands/fold-next-line.cc"
 #include "../editor_commands/header"
+#include "../editor_commands/include.cc"
 #include "../editor_commands/indent.cc"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
@@ -253,3 +254,5 @@ AddBinding(terminal_control_e, "Navigate: Move to the end of line.",
 
 AddBinding("si", "Edit: Indent the current line to the cursor's position.",
            []() -> void { editor.ForEachActiveBuffer(Indent); });
+AddBinding("sI", "Edit: Add a `#include` directive.",
+           []() -> void { editor.ForEachActiveBuffer(AddIncludeLine); });
