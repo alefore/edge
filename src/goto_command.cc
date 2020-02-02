@@ -40,11 +40,14 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
     return ComputePosition(0, elements, elements, direction, repetitions, 0);
   }
 
-  if (direction == FORWARDS) {
-    return min(prefix_len + repetitions - 1, elements);
-  } else {
-    return suffix_start - min(suffix_start, repetitions - 1);
+  switch (direction) {
+    case Direction::kForwards:
+      return min(prefix_len + repetitions - 1, elements);
+    case Direction::kBackwards:
+      return suffix_start - min(suffix_start, repetitions - 1);
   }
+  LOG(FATAL) << "Invalid direction.";
+  return 0;
 }
 
 class GotoTransformation : public CompositeTransformation {

@@ -87,7 +87,7 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
   std::wstring Serialize() const override { return L""; }
   futures::Value<Output> Apply(Input input) const override {
-    if (direction_ == BACKWARDS) {
+    if (direction_ == Direction::kBackwards) {
       ++input.position.line;
     }
     Output output = Output::SetPosition(LineColumn(input.position.line));
@@ -223,7 +223,7 @@ class InsertMode : public EditorMode {
         buffer->MaybeAdjustPositionCol();
         DeleteOptions delete_options;
         if (c == wint_t(Terminal::BACKSPACE)) {
-          delete_options.modifiers.direction = BACKWARDS;
+          delete_options.modifiers.direction = Direction::kBackwards;
         }
         delete_options.modifiers.paste_buffer_behavior =
             Modifiers::PasteBufferBehavior::kDoNothing;
@@ -505,7 +505,7 @@ using std::unique_ptr;
 
 void DefaultScrollBehavior::Up(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
-  modifiers.direction = BACKWARDS;
+  modifiers.direction = Direction::kBackwards;
   modifiers.structure = StructureLine();
   buffer->ApplyToCursors(NewMoveTransformation(modifiers));
 }
@@ -518,7 +518,7 @@ void DefaultScrollBehavior::Down(EditorState*, OpenBuffer* buffer) {
 
 void DefaultScrollBehavior::Left(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
-  modifiers.direction = BACKWARDS;
+  modifiers.direction = Direction::kBackwards;
   buffer->ApplyToCursors(NewMoveTransformation(modifiers));
 }
 

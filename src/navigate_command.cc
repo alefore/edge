@@ -188,8 +188,10 @@ class NavigateTransformation : public CompositeTransformation {
         output.Push(NewDeleteTransformation(std::move(delete_options)));
       }
 
-      DeleteExterior(range.begin(), BACKWARDS, input.position, &output);
-      DeleteExterior(range.end(), FORWARDS, input.position, &output);
+      DeleteExterior(range.begin(), Direction::kBackwards, input.position,
+                     &output);
+      DeleteExterior(range.end(), Direction::kForwards, input.position,
+                     &output);
     }
 
     output.Push(NewSetPositionTransformation(
@@ -206,7 +208,7 @@ class NavigateTransformation : public CompositeTransformation {
   // point on (in the direction specified).
   void DeleteExterior(size_t index, Direction direction, LineColumn position,
                       Output* output) const {
-    if (index == 0 && direction == BACKWARDS) {
+    if (index == 0 && direction == Direction::kBackwards) {
       // Otherwise we'll be saying that we want to delete the previous line.
       return;
     }

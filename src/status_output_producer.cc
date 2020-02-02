@@ -76,9 +76,9 @@ class InfoProducer : public OutputProducer {
             if (modifiers_.repetitions != 1) {
               flags.insert({std::to_wstring(modifiers_.repetitions), L""});
             }
-            if (modifiers_.default_direction == BACKWARDS) {
+            if (modifiers_.default_direction == Direction::kBackwards) {
               flags.insert({L"REVERSE", L""});
-            } else if (modifiers_.direction == BACKWARDS) {
+            } else if (modifiers_.direction == Direction::kBackwards) {
               flags.insert({L"reverse", L""});
             }
 

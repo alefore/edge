@@ -122,7 +122,7 @@ std::wstring GetPredictInput(const PredictOptions& options) {
   if (options.text.has_value()) return options.text.value();
   auto buffer = options.input_buffer;
   Modifiers modifiers;
-  modifiers.direction = Direction::BACKWARDS;
+  modifiers.direction = Direction::kBackwards;
   modifiers.structure = options.input_selection_structure;
   auto range = buffer->FindPartialRange(modifiers, buffer->position());
   range.end = max(range.end, buffer->position());

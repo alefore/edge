@@ -13,19 +13,19 @@ std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
 ostream& operator<<(ostream& os, const Modifiers& m) {
   os << "[structure: " << m.structure->ToString() << "][direction: ";
   switch (m.direction) {
-    case FORWARDS:
-      os << "forwards";
+    case Direction::kForwards:
+      os << "kfORWARDS";
       break;
-    case BACKWARDS:
+    case Direction::kBackwards:
       os << "backwards";
       break;
   }
   os << "][default direction: ";
   switch (m.default_direction) {
-    case FORWARDS:
-      os << "forwards";
+    case Direction::kForwards:
+      os << "kfORWARDS";
       break;
-    case BACKWARDS:
+    case Direction::kBackwards:
       os << "backwards";
       break;
   }
@@ -63,7 +63,7 @@ void Modifiers::Register(vm::Environment* environment) {
 
   modifiers_type->AddField(
       L"set_backwards", vm::NewCallback([](std::shared_ptr<Modifiers> output) {
-        output->direction = BACKWARDS;
+        output->direction = Direction::kBackwards;
         return output;
       }));
 
@@ -102,7 +102,7 @@ void Modifiers::Register(vm::Environment* environment) {
 
 std::wstring Modifiers::Serialize() const {
   std::wstring output = L"Modifiers()";
-  if (direction == BACKWARDS) {
+  if (direction == Direction::kBackwards) {
     output += L".set_backwards()";
   }
   // TODO: Handle other structures.

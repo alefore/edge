@@ -159,7 +159,7 @@ class UndoCommand : public Command {
   UndoCommand(std::optional<Direction> direction) : direction_(direction) {}
 
   wstring Description() const override {
-    if (direction_.value_or(FORWARDS) == BACKWARDS) {
+    if (direction_.value_or(Direction::kForwards) == Direction::kBackwards) {
       return L"re-does the last change to the current buffer";
     }
     return L"un-does the last change to the current buffer";
@@ -287,7 +287,8 @@ wstring LineUp::Description() const { return L"moves up one line"; }
 
 /* static */ void LineUp::Move(int c, EditorState* editor_state,
                                Structure* structure) {
-  if (editor_state->direction() == BACKWARDS || structure == StructureTree()) {
+  if (editor_state->direction() == Direction::kBackwards ||
+      structure == StructureTree()) {
     editor_state->set_direction(ReverseDirection(editor_state->direction()));
     LineDown::Move(c, editor_state, structure);
     return;
@@ -327,8 +328,9 @@ wstring LineDown::Description() const { return L"moves down one line"; }
 
 /* static */ void LineDown::Move(int c, EditorState* editor_state,
                                  Structure* structure) {
-  if (editor_state->direction() == BACKWARDS && structure != StructureTree()) {
-    editor_state->set_direction(FORWARDS);
+  if (editor_state->direction() == Direction::kBackwards &&
+      structure != StructureTree()) {
+    editor_state->set_direction(Direction::kForwards);
     LineUp::Move(c, editor_state, structure);
     return;
   }
@@ -354,18 +356,20 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     if (buffer == nullptr) {
       return;
     }
-    if (editor_state->direction() == BACKWARDS) {
-      if (buffer->tree_depth() > 0) {
-        buffer->set_tree_depth(buffer->tree_depth() - 1);
+    switch (editor_state->direction()) {
+      case Direction::kBackwards:
+        if (buffer->tree_depth() > 0) {
+          buffer->set_tree_depth(buffer->tree_depth() - 1);
+        }
+        break;
+      case Direction::kForwards: {
+        auto root = buffer->parse_tree();
+        const ParseTree* tree = buffer->current_tree(root.get());
+        if (!tree->children().empty()) {
+          buffer->set_tree_depth(buffer->tree_depth() + 1);
+        }
+        break;
       }
-    } else if (editor_state->direction() == FORWARDS) {
-      auto root = buffer->parse_tree();
-      const ParseTree* tree = buffer->current_tree(root.get());
-      if (!tree->children().empty()) {
-        buffer->set_tree_depth(buffer->tree_depth() + 1);
-      }
-    } else {
-      CHECK(false) << "Invalid direction: " << editor_state->direction();
     }
     buffer->ResetMode();
     editor_state->ResetDirection();
@@ -396,7 +400,7 @@ void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
   LineDown::Move(c, editor_state, StructureWord());
 }
 
-wstring MoveForwards::Description() const { return L"moves forwards"; }
+wstring MoveForwards::Description() const { return L"moves kfORWARDS"; }
 
 void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
@@ -417,8 +421,8 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
 }
 
 /* static */ void MoveBackwards::Move(int c, EditorState* editor_state) {
-  if (editor_state->direction() == BACKWARDS) {
-    editor_state->set_direction(FORWARDS);
+  if (editor_state->direction() == Direction::kBackwards) {
+    editor_state->set_direction(Direction::kForwards);
     MoveForwards::Move(c, editor_state);
     return;
   }
@@ -478,17 +482,7 @@ class ReverseDirectionCommand : public Command {
   wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    VLOG(3) << "Setting reverse direction. [previous modifiers: "
-            << editor_state->modifiers();
-    if (editor_state->direction() == FORWARDS) {
-      editor_state->set_direction(BACKWARDS);
-    } else if (editor_state->default_direction() == FORWARDS) {
-      editor_state->set_default_direction(BACKWARDS);
-    } else {
-      editor_state->set_default_direction(FORWARDS);
-      editor_state->ResetDirection();
-    }
-    VLOG(5) << "After setting, modifiers: " << editor_state->modifiers();
+    editor_state->set_direction(ReverseDirection(editor_state->direction()));
   }
 };
 
@@ -813,7 +807,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                           L"✀ ", L"starts a new delete backwards command",
                           [] {
                             Modifiers output;
-                            output.direction = BACKWARDS;
+                            output.direction = Direction::kBackwards;
                             return output;
                           }(),
                           ApplyDeleteCommand));
@@ -826,7 +820,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   copy_options.modifiers.delete_behavior =
       Modifiers::DeleteBehavior::kDoNothing;
   commands->Add(L"u", std::make_unique<UndoCommand>(std::nullopt));
-  commands->Add(L"U", std::make_unique<UndoCommand>(BACKWARDS));
+  commands->Add(L"U", std::make_unique<UndoCommand>(Direction::kBackwards));
   commands->Add(L"\n", std::make_unique<ActivateLink>());
 
   commands->Add(L"b", std::make_unique<GotoPreviousPositionCommand>());

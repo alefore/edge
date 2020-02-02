@@ -36,7 +36,7 @@ std::wstring GetToken(const CompositeTransformation::Input& input,
 
 std::unique_ptr<Transformation> DeleteLastCharacters(int characters) {
   DeleteOptions delete_options;
-  delete_options.modifiers.direction = BACKWARDS;
+  delete_options.modifiers.direction = Direction::kBackwards;
   delete_options.modifiers.repetitions = characters;
   delete_options.modifiers.paste_buffer_behavior =
       Modifiers::PasteBufferBehavior::kDoNothing;

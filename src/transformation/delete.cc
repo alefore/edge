@@ -173,7 +173,7 @@ class DeleteTransformation : public Transformation {
           InsertOptions insert_options;
           insert_options.buffer_to_insert = std::move(delete_buffer);
           insert_options.final_position =
-              options_.modifiers.direction == FORWARDS
+              options_.modifiers.direction == Direction::kForwards
                   ? InsertOptions::FinalPosition::kStart
                   : InsertOptions::FinalPosition::kEnd;
           output->undo_stack->PushFront(

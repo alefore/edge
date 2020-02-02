@@ -45,11 +45,11 @@ class FindTransformation : public CompositeTransformation {
     ColumnNumberDelta direction;
     ColumnNumberDelta times;
     switch (modifiers.direction) {
-      case FORWARDS:
+      case Direction::kForwards:
         direction = ColumnNumberDelta(1);
         times = line.EndColumn() - column;
         break;
-      case BACKWARDS:
+      case Direction::kBackwards:
         direction = ColumnNumberDelta(-1);
         times = (column + ColumnNumberDelta(1)).ToDelta();
         break;

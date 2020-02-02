@@ -146,7 +146,7 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
     options.buffer->status()->SetWarningText(results.error.value());
     return std::nullopt;
   }
-  if (direction == BACKWARDS) {
+  if (direction == Direction::kBackwards) {
     std::reverse(results.positions.begin(), results.positions.end());
   }
 
@@ -169,8 +169,9 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
 
   // Split them into head and tail depending on the current direction.
   for (auto& candidate : results.positions) {
-    ((direction == FORWARDS ? candidate > options.starting_position
-                            : candidate < options.starting_position)
+    // TODO(easy): Use a switch on the Direction enum.
+    ((direction == Direction::kForwards ? candidate > options.starting_position
+                                        : candidate < options.starting_position)
          ? head
          : tail)
         .push_back(candidate);

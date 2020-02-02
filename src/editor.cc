@@ -878,12 +878,12 @@ BufferPosition EditorState::ReadPositionsStack() {
 }
 
 bool EditorState::MovePositionsStack(Direction direction) {
-  // The directions here are somewhat counterintuitive: FORWARDS means the user
-  // is actually going "back" in the history, which means we have to decrement
-  // the line counter.
+  // The directions here are somewhat counterintuitive: Direction::kForwards
+  // means the user is actually going "back" in the history, which means we have
+  // to decrement the line counter.
   CHECK(HasPositionsInStack());
   auto buffer = buffers_.find(kPositionsBufferName)->second;
-  if (direction == BACKWARDS) {
+  if (direction == Direction::kBackwards) {
     if (buffer->current_position_line() >= buffer->EndLine()) {
       return false;
     }

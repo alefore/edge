@@ -50,7 +50,7 @@ class Seek {
   LineColumn* const position_;
 
   bool wrapping_lines_ = false;
-  Direction direction_ = FORWARDS;
+  Direction direction_ = Direction::kForwards;
 
   // Ensures that position will never move outside of this range.
   Range range_;

@@ -128,7 +128,7 @@ std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
   if (modifiers.structure != StructureChar()) {
     status += L" " + modifiers.structure->ToString();
   }
-  if (modifiers.direction == BACKWARDS) {
+  if (modifiers.direction == Direction::kBackwards) {
     status += L" reverse";
   }
   if (modifiers.cursors_affected == Modifiers::CursorsAffected::kAll) {
