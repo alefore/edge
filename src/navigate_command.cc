@@ -246,12 +246,16 @@ class NavigateCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_keyboard_redirect(
         std::make_unique<TransformationArgumentMode<NavigateState>>(
-            L"navigate", editor_state, &InitialState,
-            [](EditorState*, NavigateState state) {
-              return NewTransformation(
-                  Modifiers(),
-                  std::make_unique<NavigateTransformation>(std::move(state)));
-            }));
+            TransformationArgumentMode<NavigateState>::Options{
+                .name = L"navigate",
+                .editor_state = editor_state,
+                .initial_value_factory = &InitialState,
+                .transformation_factory = [](EditorState*,
+                                             NavigateState state) {
+                  return NewTransformation(
+                      Modifiers(), std::make_unique<NavigateTransformation>(
+                                       std::move(state)));
+                }}));
   }
 
  private:

@@ -211,12 +211,15 @@ class CommandWithModifiers : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) override {
     editor_state->set_keyboard_redirect(
         std::make_unique<TransformationArgumentMode<Modifiers>>(
-            name_, editor_state,
-            [modifiers = initial_modifiers_](
-                const std::shared_ptr<OpenBuffer>& buffer) {
-              return InitialState(modifiers, buffer);
-            },
-            handler_));
+            TransformationArgumentMode<Modifiers>::Options{
+                .name = name_,
+                .editor_state = editor_state,
+                .initial_value_factory =
+                    [modifiers = initial_modifiers_](
+                        const std::shared_ptr<OpenBuffer>& buffer) {
+                      return InitialState(modifiers, buffer);
+                    },
+                .transformation_factory = handler_}));
   }
 
  private:
