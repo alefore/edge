@@ -15,11 +15,8 @@
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
 
-namespace afc {
-namespace editor {
-
-using std::unique_ptr;
-
+namespace afc::editor {
+namespace {
 class SearchRange {
  public:
   SearchRange(size_t begin, size_t end) : begin_(begin), end_(end) {
@@ -73,7 +70,6 @@ struct NavigateState {
   std::vector<NavigateOperation> operations;
 };
 
-namespace {
 std::unordered_map<wint_t,
                    TransformationArgumentMode<NavigateState>::CharHandler>
 GetMap() {
@@ -155,7 +151,6 @@ std::wstring BuildStatus(const NavigateState& state) {
   }
   return output;
 }
-}  // namespace
 
 class NavigateTransformation : public CompositeTransformation {
  public:
@@ -334,10 +329,10 @@ class NavigateCommand : public Command {
     return initial_state;
   }
 };
+}  // namespace
 
 std::unique_ptr<Command> NewNavigateCommand() {
   return std::make_unique<NavigateCommand>();
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
