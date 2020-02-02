@@ -82,7 +82,7 @@ GetMap() {
     return state;
   }};
 
-  output['l'] = {.apply = [](NavigateState state) {
+  output['h'] = {.apply = [](NavigateState state) {
     state.operations.push_back({NavigateOperation::Type::kBackward});
     return state;
   }};
