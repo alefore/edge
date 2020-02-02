@@ -440,7 +440,7 @@ void EditorState::Set(const EdgeVariable<bool>* variable, bool value) {
 }
 
 void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
-  Set(variable, !Read(variable));
+  Set(variable, modifiers().repetitions == 0 ? false : !Read(variable));
 }
 
 void EditorState::CheckPosition() {

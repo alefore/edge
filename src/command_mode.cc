@@ -695,14 +695,18 @@ void ToggleVariable(EditorState* editor_state,
       command = L"// Variables: Toggle buffer variable (bool): " + name +
                 L"\neditor.ForEachActiveBuffer([](Buffer buffer) -> void {\n"
                 L"buffer.set_" +
-                name + L"(!buffer." + name + L"()); buffer.SetStatus((buffer." +
-                name + L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\"); });";
+                name + L"(repetitions() == 0 ? false : !buffer." + name +
+                L"()); buffer.SetStatus((buffer." + name +
+                L"() ? \"🗸\" : \"⛶\") + \" " + name +
+                L"\"); }); set_repetitions(1);";
       break;
     case VariableLocation::kEditor:
       command = L"// Variables: Toggle editor variable: " + name +
-                L"\neditor.set_" + name + L"(!editor." + name +
+                L"\neditor.set_" + name +
+                L"(repetitions() == 0 ? false : !editor." + name +
                 L"()); SetStatus((editor." + name +
-                L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\");";
+                L"() ? \"🗸\" : \"⛶\") + \" " + name +
+                L"\"); set_repetitions(1);";
       break;
   }
   LOG(INFO) << "Command: " << command;

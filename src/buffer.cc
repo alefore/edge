@@ -1735,7 +1735,8 @@ void OpenBuffer::Set(const EdgeVariable<bool>* variable, bool value) {
 }
 
 void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
-  Set(variable, !Read(variable));
+  Set(variable,
+      editor()->modifiers().repetitions == 0 ? false : !Read(variable));
 }
 
 const wstring& OpenBuffer::Read(const EdgeVariable<wstring>* variable) const {
