@@ -28,10 +28,6 @@ enum class CommandApplyMode {
 //
 // This requires the following symbols to be defined:
 //
-//   // Returns the string to show in the status.
-//   std::wstring TransformationArgumentBuildStatus(
-//       const Argument& argument, std::wstring name);
-//
 //   // Returns the mode in which the transformation should be applied.
 //   Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
 //       const Argument& argument);
@@ -46,14 +42,13 @@ class TransformationArgumentMode : public EditorMode {
   };
 
   struct Options {
-    // TODO(easy): Get rid of name. Instead, have
-    // TransformationArgumentBuildStatus hard-code it.
-    wstring name;
     EditorState* editor_state;
     std::function<Argument(const std::shared_ptr<OpenBuffer>&)>
         initial_value_factory;
     TransformationFactory transformation_factory;
     std::shared_ptr<const std::unordered_map<wint_t, CharHandler>> characters;
+    // Returns the string to show in the status.
+    std::function<std::wstring(const Argument&)> status_factory;
   };
 
   TransformationArgumentMode(Options options)
@@ -132,8 +127,7 @@ class TransformationArgumentMode : public EditorMode {
         ApplyChar(options, c, &argument);
       }
 
-      buffer->status()->SetInformationText(
-          TransformationArgumentBuildStatus(argument, options.name));
+      buffer->status()->SetInformationText(options.status_factory(argument));
       auto cursors_affected = TransformationArgumentCursorsAffected(argument);
       return futures::ImmediateTransform(
           buffer->ApplyToCursors(options.transformation_factory(

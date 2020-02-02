@@ -101,7 +101,6 @@ GetMap() {
 
   return output;
 }
-}  // namespace
 
 SearchRange GetRange(const NavigateState& navigate_state,
                      const OpenBuffer* buffer, LineColumn position) {
@@ -149,14 +148,14 @@ SearchRange GetRange(const NavigateState& navigate_state,
   return range;
 }
 
-std::wstring TransformationArgumentBuildStatus(const NavigateState& state,
-                                               std::wstring name) {
-  auto output = name;
+std::wstring BuildStatus(const NavigateState& state) {
+  std::wstring output = L"navigate";
   for (const auto& operation : state.operations) {
     output = output + L" " + DescribeForStatus(operation);
   }
   return output;
 }
+}  // namespace
 
 Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
     const NavigateState& navigate_state) {
@@ -254,7 +253,6 @@ class NavigateCommand : public Command {
     editor_state->set_keyboard_redirect(
         std::make_unique<TransformationArgumentMode<NavigateState>>(
             TransformationArgumentMode<NavigateState>::Options{
-                .name = L"navigate",
                 .editor_state = editor_state,
                 .initial_value_factory = &InitialState,
                 .transformation_factory =
@@ -263,7 +261,8 @@ class NavigateCommand : public Command {
                           Modifiers(), std::make_unique<NavigateTransformation>(
                                            std::move(state)));
                     },
-                .characters = characters_map}));
+                .characters = characters_map,
+                .status_factory = BuildStatus}));
   }
 
  private:

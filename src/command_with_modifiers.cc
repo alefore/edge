@@ -122,10 +122,8 @@ GetMap() {
   }};
   return output;
 }
-}  // namespace
 
-std::wstring TransformationArgumentBuildStatus(const Modifiers& modifiers,
-                                               std::wstring name) {
+std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
   std::wstring status = name;
   if (modifiers.structure != StructureChar()) {
     status += L" " + modifiers.structure->ToString();
@@ -171,6 +169,7 @@ std::wstring TransformationArgumentBuildStatus(const Modifiers& modifiers,
 
   return status;
 }
+}  // namespace
 
 Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
     const Modifiers& modifiers) {
@@ -196,7 +195,6 @@ class CommandWithModifiers : public Command {
     editor_state->set_keyboard_redirect(
         std::make_unique<TransformationArgumentMode<Modifiers>>(
             TransformationArgumentMode<Modifiers>::Options{
-                .name = name_,
                 .editor_state = editor_state,
                 .initial_value_factory =
                     [modifiers = initial_modifiers_](
@@ -204,7 +202,11 @@ class CommandWithModifiers : public Command {
                       return InitialState(modifiers, buffer);
                     },
                 .transformation_factory = handler_,
-                .characters = characters_map}));
+                .characters = characters_map,
+                .status_factory =
+                    [name = name_](const Modifiers& modifiers) {
+                      return BuildStatus(name, modifiers);
+                    }}));
   }
 
  private:
