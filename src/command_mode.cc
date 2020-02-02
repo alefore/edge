@@ -786,7 +786,10 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                   output.insertion = Modifiers::ModifyMode::kOverwrite;
                   return output;
                 }()));
-  commands->Add(L"f", NewFindModeCommand());
+
+  commands->Add(L"f", NewFindModeCommand(Direction::kForwards));
+  commands->Add(L"F", NewFindModeCommand(Direction::kBackwards));
+
   commands->Add(L"r", std::make_unique<ReverseDirectionCommand>());
   commands->Add(L"R", std::make_unique<InsertionModifierCommand>());
 
@@ -797,7 +800,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"w", std::make_unique<SetStructureCommand>(StructureWord()));
   commands->Add(L"e", std::make_unique<SetStructureCommand>(StructureLine()));
   commands->Add(L"E", std::make_unique<SetStructureCommand>(StructurePage()));
-  commands->Add(L"F", std::make_unique<SetStructureCommand>(StructureSearch()));
   commands->Add(L"c", std::make_unique<SetStructureCommand>(StructureCursor()));
   commands->Add(L"B", std::make_unique<SetStructureCommand>(StructureBuffer()));
   commands->Add(L"!", std::make_unique<SetStructureCommand>(StructureMark()));

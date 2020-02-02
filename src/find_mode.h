@@ -7,7 +7,7 @@
 #include "src/editor.h"
 
 namespace afc::editor {
-std::unique_ptr<Command> NewFindModeCommand();
+std::unique_ptr<Command> NewFindModeCommand(Direction initial_direction);
 }  // namespace afc::editor
 
 #endif

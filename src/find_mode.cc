@@ -13,8 +13,6 @@
 
 namespace afc::editor {
 namespace {
-using std::shared_ptr;
-
 class FindTransformation : public CompositeTransformation {
  public:
   FindTransformation(wchar_t c) : c_(c) {}
@@ -68,8 +66,20 @@ class FindTransformation : public CompositeTransformation {
 };
 
 class FindMode : public EditorMode {
-  void ProcessInput(wint_t c, EditorState* editor_state) {
+ public:
+  FindMode(Direction initial_direction)
+      : initial_direction_(initial_direction) {}
+
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
     editor_state->PushCurrentPosition();
+    switch (initial_direction_) {
+      case Direction::kBackwards:
+        editor_state->set_direction(
+            ReverseDirection(editor_state->direction()));
+        break;
+      case Direction::kForwards:
+        break;
+    }
     futures::ImmediateTransform(
         editor_state->ApplyToActiveBuffers(
             NewTransformation(editor_state->modifiers(),
@@ -81,10 +91,16 @@ class FindMode : public EditorMode {
           return true;
         });
   }
+
+ private:
+  const Direction initial_direction_;
 };
 
 class FindModeCommand : public Command {
  public:
+  FindModeCommand(Direction initial_direction)
+      : initial_direction_(initial_direction) {}
+
   wstring Description() const override {
     return L"Waits for a character to be typed and moves the cursor to its "
            L"next occurrence in the current line.";
@@ -92,13 +108,17 @@ class FindModeCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_keyboard_redirect(std::make_unique<FindMode>());
+    editor_state->set_keyboard_redirect(
+        std::make_unique<FindMode>(initial_direction_));
   }
+
+ private:
+  const Direction initial_direction_;
 };
 }  // namespace
 
-std::unique_ptr<Command> NewFindModeCommand() {
-  return std::make_unique<FindModeCommand>();
+std::unique_ptr<Command> NewFindModeCommand(Direction initial_direction) {
+  return std::make_unique<FindModeCommand>(initial_direction);
 }
 
 }  // namespace afc::editor
