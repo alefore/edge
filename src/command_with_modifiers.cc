@@ -171,11 +171,6 @@ std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
 }
 }  // namespace
 
-Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
-    const Modifiers& modifiers) {
-  return modifiers.cursors_affected;
-}
-
 namespace {
 class CommandWithModifiers : public Command {
  public:
@@ -206,6 +201,10 @@ class CommandWithModifiers : public Command {
                 .status_factory =
                     [name = name_](const Modifiers& modifiers) {
                       return BuildStatus(name, modifiers);
+                    },
+                .cursors_affected_factory =
+                    [](const Modifiers& modifiers) {
+                      return modifiers.cursors_affected;
                     }}));
   }
 

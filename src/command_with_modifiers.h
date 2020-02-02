@@ -23,32 +23,34 @@ enum class CommandApplyMode {
 // an arbitrary type. When ENTER is pressed, the transformation is finally
 // executed and the mode is reset.
 //
-// Every time the argument is modified, the transformation is actually ... also
-// executed, just in kPreview mode.
-//
-// This requires the following symbols to be defined:
-//
-//   // Returns the mode in which the transformation should be applied.
-//   Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
-//       const Argument& argument);
+// Every time the argument is modified, the transformation is executed, just in
+// kPreview mode.
 template <typename Argument>
 class TransformationArgumentMode : public EditorMode {
  public:
-  using TransformationFactory =
-      std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>;
-
   struct CharHandler {
     std::function<Argument(Argument)> apply;
   };
 
   struct Options {
     EditorState* editor_state;
+    // Produces the initial `Argument` for a given buffer. This allows different
+    // buffers to start with different values (e.g., based on their variables).
     std::function<Argument(const std::shared_ptr<OpenBuffer>&)>
         initial_value_factory;
-    TransformationFactory transformation_factory;
+
+    std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>
+        transformation_factory;
+
+    // The characters recognized.
     std::shared_ptr<const std::unordered_map<wint_t, CharHandler>> characters;
+
     // Returns the string to show in the status.
     std::function<std::wstring(const Argument&)> status_factory;
+
+    // Returns the mode in which the transformation should be applied.
+    std::function<Modifiers::CursorsAffected(const Argument&)>
+        cursors_affected_factory;
   };
 
   TransformationArgumentMode(Options options)
@@ -128,7 +130,7 @@ class TransformationArgumentMode : public EditorMode {
       }
 
       buffer->status()->SetInformationText(options.status_factory(argument));
-      auto cursors_affected = TransformationArgumentCursorsAffected(argument);
+      auto cursors_affected = options.cursors_affected_factory(argument);
       return futures::ImmediateTransform(
           buffer->ApplyToCursors(options.transformation_factory(
                                      options.editor_state, std::move(argument)),

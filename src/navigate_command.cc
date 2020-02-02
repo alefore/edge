@@ -157,11 +157,6 @@ std::wstring BuildStatus(const NavigateState& state) {
 }
 }  // namespace
 
-Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
-    const NavigateState& navigate_state) {
-  return navigate_state.cursors_affected;
-}
-
 class NavigateTransformation : public CompositeTransformation {
  public:
   NavigateTransformation(NavigateState state) : state_(std::move(state)) {}
@@ -262,7 +257,11 @@ class NavigateCommand : public Command {
                                            std::move(state)));
                     },
                 .characters = characters_map,
-                .status_factory = BuildStatus}));
+                .status_factory = BuildStatus,
+                .cursors_affected_factory =
+                    [](const NavigateState& state) {
+                      return state.cursors_affected;
+                    }}));
   }
 
  private:
