@@ -73,31 +73,35 @@ struct NavigateState {
   std::vector<NavigateOperation> operations;
 };
 
-bool TransformationArgumentApplyChar(wint_t c, NavigateState* state) {
-  switch (c) {
-    case 'l':
-      state->operations.push_back({NavigateOperation::Type::kForward});
-      return true;
+namespace {
+std::unordered_map<wint_t,
+                   TransformationArgumentMode<NavigateState>::CharHandler>
+GetMap() {
+  std::unordered_map<wint_t,
+                     TransformationArgumentMode<NavigateState>::CharHandler>
+      output;
+  output['l'] = {.apply = [](NavigateState state) {
+    state.operations.push_back({NavigateOperation::Type::kForward});
+    return state;
+  }};
 
-    case 'h':
-      state->operations.push_back({NavigateOperation::Type::kBackward});
-      return true;
+  output['l'] = {.apply = [](NavigateState state) {
+    state.operations.push_back({NavigateOperation::Type::kBackward});
+    return state;
+  }};
 
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-      state->operations.push_back({NavigateOperation::Type::kNumber,
-                                   .number = static_cast<size_t>(c - '1')});
-      return true;
+  for (size_t i = 0; i < 9; i++) {
+    output['1' + i] = {.apply = [i](NavigateState state) {
+      state.operations.push_back(
+          {NavigateOperation::Type::kNumber, .number = i});
+
+      return state;
+    }};
   }
-  return false;
+
+  return output;
 }
+}  // namespace
 
 SearchRange GetRange(const NavigateState& navigate_state,
                      const OpenBuffer* buffer, LineColumn position) {
@@ -244,18 +248,22 @@ class NavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
+    const auto characters_map = std::make_shared<std::unordered_map<
+        wint_t, TransformationArgumentMode<NavigateState>::CharHandler>>(
+        GetMap());
     editor_state->set_keyboard_redirect(
         std::make_unique<TransformationArgumentMode<NavigateState>>(
             TransformationArgumentMode<NavigateState>::Options{
                 .name = L"navigate",
                 .editor_state = editor_state,
                 .initial_value_factory = &InitialState,
-                .transformation_factory = [](EditorState*,
-                                             NavigateState state) {
-                  return NewTransformation(
-                      Modifiers(), std::make_unique<NavigateTransformation>(
-                                       std::move(state)));
-                }}));
+                .transformation_factory =
+                    [](EditorState*, NavigateState state) {
+                      return NewTransformation(
+                          Modifiers(), std::make_unique<NavigateTransformation>(
+                                           std::move(state)));
+                    },
+                .characters = characters_map}));
   }
 
  private:

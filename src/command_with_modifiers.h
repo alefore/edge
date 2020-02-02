@@ -28,9 +28,6 @@ enum class CommandApplyMode {
 //
 // This requires the following symbols to be defined:
 //
-//   // Returns true if the character was accepted.
-//   bool TransformationArgumentApplyChar(wint_t c, Argument* output_argument);
-//
 //   // Returns the string to show in the status.
 //   std::wstring TransformationArgumentBuildStatus(
 //       const Argument& argument, std::wstring name);
@@ -44,6 +41,10 @@ class TransformationArgumentMode : public EditorMode {
   using TransformationFactory =
       std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>;
 
+  struct CharHandler {
+    std::function<Argument(Argument)> apply;
+  };
+
   struct Options {
     // TODO(easy): Get rid of name. Instead, have
     // TransformationArgumentBuildStatus hard-code it.
@@ -52,6 +53,7 @@ class TransformationArgumentMode : public EditorMode {
     std::function<Argument(const std::shared_ptr<OpenBuffer>&)>
         initial_value_factory;
     TransformationFactory transformation_factory;
+    std::shared_ptr<const std::unordered_map<wint_t, CharHandler>> characters;
   };
 
   TransformationArgumentMode(Options options)
@@ -75,7 +77,7 @@ class TransformationArgumentMode : public EditorMode {
               return Transform(Transformation::Input::Mode::kPreview);
             default:
               Argument dummy;
-              if (TransformationArgumentApplyChar(c, &dummy)) {
+              if (ApplyChar(options_, c, &dummy)) {
                 argument_string_.push_back(c);
                 return Transform(Transformation::Input::Mode::kPreview);
               }
@@ -106,6 +108,13 @@ class TransformationArgumentMode : public EditorMode {
   }
 
  private:
+  static bool ApplyChar(Options options, wint_t c, Argument* argument) {
+    auto it = options.characters->find(c);
+    if (it == options.characters->end()) return false;
+    *argument = it->second.apply(std::move(*argument));
+    return true;
+  }
+
   futures::Value<bool> ForEachBuffer(
       const std::function<futures::Value<futures::IterationControlCommand>(
           const std::shared_ptr<OpenBuffer>&)>& callback) {
@@ -120,7 +129,7 @@ class TransformationArgumentMode : public EditorMode {
                              const std::shared_ptr<OpenBuffer>& buffer) {
       auto argument = options.initial_value_factory(buffer);
       for (const auto& c : argument_string) {
-        TransformationArgumentApplyChar(c, &argument);
+        ApplyChar(options, c, &argument);
       }
 
       buffer->status()->SetInformationText(
