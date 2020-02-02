@@ -130,6 +130,7 @@ std::wstring GetPredictInput(const PredictOptions& options) {
   CHECK_LE(range.begin.column, line->EndColumn());
   if (range.begin.line == range.end.line) {
     CHECK_GE(range.end.column, range.begin.column);
+    CHECK_LE(range.end.column, line->EndColumn());
   } else {
     CHECK_GE(line->EndColumn(), range.begin.column);
   }
