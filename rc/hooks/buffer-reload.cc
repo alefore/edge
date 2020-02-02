@@ -17,6 +17,10 @@ void DiffMode() { buffer.set_tree_parser("diff"); }
 
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
+if (buffer.buffer_list_context_lines() < 5) {
+  buffer.set_buffer_list_context_lines(5);
+}
+
 void HandleFileTypes(string basename, string extension) {
   if (extension == "cc" || extension == "h" || extension == "c" ||
       extension == "cpp") {
