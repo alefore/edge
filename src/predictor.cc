@@ -127,11 +127,17 @@ std::wstring GetPredictInput(const PredictOptions& options) {
   auto range = buffer->FindPartialRange(modifiers, buffer->position());
   range.end = max(range.end, buffer->position());
   auto line = buffer->LineAt(range.begin.line);
+  CHECK_LE(range.begin.column, line->EndColumn());
+  if (range.begin.line == range.end.line) {
+    CHECK_GE(range.end.column, range.begin.column);
+  } else {
+    CHECK_GE(line->EndColumn(), range.begin.column);
+  }
   return line
       ->Substring(range.begin.column,
-                  range.end.line == range.begin.line
-                      ? range.end.column - range.begin.column
-                      : line->EndColumn() - range.begin.column)
+                  (range.begin.line == range.end.line ? range.end.column
+                                                      : line->EndColumn()) -
+                      range.begin.column)
       ->ToString();
 }
 }  // namespace
