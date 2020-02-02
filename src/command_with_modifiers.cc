@@ -224,7 +224,7 @@ class CommandWithModifiers : public Command {
   const wstring name_;
   const wstring description_;
   const Modifiers initial_modifiers_;
-  CommandWithModifiersHandler handler_;
+  const CommandWithModifiersHandler handler_;
 };
 }  // namespace
 
