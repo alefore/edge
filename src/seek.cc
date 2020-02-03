@@ -21,7 +21,7 @@ Seek& Seek::WithDirection(Direction direction) {
   return *this;
 }
 
-Seek& Seek::Backwards() { return WithDirection(BACKWARDS); }
+Seek& Seek::Backwards() { return WithDirection(Direction::kBackwards); }
 
 Seek& Seek::WithRange(Range range) {
   range_ = range;
@@ -39,7 +39,7 @@ Seek::Result Seek::Once() const {
 
 Seek::Result Seek::ToNextLine() const {
   LineColumn next_position;
-  if (direction_ == FORWARDS) {
+  if (direction_ == Direction::kForwards) {
     next_position.line = position_->line.next();
   } else {
     if (position_->line == LineNumber(0)) {
@@ -167,7 +167,7 @@ Seek::Result Seek::ToEndOfLine() const {
 
 Seek::Result Seek::UntilLine(
     std::function<bool(const Line& line)> predicate) const {
-  bool advance = direction_ == BACKWARDS;
+  bool advance = direction_ == Direction::kBackwards;
   while (true) {
     if (advance && !AdvanceLine(position_)) {
       return UNABLE_TO_ADVANCE;
@@ -175,7 +175,7 @@ Seek::Result Seek::UntilLine(
     advance = true;
 
     if (predicate(*contents_.at(position_->line))) {
-      if (direction_ == BACKWARDS) {
+      if (direction_ == Direction::kBackwards) {
         position_->column = contents_.at(position_->line)->EndColumn();
       }
       return DONE;
@@ -209,7 +209,7 @@ Seek::Result Seek::UntilNextLineIsNotSubsetOf(
 
 bool Seek::AdvanceLine(LineColumn* position) const {
   switch (direction_) {
-    case FORWARDS:
+    case Direction::kForwards:
       if (position->line.next() >= range_.end.line) {
         return false;
       }
@@ -217,7 +217,7 @@ bool Seek::AdvanceLine(LineColumn* position) const {
       ++position->line;
       return true;
 
-    case BACKWARDS:
+    case Direction::kBackwards:
       if (position->line == range_.begin.line) {
         return false;
       }
@@ -232,7 +232,7 @@ bool Seek::AdvanceLine(LineColumn* position) const {
 
 bool Seek::Advance(LineColumn* position) const {
   switch (direction_) {
-    case FORWARDS:
+    case Direction::kForwards:
       if (*position >= range_.end) {
         return false;
       } else if (position->column < contents_.at(position->line)->EndColumn()) {
@@ -246,7 +246,7 @@ bool Seek::Advance(LineColumn* position) const {
       }
       return true;
 
-    case BACKWARDS:
+    case Direction::kBackwards:
       if (*position <= range_.begin) {
         return false;
       } else if (position->column > ColumnNumber(0)) {

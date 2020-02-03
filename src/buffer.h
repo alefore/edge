@@ -174,7 +174,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     mode_.reset(new MapMode(default_commands_));
     return copy;
   }
-  void set_mode(std::shared_ptr<EditorMode> mode) { mode_ = std::move(mode); }
 
   // Erases all lines in range [first, last).
   void EraseLines(LineNumber first, LineNumber last);

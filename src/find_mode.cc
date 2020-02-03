@@ -7,16 +7,13 @@
 #include "src/buffer_variables.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
+#include "src/set_mode_command.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
 
-namespace afc {
-namespace editor {
-
-using std::shared_ptr;
-using std::unique_ptr;
-
+namespace afc::editor {
+namespace {
 class FindTransformation : public CompositeTransformation {
  public:
   FindTransformation(wchar_t c) : c_(c) {}
@@ -47,11 +44,11 @@ class FindTransformation : public CompositeTransformation {
     ColumnNumberDelta direction;
     ColumnNumberDelta times;
     switch (modifiers.direction) {
-      case FORWARDS:
+      case Direction::kForwards:
         direction = ColumnNumberDelta(1);
         times = line.EndColumn() - column;
         break;
-      case BACKWARDS:
+      case Direction::kBackwards:
         direction = ColumnNumberDelta(-1);
         times = (column + ColumnNumberDelta(1)).ToDelta();
         break;
@@ -67,19 +64,27 @@ class FindTransformation : public CompositeTransformation {
   }
 
   const wchar_t c_;
-};  // namespace editor
+};
 
 class FindMode : public EditorMode {
-  void ProcessInput(wint_t c, EditorState* editor_state) {
+ public:
+  FindMode(Direction initial_direction)
+      : initial_direction_(initial_direction) {}
+
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
     editor_state->PushCurrentPosition();
+    switch (initial_direction_) {
+      case Direction::kBackwards:
+        editor_state->set_direction(
+            ReverseDirection(editor_state->direction()));
+        break;
+      case Direction::kForwards:
+        break;
+    }
     futures::ImmediateTransform(
-        editor_state->ForEachActiveBuffer(
-            [c](const std::shared_ptr<OpenBuffer>& buffer) {
-              buffer->ApplyToCursors(
-                  NewTransformation(buffer->editor()->modifiers(),
-                                    std::make_unique<FindTransformation>(c)));
-              return futures::Past(true);
-            }),
+        editor_state->ApplyToActiveBuffers(
+            NewTransformation(editor_state->modifiers(),
+                              std::make_unique<FindTransformation>(c))),
         [editor_state](bool) {
           editor_state->ResetRepetitions();
           editor_state->ResetDirection();
@@ -87,11 +92,21 @@ class FindMode : public EditorMode {
           return true;
         });
   }
-};
 
-std::unique_ptr<EditorMode> NewFindMode() {
-  return std::make_unique<FindMode>();
+ private:
+  const Direction initial_direction_;
+};
+}  // namespace
+
+std::unique_ptr<Command> NewFindModeCommand(Direction initial_direction) {
+  return NewSetModeCommand(
+      {.description =
+           L"Waits for a character to be typed and moves the cursor to its "
+           L"next occurrence in the current line.",
+       .category = L"Navigate",
+       .factory = [initial_direction] {
+         return std::make_unique<FindMode>(initial_direction);
+       }});
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

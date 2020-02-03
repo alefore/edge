@@ -59,7 +59,7 @@ std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
   // Override the parent's help command, so that bindings added to the child are
   // visible.
   output->Add(L"?", NewHelpCommand(output.get(), L"command mode"));
-  return std::move(output);
+  return output;
 }
 
 std::map<wstring, std::map<wstring, Command*>> MapModeCommands::Coallesce()

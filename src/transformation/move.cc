@@ -64,8 +64,9 @@ class MoveTransformation : public CompositeTransformation {
     } else if (structure == StructureChar() || structure == StructureTree() ||
                structure == StructureSymbol() || structure == StructureWord()) {
       CHECK_LE(input.range.begin, input.range.end);
-      position = input.modifiers.direction == FORWARDS ? input.range.end
-                                                       : input.range.begin;
+      position = input.modifiers.direction == Direction::kForwards
+                     ? input.range.end
+                     : input.range.begin;
     } else if (structure == StructureMark()) {
       position =
           MoveMark(input.buffer, input.original_position, input.modifiers);
@@ -105,7 +106,7 @@ class MoveTransformation : public CompositeTransformation {
     using P = pair<const size_t, LineMarks::Mark>;
     Iterator it = std::upper_bound(
         it_begin, it_end, P(current.line.line, LineMarks::Mark()),
-        modifiers.direction == FORWARDS
+        modifiers.direction == Direction::kForwards
             ? [](const P& a, const P& b) { return a.first < b.first; }
             : [](const P& a, const P& b) { return a.first > b.first; });
     if (it == it_end) {
@@ -130,9 +131,10 @@ class MoveTransformation : public CompositeTransformation {
 
   LineColumn MoveLine(const OpenBuffer* buffer, LineColumn position,
                       const Modifiers& modifiers) const {
-    int direction = (modifiers.direction == BACKWARDS ? -1 : 1);
+    int direction = (modifiers.direction == Direction::kBackwards ? -1 : 1);
     size_t repetitions = modifiers.repetitions;
-    if (modifiers.direction == BACKWARDS && repetitions > position.line.line) {
+    if (modifiers.direction == Direction::kBackwards &&
+        repetitions > position.line.line) {
       position.line = LineNumber(0);
     } else {
       position.line += LineNumberDelta(direction * repetitions);
@@ -147,11 +149,11 @@ class MoveTransformation : public CompositeTransformation {
     const multimap<size_t, LineMarks::Mark>* marks = buffer->GetLineMarks();
 
     switch (modifiers.direction) {
-      case FORWARDS:
+      case Direction::kForwards:
         return GetMarkPosition(marks->begin(), marks->end(), position,
                                modifiers);
         break;
-      case BACKWARDS:
+      case Direction::kBackwards:
         return GetMarkPosition(marks->rbegin(), marks->rend(), position,
                                modifiers);
     }

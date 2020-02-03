@@ -558,6 +558,7 @@ EdgeVariable<int>* const buffer_list_context_lines =
         .Description(
             L"Number of lines of context from this buffer to show in the list "
             L"of buffers.")
+        .DefaultValue(5)
         .Build();
 
 EdgeVariable<int>* const margin_lines =

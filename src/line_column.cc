@@ -24,6 +24,7 @@ const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
     VMType::ObjectType(L"SetLineColumn");
 }  // namespace vm
 namespace editor {
+bool LineNumberDelta::IsZero() const { return *this == LineNumberDelta(); }
 
 bool operator==(const LineNumberDelta& a, const LineNumberDelta& b) {
   return a.line_delta == b.line_delta;

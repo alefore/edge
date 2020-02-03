@@ -30,6 +30,8 @@ class Widget {
 
   struct OutputProducerOptions {
     LineColumnDelta size;
+    enum class MainCursorBehavior { kHighlight, kIgnore };
+    MainCursorBehavior main_cursor_behavior;
   };
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer(
       OutputProducerOptions options) const = 0;

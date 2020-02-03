@@ -299,23 +299,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       L"set_exit_value",
       vm::NewCallback([this](int exit_value) { exit_value_ = exit_value; }));
 
-  environment->Define(L"SetPositionColumn", vm::NewCallback([this](int value) {
-                        auto buffer = current_buffer();
-                        if (buffer == nullptr) {
-                          return;
-                        }
-                        buffer->set_position(LineColumn(buffer->position().line,
-                                                        ColumnNumber(value)));
-                      }));
-
-  environment->Define(L"Line", vm::NewCallback([this]() -> wstring {
-                        auto buffer = current_buffer();
-                        if (buffer == nullptr) {
-                          return L"";
-                        }
-                        return buffer->current_line()->ToString();
-                      }));
-
   environment->Define(L"ForkCommand",
                       vm::NewCallback([this](ForkCommandOptions* options) {
                         return ForkCommand(this, *options);
@@ -457,7 +440,7 @@ void EditorState::Set(const EdgeVariable<bool>* variable, bool value) {
 }
 
 void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
-  Set(variable, !Read(variable));
+  Set(variable, modifiers().repetitions == 0 ? false : !Read(variable));
 }
 
 void EditorState::CheckPosition() {
@@ -651,6 +634,15 @@ futures::Value<bool> EditorState::ForEachActiveBuffer(
                 futures::Past(futures::IterationControlCommand::kContinue));
           }),
       futures::Past(true));
+}
+
+futures::Value<bool> EditorState::ApplyToActiveBuffers(
+    std::unique_ptr<Transformation> transformation) {
+  return ForEachActiveBuffer([transformation = std::shared_ptr<Transformation>(
+                                  std::move(transformation))](
+                                 const std::shared_ptr<OpenBuffer>& buffer) {
+    return buffer->ApplyToCursors(transformation->Clone());
+  });
 }
 
 wstring GetBufferName(const wstring& prefix, size_t count) {
@@ -886,12 +878,12 @@ BufferPosition EditorState::ReadPositionsStack() {
 }
 
 bool EditorState::MovePositionsStack(Direction direction) {
-  // The directions here are somewhat counterintuitive: FORWARDS means the user
-  // is actually going "back" in the history, which means we have to decrement
-  // the line counter.
+  // The directions here are somewhat counterintuitive: Direction::kForwards
+  // means the user is actually going "back" in the history, which means we have
+  // to decrement the line counter.
   CHECK(HasPositionsInStack());
   auto buffer = buffers_.find(kPositionsBufferName)->second;
-  if (direction == BACKWARDS) {
+  if (direction == Direction::kBackwards) {
     if (buffer->current_position_line() >= buffer->EndLine()) {
       return false;
     }
@@ -929,29 +921,31 @@ void EditorState::ProcessSignals() {
     switch (signal) {
       case SIGINT:
       case SIGTSTP:
-        auto buffer = current_buffer();
-        if (buffer == nullptr) {
-          return;
-        }
-        auto target_buffer = buffer->GetBufferFromCurrentLine();
-        if (target_buffer != nullptr) {
-          buffer = target_buffer;
-        }
-        buffer->PushSignal(signal);
+        ForEachActiveBuffer(
+            [signal](const std::shared_ptr<OpenBuffer>& buffer) {
+              buffer->PushSignal(signal);
+              return futures::Past(true);
+            });
     }
   }
 }
 
 bool EditorState::handling_stop_signals() const {
-  auto buffer = current_buffer();
-  if (buffer == nullptr) {
-    return false;
-  }
-  auto target_buffer = buffer->GetBufferFromCurrentLine();
-  if (target_buffer != nullptr) {
-    buffer = target_buffer;
-  }
-  return buffer->Read(buffer_variables::pts);
+  auto buffers = active_buffers();
+  return futures::ImmediateTransform(
+             futures::ForEachWithCopy(
+                 buffers.begin(), buffers.end(),
+                 [](const std::shared_ptr<OpenBuffer>& buffer) {
+                   return futures::Past(
+                       buffer->Read(buffer_variables::pts)
+                           ? futures::IterationControlCommand::kStop
+                           : futures::IterationControlCommand::kContinue);
+                 }),
+             [](futures::IterationControlCommand c) {
+               return c == futures::IterationControlCommand::kStop;
+             })
+      .Get()
+      .value();
 }
 
 }  // namespace editor

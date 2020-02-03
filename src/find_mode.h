@@ -3,16 +3,11 @@
 
 #include <memory>
 
-#include "editor.h"
+#include "src/command.h"
+#include "src/editor.h"
 
-namespace afc {
-namespace editor {
-
-using std::unique_ptr;
-
-unique_ptr<EditorMode> NewFindMode();
-
-}  // namespace editor
-}  // namespace afc
+namespace afc::editor {
+std::unique_ptr<Command> NewFindModeCommand(Direction initial_direction);
+}  // namespace afc::editor
 
 #endif

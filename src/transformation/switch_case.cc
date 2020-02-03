@@ -51,7 +51,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
 
     InsertOptions insert_options;
     insert_options.buffer_to_insert = buffer_to_insert;
-    if (input.modifiers.direction == BACKWARDS) {
+    if (input.modifiers.direction == Direction::kBackwards) {
       insert_options.final_position = InsertOptions::FinalPosition::kStart;
     }
     if (input.mode == Transformation::Input::Mode::kPreview) {

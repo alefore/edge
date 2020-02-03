@@ -38,7 +38,7 @@ class OutputProducer {
 
     // Generates the line. Must be called at most once.
     std::function<LineWithCursor()> generate;
-  };  // namespace editor
+  };
 
   virtual Generator Next() = 0;
 };

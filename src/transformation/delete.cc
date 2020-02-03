@@ -173,7 +173,7 @@ class DeleteTransformation : public Transformation {
           InsertOptions insert_options;
           insert_options.buffer_to_insert = std::move(delete_buffer);
           insert_options.final_position =
-              options_.modifiers.direction == FORWARDS
+              options_.modifiers.direction == Direction::kForwards
                   ? InsertOptions::FinalPosition::kStart
                   : InsertOptions::FinalPosition::kEnd;
           output->undo_stack->PushFront(
@@ -185,12 +185,12 @@ class DeleteTransformation : public Transformation {
             return futures::Past(std::move(*output));
           }
           LOG(INFO) << "Inserting preview at: " << range.begin;
-          insert_options.modifiers_set = {
-              LineModifier::UNDERLINE,
+          insert_options.modifiers_set =
               options_.modifiers.delete_behavior ==
                       Modifiers::DeleteBehavior::kDoNothing
-                  ? LineModifier::GREEN
-                  : LineModifier::RED};
+                  ? LineModifierSet{LineModifier::UNDERLINE,
+                                    LineModifier::GREEN}
+                  : options_.preview_modifiers;
           input.position = range.begin;
           return futures::ImmediateTransform(
               NewInsertBufferTransformation(std::move(insert_options))

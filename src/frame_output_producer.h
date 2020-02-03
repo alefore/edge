@@ -7,18 +7,18 @@
 #include "src/buffer.h"
 #include "src/output_producer.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 class FrameOutputProducer : public OutputProducer {
  public:
+  // TODO(easy): Rename to `Options`.
   struct FrameOptions {
-    ColumnNumberDelta width;
-    wstring title;
-    std::optional<size_t> position_in_parent;
+    ColumnNumberDelta width = ColumnNumberDelta();
+    std::wstring title;
+    std::optional<size_t> position_in_parent = std::nullopt;
     enum class ActiveState { kActive, kInactive };
     ActiveState active_state = ActiveState::kInactive;
-    wstring extra_information;
+    std::wstring extra_information = L"";
   };
 
   FrameOutputProducer(FrameOptions options);
@@ -31,7 +31,6 @@ class FrameOutputProducer : public OutputProducer {
   const LineModifierSet title_modifiers_;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_FRAME_OUTPUT_PRODUCER_H__

@@ -74,6 +74,7 @@ SearchResults PerformSearch(const SearchOptions& options,
     return !options.required_positions.has_value() ||
            options.required_positions.value() > output.positions.size();
   });
+  VLOG(5) << "Perform search found matches: " << output.positions.size();
   return output;
 }
 
@@ -81,6 +82,22 @@ SearchResults PerformSearch(const SearchOptions& options,
 
 AsyncSearchProcessor::AsyncSearchProcessor(WorkQueue* work_queue)
     : evaluator_(L"search", work_queue) {}
+
+std::wstring AsyncSearchProcessor::Output::ToString() const {
+  switch (results) {
+    case AsyncSearchProcessor::Output::Results::kInvalidPattern:
+      return L"invalid pattern";
+    case AsyncSearchProcessor::Output::Results::kNoMatches:
+      return L"no matches";
+    case AsyncSearchProcessor::Output::Results::kOneMatch:
+      return L"one match";
+    case AsyncSearchProcessor::Output::Results::kManyMatches:
+      return L"many matches";
+    default:
+      LOG(FATAL) << "Invalid value in AsyncSearchProcessor::Output.";
+      return L"invalid";
+  }
+}
 
 futures::Value<AsyncSearchProcessor::Output> AsyncSearchProcessor::Search(
     SearchOptions search_options, std::unique_ptr<BufferContents> buffer) {
@@ -129,7 +146,7 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
     options.buffer->status()->SetWarningText(results.error.value());
     return std::nullopt;
   }
-  if (direction == BACKWARDS) {
+  if (direction == Direction::kBackwards) {
     std::reverse(results.positions.begin(), results.positions.end());
   }
 
@@ -152,8 +169,9 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
 
   // Split them into head and tail depending on the current direction.
   for (auto& candidate : results.positions) {
-    ((direction == FORWARDS ? candidate > options.starting_position
-                            : candidate < options.starting_position)
+    // TODO(easy): Use a switch on the Direction enum.
+    ((direction == Direction::kForwards ? candidate > options.starting_position
+                                        : candidate < options.starting_position)
          ? head
          : tail)
         .push_back(candidate);
@@ -184,39 +202,40 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
 }
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
-  auto search_buffer = input.source_buffer;
-  CHECK(search_buffer != nullptr);
   CHECK(input.predictions != nullptr);
-  SearchOptions options;
-  options.buffer = search_buffer;
-  options.search_query = input.input;
-  options.case_sensitive =
-      search_buffer->Read(buffer_variables::search_case_sensitive);
-  options.starting_position = search_buffer->position();
-  auto positions = PerformSearchWithDirection(input.editor, options);
-  if (!positions.has_value()) {
+  std::set<wstring> matches;
+  for (auto& search_buffer : input.source_buffers) {
+    CHECK(search_buffer != nullptr);
+    SearchOptions options;
+    options.buffer = search_buffer.get();
+    options.search_query = input.input;
+    options.case_sensitive =
+        search_buffer->Read(buffer_variables::search_case_sensitive);
+    options.starting_position = search_buffer->position();
+    auto positions = PerformSearchWithDirection(input.editor, options);
+    if (!positions.has_value()) continue;
+
+    // Get the first kMatchesLimit matches:
+    const int kMatchesLimit = 100;
+    for (size_t i = 0;
+         i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
+      auto position = positions.value()[i];
+      if (i == 0) {
+        search_buffer->set_position(position);
+      }
+      CHECK_LT(position.line, search_buffer->EndLine());
+      auto line = search_buffer->LineAt(position.line);
+      CHECK_LT(position.column, line->EndColumn());
+      matches.insert(RegexEscape(line->Substring(position.column)));
+    }
+  }
+  if (matches.empty()) {
     futures::Future<PredictorOutput> output;
     input.predictions->EndOfFile();
     input.predictions->AddEndOfFileObserver(
         [consumer = output.consumer] { consumer(PredictorOutput()); });
     return output.value;
   }
-
-  // Get the first kMatchesLimit matches:
-  const int kMatchesLimit = 100;
-  std::set<wstring> matches;
-  for (size_t i = 0;
-       i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
-    auto position = positions.value()[i];
-    if (i == 0) {
-      search_buffer->set_position(position);
-    }
-    CHECK_LT(position.line, search_buffer->EndLine());
-    auto line = search_buffer->LineAt(position.line);
-    CHECK_LT(position.column, line->EndColumn());
-    matches.insert(RegexEscape(line->Substring(position.column)));
-  }
-
   // Add the matches to the predictions buffer.
   for (auto& match : matches) {
     input.predictions->AppendToLastLine(NewLazyString(std::move(match)));

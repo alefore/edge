@@ -54,7 +54,8 @@ class AsyncSearchProcessor {
 
   struct Output {
     enum class Results { kInvalidPattern, kNoMatches, kOneMatch, kManyMatches };
-    Results results;
+    Results results = Results::kNoMatches;
+    std::wstring ToString() const;
   };
 
   futures::Value<Output> Search(SearchOptions search_options,

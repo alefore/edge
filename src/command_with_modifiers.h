@@ -23,37 +23,39 @@ enum class CommandApplyMode {
 // an arbitrary type. When ENTER is pressed, the transformation is finally
 // executed and the mode is reset.
 //
-// Every time the argument is modified, the transformation is actually ... also
-// executed, just in kPreview mode.
-//
-// This requires the following symbols to be defined:
-//
-//   // Returns true if the character was accepted.
-//   bool TransformationArgumentApplyChar(wint_t c, Argument* output_argument);
-//
-//   // Returns the string to show in the status.
-//   std::wstring TransformationArgumentBuildStatus(
-//       const Argument& argument, std::wstring name);
-//
-//   // Returns the mode in which the transformation should be applied.
-//   Modifiers::CursorsAffected TransformationArgumentCursorsAffected(
-//       const Argument& argument);
+// Every time the argument is modified, the transformation is executed, just in
+// kPreview mode.
 template <typename Argument>
 class TransformationArgumentMode : public EditorMode {
  public:
-  using TransformationFactory =
-      std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>;
+  struct CharHandler {
+    std::function<Argument(Argument)> apply;
+  };
 
-  TransformationArgumentMode(
-      wstring name, EditorState* editor_state,
-      std::function<Argument(const std::shared_ptr<OpenBuffer>&)>
-          initial_value_factory,
-      TransformationFactory transformation_factory)
-      : name_(std::move(name)),
-        buffers_(editor_state->active_buffers()),
-        initial_value_factory_(std::move(initial_value_factory)),
-        transformation_factory_(std::move(transformation_factory)) {
-    Transform(editor_state, Transformation::Input::Mode::kPreview);
+  struct Options {
+    EditorState* editor_state;
+    // Produces the initial `Argument` for a given buffer. This allows different
+    // buffers to start with different values (e.g., based on their variables).
+    std::function<Argument(const std::shared_ptr<OpenBuffer>&)>
+        initial_value_factory;
+
+    std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>
+        transformation_factory;
+
+    // The characters recognized.
+    std::shared_ptr<const std::unordered_map<wint_t, CharHandler>> characters;
+
+    // Returns the string to show in the status.
+    std::function<std::wstring(const Argument&)> status_factory;
+
+    // Returns the mode in which the transformation should be applied.
+    std::function<Modifiers::CursorsAffected(const Argument&)>
+        cursors_affected_factory;
+  };
+
+  TransformationArgumentMode(Options options)
+      : options_(options), buffers_(options_.editor_state->active_buffers()) {
+    Transform(Transformation::Input::Mode::kPreview);
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
@@ -69,20 +71,17 @@ class TransformationArgumentMode : public EditorMode {
               if (!argument_string_.empty()) {
                 argument_string_.pop_back();
               }
-              return Transform(editor_state,
-                               Transformation::Input::Mode::kPreview);
+              return Transform(Transformation::Input::Mode::kPreview);
             default:
               Argument dummy;
-              if (TransformationArgumentApplyChar(c, &dummy)) {
+              if (ApplyChar(options_, c, &dummy)) {
                 argument_string_.push_back(c);
-                return Transform(editor_state,
-                                 Transformation::Input::Mode::kPreview);
+                return Transform(Transformation::Input::Mode::kPreview);
               }
               return futures::Transform(
                   static_cast<int>(c) == Terminal::ESCAPE
                       ? futures::Past(true)
-                      : Transform(editor_state,
-                                  Transformation::Input::Mode::kFinal),
+                      : Transform(Transformation::Input::Mode::kFinal),
                   [this, editor_state](bool) {
                     return ForEachBuffer(
                         [editor_state](
@@ -106,6 +105,13 @@ class TransformationArgumentMode : public EditorMode {
   }
 
  private:
+  static bool ApplyChar(Options options, wint_t c, Argument* argument) {
+    auto it = options.characters->find(c);
+    if (it == options.characters->end()) return false;
+    *argument = it->second.apply(std::move(*argument));
+    return true;
+  }
+
   futures::Value<bool> ForEachBuffer(
       const std::function<futures::Value<futures::IterationControlCommand>(
           const std::shared_ptr<OpenBuffer>&)>& callback) {
@@ -114,34 +120,27 @@ class TransformationArgumentMode : public EditorMode {
         [](futures::IterationControlCommand) { return true; });
   }
 
-  futures::Value<bool> Transform(EditorState* editor_state,
-                                 Transformation::Input::Mode apply_mode) {
-    return ForEachBuffer([transformation_factory = transformation_factory_,
-                          initial_value_factory = initial_value_factory_,
-                          argument_string = argument_string_, name = name_,
-                          editor_state, apply_mode](
+  futures::Value<bool> Transform(Transformation::Input::Mode apply_mode) {
+    return ForEachBuffer([options = options_,
+                          argument_string = argument_string_, apply_mode](
                              const std::shared_ptr<OpenBuffer>& buffer) {
-      auto argument = initial_value_factory(buffer);
+      auto argument = options.initial_value_factory(buffer);
       for (const auto& c : argument_string) {
-        TransformationArgumentApplyChar(c, &argument);
+        ApplyChar(options, c, &argument);
       }
 
-      buffer->status()->SetInformationText(
-          TransformationArgumentBuildStatus(argument, name));
-      auto cursors_affected = TransformationArgumentCursorsAffected(argument);
+      buffer->status()->SetInformationText(options.status_factory(argument));
+      auto cursors_affected = options.cursors_affected_factory(argument);
       return futures::ImmediateTransform(
-          buffer->ApplyToCursors(
-              transformation_factory(editor_state, std::move(argument)),
-              cursors_affected, apply_mode),
+          buffer->ApplyToCursors(options.transformation_factory(
+                                     options.editor_state, std::move(argument)),
+                                 cursors_affected, apply_mode),
           [](bool) { return futures::IterationControlCommand::kContinue; });
     });
   }
 
-  const wstring name_;
+  const Options options_;
   const std::vector<std::shared_ptr<OpenBuffer>> buffers_;
-  const std::function<Argument(const std::shared_ptr<OpenBuffer>&)>
-      initial_value_factory_;
-  const TransformationFactory transformation_factory_;
   wstring argument_string_;
 };
 
@@ -150,7 +149,7 @@ using CommandWithModifiersHandler =
 
 std::unique_ptr<Command> NewCommandWithModifiers(
     wstring name, wstring description, Modifiers initial_modifiers,
-    CommandWithModifiersHandler handler);
+    CommandWithModifiersHandler handler, EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

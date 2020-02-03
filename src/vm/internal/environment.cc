@@ -52,7 +52,7 @@ std::shared_ptr<Environment> BuildDefaultEnvironment() {
 
   VMTypeMapper<std::vector<int>*>::Export(environment.get());
   VMTypeMapper<std::set<int>*>::Export(environment.get());
-  return std::move(environment);
+  return environment;
 }
 
 }  // namespace

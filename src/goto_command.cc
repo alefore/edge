@@ -40,11 +40,14 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
     return ComputePosition(0, elements, elements, direction, repetitions, 0);
   }
 
-  if (direction == FORWARDS) {
-    return min(prefix_len + repetitions - 1, elements);
-  } else {
-    return suffix_start - min(suffix_start, repetitions - 1);
+  switch (direction) {
+    case Direction::kForwards:
+      return min(prefix_len + repetitions - 1, elements);
+    case Direction::kBackwards:
+      return suffix_start - min(suffix_start, repetitions - 1);
   }
+  LOG(FATAL) << "Invalid direction.";
+  return 0;
 }
 
 class GotoTransformation : public CompositeTransformation {
@@ -89,11 +92,8 @@ class GotoCommand : public Command {
         structure == StructureLine() || structure == StructureMark() ||
         structure == StructurePage() || structure == StructureSearch() ||
         structure == StructureCursor()) {
-      editor_state->ForEachActiveBuffer(
-          [calls = calls_](const std::shared_ptr<OpenBuffer>& buffer) {
-            return buffer->ApplyToCursors(NewTransformation(
-                Modifiers(), std::make_unique<GotoTransformation>(calls)));
-          });
+      editor_state->ApplyToActiveBuffers(NewTransformation(
+          Modifiers(), std::make_unique<GotoTransformation>(calls_)));
     } else if (structure == StructureBuffer()) {
       size_t buffers = editor_state->buffers()->size();
       size_t position =

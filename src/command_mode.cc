@@ -159,7 +159,7 @@ class UndoCommand : public Command {
   UndoCommand(std::optional<Direction> direction) : direction_(direction) {}
 
   wstring Description() const override {
-    if (direction_.value_or(FORWARDS) == BACKWARDS) {
+    if (direction_.value_or(Direction::kForwards) == Direction::kBackwards) {
       return L"re-does the last change to the current buffer";
     }
     return L"un-does the last change to the current buffer";
@@ -287,7 +287,8 @@ wstring LineUp::Description() const { return L"moves up one line"; }
 
 /* static */ void LineUp::Move(int c, EditorState* editor_state,
                                Structure* structure) {
-  if (editor_state->direction() == BACKWARDS || structure == StructureTree()) {
+  if (editor_state->direction() == Direction::kBackwards ||
+      structure == StructureTree()) {
     editor_state->set_direction(ReverseDirection(editor_state->direction()));
     LineDown::Move(c, editor_state, structure);
     return;
@@ -327,8 +328,9 @@ wstring LineDown::Description() const { return L"moves down one line"; }
 
 /* static */ void LineDown::Move(int c, EditorState* editor_state,
                                  Structure* structure) {
-  if (editor_state->direction() == BACKWARDS && structure != StructureTree()) {
-    editor_state->set_direction(FORWARDS);
+  if (editor_state->direction() == Direction::kBackwards &&
+      structure != StructureTree()) {
+    editor_state->set_direction(Direction::kForwards);
     LineUp::Move(c, editor_state, structure);
     return;
   }
@@ -354,18 +356,20 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     if (buffer == nullptr) {
       return;
     }
-    if (editor_state->direction() == BACKWARDS) {
-      if (buffer->tree_depth() > 0) {
-        buffer->set_tree_depth(buffer->tree_depth() - 1);
+    switch (editor_state->direction()) {
+      case Direction::kBackwards:
+        if (buffer->tree_depth() > 0) {
+          buffer->set_tree_depth(buffer->tree_depth() - 1);
+        }
+        break;
+      case Direction::kForwards: {
+        auto root = buffer->parse_tree();
+        const ParseTree* tree = buffer->current_tree(root.get());
+        if (!tree->children().empty()) {
+          buffer->set_tree_depth(buffer->tree_depth() + 1);
+        }
+        break;
       }
-    } else if (editor_state->direction() == FORWARDS) {
-      auto root = buffer->parse_tree();
-      const ParseTree* tree = buffer->current_tree(root.get());
-      if (!tree->children().empty()) {
-        buffer->set_tree_depth(buffer->tree_depth() + 1);
-      }
-    } else {
-      CHECK(false) << "Invalid direction: " << editor_state->direction();
     }
     buffer->ResetMode();
     editor_state->ResetDirection();
@@ -396,18 +400,15 @@ void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
   LineDown::Move(c, editor_state, StructureWord());
 }
 
-wstring MoveForwards::Description() const { return L"moves forwards"; }
+wstring MoveForwards::Description() const { return L"moves kfORWARDS"; }
 
 void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
 }
 
 /* static */ void MoveForwards::Move(int, EditorState* editor_state) {
-  editor_state->ForEachActiveBuffer(
-      [modifiers = editor_state->modifiers()](
-          const std::shared_ptr<OpenBuffer>& buffer) {
-        return buffer->ApplyToCursors(NewMoveTransformation(modifiers));
-      });
+  editor_state->ApplyToActiveBuffers(
+      NewMoveTransformation(editor_state->modifiers()));
   editor_state->ResetRepetitions();
   editor_state->ResetStructure();
   editor_state->ResetDirection();
@@ -420,8 +421,8 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
 }
 
 /* static */ void MoveBackwards::Move(int c, EditorState* editor_state) {
-  if (editor_state->direction() == BACKWARDS) {
-    editor_state->set_direction(FORWARDS);
+  if (editor_state->direction() == Direction::kBackwards) {
+    editor_state->set_direction(Direction::kForwards);
     MoveForwards::Move(c, editor_state);
     return;
   }
@@ -449,19 +450,6 @@ class EnterInsertModeCommand : public Command {
 
  private:
   const std::optional<Modifiers> modifiers_;
-};
-
-class EnterFindMode : public Command {
- public:
-  wstring Description() const override {
-    return L"Waits for a character to be typed and moves the cursor to its "
-           L"next occurrence in the current line.";
-  }
-  wstring Category() const override { return L"Navigate"; }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_keyboard_redirect(NewFindMode());
-  }
 };
 
 class InsertionModifierCommand : public Command {
@@ -494,17 +482,7 @@ class ReverseDirectionCommand : public Command {
   wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    VLOG(3) << "Setting reverse direction. [previous modifiers: "
-            << editor_state->modifiers();
-    if (editor_state->direction() == FORWARDS) {
-      editor_state->set_direction(BACKWARDS);
-    } else if (editor_state->default_direction() == FORWARDS) {
-      editor_state->set_default_direction(BACKWARDS);
-    } else {
-      editor_state->set_default_direction(FORWARDS);
-      editor_state->ResetDirection();
-    }
-    VLOG(5) << "After setting, modifiers: " << editor_state->modifiers();
+    editor_state->set_direction(ReverseDirection(editor_state->direction()));
   }
 };
 
@@ -700,10 +678,7 @@ class TreeNavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->ForEachActiveBuffer(
-        [](const std::shared_ptr<OpenBuffer>& buffer) {
-          return buffer->ApplyToCursors(NewTreeNavigateTransformation());
-        });
+    editor_state->ApplyToActiveBuffers(NewTreeNavigateTransformation());
   }
 };
 
@@ -720,14 +695,18 @@ void ToggleVariable(EditorState* editor_state,
       command = L"// Variables: Toggle buffer variable (bool): " + name +
                 L"\neditor.ForEachActiveBuffer([](Buffer buffer) -> void {\n"
                 L"buffer.set_" +
-                name + L"(!buffer." + name + L"()); buffer.SetStatus((buffer." +
-                name + L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\"); });";
+                name + L"(repetitions() == 0 ? false : !buffer." + name +
+                L"()); buffer.SetStatus((buffer." + name +
+                L"() ? \"🗸\" : \"⛶\") + \" " + name +
+                L"\"); }); set_repetitions(1);";
       break;
     case VariableLocation::kEditor:
       command = L"// Variables: Toggle editor variable: " + name +
-                L"\neditor.set_" + name + L"(!editor." + name +
+                L"\neditor.set_" + name +
+                L"(repetitions() == 0 ? false : !editor." + name +
                 L"()); SetStatus((editor." + name +
-                L"() ? \"🗸\" : \"⛶\") + \" " + name + L"\");";
+                L"() ? \"🗸\" : \"⛶\") + \" " + name +
+                L"\"); set_repetitions(1);";
       break;
   }
   LOG(INFO) << "Command: " << command;
@@ -811,7 +790,10 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                   output.insertion = Modifiers::ModifyMode::kOverwrite;
                   return output;
                 }()));
-  commands->Add(L"f", std::make_unique<EnterFindMode>());
+
+  commands->Add(L"f", NewFindModeCommand(Direction::kForwards));
+  commands->Add(L"F", NewFindModeCommand(Direction::kBackwards));
+
   commands->Add(L"r", std::make_unique<ReverseDirectionCommand>());
   commands->Add(L"R", std::make_unique<InsertionModifierCommand>());
 
@@ -822,7 +804,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"w", std::make_unique<SetStructureCommand>(StructureWord()));
   commands->Add(L"e", std::make_unique<SetStructureCommand>(StructureLine()));
   commands->Add(L"E", std::make_unique<SetStructureCommand>(StructurePage()));
-  commands->Add(L"F", std::make_unique<SetStructureCommand>(StructureSearch()));
   commands->Add(L"c", std::make_unique<SetStructureCommand>(StructureCursor()));
   commands->Add(L"B", std::make_unique<SetStructureCommand>(StructureBuffer()));
   commands->Add(L"!", std::make_unique<SetStructureCommand>(StructureMark()));
@@ -832,24 +813,24 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                           L"✀ ", L"starts a new delete backwards command",
                           [] {
                             Modifiers output;
-                            output.direction = BACKWARDS;
+                            output.direction = Direction::kBackwards;
                             return output;
                           }(),
-                          ApplyDeleteCommand));
-  commands->Add(L"d",
-                NewCommandWithModifiers(L"✀ ", L"starts a new delete command",
-                                        Modifiers(), ApplyDeleteCommand));
+                          ApplyDeleteCommand, editor_state));
+  commands->Add(L"d", NewCommandWithModifiers(
+                          L"✀ ", L"starts a new delete command", Modifiers(),
+                          ApplyDeleteCommand, editor_state));
   commands->Add(L"p", std::make_unique<Paste>());
 
   DeleteOptions copy_options;
   copy_options.modifiers.delete_behavior =
       Modifiers::DeleteBehavior::kDoNothing;
   commands->Add(L"u", std::make_unique<UndoCommand>(std::nullopt));
-  commands->Add(L"U", std::make_unique<UndoCommand>(BACKWARDS));
+  commands->Add(L"U", std::make_unique<UndoCommand>(Direction::kBackwards));
   commands->Add(L"\n", std::make_unique<ActivateLink>());
 
   commands->Add(L"b", std::make_unique<GotoPreviousPositionCommand>());
-  commands->Add(L"n", NewNavigateCommand());
+  commands->Add(L"n", NewNavigateCommand(editor_state));
   commands->Add(L"j", std::make_unique<LineDown>());
   commands->Add(L"k", std::make_unique<LineUp>());
   commands->Add(L"l", std::make_unique<MoveForwards>());
@@ -857,7 +838,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
 
   commands->Add(L"~", NewCommandWithModifiers(
                           L"🔠🔡", L"Switches the case of the current character.",
-                          Modifiers(), ApplySwitchCaseCommand));
+                          Modifiers(), ApplySwitchCaseCommand, editor_state));
 
   commands->Add(L"%", std::make_unique<TreeNavigateCommand>());
   commands->Add(L"sr", NewRecordCommand());

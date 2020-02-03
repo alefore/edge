@@ -1232,16 +1232,16 @@ void OpenBuffer::CreateCursor() {
     if (range.IsEmpty()) {
       return;
     }
-    options_.editor->set_direction(FORWARDS);
+    options_.editor->set_direction(Direction::kForwards);
     LOG(INFO) << "Range for cursors: " << range;
     while (!range.IsEmpty()) {
       auto tmp_first = range.begin;
-      structure->SeekToNext(this, FORWARDS, &tmp_first);
+      structure->SeekToNext(this, Direction::kForwards, &tmp_first);
       if (tmp_first > range.begin && tmp_first < range.end) {
         VLOG(5) << "Creating cursor at: " << tmp_first;
         active_cursors()->insert(tmp_first);
       }
-      if (!structure->SeekToLimit(this, FORWARDS, &tmp_first)) {
+      if (!structure->SeekToLimit(this, Direction::kForwards, &tmp_first)) {
         break;
       }
       range.begin = tmp_first;
@@ -1259,9 +1259,10 @@ LineColumn OpenBuffer::FindNextCursor(LineColumn position) {
   size_t index = 0;
   auto output = cursors->begin();
   while (output != cursors->end() &&
-         (*output < position || (direction == FORWARDS && *output == position &&
-                                 std::next(output) != cursors->end() &&
-                                 *std::next(output) == position))) {
+         (*output < position ||
+          (direction == Direction::kForwards && *output == position &&
+           std::next(output) != cursors->end() &&
+           *std::next(output) == position))) {
     ++output;
     ++index;
   }
@@ -1269,7 +1270,7 @@ LineColumn OpenBuffer::FindNextCursor(LineColumn position) {
   size_t repetitions =
       options_.editor->modifiers().repetitions % cursors->size();
   size_t final_position;  // From cursors->begin().
-  if (direction == FORWARDS) {
+  if (direction == Direction::kForwards) {
     final_position = (index + repetitions) % cursors->size();
   } else if (index >= repetitions) {
     final_position = index - repetitions;
@@ -1321,7 +1322,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     }
   }
 
-  if (modifiers.direction == BACKWARDS &&
+  if (modifiers.direction == Direction::kBackwards &&
       modifiers.structure != StructureTree()) {
     // TODO: Handle this in structure.
     Seek(contents_, &position).Backwards().WrappingLines().Once();
@@ -1336,7 +1337,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   }
   switch (modifiers.boundary_begin) {
     case Modifiers::CURRENT_POSITION:
-      output.begin = modifiers.direction == FORWARDS
+      output.begin = modifiers.direction == Direction::kForwards
                          ? max(position, output.begin)
                          : min(position, output.begin);
       break;
@@ -1357,8 +1358,9 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
       }
   }
   LOG(INFO) << "After seek, initial position: " << output.begin;
-  output.end = modifiers.direction == FORWARDS ? max(position, output.begin)
-                                               : min(position, output.begin);
+  output.end = modifiers.direction == Direction::kForwards
+                   ? max(position, output.begin)
+                   : min(position, output.begin);
   bool move_start = true;
   for (size_t i = 1; i < modifiers.repetitions; i++) {
     LineColumn position = output.end;
@@ -1390,7 +1392,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   LOG(INFO) << "After adjusting end: " << output;
 
   if (output.begin > output.end) {
-    CHECK(modifiers.direction == BACKWARDS);
+    CHECK(modifiers.direction == Direction::kBackwards);
     auto tmp = output.end;
     output.end = output.begin;
     output.begin = tmp;
@@ -1582,7 +1584,7 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
   };
 
   fd_ = new_reader(input_fd, {});
-  fd_error_ = new_reader(input_error_fd, {LineModifier::RED});
+  fd_error_ = new_reader(input_error_fd, {LineModifier::BOLD});
 
   if (terminal_ != nullptr) {
     terminal_->UpdateSize();
@@ -1733,7 +1735,8 @@ void OpenBuffer::Set(const EdgeVariable<bool>* variable, bool value) {
 }
 
 void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
-  Set(variable, !Read(variable));
+  Set(variable,
+      editor()->modifiers().repetitions == 0 ? false : !Read(variable));
 }
 
 const wstring& OpenBuffer::Read(const EdgeVariable<wstring>* variable) const {
@@ -1890,7 +1893,7 @@ futures::Value<bool> OpenBuffer::Undo(UndoMode undo_mode) {
     size_t repetitions = 0;
   };
   auto data = std::make_shared<Data>();
-  if (editor()->direction() == FORWARDS) {
+  if (editor()->direction() == Direction::kForwards) {
     data->source = &undo_past_;
     data->target = &undo_future_;
   } else {

@@ -15,29 +15,16 @@
 // Optimizes the buffer for visualizing a patch (output of a `diff` command).
 void DiffMode() { buffer.set_tree_parser("diff"); }
 
-void CenterScreenAroundCurrentLine() {
-  int size = screen.lines();
-  size--;  // The status line doesn't count.
-  int line = buffer.position().line();
-  int start_line = line - size / 2;
-  if (start_line < 0) {
-    buffer.SetStatus("Near beginning of file.");
-    start_line = 0;
-  } else if (start_line + size > buffer.line_count()) {
-    buffer.SetStatus("Near end of file.");
-    start_line = (buffer.line_count() > size ? buffer.line_count() - size : 0);
-  }
-  buffer.set_view_start(LineColumn(start_line, 0));
-}
-
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
+
+if (buffer.buffer_list_context_lines() < 5) {
+  buffer.set_buffer_list_context_lines(5);
+}
 
 void HandleFileTypes(string basename, string extension) {
   if (extension == "cc" || extension == "h" || extension == "c" ||
       extension == "cpp") {
     CppMode();
-    buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
-    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.SetStatus("🔡 C++ file (" + extension + ")");
     return;
   }
@@ -50,7 +37,6 @@ void HandleFileTypes(string basename, string extension) {
 
   if (extension == "java") {
     JavaMode();
-    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.SetStatus("🔡 Java file (" + extension + ")");
     return;
   }
@@ -60,7 +46,6 @@ void HandleFileTypes(string basename, string extension) {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
     buffer.set_trigger_reload_on_buffer_write(false);
-    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
     buffer.SetStatus("🔡 Git commit message");
     return;
   }
@@ -68,15 +53,12 @@ void HandleFileTypes(string basename, string extension) {
   if (extension == "py") {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
-    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.SetStatus("🔡 Python file (" + extension + ")");
     return;
   }
 
   if (extension == "txt" || extension == "md") {
     buffer.set_wrap_from_content(true);
-    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
   }
 
   if (extension == "md") {
@@ -146,9 +128,4 @@ if (path == "") {
   buffer.set_typos("overriden optoins");
 
   HandleFileTypes(basename, extension);
-}
-
-if (!buffer.pts()) {
-  buffer.AddBinding("M", "Center the screen around the current line.",
-                    CenterScreenAroundCurrentLine);
 }

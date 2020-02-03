@@ -150,6 +150,7 @@ class Line {
     ColumnNumberDelta width;
     std::optional<ColumnNumber> active_cursor_column;
     std::set<ColumnNumber> inactive_cursor_columns;
+    LineModifierSet modifiers_main_cursor;
     LineModifierSet modifiers_inactive_cursors;
   };
   OutputProducer::LineWithCursor Output(const OutputOptions& options) const;
