@@ -40,110 +40,105 @@ futures::Value<bool> SetVariableHandler(const wstring& input_name,
     return futures::Past(true);
   }
 
-  // TODO: Honor `multiple_buffers`.
-  auto buffer = editor_state->current_buffer();
-  if (buffer == nullptr) {
-    return futures::Past(true);
-  }
-  if (editor_state->modifiers().structure == StructureLine()) {
-    auto target_buffer = buffer->GetBufferFromCurrentLine();
-    if (target_buffer != nullptr) {
-      buffer = target_buffer;
-    }
-    editor_state->ResetModifiers();
-  }
-
   PromptOptions options;
   options.editor_state = editor_state;
   options.prompt = name + L" := ";
   options.history_file = L"values",
   options.status = PromptOptions::Status::kBuffer;
 
-  {
-    auto var = buffer_variables::StringStruct()->find_variable(name);
-    if (var != nullptr) {
-      options.initial_value = buffer->Read(var);
-      options.handler = [var, buffer](const wstring& input, EditorState*) {
-        if (buffer == nullptr) {
+  auto active_buffers = editor_state->active_buffers();
+  CHECK_GE(active_buffers.size(), 1);
+  auto default_error_status = active_buffers.size() == 1
+                                  ? active_buffers[0]->status()
+                                  : editor_state->status();
+  if (auto var = buffer_variables::StringStruct()->find_variable(name);
+      var != nullptr) {
+    options.initial_value = active_buffers[0]->Read(var);
+    options.handler = [var](const wstring& input, EditorState* editor) {
+      editor->ForEachActiveBuffer(
+          [var, input](const std::shared_ptr<OpenBuffer>& buffer) {
+            buffer->Set(var, input);
+            // TODO(easy): Update status.
+            return futures::Past(true);
+          });
+      return futures::Past(true);
+    };
+    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
+    options.predictor = var->predictor();
+    Prompt(std::move(options));
+    return futures::Past(true);
+  }
+
+  if (auto var = editor_variables::BoolStruct()->find_variable(name);
+      var != nullptr) {
+    editor_state->toggle_bool_variable(var);
+    editor_state->status()->SetInformationText(
+        (editor_state->Read(var) ? L"🗸 " : L"⛶ ") + name);
+    return futures::Past(true);
+  }
+
+  if (auto var = buffer_variables::BoolStruct()->find_variable(name);
+      var != nullptr) {
+    editor_state->ForEachActiveBuffer(
+        [var, name](const std::shared_ptr<OpenBuffer>& buffer) {
+          buffer->toggle_bool_variable(var);
+          buffer->status()->SetInformationText(
+              (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
           return futures::Past(true);
-        }
-        buffer->Set(var, input);
-        // ResetMode causes the prompt to be deleted, and the captures of
-        // this lambda go away with it.
-        buffer->ResetMode();
+        });
+    return futures::Past(true);
+  }
+  if (auto var = buffer_variables::IntStruct()->find_variable(name);
+      var != nullptr) {
+    options.initial_value = std::to_wstring(active_buffers[0]->Read(var));
+    options.handler = [var, default_error_status](const wstring& input,
+                                                  EditorState* editor) {
+      int value;
+      try {
+        value = stoi(input);
+      } catch (const std::invalid_argument& ia) {
+        default_error_status->SetWarningText(
+            L"Invalid value for integer value “" + var->name() + L"”: " +
+            FromByteString(ia.what()));
         return futures::Past(true);
-      };
-      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-      options.predictor = var->predictor();
-      Prompt(std::move(options));
+      }
+      editor->ForEachActiveBuffer(
+          [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
+            buffer->Set(var, value);
+            return futures::Past(true);
+          });
       return futures::Past(true);
-    }
+    };
+    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
+    Prompt(std::move(options));
+    return futures::Past(true);
   }
-  {
-    auto var = editor_variables::BoolStruct()->find_variable(name);
-    if (var != nullptr) {
-      editor_state->toggle_bool_variable(var);
-      editor_state->status()->SetInformationText(
-          (editor_state->Read(var) ? L"🗸 " : L"⛶ ") + name);
+  if (auto var = buffer_variables::DoubleStruct()->find_variable(name);
+      var != nullptr) {
+    options.initial_value = std::to_wstring(active_buffers[0]->Read(var));
+    options.handler = [var, default_error_status](const wstring& input,
+                                                  EditorState* editor) {
+      std::wstringstream ss(input);
+      double value;
+      ss >> value;
+      if (ss.eof() && !ss.fail()) {
+        editor->ForEachActiveBuffer(
+            [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
+              buffer->Set(var, value);
+              return futures::Past(true);
+            });
+      } else {
+        default_error_status->SetWarningText(
+            L"Invalid value for double value “" + var->name() + L"”: " + input);
+      }
       return futures::Past(true);
-    }
+    };
+    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
+    Prompt(std::move(options));
+    return futures::Past(true);
   }
-  {
-    auto var = buffer_variables::BoolStruct()->find_variable(name);
-    if (var != nullptr) {
-      buffer->toggle_bool_variable(var);
-      buffer->status()->SetInformationText(
-          (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
-      return futures::Past(true);
-    }
-  }
-  {
-    auto var = buffer_variables::IntStruct()->find_variable(name);
-    if (var != nullptr) {
-      options.initial_value = std::to_wstring(buffer->Read(var));
-      options.handler = [var, buffer](const wstring& input, EditorState*) {
-        try {
-          buffer->Set(var, stoi(input));
-        } catch (const std::invalid_argument& ia) {
-          buffer->status()->SetWarningText(
-              L"Invalid value for integer value “" + var->name() + L"”: " +
-              FromByteString(ia.what()));
-        }
-        // ResetMode causes the prompt to be deleted, and the captures of
-        // this lambda go away with it.
-        buffer->ResetMode();
-        return futures::Past(true);
-      };
-      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-      Prompt(std::move(options));
-      return futures::Past(true);
-    }
-  }
-  {
-    auto var = buffer_variables::DoubleStruct()->find_variable(name);
-    if (var != nullptr) {
-      options.initial_value = std::to_wstring(buffer->Read(var));
-      options.handler = [var, buffer](const wstring& input, EditorState*) {
-        std::wstringstream ss(input);
-        double value;
-        ss >> value;
-        if (ss.eof() && !ss.fail()) {
-          buffer->Set(var, value);
-        } else {
-          buffer->status()->SetWarningText(L"Invalid value for double value “" +
-                                           var->name() + L"”: " + input);
-        }
-        // ResetMode causes the prompt to be deleted, and the captures of
-        // this lambda go away with it.
-        buffer->ResetMode();
-        return futures::Past(true);
-      };
-      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-      Prompt(std::move(options));
-      return futures::Past(true);
-    }
-  }
-  buffer->status()->SetWarningText(L"Unknown variable: " + name);
+
+  default_error_status->SetWarningText(L"Unknown variable: " + name);
   return futures::Past(true);
 }
 
