@@ -192,7 +192,6 @@ class InsertMode : public EditorMode {
               options.escape_handler();  // Probably deletes us.
               editor_state->ResetRepetitions();
               editor_state->ResetInsertionModifier();
-              editor_state->current_buffer()->ResetMode();
               editor_state->set_keyboard_redirect(nullptr);
               return true;
             });
