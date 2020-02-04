@@ -643,10 +643,11 @@ class ResetStateCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->status()->Reset();
-    auto buffer = editor_state->current_buffer();
-    if (buffer != nullptr) {
-      buffer->status()->Reset();
-    }
+    editor_state->ForEachActiveBuffer(
+        [](const std::shared_ptr<OpenBuffer>& buffer) {
+          buffer->status()->Reset();
+          return futures::Past(true);
+        });
     editor_state->set_modifiers(Modifiers());
   }
 };
