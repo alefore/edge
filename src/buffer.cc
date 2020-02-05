@@ -777,15 +777,17 @@ void OpenBuffer::Initialize() {
   }
   ClearContents(BufferContents::CursorsBehavior::kUnmodified);
 
-  for (const auto& dir : options_.editor->edge_path()) {
-    auto state_path =
-        PathJoin(PathJoin(dir, L"state"),
-                 PathJoin(Read(buffer_variables::path), L".edge_state"));
-    struct stat stat_buffer;
-    if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
-      continue;
+  if (!options_.path.empty()) {
+    for (const auto& dir : options_.editor->edge_path()) {
+      auto state_path =
+          PathJoin(PathJoin(dir, L"state"),
+                   PathJoin(Read(buffer_variables::path), L".edge_state"));
+      struct stat stat_buffer;
+      if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
+        continue;
+      }
+      EvaluateFile(state_path);
     }
-    EvaluateFile(state_path);
   }
 }
 
@@ -1029,7 +1031,8 @@ std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
     status_.SetWarningText(path + L": error: " + error_description);
     return std::nullopt;
   }
-  LOG(INFO) << "Evaluating file: " << path;
+  LOG(INFO) << Read(buffer_variables::path) << " ("
+            << Read(buffer_variables::name) << "): Evaluating file: " << path;
   return Evaluate(
       expression.get(), environment_,
       [path, work_queue = work_queue()](std::function<void()> resume) {
