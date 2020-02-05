@@ -400,7 +400,7 @@ void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
   LineDown::Move(c, editor_state, StructureWord());
 }
 
-wstring MoveForwards::Description() const { return L"moves kfORWARDS"; }
+wstring MoveForwards::Description() const { return L"moves forwards"; }
 
 void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);

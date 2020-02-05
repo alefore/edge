@@ -14,7 +14,7 @@ ostream& operator<<(ostream& os, const Modifiers& m) {
   os << "[structure: " << m.structure->ToString() << "][direction: ";
   switch (m.direction) {
     case Direction::kForwards:
-      os << "kfORWARDS";
+      os << "forwards";
       break;
     case Direction::kBackwards:
       os << "backwards";
@@ -23,7 +23,7 @@ ostream& operator<<(ostream& os, const Modifiers& m) {
   os << "][default direction: ";
   switch (m.default_direction) {
     case Direction::kForwards:
-      os << "kfORWARDS";
+      os << "forwards";
       break;
     case Direction::kBackwards:
       os << "backwards";
