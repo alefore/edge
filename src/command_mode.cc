@@ -334,15 +334,15 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     LineUp::Move(c, editor_state, structure);
     return;
   }
-  auto buffer = editor_state->current_buffer();
-  if (buffer == nullptr) {
-    return;
-  }
   // TODO: Move to Structure.
   if (structure == StructureChar()) {
     editor_state->set_structure(StructureLine());
     MoveForwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
+      return;
+    }
     // Move in whole pages.
     auto view_size = buffer->viewers()->view_size();
     auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
