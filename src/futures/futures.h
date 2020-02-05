@@ -179,9 +179,9 @@ auto ImmediateTransform(Value<T0> t0, T1 t1, T2 t2) {
 template <typename Iterator, typename Callable>
 Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
                                                Callable callable) {
-  auto copy = std::make_shared<
-      std::vector<typename std::remove_reference<decltype(*begin)>::type>>(
-      begin, end);
+  auto copy = std::make_shared<std::vector<typename std::remove_const<
+      typename std::remove_reference<decltype(*begin)>::type>::type>>(begin,
+                                                                      end);
   return futures::ImmediateTransform(
       ForEach(copy->begin(), copy->end(), std::move(callable)),
       [copy](IterationControlCommand output) { return output; });
