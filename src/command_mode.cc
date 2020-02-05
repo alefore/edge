@@ -400,7 +400,7 @@ void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
   LineDown::Move(c, editor_state, StructureWord());
 }
 
-wstring MoveForwards::Description() const { return L"moves kfORWARDS"; }
+wstring MoveForwards::Description() const { return L"moves forwards"; }
 
 void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
@@ -643,10 +643,11 @@ class ResetStateCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->status()->Reset();
-    auto buffer = editor_state->current_buffer();
-    if (buffer != nullptr) {
-      buffer->status()->Reset();
-    }
+    editor_state->ForEachActiveBuffer(
+        [](const std::shared_ptr<OpenBuffer>& buffer) {
+          buffer->status()->Reset();
+          return futures::Past(true);
+        });
     editor_state->set_modifiers(Modifiers());
   }
 };
