@@ -125,12 +125,13 @@ std::wstring GetPredictInput(const PredictOptions& options) {
   modifiers.direction = Direction::kBackwards;
   modifiers.structure = options.input_selection_structure;
   auto range = buffer->FindPartialRange(modifiers, buffer->position());
-  range.end = min(range.end, buffer->position());
+  auto position = buffer->position();
+  range.end = max(range.end, buffer->position());
   auto line = buffer->LineAt(range.begin.line);
   CHECK_LE(range.begin.column, line->EndColumn());
   if (range.begin.line == range.end.line) {
     CHECK_GE(range.end.column, range.begin.column);
-    CHECK_LE(range.end.column, line->EndColumn());
+    range.end.column = min(range.end.column, line->EndColumn());
   } else {
     CHECK_GE(line->EndColumn(), range.begin.column);
   }
