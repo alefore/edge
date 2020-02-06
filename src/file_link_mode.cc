@@ -597,8 +597,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     it.first->second->set_position(position.value());
   }
 
-  editor_state->buffer_tree()->AddBuffer(it.first->second,
-                                         options.insertion_type);
+  editor_state->AddBuffer(it.first->second, options.insertion_type);
 
   if (!pattern.empty()) {
     SearchOptions search_options;
