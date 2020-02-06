@@ -557,8 +557,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
     it.first->second->ResetMode();
   }
 
-  editor_state->buffer_tree()->AddBuffer(it.first->second,
-                                         options.insertion_type);
+  editor_state->AddBuffer(it.first->second, options.insertion_type);
 
   it.first->second->Reload();
   it.first->second->set_current_position_line(LineNumber(0));
