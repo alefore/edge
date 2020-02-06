@@ -126,6 +126,8 @@ class InsertMode : public EditorMode {
  public:
   InsertMode(InsertModeOptions options) : options_(std::move(options)) {
     CHECK(options_.escape_handler);
+    CHECK(options_.buffers.has_value());
+    CHECK(!options_.buffers.value().empty());
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
@@ -152,11 +154,9 @@ class InsertMode : public EditorMode {
 
       case Terminal::ESCAPE:
         ResetScrollBehavior();
-        if (old_literal) {
-          WriteLineBuffer({27});
-        }
         futures::ImmediateTransform(
-            editor_state->ForEachActiveBuffer(
+            ForEachActiveBuffer(
+                old_literal ? std::string{27} : "",
                 [options = options_,
                  old_literal](const std::shared_ptr<OpenBuffer>& buffer) {
                   if (buffer->fd() != nullptr) {
@@ -342,16 +342,28 @@ class InsertMode : public EditorMode {
  private:
   // Writes `line_buffer` to every buffer with a fd, and runs `callable` in
   // every buffer without an fd.
-  void ForEachActiveBuffer(
+  futures::Value<bool> ForEachActiveBuffer(
       std::string line_buffer,
       std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
           callable) {
-    WriteLineBuffer(line_buffer);
-    options_.editor_state->ForEachActiveBuffer(
-        [callable](const std::shared_ptr<OpenBuffer>& buffer) {
-          return buffer->fd() == nullptr ? callable(buffer)
-                                         : futures::Past(true);
-        });
+    return futures::Transform(
+        WriteLineBuffer(line_buffer),
+        [this,
+         callable](bool) -> futures::Value<futures::IterationControlCommand> {
+          return futures::ForEachWithCopy(
+              options_.buffers.value().begin(), options_.buffers.value().end(),
+              [callable](const std::shared_ptr<OpenBuffer>& buffer) {
+                return buffer->fd() == nullptr
+                           ? futures::Transform(
+                                 callable(buffer),
+                                 futures::Past(
+                                     futures::IterationControlCommand::
+                                         kContinue))
+                           : futures::Past(
+                                 futures::IterationControlCommand::kContinue);
+              });
+        },
+        futures::Past(true));
   }
 
   void HandleDelete(std::string line_buffer, Direction direction) {
@@ -427,21 +439,25 @@ class InsertMode : public EditorMode {
 
   void ResetScrollBehavior() { scroll_behavior_ = nullptr; }
 
-  void WriteLineBuffer(std::string line_buffer) {
-    options_.editor_state->ForEachActiveBuffer(
-        [line_buffer = std::move(line_buffer)](
-            const std::shared_ptr<OpenBuffer>& buffer) {
-          if (auto fd = buffer->fd(); fd != nullptr) {
-            if (write(fd->fd(), line_buffer.c_str(), line_buffer.size()) ==
-                -1) {
-              buffer->status()->SetWarningText(L"Write failed: " +
-                                               FromByteString(strerror(errno)));
-            } else {
-              buffer->editor()->StartHandlingInterrupts();
-            }
-          }
-          return futures::Past(true);
-        });
+  futures::Value<bool> WriteLineBuffer(std::string line_buffer) {
+    if (line_buffer.empty()) return futures::Past(true);
+    return futures::Transform(
+        futures::ForEachWithCopy(
+            options_.buffers.value().begin(), options_.buffers.value().end(),
+            [line_buffer = std::move(line_buffer)](
+                const std::shared_ptr<OpenBuffer>& buffer) {
+              if (auto fd = buffer->fd(); fd != nullptr) {
+                if (write(fd->fd(), line_buffer.c_str(), line_buffer.size()) ==
+                    -1) {
+                  buffer->status()->SetWarningText(
+                      L"Write failed: " + FromByteString(strerror(errno)));
+                } else {
+                  buffer->editor()->StartHandlingInterrupts();
+                }
+              }
+              return futures::Past(futures::IterationControlCommand::kContinue);
+            }),
+        futures::Past(true));
   }
 
   const InsertModeOptions options_;
