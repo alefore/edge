@@ -412,6 +412,8 @@ void Prompt(PromptOptions options) {
       };
 
   EnterInsertMode(insert_mode_options);
+  // We do this after `EnterInsertMode` because `EnterInsertMode` resets the
+  // status.
   status->set_prompt(options.prompt, buffer);
   insert_mode_options.modify_handler(buffer);
 }
