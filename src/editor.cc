@@ -621,6 +621,19 @@ std::vector<std::shared_ptr<OpenBuffer>> EditorState::active_buffers() const {
   return output;
 }
 
+void EditorState::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
+                            BuffersList::AddBufferType insertion_type) {
+  auto initial_active_buffers = active_buffers();
+  buffer_tree()->AddBuffer(buffer, insertion_type);
+  if (initial_active_buffers != active_buffers()) {
+    // The set of buffers changed; if some mode was active, ... cancel it.
+    // Perhaps the keyboard redirect should have a method to react to this, so
+    // that it can decide what to do? Then again, does it make sense for any of
+    // them to do anything other than be canceled?
+    set_keyboard_redirect(nullptr);
+  }
+}
+
 futures::Value<bool> EditorState::ForEachActiveBuffer(
     std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
         callback) {

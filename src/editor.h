@@ -80,6 +80,8 @@ class EditorState {
   const shared_ptr<OpenBuffer> current_buffer() const;
   // Returns the set of buffers that should be modified by commands.
   std::vector<std::shared_ptr<OpenBuffer>> active_buffers() const;
+  void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
+                 BuffersList::AddBufferType insertion_type);
   futures::Value<bool> ForEachActiveBuffer(
       std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
           callback);
