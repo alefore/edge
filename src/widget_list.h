@@ -70,6 +70,11 @@ class WidgetListHorizontal : public WidgetList {
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;
+
+ private:
+  // Will return nullptr when the child should be skipped.
+  std::unique_ptr<OutputProducer> NewChildProducer(
+      OutputProducerOptions options, size_t index, LineNumberDelta lines) const;
 };
 
 class WidgetListVertical : public WidgetList {

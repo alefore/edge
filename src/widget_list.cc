@@ -235,48 +235,11 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
   std::vector<HorizontalSplitOutputProducer::Row> rows;
   CHECK_EQ(children_.size(), lines_per_child.size());
   for (size_t index = 0; index < children_.size(); index++) {
-    OutputProducerOptions child_options = options;
-    child_options.size.line = lines_per_child[index];
-    if (child_options.size.line.IsZero()) {
-      continue;
+    auto child_producer =
+        NewChildProducer(options, index, lines_per_child[index]);
+    if (child_producer != nullptr) {
+      rows.push_back({std::move(child_producer), lines_per_child[index]});
     }
-    std::shared_ptr<const OpenBuffer> buffer =
-        children_[index]->GetActiveLeaf()->Lock();
-    std::unique_ptr<OutputProducer> child_producer;
-    if (children_.size() > 1) {
-      VLOG(5) << "Producing row with frame.";
-      std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
-      FrameOutputProducer::FrameOptions frame_options;
-      frame_options.title = children_[index]->Name();
-      frame_options.position_in_parent = index;
-      if (index == active_) {
-        frame_options.active_state =
-            FrameOutputProducer::FrameOptions::ActiveState::kActive;
-      }
-      if (buffer != nullptr) {
-        frame_options.extra_information =
-            OpenBuffer::FlagsToString(buffer->Flags());
-        frame_options.width =
-            ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
-      }
-      nested_rows.push_back(
-          {std::make_unique<FrameOutputProducer>(std::move(frame_options)),
-           LineNumberDelta(1)});
-      child_options.size.line -= nested_rows.back().lines;
-      child_options.main_cursor_behavior =
-          index == active_
-              ? options.main_cursor_behavior
-              : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
-      nested_rows.push_back(
-          {children_[index]->CreateOutputProducer(child_options),
-           child_options.size.line});
-      child_producer = std::make_unique<HorizontalSplitOutputProducer>(
-          std::move(nested_rows), 1);
-    } else {
-      child_producer = children_[index]->CreateOutputProducer(child_options);
-    }
-    CHECK(child_producer != nullptr);
-    rows.push_back({std::move(child_producer), lines_per_child[index]});
   }
 
   if (children_skipped > 0) {
@@ -295,6 +258,52 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
                  LineNumberDelta());
   return std::make_unique<HorizontalSplitOutputProducer>(
       std::move(rows), active_ - children_skipped_before_active);
+}
+
+std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
+    OutputProducerOptions options, size_t index, LineNumberDelta lines) const {
+  options.size.line = lines;
+  if (options.size.line.IsZero()) {
+    return nullptr;
+  }
+
+  Widget* child = children_[index].get();
+  if (children_.size() <= 1) {
+    return child->CreateOutputProducer(options);
+  }
+
+  std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
+
+  VLOG(5) << "Producing row with frame.";
+  FrameOutputProducer::FrameOptions frame_options;
+  frame_options.title = child->Name();
+  frame_options.position_in_parent = index;
+  if (index == active_) {
+    frame_options.active_state =
+        FrameOutputProducer::FrameOptions::ActiveState::kActive;
+  }
+
+  if (auto buffer = child->GetActiveLeaf()->Lock(); buffer != nullptr) {
+    frame_options.extra_information =
+        OpenBuffer::FlagsToString(buffer->Flags());
+    frame_options.width =
+        ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
+  }
+
+  nested_rows.push_back(
+      {std::make_unique<FrameOutputProducer>(std::move(frame_options)),
+       LineNumberDelta(1)});
+
+  options.size.line -= nested_rows.back().lines;
+  options.main_cursor_behavior =
+      index == active_
+          ? options.main_cursor_behavior
+          : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
+  nested_rows.push_back(
+      {child->CreateOutputProducer(options), options.size.line});
+
+  return std::make_unique<HorizontalSplitOutputProducer>(std::move(nested_rows),
+                                                         1);
 }
 
 LineNumberDelta WidgetListHorizontal::MinimumLines() const {
