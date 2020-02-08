@@ -306,21 +306,24 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
          const auto characters_map = std::make_shared<std::unordered_map<
              wint_t, TransformationArgumentMode<NavigateState>::CharHandler>>(
              GetMap());
+         TransformationArgumentMode<NavigateState>::Options options{
+             .editor_state = editor_state,
+             .initial_value = InitialState(editor_state),
+             .characters = characters_map,
+             .status_factory = BuildStatus};
+         SetOptionsForBufferTransformation<NavigateState>(
+             [](EditorState*,
+                NavigateState state) -> std::unique_ptr<Transformation> {
+               return NewTransformation(
+                   Modifiers(),
+                   std::make_unique<NavigateTransformation>(std::move(state)));
+             },
+             [](const NavigateState&) {
+               return std::optional<Modifiers::CursorsAffected>();
+             },
+             &options);
          return std::make_unique<TransformationArgumentMode<NavigateState>>(
-             TransformationArgumentMode<NavigateState>::Options{
-                 .editor_state = editor_state,
-                 .initial_value = InitialState(editor_state),
-                 .transformation_factory =
-                     [](EditorState*, NavigateState state) {
-                       return NewTransformation(
-                           Modifiers(),
-                           std::make_unique<NavigateTransformation>(
-                               std::move(state)));
-                     },
-                 .characters = characters_map,
-                 .status_factory = BuildStatus,
-                 .cursors_affected_factory =
-                     [](const NavigateState&) { return std::nullopt; }});
+             std::move(options));
        }});
 }
 

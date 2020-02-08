@@ -189,20 +189,21 @@ std::unique_ptr<Command> NewCommandWithModifiers(
            mutable_modifiers.cursors_affected =
                editor_state->modifiers().cursors_affected;
          }
+         TransformationArgumentMode<Modifiers>::Options options{
+             .editor_state = editor_state,
+             .initial_value = std::move(mutable_modifiers),
+             .characters = characters_map,
+             .status_factory = [name](const Modifiers& modifiers) {
+               return BuildStatus(name, modifiers);
+             }};
+         SetOptionsForBufferTransformation<Modifiers>(
+             std::move(handler),
+             [editor_state](const Modifiers& modifiers) {
+               return modifiers.cursors_affected;
+             },
+             &options);
          return std::make_unique<TransformationArgumentMode<Modifiers>>(
-             TransformationArgumentMode<Modifiers>::Options{
-                 .editor_state = editor_state,
-                 .initial_value = std::move(mutable_modifiers),
-                 .transformation_factory = handler,
-                 .characters = characters_map,
-                 .status_factory =
-                     [name](const Modifiers& modifiers) {
-                       return BuildStatus(name, modifiers);
-                     },
-                 .cursors_affected_factory =
-                     [editor_state](const Modifiers& modifiers) {
-                       return modifiers.cursors_affected;
-                     }});
+             std::move(options));
        }});
 }
 
