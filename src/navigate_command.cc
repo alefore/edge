@@ -71,32 +71,32 @@ struct NavigateState {
   std::vector<NavigateOperation> operations;
 };
 
-std::unordered_map<wint_t,
-                   TransformationArgumentMode<NavigateState>::CharHandler>
-GetMap() {
-  std::unordered_map<wint_t,
-                     TransformationArgumentMode<NavigateState>::CharHandler>
-      output;
-  output['l'] = {.apply = [](NavigateState state) {
-    state.operations.push_back({NavigateOperation::Type::kForward});
-    return state;
-  }};
+bool CharConsumer(wint_t c, NavigateState* state) {
+  switch (c) {
+    case 'l':
+      state->operations.push_back({NavigateOperation::Type::kForward});
+      return true;
 
-  output['h'] = {.apply = [](NavigateState state) {
-    state.operations.push_back({NavigateOperation::Type::kBackward});
-    return state;
-  }};
+    case 'h':
+      state->operations.push_back({NavigateOperation::Type::kBackward});
+      return true;
 
-  for (size_t i = 0; i < 9; i++) {
-    output['1' + i] = {.apply = [i](NavigateState state) {
-      state.operations.push_back(
-          {NavigateOperation::Type::kNumber, .number = i});
+    case L'1':
+    case L'2':
+    case L'3':
+    case L'4':
+    case L'5':
+    case L'6':
+    case L'7':
+    case L'8':
+    case L'9':
+      state->operations.push_back(
+          {NavigateOperation::Type::kNumber, .number = c - L'1'});
+      return true;
 
-      return state;
-    }};
+    default:
+      return false;
   }
-
-  return output;
 }
 
 SearchRange GetRange(const NavigateState& navigate_state,
@@ -303,13 +303,10 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
       {.description = L"activates navigate mode.",
        .category = L"Navigate",
        .factory = [editor_state] {
-         static const auto characters_map = std::make_shared<std::unordered_map<
-             wint_t, TransformationArgumentMode<NavigateState>::CharHandler>>(
-             GetMap());
          TransformationArgumentMode<NavigateState>::Options options{
              .editor_state = editor_state,
              .initial_value = InitialState(editor_state),
-             .characters = characters_map,
+             .char_consumer = CharConsumer,
              .status_factory = BuildStatus};
          SetOptionsForBufferTransformation<NavigateState>(
              [](EditorState*,

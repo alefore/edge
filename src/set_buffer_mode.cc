@@ -12,28 +12,33 @@ struct Data {
   std::optional<size_t> initial_number;
 };
 
-std::unordered_map<wint_t, TransformationArgumentMode<Data>::CharHandler>
-GetMap() {
-  std::unordered_map<wint_t, TransformationArgumentMode<Data>::CharHandler>
-      output;
-  output['l'] = {.apply = [](Data data) {
-    data.operations.push_back({Operation::Type::kForward});
-    return data;
-  }};
+bool CharConsumer(wint_t c, Data* data) {
+  switch (c) {
+    case L'l':
+      data->operations.push_back({Operation::Type::kForward});
+      return true;
 
-  output['h'] = {.apply = [](Data data) {
-    data.operations.push_back({Operation::Type::kBackward});
-    return data;
-  }};
+    case L'h':
+      data->operations.push_back({Operation::Type::kBackward});
+      return true;
 
-  for (size_t i = 0; i < 10; i++) {
-    output['0' + i] = {.apply = [i](Data data) {
-      data.operations.push_back({Operation::Type::kNumber, .number = i});
-      return data;
-    }};
+    case L'0':
+    case L'1':
+    case L'2':
+    case L'3':
+    case L'4':
+    case L'5':
+    case L'6':
+    case L'7':
+    case L'8':
+    case L'9':
+      data->operations.push_back(
+          {.type = Operation::Type::kNumber, .number = c - L'0'});
+      return true;
+
+    default:
+      return false;
   }
-
-  return output;
 }
 
 std::wstring BuildStatus(const Data& data) {
@@ -49,7 +54,7 @@ std::wstring BuildStatus(const Data& data) {
         output += L"⮜";
         break;
       case Operation::Type::kNumber:
-        output += std::to_wstring(operation.number + 1);
+        output += std::to_wstring(operation.number);
         break;
     }
   }
@@ -67,8 +72,8 @@ futures::Value<bool> Apply(EditorState* editor, Data data) {
         break;
 
       case Operation::Type::kBackward:
-        if (index == 0) {
-          index = buffers_list->BuffersCount() - 1;
+        if (index == 1) {
+          index = buffers_list->BuffersCount();
         } else {
           index--;
         }
@@ -76,6 +81,9 @@ futures::Value<bool> Apply(EditorState* editor, Data data) {
 
       case Operation::Type::kNumber:
         if (last_type != Operation::Type::kNumber) {
+          if (operation.number == 0) {
+            break;
+          }
           index = 0;
         }
         index = index * 10 + operation.number;
@@ -83,6 +91,7 @@ futures::Value<bool> Apply(EditorState* editor, Data data) {
     }
     last_type = operation.type;
   }
+  index--;  // Silly humans prefer to count from 1.
   index %= buffers_list->BuffersCount();
   editor->set_current_buffer(buffers_list->GetBuffer(index));
   return futures::Past(true);
@@ -90,13 +99,11 @@ futures::Value<bool> Apply(EditorState* editor, Data data) {
 
 }  // namespace
 std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
-  static const auto characters_map = std::make_shared<std::unordered_map<
-      wint_t, TransformationArgumentMode<Data>::CharHandler>>(GetMap());
   auto initial_buffer = editor->buffer_tree()->GetActiveLeaf()->Lock();
 
   TransformationArgumentMode<Data>::Options options{
       .editor_state = editor,
-      .characters = characters_map,
+      .char_consumer = &CharConsumer,
       .status_factory = &BuildStatus,
       .undo =
           [editor, initial_buffer]() {

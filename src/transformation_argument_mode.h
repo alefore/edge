@@ -20,16 +20,11 @@ namespace afc::editor {
 template <typename Argument>
 class TransformationArgumentMode : public EditorMode {
  public:
-  struct CharHandler {
-    std::function<Argument(Argument)> apply;
-  };
-
   struct Options {
     EditorState* editor_state;
     Argument initial_value = Argument();
 
-    // The characters recognized.
-    std::shared_ptr<const std::unordered_map<wint_t, CharHandler>> characters;
+    std::function<bool(wint_t, Argument*)> char_consumer;
 
     // Returns the string to show in the status.
     std::function<std::wstring(const Argument&)> status_factory;
@@ -42,11 +37,11 @@ class TransformationArgumentMode : public EditorMode {
   TransformationArgumentMode(Options options)
       : options_(options), buffers_(options_.editor_state->active_buffers()) {
     CHECK(options_.editor_state != nullptr);
-    CHECK(options_.characters != nullptr);
+    CHECK(options_.char_consumer != nullptr);
     CHECK(options_.status_factory != nullptr);
     CHECK(options_.undo != nullptr);
     CHECK(options_.apply != nullptr);
-    Transform(Transformation::Input::Mode::kPreview);
+    Transform(Transformation::Input::Mode::kPreview, BuildArgument());
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
@@ -56,17 +51,18 @@ class TransformationArgumentMode : public EditorMode {
           if (!argument_string_.empty()) {
             argument_string_.pop_back();
           }
-          return Transform(Transformation::Input::Mode::kPreview);
+          return Transform(Transformation::Input::Mode::kPreview,
+                           BuildArgument());
         default:
-          Argument dummy;
-          if (ApplyChar(c, &dummy)) {
+          auto argument = BuildArgument();
+          if (ApplyChar(c, &argument)) {
             argument_string_.push_back(c);
-            return Transform(Transformation::Input::Mode::kPreview);
+            return Transform(Transformation::Input::Mode::kPreview, argument);
           }
           return futures::Transform(
               static_cast<int>(c) == Terminal::ESCAPE
                   ? futures::Past(true)
-                  : Transform(Transformation::Input::Mode::kFinal),
+                  : Transform(Transformation::Input::Mode::kFinal, argument),
               [editor_state, c](bool) {
                 editor_state->status()->Reset();
                 auto editor_state_copy = editor_state;
@@ -81,18 +77,20 @@ class TransformationArgumentMode : public EditorMode {
   }
 
  private:
-  bool ApplyChar(wint_t c, Argument* argument) {
-    auto it = options_.characters->find(c);
-    if (it == options_.characters->end()) return false;
-    *argument = it->second.apply(std::move(*argument));
-    return true;
-  }
-
-  futures::Value<bool> Transform(Transformation::Input::Mode apply_mode) {
+  Argument BuildArgument() {
     auto argument = options_.initial_value;
     for (const auto& c : argument_string_) {
-      ApplyChar(c, &argument);
+      CHECK(ApplyChar(c, &argument));
     }
+    return argument;
+  }
+
+  bool ApplyChar(wint_t c, Argument* argument) {
+    return options_.char_consumer(c, argument);
+  }
+
+  futures::Value<bool> Transform(Transformation::Input::Mode apply_mode,
+                                 Argument argument) {
     options_.editor_state->status()->SetInformationText(
         options_.status_factory(argument));
     return options_.apply(apply_mode, std::move(argument));

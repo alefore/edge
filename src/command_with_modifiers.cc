@@ -10,116 +10,134 @@
 
 namespace afc::editor {
 namespace {
-std::unordered_map<wint_t, TransformationArgumentMode<Modifiers>::CharHandler>
-GetMap() {
-  std::unordered_map<wint_t, TransformationArgumentMode<Modifiers>::CharHandler>
-      output;
-  output['+'] = {.apply = [](Modifiers modifiers) {
-    modifiers.repetitions = modifiers.repetitions.value_or(1) + 1;
-    return modifiers;
-  }};
-
-  output['-'] = {.apply = [](Modifiers modifiers) {
-    if (modifiers.repetitions.value_or(1) > 0) {
-      modifiers.repetitions = modifiers.repetitions.value_or(1) - 1;
-    }
-    return modifiers;
-  }};
-
-  output['*'] = {.apply = [](Modifiers modifiers) {
-    switch (modifiers.cursors_affected.value_or(
-        Modifiers::kDefaultCursorsAffected)) {
-      case Modifiers::CursorsAffected::kOnlyCurrent:
-        modifiers.cursors_affected = Modifiers::CursorsAffected::kAll;
-        break;
-      case Modifiers::CursorsAffected::kAll:
-        modifiers.cursors_affected = Modifiers::CursorsAffected::kOnlyCurrent;
-        break;
-    }
-    return modifiers;
-  }};
-
-  for (int i = 0; i < 10; i++) {
-    output['0' + i] = {.apply = [i](Modifiers modifiers) {
-      modifiers.repetitions = 10 * modifiers.repetitions.value_or(1) + i;
-      return modifiers;
-    }};
-  }
-
-  output['('] = {.apply = [](Modifiers modifiers) {
-    modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
-    return modifiers;
-  }};
-
-  output['['] = {.apply = [](Modifiers modifiers) {
-    modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
-    return modifiers;
-  }};
-
-  output['{'] = {.apply = [](Modifiers modifiers) {
-    modifiers.boundary_begin = Modifiers::LIMIT_NEIGHBOR;
-    return modifiers;
-  }};
-
-  output[')'] = {.apply = [](Modifiers modifiers) {
-    modifiers.boundary_end = Modifiers::CURRENT_POSITION;
-    return modifiers;
-  }};
-
-  output[']'] = {.apply = [](Modifiers modifiers) {
-    if (modifiers.boundary_end == Modifiers::CURRENT_POSITION) {
-      modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-    } else if (modifiers.boundary_end == Modifiers::LIMIT_CURRENT) {
-      modifiers.boundary_end = Modifiers::LIMIT_NEIGHBOR;
-    } else if (modifiers.boundary_end == Modifiers::LIMIT_NEIGHBOR) {
-      modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-      if (!modifiers.repetitions.has_value()) {
-        modifiers.repetitions = 1;
-      }
-      ++modifiers.repetitions.value();
-    }
-    return modifiers;
-  }};
-
-  output['r'] = {.apply = [](Modifiers modifiers) {
-    modifiers.direction = ReverseDirection(modifiers.direction);
-    return modifiers;
-  }};
-
-  auto set_structure = [&output](wint_t c, Structure* structure) {
-    output[c] = {.apply = [structure](Modifiers modifiers) {
-      modifiers.structure =
-          modifiers.structure == structure ? StructureChar() : structure;
-      return modifiers;
-    }};
+bool CharConsumer(wint_t c, Modifiers* modifiers) {
+  auto set_structure = [modifiers](Structure* structure) {
+    modifiers->structure =
+        modifiers->structure == structure ? StructureChar() : structure;
   };
 
-  set_structure('e', StructureLine());
-  set_structure('w', StructureWord());
-  set_structure('W', StructureSymbol());
-  set_structure('B', StructureBuffer());
-  set_structure('c', StructureCursor());
-  set_structure('t', StructureTree());
-  set_structure('S', StructureSentence());
-  set_structure('p', StructureParagraph());
+  switch (c) {
+    case '+':
+      modifiers->repetitions = modifiers->repetitions.value_or(1) + 1;
+      return true;
 
-  output['P'] = {.apply = [](Modifiers modifiers) {
-    modifiers.paste_buffer_behavior =
-        modifiers.paste_buffer_behavior ==
-                Modifiers::PasteBufferBehavior::kDeleteInto
-            ? Modifiers::PasteBufferBehavior::kDoNothing
-            : Modifiers::PasteBufferBehavior::kDeleteInto;
-    return modifiers;
-  }};
+    case '-':
+      if (modifiers->repetitions.value_or(1) > 0) {
+        modifiers->repetitions = modifiers->repetitions.value_or(1) - 1;
+      }
+      return true;
 
-  output['k'] = {.apply = [](Modifiers modifiers) {
-    modifiers.delete_behavior =
-        modifiers.delete_behavior == Modifiers::DeleteBehavior::kDeleteText
-            ? Modifiers::DeleteBehavior::kDoNothing
-            : Modifiers::DeleteBehavior::kDeleteText;
-    return modifiers;
-  }};
-  return output;
+    case '*':
+      switch (modifiers->cursors_affected.value_or(
+          Modifiers::kDefaultCursorsAffected)) {
+        case Modifiers::CursorsAffected::kOnlyCurrent:
+          modifiers->cursors_affected = Modifiers::CursorsAffected::kAll;
+          break;
+        case Modifiers::CursorsAffected::kAll:
+          modifiers->cursors_affected =
+              Modifiers::CursorsAffected::kOnlyCurrent;
+          break;
+      }
+      return true;
+
+    case L'0':
+    case L'1':
+    case L'2':
+    case L'3':
+    case L'4':
+    case L'5':
+    case L'6':
+    case L'7':
+    case L'8':
+    case L'9':
+      modifiers->repetitions =
+          10 * modifiers->repetitions.value_or(0) + c - L'0';
+      return true;
+
+    case '(':
+      modifiers->boundary_begin = Modifiers::CURRENT_POSITION;
+      return true;
+
+    case '[':
+      modifiers->boundary_begin = Modifiers::LIMIT_CURRENT;
+      return true;
+
+    case '{':
+      modifiers->boundary_begin = Modifiers::LIMIT_NEIGHBOR;
+      return true;
+
+    case ')':
+      modifiers->boundary_end = Modifiers::CURRENT_POSITION;
+      return true;
+
+    case ']':
+      if (modifiers->boundary_end == Modifiers::CURRENT_POSITION) {
+        modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
+      } else if (modifiers->boundary_end == Modifiers::LIMIT_CURRENT) {
+        modifiers->boundary_end = Modifiers::LIMIT_NEIGHBOR;
+      } else if (modifiers->boundary_end == Modifiers::LIMIT_NEIGHBOR) {
+        modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
+        if (!modifiers->repetitions.has_value()) {
+          modifiers->repetitions = 1;
+        }
+        ++modifiers->repetitions.value();
+      }
+      return true;
+
+    case 'r':
+      modifiers->direction = ReverseDirection(modifiers->direction);
+      return true;
+
+    case 'e':
+      set_structure(StructureLine());
+      return true;
+
+    case 'w':
+      set_structure(StructureWord());
+      return true;
+
+    case 'W':
+      set_structure(StructureSymbol());
+      return true;
+
+    case 'B':
+      set_structure(StructureBuffer());
+      return true;
+
+    case 'c':
+      set_structure(StructureCursor());
+      return true;
+
+    case 't':
+      set_structure(StructureTree());
+      return true;
+
+    case 'S':
+      set_structure(StructureSentence());
+      return true;
+
+    case 'p':
+      set_structure(StructureParagraph());
+      return true;
+
+    case 'P':
+      modifiers->paste_buffer_behavior =
+          modifiers->paste_buffer_behavior ==
+                  Modifiers::PasteBufferBehavior::kDeleteInto
+              ? Modifiers::PasteBufferBehavior::kDoNothing
+              : Modifiers::PasteBufferBehavior::kDeleteInto;
+      return true;
+
+    case 'k':
+      modifiers->delete_behavior =
+          modifiers->delete_behavior == Modifiers::DeleteBehavior::kDeleteText
+              ? Modifiers::DeleteBehavior::kDoNothing
+              : Modifiers::DeleteBehavior::kDeleteText;
+      return modifiers;
+
+    default:
+      return false;
+  }
 }
 
 std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
@@ -178,9 +196,6 @@ std::unique_ptr<Command> NewCommandWithModifiers(
        .category = L"Edit",
        .factory = [editor_state, name, modifiers,
                    handler = std::move(handler)] {
-         const auto characters_map = std::make_shared<std::unordered_map<
-             wint_t, TransformationArgumentMode<Modifiers>::CharHandler>>(
-             GetMap());
          Modifiers mutable_modifiers = modifiers;
          // TODO: Find a way to have this honor `multiple_cursors`. Perhaps the
          // best way is to get rid of that? Or somehow merge that with
@@ -192,7 +207,7 @@ std::unique_ptr<Command> NewCommandWithModifiers(
          TransformationArgumentMode<Modifiers>::Options options{
              .editor_state = editor_state,
              .initial_value = std::move(mutable_modifiers),
-             .characters = characters_map,
+             .char_consumer = &CharConsumer,
              .status_factory = [name](const Modifiers& modifiers) {
                return BuildStatus(name, modifiers);
              }};
