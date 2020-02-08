@@ -13,7 +13,7 @@ FrameOutputProducer::FrameOutputProducer(FrameOptions options)
       line_modifiers_(options_.active_state ==
                               FrameOptions::ActiveState::kInactive
                           ? LineModifierSet({LineModifier::DIM})
-                          : LineModifierSet()),
+                          : LineModifierSet({LineModifier::BOLD})),
       title_modifiers_(options_.active_state ==
                                FrameOptions::ActiveState::kActive
                            ? LineModifierSet({LineModifier::BOLD})
@@ -23,6 +23,7 @@ OutputProducer::Generator FrameOutputProducer::Next() {
   return Generator{
       std::nullopt, [this]() {
         Line::Options output;
+        output.AppendString(options_.prefix, line_modifiers_);
         output.AppendString(L"──", line_modifiers_);
         if (!options_.title.empty()) {
           output.AppendString(L" " + options_.title + L" ", title_modifiers_);

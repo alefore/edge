@@ -19,6 +19,7 @@ class FrameOutputProducer : public OutputProducer {
     enum class ActiveState { kActive, kInactive };
     ActiveState active_state = ActiveState::kInactive;
     std::wstring extra_information = L"";
+    std::wstring prefix = L"";
   };
 
   FrameOutputProducer(FrameOptions options);

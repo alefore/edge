@@ -13,8 +13,6 @@ class Line;
 // Can be used to render a view of something once, line by line.
 class OutputProducer {
  public:
-  static std::unique_ptr<OutputProducer> Empty();
-
   struct LineWithCursor {
     static LineWithCursor Empty();
 
@@ -22,7 +20,7 @@ class OutputProducer {
 
     // Output parameter. If the active cursor is found in the line, stores here
     // the column in which it was output here. May be nullptr.
-    std::optional<ColumnNumber> cursor;
+    std::optional<ColumnNumber> cursor = std::nullopt;
   };
 
   // Callback that can generate a single line of output.
@@ -39,6 +37,9 @@ class OutputProducer {
     // Generates the line. Must be called at most once.
     std::function<LineWithCursor()> generate;
   };
+
+  static std::unique_ptr<OutputProducer> Empty();
+  static std::unique_ptr<OutputProducer> Constant(LineWithCursor output);
 
   virtual Generator Next() = 0;
 };
