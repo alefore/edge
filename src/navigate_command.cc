@@ -303,7 +303,7 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
       {.description = L"activates navigate mode.",
        .category = L"Navigate",
        .factory = [editor_state] {
-         const auto characters_map = std::make_shared<std::unordered_map<
+         static const auto characters_map = std::make_shared<std::unordered_map<
              wint_t, TransformationArgumentMode<NavigateState>::CharHandler>>(
              GetMap());
          TransformationArgumentMode<NavigateState>::Options options{
