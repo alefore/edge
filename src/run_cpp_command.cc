@@ -7,6 +7,7 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/line_prompt_mode.h"
+#include "src/tokenize.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/value.h"
@@ -25,45 +26,6 @@ futures::Value<bool> RunCppCommandLiteralHandler(const wstring& name,
   buffer->ResetMode();
   buffer->EvaluateString(name);
   return futures::Past(true);
-}
-
-struct Token {
-  std::wstring value;
-  ColumnNumber begin;
-  // `end` is the first column that isn't part of the token.
-  ColumnNumber end;
-};
-
-// Given: foo bar "hey there"
-// Returns a vector with "foo", "bar", and "hey there".
-std::vector<Token> SplitCommand(const LazyString& command) {
-  std::vector<Token> output;
-  Token token;
-  auto push = [&](ColumnNumber end) {
-    if (!token.value.empty()) {
-      token.end = end;
-      output.push_back(std::move(token));
-    }
-    token.value = L"";
-    token.begin = ++end;
-  };
-
-  for (ColumnNumber i; i.ToDelta() < command.size(); ++i) {
-    char c = command.get(i);
-    if (c == ' ') {
-      push(i);
-    } else if (c == '\"') {
-      ++i;
-      while (i.ToDelta() < command.size() && command.get(i) != '\"') {
-        token.value.push_back(command.get(i));
-        ++i;
-      }
-    } else {
-      token.value.push_back(c);
-    }
-  }
-  push(ColumnNumber() + command.size());
-  return output;
 }
 
 struct ParsedCommand {

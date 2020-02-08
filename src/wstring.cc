@@ -1,9 +1,9 @@
 #include "src/wstring.h"
 
+#include <glog/logging.h>
+
 #include <locale>
 #include <vector>
-
-#include <glog/logging.h>
 
 namespace afc {
 namespace editor {
