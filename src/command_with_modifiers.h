@@ -11,14 +11,6 @@
 namespace afc {
 namespace editor {
 
-enum class CommandApplyMode {
-  // Just preview what this transformation would do. Don't apply any
-  // long-lasting effects.
-  PREVIEW,
-  // Apply the transformation.
-  FINAL,
-};
-
 // General mode that collects characters and uses the to modify an argument of
 // an arbitrary type. When ENTER is pressed, the transformation is finally
 // executed and the mode is reset.
