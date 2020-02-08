@@ -178,6 +178,7 @@ src/transformation/tree_navigate.cc \
 src/transformation/tree_navigate.h \
 src/transformation.cc \
 src/transformation.h \
+src/transformation_argument_mode.h \
 src/vertical_split_output_producer.cc \
 src/vertical_split_output_producer.h \
 src/viewers.cc \
