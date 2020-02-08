@@ -98,7 +98,7 @@ class GotoCommand : public Command {
       size_t buffers = editor_state->buffers()->size();
       size_t position =
           ComputePosition(0, buffers, buffers, editor_state->direction(),
-                          editor_state->repetitions(), calls_);
+                          editor_state->repetitions().value_or(1), calls_);
       CHECK_LT(position, editor_state->buffers()->size());
       auto it = editor_state->buffers()->begin();
       advance(it, position);

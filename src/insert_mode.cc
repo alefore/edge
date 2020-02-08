@@ -174,8 +174,12 @@ class InsertMode : public EditorMode {
                           NewDeleteSuffixSuperfluousCharacters()),
                       [options, buffer](bool) {
                         buffer->PopTransformationStack();
-                        options.editor_state->set_repetitions(
-                            options.editor_state->repetitions() - 1);
+                        auto repetitions =
+                            options.editor_state->repetitions().value_or(1);
+                        if (repetitions > 0) {
+                          options.editor_state->set_repetitions(repetitions -
+                                                                1);
+                        }
                         return buffer->RepeatLastTransformation();
                       },
                       [options, buffer](bool) {
@@ -248,8 +252,7 @@ class InsertMode : public EditorMode {
 
       case Terminal::CTRL_U: {
         ResetScrollBehavior();
-        // TODO: Find a way to set `copy_to_paste_buffer` in the
-        // transformation.
+        // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
         Value* callback = editor_state->environment()->Lookup(
             L"HandleKeyboardControlU",
             VMType::Function(
@@ -467,7 +470,7 @@ class InsertMode : public EditorMode {
   // here. This gets flushed upon certain presses, such as ESCAPE or new line.
   string line_buffer_;
   bool literal_ = false;
-};  // namespace
+};
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
   for (auto& buffer : options.buffers.value()) {

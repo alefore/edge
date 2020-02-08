@@ -112,7 +112,7 @@ class EditorState {
     ResetDirection();
   }
 
-  size_t repetitions() const { return modifiers_.repetitions; }
+  std::optional<size_t> repetitions() const { return modifiers_.repetitions; }
   void ResetRepetitions() { modifiers_.ResetRepetitions(); }
   void set_repetitions(size_t value) { modifiers_.repetitions = value; }
 

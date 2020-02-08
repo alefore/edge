@@ -15,16 +15,13 @@ GetMap() {
   std::unordered_map<wint_t, TransformationArgumentMode<Modifiers>::CharHandler>
       output;
   output['+'] = {.apply = [](Modifiers modifiers) {
-    if (modifiers.repetitions == 0) {
-      modifiers.repetitions = 1;
-    }
-    modifiers.repetitions++;
+    modifiers.repetitions = modifiers.repetitions.value_or(1) + 1;
     return modifiers;
   }};
 
   output['-'] = {.apply = [](Modifiers modifiers) {
-    if (modifiers.repetitions > 0) {
-      modifiers.repetitions--;
+    if (modifiers.repetitions.value_or(1) > 0) {
+      modifiers.repetitions = modifiers.repetitions.value_or(1) - 1;
     }
     return modifiers;
   }};
@@ -43,8 +40,7 @@ GetMap() {
 
   for (int i = 0; i < 10; i++) {
     output['0' + i] = {.apply = [i](Modifiers modifiers) {
-      modifiers.repetitions = 10 * modifiers.repetitions + i;
-
+      modifiers.repetitions = 10 * modifiers.repetitions.value_or(1) + i;
       return modifiers;
     }};
   }
@@ -76,10 +72,10 @@ GetMap() {
       modifiers.boundary_end = Modifiers::LIMIT_NEIGHBOR;
     } else if (modifiers.boundary_end == Modifiers::LIMIT_NEIGHBOR) {
       modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-      if (modifiers.repetitions == 0) {
+      if (!modifiers.repetitions.has_value()) {
         modifiers.repetitions = 1;
       }
-      modifiers.repetitions++;
+      ++modifiers.repetitions.value();
     }
     return modifiers;
   }};
@@ -136,8 +132,8 @@ std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
   if (modifiers.cursors_affected == Modifiers::CursorsAffected::kAll) {
     status += L" cursors";
   }
-  if (modifiers.repetitions > 1) {
-    status += L" " + std::to_wstring(modifiers.repetitions);
+  if (modifiers.repetitions.has_value()) {
+    status += L" " + std::to_wstring(modifiers.repetitions.value());
   }
   if (modifiers.delete_behavior == Modifiers::DeleteBehavior::kDoNothing) {
     status += L" keep";
@@ -176,7 +172,6 @@ std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
 std::unique_ptr<Command> NewCommandWithModifiers(
     wstring name, wstring description, Modifiers modifiers,
     CommandWithModifiersHandler handler, EditorState* editor_state) {
-  modifiers.repetitions = 0;
   return NewSetModeCommand(
       {.description = description,
        .category = L"Edit",

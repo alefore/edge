@@ -38,7 +38,10 @@ ostream& operator<<(ostream& os, const Modifiers& m) {
       os << "kDoNothing";
       break;
   }
-  os << "][repetitions: " << m.repetitions << "]";
+  os << "]";
+  if (m.repetitions.has_value()) {
+    os << "[repetitions: " << m.repetitions.value() << "]";
+  }
   return os;
 }
 
@@ -109,8 +112,9 @@ std::wstring Modifiers::Serialize() const {
   if (structure == StructureLine()) {
     output += L".set_line()";
   }
-  if (repetitions != 1) {
-    output += L".set_repetitions(" + std::to_wstring(repetitions) + L")";
+  if (repetitions.has_value() != 1) {
+    output +=
+        L".set_repetitions(" + std::to_wstring(repetitions.value()) + L")";
   }
   if (boundary_end == LIMIT_NEIGHBOR) {
     output += L".set_boundary_end_neigbhr()";

@@ -387,8 +387,9 @@ class ForkEditorCommand : public Command {
       }
       auto children_path = GetChildrenPath(editor_state);
       auto line = buffer->current_line()->ToString();
-      for (size_t i = 0; i < editor_state->repetitions(); ++i) {
-        RunCommandHandler(line, editor_state, i, editor_state->repetitions(),
+      for (size_t i = 0; i < editor_state->repetitions().value_or(1); ++i) {
+        RunCommandHandler(line, editor_state, i,
+                          editor_state->repetitions().value_or(1),
                           children_path);
       }
     } else {

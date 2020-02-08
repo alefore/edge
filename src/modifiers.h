@@ -78,7 +78,7 @@ struct Modifiers {
 
   void ResetInsertion() { insertion = default_insertion; }
 
-  void ResetRepetitions() { repetitions = 1; }
+  void ResetRepetitions() { repetitions = std::nullopt; }
 
   // Fields follow.
   Structure* structure = StructureChar();
@@ -92,7 +92,7 @@ struct Modifiers {
   ModifyMode insertion = ModifyMode::kShift;
   ModifyMode default_insertion = ModifyMode::kShift;
 
-  size_t repetitions = 1;
+  std::optional<size_t> repetitions = std::nullopt;
 
   enum class DeleteBehavior { kDeleteText, kDoNothing };
   DeleteBehavior delete_behavior = DeleteBehavior::kDeleteText;

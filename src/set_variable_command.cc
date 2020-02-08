@@ -72,6 +72,7 @@ futures::Value<bool> SetVariableHandler(const wstring& input_name,
   if (auto var = editor_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
     editor_state->toggle_bool_variable(var);
+    editor_state->ResetRepetitions();
     editor_state->status()->SetInformationText(
         (editor_state->Read(var) ? L"🗸 " : L"⛶ ") + name);
     return futures::Past(true);
@@ -79,14 +80,18 @@ futures::Value<bool> SetVariableHandler(const wstring& input_name,
 
   if (auto var = buffer_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
-    editor_state->ForEachActiveBuffer(
-        [var, name](const std::shared_ptr<OpenBuffer>& buffer) {
-          buffer->toggle_bool_variable(var);
-          buffer->status()->SetInformationText(
-              (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
+    return futures::Transform(
+        editor_state->ForEachActiveBuffer(
+            [var, name](const std::shared_ptr<OpenBuffer>& buffer) {
+              buffer->toggle_bool_variable(var);
+              buffer->status()->SetInformationText(
+                  (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
+              return futures::Past(true);
+            }),
+        [editor_state](bool) {
+          editor_state->ResetRepetitions();
           return futures::Past(true);
         });
-    return futures::Past(true);
   }
   if (auto var = buffer_variables::IntStruct()->find_variable(name);
       var != nullptr) {

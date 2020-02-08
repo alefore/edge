@@ -13,10 +13,6 @@ namespace editor {
 std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
                                                    Modifiers modifiers) {
   CHECK(editor_state != nullptr);
-  if (modifiers.repetitions == 0) {
-    modifiers.repetitions = 1;
-  }
-
   DeleteOptions options;
   options.modifiers = std::move(modifiers);
   return NewDeleteTransformation(options);

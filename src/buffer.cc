@@ -1271,7 +1271,7 @@ LineColumn OpenBuffer::FindNextCursor(LineColumn position) {
   }
 
   size_t repetitions =
-      options_.editor->modifiers().repetitions % cursors->size();
+      options_.editor->modifiers().repetitions.value_or(1) % cursors->size();
   size_t final_position;  // From cursors->begin().
   if (direction == Direction::kForwards) {
     final_position = (index + repetitions) % cursors->size();
@@ -1290,8 +1290,8 @@ void OpenBuffer::DestroyCursor() {
   if (cursors->size() <= 1) {
     return;
   }
-  size_t repetitions =
-      min(options_.editor->modifiers().repetitions, cursors->size() - 1);
+  size_t repetitions = min(options_.editor->modifiers().repetitions.value_or(1),
+                           cursors->size() - 1);
   for (size_t i = 0; i < repetitions; i++) {
     cursors->DeleteCurrentCursor();
   }
@@ -1365,7 +1365,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
                    ? max(position, output.begin)
                    : min(position, output.begin);
   bool move_start = true;
-  for (size_t i = 1; i < modifiers.repetitions; i++) {
+  for (size_t i = 1; i < modifiers.repetitions.value_or(1); i++) {
     LineColumn position = output.end;
     if (!modifiers.structure->SeekToLimit(this, forward, &output.end)) {
       move_start = false;
@@ -1738,8 +1738,9 @@ void OpenBuffer::Set(const EdgeVariable<bool>* variable, bool value) {
 }
 
 void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
-  Set(variable,
-      editor()->modifiers().repetitions == 0 ? false : !Read(variable));
+  Set(variable, editor()->modifiers().repetitions.has_value()
+                    ? editor()->modifiers().repetitions != 0
+                    : !Read(variable));
 }
 
 const wstring& OpenBuffer::Read(const EdgeVariable<wstring>* variable) const {
@@ -1866,7 +1867,7 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
 }
 
 futures::Value<bool> OpenBuffer::RepeatLastTransformation() {
-  int repetitions = options_.editor->repetitions();
+  size_t repetitions = options_.editor->repetitions().value_or(1);
   options_.editor->ResetRepetitions();
   return ApplyToCursors(NewApplyRepetitionsTransformation(
       repetitions, last_transformation_->Clone()));
@@ -1905,7 +1906,7 @@ futures::Value<bool> OpenBuffer::Undo(UndoMode undo_mode) {
   }
   return futures::Transform(
       futures::While([this, undo_mode, data] {
-        if (data->repetitions == editor()->repetitions() ||
+        if (data->repetitions == editor()->repetitions().value_or(1) ||
             data->source->empty()) {
           return futures::Past(IterationControlCommand::kStop);
         }

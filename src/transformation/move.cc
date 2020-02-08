@@ -132,7 +132,7 @@ class MoveTransformation : public CompositeTransformation {
   LineColumn MoveLine(const OpenBuffer* buffer, LineColumn position,
                       const Modifiers& modifiers) const {
     int direction = (modifiers.direction == Direction::kBackwards ? -1 : 1);
-    size_t repetitions = modifiers.repetitions;
+    size_t repetitions = modifiers.repetitions.value_or(1);
     if (modifiers.direction == Direction::kBackwards &&
         repetitions > position.line.line) {
       position.line = LineNumber(0);

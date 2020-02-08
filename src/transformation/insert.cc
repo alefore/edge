@@ -54,14 +54,14 @@ class InsertBufferTransformation : public Transformation {
     result->made_progress = true;
 
     LineColumn start_position = result->position;
-    for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
+    for (size_t i = 0; i < options_.modifiers.repetitions.value_or(1); i++) {
       result->position = input.buffer->InsertInPosition(
           *options_.buffer_to_insert, result->position, options_.modifiers_set);
     }
     LineColumn final_position = result->position;
 
     size_t chars_inserted =
-        buffer_to_insert_length_ * options_.modifiers.repetitions;
+        buffer_to_insert_length_ * options_.modifiers.repetitions.value_or(1);
     result->undo_stack->PushFront(NewSetPositionTransformation(input.position));
     result->undo_stack->PushFront(TransformationAtPosition(
         start_position,

@@ -23,7 +23,7 @@ class FindTransformation : public CompositeTransformation {
     auto line = input.buffer->LineAt(input.position.line);
     if (line == nullptr) return futures::Past(Output());
     ColumnNumber column = min(input.position.column, line->EndColumn());
-    for (size_t i = 0; i < input.modifiers.repetitions; i++) {
+    for (size_t i = 0; i < input.modifiers.repetitions.value_or(1); i++) {
       auto candidate = SeekOnce(*line, column, input.modifiers);
       if (!candidate.has_value()) break;
       column = candidate.value();

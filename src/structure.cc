@@ -97,9 +97,9 @@ Structure* StructureChar() {
         end--;
       }
       auto editor = buffer->editor();
-      position.column = ColumnNumber(
-          ComputePosition(start.column, end.column, line->EndColumn().column,
-                          editor->direction(), editor->repetitions(), calls));
+      position.column = ColumnNumber(ComputePosition(
+          start.column, end.column, line->EndColumn().column,
+          editor->direction(), editor->repetitions().value_or(1), calls));
       CHECK_LE(position.column, line->EndColumn());
       return position;
     }
@@ -278,8 +278,9 @@ Structure* StructureLine() {
                                                   int calls) override {
       auto editor = buffer->editor();
       size_t lines = buffer->EndLine().line;
-      position.line = LineNumber(ComputePosition(
-          0, lines, lines, editor->direction(), editor->repetitions(), calls));
+      position.line =
+          LineNumber(ComputePosition(0, lines, lines, editor->direction(),
+                                     editor->repetitions().value_or(1), calls));
       CHECK_LE(position.line, LineNumber(0) + buffer->contents()->size());
       return position;
     }
@@ -325,7 +326,7 @@ Structure* StructureMark() {
                        });
       size_t index =
           ComputePosition(0, lines.size(), lines.size(), editor->direction(),
-                          editor->repetitions(), calls);
+                          editor->repetitions().value_or(1), calls);
       CHECK_LE(index, lines.size());
       position.line = LineNumber(lines.at(index).first);
       return position;
@@ -368,9 +369,9 @@ Structure* StructurePage() {
           ceil(static_cast<double>(buffer->contents()->size().line_delta) /
                lines.line_delta);
       position.line =
-          LineNumber(0) + lines * ComputePosition(0, pages, pages,
-                                                  editor->direction(),
-                                                  editor->repetitions(), calls);
+          LineNumber(0) +
+          lines * ComputePosition(0, pages, pages, editor->direction(),
+                                  editor->repetitions().value_or(1), calls);
       CHECK_LT(position.line.ToDelta(), buffer->contents()->size());
       return position;
     }
@@ -553,7 +554,8 @@ Structure* StructureCursor() {
       auto modifiers = editor_state->modifiers();
       CursorsSet::iterator current = buffer->current_cursor();
       for (size_t i = 0;
-           i < modifiers.repetitions && current != cursors->begin(); i++) {
+           i < modifiers.repetitions.value_or(1) && current != cursors->begin();
+           i++) {
         --current;
       }
 #endif

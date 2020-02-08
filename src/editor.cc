@@ -305,7 +305,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                       }));
 
   environment->Define(L"repetitions", vm::NewCallback([this]() {
-                        return static_cast<int>(repetitions());
+                        // TODO: Somehow expose the optional to the VM.
+                        return static_cast<int>(repetitions().value_or(1));
                       }));
 
   environment->Define(L"set_repetitions", vm::NewCallback([this](int times) {
@@ -440,7 +441,9 @@ void EditorState::Set(const EdgeVariable<bool>* variable, bool value) {
 }
 
 void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
-  Set(variable, modifiers().repetitions == 0 ? false : !Read(variable));
+  Set(variable, modifiers().repetitions.has_value()
+                    ? modifiers().repetitions != 0
+                    : !Read(variable));
 }
 
 void EditorState::CheckPosition() {

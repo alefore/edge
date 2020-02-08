@@ -195,18 +195,11 @@ class GotoPreviousPositionCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    Go(editor_state);
-    editor_state->ResetDirection();
-    editor_state->ResetRepetitions();
-    editor_state->ResetStructure();
-  }
-
-  static void Go(EditorState* editor_state) {
     if (!editor_state->HasPositionsInStack()) {
       LOG(INFO) << "Editor doesn't have positions in stack.";
       return;
     }
-    while (editor_state->repetitions() > 0) {
+    while (editor_state->repetitions().value_or(1) > 0) {
       if (!editor_state->MovePositionsStack(editor_state->direction())) {
         LOG(INFO) << "Editor failed to move in positions stack.";
         return;
@@ -230,9 +223,13 @@ class GotoPreviousPositionCommand : public Command {
                   << pos.position;
         editor_state->set_current_buffer(it->second);
         it->second->set_position(pos.position);
-        editor_state->set_repetitions(editor_state->repetitions() - 1);
+        editor_state->set_repetitions(editor_state->repetitions().value_or(1) -
+                                      1);
       }
     }
+    editor_state->ResetDirection();
+    editor_state->ResetRepetitions();
+    editor_state->ResetStructure();
   }
 };
 
@@ -306,14 +303,15 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     auto view_size = buffer->viewers()->view_size();
     auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
     editor_state->set_repetitions(
-        editor_state->repetitions() *
+        editor_state->repetitions().value_or(1) *
         (lines.line_delta > 2 ? lines.line_delta - 2 : 3));
-    VLOG(6) << "Word Up: Repetitions: " << editor_state->repetitions();
+    VLOG(6) << "Word Up: Repetitions: "
+            << editor_state->repetitions().value_or(1);
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
     CHECK(false);  // Handled above.
   } else {
-    editor_state->MoveBufferBackwards(editor_state->repetitions());
+    editor_state->MoveBufferBackwards(editor_state->repetitions().value_or(1));
   }
   editor_state->ResetStructure();
   editor_state->ResetRepetitions();
@@ -347,9 +345,10 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     auto view_size = buffer->viewers()->view_size();
     auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
     editor_state->set_repetitions(
-        editor_state->repetitions() *
+        editor_state->repetitions().value_or(1) *
         (lines.line_delta > 2 ? lines.line_delta - 2 : 3));
-    VLOG(6) << "Word Down: Repetitions: " << editor_state->repetitions();
+    VLOG(6) << "Word Down: Repetitions: "
+            << editor_state->repetitions().value_or(1);
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
     auto buffer = editor_state->current_buffer();
@@ -375,7 +374,7 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     editor_state->ResetDirection();
     editor_state->ResetStructure();
   } else {
-    editor_state->MoveBufferForwards(editor_state->repetitions());
+    editor_state->MoveBufferForwards(editor_state->repetitions().value_or(1));
   }
   editor_state->ResetStructure();
   editor_state->ResetRepetitions();
