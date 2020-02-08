@@ -122,7 +122,9 @@ struct Modifiers {
     kAll,
   };
 
-  CursorsAffected cursors_affected = CursorsAffected::kOnlyCurrent;
+  static constexpr CursorsAffected kDefaultCursorsAffected =
+      CursorsAffected::kOnlyCurrent;
+  std::optional<CursorsAffected> cursors_affected = std::nullopt;
 
   // The currently active cursors.
   std::wstring active_cursors;

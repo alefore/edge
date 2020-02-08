@@ -27,7 +27,8 @@ GetMap() {
   }};
 
   output['*'] = {.apply = [](Modifiers modifiers) {
-    switch (modifiers.cursors_affected) {
+    switch (modifiers.cursors_affected.value_or(
+        Modifiers::kDefaultCursorsAffected)) {
       case Modifiers::CursorsAffected::kOnlyCurrent:
         modifiers.cursors_affected = Modifiers::CursorsAffected::kAll;
         break;
@@ -130,7 +131,7 @@ std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
     status += L" reverse";
   }
   if (modifiers.cursors_affected == Modifiers::CursorsAffected::kAll) {
-    status += L" cursors";
+    status += L" multiple_cursors";
   }
   if (modifiers.repetitions.has_value()) {
     status += L" " + std::to_wstring(modifiers.repetitions.value());
@@ -180,21 +181,26 @@ std::unique_ptr<Command> NewCommandWithModifiers(
          const auto characters_map = std::make_shared<std::unordered_map<
              wint_t, TransformationArgumentMode<Modifiers>::CharHandler>>(
              GetMap());
+         Modifiers mutable_modifiers = modifiers;
+         // TODO: Find a way to have this honor `multiple_cursors`. Perhaps the
+         // best way is to get rid of that? Or somehow merge that with
+         // Modifiers.cursors_affected.
+         if (editor_state->modifiers().cursors_affected.has_value()) {
+           mutable_modifiers.cursors_affected =
+               editor_state->modifiers().cursors_affected;
+         }
          return std::make_unique<TransformationArgumentMode<Modifiers>>(
              TransformationArgumentMode<Modifiers>::Options{
                  .editor_state = editor_state,
-                 .initial_value = modifiers,
+                 .initial_value = std::move(mutable_modifiers),
                  .transformation_factory = handler,
                  .characters = characters_map,
                  .status_factory =
                      [name](const Modifiers& modifiers) {
                        return BuildStatus(name, modifiers);
                      },
-                 // TODO(easy): Find a way to honor the original setting in the
-                 // buffer (from buffer_variables::multiple_cursors) if the user
-                 // doesn't explicitly override it.
                  .cursors_affected_factory =
-                     [](const Modifiers& modifiers) {
+                     [editor_state](const Modifiers& modifiers) {
                        return modifiers.cursors_affected;
                      }});
        }});

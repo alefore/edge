@@ -45,6 +45,7 @@ struct NavigateOptions {
   std::function<size_t(LineColumn)> position_to_index;
 };
 
+// TODO(easy): Support toggling multiple_cursors.
 struct NavigateOperation {
   enum class Type { kForward, kBackward, kNumber };
   Type type;
