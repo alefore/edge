@@ -67,7 +67,6 @@ std::wstring DescribeForStatus(const NavigateOperation& operation) {
 
 struct NavigateState {
   NavigateOptions navigate_options;
-  Modifiers::CursorsAffected cursors_affected;
   std::vector<NavigateOperation> operations;
 };
 
@@ -232,16 +231,10 @@ class NavigateTransformation : public CompositeTransformation {
   const NavigateState state_;
 };
 
-NavigateState InitialState(const std::shared_ptr<OpenBuffer>& buffer) {
-  CHECK(buffer != nullptr);
-  auto editor_state = buffer->editor();
+NavigateState InitialState(EditorState* editor_state) {
   auto structure = editor_state->modifiers().structure;
   // TODO: Move to Structure.
   NavigateState initial_state;
-  initial_state.cursors_affected =
-      buffer->Read(buffer_variables::multiple_cursors)
-          ? Modifiers::CursorsAffected::kAll
-          : Modifiers::CursorsAffected::kOnlyCurrent;
   if (structure == StructureChar()) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer* buffer,
                                                       LineColumn position) {
@@ -297,7 +290,7 @@ NavigateState InitialState(const std::shared_ptr<OpenBuffer>& buffer) {
       return position.line.line;
     };
   } else {
-    buffer->status()->SetInformationText(
+    editor_state->status()->SetInformationText(
         L"Navigate not handled for current mode.");
   }
   return initial_state;
@@ -315,7 +308,7 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
          return std::make_unique<TransformationArgumentMode<NavigateState>>(
              TransformationArgumentMode<NavigateState>::Options{
                  .editor_state = editor_state,
-                 .initial_value_factory = &InitialState,
+                 .initial_value = InitialState(editor_state),
                  .transformation_factory =
                      [](EditorState*, NavigateState state) {
                        return NewTransformation(
@@ -326,9 +319,7 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
                  .characters = characters_map,
                  .status_factory = BuildStatus,
                  .cursors_affected_factory =
-                     [](const NavigateState& state) {
-                       return state.cursors_affected;
-                     }});
+                     [](const NavigateState&) { return std::nullopt; }});
        }});
 }
 

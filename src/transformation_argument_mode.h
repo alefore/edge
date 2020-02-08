@@ -25,10 +25,9 @@ class TransformationArgumentMode : public EditorMode {
 
   struct Options {
     EditorState* editor_state;
-    // Produces the initial `Argument` for a given buffer. This allows different
-    // buffers to start with different values (e.g., based on their variables).
-    std::function<Argument(const std::shared_ptr<OpenBuffer>&)>
-        initial_value_factory;
+    // TODO(easy): Make `Modifiers::repetitions` an `std::optional<>` value and
+    // get rid of this (just require that Argument has a default constructor).
+    Argument initial_value;
 
     std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>
         transformation_factory;
@@ -40,7 +39,7 @@ class TransformationArgumentMode : public EditorMode {
     std::function<std::wstring(const Argument&)> status_factory;
 
     // Returns the mode in which the transformation should be applied.
-    std::function<Modifiers::CursorsAffected(const Argument&)>
+    std::function<std::optional<Modifiers::CursorsAffected>(const Argument&)>
         cursors_affected_factory;
   };
 
@@ -65,7 +64,7 @@ class TransformationArgumentMode : public EditorMode {
               return Transform(Transformation::Input::Mode::kPreview);
             default:
               Argument dummy;
-              if (ApplyChar(options_, c, &dummy)) {
+              if (ApplyChar(c, &dummy)) {
                 argument_string_.push_back(c);
                 return Transform(Transformation::Input::Mode::kPreview);
               }
@@ -96,9 +95,9 @@ class TransformationArgumentMode : public EditorMode {
   }
 
  private:
-  static bool ApplyChar(Options options, wint_t c, Argument* argument) {
-    auto it = options.characters->find(c);
-    if (it == options.characters->end()) return false;
+  bool ApplyChar(wint_t c, Argument* argument) {
+    auto it = options_.characters->find(c);
+    if (it == options_.characters->end()) return false;
     *argument = it->second.apply(std::move(*argument));
     return true;
   }
@@ -112,16 +111,19 @@ class TransformationArgumentMode : public EditorMode {
   }
 
   futures::Value<bool> Transform(Transformation::Input::Mode apply_mode) {
-    return ForEachBuffer([options = options_,
-                          argument_string = argument_string_, apply_mode](
+    auto argument = options_.initial_value;
+    for (const auto& c : argument_string_) {
+      ApplyChar(c, &argument);
+    }
+    return ForEachBuffer([options = options_, argument = std::move(argument),
+                          apply_mode](
                              const std::shared_ptr<OpenBuffer>& buffer) {
-      auto argument = options.initial_value_factory(buffer);
-      for (const auto& c : argument_string) {
-        ApplyChar(options, c, &argument);
-      }
-
       buffer->status()->SetInformationText(options.status_factory(argument));
-      auto cursors_affected = options.cursors_affected_factory(argument);
+      auto cursors_affected =
+          options.cursors_affected_factory(argument).value_or(
+              buffer->Read(buffer_variables::multiple_cursors)
+                  ? Modifiers::CursorsAffected::kAll
+                  : Modifiers::CursorsAffected::kOnlyCurrent);
       return futures::ImmediateTransform(
           buffer->ApplyToCursors(options.transformation_factory(
                                      options.editor_state, std::move(argument)),

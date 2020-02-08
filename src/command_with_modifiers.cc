@@ -173,24 +173,10 @@ std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
 }
 }  // namespace
 
-namespace {
-Modifiers InitialState(Modifiers initial_modifiers,
-                       const std::shared_ptr<OpenBuffer>& buffer) {
-  CHECK(buffer != nullptr);
-  auto modifiers = initial_modifiers;
-  modifiers.cursors_affected = buffer->Read(buffer_variables::multiple_cursors)
-                                   ? Modifiers::CursorsAffected::kAll
-                                   : Modifiers::CursorsAffected::kOnlyCurrent;
-  modifiers.repetitions = 0;
-  return modifiers;
-}
-
-;
-}  // namespace
-
 std::unique_ptr<Command> NewCommandWithModifiers(
     wstring name, wstring description, Modifiers modifiers,
     CommandWithModifiersHandler handler, EditorState* editor_state) {
+  modifiers.repetitions = 0;
   return NewSetModeCommand(
       {.description = description,
        .category = L"Edit",
@@ -202,16 +188,16 @@ std::unique_ptr<Command> NewCommandWithModifiers(
          return std::make_unique<TransformationArgumentMode<Modifiers>>(
              TransformationArgumentMode<Modifiers>::Options{
                  .editor_state = editor_state,
-                 .initial_value_factory =
-                     [modifiers](const std::shared_ptr<OpenBuffer>& buffer) {
-                       return InitialState(modifiers, buffer);
-                     },
+                 .initial_value = modifiers,
                  .transformation_factory = handler,
                  .characters = characters_map,
                  .status_factory =
                      [name](const Modifiers& modifiers) {
                        return BuildStatus(name, modifiers);
                      },
+                 // TODO(easy): Find a way to honor the original setting in the
+                 // buffer (from buffer_variables::multiple_cursors) if the user
+                 // doesn't explicitly override it.
                  .cursors_affected_factory =
                      [](const Modifiers& modifiers) {
                        return modifiers.cursors_affected;
