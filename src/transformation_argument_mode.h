@@ -25,8 +25,6 @@ class TransformationArgumentMode : public EditorMode {
 
   struct Options {
     EditorState* editor_state;
-    // TODO(easy): Make `Modifiers::repetitions` an `std::optional<>` value and
-    // get rid of this (just require that Argument has a default constructor).
     Argument initial_value;
 
     std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>
