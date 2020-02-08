@@ -76,11 +76,8 @@ AddBinding("aj", "Frames: Move to the next active leaf", []() -> void {
   editor.AdvanceActiveLeaf(repetitions());
   set_repetitions(1);
 });
-AddBinding("ag", "Frames: Set the active buffer (by repetitions)",
-           []() -> void {
-             editor.SetActiveBuffer(repetitions() - 1);
-             set_repetitions(1);
-           });
+AddBinding("ag", "Frames: Set the active buffer",
+           []() -> void { editor.EnterSetBufferMode(); });
 AddBinding("a+j", "Frames: Add a horizontal split", editor.AddHorizontalSplit);
 AddBinding("a+l", "Frames: Add a vertical split", editor.AddVerticalSplit);
 AddBinding("aR", "Frames: Show all open buffers",

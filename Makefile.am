@@ -139,6 +139,8 @@ src/seek.cc \
 src/seek.h \
 src/send_end_of_file_command.cc \
 src/server.cc \
+src/set_buffer_mode.cc \
+src/set_buffer_mode.h \
 src/set_mode_command.cc \
 src/set_mode_command.h \
 src/set_variable_command.cc \

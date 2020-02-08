@@ -26,6 +26,7 @@ extern "C" {
 #include "src/open_file_command.h"
 #include "src/run_command_handler.h"
 #include "src/server.h"
+#include "src/set_buffer_mode.h"
 #include "src/shapes.h"
 #include "src/substring.h"
 #include "src/terminal.h"
@@ -166,6 +167,11 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(
       L"AddVerticalSplit",
       vm::NewCallback([](EditorState* editor) { editor->AddVerticalSplit(); }));
+
+  editor_type->AddField(
+      L"EnterSetBufferMode", vm::NewCallback([](EditorState* editor) {
+        editor->set_keyboard_redirect(NewSetBufferMode(editor));
+      }));
 
   editor_type->AddField(L"AddHorizontalSplit",
                         vm::NewCallback([](EditorState* editor) {

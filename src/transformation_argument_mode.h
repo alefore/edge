@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "src/buffer.h"
+#include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/terminal.h"
@@ -25,7 +26,7 @@ class TransformationArgumentMode : public EditorMode {
 
   struct Options {
     EditorState* editor_state;
-    Argument initial_value;
+    Argument initial_value = Argument();
 
     // The characters recognized.
     std::shared_ptr<const std::unordered_map<wint_t, CharHandler>> characters;
