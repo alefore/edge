@@ -400,7 +400,8 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       default_commands_(NewCommandMode(this)),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player),
-      buffer_tree_(std::make_unique<WidgetListHorizontal>(BufferWidget::New())),
+      buffer_tree_(
+          std::make_unique<WidgetListHorizontal>(this, BufferWidget::New())),
       status_(GetConsole(), audio_player_),
       work_queue_([this] { NotifyInternalEvent(); }) {
   auto paths = edge_path();
@@ -497,7 +498,7 @@ void EditorState::AddVerticalSplit() {
   auto casted_child = dynamic_cast<WidgetListVertical*>(buffer_tree_.Child());
   if (casted_child == nullptr) {
     buffer_tree_.WrapChild([this](std::unique_ptr<Widget> child) {
-      return std::make_unique<WidgetListVertical>(std::move(child));
+      return std::make_unique<WidgetListVertical>(this, std::move(child));
     });
     casted_child = dynamic_cast<WidgetListVertical*>(buffer_tree_.Child());
     CHECK(casted_child != nullptr);
@@ -509,7 +510,7 @@ void EditorState::AddHorizontalSplit() {
   auto casted_child = dynamic_cast<WidgetListHorizontal*>(buffer_tree_.Child());
   if (casted_child == nullptr) {
     buffer_tree_.WrapChild([this](std::unique_ptr<Widget> child) {
-      return std::make_unique<WidgetListHorizontal>(std::move(child));
+      return std::make_unique<WidgetListHorizontal>(this, std::move(child));
     });
     casted_child = dynamic_cast<WidgetListHorizontal*>(buffer_tree_.Child());
     CHECK(casted_child != nullptr);
@@ -531,8 +532,8 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
     buffers.push_back(BufferWidget::New(buffer.second));
   }
   CHECK(!buffers.empty());
-  buffer_tree_.SetChild(
-      std::make_unique<WidgetListHorizontal>(std::move(buffers), index_active));
+  buffer_tree_.SetChild(std::make_unique<WidgetListHorizontal>(
+      this, std::move(buffers), index_active));
 }
 
 void EditorState::SetActiveBuffer(size_t position) {

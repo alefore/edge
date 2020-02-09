@@ -14,6 +14,8 @@
 #include "src/buffer_widget.h"
 #include "src/buffers_list.h"
 #include "src/char_buffer.h"
+#include "src/editor.h"
+#include "src/editor_variables.h"
 #include "src/frame_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/vertical_split_output_producer.h"
@@ -117,12 +119,15 @@ void WidgetList::RemoveActiveLeaf() {
   CHECK_LT(active_, children_.size());
 }
 
-WidgetList::WidgetList(std::vector<std::unique_ptr<Widget>> children,
+WidgetList::WidgetList(const EditorState* editor,
+                       std::vector<std::unique_ptr<Widget>> children,
                        size_t active)
-    : children_(std::move(children)), active_(active) {}
+    : editor_(editor), children_(std::move(children)), active_(active) {}
 
-WidgetList::WidgetList(std::unique_ptr<Widget> children)
+WidgetList::WidgetList(const EditorState* editor,
+                       std::unique_ptr<Widget> children)
     : WidgetList(
+          editor,
           [&]() {
             std::vector<std::unique_ptr<Widget>> output;
             output.push_back(std::move(children));
@@ -130,8 +135,10 @@ WidgetList::WidgetList(std::unique_ptr<Widget> children)
           }(),
           0) {}
 
-WidgetListHorizontal::WidgetListHorizontal(std::unique_ptr<Widget> children)
+WidgetListHorizontal::WidgetListHorizontal(const EditorState* editor,
+                                           std::unique_ptr<Widget> children)
     : WidgetList(
+          editor,
           [&]() {
             std::vector<std::unique_ptr<Widget>> output;
             output.push_back(std::move(children));
@@ -140,8 +147,9 @@ WidgetListHorizontal::WidgetListHorizontal(std::unique_ptr<Widget> children)
           0) {}
 
 WidgetListHorizontal::WidgetListHorizontal(
-    std::vector<std::unique_ptr<Widget>> children, size_t active)
-    : WidgetList(std::move(children), active) {}
+    const EditorState* editor, std::vector<std::unique_ptr<Widget>> children,
+    size_t active)
+    : WidgetList(editor, std::move(children), active) {}
 
 wstring WidgetListHorizontal::Name() const { return L""; }
 
@@ -316,9 +324,10 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
   FrameOutputProducer::FrameOptions frame_options;
   frame_options.title = child->Name();
   frame_options.position_in_parent = index;
-  if (index == active_ &&
-      options.main_cursor_behavior ==
-          OutputProducerOptions::MainCursorBehavior::kIgnore) {
+  bool is_active =
+      index == active_ || editor_->Read(editor_variables::multiple_buffers);
+  if (is_active && options.main_cursor_behavior ==
+                       OutputProducerOptions::MainCursorBehavior::kIgnore) {
     frame_options.active_state =
         FrameOutputProducer::FrameOptions::ActiveState::kActive;
   }
@@ -349,9 +358,9 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
 
   auto child_producer = child->CreateOutputProducer(options);
   if (add_left_frame) {
-    child_producer = AddLeftFrame(
-        std::move(child_producer), options.size.line,
-        {index == active_ ? LineModifier::BOLD : LineModifier::DIM});
+    child_producer =
+        AddLeftFrame(std::move(child_producer), options.size.line,
+                     {is_active ? LineModifier::BOLD : LineModifier::DIM});
   }
   nested_rows.push_back(
       {.producer = std::move(child_producer), .lines = options.size.line});
@@ -369,12 +378,14 @@ LineNumberDelta WidgetListHorizontal::MinimumLines() const {
   return count;
 }
 
-WidgetListVertical::WidgetListVertical(std::unique_ptr<Widget> children)
-    : WidgetList(std::move(children)) {}
+WidgetListVertical::WidgetListVertical(const EditorState* editor,
+                                       std::unique_ptr<Widget> children)
+    : WidgetList(editor, std::move(children)) {}
 
 WidgetListVertical::WidgetListVertical(
-    std::vector<std::unique_ptr<Widget>> children, size_t active)
-    : WidgetList(std::move(children), active) {}
+    const EditorState* editor, std::vector<std::unique_ptr<Widget>> children,
+    size_t active)
+    : WidgetList(editor, std::move(children), active) {}
 
 wstring WidgetListVertical::Name() const { return L""; }
 

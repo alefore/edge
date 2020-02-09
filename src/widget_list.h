@@ -12,6 +12,8 @@
 namespace afc {
 namespace editor {
 
+class EditorState;
+
 class WidgetList : public SelectingWidget {
  public:
   BufferWidget* GetActiveLeaf() override;
@@ -49,8 +51,11 @@ class WidgetList : public SelectingWidget {
   void RemoveActiveLeaf();
 
  protected:
-  WidgetList(std::unique_ptr<Widget> children);
-  WidgetList(std::vector<std::unique_ptr<Widget>> children, size_t active);
+  WidgetList(const EditorState* editor, std::unique_ptr<Widget> children);
+  WidgetList(const EditorState* editor,
+             std::vector<std::unique_ptr<Widget>> children, size_t active);
+
+  const EditorState* const editor_;
 
   std::vector<std::unique_ptr<Widget>> children_;
   size_t active_;
@@ -58,9 +63,11 @@ class WidgetList : public SelectingWidget {
 
 class WidgetListHorizontal : public WidgetList {
  public:
-  WidgetListHorizontal(std::unique_ptr<Widget> children);
+  WidgetListHorizontal(const EditorState* editor,
+                       std::unique_ptr<Widget> children);
 
-  WidgetListHorizontal(std::vector<std::unique_ptr<Widget>> children,
+  WidgetListHorizontal(const EditorState* editor,
+                       std::vector<std::unique_ptr<Widget>> children,
                        size_t active);
 
   wstring Name() const;
@@ -79,9 +86,11 @@ class WidgetListHorizontal : public WidgetList {
 
 class WidgetListVertical : public WidgetList {
  public:
-  WidgetListVertical(std::unique_ptr<Widget> children);
+  WidgetListVertical(const EditorState* editor,
+                     std::unique_ptr<Widget> children);
 
-  WidgetListVertical(std::vector<std::unique_ptr<Widget>> children,
+  WidgetListVertical(const EditorState* editor,
+                     std::vector<std::unique_ptr<Widget>> children,
                      size_t active);
 
   wstring Name() const;
