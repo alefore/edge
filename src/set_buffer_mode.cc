@@ -123,7 +123,8 @@ bool FilterMatches(const std::vector<Token>& filter, const OpenBuffer* buffer) {
   return true;
 }
 
-futures::Value<bool> Apply(EditorState* editor, Data data) {
+futures::Value<bool> Apply(EditorState* editor,
+                           Transformation::Input::Mode mode, Data data) {
   auto buffers_list = editor->buffer_tree();
 
   // Each entry is an index (e.g., for BuffersList::GetBuffer) for an available
@@ -178,17 +179,36 @@ futures::Value<bool> Apply(EditorState* editor, Data data) {
   CHECK(!indices.empty());
   index %= indices.size();
   editor->set_current_buffer(buffers_list->GetBuffer(indices[index]));
+  switch (mode) {
+    case Transformation::Input::Mode::kFinal:
+      editor->buffer_tree()->set_filter(std::nullopt);
+      break;
+
+    case Transformation::Input::Mode::kPreview:
+      if (indices.size() != buffers_list->BuffersCount()) {
+        std::vector<std::weak_ptr<OpenBuffer>> filter;
+        filter.reserve(indices.size());
+        for (const auto& i : indices) {
+          filter.push_back(buffers_list->GetBuffer(i));
+        }
+        editor->buffer_tree()->set_filter(std::move(filter));
+      }
+      break;
+  }
+
   return futures::Past(true);
 }
 
 }  // namespace
+
 std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
   auto buffers_list = editor->buffer_tree();
   Data initial_value;
   if (editor->modifiers().repetitions.has_value()) {
-    initial_value.initial_number =
+    editor->set_current_buffer(buffers_list->GetBuffer(
         (max(editor->modifiers().repetitions.value(), 1ul) - 1) %
-        buffers_list->BuffersCount();
+        buffers_list->BuffersCount()));
+    return nullptr;
   }
   auto initial_buffer = editor->buffer_tree()->GetActiveLeaf()->Lock();
   TransformationArgumentMode<Data>::Options options{
@@ -199,10 +219,11 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
       .undo =
           [editor, initial_buffer]() {
             editor->set_current_buffer(initial_buffer);
+            editor->buffer_tree()->set_filter(std::nullopt);
             return futures::Past(true);
           },
-      .apply = [editor](Transformation::Input::Mode,
-                        Data data) { return Apply(editor, data); }};
+      .apply = [editor](Transformation::Input::Mode mode,
+                        Data data) { return Apply(editor, mode, data); }};
 
   return std::make_unique<TransformationArgumentMode<Data>>(std::move(options));
 }
