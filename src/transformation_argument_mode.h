@@ -11,17 +11,22 @@
 
 namespace afc::editor {
 
+enum CommandArgumentModeApplyMode {
+  // We're only updating the state to preview what the result of the operation
+  // would be.
+  kPreview,
+  // We're actually executing the command.
+  kFinal
+};
+
 // General mode that collects characters and uses the to modify an argument of
 // an arbitrary type. When ENTER is pressed, the transformation is finally
 // executed and the mode is reset.
 //
 // Every time the argument is modified, the transformation is executed, just in
 // kPreview mode.
-//
-// TODO(easy): Drop the `Transformation` part of the name of this class. Perhaps
-// rename it to `CommandArgumentsMode`.
 template <typename Argument>
-class TransformationArgumentMode : public EditorMode {
+class CommandArgumentMode : public EditorMode {
  public:
   struct Options {
     EditorState* editor_state;
@@ -33,21 +38,18 @@ class TransformationArgumentMode : public EditorMode {
     std::function<std::wstring(const Argument&)> status_factory;
 
     std::function<futures::Value<bool>()> undo = nullptr;
-    // TODO(easy): This shouldn't depend on Transformation. Instead, we should
-    // declare our own enum. That's because not all uses of this class have to
-    // deal with Transformations.
-    std::function<futures::Value<bool>(Transformation::Input::Mode, Argument)>
+    std::function<futures::Value<bool>(CommandArgumentModeApplyMode, Argument)>
         apply = nullptr;
   };
 
-  TransformationArgumentMode(Options options)
+  CommandArgumentMode(Options options)
       : options_(options), buffers_(options_.editor_state->active_buffers()) {
     CHECK(options_.editor_state != nullptr);
     CHECK(options_.char_consumer != nullptr);
     CHECK(options_.status_factory != nullptr);
     CHECK(options_.undo != nullptr);
     CHECK(options_.apply != nullptr);
-    Transform(Transformation::Input::Mode::kPreview, BuildArgument());
+    Transform(CommandArgumentModeApplyMode::kPreview, BuildArgument());
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
@@ -57,18 +59,18 @@ class TransformationArgumentMode : public EditorMode {
           if (!argument_string_.empty()) {
             argument_string_.pop_back();
           }
-          return Transform(Transformation::Input::Mode::kPreview,
+          return Transform(CommandArgumentModeApplyMode::kPreview,
                            BuildArgument());
         default:
           auto argument = BuildArgument();
           if (ApplyChar(c, &argument)) {
             argument_string_.push_back(c);
-            return Transform(Transformation::Input::Mode::kPreview, argument);
+            return Transform(CommandArgumentModeApplyMode::kPreview, argument);
           }
           return futures::Transform(
               static_cast<int>(c) == Terminal::ESCAPE
                   ? futures::Past(true)
-                  : Transform(Transformation::Input::Mode::kFinal, argument),
+                  : Transform(CommandArgumentModeApplyMode::kFinal, argument),
               [editor_state, c](bool) {
                 editor_state->status()->Reset();
                 auto editor_state_copy = editor_state;
@@ -95,7 +97,7 @@ class TransformationArgumentMode : public EditorMode {
     return options_.char_consumer(c, argument);
   }
 
-  futures::Value<bool> Transform(Transformation::Input::Mode apply_mode,
+  futures::Value<bool> Transform(CommandArgumentModeApplyMode apply_mode,
                                  Argument argument) {
     options_.editor_state->status()->SetInformationText(
         options_.status_factory(argument));
@@ -115,7 +117,7 @@ void SetOptionsForBufferTransformation(
         transformation_factory,
     std::function<std::optional<Modifiers::CursorsAffected>(const Argument&)>
         cursors_affected_factory,
-    typename TransformationArgumentMode<Argument>::Options* options) {
+    typename CommandArgumentMode<Argument>::Options* options) {
   CHECK(options != nullptr);
   CHECK(options->editor_state != nullptr);
   auto buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
@@ -138,7 +140,7 @@ void SetOptionsForBufferTransformation(
   };
   options->apply = [editor_state = options->editor_state,
                     transformation_factory, cursors_affected_factory,
-                    for_each_buffer](Transformation::Input::Mode mode,
+                    for_each_buffer](CommandArgumentModeApplyMode mode,
                                      Argument argument) {
     return for_each_buffer(
         [editor_state, transformation_factory, cursors_affected_factory, mode,
@@ -151,7 +153,10 @@ void SetOptionsForBufferTransformation(
           return futures::Transform(
               buffer->ApplyToCursors(
                   transformation_factory(editor_state, std::move(argument)),
-                  cursors_affected, mode),
+                  cursors_affected,
+                  mode == CommandArgumentModeApplyMode::kPreview
+                      ? Transformation::Input::Mode::kPreview
+                      : Transformation::Input::Mode::kFinal),
               futures::Past(futures::IterationControlCommand::kContinue));
         });
   };

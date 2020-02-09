@@ -204,7 +204,7 @@ std::unique_ptr<Command> NewCommandWithModifiers(
            mutable_modifiers.cursors_affected =
                editor_state->modifiers().cursors_affected;
          }
-         TransformationArgumentMode<Modifiers>::Options options{
+         CommandArgumentMode<Modifiers>::Options options{
              .editor_state = editor_state,
              .initial_value = std::move(mutable_modifiers),
              .char_consumer = &CharConsumer,
@@ -217,7 +217,7 @@ std::unique_ptr<Command> NewCommandWithModifiers(
                return modifiers.cursors_affected;
              },
              &options);
-         return std::make_unique<TransformationArgumentMode<Modifiers>>(
+         return std::make_unique<CommandArgumentMode<Modifiers>>(
              std::move(options));
        }});
 }
