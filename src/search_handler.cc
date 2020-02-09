@@ -169,12 +169,16 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
 
   // Split them into head and tail depending on the current direction.
   for (auto& candidate : results.positions) {
-    // TODO(easy): Use a switch on the Direction enum.
-    ((direction == Direction::kForwards ? candidate > options.starting_position
-                                        : candidate < options.starting_position)
-         ? head
-         : tail)
-        .push_back(candidate);
+    bool use_head = true;
+    switch (direction) {
+      case Direction::kForwards:
+        use_head = candidate > options.starting_position;
+        break;
+      case Direction::kBackwards:
+        use_head = candidate < options.starting_position;
+        break;
+    }
+    (use_head ? head : tail).push_back(candidate);
   }
 
   // Append the tail to the head.
