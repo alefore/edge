@@ -3,10 +3,10 @@
 #include <memory>
 
 #include "src/buffer_variables.h"
+#include "src/command_argument_mode.h"
 #include "src/editor.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
-#include "src/transformation_argument_mode.h"
 
 namespace afc::editor {
 namespace {

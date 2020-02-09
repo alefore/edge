@@ -34,6 +34,7 @@ src/buffer_widget.cc \
 src/buffer_widget.h \
 src/buffers_list.cc \
 src/buffers_list.h \
+src/command_argument_mode.h \
 src/command_line.h \
 src/cpp_command.cc \
 src/cpp_parse_tree.cc \
@@ -182,7 +183,6 @@ src/transformation/tree_navigate.cc \
 src/transformation/tree_navigate.h \
 src/transformation.cc \
 src/transformation.h \
-src/transformation_argument_mode.h \
 src/vertical_split_output_producer.cc \
 src/vertical_split_output_producer.h \
 src/viewers.cc \

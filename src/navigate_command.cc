@@ -7,6 +7,7 @@
 
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
+#include "src/command_argument_mode.h"
 #include "src/direction.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
@@ -14,7 +15,6 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
-#include "src/transformation_argument_mode.h"
 
 namespace afc::editor {
 namespace {

@@ -3,8 +3,8 @@
 
 #include <memory>
 
+#include "src/command_argument_mode.h"
 #include "src/editor_mode.h"
-#include "src/transformation_argument_mode.h"
 
 namespace afc::editor {
 std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor);
