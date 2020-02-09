@@ -67,6 +67,22 @@ class MoveTransformation : public CompositeTransformation {
       position = input.modifiers.direction == Direction::kForwards
                      ? input.range.end
                      : input.range.begin;
+    } else if (structure == StructurePage()) {
+      static const auto kDefaultScreenLines = LineNumberDelta(24);
+      auto view_size = input.buffer->viewers()->view_size();
+      auto lines =
+          view_size.has_value() ? view_size->line : kDefaultScreenLines;
+      Modifiers modifiers;
+      modifiers.direction = input.modifiers.direction;
+      modifiers.structure = StructureLine();
+      modifiers.repetitions =
+          (max(0.2, 1.0 - 2.0 * input.buffer->Read(
+                                    buffer_variables::margin_lines_ratio)) *
+               lines -
+           LineNumberDelta(1))
+              .line_delta;
+
+      position = MoveLine(input.buffer, input.original_position, modifiers);
     } else if (structure == StructureMark()) {
       position =
           MoveMark(input.buffer, input.original_position, input.modifiers);

@@ -295,19 +295,8 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     editor_state->set_structure(StructureLine());
     MoveBackwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
-    // Move in whole pages.
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
-    auto view_size = buffer->viewers()->view_size();
-    auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
-    editor_state->set_repetitions(
-        editor_state->repetitions().value_or(1) *
-        (lines.line_delta > 2 ? lines.line_delta - 2 : 3));
-    VLOG(6) << "Word Up: Repetitions: "
-            << editor_state->repetitions().value_or(1);
-    Move(c, editor_state, StructureChar());
+    editor_state->set_structure(StructurePage());
+    MoveBackwards::Move(c, editor_state);
   } else if (structure == StructureTree()) {
     CHECK(false);  // Handled above.
   } else {
@@ -337,19 +326,8 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     editor_state->set_structure(StructureLine());
     MoveForwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
-    // Move in whole pages.
-    auto view_size = buffer->viewers()->view_size();
-    auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
-    editor_state->set_repetitions(
-        editor_state->repetitions().value_or(1) *
-        (lines.line_delta > 2 ? lines.line_delta - 2 : 3));
-    VLOG(6) << "Word Down: Repetitions: "
-            << editor_state->repetitions().value_or(1);
-    Move(c, editor_state, StructureChar());
+    editor_state->set_structure(StructurePage());
+    MoveForwards::Move(c, editor_state);
   } else if (structure == StructureTree()) {
     auto buffer = editor_state->current_buffer();
     if (buffer == nullptr) {
