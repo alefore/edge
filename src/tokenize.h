@@ -19,6 +19,15 @@ struct Token {
 // Given a string containing: foo    bar "hey there"
 // Returns: {"foo", "bar", "hey there"}
 std::vector<Token> TokenizeBySpaces(const LazyString& command);
+
+// Simpler version of `TokenizeBySpaces` that ignores quotes.
+std::vector<Token> TokenizeBySpacesSimple(
+    const std::shared_ptr<LazyString>& name);
+
+// Given: src/CreateSomethingOrOther/buffer_list.cc
+// Returns: "src", "Create", "Something", "Or", "Other", "buffer", "list", "cc"
+std::vector<Token> TokenizeNameForPrefixSearches(
+    const std::shared_ptr<LazyString>& path);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_TOKENIZE_H__

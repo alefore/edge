@@ -1,5 +1,7 @@
 #include "src/tokenize.h"
 
+#include "src/substring.h"
+
 namespace afc::editor {
 std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   std::vector<Token> output;
@@ -30,4 +32,55 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   push(ColumnNumber() + command.size());
   return output;
 }
+
+void PushIfNonEmpty(const std::shared_ptr<LazyString>& source, Token token,
+                    std::vector<Token>* output) {
+  CHECK_LE(token.begin, token.end);
+  CHECK(output != nullptr);
+  if (token.begin < token.end) {
+    token.value =
+        Substring(source, token.begin, token.end - token.begin)->ToString();
+    output->push_back(std::move(token));
+  }
+}
+
+std::vector<Token> TokenizeGroupsAlnum(
+    const std::shared_ptr<LazyString>& name) {
+  std::vector<Token> output;
+  for (ColumnNumber i; i.ToDelta() < name->size(); ++i) {
+    while (i.ToDelta() < name->size() && !isalnum(name->get(i))) {
+      ++i;
+    }
+    Token token;
+    token.begin = i;
+    while (i.ToDelta() < name->size() && isalnum(name->get(i))) {
+      ++i;
+    }
+    token.end = i;
+    PushIfNonEmpty(name, std::move(token), &output);
+  }
+  return output;
+}
+
+std::vector<Token> TokenizeNameForPrefixSearches(
+    const std::shared_ptr<LazyString>& name) {
+  std::vector<Token> output;
+  for (const auto& input_token : TokenizeGroupsAlnum(name)) {
+    ColumnNumber i = input_token.begin;
+    while (i < input_token.end) {
+      Token output_token;
+      output_token.begin = i;
+      ++i;
+      while (i < input_token.end &&
+             ((isupper(name->get(i - ColumnNumberDelta(1))) ||
+               islower(name->get(i))))) {
+        ++i;
+      }
+      output_token.end = i;
+      PushIfNonEmpty(name, std::move(output_token), &output);
+    }
+  }
+  return output;
+}
+
 }  // namespace afc::editor
