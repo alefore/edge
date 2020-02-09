@@ -3,9 +3,13 @@
 
 #include <memory>
 
-#include "command.h"
+#include "src/command.h"
+#include "src/futures/futures.h"
 
 namespace afc {
+namespace vm {
+class Value;
+}
 namespace editor {
 
 enum class CppCommandMode {
@@ -19,6 +23,12 @@ enum class CppCommandMode {
   // This has nothing to do with the system shell (i.e., system(3)).
   kShell
 };
+
+// A command looks like this: build foo "bar hey".
+//
+// In this case, that'd run something like: build("foo", "bar hey");
+futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
+    const std::wstring& command, EditorState* editor_state);
 
 std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode);
 

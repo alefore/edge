@@ -63,7 +63,8 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
       continue;
     }
     const auto& arguments = candidate->type.type_arguments;
-    if (!(arguments[0] == VMType::Void())) {
+    if (!(arguments[0] == VMType::Void()) &&
+        !(arguments[0] == VMType::String())) {
       continue;
     }
     bool all_arguments_are_strings = true;
@@ -118,8 +119,8 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
   return output;
 }
 
-futures::Value<bool> Execute(std::shared_ptr<OpenBuffer> buffer,
-                             ParsedCommand parsed_command) {
+futures::Value<std::unique_ptr<Value>> Execute(
+    std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
   std::shared_ptr<Expression> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(
           std::make_unique<vm::Value>(*parsed_command.function)),
@@ -127,31 +128,15 @@ futures::Value<bool> Execute(std::shared_ptr<OpenBuffer> buffer,
   if (expression->Types().empty()) {
     // TODO: Show the error.
     buffer->status()->SetWarningText(L"Unable to compile (type mismatch).");
-    return futures::Past(true);
+    return futures::Past(std::unique_ptr<Value>());
   }
-  return futures::ImmediateTransform(
-      buffer->EvaluateExpression(expression.get()),
-      [buffer](std::unique_ptr<Value>) { return true; });
+  return buffer->EvaluateExpression(expression.get());
 }
 
 futures::Value<bool> RunCppCommandShellHandler(const std::wstring& command,
                                                EditorState* editor_state) {
-  auto buffer = editor_state->current_buffer();
-  if (buffer == nullptr) {
-    return futures::Past(true);
-  }
-  buffer->ResetMode();
-
-  auto parsed_command =
-      Parse(*NewLazyString(std::move(command)), buffer->environment().get());
-  if (parsed_command.error.has_value()) {
-    if (!parsed_command.error.value().empty()) {
-      buffer->status()->SetWarningText(parsed_command.error.value());
-    }
-    return futures::Past(true);
-  }
-
-  return Execute(buffer, std::move(parsed_command));
+  return futures::Transform(RunCppCommandShell(command, editor_state),
+                            futures::Past(true));
 }
 
 futures::Value<bool> RunCppCommandShellChangeHandler(
@@ -232,6 +217,26 @@ class RunCppCommand : public Command {
 };
 
 }  // namespace
+
+futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
+    const std::wstring& command, EditorState* editor_state) {
+  auto buffer = editor_state->current_buffer();
+  if (buffer == nullptr) {
+    return futures::Past(std::unique_ptr<vm::Value>());
+  }
+  buffer->ResetMode();
+
+  auto parsed_command =
+      Parse(*NewLazyString(std::move(command)), buffer->environment().get());
+  if (parsed_command.error.has_value()) {
+    if (!parsed_command.error.value().empty()) {
+      buffer->status()->SetWarningText(parsed_command.error.value());
+    }
+    return futures::Past(std::unique_ptr<vm::Value>());
+  }
+
+  return Execute(buffer, std::move(parsed_command));
+}
 
 std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode) {
   return std::make_unique<RunCppCommand>(mode);

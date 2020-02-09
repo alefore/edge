@@ -6,6 +6,7 @@
 #include "src/dirname.h"
 #include "src/file_link_mode.h"
 #include "src/predictor.h"
+#include "src/run_cpp_command.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
@@ -142,6 +143,41 @@ class ReadAndInsert : public CompositeTransformation {
   const std::wstring path_;
 };
 
+class Execute : public CompositeTransformation {
+ public:
+  Execute(std::wstring command) : command_(std::move(command)) {}
+
+  std::wstring Serialize() const override { return L"Execute();"; }
+
+  futures::Value<Output> Apply(Input input) const override {
+    return futures::Transform(
+        RunCppCommandShell(command_, input.editor),
+        [command_size = command_.size(),
+         editor = input.editor](std::unique_ptr<Value> value) {
+          Output output;
+          if (value != nullptr) {
+            output.Push(DeleteLastCharacters(command_size));
+          }
+          if (value != nullptr && value->type == VMType::String()) {
+            auto buffer_to_insert =
+                OpenBuffer::New({.editor = editor, .name = L"- text inserted"});
+            buffer_to_insert->AppendLazyString(NewLazyString(value->str));
+            buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
+            output.Push(NewInsertBufferTransformation(
+                {.buffer_to_insert = buffer_to_insert}));
+          }
+          return futures::Past(std::move(output));
+        });
+  }
+
+  std::unique_ptr<CompositeTransformation> Clone() const override {
+    return std::make_unique<Execute>(command_);
+  }
+
+ private:
+  const std::wstring command_;
+};
+
 class ExpandTransformation : public CompositeTransformation {
  public:
   std::wstring Serialize() const override { return L"ExpandTransformation();"; }
@@ -173,6 +209,12 @@ class ExpandTransformation : public CompositeTransformation {
                                       std::make_unique<PredictorTransformation>(
                                           SyntaxBasedPredictor, symbol)));
       } break;
+      case ':': {
+        auto symbol = GetToken(input, buffer_variables::symbol_characters);
+        output.Push(DeleteLastCharacters(1));
+        output.Push(
+            NewTransformation(Modifiers(), std::make_unique<Execute>(symbol)));
+      }
     }
     return futures::Past(std::move(output));
   }
