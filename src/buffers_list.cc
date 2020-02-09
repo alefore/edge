@@ -112,6 +112,9 @@ class BuffersListProducer : public OutputProducer {
                 number_modifiers.insert({LineModifier::REVERSE});
               }
             } else {
+              if (buffer->dirty()) {
+                number_modifiers.insert(LineModifier::ITALIC);
+              }
               number_modifiers.insert(LineModifier::CYAN);
             }
 
@@ -147,7 +150,11 @@ class BuffersListProducer : public OutputProducer {
             CHECK_LE(progress.size(), 1ul);
 
             output.AppendString(NewLazyString(progress), progress_modifier);
-            AppendBufferPath(columns_per_buffer_, *buffer, &output);
+            AppendBufferPath(columns_per_buffer_, *buffer,
+                             buffer->dirty()
+                                 ? LineModifierSet{LineModifier::ITALIC}
+                                 : LineModifierSet{},
+                             &output);
           }
           return LineWithCursor{std::make_shared<Line>(std::move(output)),
                                 std::nullopt};
@@ -159,6 +166,7 @@ class BuffersListProducer : public OutputProducer {
  private:
   static void AppendBufferPath(ColumnNumberDelta columns,
                                const OpenBuffer& buffer,
+                               LineModifierSet modifiers,
                                Line::Options* output) {
     std::list<std::wstring> components;
     auto name = buffer.Read(buffer_variables::name);
@@ -176,24 +184,27 @@ class BuffersListProducer : public OutputProducer {
       }
       output->AppendString(SubstringWithRangeChecks(std::move(output_name),
                                                     ColumnNumber(0), columns),
-                           LineModifierSet());
+                           modifiers);
       return;
     }
+    LineModifierSet dim = modifiers;
+    dim.insert(LineModifier::DIM);
+    LineModifierSet bold = modifiers;
+    bold.insert(LineModifier::BOLD);
+
     for (auto it = components.begin(); it != components.end(); ++it) {
       if (it != components.begin()) {
-        output->AppendCharacter(L'/', {LineModifier::DIM});
+        output->AppendCharacter(L'/', dim);
       }
       if (it != std::prev(components.end())) {
-        output->AppendString(NewLazyString(std::move(*it)), LineModifierSet{});
+        output->AppendString(NewLazyString(std::move(*it)), modifiers);
         continue;
       }
       auto split = SplitExtension(*it);
-      output->AppendString(split.prefix, LineModifierSet{LineModifier::BOLD});
+      output->AppendString(split.prefix, bold);
       if (split.suffix.has_value()) {
-        output->AppendString(split.suffix->separator,
-                             LineModifierSet{LineModifier::DIM});
-        output->AppendString(split.suffix->extension,
-                             LineModifierSet{LineModifier::BOLD});
+        output->AppendString(split.suffix->separator, dim);
+        output->AppendString(split.suffix->extension, bold);
       }
     }
   }
