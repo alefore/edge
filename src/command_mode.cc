@@ -244,6 +244,8 @@ class MoveForwards : public Command {
       case Direction::kBackwards:
         return L"moves backwards";
     }
+    LOG(FATAL) << "Invalid direction value.";
+    return L"";
   }
 
   wstring Category() const override { return L"Navigate"; }
