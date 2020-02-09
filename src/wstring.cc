@@ -10,7 +10,7 @@ namespace editor {
 
 typedef std::codecvt<wchar_t, char, std::mbstate_t> Converter;
 
-string ToByteString(wstring input) {
+std::string ToByteString(std::wstring input) {
   VLOG(5) << "ToByteString: " << input;
 
   static std::locale loc("en_US.utf-8");
@@ -31,7 +31,7 @@ string ToByteString(wstring input) {
   return output_string;
 }
 
-wstring FromByteString(string input) {
+std::wstring FromByteString(std::string input) {
   VLOG(5) << "FromByteString: " << input;
 
   const char* src = input.data();

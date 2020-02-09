@@ -9,12 +9,12 @@ namespace afc {
 namespace editor {
 
 std::shared_ptr<LazyString> StringTrimLeft(std::shared_ptr<LazyString> source,
-                                           wstring space_characters) {
+                                           std::wstring space_characters) {
   CHECK(source != nullptr);
   return Substring(
       source,
       FindFirstColumnWithPredicate(*source, [&](ColumnNumber, wchar_t c) {
-        return space_characters.find(c) == wstring::npos;
+        return space_characters.find(c) == std::wstring::npos;
       }).value_or(ColumnNumber(0) + source->size()));
 }
 

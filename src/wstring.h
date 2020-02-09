@@ -2,18 +2,10 @@
 #define __AFC_EDITOR_WSTRING_H__
 
 #include <wchar.h>
+
 #include <iostream>
 #include <string>
 #include <vector>
-
-namespace afc {
-namespace editor {
-
-using std::string;
-using std::wstring;
-
-string ToByteString(wstring input);
-wstring FromByteString(string input);
 
 inline std::ostream& operator<<(std::ostream& out, const wchar_t* str) {
   size_t len = 1 + std::wcsrtombs(nullptr, &str, 0, nullptr);
@@ -27,7 +19,10 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& str) {
   return operator<<(out, str.c_str());
 }
 
-}  // namespace editor
-}  // namespace afc
+namespace afc::editor {
+using ::operator<<;
+std::string ToByteString(std::wstring input);
+std::wstring FromByteString(std::string input);
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_WSTRING_H__

@@ -99,7 +99,7 @@ class TreeParser {
 std::unique_ptr<TreeParser> NewNullTreeParser();
 std::unique_ptr<TreeParser> NewCharTreeParser();
 std::unique_ptr<TreeParser> NewWordsTreeParser(
-    std::wstring word_characters, std::unordered_set<wstring> typos,
+    std::wstring word_characters, std::unordered_set<std::wstring> typos,
     std::unique_ptr<TreeParser> delegate);
 std::unique_ptr<TreeParser> NewLineTreeParser(
     std::unique_ptr<TreeParser> delegate);

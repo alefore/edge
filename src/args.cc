@@ -19,8 +19,6 @@ extern "C" {
 #include "src/wstring.h"
 
 namespace afc::editor {
-using std::wstring;
-
 namespace {
 static wstring GetHomeDirectory() {
   char* env = getenv("HOME");
@@ -34,7 +32,7 @@ static wstring GetHomeDirectory() {
   return L"/";  // What else?
 }
 
-static vector<wstring> GetEdgeConfigPath(const wstring& home) {
+static vector<std::wstring> GetEdgeConfigPath(const std::wstring& home) {
   // TODO: Don't add repeated paths?
   vector<wstring> output;
   output.push_back(home + L"/.edge");

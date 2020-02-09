@@ -12,13 +12,14 @@ class EmptyStringImpl : public LazyString {
  public:
   wchar_t get(ColumnNumber) const override {
     LOG(FATAL) << "Attempt to read from empty string.";
+    return 0;
   }
   ColumnNumberDelta size() const override { return ColumnNumberDelta(0); }
 };
 }  // namespace
 
-wstring LazyString::ToString() const {
-  wstring output(size().column_delta, 0);
+std::wstring LazyString::ToString() const {
+  std::wstring output(size().column_delta, 0);
   ForEachColumn(*this,
                 [&output](ColumnNumber i, wchar_t c) { output[i.column] = c; });
   return output;
