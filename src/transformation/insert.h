@@ -12,7 +12,7 @@ struct InsertOptions {
 
   std::shared_ptr<const OpenBuffer> buffer_to_insert;
 
-  Modifiers modifiers;
+  Modifiers modifiers = Modifiers();
 
   enum class FinalPosition {
     // Leaves the buffer position at the start of the inserted text.
@@ -24,11 +24,11 @@ struct InsertOptions {
   // Ignored if `position` is set.
   FinalPosition final_position = FinalPosition::kEnd;
 
-  std::optional<LineModifierSet> modifiers_set;
+  std::optional<LineModifierSet> modifiers_set = std::nullopt;
 
   // If not present, will insert wherever the cursor is. If present, inserts the
   // text at this position.
-  std::optional<LineColumn> position;
+  std::optional<LineColumn> position = std::nullopt;
 };
 
 std::unique_ptr<Transformation> NewInsertBufferTransformation(
