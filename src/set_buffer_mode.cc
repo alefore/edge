@@ -226,6 +226,7 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
     editor->set_current_buffer(buffers_list->GetBuffer(
         (max(editor->modifiers().repetitions.value(), 1ul) - 1) %
         buffers_list->BuffersCount()));
+    editor->ResetRepetitions();
     return nullptr;
   }
   auto initial_buffer = editor->buffer_tree()->GetActiveLeaf()->Lock();
