@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <list>
 #include <map>
@@ -37,6 +38,8 @@ struct ParsingData {
   const std::vector<Handler<ParsedValues>>* handlers;
   std::list<std::wstring> input;
   ParsedValues output;
+  std::wstring current_flag;
+  std::optional<std::wstring> current_value;
 };
 
 template <typename ParsedValues>
@@ -66,65 +69,94 @@ class Handler {
 
   Handler<ParsedValues>& PushBackTo(
       std::vector<std::wstring> ParsedValues::*field) {
-    return PushDelegate(
-        [field](std::wstring* value, ParsingData<ParsedValues>* data) {
-          if (value != nullptr) {
-            (data->output.*field).push_back(*value);
-          }
-        });
+    return PushDelegate([field](ParsingData<ParsedValues>* data) {
+      if (data->current_value.has_value()) {
+        (data->output.*field).push_back(data->current_value.value());
+      }
+    });
   }
 
   Handler<ParsedValues>& AppendTo(std::wstring(ParsedValues::*field)) {
-    return PushDelegate(
-        [field](std::wstring* value, ParsingData<ParsedValues>* data) {
-          if (value != nullptr) {
-            (data->output.*field) += *value;
-          }
-        });
+    return PushDelegate([field](ParsingData<ParsedValues>* data) {
+      if (data->current_value.has_value()) {
+        (data->output.*field) += data->current_value.value();
+      }
+    });
+  }
+
+  Handler<ParsedValues>& Set(bool ParsedValues::*field, bool default_value) {
+    return PushDelegate([field,
+                         default_value](ParsingData<ParsedValues>* data) {
+      if (data->current_value.has_value() && data->current_value != L"true" &&
+          data->current_value != L"false") {
+        std::cerr << data->output.binary_name << ": " << data->current_flag
+                  << ": Invalid bool value (expected \"true\" or \"false\"): "
+                  << data->current_value.value() << std::endl;
+        exit(1);
+      }
+      (data->output.*field) = data->current_value.has_value()
+                                  ? data->current_value.value() == L"true"
+                                  : default_value;
+    });
   }
 
   template <typename Type>
   Handler<ParsedValues>& Set(Type ParsedValues::*field, Type value) {
-    return PushDelegate(
-        [field, value](std::wstring*, ParsingData<ParsedValues>* data) {
-          (data->output.*field) = value;
-        });
+    return PushDelegate([field, value](ParsingData<ParsedValues>* data) {
+      if (data->current_value.has_value() && data->current_value != L"true" &&
+          data->current_value != L"false") {
+        std::cerr << data->output.binary_name << ": " << data->current_flag
+                  << ": Invalid value: " << data->current_value.value()
+                  << std::endl;
+        exit(1);
+      }
+      (data->output.*field) = value;
+    });
   }
 
   Handler<ParsedValues>& Set(std::wstring ParsedValues::*field) {
-    return PushDelegate(
-        [field](std::wstring* value, ParsingData<ParsedValues>* data) {
-          if (value != nullptr) {
-            (data->output.*field) = *value;
-          }
-        });
+    return PushDelegate([field](ParsingData<ParsedValues>* data) {
+      if (data->current_value.has_value()) {
+        (data->output.*field) = data->current_value.value();
+      }
+    });
   }
 
   Handler<ParsedValues>& Run(
       std::function<void(ParsingData<ParsedValues>*)> callback) {
-    return PushDelegate(
-        [callback](std::wstring*, ParsingData<ParsedValues>* data) {
-          callback(data);
-        });
+    return PushDelegate(callback);
   }
 
   void Execute(ParsingData<ParsedValues>* data) const {
-    auto cmd = data->input.front();
-    data->input.pop_front();
+    switch (type_) {
+      case VariableType::kNone:
+        if (data->current_value.has_value()) {
+          std::cerr << data->output.binary_name << ": " << data->current_flag
+                    << ": Flag does not accept arguments: " << name_ << ": "
+                    << argument_description_ << std::endl;
+          exit(1);
+        }
+        return delegate_(data);
 
-    if (type_ == VariableType::kNone || data->input.empty()) {
-      if (type_ == VariableType::kRequired) {
-        std::cerr << data->output.binary_name << ": " << cmd
-                  << ": Expected argument: " << name_ << ": "
-                  << argument_description_ << std::endl;
-        exit(1);
-      } else {
-        delegate_(nullptr, data);
-      }
-    } else {
-      std::wstring input = transform_(data->input.front());
-      delegate_(&input, data);
-      data->input.pop_front();
+      case VariableType::kRequired:
+        if (data->current_value.has_value()) {
+          // Okay.
+        } else if (data->input.empty()) {
+          std::cerr << data->output.binary_name << ": " << data->current_flag
+                    << ": Expected argument: " << name_ << ": "
+                    << argument_description_ << std::endl;
+          exit(1);
+        } else {
+          data->current_value = data->input.front();
+          data->input.pop_front();
+        }
+        // Fallthrough.
+
+      case VariableType::kOptional:
+        if (data->current_value.has_value()) {
+          data->current_value = transform_(data->current_value.value());
+        }
+        return delegate_(data);
     }
   }
 
@@ -155,12 +187,11 @@ class Handler {
 
  private:
   Handler<ParsedValues>& PushDelegate(
-      std::function<void(std::wstring*, ParsingData<ParsedValues>*)> delegate) {
+      std::function<void(ParsingData<ParsedValues>*)> delegate) {
     auto old_delegate = std::move(delegate_);
-    delegate_ = [old_delegate, delegate](std::wstring* value,
-                                         ParsingData<ParsedValues>* data) {
-      old_delegate(value, data);
-      delegate(value, data);
+    delegate_ = [old_delegate, delegate](ParsingData<ParsedValues>* data) {
+      old_delegate(data);
+      delegate(data);
     };
     return *this;
   }
@@ -187,7 +218,7 @@ class Handler {
           break;
 
         case VariableType::kOptional:
-          line += L" [" + handler.argument() + L"]";
+          line += L"[=" + handler.argument() + L"]";
           break;
 
         case VariableType::kNone:
@@ -226,8 +257,8 @@ class Handler {
   std::function<std::wstring(std::wstring)> transform_ = [](std::wstring x) {
     return x;
   };
-  std::function<void(std::wstring*, ParsingData<ParsedValues>*)> delegate_ =
-      [](std::wstring*, ParsingData<ParsedValues>*) {};
+  std::function<void(ParsingData<ParsedValues>*)> delegate_ =
+      [](ParsingData<ParsedValues>*) {};
 };
 
 template <typename ParsedValues>
@@ -284,13 +315,23 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
       continue;
     }
 
-    auto it = handlers_map.find(cmd);
-    if (it == handlers_map.end()) {
+    if (auto equals = cmd.find('='); equals != std::wstring::npos) {
+      args_data.current_flag = cmd.substr(0, equals);
+      args_data.current_value = cmd.substr(equals + 1, cmd.size());
+    } else {
+      args_data.current_flag = cmd;
+      args_data.current_value = std::nullopt;
+    }
+    args_data.input.pop_front();
+
+    if (auto it = handlers_map.find(args_data.current_flag);
+        it != handlers_map.end()) {
+      handlers[it->second].Execute(&args_data);
+    } else {
       cerr << args_data.output.binary_name << ": Invalid flag: " << cmd
            << std::endl;
       exit(1);
     }
-    handlers[it->second].Execute(&args_data);
   }
 
   return args_data.output;

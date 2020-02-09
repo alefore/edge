@@ -124,7 +124,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Set(&CommandLineValues::client),
 
       Handler<CommandLineValues>({L"mute"}, L"Disable audio output")
-          .Set(&CommandLineValues::mute, true),
+          .Set(&CommandLineValues::mute, true)
+          .Accept(L"bool", L""),
 
       Handler<CommandLineValues>({L"ao"}, L"Prompt for a path to open")
           .Set(&CommandLineValues::prompt_for_path, true),
