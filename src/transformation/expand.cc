@@ -68,15 +68,28 @@ class PredictorTransformation : public CompositeTransformation {
         std::const_pointer_cast<OpenBuffer>(input.buffer->shared_from_this()));
     return futures::ImmediateTransform(
         Predict(std::move(predict_options)),
-        [text_size = text_.size(),
-         editor = input.editor](std::optional<PredictResults> results) {
-          if (!results.has_value() || !results->common_prefix.has_value())
+        [text = text_,
+         buffer = input.buffer](std::optional<PredictResults> results) {
+          if (!results.has_value()) {
             return Output();
-          Output output;
-          output.Push(DeleteLastCharacters(text_size));
+          }
+          if (!results->common_prefix.has_value() ||
+              results->common_prefix.value().size() < text.size()) {
+            CHECK_LE(results->longest_prefix, ColumnNumberDelta(text.size()));
+            auto prefix = text.substr(0, results->longest_prefix.column_delta);
+            if (!prefix.empty()) {
+              buffer->status()->SetInformationText(
+                  L"No matches found. Longest prefix with matches: \"" +
+                  prefix + L"\"");
+            }
+            return Output();
+          }
 
-          auto buffer_to_insert =
-              OpenBuffer::New({.editor = editor, .name = L"- text inserted"});
+          Output output;
+          output.Push(DeleteLastCharacters(text.size()));
+
+          auto buffer_to_insert = OpenBuffer::New(
+              {.editor = buffer->editor(), .name = L"- text inserted"});
           buffer_to_insert->AppendLazyString(
               NewLazyString(results.value().common_prefix.value()));
           buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
