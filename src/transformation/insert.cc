@@ -130,6 +130,7 @@ std::wstring InsertOptions::Serialize() const {
 }
 std::unique_ptr<Transformation> NewInsertBufferTransformation(
     InsertOptions insert_options) {
+  CHECK(insert_options.buffer_to_insert != nullptr);
   size_t buffer_to_insert_length =
       insert_options.buffer_to_insert->contents()->CountCharacters();
   return std::make_unique<InsertBufferTransformation>(std::move(insert_options),
