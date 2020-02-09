@@ -17,6 +17,9 @@ namespace afc::editor {
 //
 // Every time the argument is modified, the transformation is executed, just in
 // kPreview mode.
+//
+// TODO(easy): Drop the `Transformation` part of the name of this class. Perhaps
+// rename it to `CommandArgumentsMode`.
 template <typename Argument>
 class TransformationArgumentMode : public EditorMode {
  public:
@@ -30,6 +33,9 @@ class TransformationArgumentMode : public EditorMode {
     std::function<std::wstring(const Argument&)> status_factory;
 
     std::function<futures::Value<bool>()> undo = nullptr;
+    // TODO(easy): This shouldn't depend on Transformation. Instead, we should
+    // declare our own enum. That's because not all uses of this class have to
+    // deal with Transformations.
     std::function<futures::Value<bool>(Transformation::Input::Mode, Argument)>
         apply = nullptr;
   };
