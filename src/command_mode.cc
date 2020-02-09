@@ -235,18 +235,37 @@ class GotoPreviousPositionCommand : public Command {
 
 class MoveForwards : public Command {
  public:
-  std::wstring Description() const override { return L"moves forwards"; }
-  wstring Category() const override { return L"Navigate"; }
-  void ProcessInput(wint_t c, EditorState* editor_state) override {
-    Move(c, editor_state);
+  MoveForwards(Direction direction) : direction_(direction) {}
+
+  std::wstring Description() const override {
+    switch (direction_) {
+      case Direction::kForwards:
+        return L"moves forwards";
+      case Direction::kBackwards:
+        return L"moves backwards";
+    }
   }
-  static void Move(int, EditorState* editor_state) {
+
+  wstring Category() const override { return L"Navigate"; }
+
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
+    Move(c, editor_state, direction_);
+  }
+
+  static void Move(int, EditorState* editor_state, Direction direction) {
+    if (direction == Direction::kBackwards) {
+      editor_state->set_direction(ReverseDirection(editor_state->direction()));
+    }
+
     editor_state->ApplyToActiveBuffers(
         NewMoveTransformation(editor_state->modifiers()));
     editor_state->ResetRepetitions();
     editor_state->ResetStructure();
     editor_state->ResetDirection();
   }
+
+ private:
+  const Direction direction_;
 };
 
 class LineDown : public Command {
@@ -260,10 +279,10 @@ class LineDown : public Command {
     // TODO: Move to Structure.
     if (structure == StructureChar()) {
       editor_state->set_structure(StructureLine());
-      MoveForwards::Move(c, editor_state);
+      MoveForwards::Move(c, editor_state, Direction::kForwards);
     } else if (structure == StructureWord() || structure == StructureSymbol()) {
       editor_state->set_structure(StructurePage());
-      MoveForwards::Move(c, editor_state);
+      MoveForwards::Move(c, editor_state, Direction::kForwards);
     } else if (structure == StructureTree()) {
       auto buffer = editor_state->current_buffer();
       if (buffer == nullptr) {
@@ -333,16 +352,6 @@ class PageDown : public Command {
   void ProcessInput(wint_t c, EditorState* editor_state) override {
     editor_state->ResetStructure();
     LineDown::Move(c, editor_state, StructureWord());
-  }
-};
-
-class MoveBackwards : public Command {
- public:
-  std::wstring Description() const override { return L"moves backwards"; }
-  wstring Category() const override { return L"Navigate"; }
-  void ProcessInput(wint_t c, EditorState* editor_state) override {
-    editor_state->set_direction(ReverseDirection(editor_state->direction()));
-    MoveForwards::Move(c, editor_state);
   }
 };
 
@@ -579,9 +588,6 @@ class HardRedrawCommand : public Command {
 
 std::unique_ptr<Transformation> ApplySwitchCaseCommand(EditorState*,
                                                        Modifiers modifiers) {
-  if (modifiers.repetitions == 0) {
-    modifiers.repetitions = 1;
-  }
   return NewSwitchCaseTransformation(modifiers);
 }
 
@@ -749,8 +755,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"n", NewNavigateCommand(editor_state));
   commands->Add(L"j", std::make_unique<LineDown>());
   commands->Add(L"k", std::make_unique<LineUp>());
-  commands->Add(L"l", std::make_unique<MoveForwards>());
-  commands->Add(L"h", std::make_unique<MoveBackwards>());
+  commands->Add(L"l", std::make_unique<MoveForwards>(Direction::kForwards));
+  commands->Add(L"h", std::make_unique<MoveForwards>(Direction::kBackwards));
 
   commands->Add(L"~", NewCommandWithModifiers(
                           L"🔠🔡", L"Switches the case of the current character.",
@@ -784,8 +790,10 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
 
   commands->Add({Terminal::DOWN_ARROW}, std::make_unique<LineDown>());
   commands->Add({Terminal::UP_ARROW}, std::make_unique<LineUp>());
-  commands->Add({Terminal::LEFT_ARROW}, std::make_unique<MoveBackwards>());
-  commands->Add({Terminal::RIGHT_ARROW}, std::make_unique<MoveForwards>());
+  commands->Add({Terminal::LEFT_ARROW},
+                std::make_unique<MoveForwards>(Direction::kBackwards));
+  commands->Add({Terminal::RIGHT_ARROW},
+                std::make_unique<MoveForwards>(Direction::kForwards));
   commands->Add({Terminal::PAGE_DOWN}, std::make_unique<PageDown>());
   commands->Add({Terminal::PAGE_UP}, std::make_unique<PageUp>());
 
