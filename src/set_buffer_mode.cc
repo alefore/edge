@@ -165,7 +165,7 @@ futures::Value<bool> Apply(EditorState* editor,
 
       case Operation::Type::kFilter:
         std::vector<size_t> new_indices;
-        auto filter = SplitCommand(*NewLazyString(operation.filter));
+        auto filter = TokenizeBySpaces(*NewLazyString(operation.filter));
         for (auto& index : indices) {
           if (FilterMatches(filter, buffers_list->GetBuffer(index).get())) {
             new_indices.push_back(index);

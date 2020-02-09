@@ -1,7 +1,7 @@
 #include "src/tokenize.h"
 
 namespace afc::editor {
-std::vector<Token> SplitCommand(const LazyString& command) {
+std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   std::vector<Token> output;
   Token token;
   auto push = [&](ColumnNumber end) {

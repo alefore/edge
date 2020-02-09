@@ -18,9 +18,7 @@ struct Token {
 
 // Given a string containing: foo    bar "hey there"
 // Returns: {"foo", "bar", "hey there"}
-//
-// TODO(easy): Rename to `Tokenize`.
-std::vector<Token> SplitCommand(const LazyString& command);
+std::vector<Token> TokenizeBySpaces(const LazyString& command);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_TOKENIZE_H__

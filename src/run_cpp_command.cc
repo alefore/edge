@@ -43,7 +43,7 @@ struct ParsedCommand {
 
 ParsedCommand Parse(const LazyString& command, Environment* environment) {
   ParsedCommand output;
-  output.tokens = SplitCommand(command);
+  output.tokens = TokenizeBySpaces(command);
   if (output.tokens.empty()) {
     return ParsedCommand::Error(L"");  // No-op.
   }
