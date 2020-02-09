@@ -56,7 +56,7 @@ bool CharConsumer(wint_t c, Data* data) {
           data->operations.back().number += c - L'0';
           return true;
 
-        case L'f':
+        case L'w':
           data->state = Data::State::kReadingFilter;
           data->operations.push_back({Operation::Type::kFilter});
           return true;
@@ -97,7 +97,7 @@ std::wstring BuildStatus(const Data& data) {
         output += std::to_wstring(operation.number);
         break;
       case Operation::Type::kFilter:
-        output += L" f:" + operation.filter;
+        output += L" w:" + operation.filter;
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingFilter) {
           output += L"…";
