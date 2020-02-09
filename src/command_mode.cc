@@ -272,14 +272,6 @@ class MoveForwards : public Command {
   static void Move(int c, EditorState* editor_state);
 };
 
-class MoveBackwards : public Command {
- public:
-  wstring Description() const override;
-  wstring Category() const override { return L"Navigate"; }
-  void ProcessInput(wint_t c, EditorState* editor_state) override;
-  static void Move(int c, EditorState* editor_state);
-};
-
 wstring LineUp::Description() const { return L"moves up one line"; }
 
 /* static */ void LineUp::Move(int c, EditorState* editor_state,
@@ -293,10 +285,12 @@ wstring LineUp::Description() const { return L"moves up one line"; }
   // TODO: Move to Structure.
   if (structure == StructureChar()) {
     editor_state->set_structure(StructureLine());
-    MoveBackwards::Move(c, editor_state);
+    editor_state->set_direction(ReverseDirection(editor_state->direction()));
+    MoveForwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     editor_state->set_structure(StructurePage());
-    MoveBackwards::Move(c, editor_state);
+    editor_state->set_direction(ReverseDirection(editor_state->direction()));
+    MoveForwards::Move(c, editor_state);
   } else if (structure == StructureTree()) {
     CHECK(false);  // Handled above.
   } else {
@@ -391,22 +385,15 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   editor_state->ResetDirection();
 }
 
-wstring MoveBackwards::Description() const { return L"moves backwards"; }
-
-void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
-  Move(c, editor_state);
-}
-
-/* static */ void MoveBackwards::Move(int c, EditorState* editor_state) {
-  if (editor_state->direction() == Direction::kBackwards) {
-    editor_state->set_direction(Direction::kForwards);
+class MoveBackwards : public Command {
+ public:
+  std::wstring Description() const override { return L"moves backwards"; }
+  wstring Category() const override { return L"Navigate"; }
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
+    editor_state->set_direction(ReverseDirection(editor_state->direction()));
     MoveForwards::Move(c, editor_state);
-    return;
   }
-  editor_state->set_direction(ReverseDirection(editor_state->direction()));
-  MoveForwards::Move(c, editor_state);
-  return;
-}
+};
 
 class EnterInsertModeCommand : public Command {
  public:
