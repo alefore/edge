@@ -579,18 +579,20 @@ futures::Value<bool> RunCommandHandler(const wstring& input,
 
 futures::Value<bool> RunMultipleCommandsHandler(const wstring& input,
                                                 EditorState* editor_state) {
-  // TODO(easy): Honor multiple_buffers.
-  auto buffer = editor_state->current_buffer();
-  if (input.empty() || buffer == nullptr) {
-    editor_state->status()->Reset();
-    return futures::Past(true);
-  }
-  buffer->contents()->ForEach([editor_state, input](wstring arg) {
-    map<wstring, wstring> environment = {{L"ARG", arg}};
-    RunCommand(L"$ " + input + L" " + arg, input, environment, editor_state,
-               GetChildrenPath(editor_state));
-  });
-  return futures::Past(true);
+  return futures::Transform(
+      editor_state->ForEachActiveBuffer(
+          [editor_state, input](const std::shared_ptr<OpenBuffer>& buffer) {
+            buffer->contents()->ForEach([editor_state, input](wstring arg) {
+              map<wstring, wstring> environment = {{L"ARG", arg}};
+              RunCommand(L"$ " + input + L" " + arg, input, environment,
+                         editor_state, GetChildrenPath(editor_state));
+            });
+            return futures::Past(true);
+          }),
+      [editor_state](bool) {
+        editor_state->status()->Reset();
+        return futures::Past(true);
+      });
 }
 
 }  // namespace editor
