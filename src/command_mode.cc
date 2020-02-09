@@ -233,157 +233,108 @@ class GotoPreviousPositionCommand : public Command {
   }
 };
 
-class LineUp : public Command {
+class MoveForwards : public Command {
  public:
-  wstring Description() const override;
+  std::wstring Description() const override { return L"moves forwards"; }
   wstring Category() const override { return L"Navigate"; }
-  static void Move(int c, EditorState* editor_state, Structure* structure);
-  void ProcessInput(wint_t c, EditorState* editor_state) override;
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
+    Move(c, editor_state);
+  }
+  static void Move(int, EditorState* editor_state) {
+    editor_state->ApplyToActiveBuffers(
+        NewMoveTransformation(editor_state->modifiers()));
+    editor_state->ResetRepetitions();
+    editor_state->ResetStructure();
+    editor_state->ResetDirection();
+  }
 };
 
 class LineDown : public Command {
  public:
-  wstring Description() const override;
+  std::wstring Description() const override { return L"moves down one line"; }
   wstring Category() const override { return L"Navigate"; }
-  static void Move(int c, EditorState* editor_state, Structure* structure);
-  void ProcessInput(wint_t c, EditorState* editor_state) override;
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
+    Move(c, editor_state, editor_state->structure());
+  }
+  static void Move(int c, EditorState* editor_state, Structure* structure) {
+    // TODO: Move to Structure.
+    if (structure == StructureChar()) {
+      editor_state->set_structure(StructureLine());
+      MoveForwards::Move(c, editor_state);
+    } else if (structure == StructureWord() || structure == StructureSymbol()) {
+      editor_state->set_structure(StructurePage());
+      MoveForwards::Move(c, editor_state);
+    } else if (structure == StructureTree()) {
+      auto buffer = editor_state->current_buffer();
+      if (buffer == nullptr) {
+        return;
+      }
+      switch (editor_state->direction()) {
+        case Direction::kBackwards:
+          if (buffer->tree_depth() > 0) {
+            buffer->set_tree_depth(buffer->tree_depth() - 1);
+          }
+          break;
+        case Direction::kForwards: {
+          auto root = buffer->parse_tree();
+          const ParseTree* tree = buffer->current_tree(root.get());
+          if (!tree->children().empty()) {
+            buffer->set_tree_depth(buffer->tree_depth() + 1);
+          }
+          break;
+        }
+      }
+      buffer->ResetMode();
+    } else {
+      switch (editor_state->direction()) {
+        case Direction::kForwards:
+          editor_state->MoveBufferForwards(
+              editor_state->repetitions().value_or(1));
+          break;
+        case Direction::kBackwards:
+          editor_state->MoveBufferBackwards(
+              editor_state->repetitions().value_or(1));
+          break;
+      }
+    }
+    editor_state->ResetStructure();
+    editor_state->ResetRepetitions();
+    editor_state->ResetDirection();
+  }
+};
+
+class LineUp : public Command {
+ public:
+  std::wstring Description() const override { return L"moves up one line"; }
+  std::wstring Category() const override { return L"Navigate"; }
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
+    Move(c, editor_state, editor_state->structure());
+  }
+  static void Move(int c, EditorState* editor_state, Structure* structure) {
+    editor_state->set_direction(ReverseDirection(editor_state->direction()));
+    LineDown::Move(c, editor_state, structure);
+  }
 };
 
 class PageUp : public Command {
  public:
-  wstring Description() const override;
-  wstring Category() const override { return L"Navigate"; }
-  static void Move(int c, EditorState* editor_state);
-  void ProcessInput(wint_t c, EditorState* editor_state) override;
+  std::wstring Description() const override { return L"moves up one page"; }
+  std::wstring Category() const override { return L"Navigate"; }
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
+    editor_state->ResetStructure();
+    LineUp::Move(c, editor_state, StructureWord());
+  }
 };
 
 class PageDown : public Command {
  public:
-  wstring Description() const override;
-  wstring Category() const override { return L"Navigate"; }
-  void ProcessInput(wint_t c, EditorState* editor_state) override;
-};
-
-class MoveForwards : public Command {
- public:
-  wstring Description() const override;
-  wstring Category() const override { return L"Navigate"; }
-  void ProcessInput(wint_t c, EditorState* editor_state) override;
-  static void Move(int c, EditorState* editor_state);
-};
-
-wstring LineUp::Description() const { return L"moves up one line"; }
-
-/* static */ void LineUp::Move(int c, EditorState* editor_state,
-                               Structure* structure) {
-  if (editor_state->direction() == Direction::kBackwards ||
-      structure == StructureTree()) {
-    editor_state->set_direction(ReverseDirection(editor_state->direction()));
-    LineDown::Move(c, editor_state, structure);
-    return;
-  }
-  // TODO: Move to Structure.
-  if (structure == StructureChar()) {
-    editor_state->set_structure(StructureLine());
-    editor_state->set_direction(ReverseDirection(editor_state->direction()));
-    MoveForwards::Move(c, editor_state);
-  } else if (structure == StructureWord() || structure == StructureSymbol()) {
-    editor_state->set_structure(StructurePage());
-    editor_state->set_direction(ReverseDirection(editor_state->direction()));
-    MoveForwards::Move(c, editor_state);
-  } else if (structure == StructureTree()) {
-    CHECK(false);  // Handled above.
-  } else {
-    editor_state->MoveBufferBackwards(editor_state->repetitions().value_or(1));
-  }
-  editor_state->ResetStructure();
-  editor_state->ResetRepetitions();
-  editor_state->ResetDirection();
-}
-
-void LineUp::ProcessInput(wint_t c, EditorState* editor_state) {
-  Move(c, editor_state, editor_state->structure());
-}
-
-wstring LineDown::Description() const { return L"moves down one line"; }
-
-/* static */ void LineDown::Move(int c, EditorState* editor_state,
-                                 Structure* structure) {
-  if (editor_state->direction() == Direction::kBackwards &&
-      structure != StructureTree()) {
-    editor_state->set_direction(Direction::kForwards);
-    LineUp::Move(c, editor_state, structure);
-    return;
-  }
-  // TODO: Move to Structure.
-  if (structure == StructureChar()) {
-    editor_state->set_structure(StructureLine());
-    MoveForwards::Move(c, editor_state);
-  } else if (structure == StructureWord() || structure == StructureSymbol()) {
-    editor_state->set_structure(StructurePage());
-    MoveForwards::Move(c, editor_state);
-  } else if (structure == StructureTree()) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
-    switch (editor_state->direction()) {
-      case Direction::kBackwards:
-        if (buffer->tree_depth() > 0) {
-          buffer->set_tree_depth(buffer->tree_depth() - 1);
-        }
-        break;
-      case Direction::kForwards: {
-        auto root = buffer->parse_tree();
-        const ParseTree* tree = buffer->current_tree(root.get());
-        if (!tree->children().empty()) {
-          buffer->set_tree_depth(buffer->tree_depth() + 1);
-        }
-        break;
-      }
-    }
-    buffer->ResetMode();
-    editor_state->ResetDirection();
+  std::wstring Description() const override { return L"moves down one page"; }
+  std::wstring Category() const override { return L"Navigate"; }
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
     editor_state->ResetStructure();
-  } else {
-    editor_state->MoveBufferForwards(editor_state->repetitions().value_or(1));
+    LineDown::Move(c, editor_state, StructureWord());
   }
-  editor_state->ResetStructure();
-  editor_state->ResetRepetitions();
-  editor_state->ResetDirection();
-}
-
-void LineDown::ProcessInput(wint_t c, EditorState* editor_state) {
-  Move(c, editor_state, editor_state->structure());
-}
-
-wstring PageUp::Description() const { return L"moves up one page"; }
-
-void PageUp::ProcessInput(wint_t c, EditorState* editor_state) {
-  editor_state->ResetStructure();
-  LineUp::Move(c, editor_state, StructureWord());
-}
-
-wstring PageDown::Description() const { return L"moves down one page"; }
-
-void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
-  editor_state->ResetStructure();
-  LineDown::Move(c, editor_state, StructureWord());
-}
-
-wstring MoveForwards::Description() const { return L"moves forwards"; }
-
-void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
-  Move(c, editor_state);
-}
-
-/* static */ void MoveForwards::Move(int, EditorState* editor_state) {
-  editor_state->ApplyToActiveBuffers(
-      NewMoveTransformation(editor_state->modifiers()));
-  editor_state->ResetRepetitions();
-  editor_state->ResetStructure();
-  editor_state->ResetDirection();
-}
+};
 
 class MoveBackwards : public Command {
  public:
