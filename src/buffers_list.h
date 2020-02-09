@@ -23,6 +23,9 @@ class BuffersList : public DelegatingWidget {
   size_t GetCurrentIndex();
   size_t BuffersCount() const;
 
+  // See comments on `filter_`.
+  void set_filter(std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter);
+
   // Overrides from Widget
   wstring Name() const override;
   wstring ToString() const override;
@@ -55,6 +58,9 @@ class BuffersList : public DelegatingWidget {
  private:
   std::map<wstring, std::shared_ptr<OpenBuffer>> buffers_;
   std::unique_ptr<Widget> widget_;
+
+  // If it has a value, buffers not included will be dimmed.
+  std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter_;
 };
 
 }  // namespace afc::editor
