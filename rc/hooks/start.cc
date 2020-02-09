@@ -61,20 +61,16 @@ AddBinding("M", "Center the screen around the current line.", []() -> void {
 
 AddBinding("a=", "Frames: Zoom to the active leaf", editor.ZoomToLeaf);
 AddBinding("ah", "Frames: Move to the previous buffer", []() -> void {
-  editor.AdvanceActiveBuffer(-repetitions());
-  set_repetitions(1);
+  editor.AdvanceActiveBuffer(-editor.pop_repetitions());
 });
 AddBinding("al", "Frames: Move to the next buffer", []() -> void {
-  editor.AdvanceActiveBuffer(repetitions());
-  set_repetitions(1);
+  editor.AdvanceActiveBuffer(editor.pop_repetitions());
 });
 AddBinding("ak", "Frames: Move to the previous active leaf", []() -> void {
-  editor.AdvanceActiveLeaf(-repetitions());
-  set_repetitions(1);
+  editor.AdvanceActiveLeaf(-editor.pop_repetitions());
 });
 AddBinding("aj", "Frames: Move to the next active leaf", []() -> void {
-  editor.AdvanceActiveLeaf(repetitions());
-  set_repetitions(1);
+  editor.AdvanceActiveLeaf(editor.pop_repetitions());
 });
 AddBinding("ag", "Frames: Set the active buffer",
            []() -> void { editor.EnterSetBufferMode(); });
@@ -142,11 +138,12 @@ void DeleteCurrentLine(Buffer buffer) {
           .build());
 
   buffer.PopTransformationStack();
-  set_repetitions(1);
 }
 
-AddBinding("K", "Edit: Delete the current line",
-           []() -> void { editor.ForEachActiveBuffer(DeleteCurrentLine); });
+AddBinding("K", "Edit: Delete the current line", []() -> void {
+  editor.ForEachActiveBuffer(DeleteCurrentLine);
+  editor.pop_repetitions();
+});
 
 AddBinding("J", "Edit: Fold next line into the current line", []() -> void {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {

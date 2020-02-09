@@ -207,6 +207,13 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                         }));
 
   editor_type->AddField(
+      L"pop_repetitions", vm::NewCallback([](EditorState* editor) {
+        auto value = static_cast<int>(editor->repetitions().value_or(1));
+        editor->ResetRepetitions();
+        return value;
+      }));
+
+  editor_type->AddField(
       L"ForEachActiveBuffer",
       Value::NewFunction(
           {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
@@ -234,6 +241,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
+  // TODO(easy): Many of these functions should really be methods of the editor
+  // type.
   environment->Define(L"ProcessInput",
                       vm::NewCallback([this](int c) { ProcessInput(c); }));
 
