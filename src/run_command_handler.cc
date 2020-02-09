@@ -12,6 +12,7 @@ extern "C" {
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sysexits.h>
 #include <unistd.h>
 }
 
@@ -90,15 +91,15 @@ futures::Value<bool> GenerateContents(EditorState* editor_state,
     int master_fd = posix_openpt(O_RDWR);
     if (master_fd == -1) {
       cerr << "posix_openpt failed: " << string(strerror(errno));
-      exit(1);
+      exit(EX_OSERR);
     }
     if (grantpt(master_fd) == -1) {
       cerr << "grantpt failed: " << string(strerror(errno));
-      exit(1);
+      exit(EX_OSERR);
     }
     if (unlockpt(master_fd) == -1) {
       cerr << "unlockpt failed: " << string(strerror(errno));
-      exit(1);
+      exit(EX_OSERR);
     }
     pipefd_out[parent_fd] = master_fd;
     char* pts_path = ptsname(master_fd);
@@ -106,14 +107,14 @@ futures::Value<bool> GenerateContents(EditorState* editor_state,
     pipefd_out[child_fd] = open(pts_path, O_RDWR);
     if (pipefd_out[child_fd] == -1) {
       cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
-      exit(1);
+      exit(EX_OSERR);
     }
     pipefd_err[parent_fd] = -1;
     pipefd_err[child_fd] = -1;
   } else if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_out) == -1 ||
              socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_err) == -1) {
     LOG(FATAL) << "socketpair failed: " << strerror(errno);
-    exit(1);
+    exit(EX_OSERR);
   }
 
   pid_t child_pid = fork();
@@ -187,7 +188,7 @@ futures::Value<bool> GenerateContents(EditorState* editor_state,
         strdup(ToByteString(target->Read(buffer_variables::command)).c_str()),
         nullptr};
     int status = execve("/bin/sh", argv, envp);
-    exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
+    exit(WIFEXITED(status) ? WEXITSTATUS(status) : EX_OSERR);
   }
   close(pipefd_out[child_fd]);
   close(pipefd_err[child_fd]);

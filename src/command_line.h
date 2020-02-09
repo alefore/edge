@@ -15,6 +15,10 @@
 #include <map>
 #include <string>
 
+extern "C" {
+#include <sysexits.h>
+}
+
 // TODO: Don't depend on these "internal" (to Edge) symbols:
 #include "src/wstring.h"
 
@@ -92,7 +96,7 @@ class Handler {
         std::cerr << data->output.binary_name << ": " << data->current_flag
                   << ": Invalid bool value (expected \"true\" or \"false\"): "
                   << data->current_value.value() << std::endl;
-        exit(1);
+        exit(EX_USAGE);
       }
       (data->output.*field) = data->current_value.has_value()
                                   ? data->current_value.value() == L"true"
@@ -108,7 +112,7 @@ class Handler {
         std::cerr << data->output.binary_name << ": " << data->current_flag
                   << ": Invalid value: " << data->current_value.value()
                   << std::endl;
-        exit(1);
+        exit(EX_USAGE);
       }
       (data->output.*field) = value;
     });
@@ -134,7 +138,7 @@ class Handler {
           std::cerr << data->output.binary_name << ": " << data->current_flag
                     << ": Flag does not accept arguments: " << name_ << ": "
                     << argument_description_ << std::endl;
-          exit(1);
+          exit(EX_USAGE);
         }
         return delegate_(data);
 
@@ -145,7 +149,7 @@ class Handler {
           std::cerr << data->output.binary_name << ": " << data->current_flag
                     << ": Expected argument: " << name_ << ": "
                     << argument_description_ << std::endl;
-          exit(1);
+          exit(EX_USAGE);
         } else {
           data->current_value = data->input.front();
           data->input.pop_front();
@@ -330,7 +334,7 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
     } else {
       cerr << args_data.output.binary_name << ": Invalid flag: " << cmd
            << std::endl;
-      exit(1);
+      exit(EX_USAGE);
     }
   }
 
