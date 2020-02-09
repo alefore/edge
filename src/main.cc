@@ -80,7 +80,7 @@ static const wchar_t* kDefaultCommandsToRun =
 wstring CommandsToRun(CommandLineValues args) {
   wstring commands_to_run = args.commands_to_run;
   std::vector<wstring> buffers_to_watch;
-  for (auto& path : args.files_to_open) {
+  for (auto& path : args.naked_arguments) {
     wstring full_path;
     if (!path.empty() && wstring(L"/~").find(path[0]) != wstring::npos) {
       LOG(INFO) << L"Will open an absolute path: " << path;

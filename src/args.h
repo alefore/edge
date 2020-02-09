@@ -6,20 +6,17 @@
 #include <string>
 #include <vector>
 
-#include "command_line.h"
+#include "src/command_line.h"
 
 namespace afc::editor {
 
 using std::wstring;
 
-struct CommandLineValues {
+struct CommandLineValues : public command_line_arguments::StandardArguments {
   CommandLineValues();
 
-  wstring binary_name;
-  wstring home_directory;
-  std::vector<std::wstring> config_paths;
+  std::wstring home_directory;
 
-  std::vector<std::wstring> files_to_open;
   std::vector<std::wstring> commands_to_fork;
 
   // Contains C++ (VM) code to execute.

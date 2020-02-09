@@ -54,9 +54,9 @@ static vector<wstring> GetEdgeConfigPath(const wstring& home) {
 
 using afc::command_line_arguments::Handler;
 
-CommandLineValues::CommandLineValues()
-    : home_directory(GetHomeDirectory()),
-      config_paths(GetEdgeConfigPath(home_directory)) {}
+CommandLineValues::CommandLineValues() : home_directory(GetHomeDirectory()) {
+  config_paths = GetEdgeConfigPath(home_directory);
+}
 
 const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
   static const std::vector<Handler<CommandLineValues>> handlers = {

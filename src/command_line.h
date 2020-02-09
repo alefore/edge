@@ -21,6 +21,17 @@ namespace afc::command_line_arguments {
 template <typename ParsedValues>
 class Handler;
 
+// ParsedValues should inherit from `StandardArguments`. This contains standard
+// fields that the command-line parsing logic uses.
+struct StandardArguments {
+  // Input parameter.
+  std::vector<std::wstring> config_paths;
+
+  // Output parameter with the name of the binary.
+  std::wstring binary_name;
+  std::vector<std::wstring> naked_arguments;
+};
+
 template <typename ParsedValues>
 struct ParsingData {
   const std::vector<Handler<ParsedValues>>* handlers;
@@ -268,7 +279,7 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
     }
 
     if (cmd[0] != '-') {
-      args_data.output.files_to_open.push_back(cmd);
+      args_data.output.naked_arguments.push_back(cmd);
       args_data.input.pop_front();
       continue;
     }
