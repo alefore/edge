@@ -154,6 +154,12 @@ using std::to_wstring;
       }));
 
   buffer->AddField(
+      L"SetWarningStatus",
+      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, std::wstring s) {
+        buffer->status()->SetWarningText(s);
+      }));
+
+  buffer->AddField(
       L"line_count", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
         return static_cast<int>(buffer->contents()->size().line_delta);
       }));
