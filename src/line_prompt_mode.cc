@@ -344,10 +344,7 @@ void Prompt(PromptOptions options) {
         editor_state->set_keyboard_redirect(nullptr);
         status->Reset();
         editor_state->set_modifiers(original_modifiers);
-        // TODO(easy): Make handler return a future.
-        options.handler(input->ToString(), editor_state);
-        (void)ensure_survival_of_current_closure;
-        return futures::Past(true);
+        return options.handler(input->ToString(), editor_state);
       };
 
   insert_mode_options.start_completion =
