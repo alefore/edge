@@ -7,19 +7,11 @@
 #include <string>
 #include <vector>
 
-#include "src/editor_mode.h"
 #include "src/map_mode.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 class EditorState;
-
-using std::unique_ptr;
-
 std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state);
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif
