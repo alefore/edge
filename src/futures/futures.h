@@ -159,13 +159,11 @@ auto Transform(Value<T0> t0, T1 t1, T2 t2) {
 
 template <typename OtherType, typename Callable>
 auto ImmediateTransform(Value<OtherType> delayed_value, Callable callable) {
-  using Type = decltype(callable(std::declval<OtherType>()));
-  Future<Type> output;
+  Future<decltype(callable(std::declval<OtherType>()))> output;
   delayed_value.SetConsumer(
       [consumer = output.consumer,
        callable = std::move(callable)](OtherType other_value) mutable {
-        Type type = callable(std::move(other_value));
-        consumer(std::move(type));
+        consumer(callable(std::move(other_value)));
       });
   return output.value;
 }
