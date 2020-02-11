@@ -116,7 +116,7 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
       };
       for (const auto& token : matches[key].tokens) {
         push_to_position(token.begin, {});
-        push_to_position(token.end, {LineModifier::GREEN});
+        push_to_position(token.end, {LineModifier::BOLD});
       }
       push_to_position(ColumnNumber(key.size()), {});
       filter_buffer->AppendRawLine(std::make_shared<Line>(std::move(options)));
