@@ -484,6 +484,11 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
       ++line;
     }
 
+    if (input.predictions->lines_size() > LineNumberDelta() &&
+        input.predictions->LineAt(LineNumber())->empty()) {
+      input.predictions->EraseLines(LineNumber(), LineNumber().next());
+    }
+
     input.predictions->EndOfFile();
     return futures::Past(PredictorOutput());
   };
