@@ -188,8 +188,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
     if (history_ != nullptr &&
         history_->contents()->size() > LineNumberDelta(1)) {
       auto previous_buffer = editor_state->current_buffer();
-      editor_state->set_current_buffer(history_);
-
+      editor_state->status()->set_prompt_context(history_);
       LineColumn position = history_->position();
       position.line += delta;
       if (position.line <= LineNumber(0) + history_->contents()->size() &&
