@@ -1000,8 +1000,8 @@ void OpenBuffer::AppendToLastLine(Line line) {
   contents_.AppendToLine(LineNumber(0) + contents_.size(), std::move(line));
 }
 
-unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,
-                                                 wstring* error_description) {
+std::unique_ptr<Expression> OpenBuffer::CompileString(
+    const std::wstring& code, std::wstring* error_description) {
   return afc::vm::CompileString(code, environment_, error_description);
 }
 
@@ -1017,9 +1017,7 @@ std::optional<futures::Value<std::unique_ptr<Value>>>
 OpenBuffer::EvaluateString(const wstring& code) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
-  // TODO: Use unique_ptr and capture by value.
-  std::shared_ptr<Expression> expression =
-      CompileString(code, &error_description);
+  auto expression = CompileString(code, &error_description);
   if (expression == nullptr) {
     status_.SetWarningText(L"🐜Compilation error: " + error_description);
     return std::nullopt;
