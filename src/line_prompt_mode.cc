@@ -158,9 +158,11 @@ shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
 class HistoryScrollBehavior : public ScrollBehavior {
  public:
   HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history,
-                        std::shared_ptr<LazyString> original_input)
+                        std::shared_ptr<LazyString> original_input,
+                        std::shared_ptr<OpenBuffer> previous_prompt_context)
       : history_(std::move(history)),
-        original_input_(std::move(original_input)) {}
+        original_input_(std::move(original_input)),
+        previous_prompt_context_(std::move(previous_prompt_context)) {}
 
   void Up(EditorState* editor_state, OpenBuffer* buffer) override {
     ScrollHistory(editor_state, buffer, LineNumberDelta(-1));
@@ -205,7 +207,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
               history_->current_line()->contents());
         }
       } else {
-        editor_state->status()->set_prompt_context(nullptr);
+        editor_state->status()->set_prompt_context(previous_prompt_context_);
         buffer_to_insert->AppendToLastLine(original_input_);
       }
     }
@@ -225,6 +227,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
   const std::shared_ptr<OpenBuffer> history_;
   const std::shared_ptr<LazyString> original_input_;
+  const std::shared_ptr<OpenBuffer> previous_prompt_context_;
 };
 
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
@@ -250,7 +253,8 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
     history->set_current_position_line(LineNumber(0) +
                                        history->contents()->size());
-    return std::make_unique<HistoryScrollBehavior>(history, input);
+    return std::make_unique<HistoryScrollBehavior>(
+        history, input, editor_state_->status()->prompt_context());
   }
 
  private:
