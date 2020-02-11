@@ -113,6 +113,9 @@ struct LineNumber {
   // a.MinusHadlingOverflow(value) is equivalent to `a - value` if `a` is
   // greater than or equal to `value` (and `LineNumber(0)` otherwise).
   LineNumber MinusHandlingOverflow(const LineNumberDelta& value) const;
+  // Similar to `MinusHandlingOverflow`, but adds the value. This makes sense
+  // for the case when
+  LineNumber PlusHandlingOverflow(const LineNumberDelta& value) const;
 
   bool IsZero() const;
 

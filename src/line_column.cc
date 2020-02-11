@@ -273,6 +273,11 @@ LineNumber LineNumber::MinusHandlingOverflow(
   return this->ToDelta() > value ? *this - value : LineNumber(0);
 }
 
+LineNumber LineNumber::PlusHandlingOverflow(
+    const LineNumberDelta& value) const {
+  return this->ToDelta() > -value ? *this + value : LineNumber(0);
+}
+
 bool LineNumber::IsZero() const { return *this == LineNumber(); }
 
 bool operator==(const LineNumber& a, const LineNumber& b) {
