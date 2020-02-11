@@ -93,6 +93,11 @@ AddBinding("aw", "Buffers: Save the current buffer.", []() -> void {
       [](Buffer buffer) -> void { buffer.Save(); });
 });
 
+AddBinding("ad", "Buffers: Close the current buffer.", []() -> void {
+  editor.ForEachActiveBufferWithRepetitions(
+      [](Buffer buffer) -> void { buffer.Close(); });
+});
+
 AddBinding("ss", "Run a shell in the directory of the current buffer.",
            []() -> void {
              editor.ForEachActiveBuffer([](Buffer buffer) -> void {

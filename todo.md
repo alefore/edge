@@ -66,8 +66,6 @@ Add a boolean variable `highlight_current_line` (default: false); when set, high
 
 In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
 
-Make "ad" honor repetitions (pick the buffer from the buffer's list).
-
 ## Widgets
 
 Improve the bindings used to navigate the widgets.

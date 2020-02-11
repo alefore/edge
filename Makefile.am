@@ -40,7 +40,6 @@ src/cpp_command.cc \
 src/cpp_parse_tree.cc \
 src/cpp_parse_tree.h \
 src/char_buffer.cc \
-src/close_buffer_command.cc \
 src/command_mode.cc \
 src/command_mode.h \
 src/command_with_modifiers.cc \

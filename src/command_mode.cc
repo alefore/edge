@@ -13,7 +13,6 @@
 
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
-#include "src/close_buffer_command.h"
 #include "src/command.h"
 #include "src/cpp_command.h"
 #include "src/delete_mode.h"
@@ -684,7 +683,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   auto commands = std::make_unique<MapModeCommands>();
   commands->Add(L"aq", NewQuitCommand(0));
   commands->Add(L"aQ", NewQuitCommand(1));
-  commands->Add(L"ad", NewCloseBufferCommand());
   commands->Add(L"av", NewSetVariableCommand(editor_state));
   commands->Add(L"ac", NewRunCppFileCommand());
   commands->Add(L"aC", NewRunCppCommand(CppCommandMode::kLiteral));

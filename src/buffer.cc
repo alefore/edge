@@ -313,6 +313,18 @@ using std::to_wstring;
                      buffer->editor()->ResetModifiers();
                    }));
 
+  buffer->AddField(L"Close",
+                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+                     if (buffer->editor()->structure() == StructureLine()) {
+                       auto target_buffer = buffer->GetBufferFromCurrentLine();
+                       if (target_buffer != nullptr) {
+                         buffer = target_buffer;
+                       }
+                     }
+                     buffer->editor()->CloseBuffer(buffer.get());
+                     buffer->editor()->ResetModifiers();
+                   }));
+
   buffer->AddField(
       L"AddBinding",
       Value::NewFunction(
