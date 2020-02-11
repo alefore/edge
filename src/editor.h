@@ -85,6 +85,13 @@ class EditorState {
   futures::Value<bool> ForEachActiveBuffer(
       std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
           callback);
+  // Similar to ForEachActiveBuffer, but if repetions are set, only runs the
+  // callback for the buffer referenced by repetitions (in the list of buffers,
+  // buffer_tree_).
+  futures::Value<bool> ForEachActiveBufferWithRepetitions(
+      std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+          callback);
+
   // Convenience wrapper of `ForEachActiveBuffer` that applies `transformation`.
   futures::Value<bool> ApplyToActiveBuffers(
       std::unique_ptr<Transformation> transformation);

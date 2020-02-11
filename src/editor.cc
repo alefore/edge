@@ -241,6 +241,32 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
+  editor_type->AddField(
+      L"ForEachActiveBufferWithRepetitions",
+      Value::NewFunction(
+          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
+           VMType::Function(
+               {VMType::Void(),
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
+          [](std::vector<std::unique_ptr<Value>> input,
+             Trampoline* trampoline) {
+            EditorState* editor =
+                VMTypeMapper<EditorState*>::get(input[0].get());
+            return futures::Transform(
+                editor->ForEachActiveBufferWithRepetitions(
+                    [callback = std::move(input[1]->callback),
+                     trampoline](std::shared_ptr<OpenBuffer> buffer) {
+                      std::vector<std::unique_ptr<Value>> args;
+                      args.push_back(
+                          VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::
+                              New(std::move(buffer)));
+                      return futures::Transform(
+                          callback(std::move(args), trampoline),
+                          futures::Past(true));
+                    }),
+                futures::Past(EvaluationOutput::Return(Value::NewVoid())));
+          }));
+
   // TODO(easy): Many of these functions should really be methods of the editor
   // type.
   environment->Define(L"ProcessInput",
@@ -666,6 +692,24 @@ futures::Value<bool> EditorState::ForEachActiveBuffer(
                 futures::Past(futures::IterationControlCommand::kContinue));
           }),
       futures::Past(true));
+}
+
+futures::Value<bool> EditorState::ForEachActiveBufferWithRepetitions(
+    std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+        callback) {
+  auto value = futures::Past(true);
+  if (!modifiers().repetitions.has_value()) {
+    value = ForEachActiveBuffer(callback);
+  } else if (auto buffer = buffer_tree()->GetBuffer(
+                 (max(modifiers().repetitions.value(), 1ul) - 1) %
+                 buffer_tree()->BuffersCount());
+             buffer != nullptr) {
+    value = callback(buffer);
+  }
+  return futures::Transform(value, [this](bool) {
+    ResetModifiers();
+    return true;
+  });
 }
 
 futures::Value<bool> EditorState::ApplyToActiveBuffers(

@@ -84,10 +84,13 @@ AddBinding("aR", "Frames: Show all open buffers",
 ////////////////////////////////////////////////////////////////////////////////
 
 AddBinding("ar", "Buffers: Reload the current buffer.", []() -> void {
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void { buffer.Reload(); });
+  editor.ForEachActiveBufferWithRepetitions(
+      [](Buffer buffer) -> void { buffer.Reload(); });
 });
+
 AddBinding("aw", "Buffers: Save the current buffer.", []() -> void {
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void { buffer.Save(); });
+  editor.ForEachActiveBufferWithRepetitions(
+      [](Buffer buffer) -> void { buffer.Save(); });
 });
 
 AddBinding("ss", "Run a shell in the directory of the current buffer.",
