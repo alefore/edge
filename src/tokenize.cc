@@ -83,4 +83,48 @@ std::vector<Token> TokenizeNameForPrefixSearches(
   return output;
 }
 
+namespace {
+// Does any of the elements in `name_tokens` start with `prefix`? If so, returns
+// a corresponding token.
+std::optional<Token> FindPrefixInTokens(std::wstring prefix,
+                                        std::vector<Token> name_tokens) {
+  for (auto& name_token : name_tokens) {
+    if (name_token.value.size() >= prefix.size() &&
+        std::equal(
+            prefix.begin(), prefix.end(), name_token.value.begin(),
+            [](wchar_t a, wchar_t b) { return tolower(a) == tolower(b); })) {
+      return Token{.value = name_token.value.substr(0, prefix.size()),
+                   .begin = name_token.begin,
+                   .end = name_token.begin + ColumnNumberDelta(prefix.size())};
+    }
+  }
+  return std::nullopt;
+}
+}  // namespace
+
+std::vector<Token> ExtendTokensToEndOfString(std::shared_ptr<LazyString> str,
+                                             std::vector<Token> tokens) {
+  std::vector<Token> output(tokens.size());
+  for (auto& token : tokens) {
+    output.push_back(Token{.value = Substring(str, token.begin)->ToString(),
+                           .begin = token.begin,
+                           .end = ColumnNumber() + str->size()});
+  }
+  return output;
+}
+
+std::vector<Token> FindFilterPositions(const std::vector<Token>& filter,
+                                       std::vector<Token> substrings) {
+  std::vector<Token> output;
+  for (auto& filter_token : filter) {
+    if (auto token = FindPrefixInTokens(filter_token.value, substrings);
+        token.has_value()) {
+      output.push_back(std::move(token.value()));
+    } else {
+      return {};
+    }
+  }
+  return output;
+}
+
 }  // namespace afc::editor

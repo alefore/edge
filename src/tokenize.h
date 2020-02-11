@@ -16,11 +16,14 @@ struct Token {
   ColumnNumber end;
 };
 
-// Given a string containing: foo    bar "hey there"
+// Given the string: "foo    bar \"hey there\""
 // Returns: {"foo", "bar", "hey there"}
 std::vector<Token> TokenizeBySpaces(const LazyString& command);
 
 // Simpler version of `TokenizeBySpaces` that ignores quotes.
+//
+// Given the string: "foo    bar \"hey there\""
+// Returns: {"foo", "bar", "\"hey", "there\"}
 std::vector<Token> TokenizeBySpacesSimple(
     const std::shared_ptr<LazyString>& name);
 
@@ -28,6 +31,22 @@ std::vector<Token> TokenizeBySpacesSimple(
 // Returns: "src", "Create", "Something", "Or", "Other", "buffer", "list", "cc"
 std::vector<Token> TokenizeNameForPrefixSearches(
     const std::shared_ptr<LazyString>& path);
+
+// Given a string "foo bar hey" and the tokens "foo", "bar", and "hey", returns
+// the tokens for "foo bar hey", "bar hey", "hey". This is useful to turn the
+// output of `TokenizeNameForPrefixSearches` into a form that's useful to feed
+// to `AllFilterTokensAreValidPrefixes`, allowing filter tokens to extend past
+// a given element from `tokens` (.e.g., searching for "foo ba" will match).
+std::vector<Token> ExtendTokensToEndOfString(std::shared_ptr<LazyString> str,
+                                             std::vector<Token> tokens);
+
+// If all tokens in `filter` are valid prefix (by a case-insensitive comparison)
+// of a token in `substrings`, returns a vector with the same length as
+// `filter`, containing one token for the first match of each filter. Otherwise,
+// returns an empty vector.
+std::vector<Token> FindFilterPositions(const std::vector<Token>& filter,
+                                       std::vector<Token> substrings);
+
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_TOKENIZE_H__

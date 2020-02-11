@@ -108,39 +108,6 @@ std::wstring BuildStatus(const Data& data) {
   return output;
 }
 
-bool IsPrefixOfAnyToken(std::wstring prefix, std::vector<Token> name_tokens) {
-  for (auto& name_token : name_tokens) {
-    if (name_token.value.size() >= prefix.size() &&
-        std::equal(
-            prefix.begin(), prefix.end(), name_token.value.begin(),
-            [](wchar_t a, wchar_t b) { return tolower(a) == tolower(b); })) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool FilterMatches(const std::vector<Token>& filter, const OpenBuffer* buffer) {
-  if (buffer == nullptr) return false;
-  std::shared_ptr<LazyString> name =
-      NewLazyString(buffer->Read(buffer_variables::name));
-  auto name_tokens = TokenizeNameForPrefixSearches(name);
-  // Extend all tokens to actually reach the end of the string, so that a a
-  // filter that spills beyond a single token, will match if it matches whatever
-  // follows the token. In other words, we're only honoring the `token.begin`
-  // values returned by `TokenizeNameForPrefixSearches`.
-  for (auto& token : name_tokens) {
-    token.end = ColumnNumber() + name->size();
-    token.value = Substring(name, token.begin)->ToString();
-  }
-  for (auto& filter_token : filter) {
-    if (!IsPrefixOfAnyToken(filter_token.value, name_tokens)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 futures::Value<bool> Apply(EditorState* editor,
                            CommandArgumentModeApplyMode mode, Data data) {
   auto buffers_list = editor->buffer_tree();
@@ -185,8 +152,16 @@ futures::Value<bool> Apply(EditorState* editor,
         std::vector<size_t> new_indices;
         auto filter = TokenizeBySpaces(*NewLazyString(operation.filter));
         for (auto& index : indices) {
-          if (FilterMatches(filter, buffers_list->GetBuffer(index).get())) {
-            new_indices.push_back(index);
+          if (auto buffer = buffers_list->GetBuffer(index).get();
+              buffer != nullptr) {
+            if (std::shared_ptr<LazyString> str =
+                    NewLazyString(buffer->Read(buffer_variables::name));
+                !FindFilterPositions(
+                     filter, ExtendTokensToEndOfString(
+                                 str, TokenizeNameForPrefixSearches(str)))
+                     .empty()) {
+              new_indices.push_back(index);
+            }
           }
         }
         if (new_indices.empty()) return futures::Past(true);
