@@ -47,7 +47,7 @@ futures::Value<bool> SetVariableHandler(const wstring& input_name,
   options.status = PromptOptions::Status::kBuffer;
 
   auto active_buffers = editor_state->active_buffers();
-  CHECK_GE(active_buffers.size(), 1);
+  CHECK_GE(active_buffers.size(), 1ul);
   auto default_error_status = active_buffers.size() == 1
                                   ? active_buffers[0]->status()
                                   : editor_state->status();
