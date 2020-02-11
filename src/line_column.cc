@@ -405,7 +405,7 @@ ColumnNumber ColumnNumber::next() const {
 }
 
 ColumnNumber ColumnNumber::previous() const {
-  CHECK_GT(column, 0);
+  CHECK_GT(column, 0ul);
   return ColumnNumber(column - 1);
 }
 
