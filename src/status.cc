@@ -100,7 +100,7 @@ void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
 void Status::set_prompt_context(std::shared_ptr<OpenBuffer> prompt_context) {
   ValidatePreconditions();
   // This one failed on 2020-02-09.
-  CHECK(data_->type == Status::Type::kPrompt);
+  CHECK(prompt_context == nullptr || data_->type == Status::Type::kPrompt);
   data_->prompt_context = std::move(prompt_context);
   ValidatePreconditions();
 }
