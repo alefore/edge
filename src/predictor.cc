@@ -255,8 +255,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
     get_buffer([batch = std::move(predictions)](OpenBuffer* buffer) {
       auto empty_line = std::make_shared<Line>(Line::Options());
       for (auto& prediction : batch) {
-        buffer->AppendToLastLine(std::move(prediction));
-        buffer->AppendRawLine(empty_line);
+        buffer->AppendRawLine(std::move(prediction));
       }
     });
     predictions.clear();
@@ -293,6 +292,10 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   FlushPredictions();
   get_buffer([prefix_match = prefix.size() + longest_pattern_match,
               pattern](OpenBuffer* buffer) {
+    if (buffer->lines_size() > LineNumberDelta() &&
+        buffer->LineAt(LineNumber())->empty()) {
+      buffer->EraseLines(LineNumber(), LineNumber().next());
+    }
     if (pattern.empty()) {
       RegisterPredictorExactMatch(buffer);
     }
@@ -422,9 +425,7 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
       auto result =
           mismatch(input.input.begin(), input.input.end(), (*it).first.begin());
       if (result.first == input.input.end()) {
-        input.predictions->AppendToLastLine(it->second);
-        input.predictions->AppendRawLine(
-            std::make_shared<Line>(Line::Options()));
+        input.predictions->AppendRawLine(it->second);
       } else {
         break;
       }
@@ -478,11 +479,11 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
       if (result.first != input.input.end()) {
         break;
       }
-      input.predictions->AppendToLastLine(*line_contents);
-      input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
+      input.predictions->AppendRawLine(line_contents->contents());
 
       ++line;
     }
+
     input.predictions->EndOfFile();
     return futures::Past(PredictorOutput());
   };

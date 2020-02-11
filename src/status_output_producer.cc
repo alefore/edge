@@ -202,7 +202,9 @@ LineNumberDelta StatusOutputProducerSupplier::lines() const {
   }
   auto context = status_->prompt_context();
   if (context != nullptr) {
-    output += std::min(context->lines_size(), LineNumberDelta(10));
+    static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
+    output += std::min(context->lines_size() + kLinesForStatusContextStatus,
+                       LineNumberDelta(10));
   }
   return output;
 }
