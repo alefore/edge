@@ -17,6 +17,7 @@
 #include "src/insert_mode.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
+#include "src/tokenize.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
 #include "src/wstring.h"
@@ -55,9 +56,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   return it;
 }
 
-shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
-                                     OpenBuffer* history_buffer,
-                                     wstring filter) {
+std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
+                                          OpenBuffer* history_buffer,
+                                          std::wstring filter) {
   CHECK(!filter.empty());
   CHECK(history_buffer != nullptr);
   auto name = L"- history filter: " +
@@ -78,16 +79,19 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
       // is a simple way to try to put more relevant things towards the bottom:
       // things that have been used more frequently and more recently.
       size_t lines_sum = 0;
-      size_t match_position = 0;
+      std::vector<Token> tokens;
     };
+    std::vector<Token> filter_tokens = TokenizeBySpaces(*NewLazyString(filter));
     std::map<wstring, Data> matches;
     history_buffer->contents()->EveryLine(
         [&](LineNumber position, const Line& line) {
-          auto s = line.ToString();
-          if (auto match = s.find(filter); match != wstring::npos) {
+          std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+              line.contents(), TokenizeNameForPrefixSearches(line.contents()));
+          if (auto match = FindFilterPositions(filter_tokens, line_tokens);
+              !match.empty()) {
             auto& output = matches[line.ToString()];
             output.lines_sum += position.line;
-            output.match_position = match;
+            output.tokens = std::move(match);
           }
           return true;
         });
@@ -98,14 +102,23 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
       matches_by_lines_sum.push_back({data.lines_sum, line_key});
     }
     sort(matches_by_lines_sum.begin(), matches_by_lines_sum.end());
-
     for (auto& [_, key] : matches_by_lines_sum) {
-      const auto match_position = matches[key].match_position;
+      sort(matches[key].tokens.begin(), matches[key].tokens.end(),
+           [](const Token& a, const Token& b) { return a.begin < b.begin; });
       Line::Options options;
-      options.AppendString(key.substr(0, match_position), {});
-      options.AppendString(key.substr(match_position, filter.size()),
-                           LineModifierSet{LineModifier::GREEN});
-      options.AppendString(key.substr(match_position + filter.size()), {});
+      ColumnNumber position;
+      auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
+        if (end <= position) return;
+        options.AppendString(
+            key.substr(position.column, (end - position).column_delta),
+            std::move(modifiers));
+        position = end;
+      };
+      for (const auto& token : matches[key].tokens) {
+        push_to_position(token.begin, {});
+        push_to_position(token.end, {LineModifier::GREEN});
+      }
+      push_to_position(ColumnNumber(key.size()), {});
       filter_buffer->AppendRawLine(std::make_shared<Line>(std::move(options)));
     }
 
