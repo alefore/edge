@@ -240,7 +240,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
       futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                                 const VMType& type) override {
-        return futures::ImmediateTransform(
+        return futures::Transform(
             trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0]),
             [type, shared_type = type_,
              shared_delegate = delegate_](EvaluationOutput output) {

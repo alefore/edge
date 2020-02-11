@@ -31,7 +31,7 @@ futures::Value<EvaluationOutput> BinaryOperator::Evaluate(
       trampoline->Bounce(a_.get(), a_->Types()[0]),
       [b = b_, type = type_, op = operator_,
        trampoline](EvaluationOutput a_value) {
-        return futures::ImmediateTransform(
+        return futures::Transform(
             trampoline->Bounce(b.get(), b->Types()[0]),
             [a_value = std::make_shared<Value>(std::move(*a_value.value)), type,
              op](EvaluationOutput b_value) {

@@ -132,9 +132,22 @@ Value<IterationControlCommand> While(Callable callable) {
   return output.value;
 }
 
+template <typename T>
+struct IsValue {
+  static const bool value = false;
+};
+
+template <typename T>
+struct IsValue<Value<T>> {
+  static const bool value = true;
+};
+
+// Used when Callable returns a futures::Value<T>.
 template <typename OtherType, typename Callable>
-Value<typename decltype(
-    std::declval<Callable>()(std::declval<OtherType>()))::type>
+typename std::enable_if<
+    IsValue<
+        decltype(std::declval<Callable>()(std::declval<OtherType>()))>::value,
+    decltype(std::declval<Callable>()(std::declval<OtherType>()))>::type
 Transform(Value<OtherType> delayed_value, Callable callable) {
   Future<typename decltype(callable(std::declval<OtherType>()))::type> output;
   delayed_value.SetConsumer(
@@ -145,20 +158,13 @@ Transform(Value<OtherType> delayed_value, Callable callable) {
   return output.value;
 }
 
-template <typename OtherType, typename Type>
-auto Transform(Value<OtherType> delayed_value, Value<Type> value) {
-  return Transform(delayed_value, [value = std::move(value)](const OtherType&) {
-    return value;
-  });
-}
-
-template <typename T0, typename T1, typename T2>
-auto Transform(Value<T0> t0, T1 t1, T2 t2) {
-  return Transform(Transform(std::move(t0), std::move(t1)), std::move(t2));
-}
-
+// Used when Callable returns a literal value (not a futures::Value<T>).
 template <typename OtherType, typename Callable>
-auto ImmediateTransform(Value<OtherType> delayed_value, Callable callable) {
+typename std::enable_if<
+    !IsValue<
+        decltype(std::declval<Callable>()(std::declval<OtherType>()))>::value,
+    Value<decltype(std::declval<Callable>()(std::declval<OtherType>()))>>::type
+Transform(Value<OtherType> delayed_value, Callable callable) {
   Future<decltype(callable(std::declval<OtherType>()))> output;
   delayed_value.SetConsumer(
       [consumer = output.consumer,
@@ -168,10 +174,17 @@ auto ImmediateTransform(Value<OtherType> delayed_value, Callable callable) {
   return output.value;
 }
 
+template <typename OtherType, typename Type>
+auto Transform(Value<OtherType> delayed_value, Value<Type> value) {
+  return Transform(delayed_value,
+                   [value = std::move(value)](const OtherType&) -> Value<Type> {
+                     return value;
+                   });
+}
+
 template <typename T0, typename T1, typename T2>
-auto ImmediateTransform(Value<T0> t0, T1 t1, T2 t2) {
-  return ImmediateTransform(ImmediateTransform(std::move(t0), std::move(t1)),
-                            std::move(t2));
+auto Transform(Value<T0> t0, T1 t1, T2 t2) {
+  return Transform(Transform(std::move(t0), std::move(t1)), std::move(t2));
 }
 
 template <typename Iterator, typename Callable>
@@ -180,7 +193,7 @@ Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
   auto copy = std::make_shared<std::vector<typename std::remove_const<
       typename std::remove_reference<decltype(*begin)>::type>::type>>(begin,
                                                                       end);
-  return futures::ImmediateTransform(
+  return futures::Transform(
       ForEach(copy->begin(), copy->end(), std::move(callable)),
       [copy](IterationControlCommand output) { return output; });
 }

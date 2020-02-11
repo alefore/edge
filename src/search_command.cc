@@ -88,7 +88,7 @@ class SearchCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->structure()->search_query() ==
         Structure::SearchQuery::kRegion) {
-      futures::ImmediateTransform(
+      futures::Transform(
           editor_state->ForEachActiveBuffer(
               [editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
                 SearchOptions search_options;
@@ -143,7 +143,7 @@ class SearchCommand : public Command {
     options.prompt = L"🔎 ";
     options.history_file = L"search";
     options.handler = [](const wstring& input, EditorState* editor_state) {
-      return futures::ImmediateTransform(
+      return futures::Transform(
           editor_state->ForEachActiveBuffer(
               [editor_state, input](const std::shared_ptr<OpenBuffer>& buffer) {
                 auto search_options =
@@ -190,7 +190,7 @@ class SearchCommand : public Command {
                     }
                     VLOG(5) << "Starting search in buffer: "
                             << buffer->Read(buffer_variables::name);
-                    return futures::ImmediateTransform(
+                    return futures::Transform(
                         async_search_processor->Search(
                             search_options.value(), buffer->contents()->copy()),
                         [prompt_buffer, results,

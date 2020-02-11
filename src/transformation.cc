@@ -62,7 +62,7 @@ class ApplyRepetitionsTransformation : public Transformation {
     };
     auto data = std::make_shared<Data>();
     data->output = std::make_unique<Result>(input.position);
-    return futures::ImmediateTransform(
+    return futures::Transform(
         futures::While([this, data, input]() mutable {
           if (data->index == repetitions_) {
             return futures::Past(futures::IterationControlCommand::kStop);
@@ -71,7 +71,7 @@ class ApplyRepetitionsTransformation : public Transformation {
           Input current_input(input.buffer);
           current_input.mode = input.mode;
           current_input.position = data->output->position;
-          return futures::ImmediateTransform(
+          return futures::Transform(
               delegate_->Apply(current_input), [data](Result result) {
                 bool made_progress = result.made_progress;
                 data->output->MergeFrom(std::move(result));

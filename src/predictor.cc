@@ -173,7 +173,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
         buffer->environment()->Define(kExactMatchEnvironmentVariable,
                                       vm::Value::NewBool(false));
 
-        return futures::ImmediateTransform(
+        return futures::Transform(
             options.predictor({.editor = options.editor_state,
                                .input = std::move(input),
                                .predictions = buffer,

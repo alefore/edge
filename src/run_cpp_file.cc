@@ -63,7 +63,7 @@ futures::Value<bool> RunCppFileHandler(const wstring& input,
 
   using futures::IterationControlCommand;
   auto index = std::make_shared<size_t>(0);
-  return futures::ImmediateTransform(
+  return futures::Transform(
       futures::While([buffer, total = editor_state->repetitions(),
                       adjusted_input = resolved_path->path, index]() {
         if (*index >= total)

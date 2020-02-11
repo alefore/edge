@@ -73,7 +73,7 @@ class InsertBufferTransformation : public Transformation {
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
       delete_options.modifiers.paste_buffer_behavior =
           Modifiers::PasteBufferBehavior::kDoNothing;
-      delayed_shared_result = futures::ImmediateTransform(
+      delayed_shared_result = futures::Transform(
           TransformationAtPosition(
               result->position,
               NewDeleteTransformation(std::move(delete_options)))
@@ -89,7 +89,7 @@ class InsertBufferTransformation : public Transformation {
             ? start_position
             : final_position);
 
-    return futures::ImmediateTransform(
+    return futures::Transform(
         delayed_shared_result,
         [position](std::shared_ptr<Transformation::Result> result) {
           result->position = position;

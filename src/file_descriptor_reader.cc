@@ -115,11 +115,11 @@ FileDescriptorReader::ReadData() {
   options_->buffer->RegisterProgress();
   if (options_->terminal == nullptr) {
     state_ = State::kParsing;
-    return futures::ImmediateTransform(ParseAndInsertLines(buffer_wrapper),
-                                       [this](bool) {
-                                         state_ = State::kIdle;
-                                         return ReadResult::kContinue;
-                                       });
+    return futures::Transform(ParseAndInsertLines(buffer_wrapper),
+                              [this](bool) {
+                                state_ = State::kIdle;
+                                return ReadResult::kContinue;
+                              });
   }
   options_->terminal->ProcessCommandInput(buffer_wrapper, [this]() {
     lines_read_rate_->IncrementAndGetEventsPerSecond(1.0);
@@ -181,7 +181,7 @@ void InsertLines(const FileDescriptorReader::Options& options,
 
 futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
     std::shared_ptr<LazyString> contents) {
-  return futures::ImmediateTransform(
+  return futures::Transform(
       options_->read_evaluator->Run(
           // TODO: Find a way to remove the `std::function`, letting the read
           // evaluator somehow detect the return type. Not sure why it doesn't

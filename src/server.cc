@@ -170,7 +170,7 @@ futures::Value<bool> GenerateContents(
     std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer* target) {
   wstring address = target->Read(buffer_variables::path);
   LOG(INFO) << L"Server starts: " << address;
-  return futures::ImmediateTransform(
+  return futures::Transform(
       file_system_driver->Open(address, O_RDONLY | O_NDELAY),
       [target, address](int fd) {
         if (fd == -1) {

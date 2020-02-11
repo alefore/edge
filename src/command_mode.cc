@@ -97,7 +97,7 @@ class Paste : public Command {
       return;
     }
     std::shared_ptr<OpenBuffer> paste_buffer = it->second;
-    futures::ImmediateTransform(
+    futures::Transform(
         editor_state->ForEachActiveBuffer(
             [editor_state,
              paste_buffer](const std::shared_ptr<OpenBuffer>& buffer) {
@@ -171,16 +171,15 @@ class UndoCommand : public Command {
     if (direction_.has_value()) {
       editor_state->set_direction(direction_.value());
     }
-    futures::ImmediateTransform(
-        editor_state->ForEachActiveBuffer(
-            [](const std::shared_ptr<OpenBuffer>& buffer) {
-              return buffer->Undo(OpenBuffer::UndoMode::kLoop);
-            }),
-        [editor_state](bool) {
-          editor_state->ResetRepetitions();
-          editor_state->ResetDirection();
-          return true;
-        });
+    futures::Transform(editor_state->ForEachActiveBuffer(
+                           [](const std::shared_ptr<OpenBuffer>& buffer) {
+                             return buffer->Undo(OpenBuffer::UndoMode::kLoop);
+                           }),
+                       [editor_state](bool) {
+                         editor_state->ResetRepetitions();
+                         editor_state->ResetDirection();
+                         return true;
+                       });
   }
 
  private:

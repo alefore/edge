@@ -66,7 +66,7 @@ class PredictorTransformation : public CompositeTransformation {
     // caller, based on its outputs.
     predict_options.source_buffers.push_back(
         std::const_pointer_cast<OpenBuffer>(input.buffer->shared_from_this()));
-    return futures::ImmediateTransform(
+    return futures::Transform(
         Predict(std::move(predict_options)),
         [text = text_,
          buffer = input.buffer](std::optional<PredictResults> results) {

@@ -192,7 +192,7 @@ class DeleteTransformation : public Transformation {
                                     LineModifier::GREEN}
                   : options_.preview_modifiers;
           input.position = range.begin;
-          return futures::ImmediateTransform(
+          return futures::Transform(
               NewInsertBufferTransformation(std::move(insert_options))
                   ->Apply(input),
               [output](Result result) {

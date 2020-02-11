@@ -423,7 +423,7 @@ class ForkEditorCommand : public Command {
           L"Unable to compile (type mismatch).");
       return futures::Past(true);
     }
-    return futures::ImmediateTransform(
+    return futures::Transform(
         prompt_state->original_buffer->EvaluateExpression(expression.get()),
         [prompt_state, prompt_buffer](std::unique_ptr<Value> value) {
           CHECK(value->IsString());

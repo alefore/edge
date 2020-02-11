@@ -22,7 +22,7 @@ class NegateExpression : public Expression {
 
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType&) override {
-    return futures::ImmediateTransform(
+    return futures::Transform(
         trampoline->Bounce(expr_.get(), expr_->Types()[0]),
         [negate = negate_](EvaluationOutput expr_output) {
           CHECK(expr_output.value != nullptr);

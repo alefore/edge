@@ -191,7 +191,7 @@ futures::Value<bool> GenerateContents(
         *stat_buffer = stat_results.value();
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
-          return futures::ImmediateTransform(
+          return futures::Transform(
               file_system_driver->Open(path, O_RDONLY | O_NONBLOCK),
               [target](int fd) {
                 target->SetInputFiles(fd, -1, false, -1);
@@ -202,7 +202,7 @@ futures::Value<bool> GenerateContents(
         target->Set(buffer_variables::atomic_lines, true);
         target->Set(buffer_variables::allow_dirty_delete, true);
         target->Set(buffer_variables::tree_parser, L"md");
-        return futures::ImmediateTransform(
+        return futures::Transform(
             background_directory_reader->Run(
                 [path, noise_regexp =
                            target->Read(buffer_variables::directory_noise)]() {

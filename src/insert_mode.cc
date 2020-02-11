@@ -154,7 +154,7 @@ class InsertMode : public EditorMode {
 
       case Terminal::ESCAPE:
         ResetScrollBehavior();
-        futures::ImmediateTransform(
+        futures::Transform(
             ForEachActiveBuffer(
                 old_literal ? std::string{27} : "",
                 [options = options_,

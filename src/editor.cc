@@ -76,7 +76,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
 
     auto editor = static_cast<EditorState*>(args[0]->user_value.get());
     CHECK(editor != nullptr);
-    return futures::ImmediateTransform(
+    return futures::Transform(
         editor->ForEachActiveBuffer(
             [method](const std::shared_ptr<OpenBuffer>& buffer) {
               CHECK(buffer != nullptr);
@@ -966,7 +966,7 @@ void EditorState::ProcessSignals() {
 
 bool EditorState::handling_stop_signals() const {
   auto buffers = active_buffers();
-  return futures::ImmediateTransform(
+  return futures::Transform(
              futures::ForEachWithCopy(
                  buffers.begin(), buffers.end(),
                  [](const std::shared_ptr<OpenBuffer>& buffer) {

@@ -598,12 +598,12 @@ futures::Value<std::unique_ptr<Value>> Evaluate(
   options.environment = environment;
   options.yield_callback = yield_callback;
   auto trampoline = std::make_shared<Trampoline>(options);
-  return futures::ImmediateTransform(trampoline->Bounce(expr, expr->Types()[0]),
-                                     [trampoline](EvaluationOutput value) {
-                                       DVLOG(4) << "Evaluation done.";
-                                       DVLOG(5) << "Result: " << *value.value;
-                                       return std::move(value.value);
-                                     });
+  return futures::Transform(trampoline->Bounce(expr, expr->Types()[0]),
+                            [trampoline](EvaluationOutput value) {
+                              DVLOG(4) << "Evaluation done.";
+                              DVLOG(5) << "Result: " << *value.value;
+                              return std::move(value.value);
+                            });
 }
 
 }  // namespace vm

@@ -19,7 +19,7 @@ void TransformationStack::PushFront(
 futures::Value<Transformation::Result> TransformationStack::Apply(
     const Input& input) const {
   auto output = std::make_shared<Result>(input.position);
-  return futures::ImmediateTransform(
+  return futures::Transform(
       futures::ForEach(
           stack_->begin(), stack_->end(),
           [output, input, stack = stack_](
@@ -27,7 +27,7 @@ futures::Value<Transformation::Result> TransformationStack::Apply(
             Input sub_input(input.buffer);
             sub_input.position = output->position;
             sub_input.mode = input.mode;
-            return futures::ImmediateTransform(
+            return futures::Transform(
                 transformation->Apply(sub_input),
                 [output](Transformation::Result result) {
                   output->MergeFrom(std::move(result));

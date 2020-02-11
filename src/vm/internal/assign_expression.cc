@@ -29,7 +29,7 @@ class AssignExpression : public Expression {
 
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) override {
-    return futures::ImmediateTransform(
+    return futures::Transform(
         trampoline->Bounce(value_.get(), type),
         [trampoline, symbol = symbol_,
          assignment_type = assignment_type_](EvaluationOutput value_output) {

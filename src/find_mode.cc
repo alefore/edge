@@ -81,16 +81,15 @@ class FindMode : public EditorMode {
       case Direction::kForwards:
         break;
     }
-    futures::ImmediateTransform(
-        editor_state->ApplyToActiveBuffers(
-            NewTransformation(editor_state->modifiers(),
-                              std::make_unique<FindTransformation>(c))),
-        [editor_state](bool) {
-          editor_state->ResetRepetitions();
-          editor_state->ResetDirection();
-          editor_state->set_keyboard_redirect(nullptr);
-          return true;
-        });
+    futures::Transform(editor_state->ApplyToActiveBuffers(NewTransformation(
+                           editor_state->modifiers(),
+                           std::make_unique<FindTransformation>(c))),
+                       [editor_state](bool) {
+                         editor_state->ResetRepetitions();
+                         editor_state->ResetDirection();
+                         editor_state->set_keyboard_redirect(nullptr);
+                         return true;
+                       });
   }
 
  private:

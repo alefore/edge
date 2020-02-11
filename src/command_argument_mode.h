@@ -126,14 +126,14 @@ void SetOptionsForBufferTransformation(
       [buffers](
           const std::function<futures::Value<futures::IterationControlCommand>(
               const std::shared_ptr<OpenBuffer>&)>& callback) {
-        return futures::ImmediateTransform(
+        return futures::Transform(
             futures::ForEach(buffers->begin(), buffers->end(), callback),
             [buffers](futures::IterationControlCommand) { return true; });
       };
 
   options->undo = [editor_state = options->editor_state, for_each_buffer] {
     return for_each_buffer([](const std::shared_ptr<OpenBuffer>& buffer) {
-      return futures::ImmediateTransform(
+      return futures::Transform(
           buffer->Undo(OpenBuffer::UndoMode::kOnlyOne),
           [](bool) { return futures::IterationControlCommand::kContinue; });
     });
