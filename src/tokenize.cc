@@ -104,7 +104,8 @@ std::optional<Token> FindPrefixInTokens(std::wstring prefix,
 
 std::vector<Token> ExtendTokensToEndOfString(std::shared_ptr<LazyString> str,
                                              std::vector<Token> tokens) {
-  std::vector<Token> output(tokens.size());
+  std::vector<Token> output;
+  output.reserve(tokens.size());
   for (auto& token : tokens) {
     output.push_back(Token{.value = Substring(str, token.begin)->ToString(),
                            .begin = token.begin,
