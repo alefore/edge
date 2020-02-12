@@ -379,10 +379,9 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
     OutputProducerOptions options) const {
   static const auto kMinimumColumnsPerBuffer = ColumnNumberDelta(20);
 
+  size_t buffers_per_line = options.size.column / kMinimumColumnsPerBuffer;
   auto buffers_list_lines = LineNumberDelta(
-      floor(static_cast<double>(
-                (buffers_.size() * kMinimumColumnsPerBuffer).column_delta) /
-            options.size.column.column_delta));
+      ceil(static_cast<double>(buffers_.size()) / buffers_per_line));
   VLOG(1) << "Buffers list lines: " << buffers_list_lines
           << ", size: " << buffers_.size()
           << ", size column: " << options.size.column;
@@ -398,8 +397,6 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
   rows.push_back({std::move(output), options.size.line});
 
   if (buffers_list_lines > LineNumberDelta(0)) {
-    size_t buffers_per_line = ceil(static_cast<double>(buffers_.size()) /
-                                   buffers_list_lines.line_delta);
     VLOG(2) << "Buffers per line: " << buffers_per_line
             << ", from: " << buffers_.size()
             << " buffers with lines: " << buffers_list_lines;

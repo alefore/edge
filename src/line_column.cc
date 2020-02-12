@@ -192,6 +192,10 @@ ColumnNumberDelta operator/(ColumnNumberDelta a, const size_t& b) {
   return a;
 }
 
+int operator/(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
+  return a.column_delta / b.column_delta;
+}
+
 ColumnNumberDelta& operator+=(ColumnNumberDelta& a,
                               const ColumnNumberDelta& value) {
   a.column_delta += value.column_delta;
