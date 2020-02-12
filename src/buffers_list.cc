@@ -98,10 +98,13 @@ class BuffersListProducer : public OutputProducer {
   }
 
   Generator Next() override {
-    VLOG(2) << "BuffersListProducer::WriteLine start.";
+    VLOG(2) << "BuffersListProducer::WriteLine start, index: " << index_
+            << ", buffers_per_line: " << options_.buffers_per_line
+            << ", size: " << options_.buffers->size();
     Generator output{
         std::nullopt, [this, index = index_]() {
-          CHECK_LT(index, options_.buffers->size());
+          CHECK_LT(index, options_.buffers->size())
+              << "Buffers per line: " << options_.buffers_per_line;
           Line::Options output;
           for (size_t i = 0; i < options_.buffers_per_line &&
                              index + i < options_.buffers->size();
@@ -377,9 +380,12 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
   static const auto kMinimumColumnsPerBuffer = ColumnNumberDelta(20);
 
   auto buffers_list_lines = LineNumberDelta(
-      ceil(static_cast<double>(
-               (buffers_.size() * kMinimumColumnsPerBuffer).column_delta) /
-           options.size.column.column_delta));
+      floor(static_cast<double>(
+                (buffers_.size() * kMinimumColumnsPerBuffer).column_delta) /
+            options.size.column.column_delta));
+  VLOG(1) << "Buffers list lines: " << buffers_list_lines
+          << ", size: " << buffers_.size()
+          << ", size column: " << options.size.column;
 
   options.size.line -= buffers_list_lines;
   CHECK(widget_ != nullptr);
@@ -394,6 +400,9 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
   if (buffers_list_lines > LineNumberDelta(0)) {
     size_t buffers_per_line = ceil(static_cast<double>(buffers_.size()) /
                                    buffers_list_lines.line_delta);
+    VLOG(2) << "Buffers per line: " << buffers_per_line
+            << ", from: " << buffers_.size()
+            << " buffers with lines: " << buffers_list_lines;
 
     rows.push_back({std::make_unique<BuffersListProducer>(BuffersListOptions{
                         .buffers = &buffers_,
