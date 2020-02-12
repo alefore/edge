@@ -67,14 +67,17 @@ std::wstring ProgressString(size_t counter,
 
 std::wstring ProgressStringFillUp(size_t lines,
                                   OverflowBehavior overflow_behavior) {
-  std::wstring output = L" ▁▂▃▄▅▆▇█";
+  if (lines <= 1) {
+    return L"∅";
+  }
+  std::wstring output = L" _▁▂▃▄▅▆▇█";
   size_t kInitial = 32;
   if (lines < kInitial) {
     return L" ";
   }
-  return std::wstring(
-      1, output[HandleOverflow(floor(log2(lines / kInitial)), overflow_behavior,
-                               output.size())]);
+  int index = HandleOverflow(floor(log2(lines / kInitial)), overflow_behavior,
+                             output.size());
+  return {output[index]};
 }
 
 Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player)
