@@ -122,7 +122,7 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
       filter_buffer->AppendRawLine(std::make_shared<Line>(std::move(options)));
     }
 
-    if (filter_buffer->lines_size() > LineNumberDelta()) {
+    if (filter_buffer->lines_size() > LineNumberDelta(1)) {
       VLOG(5) << "Erasing the first (empty) line.";
       filter_buffer->EraseLines(LineNumber(), LineNumber().next());
     }
@@ -195,7 +195,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
         OpenBuffer::New({.editor = editor_state, .name = L"- text inserted"});
 
     if (history_ != nullptr &&
-        history_->contents()->size() > LineNumberDelta(1)) {
+        (history_->contents()->size() > LineNumberDelta(1) ||
+         !history_->LineAt(LineNumber())->empty())) {
       LineColumn position = history_->position();
       position.line = min(position.line.PlusHandlingOverflow(delta),
                           LineNumber() + history_->contents()->size());
