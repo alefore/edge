@@ -134,6 +134,8 @@ LineNumberDelta operator--(LineNumberDelta& a, int) {
   return NewLazyString(length, fill);
 }
 
+bool ColumnNumberDelta::IsZero() const { return *this == ColumnNumberDelta(); }
+
 bool operator==(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
   return a.column_delta == b.column_delta;
 }

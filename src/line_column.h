@@ -19,9 +19,9 @@ struct LineNumberDelta {
   LineNumberDelta() = default;
   explicit LineNumberDelta(int value) : line_delta(value) {}
 
-  int line_delta = 0;
-
   bool IsZero() const;
+
+  int line_delta = 0;
 };
 
 bool operator==(const LineNumberDelta& a, const LineNumberDelta& b);
@@ -56,6 +56,8 @@ struct ColumnNumberDelta {
 
   ColumnNumberDelta() = default;
   explicit ColumnNumberDelta(int value) : column_delta(value) {}
+
+  bool IsZero() const;
 
   int column_delta = 0;
 };
