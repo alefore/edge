@@ -730,17 +730,28 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"!", std::make_unique<SetStructureCommand>(StructureMark()));
   commands->Add(L"t", std::make_unique<SetStructureCommand>(StructureTree()));
 
-  commands->Add(L"D", NewCommandWithModifiers(
-                          L"✀ ", L"starts a new delete backwards command",
-                          [] {
-                            Modifiers output;
-                            output.direction = Direction::kBackwards;
-                            return output;
-                          }(),
-                          ApplyDeleteCommand, editor_state));
+  auto delete_name_callback = [](const Modifiers& modifiers) {
+    switch (modifiers.direction) {
+      case Direction::kForwards:
+        return L"⌦";
+      case Direction::kBackwards:
+        return L"⌫";
+    }
+    LOG(DFATAL) << "Invalid direction.";
+    return L"";
+  };
+  commands->Add(
+      L"D", NewCommandWithModifiers(
+                delete_name_callback, L"starts a new delete backwards command",
+                [] {
+                  Modifiers output;
+                  output.direction = Direction::kBackwards;
+                  return output;
+                }(),
+                ApplyDeleteCommand, editor_state));
   commands->Add(L"d", NewCommandWithModifiers(
-                          L"✀ ", L"starts a new delete command", Modifiers(),
-                          ApplyDeleteCommand, editor_state));
+                          delete_name_callback, L"starts a new delete command",
+                          Modifiers(), ApplyDeleteCommand, editor_state));
   commands->Add(L"p", std::make_unique<Paste>());
 
   DeleteOptions copy_options;
@@ -758,7 +769,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"h", std::make_unique<MoveForwards>(Direction::kBackwards));
 
   commands->Add(L"~", NewCommandWithModifiers(
-                          L"🔠🔡", L"Switches the case of the current character.",
+                          [](const Modifiers&) { return L"🔠🔡"; },
+                          L"Switches the case of the current character.",
                           Modifiers(), ApplySwitchCaseCommand, editor_state));
 
   commands->Add(L"%", std::make_unique<TreeNavigateCommand>());

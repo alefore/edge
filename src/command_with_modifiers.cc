@@ -140,8 +140,10 @@ bool CharConsumer(wint_t c, Modifiers* modifiers) {
   }
 }
 
-std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
-  std::wstring status = name;
+std::wstring BuildStatus(
+    const std::function<std::wstring(const Modifiers&)>& name,
+    const Modifiers& modifiers) {
+  std::wstring status = name(modifiers);
   if (modifiers.structure != StructureChar()) {
     status += L" " + modifiers.structure->ToString();
   }
@@ -189,12 +191,13 @@ std::wstring BuildStatus(std::wstring name, const Modifiers& modifiers) {
 }  // namespace
 
 std::unique_ptr<Command> NewCommandWithModifiers(
-    wstring name, wstring description, Modifiers modifiers,
+    std::function<std::wstring(const Modifiers&)> name_function,
+    wstring description, Modifiers modifiers,
     CommandWithModifiersHandler handler, EditorState* editor_state) {
   return NewSetModeCommand(
       {.description = description,
        .category = L"Edit",
-       .factory = [editor_state, name, modifiers,
+       .factory = [editor_state, name_function, modifiers,
                    handler = std::move(handler)] {
          Modifiers mutable_modifiers = modifiers;
          // TODO: Find a way to have this honor `multiple_cursors`. Perhaps the
@@ -208,8 +211,8 @@ std::unique_ptr<Command> NewCommandWithModifiers(
              .editor_state = editor_state,
              .initial_value = std::move(mutable_modifiers),
              .char_consumer = &CharConsumer,
-             .status_factory = [name](const Modifiers& modifiers) {
-               return BuildStatus(name, modifiers);
+             .status_factory = [name_function](const Modifiers& modifiers) {
+               return BuildStatus(name_function, modifiers);
              }};
          SetOptionsForBufferTransformation<Modifiers>(
              std::move(handler),

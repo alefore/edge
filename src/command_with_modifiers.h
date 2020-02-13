@@ -15,7 +15,8 @@ using CommandWithModifiersHandler =
     std::function<std::unique_ptr<Transformation>(EditorState*, Modifiers)>;
 
 std::unique_ptr<Command> NewCommandWithModifiers(
-    wstring name, wstring description, Modifiers initial_modifiers,
+    std::function<std::wstring(const Modifiers&)> name_function,
+    wstring description, Modifiers initial_modifiers,
     CommandWithModifiersHandler handler, EditorState* editor_state);
 
 }  // namespace editor
