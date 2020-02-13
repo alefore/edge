@@ -159,10 +159,15 @@ class HistoryScrollBehavior : public ScrollBehavior {
  public:
   HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history,
                         std::shared_ptr<LazyString> original_input,
-                        std::shared_ptr<OpenBuffer> previous_prompt_context)
+                        Status* status)
       : history_(std::move(history)),
         original_input_(std::move(original_input)),
-        previous_prompt_context_(std::move(previous_prompt_context)) {}
+        status_(status),
+        previous_prompt_context_(status->prompt_context()) {
+    CHECK(original_input_ != nullptr);
+    CHECK(status_ != nullptr);
+    CHECK(status->GetType() == Status::Type::kPrompt);
+  }
 
   void Up(EditorState* editor_state, OpenBuffer* buffer) override {
     ScrollHistory(editor_state, buffer, LineNumberDelta(-1));
@@ -201,13 +206,13 @@ class HistoryScrollBehavior : public ScrollBehavior {
                           LineNumber() + history_->contents()->size());
       history_->set_position(position);
       if (position.line < LineNumber(0) + history_->contents()->size()) {
-        editor_state->status()->set_prompt_context(history_);
+        status_->set_prompt_context(history_);
         if (history_->current_line() != nullptr) {
           buffer_to_insert->AppendToLastLine(
               history_->current_line()->contents());
         }
       } else {
-        editor_state->status()->set_prompt_context(previous_prompt_context_);
+        status_->set_prompt_context(previous_prompt_context_);
         buffer_to_insert->AppendToLastLine(original_input_);
       }
     }
@@ -227,6 +232,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
   const std::shared_ptr<OpenBuffer> history_;
   const std::shared_ptr<LazyString> original_input_;
+  Status* const status_;
   const std::shared_ptr<OpenBuffer> previous_prompt_context_;
 };
 
@@ -244,17 +250,14 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
   std::unique_ptr<ScrollBehavior> Build() override {
     auto history = history_;
-    std::shared_ptr<LazyString> input;
-    if (buffer_->lines_size() > LineNumberDelta(0) &&
-        !buffer_->LineAt(LineNumber(0))->empty()) {
-      input = buffer_->LineAt(LineNumber(0))->contents();
+    CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
+    auto input = buffer_->LineAt(LineNumber(0))->contents();
+    if (!input->size().IsZero()) {
       history = FilterHistory(editor_state_, history.get(), input->ToString());
     }
-
     history->set_current_position_line(LineNumber(0) +
                                        history->contents()->size());
-    return std::make_unique<HistoryScrollBehavior>(
-        history, input, editor_state_->status()->prompt_context());
+    return std::make_unique<HistoryScrollBehavior>(history, input, status_);
   }
 
  private:
