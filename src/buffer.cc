@@ -394,12 +394,25 @@ using std::to_wstring;
   return output;
 }
 
+namespace {
+void Execute(std::shared_ptr<OpenBuffer> buffer) {
+  buffer->work_queue()->Execute();
+  if (auto next = buffer->work_queue()->NextExecution(); next.has_value()) {
+    auto editor_queue = buffer->editor()->work_queue();
+    editor_queue->ScheduleAt(
+        next.value(),
+        [buffer = std::move(buffer)]() mutable { Execute(std::move(buffer)); });
+  }
+}
+}  // namespace
+
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       work_queue_([this] {
-        options_.editor->work_queue()->Schedule(
-            [shared_this = shared_from_this()] {
-              shared_this->work_queue()->Execute();
+        options_.editor->work_queue()->ScheduleAt(
+            work_queue_.NextExecution().value(),
+            [shared_this = shared_from_this()]() mutable {
+              Execute(std::move(shared_this));
             });
       }),
       contents_([this](const CursorsTracker::Transformation& transformation) {
@@ -1059,10 +1072,6 @@ std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
 
 WorkQueue* OpenBuffer::work_queue() const { return &work_queue_; }
 
-WorkQueue::State OpenBuffer::GetPendingWorkState() const {
-  return work_queue_.state();
-}
-
 OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
   return [this](std::function<void(OpenBuffer*)> callback) {
     work_queue()->Schedule(
@@ -1707,7 +1716,8 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     }
   }
 
-  if (GetPendingWorkState() != WorkQueue::State::kIdle) {
+  if (work_queue()->NextExecution().has_value() &&
+      work_queue()->NextExecution().value() < Now()) {
     output.insert({L"⏳", L""});
   }
 

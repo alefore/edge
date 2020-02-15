@@ -30,6 +30,7 @@ extern "C" {
 #include "src/screen_vm.h"
 #include "src/server.h"
 #include "src/terminal.h"
+#include "src/time.h"
 #include "src/vm/public/value.h"
 #include "src/wstring.h"
 
@@ -238,7 +239,8 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Starting server.";
   auto server_path = StartServer(args, connected_to_parent);
-  while (editor_state()->GetPendingWorkState() != WorkQueue::State::kIdle) {
+  while (editor_state()->WorkQueueNextExecution().has_value() &&
+         editor_state()->WorkQueueNextExecution().value() < Now()) {
     editor_state()->ExecutePendingWork();
   }
 
@@ -286,9 +288,6 @@ int main(int argc, const char** argv) {
   while (!editor_state()->exit_value().has_value()) {
     // We execute pending work before updating screens, since we expect that the
     // pending work updates may have visible effects.
-    //
-    // TODO: Change to -1. Requires figuring out a way for background threads of
-    // buffers to trigger redraws.
     VLOG(5) << "Executing pending work.";
     editor_state()->ExecutePendingWork();
 
@@ -362,11 +361,17 @@ int main(int argc, const char** argv) {
     fds[buffers.size()].events = POLLIN | POLLPRI;
     buffers.push_back(nullptr);
 
-    int timeout =
-        editor_state()->GetPendingWorkState() == WorkQueue::State::kIdle ? 1000
-                                                                         : 0;
-    VLOG(5) << "Timeout: " << timeout;
-    if (poll(fds, buffers.size(), timeout) == -1) {
+    auto now = Now();
+    auto next_execution = editor_state()->WorkQueueNextExecution();
+    int timeout_ms =
+        next_execution.has_value()
+            ? static_cast<int>(ceil(min(
+                  max(0.0, MillisecondsBetween(now, next_execution.value())),
+                  1000.0)))
+            : 1000;
+    VLOG(5) << "Timeout: " << timeout_ms << " has value "
+            << (next_execution.has_value() ? "yes" : "no");
+    if (poll(fds, buffers.size(), timeout_ms) == -1) {
       CHECK_EQ(errno, EINTR) << "poll failed: " << strerror(errno);
 
       LOG(INFO) << "Received signals.";

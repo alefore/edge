@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <functional>
 #include <mutex>
+#include <queue>
 #include <vector>
 
 namespace afc::editor {
@@ -28,17 +29,26 @@ class WorkQueue {
   WorkQueue(std::function<void()> schedule_listener);
 
   void Schedule(std::function<void()> callback);
+  void ScheduleAt(struct timespec when, std::function<void()> callback);
 
-  enum class State { kIdle, kScheduled };
   void Execute();
 
-  State state() const;
+  // Returns the time at which the earliest callback wants to run, or nullopt if
+  // there are no pending callbacks.
+  std::optional<struct timespec> NextExecution();
 
  private:
   const std::function<void()> schedule_listener_;
 
+  struct Callback {
+    struct timespec time;
+    std::function<void()> callback;
+  };
+
   mutable std::mutex mutex_;
-  std::vector<std::function<void()>> callbacks_;
+  std::priority_queue<Callback, std::vector<Callback>,
+                      std::function<bool(const Callback&, const Callback&)>>
+      callbacks_;
 };
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_WORK_QUEUE_H__

@@ -221,7 +221,7 @@ class EditorState {
 
   // Executes pending work from all buffers.
   void ExecutePendingWork();
-  WorkQueue::State GetPendingWorkState() const;
+  std::optional<struct timespec> WorkQueueNextExecution() const;
   WorkQueue* work_queue() const;
 
  private:

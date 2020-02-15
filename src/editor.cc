@@ -30,6 +30,7 @@ extern "C" {
 #include "src/shapes.h"
 #include "src/substring.h"
 #include "src/terminal.h"
+#include "src/time.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/stack.h"
 #include "src/vm/public/callbacks.h"
@@ -103,13 +104,16 @@ void EditorState::NotifyInternalEvent() {
 // Executes pending work from all buffers.
 void EditorState::ExecutePendingWork() { work_queue_.Execute(); }
 
-WorkQueue::State EditorState::GetPendingWorkState() const {
+std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
+  std::optional<struct timespec> output;
   for (auto& buffer : buffers_) {
-    if (buffer.second->GetPendingWorkState() == WorkQueue::State::kScheduled) {
-      return WorkQueue::State::kScheduled;
+    if (auto buffer_output = buffer.second->work_queue()->NextExecution();
+        buffer_output.has_value() &&
+        (!output.has_value() || buffer_output.value() < output.value())) {
+      output = buffer_output;
     }
   }
-  return work_queue_.state();
+  return output;
 }
 
 WorkQueue* EditorState::work_queue() const { return &work_queue_; }
