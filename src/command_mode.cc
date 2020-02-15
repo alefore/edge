@@ -45,6 +45,7 @@
 #include "src/set_variable_command.h"
 #include "src/substring.h"
 #include "src/terminal.h"
+#include "src/time.h"
 #include "src/transformation.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
@@ -569,7 +570,12 @@ class ResetStateCommand : public Command {
     editor_state->status()->Reset();
     editor_state->ForEachActiveBuffer(
         [](const std::shared_ptr<OpenBuffer>& buffer) {
-          buffer->status()->Reset();
+          auto when = Now();
+          when.tv_sec += 1;
+          buffer->work_queue()->ScheduleAt(
+              when,
+              [status_expiration = std::shared_ptr<StatusExpirationControl>(
+                   buffer->status()->SetExpiringInformationText(L"ESC"))] {});
           return futures::Past(true);
         });
     editor_state->set_modifiers(Modifiers());
