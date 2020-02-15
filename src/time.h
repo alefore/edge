@@ -13,11 +13,12 @@
 
 namespace afc {
 namespace editor {
+struct timespec Now();
+
 // TODO: Replace all this with Abseil.
 double SecondsBetween(const struct timespec& begin, const struct timespec& end);
 double MillisecondsBetween(const struct timespec& begin,
                            const struct timespec& end);
-
 double GetElapsedSecondsSince(const struct timespec& spec);
 double GetElapsedMillisecondsSince(const struct timespec& spec);
 
@@ -30,5 +31,7 @@ std::optional<double> UpdateIfMillisecondsHavePassed(
     struct timespec* spec, double required_milliseconds);
 }  // namespace editor
 }  // namespace afc
+
+bool operator<(const struct timespec& a, const struct timespec& b);
 
 #endif  // __AFC_EDITOR_TIME_H__

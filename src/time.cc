@@ -7,6 +7,12 @@
 namespace afc {
 namespace editor {
 
+struct timespec Now() {
+  struct timespec output;
+  CHECK_NE(clock_gettime(0, &output), -1);
+  return output;
+}
+
 double SecondsBetween(const struct timespec& begin,
                       const struct timespec& end) {
   return (end.tv_sec - begin.tv_sec) +
@@ -32,11 +38,7 @@ double GetElapsedMillisecondsAndUpdate(struct timespec* spec) {
 }
 
 double GetElapsedSecondsAndUpdate(struct timespec* spec) {
-  struct timespec now;
-  if (clock_gettime(0, &now) == -1) {
-    VLOG(5) << "clock_gettime failed.";
-    return 0;
-  }
+  struct timespec now = Now();
   double output = SecondsBetween(*spec, now);
   VLOG(6) << "Elapsed seconds: " << output;
   *spec = now;
@@ -60,3 +62,7 @@ std::optional<double> UpdateIfMillisecondsHavePassed(
 
 }  // namespace editor
 }  // namespace afc
+
+bool operator<(const struct timespec& a, const struct timespec& b) {
+  return a.tv_sec < b.tv_sec || (a.tv_sec == b.tv_sec && a.tv_nsec < b.tv_nsec);
+}
