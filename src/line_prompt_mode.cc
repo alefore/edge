@@ -246,6 +246,9 @@ std::vector<std::wstring> SortMatches(
   using Feature = std::wstring;
   using PromptValue = std::wstring;
 
+  static Tracker tracker(L"LinePrompt::SortMatches");
+  auto call = tracker.Call();
+
   std::unordered_map<PromptValue, double> probability_value;  // p(mi).
   size_t count = 0;
   for (const auto& [prompt_value, data] : matches) {
