@@ -27,7 +27,19 @@ namespace afc {
 namespace editor {
 namespace {
 
+// TODO(easy): Get rid of this.
 using std::make_pair;
+
+std::vector<std::shared_ptr<LazyString>> GetCurrentFeatures(
+    EditorState* editor) {
+  std::vector<std::shared_ptr<LazyString>> output;
+  for (auto& [_, buffer] : *editor->buffers()) {
+    if (buffer->Read(buffer_variables::show_in_buffers_list)) {
+      output.push_back(NewLazyString(buffer->Read(buffer_variables::name)));
+    }
+  }
+  return output;
+}
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
     EditorState* editor_state, const wstring& name) {
@@ -115,12 +127,9 @@ std::shared_ptr<LazyString> BuildHistoryLine(
   std::vector<std::shared_ptr<LazyString>> line_for_history;
   line_for_history.emplace_back(NewLazyString(L"prompt:"));
   line_for_history.emplace_back(QuoteString(std::move(input)));
-  for (auto& [_, buffer] : *editor->buffers()) {
-    if (buffer->Read(buffer_variables::show_in_buffers_list)) {
-      line_for_history.emplace_back(NewLazyString(L" name:"));
-      line_for_history.emplace_back(
-          QuoteString(NewLazyString(buffer->Read(buffer_variables::name))));
-    }
+  for (auto& feature : GetCurrentFeatures(editor)) {
+    line_for_history.emplace_back(NewLazyString(L" name:"));
+    line_for_history.emplace_back(QuoteString(feature));
   }
   return Concatenate(std::move(line_for_history));
 }
@@ -159,8 +168,8 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
       size_t lines_sum = 0;
       std::vector<Token> prompt_tokens;
     };
-    std::vector<Token> filter_tokens = TokenizeBySpaces(*NewLazyString(filter));
     std::map<wstring, Data> matches;
+    std::vector<Token> filter_tokens = TokenizeBySpaces(*NewLazyString(filter));
     history_buffer->contents()->EveryLine([&](LineNumber position,
                                               const Line& line) {
       auto warn_if = [&](bool condition, wstring description) {
