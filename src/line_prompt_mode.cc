@@ -11,6 +11,7 @@
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/command_mode.h"
+#include "src/dirname.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
 #include "src/file_link_mode.h"
@@ -27,18 +28,49 @@ namespace afc {
 namespace editor {
 namespace {
 
-std::multimap<std::wstring, std::shared_ptr<LazyString>> GetCurrentFeatures(
-    EditorState* editor) {
-  std::multimap<std::wstring, std::shared_ptr<LazyString>> output;
+std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+GetCurrentFeatures(EditorState* editor) {
+  std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
   for (auto& [_, buffer] : *editor->buffers()) {
     // We have to deal with nullptr buffers here because this gets called after
     // the entry for the new buffer has been inserted to the editor, but before
     // the buffer has actually been created.
     if (buffer != nullptr &&
-        buffer->Read(buffer_variables::show_in_buffers_list)) {
+        buffer->Read(buffer_variables::show_in_buffers_list) &&
+        editor->buffer_tree()->GetBufferIndex(buffer.get()).has_value()) {
       output.insert(
           {L"name", NewLazyString(buffer->Read(buffer_variables::name))});
     }
+  }
+  return output;
+}
+
+// Generates additional features that are derived from the features returned by
+// GetCurrentFeatures (and thus don't need to be saved).
+std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+GetSyntheticFeatures(
+    const std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>&
+        input) {
+  std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
+  std::unordered_set<std::wstring> directories;
+  std::unordered_set<std::wstring> extensions;
+  for (const auto& [name, value] : input) {
+    if (name == L"name") {
+      auto value_str = value->ToString();
+      if (value_str.find(L'/') != wstring::npos) {
+        directories.insert(Dirname(value_str));
+      }
+      auto extension = SplitExtension(value_str);
+      if (extension.suffix.has_value()) {
+        extensions.insert(extension.suffix.value().extension);
+      }
+    }
+  }
+  for (auto& dir : directories) {
+    output.insert({L"directory", NewLazyString(std::move(dir))});
+  }
+  for (auto& extension : extensions) {
+    output.insert({L"extension", NewLazyString(std::move(extension))});
   }
   return output;
 }
@@ -97,6 +129,9 @@ ParseHistoryLine(EditorState* editor, const std::shared_ptr<LazyString>& line) {
     --value_end;
     output.insert({token.value.substr(0, colon),
                    Substring(line, value_start, value_end - value_start)});
+  }
+  for (auto& additional_features : GetSyntheticFeatures(output)) {
+    output.insert(additional_features);
   }
   return output;
 }
@@ -159,7 +194,7 @@ struct Data {
 // Returns the set of keys from `matches`, sorted by their proportional
 // probability given the current features (in increasing order).
 std::vector<std::wstring> SortMatches(
-    std::multimap<std::wstring, std::shared_ptr<LazyString>> features,
+    std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> features,
     const std::unordered_map<std::wstring, Data>& matches) {
   // Apply naive Bayesian probabilities.
   //
@@ -344,7 +379,10 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
   VLOG(4) << "Matches found: " << matches.size();
 
   // For sorting.
-  for (auto& key : SortMatches(GetCurrentFeatures(editor_state), matches)) {
+  auto features = GetCurrentFeatures(editor_state);
+  auto synthetic_features = GetSyntheticFeatures(features);
+  features.insert(synthetic_features.begin(), synthetic_features.end());
+  for (auto& key : SortMatches(features, matches)) {
     sort(matches[key].prompt_tokens.begin(), matches[key].prompt_tokens.end(),
          [](const Token& a, const Token& b) { return a.begin < b.begin; });
     VLOG(6) << "Producing output: " << key;
