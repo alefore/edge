@@ -75,6 +75,7 @@ ColumnNumberDelta operator-(ColumnNumberDelta a);
 ColumnNumberDelta operator*(ColumnNumberDelta a, const size_t& b);
 ColumnNumberDelta operator*(const size_t& a, ColumnNumberDelta b);
 ColumnNumberDelta operator/(ColumnNumberDelta a, const size_t& b);
+int operator/(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
 ColumnNumberDelta& operator+=(ColumnNumberDelta& a,
                               const ColumnNumberDelta& value);
 ColumnNumberDelta& operator-=(ColumnNumberDelta& a,

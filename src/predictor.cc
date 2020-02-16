@@ -245,6 +245,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 
                    std::wstring pattern, std::wstring prefix,
                    OpenBuffer::LockFunction get_buffer) {
+  CHECK(dir != nullptr);
   VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
   // The length of the longest prefix of `pattern` that matches an entry.
   size_t longest_pattern_match = 0;
@@ -339,6 +340,10 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
     for (const auto& search_path : input.search_paths) {
       VLOG(4) << "Considering search path: " << search_path;
       auto descend_results = DescendDirectoryTree(search_path, input.path);
+      if (descend_results.dir == nullptr) {
+        LOG(WARNING) << "Unable to descend: " << search_path;
+        continue;
+      }
       input.get_buffer([length = descend_results.valid_proper_prefix_length](
                            OpenBuffer* buffer) {
         RegisterPredictorDirectoryMatch(length, buffer);
