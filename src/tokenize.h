@@ -18,6 +18,9 @@ struct Token {
 
 // Given the string: "foo    bar \"hey there\""
 // Returns: {"foo", "bar", "hey there"}
+//
+// Can handle \. For example, the string `foo\" bar\\x` gives the two tokens
+// `foo"` and `bar\x`.
 std::vector<Token> TokenizeBySpaces(const LazyString& command);
 
 // Simpler version of `TokenizeBySpaces` that ignores quotes.

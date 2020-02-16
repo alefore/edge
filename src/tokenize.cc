@@ -22,8 +22,18 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
     } else if (c == '\"') {
       ++i;
       while (i.ToDelta() < command.size() && command.get(i) != '\"') {
+        if (command.get(i) == '\\') {
+          ++i;
+        }
+        if (i.ToDelta() < command.size()) {
+          token.value.push_back(command.get(i));
+          ++i;
+        }
+      }
+    } else if (c == '\\') {
+      ++i;
+      if (i.ToDelta() < command.size()) {
         token.value.push_back(command.get(i));
-        ++i;
       }
     } else {
       token.value.push_back(c);
