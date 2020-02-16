@@ -132,6 +132,7 @@ std::vector<Token> FindFilterPositions(const std::vector<Token>& filter,
         token.has_value()) {
       output.push_back(std::move(token.value()));
     } else {
+      VLOG(8) << "Token not found: " << filter_token.value;
       return {};
     }
   }
