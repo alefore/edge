@@ -27,12 +27,17 @@ namespace afc {
 namespace editor {
 namespace {
 
-std::vector<std::shared_ptr<LazyString>> GetCurrentFeatures(
+std::multimap<std::wstring, std::shared_ptr<LazyString>> GetCurrentFeatures(
     EditorState* editor) {
-  std::vector<std::shared_ptr<LazyString>> output;
+  std::multimap<std::wstring, std::shared_ptr<LazyString>> output;
   for (auto& [_, buffer] : *editor->buffers()) {
-    if (buffer->Read(buffer_variables::show_in_buffers_list)) {
-      output.push_back(NewLazyString(buffer->Read(buffer_variables::name)));
+    // We have to deal with nullptr buffers here because this gets called after
+    // the entry for the new buffer has been inserted to the editor, but before
+    // the buffer has actually been created.
+    if (buffer != nullptr &&
+        buffer->Read(buffer_variables::show_in_buffers_list)) {
+      output.insert(
+          {L"name", NewLazyString(buffer->Read(buffer_variables::name))});
     }
   }
   return output;
@@ -124,8 +129,8 @@ std::shared_ptr<LazyString> BuildHistoryLine(
   std::vector<std::shared_ptr<LazyString>> line_for_history;
   line_for_history.emplace_back(NewLazyString(L"prompt:"));
   line_for_history.emplace_back(QuoteString(std::move(input)));
-  for (auto& feature : GetCurrentFeatures(editor)) {
-    line_for_history.emplace_back(NewLazyString(L" name:"));
+  for (auto& [name, feature] : GetCurrentFeatures(editor)) {
+    line_for_history.emplace_back(NewLazyString(L" " + name + L":"));
     line_for_history.emplace_back(QuoteString(feature));
   }
   return Concatenate(std::move(line_for_history));
@@ -141,6 +146,142 @@ void AddLineToHistory(EditorState* editor, std::wstring history_file,
   history->AppendLine(history_line);
 }
 
+struct Data {
+  // Contains one entry for each execution of the prompt. Each entry
+  // contains all the features that were present when the execution
+  // happened. We'll use this to establish the proportional probability of
+  // each filtered previous value based on the current features.
+  std::vector<std::unordered_set<std::wstring>> features;
+  std::vector<Token> prompt_tokens;
+  LineNumber last_match_line;
+};
+
+// Returns the set of keys from `matches`, sorted by their proportional
+// probability given the current features (in increasing order).
+std::vector<std::wstring> SortMatches(
+    std::multimap<std::wstring, std::shared_ptr<LazyString>> features,
+    const std::unordered_map<std::wstring, Data>& matches) {
+  // Apply naive Bayesian probabilities.
+  //
+  // Let F = f0, f1, ..., fn be the set of features. We want to compute the
+  // probability of m1 given the features: p(mi | F). We know that:
+  //
+  //     p(mi | F) p(F) = p(mi, F)
+  //
+  // Since p(F) will be the same for all i (and thus won't affect our
+  // computations), we get rid of it.
+  //
+  //     p(mi | F) ~= p(mi, F)
+  //
+  // We know that (1)
+  //
+  //     p(mi, F)
+  //   = p(f0, f1, f2, ... fn, mi)
+  //   = p(f0 | f1, f2, ..., fn, mi) *
+  //     p(f1 | f2, ..., fn, mi) *
+  //     ... *
+  //     p(fn | mi) *
+  //     p(mi)
+  //
+  // The naive assumption lets us simplify to p(fj | mi) the expression:
+  //
+  //   p(fj | f(j+1), f(j+2), ... fn, mi)
+  //
+  // So (1) simplifies to:
+  //
+  //     p(mi, F)
+  //   = p(f0 | mi) * ... * p(fn | mi) * p(mi)
+  //   = p(mi) Πj p(fj | mi)
+  //
+  // Πj denotes the multiplication over all values j.
+  //
+  // There's a small catch. For features absent from mi's history (that is, for
+  // features fj where p(fj|mi) is 0), we don't want to fully discard mi (i.e.,
+  // we don't want to assign it a proportional probability of 0). If we did
+  // that, sporadic features would be given too much weight. To achieve this, we
+  // compute a small value epsilon and use:
+  //
+  //     p(mi, F) = p(mi) Πj max(epsilon, p(fj | mi))
+  using Feature = std::wstring;
+  using PromptValue = std::wstring;
+
+  std::unordered_map<PromptValue, double> probability_value;  // p(mi).
+  size_t count = 0;
+  for (const auto& [prompt_value, data] : matches) {
+    count += data.features.size();
+  }
+  for (const auto& [prompt_value, data] : matches) {
+    probability_value[prompt_value] =
+        static_cast<double>(data.features.size()) / count;
+    VLOG(7) << "Probability for " << prompt_value << ": "
+            << probability_value[prompt_value];
+  }
+
+  // feature_probability[mi][fj] represents a value p(fj | mi): the probability
+  // of feature fj given value mi.
+  std::unordered_map<PromptValue, std::unordered_map<Feature, double>>
+      feature_probability_given_prompt_value;
+  for (const auto& [prompt_value, data] : matches) {
+    std::unordered_map<Feature, size_t> feature_count;
+    for (const auto& instance : data.features) {
+      for (const auto& feature : instance) {
+        feature_count[feature]++;
+      }
+    }
+    std::unordered_map<Feature, double>* feature_probability =
+        &feature_probability_given_prompt_value[prompt_value];
+    for (const auto& [feature, count] : feature_count) {
+      feature_probability->insert(
+          {feature, static_cast<double>(count) / data.features.size()});
+      VLOG(8) << "Probability for " << feature << " given " << prompt_value
+              << ": " << feature_probability->find(feature)->second;
+    }
+  }
+
+  double epsilon = 1.0;
+  for (auto& [_, features] : feature_probability_given_prompt_value) {
+    for (auto& [_, value] : features) {
+      epsilon = min(epsilon, value);
+    }
+  }
+  epsilon /= 2;
+  VLOG(5) << "Found epsilon: " << epsilon;
+
+  std::unordered_map<PromptValue, double> current_probability_value;
+  for (const auto& [prompt_value, data] : matches) {
+    double p = probability_value[prompt_value];
+    auto feature_probability =
+        feature_probability_given_prompt_value[prompt_value];
+    for (const auto& [feature_name, feature_value] : features) {
+      auto feature_key =
+          feature_name + L":" + QuoteString(feature_value)->ToString();
+      if (auto it = feature_probability.find(feature_key);
+          it != feature_probability.end()) {
+        VLOG(9) << prompt_value << ": Feature " << feature_key
+                << " contributes prob: " << it->second;
+        p *= it->second;
+      } else {
+        VLOG(9) << prompt_value << ": Feature " << feature_key
+                << " contributes epsilon.";
+        p *= epsilon;
+      }
+    }
+    VLOG(6) << "Current probability for " << prompt_value << ": " << p;
+    current_probability_value[prompt_value] = p;
+  }
+
+  std::vector<std::wstring> output;
+  for (const auto& [prompt_value, _] : matches) {
+    output.push_back(prompt_value);
+  }
+  sort(output.begin(), output.end(),
+       [&current_probability_value](const std::wstring& a,
+                                    const std::wstring& b) {
+         return current_probability_value[a] < current_probability_value[b];
+       });
+  return output;
+}
+
 std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
                                           OpenBuffer* history_buffer,
                                           std::wstring filter) {
@@ -148,97 +289,89 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
   auto name = L"- history filter: " +
               history_buffer->Read(buffer_variables::name) + L": " + filter;
   auto element = editor_state->buffers()->insert({name, nullptr}).first;
-  if (element->second == nullptr) {
-    auto filter_buffer =
-        OpenBuffer::New({.editor = editor_state, .name = name});
-    filter_buffer->Set(buffer_variables::allow_dirty_delete, true);
-    filter_buffer->Set(buffer_variables::show_in_buffers_list, false);
-    filter_buffer->Set(buffer_variables::delete_into_paste_buffer, false);
-    filter_buffer->Set(buffer_variables::atomic_lines, true);
-    filter_buffer->Set(buffer_variables::line_width, 1);
+  auto filter_buffer = OpenBuffer::New({.editor = editor_state, .name = name});
+  filter_buffer->Set(buffer_variables::allow_dirty_delete, true);
+  filter_buffer->Set(buffer_variables::show_in_buffers_list, false);
+  filter_buffer->Set(buffer_variables::delete_into_paste_buffer, false);
+  filter_buffer->Set(buffer_variables::atomic_lines, true);
+  filter_buffer->Set(buffer_variables::line_width, 1);
 
-    struct Data {
-      // The sum of the line positions at which it occurs. If it only occurs
-      // once, it'll be just the position in which it occurred. This is a simple
-      // way to try to put more relevant things towards the bottom: things that
-      // have been used more frequently and more recently.
-      size_t lines_sum = 0;
-      std::vector<Token> prompt_tokens;
+  std::unordered_map<wstring, Data> matches;
+  std::vector<Token> filter_tokens = TokenizeBySpaces(*NewLazyString(filter));
+  history_buffer->contents()->EveryLine([&](LineNumber position,
+                                            const Line& line) {
+    auto warn_if = [&](bool condition, wstring description) {
+      if (condition) {
+        editor_state->status()->SetWarningText(description + L": " +
+                                               line.contents()->ToString());
+      }
+      return condition;
     };
-    std::map<wstring, Data> matches;
-    std::vector<Token> filter_tokens = TokenizeBySpaces(*NewLazyString(filter));
-    history_buffer->contents()->EveryLine([&](LineNumber position,
-                                              const Line& line) {
-      auto warn_if = [&](bool condition, wstring description) {
-        if (condition) {
-          editor_state->status()->SetWarningText(description + L": " +
-                                                 line.contents()->ToString());
-        }
-        return condition;
-      };
-      auto line_keys = ParseHistoryLine(editor_state, line.contents());
-      if (!line_keys.has_value()) return true;
-      auto range = line_keys.value().equal_range(L"prompt");
-      int prompt_count = std::distance(range.first, range.second);
-      if (warn_if(prompt_count == 0, L"Line is missing `prompt` section") ||
-          warn_if(prompt_count != 1, L"Line has multiple `prompt` sections")) {
-        return true;
-      }
-      auto prompt_value = range.first->second;
-      VLOG(8) << "Considering history value: " << prompt_value->ToString();
-      std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-          prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-      if (filter_tokens.empty()) {
-        VLOG(6) << "Accepting value (empty filters): " << line.ToString();
-        auto& output = matches[prompt_value->ToString()];
-        output.lines_sum += position.line;
-      } else if (auto match = FindFilterPositions(filter_tokens, line_tokens);
-                 !match.empty()) {
-        VLOG(5) << "Accepting value, produced a match: " << line.ToString();
-        auto& output = matches[prompt_value->ToString()];
-        output.lines_sum += position.line;
-        output.prompt_tokens = std::move(match);
-      }
+    auto line_keys = ParseHistoryLine(editor_state, line.contents());
+    if (!line_keys.has_value()) return true;
+    auto range = line_keys.value().equal_range(L"prompt");
+    int prompt_count = std::distance(range.first, range.second);
+    if (warn_if(prompt_count == 0, L"Line is missing `prompt` section") ||
+        warn_if(prompt_count != 1, L"Line has multiple `prompt` sections")) {
       return true;
-    });
-
-    VLOG(4) << "Matches found: " << matches.size();
-
-    // For sorting.
-    std::vector<std::pair<size_t, wstring>> matches_by_lines_sum;
-    for (auto& [line_key, data] : matches) {
-      matches_by_lines_sum.push_back({data.lines_sum, line_key});
     }
-    sort(matches_by_lines_sum.begin(), matches_by_lines_sum.end());
-    for (auto& [_, key] : matches_by_lines_sum) {
-      sort(matches[key].prompt_tokens.begin(), matches[key].prompt_tokens.end(),
-           [](const Token& a, const Token& b) { return a.begin < b.begin; });
-      VLOG(6) << "Producing output: " << key;
-      Line::Options options;
-      ColumnNumber position;
-      auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
-        if (end <= position) return;
-        options.AppendString(
-            key.substr(position.column, (end - position).column_delta),
-            std::move(modifiers));
-        position = end;
-      };
-      for (const auto& token : matches[key].prompt_tokens) {
-        push_to_position(token.begin, {});
-        push_to_position(token.end, {LineModifier::BOLD});
+    auto prompt_value = range.first->second;
+    VLOG(8) << "Considering history value: " << prompt_value->ToString();
+    std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+        prompt_value, TokenizeNameForPrefixSearches(prompt_value));
+    Data* output = nullptr;
+    if (filter_tokens.empty()) {
+      VLOG(6) << "Accepting value (empty filters): " << line.ToString();
+      output = &matches[prompt_value->ToString()];
+    } else if (auto match = FindFilterPositions(filter_tokens, line_tokens);
+               !match.empty()) {
+      VLOG(5) << "Accepting value, produced a match: " << line.ToString();
+      output = &matches[prompt_value->ToString()];
+      output->prompt_tokens = std::move(match);
+    }
+    if (output == nullptr) return true;
+    output->last_match_line = position;
+    std::unordered_set<std::wstring> features;
+    for (auto& [key, value] : line_keys.value()) {
+      if (key != L"prompt") {
+        features.insert(key + L":" + QuoteString(value)->ToString());
       }
-      push_to_position(ColumnNumber(key.size()), {});
-      filter_buffer->AppendRawLine(std::make_shared<Line>(std::move(options)));
     }
+    output->features.push_back(std::move(features));
+    return true;
+  });
 
-    if (filter_buffer->lines_size() > LineNumberDelta(1)) {
-      VLOG(5) << "Erasing the first (empty) line.";
-      CHECK(filter_buffer->LineAt(LineNumber())->empty());
-      filter_buffer->EraseLines(LineNumber(), LineNumber().next());
+  VLOG(4) << "Matches found: " << matches.size();
+
+  // For sorting.
+  for (auto& key : SortMatches(GetCurrentFeatures(editor_state), matches)) {
+    sort(matches[key].prompt_tokens.begin(), matches[key].prompt_tokens.end(),
+         [](const Token& a, const Token& b) { return a.begin < b.begin; });
+    VLOG(6) << "Producing output: " << key;
+    Line::Options options;
+    ColumnNumber position;
+    auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
+      if (end <= position) return;
+      options.AppendString(
+          key.substr(position.column, (end - position).column_delta),
+          std::move(modifiers));
+      position = end;
+    };
+    for (const auto& token : matches[key].prompt_tokens) {
+      push_to_position(token.begin, {});
+      push_to_position(token.end, {LineModifier::BOLD});
     }
-
-    element->second = std::move(filter_buffer);
+    push_to_position(ColumnNumber(key.size()), {});
+    filter_buffer->AppendRawLine(std::make_shared<Line>(std::move(options)));
   }
+
+  if (filter_buffer->lines_size() > LineNumberDelta(1)) {
+    VLOG(5) << "Erasing the first (empty) line.";
+    CHECK(filter_buffer->LineAt(LineNumber())->empty());
+    filter_buffer->EraseLines(LineNumber(), LineNumber().next());
+  }
+
+  element->second = std::move(filter_buffer);
   return element->second;
 }
 
