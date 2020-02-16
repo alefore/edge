@@ -15,6 +15,7 @@
 #include "src/editor_mode.h"
 #include "src/file_link_mode.h"
 #include "src/insert_mode.h"
+#include "src/lazy_string_append.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
 #include "src/tokenize.h"
@@ -56,10 +57,87 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   return it;
 }
 
+std::optional<
+    std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>>
+ParseHistoryLine(EditorState* editor, const std::shared_ptr<LazyString>& line) {
+  std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
+  for (const auto& token : TokenizeBySpaces(*line)) {
+    auto colon = token.value.find(':');
+    if (colon == string::npos) {
+      editor->status()->SetWarningText(
+          L"Unable to parse prompt line (no colon found in token): " +
+          line->ToString());
+      return std::nullopt;
+    }
+    ColumnNumber value_start = token.begin + ColumnNumberDelta(colon);
+    ++value_start;  // Skip the colon.
+    ColumnNumber value_end = token.end;
+    if (value_end == value_start || line->get(value_start) != '\"' ||
+        line->get(value_end.previous()) != '\"') {
+      editor->status()->SetWarningText(
+          L"Unable to parse prompt line (expected quote): " + line->ToString());
+      return std::nullopt;
+    }
+    // Skip quotes:
+    ++value_start;
+    --value_end;
+    output.insert({token.value.substr(0, colon),
+                   Substring(line, value_start, value_end - value_start)});
+  }
+  return output;
+}
+
+std::shared_ptr<LazyString> QuoteString(std::shared_ptr<LazyString> src) {
+  std::vector<std::shared_ptr<LazyString>> output;
+  ColumnNumber begin;
+  while (begin.ToDelta() < src->size()) {
+    auto end = begin;
+    while (end.ToDelta() < src->size() && src->get(end) != L'\"' &&
+           src->get(end) != L'\\') {
+      ++end;
+    }
+    if (begin < end) {
+      output.emplace_back(Substring(src, begin, end - begin));
+    }
+    begin = end;
+    if (begin.ToDelta() < src->size()) {
+      CHECK(src->get(begin) == L'\\' || src->get(begin) == L'\"');
+      output.emplace_back(NewLazyString(std::wstring{L'\\', src->get(begin)}));
+      ++begin;
+    }
+  }
+  return StringAppend(NewLazyString(L"\""), Concatenate(output),
+                      NewLazyString(L"\""));
+}
+
+std::shared_ptr<LazyString> BuildHistoryLine(
+    EditorState* editor, std::shared_ptr<LazyString> input) {
+  std::vector<std::shared_ptr<LazyString>> line_for_history;
+  line_for_history.emplace_back(NewLazyString(L"prompt:"));
+  line_for_history.emplace_back(QuoteString(std::move(input)));
+  for (auto& [_, buffer] : *editor->buffers()) {
+    if (buffer->Read(buffer_variables::show_in_buffers_list)) {
+      line_for_history.emplace_back(NewLazyString(L" name:"));
+      line_for_history.emplace_back(
+          QuoteString(NewLazyString(buffer->Read(buffer_variables::name))));
+    }
+  }
+  return Concatenate(std::move(line_for_history));
+}
+
+void AddLineToHistory(EditorState* editor, std::wstring history_file,
+                      std::shared_ptr<LazyString> input) {
+  if (input->size().IsZero()) return;
+  auto history = GetHistoryBuffer(editor, history_file)->second;
+  CHECK(history != nullptr);
+  auto history_line = BuildHistoryLine(editor, input);
+  CHECK(history_line != nullptr);
+  history->AppendLine(history_line);
+}
+
 std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
                                           OpenBuffer* history_buffer,
                                           std::wstring filter) {
-  CHECK(!filter.empty());
   CHECK(history_buffer != nullptr);
   auto name = L"- history filter: " +
               history_buffer->Read(buffer_variables::name) + L": " + filter;
@@ -74,27 +152,51 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     filter_buffer->Set(buffer_variables::line_width, 1);
 
     struct Data {
-      // The sum of the line positions at which it occurs. If it
-      // only occurs once, it'll be just the position in which it occurred. This
-      // is a simple way to try to put more relevant things towards the bottom:
-      // things that have been used more frequently and more recently.
+      // The sum of the line positions at which it occurs. If it only occurs
+      // once, it'll be just the position in which it occurred. This is a simple
+      // way to try to put more relevant things towards the bottom: things that
+      // have been used more frequently and more recently.
       size_t lines_sum = 0;
-      std::vector<Token> tokens;
+      std::vector<Token> prompt_tokens;
     };
     std::vector<Token> filter_tokens = TokenizeBySpaces(*NewLazyString(filter));
     std::map<wstring, Data> matches;
-    history_buffer->contents()->EveryLine(
-        [&](LineNumber position, const Line& line) {
-          std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-              line.contents(), TokenizeNameForPrefixSearches(line.contents()));
-          if (auto match = FindFilterPositions(filter_tokens, line_tokens);
-              !match.empty()) {
-            auto& output = matches[line.ToString()];
-            output.lines_sum += position.line;
-            output.tokens = std::move(match);
-          }
-          return true;
-        });
+    history_buffer->contents()->EveryLine([&](LineNumber position,
+                                              const Line& line) {
+      auto warn_if = [&](bool condition, wstring description) {
+        if (condition) {
+          editor_state->status()->SetWarningText(description + L": " +
+                                                 line.contents()->ToString());
+        }
+        return condition;
+      };
+      auto line_keys = ParseHistoryLine(editor_state, line.contents());
+      if (!line_keys.has_value()) return true;
+      auto range = line_keys.value().equal_range(L"prompt");
+      int prompt_count = std::distance(range.first, range.second);
+      if (warn_if(prompt_count == 0, L"Line is missing `prompt` section") ||
+          warn_if(prompt_count != 1, L"Line has multiple `prompt` sections")) {
+        return true;
+      }
+      auto prompt_value = range.first->second;
+      VLOG(8) << "Considering history value: " << prompt_value->ToString();
+      std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+          prompt_value, TokenizeNameForPrefixSearches(prompt_value));
+      if (filter_tokens.empty()) {
+        VLOG(6) << "Accepting value (empty filters): " << line.ToString();
+        auto& output = matches[prompt_value->ToString()];
+        output.lines_sum += position.line;
+      } else if (auto match = FindFilterPositions(filter_tokens, line_tokens);
+                 !match.empty()) {
+        VLOG(5) << "Accepting value, produced a match: " << line.ToString();
+        auto& output = matches[prompt_value->ToString()];
+        output.lines_sum += position.line;
+        output.prompt_tokens = std::move(match);
+      }
+      return true;
+    });
+
+    VLOG(4) << "Matches found: " << matches.size();
 
     // For sorting.
     std::vector<std::pair<size_t, wstring>> matches_by_lines_sum;
@@ -103,8 +205,9 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     }
     sort(matches_by_lines_sum.begin(), matches_by_lines_sum.end());
     for (auto& [_, key] : matches_by_lines_sum) {
-      sort(matches[key].tokens.begin(), matches[key].tokens.end(),
+      sort(matches[key].prompt_tokens.begin(), matches[key].prompt_tokens.end(),
            [](const Token& a, const Token& b) { return a.begin < b.begin; });
+      VLOG(6) << "Producing output: " << key;
       Line::Options options;
       ColumnNumber position;
       auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
@@ -114,7 +217,7 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
             std::move(modifiers));
         position = end;
       };
-      for (const auto& token : matches[key].tokens) {
+      for (const auto& token : matches[key].prompt_tokens) {
         push_to_position(token.begin, {});
         push_to_position(token.end, {LineModifier::BOLD});
       }
@@ -124,6 +227,7 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
 
     if (filter_buffer->lines_size() > LineNumberDelta(1)) {
       VLOG(5) << "Erasing the first (empty) line.";
+      CHECK(filter_buffer->LineAt(LineNumber())->empty());
       filter_buffer->EraseLines(LineNumber(), LineNumber().next());
     }
 
@@ -250,12 +354,10 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
         buffer_(std::move(buffer)) {}
 
   std::unique_ptr<ScrollBehavior> Build() override {
-    auto history = history_;
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     auto input = buffer_->LineAt(LineNumber(0))->contents();
-    if (!input->size().IsZero()) {
-      history = FilterHistory(editor_state_, history.get(), input->ToString());
-    }
+    auto history =
+        FilterHistory(editor_state_, history_.get(), input->ToString());
     history->set_current_position_line(LineNumber(0) +
                                        history->contents()->size());
     return std::make_unique<HistoryScrollBehavior>(history, input, status_);
@@ -345,7 +447,6 @@ void Prompt(PromptOptions options) {
     editor_state->set_modifiers(original_modifiers);
     status->Reset();
 
-    // We make a copy in case cancel_handler or handler delete us.
     if (options.cancel_handler) {
       VLOG(5) << "Running cancel handler.";
       options.cancel_handler(editor_state);
@@ -360,16 +461,7 @@ void Prompt(PromptOptions options) {
       [editor_state, options, status,
        original_modifiers](const std::shared_ptr<OpenBuffer>& buffer) {
         auto input = buffer->current_line()->contents();
-        if (input->size() != ColumnNumberDelta(0)) {
-          auto history =
-              GetHistoryBuffer(editor_state, options.history_file)->second;
-          CHECK(history != nullptr);
-          if (history->contents()->size() == LineNumberDelta(0) ||
-              (history->contents()->at(history->EndLine())->ToString() !=
-               input->ToString())) {
-            history->AppendLine(input);
-          }
-        }
+        AddLineToHistory(buffer->editor(), options.history_file, input);
         auto ensure_survival_of_current_closure =
             editor_state->keyboard_redirect();
         editor_state->set_keyboard_redirect(nullptr);
