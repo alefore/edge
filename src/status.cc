@@ -153,6 +153,7 @@ Status::SetExpiringInformationText(std::wstring text) {
 void Status::SetWarningText(std::wstring text) {
   ValidatePreconditions();
 
+  LOG(INFO) << "Warning: " << text;
   GenerateAlert(audio_player_);
   if (data_->prompt_buffer != nullptr) {
     return;
