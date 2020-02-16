@@ -20,7 +20,7 @@ namespace editor {
 // discard it when the operation completes:
 //
 //     if (something) {
-//       static Tracker tracker(...);
+//       static Tracker tracker(L"Line::Output");
 //       auto call = tracker.Call();
 //       ... heavy evaluation ...
 //     }
