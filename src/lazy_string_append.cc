@@ -68,5 +68,15 @@ std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
                       StringAppend(std::move(c), std::move(d)));
 }
 
+std::shared_ptr<LazyString> Concatenate(
+    std::vector<std::shared_ptr<LazyString>> inputs) {
+  // TODO: There's probably a faster way to do this. Not sure it matters.
+  auto output = EmptyString();
+  for (auto& i : inputs) {
+    output = StringAppend(output, i);
+  }
+  return output;
+}
+
 }  // namespace editor
 }  // namespace afc
