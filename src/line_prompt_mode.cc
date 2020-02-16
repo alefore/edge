@@ -27,9 +27,6 @@ namespace afc {
 namespace editor {
 namespace {
 
-// TODO(easy): Get rid of this.
-using std::make_pair;
-
 std::vector<std::shared_ptr<LazyString>> GetCurrentFeatures(
     EditorState* editor) {
   std::vector<std::shared_ptr<LazyString>> output;
@@ -248,7 +245,7 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
 shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
                                        EditorState* editor_state) {
   auto& element =
-      *editor_state->buffers()->insert(make_pair(L"- prompt", nullptr)).first;
+      *editor_state->buffers()->insert({L"- prompt", nullptr}).first;
   if (element.second == nullptr) {
     element.second =
         OpenBuffer::New({.editor = editor_state, .name = element.first});
