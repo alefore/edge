@@ -154,6 +154,8 @@ src/status_output_producer.h \
 src/structure.cc \
 src/substring.cc \
 src/terminal.cc \
+src/tests/tests.cc \
+src/tests/tests.h \
 src/time.cc \
 src/time.h \
 src/tokenize.cc \
