@@ -11,6 +11,7 @@
 #include "src/horizontal_split_output_producer.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_trim.h"
+#include "src/tests/tests.h"
 #include "src/time.h"
 #include "src/widget.h"
 
@@ -375,39 +376,104 @@ void BuffersList::ForEachBufferWidgetConst(
   widget_->ForEachBufferWidgetConst(callback);
 }
 
+namespace {
+struct Layout {
+  size_t buffers_per_line;
+  LineNumberDelta lines;
+};
+
+Layout BuffersPerLine(ColumnNumberDelta width, size_t buffers_count) {
+  double count = buffers_count;
+  static const auto kMinimumColumnsPerBuffer = ColumnNumberDelta(20);
+  size_t max_buffers_per_line = width / kMinimumColumnsPerBuffer;
+  auto lines = LineNumberDelta(ceil(count / max_buffers_per_line));
+  return Layout{
+      .buffers_per_line = static_cast<size_t>(ceil(count / lines.line_delta)),
+      .lines = lines};
+}
+
+class BuffersPerLineTests : public tests::TestGroup<BuffersPerLineTests> {
+ public:
+  std::wstring Name() const override { return L"BuffersPerLineTests"; }
+  std::vector<tests::Test> Tests() const override {
+    // TODO(easy): Add more tests.
+    return {{.name = L"SingleBuffer",
+             .callback =
+                 [] {
+                   auto layout = BuffersPerLine(ColumnNumberDelta(100), 1);
+                   CHECK_EQ(layout.lines, LineNumberDelta(1));
+                   CHECK_EQ(layout.buffers_per_line, 1ul);
+                 }},
+            {.name = L"SingleLine",
+             .callback =
+                 [] {
+                   auto layout = BuffersPerLine(ColumnNumberDelta(100), 4);
+                   CHECK_EQ(layout.lines, LineNumberDelta(1));
+                   CHECK_EQ(layout.buffers_per_line, 4ul);
+                 }},
+            {.name = L"SingleLineFull",
+             .callback =
+                 [] {
+                   auto layout = BuffersPerLine(ColumnNumberDelta(100), 5);
+                   CHECK_EQ(layout.lines, LineNumberDelta(1));
+                   CHECK_EQ(layout.buffers_per_line, 5ul);
+                 }},
+            {.name = L"TwoLinesJustAtBoundary",
+             .callback =
+                 [] {
+                   // Identical to SingleLineFull, but the buffers don't fit by
+                   // 1 position.
+                   auto layout = BuffersPerLine(ColumnNumberDelta(99), 5);
+                   CHECK_EQ(layout.lines, LineNumberDelta(2));
+                   CHECK_EQ(layout.buffers_per_line, 3ul);
+                 }},
+            {.name = L"ThreeLines",
+             .callback =
+                 [] {
+                   auto layout = BuffersPerLine(ColumnNumberDelta(100), 11);
+                   CHECK_EQ(layout.lines, LineNumberDelta(3));
+                   CHECK_EQ(layout.buffers_per_line, 4ul);
+                 }},
+            {.name = L"ManyLines", .callback = [] {
+               auto layout = BuffersPerLine(ColumnNumberDelta(100), 250);
+               CHECK_EQ(layout.lines, LineNumberDelta(50));
+               CHECK_EQ(layout.buffers_per_line, 5ul);
+             }}};
+  }
+};
+
+template <>
+const bool tests::TestGroup<BuffersPerLineTests>::registration_ =
+    tests::Add<editor::BuffersPerLineTests>();
+}  // namespace
+
 std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
     OutputProducerOptions options) const {
-  static const auto kMinimumColumnsPerBuffer = ColumnNumberDelta(20);
-
-  size_t buffers_per_line = options.size.column / kMinimumColumnsPerBuffer;
-  auto buffers_list_lines = LineNumberDelta(
-      ceil(static_cast<double>(buffers_.size()) / buffers_per_line));
-  VLOG(1) << "Buffers list lines: " << buffers_list_lines
+  auto layout = BuffersPerLine(options.size.column, buffers_.size());
+  VLOG(1) << "Buffers list lines: " << layout.lines
           << ", size: " << buffers_.size()
           << ", size column: " << options.size.column;
 
-  options.size.line -= buffers_list_lines;
+  options.size.line -= layout.lines;
   CHECK(widget_ != nullptr);
   auto output = widget_->CreateOutputProducer(options);
-  if (buffers_list_lines == LineNumberDelta(0)) {
-    return output;
-  }
+  if (layout.lines.IsZero()) return output;
 
   std::vector<HorizontalSplitOutputProducer::Row> rows;
   rows.push_back({std::move(output), options.size.line});
 
-  if (buffers_list_lines > LineNumberDelta(0)) {
-    VLOG(2) << "Buffers per line: " << buffers_per_line
+  if (layout.lines > LineNumberDelta(0)) {
+    VLOG(2) << "Buffers per line: " << layout.buffers_per_line
             << ", from: " << buffers_.size()
-            << " buffers with lines: " << buffers_list_lines;
+            << " buffers with lines: " << layout.lines;
 
     rows.push_back({std::make_unique<BuffersListProducer>(BuffersListOptions{
                         .buffers = &buffers_,
                         .active_buffer = widget_->GetActiveLeaf()->Lock(),
-                        .buffers_per_line = buffers_per_line,
+                        .buffers_per_line = layout.buffers_per_line,
                         .width = options.size.column,
                         .filter = OptimizeFilter(filter_)}),
-                    buffers_list_lines});
+                    layout.lines});
   }
 
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);
