@@ -160,6 +160,7 @@ src/time.cc \
 src/time.h \
 src/tokenize.cc \
 src/tokenize.h \
+src/tokenize_test.cc \
 src/tracker.cc \
 src/tracker.h \
 src/transformation/composite.cc \
