@@ -44,6 +44,9 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   // If true, after creating all buffers specified by other command line flags,
   // start a prompt for opening a file.
   bool prompt_for_path = false;
+
+  enum class TestsBehavior { kIgnore, kRunAndExit, kListAndExit };
+  TestsBehavior tests_behavior = TestsBehavior::kIgnore;
 };
 
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&

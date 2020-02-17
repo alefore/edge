@@ -151,7 +151,25 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"communicated with the parent (without waiting for the user to "
               L"delete corresponding buffers.")
           .Set(&CommandLineValues::nested_edge_behavior,
-               CommandLineValues::NestedEdgeBehavior::kExitEarly)};
+               CommandLineValues::NestedEdgeBehavior::kExitEarly),
+
+      Handler<CommandLineValues>({L"tests"}, L"Unit tests behavior")
+          .Require(
+              L"behavior",
+              L"The behavior for tests. Valid values are `run` and `list`.")
+          .Set<CommandLineValues::TestsBehavior>(
+              &CommandLineValues::tests_behavior,
+              [](std::wstring input, std::wstring* error)
+                  -> std::optional<CommandLineValues::TestsBehavior> {
+                if (input == L"run")
+                  return CommandLineValues::TestsBehavior::kRunAndExit;
+                if (input == L"list")
+                  return CommandLineValues::TestsBehavior::kListAndExit;
+                *error =
+                    L"Invalid value (valid values are `run` and `list`): " +
+                    input;
+                return std::nullopt;
+              })};
   return handlers;
 }
 
