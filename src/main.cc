@@ -30,6 +30,7 @@ extern "C" {
 #include "src/screen_vm.h"
 #include "src/server.h"
 #include "src/terminal.h"
+#include "src/tests/tests.h"
 #include "src/time.h"
 #include "src/vm/public/value.h"
 #include "src/wstring.h"
@@ -207,6 +208,17 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Creating editor.";
   global_editor_state = std::make_unique<EditorState>(args, audio_player.get());
+
+  switch (args.tests_behavior) {
+    case CommandLineValues::TestsBehavior::kRunAndExit:
+      afc::tests::Run();
+      exit(0);
+    case CommandLineValues::TestsBehavior::kListAndExit:
+      afc::tests::List();
+      exit(0);
+    case CommandLineValues::TestsBehavior::kIgnore:
+      break;
+  }
 
   int remote_server_fd = -1;
   bool connected_to_parent = false;
