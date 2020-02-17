@@ -118,6 +118,28 @@ class Handler {
     });
   }
 
+  template <typename Type>
+  Handler<ParsedValues>& Set(Type ParsedValues::*field,
+                             std::function<std::optional<Type>(
+                                 std::wstring input, std::wstring* error)>
+                                 callback) {
+    return PushDelegate([field, callback](ParsingData<ParsedValues>* data) {
+      if (!data->current_value.has_value()) {
+        std::cerr << data->output.binary_name << ": " << data->current_flag
+                  << ": Expected value." << std::endl;
+        exit(EX_USAGE);
+      }
+      std::wstring error;
+      auto value = callback(data->current_value.value(), &error);
+      if (!value.has_value()) {
+        std::cerr << data->output.binary_name << ": " << data->current_flag
+                  << ": " << error << std::endl;
+        exit(EX_USAGE);
+      }
+      (data->output.*field) = value.value();
+    });
+  }
+
   Handler<ParsedValues>& Set(std::wstring ParsedValues::*field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value()) {
