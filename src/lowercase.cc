@@ -47,7 +47,7 @@ class LowerCaseTests : public tests::TestGroup<LowerCaseTests> {
                  L"alejandro forero");
          }}};
   }
-};  // namespace
+};
 
 template <>
 const bool tests::TestGroup<LowerCaseTests>::registration_ =
