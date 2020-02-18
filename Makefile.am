@@ -16,6 +16,8 @@ src/audio.cc \
 src/audio.h \
 src/args.cc \
 src/args.h \
+src/naive_bayes.cc \
+src/naive_bayes.h \
 src/buffer.cc \
 src/buffer.h \
 src/buffer_contents.cc \
