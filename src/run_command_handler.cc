@@ -371,9 +371,9 @@ class ForkEditorCommand : public Command {
       options.prompt = children_path + L"$ ";
       options.history_file = L"commands";
       if (prompt_state->context_command_callback != nullptr) {
-        options.change_handler =
-            [prompt_state](const std::shared_ptr<OpenBuffer>& prompt_buffer) {
-              return PromptChange(prompt_state.get(), prompt_buffer);
+        options.colorize_options_provider =
+            [prompt_state](const std::shared_ptr<LazyString>& line) {
+              return PromptChange(prompt_state.get(), line);
             };
       }
       options.handler = [children_path](const wstring& name,
@@ -402,40 +402,37 @@ class ForkEditorCommand : public Command {
   }
 
  private:
-  static futures::Value<bool> PromptChange(
-      PromptState* prompt_state,
-      const std::shared_ptr<OpenBuffer>& prompt_buffer) {
+  static futures::Value<ColorizePromptOptions> PromptChange(
+      PromptState* prompt_state, const std::shared_ptr<LazyString>& line) {
     CHECK(prompt_state != nullptr);
     CHECK(prompt_state->context_command_callback);
-    CHECK(prompt_buffer->editor()->status()->GetType() ==
-          Status::Type::kPrompt);
-    const auto line = prompt_buffer->LineAt(LineNumber(0))->ToString();
+    auto editor = prompt_state->original_buffer->editor();
+    CHECK(editor->status()->GetType() == Status::Type::kPrompt);
     std::vector<std::unique_ptr<Expression>> arguments;
-    arguments.push_back(vm::NewConstantExpression(vm::Value::NewString(line)));
+    arguments.push_back(
+        vm::NewConstantExpression(vm::Value::NewString(line->ToString())));
     std::shared_ptr<Expression> expression = vm::NewFunctionCall(
         vm::NewConstantExpression(
             std::make_unique<Value>(*prompt_state->context_command_callback)),
         std::move(arguments));
     if (expression->Types().empty()) {
       prompt_state->base_command = std::nullopt;
-      prompt_buffer->editor()->status()->set_prompt_context(nullptr);
       prompt_state->original_buffer->status()->SetWarningText(
           L"Unable to compile (type mismatch).");
-      return futures::Past(true);
+      return futures::Past(ColorizePromptOptions{.context = nullptr});
     }
     return futures::Transform(
         prompt_state->original_buffer->EvaluateExpression(expression.get()),
-        [prompt_state, prompt_buffer](std::unique_ptr<Value> value) {
+        [prompt_state, editor](std::unique_ptr<Value> value) {
           CHECK(value->IsString());
           auto base_command = value->str;
           if (prompt_state->base_command == base_command) {
-            return true;
+            return ColorizePromptOptions{};
           }
 
           if (base_command.empty()) {
             prompt_state->base_command = std::nullopt;
-            prompt_buffer->editor()->status()->set_prompt_context(nullptr);
-            return true;
+            return ColorizePromptOptions{.context = nullptr};
           }
 
           prompt_state->base_command = base_command;
@@ -443,12 +440,11 @@ class ForkEditorCommand : public Command {
           options.command = base_command;
           options.name = L"- help: " + base_command;
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
-          auto help_buffer = ForkCommand(prompt_buffer->editor(), options);
+          auto help_buffer = ForkCommand(editor, options);
           help_buffer->Set(buffer_variables::follow_end_of_file, false);
           help_buffer->Set(buffer_variables::show_in_buffers_list, false);
           help_buffer->set_position({});
-          prompt_buffer->editor()->status()->set_prompt_context(help_buffer);
-          return true;
+          return ColorizePromptOptions{.context = help_buffer};
         });
   }
 };

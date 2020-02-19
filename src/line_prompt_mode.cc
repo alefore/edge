@@ -461,26 +461,30 @@ class LinePromptCommand : public Command {
 // between the time when `ColorizePrompt` is executed and the time when the
 // tokens become available.
 futures::Value<bool> ColorizePrompt(
-    std::shared_ptr<OpenBuffer> status_buffer,
+    std::shared_ptr<OpenBuffer> status_buffer, Status* status,
     futures::Value<ColorizePromptOptions> tokens_future) {
   CHECK(status_buffer != nullptr);
   CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
   auto original_line = status_buffer->LineAt(LineNumber(0));
 
-  return futures::Transform(tokens_future, [status_buffer, original_line](
-                                               ColorizePromptOptions options) {
-    CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
-    auto line = status_buffer->LineAt(LineNumber(0));
-    if (original_line->ToString() != line->ToString()) {
-      LOG(INFO) << "Line has changed, ignoring call to `DrawPath`.";
-      return futures::Past(true);
-    }
+  return futures::Transform(
+      tokens_future,
+      [status_buffer, status, original_line](ColorizePromptOptions options) {
+        CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
+        auto line = status_buffer->LineAt(LineNumber(0));
+        if (original_line->ToString() != line->ToString()) {
+          LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
+          return futures::Past(true);
+        }
 
-    status_buffer->AppendRawLine(
-        ColorizeLine(line->contents(), std::move(options.tokens)));
-    status_buffer->EraseLines(LineNumber(0), LineNumber(1));
-    return futures::Past(true);
-  });
+        status_buffer->AppendRawLine(
+            ColorizeLine(line->contents(), std::move(options.tokens)));
+        status_buffer->EraseLines(LineNumber(0), LineNumber(1));
+        if (options.context.has_value()) {
+          status->set_prompt_context(options.context.value());
+        }
+        return futures::Past(true);
+      });
 }
 }  // namespace
 
@@ -531,7 +535,7 @@ void Prompt(PromptOptions options) {
         return futures::Transform(
             options.colorize_options_provider == nullptr
                 ? futures::Past(true)
-                : ColorizePrompt(buffer,
+                : ColorizePrompt(buffer, status,
                                  options.colorize_options_provider(line)),
             [buffer, options](bool) { return options.change_handler(buffer); });
       };
