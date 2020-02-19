@@ -81,7 +81,7 @@ When autocompletion of files fails, have a fail back:
 
 When the prompt doesn't fit the screen, be smarter about what part to show? If it has a cursor, whatever is closest?
 
-On history filter scroll (e.g., pressing up arrow), split the current line into strings (by space) and filter lines that contain all the strings. For example, "test foo" would match command "something test blah blah foo blah" (because line contains both "test" and "foo"). That'd be more useful than only matching lines that contain "test foo".
+Standardize the colorization of prompts (based on prediction), rather than having each prompt implement its own coloring?
 
 For `:` (vm command), improve the highlighter: enable autocompletion with a predictor that looks up available commands (similarish to `/`).
 
