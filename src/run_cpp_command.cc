@@ -140,25 +140,23 @@ futures::Value<bool> RunCppCommandShellHandler(const std::wstring& command,
                             futures::Past(true));
 }
 
-futures::Value<bool> RunCppCommandShellChangeHandler(
-    const std::shared_ptr<OpenBuffer>& prompt_buffer) {
-  CHECK(prompt_buffer != nullptr);
-  CHECK_EQ(prompt_buffer->lines_size(), LineNumberDelta(1));
-
-  auto line = prompt_buffer->LineAt(LineNumber(0));
+futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
+    EditorState* editor, std::shared_ptr<LazyString> line) {
+  auto current_buffer = editor->current_buffer();
   auto parsed_command =
-      Parse(*line->contents(), prompt_buffer->environment().get());
+      Parse(*line, (current_buffer == nullptr ? editor->environment()
+                                              : current_buffer->environment())
+                       .get());
 
   std::vector<TokenAndModifiers> tokens;
   if (!parsed_command.error.has_value()) {
-    tokens.push_back(
-        {{.value = L"", .begin = ColumnNumber(0), .end = line->EndColumn()},
-         .modifiers = {LineModifier::CYAN}});
+    tokens.push_back({{.value = L"",
+                       .begin = ColumnNumber(0),
+                       .end = ColumnNumber() + line->size()},
+                      .modifiers = {LineModifier::CYAN}});
   }
 
-  return ColorizePrompt(
-      prompt_buffer,
-      futures::Past(ColorizePromptOptions{.tokens = std::move(tokens)}));
+  return futures::Past(ColorizePromptOptions{.tokens = std::move(tokens)});
 }
 
 class RunCppCommand : public Command {
@@ -194,7 +192,10 @@ class RunCppCommand : public Command {
         break;
       case CppCommandMode::kShell:
         options.handler = RunCppCommandShellHandler;
-        options.change_handler = RunCppCommandShellChangeHandler;
+        options.colorize_options_provider =
+            [editor_state](const std::shared_ptr<LazyString>& line) {
+              return ColorizeOptionsProvider(editor_state, line);
+            };
         prompt = L":";
         break;
     }

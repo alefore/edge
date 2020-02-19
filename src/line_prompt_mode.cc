@@ -501,7 +501,13 @@ void Prompt(PromptOptions options) {
   insert_mode_options.modify_handler =
       [editor_state, status,
        options](const std::shared_ptr<OpenBuffer>& buffer) {
-        return options.change_handler(buffer);
+        auto line = buffer->LineAt(LineNumber())->contents();
+        return futures::Transform(
+            options.colorize_options_provider == nullptr
+                ? futures::Past(true)
+                : ColorizePrompt(buffer,
+                                 options.colorize_options_provider(line)),
+            [buffer, options](bool) { return options.change_handler(buffer); });
       };
 
   insert_mode_options.scroll_behavior =

@@ -149,27 +149,21 @@ class SearchCommand : public Command {
     auto async_search_processor =
         std::make_shared<AsyncSearchProcessor>(editor_state->work_queue());
 
-    options.change_handler = [editor_state, async_search_processor,
-                              buffers = std::make_shared<
-                                  std::vector<std::shared_ptr<OpenBuffer>>>(
-                                  editor_state->active_buffers())](
-                                 const std::shared_ptr<OpenBuffer>&
-                                     prompt_buffer) {
-      CHECK(prompt_buffer != nullptr);
-      CHECK_EQ(prompt_buffer->lines_size(), LineNumberDelta(1));
-      auto line = prompt_buffer->LineAt(LineNumber(0));
-      if (line->empty()) {
-        return futures::Past(true);
-      }
-      VLOG(5) << "Triggering async search.";
-      auto results = std::make_shared<AsyncSearchProcessor::Output>();
-      results->results = AsyncSearchProcessor::Output::Results::kNoMatches;
-      return ColorizePrompt(
-          prompt_buffer,
-          futures::Transform(
+    options.colorize_options_provider =
+        [editor_state, async_search_processor,
+         buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
+             editor_state->active_buffers())](
+            const std::shared_ptr<LazyString>& line) {
+          if (line->size().IsZero()) {
+            return futures::Past(ColorizePromptOptions{});
+          }
+          VLOG(5) << "Triggering async search.";
+          auto results = std::make_shared<AsyncSearchProcessor::Output>();
+          results->results = AsyncSearchProcessor::Output::Results::kNoMatches;
+          return futures::Transform(
               futures::ForEach(
                   buffers->begin(), buffers->end(),
-                  [editor_state, async_search_processor, prompt_buffer, line,
+                  [editor_state, async_search_processor, line,
                    results](const std::shared_ptr<OpenBuffer>& buffer) {
                     auto search_options = BuildPromptSearchOptions(
                         line->ToString(), buffer.get());
@@ -183,7 +177,7 @@ class SearchCommand : public Command {
                     return futures::Transform(
                         async_search_processor->Search(
                             search_options.value(), buffer->contents()->copy()),
-                        [prompt_buffer, results,
+                        [results,
                          line](AsyncSearchProcessor::Output current_results) {
                           MergeInto(current_results, results.get());
                           return futures::IterationControlCommand::kContinue;
@@ -191,10 +185,9 @@ class SearchCommand : public Command {
                   }),
               [results, buffers, line](futures::IterationControlCommand) {
                 VLOG(5) << "Drawing of search results.";
-                return SearchResultsModifiers(line->contents(),
-                                              std::move(*results));
-              }));
-    };
+                return SearchResultsModifiers(line, std::move(*results));
+              });
+        };
 
     options.predictor = SearchHandlerPredictor;
     options.status = PromptOptions::Status::kBuffer;

@@ -13,6 +13,18 @@ namespace editor {
 
 using std::unique_ptr;
 
+struct TokenAndModifiers {
+  // The portion to colorize. The `value` field is ignored; instead, the
+  // corresponding portion from the value in `prompt` will be used.
+  Token token;
+  // Set of modifiers to apply.
+  LineModifierSet modifiers;
+};
+
+struct ColorizePromptOptions {
+  std::vector<TokenAndModifiers> tokens;
+};
+
 struct PromptOptions {
   EditorState* editor_state = nullptr;
 
@@ -41,6 +53,10 @@ struct PromptOptions {
         return futures::Past(true);  // Nothing.
       };
 
+  std::function<futures::Value<ColorizePromptOptions>(
+      const std::shared_ptr<LazyString>& line)>
+      colorize_options_provider;
+
   // Function to run when the prompt receives the final input.
   std::function<futures::Value<bool>(const wstring& input, EditorState* editor)>
       handler;
@@ -64,18 +80,6 @@ void Prompt(PromptOptions options);
 
 unique_ptr<Command> NewLinePromptCommand(
     wstring description, std::function<PromptOptions(EditorState*)> options);
-
-struct TokenAndModifiers {
-  // The portion to colorize. The `value` field is ignored; instead, the
-  // corresponding portion from the value in `prompt` will be used.
-  Token token;
-  // Set of modifiers to apply.
-  LineModifierSet modifiers;
-};
-
-struct ColorizePromptOptions {
-  std::vector<TokenAndModifiers> tokens;
-};
 
 // status_buffer is the buffer with the contents of the prompt. tokens_future is
 // received as a future so that we can detect if the prompt input changes
