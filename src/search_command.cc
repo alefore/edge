@@ -44,7 +44,7 @@ static void DoSearch(OpenBuffer* buffer, SearchOptions options) {
   buffer->ResetMode();
 }
 
-std::vector<TokenAndModifiers> SearchResultsModifiers(
+ColorizePromptOptions SearchResultsModifiers(
     std::shared_ptr<LazyString> line, AsyncSearchProcessor::Output results) {
   LineModifierSet modifiers;
   switch (results.results) {
@@ -61,11 +61,10 @@ std::vector<TokenAndModifiers> SearchResultsModifiers(
       break;
   }
 
-  return std::vector<TokenAndModifiers>{
-      {{.value = L"",
-        .begin = ColumnNumber(0),
-        .end = ColumnNumber(0) + line->size()},
-       .modifiers = std::move(modifiers)}};
+  return {.tokens = {{{.value = L"",
+                       .begin = ColumnNumber(0),
+                       .end = ColumnNumber(0) + line->size()},
+                      .modifiers = std::move(modifiers)}}};
 }
 
 class SearchCommand : public Command {
