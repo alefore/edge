@@ -611,25 +611,27 @@ std::unique_ptr<Command> NewLinePromptCommand(
                                              std::move(options));
 }
 
-void ColorizePrompt(
+futures::Value<bool> ColorizePrompt(
     std::shared_ptr<OpenBuffer> status_buffer,
     futures::Value<std::vector<TokenAndModifiers>> tokens_future) {
   CHECK(status_buffer != nullptr);
   CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
   auto original_line = status_buffer->LineAt(LineNumber(0));
 
-  tokens_future.SetConsumer(
+  return futures::Transform(
+      tokens_future,
       [status_buffer, original_line](std::vector<TokenAndModifiers> tokens) {
         CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
         auto line = status_buffer->LineAt(LineNumber(0));
         if (original_line->ToString() != line->ToString()) {
           LOG(INFO) << "Line has changed, ignoring call to `DrawPath`.";
-          return;
+          return futures::Past(true);
         }
 
         status_buffer->AppendRawLine(
             ColorizeLine(line->contents(), std::move(tokens)));
         status_buffer->EraseLines(LineNumber(0), LineNumber(1));
+        return futures::Past(true);
       });
 }
 

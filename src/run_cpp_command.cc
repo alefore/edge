@@ -156,8 +156,7 @@ futures::Value<bool> RunCppCommandShellChangeHandler(
          .modifiers = {LineModifier::CYAN}});
   }
 
-  ColorizePrompt(prompt_buffer, futures::Past(std::move(tokens)));
-  return futures::Past(true);
+  return ColorizePrompt(prompt_buffer, futures::Past(std::move(tokens)));
 }
 
 class RunCppCommand : public Command {

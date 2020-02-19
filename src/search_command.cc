@@ -44,18 +44,8 @@ static void DoSearch(OpenBuffer* buffer, SearchOptions options) {
   buffer->ResetMode();
 }
 
-futures::Value<bool> DrawSearchResults(
-    OpenBuffer* buffer, const std::shared_ptr<const Line>& original_line,
-    AsyncSearchProcessor::Output results) {
-  CHECK(buffer != nullptr);
-  CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
-  auto line = buffer->LineAt(LineNumber(0));
-  if (original_line->ToString() != line->ToString()) {
-    LOG(INFO) << "Line has changed, ignoring call to `DrawSearchResults`.";
-    return futures::Past(true);
-  }
-
-  VLOG(5) << "DrawSearchResults";
+std::vector<TokenAndModifiers> SearchResultsModifiers(
+    std::shared_ptr<LazyString> line, AsyncSearchProcessor::Output results) {
   LineModifierSet modifiers;
   switch (results.results) {
     case AsyncSearchProcessor::Output::Results::kInvalidPattern:
@@ -71,13 +61,11 @@ futures::Value<bool> DrawSearchResults(
       break;
   }
 
-  Line::Options output;
-  output.AppendString(line->contents(), std::move(modifiers));
-  buffer->AppendRawLine(Line::New(std::move(output)));
-  buffer->EraseLines(LineNumber(0), LineNumber(1));
-
-  CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
-  return futures::Past(true);
+  return std::vector<TokenAndModifiers>{
+      {{.value = L"",
+        .begin = ColumnNumber(0),
+        .end = ColumnNumber(0) + line->size()},
+       .modifiers = std::move(modifiers)}};
 }
 
 class SearchCommand : public Command {
@@ -162,21 +150,24 @@ class SearchCommand : public Command {
     auto async_search_processor =
         std::make_shared<AsyncSearchProcessor>(editor_state->work_queue());
 
-    options.change_handler =
-        [editor_state, async_search_processor,
-         buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
-             editor_state->active_buffers())](
-            const std::shared_ptr<OpenBuffer>& prompt_buffer) {
-          CHECK(prompt_buffer != nullptr);
-          CHECK_EQ(prompt_buffer->lines_size(), LineNumberDelta(1));
-          auto line = prompt_buffer->LineAt(LineNumber(0));
-          if (line->empty()) {
-            return futures::Past(true);
-          }
-          VLOG(5) << "Triggering async search.";
-          auto results = std::make_shared<AsyncSearchProcessor::Output>();
-          results->results = AsyncSearchProcessor::Output::Results::kNoMatches;
-          return futures::Transform(
+    options.change_handler = [editor_state, async_search_processor,
+                              buffers = std::make_shared<
+                                  std::vector<std::shared_ptr<OpenBuffer>>>(
+                                  editor_state->active_buffers())](
+                                 const std::shared_ptr<OpenBuffer>&
+                                     prompt_buffer) {
+      CHECK(prompt_buffer != nullptr);
+      CHECK_EQ(prompt_buffer->lines_size(), LineNumberDelta(1));
+      auto line = prompt_buffer->LineAt(LineNumber(0));
+      if (line->empty()) {
+        return futures::Past(true);
+      }
+      VLOG(5) << "Triggering async search.";
+      auto results = std::make_shared<AsyncSearchProcessor::Output>();
+      results->results = AsyncSearchProcessor::Output::Results::kNoMatches;
+      return ColorizePrompt(
+          prompt_buffer,
+          futures::Transform(
               futures::ForEach(
                   buffers->begin(), buffers->end(),
                   [editor_state, async_search_processor, prompt_buffer, line,
@@ -199,13 +190,12 @@ class SearchCommand : public Command {
                           return futures::IterationControlCommand::kContinue;
                         });
                   }),
-              [results, prompt_buffer, buffers,
-               line](futures::IterationControlCommand) {
+              [results, buffers, line](futures::IterationControlCommand) {
                 VLOG(5) << "Drawing of search results.";
-                return DrawSearchResults(prompt_buffer.get(), line,
-                                         std::move(*results));
-              });
-        };
+                return SearchResultsModifiers(line->contents(),
+                                              std::move(*results));
+              }));
+    };
 
     options.predictor = SearchHandlerPredictor;
     options.status = PromptOptions::Status::kBuffer;
