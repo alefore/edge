@@ -3,9 +3,10 @@
 
 #include <memory>
 
-#include "command.h"
-#include "editor.h"
-#include "predictor.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/predictor.h"
+#include "src/tokenize.h"
 
 namespace afc {
 namespace editor {
@@ -63,6 +64,19 @@ void Prompt(PromptOptions options);
 
 unique_ptr<Command> NewLinePromptCommand(
     wstring description, std::function<PromptOptions(EditorState*)> options);
+
+struct TokenAndModifiers {
+  // The portion to colorize. The `value` field is ignored; instead, the
+  // corresponding portion from the value in `prompt` will be used.
+  Token token;
+  // Set of modifiers to apply.
+  LineModifierSet modifiers;
+};
+
+// status_buffer is the buffer with the contents of the prompt.
+void ColorizePrompt(
+    std::shared_ptr<OpenBuffer> status_buffer,
+    futures::Value<std::vector<TokenAndModifiers>> tokens_future);
 
 }  // namespace editor
 }  // namespace afc

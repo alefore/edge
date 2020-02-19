@@ -188,6 +188,29 @@ void AddLineToHistory(EditorState* editor, std::wstring history_file,
   history->AppendLine(history_line);
 }
 
+std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
+                                   std::vector<TokenAndModifiers> tokens) {
+  sort(tokens.begin(), tokens.end(),
+       [](const TokenAndModifiers& a, const TokenAndModifiers& b) {
+         return a.token.begin < b.token.begin;
+       });
+  VLOG(6) << "Producing output: " << line->ToString();
+  Line::Options options;
+  ColumnNumber position;
+  auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
+    if (end <= position) return;
+    options.AppendString(Substring(line, position, end - position),
+                         std::move(modifiers));
+    position = end;
+  };
+  for (const auto& t : tokens) {
+    push_to_position(t.token.begin, {});
+    push_to_position(t.token.end, t.modifiers);
+  }
+  push_to_position(ColumnNumber() + line->size(), {});
+  return std::make_shared<Line>(std::move(options));
+}
+
 std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
                                           OpenBuffer* history_buffer,
                                           std::wstring filter) {
@@ -262,24 +285,12 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
   }
 
   for (auto& key : naive_bayes::Sort(history_data, current_features)) {
-    sort(history_prompt_tokens[key].begin(), history_prompt_tokens[key].end(),
-         [](const Token& a, const Token& b) { return a.begin < b.begin; });
-    VLOG(6) << "Producing output: " << key;
-    Line::Options options;
-    ColumnNumber position;
-    auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
-      if (end <= position) return;
-      options.AppendString(
-          key.substr(position.column, (end - position).column_delta),
-          std::move(modifiers));
-      position = end;
-    };
-    for (const auto& token : history_prompt_tokens[key]) {
-      push_to_position(token.begin, {});
-      push_to_position(token.end, {LineModifier::BOLD});
+    std::vector<TokenAndModifiers> tokens;
+    for (auto token : history_prompt_tokens[key]) {
+      tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
     }
-    push_to_position(ColumnNumber(key.size()), {});
-    filter_buffer->AppendRawLine(std::make_shared<Line>(std::move(options)));
+    filter_buffer->AppendRawLine(
+        ColorizeLine(NewLazyString(key), std::move(tokens)));
   }
 
   if (filter_buffer->lines_size() > LineNumberDelta(1)) {
@@ -598,6 +609,28 @@ std::unique_ptr<Command> NewLinePromptCommand(
     wstring description, std::function<PromptOptions(EditorState*)> options) {
   return std::make_unique<LinePromptCommand>(std::move(description),
                                              std::move(options));
+}
+
+void ColorizePrompt(
+    std::shared_ptr<OpenBuffer> status_buffer,
+    futures::Value<std::vector<TokenAndModifiers>> tokens_future) {
+  CHECK(status_buffer != nullptr);
+  CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
+  auto original_line = status_buffer->LineAt(LineNumber(0));
+
+  tokens_future.SetConsumer(
+      [status_buffer, original_line](std::vector<TokenAndModifiers> tokens) {
+        CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
+        auto line = status_buffer->LineAt(LineNumber(0));
+        if (original_line->ToString() != line->ToString()) {
+          LOG(INFO) << "Line has changed, ignoring call to `DrawPath`.";
+          return;
+        }
+
+        status_buffer->AppendRawLine(
+            ColorizeLine(line->contents(), std::move(tokens)));
+        status_buffer->EraseLines(LineNumber(0), LineNumber(1));
+      });
 }
 
 }  // namespace editor

@@ -7,6 +7,7 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/line_prompt_mode.h"
+#include "src/substring.h"
 #include "src/tokenize.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
@@ -141,24 +142,21 @@ futures::Value<bool> RunCppCommandShellHandler(const std::wstring& command,
 
 futures::Value<bool> RunCppCommandShellChangeHandler(
     const std::shared_ptr<OpenBuffer>& prompt_buffer) {
-  auto buffer = prompt_buffer->editor()->current_buffer();
-  if (buffer == nullptr) {
-    return futures::Past(true);
-  }
-  auto line = prompt_buffer->LineAt(LineNumber(0));
-  auto parsed_command = Parse(*line->contents(), buffer->environment().get());
-
-  LineModifierSet modifiers;
-  if (!parsed_command.error.has_value()) {
-    modifiers.insert(LineModifier::CYAN);
-  }
-
-  Line::Options output;
-  output.AppendString(line->contents(), std::move(modifiers));
-  prompt_buffer->AppendRawLine(Line::New(std::move(output)));
-  prompt_buffer->EraseLines(LineNumber(0), LineNumber(1));
-
+  CHECK(prompt_buffer != nullptr);
   CHECK_EQ(prompt_buffer->lines_size(), LineNumberDelta(1));
+
+  auto line = prompt_buffer->LineAt(LineNumber(0));
+  auto parsed_command =
+      Parse(*line->contents(), prompt_buffer->environment().get());
+
+  std::vector<TokenAndModifiers> tokens;
+  if (!parsed_command.error.has_value()) {
+    tokens.push_back(
+        {{.value = L"", .begin = ColumnNumber(0), .end = line->EndColumn()},
+         .modifiers = {LineModifier::CYAN}});
+  }
+
+  ColorizePrompt(prompt_buffer, futures::Past(std::move(tokens)));
   return futures::Past(true);
 }
 
