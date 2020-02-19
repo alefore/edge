@@ -59,7 +59,6 @@ struct PromptOptions {
   Status status = Status::kEditor;
 };
 
-// TODO: Move editor_state to PromptOptions.
 void Prompt(PromptOptions options);
 
 unique_ptr<Command> NewLinePromptCommand(
