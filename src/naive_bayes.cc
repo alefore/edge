@@ -320,4 +320,63 @@ std::vector<std::wstring> Sort(const History& history,
        });
   return output;
 }
+
+class SortTests : public tests::TestGroup<SortTests> {
+ public:
+  SortTests() : TestGroup<SortTests>() {}
+  std::wstring Name() const override { return L"SortTests"; }
+  std::vector<tests::Test> Tests() const override {
+    return {
+        {.name = L"EmptyHistoryAndFeatures",
+         .callback = [] { CHECK_EQ(Sort({}, {}).size(), 0ul); }},
+        {.name = L"EmptyHistory",
+         .callback =
+             [] {
+               CHECK_EQ(Sort({}, {L"a", L"b"}).size(), 0ul);
+             }},
+        {.name = L"EmptyFeatures",
+         .callback =
+             [] {
+               History history;
+               history[L"m0"] = {{L"a"}, {L"b"}};
+               history[L"m1"] = {{L"c"}};
+               auto results = Sort(history, {});
+               CHECK_EQ(results.size(), 2ul);
+               // TODO: Why can't I use CHECK_EQ below?
+               CHECK(results.front() == L"m1");
+               CHECK(results.back() == L"m0");
+             }},
+        {.name = L"NewFeature",
+         .callback =
+             [] {
+               History history;
+               history[L"m0"] = {{L"a"}, {L"b"}};
+               history[L"m1"] = {{L"c"}};
+               auto results = Sort(history, {L"d"});
+               CHECK_EQ(results.size(), 2ul);
+               // TODO: Why can't I use CHECK_EQ below?
+               CHECK(results.front() == L"m1");
+               CHECK(results.back() == L"m0");
+             }},
+        {.name = L"FeatureSelects",
+         .callback =
+             [] {
+               History history;
+               history[L"m0"] = {{L"a"}, {L"b"}};
+               history[L"m1"] = {{L"c"}};
+               auto results = Sort(history, {L"c"});
+               CHECK_EQ(results.size(), 2ul);
+               // TODO: Why can't I use CHECK_EQ below?
+               CHECK(results.front() == L"m0");
+               CHECK(results.back() == L"m1");
+             }},
+        // TODO(easy): Add more complex tests.
+    };
+  }
+};
+
+template <>
+const bool tests::TestGroup<SortTests>::registration_ =
+    tests::Add<naive_bayes::SortTests>();
+
 }  // namespace afc::naive_bayes
