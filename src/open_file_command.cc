@@ -118,14 +118,14 @@ futures::Value<bool> AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
   options.input_buffer = buffer;
   options.input_selection_structure = StructureLine();
   return futures::Transform(
-      DrawPath(buffer, line, std::nullopt), [options, buffer, line](bool) {
-        return futures::Transform(
-            Predict(std::move(options)),
-            [buffer, line](std::optional<PredictResults> results) {
-              if (!results.has_value()) return futures::Past(true);
-              VLOG(5) << "Prediction results: " << results.value();
-              return DrawPath(buffer, line, std::move(results));
-            });
+      DrawPath(buffer, line, std::nullopt),
+      [options, buffer, line](bool) mutable {
+        return Predict(std::move(options));
+      },
+      [buffer, line](std::optional<PredictResults> results) {
+        if (!results.has_value()) return futures::Past(true);
+        VLOG(5) << "Prediction results: " << results.value();
+        return DrawPath(buffer, line, std::move(results));
       });
 }
 }  // namespace
