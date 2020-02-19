@@ -81,14 +81,6 @@ void Prompt(PromptOptions options);
 unique_ptr<Command> NewLinePromptCommand(
     wstring description, std::function<PromptOptions(EditorState*)> options);
 
-// status_buffer is the buffer with the contents of the prompt. tokens_future is
-// received as a future so that we can detect if the prompt input changes
-// between the time when `ColorizePrompt` is executed and the time when the
-// tokens become available.
-futures::Value<bool> ColorizePrompt(
-    std::shared_ptr<OpenBuffer> status_buffer,
-    futures::Value<ColorizePromptOptions> options);
-
 }  // namespace editor
 }  // namespace afc
 

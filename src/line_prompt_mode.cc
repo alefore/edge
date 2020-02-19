@@ -456,6 +456,32 @@ class LinePromptCommand : public Command {
   std::function<PromptOptions(EditorState*)> options_;
 };
 
+// status_buffer is the buffer with the contents of the prompt. tokens_future is
+// received as a future so that we can detect if the prompt input changes
+// between the time when `ColorizePrompt` is executed and the time when the
+// tokens become available.
+futures::Value<bool> ColorizePrompt(
+    std::shared_ptr<OpenBuffer> status_buffer,
+    futures::Value<ColorizePromptOptions> tokens_future) {
+  CHECK(status_buffer != nullptr);
+  CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
+  auto original_line = status_buffer->LineAt(LineNumber(0));
+
+  return futures::Transform(tokens_future, [status_buffer, original_line](
+                                               ColorizePromptOptions options) {
+    CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
+    auto line = status_buffer->LineAt(LineNumber(0));
+    if (original_line->ToString() != line->ToString()) {
+      LOG(INFO) << "Line has changed, ignoring call to `DrawPath`.";
+      return futures::Past(true);
+    }
+
+    status_buffer->AppendRawLine(
+        ColorizeLine(line->contents(), std::move(options.tokens)));
+    status_buffer->EraseLines(LineNumber(0), LineNumber(1));
+    return futures::Past(true);
+  });
+}
 }  // namespace
 
 using std::shared_ptr;
@@ -615,29 +641,6 @@ std::unique_ptr<Command> NewLinePromptCommand(
     wstring description, std::function<PromptOptions(EditorState*)> options) {
   return std::make_unique<LinePromptCommand>(std::move(description),
                                              std::move(options));
-}
-
-futures::Value<bool> ColorizePrompt(
-    std::shared_ptr<OpenBuffer> status_buffer,
-    futures::Value<ColorizePromptOptions> tokens_future) {
-  CHECK(status_buffer != nullptr);
-  CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
-  auto original_line = status_buffer->LineAt(LineNumber(0));
-
-  return futures::Transform(tokens_future, [status_buffer, original_line](
-                                               ColorizePromptOptions options) {
-    CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
-    auto line = status_buffer->LineAt(LineNumber(0));
-    if (original_line->ToString() != line->ToString()) {
-      LOG(INFO) << "Line has changed, ignoring call to `DrawPath`.";
-      return futures::Past(true);
-    }
-
-    status_buffer->AppendRawLine(
-        ColorizeLine(line->contents(), std::move(options.tokens)));
-    status_buffer->EraseLines(LineNumber(0), LineNumber(1));
-    return futures::Past(true);
-  });
 }
 
 }  // namespace editor
