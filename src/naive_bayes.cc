@@ -184,6 +184,48 @@ template <>
 const bool tests::TestGroup<GetPerEventFeatureProbabilityTests>::registration_ =
     tests::Add<naive_bayes::GetPerEventFeatureProbabilityTests>();
 
+double MinimalFeatureProbability(
+    std::unordered_map<std::wstring, std::unordered_map<std::wstring, double>>
+        per_event_feature_probability) {
+  double output = 1.0;
+  for (auto& [_, features] : per_event_feature_probability) {
+    for (auto& [_, value] : features) {
+      output = std::min(output, value);
+    }
+  }
+  return output;
+}
+
+class MinimalFeatureProbabilityTests
+    : public tests::TestGroup<MinimalFeatureProbabilityTests> {
+ public:
+  MinimalFeatureProbabilityTests()
+      : TestGroup<MinimalFeatureProbabilityTests>() {}
+  std::wstring Name() const override {
+    return L"MinimalFeatureProbabilityTests";
+  }
+  std::vector<tests::Test> Tests() const override {
+    return {{.name = L"Empty",
+             .callback = [] { CHECK_EQ(MinimalFeatureProbability({}), 1.0); }},
+            {.name = L"SomeData", .callback = [] {
+               std::unordered_map<std::wstring,
+                                  std::unordered_map<std::wstring, double>>
+                   data;
+               data[L"m0"][L"a"] = 0.2;
+               data[L"m0"][L"b"] = 0.8;
+               data[L"m1"][L"a"] = 0.8;
+               data[L"m1"][L"b"] = 0.5;
+               data[L"m2"][L"a"] = 0.1;  // <--- Minimal.
+               data[L"m2"][L"b"] = 0.5;
+               CHECK_EQ(MinimalFeatureProbability(data), 0.1);
+             }}};
+  }
+};
+
+template <>
+const bool tests::TestGroup<MinimalFeatureProbabilityTests>::registration_ =
+    tests::Add<naive_bayes::MinimalFeatureProbabilityTests>();
+
 }  // namespace
 
 std::vector<std::wstring> Sort(const History& history,
@@ -239,24 +281,19 @@ std::vector<std::wstring> Sort(const History& history,
   std::unordered_map<Event, double> event_probability =
       GetEventProbability(history);
 
-  // feature_probability[mi][fj] represents a value p(fj | mi): the probability
-  // of feature fj given value mi.
+  // per_event_feature_probability[mi][fj] represents a value p(fj | mi): the
+  // probability of feature fj given event mi.
   std::unordered_map<Event, std::unordered_map<Feature, double>>
       per_event_feature_probability = GetPerEventFeatureProbability(history);
 
-  double epsilon = 1.0;
-  for (auto& [_, features] : per_event_feature_probability) {
-    for (auto& [_, value] : features) {
-      epsilon = std::min(epsilon, value);
-    }
-  }
-  epsilon /= 2;
+  const double epsilon =
+      MinimalFeatureProbability(per_event_feature_probability) / 2;
   VLOG(5) << "Found epsilon: " << epsilon;
 
   std::unordered_map<Event, double> current_probability_value;
   for (const auto& [event, instances] : history) {
     double p = event_probability[event];
-    auto feature_probability = per_event_feature_probability[event];
+    const auto& feature_probability = per_event_feature_probability[event];
     for (const auto& feature : current_features) {
       if (auto it = feature_probability.find(feature);
           it != feature_probability.end()) {

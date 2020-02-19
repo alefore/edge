@@ -24,6 +24,7 @@ void Run() {
       std::cerr << "* " << test.name << std::endl;
       test.callback();
     }
+    std::cerr << std::endl;
   }
 }
 
