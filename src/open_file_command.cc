@@ -40,6 +40,10 @@ std::shared_ptr<OpenBuffer> StatusContext(EditorState* editor,
       return result->second;
     }
   }
+  if (results.predictions_buffer->lines_size() == LineNumberDelta(1) &&
+      results.predictions_buffer->LineAt(LineNumber())->empty()) {
+    return nullptr;
+  }
   LOG(INFO) << "Setting context: "
             << results.predictions_buffer->Read(buffer_variables::name);
   return results.predictions_buffer;
