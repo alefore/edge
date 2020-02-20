@@ -43,19 +43,8 @@ struct PromptOptions {
   // Optional. Initial value for the prompt. Defaults to empty.
   wstring initial_value;
 
-  // Run any time the text in the prompt changes.
-  //
-  // The prompt buffer is passed as an argument. To get the current text in the
-  // prompt, use:
-  //
-  // auto line = buffer->LineAt(LineNumber(0));
-  //
-  // TODO(easy): Turn this into an options structure.
-  std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
-      change_handler = [](const std::shared_ptr<OpenBuffer>&) {
-        return futures::Past(true);  // Nothing.
-      };
-
+  // Run whenever the text in the promot changes; should return a future with
+  // options to colorize it.
   std::function<futures::Value<ColorizePromptOptions>(
       const std::shared_ptr<LazyString>& line)>
       colorize_options_provider;

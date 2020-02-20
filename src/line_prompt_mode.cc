@@ -532,12 +532,10 @@ void Prompt(PromptOptions options) {
       [editor_state, status,
        options](const std::shared_ptr<OpenBuffer>& buffer) {
         auto line = buffer->LineAt(LineNumber())->contents();
-        return futures::Transform(
-            options.colorize_options_provider == nullptr
-                ? futures::Past(true)
-                : ColorizePrompt(buffer, status,
-                                 options.colorize_options_provider(line)),
-            [buffer, options](bool) { return options.change_handler(buffer); });
+        return options.colorize_options_provider == nullptr
+                   ? futures::Past(true)
+                   : ColorizePrompt(buffer, status,
+                                    options.colorize_options_provider(line));
       };
 
   insert_mode_options.scroll_behavior =
@@ -605,16 +603,20 @@ void Prompt(PromptOptions options) {
                     Modifiers::LIMIT_CURRENT;
                 buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
 
+                std::shared_ptr<LazyString> line =
+                    NewLazyString(results.value().common_prefix.value());
                 auto buffer_to_insert = OpenBuffer::New(
                     {.editor = editor_state, .name = L"- text inserted"});
-                buffer_to_insert->AppendToLastLine(
-                    NewLazyString(results.value().common_prefix.value()));
+                buffer_to_insert->AppendToLastLine(line);
                 InsertOptions insert_options;
                 insert_options.buffer_to_insert = buffer_to_insert;
                 buffer->ApplyToCursors(
                     NewInsertBufferTransformation(std::move(insert_options)));
 
-                options.change_handler(buffer);
+                if (options.colorize_options_provider != nullptr) {
+                  ColorizePrompt(buffer, status,
+                                 options.colorize_options_provider(line));
+                }
               } else {
                 LOG(INFO) << "Prediction didn't advance.";
                 auto buffers = editor_state->buffers();
