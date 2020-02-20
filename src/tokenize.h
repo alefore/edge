@@ -10,7 +10,7 @@
 
 namespace afc::editor {
 struct Token {
-  std::wstring value;
+  std::wstring value = L"";
   ColumnNumber begin;
   // `end` is the first column that isn't part of the token.
   ColumnNumber end;

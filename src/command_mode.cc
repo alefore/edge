@@ -696,7 +696,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"a.", NewOpenDirectoryCommand());
   commands->Add(L"aL", NewListBuffersCommand());
   commands->Add(L"ae", NewSendEndOfFileCommand());
-  commands->Add(L"ao", NewOpenFileCommand());
+  commands->Add(L"ao", NewOpenFileCommand(editor_state));
   {
     PromptOptions options;
     options.editor_state = editor_state;

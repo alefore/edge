@@ -332,7 +332,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                       }));
 
   environment->Define(L"PromptAndOpenFile", vm::NewCallback([this]() {
-                        NewOpenFileCommand()->ProcessInput(0, this);
+                        NewOpenFileCommand(this)->ProcessInput(0, this);
                       }));
 
   environment->Define(L"set_screen_needs_hard_redraw",

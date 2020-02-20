@@ -5,12 +5,9 @@
 
 #include "command.h"
 
-namespace afc {
-namespace editor {
-
-std::unique_ptr<Command> NewOpenFileCommand();
-
-}  // namespace editor
-}  // namespace afc
+namespace afc::editor {
+class EditorState;
+std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor);
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_OPEN_FILE_COMMAND_H__

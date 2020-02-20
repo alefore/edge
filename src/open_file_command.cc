@@ -26,10 +26,10 @@ futures::Value<bool> OpenFileHandler(const wstring& name,
   return futures::Past(true);
 }
 
-void SetStatusContext(const OpenBuffer& buffer, const PredictResults& results,
-                      const Line& line, Status* status) {
+std::shared_ptr<OpenBuffer> StatusContext(EditorState* editor,
+                                          const PredictResults& results,
+                                          const LazyString& line) {
   if (results.found_exact_match) {
-    auto editor = buffer.editor();
     OpenFileOptions open_file_options;
     open_file_options.editor_state = editor;
     open_file_options.path = line.ToString();
@@ -37,100 +37,68 @@ void SetStatusContext(const OpenBuffer& buffer, const PredictResults& results,
     open_file_options.ignore_if_not_found = true;
     if (auto result = OpenFile(open_file_options);
         result != editor->buffers()->end()) {
-      status->set_prompt_context(result->second);
-      return;
+      return result->second;
     }
   }
   LOG(INFO) << "Setting context: "
             << results.predictions_buffer->Read(buffer_variables::name);
-  status->set_prompt_context(results.predictions_buffer);
+  return results.predictions_buffer;
 }
 
-futures::Value<bool> DrawPath(const std::shared_ptr<OpenBuffer>& buffer,
-                              const std::shared_ptr<const Line>& original_line,
-                              std::optional<PredictResults> results) {
-  CHECK(buffer != nullptr);
-  auto status = buffer->editor()->status();
-  CHECK(status != nullptr);
-  if (status->GetType() != Status::Type::kPrompt) {
-    LOG(INFO) << "No longer in prompt mode, ignoring call to `DrawPath`.";
-    return futures::Past(true);
-  }
+ColorizePromptOptions DrawPath(EditorState* editor,
+                               const std::shared_ptr<LazyString>& line,
+                               PredictResults results) {
+  ColorizePromptOptions output;
+  output.context = StatusContext(editor, results, *line);
 
-  CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
-  auto line = buffer->LineAt(LineNumber(0));
-  if (original_line->ToString() != line->ToString()) {
-    LOG(INFO) << "Line has changed, ignoring call to `DrawPath`.";
-    return futures::Past(true);
-  }
-
-  if (results.has_value()) {
-    SetStatusContext(*buffer, results.value(), *line, status);
-  }
-
-  Line::Options output;
-  for (auto i = ColumnNumber(0); i < line->EndColumn(); ++i) {
-    auto c = line->get(i);
-    switch (c) {
+  for (auto i = ColumnNumber(0); i < ColumnNumber(0) + line->size(); ++i) {
+    LineModifierSet modifiers;
+    switch (line->get(i)) {
       case L'/':
       case L'.':
-        output.AppendCharacter(c, LineModifierSet({LineModifier::DIM}));
+        modifiers.insert(LineModifier::DIM);
         break;
       default:
-        LineModifierSet modifiers;
-        if (results.has_value()) {
-          auto value = results.value();
-          if (i.ToDelta() >= value.longest_directory_match) {
-            if (value.found_exact_match) {
-              modifiers.insert(LineModifier::BOLD);
-            }
-            if (value.matches == 0 && i.ToDelta() >= value.longest_prefix) {
-              modifiers.insert(LineModifier::RED);
-            } else if (value.matches == 1) {
-              modifiers.insert(LineModifier::GREEN);
-            } else if (value.common_prefix.has_value() &&
-                       line->EndColumn() <
-                           ColumnNumber(value.common_prefix.value().size())) {
-              modifiers.insert(LineModifier::YELLOW);
-            }
+        if (i.ToDelta() >= results.longest_directory_match) {
+          if (results.found_exact_match) {
+            modifiers.insert(LineModifier::BOLD);
+          }
+          if (results.matches == 0 && i.ToDelta() >= results.longest_prefix) {
+            modifiers.insert(LineModifier::RED);
+          } else if (results.matches == 1) {
+            modifiers.insert(LineModifier::GREEN);
+          } else if (results.common_prefix.has_value() &&
+                     ColumnNumber() + line->size() <
+                         ColumnNumber(results.common_prefix.value().size())) {
+            modifiers.insert(LineModifier::YELLOW);
           }
         }
-        output.AppendCharacter(c, modifiers);
     }
+    output.tokens.push_back(TokenAndModifiers{
+        .token = {.begin = i, .end = i.next()}, .modifiers = modifiers});
   }
-  buffer->AppendRawLine(Line::New(std::move(output)));
-  buffer->EraseLines(LineNumber(0), LineNumber(1));
-
-  CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
-  return futures::Past(true);
+  return output;
 }
 
-futures::Value<bool> AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
-  CHECK(buffer != nullptr);
-  CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
-  auto line = buffer->LineAt(LineNumber(0));
-
+futures::Value<ColorizePromptOptions> AdjustPath(
+    EditorState* editor, const std::shared_ptr<LazyString>& line) {
   PredictOptions options;
-  options.editor_state = buffer->editor();
+  options.editor_state = editor;
   options.predictor = FilePredictor;
-  options.status = buffer->editor()->status();
-  options.source_buffers = options.editor_state->active_buffers();
-  options.input_buffer = buffer;
+  options.status = editor->status();
+  options.source_buffers = editor->active_buffers();
+  options.text = line->ToString();
   options.input_selection_structure = StructureLine();
   return futures::Transform(
-      DrawPath(buffer, line, std::nullopt),
-      [options, buffer, line](bool) mutable {
-        return Predict(std::move(options));
-      },
-      [buffer, line](std::optional<PredictResults> results) {
-        if (!results.has_value()) return futures::Past(true);
-        VLOG(5) << "Prediction results: " << results.value();
-        return DrawPath(buffer, line, std::move(results));
+      Predict(std::move(options)),
+      [editor, line](std::optional<PredictResults> results) {
+        if (!results.has_value()) return ColorizePromptOptions{};
+        return DrawPath(editor, line, std::move(results.value()));
       });
 }
 }  // namespace
 
-std::unique_ptr<Command> NewOpenFileCommand() {
+std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
   PromptOptions options;
   options.prompt = L"<";
   options.prompt_contents_type = L"path";
@@ -143,7 +111,10 @@ std::unique_ptr<Command> NewOpenFileCommand() {
     }
   };
   options.predictor = FilePredictor;
-  options.change_handler = AdjustPath;
+  options.colorize_options_provider =
+      [editor](const std::shared_ptr<LazyString>& line) {
+        return AdjustPath(editor, line);
+      };
   return NewLinePromptCommand(
       L"loads a file", [options](EditorState* editor_state) {
         PromptOptions options_copy = options;
