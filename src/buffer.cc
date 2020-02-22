@@ -902,9 +902,8 @@ futures::Value<std::optional<std::wstring>> OpenBuffer::Save() {
     return futures::Past(
         std::optional<std::wstring>(L"Buffer can't be saved."));
   }
-  options_.handle_save(
+  return options_.handle_save(
       {.buffer = this, .save_type = Options::SaveType::kMainFile});
-  return futures::Past(std::optional<std::wstring>());
 }
 
 std::optional<std::wstring> OpenBuffer::GetEdgeStateDirectory(

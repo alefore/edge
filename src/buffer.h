@@ -100,7 +100,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
       OpenBuffer* buffer;
       SaveType save_type = SaveType::kMainFile;
     };
-    std::function<void(HandleSaveOptions)> handle_save = nullptr;
+    std::function<futures::Value<std::optional<std::wstring>>(
+        HandleSaveOptions)>
+        handle_save = nullptr;
   };
 
   static std::shared_ptr<OpenBuffer> New(Options options);

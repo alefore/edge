@@ -251,19 +251,18 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
   }
 }
 
-void Save(EditorState* editor_state, struct stat* stat_buffer,
-          OpenBuffer::Options::HandleSaveOptions options) {
+futures::Value<std::optional<std::wstring>> Save(
+    EditorState* editor_state, struct stat* stat_buffer,
+    OpenBuffer::Options::HandleSaveOptions options) {
   auto buffer = options.buffer;
   std::wstring path = buffer->Read(buffer_variables::path);
   if (path.empty()) {
-    buffer->status()->SetInformationText(
-        L"Buffer can't be saved: “path” variable is empty.");
-    return;
+    return futures::Past(std::optional<std::wstring>(
+        L"Buffer can't be saved: “path” variable is empty."));
   }
   if (S_ISDIR(stat_buffer->st_mode)) {
-    buffer->status()->SetInformationText(
-        L"Buffer can't be saved: Buffer is a directory.");
-    return;
+    return futures::Past(std::optional<std::wstring>(
+        L"Buffer can't be saved: Buffer is a directory."));
   }
 
   switch (options.save_type) {
@@ -273,19 +272,18 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
       std::wstring error;
       auto state_directory = buffer->GetEdgeStateDirectory(&error);
       if (!state_directory.has_value()) {
-        buffer->status()->SetInformationText(L"Unable to backup buffer: " +
-                                             error);
-        return;
+        return futures::Past(
+            std::optional<std::wstring>(L"Unable to backup buffer: " + error));
       }
       path = PathJoin(state_directory.value(), L"backup");
   }
 
-  if (!SaveContentsToFile(path, *buffer->contents(), buffer->status()) ||
-      !buffer->PersistState()) {
-    LOG(INFO) << "Saving failed.";
-    return;
+  if (!SaveContentsToFile(path, *buffer->contents(), buffer->status())) {
+    return futures::Past(std::optional<std::wstring>(L"Saving failed."));
   }
-
+  if (!buffer->PersistState()) {
+    return futures::Past(std::optional<std::wstring>(L"Saving state failed."));
+  }
   switch (options.save_type) {
     case OpenBuffer::Options::SaveType::kMainFile:
       buffer->status()->SetInformationText(L"🖫 Saved: " + path);
@@ -309,6 +307,7 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
     case OpenBuffer::Options::SaveType::kBackup:
       break;
   }
+  return futures::Past(std::optional<std::wstring>());
 }
 
 static bool CanStatPath(const wstring& path) {
@@ -549,7 +548,15 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   buffer_options.handle_save =
       [editor_state,
        stat_buffer](OpenBuffer::Options::HandleSaveOptions options) {
-        Save(editor_state, stat_buffer.get(), std::move(options));
+        auto buffer = options.buffer;
+        return futures::Transform(
+            Save(editor_state, stat_buffer.get(), std::move(options)),
+            [buffer](std::optional<std::wstring> error) {
+              if (error.has_value()) {
+                buffer->status()->SetInformationText(error.value());
+              }
+              return error;
+            });
       };
 
   auto resolve_path_options =
