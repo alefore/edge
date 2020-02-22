@@ -258,8 +258,20 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // meant more for debugging/testing rather than for real use).
   wstring ToString() const;
 
-  void ClearModified() { modified_ = false; }
-  bool modified() const { return modified_; }
+  enum class DiskState {
+    // The file (in disk) reflects our last changes.
+    kCurrent,
+    // The file (in disk) doesn't reflect the last changes applied by the user.
+    kStale
+  };
+  void SetDiskState(DiskState disk_state) { disk_state_ = disk_state; }
+  DiskState disk_state() const { return disk_state_; }
+  // Returns a unique_ptr with the current disk state value. When the pointer is
+  // destroyed, restores the state of the buffer to that value. This is useful
+  // for customers that want to apply modifications to the buffer that shouldn't
+  // be reflected in the disk state (for example, because these modifications
+  // come from disk).
+  std::unique_ptr<DiskState, std::function<void(DiskState*)>> FreezeDiskState();
 
   bool dirty() const;
   std::map<wstring, wstring> Flags() const;
@@ -478,7 +490,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   BufferContents contents_;
 
-  bool modified_ = false;
+  DiskState disk_state_ = DiskState::kCurrent;
   bool reading_from_parser_ = false;
 
   EdgeStructInstance<bool> bool_variables_;

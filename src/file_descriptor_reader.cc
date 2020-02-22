@@ -163,7 +163,9 @@ void InsertLines(const FileDescriptorReader::Options& options,
   static Tracker tracker(L"FileDescriptorReader::InsertLines");
   auto tracker_call = tracker.Call();
 
-  bool previous_modified = options.buffer->modified();
+  // These changes don't count: they come from disk.
+  auto disk_state_freezer = options.buffer->FreezeDiskState();
+
   auto follower = options.buffer->GetEndPositionFollower();
 
   for (auto it = lines_to_insert.begin(); it != lines_to_insert.end(); ++it) {
@@ -172,10 +174,6 @@ void InsertLines(const FileDescriptorReader::Options& options,
     } else {
       options.buffer->StartNewLine(std::move(*it));
     }
-  }
-
-  if (!previous_modified) {
-    options.buffer->ClearModified();  // These changes don't count.
   }
 }
 

@@ -424,7 +424,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
             MaybeStartUpdatingSyntaxTrees();
           });
         }
-        modified_ = true;
+        SetDiskState(DiskState::kStale);
         time(&last_action_);
         cursors_tracker_.AdjustCursors(transformation);
       }),
@@ -572,10 +572,11 @@ bool OpenBuffer::PersistState() const {
   auto file_path = Read(buffer_variables::path);
   list<wstring> file_path_components;
   if (file_path.empty() || file_path[0] != '/') {
-    status_.SetWarningText(L"Unable to persist buffer with empty path: " +
-                           Read(buffer_variables::name) + L" " +
-                           (dirty() ? L" (dirty)" : L" (clean)") + L" " +
-                           (modified_ ? L"modified" : L"not modified"));
+    status_.SetWarningText(
+        L"Unable to persist buffer with empty path: " +
+        Read(buffer_variables::name) + L" " +
+        (dirty() ? L" (dirty)" : L" (clean)") + L" " +
+        (disk_state_ == DiskState::kStale ? L"modified" : L"not modified"));
     return !dirty();
   }
 
@@ -906,7 +907,7 @@ void OpenBuffer::Reload() {
         value.value(), futures::Past(IterationControlCommand::kContinue));
   }).SetConsumer([this](IterationControlCommand) {
     if (editor()->exit_value().has_value()) return;
-    ClearModified();
+    SetDiskState(DiskState::kCurrent);
     LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
 
     (options_.generate_contents != nullptr ? options_.generate_contents(this)
@@ -1591,7 +1592,7 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
                                bool fd_is_terminal, pid_t child_pid) {
   if (Read(buffer_variables::clear_on_reload)) {
     ClearContents(BufferContents::CursorsBehavior::kUnmodified);
-    ClearModified();
+    SetDiskState(DiskState::kCurrent);
   }
 
   CHECK_EQ(child_pid_, -1);
@@ -1665,11 +1666,22 @@ LineColumn OpenBuffer::end_position() const {
   return LineColumn(contents_.EndLine(), contents_.back()->EndColumn());
 }
 
+std::unique_ptr<OpenBuffer::DiskState,
+                std::function<void(OpenBuffer::DiskState*)>>
+OpenBuffer::FreezeDiskState() {
+  return std::unique_ptr<DiskState,
+                         std::function<void(OpenBuffer::DiskState*)>>(
+      new DiskState(disk_state_), [this](DiskState* old_state) {
+        SetDiskState(*old_state);
+        delete old_state;
+      });
+}
+
 bool OpenBuffer::dirty() const {
-  return (modified_ && (!Read(buffer_variables::path).empty() ||
-                        !contents()->EveryLine([](LineNumber, const Line& l) {
-                          return l.empty();
-                        }))) ||
+  return (disk_state_ == DiskState::kStale &&
+          (!Read(buffer_variables::path).empty() ||
+           !contents()->EveryLine(
+               [](LineNumber, const Line& l) { return l.empty(); }))) ||
          child_pid_ != -1 ||
          (child_exit_status_.has_value() &&
           (!WIFEXITED(child_exit_status_.value()) ||
@@ -1682,7 +1694,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     output = options_.describe_status(*this);
   }
 
-  if (modified()) {
+  if (disk_state() == DiskState::kStale) {
     output.insert({L"🐾", L""});
   }
 

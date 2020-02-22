@@ -172,7 +172,7 @@ futures::Value<bool> GenerateContents(
     std::shared_ptr<FileSystemDriver> file_system_driver,
     std::shared_ptr<AsyncEvaluator> background_directory_reader,
     OpenBuffer* target) {
-  CHECK(!target->modified());
+  CHECK(target->disk_state() == OpenBuffer::DiskState::kCurrent);
   const wstring path = target->Read(buffer_variables::path);
   LOG(INFO) << "GenerateContents: " << path;
   return futures::Transform(
@@ -183,7 +183,7 @@ futures::Value<bool> GenerateContents(
         if ((path.empty() || stat_results.has_value()) &&
             target->Read(buffer_variables::clear_on_reload)) {
           target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
-          target->ClearModified();
+          target->SetDiskState(OpenBuffer::DiskState::kCurrent);
         }
         if (!stat_results.has_value()) {
           return futures::Past(true);
@@ -209,6 +209,7 @@ futures::Value<bool> GenerateContents(
                   return ReadDir(path, std::wregex(noise_regexp));
                 }),
             [editor_state, target, path](BackgroundReadDirOutput results) {
+              auto disk_state_freezer = target->FreezeDiskState();
               if (results.error_description.has_value()) {
                 target->status()->SetInformationText(
                     results.error_description.value());
@@ -227,8 +228,6 @@ futures::Value<bool> GenerateContents(
                         std::move(results.regular_files), target);
               ShowFiles(editor_state, L"🗐  Noise", std::move(results.noise),
                         target);
-
-              target->ClearModified();
               return true;
             });
       });
@@ -271,7 +270,7 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
     LOG(INFO) << "Saving failed.";
     return;
   }
-  buffer->ClearModified();
+  buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
   buffer->status()->SetInformationText(L"🖫 Saved: " + path);
   for (const auto& dir : editor_state->edge_path()) {
     buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");

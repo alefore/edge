@@ -160,3 +160,5 @@ The first five times Edge runs, it should display a `help` message, perhaps at t
 Improve the help document:
 
 * Add documentation string for VM functions/variables.
+
+When a file doesn't exist, don't attempt to run clang-tidy on it.
