@@ -192,7 +192,7 @@ futures::Value<bool> GenerateContents(
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
           return futures::Transform(
-              file_system_driver->Open(path, O_RDONLY | O_NONBLOCK),
+              file_system_driver->Open(path, O_RDONLY | O_NONBLOCK, 0),
               [target](int fd) {
                 target->SetInputFiles(fd, -1, false, -1);
                 return true;
@@ -279,7 +279,8 @@ futures::Value<std::optional<std::wstring>> Save(
   }
 
   return futures::Transform(
-      SaveContentsToFile(path, *buffer->contents(), buffer->status()),
+      SaveContentsToFile(path, *buffer->contents(), buffer->status(),
+                         buffer->work_queue()),
       [editor_state, stat_buffer, options, buffer,
        path](ValueOrError<bool> save_contents_result) {
         if (save_contents_result.error.has_value()) {
@@ -356,44 +357,53 @@ bool SaveContentsToOpenFile(const wstring& path, int fd,
 }
 
 futures::Value<ValueOrError<bool>> SaveContentsToFile(
-    const wstring& path, const BufferContents& contents, Status* status) {
-  const string path_raw = ToByteString(path);
-  const string tmp_path = path_raw + ".tmp";
+    const wstring& path, const BufferContents& contents, Status* status,
+    WorkQueue* work_queue) {
+  auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
+  return futures::Transform(
 
-  struct stat original_stat;
-  if (stat(path_raw.c_str(), &original_stat) == -1) {
-    LOG(INFO) << "Unable to stat file (using default permissions): "
-              << path_raw;
-    original_stat.st_mode =
-        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-  }
+      file_system_driver->Stat(path),
+      [path, contents, status,
+       file_system_driver](std::optional<struct stat> original_stat) {
+        mode_t mode =
+            original_stat.has_value()
+                ? original_stat.value().st_mode
+                : S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+        const wstring tmp_path = path + L".tmp";
+        return futures::Transform(
+            file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
+                                     mode),
+            [path, contents, status, tmp_path](int fd) {
+              if (fd == -1) {
+                auto error =
+                    ValueOrError<bool>::Error(tmp_path + L": open failed: " +
+                                              FromByteString(strerror(errno)));
+                status->SetWarningText(error.error.value());
+                return futures::Past(std::move(error));
+              }
+              // TODO: Offload to a background thread.
+              bool result =
+                  SaveContentsToOpenFile(tmp_path, fd, contents, status);
+              // TODO: Check return status.
+              close(fd);
+              if (!result) {
+                return futures::Past(
+                    ValueOrError<bool>::Error(L"Save failed."));
+              }
 
-  // TODO: Make this non-blocking.
-  int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
-                original_stat.st_mode);
-  if (fd == -1) {
-    auto error = ValueOrError<bool>::Error(FromByteString(tmp_path) +
-                                           L": open failed: " +
-                                           FromByteString(strerror(errno)));
-    status->SetWarningText(error.error.value());
-    return futures::Past(std::move(error));
-  }
-  bool result =
-      SaveContentsToOpenFile(FromByteString(tmp_path), fd, contents, status);
-  close(fd);
-  if (!result) {
-    return futures::Past(ValueOrError<bool>::Error(L"Save failed."));
-  }
+              // TODO: Make this non-blocking.
+              if (rename(ToByteString(tmp_path).c_str(),
+                         ToByteString(path).c_str()) == -1) {
+                auto error =
+                    ValueOrError<bool>::Error(path + L": rename failed: " +
+                                              FromByteString(strerror(errno)));
+                status->SetWarningText(error.error.value());
+                return futures::Past(std::move(error));
+              }
 
-  // TODO: Make this non-blocking?
-  if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
-    auto error = ValueOrError<bool>::Error(path + L": rename failed: " +
-                                           FromByteString(strerror(errno)));
-    status->SetWarningText(error.error.value());
-    return futures::Past(std::move(error));
-  }
-
-  return futures::Past(ValueOrError<bool>::Value(true));
+              return futures::Past(ValueOrError<bool>::Value(true));
+            });
+      });
 }
 
 shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,

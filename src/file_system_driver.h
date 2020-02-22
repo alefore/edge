@@ -31,7 +31,7 @@ class FileSystemDriver {
  public:
   FileSystemDriver(WorkQueue* work_queue);
 
-  futures::Value<int> Open(std::wstring path, int mode);
+  futures::Value<int> Open(std::wstring path, int flags, mode_t mode);
   futures::Value<std::optional<struct stat>> Stat(std::wstring path);
 
  private:

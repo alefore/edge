@@ -171,7 +171,7 @@ futures::Value<bool> GenerateContents(
   wstring address = target->Read(buffer_variables::path);
   LOG(INFO) << L"Server starts: " << address;
   return futures::Transform(
-      file_system_driver->Open(address, O_RDONLY | O_NDELAY),
+      file_system_driver->Open(address, O_RDONLY | O_NDELAY, 0),
       [target, address](int fd) {
         if (fd == -1) {
           LOG(FATAL) << address << ": Server: GenerateContents: Open failed: "

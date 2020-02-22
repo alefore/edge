@@ -563,6 +563,7 @@ void OpenBuffer::Visit() {
 time_t OpenBuffer::last_visit() const { return last_visit_; }
 time_t OpenBuffer::last_action() const { return last_action_; }
 
+// TODO(easy): Change return type to ValueOrError<bool>.
 futures::Value<std::optional<std::wstring>> OpenBuffer::PersistState() const {
   if (!Read(buffer_variables::persist_state)) {
     return futures::Past<std::optional<std::wstring>>({});
@@ -616,7 +617,7 @@ futures::Value<std::optional<std::wstring>> OpenBuffer::PersistState() const {
   contents.push_back(L"");
 
   return futures::Transform(
-      SaveContentsToFile(path, contents, &status_),
+      SaveContentsToFile(path, contents, &status_, work_queue()),
       [](ValueOrError<bool> value_or_error) -> std::optional<std::wstring> {
         if (value_or_error.IsError()) {
           return value_or_error.error;

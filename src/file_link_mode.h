@@ -16,11 +16,10 @@ namespace editor {
 using std::string;
 using std::unique_ptr;
 
-// Saves the contents of the buffer to the path given.  If there's an error,
-// updates the editor status and returns false; otherwise, returns true (and
-// leaves the status unmodified).
+// Saves the contents of the buffer to the path given.
 futures::Value<ValueOrError<bool>> SaveContentsToFile(
-    const wstring& path, const BufferContents& contents, Status* status);
+    const wstring& path, const BufferContents& contents, Status* status,
+    WorkQueue* work_queue);
 
 struct OpenFileOptions {
   OpenFileOptions() {}
