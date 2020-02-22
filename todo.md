@@ -51,6 +51,12 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
   * Make sure that the section with the actual cursor is shown.
 
+### Backups:
+
+Don't save backups of internal files, perhaps based on a variable.
+
+Change `save_handler` to return a future and make the writing asynchronous.
+
 ### Autocomplete
 
 ## Navigation
