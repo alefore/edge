@@ -501,29 +501,31 @@ void EditorState::CheckPosition() {
 
 void EditorState::CloseBuffer(OpenBuffer* buffer) {
   CHECK(buffer != nullptr);
-  buffer->PrepareToClose(
-      [this, buffer]() {
-        buffer->Close();
-        auto index = buffer_tree_.GetBufferIndex(buffer);
-        buffer_tree_.RemoveBuffer(buffer);
-        buffers_.erase(buffer->Read(buffer_variables::name));
-        LOG(INFO) << "Adjusting widgets that may be displaying the buffer we "
-                     "are deleting.";
-        if (buffer_tree_.BuffersCount() == 0) return;
-        auto replacement = buffer_tree_.GetBuffer(index.value_or(0) %
-                                                  buffer_tree_.BuffersCount());
-        buffer_tree_.ForEachBufferWidget([&](BufferWidget* widget) {
-          auto widget_buffer = widget->Lock();
-          if (widget_buffer == nullptr || widget_buffer.get() == buffer) {
-            widget->SetBuffer(replacement);
-          }
-        });
-      },
-      [this, buffer](wstring error) {
-        buffer->status()->SetWarningText(
-            L"🖝  Unable to close (“*ad” to ignore): " + error + L": " +
-            buffer->Read(buffer_variables::name));
-      });
+  buffer->PrepareToClose().SetConsumer([this, buffer](
+                                           std::optional<std::wstring> error) {
+    if (error.has_value()) {
+      buffer->status()->SetWarningText(
+          L"🖝  Unable to close (“*ad” to ignore): " + error.value() +
+          L": " + buffer->Read(buffer_variables::name));
+      return;
+    }
+
+    buffer->Close();
+    auto index = buffer_tree_.GetBufferIndex(buffer);
+    buffer_tree_.RemoveBuffer(buffer);
+    buffers_.erase(buffer->Read(buffer_variables::name));
+    LOG(INFO) << "Adjusting widgets that may be displaying the buffer we "
+                 "are deleting.";
+    if (buffer_tree_.BuffersCount() == 0) return;
+    auto replacement =
+        buffer_tree_.GetBuffer(index.value_or(0) % buffer_tree_.BuffersCount());
+    buffer_tree_.ForEachBufferWidget([&](BufferWidget* widget) {
+      auto widget_buffer = widget->Lock();
+      if (widget_buffer == nullptr || widget_buffer.get() == buffer) {
+        widget->SetBuffer(replacement);
+      }
+    });
+  });
 }
 
 void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
@@ -792,8 +794,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
       });
 
   for (auto& it : buffers_) {
-    it.second->PrepareToClose([pending_calls]() { --*pending_calls; },
-                              [pending_calls](wstring) { --*pending_calls; });
+    it.second->PrepareToClose().SetConsumer(
+        [pending_calls](std::optional<std::wstring>) { --*pending_calls; });
   }
 }
 

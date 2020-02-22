@@ -118,11 +118,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // we can predict that PrepareToClose will fail.
   std::optional<wstring> IsUnableToPrepareToClose() const;
 
-  // Starts saving this buffer. When done, calls either `success` or `failure`.
-  // These callbacks may not run if a new call to `PrepareToClose` is made; in
-  // other words, typically only the last values passed will run.
-  void PrepareToClose(std::function<void()> success,
-                      std::function<void(wstring)> failure);
+  // Starts saving this buffer. The future returned will have a value if there
+  // was an error.
+  futures::Value<std::optional<std::wstring>> PrepareToClose();
   void Close();
 
   // If the buffer is still being read (fd_ != -1), adds an observer to

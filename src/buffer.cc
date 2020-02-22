@@ -467,7 +467,7 @@ EditorState* OpenBuffer::editor() const { return options_.editor; }
 
 Status* OpenBuffer::status() const { return &status_; }
 
-std::optional<wstring> OpenBuffer::IsUnableToPrepareToClose() const {
+std::optional<std::wstring> OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor->modifiers().strength > Modifiers::Strength::kNormal) {
     return std::nullopt;
   }
@@ -484,54 +484,39 @@ std::optional<wstring> OpenBuffer::IsUnableToPrepareToClose() const {
   return std::nullopt;
 }
 
-void OpenBuffer::PrepareToClose(std::function<void()> success,
-                                std::function<void(wstring)> failure) {
+futures::Value<std::optional<std::wstring>> OpenBuffer::PrepareToClose() {
   LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
-  auto is_unable = IsUnableToPrepareToClose();
-  if (is_unable.has_value()) {
-    return failure(is_unable.value());
+  if (auto is_unable = IsUnableToPrepareToClose(); is_unable.has_value()) {
+    return futures::Past(std::optional<std::wstring>(is_unable.value()));
   }
 
   if (!PersistState() &&
       options_.editor->modifiers().strength == Modifiers::Strength::kNormal) {
     LOG(INFO) << "Unable to persist state: " << Read(buffer_variables::name);
-    return failure(L"Unable to persist state.");
+    return futures::Past(
+        std::optional<std::wstring>(L"Unable to persist state."));
   }
   if (child_pid_ != -1) {
     if (Read(buffer_variables::term_on_close)) {
       LOG(INFO) << "Sending termination and preparing handler: "
                 << Read(buffer_variables::name);
       kill(child_pid_, SIGTERM);
-      on_exit_handler_ = [this, success, failure]() {
+      auto future = futures::Future<std::optional<std::wstring>>();
+      on_exit_handler_ = [this, consumer = future.consumer]() mutable {
         CHECK_EQ(child_pid_, -1);
         LOG(INFO) << "Subprocess terminated: " << Read(buffer_variables::name);
-        PrepareToClose(success, failure);
+        PrepareToClose().SetConsumer(std::move(consumer));
       };
-      return;
+      return future.value;
     }
     CHECK(options_.editor->modifiers().strength > Modifiers::Strength::kNormal);
   }
-  if (!dirty()) {
-    LOG(INFO) << Read(buffer_variables::name) << ": clean, skipping.";
-    return success();
-  }
-  if (Read(buffer_variables::save_on_close)) {
+  if (dirty() && Read(buffer_variables::save_on_close)) {
     LOG(INFO) << Read(buffer_variables::name) << ": attempting to save buffer.";
-    // TODO(alejo): Let Save give us status?
+    // TODO(easy): Let Save give us status?
     Save();
-    if (!dirty()) {
-      LOG(INFO) << Read(buffer_variables::name) << ": successful save.";
-      return success();
-    }
   }
-  if (Read(buffer_variables::allow_dirty_delete)) {
-    LOG(INFO) << Read(buffer_variables::name)
-              << ": allows dirty delete, skipping.";
-    return success();
-  }
-  CHECK(options_.editor->modifiers().strength > Modifiers::Strength::kNormal);
-  LOG(INFO) << Read(buffer_variables::name) << ": Deleting due to modifiers.";
-  return success();
+  return futures::Past(std::optional<std::wstring>());
 }
 
 void OpenBuffer::Close() {
