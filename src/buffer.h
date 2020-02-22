@@ -137,7 +137,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Returns true if the state could be persisted successfully.
   bool PersistState() const;
 
-  void Save();
+  // If an error occurs, returns it (in the future). Otherwise, returns an
+  // empty value.
+  futures::Value<std::optional<std::wstring>> Save();
 
   // If we're currently at the end of the buffer *and* variable
   // `follow_end_of_file` is set, returns an object that, when deleted, will

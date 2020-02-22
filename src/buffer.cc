@@ -511,12 +511,11 @@ futures::Value<std::optional<std::wstring>> OpenBuffer::PrepareToClose() {
     }
     CHECK(options_.editor->modifiers().strength > Modifiers::Strength::kNormal);
   }
-  if (dirty() && Read(buffer_variables::save_on_close)) {
-    LOG(INFO) << Read(buffer_variables::name) << ": attempting to save buffer.";
-    // TODO(easy): Let Save give us status?
-    Save();
+  if (!dirty() || !Read(buffer_variables::save_on_close)) {
+    return futures::Past(std::optional<std::wstring>());
   }
-  return futures::Past(std::optional<std::wstring>());
+  LOG(INFO) << Read(buffer_variables::name) << ": attempting to save buffer.";
+  return Save();
 }
 
 void OpenBuffer::Close() {
@@ -896,13 +895,16 @@ void OpenBuffer::Reload() {
   });
 }
 
-void OpenBuffer::Save() {
+futures::Value<std::optional<std::wstring>> OpenBuffer::Save() {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
-  if (options_.handle_save != nullptr) {
-    return options_.handle_save(
-        {.buffer = this, .save_type = Options::SaveType::kMainFile});
+  if (options_.handle_save == nullptr) {
+    status_.SetWarningText(L"Buffer can't be saved.");
+    return futures::Past(
+        std::optional<std::wstring>(L"Buffer can't be saved."));
   }
-  status_.SetWarningText(L"Buffer can't be saved.");
+  options_.handle_save(
+      {.buffer = this, .save_type = Options::SaveType::kMainFile});
+  return futures::Past(std::optional<std::wstring>());
 }
 
 std::optional<std::wstring> OpenBuffer::GetEdgeStateDirectory(
