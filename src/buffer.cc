@@ -490,32 +490,39 @@ futures::Value<std::optional<std::wstring>> OpenBuffer::PrepareToClose() {
     return futures::Past(std::optional<std::wstring>(is_unable.value()));
   }
 
-  if (!PersistState() &&
-      options_.editor->modifiers().strength == Modifiers::Strength::kNormal) {
-    LOG(INFO) << "Unable to persist state: " << Read(buffer_variables::name);
-    return futures::Past(
-        std::optional<std::wstring>(L"Unable to persist state."));
-  }
-  if (child_pid_ != -1) {
-    if (Read(buffer_variables::term_on_close)) {
-      LOG(INFO) << "Sending termination and preparing handler: "
-                << Read(buffer_variables::name);
-      kill(child_pid_, SIGTERM);
-      auto future = futures::Future<std::optional<std::wstring>>();
-      on_exit_handler_ = [this, consumer = future.consumer]() mutable {
-        CHECK_EQ(child_pid_, -1);
-        LOG(INFO) << "Subprocess terminated: " << Read(buffer_variables::name);
-        PrepareToClose().SetConsumer(std::move(consumer));
-      };
-      return future.value;
-    }
-    CHECK(options_.editor->modifiers().strength > Modifiers::Strength::kNormal);
-  }
-  if (!dirty() || !Read(buffer_variables::save_on_close)) {
-    return futures::Past(std::optional<std::wstring>());
-  }
-  LOG(INFO) << Read(buffer_variables::name) << ": attempting to save buffer.";
-  return Save();
+  return futures::Transform(
+      PersistState(), [this](std::optional<std::wstring> persist_state_error) {
+        if (persist_state_error.has_value() &&
+            options_.editor->modifiers().strength ==
+                Modifiers::Strength::kNormal) {
+          LOG(INFO) << "Unable to persist state: "
+                    << Read(buffer_variables::name);
+          return futures::Past(persist_state_error);
+        }
+        if (child_pid_ != -1) {
+          if (Read(buffer_variables::term_on_close)) {
+            LOG(INFO) << "Sending termination and preparing handler: "
+                      << Read(buffer_variables::name);
+            kill(child_pid_, SIGTERM);
+            auto future = futures::Future<std::optional<std::wstring>>();
+            on_exit_handler_ = [this, consumer = future.consumer]() mutable {
+              CHECK_EQ(child_pid_, -1);
+              LOG(INFO) << "Subprocess terminated: "
+                        << Read(buffer_variables::name);
+              PrepareToClose().SetConsumer(std::move(consumer));
+            };
+            return future.value;
+          }
+          CHECK(options_.editor->modifiers().strength >
+                Modifiers::Strength::kNormal);
+        }
+        if (!dirty() || !Read(buffer_variables::save_on_close)) {
+          return futures::Past(std::optional<std::wstring>());
+        }
+        LOG(INFO) << Read(buffer_variables::name)
+                  << ": attempting to save buffer.";
+        return Save();
+      });
 }
 
 void OpenBuffer::Close() {
@@ -556,16 +563,16 @@ void OpenBuffer::Visit() {
 time_t OpenBuffer::last_visit() const { return last_visit_; }
 time_t OpenBuffer::last_action() const { return last_action_; }
 
-bool OpenBuffer::PersistState() const {
+futures::Value<std::optional<std::wstring>> OpenBuffer::PersistState() const {
   if (!Read(buffer_variables::persist_state)) {
-    return true;
+    return futures::Past<std::optional<std::wstring>>({});
   }
 
   std::wstring error;
   auto edge_state_directory = GetEdgeStateDirectory(&error);
   if (!edge_state_directory.has_value()) {
     status_.SetWarningText(error);
-    return !dirty();
+    return futures::Past<std::optional<std::wstring>>(error);
   }
 
   auto path = PathJoin(edge_state_directory.value(), L".edge_state");
@@ -608,7 +615,15 @@ bool OpenBuffer::PersistState() const {
   }
   contents.push_back(L"");
 
-  return SaveContentsToFile(path, contents, &status_);
+  return futures::Transform(
+      SaveContentsToFile(path, contents, &status_),
+      [](ValueOrError<bool> value_or_error) -> std::optional<std::wstring> {
+        if (value_or_error.IsError()) {
+          return value_or_error.error;
+        } else {
+          return std::nullopt;
+        }
+      });
 }
 
 void OpenBuffer::ClearContents(

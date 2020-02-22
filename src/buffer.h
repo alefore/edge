@@ -137,7 +137,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Saves state of this buffer (not including contents). Currently that means
   // the values of variables, but in the future it could include other things.
   // Returns true if the state could be persisted successfully.
-  bool PersistState() const;
+  futures::Value<std::optional<std::wstring>> PersistState() const;
 
   // If an error occurs, returns it (in the future). Otherwise, returns an
   // empty value.

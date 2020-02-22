@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/editor.h"
+#include "src/value_or_error.h"
 #include "src/widget_list.h"
 
 namespace afc {
@@ -18,8 +19,8 @@ using std::unique_ptr;
 // Saves the contents of the buffer to the path given.  If there's an error,
 // updates the editor status and returns false; otherwise, returns true (and
 // leaves the status unmodified).
-bool SaveContentsToFile(const wstring& path, const BufferContents& contents,
-                        Status* status);
+futures::Value<ValueOrError<bool>> SaveContentsToFile(
+    const wstring& path, const BufferContents& contents, Status* status);
 
 struct OpenFileOptions {
   OpenFileOptions() {}

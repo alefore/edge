@@ -278,36 +278,49 @@ futures::Value<std::optional<std::wstring>> Save(
       path = PathJoin(state_directory.value(), L"backup");
   }
 
-  if (!SaveContentsToFile(path, *buffer->contents(), buffer->status())) {
-    return futures::Past(std::optional<std::wstring>(L"Saving failed."));
-  }
-  if (!buffer->PersistState()) {
-    return futures::Past(std::optional<std::wstring>(L"Saving state failed."));
-  }
-  switch (options.save_type) {
-    case OpenBuffer::Options::SaveType::kMainFile:
-      buffer->status()->SetInformationText(L"🖫 Saved: " + path);
-      // TODO(easy): Move this to the caller, for symmetry with kBackup case.
-      buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
-      for (const auto& dir : editor_state->edge_path()) {
-        buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
-      }
-      if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write)) {
-        for (auto& it : *editor_state->buffers()) {
-          CHECK(it.second != nullptr);
-          if (it.second->Read(buffer_variables::reload_on_buffer_write)) {
-            LOG(INFO) << "Write of " << path << " triggers reload: "
-                      << it.second->Read(buffer_variables::name);
-            it.second->Reload();
-          }
+  return futures::Transform(
+      SaveContentsToFile(path, *buffer->contents(), buffer->status()),
+      [editor_state, stat_buffer, options, buffer,
+       path](ValueOrError<bool> save_contents_result) {
+        if (save_contents_result.error.has_value()) {
+          return futures::Past(save_contents_result.error);
         }
-      }
-      stat(ToByteString(path).c_str(), stat_buffer);
-      break;
-    case OpenBuffer::Options::SaveType::kBackup:
-      break;
-  }
-  return futures::Past(std::optional<std::wstring>());
+        return futures::Transform(
+            buffer->PersistState(),
+            [editor_state, stat_buffer, options, buffer,
+             path](std::optional<std::wstring> persist_state_error) {
+              if (persist_state_error.has_value()) {
+                return futures::Past(persist_state_error);
+              }
+              switch (options.save_type) {
+                case OpenBuffer::Options::SaveType::kMainFile:
+                  buffer->status()->SetInformationText(L"🖫 Saved: " + path);
+                  // TODO(easy): Move this to the caller, for symmetry with
+                  // kBackup case.
+                  buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
+                  for (const auto& dir : editor_state->edge_path()) {
+                    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
+                  }
+                  if (buffer->Read(
+                          buffer_variables::trigger_reload_on_buffer_write)) {
+                    for (auto& it : *editor_state->buffers()) {
+                      CHECK(it.second != nullptr);
+                      if (it.second->Read(
+                              buffer_variables::reload_on_buffer_write)) {
+                        LOG(INFO) << "Write of " << path << " triggers reload: "
+                                  << it.second->Read(buffer_variables::name);
+                        it.second->Reload();
+                      }
+                    }
+                  }
+                  stat(ToByteString(path).c_str(), stat_buffer);
+                  break;
+                case OpenBuffer::Options::SaveType::kBackup:
+                  break;
+              }
+              return futures::Past(std::optional<std::wstring>());
+            });
+      });
 }
 
 static bool CanStatPath(const wstring& path) {
@@ -342,8 +355,8 @@ bool SaveContentsToOpenFile(const wstring& path, int fd,
   });
 }
 
-bool SaveContentsToFile(const wstring& path, const BufferContents& contents,
-                        Status* status) {
+futures::Value<ValueOrError<bool>> SaveContentsToFile(
+    const wstring& path, const BufferContents& contents, Status* status) {
   const string path_raw = ToByteString(path);
   const string tmp_path = path_raw + ".tmp";
 
@@ -359,25 +372,28 @@ bool SaveContentsToFile(const wstring& path, const BufferContents& contents,
   int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
                 original_stat.st_mode);
   if (fd == -1) {
-    status->SetWarningText(FromByteString(tmp_path) + L": open failed: " +
-                           FromByteString(strerror(errno)));
-    return false;
+    auto error = ValueOrError<bool>::Error(FromByteString(tmp_path) +
+                                           L": open failed: " +
+                                           FromByteString(strerror(errno)));
+    status->SetWarningText(error.error.value());
+    return futures::Past(std::move(error));
   }
   bool result =
       SaveContentsToOpenFile(FromByteString(tmp_path), fd, contents, status);
   close(fd);
   if (!result) {
-    return false;
+    return futures::Past(ValueOrError<bool>::Error(L"Save failed."));
   }
 
   // TODO: Make this non-blocking?
   if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
-    status->SetWarningText(path + L": rename failed: " +
-                           FromByteString(strerror(errno)));
-    return false;
+    auto error = ValueOrError<bool>::Error(path + L": rename failed: " +
+                                           FromByteString(strerror(errno)));
+    status->SetWarningText(error.error.value());
+    return futures::Past(std::move(error));
   }
 
-  return true;
+  return futures::Past(ValueOrError<bool>::Value(true));
 }
 
 shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,
