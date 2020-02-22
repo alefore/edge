@@ -356,6 +356,8 @@ bool SaveContentsToOpenFile(const wstring& path, int fd,
   });
 }
 
+// TODO(easy): Have futures::Transform handle ValueOrError and use that here to
+// avoid nesting?
 futures::Value<ValueOrError<bool>> SaveContentsToFile(
     const wstring& path, const BufferContents& contents, Status* status,
     WorkQueue* work_queue) {
@@ -373,7 +375,7 @@ futures::Value<ValueOrError<bool>> SaveContentsToFile(
         return futures::Transform(
             file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
                                      mode),
-            [path, contents, status, tmp_path](int fd) {
+            [path, contents, status, tmp_path, file_system_driver](int fd) {
               if (fd == -1) {
                 auto error =
                     ValueOrError<bool>::Error(tmp_path + L": open failed: " +
@@ -384,24 +386,29 @@ futures::Value<ValueOrError<bool>> SaveContentsToFile(
               // TODO: Offload to a background thread.
               bool result =
                   SaveContentsToOpenFile(tmp_path, fd, contents, status);
-              // TODO: Check return status.
-              close(fd);
-              if (!result) {
-                return futures::Past(
-                    ValueOrError<bool>::Error(L"Save failed."));
-              }
+              return futures::Transform(
+                  file_system_driver->Close(fd),
+                  [path, status, file_system_driver, tmp_path,
+                   result](int close_result) {
+                    if (!result || close_result == -1) {
+                      return futures::Past(
+                          ValueOrError<bool>::Error(L"Save failed."));
+                    }
 
-              // TODO: Make this non-blocking.
-              if (rename(ToByteString(tmp_path).c_str(),
-                         ToByteString(path).c_str()) == -1) {
-                auto error =
-                    ValueOrError<bool>::Error(path + L": rename failed: " +
-                                              FromByteString(strerror(errno)));
-                status->SetWarningText(error.error.value());
-                return futures::Past(std::move(error));
-              }
+                    return futures::Transform(
+                        file_system_driver->Rename(tmp_path, path),
+                        [path, status](int rename_result) {
+                          if (rename_result == -1) {
+                            auto error = ValueOrError<bool>::Error(
+                                path + L": rename failed: " +
+                                FromByteString(strerror(errno)));
+                            status->SetWarningText(error.error.value());
+                            return futures::Past(std::move(error));
+                          }
 
-              return futures::Past(ValueOrError<bool>::Value(true));
+                          return futures::Past(ValueOrError<bool>::Value(true));
+                        });
+                  });
             });
       });
 }

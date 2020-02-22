@@ -13,6 +13,10 @@ futures::Value<int> FileSystemDriver::Open(std::wstring path, int flags,
   });
 }
 
+futures::Value<int> FileSystemDriver::Close(int fd) {
+  return evaluator_.Run([fd] { return close(fd); });
+}
+
 futures::Value<std::optional<struct stat>> FileSystemDriver::Stat(
     std::wstring path) {
   return evaluator_.Run([path =
@@ -22,6 +26,13 @@ futures::Value<std::optional<struct stat>> FileSystemDriver::Stat(
       return std::nullopt;
     }
     return output;
+  });
+}
+
+futures::Value<int> FileSystemDriver::Rename(std::wstring oldpath,
+                                             std::wstring newpath) {
+  return evaluator_.Run([oldpath, newpath] {
+    return rename(ToByteString(oldpath).c_str(), ToByteString(newpath).c_str());
   });
 }
 
