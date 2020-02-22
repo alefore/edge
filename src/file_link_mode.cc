@@ -252,8 +252,9 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
 }
 
 void Save(EditorState* editor_state, struct stat* stat_buffer,
-          OpenBuffer* buffer) {
-  const wstring path = buffer->Read(buffer_variables::path);
+          OpenBuffer::Options::HandleSaveOptions options) {
+  auto buffer = options.buffer;
+  std::wstring path = buffer->Read(buffer_variables::path);
   if (path.empty()) {
     buffer->status()->SetInformationText(
         L"Buffer can't be saved: “path” variable is empty.");
@@ -265,27 +266,49 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
     return;
   }
 
+  switch (options.save_type) {
+    case OpenBuffer::Options::SaveType::kMainFile:
+      break;
+    case OpenBuffer::Options::SaveType::kBackup:
+      std::wstring error;
+      auto state_directory = buffer->GetEdgeStateDirectory(&error);
+      if (!state_directory.has_value()) {
+        buffer->status()->SetInformationText(L"Unable to backup buffer: " +
+                                             error);
+        return;
+      }
+      path = PathJoin(state_directory.value(), L"backup");
+  }
+
   if (!SaveContentsToFile(path, *buffer->contents(), buffer->status()) ||
       !buffer->PersistState()) {
     LOG(INFO) << "Saving failed.";
     return;
   }
-  buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
-  buffer->status()->SetInformationText(L"🖫 Saved: " + path);
-  for (const auto& dir : editor_state->edge_path()) {
-    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
-  }
-  if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write)) {
-    for (auto& it : *editor_state->buffers()) {
-      CHECK(it.second != nullptr);
-      if (it.second->Read(buffer_variables::reload_on_buffer_write)) {
-        LOG(INFO) << "Write of " << path << " triggers reload: "
-                  << it.second->Read(buffer_variables::name);
-        it.second->Reload();
+
+  switch (options.save_type) {
+    case OpenBuffer::Options::SaveType::kMainFile:
+      buffer->status()->SetInformationText(L"🖫 Saved: " + path);
+      // TODO(easy): Move this to the caller, for symmetry with kBackup case.
+      buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
+      for (const auto& dir : editor_state->edge_path()) {
+        buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
       }
-    }
+      if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write)) {
+        for (auto& it : *editor_state->buffers()) {
+          CHECK(it.second != nullptr);
+          if (it.second->Read(buffer_variables::reload_on_buffer_write)) {
+            LOG(INFO) << "Write of " << path << " triggers reload: "
+                      << it.second->Read(buffer_variables::name);
+            it.second->Reload();
+          }
+        }
+      }
+      stat(ToByteString(path).c_str(), stat_buffer);
+      break;
+    case OpenBuffer::Options::SaveType::kBackup:
+      break;
   }
-  stat(ToByteString(path).c_str(), stat_buffer);
 }
 
 static bool CanStatPath(const wstring& path) {
@@ -523,9 +546,11 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
                                  stat_buffer](OpenBuffer* buffer) {
     HandleVisit(*stat_buffer, *buffer);
   };
-  buffer_options.handle_save = [editor_state, stat_buffer](OpenBuffer* buffer) {
-    Save(editor_state, stat_buffer.get(), buffer);
-  };
+  buffer_options.handle_save =
+      [editor_state,
+       stat_buffer](OpenBuffer::Options::HandleSaveOptions options) {
+        Save(editor_state, stat_buffer.get(), std::move(options));
+      };
 
   auto resolve_path_options =
       ResolvePathOptions::NewWithEmptySearchPaths(editor_state);

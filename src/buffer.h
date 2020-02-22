@@ -93,9 +93,14 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     // entering the buffer from other buffers).
     std::function<void(OpenBuffer*)> handle_visit = nullptr;
 
+    enum class SaveType { kMainFile, kBackup };
     // Optional function that saves the buffer. If not provided, attempts to
     // save the buffer will fail.
-    std::function<void(OpenBuffer*)> handle_save = nullptr;
+    struct HandleSaveOptions {
+      OpenBuffer* buffer;
+      SaveType save_type = SaveType::kMainFile;
+    };
+    std::function<void(HandleSaveOptions)> handle_save = nullptr;
   };
 
   static std::shared_ptr<OpenBuffer> New(Options options);
@@ -370,6 +375,14 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   Viewers* viewers();
   const Viewers* viewers() const;
 
+  // Returns the path to the directory that should be used to keep state for the
+  // current buffer. If the directory doesn't exist, creates it. If there's an
+  // error, will return a nullopt value and set the string pointed to by error
+  // to a description of the problem.
+  std::optional<std::wstring> GetEdgeStateDirectory(std::wstring* error) const;
+
+  void UpdateBackup();
+
   /////////////////////////////////////////////////////////////////////////////
   // Cursors
 
@@ -491,6 +504,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   BufferContents contents_;
 
   DiskState disk_state_ = DiskState::kCurrent;
+  DiskState backup_state_ = DiskState::kCurrent;
   bool reading_from_parser_ = false;
 
   EdgeStructInstance<bool> bool_variables_;

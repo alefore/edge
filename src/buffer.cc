@@ -425,6 +425,20 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
           });
         }
         SetDiskState(DiskState::kStale);
+        switch (backup_state_) {
+          case DiskState::kCurrent: {
+            backup_state_ = DiskState::kStale;
+            auto flush_backup_time = Now();
+            flush_backup_time.tv_sec += 30;
+            work_queue_.ScheduleAt(flush_backup_time,
+                                   [shared_this = shared_from_this()] {
+                                     shared_this->UpdateBackup();
+                                   });
+          } break;
+
+          case DiskState::kStale:
+            break;  // Nothing.
+        }
         time(&last_action_);
         cursors_tracker_.AdjustCursors(transformation);
       }),
@@ -563,51 +577,14 @@ bool OpenBuffer::PersistState() const {
     return true;
   }
 
-  auto path_vector = options_.editor->edge_path();
-  if (path_vector.empty()) {
-    LOG(INFO) << "Empty edge path.";
-    return false;
-  }
-
-  auto file_path = Read(buffer_variables::path);
-  list<wstring> file_path_components;
-  if (file_path.empty() || file_path[0] != '/') {
-    status_.SetWarningText(
-        L"Unable to persist buffer with empty path: " +
-        Read(buffer_variables::name) + L" " +
-        (dirty() ? L" (dirty)" : L" (clean)") + L" " +
-        (disk_state_ == DiskState::kStale ? L"modified" : L"not modified"));
+  std::wstring error;
+  auto edge_state_directory = GetEdgeStateDirectory(&error);
+  if (!edge_state_directory.has_value()) {
+    status_.SetWarningText(error);
     return !dirty();
   }
 
-  if (!DirectorySplit(file_path, &file_path_components)) {
-    LOG(INFO) << "Unable to split path: " << file_path;
-    return false;
-  }
-
-  file_path_components.push_front(L"state");
-
-  wstring path = path_vector[0];
-  LOG(INFO) << "PersistState: Preparing directory for state: " << path;
-  for (auto& component : file_path_components) {
-    path = PathJoin(path, component);
-    struct stat stat_buffer;
-    auto path_byte_string = ToByteString(path);
-    if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
-      if (S_ISDIR(stat_buffer.st_mode)) {
-        continue;
-      }
-      LOG(INFO) << "Ooops, exists, but is not a directory: " << path;
-      return false;
-    }
-    if (mkdir(path_byte_string.c_str(), 0700)) {
-      status_.SetInformationText(L"mkdir: " + FromByteString(strerror(errno)) +
-                                 L": " + path);
-      return false;
-    }
-  }
-
-  path = PathJoin(path, L".edge_state");
+  auto path = PathJoin(edge_state_directory.value(), L".edge_state");
   LOG(INFO) << "PersistState: Preparing state file: " << path;
   BufferContents contents;
   contents.push_back(L"// State of file: " + path);
@@ -936,11 +913,69 @@ void OpenBuffer::Reload() {
 
 void OpenBuffer::Save() {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
-
   if (options_.handle_save != nullptr) {
-    return options_.handle_save(this);
+    return options_.handle_save(
+        {.buffer = this, .save_type = Options::SaveType::kMainFile});
   }
   status_.SetWarningText(L"Buffer can't be saved.");
+}
+
+std::optional<std::wstring> OpenBuffer::GetEdgeStateDirectory(
+    std::wstring* error) const {
+  CHECK(error != nullptr);
+  auto path_vector = editor()->edge_path();
+  if (path_vector.empty() || path_vector[0].empty()) {
+    *error = L"Empty edge path.";
+    return {};
+  }
+
+  auto file_path = Read(buffer_variables::path);
+  list<wstring> file_path_components;
+  if (file_path.empty() || file_path[0] != '/') {
+    *error = L"Unable to persist buffer with empty path: " +
+             Read(buffer_variables::name) + L" " +
+             (dirty() ? L" (dirty)" : L" (clean)") + L" " +
+             (disk_state_ == DiskState::kStale ? L"modified" : L"not modified");
+    return {};
+  }
+
+  if (!DirectorySplit(file_path, &file_path_components)) {
+    *error = L"Unable to split path: " + file_path;
+    return {};
+  }
+
+  file_path_components.push_front(L"state");
+
+  wstring path = path_vector[0];
+  LOG(INFO) << "GetEdgeStateDirectory: Preparing directory for state: " << path;
+  for (auto& component : file_path_components) {
+    path = PathJoin(path, component);
+    struct stat stat_buffer;
+    auto path_byte_string = ToByteString(path);
+    if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
+      if (S_ISDIR(stat_buffer.st_mode)) {
+        continue;
+      }
+      *error = L"Oops, exists, but is not a directory: " + path;
+      return {};
+    }
+    if (mkdir(path_byte_string.c_str(), 0700)) {
+      *error =
+          L"mkdir failed: " + FromByteString(strerror(errno)) + L": " + path;
+      return {};
+    }
+  }
+  return path;
+}
+
+void OpenBuffer::UpdateBackup() {
+  CHECK(backup_state_ == DiskState::kStale);
+  LOG(INFO) << "UpdateBackup starts.";
+  if (options_.handle_save != nullptr) {
+    options_.handle_save(
+        {.buffer = this, .save_type = Options::SaveType::kBackup});
+  }
+  backup_state_ = DiskState::kCurrent;
 }
 
 void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
