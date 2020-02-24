@@ -133,43 +133,32 @@ Value<IterationControlCommand> While(Callable callable) {
 }
 
 template <typename T>
-struct IsValue {
-  static const bool value = false;
+struct TransformTraitsCallableReturn {
+  using ReturnType = Value<T>;
+  static void FeedValue(T output, typename Value<T>::Consumer consumer) {
+    consumer(std::move(output));
+  }
 };
 
 template <typename T>
-struct IsValue<Value<T>> {
-  static const bool value = true;
+struct TransformTraitsCallableReturn<Value<T>> {
+  using ReturnType = Value<T>;
+  static void FeedValue(Value<T> output, typename Value<T>::Consumer consumer) {
+    output.SetConsumer(std::move(consumer));
+  }
 };
 
-// Used when Callable returns a futures::Value<T>.
 template <typename OtherType, typename Callable>
-typename std::enable_if<
-    IsValue<
-        decltype(std::declval<Callable>()(std::declval<OtherType>()))>::value,
-    decltype(std::declval<Callable>()(std::declval<OtherType>()))>::type
+typename TransformTraitsCallableReturn<
+    decltype(std::declval<Callable>()(std::declval<OtherType>()))>::ReturnType
 Transform(Value<OtherType> delayed_value, Callable callable) {
-  Future<typename decltype(callable(std::declval<OtherType>()))::type> output;
+  using Traits = TransformTraitsCallableReturn<decltype(
+      std::declval<Callable>()(std::declval<OtherType>()))>;
+  Future<typename Traits::ReturnType::type> output;
   delayed_value.SetConsumer(
       [consumer = output.consumer,
        callable = std::move(callable)](OtherType other_value) mutable {
-        callable(std::move(other_value)).SetConsumer(std::move(consumer));
-      });
-  return output.value;
-}
-
-// Used when Callable returns a literal value (not a futures::Value<T>).
-template <typename OtherType, typename Callable>
-typename std::enable_if<
-    !IsValue<
-        decltype(std::declval<Callable>()(std::declval<OtherType>()))>::value,
-    Value<decltype(std::declval<Callable>()(std::declval<OtherType>()))>>::type
-Transform(Value<OtherType> delayed_value, Callable callable) {
-  Future<decltype(callable(std::declval<OtherType>()))> output;
-  delayed_value.SetConsumer(
-      [consumer = output.consumer,
-       callable = std::move(callable)](OtherType other_value) mutable {
-        consumer(callable(std::move(other_value)));
+        Traits::FeedValue(callable(std::move(other_value)), consumer);
       });
   return output.value;
 }
