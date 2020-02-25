@@ -409,6 +409,7 @@ void Execute(std::shared_ptr<OpenBuffer> buffer) {
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       work_queue_([this] {
+        CHECK(work_queue_.NextExecution().has_value());
         options_.editor->work_queue()->ScheduleAt(
             work_queue_.NextExecution().value(),
             [shared_this = shared_from_this()]() mutable {
