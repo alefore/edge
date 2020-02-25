@@ -20,6 +20,7 @@
 #include "src/naive_bayes.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
+#include "src/tests/tests.h"
 #include "src/tokenize.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
@@ -81,6 +82,101 @@ GetSyntheticFeatures(
   }
   return output;
 }
+class GetSyntheticFeaturesTests
+    : public tests::TestGroup<GetSyntheticFeaturesTests> {
+ public:
+  GetSyntheticFeaturesTests() : TestGroup<GetSyntheticFeaturesTests>() {}
+  std::wstring Name() const override { return L"GetSyntheticFeaturesTests"; }
+  std::vector<tests::Test> Tests() const override {
+    return {
+        {.name = L"Empty",
+         .callback = [] { CHECK_EQ(GetSyntheticFeatures({}).size(), 0ul); }},
+        {.name = L"ExtensionsSimple",
+         .callback =
+             [] {
+               std::unordered_multimap<std::wstring,
+                                       std::shared_ptr<LazyString>>
+                   input;
+               input.insert({L"name", NewLazyString(L"foo.cc")});
+               auto output = GetSyntheticFeatures(input);
+               CHECK_EQ(output.count(L"extension"), 1ul);
+               CHECK(output.find(L"extension")->second->ToString() == L"cc");
+             }},
+        {.name = L"ExtensionsLongDirectory",
+         .callback =
+             [] {
+               std::unordered_multimap<std::wstring,
+                                       std::shared_ptr<LazyString>>
+                   input;
+               input.insert(
+                   {L"name", NewLazyString(L"/home/alejo/src/edge/foo.cc")});
+               auto output = GetSyntheticFeatures(input);
+               CHECK_EQ(output.count(L"extension"), 1ul);
+               CHECK(output.find(L"extension")->second->ToString() == L"cc");
+             }},
+        {.name = L"ExtensionsMultiple",
+         .callback =
+             [] {
+               std::unordered_multimap<std::wstring,
+                                       std::shared_ptr<LazyString>>
+                   input;
+               input.insert({L"name", NewLazyString(L"/home/alejo/foo.cc")});
+               input.insert({L"name", NewLazyString(L"bar.cc")});
+               input.insert({L"name", NewLazyString(L"/home/alejo/buffer.h")});
+               input.insert({L"name", NewLazyString(L"/home/alejo/README.md")});
+               auto output = GetSyntheticFeatures(input);
+               auto range = output.equal_range(L"extension");
+               CHECK_EQ(std::distance(range.first, range.second), 3l);
+               while (range.first != range.second) {
+                 auto value = range.first->second->ToString();
+                 CHECK(value == L"cc" || value == L"h" || value == L"md");
+                 ++range.first;
+               }
+             }},
+        {.name = L"DirectoryPlain",
+         .callback =
+             [] {
+               std::unordered_multimap<std::wstring,
+                                       std::shared_ptr<LazyString>>
+                   input;
+               input.insert({L"name", NewLazyString(L"foo.cc")});
+               auto output = GetSyntheticFeatures(input);
+               CHECK_EQ(output.count(L"directory"), 0ul);
+             }},
+        {.name = L"DirectoryPath",
+         .callback =
+             [] {
+               std::unordered_multimap<std::wstring,
+                                       std::shared_ptr<LazyString>>
+                   input;
+               input.insert(
+                   {L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
+               auto output = GetSyntheticFeatures(input);
+               CHECK_EQ(output.count(L"directory"), 1ul);
+               CHECK(output.find(L"directory")->second->ToString() ==
+                     L"/home/alejo/edge");
+             }},
+        {.name = L"DirectoryMultiple", .callback = [] {
+           std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+               input;
+           input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
+           input.insert({L"name", NewLazyString(L"/home/alejo/edge/bar.cc")});
+           input.insert({L"name", NewLazyString(L"/home/alejo/btc/input.txt")});
+           auto output = GetSyntheticFeatures(input);
+           auto range = output.equal_range(L"directory");
+           CHECK_EQ(std::distance(range.first, range.second), 2l);
+           while (range.first != range.second) {
+             auto value = range.first->second->ToString();
+             CHECK(value == L"/home/alejo/edge" || value == L"/home/alejo/btc");
+             ++range.first;
+           }
+         }}};
+  }
+};
+
+template <>
+const bool tests::TestGroup<GetSyntheticFeaturesTests>::registration_ =
+    tests::Add<editor::GetSyntheticFeaturesTests>();
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
     EditorState* editor_state, const wstring& name) {
