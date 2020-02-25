@@ -71,6 +71,7 @@ src/file_descriptor_reader.cc \
 src/file_descriptor_reader.h \
 src/find_mode.cc \
 src/function_traits.h \
+src/futures/futures.cc \
 src/futures/futures.h \
 src/fuzz.h \
 src/fuzz.cc \
@@ -187,6 +188,8 @@ src/transformation/tree_navigate.cc \
 src/transformation/tree_navigate.h \
 src/transformation.cc \
 src/transformation.h \
+src/value_or_error.cc \
+src/value_or_error.h \
 src/vertical_split_output_producer.cc \
 src/vertical_split_output_producer.h \
 src/viewers.cc \

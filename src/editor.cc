@@ -501,12 +501,11 @@ void EditorState::CheckPosition() {
 
 void EditorState::CloseBuffer(OpenBuffer* buffer) {
   CHECK(buffer != nullptr);
-  buffer->PrepareToClose().SetConsumer([this, buffer](
-                                           std::optional<std::wstring> error) {
-    if (error.has_value()) {
+  buffer->PrepareToClose().SetConsumer([this, buffer](PossibleError error) {
+    if (error.IsError()) {
       buffer->status()->SetWarningText(
-          L"🖝  Unable to close (“*ad” to ignore): " + error.value() +
-          L": " + buffer->Read(buffer_variables::name));
+          L"🖝  Unable to close (“*ad” to ignore): " +
+          error.error.value() + L": " + buffer->Read(buffer_variables::name));
       return;
     }
 
@@ -744,7 +743,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<wstring> buffers_with_problems;
     for (auto& it : buffers_) {
-      if (it.second->IsUnableToPrepareToClose()) {
+      if (it.second->IsUnableToPrepareToClose().IsError()) {
         buffers_with_problems.push_back(
             it.second->Read(buffer_variables::name));
       }
@@ -795,7 +794,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
 
   for (auto& it : buffers_) {
     it.second->PrepareToClose().SetConsumer(
-        [pending_calls](std::optional<std::wstring>) { --*pending_calls; });
+        [pending_calls](PossibleError) { --*pending_calls; });
   }
 }
 

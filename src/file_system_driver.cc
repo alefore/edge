@@ -29,10 +29,13 @@ futures::Value<std::optional<struct stat>> FileSystemDriver::Stat(
   });
 }
 
-futures::Value<int> FileSystemDriver::Rename(std::wstring oldpath,
-                                             std::wstring newpath) {
+futures::Value<PossibleError> FileSystemDriver::Rename(std::wstring oldpath,
+                                                       std::wstring newpath) {
   return evaluator_.Run([oldpath, newpath] {
-    return rename(ToByteString(oldpath).c_str(), ToByteString(newpath).c_str());
+    return rename(ToByteString(oldpath).c_str(),
+                  ToByteString(newpath).c_str()) == -1
+               ? Success()
+               : Error(L"Rename failed: " + FromByteString(strerror(errno)));
   });
 }
 

@@ -1,10 +1,14 @@
+#ifndef __AFC_EDITOR_FUTURES_FUTURES_H__
+#define __AFC_EDITOR_FUTURES_FUTURES_H__
+
 #include <glog/logging.h>
 
 #include <functional>
+#include <memory>
 #include <type_traits>
 
-#ifndef __AFC_EDITOR_FUTURES_FUTURES_H__
-#define __AFC_EDITOR_FUTURES_FUTURES_H__
+#include "src/function_traits.h"
+#include "src/value_or_error.h"
 
 namespace afc::futures {
 
@@ -132,43 +136,77 @@ Value<IterationControlCommand> While(Callable callable) {
   return output.value;
 }
 
+template <typename>
+struct TransformTraitsCallableReturn;
+
 template <typename T>
 struct TransformTraitsCallableReturn {
-  using ReturnType = Value<T>;
-  static void FeedValue(T output, typename Value<T>::Consumer consumer) {
+  using Type = Value<T>;
+  static void Feed(T output, typename Value<T>::Consumer consumer) {
     consumer(std::move(output));
   }
 };
 
 template <typename T>
 struct TransformTraitsCallableReturn<Value<T>> {
-  using ReturnType = Value<T>;
-  static void FeedValue(Value<T> output, typename Value<T>::Consumer consumer) {
+  using Type = Value<T>;
+  static void Feed(Value<T> output, typename Value<T>::Consumer consumer) {
     output.SetConsumer(std::move(consumer));
   }
 };
 
-template <typename OtherType, typename Callable>
-typename TransformTraitsCallableReturn<
-    decltype(std::declval<Callable>()(std::declval<OtherType>()))>::ReturnType
-Transform(Value<OtherType> delayed_value, Callable callable) {
-  using Traits = TransformTraitsCallableReturn<decltype(
-      std::declval<Callable>()(std::declval<OtherType>()))>;
+template <typename, typename>
+struct TransformTraits;
+
+template <class InitialType, class Callable>
+struct TransformTraits {
+  using ReturnTraits = TransformTraitsCallableReturn<decltype(
+      std::declval<Callable>()(std::declval<InitialType>()))>;
+  using ReturnType = typename ReturnTraits::Type;
+
+  static void FeedValue(InitialType initial_value, Callable& callable,
+                        typename ReturnType::Consumer consumer) {
+    ReturnTraits::Feed(callable(std::move(initial_value)), std::move(consumer));
+  }
+};
+
+template <class InitialType, class Callable>
+struct TransformTraits<editor::ValueOrError<InitialType>, Callable> {
+  using ReturnTraits = TransformTraitsCallableReturn<decltype(
+      std::declval<Callable>()(std::declval<InitialType>()))>;
+  using ReturnType = typename ReturnTraits::Type;
+
+  static void FeedValue(editor::ValueOrError<InitialType> initial_value,
+                        Callable& callable,
+                        typename ReturnType::Consumer consumer) {
+    if (initial_value.IsError()) {
+      consumer(ReturnType::type::Error(initial_value.error.value()));
+    } else {
+      ReturnTraits::Feed(callable(std::move(initial_value.value.value())),
+                         std::move(consumer));
+    }
+  }
+};
+
+template <typename InitialType, typename Callable>
+auto Transform(Value<InitialType> delayed_value, Callable callable) {
+  using Traits = TransformTraits<InitialType, Callable>;
   Future<typename Traits::ReturnType::type> output;
   delayed_value.SetConsumer(
       [consumer = output.consumer,
-       callable = std::move(callable)](OtherType other_value) mutable {
-        Traits::FeedValue(callable(std::move(other_value)), consumer);
+       callable = std::move(callable)](InitialType initial_value) mutable {
+        Traits::FeedValue(std::move(initial_value), callable, consumer);
       });
   return output.value;
 }
 
-template <typename OtherType, typename Type>
-auto Transform(Value<OtherType> delayed_value, Value<Type> value) {
+Value<editor::PossibleError> IgnoreErrors(Value<editor::PossibleError> value);
+
+template <typename InitialType, typename Type>
+auto Transform(Value<InitialType> delayed_value, Value<Type> value) {
   return Transform(delayed_value,
-                   [value = std::move(value)](const OtherType&) -> Value<Type> {
-                     return value;
-                   });
+                   [value = std::move(value)](
+                       const InitialType&) -> Value<Type> { return value; });
 }
 
 template <typename T0, typename T1, typename T2>

@@ -467,57 +467,55 @@ EditorState* OpenBuffer::editor() const { return options_.editor; }
 
 Status* OpenBuffer::status() const { return &status_; }
 
-std::optional<std::wstring> OpenBuffer::IsUnableToPrepareToClose() const {
+PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor->modifiers().strength > Modifiers::Strength::kNormal) {
-    return std::nullopt;
+    return Success();
   }
   if (child_pid_ != -1) {
     if (!Read(buffer_variables::term_on_close)) {
-      return L"Running subprocess (pid: " + std::to_wstring(child_pid_) + L")";
+      return Error(L"Running subprocess (pid: " + std::to_wstring(child_pid_) +
+                   L")");
     }
-    return std::nullopt;
+    return Success();
   }
   if (dirty() && !Read(buffer_variables::save_on_close) &&
       !Read(buffer_variables::allow_dirty_delete)) {
-    return L"Unsaved changes";
+    return Error(L"Unsaved changes");
   }
-  return std::nullopt;
+  return Success();
 }
 
-futures::Value<std::optional<std::wstring>> OpenBuffer::PrepareToClose() {
+futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
   LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
-  if (auto is_unable = IsUnableToPrepareToClose(); is_unable.has_value()) {
-    return futures::Past(std::optional<std::wstring>(is_unable.value()));
+  if (auto is_unable = IsUnableToPrepareToClose(); is_unable.IsError()) {
+    return futures::Past(is_unable);
   }
 
   return futures::Transform(
-      PersistState(), [this](std::optional<std::wstring> persist_state_error) {
-        if (persist_state_error.has_value() &&
-            options_.editor->modifiers().strength ==
-                Modifiers::Strength::kNormal) {
-          LOG(INFO) << "Unable to persist state: "
-                    << Read(buffer_variables::name);
-          return futures::Past(persist_state_error);
-        }
+      options_.editor->modifiers().strength == Modifiers::Strength::kNormal
+          ? PersistState()
+          : futures::IgnoreErrors(PersistState()),
+      [this](EmptyValue) {
         if (child_pid_ != -1) {
           if (Read(buffer_variables::term_on_close)) {
             LOG(INFO) << "Sending termination and preparing handler: "
                       << Read(buffer_variables::name);
             kill(child_pid_, SIGTERM);
-            auto future = futures::Future<std::optional<std::wstring>>();
-            on_exit_handler_ = [this, consumer = future.consumer]() mutable {
-              CHECK_EQ(child_pid_, -1);
-              LOG(INFO) << "Subprocess terminated: "
-                        << Read(buffer_variables::name);
-              PrepareToClose().SetConsumer(std::move(consumer));
-            };
-            return future.value;
+            auto future = futures::Future<PossibleError>();
+            on_exit_handler_ =
+                [this, consumer = std::move(future.consumer)]() mutable {
+                  CHECK_EQ(child_pid_, -1);
+                  LOG(INFO) << "Subprocess terminated: "
+                            << Read(buffer_variables::name);
+                  PrepareToClose().SetConsumer(std::move(consumer));
+                };
+            return std::move(future.value);
           }
           CHECK(options_.editor->modifiers().strength >
                 Modifiers::Strength::kNormal);
         }
         if (!dirty() || !Read(buffer_variables::save_on_close)) {
-          return futures::Past(std::optional<std::wstring>());
+          return futures::Past(Success());
         }
         LOG(INFO) << Read(buffer_variables::name)
                   << ": attempting to save buffer.";
@@ -563,20 +561,18 @@ void OpenBuffer::Visit() {
 time_t OpenBuffer::last_visit() const { return last_visit_; }
 time_t OpenBuffer::last_action() const { return last_action_; }
 
-// TODO(easy): Change return type to ValueOrError<bool>.
-futures::Value<std::optional<std::wstring>> OpenBuffer::PersistState() const {
+futures::Value<PossibleError> OpenBuffer::PersistState() const {
   if (!Read(buffer_variables::persist_state)) {
-    return futures::Past<std::optional<std::wstring>>({});
+    return futures::Past(Success());
   }
 
-  std::wstring error;
-  auto edge_state_directory = GetEdgeStateDirectory(&error);
-  if (!edge_state_directory.has_value()) {
-    status_.SetWarningText(error);
-    return futures::Past<std::optional<std::wstring>>(error);
+  auto edge_state_directory = GetEdgeStateDirectory();
+  if (!edge_state_directory.IsError()) {
+    status_.SetWarningText(edge_state_directory.error.value());
+    return futures::Past(Error(edge_state_directory.error.value()));
   }
 
-  auto path = PathJoin(edge_state_directory.value(), L".edge_state");
+  auto path = PathJoin(edge_state_directory.value.value(), L".edge_state");
   LOG(INFO) << "PersistState: Preparing state file: " << path;
   BufferContents contents;
   contents.push_back(L"// State of file: " + path);
@@ -616,15 +612,7 @@ futures::Value<std::optional<std::wstring>> OpenBuffer::PersistState() const {
   }
   contents.push_back(L"");
 
-  return futures::Transform(
-      SaveContentsToFile(path, contents, &status_, work_queue()),
-      [](ValueOrError<bool> value_or_error) -> std::optional<std::wstring> {
-        if (value_or_error.IsError()) {
-          return value_or_error.error;
-        } else {
-          return std::nullopt;
-        }
-      });
+  return SaveContentsToFile(path, contents, &status_, work_queue());
 }
 
 void OpenBuffer::ClearContents(
@@ -911,39 +899,35 @@ void OpenBuffer::Reload() {
   });
 }
 
-futures::Value<std::optional<std::wstring>> OpenBuffer::Save() {
+futures::Value<PossibleError> OpenBuffer::Save() {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
   if (options_.handle_save == nullptr) {
     status_.SetWarningText(L"Buffer can't be saved.");
-    return futures::Past(
-        std::optional<std::wstring>(L"Buffer can't be saved."));
+    return futures::Past(Error(L"Buffer can't be saved."));
   }
   return options_.handle_save(
       {.buffer = this, .save_type = Options::SaveType::kMainFile});
 }
 
-std::optional<std::wstring> OpenBuffer::GetEdgeStateDirectory(
-    std::wstring* error) const {
-  CHECK(error != nullptr);
+ValueOrError<std::wstring> OpenBuffer::GetEdgeStateDirectory() const {
   auto path_vector = editor()->edge_path();
   if (path_vector.empty() || path_vector[0].empty()) {
-    *error = L"Empty edge path.";
-    return {};
+    return ValueOrError<std::wstring>::Error(L"Empty edge path.");
   }
 
   auto file_path = Read(buffer_variables::path);
   list<wstring> file_path_components;
   if (file_path.empty() || file_path[0] != '/') {
-    *error = L"Unable to persist buffer with empty path: " +
-             Read(buffer_variables::name) + L" " +
-             (dirty() ? L" (dirty)" : L" (clean)") + L" " +
-             (disk_state_ == DiskState::kStale ? L"modified" : L"not modified");
-    return {};
+    return ValueOrError<std::wstring>::Error(
+        L"Unable to persist buffer with empty path: " +
+        Read(buffer_variables::name) + L" " +
+        (dirty() ? L" (dirty)" : L" (clean)") + L" " +
+        (disk_state_ == DiskState::kStale ? L"modified" : L"not modified"));
   }
 
   if (!DirectorySplit(file_path, &file_path_components)) {
-    *error = L"Unable to split path: " + file_path;
-    return {};
+    return ValueOrError<std::wstring>::Error(L"Unable to split path: " +
+                                             file_path);
   }
 
   file_path_components.push_front(L"state");
@@ -958,21 +942,20 @@ std::optional<std::wstring> OpenBuffer::GetEdgeStateDirectory(
       if (S_ISDIR(stat_buffer.st_mode)) {
         continue;
       }
-      *error = L"Oops, exists, but is not a directory: " + path;
-      return {};
+      return ValueOrError<std::wstring>::Error(
+          L"Oops, exists, but is not a directory: " + path);
     }
     if (mkdir(path_byte_string.c_str(), 0700)) {
-      *error =
-          L"mkdir failed: " + FromByteString(strerror(errno)) + L": " + path;
-      return {};
+      return ValueOrError<std::wstring>::Error(
+          L"mkdir failed: " + FromByteString(strerror(errno)) + L": " + path);
     }
   }
-  return path;
+  return ValueOrError<std::wstring>::Value(path);
 }
 
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
-  LOG(INFO) << "UpdateBackup starts.";
+  LOG(INFO) << "UpdateBackup starts: " << Read(buffer_variables::name);
   if (options_.handle_save != nullptr) {
     options_.handle_save(
         {.buffer = this, .save_type = Options::SaveType::kBackup});

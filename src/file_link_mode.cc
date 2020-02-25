@@ -251,48 +251,39 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
   }
 }
 
-futures::Value<std::optional<std::wstring>> Save(
+futures::Value<PossibleError> Save(
     EditorState* editor_state, struct stat* stat_buffer,
     OpenBuffer::Options::HandleSaveOptions options) {
   auto buffer = options.buffer;
   std::wstring path = buffer->Read(buffer_variables::path);
   if (path.empty()) {
-    return futures::Past(std::optional<std::wstring>(
-        L"Buffer can't be saved: “path” variable is empty."));
+    return futures::Past(
+        Error(L"Buffer can't be saved: “path” variable is empty."));
   }
   if (S_ISDIR(stat_buffer->st_mode)) {
-    return futures::Past(std::optional<std::wstring>(
-        L"Buffer can't be saved: Buffer is a directory."));
+    return futures::Past(
+        Error(L"Buffer can't be saved: Buffer is a directory."));
   }
 
   switch (options.save_type) {
     case OpenBuffer::Options::SaveType::kMainFile:
       break;
     case OpenBuffer::Options::SaveType::kBackup:
-      std::wstring error;
-      auto state_directory = buffer->GetEdgeStateDirectory(&error);
-      if (!state_directory.has_value()) {
-        return futures::Past(
-            std::optional<std::wstring>(L"Unable to backup buffer: " + error));
+      auto state_directory = buffer->GetEdgeStateDirectory();
+      if (state_directory.IsError()) {
+        return futures::Past(Error(L"Unable to backup buffer: " +
+                                   state_directory.error.value()));
       }
-      path = PathJoin(state_directory.value(), L"backup");
+      path = PathJoin(state_directory.value.value(), L"backup");
   }
 
   return futures::Transform(
       SaveContentsToFile(path, *buffer->contents(), buffer->status(),
                          buffer->work_queue()),
-      [editor_state, stat_buffer, options, buffer,
-       path](ValueOrError<bool> save_contents_result) {
-        if (save_contents_result.error.has_value()) {
-          return futures::Past(save_contents_result.error);
-        }
+      [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
         return futures::Transform(
             buffer->PersistState(),
-            [editor_state, stat_buffer, options, buffer,
-             path](std::optional<std::wstring> persist_state_error) {
-              if (persist_state_error.has_value()) {
-                return futures::Past(persist_state_error);
-              }
+            [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
                   buffer->status()->SetInformationText(L"🖫 Saved: " + path);
@@ -319,7 +310,7 @@ futures::Value<std::optional<std::wstring>> Save(
                 case OpenBuffer::Options::SaveType::kBackup:
                   break;
               }
-              return futures::Past(std::optional<std::wstring>());
+              return futures::Past(Success());
             });
       });
 }
@@ -358,9 +349,10 @@ bool SaveContentsToOpenFile(const wstring& path, int fd,
 
 // TODO(easy): Have futures::Transform handle ValueOrError and use that here to
 // avoid nesting?
-futures::Value<ValueOrError<bool>> SaveContentsToFile(
-    const wstring& path, const BufferContents& contents, Status* status,
-    WorkQueue* work_queue) {
+futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
+                                                 const BufferContents& contents,
+                                                 Status* status,
+                                                 WorkQueue* work_queue) {
   auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
   return futures::Transform(
 
@@ -377,9 +369,8 @@ futures::Value<ValueOrError<bool>> SaveContentsToFile(
                                      mode),
             [path, contents, status, tmp_path, file_system_driver](int fd) {
               if (fd == -1) {
-                auto error =
-                    ValueOrError<bool>::Error(tmp_path + L": open failed: " +
-                                              FromByteString(strerror(errno)));
+                auto error = Error(tmp_path + L": open failed: " +
+                                   FromByteString(strerror(errno)));
                 status->SetWarningText(error.error.value());
                 return futures::Past(std::move(error));
               }
@@ -391,22 +382,15 @@ futures::Value<ValueOrError<bool>> SaveContentsToFile(
                   [path, status, file_system_driver, tmp_path,
                    result](int close_result) {
                     if (!result || close_result == -1) {
-                      return futures::Past(
-                          ValueOrError<bool>::Error(L"Save failed."));
+                      return futures::Past(Error(L"Save failed."));
                     }
 
                     return futures::Transform(
                         file_system_driver->Rename(tmp_path, path),
-                        [path, status](int rename_result) {
-                          if (rename_result == -1) {
-                            auto error = ValueOrError<bool>::Error(
-                                path + L": rename failed: " +
-                                FromByteString(strerror(errno)));
-                            status->SetWarningText(error.error.value());
-                            return futures::Past(std::move(error));
-                          }
-
-                          return futures::Past(ValueOrError<bool>::Value(true));
+                        [path, status](EmptyValue) {
+                          // TODO(easy): On error:
+                          // status->SetWarningText(error.error.value());
+                          return futures::Past(Success());
                         });
                   });
             });
@@ -581,15 +565,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   buffer_options.handle_save =
       [editor_state,
        stat_buffer](OpenBuffer::Options::HandleSaveOptions options) {
-        auto buffer = options.buffer;
-        return futures::Transform(
-            Save(editor_state, stat_buffer.get(), std::move(options)),
-            [buffer](std::optional<std::wstring> error) {
-              if (error.has_value()) {
-                buffer->status()->SetInformationText(error.value());
-              }
-              return error;
-            });
+        // TODO(easy): When fail:
+        // options.buffer->status()->SetInformationText(error.value());
+        return Save(editor_state, stat_buffer.get(), std::move(options));
       };
 
   auto resolve_path_options =

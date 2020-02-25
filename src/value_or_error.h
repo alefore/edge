@@ -6,6 +6,8 @@
 namespace afc::editor {
 template <typename T>
 struct ValueOrError {
+  using ValueType = T;
+
   static ValueOrError<T> Value(T t) { return ValueOrError<T>(std::move(t)); }
 
   static ValueOrError<T> Error(std::wstring error) {
@@ -24,6 +26,12 @@ struct ValueOrError {
   ValueOrError() = default;
   ValueOrError(T value) : value(value) {}
 };
+
+template <typename>
+struct IsValueOrError : std::false_type {};
+
+template <typename T>
+struct IsValueOrError<ValueOrError<T>> : std::true_type {};
 
 struct EmptyValue {};
 using PossibleError = ValueOrError<EmptyValue>;

@@ -100,8 +100,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
       OpenBuffer* buffer;
       SaveType save_type = SaveType::kMainFile;
     };
-    std::function<futures::Value<std::optional<std::wstring>>(
-        HandleSaveOptions)>
+    std::function<futures::Value<PossibleError>(HandleSaveOptions)>
         handle_save = nullptr;
   };
 
@@ -118,11 +117,11 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // If it is closeable, returns std::nullopt. Otherwise, returns reasons why
   // we can predict that PrepareToClose will fail.
-  std::optional<wstring> IsUnableToPrepareToClose() const;
+  PossibleError IsUnableToPrepareToClose() const;
 
   // Starts saving this buffer. The future returned will have a value if there
   // was an error.
-  futures::Value<std::optional<std::wstring>> PrepareToClose();
+  futures::Value<PossibleError> PrepareToClose();
   void Close();
 
   // If the buffer is still being read (fd_ != -1), adds an observer to
@@ -137,11 +136,11 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Saves state of this buffer (not including contents). Currently that means
   // the values of variables, but in the future it could include other things.
   // Returns true if the state could be persisted successfully.
-  futures::Value<std::optional<std::wstring>> PersistState() const;
+  futures::Value<PossibleError> PersistState() const;
 
   // If an error occurs, returns it (in the future). Otherwise, returns an
   // empty value.
-  futures::Value<std::optional<std::wstring>> Save();
+  futures::Value<PossibleError> Save();
 
   // If we're currently at the end of the buffer *and* variable
   // `follow_end_of_file` is set, returns an object that, when deleted, will
@@ -378,10 +377,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   const Viewers* viewers() const;
 
   // Returns the path to the directory that should be used to keep state for the
-  // current buffer. If the directory doesn't exist, creates it. If there's an
-  // error, will return a nullopt value and set the string pointed to by error
-  // to a description of the problem.
-  std::optional<std::wstring> GetEdgeStateDirectory(std::wstring* error) const;
+  // current buffer. If the directory doesn't exist, creates it.
+  ValueOrError<std::wstring> GetEdgeStateDirectory() const;
 
   void UpdateBackup();
 
