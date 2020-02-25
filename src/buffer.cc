@@ -425,19 +425,21 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
           });
         }
         SetDiskState(DiskState::kStale);
-        switch (backup_state_) {
-          case DiskState::kCurrent: {
-            backup_state_ = DiskState::kStale;
-            auto flush_backup_time = Now();
-            flush_backup_time.tv_sec += 30;
-            work_queue_.ScheduleAt(flush_backup_time,
-                                   [shared_this = shared_from_this()] {
-                                     shared_this->UpdateBackup();
-                                   });
-          } break;
+        if (Read(buffer_variables::persist_state)) {
+          switch (backup_state_) {
+            case DiskState::kCurrent: {
+              backup_state_ = DiskState::kStale;
+              auto flush_backup_time = Now();
+              flush_backup_time.tv_sec += 30;
+              work_queue_.ScheduleAt(flush_backup_time,
+                                     [shared_this = shared_from_this()] {
+                                       shared_this->UpdateBackup();
+                                     });
+            } break;
 
-          case DiskState::kStale:
-            break;  // Nothing.
+            case DiskState::kStale:
+              break;  // Nothing.
+          }
         }
         time(&last_action_);
         cursors_tracker_.AdjustCursors(transformation);
