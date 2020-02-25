@@ -280,38 +280,34 @@ futures::Value<PossibleError> Save(
   return futures::Transform(
       SaveContentsToFile(path, *buffer->contents(), buffer->status(),
                          buffer->work_queue()),
+      [buffer](EmptyValue) { return buffer->PersistState(); },
       [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
-        return futures::Transform(
-            buffer->PersistState(),
-            [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
-              switch (options.save_type) {
-                case OpenBuffer::Options::SaveType::kMainFile:
-                  buffer->status()->SetInformationText(L"🖫 Saved: " + path);
-                  // TODO(easy): Move this to the caller, for symmetry with
-                  // kBackup case.
-                  buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
-                  for (const auto& dir : editor_state->edge_path()) {
-                    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
-                  }
-                  if (buffer->Read(
-                          buffer_variables::trigger_reload_on_buffer_write)) {
-                    for (auto& it : *editor_state->buffers()) {
-                      CHECK(it.second != nullptr);
-                      if (it.second->Read(
-                              buffer_variables::reload_on_buffer_write)) {
-                        LOG(INFO) << "Write of " << path << " triggers reload: "
-                                  << it.second->Read(buffer_variables::name);
-                        it.second->Reload();
-                      }
-                    }
-                  }
-                  stat(ToByteString(path).c_str(), stat_buffer);
-                  break;
-                case OpenBuffer::Options::SaveType::kBackup:
-                  break;
+        switch (options.save_type) {
+          case OpenBuffer::Options::SaveType::kMainFile:
+            buffer->status()->SetInformationText(L"🖫 Saved: " + path);
+            // TODO(easy): Move this to the caller, for symmetry with
+            // kBackup case.
+            buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
+            for (const auto& dir : editor_state->edge_path()) {
+              buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
+            }
+            if (buffer->Read(
+                    buffer_variables::trigger_reload_on_buffer_write)) {
+              for (auto& it : *editor_state->buffers()) {
+                CHECK(it.second != nullptr);
+                if (it.second->Read(buffer_variables::reload_on_buffer_write)) {
+                  LOG(INFO) << "Write of " << path << " triggers reload: "
+                            << it.second->Read(buffer_variables::name);
+                  it.second->Reload();
+                }
               }
-              return futures::Past(Success());
-            });
+            }
+            stat(ToByteString(path).c_str(), stat_buffer);
+            break;
+          case OpenBuffer::Options::SaveType::kBackup:
+            break;
+        }
+        return futures::Past(Success());
       });
 }
 
