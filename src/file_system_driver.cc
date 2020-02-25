@@ -33,7 +33,7 @@ futures::Value<PossibleError> FileSystemDriver::Rename(std::wstring oldpath,
                                                        std::wstring newpath) {
   return evaluator_.Run([oldpath, newpath] {
     return rename(ToByteString(oldpath).c_str(),
-                  ToByteString(newpath).c_str()) == -1
+                  ToByteString(newpath).c_str()) == 0
                ? Success()
                : Error(L"Rename failed: " + FromByteString(strerror(errno)));
   });

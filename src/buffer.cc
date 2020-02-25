@@ -567,7 +567,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   }
 
   auto edge_state_directory = GetEdgeStateDirectory();
-  if (!edge_state_directory.IsError()) {
+  if (edge_state_directory.IsError()) {
     status_.SetWarningText(edge_state_directory.error.value());
     return futures::Past(Error(edge_state_directory.error.value()));
   }
