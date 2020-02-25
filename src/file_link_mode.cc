@@ -343,8 +343,6 @@ bool SaveContentsToOpenFile(const wstring& path, int fd,
   });
 }
 
-// TODO(easy): Have futures::Transform handle ValueOrError and use that here to
-// avoid nesting?
 futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
                                                  const BufferContents& contents,
                                                  Status* status,
