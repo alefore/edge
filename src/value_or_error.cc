@@ -1,5 +1,8 @@
 #include "src/value_or_error.h"
 
+#include "glog/logging.h"
+#include "src/wstring.h"
+
 namespace afc::editor {
 
 PossibleError Success() {
@@ -7,6 +10,7 @@ PossibleError Success() {
 }
 
 PossibleError Error(std::wstring description) {
+  LOG(INFO) << "Error detected: " << description;
   return ValueOrError<EmptyValue>::Error(description);
 }
 
