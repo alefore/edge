@@ -410,7 +410,11 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       work_queue_([this] {
         auto next_execution = work_queue_.NextExecution();
-        CHECK(next_execution.has_value());
+        if (!next_execution.has_value()) {
+          // Must have lost a race against the other thread. This happens when
+          // the thread that is scheduling work is not the main thread.
+          return;
+        }
         options_.editor->work_queue()->ScheduleAt(
             next_execution.value(),
             [shared_this = shared_from_this()]() mutable {
