@@ -80,8 +80,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     //
     // The caller (OpenBuffer) guarantees that the buffer won't be deleted until
     // the return future has received a value.
-    std::function<futures::Value<bool>(OpenBuffer*)> generate_contents =
-        nullptr;
+    std::function<futures::Value<PossibleError>(OpenBuffer*)>
+        generate_contents = nullptr;
 
     // Optional function to generate additional information for the status of
     // this buffer (see OpenBuffer::FlagsString). The generated string must

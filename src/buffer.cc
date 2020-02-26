@@ -885,26 +885,27 @@ void OpenBuffer::Reload() {
     LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
 
     (options_.generate_contents != nullptr ? options_.generate_contents(this)
-                                           : futures::Past(true))
-        .SetConsumer([shared_this = shared_from_this(), this](bool) {
-          switch (reload_state_) {
-            case ReloadState::kDone:
-              LOG(FATAL) << "Invalid reload state! Can't be kDone.";
-              break;
-            case ReloadState::kOngoing:
-              reload_state_ = ReloadState::kDone;
-              if (fd_ == nullptr && fd_error_ == nullptr) {
-                EndOfFile();
+                                           : futures::Past(Success()))
+        .SetConsumer(
+            [shared_this = shared_from_this(), this](ValueOrError<EmptyValue>) {
+              switch (reload_state_) {
+                case ReloadState::kDone:
+                  LOG(FATAL) << "Invalid reload state! Can't be kDone.";
+                  break;
+                case ReloadState::kOngoing:
+                  reload_state_ = ReloadState::kDone;
+                  if (fd_ == nullptr && fd_error_ == nullptr) {
+                    EndOfFile();
+                  }
+                  break;
+                case ReloadState::kPending:
+                  reload_state_ = ReloadState::kDone;
+                  if (fd_ == nullptr && fd_error_ == nullptr) {
+                    EndOfFile();
+                  }
+                  Reload();
               }
-              break;
-            case ReloadState::kPending:
-              reload_state_ = ReloadState::kDone;
-              if (fd_ == nullptr && fd_error_ == nullptr) {
-                EndOfFile();
-              }
-              Reload();
-          }
-        });
+            });
   });
 }
 

@@ -79,9 +79,9 @@ map<wstring, wstring> LoadEnvironmentVariables(
   return environment;
 }
 
-futures::Value<bool> GenerateContents(EditorState* editor_state,
-                                      std::map<wstring, wstring> environment,
-                                      CommandData* data, OpenBuffer* target) {
+futures::Value<PossibleError> GenerateContents(
+    EditorState* editor_state, std::map<wstring, wstring> environment,
+    CommandData* data, OpenBuffer* target) {
   int pipefd_out[2];
   int pipefd_err[2];
   static const int parent_fd = 0;
@@ -119,9 +119,9 @@ futures::Value<bool> GenerateContents(EditorState* editor_state,
 
   pid_t child_pid = fork();
   if (child_pid == -1) {
-    target->status()->SetWarningText(L"fork failed: " +
-                                     FromByteString(strerror(errno)));
-    return futures::Past(true);
+    auto error = Error(L"fork failed: " + FromByteString(strerror(errno)));
+    target->status()->SetWarningText(error.error.value());
+    return futures::Past(error);
   }
   if (child_pid == 0) {
     LOG(INFO) << "I am the children. Life is beautiful!";
@@ -209,7 +209,7 @@ futures::Value<bool> GenerateContents(EditorState* editor_state,
     }
     time(&data->time_end);
   });
-  return futures::Past(true);
+  return futures::Past(Success());
 }
 
 wstring DurationToString(size_t duration) {

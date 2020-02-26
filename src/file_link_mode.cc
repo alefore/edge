@@ -167,7 +167,7 @@ BackgroundReadDirOutput ReadDir(std::wstring path, std::wregex noise_regex) {
   return output;
 }
 
-futures::Value<bool> GenerateContents(
+futures::Value<PossibleError> GenerateContents(
     EditorState* editor_state, std::shared_ptr<struct stat> stat_buffer,
     std::shared_ptr<FileSystemDriver> file_system_driver,
     std::shared_ptr<AsyncEvaluator> background_directory_reader,
@@ -186,7 +186,7 @@ futures::Value<bool> GenerateContents(
           target->SetDiskState(OpenBuffer::DiskState::kCurrent);
         }
         if (!stat_results.has_value()) {
-          return futures::Past(true);
+          return futures::Past(Success());
         }
         *stat_buffer = stat_results.value();
 
@@ -195,7 +195,7 @@ futures::Value<bool> GenerateContents(
               file_system_driver->Open(path, O_RDONLY | O_NONBLOCK, 0),
               [target](int fd) {
                 target->SetInputFiles(fd, -1, false, -1);
-                return true;
+                return Success();
               });
         }
 
@@ -215,7 +215,7 @@ futures::Value<bool> GenerateContents(
                     results.error_description.value());
                 target->AppendLine(NewLazyString(
                     std::move(results.error_description.value())));
-                return true;
+                return Success();
               }
 
               target->AppendToLastLine(
@@ -228,7 +228,7 @@ futures::Value<bool> GenerateContents(
                         std::move(results.regular_files), target);
               ShowFiles(editor_state, L"🗐  Noise", std::move(results.noise),
                         target);
-              return true;
+              return Success();
             });
       });
 }

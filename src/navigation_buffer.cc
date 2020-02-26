@@ -96,9 +96,9 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
   }
 }
 
-futures::Value<bool> GenerateContents(EditorState* editor_state,
-                                      std::weak_ptr<OpenBuffer> source_weak,
-                                      OpenBuffer* target) {
+futures::Value<PossibleError> GenerateContents(
+    EditorState* editor_state, std::weak_ptr<OpenBuffer> source_weak,
+    OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   for (const auto& dir : editor_state->edge_path()) {
     target->EvaluateFile(PathJoin(dir, L"hooks/navigation-buffer-reload.cc"));
@@ -106,13 +106,13 @@ futures::Value<bool> GenerateContents(EditorState* editor_state,
   auto source = source_weak.lock();
   if (source == nullptr) {
     target->AppendToLastLine(NewLazyString(L"Source buffer no longer loaded."));
-    return futures::Past(true);
+    return futures::Past(Success());
   }
 
   auto tree = source->simplified_parse_tree();
   if (tree == nullptr) {
     target->AppendToLastLine(NewLazyString(L"Target has no tree."));
-    return futures::Past(true);
+    return futures::Past(Success());
   }
 
   target->AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
@@ -120,7 +120,7 @@ futures::Value<bool> GenerateContents(EditorState* editor_state,
       target->environment()->Lookup(kDepthSymbol, VMType::Integer());
   int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
   DisplayTree(source, depth, *tree, EmptyString(), target);
-  return futures::Past(true);
+  return futures::Past(Success());
 }
 
 class NavigationBufferCommand : public Command {

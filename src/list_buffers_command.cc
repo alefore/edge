@@ -50,8 +50,8 @@ void AdjustLastLine(OpenBuffer* target, std::shared_ptr<OpenBuffer> buffer) {
       L"buffer", Value::NewObject(L"Buffer", buffer));
 }
 
-futures::Value<bool> GenerateContents(EditorState* editor_state,
-                                      OpenBuffer* target) {
+futures::Value<PossibleError> GenerateContents(EditorState* editor_state,
+                                               OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   bool show_in_buffers_list =
       target->Read(buffer_variables::show_in_buffers_list);
@@ -158,7 +158,7 @@ futures::Value<bool> GenerateContents(EditorState* editor_state,
       ++index;
     }
   }
-  return futures::Past(true);
+  return futures::Past(Success());
 }
 
 class ListBuffersCommand : public Command {

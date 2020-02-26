@@ -184,7 +184,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
               consumer(GetPredictInput(options) == input
                            ? std::optional<PredictResults>(results)
                            : std::nullopt);
-              return true;
+              return Success();
             });
       };
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));

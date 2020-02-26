@@ -31,7 +31,8 @@ class FileSystemDriver {
  public:
   FileSystemDriver(WorkQueue* work_queue);
 
-  futures::Value<int> Open(std::wstring path, int flags, mode_t mode);
+  futures::Value<ValueOrError<int>> Open(std::wstring path, int flags,
+                                         mode_t mode);
   futures::Value<PossibleError> Close(int fd);
   futures::Value<std::optional<struct stat>> Stat(std::wstring path);
   futures::Value<PossibleError> Rename(std::wstring oldpath,
