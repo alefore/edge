@@ -19,7 +19,6 @@ using std::unique_ptr;
 // Saves the contents of the buffer to the path given.
 futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
                                                  const BufferContents& contents,
-                                                 Status* status,
                                                  WorkQueue* work_queue);
 
 struct OpenFileOptions {

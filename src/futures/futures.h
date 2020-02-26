@@ -202,6 +202,23 @@ auto Transform(Value<InitialType> delayed_value, Callable callable) {
 
 Value<editor::PossibleError> IgnoreErrors(Value<editor::PossibleError> value);
 
+// If value evaluates to an error, runs error_callback. error_callback will
+// receive the error and should return a ValueOrError<T> to replace it. If it
+// wants to preserve the error, it can just return it.
+template <typename T, typename Callable>
+Value<editor::ValueOrError<T>> OnError(Value<editor::ValueOrError<T>> value,
+                                       Callable error_callback) {
+  Future<editor::ValueOrError<T>> future;
+  value.SetConsumer([consumer = std::move(future.consumer),
+                     error_callback = std::move(error_callback)](
+                        editor::ValueOrError<T> value_or_error) {
+    consumer(value_or_error.IsError()
+                 ? error_callback(std::move(value_or_error))
+                 : std::move(value_or_error));
+  });
+  return future.value;
+}
+
 template <typename InitialType, typename Type>
 auto Transform(Value<InitialType> delayed_value, Value<Type> value) {
   return Transform(delayed_value,

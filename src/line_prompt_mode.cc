@@ -82,6 +82,7 @@ GetSyntheticFeatures(
   }
   return output;
 }
+
 class GetSyntheticFeaturesTests
     : public tests::TestGroup<GetSyntheticFeaturesTests> {
  public:

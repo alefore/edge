@@ -3,6 +3,15 @@
 #include "src/wstring.h"
 
 namespace afc::editor {
+namespace {
+PossibleError SyscallReturnValue(std::wstring name, int return_value) {
+  LOG(INFO) << "Syscall return value: " << name << ": " << return_value;
+  return return_value == 0
+             ? Success()
+             : Error(name + L" failed: " + FromByteString(strerror(errno)));
+}
+}  // namespace
+
 FileSystemDriver::FileSystemDriver(WorkQueue* work_queue)
     : evaluator_(L"FilesystemDriver", work_queue) {}
 
@@ -13,8 +22,9 @@ futures::Value<int> FileSystemDriver::Open(std::wstring path, int flags,
   });
 }
 
-futures::Value<int> FileSystemDriver::Close(int fd) {
-  return evaluator_.Run([fd] { return close(fd); });
+futures::Value<PossibleError> FileSystemDriver::Close(int fd) {
+  return evaluator_.Run(
+      [fd] { return SyscallReturnValue(L"Close", close(fd)); });
 }
 
 futures::Value<std::optional<struct stat>> FileSystemDriver::Stat(
@@ -32,10 +42,8 @@ futures::Value<std::optional<struct stat>> FileSystemDriver::Stat(
 futures::Value<PossibleError> FileSystemDriver::Rename(std::wstring oldpath,
                                                        std::wstring newpath) {
   return evaluator_.Run([oldpath, newpath] {
-    return rename(ToByteString(oldpath).c_str(),
-                  ToByteString(newpath).c_str()) == 0
-               ? Success()
-               : Error(L"Rename failed: " + FromByteString(strerror(errno)));
+    return SyscallReturnValue(L"Rename", rename(ToByteString(oldpath).c_str(),
+                                                ToByteString(newpath).c_str()));
   });
 }
 

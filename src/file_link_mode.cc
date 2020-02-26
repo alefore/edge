@@ -277,9 +277,9 @@ futures::Value<PossibleError> Save(
       path = PathJoin(state_directory.value.value(), L"backup");
   }
 
+  // TODO: On failure, log it to: buffer->status()->SetWarningText.
   return futures::Transform(
-      SaveContentsToFile(path, *buffer->contents(), buffer->status(),
-                         buffer->work_queue()),
+      SaveContentsToFile(path, *buffer->contents(), buffer->work_queue()),
       [buffer](EmptyValue) { return buffer->PersistState(); },
       [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
         switch (options.save_type) {
@@ -327,66 +327,69 @@ static bool CanStatPath(const wstring& path) {
 
 using std::unique_ptr;
 
-bool SaveContentsToOpenFile(const wstring& path, int fd,
-                            const BufferContents& contents, Status* status) {
-  // TODO: It'd be significant more efficient to do fewer (bigger)
-  // writes.
-  return contents.EveryLine([&](LineNumber position, const Line& line) {
-    string str =
-        (position == LineNumber(0) ? "" : "\n") + ToByteString(line.ToString());
-    if (write(fd, str.c_str(), str.size()) == -1) {
-      status->SetWarningText(path + L": write failed: " + std::to_wstring(fd) +
-                             L": " + FromByteString(strerror(errno)));
-      return false;
-    }
-    return true;
-  });
+// Always returns an actual value.
+futures::Value<PossibleError> SaveContentsToOpenFile(
+    WorkQueue* work_queue, const wstring& path, int fd,
+    const BufferContents& contents) {
+  auto contents_writer =
+      std::make_shared<AsyncEvaluator>(L"SaveContentsToOpenFile", work_queue);
+  return futures::Transform(
+      contents_writer->Run([contents, path, fd]() {
+        // TODO: It'd be significant more efficient to do fewer (bigger)
+        // writes.
+        std::optional<PossibleError> error;
+        contents.EveryLine([&](LineNumber position, const Line& line) {
+          string str = (position == LineNumber(0) ? "" : "\n") +
+                       ToByteString(line.ToString());
+          if (write(fd, str.c_str(), str.size()) == -1) {
+            error = Error(path + L": write failed: " + std::to_wstring(fd) +
+                          L": " + FromByteString(strerror(errno)));
+            return false;
+          }
+          return true;
+        });
+        return error.value_or(Success());
+      }),
+      // Ensure that `contents_writer` survives the future.
+      //
+      // TODO: Improve AsyncEvaluator functionality to survive being deleted
+      // while executing?
+      [contents_writer](EmptyValue) { return Success(); });
 }
 
 futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
                                                  const BufferContents& contents,
-                                                 Status* status,
                                                  WorkQueue* work_queue) {
   auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
+  const wstring tmp_path = path + L".tmp";
   return futures::Transform(
-
       file_system_driver->Stat(path),
-      [path, contents, status,
-       file_system_driver](std::optional<struct stat> original_stat) {
+      [path, contents, work_queue, file_system_driver,
+       tmp_path](std::optional<struct stat> original_stat) {
         mode_t mode =
             original_stat.has_value()
                 ? original_stat.value().st_mode
                 : S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-        const wstring tmp_path = path + L".tmp";
+        return file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
+                                        mode);
+      },
+      [path, contents, work_queue, tmp_path, file_system_driver](int fd) {
+        if (fd == -1) {
+          auto error = Error(tmp_path + L": open failed: " +
+                             FromByteString(strerror(errno)));
+          return futures::Past(std::move(error));
+        }
         return futures::Transform(
-            file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
-                                     mode),
-            [path, contents, status, tmp_path, file_system_driver](int fd) {
-              if (fd == -1) {
-                auto error = Error(tmp_path + L": open failed: " +
-                                   FromByteString(strerror(errno)));
-                status->SetWarningText(error.error.value());
-                return futures::Past(std::move(error));
-              }
-              // TODO: Offload to a background thread.
-              bool result =
-                  SaveContentsToOpenFile(tmp_path, fd, contents, status);
-              return futures::Transform(
-                  file_system_driver->Close(fd),
-                  [path, status, file_system_driver, tmp_path,
-                   result](int close_result) {
-                    if (!result || close_result == -1) {
-                      return futures::Past(Error(L"Save failed."));
-                    }
-
-                    return futures::Transform(
-                        file_system_driver->Rename(tmp_path, path),
-                        [path, status](EmptyValue) {
-                          // TODO(easy): On error:
-                          // status->SetWarningText(error.error.value());
-                          return futures::Past(Success());
-                        });
-                  });
+            OnError(SaveContentsToOpenFile(work_queue, tmp_path, fd, contents),
+                    [file_system_driver, fd](ValueOrError<EmptyValue> error) {
+                      file_system_driver->Close(fd);
+                      return error;
+                    }),
+            [file_system_driver, fd](EmptyValue) {
+              return file_system_driver->Close(fd);
+            },
+            [path, file_system_driver, tmp_path](EmptyValue) {
+              return file_system_driver->Rename(tmp_path, path);
             });
       });
 }

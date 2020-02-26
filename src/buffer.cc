@@ -409,9 +409,10 @@ void Execute(std::shared_ptr<OpenBuffer> buffer) {
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       work_queue_([this] {
-        CHECK(work_queue_.NextExecution().has_value());
+        auto next_execution = work_queue_.NextExecution();
+        CHECK(next_execution.has_value());
         options_.editor->work_queue()->ScheduleAt(
-            work_queue_.NextExecution().value(),
+            next_execution.value(),
             [shared_this = shared_from_this()]() mutable {
               Execute(std::move(shared_this));
             });
@@ -615,7 +616,12 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   }
   contents.push_back(L"");
 
-  return SaveContentsToFile(path, contents, &status_, work_queue());
+  return OnError(SaveContentsToFile(path, contents, work_queue()),
+                 [this](PossibleError error) {
+                   status()->SetWarningText(L"Unable to persist state: " +
+                                            error.error.value());
+                   return error;
+                 });
 }
 
 void OpenBuffer::ClearContents(
