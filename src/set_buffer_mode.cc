@@ -108,8 +108,8 @@ std::wstring BuildStatus(const Data& data) {
   return output;
 }
 
-futures::Value<bool> Apply(EditorState* editor,
-                           CommandArgumentModeApplyMode mode, Data data) {
+futures::Value<EmptyValue> Apply(EditorState* editor,
+                                 CommandArgumentModeApplyMode mode, Data data) {
   auto buffers_list = editor->buffer_tree();
 
   // Each entry is an index (e.g., for BuffersList::GetBuffer) for an available
@@ -164,7 +164,7 @@ futures::Value<bool> Apply(EditorState* editor,
             }
           }
         }
-        if (new_indices.empty()) return futures::Past(true);
+        if (new_indices.empty()) return futures::Past(EmptyValue());
         indices = std::move(new_indices);
         break;
     }
@@ -189,7 +189,7 @@ futures::Value<bool> Apply(EditorState* editor,
       break;
   }
 
-  return futures::Past(true);
+  return futures::Past(EmptyValue());
 }
 
 }  // namespace
@@ -214,7 +214,7 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
           [editor, initial_buffer]() {
             editor->set_current_buffer(initial_buffer);
             editor->buffer_tree()->set_filter(std::nullopt);
-            return futures::Past(true);
+            return futures::Past(EmptyValue());
           },
       .apply = [editor](CommandArgumentModeApplyMode mode,
                         Data data) { return Apply(editor, mode, data); }};

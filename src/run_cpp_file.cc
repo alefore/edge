@@ -37,12 +37,12 @@ class RunCppFileCommand : public Command {
 };
 }  // namespace
 
-futures::Value<bool> RunCppFileHandler(const wstring& input,
-                                       EditorState* editor_state) {
+futures::Value<EmptyValue> RunCppFileHandler(const wstring& input,
+                                             EditorState* editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
   auto buffer = editor_state->current_buffer();
   if (buffer == nullptr) {
-    return futures::Past(true);
+    return futures::Past(EmptyValue());
   }
   if (editor_state->structure() == StructureLine()) {
     auto target = buffer->GetBufferFromCurrentLine();
@@ -58,7 +58,7 @@ futures::Value<bool> RunCppFileHandler(const wstring& input,
   auto resolved_path = ResolvePath(std::move(options));
   if (!resolved_path.has_value()) {
     buffer->status()->SetWarningText(L"🗱  File not found: " + input);
-    return futures::Past(true);
+    return futures::Past(EmptyValue());
   }
 
   using futures::IterationControlCommand;
@@ -79,7 +79,7 @@ futures::Value<bool> RunCppFileHandler(const wstring& input,
       }),
       [editor_state](IterationControlCommand) {
         editor_state->ResetRepetitions();
-        return true;
+        return futures::Past(EmptyValue());
       });
 }
 

@@ -48,7 +48,7 @@ GetCurrentFeatures(EditorState* editor) {
       [&output](const std::shared_ptr<OpenBuffer>& buffer) {
         output.insert(
             {L"active", NewLazyString(buffer->Read(buffer_variables::name))});
-        return futures::Past(true);
+        return futures::Past(EmptyValue());
       });
   return output;
 }
@@ -557,7 +557,7 @@ class LinePromptCommand : public Command {
 // received as a future so that we can detect if the prompt input changes
 // between the time when `ColorizePrompt` is executed and the time when the
 // tokens become available.
-futures::Value<bool> ColorizePrompt(
+futures::Value<EmptyValue> ColorizePrompt(
     std::shared_ptr<OpenBuffer> status_buffer, Status* status,
     futures::Value<ColorizePromptOptions> tokens_future) {
   CHECK(status_buffer != nullptr);
@@ -571,7 +571,7 @@ futures::Value<bool> ColorizePrompt(
         auto line = status_buffer->LineAt(LineNumber(0));
         if (original_line->ToString() != line->ToString()) {
           LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
-          return futures::Past(true);
+          return futures::Past(EmptyValue());
         }
 
         status_buffer->AppendRawLine(
@@ -580,7 +580,7 @@ futures::Value<bool> ColorizePrompt(
         if (options.context.has_value()) {
           status->set_prompt_context(options.context.value());
         }
-        return futures::Past(true);
+        return futures::Past(EmptyValue());
       });
 }
 }  // namespace
@@ -630,7 +630,7 @@ void Prompt(PromptOptions options) {
        options](const std::shared_ptr<OpenBuffer>& buffer) {
         auto line = buffer->LineAt(LineNumber())->contents();
         return options.colorize_options_provider == nullptr
-                   ? futures::Past(true)
+                   ? futures::Past(EmptyValue())
                    : ColorizePrompt(buffer, status,
                                     options.colorize_options_provider(line));
       };

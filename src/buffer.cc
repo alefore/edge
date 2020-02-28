@@ -1857,7 +1857,7 @@ void OpenBuffer::Set(const EdgeVariable<LineColumn>* variable,
   line_column_variables_.Set(variable, value);
 }
 
-futures::Value<bool> OpenBuffer::ApplyToCursors(
+futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     std::unique_ptr<Transformation> transformation) {
   return ApplyToCursors(std::move(transformation),
                         Read(buffer_variables::multiple_cursors)
@@ -1866,7 +1866,7 @@ futures::Value<bool> OpenBuffer::ApplyToCursors(
                         Transformation::Input::Mode::kFinal);
 }
 
-futures::Value<bool> OpenBuffer::ApplyToCursors(
+futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     std::unique_ptr<Transformation> transformation,
     Modifiers::CursorsAffected cursors_affected,
     Transformation::Input::Mode mode) {
@@ -1903,7 +1903,7 @@ futures::Value<bool> OpenBuffer::ApplyToCursors(
         Apply(std::move(transformation), position(), mode),
         [this](const Transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
-          return true;
+          return EmptyValue();
         });
   }
 }
@@ -1939,7 +1939,7 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
   });
 }
 
-futures::Value<bool> OpenBuffer::RepeatLastTransformation() {
+futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {
   size_t repetitions = options_.editor->repetitions().value_or(1);
   options_.editor->ResetRepetitions();
   return ApplyToCursors(NewApplyRepetitionsTransformation(
@@ -1963,7 +1963,7 @@ void OpenBuffer::PopTransformationStack() {
   }
 }
 
-futures::Value<bool> OpenBuffer::Undo(UndoMode undo_mode) {
+futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
   struct Data {
     std::list<std::unique_ptr<TransformationStack>>* source;
     std::list<std::unique_ptr<TransformationStack>>* target;
@@ -1997,7 +1997,7 @@ futures::Value<bool> OpenBuffer::Undo(UndoMode undo_mode) {
               return IterationControlCommand::kContinue;
             });
       }),
-      futures::Past(true));
+      futures::Past(EmptyValue()));
 }
 
 void OpenBuffer::set_filter(unique_ptr<Value> filter) {

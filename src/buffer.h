@@ -286,13 +286,13 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   futures::Value<std::wstring> TransformKeyboardText(std::wstring input);
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
-  futures::Value<bool> ApplyToCursors(
+  futures::Value<EmptyValue> ApplyToCursors(
       unique_ptr<Transformation> transformation);
-  futures::Value<bool> ApplyToCursors(
+  futures::Value<EmptyValue> ApplyToCursors(
       unique_ptr<Transformation> transformation,
       Modifiers::CursorsAffected cursors_affected,
       Transformation::Input::Mode mode);
-  futures::Value<bool> RepeatLastTransformation();
+  futures::Value<EmptyValue> RepeatLastTransformation();
 
   void PushTransformationStack();
   void PopTransformationStack();
@@ -308,7 +308,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     // modifications).
     kOnlyOne
   };
-  futures::Value<bool> Undo(UndoMode undo_mode);
+  futures::Value<EmptyValue> Undo(UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);
 

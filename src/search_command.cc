@@ -83,7 +83,7 @@ class SearchCommand : public Command {
                 Range range = buffer->FindPartialRange(
                     editor_state->modifiers(), buffer->position());
                 if (range.begin == range.end) {
-                  return futures::Past(true);
+                  return futures::Past(EmptyValue());
                 }
                 VLOG(5) << "FindPartialRange: [position:" << buffer->position()
                         << "][range:" << range
@@ -102,7 +102,7 @@ class SearchCommand : public Command {
                 }
                 CHECK_EQ(range.begin.line, range.end.line);
                 if (range.begin == range.end) {
-                  return futures::Past(true);
+                  return futures::Past(EmptyValue());
                 }
                 CHECK_LT(range.begin.column, range.end.column);
                 buffer->set_position(range.begin);
@@ -115,12 +115,12 @@ class SearchCommand : public Command {
                 search_options.case_sensitive =
                     buffer->Read(buffer_variables::search_case_sensitive);
                 DoSearch(buffer.get(), search_options);
-                return futures::Past(true);
+                return futures::Past(EmptyValue());
               }),
-          [editor_state](bool) {
+          [editor_state](EmptyValue) {
             editor_state->ResetStructure();
             editor_state->ResetDirection();
-            return true;
+            return futures::Past(EmptyValue());
           });
       return;
     }
@@ -138,12 +138,12 @@ class SearchCommand : public Command {
                 if (search_options.has_value()) {
                   DoSearch(buffer.get(), search_options.value());
                 }
-                return futures::Past(true);
+                return futures::Past(EmptyValue());
               }),
-          [editor_state](bool) {
+          [editor_state](EmptyValue) {
             editor_state->ResetDirection();
             editor_state->ResetStructure();
-            return true;
+            return futures::Past(EmptyValue());
           });
     };
     auto async_search_processor =

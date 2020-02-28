@@ -50,7 +50,8 @@ struct PromptOptions {
       colorize_options_provider;
 
   // Function to run when the prompt receives the final input.
-  std::function<futures::Value<bool>(const wstring& input, EditorState* editor)>
+  std::function<futures::Value<EmptyValue>(const wstring& input,
+                                           EditorState* editor)>
       handler;
 
   // Optional. Function to run when the prompt is cancelled (because ESCAPE was

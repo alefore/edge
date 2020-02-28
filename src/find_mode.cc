@@ -84,11 +84,11 @@ class FindMode : public EditorMode {
     futures::Transform(editor_state->ApplyToActiveBuffers(NewTransformation(
                            editor_state->modifiers(),
                            std::make_unique<FindTransformation>(c))),
-                       [editor_state](bool) {
+                       [editor_state](EmptyValue) {
                          editor_state->ResetRepetitions();
                          editor_state->ResetDirection();
                          editor_state->set_keyboard_redirect(nullptr);
-                         return true;
+                         return futures::Past(EmptyValue());
                        });
   }
 

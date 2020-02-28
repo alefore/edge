@@ -17,16 +17,16 @@
 namespace afc::editor {
 namespace {
 
-futures::Value<bool> RunCppCommandLiteralHandler(const wstring& name,
-                                                 EditorState* editor_state) {
+futures::Value<EmptyValue> RunCppCommandLiteralHandler(
+    const wstring& name, EditorState* editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
   auto buffer = editor_state->current_buffer();
   if (buffer == nullptr) {
-    return futures::Past(true);
+    return futures::Past(EmptyValue());
   }
   buffer->ResetMode();
   buffer->EvaluateString(name);
-  return futures::Past(true);
+  return futures::Past(EmptyValue());
 }
 
 struct ParsedCommand {
@@ -134,10 +134,10 @@ futures::Value<std::unique_ptr<Value>> Execute(
   return buffer->EvaluateExpression(expression.get());
 }
 
-futures::Value<bool> RunCppCommandShellHandler(const std::wstring& command,
-                                               EditorState* editor_state) {
+futures::Value<EmptyValue> RunCppCommandShellHandler(
+    const std::wstring& command, EditorState* editor_state) {
   return futures::Transform(RunCppCommandShell(command, editor_state),
-                            futures::Past(true));
+                            futures::Past(EmptyValue()));
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(

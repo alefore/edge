@@ -82,9 +82,9 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
             [method](const std::shared_ptr<OpenBuffer>& buffer) {
               CHECK(buffer != nullptr);
               (*buffer.*method)();
-              return futures::Past(true);
+              return futures::Past(EmptyValue());
             }),
-        [editor](bool) {
+        [editor](EmptyValue) {
           editor->ResetModifiers();
           return EvaluationOutput::New(Value::NewVoid());
         });
@@ -240,7 +240,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                           std::move(buffer)));
                   return futures::Transform(
                       callback(std::move(args), trampoline),
-                      futures::Past(true));
+                      futures::Past(EmptyValue()));
                 }),
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
@@ -266,7 +266,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                               New(std::move(buffer)));
                       return futures::Transform(
                           callback(std::move(args), trampoline),
-                          futures::Past(true));
+                          futures::Past(EmptyValue()));
                     }),
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
@@ -289,24 +289,25 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             const auto& buffers_to_wait =
                 *static_cast<std::set<wstring>*>(args[0]->user_value.get());
 
-            auto values = std::make_shared<std::vector<futures::Value<bool>>>();
+            auto values =
+                std::make_shared<std::vector<futures::Value<EmptyValue>>>();
             for (const auto& buffer_name : buffers_to_wait) {
               auto buffer_it = buffers()->find(buffer_name);
               if (buffer_it == buffers()->end()) {
                 continue;
               }
-              futures::Future<bool> future;
+              futures::Future<EmptyValue> future;
               buffer_it->second->AddCloseObserver(
-                  [consumer = future.consumer]() {
+                  [consumer = std::move(future.consumer)]() {
                     LOG(INFO) << "Buffer is closing";
-                    consumer(true);
+                    consumer(EmptyValue());
                   });
               values->push_back(std::move(future.value));
             }
             return futures::Transform(
                 futures::ForEach(
                     values->begin(), values->end(),
-                    [values](futures::Value<bool> future) {
+                    [values](futures::Value<EmptyValue> future) {
                       return futures::Transform(
                           future,
                           futures::Past(
@@ -684,8 +685,9 @@ void EditorState::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
   }
 }
 
-futures::Value<bool> EditorState::ForEachActiveBuffer(
-    std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
+    std::function<
+        futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
         callback) {
   auto buffers = active_buffers();
   return futures::Transform(
@@ -696,13 +698,14 @@ futures::Value<bool> EditorState::ForEachActiveBuffer(
                 callback(buffer),
                 futures::Past(futures::IterationControlCommand::kContinue));
           }),
-      futures::Past(true));
+      futures::Past(EmptyValue()));
 }
 
-futures::Value<bool> EditorState::ForEachActiveBufferWithRepetitions(
-    std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
+    std::function<
+        futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
         callback) {
-  auto value = futures::Past(true);
+  auto value = futures::Past(EmptyValue());
   if (!modifiers().repetitions.has_value()) {
     value = ForEachActiveBuffer(callback);
   } else if (auto buffer = buffer_tree()->GetBuffer(
@@ -711,13 +714,13 @@ futures::Value<bool> EditorState::ForEachActiveBufferWithRepetitions(
              buffer != nullptr) {
     value = callback(buffer);
   }
-  return futures::Transform(value, [this](bool) {
+  return futures::Transform(value, [this](EmptyValue) {
     ResetModifiers();
-    return true;
+    return EmptyValue();
   });
 }
 
-futures::Value<bool> EditorState::ApplyToActiveBuffers(
+futures::Value<EmptyValue> EditorState::ApplyToActiveBuffers(
     std::unique_ptr<Transformation> transformation) {
   return ForEachActiveBuffer([transformation = std::shared_ptr<Transformation>(
                                   std::move(transformation))](
@@ -1007,7 +1010,7 @@ void EditorState::ProcessSignals() {
         ForEachActiveBuffer(
             [signal](const std::shared_ptr<OpenBuffer>& buffer) {
               buffer->PushSignal(signal);
-              return futures::Past(true);
+              return futures::Past(EmptyValue());
             });
     }
   }

@@ -37,8 +37,9 @@ class CommandArgumentMode : public EditorMode {
     // Returns the string to show in the status.
     std::function<std::wstring(const Argument&)> status_factory;
 
-    std::function<futures::Value<bool>()> undo = nullptr;
-    std::function<futures::Value<bool>(CommandArgumentModeApplyMode, Argument)>
+    std::function<futures::Value<EmptyValue>()> undo = nullptr;
+    std::function<futures::Value<EmptyValue>(CommandArgumentModeApplyMode,
+                                             Argument)>
         apply = nullptr;
   };
 
@@ -53,7 +54,7 @@ class CommandArgumentMode : public EditorMode {
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
-    futures::Transform(options_.undo(), [this, c, editor_state](bool) {
+    futures::Transform(options_.undo(), [this, c, editor_state](EmptyValue) {
       switch (c) {
         case Terminal::BACKSPACE:
           if (!argument_string_.empty()) {
@@ -69,16 +70,16 @@ class CommandArgumentMode : public EditorMode {
           }
           return futures::Transform(
               static_cast<int>(c) == Terminal::ESCAPE
-                  ? futures::Past(true)
+                  ? futures::Past(EmptyValue())
                   : Transform(CommandArgumentModeApplyMode::kFinal, argument),
-              [editor_state, c](bool) {
+              [editor_state, c](EmptyValue) {
                 editor_state->status()->Reset();
                 auto editor_state_copy = editor_state;
                 editor_state->set_keyboard_redirect(nullptr);
                 if (c != L'\n') {
                   editor_state_copy->ProcessInput(c);
                 }
-                return futures::Past(true);
+                return futures::Past(EmptyValue());
               });
       }
     });
@@ -97,8 +98,8 @@ class CommandArgumentMode : public EditorMode {
     return options_.char_consumer(c, argument);
   }
 
-  futures::Value<bool> Transform(CommandArgumentModeApplyMode apply_mode,
-                                 Argument argument) {
+  futures::Value<EmptyValue> Transform(CommandArgumentModeApplyMode apply_mode,
+                                       Argument argument) {
     options_.editor_state->status()->SetInformationText(
         options_.status_factory(argument));
     return options_.apply(apply_mode, std::move(argument));
@@ -128,14 +129,17 @@ void SetOptionsForBufferTransformation(
               const std::shared_ptr<OpenBuffer>&)>& callback) {
         return futures::Transform(
             futures::ForEach(buffers->begin(), buffers->end(), callback),
-            [buffers](futures::IterationControlCommand) { return true; });
+            [buffers](futures::IterationControlCommand) {
+              return futures::Past(EmptyValue());
+            });
       };
 
   options->undo = [editor_state = options->editor_state, for_each_buffer] {
     return for_each_buffer([](const std::shared_ptr<OpenBuffer>& buffer) {
       return futures::Transform(
-          buffer->Undo(OpenBuffer::UndoMode::kOnlyOne),
-          [](bool) { return futures::IterationControlCommand::kContinue; });
+          buffer->Undo(OpenBuffer::UndoMode::kOnlyOne), [](EmptyValue) {
+            return futures::IterationControlCommand::kContinue;
+          });
     });
   };
   options->apply = [editor_state = options->editor_state,

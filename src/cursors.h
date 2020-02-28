@@ -168,7 +168,7 @@ class CursorsTracker {
   // Iterate over all cursors, running callback for each of them. callback
   // receives the cursor's position and must notify the receiver with the
   // position to which the cursor moves.
-  futures::Value<bool> ApplyTransformationToCursors(
+  futures::Value<EmptyValue> ApplyTransformationToCursors(
       CursorsSet* cursors,
       std::function<futures::Value<LineColumn>(LineColumn)> callback);
 

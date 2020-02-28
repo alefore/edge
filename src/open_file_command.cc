@@ -16,14 +16,14 @@ namespace editor {
 
 namespace {
 
-futures::Value<bool> OpenFileHandler(const wstring& name,
-                                     EditorState* editor_state) {
+futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
+                                           EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.path = name;
   options.insertion_type = BuffersList::AddBufferType::kVisit;
   OpenFile(options);
-  return futures::Past(true);
+  return futures::Past(EmptyValue());
 }
 
 std::shared_ptr<OpenBuffer> StatusContext(EditorState* editor,

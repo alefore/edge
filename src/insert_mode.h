@@ -46,7 +46,7 @@ struct InsertModeOptions {
   std::optional<std::vector<std::shared_ptr<OpenBuffer>>> buffers;
 
   // Optional function to run whenever the contents of the buffer are modified.
-  std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+  std::function<futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
       modify_handler;
 
   std::shared_ptr<ScrollBehaviorFactory> scroll_behavior =
@@ -58,7 +58,7 @@ struct InsertModeOptions {
 
   // Optional function to run when a new line is received. Defaults to inserting
   // a new line and moving to it.
-  std::function<futures::Value<bool>(const std::shared_ptr<OpenBuffer>&)>
+  std::function<futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
       new_line_handler;
 
   // Optional function to run when the user presses Tab for completions. Returns

@@ -393,21 +393,21 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   transformations->emplace_back(transformation, &last);
 }
 
-futures::Value<bool> CursorsTracker::ApplyTransformationToCursors(
+futures::Value<EmptyValue> CursorsTracker::ApplyTransformationToCursors(
     CursorsSet* cursors,
     std::function<futures::Value<LineColumn>(LineColumn)> callback) {
   struct Data {
     CursorsSet* cursors;
     std::function<futures::Value<LineColumn>(LineColumn)> callback;
-    futures::Value<bool>::Consumer done;
+    futures::Value<EmptyValue>::Consumer done;
     bool adjusted_active_cursor = false;
   };
 
-  futures::Future<bool> output;
+  futures::Future<EmptyValue> output;
   auto data = std::make_shared<Data>();
   data->cursors = cursors;
   data->callback = std::move(callback);
-  data->done = output.consumer;
+  data->done = std::move(output.consumer);
 
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size()
             << ", active is: " << *cursors->active();
@@ -417,7 +417,7 @@ futures::Value<bool> CursorsTracker::ApplyTransformationToCursors(
     if (data->cursors->empty()) {
       data->cursors->swap(&already_applied_cursors_);
       LOG(INFO) << "Current cursor at: " << *data->cursors->active();
-      data->done(true);
+      data->done(EmptyValue());
       return;
     }
     VLOG(6) << "Adjusting cursor: " << *data->cursors->begin();

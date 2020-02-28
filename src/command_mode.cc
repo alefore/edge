@@ -120,7 +120,7 @@ class Paste : public Command {
                 if (errors[current_message].empty()) {
                   current_message = 0;
                 }
-                return futures::Past(true);
+                return futures::Past(EmptyValue());
               }
               if (buffer->fd() != nullptr) {
                 string text = ToByteString(paste_buffer->ToString());
@@ -131,7 +131,7 @@ class Paste : public Command {
                     break;
                   }
                 }
-                return futures::Past(true);
+                return futures::Past(EmptyValue());
               }
               buffer->CheckPosition();
               buffer->MaybeAdjustPositionCol();
@@ -141,15 +141,13 @@ class Paste : public Command {
                   editor_state->modifiers().insertion;
               insert_options.modifiers.repetitions =
                   editor_state->repetitions();
-              return futures::Transform(
-                  buffer->ApplyToCursors(
-                      NewInsertBufferTransformation(std::move(insert_options))),
-                  futures::Past(true));
+              return buffer->ApplyToCursors(
+                  NewInsertBufferTransformation(std::move(insert_options)));
             }),
-        [editor_state](bool) {
+        [editor_state](EmptyValue) {
           editor_state->ResetInsertionModifier();
           editor_state->ResetRepetitions();
-          return futures::Past(true);
+          return futures::Past(EmptyValue());
         });
   }
 };
@@ -175,10 +173,10 @@ class UndoCommand : public Command {
                            [](const std::shared_ptr<OpenBuffer>& buffer) {
                              return buffer->Undo(OpenBuffer::UndoMode::kLoop);
                            }),
-                       [editor_state](bool) {
+                       [editor_state](EmptyValue) {
                          editor_state->ResetRepetitions();
                          editor_state->ResetDirection();
-                         return true;
+                         return EmptyValue();
                        });
   }
 
@@ -576,7 +574,7 @@ class ResetStateCommand : public Command {
               when,
               [status_expiration = std::shared_ptr<StatusExpirationControl>(
                    buffer->status()->SetExpiringInformationText(L"ESC"))] {});
-          return futures::Past(true);
+          return futures::Past(EmptyValue());
         });
     editor_state->set_modifiers(Modifiers());
   }

@@ -313,9 +313,10 @@ void RunCommand(const wstring& name, const wstring& input,
   ForkCommand(editor_state, options);
 }
 
-futures::Value<bool> RunCommandHandler(const wstring& input,
-                                       EditorState* editor_state, size_t i,
-                                       size_t n, wstring children_path) {
+futures::Value<EmptyValue> RunCommandHandler(const wstring& input,
+                                             EditorState* editor_state,
+                                             size_t i, size_t n,
+                                             wstring children_path) {
   map<wstring, wstring> environment = {{L"EDGE_RUN", std::to_wstring(i)},
                                        {L"EDGE_RUNS", std::to_wstring(n)}};
   wstring name = children_path + L"$";
@@ -331,7 +332,7 @@ futures::Value<bool> RunCommandHandler(const wstring& input,
   }
   name += L" " + input;
   RunCommand(name, input, environment, editor_state, std::move(children_path));
-  return futures::Past(true);
+  return futures::Past(EmptyValue());
 }
 
 wstring GetChildrenPath(EditorState* editor_state) {
@@ -566,16 +567,16 @@ std::unique_ptr<Command> NewForkCommand() {
   return std::make_unique<ForkEditorCommand>();
 }
 
-futures::Value<bool> RunCommandHandler(const wstring& input,
-                                       EditorState* editor_state,
-                                       map<wstring, wstring> environment) {
+futures::Value<EmptyValue> RunCommandHandler(
+    const wstring& input, EditorState* editor_state,
+    map<wstring, wstring> environment) {
   RunCommand(L"$ " + input, input, environment, editor_state,
              GetChildrenPath(editor_state));
-  return futures::Past(true);
+  return futures::Past(EmptyValue());
 }
 
-futures::Value<bool> RunMultipleCommandsHandler(const wstring& input,
-                                                EditorState* editor_state) {
+futures::Value<EmptyValue> RunMultipleCommandsHandler(
+    const wstring& input, EditorState* editor_state) {
   return futures::Transform(
       editor_state->ForEachActiveBuffer(
           [editor_state, input](const std::shared_ptr<OpenBuffer>& buffer) {
@@ -584,11 +585,11 @@ futures::Value<bool> RunMultipleCommandsHandler(const wstring& input,
               RunCommand(L"$ " + input + L" " + arg, input, environment,
                          editor_state, GetChildrenPath(editor_state));
             });
-            return futures::Past(true);
+            return futures::Past(EmptyValue());
           }),
-      [editor_state](bool) {
+      [editor_state](EmptyValue) {
         editor_state->status()->Reset();
-        return futures::Past(true);
+        return futures::Past(EmptyValue());
       });
 }
 

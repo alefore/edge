@@ -33,11 +33,11 @@ wstring TrimWhitespace(const wstring& in) {
   return in.substr(begin, end - begin + 1);
 }
 
-futures::Value<bool> SetVariableHandler(const wstring& input_name,
-                                        EditorState* editor_state) {
+futures::Value<EmptyValue> SetVariableHandler(const wstring& input_name,
+                                              EditorState* editor_state) {
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) {
-    return futures::Past(true);
+    return futures::Past(EmptyValue());
   }
 
   PromptOptions options;
@@ -55,18 +55,17 @@ futures::Value<bool> SetVariableHandler(const wstring& input_name,
       var != nullptr) {
     options.initial_value = active_buffers[0]->Read(var);
     options.handler = [var](const wstring& input, EditorState* editor) {
-      editor->ForEachActiveBuffer(
+      return editor->ForEachActiveBuffer(
           [var, input](const std::shared_ptr<OpenBuffer>& buffer) {
             buffer->Set(var, input);
             // TODO(easy): Update status.
-            return futures::Past(true);
+            return futures::Past(EmptyValue());
           });
-      return futures::Past(true);
     };
     options.cancel_handler = [](EditorState*) { /* Nothing. */ };
     options.predictor = var->predictor();
     Prompt(std::move(options));
-    return futures::Past(true);
+    return futures::Past(EmptyValue());
   }
 
   if (auto var = editor_variables::BoolStruct()->find_variable(name);
@@ -75,7 +74,7 @@ futures::Value<bool> SetVariableHandler(const wstring& input_name,
     editor_state->ResetRepetitions();
     editor_state->status()->SetInformationText(
         (editor_state->Read(var) ? L"🗸 " : L"⛶ ") + name);
-    return futures::Past(true);
+    return futures::Past(EmptyValue());
   }
 
   if (auto var = buffer_variables::BoolStruct()->find_variable(name);
@@ -86,11 +85,11 @@ futures::Value<bool> SetVariableHandler(const wstring& input_name,
               buffer->toggle_bool_variable(var);
               buffer->status()->SetInformationText(
                   (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
-              return futures::Past(true);
+              return futures::Past(EmptyValue());
             }),
-        [editor_state](bool) {
+        [editor_state](EmptyValue) {
           editor_state->ResetRepetitions();
-          return futures::Past(true);
+          return futures::Past(EmptyValue());
         });
   }
   if (auto var = buffer_variables::IntStruct()->find_variable(name);
@@ -105,18 +104,18 @@ futures::Value<bool> SetVariableHandler(const wstring& input_name,
         default_error_status->SetWarningText(
             L"Invalid value for integer value “" + var->name() + L"”: " +
             FromByteString(ia.what()));
-        return futures::Past(true);
+        return futures::Past(EmptyValue());
       }
       editor->ForEachActiveBuffer(
           [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
             buffer->Set(var, value);
-            return futures::Past(true);
+            return futures::Past(EmptyValue());
           });
-      return futures::Past(true);
+      return futures::Past(EmptyValue());
     };
     options.cancel_handler = [](EditorState*) { /* Nothing. */ };
     Prompt(std::move(options));
-    return futures::Past(true);
+    return futures::Past(EmptyValue());
   }
   if (auto var = buffer_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
@@ -130,21 +129,21 @@ futures::Value<bool> SetVariableHandler(const wstring& input_name,
         editor->ForEachActiveBuffer(
             [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
               buffer->Set(var, value);
-              return futures::Past(true);
+              return futures::Past(EmptyValue());
             });
       } else {
         default_error_status->SetWarningText(
             L"Invalid value for double value “" + var->name() + L"”: " + input);
       }
-      return futures::Past(true);
+      return futures::Past(EmptyValue());
     };
     options.cancel_handler = [](EditorState*) { /* Nothing. */ };
     Prompt(std::move(options));
-    return futures::Past(true);
+    return futures::Past(EmptyValue());
   }
 
   default_error_status->SetWarningText(L"Unknown variable: " + name);
-  return futures::Past(true);
+  return futures::Past(EmptyValue());
 }
 
 Predictor VariablesPredictor() {
