@@ -14,27 +14,20 @@ using futures::IterationControlCommand;
 
 static void MergeInto(AsyncSearchProcessor::Output current_results,
                       AsyncSearchProcessor::Output* final_results) {
-  switch (current_results.results) {
-    case AsyncSearchProcessor::Output::Results::kInvalidPattern:
-    case AsyncSearchProcessor::Output::Results::kManyMatches:
-      final_results->results = current_results.results;
+  if (current_results.pattern_error.has_value()) {
+  }
+  final_results->matches += current_results.matches;
+  switch (current_results.search_completion) {
+    case AsyncSearchProcessor::Output::SearchCompletion::kInvalidPattern:
+      final_results->pattern_error = current_results.pattern_error;
+      final_results->search_completion =
+          AsyncSearchProcessor::Output::SearchCompletion::kInvalidPattern;
       break;
-    case AsyncSearchProcessor::Output::Results::kNoMatches:
+    case AsyncSearchProcessor::Output::SearchCompletion::kInterrupted:
+      final_results->search_completion =
+          AsyncSearchProcessor::Output::SearchCompletion::kInterrupted;
       break;
-    case AsyncSearchProcessor::Output::Results::kOneMatch:
-      switch (final_results->results) {
-        case AsyncSearchProcessor::Output::Results::kInvalidPattern:
-        case AsyncSearchProcessor::Output::Results::kManyMatches:
-          break;
-        case AsyncSearchProcessor::Output::Results::kNoMatches:
-          final_results->results =
-              AsyncSearchProcessor::Output::Results::kOneMatch;
-          break;
-        case AsyncSearchProcessor::Output::Results::kOneMatch:
-          final_results->results =
-              AsyncSearchProcessor::Output::Results::kManyMatches;
-          break;
-      }
+    case AsyncSearchProcessor::Output::SearchCompletion::kFull:
       break;
   }
 }
@@ -45,29 +38,42 @@ static void DoSearch(OpenBuffer* buffer, SearchOptions options) {
 }
 
 ColorizePromptOptions SearchResultsModifiers(
-    std::shared_ptr<LazyString> line, AsyncSearchProcessor::Output results) {
+    std::shared_ptr<LazyString> line, AsyncSearchProcessor::Output result) {
+  std::map<std::wstring, std::wstring> extra_information;
+  using SC = AsyncSearchProcessor::Output::SearchCompletion;
   LineModifierSet modifiers;
-  switch (results.results) {
-    case AsyncSearchProcessor::Output::Results::kInvalidPattern:
+  switch (result.search_completion) {
+    case SC::kInvalidPattern:
       modifiers.insert(LineModifier::RED);
+      CHECK(result.pattern_error.has_value());
+      extra_information[L"!"] = result.pattern_error.value();
       break;
-    case AsyncSearchProcessor::Output::Results::kNoMatches:
-      break;
-    case AsyncSearchProcessor::Output::Results::kOneMatch:
-      modifiers.insert(LineModifier::CYAN);
-      break;
-    case AsyncSearchProcessor::Output::Results::kManyMatches:
-      modifiers.insert(LineModifier::GREEN);
+    case SC::kInterrupted:
+    case SC::kFull:
+      extra_information[L"matches"] =
+          std::to_wstring(result.matches) +
+          (result.search_completion == SC::kInterrupted ? L"+" : L"");
+      switch (result.matches) {
+        case 0:
+          break;
+        case 1:
+          modifiers.insert(LineModifier::CYAN);
+          break;
+        case 2:
+          modifiers.insert(LineModifier::YELLOW);
+          break;
+        default:
+          modifiers.insert(LineModifier::GREEN);
+          break;
+      }
       break;
   }
 
-  return {
-      .tokens = {{{.value = L"",
-                   .begin = ColumnNumber(0),
-                   .end = ColumnNumber(0) + line->size()},
-                  .modifiers = std::move(modifiers)}},
-      .status_prompt_extra_information = std::map<std::wstring, std::wstring>(
-          {{L"matches", results.ToString()}})};
+  return {.tokens = {{{.value = L"",
+                       .begin = ColumnNumber(0),
+                       .end = ColumnNumber(0) + line->size()},
+                      .modifiers = std::move(modifiers)}},
+          .status_prompt_extra_information = std::move(extra_information)};
 }
 
 class SearchCommand : public Command {
@@ -162,7 +168,6 @@ class SearchCommand : public Command {
           }
           VLOG(5) << "Triggering async search.";
           auto results = std::make_shared<AsyncSearchProcessor::Output>();
-          results->results = AsyncSearchProcessor::Output::Results::kNoMatches;
           return futures::Transform(
               futures::ForEach(
                   buffers->begin(), buffers->end(),

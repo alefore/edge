@@ -14,6 +14,8 @@
 namespace afc::editor {
 namespace {
 
+static constexpr int kMatchesLimit = 100;
+
 using std::vector;
 using std::wstring;
 
@@ -84,44 +86,34 @@ AsyncSearchProcessor::AsyncSearchProcessor(WorkQueue* work_queue)
     : evaluator_(L"search", work_queue) {}
 
 std::wstring AsyncSearchProcessor::Output::ToString() const {
-  switch (results) {
-    case AsyncSearchProcessor::Output::Results::kInvalidPattern:
-      return L"invalid pattern";
-    case AsyncSearchProcessor::Output::Results::kNoMatches:
-      return L"no matches";
-    case AsyncSearchProcessor::Output::Results::kOneMatch:
-      return L"one match";
-    case AsyncSearchProcessor::Output::Results::kManyMatches:
-      return L"many matches";
-    default:
-      LOG(FATAL) << "Invalid value in AsyncSearchProcessor::Output.";
-      return L"invalid";
+  if (pattern_error.has_value()) {
+    return L"error: " + pattern_error.value();
   }
+  return L"matches: " + std::to_wstring(matches);
 }
 
 futures::Value<AsyncSearchProcessor::Output> AsyncSearchProcessor::Search(
     SearchOptions search_options, std::unique_ptr<BufferContents> buffer) {
   CHECK(buffer != nullptr);
-  search_options.required_positions = 2;
-  return evaluator_.Run(
-      [search_options,
-       buffer = std::shared_ptr<BufferContents>(std::move(buffer))] {
-        auto search_results = PerformSearch(search_options, *buffer);
-        VLOG(5) << "Async search completed for \""
-                << search_options.search_query
-                << "\", found results: " << search_results.positions.size();
-        Output output;
-        if (search_results.error.has_value()) {
-          output.results = Output::Results::kInvalidPattern;
-        } else if (search_results.positions.empty()) {
-          output.results = Output::Results::kNoMatches;
-        } else if (search_results.positions.size() == 1) {
-          output.results = Output::Results::kOneMatch;
-        } else {
-          output.results = Output::Results::kManyMatches;
-        }
-        return output;
-      });
+  search_options.required_positions = 100;
+  return evaluator_.Run([search_options,
+                         buffer = std::shared_ptr<BufferContents>(
+                             std::move(buffer))] {
+    auto search_results = PerformSearch(search_options, *buffer);
+    VLOG(5) << "Async search completed for \"" << search_options.search_query
+            << "\", found results: " << search_results.positions.size();
+    Output output;
+    if (search_results.error.has_value()) {
+      output.pattern_error = search_results.error.value();
+      output.search_completion = Output::SearchCompletion::kInvalidPattern;
+    } else {
+      output.matches = search_results.positions.size();
+      output.search_completion = output.matches >= kMatchesLimit
+                                     ? Output::SearchCompletion::kInterrupted
+                                     : Output::SearchCompletion::kFull;
+    }
+    return output;
+  });
 }
 
 std::wstring RegexEscape(std::shared_ptr<LazyString> str) {
@@ -220,7 +212,6 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     if (!positions.has_value()) continue;
 
     // Get the first kMatchesLimit matches:
-    const int kMatchesLimit = 100;
     for (size_t i = 0;
          i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
       auto position = positions.value()[i];

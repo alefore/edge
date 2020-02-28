@@ -53,8 +53,18 @@ class AsyncSearchProcessor {
   AsyncSearchProcessor(WorkQueue* work_queue);
 
   struct Output {
-    enum class Results { kInvalidPattern, kNoMatches, kOneMatch, kManyMatches };
-    Results results = Results::kNoMatches;
+    std::optional<std::wstring> pattern_error;
+    int matches = 0;
+    enum class SearchCompletion {
+      // The search was interrupted. It's possible that there are more matches.
+      kInterrupted,
+      // The search consumed the entire input.
+      kFull,
+      // The pattern was invalid (see pattern_error for details).
+      kInvalidPattern,
+    };
+    SearchCompletion search_completion = SearchCompletion::kFull;
+
     std::wstring ToString() const;
   };
 
