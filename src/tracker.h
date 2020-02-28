@@ -41,8 +41,6 @@ class Tracker {
   std::unique_ptr<bool, std::function<void(bool*)>> Call();
 
  private:
-  static std::list<Tracker*> trackers_;
-
   std::list<Tracker*>::iterator trackers_it_;
 
   Data data_;

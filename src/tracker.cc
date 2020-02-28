@@ -2,14 +2,14 @@
 
 #include "src/time.h"
 
-namespace afc {
-namespace editor {
-
-std::list<Tracker*> Tracker::trackers_;
+namespace afc::editor {
+namespace {
+auto* const trackers = new std::list<Tracker*>();
+}
 
 /* static */ std::list<Tracker::Data> Tracker::GetData() {
   std::list<Tracker::Data> output;
-  for (const auto* tracker : trackers_) {
+  for (const auto* tracker : *trackers) {
     output.push_back(tracker->data_);
   }
   return output;
@@ -17,12 +17,12 @@ std::list<Tracker*> Tracker::trackers_;
 
 Tracker::Tracker(std::wstring name)
     : trackers_it_([this]() {
-        trackers_.push_front(this);
-        return trackers_.begin();
+        trackers->push_front(this);
+        return trackers->begin();
       }()),
       data_(Tracker::Data{std::move(name), 0, 0.0}) {}
 
-Tracker::~Tracker() { trackers_.erase(trackers_it_); }
+Tracker::~Tracker() { trackers->erase(trackers_it_); }
 
 std::unique_ptr<bool, std::function<void(bool*)>> Tracker::Call() {
   data_.executions++;
@@ -37,6 +37,4 @@ std::unique_ptr<bool, std::function<void(bool*)>> Tracker::Call() {
         data_.seconds += GetElapsedSecondsSince(start);
       });
 }
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
