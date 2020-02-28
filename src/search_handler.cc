@@ -83,7 +83,8 @@ SearchResults PerformSearch(const SearchOptions& options,
 }  // namespace
 
 AsyncSearchProcessor::AsyncSearchProcessor(WorkQueue* work_queue)
-    : evaluator_(L"search", work_queue) {}
+    : evaluator_(L"search", work_queue,
+                 BackgroundCallbackRunner::Options::QueueBehavior::kFlush) {}
 
 std::wstring AsyncSearchProcessor::Output::ToString() const {
   if (pattern_error.has_value()) {

@@ -171,16 +171,14 @@ class AsyncProcessor {
 
 using BackgroundCallbackRunner = AsyncProcessor<std::function<void()>, int>;
 
-BackgroundCallbackRunner NewBackgroundCallbackRunner(std::wstring name);
-
 class AsyncEvaluator {
  public:
-  AsyncEvaluator(std::wstring name, WorkQueue* work_queue)
-      : background_callback_runner_(NewBackgroundCallbackRunner(name)),
-        work_queue_(work_queue) {}
+  AsyncEvaluator(
+      std::wstring name, WorkQueue* work_queue,
+      BackgroundCallbackRunner::Options::QueueBehavior push_behavior =
+          BackgroundCallbackRunner::Options::QueueBehavior::kWait);
 
   template <typename Callable>
-
   auto Run(Callable callable) {
     futures::Future<decltype(callable())> output;
     background_callback_runner_.Push(
