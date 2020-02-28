@@ -28,7 +28,7 @@ struct ColorizePromptOptions {
   // will clear any previously set context).
   std::optional<std::shared_ptr<OpenBuffer>> context = std::nullopt;
 
-  std::map<std::wstring, std::wstring> status_prompt_extra_information;
+  std::map<std::wstring, std::wstring> status_prompt_extra_information = {};
 };
 
 struct PromptOptions {
