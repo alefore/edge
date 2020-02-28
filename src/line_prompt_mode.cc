@@ -561,12 +561,23 @@ futures::Value<EmptyValue> ColorizePrompt(
     std::shared_ptr<OpenBuffer> status_buffer, Status* status,
     int status_version, futures::Value<ColorizePromptOptions> options_future) {
   CHECK(status_buffer != nullptr);
+  CHECK(status);
   CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
   auto original_line = status_buffer->LineAt(LineNumber(0));
 
   return futures::Transform(options_future, [status_buffer, status,
                                              status_version, original_line](
                                                 ColorizePromptOptions options) {
+    if (status->GetType() != Status::Type::kPrompt) {
+      LOG(INFO) << "Status is no longer a prompt, aborting colorize prompt.";
+      return futures::Past(EmptyValue());
+    }
+
+    if (status->prompt_buffer() != status_buffer) {
+      LOG(INFO) << "Prompt buffer has changed, aborting colorize prompt.";
+      return futures::Past(EmptyValue());
+    }
+
     CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
     auto line = status_buffer->LineAt(LineNumber(0));
     if (original_line->ToString() != line->ToString()) {
@@ -580,10 +591,11 @@ futures::Value<EmptyValue> ColorizePrompt(
     if (options.context.has_value()) {
       status->set_prompt_context(options.context.value());
     }
+    CHECK(status->prompt_extra_information() != nullptr);
     for (const auto& [key, value] : options.status_prompt_extra_information) {
       status->prompt_extra_information()->SetValue(key, status_version, value);
     }
-
+    status->prompt_extra_information()->EraseStaleKeys();
     return futures::Past(EmptyValue());
   });
 }
