@@ -100,12 +100,19 @@ std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
   Line::Options options;
   if (!information_.empty()) {
     static const auto dim = LineModifierSet{LineModifier::DIM};
+    static const auto empty = LineModifierSet{};
     options.AppendString(L"    -- ", dim);
+    bool need_separator = false;
     for (const auto [key, value] : information_) {
-      options.AppendString(key,
-                           value.version < version_ ? dim : LineModifierSet{});
+      if (need_separator) {
+        options.AppendString(L" ", empty);
+      }
+      need_separator = true;
+
+      const auto& modifiers = value.version < version_ ? dim : empty;
+      options.AppendString(key, modifiers);
       options.AppendString(L":", dim);
-      options.AppendString(value.value, LineModifierSet{});
+      options.AppendString(value.value, modifiers);
     }
   }
   return std::make_shared<Line>(std::move(options));
