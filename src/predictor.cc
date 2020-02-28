@@ -39,7 +39,7 @@ const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
     L"predictor_longest_directory_match";
 const wchar_t* kExactMatchEnvironmentVariable = L"predictor_exact_match";
 
-PredictResults HandleEndOfFile(OpenBuffer* predictions_buffer) {
+PredictResults BuildResults(OpenBuffer* predictions_buffer) {
   CHECK(predictions_buffer != nullptr);
 
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
@@ -180,7 +180,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                                .source_buffers = options.source_buffers}),
             [options, input, buffer, consumer](PredictorOutput) {
               buffer->set_current_cursor(LineColumn());
-              auto results = HandleEndOfFile(buffer);
+              auto results = BuildResults(buffer);
               consumer(GetPredictInput(options) == input
                            ? std::optional<PredictResults>(results)
                            : std::nullopt);

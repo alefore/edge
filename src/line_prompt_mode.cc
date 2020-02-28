@@ -559,29 +559,33 @@ class LinePromptCommand : public Command {
 // tokens become available.
 futures::Value<EmptyValue> ColorizePrompt(
     std::shared_ptr<OpenBuffer> status_buffer, Status* status,
-    futures::Value<ColorizePromptOptions> tokens_future) {
+    int status_version, futures::Value<ColorizePromptOptions> options_future) {
   CHECK(status_buffer != nullptr);
   CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
   auto original_line = status_buffer->LineAt(LineNumber(0));
 
-  return futures::Transform(
-      tokens_future,
-      [status_buffer, status, original_line](ColorizePromptOptions options) {
-        CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
-        auto line = status_buffer->LineAt(LineNumber(0));
-        if (original_line->ToString() != line->ToString()) {
-          LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
-          return futures::Past(EmptyValue());
-        }
+  return futures::Transform(options_future, [status_buffer, status,
+                                             status_version, original_line](
+                                                ColorizePromptOptions options) {
+    CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
+    auto line = status_buffer->LineAt(LineNumber(0));
+    if (original_line->ToString() != line->ToString()) {
+      LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
+      return futures::Past(EmptyValue());
+    }
 
-        status_buffer->AppendRawLine(
-            ColorizeLine(line->contents(), std::move(options.tokens)));
-        status_buffer->EraseLines(LineNumber(0), LineNumber(1));
-        if (options.context.has_value()) {
-          status->set_prompt_context(options.context.value());
-        }
-        return futures::Past(EmptyValue());
-      });
+    status_buffer->AppendRawLine(
+        ColorizeLine(line->contents(), std::move(options.tokens)));
+    status_buffer->EraseLines(LineNumber(0), LineNumber(1));
+    if (options.context.has_value()) {
+      status->set_prompt_context(options.context.value());
+    }
+    for (const auto& [key, value] : options.status_prompt_extra_information) {
+      status->prompt_extra_information()->SetValue(key, status_version, value);
+    }
+
+    return futures::Past(EmptyValue());
+  });
 }
 }  // namespace
 
@@ -629,9 +633,11 @@ void Prompt(PromptOptions options) {
       [editor_state, status,
        options](const std::shared_ptr<OpenBuffer>& buffer) {
         auto line = buffer->LineAt(LineNumber())->contents();
+        int status_version =
+            status->prompt_extra_information()->StartNewVersion();
         return options.colorize_options_provider == nullptr
                    ? futures::Past(EmptyValue())
-                   : ColorizePrompt(buffer, status,
+                   : ColorizePrompt(buffer, status, status_version,
                                     options.colorize_options_provider(line));
       };
 
@@ -680,6 +686,8 @@ void Prompt(PromptOptions options) {
         predict_options.input_buffer = buffer;
         predict_options.input_selection_structure = StructureLine();
         predict_options.status = status;
+
+        CHECK(status->prompt_extra_information() != nullptr);
         Predict(std::move(predict_options))
             .SetConsumer([editor_state, options, buffer, status,
                           input](std::optional<PredictResults> results) {
@@ -711,7 +719,9 @@ void Prompt(PromptOptions options) {
                     NewInsertBufferTransformation(std::move(insert_options)));
 
                 if (options.colorize_options_provider != nullptr) {
-                  ColorizePrompt(buffer, status,
+                  int status_version =
+                      status->prompt_extra_information()->StartNewVersion();
+                  ColorizePrompt(buffer, status, status_version,
                                  options.colorize_options_provider(line));
                 }
               } else {

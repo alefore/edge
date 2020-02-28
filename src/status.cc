@@ -5,6 +5,9 @@
 #include <cmath>
 #include <memory>
 
+#include "src/line.h"
+#include "src/line_modifier.h"
+
 namespace afc {
 namespace editor {
 
@@ -80,6 +83,45 @@ std::wstring ProgressStringFillUp(size_t lines,
   return {output[index]};
 }
 
+int StatusPromptExtraInformation::StartNewVersion() {
+  version_++;
+  return version_;
+}
+
+void StatusPromptExtraInformation::SetValue(std::wstring key, int version,
+                                            std::wstring value) {
+  auto& entry = information_[key];
+  if (entry.version < version) {
+    entry = {.version = version, .value = value};
+  }
+}
+
+std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
+  Line::Options options;
+  if (!information_.empty()) {
+    static const auto dim = LineModifierSet{LineModifier::DIM};
+    options.AppendString(L"    -- ", dim);
+    for (const auto [key, value] : information_) {
+      options.AppendString(key,
+                           value.version < version_ ? dim : LineModifierSet{});
+      options.AppendString(L":", dim);
+      options.AppendString(value.value, LineModifierSet{});
+    }
+  }
+  return std::make_shared<Line>(std::move(options));
+}
+
+void StatusPromptExtraInformation::EraseStaleKeys() {
+  auto it = information_.begin();
+  while (it != information_.end()) {
+    if (it->second.version < version_) {
+      it = information_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
 Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player)
     : console_(std::move(console)), audio_player_(audio_player) {
   ValidatePreconditions();
@@ -95,8 +137,11 @@ Status::Type Status::GetType() const {
 void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   CHECK(buffer != nullptr);
   ValidatePreconditions();
-  data_ = std::make_shared<Data>(
-      Data{Status::Type::kPrompt, std::move(text), std::move(buffer)});
+  data_ = std::make_shared<Data>(Data{
+      .type = Status::Type::kPrompt,
+      .text = std::move(text),
+      .prompt_buffer = std::move(buffer),
+      .extra_information = std::make_unique<StatusPromptExtraInformation>()});
   ValidatePreconditions();
 }
 
@@ -116,6 +161,14 @@ const std::shared_ptr<OpenBuffer>& Status::prompt_buffer() const {
 const std::shared_ptr<OpenBuffer>& Status::prompt_context() const {
   ValidatePreconditions();
   return data_->prompt_context;
+}
+
+StatusPromptExtraInformation* Status::prompt_extra_information() {
+  return data_->extra_information.get();
+}
+
+const StatusPromptExtraInformation* Status::prompt_extra_information() const {
+  return data_->extra_information.get();
 }
 
 void Status::SetInformationText(std::wstring text) {

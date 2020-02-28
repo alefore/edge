@@ -31,6 +31,8 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
   return buffer.Read(buffer_variables::name);
 }
 
+// This produces the main view of the status, ignoring the context. It handles
+// all valid types of statuses (i.e., all values returned by status->GetType()).
 class InfoProducer : public OutputProducer {
  public:
   InfoProducer(const Status* status, const OpenBuffer* buffer,
@@ -169,6 +171,7 @@ class InfoProducer : public OutputProducer {
             Line::Options suffix(*contents);
             suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
             options.Append(Line(std::move(suffix)));
+            options.Append(*status_->prompt_extra_information()->GetLine());
           } else {
             VLOG(6) << "Not setting status cursor.";
             options.AppendString(status_->text(), modifiers);

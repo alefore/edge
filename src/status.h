@@ -10,6 +10,7 @@ namespace afc {
 namespace editor {
 
 class OpenBuffer;
+class Line;
 
 enum class OverflowBehavior { kModulo, kMaximum };
 std::wstring ProgressString(size_t counter, OverflowBehavior overflow_behavior);
@@ -18,6 +19,22 @@ std::wstring ProgressStringFillUp(size_t counter,
 
 // Opaque type returned by `SetExpiringInformationText`.
 struct StatusExpirationControl;
+
+class StatusPromptExtraInformation {
+ public:
+  int StartNewVersion();
+  void SetValue(std::wstring key, int version, std::wstring value);
+  void EraseStaleKeys();
+  std::shared_ptr<Line> GetLine() const;
+
+ private:
+  struct Value {
+    int version;
+    std::wstring value;
+  };
+  std::unordered_map<std::wstring, Value> information_;
+  int version_ = 0;
+};
 
 class Status {
  public:
@@ -34,6 +51,11 @@ class Status {
   // May be nullptr.
   const std::shared_ptr<OpenBuffer>& prompt_buffer() const;
   const std::shared_ptr<OpenBuffer>& prompt_context() const;
+
+  // Returns nullptr if the status type isn't kPrompt.
+  StatusPromptExtraInformation* prompt_extra_information();
+  // Returns nullptr if the status type isn't kPrompt.
+  const StatusPromptExtraInformation* prompt_extra_information() const;
 
   void SetInformationText(std::wstring text);
   std::unique_ptr<StatusExpirationControl,
@@ -66,6 +88,9 @@ class Status {
     // buffer that contains either a preview of the results of executing the
     // prompt or possible completions.
     std::shared_ptr<OpenBuffer> prompt_context = nullptr;
+
+    // Should only be used when type is Type::kPrompt.
+    std::unique_ptr<StatusPromptExtraInformation> extra_information = nullptr;
   };
 
   std::shared_ptr<Data> data_ = std::make_shared<Data>();

@@ -23,9 +23,12 @@ struct TokenAndModifiers {
 
 struct ColorizePromptOptions {
   std::vector<TokenAndModifiers> tokens = {};
+
   // If present, sets the context buffer for the prompt. Can be `nullptr` (which
   // will clear any previously set context).
   std::optional<std::shared_ptr<OpenBuffer>> context = std::nullopt;
+
+  std::map<std::wstring, std::wstring> status_prompt_extra_information;
 };
 
 struct PromptOptions {

@@ -61,10 +61,13 @@ ColorizePromptOptions SearchResultsModifiers(
       break;
   }
 
-  return {.tokens = {{{.value = L"",
-                       .begin = ColumnNumber(0),
-                       .end = ColumnNumber(0) + line->size()},
-                      .modifiers = std::move(modifiers)}}};
+  return {
+      .tokens = {{{.value = L"",
+                   .begin = ColumnNumber(0),
+                   .end = ColumnNumber(0) + line->size()},
+                  .modifiers = std::move(modifiers)}},
+      .status_prompt_extra_information = std::map<std::wstring, std::wstring>(
+          {{L"matches", results.ToString()}})};
 }
 
 class SearchCommand : public Command {
