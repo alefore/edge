@@ -649,6 +649,7 @@ void Prompt(PromptOptions options) {
         auto progress_channel = std::make_unique<ProgressChannel>(
             buffer->work_queue(),
             [status, status_version](ProgressInformation extra_information) {
+              if (status->GetType() != Status::Type::kPrompt) return;
               CHECK(status->prompt_extra_information() != nullptr);
               for (const auto& [key, value] : extra_information.values) {
                 status->prompt_extra_information()->SetValue(
