@@ -196,9 +196,11 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
             [shared_options, input, buffer, consumer](PredictorOutput) {
               buffer->set_current_cursor(LineColumn());
               auto results = BuildResults(buffer);
-              consumer(GetPredictInput(*shared_options) == input
-                           ? std::optional<PredictResults>(results)
-                           : std::nullopt);
+              consumer(
+                  GetPredictInput(*shared_options) == input &&
+                          !shared_options->abort_notification->HasBeenNotified()
+                      ? std::optional<PredictResults>(results)
+                      : std::nullopt);
               return Success();
             });
       };
@@ -260,6 +262,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 
                    std::wstring pattern, std::wstring prefix, int* matches,
                    ProgressChannel* progress_channel,
+                   Notification* abort_notification,
                    OpenBuffer::LockFunction get_buffer) {
   static Tracker tracker(L"FilePredictor::ScanDirectory");
   auto call = tracker.Call();
@@ -283,8 +286,8 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   };
 
   while ((entry = readdir(dir)) != nullptr) {
+    if (abort_notification->HasBeenNotified()) return;
     string entry_path = entry->d_name;
-
     auto mismatch_results = std::mismatch(pattern.begin(), pattern.end(),
                                           entry_path.begin(), entry_path.end());
     if (mismatch_results.first != pattern.end()) {
@@ -331,6 +334,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   struct AsyncInput {
     ProgressChannel* progress_channel;
+    std::shared_ptr<Notification> abort_notification;
     OpenBuffer::LockFunction get_buffer;
     wstring path;
     vector<wstring> search_paths;
@@ -339,6 +343,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
     futures::Value<PredictorOutput>::Consumer output_consumer;
   };
 
+  // TODO(easy): Replace with AsyncEvaluator.
   AsyncProcessor<AsyncInput, int>::Options options;
   options.name = L"FilePredictor";
   options.factory = [](AsyncInput input) {
@@ -378,7 +383,9 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     input.path.substr(descend_results.valid_prefix_length,
                                       input.path.size()),
                     input.path.substr(0, descend_results.valid_prefix_length),
-                    &matches, input.progress_channel, input.get_buffer);
+                    &matches, input.progress_channel,
+                    input.abort_notification.get(), input.get_buffer);
+      if (input.abort_notification->HasBeenNotified()) return 0;
     }
     input.get_buffer([output_consumer = std::move(input.output_consumer)](
                          OpenBuffer* buffer) {
@@ -395,6 +402,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
 
   AsyncInput input{
       .progress_channel = predictor_input.progress_channel,
+      .abort_notification = predictor_input.abort_notification,
       .get_buffer = predictor_input.predictions->GetLockFunction(),
       .path = predictor_input.editor->expand_path(predictor_input.input),
       .search_paths = {},
