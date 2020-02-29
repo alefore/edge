@@ -72,17 +72,20 @@ SearchResults PerformSearch(const SearchOptions& options,
 
   SearchResults output;
 
-  contents.EveryLine([&](LineNumber position, const Line& line) {
+  bool searched_every_line = contents.EveryLine([&](LineNumber position,
+                                                    const Line& line) {
     for (const auto& column : GetMatches(line.ToString(), pattern)) {
       output.positions.push_back(LineColumn(position, column));
     }
 
     progress_channel->Push(ProgressInformation{
         .values = {{L"matches", std::to_wstring(output.positions.size())}}});
-
     return !options.required_positions.has_value() ||
            options.required_positions.value() > output.positions.size();
   });
+  progress_channel->Push(ProgressInformation{
+      .values = {{L"matches", std::to_wstring(output.positions.size()) +
+                                  (searched_every_line ? L"" : L"+")}}});
   VLOG(5) << "Perform search found matches: " << output.positions.size();
   return output;
 }

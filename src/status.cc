@@ -85,6 +85,7 @@ std::wstring ProgressStringFillUp(size_t lines,
 
 int StatusPromptExtraInformation::StartNewVersion() {
   version_++;
+  last_version_state_ = VersionExecution::kRunning;
   return version_;
 }
 
@@ -98,9 +99,10 @@ void StatusPromptExtraInformation::SetValue(std::wstring key, int version,
 
 std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
   Line::Options options;
+  static const auto dim = LineModifierSet{LineModifier::DIM};
+  static const auto empty = LineModifierSet{};
+
   if (!information_.empty()) {
-    static const auto dim = LineModifierSet{LineModifier::DIM};
-    static const auto empty = LineModifierSet{};
     options.AppendString(L"    -- ", dim);
     bool need_separator = false;
     for (const auto [key, value] : information_) {
@@ -115,10 +117,18 @@ std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
       options.AppendString(value.value, modifiers);
     }
   }
+  switch (last_version_state_) {
+    case VersionExecution::kDone:
+      break;
+    case VersionExecution::kRunning:
+      options.AppendString(L" …", dim);
+      break;
+  }
+
   return std::make_shared<Line>(std::move(options));
 }
 
-void StatusPromptExtraInformation::EraseStaleKeys() {
+void StatusPromptExtraInformation::MarkVersionDone(int version) {
   auto it = information_.begin();
   while (it != information_.end()) {
     if (it->second.version < version_) {
@@ -126,6 +136,9 @@ void StatusPromptExtraInformation::EraseStaleKeys() {
     } else {
       ++it;
     }
+  }
+  if (version == version_) {
+    last_version_state_ = VersionExecution::kDone;
   }
 }
 

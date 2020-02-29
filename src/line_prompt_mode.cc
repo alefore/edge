@@ -591,7 +591,7 @@ futures::Value<EmptyValue> ColorizePrompt(
     if (options.context.has_value()) {
       status->set_prompt_context(options.context.value());
     }
-    status->prompt_extra_information()->EraseStaleKeys();
+    status->prompt_extra_information()->MarkVersionDone(status_version);
     return futures::Past(EmptyValue());
   });
 }

@@ -24,7 +24,12 @@ class StatusPromptExtraInformation {
  public:
   int StartNewVersion();
   void SetValue(std::wstring key, int version, std::wstring value);
-  void EraseStaleKeys();
+  // Once the caller thinks that it won't be doing any additional calls to
+  // SetValue for a given version, it should call `MarkVersionDone`. Completion
+  // will be reflected by `GetLine`. It is okay to call `SetValue` after this,
+  // but it will be misleading to the user (who will think that the values
+  // displayed are final).
+  void MarkVersionDone(int version);
   std::shared_ptr<Line> GetLine() const;
 
  private:
@@ -34,6 +39,13 @@ class StatusPromptExtraInformation {
   };
   std::unordered_map<std::wstring, Value> information_;
   int version_ = 0;
+  enum class VersionExecution {
+    // MarkVersionDone hasn't executed for the last value of version_.
+    kRunning,
+    // MarkVersionDone has run with the last value of version_.
+    kDone
+  };
+  VersionExecution last_version_state_ = VersionExecution::kDone;
 };
 
 class Status {
