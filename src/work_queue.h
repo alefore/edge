@@ -50,5 +50,90 @@ class WorkQueue {
                       std::function<bool(const Callback&, const Callback&)>>
       callbacks_;
 };
+
+enum class WorkQueueChannelConsumeMode {
+  // consume_callback will execute on all values given to Push, in order.
+  kAll,
+  // If multiple values are pushed quickly (before the work queue can consume
+  // some of them), we'd rather skip intermediate values and only process the
+  // very last available value.
+  //
+  // Obviously, because of possible races, there are no guarrantees, so this
+  // optimization is applied in a best-effort manner.
+  kLastAvailable
+};
+
+// Schedules in a work_queue execution of consume_callback for the values given
+// to WorkQueueChannel::Push.
+//
+// A WorkQueueChannel can be deleted before the callbacks it schedules in
+// work_queue have executed.
+template <typename T>
+class WorkQueueChannel {
+ public:
+  WorkQueueChannel(WorkQueue* work_queue,
+                   std::function<void(T t)> consume_callback,
+                   WorkQueueChannelConsumeMode consume_mode)
+      : work_queue_(work_queue),
+        consume_mode_(consume_mode),
+        data_(std::make_shared<Data>(std::move(consume_callback))) {
+    CHECK(work_queue_ != nullptr);
+    CHECK(data_ != nullptr);
+    CHECK(data_->consume_callback != nullptr);
+  }
+
+  void Push(T value) {
+    switch (consume_mode_) {
+      case WorkQueueChannelConsumeMode::kAll:
+        work_queue_->Schedule(
+            [data = data_, value = std::move(value)]() mutable {
+              data->consume_callback(std::move(value));
+            });
+        break;
+
+      case WorkQueueChannelConsumeMode::kLastAvailable:
+        CHECK(data_ != nullptr);
+
+        data_->mutex.lock();
+        bool already_scheduled = data_->value.has_value();
+        data_->value = std::move(value);
+        data_->mutex.unlock();
+
+        if (already_scheduled) return;
+
+        work_queue_->Schedule([data = data_] {
+          std::optional<T> value;
+
+          data->mutex.lock();
+          value.swap(data->value);
+          data->mutex.unlock();
+
+          CHECK(value.has_value());
+          data->consume_callback(value.value());
+        });
+        break;
+    }
+  }
+
+ private:
+  WorkQueue* const work_queue_;
+  const WorkQueueChannelConsumeMode consume_mode_;
+
+  // To enable deletion of the channel before the callbacks it schedules in
+  // work_queue have executed, we move the fields that such callbacks depend on
+  // to a structure that we put in a shared_ptr.
+  struct Data {
+    Data(std::function<void(T t)> consume_callback)
+        : consume_callback(std::move(consume_callback)) {}
+
+    const std::function<void(T t)> consume_callback;
+
+    // Only used when consume_mode_ is kLastAvailable.
+    std::mutex mutex;
+    std::optional<T> value;
+  };
+  const std::shared_ptr<Data> data_;
+};
+
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_WORK_QUEUE_H__

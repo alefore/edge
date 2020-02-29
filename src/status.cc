@@ -91,7 +91,7 @@ int StatusPromptExtraInformation::StartNewVersion() {
 void StatusPromptExtraInformation::SetValue(std::wstring key, int version,
                                             std::wstring value) {
   auto& entry = information_[key];
-  if (entry.version < version) {
+  if (entry.version <= version) {
     entry = {.version = version, .value = value};
   }
 }

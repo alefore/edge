@@ -51,7 +51,8 @@ struct SearchResults {
 };
 
 SearchResults PerformSearch(const SearchOptions& options,
-                            const BufferContents& contents) {
+                            const BufferContents& contents,
+                            ProgressChannel* progress_channel) {
   vector<LineColumn> positions;
 
   auto traits = std::regex_constants::extended;
@@ -73,6 +74,10 @@ SearchResults PerformSearch(const SearchOptions& options,
     for (const auto& column : GetMatches(line.ToString(), pattern)) {
       output.positions.push_back(LineColumn(position, column));
     }
+
+    progress_channel->Push(ProgressInformation{
+        .values = {{L"matches", std::to_wstring(output.positions.size())}}});
+
     return !options.required_positions.has_value() ||
            options.required_positions.value() > output.positions.size();
   });
@@ -94,13 +99,16 @@ std::wstring AsyncSearchProcessor::Output::ToString() const {
 }
 
 futures::Value<AsyncSearchProcessor::Output> AsyncSearchProcessor::Search(
-    SearchOptions search_options, std::unique_ptr<BufferContents> buffer) {
+    SearchOptions search_options, std::unique_ptr<BufferContents> buffer,
+    std::shared_ptr<ProgressChannel> progress_channel) {
   CHECK(buffer != nullptr);
   search_options.required_positions = 100;
   return evaluator_.Run([search_options,
-                         buffer = std::shared_ptr<BufferContents>(
-                             std::move(buffer))] {
-    auto search_results = PerformSearch(search_options, *buffer);
+                         buffer =
+                             std::shared_ptr<BufferContents>(std::move(buffer)),
+                         progress_channel] {
+    auto search_results =
+        PerformSearch(search_options, *buffer, progress_channel.get());
     VLOG(5) << "Async search completed for \"" << search_options.search_query
             << "\", found results: " << search_results.positions.size();
     Output output;
@@ -134,7 +142,11 @@ std::wstring RegexEscape(std::shared_ptr<LazyString> str) {
 std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
     EditorState* editor_state, const SearchOptions& options) {
   auto direction = editor_state->modifiers().direction;
-  SearchResults results = PerformSearch(options, *options.buffer->contents());
+  auto dummy_progress_channel = std::make_unique<ProgressChannel>(
+      editor_state->work_queue(), [](ProgressInformation) {},
+      WorkQueueChannelConsumeMode::kLastAvailable);
+  SearchResults results = PerformSearch(options, *options.buffer->contents(),
+                                        dummy_progress_channel.get());
   if (results.error.has_value()) {
     options.buffer->status()->SetWarningText(results.error.value());
     return std::nullopt;

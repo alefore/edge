@@ -9,6 +9,7 @@
 #include "src/futures/futures.h"
 #include "src/status.h"
 #include "src/structure.h"
+#include "src/work_queue.h"
 
 namespace afc {
 namespace editor {
@@ -20,6 +21,12 @@ using std::wstring;
 
 class EditorState;
 class OpenBuffer;
+
+struct ProgressInformation {
+  std::map<std::wstring, std::wstring> values;
+};
+
+using ProgressChannel = WorkQueueChannel<ProgressInformation>;
 
 // A Predictor is a function that generates predictions (autocompletions) for a
 // given prompt input and writes them to a buffer.
@@ -46,6 +53,8 @@ struct PredictorInput {
   // TODO: Mark the buffers as const. Unfortunately, the search handler wants to
   // modify them.
   std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
+
+  ProgressChannel* progress_channel;
 };
 
 struct PredictorOutput {};
@@ -101,6 +110,8 @@ struct PredictOptions {
   //
   // TODO: Mark the buffers as const. See comments in `PredictorInput`.
   std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
+
+  std::unique_ptr<WorkQueueChannel<ProgressInformation>> progress_channel;
 };
 
 // Create a new buffer running a given predictor on the input in a given status

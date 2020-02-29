@@ -591,10 +591,6 @@ futures::Value<EmptyValue> ColorizePrompt(
     if (options.context.has_value()) {
       status->set_prompt_context(options.context.value());
     }
-    CHECK(status->prompt_extra_information() != nullptr);
-    for (const auto& [key, value] : options.status_prompt_extra_information) {
-      status->prompt_extra_information()->SetValue(key, status_version, value);
-    }
     status->prompt_extra_information()->EraseStaleKeys();
     return futures::Past(EmptyValue());
   });
@@ -647,10 +643,22 @@ void Prompt(PromptOptions options) {
         auto line = buffer->LineAt(LineNumber())->contents();
         int status_version =
             status->prompt_extra_information()->StartNewVersion();
-        return options.colorize_options_provider == nullptr
-                   ? futures::Past(EmptyValue())
-                   : ColorizePrompt(buffer, status, status_version,
-                                    options.colorize_options_provider(line));
+        if (options.colorize_options_provider == nullptr) {
+          return futures::Past(EmptyValue());
+        }
+        auto progress_channel = std::make_unique<ProgressChannel>(
+            buffer->work_queue(),
+            [status, status_version](ProgressInformation extra_information) {
+              CHECK(status->prompt_extra_information() != nullptr);
+              for (const auto& [key, value] : extra_information.values) {
+                status->prompt_extra_information()->SetValue(
+                    key, status_version, value);
+              }
+            },
+            WorkQueueChannelConsumeMode::kLastAvailable);
+        return ColorizePrompt(buffer, status, status_version,
+                              options.colorize_options_provider(
+                                  line, std::move(progress_channel)));
       };
 
   insert_mode_options.scroll_behavior =
@@ -686,74 +694,79 @@ void Prompt(PromptOptions options) {
         return options.handler(input->ToString(), editor_state);
       };
 
-  insert_mode_options.start_completion =
-      [editor_state, options,
-       status](const std::shared_ptr<OpenBuffer>& buffer) {
-        auto input = buffer->current_line()->contents()->ToString();
-        LOG(INFO) << "Triggering predictions from: " << input;
-        PredictOptions predict_options;
-        predict_options.editor_state = editor_state;
-        predict_options.predictor = options.predictor;
-        predict_options.source_buffers = options.source_buffers;
-        predict_options.input_buffer = buffer;
-        predict_options.input_selection_structure = StructureLine();
-        predict_options.status = status;
+  insert_mode_options
+      .start_completion = [editor_state, options,
+                           status](const std::shared_ptr<OpenBuffer>& buffer) {
+    auto input = buffer->current_line()->contents()->ToString();
+    LOG(INFO) << "Triggering predictions from: " << input;
+    PredictOptions predict_options;
+    predict_options.editor_state = editor_state;
+    predict_options.predictor = options.predictor;
+    predict_options.source_buffers = options.source_buffers;
+    predict_options.input_buffer = buffer;
+    predict_options.input_selection_structure = StructureLine();
+    predict_options.status = status;
 
-        CHECK(status->prompt_extra_information() != nullptr);
-        Predict(std::move(predict_options))
-            .SetConsumer([editor_state, options, buffer, status,
-                          input](std::optional<PredictResults> results) {
-              if (!results.has_value()) return;
-              if (results.value().common_prefix.has_value() &&
-                  !results.value().common_prefix.value().empty() &&
-                  input != results.value().common_prefix.value()) {
-                LOG(INFO) << "Prediction advanced from " << input << " to "
-                          << results.value();
+    CHECK(status->prompt_extra_information() != nullptr);
+    Predict(std::move(predict_options))
+        .SetConsumer([editor_state, options, buffer, status,
+                      input](std::optional<PredictResults> results) {
+          if (!results.has_value()) return;
+          if (results.value().common_prefix.has_value() &&
+              !results.value().common_prefix.value().empty() &&
+              input != results.value().common_prefix.value()) {
+            LOG(INFO) << "Prediction advanced from " << input << " to "
+                      << results.value();
 
-                DeleteOptions delete_options;
-                delete_options.modifiers.paste_buffer_behavior =
-                    Modifiers::PasteBufferBehavior::kDoNothing;
-                delete_options.modifiers.structure = StructureLine();
-                delete_options.modifiers.boundary_begin =
-                    Modifiers::LIMIT_CURRENT;
-                delete_options.modifiers.boundary_end =
-                    Modifiers::LIMIT_CURRENT;
-                buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
+            DeleteOptions delete_options;
+            delete_options.modifiers.paste_buffer_behavior =
+                Modifiers::PasteBufferBehavior::kDoNothing;
+            delete_options.modifiers.structure = StructureLine();
+            delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+            delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+            buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
 
-                std::shared_ptr<LazyString> line =
-                    NewLazyString(results.value().common_prefix.value());
-                auto buffer_to_insert = OpenBuffer::New(
-                    {.editor = editor_state, .name = L"- text inserted"});
-                buffer_to_insert->AppendToLastLine(line);
-                InsertOptions insert_options;
-                insert_options.buffer_to_insert = buffer_to_insert;
-                buffer->ApplyToCursors(
-                    NewInsertBufferTransformation(std::move(insert_options)));
+            std::shared_ptr<LazyString> line =
+                NewLazyString(results.value().common_prefix.value());
+            auto buffer_to_insert = OpenBuffer::New(
+                {.editor = editor_state, .name = L"- text inserted"});
+            buffer_to_insert->AppendToLastLine(line);
+            InsertOptions insert_options;
+            insert_options.buffer_to_insert = buffer_to_insert;
+            buffer->ApplyToCursors(
+                NewInsertBufferTransformation(std::move(insert_options)));
 
-                if (options.colorize_options_provider != nullptr) {
-                  int status_version =
-                      status->prompt_extra_information()->StartNewVersion();
-                  ColorizePrompt(buffer, status, status_version,
-                                 options.colorize_options_provider(line));
-                }
-              } else {
-                LOG(INFO) << "Prediction didn't advance.";
-                auto buffers = editor_state->buffers();
-                auto name = PredictionsBufferName();
-                if (auto it = buffers->find(name); it != buffers->end()) {
-                  it->second->set_current_position_line(LineNumber(0));
-                  editor_state->set_current_buffer(it->second);
-                  if (editor_state->status()->prompt_buffer() == nullptr) {
-                    it->second->status()->CopyFrom(*status);
-                  }
-                } else {
-                  editor_state->status()->SetWarningText(
-                      L"Error: Predict: predictions buffer not found: " + name);
-                }
+            if (options.colorize_options_provider != nullptr) {
+              int status_version =
+                  status->prompt_extra_information()->StartNewVersion();
+              ColorizePrompt(
+                  buffer, status, status_version,
+                  options.colorize_options_provider(
+                      line, std::make_unique<ProgressChannel>(
+                                buffer->work_queue(),
+                                [](ProgressInformation) {
+                                  /* Nothing for now. */
+                                },
+                                WorkQueueChannelConsumeMode::kLastAvailable)));
+            }
+          } else {
+            LOG(INFO) << "Prediction didn't advance.";
+            auto buffers = editor_state->buffers();
+            auto name = PredictionsBufferName();
+            if (auto it = buffers->find(name); it != buffers->end()) {
+              it->second->set_current_position_line(LineNumber(0));
+              editor_state->set_current_buffer(it->second);
+              if (editor_state->status()->prompt_buffer() == nullptr) {
+                it->second->status()->CopyFrom(*status);
               }
-            });
-        return true;
-      };
+            } else {
+              editor_state->status()->SetWarningText(
+                  L"Error: Predict: predictions buffer not found: " + name);
+            }
+          }
+        });
+    return true;
+  };
 
   EnterInsertMode(insert_mode_options);
   // We do this after `EnterInsertMode` because `EnterInsertMode` resets the

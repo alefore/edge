@@ -8,6 +8,7 @@
 #include "src/buffer_contents.h"
 #include "src/futures/futures.h"
 #include "src/line_column.h"
+#include "src/line_prompt_mode.h"
 #include "src/predictor.h"
 
 namespace afc {
@@ -69,7 +70,8 @@ class AsyncSearchProcessor {
   };
 
   futures::Value<Output> Search(SearchOptions search_options,
-                                std::unique_ptr<BufferContents> buffer);
+                                std::unique_ptr<BufferContents> buffer,
+                                std::shared_ptr<ProgressChannel> channel);
 
  private:
   AsyncEvaluator evaluator_;

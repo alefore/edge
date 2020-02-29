@@ -49,7 +49,8 @@ struct PromptOptions {
   // Run whenever the text in the promot changes; should return a future with
   // options to colorize it.
   std::function<futures::Value<ColorizePromptOptions>(
-      const std::shared_ptr<LazyString>& line)>
+      const std::shared_ptr<LazyString>& line,
+      std::unique_ptr<ProgressChannel> progress_channel)>
       colorize_options_provider;
 
   // Function to run when the prompt receives the final input.

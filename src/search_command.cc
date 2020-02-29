@@ -162,16 +162,20 @@ class SearchCommand : public Command {
         [editor_state, async_search_processor,
          buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
              editor_state->active_buffers())](
-            const std::shared_ptr<LazyString>& line) {
+            const std::shared_ptr<LazyString>& line,
+            std::unique_ptr<ProgressChannel> progress_channel) {
           if (line->size().IsZero()) {
             return futures::Past(ColorizePromptOptions{});
           }
           VLOG(5) << "Triggering async search.";
           auto results = std::make_shared<AsyncSearchProcessor::Output>();
+          auto progress_channel_shared =
+              std::shared_ptr<ProgressChannel>(std::move(progress_channel));
           return futures::Transform(
               futures::ForEach(
                   buffers->begin(), buffers->end(),
                   [editor_state, async_search_processor, line,
+                   progress_channel_shared,
                    results](const std::shared_ptr<OpenBuffer>& buffer) {
                     auto search_options = BuildPromptSearchOptions(
                         line->ToString(), buffer.get());
@@ -182,9 +186,12 @@ class SearchCommand : public Command {
                     }
                     VLOG(5) << "Starting search in buffer: "
                             << buffer->Read(buffer_variables::name);
+                    // TODO: This handles poorly multiple buffers with regards
+                    // to progress_channel_shared.
                     return futures::Transform(
                         async_search_processor->Search(
-                            search_options.value(), buffer->contents()->copy()),
+                            search_options.value(), buffer->contents()->copy(),
+                            progress_channel_shared),
                         [results,
                          line](AsyncSearchProcessor::Output current_results) {
                           MergeInto(current_results, results.get());

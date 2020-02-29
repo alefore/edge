@@ -85,7 +85,8 @@ ColorizePromptOptions DrawPath(EditorState* editor,
 }
 
 futures::Value<ColorizePromptOptions> AdjustPath(
-    EditorState* editor, const std::shared_ptr<LazyString>& line) {
+    EditorState* editor, const std::shared_ptr<LazyString>& line,
+    std::unique_ptr<ProgressChannel> progress_channel) {
   PredictOptions options;
   options.editor_state = editor;
   options.predictor = FilePredictor;
@@ -93,6 +94,7 @@ futures::Value<ColorizePromptOptions> AdjustPath(
   options.source_buffers = editor->active_buffers();
   options.text = line->ToString();
   options.input_selection_structure = StructureLine();
+  options.progress_channel = std::move(progress_channel);
   return futures::Transform(
       Predict(std::move(options)),
       [editor, line](std::optional<PredictResults> results) {
@@ -116,8 +118,9 @@ std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
   };
   options.predictor = FilePredictor;
   options.colorize_options_provider =
-      [editor](const std::shared_ptr<LazyString>& line) {
-        return AdjustPath(editor, line);
+      [editor](const std::shared_ptr<LazyString>& line,
+               std::unique_ptr<ProgressChannel> progress_channel) {
+        return AdjustPath(editor, line, std::move(progress_channel));
       };
   return NewLinePromptCommand(
       L"loads a file", [options](EditorState* editor_state) {

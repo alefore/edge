@@ -157,14 +157,15 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
 }
 
 futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
+  auto shared_options = std::make_shared<PredictOptions>(std::move(options));
   futures::Future<std::optional<PredictResults>> output;
   OpenBuffer::Options buffer_options;
-  buffer_options.editor = options.editor_state;
+  buffer_options.editor = shared_options->editor_state;
   buffer_options.name = PredictionsBufferName();
 
-  auto input = GetPredictInput(options);
+  auto input = GetPredictInput(*shared_options);
   buffer_options.generate_contents =
-      [options, input,
+      [shared_options = std::move(shared_options), input,
        consumer = std::move(output.consumer)](OpenBuffer* buffer) {
         buffer->environment()->Define(kLongestPrefixEnvironmentVariable,
                                       vm::Value::NewInteger(0));
@@ -174,14 +175,16 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                                       vm::Value::NewBool(false));
 
         return futures::Transform(
-            options.predictor({.editor = options.editor_state,
-                               .input = std::move(input),
-                               .predictions = buffer,
-                               .source_buffers = options.source_buffers}),
-            [options, input, buffer, consumer](PredictorOutput) {
+            shared_options->predictor(
+                {.editor = shared_options->editor_state,
+                 .input = std::move(input),
+                 .predictions = buffer,
+                 .source_buffers = shared_options->source_buffers,
+                 .progress_channel = shared_options->progress_channel.get()}),
+            [shared_options, input, buffer, consumer](PredictorOutput) {
               buffer->set_current_cursor(LineColumn());
               auto results = BuildResults(buffer);
-              consumer(GetPredictInput(options) == input
+              consumer(GetPredictInput(*shared_options) == input
                            ? std::optional<PredictResults>(results)
                            : std::nullopt);
               return Success();

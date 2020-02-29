@@ -193,7 +193,8 @@ class RunCppCommand : public Command {
       case CppCommandMode::kShell:
         options.handler = RunCppCommandShellHandler;
         options.colorize_options_provider =
-            [editor_state](const std::shared_ptr<LazyString>& line) {
+            [editor_state](const std::shared_ptr<LazyString>& line,
+                           std::unique_ptr<ProgressChannel>) {
               return ColorizeOptionsProvider(editor_state, line);
             };
         prompt = L":";
