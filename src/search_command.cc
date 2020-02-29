@@ -136,8 +136,8 @@ class SearchCommand : public Command {
       return futures::Transform(
           editor_state->ForEachActiveBuffer(
               [editor_state, input](const std::shared_ptr<OpenBuffer>& buffer) {
-                auto search_options =
-                    BuildPromptSearchOptions(input, buffer.get());
+                auto search_options = BuildPromptSearchOptions(
+                    input, buffer.get(), std::make_shared<Notification>());
                 if (search_options.has_value()) {
                   DoSearch(buffer.get(), search_options.value());
                 }
@@ -157,7 +157,8 @@ class SearchCommand : public Command {
          buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
              editor_state->active_buffers())](
             const std::shared_ptr<LazyString>& line,
-            std::unique_ptr<ProgressChannel> progress_channel) {
+            std::unique_ptr<ProgressChannel> progress_channel,
+            std::shared_ptr<Notification> abort_notification) {
           if (line->size().IsZero()) {
             return futures::Past(ColorizePromptOptions{});
           }
@@ -169,10 +170,10 @@ class SearchCommand : public Command {
               futures::ForEach(
                   buffers->begin(), buffers->end(),
                   [editor_state, async_search_processor, line,
-                   progress_channel_shared,
+                   progress_channel_shared, abort_notification,
                    results](const std::shared_ptr<OpenBuffer>& buffer) {
                     auto search_options = BuildPromptSearchOptions(
-                        line->ToString(), buffer.get());
+                        line->ToString(), buffer.get(), abort_notification);
                     if (!search_options.has_value()) {
                       VLOG(6) << "search_options has no value.";
                       return futures::Past(
@@ -186,15 +187,24 @@ class SearchCommand : public Command {
                         async_search_processor->Search(
                             search_options.value(), buffer->contents()->copy(),
                             progress_channel_shared),
-                        [results,
+                        [results, abort_notification,
                          line](AsyncSearchProcessor::Output current_results) {
                           MergeInto(current_results, results.get());
-                          return futures::IterationControlCommand::kContinue;
+                          return abort_notification->HasBeenNotified()
+                                     ? futures::IterationControlCommand::kStop
+                                     : futures::IterationControlCommand::
+                                           kContinue;
                         });
                   }),
-              [results, buffers, line](futures::IterationControlCommand) {
-                VLOG(5) << "Drawing of search results.";
-                return SearchResultsModifiers(line, std::move(*results));
+              [results, buffers, abort_notification,
+               line](futures::IterationControlCommand iteration_result) {
+                switch (iteration_result) {
+                  case futures::IterationControlCommand::kStop:
+                    return ColorizePromptOptions();
+                  case futures::IterationControlCommand::kContinue:
+                    VLOG(5) << "Drawing of search results.";
+                    return SearchResultsModifiers(line, std::move(*results));
+                }
               });
         };
 
@@ -205,7 +215,8 @@ class SearchCommand : public Command {
 
  private:
   static std::optional<SearchOptions> BuildPromptSearchOptions(
-      std::wstring input, OpenBuffer* buffer) {
+      std::wstring input, OpenBuffer* buffer,
+      std::shared_ptr<Notification> abort_notification) {
     auto editor = buffer->editor();
     SearchOptions search_options;
     search_options.search_query = input;
@@ -234,6 +245,7 @@ class SearchCommand : public Command {
       LOG(INFO) << "Searching region: " << search_options.starting_position
                 << " to " << search_options.limit_position.value();
     }
+    search_options.abort_notification = abort_notification;
     return search_options;
   }
 };

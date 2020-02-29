@@ -21,6 +21,7 @@ using std::wstring;
 
 class EditorState;
 class OpenBuffer;
+class Notification;
 
 struct ProgressInformation {
   std::map<std::wstring, std::wstring> values;
@@ -56,6 +57,9 @@ struct PredictorInput {
 
   // Will never be nullptr: Predict ensures that.
   ProgressChannel* progress_channel;
+
+  // Will never be nullptr: Predict ensures that.
+  std::shared_ptr<Notification> abort_notification;
 };
 
 struct PredictorOutput {};
@@ -114,6 +118,13 @@ struct PredictOptions {
 
   // Can be null, in which case Predict will use a dummy no-op channel.
   std::unique_ptr<WorkQueueChannel<ProgressInformation>> progress_channel;
+
+  // Notification that the caller can use to signal that it wants to stop the
+  // prediction (without waiting for it to complete).
+  //
+  // Can be null, in which case Predict will create a notification (that never
+  // gets notified).
+  std::shared_ptr<Notification> abort_notification;
 };
 
 // Create a new buffer running a given predictor on the input in a given status

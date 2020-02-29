@@ -108,6 +108,8 @@ src/modifiers.h \
 src/navigation_buffer.cc \
 src/navigation_buffer.h \
 src/navigate_command.cc \
+src/notification.cc \
+src/notification.h \
 src/open_directory_command.cc \
 src/open_file_command.cc \
 src/output_producer.cc \

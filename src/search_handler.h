@@ -9,6 +9,7 @@
 #include "src/futures/futures.h"
 #include "src/line_column.h"
 #include "src/line_prompt_mode.h"
+#include "src/notification.h"
 #include "src/predictor.h"
 
 namespace afc {
@@ -42,6 +43,10 @@ struct SearchOptions {
   // If set, signals that it is okay for the search operation to stop once this
   // number of positions has been found.
   std::optional<size_t> required_positions;
+
+  // When notified, interrupts the search. Must not be nullptr.
+  std::shared_ptr<Notification> abort_notification =
+      std::make_shared<Notification>();
 };
 
 std::vector<LineColumn> SearchHandler(EditorState* editor_state,

@@ -21,6 +21,7 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/lowercase.h"
+#include "src/notification.h"
 #include "src/predictor.h"
 #include "src/wstring.h"
 
@@ -168,6 +169,10 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
         shared_options->editor_state->work_queue(), [](ProgressInformation) {},
         WorkQueueChannelConsumeMode::kLastAvailable);
   }
+  if (shared_options->abort_notification == nullptr) {
+    shared_options->abort_notification = std::make_shared<Notification>();
+  }
+  CHECK(!shared_options->abort_notification->HasBeenNotified());
 
   auto input = GetPredictInput(*shared_options);
   buffer_options.generate_contents =
@@ -186,7 +191,8 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                  .input = std::move(input),
                  .predictions = buffer,
                  .source_buffers = shared_options->source_buffers,
-                 .progress_channel = shared_options->progress_channel.get()}),
+                 .progress_channel = shared_options->progress_channel.get(),
+                 .abort_notification = shared_options->abort_notification}),
             [shared_options, input, buffer, consumer](PredictorOutput) {
               buffer->set_current_cursor(LineColumn());
               auto results = BuildResults(buffer);

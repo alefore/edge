@@ -9,6 +9,7 @@
 #include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/lazy_string_functional.h"
+#include "src/notification.h"
 #include "src/wstring.h"
 
 namespace afc::editor {
@@ -80,8 +81,9 @@ SearchResults PerformSearch(const SearchOptions& options,
 
     progress_channel->Push(ProgressInformation{
         .values = {{L"matches", std::to_wstring(output.positions.size())}}});
-    return !options.required_positions.has_value() ||
-           options.required_positions.value() > output.positions.size();
+    return !options.abort_notification->HasBeenNotified() &&
+           (!options.required_positions.has_value() ||
+            options.required_positions.value() > output.positions.size());
   });
   progress_channel->Push(ProgressInformation{
       .values = {{L"matches", std::to_wstring(output.positions.size()) +

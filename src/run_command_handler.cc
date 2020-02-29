@@ -374,7 +374,8 @@ class ForkEditorCommand : public Command {
       if (prompt_state->context_command_callback != nullptr) {
         options.colorize_options_provider =
             [prompt_state](const std::shared_ptr<LazyString>& line,
-                           std::unique_ptr<ProgressChannel>) {
+                           std::unique_ptr<ProgressChannel>,
+                           std::shared_ptr<Notification>) {
               return PromptChange(prompt_state.get(), line);
             };
       }
