@@ -272,14 +272,14 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   // The length of the longest prefix of `pattern` that matches an entry.
   size_t longest_pattern_match = 0;
   struct dirent* entry;
-  std::vector<std::shared_ptr<LazyString>> predictions;
+  std::vector<std::shared_ptr<Line>> predictions;
 
   auto FlushPredictions = [&predictions, get_buffer] {
-    get_buffer([batch = std::move(predictions)](OpenBuffer* buffer) {
+    get_buffer([batch = std::move(predictions)](OpenBuffer* buffer) mutable {
       static Tracker tracker(L"FilePredictor::ScanDirectory::FlushPredictions");
       auto call = tracker.Call();
       for (auto& prediction : batch) {
-        buffer->AppendRawLine(std::move(prediction));
+        buffer->StartNewLine(std::move(prediction));
       }
     });
     predictions.clear();
@@ -308,7 +308,8 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
     if (std::regex_match(full_path, noise_regex)) {
       continue;
     }
-    predictions.push_back(NewLazyString(std::move(full_path)));
+    predictions.push_back(std::make_shared<Line>(
+        Line::Options(NewLazyString(std::move(full_path)))));
     if (predictions.size() > 100) {
       FlushPredictions();
     }
@@ -336,8 +337,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
     ProgressChannel* progress_channel;
     std::shared_ptr<Notification> abort_notification;
     OpenBuffer::LockFunction get_buffer;
-    wstring path;
-    vector<wstring> search_paths;
+    std::wstring path;
+    std::vector<std::wstring> search_paths;
     ResolvePathOptions resolve_path_options;
     std::wregex noise_regex;
     futures::Value<PredictorOutput>::Consumer output_consumer;
