@@ -39,20 +39,15 @@ static void DoSearch(OpenBuffer* buffer, SearchOptions options) {
 
 ColorizePromptOptions SearchResultsModifiers(
     std::shared_ptr<LazyString> line, AsyncSearchProcessor::Output result) {
-  std::map<std::wstring, std::wstring> extra_information;
   using SC = AsyncSearchProcessor::Output::SearchCompletion;
   LineModifierSet modifiers;
   switch (result.search_completion) {
     case SC::kInvalidPattern:
       modifiers.insert(LineModifier::RED);
       CHECK(result.pattern_error.has_value());
-      extra_information[L"!"] = result.pattern_error.value();
       break;
     case SC::kInterrupted:
     case SC::kFull:
-      extra_information[L"matches"] =
-          std::to_wstring(result.matches) +
-          (result.search_completion == SC::kInterrupted ? L"+" : L"");
       switch (result.matches) {
         case 0:
           break;
@@ -72,8 +67,7 @@ ColorizePromptOptions SearchResultsModifiers(
   return {.tokens = {{{.value = L"",
                        .begin = ColumnNumber(0),
                        .end = ColumnNumber(0) + line->size()},
-                      .modifiers = std::move(modifiers)}},
-          .status_prompt_extra_information = std::move(extra_information)};
+                      .modifiers = std::move(modifiers)}}};
 }
 
 class SearchCommand : public Command {
