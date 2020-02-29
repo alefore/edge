@@ -308,13 +308,12 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
   return std::make_shared<Line>(std::move(options));
 }
 
-std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
-                                          OpenBuffer* history_buffer,
-                                          std::wstring filter) {
+futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
+    EditorState* editor_state, OpenBuffer* history_buffer,
+    std::wstring filter) {
   CHECK(history_buffer != nullptr);
   auto name = L"- history filter: " +
               history_buffer->Read(buffer_variables::name) + L": " + filter;
-  auto element = editor_state->buffers()->insert({name, nullptr}).first;
   auto filter_buffer = OpenBuffer::New({.editor = editor_state, .name = name});
   filter_buffer->Set(buffer_variables::allow_dirty_delete, true);
   filter_buffer->Set(buffer_variables::show_in_buffers_list, false);
@@ -399,8 +398,7 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     filter_buffer->EraseLines(LineNumber(), LineNumber().next());
   }
 
-  element->second = std::move(filter_buffer);
-  return element->second;
+  return futures::Past(std::move(filter_buffer));
 }
 
 shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
@@ -520,14 +518,17 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
         status_(status),
         buffer_(std::move(buffer)) {}
 
-  std::unique_ptr<ScrollBehavior> Build() override {
+  futures::Value<std::unique_ptr<ScrollBehavior>> Build() override {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     auto input = buffer_->LineAt(LineNumber(0))->contents();
-    auto history =
-        FilterHistory(editor_state_, history_.get(), input->ToString());
-    history->set_current_position_line(LineNumber(0) +
-                                       history->contents()->size());
-    return std::make_unique<HistoryScrollBehavior>(history, input, status_);
+    return futures::Transform(
+        FilterHistory(editor_state_, history_.get(), input->ToString()),
+        [input, status = status_](std::shared_ptr<OpenBuffer> history) {
+          history->set_current_position_line(LineNumber(0) +
+                                             history->contents()->size());
+          return std::unique_ptr<ScrollBehavior>(
+              new HistoryScrollBehavior(history, input, status));
+        });
   }
 
  private:

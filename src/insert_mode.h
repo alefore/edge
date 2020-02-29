@@ -3,8 +3,9 @@
 
 #include <memory>
 
-#include "command.h"
-#include "editor.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/futures/futures.h"
 
 namespace afc::editor {
 
@@ -36,7 +37,7 @@ class ScrollBehaviorFactory {
  public:
   static std::unique_ptr<ScrollBehaviorFactory> Default();
   virtual ~ScrollBehaviorFactory() = default;
-  virtual std::unique_ptr<ScrollBehavior> Build() = 0;
+  virtual futures::Value<std::unique_ptr<ScrollBehavior>> Build() = 0;
 };
 
 struct InsertModeOptions {

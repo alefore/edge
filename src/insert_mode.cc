@@ -412,13 +412,17 @@ class InsertMode : public EditorMode {
                            void (ScrollBehavior::*method)(EditorState*,
                                                           OpenBuffer*),
                            EditorState* editor_state) {
-    ForEachActiveBuffer(
-        line_buffer, [editor_state, scroll_behavior = GetScrollBehavior(),
-                      method](const std::shared_ptr<OpenBuffer>& buffer) {
-          if (buffer->fd() == nullptr) {
-            (scroll_behavior->*method)(editor_state, buffer.get());
-          }
-          return futures::Past(EmptyValue());
+    GetScrollBehavior().AddListener(
+        [this, line_buffer, editor_state,
+         method](std::shared_ptr<ScrollBehavior> scroll_behavior) {
+          ForEachActiveBuffer(
+              line_buffer, [editor_state, scroll_behavior,
+                            method](const std::shared_ptr<OpenBuffer>& buffer) {
+                if (buffer->fd() == nullptr) {
+                  (scroll_behavior.get()->*method)(editor_state, buffer.get());
+                }
+                return futures::Past(EmptyValue());
+              });
         });
   }
 
@@ -431,15 +435,20 @@ class InsertMode : public EditorMode {
     });
   }
 
-  ScrollBehavior* GetScrollBehavior() {
-    if (scroll_behavior_ == nullptr) {
+  futures::ListenableValue<std::shared_ptr<ScrollBehavior>>
+  GetScrollBehavior() {
+    if (!scroll_behavior_.has_value()) {
       CHECK(options_.scroll_behavior != nullptr);
-      scroll_behavior_ = options_.scroll_behavior->Build();
+      scroll_behavior_ = futures::ListenableValue(futures::Transform(
+          options_.scroll_behavior->Build(),
+          [](std::unique_ptr<ScrollBehavior> scroll_behavior) {
+            return std::shared_ptr<ScrollBehavior>(std::move(scroll_behavior));
+          }));
     }
-    return scroll_behavior_.get();
+    return scroll_behavior_.value();
   }
 
-  void ResetScrollBehavior() { scroll_behavior_ = nullptr; }
+  void ResetScrollBehavior() { scroll_behavior_ = std::nullopt; }
 
   futures::Value<EmptyValue> WriteLineBuffer(std::string line_buffer) {
     if (line_buffer.empty()) return futures::Past(EmptyValue());
@@ -463,7 +472,8 @@ class InsertMode : public EditorMode {
   }
 
   const InsertModeOptions options_;
-  std::unique_ptr<ScrollBehavior> scroll_behavior_;
+  std::optional<futures::ListenableValue<std::shared_ptr<ScrollBehavior>>>
+      scroll_behavior_;
 
   // For input to buffers that have a file descriptor, buffer the characters
   // here. This gets flushed upon certain presses, such as ESCAPE or new line.
@@ -539,8 +549,9 @@ std::unique_ptr<Command> NewFindCompletionCommand() {
 /* static */ std::unique_ptr<ScrollBehaviorFactory>
 ScrollBehaviorFactory::Default() {
   class DefaultScrollBehaviorFactory : public ScrollBehaviorFactory {
-    std::unique_ptr<ScrollBehavior> Build() override {
-      return std::make_unique<DefaultScrollBehavior>();
+    futures::Value<std::unique_ptr<ScrollBehavior>> Build() override {
+      return futures::Past(
+          std::unique_ptr<ScrollBehavior>(new DefaultScrollBehavior()));
     }
   };
 

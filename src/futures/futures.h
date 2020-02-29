@@ -3,6 +3,7 @@
 
 #include <glog/logging.h>
 
+#include <deque>
 #include <functional>
 #include <memory>
 #include <type_traits>
@@ -47,6 +48,39 @@ class Value {
   Value(std::shared_ptr<FutureData> data) : data_(std::move(data)) {}
 
   std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
+};
+
+// Similar to Value, but allows us to queue multiple listeners. The listeners
+// receive the value by const-ref.
+template <typename Type>
+class ListenableValue {
+ public:
+  using Listener = std::function<void(const Type&)>;
+
+  ListenableValue(Value<Type> value) {
+    value.SetConsumer([data = data_](Type value) {
+      data->value = std::move(value);
+      for (auto& l : data->listeners) {
+        l(data->value.value());
+      }
+      data->listeners.clear();
+    });
+  }
+
+  void AddListener(Listener listener) {
+    if (data_->value.has_value()) {
+      listener(data_->value.value());
+    } else {
+      data_->listeners.push_back(listener);
+    }
+  }
+
+ private:
+  struct Data {
+    std::optional<Type> value;
+    std::deque<std::function<void(const Type&)>> listeners;
+  };
+  std::shared_ptr<Data> data_ = std::make_shared<Data>();
 };
 
 template <typename Type>
