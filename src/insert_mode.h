@@ -37,7 +37,8 @@ class ScrollBehaviorFactory {
  public:
   static std::unique_ptr<ScrollBehaviorFactory> Default();
   virtual ~ScrollBehaviorFactory() = default;
-  virtual futures::Value<std::unique_ptr<ScrollBehavior>> Build() = 0;
+  virtual futures::Value<std::unique_ptr<ScrollBehavior>> Build(
+      std::shared_ptr<Notification> abort_notification) = 0;
 };
 
 struct InsertModeOptions {

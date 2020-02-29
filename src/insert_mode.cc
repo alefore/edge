@@ -20,6 +20,7 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/futures/futures.h"
 #include "src/lazy_string_append.h"
+#include "src/notification.h"
 #include "src/parse_tree.h"
 #include "src/substring.h"
 #include "src/terminal.h"
@@ -414,7 +415,9 @@ class InsertMode : public EditorMode {
                            EditorState* editor_state) {
     GetScrollBehavior().AddListener(
         [this, line_buffer, editor_state,
+         notification = scroll_behavior_abort_notification_,
          method](std::shared_ptr<ScrollBehavior> scroll_behavior) {
+          if (notification->HasBeenNotified()) return;
           ForEachActiveBuffer(
               line_buffer, [editor_state, scroll_behavior,
                             method](const std::shared_ptr<OpenBuffer>& buffer) {
@@ -439,8 +442,10 @@ class InsertMode : public EditorMode {
   GetScrollBehavior() {
     if (!scroll_behavior_.has_value()) {
       CHECK(options_.scroll_behavior != nullptr);
+      scroll_behavior_abort_notification_->Notify();
+      scroll_behavior_abort_notification_ = std::make_shared<Notification>();
       scroll_behavior_ = futures::ListenableValue(futures::Transform(
-          options_.scroll_behavior->Build(),
+          options_.scroll_behavior->Build(scroll_behavior_abort_notification_),
           [](std::unique_ptr<ScrollBehavior> scroll_behavior) {
             return std::shared_ptr<ScrollBehavior>(std::move(scroll_behavior));
           }));
@@ -448,7 +453,10 @@ class InsertMode : public EditorMode {
     return scroll_behavior_.value();
   }
 
-  void ResetScrollBehavior() { scroll_behavior_ = std::nullopt; }
+  void ResetScrollBehavior() {
+    scroll_behavior_abort_notification_->Notify();
+    scroll_behavior_ = std::nullopt;
+  }
 
   futures::Value<EmptyValue> WriteLineBuffer(std::string line_buffer) {
     if (line_buffer.empty()) return futures::Past(EmptyValue());
@@ -479,6 +487,11 @@ class InsertMode : public EditorMode {
   // here. This gets flushed upon certain presses, such as ESCAPE or new line.
   string line_buffer_;
   bool literal_ = false;
+
+  // Given to ScrollBehaviorFactory::Build, and used to signal when we want to
+  // abort the build of the history.
+  std::shared_ptr<Notification> scroll_behavior_abort_notification_ =
+      std::make_shared<Notification>();
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
@@ -549,7 +562,8 @@ std::unique_ptr<Command> NewFindCompletionCommand() {
 /* static */ std::unique_ptr<ScrollBehaviorFactory>
 ScrollBehaviorFactory::Default() {
   class DefaultScrollBehaviorFactory : public ScrollBehaviorFactory {
-    futures::Value<std::unique_ptr<ScrollBehavior>> Build() override {
+    futures::Value<std::unique_ptr<ScrollBehavior>> Build(
+        std::shared_ptr<Notification>) override {
       return futures::Past(
           std::unique_ptr<ScrollBehavior>(new DefaultScrollBehavior()));
     }

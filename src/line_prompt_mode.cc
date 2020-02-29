@@ -310,7 +310,8 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
 
 futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
     EditorState* editor_state, OpenBuffer* history_buffer,
-    std::wstring filter) {
+    AsyncEvaluator* history_evaluator,
+    std::shared_ptr<Notification> abort_notification, std::wstring filter) {
   CHECK(history_buffer != nullptr);
   auto name = L"- history filter: " +
               history_buffer->Read(buffer_variables::name) + L": " + filter;
@@ -321,84 +322,115 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
   filter_buffer->Set(buffer_variables::atomic_lines, true);
   filter_buffer->Set(buffer_variables::line_width, 1);
 
-  std::unordered_map<std::wstring, std::vector<naive_bayes::FeaturesSet>>
-      history_data;
-  std::unordered_map<std::wstring, std::vector<Token>> history_prompt_tokens;
-  std::vector<Token> filter_tokens = TokenizeBySpaces(*NewLazyString(filter));
-  history_buffer->contents()->EveryLine([&](LineNumber, const Line& line) {
-    auto warn_if = [&](bool condition, wstring description) {
-      if (condition) {
-        editor_state->status()->SetWarningText(description + L": " +
-                                               line.contents()->ToString());
-      }
-      return condition;
-    };
-    auto line_keys = ParseHistoryLine(line.contents());
-    if (line_keys.IsError()) {
-      editor_state->status()->SetWarningText(line_keys.error.value());
-      return true;
-    }
-    auto range = line_keys.value.value().equal_range(L"prompt");
-    int prompt_count = std::distance(range.first, range.second);
-    if (warn_if(prompt_count == 0, L"Line is missing `prompt` section") ||
-        warn_if(prompt_count != 1, L"Line has multiple `prompt` sections")) {
-      return true;
-    }
-    auto prompt_value = range.first->second;
-    VLOG(8) << "Considering history value: " << prompt_value->ToString();
-    std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-        prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-    auto event_key = prompt_value->ToString();
-    std::vector<naive_bayes::FeaturesSet>* output = nullptr;
-    if (filter_tokens.empty()) {
-      VLOG(6) << "Accepting value (empty filters): " << line.ToString();
-      output = &history_data[event_key];
-    } else if (auto match = FindFilterPositions(filter_tokens, line_tokens);
-               !match.empty()) {
-      VLOG(5) << "Accepting value, produced a match: " << line.ToString();
-      output = &history_data[event_key];
-      history_prompt_tokens.insert({event_key, std::move(match)});
-    } else {
-      return true;
-    }
-    std::unordered_set<std::wstring> features;
-    for (auto& [key, value] : line_keys.value.value()) {
-      if (key != L"prompt") {
-        features.insert(key + L":" + QuoteString(value)->ToString());
-      }
-    }
-    output->push_back(std::move(features));
-    return true;
-  });
+  struct Output {
+    std::deque<std::wstring> errors;
+    std::deque<std::shared_ptr<Line>> lines;
+  };
 
-  VLOG(4) << "Matches found: " << history_data.size();
+  return futures::Transform(
+      history_evaluator->Run([abort_notification, filter = std::move(filter),
+                              history_contents =
+                                  std::shared_ptr<BufferContents>(
+                                      history_buffer->contents()->copy()),
+                              features = GetCurrentFeatures(
+                                  editor_state)]() mutable -> Output {
+        Output output;
+        // Sets of features for each unique `prompt` value in the history.
+        std::unordered_map<std::wstring, std::vector<naive_bayes::FeaturesSet>>
+            history_data;
+        // Tokens by parsing the `prompt` value in the history.
+        std::unordered_map<std::wstring, std::vector<Token>>
+            history_prompt_tokens;
+        std::vector<Token> filter_tokens =
+            TokenizeBySpaces(*NewLazyString(filter));
+        history_contents->EveryLine([&](LineNumber, const Line& line) {
+          auto warn_if = [&](bool condition, wstring description) {
+            if (condition) {
+              output.errors.push_back(description + L": " +
+                                      line.contents()->ToString());
+            }
+            return condition;
+          };
+          auto line_keys = ParseHistoryLine(line.contents());
+          if (line_keys.IsError()) {
+            output.errors.push_back(line_keys.error.value());
+            return !abort_notification->HasBeenNotified();
+          }
+          auto range = line_keys.value.value().equal_range(L"prompt");
+          int prompt_count = std::distance(range.first, range.second);
+          if (warn_if(prompt_count == 0, L"Line is missing `prompt` section") ||
+              warn_if(prompt_count != 1,
+                      L"Line has multiple `prompt` sections")) {
+            return !abort_notification->HasBeenNotified();
+          }
+          auto prompt_value = range.first->second;
+          VLOG(8) << "Considering history value: " << prompt_value->ToString();
+          std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+              prompt_value, TokenizeNameForPrefixSearches(prompt_value));
+          auto event_key = prompt_value->ToString();
+          std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
+          if (filter_tokens.empty()) {
+            VLOG(6) << "Accepting value (empty filters): " << line.ToString();
+            features_output = &history_data[event_key];
+          } else if (auto match =
+                         FindFilterPositions(filter_tokens, line_tokens);
+                     !match.empty()) {
+            VLOG(5) << "Accepting value, produced a match: " << line.ToString();
+            features_output = &history_data[event_key];
+            history_prompt_tokens.insert({event_key, std::move(match)});
+          } else {
+            VLOG(6) << "Ignoring value, no match: " << line.ToString();
+            return !abort_notification->HasBeenNotified();
+          }
+          std::unordered_set<std::wstring> features;
+          for (auto& [key, value] : line_keys.value.value()) {
+            if (key != L"prompt") {
+              features.insert(key + L":" + QuoteString(value)->ToString());
+            }
+          }
+          features_output->push_back(std::move(features));
+          sleep(1);
+          return !abort_notification->HasBeenNotified();
+        });
 
-  // For sorting.
-  auto features = GetCurrentFeatures(editor_state);
-  auto synthetic_features = GetSyntheticFeatures(features);
-  features.insert(synthetic_features.begin(), synthetic_features.end());
+        VLOG(4) << "Matches found: " << history_data.size();
 
-  std::unordered_set<std::wstring> current_features;
-  for (const auto& [name, value] : features) {
-    current_features.insert(name + L":" + QuoteString(value)->ToString());
-  }
+        // For sorting.
+        auto synthetic_features = GetSyntheticFeatures(features);
+        features.insert(synthetic_features.begin(), synthetic_features.end());
 
-  for (auto& key : naive_bayes::Sort(history_data, current_features)) {
-    std::vector<TokenAndModifiers> tokens;
-    for (auto token : history_prompt_tokens[key]) {
-      tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
-    }
-    filter_buffer->AppendRawLine(
-        ColorizeLine(NewLazyString(key), std::move(tokens)));
-  }
+        std::unordered_set<std::wstring> current_features;
+        for (const auto& [name, value] : features) {
+          current_features.insert(name + L":" + QuoteString(value)->ToString());
+        }
 
-  if (filter_buffer->lines_size() > LineNumberDelta(1)) {
-    VLOG(5) << "Erasing the first (empty) line.";
-    CHECK(filter_buffer->LineAt(LineNumber())->empty());
-    filter_buffer->EraseLines(LineNumber(), LineNumber().next());
-  }
+        for (auto& key : naive_bayes::Sort(history_data, current_features)) {
+          std::vector<TokenAndModifiers> tokens;
+          for (auto token : history_prompt_tokens[key]) {
+            tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
+          }
+          output.lines.push_back(
+              ColorizeLine(NewLazyString(key), std::move(tokens)));
+        }
+        return output;
+      }),
+      [editor_state, abort_notification, filter_buffer](Output output) {
+        if (!output.errors.empty()) {
+          editor_state->status()->SetWarningText(output.errors.front());
+        }
+        if (!abort_notification->HasBeenNotified()) {
+          for (auto& line : output.lines) {
+            filter_buffer->AppendRawLine(line);
+          }
 
-  return futures::Past(std::move(filter_buffer));
+          if (filter_buffer->lines_size() > LineNumberDelta(1)) {
+            VLOG(5) << "Erasing the first (empty) line.";
+            CHECK(filter_buffer->LineAt(LineNumber())->empty());
+            filter_buffer->EraseLines(LineNumber(), LineNumber().next());
+          }
+        }
+        return futures::Past(std::move(filter_buffer));
+      });
 }
 
 shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
@@ -516,13 +548,17 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
         prompt_(std::move(prompt)),
         history_(std::move(history)),
         status_(status),
-        buffer_(std::move(buffer)) {}
+        buffer_(std::move(buffer)),
+        history_evaluator_(L"HistoryScrollBehaviorFactory",
+                           buffer_->work_queue()) {}
 
-  futures::Value<std::unique_ptr<ScrollBehavior>> Build() override {
+  futures::Value<std::unique_ptr<ScrollBehavior>> Build(
+      std::shared_ptr<Notification> abort_notification) override {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     auto input = buffer_->LineAt(LineNumber(0))->contents();
     return futures::Transform(
-        FilterHistory(editor_state_, history_.get(), input->ToString()),
+        FilterHistory(editor_state_, history_.get(), &history_evaluator_,
+                      abort_notification, input->ToString()),
         [input, status = status_](std::shared_ptr<OpenBuffer> history) {
           history->set_current_position_line(LineNumber(0) +
                                              history->contents()->size());
@@ -537,6 +573,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
   const std::shared_ptr<OpenBuffer> history_;
   Status* const status_;
   const std::shared_ptr<OpenBuffer> buffer_;
+  AsyncEvaluator history_evaluator_;
 };
 
 class LinePromptCommand : public Command {
