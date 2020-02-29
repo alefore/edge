@@ -335,7 +335,7 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
       return condition;
     };
     auto line_keys = ParseHistoryLine(line.contents());
-    if (!line_keys.IsError()) {
+    if (line_keys.IsError()) {
       editor_state->status()->SetWarningText(line_keys.error.value());
       return true;
     }
