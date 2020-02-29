@@ -24,6 +24,8 @@ namespace editor {
 //       auto call = tracker.Call();
 //       ... heavy evaluation ...
 //     }
+//
+// This class is thread-safe.
 class Tracker {
  public:
   struct Data {
