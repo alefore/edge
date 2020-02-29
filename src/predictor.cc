@@ -261,6 +261,9 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
                    std::wstring pattern, std::wstring prefix, int* matches,
                    ProgressChannel* progress_channel,
                    OpenBuffer::LockFunction get_buffer) {
+  static Tracker tracker(L"FilePredictor::ScanDirectory");
+  auto call = tracker.Call();
+
   CHECK(dir != nullptr);
   VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
   // The length of the longest prefix of `pattern` that matches an entry.
@@ -270,7 +273,8 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 
   auto FlushPredictions = [&predictions, get_buffer] {
     get_buffer([batch = std::move(predictions)](OpenBuffer* buffer) {
-      auto empty_line = std::make_shared<Line>(Line::Options());
+      static Tracker tracker(L"FilePredictor::ScanDirectory::FlushPredictions");
+      auto call = tracker.Call();
       for (auto& prediction : batch) {
         buffer->AppendRawLine(std::move(prediction));
       }
