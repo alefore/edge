@@ -65,6 +65,8 @@ SearchResults PerformSearch(const SearchOptions& options,
   } catch (std::regex_error& e) {
     SearchResults output;
     output.error = L"Regex failure: " + FromByteString(e.what());
+    progress_channel->Push(
+        ProgressInformation{.values = {{L"!", output.error.value()}}});
     return output;
   }
 
