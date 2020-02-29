@@ -204,6 +204,9 @@ class SearchCommand : public Command {
                   case futures::IterationControlCommand::kContinue:
                     VLOG(5) << "Drawing of search results.";
                     return SearchResultsModifiers(line, std::move(*results));
+                  default:
+                    LOG(FATAL) << "Invalid value for iteration_result.";
+                    return ColorizePromptOptions();
                 }
               });
         };
