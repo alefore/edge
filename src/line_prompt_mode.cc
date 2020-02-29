@@ -389,7 +389,6 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             }
           }
           features_output->push_back(std::move(features));
-          sleep(1);
           return !abort_notification->HasBeenNotified();
         });
 
@@ -540,24 +539,24 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
  public:
-  HistoryScrollBehaviorFactory(EditorState* editor_state, wstring prompt,
-                               std::shared_ptr<OpenBuffer> history,
-                               Status* status,
-                               std::shared_ptr<OpenBuffer> buffer)
+  HistoryScrollBehaviorFactory(
+      EditorState* editor_state, wstring prompt,
+      std::shared_ptr<OpenBuffer> history,
+      std::shared_ptr<AsyncEvaluator> history_evaluator, Status* status,
+      std::shared_ptr<OpenBuffer> buffer)
       : editor_state_(editor_state),
         prompt_(std::move(prompt)),
         history_(std::move(history)),
         status_(status),
         buffer_(std::move(buffer)),
-        history_evaluator_(L"HistoryScrollBehaviorFactory",
-                           buffer_->work_queue()) {}
+        history_evaluator_(std::move(history_evaluator)) {}
 
   futures::Value<std::unique_ptr<ScrollBehavior>> Build(
       std::shared_ptr<Notification> abort_notification) override {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     auto input = buffer_->LineAt(LineNumber(0))->contents();
     return futures::Transform(
-        FilterHistory(editor_state_, history_.get(), &history_evaluator_,
+        FilterHistory(editor_state_, history_.get(), history_evaluator_.get(),
                       abort_notification, input->ToString()),
         [input, status = status_](std::shared_ptr<OpenBuffer> history) {
           history->set_current_position_line(LineNumber(0) +
@@ -573,7 +572,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
   const std::shared_ptr<OpenBuffer> history_;
   Status* const status_;
   const std::shared_ptr<OpenBuffer> buffer_;
-  AsyncEvaluator history_evaluator_;
+  std::shared_ptr<AsyncEvaluator> history_evaluator_;
 };
 
 class LinePromptCommand : public Command {
@@ -684,6 +683,9 @@ void Prompt(PromptOptions options) {
   insert_mode_options.editor_state = editor_state;
   insert_mode_options.buffers = {buffer};
 
+  auto history_evaluator = std::make_shared<AsyncEvaluator>(
+      L"HistoryScrollBehaviorFactory", buffer->work_queue());
+
   // Notification that can be used to abort an ongoing execution of
   // `colorize_options_provider`. Every time we call `colorize_options_provider`
   // from modify_handler, we notify the previous notification and set this to a
@@ -691,7 +693,7 @@ void Prompt(PromptOptions options) {
   auto abort_notification_ptr = std::make_shared<std::shared_ptr<Notification>>(
       std::make_shared<Notification>());
   insert_mode_options.modify_handler =
-      [editor_state, history, status, options,
+      [editor_state, history_evaluator, history, status, options,
        abort_notification_ptr](const std::shared_ptr<OpenBuffer>& buffer) {
         auto line = buffer->LineAt(LineNumber())->contents();
         int status_version =
@@ -712,6 +714,15 @@ void Prompt(PromptOptions options) {
             WorkQueueChannelConsumeMode::kLastAvailable);
         (*abort_notification_ptr)->Notify();
         *abort_notification_ptr = std::make_shared<Notification>();
+        FilterHistory(editor_state, history.get(), history_evaluator.get(),
+                      *abort_notification_ptr, line->ToString())
+            .SetConsumer([status, status_version](
+                             std::shared_ptr<OpenBuffer> filtered_history) {
+              if (status->GetType() != Status::Type::kPrompt) return;
+              status->prompt_extra_information()->SetValue(
+                  L"history", status_version,
+                  std::to_wstring(filtered_history->lines_size().line_delta));
+            });
         return ColorizePrompt(
             buffer, status, status_version, *abort_notification_ptr,
             options.colorize_options_provider(line, std::move(progress_channel),
@@ -720,7 +731,8 @@ void Prompt(PromptOptions options) {
 
   insert_mode_options.scroll_behavior =
       std::make_unique<HistoryScrollBehaviorFactory>(
-          editor_state, options.prompt, history, status, buffer);
+          editor_state, options.prompt, history, history_evaluator, status,
+          buffer);
 
   insert_mode_options.escape_handler = [editor_state, options, status,
                                         original_modifiers]() {
