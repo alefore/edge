@@ -208,26 +208,25 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   return it;
 }
 
-std::optional<
-    std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>>
-ParseHistoryLine(EditorState* editor, const std::shared_ptr<LazyString>& line) {
-  std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
+ValueOrError<std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>>
+ParseHistoryLine(const std::shared_ptr<LazyString>& line) {
+  using Output = ValueOrError<
+      std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>>;
+  Output::ValueType output;
   for (const auto& token : TokenizeBySpaces(*line)) {
     auto colon = token.value.find(':');
     if (colon == string::npos) {
-      editor->status()->SetWarningText(
+      return Output::Error(
           L"Unable to parse prompt line (no colon found in token): " +
           line->ToString());
-      return std::nullopt;
     }
     ColumnNumber value_start = token.begin + ColumnNumberDelta(colon);
     ++value_start;  // Skip the colon.
     ColumnNumber value_end = token.end;
     if (value_end == value_start || line->get(value_start) != '\"' ||
         line->get(value_end.previous()) != '\"') {
-      editor->status()->SetWarningText(
-          L"Unable to parse prompt line (expected quote): " + line->ToString());
-      return std::nullopt;
+      return Output::Error(L"Unable to parse prompt line (expected quote): " +
+                           line->ToString());
     }
     // Skip quotes:
     ++value_start;
@@ -238,7 +237,7 @@ ParseHistoryLine(EditorState* editor, const std::shared_ptr<LazyString>& line) {
   for (auto& additional_features : GetSyntheticFeatures(output)) {
     output.insert(additional_features);
   }
-  return output;
+  return Output::Value(std::move(output));
 }
 
 std::shared_ptr<LazyString> QuoteString(std::shared_ptr<LazyString> src) {
@@ -335,9 +334,12 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
       }
       return condition;
     };
-    auto line_keys = ParseHistoryLine(editor_state, line.contents());
-    if (!line_keys.has_value()) return true;
-    auto range = line_keys.value().equal_range(L"prompt");
+    auto line_keys = ParseHistoryLine(line.contents());
+    if (!line_keys.IsError()) {
+      editor_state->status()->SetWarningText(line_keys.error.value());
+      return true;
+    }
+    auto range = line_keys.value.value().equal_range(L"prompt");
     int prompt_count = std::distance(range.first, range.second);
     if (warn_if(prompt_count == 0, L"Line is missing `prompt` section") ||
         warn_if(prompt_count != 1, L"Line has multiple `prompt` sections")) {
@@ -361,7 +363,7 @@ std::shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
       return true;
     }
     std::unordered_set<std::wstring> features;
-    for (auto& [key, value] : line_keys.value()) {
+    for (auto& [key, value] : line_keys.value.value()) {
       if (key != L"prompt") {
         features.insert(key + L":" + QuoteString(value)->ToString());
       }
@@ -651,7 +653,7 @@ void Prompt(PromptOptions options) {
   auto abort_notification_ptr = std::make_shared<std::shared_ptr<Notification>>(
       std::make_shared<Notification>());
   insert_mode_options.modify_handler =
-      [editor_state, status, options,
+      [editor_state, history, status, options,
        abort_notification_ptr](const std::shared_ptr<OpenBuffer>& buffer) {
         auto line = buffer->LineAt(LineNumber())->contents();
         int status_version =
