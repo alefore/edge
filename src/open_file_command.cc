@@ -87,6 +87,7 @@ ColorizePromptOptions DrawPath(EditorState* editor,
 futures::Value<ColorizePromptOptions> AdjustPath(
     EditorState* editor, const std::shared_ptr<LazyString>& line,
     std::unique_ptr<ProgressChannel> progress_channel) {
+  CHECK(progress_channel != nullptr);
   PredictOptions options;
   options.editor_state = editor;
   options.predictor = FilePredictor;

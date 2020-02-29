@@ -54,6 +54,7 @@ struct PredictorInput {
   // modify them.
   std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
 
+  // Will never be nullptr: Predict ensures that.
   ProgressChannel* progress_channel;
 };
 
@@ -111,6 +112,7 @@ struct PredictOptions {
   // TODO: Mark the buffers as const. See comments in `PredictorInput`.
   std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
 
+  // Can be null, in which case Predict will use a dummy no-op channel.
   std::unique_ptr<WorkQueueChannel<ProgressInformation>> progress_channel;
 };
 

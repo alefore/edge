@@ -163,6 +163,12 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   buffer_options.editor = shared_options->editor_state;
   buffer_options.name = PredictionsBufferName();
 
+  if (shared_options->progress_channel == nullptr) {
+    shared_options->progress_channel = std::make_unique<ProgressChannel>(
+        shared_options->editor_state->work_queue(), [](ProgressInformation) {},
+        WorkQueueChannelConsumeMode::kLastAvailable);
+  }
+
   auto input = GetPredictInput(*shared_options);
   buffer_options.generate_contents =
       [shared_options = std::move(shared_options), input,
@@ -246,7 +252,8 @@ DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
 // For any files that do, prepends `prefix` and appends them to `buffer`.
 void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 
-                   std::wstring pattern, std::wstring prefix,
+                   std::wstring pattern, std::wstring prefix, int* matches,
+                   ProgressChannel* progress_channel,
                    OpenBuffer::LockFunction get_buffer) {
   CHECK(dir != nullptr);
   VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
@@ -292,6 +299,9 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
     if (predictions.size() > 100) {
       FlushPredictions();
     }
+    ++*matches;
+    progress_channel->Push(
+        ProgressInformation{.values = {{L"files", std::to_wstring(*matches)}}});
   }
   FlushPredictions();
   get_buffer([prefix_match = prefix.size() + longest_pattern_match,
@@ -310,6 +320,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   struct AsyncInput {
+    ProgressChannel* progress_channel;
     OpenBuffer::LockFunction get_buffer;
     wstring path;
     vector<wstring> search_paths;
@@ -340,6 +351,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       input.search_paths = std::move(unique_paths);
     }
 
+    int matches = 0;
     for (const auto& search_path : input.search_paths) {
       VLOG(4) << "Considering search path: " << search_path;
       auto descend_results = DescendDirectoryTree(search_path, input.path);
@@ -356,7 +368,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     input.path.substr(descend_results.valid_prefix_length,
                                       input.path.size()),
                     input.path.substr(0, descend_results.valid_prefix_length),
-                    input.get_buffer);
+                    &matches, input.progress_channel, input.get_buffer);
     }
     input.get_buffer([output_consumer = std::move(input.output_consumer)](
                          OpenBuffer* buffer) {
@@ -369,7 +381,10 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   static AsyncProcessor<AsyncInput, int> async_processor(std::move(options));
 
   futures::Future<PredictorOutput> output;
+  CHECK(predictor_input.progress_channel != nullptr);
+
   AsyncInput input{
+      .progress_channel = predictor_input.progress_channel,
       .get_buffer = predictor_input.predictions->GetLockFunction(),
       .path = predictor_input.editor->expand_path(predictor_input.input),
       .search_paths = {},
