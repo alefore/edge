@@ -396,7 +396,6 @@ class BuffersPerLineTests : public tests::TestGroup<BuffersPerLineTests> {
  public:
   std::wstring Name() const override { return L"BuffersPerLineTests"; }
   std::vector<tests::Test> Tests() const override {
-    // TODO(easy): Add more tests.
     return {{.name = L"SingleBuffer",
              .callback =
                  [] {
