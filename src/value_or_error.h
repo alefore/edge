@@ -38,5 +38,6 @@ using PossibleError = ValueOrError<EmptyValue>;
 
 PossibleError Success();
 PossibleError Error(std::wstring description);
+
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__

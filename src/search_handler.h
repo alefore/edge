@@ -23,19 +23,14 @@ struct LineColumn;
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input);
 
+// All fields here must be thread-compatible. Const values of this will be given
+// to background threads.
 struct SearchOptions {
-  // The buffer in which to search.
-  OpenBuffer* buffer;
-
   // The position in which to start searching for positions.
   LineColumn starting_position;
 
   // The regular expression to search.
   wstring search_query;
-
-  // TODO(easy): Get rid of this? Have search just take it from the buffer's
-  // variable?
-  bool case_sensitive = false;
 
   // An optional position where the search should stop.
   std::optional<LineColumn> limit_position;
@@ -50,9 +45,11 @@ struct SearchOptions {
 };
 
 std::vector<LineColumn> SearchHandler(EditorState* editor_state,
-                                      const SearchOptions& options);
+                                      const SearchOptions& options,
+                                      OpenBuffer* buffer);
 
-void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options);
+void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options,
+                     OpenBuffer* buffer);
 
 class AsyncSearchProcessor {
  public:
@@ -75,7 +72,7 @@ class AsyncSearchProcessor {
   };
 
   futures::Value<Output> Search(SearchOptions search_options,
-                                std::unique_ptr<BufferContents> buffer,
+                                const OpenBuffer& buffer,
                                 std::shared_ptr<ProgressChannel> channel);
 
  private:

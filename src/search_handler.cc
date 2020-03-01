@@ -51,15 +51,20 @@ struct SearchResults {
   std::vector<LineColumn> positions;
 };
 
-SearchResults PerformSearch(const SearchOptions& options,
+auto GetRegexTraits(const OpenBuffer& buffer) {
+  auto traits = std::regex_constants::extended;
+  if (!buffer.Read(buffer_variables::search_case_sensitive)) {
+    traits |= std::regex_constants::icase;
+  }
+  return traits;
+}
+
+template <typename RegexTraits>
+SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
                             const BufferContents& contents,
                             ProgressChannel* progress_channel) {
   vector<LineColumn> positions;
 
-  auto traits = std::regex_constants::extended;
-  if (!options.case_sensitive) {
-    traits |= std::regex_constants::icase;
-  }
   std::wregex pattern;
   try {
     pattern = std::wregex(options.search_query, traits);
@@ -106,17 +111,18 @@ std::wstring AsyncSearchProcessor::Output::ToString() const {
 }
 
 futures::Value<AsyncSearchProcessor::Output> AsyncSearchProcessor::Search(
-    SearchOptions search_options, std::unique_ptr<BufferContents> buffer,
+    SearchOptions search_options, const OpenBuffer& buffer,
     std::shared_ptr<ProgressChannel> progress_channel) {
-  CHECK(buffer != nullptr);
   search_options.required_positions = 100;
-  return evaluator_.Run([search_options,
-                         buffer =
-                             std::shared_ptr<BufferContents>(std::move(buffer)),
+  auto traits = GetRegexTraits(buffer);
+  return evaluator_.Run([search_options, query = search_options.search_query,
+                         traits,
+                         buffer_contents = std::shared_ptr<BufferContents>(
+                             buffer.contents()->copy()),
                          progress_channel] {
-    auto search_results =
-        PerformSearch(search_options, *buffer, progress_channel.get());
-    VLOG(5) << "Async search completed for \"" << search_options.search_query
+    auto search_results = PerformSearch(
+        search_options, traits, *buffer_contents, progress_channel.get());
+    VLOG(5) << "Async search completed for \"" << query
             << "\", found results: " << search_results.positions.size();
     Output output;
     if (search_results.error.has_value()) {
@@ -146,17 +152,18 @@ std::wstring RegexEscape(std::shared_ptr<LazyString> str) {
 
 // Returns all matches starting at start. If end is not nullptr, only matches
 // in the region enclosed by start and *end will be returned.
-std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
-    EditorState* editor_state, const SearchOptions& options) {
+ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
+    EditorState* editor_state, const SearchOptions& options,
+    OpenBuffer* buffer) {
   auto direction = editor_state->modifiers().direction;
   auto dummy_progress_channel = std::make_unique<ProgressChannel>(
       editor_state->work_queue(), [](ProgressInformation) {},
       WorkQueueChannelConsumeMode::kLastAvailable);
-  SearchResults results = PerformSearch(options, *options.buffer->contents(),
-                                        dummy_progress_channel.get());
+  SearchResults results =
+      PerformSearch(options, GetRegexTraits(*buffer), *buffer->contents(),
+                    dummy_progress_channel.get());
   if (results.error.has_value()) {
-    options.buffer->status()->SetWarningText(results.error.value());
-    return std::nullopt;
+    return ValueOrError<std::vector<LineColumn>>::Error(results.error.value());
   }
   if (direction == Direction::kBackwards) {
     std::reverse(results.positions.begin(), results.positions.end());
@@ -199,22 +206,24 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
   }
 
   if (head.empty()) {
-    options.buffer->status()->SetInformationText(L"🔍 No results.");
+    buffer->status()->SetInformationText(L"🔍 No results.");
     BeepFrequencies(editor_state->audio_player(), {523.25, 261.63, 261.63});
   } else {
     if (head.size() == 1) {
-      options.buffer->status()->SetInformationText(L"🔍 1 result.");
+      buffer->status()->SetInformationText(L"🔍 1 result.");
     } else {
       wstring results_prefix(1 + static_cast<size_t>(log2(head.size())), L'🔍');
-      options.buffer->status()->SetInformationText(
-          results_prefix + L" Results: " + std::to_wstring(head.size()));
+      buffer->status()->SetInformationText(results_prefix + L" Results: " +
+                                           std::to_wstring(head.size()));
     }
     vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
     frequencies.resize(min(frequencies.size(), head.size() + 1));
     BeepFrequencies(editor_state->audio_player(), frequencies);
-    options.buffer->Set(buffer_variables::multiple_cursors, false);
+    buffer->Set(buffer_variables::multiple_cursors, false);
   }
-  return head;
+  // TODO: It's bullshit that I have to give the type (template parameter) here.
+  // Fix that.
+  return ValueOrError<std::vector<LineColumn>>::Value(head);
 }
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
@@ -223,18 +232,20 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   for (auto& search_buffer : input.source_buffers) {
     CHECK(search_buffer != nullptr);
     SearchOptions options;
-    options.buffer = search_buffer.get();
     options.search_query = input.input;
-    options.case_sensitive =
-        search_buffer->Read(buffer_variables::search_case_sensitive);
     options.starting_position = search_buffer->position();
-    auto positions = PerformSearchWithDirection(input.editor, options);
-    if (!positions.has_value()) continue;
+    auto positions =
+        PerformSearchWithDirection(input.editor, options, search_buffer.get());
+    if (positions.IsError()) {
+      search_buffer->status()->SetWarningText(positions.error.value());
+      continue;
+    }
 
     // Get the first kMatchesLimit matches:
     for (size_t i = 0;
-         i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
-      auto position = positions.value()[i];
+         i < positions.value.value().size() && matches.size() < kMatchesLimit;
+         i++) {
+      auto position = positions.value.value()[i];
       if (i == 0) {
         search_buffer->set_position(position);
       }
@@ -264,24 +275,25 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
 }
 
 vector<LineColumn> SearchHandler(EditorState* editor_state,
-                                 const SearchOptions& options) {
+                                 const SearchOptions& options,
+                                 OpenBuffer* buffer) {
   editor_state->set_last_search_query(options.search_query);
   if (!editor_state->has_current_buffer() || options.search_query.empty()) {
     return {};
   }
 
-  return PerformSearchWithDirection(editor_state, options)
-      .value_or(std::vector<LineColumn>());
+  return buffer->status()->ConsumeErrors(
+      PerformSearchWithDirection(editor_state, options, buffer), {});
 }
 
-void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options) {
-  auto results = SearchHandler(editor_state, options);
-  CHECK(options.buffer != nullptr);
+void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options,
+                     OpenBuffer* buffer) {
+  auto results = SearchHandler(editor_state, options, buffer);
   if (results.empty()) {
-    options.buffer->status()->SetInformationText(L"No matches: " +
-                                                 options.search_query);
+    buffer->status()->SetInformationText(L"No matches: " +
+                                         options.search_query);
   } else {
-    options.buffer->set_position(results[0]);
+    buffer->set_position(results[0]);
     editor_state->PushCurrentPosition();
   }
 }

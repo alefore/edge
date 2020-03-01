@@ -33,7 +33,7 @@ static void MergeInto(AsyncSearchProcessor::Output current_results,
 }
 
 static void DoSearch(OpenBuffer* buffer, SearchOptions options) {
-  buffer->set_active_cursors(SearchHandler(buffer->editor(), options));
+  buffer->set_active_cursors(SearchHandler(buffer->editor(), options, buffer));
   buffer->ResetMode();
 }
 
@@ -82,7 +82,6 @@ class SearchCommand : public Command {
           editor_state->ForEachActiveBuffer(
               [editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
                 SearchOptions search_options;
-                search_options.buffer = buffer.get();
                 Range range = buffer->FindPartialRange(
                     editor_state->modifiers(), buffer->position());
                 if (range.begin == range.end) {
@@ -115,8 +114,6 @@ class SearchCommand : public Command {
                                     range.end.column - range.begin.column)
                         ->ToString();
                 search_options.starting_position = buffer->position();
-                search_options.case_sensitive =
-                    buffer->Read(buffer_variables::search_case_sensitive);
                 DoSearch(buffer.get(), search_options);
                 return futures::Past(EmptyValue());
               }),
@@ -184,9 +181,9 @@ class SearchCommand : public Command {
                     // TODO: This handles poorly multiple buffers with regards
                     // to progress_channel_shared.
                     return futures::Transform(
-                        async_search_processor->Search(
-                            search_options.value(), buffer->contents()->copy(),
-                            progress_channel_shared),
+                        async_search_processor->Search(search_options.value(),
+                                                       *buffer,
+                                                       progress_channel_shared),
                         [results, abort_notification,
                          line](AsyncSearchProcessor::Output current_results) {
                           MergeInto(current_results, results.get());
@@ -223,10 +220,6 @@ class SearchCommand : public Command {
     auto editor = buffer->editor();
     SearchOptions search_options;
     search_options.search_query = input;
-    search_options.buffer = buffer;
-    search_options.case_sensitive =
-        buffer->Read(buffer_variables::search_case_sensitive);
-
     if (editor->structure()->search_range() ==
         Structure::SearchRange::kBuffer) {
       search_options.starting_position = buffer->position();

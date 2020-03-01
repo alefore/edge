@@ -74,6 +74,16 @@ class Status {
                   std::function<void(StatusExpirationControl*)>>
   SetExpiringInformationText(std::wstring text);
   void SetWarningText(std::wstring text);
+
+  template <typename T>
+  T ConsumeErrors(ValueOrError<T> value, T replacement_value) {
+    if (value.IsError()) {
+      SetWarningText(value.error.value());
+      return replacement_value;
+    }
+    return value.value.value();
+  }
+
   void Reset();
 
   void Bell();
