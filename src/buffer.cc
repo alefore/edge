@@ -1985,6 +1985,8 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
         }
         Transformation::Input input(this);
         input.position = position();
+        // We've undone the entire changes, so...
+        last_transformation_stack_.clear();
         return futures::Transform(
             data->source->back()->Apply(input),
             [this, undo_mode, data](Transformation::Result result) {
@@ -2017,7 +2019,6 @@ const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {
     }
     line_marks_last_updates_ = marks->updates;
   }
-  VLOG(10) << "Returning multimap with size: " << line_marks_.size();
   return &line_marks_;
 }
 
