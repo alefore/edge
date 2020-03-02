@@ -257,12 +257,12 @@ futures::Value<PossibleError> Save(
   auto buffer = options.buffer;
   std::wstring path = buffer->Read(buffer_variables::path);
   if (path.empty()) {
-    return futures::Past(
-        Error(L"Buffer can't be saved: “path” variable is empty."));
+    return futures::Past(PossibleError(
+        Error(L"Buffer can't be saved: “path” variable is empty.")));
   }
   if (S_ISDIR(stat_buffer->st_mode)) {
     return futures::Past(
-        Error(L"Buffer can't be saved: Buffer is a directory."));
+        PossibleError(Error(L"Buffer can't be saved: Buffer is a directory.")));
   }
 
   switch (options.save_type) {
@@ -271,8 +271,8 @@ futures::Value<PossibleError> Save(
     case OpenBuffer::Options::SaveType::kBackup:
       auto state_directory = buffer->GetEdgeStateDirectory();
       if (state_directory.IsError()) {
-        return futures::Past(Error(L"Unable to backup buffer: " +
-                                   state_directory.error.value()));
+        return futures::Past(PossibleError(Error(
+            L"Unable to backup buffer: " + state_directory.error.value())));
       }
       path = PathJoin(state_directory.value.value(), L"backup");
   }
@@ -377,7 +377,7 @@ futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
         if (fd == -1) {
           auto error = Error(tmp_path + L": open failed: " +
                              FromByteString(strerror(errno)));
-          return futures::Past(std::move(error));
+          return futures::Past(PossibleError(std::move(error)));
         }
         return futures::Transform(
             OnError(SaveContentsToOpenFile(work_queue, tmp_path, fd, contents),

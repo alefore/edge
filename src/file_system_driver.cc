@@ -21,8 +21,7 @@ futures::Value<ValueOrError<int>> FileSystemDriver::Open(std::wstring path,
   return evaluator_.Run([path = std::move(path), flags, mode]() {
     int fd = open(ToByteString(path).c_str(), flags, mode);
     PossibleError output = SyscallReturnValue(L"Open", fd);
-    return output.IsError() ? ValueOrError<int>::Error(output.error.value())
-                            : ValueOrError<int>::Value(fd);
+    return output.IsError() ? Error(output.error.value()) : Success(fd);
   });
 }
 

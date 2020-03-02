@@ -4,27 +4,29 @@
 #include <optional>
 
 namespace afc::editor {
+struct Error {
+  Error(std::wstring description) : description(std::move(description)) {}
+  std::wstring description;
+};
+
+template <typename T>
+struct ValueType {
+  ValueType(T value) : value(std::move(value)) {}
+  T value;
+};
+
 template <typename T>
 struct ValueOrError {
   using ValueType = T;
 
-  static ValueOrError<T> Value(T t) { return ValueOrError<T>(std::move(t)); }
-
-  static ValueOrError<T> Error(std::wstring error) {
-    ValueOrError<T> output;
-    output.error = error;
-    return output;
-  }
+  ValueOrError(Error error) : error(std::move(error.description)) {}
+  ValueOrError(editor::ValueType<T> value) : value(std::move(value.value)) {}
 
   bool IsError() const { return error.has_value(); }
 
   // Exactly one of these should have a value.
   std::optional<T> value = std::nullopt;
   std::optional<std::wstring> error = std::nullopt;
-
- private:
-  ValueOrError() = default;
-  ValueOrError(T value) : value(value) {}
 };
 
 template <typename>
@@ -36,8 +38,16 @@ struct IsValueOrError<ValueOrError<T>> : std::true_type {};
 struct EmptyValue {};
 using PossibleError = ValueOrError<EmptyValue>;
 
-PossibleError Success();
-PossibleError Error(std::wstring description);
+// TODO: It'd be nicer to return `ValueType<EmptyValue>` and let that be
+// implicitly converted to ValueOrError. However, `futures::Past(Success())`
+// would cease to work, since `futures::Value` can't yet implicitly convert
+// types.
+ValueOrError<EmptyValue> Success();
+
+template <typename T>
+ValueOrError<T> Success(T t) {
+  return ValueType(std::move(t));
+}
 
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__

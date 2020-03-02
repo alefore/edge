@@ -21,6 +21,9 @@ class OnErrorTests : public tests::TestGroup<OnErrorTests> {
   OnErrorTests() : TestGroup<OnErrorTests>() {}
   std::wstring Name() const override { return L"OnErrorTests"; }
   std::vector<tests::Test> Tests() const override {
+    using editor::Error;
+    using editor::Success;
+    using editor::ValueOrError;
     return {{.name = L"WaitsForFuture",
              .callback =
                  [] {
@@ -34,18 +37,17 @@ class OnErrorTests : public tests::TestGroup<OnErrorTests> {
                          return value;
                        });
                    CHECK(!executed);
-                   internal.consumer(editor::ValueOrError<int>::Error(L"Foo"));
+                   internal.consumer(Error(L"Foo"));
                    CHECK(executed);
                  }},
             {.name = L"OverridesReturnedValue",
              .callback =
                  [] {
-                   std::optional<editor::ValueOrError<int>> value;
-                   OnError(
-                       futures::Past(editor::ValueOrError<int>::Error(L"Foo")),
-                       [&](editor::ValueOrError<int>) {
-                         return editor::ValueOrError<int>::Value(27);
-                       })
+                   std::optional<ValueOrError<int>> value;
+                   OnError(futures::Past(ValueOrError<int>(Error(L"Foo"))),
+                           [&](ValueOrError<int>) -> ValueOrError<int> {
+                             return Success(27);
+                           })
                        .SetConsumer([&](editor::ValueOrError<int> result) {
                          value = result;
                        });
@@ -53,7 +55,7 @@ class OnErrorTests : public tests::TestGroup<OnErrorTests> {
                    CHECK_EQ(value.value().value.value(), 27);
                  }},
             {.name = L"SkippedOnSuccess", .callback = [] {
-               OnError(futures::Past(editor::ValueOrError<int>::Value(12)),
+               OnError(futures::Past(ValueOrError(Success(12))),
                        [&](editor::ValueOrError<int> value) {
                          CHECK(false);
                          return value;

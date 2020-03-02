@@ -163,7 +163,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
       PerformSearch(options, GetRegexTraits(*buffer), *buffer->contents(),
                     dummy_progress_channel.get());
   if (results.error.has_value()) {
-    return ValueOrError<std::vector<LineColumn>>::Error(results.error.value());
+    return Error(results.error.value());
   }
   if (direction == Direction::kBackwards) {
     std::reverse(results.positions.begin(), results.positions.end());
@@ -221,9 +221,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     BeepFrequencies(editor_state->audio_player(), frequencies);
     buffer->Set(buffer_variables::multiple_cursors, false);
   }
-  // TODO: It's bullshit that I have to give the type (template parameter) here.
-  // Fix that.
-  return ValueOrError<std::vector<LineColumn>>::Value(head);
+  return Success(head);
 }
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {

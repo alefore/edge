@@ -16,6 +16,8 @@ namespace afc::futures {
 template <typename Type>
 class Future;
 
+// TODO(ms0): If A can be converted to type B, make it possible for Value<A> to
+// be converted to Value<B> implicitly.
 template <typename Type>
 class Value {
  public:
@@ -214,7 +216,7 @@ struct TransformTraits<editor::ValueOrError<InitialType>, Callable> {
                         Callable& callable,
                         typename ReturnType::Consumer consumer) {
     if (initial_value.IsError()) {
-      consumer(ReturnType::type::Error(initial_value.error.value()));
+      consumer(editor::Error(initial_value.error.value()));
     } else {
       ReturnTraits::Feed(callable(std::move(initial_value.value.value())),
                          std::move(consumer));

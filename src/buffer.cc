@@ -523,7 +523,7 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
                 Modifiers::Strength::kNormal);
         }
         if (!dirty() || !Read(buffer_variables::save_on_close)) {
-          return futures::Past(Success());
+          return futures::Past(ValueOrError(Success()));
         }
         LOG(INFO) << Read(buffer_variables::name)
                   << ": attempting to save buffer.";
@@ -571,13 +571,14 @@ time_t OpenBuffer::last_action() const { return last_action_; }
 
 futures::Value<PossibleError> OpenBuffer::PersistState() const {
   if (!Read(buffer_variables::persist_state)) {
-    return futures::Past(Success());
+    return futures::Past(ValueOrError(Success()));
   }
 
   auto edge_state_directory = GetEdgeStateDirectory();
   if (edge_state_directory.IsError()) {
     status_.SetWarningText(edge_state_directory.error.value());
-    return futures::Past(Error(edge_state_directory.error.value()));
+    return futures::Past(
+        PossibleError(Error(edge_state_directory.error.value())));
   }
 
   auto path = PathJoin(edge_state_directory.value.value(), L".edge_state");
@@ -888,8 +889,9 @@ void OpenBuffer::Reload() {
     SetDiskState(DiskState::kCurrent);
     LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
 
-    (options_.generate_contents != nullptr ? options_.generate_contents(this)
-                                           : futures::Past(Success()))
+    (options_.generate_contents != nullptr
+         ? options_.generate_contents(this)
+         : futures::Past(ValueOrError(Success())))
         .SetConsumer(
             [shared_this = shared_from_this(), this](ValueOrError<EmptyValue>) {
               switch (reload_state_) {
@@ -917,7 +919,7 @@ futures::Value<PossibleError> OpenBuffer::Save() {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
   if (options_.handle_save == nullptr) {
     status_.SetWarningText(L"Buffer can't be saved.");
-    return futures::Past(Error(L"Buffer can't be saved."));
+    return futures::Past(PossibleError(Error(L"Buffer can't be saved.")));
   }
   return options_.handle_save(
       {.buffer = this, .save_type = Options::SaveType::kMainFile});
@@ -926,13 +928,13 @@ futures::Value<PossibleError> OpenBuffer::Save() {
 ValueOrError<std::wstring> OpenBuffer::GetEdgeStateDirectory() const {
   auto path_vector = editor()->edge_path();
   if (path_vector.empty() || path_vector[0].empty()) {
-    return ValueOrError<std::wstring>::Error(L"Empty edge path.");
+    return Error(L"Empty edge path.");
   }
 
   auto file_path = Read(buffer_variables::path);
   list<wstring> file_path_components;
   if (file_path.empty() || file_path[0] != '/') {
-    return ValueOrError<std::wstring>::Error(
+    return Error(
         L"Unable to persist buffer with empty path: " +
         Read(buffer_variables::name) + L" " +
         (dirty() ? L" (dirty)" : L" (clean)") + L" " +
@@ -940,8 +942,7 @@ ValueOrError<std::wstring> OpenBuffer::GetEdgeStateDirectory() const {
   }
 
   if (!DirectorySplit(file_path, &file_path_components)) {
-    return ValueOrError<std::wstring>::Error(L"Unable to split path: " +
-                                             file_path);
+    return Error(L"Unable to split path: " + file_path);
   }
 
   file_path_components.push_front(L"state");
@@ -956,15 +957,14 @@ ValueOrError<std::wstring> OpenBuffer::GetEdgeStateDirectory() const {
       if (S_ISDIR(stat_buffer.st_mode)) {
         continue;
       }
-      return ValueOrError<std::wstring>::Error(
-          L"Oops, exists, but is not a directory: " + path);
+      return Error(L"Oops, exists, but is not a directory: " + path);
     }
     if (mkdir(path_byte_string.c_str(), 0700)) {
-      return ValueOrError<std::wstring>::Error(
-          L"mkdir failed: " + FromByteString(strerror(errno)) + L": " + path);
+      return Error(L"mkdir failed: " + FromByteString(strerror(errno)) + L": " +
+                   path);
     }
   }
-  return ValueOrError<std::wstring>::Value(path);
+  return Success(path);
 }
 
 void OpenBuffer::UpdateBackup() {

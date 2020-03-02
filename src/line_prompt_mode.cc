@@ -210,23 +210,20 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
 
 ValueOrError<std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>>
 ParseHistoryLine(const std::shared_ptr<LazyString>& line) {
-  using Output = ValueOrError<
-      std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>>;
-  Output::ValueType output;
+  std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
   for (const auto& token : TokenizeBySpaces(*line)) {
     auto colon = token.value.find(':');
     if (colon == string::npos) {
-      return Output::Error(
-          L"Unable to parse prompt line (no colon found in token): " +
-          line->ToString());
+      return Error(L"Unable to parse prompt line (no colon found in token): " +
+                   line->ToString());
     }
     ColumnNumber value_start = token.begin + ColumnNumberDelta(colon);
     ++value_start;  // Skip the colon.
     ColumnNumber value_end = token.end;
     if (value_end == value_start || line->get(value_start) != '\"' ||
         line->get(value_end.previous()) != '\"') {
-      return Output::Error(L"Unable to parse prompt line (expected quote): " +
-                           line->ToString());
+      return Error(L"Unable to parse prompt line (expected quote): " +
+                   line->ToString());
     }
     // Skip quotes:
     ++value_start;
@@ -237,7 +234,7 @@ ParseHistoryLine(const std::shared_ptr<LazyString>& line) {
   for (auto& additional_features : GetSyntheticFeatures(output)) {
     output.insert(additional_features);
   }
-  return Output::Value(std::move(output));
+  return Success(std::move(output));
 }
 
 std::shared_ptr<LazyString> QuoteString(std::shared_ptr<LazyString> src) {
