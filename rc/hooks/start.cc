@@ -207,10 +207,9 @@ AddBinding(terminal_control_u, "Edit: Delete the current line", []() -> void {
 });
 
 void IncrementNumber(int direction) {
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    AddToIntegerTransformation(buffer, repetitions());
-  });
-  set_repetitions(1);
+  int delta = direction * editor.pop_repetitions();
+  editor.ForEachActiveBuffer(
+      [](Buffer buffer) -> void { AddToIntegerTransformation(buffer, delta); });
   return;
 }
 
