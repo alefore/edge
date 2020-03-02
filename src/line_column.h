@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/fuzz.h"
+#include "src/value_or_error.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 
@@ -312,7 +313,7 @@ struct Range {
   }
 
   // Returns the union, unless there's a gap between the ranges.
-  std::optional<Range> Union(const Range& other) const;
+  ValueOrError<Range> Union(const Range& other) const;
 
   Range Intersection(const Range& other) const {
     if (Disjoint(other)) {
