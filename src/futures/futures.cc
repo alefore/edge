@@ -16,6 +16,51 @@ Value<editor::ValueOrError<editor::EmptyValue>> IgnoreErrors(
 }
 
 namespace {
+// TODO(easy): Add more tests.
+class TransformTests : public tests::TestGroup<TransformTests> {
+ public:
+  std::wstring Name() const override { return L"TransformTests"; }
+  std::vector<tests::Test> Tests() const override {
+    using editor::Error;
+    using editor::Success;
+    using editor::ValueOrError;
+    return {
+        {.name = L"StopsEarlyOnError",
+         .callback =
+             [] {
+               std::optional<ValueOrError<bool>> final_result;
+               Future<ValueOrError<bool>> inner_value;
+               auto value = futures::Transform(inner_value.value, [](bool) {
+                 CHECK(false);
+                 return Success(true);
+               });
+               value.SetConsumer(
+                   [&](ValueOrError<bool> result) { final_result = result; });
+               inner_value.consumer(Error(L"xyz"));
+               CHECK(final_result.has_value());
+             }},
+        {.name = L"CorrectlyReturnsError",
+         .callback =
+             [] {
+               std::optional<ValueOrError<bool>> final_result;
+               Future<ValueOrError<bool>> inner_value;
+               auto value = futures::Transform(
+                   inner_value.value, [](bool) { return Success(true); });
+               value.SetConsumer(
+                   [&](ValueOrError<bool> result) { final_result = result; });
+               inner_value.consumer(Error(L"xyz"));
+               CHECK(final_result.has_value());
+               CHECK(final_result.value().IsError());
+               CHECK(final_result.value().error.value() == L"xyz");
+             }},
+    };
+  }
+};
+
+template <>
+const bool tests::TestGroup<TransformTests>::registration_ =
+    tests::Add<futures::TransformTests>();
+
 class OnErrorTests : public tests::TestGroup<OnErrorTests> {
  public:
   OnErrorTests() : TestGroup<OnErrorTests>() {}
@@ -27,10 +72,10 @@ class OnErrorTests : public tests::TestGroup<OnErrorTests> {
     return {{.name = L"WaitsForFuture",
              .callback =
                  [] {
-                   Future<editor::ValueOrError<int>> internal;
+                   Future<ValueOrError<int>> internal;
                    bool executed = false;
-                   auto external = OnError(
-                       internal.value, [&](editor::ValueOrError<int> value) {
+                   auto external =
+                       OnError(internal.value, [&](ValueOrError<int> value) {
                          executed = true;
                          CHECK(value.error.has_value());
                          CHECK(value.error.value() == L"Foo");
@@ -48,15 +93,14 @@ class OnErrorTests : public tests::TestGroup<OnErrorTests> {
                            [&](ValueOrError<int>) -> ValueOrError<int> {
                              return Success(27);
                            })
-                       .SetConsumer([&](editor::ValueOrError<int> result) {
-                         value = result;
-                       });
-                   CHECK(value.value().value.has_value());  // Lovely...
-                   CHECK_EQ(value.value().value.value(), 27);
+                       .SetConsumer(
+                           [&](ValueOrError<int> result) { value = result; });
+                   CHECK(value.value().value.has_value());
+                   CHECK_EQ(value.value().value.value(), 27);  // Lovely...
                  }},
             {.name = L"SkippedOnSuccess", .callback = [] {
                OnError(futures::Past(ValueOrError(Success(12))),
-                       [&](editor::ValueOrError<int> value) {
+                       [&](ValueOrError<int> value) {
                          CHECK(false);
                          return value;
                        });
