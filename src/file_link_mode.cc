@@ -277,9 +277,13 @@ futures::Value<PossibleError> Save(
       path = PathJoin(state_directory.value.value(), L"backup");
   }
 
-  // TODO: On failure, log it to: buffer->status()->SetWarningText.
   return futures::Transform(
-      SaveContentsToFile(path, *buffer->contents(), buffer->work_queue()),
+      OnError(
+          SaveContentsToFile(path, *buffer->contents(), buffer->work_queue()),
+          [status = buffer->status()](PossibleError error) {
+            status->SetWarningText(L"🖫 Save failed: " + error.error.value());
+            return error;
+          }),
       [buffer](EmptyValue) { return buffer->PersistState(); },
       [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
         switch (options.save_type) {
@@ -374,11 +378,7 @@ futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
                                         mode);
       },
       [path, contents, work_queue, tmp_path, file_system_driver](int fd) {
-        if (fd == -1) {
-          auto error = Error(tmp_path + L": open failed: " +
-                             FromByteString(strerror(errno)));
-          return futures::Past(PossibleError(std::move(error)));
-        }
+        CHECK_NE(fd, -1);
         return futures::Transform(
             OnError(SaveContentsToOpenFile(work_queue, tmp_path, fd, contents),
                     [file_system_driver, fd](ValueOrError<EmptyValue> error) {
