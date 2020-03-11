@@ -10,6 +10,7 @@
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
+#include "src/transformation/type.h"
 
 namespace afc::editor {
 namespace {
@@ -34,12 +35,12 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     CHECK_LT(column, line->EndColumn());
     Output output = Output::SetColumn(column);
 
-    DeleteOptions delete_options;
+    transformation::Delete delete_options;
     delete_options.modifiers.repetitions =
         (line->EndColumn() - column).column_delta;
     delete_options.modifiers.paste_buffer_behavior =
         Modifiers::PasteBufferBehavior::kDoNothing;
-    output.Push(NewDeleteTransformation(delete_options));
+    output.Push(delete_options);
     return futures::Past(std::move(output));
   }
 
@@ -116,8 +117,9 @@ void Transformation::Result::MergeFrom(Result sub_result) {
 
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation) {
-  return ComposeTransformation(NewSetPositionTransformation(position),
-                               std::move(transformation));
+  return ComposeTransformation(
+      transformation::Build(transformation::SetPosition(position)),
+      std::move(transformation));
 }
 
 std::unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {

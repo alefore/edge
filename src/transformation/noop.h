@@ -3,11 +3,11 @@
 
 #include <memory>
 
-#include "src/transformation.h"
+#include "src/transformation/composite.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {
-std::unique_ptr<Transformation> NewNoopTransformation();
+std::unique_ptr<CompositeTransformation> NewNoopTransformation();
 void RegisterNoopTransformation(vm::Environment* environment);
 }  // namespace afc::editor
 

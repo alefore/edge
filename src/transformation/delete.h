@@ -1,14 +1,14 @@
+#ifndef __AFC_EDITOR_TRANSFORMATION_DELETE_H__
+#define __AFC_EDITOR_TRANSFORMATION_DELETE_H__
 #include <memory>
 
 #include "src/editor.h"
 #include "src/transformation.h"
 #include "src/vm/public/environment.h"
 
-namespace afc::editor {
+namespace afc::editor::transformation {
 
-using std::unique_ptr;
-
-struct DeleteOptions {
+struct Delete {
   std::wstring Serialize() const;
 
   Modifiers modifiers;
@@ -26,9 +26,11 @@ struct DeleteOptions {
   std::optional<Transformation::Input::Mode> mode;
 };
 
-std::ostream& operator<<(std::ostream& os, const DeleteOptions& options);
+std::ostream& operator<<(std::ostream& os, const Delete& options);
 
-std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options);
+void RegisterDelete(vm::Environment* environment);
 
-void RegisterDeleteTransformation(vm::Environment* environment);
-}  // namespace afc::editor
+futures::Value<Transformation::Result> ApplyBase(const Delete& parameters,
+                                                 Transformation::Input input);
+}  // namespace afc::editor::transformation
+#endif  // __AFC_EDITOR_TRANSFORMATION_DELETE_H__

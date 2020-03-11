@@ -16,6 +16,11 @@ void TransformationStack::PushFront(
   stack_->push_front(std::move(transformation));
 }
 
+void TransformationStack::PushFront(
+    transformation::BaseTransformation transformation) {
+  PushFront(transformation::Build(std::move(transformation)));
+}
+
 futures::Value<Transformation::Result> TransformationStack::Apply(
     const Input& input) const {
   auto output = std::make_shared<Result>(input.position);

@@ -10,7 +10,6 @@
 #include "src/line.h"
 #include "src/modifiers.h"
 #include "src/structure.h"
-#include "src/transformation/noop.h"
 
 namespace afc::editor {
 class OpenBuffer;

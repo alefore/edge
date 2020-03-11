@@ -11,6 +11,7 @@
 #include "src/transformation/insert.h"
 #include "src/transformation/noop.h"
 #include "src/transformation/set_position.h"
+#include "src/transformation/type.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
@@ -97,10 +98,10 @@ void RegisterTransformations(EditorState* editor,
                                       std::move(args[0])))
                     .release());
           }));
-  RegisterInsertTransformation(editor, environment);
-  RegisterDeleteTransformation(environment);
+  transformation::RegisterInsert(editor, environment);
+  transformation::RegisterDelete(environment);
+  transformation::RegisterSetPosition(environment);
   RegisterNoopTransformation(environment);
-  RegisterSetPositionTransformation(environment);
   RegisterCompositeTransformation(environment);
 }
 }  // namespace editor

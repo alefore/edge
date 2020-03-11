@@ -6,8 +6,12 @@
 #include "src/transformation.h"
 #include "src/vm/public/environment.h"
 
-namespace afc::editor {
-struct InsertOptions {
+namespace afc::editor::transformation {
+struct Insert {
+  Insert() = default;
+  explicit Insert(std::shared_ptr<const OpenBuffer> buffer_to_insert)
+      : buffer_to_insert(std::move(buffer_to_insert)) {}
+
   std::wstring Serialize() const;
 
   std::shared_ptr<const OpenBuffer> buffer_to_insert;
@@ -31,9 +35,9 @@ struct InsertOptions {
   std::optional<LineColumn> position = std::nullopt;
 };
 
-std::unique_ptr<Transformation> NewInsertBufferTransformation(
-    InsertOptions options);
-void RegisterInsertTransformation(EditorState* editor,
-                                  vm::Environment* environment);
-}  // namespace afc::editor
+void RegisterInsert(EditorState* editor, vm::Environment* environment);
+futures::Value<Transformation::Result> ApplyBase(const Insert& parameters,
+                                                 Transformation::Input input);
+
+}  // namespace afc::editor::transformation
 #endif  // __AFC_EDITOR_TRANSFORMATION_INSERT_H__

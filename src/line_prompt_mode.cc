@@ -25,6 +25,7 @@
 #include "src/tokenize.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
+#include "src/transformation/type.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -515,17 +516,16 @@ class HistoryScrollBehavior : public ScrollBehavior {
       }
     }
 
-    DeleteOptions delete_options;
+    transformation::Delete delete_options;
     delete_options.modifiers.paste_buffer_behavior =
         Modifiers::PasteBufferBehavior::kDoNothing;
     delete_options.modifiers.structure = StructureLine();
     delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
     delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-    buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
-    InsertOptions insert_options;
+    buffer->ApplyToCursors(transformation::Build(delete_options));
+    transformation::Insert insert_options;
     insert_options.buffer_to_insert = std::move(buffer_to_insert);
-    buffer->ApplyToCursors(
-        NewInsertBufferTransformation(std::move(insert_options)));
+    buffer->ApplyToCursors(transformation::Build(std::move(insert_options)));
   }
 
   const std::shared_ptr<OpenBuffer> history_;
@@ -670,10 +670,8 @@ void Prompt(PromptOptions options) {
         OpenBuffer::New({.editor = editor_state, .name = L"- text inserted"});
     buffer_to_insert->AppendToLastLine(
         NewLazyString(std::move(options.initial_value)));
-    InsertOptions insert_options;
-    insert_options.buffer_to_insert = std::move(buffer_to_insert);
-    buffer->ApplyToCursors(
-        NewInsertBufferTransformation(std::move(insert_options)));
+    buffer->ApplyToCursors(transformation::Build(
+        transformation::Insert(std::move(buffer_to_insert))));
   }
 
   InsertModeOptions insert_mode_options;
@@ -784,7 +782,7 @@ void Prompt(PromptOptions options) {
                 LOG(INFO) << "Prediction advanced from " << input << " to "
                           << results.value();
 
-                DeleteOptions delete_options;
+                transformation::Delete delete_options;
                 delete_options.modifiers.paste_buffer_behavior =
                     Modifiers::PasteBufferBehavior::kDoNothing;
                 delete_options.modifiers.structure = StructureLine();
@@ -792,18 +790,15 @@ void Prompt(PromptOptions options) {
                     Modifiers::LIMIT_CURRENT;
                 delete_options.modifiers.boundary_end =
                     Modifiers::LIMIT_CURRENT;
-                buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
+                buffer->ApplyToCursors(transformation::Build(delete_options));
 
                 std::shared_ptr<LazyString> line =
                     NewLazyString(results.value().common_prefix.value());
                 auto buffer_to_insert = OpenBuffer::New(
                     {.editor = editor_state, .name = L"- text inserted"});
                 buffer_to_insert->AppendToLastLine(line);
-                InsertOptions insert_options;
-                insert_options.buffer_to_insert = buffer_to_insert;
-                buffer->ApplyToCursors(
-                    NewInsertBufferTransformation(std::move(insert_options)));
-
+                buffer->ApplyToCursors(transformation::Build(
+                    transformation::Insert(std::move(buffer_to_insert))));
                 if (options.colorize_options_provider != nullptr) {
                   int status_version =
                       status->prompt_extra_information()->StartNewVersion();

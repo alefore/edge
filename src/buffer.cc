@@ -459,7 +459,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       environment_(
           std::make_shared<Environment>(options_.editor->environment())),
       filter_version_(0),
-      last_transformation_(NewNoopTransformation()),
+      last_transformation_(
+          NewTransformation(Modifiers(), NewNoopTransformation())),
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
@@ -641,7 +642,8 @@ void OpenBuffer::ClearContents(
   if (terminal_ != nullptr) {
     terminal_->SetPosition(LineColumn());
   }
-  last_transformation_ = NewNoopTransformation();
+  last_transformation_ =
+      NewTransformation(Modifiers(), NewNoopTransformation());
   last_transformation_stack_.clear();
   undo_past_.clear();
   undo_future_.clear();

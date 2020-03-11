@@ -15,6 +15,7 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
+#include "src/transformation/type.h"
 
 namespace afc::editor {
 namespace {
@@ -177,16 +178,16 @@ class NavigateTransformation : public CompositeTransformation {
         LineColumn marker = state_copy.navigate_options.write_index(
             input.position, marker_index);
         if (marker != input.position) {
-          output.Push(NewSetPositionTransformation(marker));
+          output.Push(transformation::SetPosition(marker));
         }
 
-        DeleteOptions delete_options;
+        transformation::Delete delete_options;
         delete_options.modifiers.paste_buffer_behavior =
             Modifiers::PasteBufferBehavior::kDoNothing;
         delete_options.mode = Transformation::Input::Mode::kPreview;
         delete_options.modifiers.delete_behavior =
             Modifiers::DeleteBehavior::kDoNothing;
-        output.Push(NewDeleteTransformation(std::move(delete_options)));
+        output.Push(std::move(delete_options));
       }
 
       DeleteExterior(range.begin(), Direction::kBackwards, input.position,
@@ -195,7 +196,7 @@ class NavigateTransformation : public CompositeTransformation {
                      &output);
     }
 
-    output.Push(NewSetPositionTransformation(
+    output.Push(transformation::SetPosition(
         state_.navigate_options.write_index(input.position, range.MidPoint())));
     return futures::Past(std::move(output));
   }
@@ -213,16 +214,17 @@ class NavigateTransformation : public CompositeTransformation {
       // Otherwise we'll be saying that we want to delete the previous line.
       return;
     }
-    output->Push(NewSetPositionTransformation(WriteIndex(position, index)));
-    DeleteOptions options;
+    output->Push(transformation::Build(
+        transformation::SetPosition(WriteIndex(position, index))));
+    transformation::Delete options;
     options.modifiers.structure = StructureLine();
     options.modifiers.direction = direction;
     options.modifiers.paste_buffer_behavior =
         Modifiers::PasteBufferBehavior::kDoNothing;
-    options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
+    options.line_end_behavior = transformation::Delete::LineEndBehavior::kStop;
     options.mode = Transformation::Input::Mode::kPreview;
     options.preview_modifiers = {LineModifier::DIM};
-    output->Push(NewDeleteTransformation(std::move(options)));
+    output->Push(std::move(options));
   }
 
   LineColumn WriteIndex(LineColumn position, size_t index) const {

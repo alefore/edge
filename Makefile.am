@@ -188,6 +188,8 @@ src/transformation/switch_case.cc \
 src/transformation/switch_case.h \
 src/transformation/tree_navigate.cc \
 src/transformation/tree_navigate.h \
+src/transformation/type.cc \
+src/transformation/type.h \
 src/transformation.cc \
 src/transformation.h \
 src/value_or_error.cc \
