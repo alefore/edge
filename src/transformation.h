@@ -82,12 +82,6 @@ std::unique_ptr<Transformation> TransformationAtPosition(
 // OpenBuffer::variable_line_suffix_superfluous_characters) from the current
 // line.
 std::unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
-
-// Returns a transformation that repeats another transformation a given number
-// of times.
-std::unique_ptr<Transformation> NewApplyRepetitionsTransformation(
-    size_t repetitions, std::unique_ptr<Transformation> transformation);
-
 }  // namespace afc::editor
 
 #endif

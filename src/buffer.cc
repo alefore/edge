@@ -48,6 +48,7 @@ extern "C" {
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
 #include "src/transformation/noop.h"
+#include "src/transformation/repetitions.h"
 #include "src/transformation/stack.h"
 #include "src/viewers.h"
 #include "src/vm/public/callbacks.h"
@@ -1944,8 +1945,9 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
 futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {
   size_t repetitions = options_.editor->repetitions().value_or(1);
   options_.editor->ResetRepetitions();
-  return ApplyToCursors(NewApplyRepetitionsTransformation(
-      repetitions, last_transformation_->Clone()));
+  return ApplyToCursors(transformation::Build(transformation::Repetitions{
+      repetitions,
+      std::shared_ptr<Transformation>(last_transformation_->Clone())}));
 }
 
 void OpenBuffer::PushTransformationStack() {

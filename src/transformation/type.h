@@ -7,11 +7,13 @@
 #include "src/transformation.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
+#include "src/transformation/repetitions.h"
 #include "src/transformation/set_position.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor::transformation {
-using BaseTransformation = std::variant<Delete, Insert, SetPosition>;
+using BaseTransformation =
+    std::variant<Delete, Insert, Repetitions, SetPosition>;
 
 void Register(vm::Environment* environment);
 

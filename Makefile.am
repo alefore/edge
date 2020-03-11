@@ -180,6 +180,8 @@ src/transformation/move.cc \
 src/transformation/move.h \
 src/transformation/noop.cc \
 src/transformation/noop.h \
+src/transformation/repetitions.cc \
+src/transformation/repetitions.h \
 src/transformation/set_position.cc \
 src/transformation/set_position.h \
 src/transformation/stack.cc \
