@@ -81,6 +81,40 @@ struct BuffersListOptions {
 
 enum class FilterResult { kExcluded, kIncluded };
 
+LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
+                                   OpenBuffer* buffer,
+                                   FilterResult filter_result) {
+  LineModifierSet output;
+  if (filter_result == FilterResult::kExcluded) {
+    output.insert(LineModifier::DIM);
+  } else if (buffer->child_pid() != -1) {
+    output.insert(LineModifier::YELLOW);
+  } else if (buffer->child_exit_status().has_value()) {
+    auto status = buffer->child_exit_status().value();
+    if (!WIFEXITED(status)) {
+      output.insert(LineModifier::RED);
+      output.insert(LineModifier::BOLD);
+    } else if (WEXITSTATUS(status) == 0) {
+      output.insert(LineModifier::GREEN);
+    } else {
+      output.insert(LineModifier::RED);
+    }
+    if (GetElapsedSecondsSince(buffer->time_last_exit()) < 5.0) {
+      output.insert({LineModifier::REVERSE});
+    }
+  } else {
+    if (buffer->dirty()) {
+      output.insert(LineModifier::ITALIC);
+    }
+    output.insert(LineModifier::CYAN);
+  }
+  if (buffer == options.active_buffer.get()) {
+    output.insert(LineModifier::BOLD);
+    output.insert(LineModifier::REVERSE);
+  }
+  return output;
+}
+
 class BuffersListProducer : public OutputProducer {
  public:
   BuffersListProducer(BuffersListOptions options)
@@ -127,36 +161,9 @@ class BuffersListProducer : public OutputProducer {
                     ? FilterResult::kIncluded
                     : FilterResult::kExcluded;
 
-            LineModifierSet number_modifiers;
+            LineModifierSet number_modifiers =
+                GetNumberModifiers(options_, buffer, filter_result);
 
-            if (filter_result == FilterResult::kExcluded) {
-              number_modifiers.insert(LineModifier::DIM);
-            } else if (buffer->child_pid() != -1) {
-              number_modifiers.insert(LineModifier::YELLOW);
-            } else if (buffer->child_exit_status().has_value()) {
-              auto status = buffer->child_exit_status().value();
-              if (!WIFEXITED(status)) {
-                number_modifiers.insert(LineModifier::RED);
-                number_modifiers.insert(LineModifier::BOLD);
-              } else if (WEXITSTATUS(status) == 0) {
-                number_modifiers.insert(LineModifier::GREEN);
-              } else {
-                number_modifiers.insert(LineModifier::RED);
-              }
-              if (GetElapsedSecondsSince(buffer->time_last_exit()) < 5.0) {
-                number_modifiers.insert({LineModifier::REVERSE});
-              }
-            } else {
-              if (buffer->dirty()) {
-                number_modifiers.insert(LineModifier::ITALIC);
-              }
-              number_modifiers.insert(LineModifier::CYAN);
-            }
-
-            if (buffer == options_.active_buffer.get()) {
-              number_modifiers.insert(LineModifier::BOLD);
-              number_modifiers.insert(LineModifier::REVERSE);
-            }
             start +=
                 prefix_width_ - ColumnNumberDelta(number_prefix.size() + 2);
             output.AppendString(
