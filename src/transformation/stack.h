@@ -5,13 +5,18 @@
 #include <memory>
 
 #include "src/transformation.h"
+#include "src/transformation/type.h"
 
 namespace afc::editor {
+namespace transformation {
+class TransformationBase;
+}
 class TransformationStack : public Transformation {
  public:
   TransformationStack();
   void PushBack(std::unique_ptr<Transformation> transformation);
   void PushFront(std::unique_ptr<Transformation> transformation);
+  void PushFront(transformation::BaseTransformation transformation);
 
   futures::Value<Result> Apply(const Input& input) const override;
 

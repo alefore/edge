@@ -6,6 +6,7 @@
 #include "src/editor.h"
 #include "src/terminal.h"
 #include "src/transformation/delete.h"
+#include "src/transformation/type.h"
 
 namespace afc {
 namespace editor {
@@ -13,9 +14,9 @@ namespace editor {
 std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
                                                    Modifiers modifiers) {
   CHECK(editor_state != nullptr);
-  DeleteOptions options;
+  transformation::Delete options;
   options.modifiers = std::move(modifiers);
-  return NewDeleteTransformation(options);
+  return transformation::Build(options);
 }
 
 }  // namespace editor

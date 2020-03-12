@@ -12,6 +12,7 @@
 #include "src/transformation/insert.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
+#include "src/transformation/type.h"
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
@@ -35,13 +36,13 @@ std::wstring GetToken(const CompositeTransformation::Input& input,
                          (end - symbol_start).column_delta + 1);
 }
 
-std::unique_ptr<Transformation> DeleteLastCharacters(int characters) {
-  DeleteOptions delete_options;
+transformation::Delete DeleteLastCharacters(int characters) {
+  transformation::Delete delete_options;
   delete_options.modifiers.direction = Direction::kBackwards;
   delete_options.modifiers.repetitions = characters;
   delete_options.modifiers.paste_buffer_behavior =
       Modifiers::PasteBufferBehavior::kDoNothing;
-  return NewDeleteTransformation(std::move(delete_options));
+  return delete_options;
 }
 
 class PredictorTransformation : public CompositeTransformation {
@@ -94,9 +95,9 @@ class PredictorTransformation : public CompositeTransformation {
               NewLazyString(results.value().common_prefix.value()));
           buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
 
-          InsertOptions insert_options;
+          transformation::Insert insert_options;
           insert_options.buffer_to_insert = buffer_to_insert;
-          output.Push(NewInsertBufferTransformation(std::move(insert_options)));
+          output.Push(std::move(insert_options));
           return output;
         });
   }
@@ -134,15 +135,14 @@ class ReadAndInsert : public CompositeTransformation {
         [consumer = std::move(output.consumer),
          buffer_to_insert = buffer_it->second, input = std::move(input)] {
           Output output;
-          InsertOptions options;
-          options.buffer_to_insert = buffer_to_insert;
-          output.Push(NewInsertBufferTransformation(std::move(options)));
+          output.Push(transformation::Insert(buffer_to_insert));
           LineColumn position = buffer_to_insert->position();
           if (position.line.IsZero()) {
             position.column += input.position.column.ToDelta();
           }
           position.line += input.position.line.ToDelta();
-          output.Push(NewSetPositionTransformation(position));
+          output.Push(
+              transformation::Build(transformation::SetPosition(position)));
           consumer(std::move(output));
         });
     return output.value;
@@ -176,8 +176,7 @@ class Execute : public CompositeTransformation {
                 OpenBuffer::New({.editor = editor, .name = L"- text inserted"});
             buffer_to_insert->AppendLazyString(NewLazyString(value->str));
             buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
-            output.Push(NewInsertBufferTransformation(
-                {.buffer_to_insert = buffer_to_insert}));
+            output.Push(transformation::Insert(buffer_to_insert));
           }
           return futures::Past(std::move(output));
         });

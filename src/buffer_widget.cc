@@ -88,7 +88,7 @@ std::set<Range> MergeSections(std::set<Range> input) {
   std::set<Range> output;
   for (auto& section : input) {
     auto merged_section =
-        output.empty() ? std::nullopt : output.rbegin()->Union(section);
+        output.empty() ? std::nullopt : output.rbegin()->Union(section).value;
     if (merged_section.has_value()) {
       output.erase(--output.end());
     }

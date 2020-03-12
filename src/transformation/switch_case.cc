@@ -7,6 +7,7 @@
 #include "src/transformation/insert.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
+#include "src/transformation/type.h"
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
@@ -41,26 +42,27 @@ class SwitchCaseTransformation : public CompositeTransformation {
 
     Output output = Output::SetPosition(input.range.begin);
 
-    DeleteOptions delete_options;
+    transformation::Delete delete_options;
     delete_options.modifiers.paste_buffer_behavior =
         Modifiers::PasteBufferBehavior::kDoNothing;
     delete_options.modifiers.repetitions =
         buffer_to_insert->contents()->CountCharacters();
     delete_options.mode = Transformation::Input::Mode::kFinal;
-    output.Push(NewDeleteTransformation(std::move(delete_options)));
+    output.Push(std::move(delete_options));
 
-    InsertOptions insert_options;
-    insert_options.buffer_to_insert = buffer_to_insert;
+    transformation::Insert insert_options(buffer_to_insert);
     if (input.modifiers.direction == Direction::kBackwards) {
-      insert_options.final_position = InsertOptions::FinalPosition::kStart;
+      insert_options.final_position =
+          transformation::Insert::FinalPosition::kStart;
     }
     if (input.mode == Transformation::Input::Mode::kPreview) {
       insert_options.modifiers_set = {LineModifier::UNDERLINE,
                                       LineModifier::BLUE};
     }
-    output.Push(NewInsertBufferTransformation(std::move(insert_options)));
+    output.Push(std::move(insert_options));
     if (input.mode == Transformation::Input::Mode::kPreview) {
-      output.Push(NewSetPositionTransformation(input.position));
+      output.Push(
+          transformation::Build(transformation::SetPosition(input.position)));
     }
     return futures::Past(std::move(output));
   }

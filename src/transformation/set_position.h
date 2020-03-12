@@ -1,20 +1,28 @@
-#ifndef __AFC_EDITOR_TRANSFORMATION_GOTO_POSITION_H__
-#define __AFC_EDITOR_TRANSFORMATION_GOTO_POSITION_H__
+#ifndef __AFC_EDITOR_TRANSFORMATION_SET_POSITION_H__
+#define __AFC_EDITOR_TRANSFORMATION_SET_POSITION_H__
 
 #include <memory>
 
+#include "src/futures/futures.h"
+#include "src/line_column.h"
 #include "src/transformation.h"
-#include "src/vm/public/environment.h"
 
-namespace afc::editor {
-// If column is greater than the length of the line, goes to the end of the
-// line.
-std::unique_ptr<Transformation> NewSetPositionTransformation(
-    LineColumn position);
-std::unique_ptr<Transformation> NewSetPositionTransformation(
-    std::optional<LineNumber>, ColumnNumber position);
+namespace afc::editor::transformation {
+struct SetPosition {
+  explicit SetPosition(LineColumn position)
+      : line(position.line), column(position.column) {}
+  explicit SetPosition(ColumnNumber column) : column(column) {}
 
-void RegisterSetPositionTransformation(vm::Environment* environment);
-}  // namespace afc::editor
+  std::optional<LineNumber> line;
+  // If column is greater than the length of the line, goes to the end of the
+  // line.
+  ColumnNumber column;
+};
 
-#endif  // __AFC_EDITOR_TRANSFORMATION_GOTO_POSITION_H__
+void RegisterSetPosition(vm::Environment* environment);
+
+futures::Value<Transformation::Result> ApplyBase(const SetPosition& parameters,
+                                                 Transformation::Input input);
+}  // namespace afc::editor::transformation
+
+#endif  // __AFC_EDITOR_TRANSFORMATION_SET_POSITION_H__

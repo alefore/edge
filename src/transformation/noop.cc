@@ -15,7 +15,8 @@ class Noop : public CompositeTransformation {
             {vm::VMType::Void()}, [](vector<unique_ptr<vm::Value>> args) {
               CHECK(args.empty());
               return vm::VMTypeMapper<editor::Transformation*>::New(
-                  NewNoopTransformation().release());
+                  NewTransformation(Modifiers(), NewNoopTransformation())
+                      .release());
             }));
   }
 
@@ -29,8 +30,8 @@ class Noop : public CompositeTransformation {
 };
 }  // namespace
 
-std::unique_ptr<Transformation> NewNoopTransformation() {
-  return NewTransformation(Modifiers(), std::make_unique<Noop>());
+std::unique_ptr<CompositeTransformation> NewNoopTransformation() {
+  return std::make_unique<Noop>();
 }
 
 void RegisterNoopTransformation(vm::Environment* environment) {

@@ -1,3 +1,4 @@
+
 ## Display
 
 Consider using unicode watches to display duration, using exponential/logarithmic growth.
@@ -28,6 +29,8 @@ Support more languages:
 
 ## Editing
 
+Have an auto-save mode? Perhaps don't save to the file but to a log that can then be replayed?
+
 Add structures for English editing:
 - Sentence clause. Initially probably just based on punctuation, ideally would be smart enough to parse the sentence, lol.
 
@@ -36,6 +39,8 @@ Implement delete of page.
 For 'd': Add '?' (show modifiers available).
 
 Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
+
+Make the delete buffer history (used by `p` paste) a stack; make it possible to pop.
 
 * Improve reflow:
 
@@ -90,6 +95,10 @@ When the prompt doesn't fit the screen, be smarter about what part to show? If i
 Standardize the colorization of prompts (based on prediction), rather than having each prompt implement its own coloring?
 
 For `:` (vm command), improve the highlighter: enable autocompletion with a predictor that looks up available commands (similarish to `/`).
+
+Bug: Often shows `history:1` when there's no matches. [p:5]
+
+Fix problem with first read of prompt history (at start); doesn't refresh list of matches. [p:20]
 
 ## Commands
 
@@ -146,6 +155,17 @@ Improve support for `for`: the environments aren't properly nested as they shoul
 Allow extensions to define classes or structures.
 
 Support `LineColumn line;` (rather than having to use `LineColumn line = LineColumn();`).
+
+### VM Integration
+
+Have `:` honor repetitions? Apply in the buffer referenced? [p:10]
+
+Make aC honor cursors (select based on cursors, similar to search). [p:10]
+
+Make aC replace the text with a string visualization of the result of evaluating the expression.
+* So that `12+45+89` gets replaced with a single number
+* A string gets inserted, `void` just becomes the empty string, a string just gets inserted.
+* Have undo honor this.
 
 ### Client/server
 

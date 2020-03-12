@@ -6,7 +6,7 @@
 #include "src/buffer_contents.h"
 #include "src/futures/futures.h"
 #include "src/transformation.h"
-#include "src/transformation/stack.h"
+#include "src/transformation/type.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {
@@ -27,6 +27,8 @@ class CompositeTransformationAdapter : public Transformation {
   const Modifiers modifiers_;
   const std::unique_ptr<CompositeTransformation> composite_transformation_;
 };
+
+class TransformationStack;
 
 // A particular type of transformation that doesn't directly modify the buffer
 // but only does so indirectly, through other transformations (that it passes to
@@ -54,9 +56,11 @@ class CompositeTransformation {
     static Output SetPosition(LineColumn position);
     static Output SetColumn(ColumnNumber column);
     Output();
-    Output(Output&&) = default;
+    Output(Output&&);
     Output(std::unique_ptr<Transformation> transformation);
+    ~Output();
     void Push(std::unique_ptr<Transformation> transformation);
+    void Push(transformation::BaseTransformation base_transformation);
 
    private:
     friend CompositeTransformationAdapter;

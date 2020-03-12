@@ -5,152 +5,124 @@
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
+#include "src/transformation/type.h"
 #include "src/vm_transformation.h"
 
 namespace afc {
 namespace vm {
 template <>
-struct VMTypeMapper<std::shared_ptr<editor::InsertOptions>> {
-  static std::shared_ptr<editor::InsertOptions> get(Value* value) {
+struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
+  static std::shared_ptr<editor::transformation::Insert> get(Value* value) {
     CHECK(value != nullptr);
     CHECK(value->type.type == VMType::OBJECT_TYPE);
     CHECK(value->type.object_type == L"InsertTransformationBuilder");
     CHECK(value->user_value != nullptr);
-    return std::static_pointer_cast<editor::InsertOptions>(value->user_value);
+    return std::static_pointer_cast<editor::transformation::Insert>(
+        value->user_value);
   }
-  static Value::Ptr New(std::shared_ptr<editor::InsertOptions> value) {
+  static Value::Ptr New(std::shared_ptr<editor::transformation::Insert> value) {
     return Value::NewObject(L"InsertTransformationBuilder",
                             std::shared_ptr<void>(value, value.get()));
   }
   static const VMType vmtype;
 };
 
-const VMType VMTypeMapper<std::shared_ptr<editor::InsertOptions>>::vmtype =
-    VMType::ObjectType(L"InsertTransformationBuilder");
+const VMType
+    VMTypeMapper<std::shared_ptr<editor::transformation::Insert>>::vmtype =
+        VMType::ObjectType(L"InsertTransformationBuilder");
 }  // namespace vm
-namespace editor {
-namespace {
-class InsertBufferTransformation : public Transformation {
- public:
-  InsertBufferTransformation(InsertOptions options,
-                             size_t buffer_to_insert_length)
-      : options_(std::move(options)),
-        buffer_to_insert_length_(buffer_to_insert_length) {
-    CHECK(options_.buffer_to_insert != nullptr);
+namespace editor::transformation {
+transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
+  transformation::Delete output;
+  output.modifiers.repetitions = repetitions;
+  output.modifiers.paste_buffer_behavior =
+      Modifiers::PasteBufferBehavior::kDoNothing;
+  return output;
+}
+
+futures::Value<Transformation::Result> ApplyBase(const Insert& options,
+                                                 Transformation::Input input) {
+  CHECK(input.buffer != nullptr);
+  size_t length = options.buffer_to_insert->contents()->CountCharacters();
+  if (length == 0) {
+    return futures::Past(Transformation::Result(input.position));
   }
 
-  std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
+  auto result =
+      std::make_shared<Transformation::Result>(input.buffer->AdjustLineColumn(
+          options.position.value_or(input.position)));
 
-  futures::Value<Result> Apply(const Input& input) const override {
-    CHECK(input.buffer != nullptr);
-    if (buffer_to_insert_length_ == 0) {
-      return futures::Past(Result(input.position));
-    }
+  result->modified_buffer = true;
+  result->made_progress = true;
 
-    auto result = std::make_shared<Result>(input.buffer->AdjustLineColumn(
-        options_.position.value_or(input.position)));
+  LineColumn start_position = result->position;
+  for (size_t i = 0; i < options.modifiers.repetitions.value_or(1); i++) {
+    result->position = input.buffer->InsertInPosition(
+        *options.buffer_to_insert, result->position, options.modifiers_set);
+  }
+  LineColumn final_position = result->position;
 
-    result->modified_buffer = true;
-    result->made_progress = true;
+  size_t chars_inserted = length * options.modifiers.repetitions.value_or(1);
+  result->undo_stack->PushFront(transformation::SetPosition(input.position));
+  result->undo_stack->PushFront(TransformationAtPosition(
+      start_position,
+      transformation::Build(GetCharactersDeleteOptions(chars_inserted))));
 
-    LineColumn start_position = result->position;
-    for (size_t i = 0; i < options_.modifiers.repetitions.value_or(1); i++) {
-      result->position = input.buffer->InsertInPosition(
-          *options_.buffer_to_insert, result->position, options_.modifiers_set);
-    }
-    LineColumn final_position = result->position;
-
-    size_t chars_inserted =
-        buffer_to_insert_length_ * options_.modifiers.repetitions.value_or(1);
-    result->undo_stack->PushFront(NewSetPositionTransformation(input.position));
-    result->undo_stack->PushFront(TransformationAtPosition(
-        start_position,
-        NewDeleteTransformation(GetCharactersDeleteOptions(chars_inserted))));
-
-    auto delayed_shared_result = futures::Past(result);
-    if (options_.modifiers.insertion == Modifiers::ModifyMode::kOverwrite) {
-      DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
-      delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
-      delete_options.modifiers.paste_buffer_behavior =
-          Modifiers::PasteBufferBehavior::kDoNothing;
-      delayed_shared_result = futures::Transform(
-          TransformationAtPosition(
-              result->position,
-              NewDeleteTransformation(std::move(delete_options)))
-              ->Apply(input),
-          [result](Result inner_result) {
-            result->MergeFrom(std::move(inner_result));
-            return result;
-          });
-    }
-
-    LineColumn position = options_.position.value_or(
-        options_.final_position == InsertOptions::FinalPosition::kStart
-            ? start_position
-            : final_position);
-
-    return futures::Transform(
-        delayed_shared_result,
-        [position](std::shared_ptr<Transformation::Result> result) {
-          result->position = position;
-          return std::move(*result);
+  auto delayed_shared_result = futures::Past(result);
+  if (options.modifiers.insertion == Modifiers::ModifyMode::kOverwrite) {
+    transformation::Delete delete_options =
+        GetCharactersDeleteOptions(chars_inserted);
+    delete_options.line_end_behavior =
+        transformation::Delete::LineEndBehavior::kStop;
+    delete_options.modifiers.paste_buffer_behavior =
+        Modifiers::PasteBufferBehavior::kDoNothing;
+    delayed_shared_result = futures::Transform(
+        TransformationAtPosition(
+            result->position, transformation::Build(std::move(delete_options)))
+            ->Apply(input),
+        [result](Transformation::Result inner_result) {
+          result->MergeFrom(std::move(inner_result));
+          return result;
         });
   }
 
-  unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<InsertBufferTransformation>(
-        options_, buffer_to_insert_length_);
-  }
+  LineColumn position = options.position.value_or(
+      options.final_position == Insert::FinalPosition::kStart ? start_position
+                                                              : final_position);
 
- private:
-  static DeleteOptions GetCharactersDeleteOptions(size_t repetitions) {
-    DeleteOptions output;
-    output.modifiers.repetitions = repetitions;
-    output.modifiers.paste_buffer_behavior =
-        Modifiers::PasteBufferBehavior::kDoNothing;
-    return output;
-  }
+  return futures::Transform(
+      delayed_shared_result,
+      [position](std::shared_ptr<Transformation::Result> result) {
+        result->position = position;
+        return std::move(*result);
+      });
+}
 
-  const InsertOptions options_;
-  const size_t buffer_to_insert_length_;
-};
-}  // namespace
-
-std::wstring InsertOptions::Serialize() const {
+std::wstring ToCode(const Insert& options) {
   std::wstring output = L"InsertTransformationBuilder()";
-  output +=
-      L".set_text(" +
-      CppEscapeString(buffer_to_insert->LineAt(LineNumber(0))->ToString()) +
-      L")";
-  output += L".set_modifiers(" + modifiers.Serialize() + L")";
-  if (position.has_value()) {
-    output += L".set_position(" + position.value().Serialize() + L")";
+  output += L".set_text(" +
+            CppEscapeString(
+                options.buffer_to_insert->LineAt(LineNumber(0))->ToString()) +
+            L")";
+  output += L".set_modifiers(" + options.modifiers.Serialize() + L")";
+  if (options.position.has_value()) {
+    output += L".set_position(" + options.position.value().Serialize() + L")";
   }
   return output;
 }
-std::unique_ptr<Transformation> NewInsertBufferTransformation(
-    InsertOptions insert_options) {
-  CHECK(insert_options.buffer_to_insert != nullptr);
-  size_t buffer_to_insert_length =
-      insert_options.buffer_to_insert->contents()->CountCharacters();
-  return std::make_unique<InsertBufferTransformation>(std::move(insert_options),
-                                                      buffer_to_insert_length);
-}
 
-void RegisterInsertTransformation(EditorState* editor,
-                                  vm::Environment* environment) {
+void RegisterInsert(EditorState* editor, vm::Environment* environment) {
   auto builder = std::make_unique<ObjectType>(L"InsertTransformationBuilder");
 
-  environment->Define(
-      L"InsertTransformationBuilder",
-      vm::NewCallback(std::function<std::shared_ptr<InsertOptions>()>(
-          [] { return std::make_shared<InsertOptions>(); })));
+  environment->Define(L"InsertTransformationBuilder",
+                      vm::NewCallback(std::function<std::shared_ptr<Insert>()>(
+                          [] { return std::make_shared<Insert>(); })));
 
   builder->AddField(
       L"set_text",
-      vm::NewCallback(std::function<std::shared_ptr<InsertOptions>(
-                          std::shared_ptr<InsertOptions>, wstring)>(
-          [editor](std::shared_ptr<InsertOptions> options, wstring text) {
+      vm::NewCallback(std::function<std::shared_ptr<Insert>(
+                          std::shared_ptr<Insert>, wstring)>(
+          [editor](std::shared_ptr<Insert> options, wstring text) {
             CHECK(options != nullptr);
             auto buffer_to_insert = OpenBuffer::New(OpenBuffer::Options(
                 {.editor = editor, .name = L"- text inserted"}));
@@ -165,24 +137,22 @@ void RegisterInsertTransformation(EditorState* editor,
 
   builder->AddField(
       L"set_modifiers",
-      vm::NewCallback(
-          std::function<std::shared_ptr<InsertOptions>(
-              std::shared_ptr<InsertOptions>, std::shared_ptr<Modifiers>)>(
-              [editor](std::shared_ptr<InsertOptions> options,
-                       std::shared_ptr<Modifiers> modifiers) {
-                CHECK(options != nullptr);
-                CHECK(modifiers != nullptr);
+      vm::NewCallback(std::function<std::shared_ptr<Insert>(
+                          std::shared_ptr<Insert>, std::shared_ptr<Modifiers>)>(
+          [editor](std::shared_ptr<Insert> options,
+                   std::shared_ptr<Modifiers> modifiers) {
+            CHECK(options != nullptr);
+            CHECK(modifiers != nullptr);
 
-                options->modifiers = *modifiers;
-                return options;
-              })));
+            options->modifiers = *modifiers;
+            return options;
+          })));
 
   builder->AddField(
       L"set_position",
-      NewCallback(std::function<std::shared_ptr<InsertOptions>(
-                      std::shared_ptr<InsertOptions>, LineColumn)>(
-          [editor](std::shared_ptr<InsertOptions> options,
-                   LineColumn position) {
+      NewCallback(std::function<std::shared_ptr<Insert>(std::shared_ptr<Insert>,
+                                                        LineColumn)>(
+          [editor](std::shared_ptr<Insert> options, LineColumn position) {
             CHECK(options != nullptr);
             options->position = position;
             return options;
@@ -190,13 +160,12 @@ void RegisterInsertTransformation(EditorState* editor,
 
   builder->AddField(
       L"build",
-      NewCallback(
-          std::function<Transformation*(std::shared_ptr<InsertOptions>)>(
-              [editor](std::shared_ptr<InsertOptions> options) {
-                return NewInsertBufferTransformation(*options).release();
-              })));
+      NewCallback(std::function<Transformation*(std::shared_ptr<Insert>)>(
+          [editor](std::shared_ptr<Insert> options) {
+            return transformation::Build(*options).release();
+          })));
 
   environment->DefineType(L"InsertTransformationBuilder", std::move(builder));
 }
-}  // namespace editor
+}  // namespace editor::transformation
 }  // namespace afc

@@ -4,11 +4,11 @@
 
 namespace afc::editor {
 namespace {
-PossibleError SyscallReturnValue(std::wstring name, int return_value) {
-  LOG(INFO) << "Syscall return value: " << name << ": " << return_value;
-  return return_value == -1
-             ? Error(name + L" failed: " + FromByteString(strerror(errno)))
-             : Success();
+PossibleError SyscallReturnValue(std::wstring description, int return_value) {
+  LOG(INFO) << "Syscall return value: " << description << ": " << return_value;
+  return return_value == -1 ? Error(description + L" failed: " +
+                                    FromByteString(strerror(errno)))
+                            : Success();
 }
 }  // namespace
 
@@ -19,10 +19,10 @@ futures::Value<ValueOrError<int>> FileSystemDriver::Open(std::wstring path,
                                                          int flags,
                                                          mode_t mode) {
   return evaluator_.Run([path = std::move(path), flags, mode]() {
+    LOG(INFO) << "Opening file:" << path;
     int fd = open(ToByteString(path).c_str(), flags, mode);
-    PossibleError output = SyscallReturnValue(L"Open", fd);
-    return output.IsError() ? ValueOrError<int>::Error(output.error.value())
-                            : ValueOrError<int>::Value(fd);
+    PossibleError output = SyscallReturnValue(L"Open: " + path, fd);
+    return output.IsError() ? Error(output.error.value()) : Success(fd);
   });
 }
 

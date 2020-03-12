@@ -5,13 +5,6 @@
 
 namespace afc::editor {
 
-PossibleError Success() {
-  return ValueOrError<EmptyValue>::Value(EmptyValue());
-}
-
-PossibleError Error(std::wstring description) {
-  LOG(INFO) << "Error detected: " << description;
-  return ValueOrError<EmptyValue>::Error(description);
-}
+ValueOrError<EmptyValue> Success() { return ValueType(EmptyValue()); }
 
 }  // namespace afc::editor

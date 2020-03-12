@@ -25,10 +25,12 @@ string IntegerAsString(Buffer buffer, LineColumn position) {
   return line.substr(0, i);
 }
 
+string number_characters = "-0123456789";
+
 LineColumn FindNextNumber(Buffer buffer, LineColumn position) {
   while (true) {
     string line = buffer.line(position.line());
-    int column = line.find_first_of("-0123456789", position.column());
+    int column = line.find_first_of(number_characters, position.column());
     if (column != -1) {
       return LineColumn(position.line(), column);
     }
@@ -39,9 +41,21 @@ LineColumn FindNextNumber(Buffer buffer, LineColumn position) {
   }
 }
 
+LineColumn ScrollBackToFirstPositionInNumber(Buffer buffer,
+                                             LineColumn position) {
+  string line = buffer.line(position.line());
+  while (position.column() > 0 &&
+         number_characters.find(line.substr(position.column() - 1, 1), 0) !=
+             -1) {
+    position = LineColumn(position.line(), position.column() - 1);
+  }
+  return position;
+}
+
 TransformationOutput AddToIntegerTransformationCallback(
     Buffer buffer, int delta, TransformationInput input) {
-  auto position = FindNextNumber(buffer, input.position());
+  auto position = ScrollBackToFirstPositionInNumber(
+      buffer, FindNextNumber(buffer, input.position()));
   string integer_str = IntegerAsString(buffer, position);
   return TransformationOutput()
       .push(SetPositionTransformation(position))

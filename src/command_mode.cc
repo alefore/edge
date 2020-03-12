@@ -54,6 +54,7 @@
 #include "src/transformation/stack.h"
 #include "src/transformation/switch_case.h"
 #include "src/transformation/tree_navigate.h"
+#include "src/transformation/type.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -135,14 +136,14 @@ class Paste : public Command {
               }
               buffer->CheckPosition();
               buffer->MaybeAdjustPositionCol();
-              InsertOptions insert_options;
+              transformation::Insert insert_options;
               insert_options.buffer_to_insert = paste_buffer;
               insert_options.modifiers.insertion =
                   editor_state->modifiers().insertion;
               insert_options.modifiers.repetitions =
                   editor_state->repetitions();
               return buffer->ApplyToCursors(
-                  NewInsertBufferTransformation(std::move(insert_options)));
+                  transformation::Build(std::move(insert_options)));
             }),
         [editor_state](EmptyValue) {
           editor_state->ResetInsertionModifier();
@@ -758,9 +759,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                           Modifiers(), ApplyDeleteCommand, editor_state));
   commands->Add(L"p", std::make_unique<Paste>());
 
-  DeleteOptions copy_options;
-  copy_options.modifiers.delete_behavior =
-      Modifiers::DeleteBehavior::kDoNothing;
   commands->Add(L"u", std::make_unique<UndoCommand>(std::nullopt));
   commands->Add(L"U", std::make_unique<UndoCommand>(Direction::kBackwards));
   commands->Add(L"\n", std::make_unique<ActivateLink>());

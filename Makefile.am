@@ -180,6 +180,8 @@ src/transformation/move.cc \
 src/transformation/move.h \
 src/transformation/noop.cc \
 src/transformation/noop.h \
+src/transformation/repetitions.cc \
+src/transformation/repetitions.h \
 src/transformation/set_position.cc \
 src/transformation/set_position.h \
 src/transformation/stack.cc \
@@ -188,6 +190,8 @@ src/transformation/switch_case.cc \
 src/transformation/switch_case.h \
 src/transformation/tree_navigate.cc \
 src/transformation/tree_navigate.h \
+src/transformation/type.cc \
+src/transformation/type.h \
 src/transformation.cc \
 src/transformation.h \
 src/value_or_error.cc \
