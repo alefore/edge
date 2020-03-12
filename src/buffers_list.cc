@@ -85,7 +85,14 @@ LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
                                    OpenBuffer* buffer,
                                    FilterResult filter_result) {
   LineModifierSet output;
-  if (filter_result == FilterResult::kExcluded) {
+  if (buffer->status()->GetType() == Status::Type::kWarning) {
+    output.insert(LineModifier::RED);
+    const double kSecondsWarningHighlight = 5;
+    if (GetElapsedSecondsSince(buffer->status()->last_change_time()) <
+        kSecondsWarningHighlight) {
+      output.insert(LineModifier::REVERSE);
+    }
+  } else if (filter_result == FilterResult::kExcluded) {
     output.insert(LineModifier::DIM);
   } else if (buffer->child_pid() != -1) {
     output.insert(LineModifier::YELLOW);
