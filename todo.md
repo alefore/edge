@@ -40,6 +40,8 @@ For 'd': Add '?' (show modifiers available).
 
 Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
 
+Make the delete buffer history (used by `p` paste) a stack; make it possible to pop.
+
 * Improve reflow:
 
   * Somehow integrate reflow (logic from `wrap_from_content`) with `reflow` script?
