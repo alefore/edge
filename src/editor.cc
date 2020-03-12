@@ -746,9 +746,12 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<wstring> buffers_with_problems;
     for (auto& it : buffers_) {
-      if (it.second->IsUnableToPrepareToClose().IsError()) {
+      if (auto result = it.second->IsUnableToPrepareToClose();
+          result.IsError()) {
         buffers_with_problems.push_back(
             it.second->Read(buffer_variables::name));
+        it.second->status()->SetWarningText(L"Unable to close: " +
+                                            result.error.value());
       }
     }
     if (!buffers_with_problems.empty()) {
