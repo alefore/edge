@@ -157,6 +157,8 @@ Support `LineColumn line;` (rather than having to use `LineColumn line = LineCol
 
 ## Misc
 
+If a file is open in a nonexistant directory, ... when the file is saved, consider creating the directory (perhaps based on a variable). Also, warn the user that the directory doesn't exist.
+
 Add a command-line flag that, when running as a client, causes paths to be resolved by the server, rather than as an absolute path in the client. This allows the server to apply EDGE_PATH and such.
 
 Don't do any blocking operations.
