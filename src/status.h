@@ -5,6 +5,7 @@
 
 #include "src/audio.h"
 #include "src/line_column.h"
+#include "src/time.h"
 
 namespace afc {
 namespace editor {
@@ -75,6 +76,10 @@ class Status {
   SetExpiringInformationText(std::wstring text);
   void SetWarningText(std::wstring text);
 
+  // Returns the time of the last call to a method in this class that changed
+  // the state of this instance.
+  struct timespec last_change_time() const;
+
   template <typename T>
   T ConsumeErrors(ValueOrError<T> value, T replacement_value) {
     if (value.IsError()) {
@@ -102,6 +107,8 @@ class Status {
   // changed (between the call to `SetExpiringInformationText` and the moment
   // when the `StatusExpirationControl` that it returns is deleted).
   struct Data {
+    const struct timespec creation_time = Now();
+
     const Type type = Type::kInformation;
     std::wstring text;
     const std::shared_ptr<OpenBuffer> prompt_buffer = nullptr;
