@@ -102,9 +102,9 @@ class Status {
   // changed (between the call to `SetExpiringInformationText` and the moment
   // when the `StatusExpirationControl` that it returns is deleted).
   struct Data {
-    Type type = Type::kInformation;
+    const Type type = Type::kInformation;
     std::wstring text;
-    std::shared_ptr<OpenBuffer> prompt_buffer = nullptr;
+    const std::shared_ptr<OpenBuffer> prompt_buffer = nullptr;
 
     // When `prompt_buffer` isn't nullptr, `prompt_context` may be set to a
     // buffer that contains either a preview of the results of executing the
