@@ -349,6 +349,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             }
             return condition;
           };
+          if (line.empty()) return true;
           auto line_keys = ParseHistoryLine(line.contents());
           if (line_keys.IsError()) {
             output.errors.push_back(line_keys.error.value());
