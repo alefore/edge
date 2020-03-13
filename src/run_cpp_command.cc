@@ -207,7 +207,7 @@ class RunCppCommand : public Command {
       options.handler(buffer->current_line()->ToString(), editor_state);
     } else {
       options.prompt = prompt + L" ";
-      options.history_file = prompt;
+      options.history_file = prompt == L":" ? L"colon" : prompt;
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       options.status = PromptOptions::Status::kBuffer;
       Prompt(options);
