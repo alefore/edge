@@ -1,13 +1,13 @@
 #ifndef __AFC_EDITOR_CURSORS_TRANSFORMATION_H__
 #define __AFC_EDITOR_CURSORS_TRANSFORMATION_H__
 
+#include <glog/logging.h>
+
 #include <list>
 #include <memory>
 
-#include <glog/logging.h>
-
-#include "buffer.h"
-#include "transformation.h"
+#include "src/buffer.h"
+#include "src/transformation.h"
 
 namespace afc {
 namespace editor {
