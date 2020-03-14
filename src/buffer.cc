@@ -1915,8 +1915,8 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     undo_past_.push_back(std::make_unique<transformation::Stack>());
   }
 
-  undo_past_.back()->PushFront(
-      NewSetCursorsTransformation(*active_cursors(), position()));
+  undo_past_.back()->PushFront(transformation::Cursors{
+      .cursors = *active_cursors(), .active = position()});
 
   if (cursors_affected == Modifiers::CursorsAffected::kAll) {
     CursorsSet single_cursor;

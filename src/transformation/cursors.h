@@ -9,13 +9,14 @@
 #include "src/buffer.h"
 #include "src/transformation.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor::transformation {
+struct Cursors {
+  editor::CursorsSet cursors;
+  editor::LineColumn active;
+};
 
-std::unique_ptr<Transformation> NewSetCursorsTransformation(CursorsSet cursors,
-                                                            LineColumn active);
-
-}  // namespace editor
-}  // namespace afc
+futures::Value<Transformation::Result> ApplyBase(const Cursors& parameters,
+                                                 Transformation::Input input);
+}  // namespace afc::editor::transformation
 
 #endif  // __AFC_EDITOR_CURSORS_TRANSFORMATION_H__
