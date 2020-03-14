@@ -1,15 +1,10 @@
 #ifndef __AFC_EDITOR_TIME_H__
 #define __AFC_EDITOR_TIME_H__
 
-#include <functional>
-#include <memory>
+#include <optional>
 #include <string>
-#include <unordered_set>
-#include <vector>
 
-#include "src/lazy_string.h"
-#include "src/line_column.h"
-#include "src/line_modifier.h"
+#include "src/value_or_error.h"
 
 namespace afc {
 namespace editor {
@@ -29,6 +24,8 @@ double GetElapsedSecondsAndUpdate(struct timespec* spec);
 // now and returns the elapsed time. Otherwise, returns nullopt.
 std::optional<double> UpdateIfMillisecondsHavePassed(
     struct timespec* spec, double required_milliseconds);
+
+ValueOrError<std::wstring> HumanReadableTime(const struct timespec& time);
 }  // namespace editor
 }  // namespace afc
 
