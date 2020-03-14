@@ -15,8 +15,8 @@ class NullLog : public Log {
 
 struct FileLogData {
   const int fd;
-  AsyncEvaluator async_evaluator;
   int next_id = 0;
+  AsyncEvaluator async_evaluator;
 };
 
 class FileLog : public Log {
@@ -26,10 +26,7 @@ class FileLog : public Log {
     Write(data_, id_, L"Start");
   }
 
-  ~FileLog() override {
-    LOG(INFO) << "Delete! XXXX";
-    Write(data_, id_, L"End");
-  }
+  ~FileLog() override { Write(data_, id_, L"End"); }
 
   void Append(std::wstring statement) {
     Write(data_, id_, L"Info: " + std::move(statement));
@@ -44,15 +41,20 @@ class FileLog : public Log {
  private:
   static void Write(std::shared_ptr<FileLogData> data, int id,
                     std::wstring statement) {
+    CHECK(data != nullptr);
     auto time = HumanReadableTime(Now());
-    data->async_evaluator.Run(
-        [data = std::move(data),
-         statement = ToByteString(
-             (time.IsError() ? L"[error:" + time.error.value() + L"]"
-                             : time.value.value()) +
-             L" " + std::to_wstring(id) + L": " + statement + L"\n")] {
-          return write(data->fd, statement.c_str(), statement.size());
-        });
+    auto data_raw = data.get();
+    futures::Transform(
+        data_raw->async_evaluator.Run(
+            [data = data_raw,
+             statement = ToByteString(
+                 (time.IsError() ? L"[error:" + time.error.value() + L"]"
+                                 : time.value.value()) +
+                 L" " + std::to_wstring(id) + L": " + statement + L"\n")] {
+              CHECK(data != nullptr);
+              return write(data->fd, statement.c_str(), statement.size());
+            }),
+        [data = std::move(data)](int) { return Success(); });
   }
 
   const std::shared_ptr<FileLogData> data_;

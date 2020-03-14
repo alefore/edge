@@ -96,6 +96,7 @@ class AsyncProcessor {
   }
 
   void PauseThread() {
+    LOG(INFO) << "Starting Pause Thread.";
     std::unique_lock<std::mutex> thread_creation_lock(thread_creation_mutex_);
     std::unique_lock<std::mutex> lock(mutex_);
     if (state_ == State::kNotRunning) {
