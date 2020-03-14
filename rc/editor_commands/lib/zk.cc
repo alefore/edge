@@ -1,20 +1,28 @@
+// This file contains functions that I use to manage my Zettelkasten.
+
 #include "paths.cc"
 
-void zkls() {
+void zkRunCommand(string command) {
   ForkCommandOptions options = ForkCommandOptions();
-  options.set_command("~/bin/zkls");
+  options.set_command(command);
   options.set_insertion_type("visit");
   ForkCommand(options);
 }
+
+void zkls() { zkRunCommand("~/bin/zkls"); }
 
 void zkrev() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     string path = Basename(buffer.path());
     if (path == "") return;
-    ForkCommandOptions options = ForkCommandOptions();
-    options.set_command("grep " + path.shell_escape() + " ???.md");
-    options.set_insertion_type("visit");
-    ForkCommand(options);
+    zkRunCommand("grep " + path.shell_escape() + " ???.md");
   });
   return;
+}
+
+// Produce the index.
+void zki() { OpenFile("index.md", true); }
+
+void zks(string query) {
+  zkRunCommand("grep " + query.shell_escape() + " ???.md");
 }
