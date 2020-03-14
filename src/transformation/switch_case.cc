@@ -75,7 +75,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
 
 std::unique_ptr<Transformation> NewSwitchCaseTransformation(
     Modifiers modifiers) {
-  return NewTransformation(std::move(modifiers),
-                           std::make_unique<SwitchCaseTransformation>());
+  return transformation::Build(transformation::ModifiersAndComposite{
+      std::move(modifiers), std::make_unique<SwitchCaseTransformation>()});
 }
 }  // namespace afc::editor

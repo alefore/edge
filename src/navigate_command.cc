@@ -314,8 +314,7 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
          SetOptionsForBufferTransformation<NavigateState>(
              [](EditorState*,
                 NavigateState state) -> std::unique_ptr<Transformation> {
-               return NewTransformation(
-                   Modifiers(),
+               return transformation::Build(
                    std::make_unique<NavigateTransformation>(std::move(state)));
              },
              [](const NavigateState&) {

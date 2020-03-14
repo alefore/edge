@@ -195,39 +195,42 @@ class ExpandTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"ExpandTransformation();"; }
 
   futures::Value<Output> Apply(Input input) const override {
+    using transformation::ModifiersAndComposite;
     Output output;
     if (input.position.column.IsZero()) return futures::Past(std::move(output));
 
     auto line = input.buffer->LineAt(input.position.line);
     auto c = line->get(input.position.column.previous());
+    std::unique_ptr<CompositeTransformation> transformation;
     switch (c) {
       case 'r': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output.Push(DeleteLastCharacters(1 + symbol.size()));
-        output.Push(NewTransformation(Modifiers(),
-                                      std::make_unique<ReadAndInsert>(symbol)));
+        transformation = std::make_unique<ReadAndInsert>(symbol);
       } break;
       case '/': {
         auto path = GetToken(input, buffer_variables::path_characters);
         output.Push(DeleteLastCharacters(1));
-        output.Push(NewTransformation(
-            Modifiers(),
-            std::make_unique<PredictorTransformation>(FilePredictor, path)));
+        transformation =
+            std::make_unique<PredictorTransformation>(FilePredictor, path);
       } break;
       case ' ': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output.Push(DeleteLastCharacters(1));
-        output.Push(NewTransformation(Modifiers(),
-                                      std::make_unique<PredictorTransformation>(
-                                          SyntaxBasedPredictor, symbol)));
+        transformation = std::make_unique<PredictorTransformation>(
+            SyntaxBasedPredictor, symbol);
       } break;
       case ':': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output.Push(DeleteLastCharacters(1));
-        output.Push(
-            NewTransformation(Modifiers(), std::make_unique<Execute>(symbol)));
+        transformation = std::make_unique<Execute>(symbol);
       }
     }
+    if (transformation != nullptr) {
+      output.Push(
+          ModifiersAndComposite{.transformation = std::move(transformation)});
+    }
+
     return futures::Past(std::move(output));
   }
 
@@ -239,8 +242,7 @@ class ExpandTransformation : public CompositeTransformation {
 };
 }  // namespace
 
-std::unique_ptr<Transformation> NewExpandTransformation() {
-  return NewTransformation(Modifiers(),
-                           std::make_unique<ExpandTransformation>());
+std::unique_ptr<CompositeTransformation> NewExpandTransformation() {
+  return std::make_unique<ExpandTransformation>();
 }
 }  // namespace afc::editor

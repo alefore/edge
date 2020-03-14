@@ -93,9 +93,8 @@ void RegisterTransformations(EditorState* editor,
           [](vector<unique_ptr<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
             return vm::VMTypeMapper<editor::Transformation*>::New(
-                NewTransformation(Modifiers(),
-                                  std::make_unique<FunctionTransformation>(
-                                      std::move(args[0])))
+                transformation::Build(std::make_unique<FunctionTransformation>(
+                                          std::move(args[0])))
                     .release());
           }));
   transformation::RegisterInsert(editor, environment);

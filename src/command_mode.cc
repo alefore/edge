@@ -259,7 +259,8 @@ class MoveForwards : public Command {
     }
 
     editor_state->ApplyToActiveBuffers(
-        NewTransformation(editor_state->modifiers(), NewMoveTransformation()));
+        transformation::Build(transformation::ModifiersAndComposite{
+            editor_state->modifiers(), NewMoveTransformation()}));
     editor_state->ResetRepetitions();
     editor_state->ResetStructure();
     editor_state->ResetDirection();

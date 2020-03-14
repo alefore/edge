@@ -94,10 +94,9 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
       ++input.position.line;
     }
     Output output = Output::SetPosition(LineColumn(input.position.line));
-    output.Push(NewTransformation(Modifiers(),
-                                  std::make_unique<NewLineTransformation>()));
-    output.Push(
-        transformation::Build(transformation::SetPosition(input.position)));
+    output.Push(transformation::ModifiersAndComposite{
+        Modifiers(), std::make_unique<NewLineTransformation>()});
+    output.Push(transformation::SetPosition(input.position));
     return futures::Past(std::move(output));
   }
 
@@ -122,7 +121,7 @@ class FindCompletionCommand : public Command {
     if (buffer == nullptr) {
       return;
     }
-    buffer->ApplyToCursors(NewExpandTransformation());
+    buffer->ApplyToCursors(transformation::Build(NewExpandTransformation()));
   }
 };
 
@@ -528,24 +527,29 @@ void DefaultScrollBehavior::Up(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
   modifiers.structure = StructureLine();
-  buffer->ApplyToCursors(NewTransformation(modifiers, NewMoveTransformation()));
+  buffer->ApplyToCursors(
+      transformation::Build(transformation::ModifiersAndComposite{
+          modifiers, NewMoveTransformation()}));
 }
 
 void DefaultScrollBehavior::Down(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.structure = StructureLine();
-  buffer->ApplyToCursors(NewTransformation(modifiers, NewMoveTransformation()));
+  buffer->ApplyToCursors(
+      transformation::Build(transformation::ModifiersAndComposite{
+          modifiers, NewMoveTransformation()}));
 }
 
 void DefaultScrollBehavior::Left(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
-  buffer->ApplyToCursors(NewTransformation(modifiers, NewMoveTransformation()));
+  buffer->ApplyToCursors(
+      transformation::Build(transformation::ModifiersAndComposite{
+          modifiers, NewMoveTransformation()}));
 }
 
 void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(
-      NewTransformation(Modifiers(), NewMoveTransformation()));
+  buffer->ApplyToCursors(transformation::Build(NewMoveTransformation()));
 }
 
 void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
@@ -610,15 +614,15 @@ void EnterInsertMode(InsertModeOptions options) {
 
   if (!options.new_line_handler) {
     options.new_line_handler = [](const std::shared_ptr<OpenBuffer>& buffer) {
-      return buffer->ApplyToCursors(NewTransformation(
-          Modifiers(), std::make_unique<NewLineTransformation>()));
+      return buffer->ApplyToCursors(
+          transformation::Build(std::make_unique<NewLineTransformation>()));
     };
   }
 
   if (!options.start_completion) {
     options.start_completion = [](const std::shared_ptr<OpenBuffer>& buffer) {
       LOG(INFO) << "Start default completion.";
-      buffer->ApplyToCursors(NewExpandTransformation());
+      buffer->ApplyToCursors(transformation::Build(NewExpandTransformation()));
       return true;
     };
   }
@@ -637,9 +641,9 @@ void EnterInsertMode(InsertModeOptions options) {
     }
     if (editor_state->structure() == StructureLine()) {
       for (auto& buffer : options.buffers.value()) {
-        buffer->ApplyToCursors(NewTransformation(
-            Modifiers(), std::make_unique<InsertEmptyLineTransformation>(
-                             editor_state->direction())));
+        buffer->ApplyToCursors(transformation::Build(
+            std::make_unique<InsertEmptyLineTransformation>(
+                editor_state->direction())));
       }
     }
     EnterInsertCharactersMode(options);

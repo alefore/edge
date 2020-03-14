@@ -13,15 +13,22 @@
 #include "src/transformation/set_position.h"
 #include "src/vm/public/environment.h"
 
-namespace afc::editor::transformation {
+namespace afc::editor {
+class CompositeTransformation;
+namespace transformation {
 class Stack;
 class SwapActiveCursor;
+class ModifiersAndComposite;
+using CompositePtr = std::shared_ptr<editor::CompositeTransformation>;
 
-using BaseTransformation = std::variant<Delete, Cursors, Insert, Repetitions,
-                                        SetPosition, Stack, SwapActiveCursor>;
-}  // namespace afc::editor::transformation
+using BaseTransformation =
+    std::variant<Delete, ModifiersAndComposite, CompositePtr, Cursors, Insert,
+                 Repetitions, SetPosition, Stack, SwapActiveCursor>;
+}  // namespace transformation
+}  // namespace afc::editor
 
 // Can't be included before we define BaseTransformations, since it needs it.
+#include "src/transformation/composite.h"
 #include "src/transformation/stack.h"
 
 namespace afc::editor::transformation {

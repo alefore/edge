@@ -15,8 +15,7 @@ class Noop : public CompositeTransformation {
             {vm::VMType::Void()}, [](vector<unique_ptr<vm::Value>> args) {
               CHECK(args.empty());
               return vm::VMTypeMapper<editor::Transformation*>::New(
-                  NewTransformation(Modifiers(), NewNoopTransformation())
-                      .release());
+                  transformation::Build(NewNoopTransformation()).release());
             }));
   }
 

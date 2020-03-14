@@ -80,7 +80,7 @@ unique_ptr<Transformation> TransformationAtPosition(
 }
 
 std::unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
-  return NewTransformation(
-      Modifiers(), std::make_unique<DeleteSuffixSuperfluousCharacters>());
+  return transformation::Build(
+      std::make_unique<DeleteSuffixSuperfluousCharacters>());
 }
 }  // namespace afc::editor

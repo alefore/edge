@@ -31,6 +31,7 @@ extern "C" {
 #include "src/substring.h"
 #include "src/terminal.h"
 #include "src/time.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/stack.h"
 #include "src/vm/public/callbacks.h"

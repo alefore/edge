@@ -2,6 +2,7 @@
 
 #include "src/char_buffer.h"
 #include "src/server.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"

@@ -1,5 +1,6 @@
 #include "src/transformation/stack.h"
 
+#include "src/transformation/composite.h"
 #include "src/vm_transformation.h"
 
 namespace afc::editor {

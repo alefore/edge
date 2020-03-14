@@ -6,28 +6,11 @@
 #include "src/buffer_contents.h"
 #include "src/futures/futures.h"
 #include "src/transformation.h"
+#include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {
-class CompositeTransformation;
-
-class CompositeTransformationAdapter : public Transformation {
- public:
-  CompositeTransformationAdapter(
-      Modifiers modifiers,
-      std::unique_ptr<CompositeTransformation> composite_transformation);
-
-  futures::Value<Result> Apply(
-      const Input& transformation_input) const override;
-
-  std::unique_ptr<Transformation> Clone() const override;
-
- private:
-  const Modifiers modifiers_;
-  const std::unique_ptr<CompositeTransformation> composite_transformation_;
-};
-
 namespace transformation {
 class Stack;
 }
@@ -57,25 +40,32 @@ class CompositeTransformation {
    public:
     static Output SetPosition(LineColumn position);
     static Output SetColumn(ColumnNumber column);
-    Output() = default;
+    Output();
     Output(Output&&);
     Output(std::unique_ptr<Transformation> transformation);
-    ~Output();
     void Push(std::unique_ptr<Transformation> transformation);
     void Push(transformation::BaseTransformation base_transformation);
 
-   private:
-    friend CompositeTransformationAdapter;
-    transformation::Stack transformations_;
+    std::unique_ptr<transformation::Stack> stack;
   };
   virtual futures::Value<Output> Apply(Input input) const = 0;
   virtual std::unique_ptr<CompositeTransformation> Clone() const = 0;
 };
 
-std::unique_ptr<Transformation> NewTransformation(
-    Modifiers modifiers, std::unique_ptr<CompositeTransformation> composite);
-
 void RegisterCompositeTransformation(vm::Environment* environment);
+namespace transformation {
+struct ModifiersAndComposite {
+  Modifiers modifiers = Modifiers();
+  std::shared_ptr<CompositeTransformation> transformation;
+};
+
+futures::Value<Transformation::Result> ApplyBase(
+    const ModifiersAndComposite& parameters, Transformation::Input input);
+futures::Value<Transformation::Result> ApplyBase(
+    const std::shared_ptr<CompositeTransformation>& parameters,
+    Transformation::Input input);
+
+}  // namespace transformation
 }  // namespace afc::editor
 namespace afc::vm {
 template <>

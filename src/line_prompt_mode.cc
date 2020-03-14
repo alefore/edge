@@ -23,6 +23,7 @@
 #include "src/terminal.h"
 #include "src/tests/tests.h"
 #include "src/tokenize.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
 #include "src/transformation/stack.h"
