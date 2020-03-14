@@ -5,7 +5,7 @@
 
 namespace afc::editor {
 namespace {
-BackgroundCallbackRunner NewBackgroundCallbackRunner(
+std::unique_ptr<BackgroundCallbackRunner> NewBackgroundCallbackRunner(
     std::wstring name,
     BackgroundCallbackRunner::Options::QueueBehavior push_behavior) {
   BackgroundCallbackRunner::Options options;
@@ -15,7 +15,7 @@ BackgroundCallbackRunner NewBackgroundCallbackRunner(
     input();
     return 0;  // Ignored.
   };
-  return BackgroundCallbackRunner(std::move(options));
+  return std::make_unique<BackgroundCallbackRunner>(std::move(options));
 }
 }  // namespace
 

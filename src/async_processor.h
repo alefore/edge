@@ -181,7 +181,7 @@ class AsyncEvaluator {
   template <typename Callable>
   auto Run(Callable callable) {
     futures::Future<decltype(callable())> output;
-    background_callback_runner_.Push(
+    background_callback_runner_->Push(
         [this, callable = std::move(callable),
          consumer = std::move(output.consumer)]() mutable {
           work_queue_->Schedule(
@@ -192,7 +192,7 @@ class AsyncEvaluator {
   }
 
  private:
-  BackgroundCallbackRunner background_callback_runner_;
+  std::unique_ptr<BackgroundCallbackRunner> background_callback_runner_;
   WorkQueue* work_queue_;
 };
 
