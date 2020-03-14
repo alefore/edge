@@ -40,7 +40,7 @@ class MoveCursorTransformation : public Transformation {
   }
 
   std::unique_ptr<Transformation> Clone() const override {
-    return std::unique_ptr<MoveCursorTransformation>();
+    return std::make_unique<MoveCursorTransformation>();
   }
 };
 
