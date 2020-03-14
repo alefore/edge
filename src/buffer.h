@@ -19,6 +19,7 @@
 #include "src/line.h"
 #include "src/line_column.h"
 #include "src/line_marks.h"
+#include "src/log.h"
 #include "src/map_mode.h"
 #include "src/parse_tree.h"
 #include "src/status.h"
@@ -102,6 +103,13 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     };
     std::function<futures::Value<PossibleError>(HandleSaveOptions)>
         handle_save = nullptr;
+
+    // Optional log to use. Must never return nullptr.
+    std::function<futures::ValueOrError<std::unique_ptr<Log>>(
+        WorkQueue* work_queue, std::wstring edge_state_directory)>
+        log_supplier = [](WorkQueue*, std::wstring) {
+          return futures::Past(Success(NewNullLog()));
+        };
   };
 
   static std::shared_ptr<OpenBuffer> New(Options options);
@@ -380,6 +388,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // current buffer. If the directory doesn't exist, creates it.
   ValueOrError<std::wstring> GetEdgeStateDirectory() const;
 
+  Log* log() const;
+
   void UpdateBackup();
 
   /////////////////////////////////////////////////////////////////////////////
@@ -463,6 +473,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void ReadData(std::unique_ptr<FileDescriptorReader>* source);
 
   const Options options_;
+
+  std::unique_ptr<Log> log_ = NewNullLog();
 
   std::unique_ptr<FileDescriptorReader> fd_;
   std::unique_ptr<FileDescriptorReader> fd_error_;

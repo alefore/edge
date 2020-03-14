@@ -496,6 +496,7 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
 }
 
 futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
+  log_->Append(L"PrepareToClose");
   LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
   if (auto is_unable = IsUnableToPrepareToClose(); is_unable.IsError()) {
     return futures::Past(is_unable);
@@ -534,8 +535,9 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
 }
 
 void OpenBuffer::Close() {
+  log_->Append(L"Closing");
   if (dirty() && Read(buffer_variables::save_on_close)) {
-    LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
+    log_->Append(L"Saving buffer: " + Read(buffer_variables::name));
     Save();
   }
   for (auto& observer : close_observers_) {
@@ -572,6 +574,7 @@ time_t OpenBuffer::last_visit() const { return last_visit_; }
 time_t OpenBuffer::last_action() const { return last_action_; }
 
 futures::Value<PossibleError> OpenBuffer::PersistState() const {
+  auto trace = log_->NewChild(L"Persist State");
   if (!Read(buffer_variables::persist_state)) {
     return futures::Past(ValueOrError(Success()));
   }
@@ -882,40 +885,64 @@ void OpenBuffer::Reload() {
   }
 
   auto paths = editor()->edge_path();
-  futures::ForEach(paths.begin(), paths.end(), [this](std::wstring dir) {
-    auto value = EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
-    if (!value.has_value()) return Past(IterationControlCommand::kContinue);
-    return futures::Transform(
-        value.value(), futures::Past(IterationControlCommand::kContinue));
-  }).SetConsumer([this](IterationControlCommand) {
-    if (editor()->exit_value().has_value()) return;
-    SetDiskState(DiskState::kCurrent);
-    LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
-
-    (options_.generate_contents != nullptr
-         ? options_.generate_contents(this)
-         : futures::Past(ValueOrError(Success())))
-        .SetConsumer(
-            [shared_this = shared_from_this(), this](ValueOrError<EmptyValue>) {
-              switch (reload_state_) {
-                case ReloadState::kDone:
-                  LOG(FATAL) << "Invalid reload state! Can't be kDone.";
-                  break;
-                case ReloadState::kOngoing:
-                  reload_state_ = ReloadState::kDone;
-                  if (fd_ == nullptr && fd_error_ == nullptr) {
-                    EndOfFile();
-                  }
-                  break;
-                case ReloadState::kPending:
-                  reload_state_ = ReloadState::kDone;
-                  if (fd_ == nullptr && fd_error_ == nullptr) {
-                    EndOfFile();
-                  }
-                  Reload();
-              }
+  futures::Transform(
+      futures::ForEach(
+          paths.begin(), paths.end(),
+          [this](std::wstring dir) {
+            if (auto value =
+                    EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
+                value.has_value()) {
+              return futures::Transform(
+                  value.value(),
+                  futures::Past(IterationControlCommand::kContinue));
+            }
+            return Past(IterationControlCommand::kContinue);
+          }),
+      [this](IterationControlCommand) -> futures::ValueOrError<EmptyValue> {
+        if (editor()->exit_value().has_value()) return futures::Past(Success());
+        SetDiskState(DiskState::kCurrent);
+        LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
+        return options_.generate_contents != nullptr
+                   ? IgnoreErrors(options_.generate_contents(this))
+                   : futures::Past(Success());
+      },
+      [this](EmptyValue) {
+        return futures::OnError(
+            futures::Transform(futures::Past(GetEdgeStateDirectory()),
+                               [this](std::wstring dir) {
+                                 return options_.log_supplier(&work_queue_,
+                                                              dir);
+                               }),
+            [](ValueOrError<std::unique_ptr<Log>> error) {
+              LOG(INFO) << "Error opening log: " << error.error.value();
+              return Success(NewNullLog());
             });
-  });
+      },
+      [this](std::unique_ptr<Log> log) -> futures::ValueOrError<EmptyValue> {
+        CHECK(log != nullptr);
+        log_ = std::move(log);
+        return futures::Past(Success());
+      },
+      [shared_this = shared_from_this(), this](EmptyValue) {
+        switch (reload_state_) {
+          case ReloadState::kDone:
+            LOG(FATAL) << "Invalid reload state! Can't be kDone.";
+            break;
+          case ReloadState::kOngoing:
+            reload_state_ = ReloadState::kDone;
+            if (fd_ == nullptr && fd_error_ == nullptr) {
+              EndOfFile();
+            }
+            break;
+          case ReloadState::kPending:
+            reload_state_ = ReloadState::kDone;
+            if (fd_ == nullptr && fd_error_ == nullptr) {
+              EndOfFile();
+            }
+            Reload();
+        }
+        return futures::Past(Success());
+      });
 }
 
 futures::Value<PossibleError> OpenBuffer::Save() {
@@ -970,9 +997,11 @@ ValueOrError<std::wstring> OpenBuffer::GetEdgeStateDirectory() const {
   return Success(path);
 }
 
+Log* OpenBuffer::log() const { return log_.get(); }
+
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
-  LOG(INFO) << "UpdateBackup starts: " << Read(buffer_variables::name);
+  log_->Append(L"UpdateBackup starts.");
   if (options_.handle_save != nullptr) {
     options_.handle_save(
         {.buffer = this, .save_type = Options::SaveType::kBackup});
@@ -1875,6 +1904,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
 
+  auto trace = log_->NewChild(L"ApplyToCursors transformation.");
   undo_future_.clear();
 
   if (!last_transformation_stack_.empty()) {
