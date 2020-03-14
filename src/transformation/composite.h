@@ -28,7 +28,9 @@ class CompositeTransformationAdapter : public Transformation {
   const std::unique_ptr<CompositeTransformation> composite_transformation_;
 };
 
-class TransformationStack;
+namespace transformation {
+class Stack;
+}
 
 // A particular type of transformation that doesn't directly modify the buffer
 // but only does so indirectly, through other transformations (that it passes to
@@ -55,7 +57,7 @@ class CompositeTransformation {
    public:
     static Output SetPosition(LineColumn position);
     static Output SetColumn(ColumnNumber column);
-    Output();
+    Output() = default;
     Output(Output&&);
     Output(std::unique_ptr<Transformation> transformation);
     ~Output();
@@ -64,7 +66,7 @@ class CompositeTransformation {
 
    private:
     friend CompositeTransformationAdapter;
-    std::unique_ptr<TransformationStack> transformations_;
+    transformation::Stack transformations_;
   };
   virtual futures::Value<Output> Apply(Input input) const = 0;
   virtual std::unique_ptr<CompositeTransformation> Clone() const = 0;

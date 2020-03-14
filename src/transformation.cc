@@ -55,7 +55,8 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
 Transformation::Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
 
 Transformation::Result::Result(LineColumn position)
-    : undo_stack(std::make_unique<TransformationStack>()), position(position) {}
+    : undo_stack(std::make_unique<transformation::Stack>()),
+      position(position) {}
 
 Transformation::Result::Result(Result&&) = default;
 Transformation::Result::~Result() = default;
@@ -64,7 +65,7 @@ void Transformation::Result::MergeFrom(Result sub_result) {
   success &= sub_result.success;
   made_progress |= sub_result.made_progress;
   modified_buffer |= sub_result.modified_buffer;
-  undo_stack->PushFront(std::move(sub_result.undo_stack->Build()));
+  undo_stack->PushFront(Build(std::move(*sub_result.undo_stack)));
   if (sub_result.delete_buffer != nullptr) {
     delete_buffer = std::move(sub_result.delete_buffer);
   }

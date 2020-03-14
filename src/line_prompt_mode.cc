@@ -25,6 +25,7 @@
 #include "src/tokenize.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
+#include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 #include "src/wstring.h"
 

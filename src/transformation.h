@@ -14,7 +14,10 @@
 namespace afc::editor {
 class OpenBuffer;
 struct LineColumn;
-class TransformationStack;
+
+namespace transformation {
+class Stack;
+}
 
 class Transformation {
  public:
@@ -60,7 +63,7 @@ class Transformation {
     bool modified_buffer = false;
 
     // Transformation that will undo any changes done by this one.
-    std::unique_ptr<TransformationStack> undo_stack;
+    std::unique_ptr<transformation::Stack> undo_stack;
 
     // If set to a buffer, it will replace the previous paste buffer.
     std::shared_ptr<OpenBuffer> delete_buffer;

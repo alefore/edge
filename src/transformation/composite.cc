@@ -77,7 +77,8 @@ futures::Value<Transformation::Result> CompositeTransformationAdapter::Apply(
   return futures::Transform(
       composite_transformation_->Apply(std::move(input)),
       [transformation_input](CompositeTransformation::Output output) {
-        return output.transformations_->Build()->Apply(transformation_input);
+        return Build(std::move(output.transformations_))
+            ->Apply(transformation_input);
       });
 }
 
@@ -96,23 +97,20 @@ CompositeTransformation::Output CompositeTransformation::Output::SetColumn(
   return Output(transformation::Build(transformation::SetPosition(column)));
 }
 
-CompositeTransformation::Output::Output()
-    : transformations_(std::make_unique<TransformationStack>()) {}
-
 CompositeTransformation::Output::Output(Output&& other)
     : transformations_(std::move(other.transformations_)) {}
 
 CompositeTransformation::Output::Output(
     std::unique_ptr<Transformation> transformation)
     : Output() {
-  transformations_->PushBack(std::move(transformation));
+  transformations_.PushBack(std::move(transformation));
 }
 
 CompositeTransformation::Output::~Output() {}
 
 void CompositeTransformation::Output::Push(
     std::unique_ptr<Transformation> transformation) {
-  transformations_->PushBack(std::move(transformation));
+  transformations_.PushBack(std::move(transformation));
 }
 
 void CompositeTransformation::Output::Push(

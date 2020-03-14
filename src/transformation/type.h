@@ -12,9 +12,16 @@
 #include "src/vm/public/environment.h"
 
 namespace afc::editor::transformation {
-using BaseTransformation =
-    std::variant<Delete, Insert, Repetitions, SetPosition>;
+class Stack;
 
+using BaseTransformation =
+    std::variant<Delete, Insert, Repetitions, SetPosition, Stack>;
+}  // namespace afc::editor::transformation
+
+// Can't be included before we define BaseTransformations, since it needs it.
+#include "src/transformation/stack.h"
+
+namespace afc::editor::transformation {
 void Register(vm::Environment* environment);
 
 void BaseTransformationRegister(vm::Environment* environment);

@@ -9,22 +9,19 @@
 
 namespace afc::editor {
 namespace transformation {
-class TransformationBase;
-}
-class TransformationStack {
- public:
-  TransformationStack();
-  void PushBack(std::unique_ptr<Transformation> transformation);
-  void PushFront(std::unique_ptr<Transformation> transformation);
-  void PushFront(transformation::BaseTransformation transformation);
+struct Stack {
+  void PushBack(std::unique_ptr<editor::Transformation> transformation);
+  void PushFront(std::unique_ptr<editor::Transformation> transformation);
+  void PushFront(BaseTransformation transformation);
 
-  std::unique_ptr<Transformation> Build();
-
- private:
-  // We use a shared_ptr so that a TransformationStack can be deleted while the
-  // evaluation of `Apply` is still running.
-  std::shared_ptr<std::list<std::unique_ptr<Transformation>>> stack_;
+  // TODO: This shouldn't be a shared_ptr. I guess ideally it'd just be a list
+  // of BaseTransformation.
+  std::list<std::shared_ptr<Transformation>> stack;
 };
+
+futures::Value<Transformation::Result> ApplyBase(const Stack& parameters,
+                                                 Transformation::Input input);
+}  // namespace transformation
 
 std::unique_ptr<Transformation> ComposeTransformation(
     std::unique_ptr<Transformation> a, std::unique_ptr<Transformation> b);

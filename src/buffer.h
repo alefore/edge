@@ -454,7 +454,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   static void EvaluateMap(OpenBuffer* buffer, LineNumber line,
                           Value::Callback map_callback,
-                          TransformationStack* transformation,
+                          transformation::Stack* transformation,
                           Trampoline* trampoline);
 
   futures::Value<Transformation::Result> Apply(
@@ -526,8 +526,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // When a transformation is done, we append its result to
   // transformations_past_, so that it can be undone.
-  std::list<std::unique_ptr<TransformationStack>> undo_past_;
-  std::list<std::unique_ptr<TransformationStack>> undo_future_;
+  std::list<std::unique_ptr<transformation::Stack>> undo_past_;
+  std::list<std::unique_ptr<transformation::Stack>> undo_future_;
 
   list<unique_ptr<Value>> keyboard_text_transformers_;
   const std::shared_ptr<Environment> environment_;
@@ -547,7 +547,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // this to non-null (to signal that we've entered this mode) and
   // OpenBuffer::PopTransformationStack (which sets this back to null and moves
   // this value to last_transformation_).
-  list<unique_ptr<TransformationStack>> last_transformation_stack_;
+  list<unique_ptr<transformation::Stack>> last_transformation_stack_;
 
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).

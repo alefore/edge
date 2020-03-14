@@ -1912,7 +1912,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     last_transformation_stack_.back()->PushBack(transformation->Clone());
     CHECK(!undo_past_.empty());
   } else {
-    undo_past_.push_back(std::make_unique<TransformationStack>());
+    undo_past_.push_back(std::make_unique<transformation::Stack>());
   }
 
   undo_past_.back()->PushFront(
@@ -1967,7 +1967,8 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
     }
 
     CHECK(!undo_past_.empty());
-    undo_past_.back()->PushFront(result.undo_stack->Build());
+    // TODO: The std::move below looks suspicious.
+    undo_past_.back()->PushFront(Build(std::move(*result.undo_stack)));
     return result;
   });
 }
@@ -1982,15 +1983,15 @@ futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {
 
 void OpenBuffer::PushTransformationStack() {
   if (last_transformation_stack_.empty()) {
-    undo_past_.push_back(std::make_unique<TransformationStack>());
+    undo_past_.push_back(std::make_unique<transformation::Stack>());
   }
   last_transformation_stack_.emplace_back(
-      std::make_unique<TransformationStack>());
+      std::make_unique<transformation::Stack>());
 }
 
 void OpenBuffer::PopTransformationStack() {
   CHECK(!last_transformation_stack_.empty());
-  last_transformation_ = std::move(last_transformation_stack_.back()->Build());
+  last_transformation_ = Build(std::move(*last_transformation_stack_.back()));
   last_transformation_stack_.pop_back();
   if (!last_transformation_stack_.empty()) {
     last_transformation_stack_.back()->PushBack(last_transformation_->Clone());
@@ -1999,8 +2000,8 @@ void OpenBuffer::PopTransformationStack() {
 
 futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
   struct Data {
-    std::list<std::unique_ptr<TransformationStack>>* source;
-    std::list<std::unique_ptr<TransformationStack>>* target;
+    std::list<std::unique_ptr<transformation::Stack>>* source;
+    std::list<std::unique_ptr<transformation::Stack>>* target;
     size_t repetitions = 0;
   };
   auto data = std::make_shared<Data>();
@@ -2022,7 +2023,7 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
         // We've undone the entire changes, so...
         last_transformation_stack_.clear();
         return futures::Transform(
-            data->source->back()->Build()->Apply(input),
+            Build(std::move(*data->source->back()))->Apply(input),
             [this, undo_mode, data](Transformation::Result result) {
               data->target->push_back(std::move(result.undo_stack));
               data->source->pop_back();

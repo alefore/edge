@@ -15,6 +15,7 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
+#include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 
 namespace afc::editor {
