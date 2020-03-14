@@ -47,6 +47,7 @@
 #include "src/terminal.h"
 #include "src/time.h"
 #include "src/transformation.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
 #include "src/transformation/move.h"
@@ -258,7 +259,7 @@ class MoveForwards : public Command {
     }
 
     editor_state->ApplyToActiveBuffers(
-        NewMoveTransformation(editor_state->modifiers()));
+        NewTransformation(editor_state->modifiers(), NewMoveTransformation()));
     editor_state->ResetRepetitions();
     editor_state->ResetStructure();
     editor_state->ResetDirection();

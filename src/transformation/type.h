@@ -7,15 +7,17 @@
 #include "src/transformation.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
+#include "src/transformation/move.h"
 #include "src/transformation/repetitions.h"
 #include "src/transformation/set_position.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor::transformation {
 class Stack;
+class SwapActiveCursor;
 
-using BaseTransformation =
-    std::variant<Delete, Insert, Repetitions, SetPosition, Stack>;
+using BaseTransformation = std::variant<Delete, Insert, Repetitions,
+                                        SetPosition, Stack, SwapActiveCursor>;
 }  // namespace afc::editor::transformation
 
 // Can't be included before we define BaseTransformations, since it needs it.

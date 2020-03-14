@@ -1,14 +1,23 @@
+#ifndef __AFC_EDITOR_TRANSFORMATION_MOVE_H__
+#define __AFC_EDITOR_TRANSFORMATION_MOVE_H__
+
 #include <memory>
 
 #include "src/modifiers.h"
 #include "src/transformation.h"
+#include "src/transformation/type.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+namespace transformation {
+// Transformation that swaps the current cursor with the next active cursor.
+struct SwapActiveCursor {};
 
-using std::unique_ptr;
+futures::Value<Transformation::Result> ApplyBase(
+    const SwapActiveCursor& parameters, Transformation::Input input);
+}  // namespace transformation
 
-unique_ptr<Transformation> NewMoveTransformation(const Modifiers& modifiers);
+class CompositeTransformation;
+std::unique_ptr<CompositeTransformation> NewMoveTransformation();
+}  // namespace afc::editor
 
-}  // namespace editor
-}  // namespace afc
+#endif  // __AFC_EDITOR_TRANSFORMATION_MOVE_H__

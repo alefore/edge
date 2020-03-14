@@ -14,36 +14,33 @@
 #include "src/transformation/set_position.h"
 
 namespace afc::editor {
-namespace {
-class MoveCursorTransformation : public Transformation {
-  futures::Value<Result> Apply(const Input& input) const override {
-    auto active_cursors = input.buffer->active_cursors();
-    if (input.position != *active_cursors->active()) {
-      LOG(INFO) << "Skipping cursor.";
-      return futures::Past(Result(input.position));
-    }
+namespace transformation {
+futures::Value<Transformation::Result> ApplyBase(const SwapActiveCursor&,
+                                                 Transformation::Input input) {
+  auto active_cursors = input.buffer->active_cursors();
+  if (input.position != *active_cursors->active()) {
+    LOG(INFO) << "Skipping cursor.";
+    return futures::Past(Transformation::Result(input.position));
+  }
 
-    Result output(input.buffer->FindNextCursor(input.position));
-    if (output.position == input.position) {
-      LOG(INFO) << "Cursor didn't move.";
-      return futures::Past(std::move(output));
-    }
-
-    VLOG(5) << "Moving cursor from " << input.position << " to "
-            << output.position;
-
-    auto next_it = active_cursors->find(output.position);
-    CHECK(next_it != active_cursors->end());
-    active_cursors->erase(next_it);
-    active_cursors->insert(input.position);
+  Transformation::Result output(input.buffer->FindNextCursor(input.position));
+  if (output.position == input.position) {
+    LOG(INFO) << "Cursor didn't move.";
     return futures::Past(std::move(output));
   }
 
-  std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<MoveCursorTransformation>();
-  }
-};
+  VLOG(5) << "Moving cursor from " << input.position << " to "
+          << output.position;
 
+  auto next_it = active_cursors->find(output.position);
+  CHECK(next_it != active_cursors->end());
+  active_cursors->erase(next_it);
+  active_cursors->insert(input.position);
+  return futures::Past(std::move(output));
+}
+};  // namespace transformation
+
+namespace {
 class MoveTransformation : public CompositeTransformation {
  public:
   MoveTransformation() {}
@@ -87,8 +84,7 @@ class MoveTransformation : public CompositeTransformation {
       position =
           MoveMark(input.buffer, input.original_position, input.modifiers);
     } else if (structure == StructureCursor()) {
-      return futures::Past(
-          Output(std::make_unique<MoveCursorTransformation>()));
+      return futures::Past(Output(Build(transformation::SwapActiveCursor())));
     } else {
       input.buffer->status()->SetWarningText(L"Unhandled structure: " +
                                              structure->ToString());
@@ -179,8 +175,7 @@ class MoveTransformation : public CompositeTransformation {
 };
 }  // namespace
 
-std::unique_ptr<Transformation> NewMoveTransformation(
-    const Modifiers& modifiers) {
-  return NewTransformation(modifiers, std::make_unique<MoveTransformation>());
+std::unique_ptr<CompositeTransformation> NewMoveTransformation() {
+  return std::make_unique<MoveTransformation>();
 }
 }  // namespace afc::editor

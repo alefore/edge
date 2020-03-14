@@ -528,23 +528,24 @@ void DefaultScrollBehavior::Up(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
   modifiers.structure = StructureLine();
-  buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+  buffer->ApplyToCursors(NewTransformation(modifiers, NewMoveTransformation()));
 }
 
 void DefaultScrollBehavior::Down(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.structure = StructureLine();
-  buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+  buffer->ApplyToCursors(NewTransformation(modifiers, NewMoveTransformation()));
 }
 
 void DefaultScrollBehavior::Left(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
-  buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+  buffer->ApplyToCursors(NewTransformation(modifiers, NewMoveTransformation()));
 }
 
 void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(NewMoveTransformation(Modifiers()));
+  buffer->ApplyToCursors(
+      NewTransformation(Modifiers(), NewMoveTransformation()));
 }
 
 void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
