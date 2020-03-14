@@ -3,6 +3,48 @@
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
+namespace {
+class Impl : public Transformation {
+ public:
+  Impl(std::shared_ptr<const std::list<std::unique_ptr<Transformation>>> stack)
+      : stack_(std::move(stack)) {}
+
+  futures::Value<Transformation::Result> Apply(const Input& input) const {
+    auto output = std::make_shared<Result>(input.position);
+    return futures::Transform(
+        futures::ForEach(
+            stack_->begin(), stack_->end(),
+            [output, input, stack = stack_](
+                const std::unique_ptr<Transformation>& transformation) {
+              Input sub_input(input.buffer);
+              sub_input.position = output->position;
+              sub_input.mode = input.mode;
+              return futures::Transform(
+                  transformation->Apply(sub_input),
+                  [output](Transformation::Result result) {
+                    output->MergeFrom(std::move(result));
+                    return output->success
+                               ? futures::IterationControlCommand::kContinue
+                               : futures::IterationControlCommand::kStop;
+                  });
+            }),
+        [output](futures::IterationControlCommand) {
+          return std::move(*output);
+        });
+  }
+
+  std::unique_ptr<Transformation> Clone() const override {
+    return std::make_unique<Impl>(stack_);
+  }
+
+ private:
+  // We use a shared_ptr so that a TransformationStack can be deleted while the
+  // evaluation of `Apply` is still running.
+  const std::shared_ptr<const std::list<std::unique_ptr<Transformation>>>
+      stack_;
+};
+}  // namespace
+
 TransformationStack::TransformationStack()
     : stack_(std::make_shared<std::list<std::unique_ptr<Transformation>>>()) {}
 
@@ -21,37 +63,12 @@ void TransformationStack::PushFront(
   PushFront(transformation::Build(std::move(transformation)));
 }
 
-futures::Value<Transformation::Result> TransformationStack::Apply(
-    const Input& input) const {
-  auto output = std::make_shared<Result>(input.position);
-  return futures::Transform(
-      futures::ForEach(
-          stack_->begin(), stack_->end(),
-          [output, input, stack = stack_](
-              const std::unique_ptr<Transformation>& transformation) {
-            Input sub_input(input.buffer);
-            sub_input.position = output->position;
-            sub_input.mode = input.mode;
-            return futures::Transform(
-                transformation->Apply(sub_input),
-                [output](Transformation::Result result) {
-                  output->MergeFrom(std::move(result));
-                  return output->success
-                             ? futures::IterationControlCommand::kContinue
-                             : futures::IterationControlCommand::kStop;
-                });
-          }),
-      [output](futures::IterationControlCommand) {
-        return std::move(*output);
-      });
-}
-
-std::unique_ptr<Transformation> TransformationStack::Clone() const {
-  auto output = std::make_unique<TransformationStack>();
+std::unique_ptr<Transformation> TransformationStack::Build() {
+  auto stack = std::make_shared<std::list<std::unique_ptr<Transformation>>>();
   for (auto& it : *stack_) {
-    output->PushBack(it->Clone());
+    stack->emplace_back(it->Clone());
   }
-  return output;
+  return std::make_unique<Impl>(std::move(stack));
 }
 
 std::unique_ptr<Transformation> ComposeTransformation(
@@ -59,6 +76,6 @@ std::unique_ptr<Transformation> ComposeTransformation(
   auto stack = std::make_unique<TransformationStack>();
   stack->PushBack(std::move(a));
   stack->PushBack(std::move(b));
-  return stack;
+  return stack->Build();
 }
 }  // namespace afc::editor

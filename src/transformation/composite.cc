@@ -77,7 +77,7 @@ futures::Value<Transformation::Result> CompositeTransformationAdapter::Apply(
   return futures::Transform(
       composite_transformation_->Apply(std::move(input)),
       [transformation_input](CompositeTransformation::Output output) {
-        return output.transformations_->Apply(transformation_input);
+        return output.transformations_->Build()->Apply(transformation_input);
       });
 }
 

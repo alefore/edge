@@ -1967,7 +1967,7 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
     }
 
     CHECK(!undo_past_.empty());
-    undo_past_.back()->PushFront(result.undo_stack->Clone());
+    undo_past_.back()->PushFront(result.undo_stack->Build());
     return result;
   });
 }
@@ -1990,7 +1990,7 @@ void OpenBuffer::PushTransformationStack() {
 
 void OpenBuffer::PopTransformationStack() {
   CHECK(!last_transformation_stack_.empty());
-  last_transformation_ = std::move(last_transformation_stack_.back());
+  last_transformation_ = std::move(last_transformation_stack_.back()->Build());
   last_transformation_stack_.pop_back();
   if (!last_transformation_stack_.empty()) {
     last_transformation_stack_.back()->PushBack(last_transformation_->Clone());
@@ -2022,7 +2022,7 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
         // We've undone the entire changes, so...
         last_transformation_stack_.clear();
         return futures::Transform(
-            data->source->back()->Apply(input),
+            data->source->back()->Build()->Apply(input),
             [this, undo_mode, data](Transformation::Result result) {
               data->target->push_back(std::move(result.undo_stack));
               data->source->pop_back();

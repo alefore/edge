@@ -11,16 +11,14 @@ namespace afc::editor {
 namespace transformation {
 class TransformationBase;
 }
-class TransformationStack : public Transformation {
+class TransformationStack {
  public:
   TransformationStack();
   void PushBack(std::unique_ptr<Transformation> transformation);
   void PushFront(std::unique_ptr<Transformation> transformation);
   void PushFront(transformation::BaseTransformation transformation);
 
-  futures::Value<Result> Apply(const Input& input) const override;
-
-  std::unique_ptr<Transformation> Clone() const override;
+  std::unique_ptr<Transformation> Build();
 
  private:
   // We use a shared_ptr so that a TransformationStack can be deleted while the
