@@ -10,13 +10,16 @@ futures::Value<Transformation::Result> ApplyBase(const Stack& parameters,
   // TODO: Avoid this copy? Ugh.
   auto copy = std::make_shared<std::list<std::unique_ptr<Transformation>>>();
   for (auto& p : parameters.stack) {
+    CHECK(p != nullptr);
     copy->push_back(p->Clone());
+    CHECK(copy->back() != nullptr);
   }
   return futures::Transform(
       futures::ForEach(
           copy->begin(), copy->end(),
-          [output, input,
-           copy](const std::unique_ptr<Transformation>& transformation) {
+          [output,
+           input](const std::unique_ptr<Transformation>& transformation) {
+            CHECK(transformation != nullptr);
             Transformation::Input sub_input(input.buffer);
             sub_input.position = output->position;
             sub_input.mode = input.mode;
@@ -29,7 +32,7 @@ futures::Value<Transformation::Result> ApplyBase(const Stack& parameters,
                              : futures::IterationControlCommand::kStop;
                 });
           }),
-      [output](futures::IterationControlCommand) {
+      [output, copy](futures::IterationControlCommand) {
         return std::move(*output);
       });
 }

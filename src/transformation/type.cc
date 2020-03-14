@@ -18,7 +18,9 @@ class Adapter : public Transformation {
   }
 
   std::unique_ptr<Transformation> Clone() const override {
-    return Build(base_transformation_);
+    auto output = Build(base_transformation_);
+    CHECK(output != nullptr);
+    return output;
   }
 
  private:

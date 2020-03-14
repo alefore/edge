@@ -1967,8 +1967,11 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
     }
 
     CHECK(!undo_past_.empty());
-    // TODO: The std::move below looks suspicious.
-    undo_past_.back()->PushFront(Build(std::move(*result.undo_stack)));
+    transformation::Stack stack;
+    for (auto& p : result.undo_stack->stack) {
+      stack.stack.push_back(p->Clone());
+    }
+    undo_past_.back()->PushFront(Build(std::move(stack)));
     return result;
   });
 }
