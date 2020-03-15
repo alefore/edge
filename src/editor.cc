@@ -441,8 +441,8 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       default_commands_(NewCommandMode(this)),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player),
-      buffer_tree_(
-          std::make_unique<WidgetListHorizontal>(this, BufferWidget::New())),
+      buffer_tree_(this, std::make_unique<WidgetListHorizontal>(
+                             this, BufferWidget::New())),
       status_(GetConsole(), audio_player_),
       work_queue_([this] { NotifyInternalEvent(); }) {
   auto paths = edge_path();

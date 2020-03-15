@@ -14,7 +14,7 @@ namespace afc::editor {
 // widget. At the bottom, displays a list of buffers.
 class BuffersList : public DelegatingWidget {
  public:
-  BuffersList(std::unique_ptr<Widget> widget);
+  BuffersList(const EditorState* editor_state, std::unique_ptr<Widget> widget);
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
   void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                  AddBufferType add_buffer_type);
@@ -56,6 +56,7 @@ class BuffersList : public DelegatingWidget {
                      callback) override;
 
  private:
+  const EditorState* const editor_state_;
   std::map<wstring, std::shared_ptr<OpenBuffer>> buffers_;
   std::unique_ptr<Widget> widget_;
 
