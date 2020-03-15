@@ -69,5 +69,10 @@ futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
       });
 }
 
+std::wstring ToStringBase(const Repetitions& v) {
+  return L"Repetitions(" + std::to_wstring(v.repetitions) + L", " +
+         ToString(*v.transformation) + L")";
+}
+
 }  // namespace editor::transformation
 }  // namespace afc

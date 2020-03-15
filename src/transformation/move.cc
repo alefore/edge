@@ -37,6 +37,11 @@ futures::Value<Result> ApplyBase(const SwapActiveCursor&, Input input) {
   active_cursors->insert(input.position);
   return futures::Past(std::move(output));
 }
+
+std::wstring ToStringBase(const SwapActiveCursor& v) {
+  return L"SwapActiveCursor();";
+}
+
 };  // namespace transformation
 
 namespace {

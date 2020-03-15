@@ -17,6 +17,7 @@ struct Stack {
 };
 
 futures::Value<Result> ApplyBase(const Stack& parameters, Input input);
+std::wstring ToStringBase(const Stack& stack);
 }  // namespace transformation
 
 transformation::Variant ComposeTransformation(transformation::Variant a,

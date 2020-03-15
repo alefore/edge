@@ -112,7 +112,7 @@ std::wstring Modifiers::Serialize() const {
   if (structure == StructureLine()) {
     output += L".set_line()";
   }
-  if (repetitions.has_value() != 1) {
+  if (repetitions.has_value()) {
     output +=
         L".set_repetitions(" + std::to_wstring(repetitions.value()) + L")";
   }

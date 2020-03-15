@@ -98,7 +98,7 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
       });
 }
 
-std::wstring ToCode(const Insert& options) {
+std::wstring ToStringBase(const Insert& options) {
   std::wstring output = L"InsertTransformationBuilder()";
   output += L".set_text(" +
             CppEscapeString(

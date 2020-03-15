@@ -71,9 +71,12 @@ futures::Value<Result> ApplyBase(const Modifiers& modifiers,
   input.range =
       transformation_input.buffer->FindPartialRange(modifiers, input.position);
   input.modifiers = modifiers;
+  std::shared_ptr<Log> trace =
+      input.buffer->log()->NewChild(L"ApplyBase(CompositeTransformation)");
   return futures::Transform(
       transformation->Apply(std::move(input)),
-      [transformation_input](CompositeTransformation::Output output) {
+      [transformation_input,
+       trace = std::move(trace)](CompositeTransformation::Output output) {
         return Apply(std::move(*output.stack), transformation_input);
       });
 }
@@ -89,6 +92,14 @@ futures::Value<Result> ApplyBase(const ModifiersAndComposite& parameters,
                                  Input input) {
   return ApplyBase(parameters.modifiers, parameters.transformation.get(),
                    std::move(input));
+}
+
+std::wstring ToStringBase(const ModifiersAndComposite& parameters) {
+  return L"ModifiersAndComposite();";
+}
+std::wstring ToStringBase(
+    const std::shared_ptr<CompositeTransformation>& parameters) {
+  return L"CompositeTransformation();";
 }
 
 }  // namespace transformation

@@ -2,6 +2,7 @@
 #define __AFC_EDITOR_TRANSFORMATION_MOVE_H__
 
 #include <memory>
+#include <string>
 
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
@@ -13,6 +14,7 @@ struct SwapActiveCursor {};
 
 futures::Value<Result> ApplyBase(const SwapActiveCursor& parameters,
                                  Input input);
+std::wstring ToStringBase(const SwapActiveCursor& v);
 }  // namespace transformation
 
 class CompositeTransformation;

@@ -35,5 +35,6 @@ std::ostream& operator<<(std::ostream& os, const Delete& options);
 void RegisterDelete(vm::Environment* environment);
 
 futures::Value<Result> ApplyBase(const Delete& parameters, Input input);
+std::wstring ToStringBase(const Delete& v);
 }  // namespace afc::editor::transformation
 #endif  // __AFC_EDITOR_TRANSFORMATION_DELETE_H__

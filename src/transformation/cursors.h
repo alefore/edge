@@ -14,6 +14,7 @@ struct Cursors {
 };
 
 futures::Value<Result> ApplyBase(const Cursors& parameters, Input input);
+std::wstring ToStringBase(const Cursors& v);
 }  // namespace afc::editor::transformation
 
 #endif  // __AFC_EDITOR_CURSORS_TRANSFORMATION_H__

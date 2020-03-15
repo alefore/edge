@@ -43,5 +43,8 @@ void BaseTransformationRegister(vm::Environment* environment);
 class Result;
 class Input;
 futures::Value<Result> Apply(Variant base_transformation, const Input& input);
+
+std::wstring ToString(const Variant& transformation);
+
 }  // namespace afc::editor::transformation
 #endif

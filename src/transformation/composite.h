@@ -62,6 +62,9 @@ futures::Value<Result> ApplyBase(const ModifiersAndComposite& parameters,
                                  Input input);
 futures::Value<Result> ApplyBase(
     const std::shared_ptr<CompositeTransformation>& parameters, Input input);
+std::wstring ToStringBase(const ModifiersAndComposite& parameters);
+std::wstring ToStringBase(
+    const std::shared_ptr<CompositeTransformation>& parameters);
 
 }  // namespace transformation
 }  // namespace afc::editor

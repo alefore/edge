@@ -1,5 +1,7 @@
 #include "src/transformation/stack.h"
 
+#include "src/buffer.h"
+#include "src/log.h"
 #include "src/transformation/composite.h"
 #include "src/vm_transformation.h"
 
@@ -8,10 +10,14 @@ namespace transformation {
 futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   auto output = std::make_shared<Result>(input.position);
   auto copy = std::make_shared<Stack>(parameters);
+  std::shared_ptr<Log> trace =
+      input.buffer->log()->NewChild(L"ApplyBase(Stack)");
   return futures::Transform(
       futures::ForEach(
           copy->stack.begin(), copy->stack.end(),
-          [output, input](const transformation::Variant& transformation) {
+          [output, input,
+           trace](const transformation::Variant& transformation) {
+            trace->Append(L"Transformation: " + ToString(transformation));
             Input sub_input(input.buffer);
             sub_input.position = output->position;
             sub_input.mode = input.mode;
@@ -26,6 +32,17 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
       [output, copy](futures::IterationControlCommand) {
         return std::move(*output);
       });
+}
+
+std::wstring ToStringBase(const Stack& stack) {
+  std::wstring output = L"Stack(";
+  std::wstring separator;
+  for (auto& v : stack.stack) {
+    output += separator + ToString(v);
+    separator = L", ";
+  }
+  output += L")";
+  return output;
 }
 
 void Stack::PushBack(Variant transformation) {

@@ -23,4 +23,9 @@ futures::Value<Result> ApplyBase(const Cursors& parameters, Input input) {
   input.buffer->set_active_cursors(positions);
   return futures::Past(Result(input.position));
 }
+
+std::wstring ToStringBase(const Cursors& v) {
+  return L"Cursors{.size = " + std::to_wstring(v.cursors.size()) + L"};";
+}
+
 }  // namespace afc::editor::transformation

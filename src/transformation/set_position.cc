@@ -34,4 +34,14 @@ futures::Value<Result> ApplyBase(const SetPosition& parameters, Input input) {
   result.made_progress = result.position != input.position;
   return futures::Past(std::move(result));
 }
+
+std::wstring ToStringBase(const SetPosition& v) {
+  if (v.line.has_value()) {
+    return L"SetPositionTransformation(LineColumn(" +
+           std::to_wstring(v.line.value().line) + L", " +
+           std::to_wstring(v.column.column) + L"))";
+  }
+  return L"SetColumnTransformation(" + std::to_wstring(v.column.column) + L")";
+}
+
 }  // namespace afc::editor::transformation

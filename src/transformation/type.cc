@@ -12,6 +12,12 @@ futures::Value<Result> Apply(BaseTransformation base_transformation,
                     base_transformation);
 }
 
+std::wstring ToString(const Variant& transformation) {
+  return std::visit(
+      [&](auto& value) -> std::wstring { return ToStringBase(value); },
+      transformation);
+}
+
 Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
 
 Result::Result(LineColumn position)

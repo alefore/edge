@@ -1901,6 +1901,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     Modifiers::CursorsAffected cursors_affected,
     transformation::Input::Mode mode) {
   auto trace = log_->NewChild(L"ApplyToCursors transformation.");
+  trace->Append(L"Transformation: " + transformation::ToString(transformation));
   undo_future_.clear();
 
   if (!last_transformation_stack_.empty()) {
