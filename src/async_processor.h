@@ -59,6 +59,8 @@ class AsyncProcessor {
           return options;
         }()) {}
 
+  // As we return, we guarantee that there's no ongoing execution of
+  // `options_.factory` and none will happen in the future.
   ~AsyncProcessor() { PauseThread(); }
 
   void Push(Input input) {
