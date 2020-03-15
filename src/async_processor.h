@@ -174,13 +174,18 @@ using BackgroundCallbackRunner = AsyncProcessor<std::function<void()>, int>;
 
 class AsyncEvaluator {
  public:
+  // work_queue is optional. It will be required if AsyncEvaluator::Run is used.
+  // Otherwise, it may be null.
   AsyncEvaluator(
       std::wstring name, WorkQueue* work_queue,
       BackgroundCallbackRunner::Options::QueueBehavior push_behavior =
           BackgroundCallbackRunner::Options::QueueBehavior::kWait);
 
+  // Callers must ensure that the underlying `work_queue` doesn't get destroyed
+  // until the future is notified.
   template <typename Callable>
   auto Run(Callable callable) {
+    CHECK(work_queue_ != nullptr);
     futures::Future<decltype(callable())> output;
     background_callback_runner_->Push(
         [this, callable = std::move(callable),
@@ -190,6 +195,12 @@ class AsyncEvaluator {
                value = callable()]() mutable { consumer(std::move(value)); });
         });
     return std::move(output.value);
+  }
+
+  template <typename Callable>
+  void RunIgnoringResults(Callable callable) {
+    background_callback_runner_->Push(
+        [callable = std::move(callable)]() { callable(); });
   }
 
  private:
