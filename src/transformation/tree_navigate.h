@@ -7,7 +7,7 @@
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {
-std::unique_ptr<Transformation> NewTreeNavigateTransformation();
+transformation::Variant NewTreeNavigateTransformation();
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_TRANSFORMATION_TREE_NAVIGATE_H__

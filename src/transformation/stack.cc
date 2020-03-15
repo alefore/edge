@@ -5,28 +5,18 @@
 
 namespace afc::editor {
 namespace transformation {
-futures::Value<Transformation::Result> ApplyBase(const Stack& parameters,
-                                                 Transformation::Input input) {
-  auto output = std::make_shared<Transformation::Result>(input.position);
-  // TODO: Avoid this copy? Ugh.
-  auto copy = std::make_shared<std::list<std::unique_ptr<Transformation>>>();
-  for (auto& p : parameters.stack) {
-    CHECK(p != nullptr);
-    copy->push_back(p->Clone());
-    CHECK(copy->back() != nullptr);
-  }
+futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
+  auto output = std::make_shared<Result>(input.position);
+  auto copy = std::make_shared<Stack>(parameters);
   return futures::Transform(
       futures::ForEach(
-          copy->begin(), copy->end(),
-          [output,
-           input](const std::unique_ptr<Transformation>& transformation) {
-            CHECK(transformation != nullptr);
-            Transformation::Input sub_input(input.buffer);
+          copy->stack.begin(), copy->stack.end(),
+          [output, input](const transformation::Variant& transformation) {
+            Input sub_input(input.buffer);
             sub_input.position = output->position;
             sub_input.mode = input.mode;
             return futures::Transform(
-                transformation->Apply(sub_input),
-                [output](Transformation::Result result) {
+                Apply(transformation, sub_input), [output](Result result) {
                   output->MergeFrom(std::move(result));
                   return output->success
                              ? futures::IterationControlCommand::kContinue
@@ -38,24 +28,17 @@ futures::Value<Transformation::Result> ApplyBase(const Stack& parameters,
       });
 }
 
-void Stack::PushBack(std::unique_ptr<Transformation> transformation) {
+void Stack::PushBack(Variant transformation) {
   stack.push_back(std::move(transformation));
 }
 
-void Stack::PushFront(std::unique_ptr<Transformation> transformation) {
+void Stack::PushFront(Variant transformation) {
   stack.push_front(std::move(transformation));
-}
-
-void Stack::PushFront(transformation::BaseTransformation transformation) {
-  PushFront(transformation::Build(std::move(transformation)));
 }
 }  // namespace transformation
 
-std::unique_ptr<Transformation> ComposeTransformation(
-    std::unique_ptr<Transformation> a, std::unique_ptr<Transformation> b) {
-  transformation::Stack stack;
-  stack.PushBack(std::move(a));
-  stack.PushBack(std::move(b));
-  return Build(std::move(stack));
+transformation::Variant ComposeTransformation(transformation::Variant a,
+                                              transformation::Variant b) {
+  return transformation::Stack{{std::move(a), std::move(b)}};
 }
 }  // namespace afc::editor

@@ -15,15 +15,14 @@
 
 namespace afc::editor {
 namespace transformation {
-futures::Value<Transformation::Result> ApplyBase(const SwapActiveCursor&,
-                                                 Transformation::Input input) {
+futures::Value<Result> ApplyBase(const SwapActiveCursor&, Input input) {
   auto active_cursors = input.buffer->active_cursors();
   if (input.position != *active_cursors->active()) {
     LOG(INFO) << "Skipping cursor.";
-    return futures::Past(Transformation::Result(input.position));
+    return futures::Past(Result(input.position));
   }
 
-  Transformation::Result output(input.buffer->FindNextCursor(input.position));
+  Result output(input.buffer->FindNextCursor(input.position));
   if (output.position == input.position) {
     LOG(INFO) << "Cursor didn't move.";
     return futures::Past(std::move(output));
@@ -84,7 +83,7 @@ class MoveTransformation : public CompositeTransformation {
       position =
           MoveMark(input.buffer, input.original_position, input.modifiers);
     } else if (structure == StructureCursor()) {
-      return futures::Past(Output(Build(transformation::SwapActiveCursor())));
+      return futures::Past(Output(transformation::SwapActiveCursor()));
     } else {
       input.buffer->status()->SetWarningText(L"Unhandled structure: " +
                                              structure->ToString());

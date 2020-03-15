@@ -14,9 +14,9 @@ namespace vm {
 class Environment;
 
 template <>
-struct VMTypeMapper<editor::Transformation*> {
-  static editor::Transformation* get(Value* value);
-  static Value::Ptr New(editor::Transformation* value);
+struct VMTypeMapper<editor::transformation::Variant*> {
+  static editor::transformation::Variant* get(Value* value);
+  static Value::Ptr New(editor::transformation::Variant* value);
   static const VMType vmtype;
 };
 }  // namespace vm

@@ -189,16 +189,16 @@ using std::to_wstring;
       L"ApplyTransformation",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()),
-           vm::VMTypeMapper<editor::Transformation*>::vmtype},
+           vm::VMTypeMapper<editor::transformation::Variant*>::vmtype},
           [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
             CHECK_EQ(args.size(), 2ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
-            auto transformation =
-                static_cast<Transformation*>(args[1]->user_value.get());
+            auto transformation = static_cast<editor::transformation::Variant*>(
+                args[1]->user_value.get());
             return futures::Transform(
-                buffer->ApplyToCursors(transformation->Clone()),
+                buffer->ApplyToCursors(*transformation),
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
@@ -238,7 +238,7 @@ using std::to_wstring;
                     buffer->ApplyToCursors(
                         NewDeleteTransformation(options),
                         Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
-                        Transformation::Input::Mode::kPreview,
+                        transformation::Input::Mode::kPreview,
                         [buffer] () {
                       buffer->PopTransformationStack();
                     });
@@ -460,9 +460,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       environment_(
           std::make_shared<Environment>(options_.editor->environment())),
       filter_version_(0),
-      last_transformation_(
-          transformation::Build(transformation::ModifiersAndComposite{
-              Modifiers(), NewNoopTransformation()})),
+      last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
@@ -647,9 +645,7 @@ void OpenBuffer::ClearContents(
   if (terminal_ != nullptr) {
     terminal_->SetPosition(LineColumn());
   }
-  last_transformation_ =
-      transformation::Build(transformation::ModifiersAndComposite{
-          .transformation = NewNoopTransformation()});
+  last_transformation_ = NewNoopTransformation();
   last_transformation_stack_.clear();
   undo_past_.clear();
   undo_future_.clear();
@@ -1892,26 +1888,24 @@ void OpenBuffer::Set(const EdgeVariable<LineColumn>* variable,
 }
 
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
-    std::unique_ptr<Transformation> transformation) {
+    transformation::Variant transformation) {
   return ApplyToCursors(std::move(transformation),
                         Read(buffer_variables::multiple_cursors)
                             ? Modifiers::CursorsAffected::kAll
                             : Modifiers::CursorsAffected::kOnlyCurrent,
-                        Transformation::Input::Mode::kFinal);
+                        transformation::Input::Mode::kFinal);
 }
 
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
-    std::unique_ptr<Transformation> transformation,
+    transformation::Variant transformation,
     Modifiers::CursorsAffected cursors_affected,
-    Transformation::Input::Mode mode) {
-  CHECK(transformation != nullptr);
-
+    transformation::Input::Mode mode) {
   auto trace = log_->NewChild(L"ApplyToCursors transformation.");
   undo_future_.clear();
 
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
-    last_transformation_stack_.back()->PushBack(transformation->Clone());
+    last_transformation_stack_.back()->PushBack(transformation);
     CHECK(!undo_past_.empty());
   } else {
     undo_past_.push_back(std::make_unique<transformation::Stack>());
@@ -1924,38 +1918,34 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
-    std::shared_ptr<Transformation> transformation_shared =
-        std::move(transformation);
     return cursors_tracker_.ApplyTransformationToCursors(
-        cursors, [this, transformation_shared, mode](LineColumn position) {
+        cursors, [this, transformation = std::move(transformation),
+                  mode](LineColumn position) {
           return futures::Transform(
-              Apply(transformation_shared->Clone(), position, mode),
-              [](Transformation::Result result) { return result.position; });
+              Apply(transformation, position, mode),
+              [](transformation::Result result) { return result.position; });
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     return futures::Transform(
         Apply(std::move(transformation), position(), mode),
-        [this](const Transformation::Result& result) {
+        [this](const transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
           return EmptyValue();
         });
   }
 }
 
-futures::Value<typename Transformation::Result> OpenBuffer::Apply(
-    std::unique_ptr<Transformation> transformation, LineColumn position,
-    Transformation::Input::Mode mode) {
-  CHECK(transformation != nullptr);
-
-  Transformation::Input input(this);
+futures::Value<typename transformation::Result> OpenBuffer::Apply(
+    transformation::Variant transformation, LineColumn position,
+    transformation::Input::Mode mode) {
+  transformation::Input input(this);
   input.mode = mode;
   input.position = position;
-  auto inner_future = transformation->Apply(input);
-  return futures::Transform(inner_future, [this, transformation_raw =
-                                                     transformation.release()](
-                                              Transformation::Result result) {
-    std::unique_ptr<Transformation> transformation(transformation_raw);
+  auto inner_future = transformation::Apply(transformation, std::move(input));
+  return futures::Transform(inner_future, [this, transformation =
+                                                     std::move(transformation)](
+                                              transformation::Result result) {
     if (result.delete_buffer != nullptr &&
         Read(buffer_variables::delete_into_paste_buffer)) {
       (*editor()
@@ -1969,11 +1959,8 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
     }
 
     CHECK(!undo_past_.empty());
-    transformation::Stack stack;
-    for (auto& p : result.undo_stack->stack) {
-      stack.stack.push_back(p->Clone());
-    }
-    undo_past_.back()->PushFront(Build(std::move(stack)));
+    undo_past_.back()->PushFront(
+        transformation::Stack{.stack = result.undo_stack->stack});
     return result;
   });
 }
@@ -1981,9 +1968,9 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
 futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {
   size_t repetitions = options_.editor->repetitions().value_or(1);
   options_.editor->ResetRepetitions();
-  return ApplyToCursors(transformation::Build(transformation::Repetitions{
+  return ApplyToCursors(transformation::Repetitions{
       repetitions,
-      std::shared_ptr<Transformation>(last_transformation_->Clone())}));
+      std::make_shared<transformation::Variant>(last_transformation_)});
 }
 
 void OpenBuffer::PushTransformationStack() {
@@ -1996,10 +1983,10 @@ void OpenBuffer::PushTransformationStack() {
 
 void OpenBuffer::PopTransformationStack() {
   CHECK(!last_transformation_stack_.empty());
-  last_transformation_ = Build(std::move(*last_transformation_stack_.back()));
+  last_transformation_ = std::move(*last_transformation_stack_.back());
   last_transformation_stack_.pop_back();
   if (!last_transformation_stack_.empty()) {
-    last_transformation_stack_.back()->PushBack(last_transformation_->Clone());
+    last_transformation_stack_.back()->PushBack(last_transformation_);
   }
 }
 
@@ -2023,13 +2010,13 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
             data->source->empty()) {
           return futures::Past(IterationControlCommand::kStop);
         }
-        Transformation::Input input(this);
+        transformation::Input input(this);
         input.position = position();
         // We've undone the entire changes, so...
         last_transformation_stack_.clear();
         return futures::Transform(
-            Build(std::move(*data->source->back()))->Apply(input),
-            [this, undo_mode, data](Transformation::Result result) {
+            transformation::Apply(*data->source->back(), input),
+            [this, undo_mode, data](transformation::Result result) {
               data->target->push_back(std::move(result.undo_stack));
               data->source->pop_back();
               if (result.modified_buffer ||

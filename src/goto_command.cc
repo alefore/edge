@@ -93,8 +93,7 @@ class GotoCommand : public Command {
         structure == StructurePage() || structure == StructureSearch() ||
         structure == StructureCursor()) {
       editor_state->ApplyToActiveBuffers(
-          transformation::Build(transformation::ModifiersAndComposite{
-              Modifiers(), std::make_unique<GotoTransformation>(calls_)}));
+          std::make_unique<GotoTransformation>(calls_));
     } else if (structure == StructureBuffer()) {
       size_t buffers = editor_state->buffers()->size();
       size_t position =

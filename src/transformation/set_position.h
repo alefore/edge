@@ -5,7 +5,8 @@
 
 #include "src/futures/futures.h"
 #include "src/line_column.h"
-#include "src/transformation.h"
+#include "src/transformation/input.h"
+#include "src/transformation/result.h"
 
 namespace afc::editor::transformation {
 struct SetPosition {
@@ -21,8 +22,7 @@ struct SetPosition {
 
 void RegisterSetPosition(vm::Environment* environment);
 
-futures::Value<Transformation::Result> ApplyBase(const SetPosition& parameters,
-                                                 Transformation::Input input);
+futures::Value<Result> ApplyBase(const SetPosition& parameters, Input input);
 }  // namespace afc::editor::transformation
 
 #endif  // __AFC_EDITOR_TRANSFORMATION_SET_POSITION_H__

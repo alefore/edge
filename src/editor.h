@@ -23,14 +23,14 @@
 #include "src/modifiers.h"
 #include "src/status.h"
 #include "src/transformation.h"
+#include "src/transformation/type.h"
 #include "src/widget.h"
 #include "src/widget_list.h"
 #include "src/work_queue.h"
 #include "vm/public/environment.h"
 #include "vm/public/vm.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 using namespace afc::vm;
 
@@ -96,7 +96,7 @@ class EditorState {
 
   // Convenience wrapper of `ForEachActiveBuffer` that applies `transformation`.
   futures::Value<EmptyValue> ApplyToActiveBuffers(
-      std::unique_ptr<Transformation> transformation);
+      transformation::Variant transformation);
 
   wstring GetUnusedBufferName(const wstring& prefix);
   std::optional<int> exit_value() const { return exit_value_; }
@@ -270,7 +270,6 @@ class EditorState {
   mutable WorkQueue work_queue_;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif

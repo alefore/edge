@@ -1,9 +1,13 @@
 #ifndef __AFC_EDITOR_TRANSFORMATION_DELETE_H__
 #define __AFC_EDITOR_TRANSFORMATION_DELETE_H__
-#include <memory>
 
-#include "src/editor.h"
-#include "src/transformation.h"
+#include <memory>
+#include <optional>
+
+#include "src/line_modifier.h"
+#include "src/modifiers.h"
+#include "src/transformation/input.h"
+#include "src/transformation/result.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor::transformation {
@@ -23,14 +27,13 @@ struct Delete {
   // If set, overrides the mode passed when the transformation is executed. This
   // is used by CompositeTransformations that want to effectively erase text
   // even in kPreview mode.
-  std::optional<Transformation::Input::Mode> mode;
+  std::optional<Input::Mode> mode;
 };
 
 std::ostream& operator<<(std::ostream& os, const Delete& options);
 
 void RegisterDelete(vm::Environment* environment);
 
-futures::Value<Transformation::Result> ApplyBase(const Delete& parameters,
-                                                 Transformation::Input input);
+futures::Value<Result> ApplyBase(const Delete& parameters, Input input);
 }  // namespace afc::editor::transformation
 #endif  // __AFC_EDITOR_TRANSFORMATION_DELETE_H__

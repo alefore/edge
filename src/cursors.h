@@ -24,6 +24,11 @@ class CursorsSet {
   CursorsSet() = default;
   CursorsSet(const CursorsSet& other)
       : cursors_(other.cursors_), active_(cursors_.find(*other.active_)) {}
+  CursorsSet& operator=(CursorsSet other) {
+    cursors_ = other.cursors_;
+    active_ = cursors_.find(*other.active_);
+    return *this;
+  }
 
   using iterator = std::multiset<LineColumn>::iterator;
   using const_iterator = std::multiset<LineColumn>::const_iterator;

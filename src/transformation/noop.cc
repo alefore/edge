@@ -14,8 +14,10 @@ class Noop : public CompositeTransformation {
         vm::Value::NewFunction(
             {vm::VMType::Void()}, [](vector<unique_ptr<vm::Value>> args) {
               CHECK(args.empty());
-              return vm::VMTypeMapper<editor::Transformation*>::New(
-                  transformation::Build(NewNoopTransformation()).release());
+              return vm::VMTypeMapper<editor::transformation::Variant*>::New(
+                  std::make_unique<transformation::Variant>(
+                      transformation::Variant(NewNoopTransformation()))
+                      .release());
             }));
   }
 

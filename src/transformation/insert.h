@@ -2,11 +2,19 @@
 #define __AFC_EDITOR_TRANSFORMATION_INSERT_H__
 
 #include <memory>
+#include <optional>
+#include <string>
 
-#include "src/transformation.h"
+#include "src/line_modifier.h"
+#include "src/modifiers.h"
+#include "src/transformation/input.h"
+#include "src/transformation/result.h"
 #include "src/vm/public/environment.h"
 
-namespace afc::editor::transformation {
+namespace afc::editor {
+class EditorState;
+class OpenBuffer;
+namespace transformation {
 struct Insert {
   Insert() = default;
   explicit Insert(std::shared_ptr<const OpenBuffer> buffer_to_insert)
@@ -16,7 +24,7 @@ struct Insert {
 
   std::shared_ptr<const OpenBuffer> buffer_to_insert;
 
-  Modifiers modifiers = Modifiers();
+  editor::Modifiers modifiers = Modifiers();
 
   enum class FinalPosition {
     // Leaves the buffer position at the start of the inserted text.
@@ -35,9 +43,9 @@ struct Insert {
   std::optional<LineColumn> position = std::nullopt;
 };
 
-void RegisterInsert(EditorState* editor, vm::Environment* environment);
-futures::Value<Transformation::Result> ApplyBase(const Insert& parameters,
-                                                 Transformation::Input input);
+void RegisterInsert(editor::EditorState* editor, vm::Environment* environment);
+futures::Value<Result> ApplyBase(const Insert& parameters, Input input);
 
-}  // namespace afc::editor::transformation
+}  // namespace transformation
+}  // namespace afc::editor
 #endif  // __AFC_EDITOR_TRANSFORMATION_INSERT_H__

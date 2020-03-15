@@ -722,11 +722,10 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
 }
 
 futures::Value<EmptyValue> EditorState::ApplyToActiveBuffers(
-    std::unique_ptr<Transformation> transformation) {
-  return ForEachActiveBuffer([transformation = std::shared_ptr<Transformation>(
-                                  std::move(transformation))](
+    transformation::Variant transformation) {
+  return ForEachActiveBuffer([transformation = std::move(transformation)](
                                  const std::shared_ptr<OpenBuffer>& buffer) {
-    return buffer->ApplyToCursors(transformation->Clone());
+    return buffer->ApplyToCursors(transformation);
   });
 }
 

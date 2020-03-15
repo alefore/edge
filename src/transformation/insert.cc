@@ -41,16 +41,16 @@ transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
   return output;
 }
 
-futures::Value<Transformation::Result> ApplyBase(const Insert& options,
-                                                 Transformation::Input input) {
+futures::Value<transformation::Result> ApplyBase(const Insert& options,
+                                                 transformation::Input input) {
   CHECK(input.buffer != nullptr);
   size_t length = options.buffer_to_insert->contents()->CountCharacters();
   if (length == 0) {
-    return futures::Past(Transformation::Result(input.position));
+    return futures::Past(transformation::Result(input.position));
   }
 
   auto result =
-      std::make_shared<Transformation::Result>(input.buffer->AdjustLineColumn(
+      std::make_shared<transformation::Result>(input.buffer->AdjustLineColumn(
           options.position.value_or(input.position)));
 
   result->modified_buffer = true;
@@ -66,8 +66,7 @@ futures::Value<Transformation::Result> ApplyBase(const Insert& options,
   size_t chars_inserted = length * options.modifiers.repetitions.value_or(1);
   result->undo_stack->PushFront(transformation::SetPosition(input.position));
   result->undo_stack->PushFront(TransformationAtPosition(
-      start_position,
-      transformation::Build(GetCharactersDeleteOptions(chars_inserted))));
+      start_position, GetCharactersDeleteOptions(chars_inserted)));
 
   auto delayed_shared_result = futures::Past(result);
   if (options.modifiers.insertion == Modifiers::ModifyMode::kOverwrite) {
@@ -78,10 +77,10 @@ futures::Value<Transformation::Result> ApplyBase(const Insert& options,
     delete_options.modifiers.paste_buffer_behavior =
         Modifiers::PasteBufferBehavior::kDoNothing;
     delayed_shared_result = futures::Transform(
-        TransformationAtPosition(
-            result->position, transformation::Build(std::move(delete_options)))
-            ->Apply(input),
-        [result](Transformation::Result inner_result) {
+        Apply(TransformationAtPosition(result->position,
+                                       std::move(delete_options)),
+              input),
+        [result](transformation::Result inner_result) {
           result->MergeFrom(std::move(inner_result));
           return result;
         });
@@ -93,7 +92,7 @@ futures::Value<Transformation::Result> ApplyBase(const Insert& options,
 
   return futures::Transform(
       delayed_shared_result,
-      [position](std::shared_ptr<Transformation::Result> result) {
+      [position](std::shared_ptr<transformation::Result> result) {
         result->position = position;
         return std::move(*result);
       });
@@ -119,6 +118,7 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
                       vm::NewCallback(std::function<std::shared_ptr<Insert>()>(
                           [] { return std::make_shared<Insert>(); })));
 
+  // TODO(easy): Remove the std::function bit.
   builder->AddField(
       L"set_text",
       vm::NewCallback(std::function<std::shared_ptr<Insert>(
@@ -136,6 +136,7 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
             return options;
           })));
 
+  // TODO(easy): Remove the std::function bit.
   builder->AddField(
       L"set_modifiers",
       vm::NewCallback(std::function<std::shared_ptr<Insert>(
@@ -149,22 +150,18 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
             return options;
           })));
 
-  builder->AddField(
-      L"set_position",
-      NewCallback(std::function<std::shared_ptr<Insert>(std::shared_ptr<Insert>,
-                                                        LineColumn)>(
-          [editor](std::shared_ptr<Insert> options, LineColumn position) {
-            CHECK(options != nullptr);
-            options->position = position;
-            return options;
-          })));
+  builder->AddField(L"set_position",
+                    NewCallback([editor](std::shared_ptr<Insert> options,
+                                         LineColumn position) {
+                      CHECK(options != nullptr);
+                      options->position = position;
+                      return options;
+                    }));
 
-  builder->AddField(
-      L"build",
-      NewCallback(std::function<Transformation*(std::shared_ptr<Insert>)>(
-          [editor](std::shared_ptr<Insert> options) {
-            return transformation::Build(*options).release();
-          })));
+  builder->AddField(L"build",
+                    NewCallback([editor](std::shared_ptr<Insert> options) {
+                      return std::make_unique<Variant>(*options).release();
+                    }));
 
   environment->DefineType(L"InsertTransformationBuilder", std::move(builder));
 }

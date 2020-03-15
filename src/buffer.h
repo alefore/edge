@@ -25,6 +25,7 @@
 #include "src/status.h"
 #include "src/substring.h"
 #include "src/transformation.h"
+#include "src/transformation/type.h"
 #include "src/variables.h"
 #include "src/viewers.h"
 #include "src/vm/public/environment.h"
@@ -295,11 +296,11 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
   futures::Value<EmptyValue> ApplyToCursors(
-      unique_ptr<Transformation> transformation);
+      transformation::Variant transformation);
   futures::Value<EmptyValue> ApplyToCursors(
-      unique_ptr<Transformation> transformation,
+      transformation::Variant transformation,
       Modifiers::CursorsAffected cursors_affected,
-      Transformation::Input::Mode mode);
+      transformation::Input::Mode mode);
   futures::Value<EmptyValue> RepeatLastTransformation();
 
   void PushTransformationStack();
@@ -457,9 +458,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
                           transformation::Stack* transformation,
                           Trampoline* trampoline);
 
-  futures::Value<Transformation::Result> Apply(
-      unique_ptr<Transformation> transformation, LineColumn position,
-      Transformation::Input::Mode mode);
+  futures::Value<transformation::Result> Apply(
+      transformation::Variant transformation, LineColumn position,
+      transformation::Input::Mode mode);
   void UpdateTreeParser();
 
   void ProcessCommandInput(shared_ptr<LazyString> str);
@@ -539,7 +540,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   unique_ptr<Value> filter_;
   size_t filter_version_;
 
-  unique_ptr<Transformation> last_transformation_;
+  transformation::Variant last_transformation_;
 
   // We allow the user to group many transformations in one.  They each get
   // applied immediately, but upon repeating, the whole operation gets repeated.
@@ -547,7 +548,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // this to non-null (to signal that we've entered this mode) and
   // OpenBuffer::PopTransformationStack (which sets this back to null and moves
   // this value to last_transformation_).
-  list<unique_ptr<transformation::Stack>> last_transformation_stack_;
+  std::list<std::unique_ptr<transformation::Stack>> last_transformation_stack_;
 
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).

@@ -4,31 +4,35 @@
 #include <optional>
 #include <variant>
 
-#include "src/transformation.h"
 #include "src/transformation/cursors.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
 #include "src/transformation/move.h"
-#include "src/transformation/repetitions.h"
 #include "src/transformation/set_position.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {
+class OpenBuffer;
 class CompositeTransformation;
 namespace transformation {
-class Stack;
-class SwapActiveCursor;
-class ModifiersAndComposite;
 using CompositePtr = std::shared_ptr<editor::CompositeTransformation>;
 
-using BaseTransformation =
+class ModifiersAndComposite;
+class Repetitions;
+class Stack;
+class SwapActiveCursor;
+
+using Variant =
     std::variant<Delete, ModifiersAndComposite, CompositePtr, Cursors, Insert,
                  Repetitions, SetPosition, Stack, SwapActiveCursor>;
+// TODO(easy): Remove this alias.
+using BaseTransformation = Variant;
 }  // namespace transformation
 }  // namespace afc::editor
 
-// Can't be included before we define BaseTransformations, since it needs it.
+// Can't be included before we define Variant, since it needs it.
 #include "src/transformation/composite.h"
+#include "src/transformation/repetitions.h"
 #include "src/transformation/stack.h"
 
 namespace afc::editor::transformation {
@@ -36,6 +40,8 @@ void Register(vm::Environment* environment);
 
 void BaseTransformationRegister(vm::Environment* environment);
 
-std::unique_ptr<Transformation> Build(BaseTransformation base_transformation);
+class Result;
+class Input;
+futures::Value<Result> Apply(Variant base_transformation, const Input& input);
 }  // namespace afc::editor::transformation
 #endif

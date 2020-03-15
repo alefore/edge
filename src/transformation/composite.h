@@ -33,7 +33,7 @@ class CompositeTransformation {
     EditorState* editor;
     const OpenBuffer* buffer;
     Modifiers modifiers;
-    Transformation::Input::Mode mode;
+    transformation::Input::Mode mode;
   };
 
   class Output {
@@ -42,9 +42,8 @@ class CompositeTransformation {
     static Output SetColumn(ColumnNumber column);
     Output();
     Output(Output&&);
-    Output(std::unique_ptr<Transformation> transformation);
-    void Push(std::unique_ptr<Transformation> transformation);
-    void Push(transformation::BaseTransformation base_transformation);
+    Output(transformation::Variant transformation);
+    void Push(transformation::Variant transformation);
 
     std::unique_ptr<transformation::Stack> stack;
   };
@@ -59,11 +58,10 @@ struct ModifiersAndComposite {
   std::shared_ptr<CompositeTransformation> transformation;
 };
 
-futures::Value<Transformation::Result> ApplyBase(
-    const ModifiersAndComposite& parameters, Transformation::Input input);
-futures::Value<Transformation::Result> ApplyBase(
-    const std::shared_ptr<CompositeTransformation>& parameters,
-    Transformation::Input input);
+futures::Value<Result> ApplyBase(const ModifiersAndComposite& parameters,
+                                 Input input);
+futures::Value<Result> ApplyBase(
+    const std::shared_ptr<CompositeTransformation>& parameters, Input input);
 
 }  // namespace transformation
 }  // namespace afc::editor

@@ -5,26 +5,22 @@
 #include <memory>
 
 #include "src/transformation.h"
-#include "src/transformation/type.h"
+#include "src/transformation/input.h"
+#include "src/transformation/result.h"
 
 namespace afc::editor {
 namespace transformation {
 struct Stack {
-  void PushBack(std::unique_ptr<editor::Transformation> transformation);
-  void PushFront(std::unique_ptr<editor::Transformation> transformation);
-  void PushFront(BaseTransformation transformation);
-
-  // TODO: This shouldn't be a shared_ptr. I guess ideally it'd just be a list
-  // of BaseTransformation.
-  std::list<std::shared_ptr<Transformation>> stack;
+  void PushBack(Variant transformation);
+  void PushFront(Variant transformation);
+  std::list<Variant> stack;
 };
 
-futures::Value<Transformation::Result> ApplyBase(const Stack& parameters,
-                                                 Transformation::Input input);
+futures::Value<Result> ApplyBase(const Stack& parameters, Input input);
 }  // namespace transformation
 
-std::unique_ptr<Transformation> ComposeTransformation(
-    std::unique_ptr<Transformation> a, std::unique_ptr<Transformation> b);
+transformation::Variant ComposeTransformation(transformation::Variant a,
+                                              transformation::Variant b);
 
 }  // namespace afc::editor
 

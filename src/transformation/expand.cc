@@ -141,8 +141,7 @@ class ReadAndInsert : public CompositeTransformation {
             position.column += input.position.column.ToDelta();
           }
           position.line += input.position.line.ToDelta();
-          output.Push(
-              transformation::Build(transformation::SetPosition(position)));
+          output.Push(transformation::SetPosition(position));
           consumer(std::move(output));
         });
     return output.value;

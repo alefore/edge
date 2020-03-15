@@ -143,8 +143,7 @@ class Paste : public Command {
                   editor_state->modifiers().insertion;
               insert_options.modifiers.repetitions =
                   editor_state->repetitions();
-              return buffer->ApplyToCursors(
-                  transformation::Build(std::move(insert_options)));
+              return buffer->ApplyToCursors(std::move(insert_options));
             }),
         [editor_state](EmptyValue) {
           editor_state->ResetInsertionModifier();
@@ -258,9 +257,8 @@ class MoveForwards : public Command {
       editor_state->set_direction(ReverseDirection(editor_state->direction()));
     }
 
-    editor_state->ApplyToActiveBuffers(
-        transformation::Build(transformation::ModifiersAndComposite{
-            editor_state->modifiers(), NewMoveTransformation()}));
+    editor_state->ApplyToActiveBuffers(transformation::ModifiersAndComposite{
+        editor_state->modifiers(), NewMoveTransformation()});
     editor_state->ResetRepetitions();
     editor_state->ResetStructure();
     editor_state->ResetDirection();
@@ -593,8 +591,8 @@ class HardRedrawCommand : public Command {
   }
 };
 
-std::unique_ptr<Transformation> ApplySwitchCaseCommand(EditorState*,
-                                                       Modifiers modifiers) {
+transformation::Variant ApplySwitchCaseCommand(EditorState*,
+                                               Modifiers modifiers) {
   return NewSwitchCaseTransformation(modifiers);
 }
 

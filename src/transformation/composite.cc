@@ -59,9 +59,9 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
 namespace editor {
 namespace transformation {
 namespace {
-futures::Value<Transformation::Result> ApplyBase(
-    const Modifiers& modifiers, CompositeTransformation* transformation,
-    Transformation::Input transformation_input) {
+futures::Value<Result> ApplyBase(const Modifiers& modifiers,
+                                 CompositeTransformation* transformation,
+                                 Input transformation_input) {
   CompositeTransformation::Input input;
   input.buffer = transformation_input.buffer;
   input.original_position = transformation_input.position;
@@ -74,19 +74,19 @@ futures::Value<Transformation::Result> ApplyBase(
   return futures::Transform(
       transformation->Apply(std::move(input)),
       [transformation_input](CompositeTransformation::Output output) {
-        return Build(std::move(*output.stack))->Apply(transformation_input);
+        return Apply(std::move(*output.stack), transformation_input);
       });
 }
 }  // namespace
 
-futures::Value<Transformation::Result> ApplyBase(
+futures::Value<Result> ApplyBase(
     const std::shared_ptr<CompositeTransformation>& transformation,
-    Transformation::Input input) {
+    Input input) {
   return ApplyBase(editor::Modifiers(), transformation.get(), std::move(input));
 }
 
-futures::Value<Transformation::Result> ApplyBase(
-    const ModifiersAndComposite& parameters, Transformation::Input input) {
+futures::Value<Result> ApplyBase(const ModifiersAndComposite& parameters,
+                                 Input input) {
   return ApplyBase(parameters.modifiers, parameters.transformation.get(),
                    std::move(input));
 }
@@ -95,12 +95,12 @@ futures::Value<Transformation::Result> ApplyBase(
 
 CompositeTransformation::Output CompositeTransformation::Output::SetPosition(
     LineColumn position) {
-  return Output(transformation::Build(transformation::SetPosition(position)));
+  return Output(transformation::SetPosition(position));
 }
 
 CompositeTransformation::Output CompositeTransformation::Output::SetColumn(
     ColumnNumber column) {
-  return Output(transformation::Build(transformation::SetPosition(column)));
+  return Output(transformation::SetPosition(column));
 }
 
 CompositeTransformation::Output::Output()
@@ -109,20 +109,14 @@ CompositeTransformation::Output::Output()
 CompositeTransformation::Output::Output(Output&& other)
     : stack(std::move(other.stack)) {}
 
-CompositeTransformation::Output::Output(
-    std::unique_ptr<Transformation> transformation)
+CompositeTransformation::Output::Output(transformation::Variant transformation)
     : Output() {
   stack->PushBack(std::move(transformation));
 }
 
 void CompositeTransformation::Output::Push(
-    std::unique_ptr<Transformation> transformation) {
+    transformation::Variant transformation) {
   stack->PushBack(std::move(transformation));
-}
-
-void CompositeTransformation::Output::Push(
-    transformation::BaseTransformation base_transformation) {
-  return Push(transformation::Build(std::move(base_transformation)));
 }
 
 void RegisterCompositeTransformation(vm::Environment* environment) {
@@ -144,7 +138,7 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
       L"final_mode",
       vm::NewCallback(
           [](std::shared_ptr<CompositeTransformation::Input> input) {
-            return input->mode == Transformation::Input::Mode::kFinal;
+            return input->mode == transformation::Input::Mode::kFinal;
           }));
   environment->DefineType(L"TransformationInput", std::move(input_type));
 
@@ -157,8 +151,8 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
   output_type->AddField(
       L"push", vm::NewCallback(
                    [](std::shared_ptr<CompositeTransformation::Output> output,
-                      Transformation* transformation) {
-                     output->Push(transformation->Clone());
+                      transformation::Variant* transformation) {
+                     output->Push(*transformation);
                      return output;
                    }));
 

@@ -9,8 +9,7 @@
 #include "src/transformation/type.h"
 
 namespace afc::editor::transformation {
-futures::Value<Transformation::Result> ApplyBase(const Cursors& parameters,
-                                                 Transformation::Input input) {
+futures::Value<Result> ApplyBase(const Cursors& parameters, Input input) {
   CHECK(input.buffer != nullptr);
   vector<LineColumn> positions = {parameters.active};
   bool skipped = false;
@@ -22,6 +21,6 @@ futures::Value<Transformation::Result> ApplyBase(const Cursors& parameters,
     }
   }
   input.buffer->set_active_cursors(positions);
-  return futures::Past(Transformation::Result(input.position));
+  return futures::Past(Result(input.position));
 }
 }  // namespace afc::editor::transformation

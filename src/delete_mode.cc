@@ -13,12 +13,11 @@
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
-                                                   Modifiers modifiers) {
-  CHECK(editor_state != nullptr);
+// TODO(easy): Just kill this? Inline it?
+transformation::Variant ApplyDeleteCommand(EditorState*, Modifiers modifiers) {
   transformation::Delete options;
   options.modifiers = std::move(modifiers);
-  return transformation::Build(options);
+  return options;
 }
 
 }  // namespace editor

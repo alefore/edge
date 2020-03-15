@@ -114,7 +114,7 @@ class CommandArgumentMode : public EditorMode {
 // been set.
 template <typename Argument>
 void SetOptionsForBufferTransformation(
-    std::function<std::unique_ptr<Transformation>(EditorState*, Argument)>
+    std::function<transformation::Variant(EditorState*, Argument)>
         transformation_factory,
     std::function<std::optional<Modifiers::CursorsAffected>(const Argument&)>
         cursors_affected_factory,
@@ -159,8 +159,8 @@ void SetOptionsForBufferTransformation(
                   transformation_factory(editor_state, std::move(argument)),
                   cursors_affected,
                   mode == CommandArgumentModeApplyMode::kPreview
-                      ? Transformation::Input::Mode::kPreview
-                      : Transformation::Input::Mode::kFinal),
+                      ? transformation::Input::Mode::kPreview
+                      : transformation::Input::Mode::kFinal),
               futures::Past(futures::IterationControlCommand::kContinue));
         });
   };

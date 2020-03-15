@@ -3,17 +3,16 @@
 
 #include <memory>
 
-#include "src/modifiers.h"
-#include "src/transformation.h"
-#include "src/transformation/type.h"
+#include "src/transformation/input.h"
+#include "src/transformation/result.h"
 
 namespace afc::editor {
 namespace transformation {
 // Transformation that swaps the current cursor with the next active cursor.
 struct SwapActiveCursor {};
 
-futures::Value<Transformation::Result> ApplyBase(
-    const SwapActiveCursor& parameters, Transformation::Input input);
+futures::Value<Result> ApplyBase(const SwapActiveCursor& parameters,
+                                 Input input);
 }  // namespace transformation
 
 class CompositeTransformation;

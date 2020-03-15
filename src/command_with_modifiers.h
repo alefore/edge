@@ -12,7 +12,7 @@ namespace afc {
 namespace editor {
 
 using CommandWithModifiersHandler =
-    std::function<std::unique_ptr<Transformation>(EditorState*, Modifiers)>;
+    std::function<transformation::Variant(EditorState*, Modifiers)>;
 
 std::unique_ptr<Command> NewCommandWithModifiers(
     std::function<std::wstring(const Modifiers&)> name_function,

@@ -82,10 +82,10 @@ class FindMode : public EditorMode {
       case Direction::kForwards:
         break;
     }
-    futures::Transform(editor_state->ApplyToActiveBuffers(transformation::Build(
+    futures::Transform(editor_state->ApplyToActiveBuffers(
                            transformation::ModifiersAndComposite{
                                editor_state->modifiers(),
-                               std::make_unique<FindTransformation>(c)})),
+                               std::make_unique<FindTransformation>(c)}),
                        [editor_state](EmptyValue) {
                          editor_state->ResetRepetitions();
                          editor_state->ResetDirection();
