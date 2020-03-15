@@ -2,20 +2,21 @@
 
 #include "paths.cc"
 
-void zkRunCommand(string command) {
+void zkRunCommand(string name, string command) {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(command);
   options.set_insertion_type("visit");
+  options.set_name("zk: " + name);
   ForkCommand(options);
 }
 
-void zkls() { zkRunCommand("~/bin/zkls"); }
+void zkls() { zkRunCommand("ls", "~/bin/zkls"); }
 
 void zkrev() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     string path = Basename(buffer.path());
     if (path == "") return;
-    zkRunCommand("grep " + path.shell_escape() + " ???.md");
+    zkRunCommand("rev: " + path, "grep " + path.shell_escape() + " ???.md");
   });
   return;
 }
@@ -24,5 +25,5 @@ void zkrev() {
 void zki() { OpenFile("index.md", true); }
 
 void zks(string query) {
-  zkRunCommand("grep " + query.shell_escape() + " ???.md");
+  zkRunCommand("s: " + query, "grep " + query.shell_escape() + " ???.md");
 }
