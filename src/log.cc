@@ -5,6 +5,11 @@
 
 namespace afc::editor {
 namespace {
+AsyncEvaluator* LoggingEvaluator() {
+  static AsyncEvaluator* output = new AsyncEvaluator(L"LogEvaluator", nullptr);
+  return output;
+}
+
 class NullLog : public Log {
  public:
   static std::unique_ptr<Log> New() { return std::make_unique<NullLog>(); }
@@ -16,7 +21,6 @@ class NullLog : public Log {
 struct FileLogData {
   const int fd;
   int next_id = 0;
-  AsyncEvaluator async_evaluator;
 };
 
 class FileLog : public Log {
@@ -43,18 +47,14 @@ class FileLog : public Log {
                     std::wstring statement) {
     CHECK(data != nullptr);
     auto time = HumanReadableTime(Now());
-    auto data_raw = data.get();
-    futures::Transform(
-        data_raw->async_evaluator.Run(
-            [data = data_raw,
-             statement = ToByteString(
-                 (time.IsError() ? L"[error:" + time.error.value() + L"]"
-                                 : time.value.value()) +
-                 L" " + std::to_wstring(id) + L": " + statement + L"\n")] {
-              CHECK(data != nullptr);
-              return write(data->fd, statement.c_str(), statement.size());
-            }),
-        [data = std::move(data)](int) { return Success(); });
+    LoggingEvaluator()->RunIgnoringResults(
+        [data = std::move(data),
+         statement = ToByteString(
+             (time.IsError() ? L"[error:" + time.error.value() + L"]"
+                             : time.value.value()) +
+             L" " + std::to_wstring(id) + L": " + statement + L"\n")] {
+          return write(data->fd, statement.c_str(), statement.size());
+        });
   }
 
   const std::shared_ptr<FileLogData> data_;
@@ -62,19 +62,17 @@ class FileLog : public Log {
 };
 }  // namespace
 futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
-    WorkQueue* work_queue, FileSystemDriver* file_system, std::wstring path) {
+    FileSystemDriver* file_system, std::wstring path) {
   LOG(INFO) << "Opening log: " << path;
   return futures::Transform(
       file_system->Open(
           path, O_WRONLY | O_CREAT | O_APPEND,
           S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH),
-      [work_queue](int fd) {
+      [](int fd) {
         // TODO(easy): Make `Success` able to convert the unique_ptr to its
         // parent class? So that we can use make_unique<FileLog> here.
         return Success(std::unique_ptr<Log>(
-            new FileLog(std::make_shared<FileLogData>(FileLogData{
-                .fd = fd,
-                .async_evaluator = AsyncEvaluator(L"Log", work_queue)}))));
+            new FileLog(std::make_shared<FileLogData>(FileLogData{.fd = fd}))));
       });
 }
 

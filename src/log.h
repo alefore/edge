@@ -18,7 +18,7 @@ class Log {
 };
 
 futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
-    WorkQueue* work_queue, FileSystemDriver* file_system, std::wstring path);
+    FileSystemDriver* file_system, std::wstring path);
 
 std::unique_ptr<Log> NewNullLog();
 

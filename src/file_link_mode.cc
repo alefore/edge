@@ -618,8 +618,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     // operations are ongoing, so that we don't have to create a shared_ptr.
     auto driver = std::make_shared<FileSystemDriver>(work_queue);
     return futures::Transform(
-        NewFileLog(work_queue, driver.get(),
-                   PathJoin(edge_state_directory, L".edge_log")),
+        NewFileLog(driver.get(), PathJoin(edge_state_directory, L".edge_log")),
         [driver](std::unique_ptr<Log> log) { return Success(std::move(log)); });
   };
 
