@@ -52,34 +52,13 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
 ;
 }  // namespace
 
-Transformation::Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
-
-Transformation::Result::Result(LineColumn position)
-    : undo_stack(std::make_unique<TransformationStack>()), position(position) {}
-
-Transformation::Result::Result(Result&&) = default;
-Transformation::Result::~Result() = default;
-
-void Transformation::Result::MergeFrom(Result sub_result) {
-  success &= sub_result.success;
-  made_progress |= sub_result.made_progress;
-  modified_buffer |= sub_result.modified_buffer;
-  undo_stack->PushFront(std::move(sub_result.undo_stack));
-  if (sub_result.delete_buffer != nullptr) {
-    delete_buffer = std::move(sub_result.delete_buffer);
-  }
-  position = sub_result.position;
+transformation::Variant TransformationAtPosition(
+    const LineColumn& position, transformation::Variant transformation) {
+  return ComposeTransformation(transformation::SetPosition(position),
+                               std::move(transformation));
 }
 
-unique_ptr<Transformation> TransformationAtPosition(
-    const LineColumn& position, unique_ptr<Transformation> transformation) {
-  return ComposeTransformation(
-      transformation::Build(transformation::SetPosition(position)),
-      std::move(transformation));
-}
-
-std::unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
-  return NewTransformation(
-      Modifiers(), std::make_unique<DeleteSuffixSuperfluousCharacters>());
+transformation::Variant NewDeleteSuffixSuperfluousCharacters() {
+  return std::make_unique<DeleteSuffixSuperfluousCharacters>();
 }
 }  // namespace afc::editor

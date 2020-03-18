@@ -5,31 +5,23 @@
 #include <memory>
 
 #include "src/transformation.h"
-#include "src/transformation/type.h"
+#include "src/transformation/input.h"
+#include "src/transformation/result.h"
 
 namespace afc::editor {
 namespace transformation {
-class TransformationBase;
-}
-class TransformationStack : public Transformation {
- public:
-  TransformationStack();
-  void PushBack(std::unique_ptr<Transformation> transformation);
-  void PushFront(std::unique_ptr<Transformation> transformation);
-  void PushFront(transformation::BaseTransformation transformation);
-
-  futures::Value<Result> Apply(const Input& input) const override;
-
-  std::unique_ptr<Transformation> Clone() const override;
-
- private:
-  // We use a shared_ptr so that a TransformationStack can be deleted while the
-  // evaluation of `Apply` is still running.
-  std::shared_ptr<std::list<std::unique_ptr<Transformation>>> stack_;
+struct Stack {
+  void PushBack(Variant transformation);
+  void PushFront(Variant transformation);
+  std::list<Variant> stack;
 };
 
-std::unique_ptr<Transformation> ComposeTransformation(
-    std::unique_ptr<Transformation> a, std::unique_ptr<Transformation> b);
+futures::Value<Result> ApplyBase(const Stack& parameters, Input input);
+std::wstring ToStringBase(const Stack& stack);
+}  // namespace transformation
+
+transformation::Variant ComposeTransformation(transformation::Variant a,
+                                              transformation::Variant b);
 
 }  // namespace afc::editor
 

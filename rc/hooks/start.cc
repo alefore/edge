@@ -5,6 +5,7 @@
 #include "../editor_commands/indent.cc"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
+#include "../editor_commands/lib/zk.cc"
 #include "../editor_commands/reflow.cc"
 
 ////////////////////////////////////////////////////////////////////////////////

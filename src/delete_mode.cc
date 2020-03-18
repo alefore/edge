@@ -5,18 +5,19 @@
 #include "src/command_with_modifiers.h"
 #include "src/editor.h"
 #include "src/terminal.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
+#include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
-                                                   Modifiers modifiers) {
-  CHECK(editor_state != nullptr);
+// TODO(easy): Just kill this? Inline it?
+transformation::Variant ApplyDeleteCommand(EditorState*, Modifiers modifiers) {
   transformation::Delete options;
   options.modifiers = std::move(modifiers);
-  return transformation::Build(options);
+  return options;
 }
 
 }  // namespace editor

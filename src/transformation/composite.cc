@@ -57,14 +57,11 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
 
 }  // namespace vm
 namespace editor {
-CompositeTransformationAdapter::CompositeTransformationAdapter(
-    Modifiers modifiers,
-    std::unique_ptr<CompositeTransformation> composite_transformation)
-    : modifiers_(std::move(modifiers)),
-      composite_transformation_(std::move(composite_transformation)) {}
-
-futures::Value<Transformation::Result> CompositeTransformationAdapter::Apply(
-    const Input& transformation_input) const {
+namespace transformation {
+namespace {
+futures::Value<Result> ApplyBase(const Modifiers& modifiers,
+                                 CompositeTransformation* transformation,
+                                 Input transformation_input) {
   CompositeTransformation::Input input;
   input.buffer = transformation_input.buffer;
   input.original_position = transformation_input.position;
@@ -72,59 +69,67 @@ futures::Value<Transformation::Result> CompositeTransformationAdapter::Apply(
   input.editor = input.buffer->editor();
   input.mode = transformation_input.mode;
   input.range =
-      transformation_input.buffer->FindPartialRange(modifiers_, input.position);
-  input.modifiers = modifiers_;
+      transformation_input.buffer->FindPartialRange(modifiers, input.position);
+  input.modifiers = modifiers;
+  std::shared_ptr<Log> trace =
+      input.buffer->log()->NewChild(L"ApplyBase(CompositeTransformation)");
   return futures::Transform(
-      composite_transformation_->Apply(std::move(input)),
-      [transformation_input](CompositeTransformation::Output output) {
-        return output.transformations_->Apply(transformation_input);
+      transformation->Apply(std::move(input)),
+      [transformation_input,
+       trace = std::move(trace)](CompositeTransformation::Output output) {
+        return Apply(std::move(*output.stack), transformation_input);
       });
 }
+}  // namespace
 
-std::unique_ptr<Transformation> CompositeTransformationAdapter::Clone() const {
-  return std::make_unique<CompositeTransformationAdapter>(
-      modifiers_, composite_transformation_->Clone());
+futures::Value<Result> ApplyBase(
+    const std::shared_ptr<CompositeTransformation>& transformation,
+    Input input) {
+  return ApplyBase(editor::Modifiers(), transformation.get(), std::move(input));
 }
+
+futures::Value<Result> ApplyBase(const ModifiersAndComposite& parameters,
+                                 Input input) {
+  return ApplyBase(parameters.modifiers, parameters.transformation.get(),
+                   std::move(input));
+}
+
+std::wstring ToStringBase(const ModifiersAndComposite& parameters) {
+  return L"ModifiersAndComposite();";
+}
+std::wstring ToStringBase(
+    const std::shared_ptr<CompositeTransformation>& parameters) {
+  return L"CompositeTransformation();";
+}
+
+}  // namespace transformation
 
 CompositeTransformation::Output CompositeTransformation::Output::SetPosition(
     LineColumn position) {
-  return Output(transformation::Build(transformation::SetPosition(position)));
+  return Output(transformation::SetPosition(position));
 }
 
 CompositeTransformation::Output CompositeTransformation::Output::SetColumn(
     ColumnNumber column) {
-  return Output(transformation::Build(transformation::SetPosition(column)));
+  return Output(transformation::SetPosition(column));
 }
 
 CompositeTransformation::Output::Output()
-    : transformations_(std::make_unique<TransformationStack>()) {}
+    : stack(std::make_unique<transformation::Stack>()) {}
 
 CompositeTransformation::Output::Output(Output&& other)
-    : transformations_(std::move(other.transformations_)) {}
+    : stack(std::move(other.stack)) {}
 
-CompositeTransformation::Output::Output(
-    std::unique_ptr<Transformation> transformation)
+CompositeTransformation::Output::Output(transformation::Variant transformation)
     : Output() {
-  transformations_->PushBack(std::move(transformation));
-}
-
-CompositeTransformation::Output::~Output() {}
-
-void CompositeTransformation::Output::Push(
-    std::unique_ptr<Transformation> transformation) {
-  transformations_->PushBack(std::move(transformation));
+  stack->PushBack(std::move(transformation));
 }
 
 void CompositeTransformation::Output::Push(
-    transformation::BaseTransformation base_transformation) {
-  return Push(transformation::Build(base_transformation));
+    transformation::Variant transformation) {
+  stack->PushBack(std::move(transformation));
 }
 
-std::unique_ptr<Transformation> NewTransformation(
-    Modifiers modifiers, std::unique_ptr<CompositeTransformation> composite) {
-  return std::make_unique<CompositeTransformationAdapter>(std::move(modifiers),
-                                                          std::move(composite));
-}
 void RegisterCompositeTransformation(vm::Environment* environment) {
   auto input_type = std::make_unique<ObjectType>(L"TransformationInput");
 
@@ -144,7 +149,7 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
       L"final_mode",
       vm::NewCallback(
           [](std::shared_ptr<CompositeTransformation::Input> input) {
-            return input->mode == Transformation::Input::Mode::kFinal;
+            return input->mode == transformation::Input::Mode::kFinal;
           }));
   environment->DefineType(L"TransformationInput", std::move(input_type));
 
@@ -157,8 +162,8 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
   output_type->AddField(
       L"push", vm::NewCallback(
                    [](std::shared_ptr<CompositeTransformation::Output> output,
-                      Transformation* transformation) {
-                     output->Push(transformation->Clone());
+                      transformation::Variant* transformation) {
+                     output->Push(*transformation);
                      return output;
                    }));
 

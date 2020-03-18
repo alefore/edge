@@ -197,7 +197,8 @@ void Status::SetInformationText(std::wstring text) {
     return;
   }
   LOG(INFO) << "SetInformationText: " << text;
-  data_ = std::make_shared<Data>(Data{Type::kInformation, std::move(text)});
+  data_ = std::make_shared<Data>(
+      Data{.type = Type::kInformation, .text = std::move(text)});
   ValidatePreconditions();
 }
 
@@ -231,8 +232,13 @@ void Status::SetWarningText(std::wstring text) {
   if (data_->prompt_buffer != nullptr) {
     return;
   }
-  data_ = std::make_shared<Data>(Data{Type::kWarning, std::move(text)});
+  data_ = std::make_shared<Data>(
+      Data{.type = Type::kWarning, .text = std::move(text)});
   ValidatePreconditions();
+}
+
+struct timespec Status::last_change_time() const {
+  return data_->creation_time;
 }
 
 void Status::Reset() {

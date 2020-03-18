@@ -7,8 +7,8 @@
 
 namespace afc {
 namespace editor {
-std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
-                                                   Modifiers modifiers);
+transformation::Variant ApplyDeleteCommand(EditorState* editor_state,
+                                           Modifiers modifiers);
 }  // namespace editor
 }  // namespace afc
 

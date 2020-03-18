@@ -11,6 +11,7 @@
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
+#include "src/transformation/stack.h"
 
 namespace afc::editor {
 namespace {
@@ -81,9 +82,10 @@ class FindMode : public EditorMode {
       case Direction::kForwards:
         break;
     }
-    futures::Transform(editor_state->ApplyToActiveBuffers(NewTransformation(
-                           editor_state->modifiers(),
-                           std::make_unique<FindTransformation>(c))),
+    futures::Transform(editor_state->ApplyToActiveBuffers(
+                           transformation::ModifiersAndComposite{
+                               editor_state->modifiers(),
+                               std::make_unique<FindTransformation>(c)}),
                        [editor_state](EmptyValue) {
                          editor_state->ResetRepetitions();
                          editor_state->ResetDirection();

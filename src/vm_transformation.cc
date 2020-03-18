@@ -3,6 +3,7 @@
 #include <list>
 #include <memory>
 
+#include "src/buffer.h"
 #include "src/char_buffer.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
@@ -19,24 +20,24 @@
 
 namespace afc {
 namespace vm {
-const VMType VMTypeMapper<editor::Transformation*>::vmtype =
+const VMType VMTypeMapper<editor::transformation::Variant*>::vmtype =
     VMType::ObjectType(L"Transformation");
 
-editor::Transformation* VMTypeMapper<editor::Transformation*>::get(
-    Value* value) {
+editor::transformation::Variant*
+VMTypeMapper<editor::transformation::Variant*>::get(Value* value) {
   CHECK(value != nullptr);
   CHECK(value->type.type == VMType::OBJECT_TYPE);
   CHECK(value->type.object_type == L"Transformation");
   CHECK(value->user_value != nullptr);
-  return static_cast<editor::Transformation*>(value->user_value.get());
+  return static_cast<editor::transformation::Variant*>(value->user_value.get());
 }
 
-Value::Ptr VMTypeMapper<editor::Transformation*>::New(
-    editor::Transformation* value) {
-  return Value::NewObject(L"Transformation",
-                          shared_ptr<void>(value, [](void* v) {
-                            delete static_cast<editor::Transformation*>(v);
-                          }));
+Value::Ptr VMTypeMapper<editor::transformation::Variant*>::New(
+    editor::transformation::Variant* value) {
+  return Value::NewObject(
+      L"Transformation", shared_ptr<void>(value, [](void* v) {
+        delete static_cast<editor::transformation::Variant*>(v);
+      }));
 }
 }  // namespace vm
 namespace editor {
@@ -54,8 +55,9 @@ class FunctionTransformation : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     std::vector<std::unique_ptr<vm::Value>> args;
-    args.emplace_back(VMTypeMapper<std::shared_ptr<Input>>::New(
-        std::make_shared<Input>(input)));
+    args.emplace_back(
+        VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::
+            New(std::make_shared<Input>(input)));
     return futures::Transform(
         vm::Call(*function_, std::move(args),
                  [buffer = input.buffer](std::function<void()> callback) {
@@ -84,7 +86,7 @@ void RegisterTransformations(EditorState* editor,
   environment->Define(
       L"FunctionTransformation",
       vm::Value::NewFunction(
-          {VMTypeMapper<editor::Transformation*>::vmtype,
+          {VMTypeMapper<editor::transformation::Variant*>::vmtype,
            VMType::Function(
                {VMTypeMapper<
                     std::shared_ptr<CompositeTransformation::Output>>::vmtype,
@@ -92,10 +94,10 @@ void RegisterTransformations(EditorState* editor,
                     std::shared_ptr<CompositeTransformation::Input>>::vmtype})},
           [](vector<unique_ptr<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
-            return vm::VMTypeMapper<editor::Transformation*>::New(
-                NewTransformation(Modifiers(),
-                                  std::make_unique<FunctionTransformation>(
-                                      std::move(args[0])))
+            return VMTypeMapper<editor::transformation::Variant*>::New(
+                std::make_unique<transformation::Variant>(
+                    std::make_unique<FunctionTransformation>(
+                        std::move(args[0])))
                     .release());
           }));
   transformation::RegisterInsert(editor, environment);

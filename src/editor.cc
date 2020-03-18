@@ -31,6 +31,7 @@ extern "C" {
 #include "src/substring.h"
 #include "src/terminal.h"
 #include "src/time.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/stack.h"
 #include "src/vm/public/callbacks.h"
@@ -440,8 +441,8 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       default_commands_(NewCommandMode(this)),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player),
-      buffer_tree_(
-          std::make_unique<WidgetListHorizontal>(this, BufferWidget::New())),
+      buffer_tree_(this, std::make_unique<WidgetListHorizontal>(
+                             this, BufferWidget::New())),
       status_(GetConsole(), audio_player_),
       work_queue_([this] { NotifyInternalEvent(); }) {
   auto paths = edge_path();
@@ -721,11 +722,10 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
 }
 
 futures::Value<EmptyValue> EditorState::ApplyToActiveBuffers(
-    std::unique_ptr<Transformation> transformation) {
-  return ForEachActiveBuffer([transformation = std::shared_ptr<Transformation>(
-                                  std::move(transformation))](
+    transformation::Variant transformation) {
+  return ForEachActiveBuffer([transformation = std::move(transformation)](
                                  const std::shared_ptr<OpenBuffer>& buffer) {
-    return buffer->ApplyToCursors(transformation->Clone());
+    return buffer->ApplyToCursors(transformation);
   });
 }
 
@@ -746,9 +746,12 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<wstring> buffers_with_problems;
     for (auto& it : buffers_) {
-      if (it.second->IsUnableToPrepareToClose().IsError()) {
+      if (auto result = it.second->IsUnableToPrepareToClose();
+          result.IsError()) {
         buffers_with_problems.push_back(
             it.second->Read(buffer_variables::name));
+        it.second->status()->SetWarningText(L"Unable to close: " +
+                                            result.error.value());
       }
     }
     if (!buffers_with_problems.empty()) {

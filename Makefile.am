@@ -49,8 +49,6 @@ src/command_with_modifiers.h \
 src/const_tree.h \
 src/cursors.cc \
 src/cursors.h \
-src/cursors_transformation.cc \
-src/cursors_transformation.h \
 src/decaying_counter.cc \
 src/decaying_counter.h \
 src/delete_mode.cc \
@@ -100,6 +98,8 @@ src/line_prompt_mode.cc \
 src/line_scroll_control.h \
 src/line_scroll_control.cc \
 src/list_buffers_command.cc \
+src/log.cc \
+src/log.h \
 src/lowercase.cc \
 src/lru_cache.h \
 src/map_mode.cc \
@@ -170,6 +170,8 @@ src/tracker.cc \
 src/tracker.h \
 src/transformation/composite.cc \
 src/transformation/composite.h \
+src/transformation/cursors.cc \
+src/transformation/cursors.h \
 src/transformation/delete.cc \
 src/transformation/delete.h \
 src/transformation/expand.cc \

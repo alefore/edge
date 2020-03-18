@@ -22,7 +22,6 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/command_with_modifiers.h"
 #include "src/cpp_parse_tree.h"
-#include "src/cursors_transformation.h"
 #include "src/dirname.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
@@ -45,6 +44,7 @@ extern "C" {
 #include "src/time.h"
 #include "src/tracker.h"
 #include "src/transformation.h"
+#include "src/transformation/cursors.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
 #include "src/transformation/noop.h"
@@ -189,16 +189,16 @@ using std::to_wstring;
       L"ApplyTransformation",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()),
-           vm::VMTypeMapper<editor::Transformation*>::vmtype},
+           vm::VMTypeMapper<editor::transformation::Variant*>::vmtype},
           [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
             CHECK_EQ(args.size(), 2ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
-            auto transformation =
-                static_cast<Transformation*>(args[1]->user_value.get());
+            auto transformation = static_cast<editor::transformation::Variant*>(
+                args[1]->user_value.get());
             return futures::Transform(
-                buffer->ApplyToCursors(transformation->Clone()),
+                buffer->ApplyToCursors(*transformation),
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
@@ -238,7 +238,7 @@ using std::to_wstring;
                     buffer->ApplyToCursors(
                         NewDeleteTransformation(options),
                         Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
-                        Transformation::Input::Mode::kPreview,
+                        transformation::Input::Mode::kPreview,
                         [buffer] () {
                       buffer->PopTransformationStack();
                     });
@@ -460,8 +460,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       environment_(
           std::make_shared<Environment>(options_.editor->environment())),
       filter_version_(0),
-      last_transformation_(
-          NewTransformation(Modifiers(), NewNoopTransformation())),
+      last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
@@ -496,6 +495,7 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
 }
 
 futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
+  log_->Append(L"PrepareToClose");
   LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
   if (auto is_unable = IsUnableToPrepareToClose(); is_unable.IsError()) {
     return futures::Past(is_unable);
@@ -534,8 +534,9 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
 }
 
 void OpenBuffer::Close() {
+  log_->Append(L"Closing");
   if (dirty() && Read(buffer_variables::save_on_close)) {
-    LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
+    log_->Append(L"Saving buffer: " + Read(buffer_variables::name));
     Save();
   }
   for (auto& observer : close_observers_) {
@@ -572,6 +573,7 @@ time_t OpenBuffer::last_visit() const { return last_visit_; }
 time_t OpenBuffer::last_action() const { return last_action_; }
 
 futures::Value<PossibleError> OpenBuffer::PersistState() const {
+  auto trace = log_->NewChild(L"Persist State");
   if (!Read(buffer_variables::persist_state)) {
     return futures::Past(ValueOrError(Success()));
   }
@@ -643,8 +645,7 @@ void OpenBuffer::ClearContents(
   if (terminal_ != nullptr) {
     terminal_->SetPosition(LineColumn());
   }
-  last_transformation_ =
-      NewTransformation(Modifiers(), NewNoopTransformation());
+  last_transformation_ = NewNoopTransformation();
   last_transformation_stack_.clear();
   undo_past_.clear();
   undo_future_.clear();
@@ -882,40 +883,64 @@ void OpenBuffer::Reload() {
   }
 
   auto paths = editor()->edge_path();
-  futures::ForEach(paths.begin(), paths.end(), [this](std::wstring dir) {
-    auto value = EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
-    if (!value.has_value()) return Past(IterationControlCommand::kContinue);
-    return futures::Transform(
-        value.value(), futures::Past(IterationControlCommand::kContinue));
-  }).SetConsumer([this](IterationControlCommand) {
-    if (editor()->exit_value().has_value()) return;
-    SetDiskState(DiskState::kCurrent);
-    LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
-
-    (options_.generate_contents != nullptr
-         ? options_.generate_contents(this)
-         : futures::Past(ValueOrError(Success())))
-        .SetConsumer(
-            [shared_this = shared_from_this(), this](ValueOrError<EmptyValue>) {
-              switch (reload_state_) {
-                case ReloadState::kDone:
-                  LOG(FATAL) << "Invalid reload state! Can't be kDone.";
-                  break;
-                case ReloadState::kOngoing:
-                  reload_state_ = ReloadState::kDone;
-                  if (fd_ == nullptr && fd_error_ == nullptr) {
-                    EndOfFile();
-                  }
-                  break;
-                case ReloadState::kPending:
-                  reload_state_ = ReloadState::kDone;
-                  if (fd_ == nullptr && fd_error_ == nullptr) {
-                    EndOfFile();
-                  }
-                  Reload();
-              }
+  futures::Transform(
+      futures::ForEach(
+          paths.begin(), paths.end(),
+          [this](std::wstring dir) {
+            if (auto value =
+                    EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
+                value.has_value()) {
+              return futures::Transform(
+                  value.value(),
+                  futures::Past(IterationControlCommand::kContinue));
+            }
+            return Past(IterationControlCommand::kContinue);
+          }),
+      [this](IterationControlCommand) -> futures::ValueOrError<EmptyValue> {
+        if (editor()->exit_value().has_value()) return futures::Past(Success());
+        SetDiskState(DiskState::kCurrent);
+        LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
+        return options_.generate_contents != nullptr
+                   ? IgnoreErrors(options_.generate_contents(this))
+                   : futures::Past(Success());
+      },
+      [this](EmptyValue) {
+        return futures::OnError(
+            futures::Transform(futures::Past(GetEdgeStateDirectory()),
+                               [this](std::wstring dir) {
+                                 return options_.log_supplier(&work_queue_,
+                                                              dir);
+                               }),
+            [](ValueOrError<std::unique_ptr<Log>> error) {
+              LOG(INFO) << "Error opening log: " << error.error.value();
+              return Success(NewNullLog());
             });
-  });
+      },
+      [this](std::unique_ptr<Log> log) -> futures::ValueOrError<EmptyValue> {
+        CHECK(log != nullptr);
+        log_ = std::move(log);
+        return futures::Past(Success());
+      },
+      [shared_this = shared_from_this(), this](EmptyValue) {
+        switch (reload_state_) {
+          case ReloadState::kDone:
+            LOG(FATAL) << "Invalid reload state! Can't be kDone.";
+            break;
+          case ReloadState::kOngoing:
+            reload_state_ = ReloadState::kDone;
+            if (fd_ == nullptr && fd_error_ == nullptr) {
+              EndOfFile();
+            }
+            break;
+          case ReloadState::kPending:
+            reload_state_ = ReloadState::kDone;
+            if (fd_ == nullptr && fd_error_ == nullptr) {
+              EndOfFile();
+            }
+            Reload();
+        }
+        return futures::Past(Success());
+      });
 }
 
 futures::Value<PossibleError> OpenBuffer::Save() {
@@ -970,9 +995,11 @@ ValueOrError<std::wstring> OpenBuffer::GetEdgeStateDirectory() const {
   return Success(path);
 }
 
+Log* OpenBuffer::log() const { return log_.get(); }
+
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
-  LOG(INFO) << "UpdateBackup starts: " << Read(buffer_variables::name);
+  log_->Append(L"UpdateBackup starts.");
   if (options_.handle_save != nullptr) {
     options_.handle_save(
         {.buffer = this, .save_type = Options::SaveType::kBackup});
@@ -1861,69 +1888,65 @@ void OpenBuffer::Set(const EdgeVariable<LineColumn>* variable,
 }
 
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
-    std::unique_ptr<Transformation> transformation) {
+    transformation::Variant transformation) {
   return ApplyToCursors(std::move(transformation),
                         Read(buffer_variables::multiple_cursors)
                             ? Modifiers::CursorsAffected::kAll
                             : Modifiers::CursorsAffected::kOnlyCurrent,
-                        Transformation::Input::Mode::kFinal);
+                        transformation::Input::Mode::kFinal);
 }
 
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
-    std::unique_ptr<Transformation> transformation,
+    transformation::Variant transformation,
     Modifiers::CursorsAffected cursors_affected,
-    Transformation::Input::Mode mode) {
-  CHECK(transformation != nullptr);
-
+    transformation::Input::Mode mode) {
+  auto trace = log_->NewChild(L"ApplyToCursors transformation.");
+  trace->Append(L"Transformation: " + transformation::ToString(transformation));
   undo_future_.clear();
 
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
-    last_transformation_stack_.back()->PushBack(transformation->Clone());
+    last_transformation_stack_.back()->PushBack(transformation);
     CHECK(!undo_past_.empty());
   } else {
-    undo_past_.push_back(std::make_unique<TransformationStack>());
+    undo_past_.push_back(std::make_unique<transformation::Stack>());
   }
 
-  undo_past_.back()->PushFront(
-      NewSetCursorsTransformation(*active_cursors(), position()));
+  undo_past_.back()->PushFront(transformation::Cursors{
+      .cursors = *active_cursors(), .active = position()});
 
   if (cursors_affected == Modifiers::CursorsAffected::kAll) {
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
-    std::shared_ptr<Transformation> transformation_shared =
-        std::move(transformation);
     return cursors_tracker_.ApplyTransformationToCursors(
-        cursors, [this, transformation_shared, mode](LineColumn position) {
+        cursors, [this, transformation = std::move(transformation),
+                  mode](LineColumn position) {
           return futures::Transform(
-              Apply(transformation_shared->Clone(), position, mode),
-              [](Transformation::Result result) { return result.position; });
+              Apply(transformation, position, mode),
+              [](transformation::Result result) { return result.position; });
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     return futures::Transform(
         Apply(std::move(transformation), position(), mode),
-        [this](const Transformation::Result& result) {
+        [this](const transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
           return EmptyValue();
         });
   }
 }
 
-futures::Value<typename Transformation::Result> OpenBuffer::Apply(
-    std::unique_ptr<Transformation> transformation, LineColumn position,
-    Transformation::Input::Mode mode) {
-  CHECK(transformation != nullptr);
-
-  Transformation::Input input(this);
+futures::Value<typename transformation::Result> OpenBuffer::Apply(
+    transformation::Variant transformation, LineColumn position,
+    transformation::Input::Mode mode) {
+  transformation::Input input(this);
   input.mode = mode;
   input.position = position;
-  auto inner_future = transformation->Apply(input);
-  return futures::Transform(inner_future, [this, transformation_raw =
-                                                     transformation.release()](
-                                              Transformation::Result result) {
-    std::unique_ptr<Transformation> transformation(transformation_raw);
+  auto inner_future = transformation::Apply(transformation, std::move(input));
+  return futures::Transform(inner_future, [this, transformation =
+                                                     std::move(transformation)](
+                                              transformation::Result result) {
     if (result.delete_buffer != nullptr &&
         Read(buffer_variables::delete_into_paste_buffer)) {
       (*editor()
@@ -1937,7 +1960,8 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
     }
 
     CHECK(!undo_past_.empty());
-    undo_past_.back()->PushFront(result.undo_stack->Clone());
+    undo_past_.back()->PushFront(
+        transformation::Stack{.stack = result.undo_stack->stack});
     return result;
   });
 }
@@ -1945,32 +1969,32 @@ futures::Value<typename Transformation::Result> OpenBuffer::Apply(
 futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {
   size_t repetitions = options_.editor->repetitions().value_or(1);
   options_.editor->ResetRepetitions();
-  return ApplyToCursors(transformation::Build(transformation::Repetitions{
+  return ApplyToCursors(transformation::Repetitions{
       repetitions,
-      std::shared_ptr<Transformation>(last_transformation_->Clone())}));
+      std::make_shared<transformation::Variant>(last_transformation_)});
 }
 
 void OpenBuffer::PushTransformationStack() {
   if (last_transformation_stack_.empty()) {
-    undo_past_.push_back(std::make_unique<TransformationStack>());
+    undo_past_.push_back(std::make_unique<transformation::Stack>());
   }
   last_transformation_stack_.emplace_back(
-      std::make_unique<TransformationStack>());
+      std::make_unique<transformation::Stack>());
 }
 
 void OpenBuffer::PopTransformationStack() {
   CHECK(!last_transformation_stack_.empty());
-  last_transformation_ = std::move(last_transformation_stack_.back());
+  last_transformation_ = std::move(*last_transformation_stack_.back());
   last_transformation_stack_.pop_back();
   if (!last_transformation_stack_.empty()) {
-    last_transformation_stack_.back()->PushBack(last_transformation_->Clone());
+    last_transformation_stack_.back()->PushBack(last_transformation_);
   }
 }
 
 futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
   struct Data {
-    std::list<std::unique_ptr<TransformationStack>>* source;
-    std::list<std::unique_ptr<TransformationStack>>* target;
+    std::list<std::unique_ptr<transformation::Stack>>* source;
+    std::list<std::unique_ptr<transformation::Stack>>* target;
     size_t repetitions = 0;
   };
   auto data = std::make_shared<Data>();
@@ -1987,13 +2011,13 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
             data->source->empty()) {
           return futures::Past(IterationControlCommand::kStop);
         }
-        Transformation::Input input(this);
+        transformation::Input input(this);
         input.position = position();
         // We've undone the entire changes, so...
         last_transformation_stack_.clear();
         return futures::Transform(
-            data->source->back()->Apply(input),
-            [this, undo_mode, data](Transformation::Result result) {
+            transformation::Apply(*data->source->back(), input),
+            [this, undo_mode, data](transformation::Result result) {
               data->target->push_back(std::move(result.undo_stack));
               data->source->pop_back();
               if (result.modified_buffer ||

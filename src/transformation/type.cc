@@ -6,27 +6,36 @@
 
 namespace afc::editor::transformation {
 
-namespace {
-class Adapter : public Transformation {
- public:
-  Adapter(BaseTransformation base_transformation)
-      : base_transformation_(std::move(base_transformation)) {}
-
-  futures::Value<Result> Apply(const Input& input) const override {
-    return std::visit([&](auto& value) { return ApplyBase(value, input); },
-                      base_transformation_);
-  }
-
-  std::unique_ptr<Transformation> Clone() const override {
-    return Build(base_transformation_);
-  }
-
- private:
-  const BaseTransformation base_transformation_;
-};
-}  // namespace
-
-std::unique_ptr<Transformation> Build(BaseTransformation base_transformation) {
-  return std::make_unique<Adapter>(std::move(base_transformation));
+futures::Value<Result> Apply(BaseTransformation base_transformation,
+                             const Input& input) {
+  return std::visit([&](auto& value) { return ApplyBase(value, input); },
+                    base_transformation);
 }
+
+std::wstring ToString(const Variant& transformation) {
+  return std::visit(
+      [&](auto& value) -> std::wstring { return ToStringBase(value); },
+      transformation);
+}
+
+Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
+
+Result::Result(LineColumn position)
+    : undo_stack(std::make_unique<transformation::Stack>()),
+      position(position) {}
+
+Result::Result(Result&&) = default;
+Result::~Result() = default;
+
+void Result::MergeFrom(Result sub_result) {
+  success &= sub_result.success;
+  made_progress |= sub_result.made_progress;
+  modified_buffer |= sub_result.modified_buffer;
+  undo_stack->PushFront(std::move(*sub_result.undo_stack));
+  if (sub_result.delete_buffer != nullptr) {
+    delete_buffer = std::move(sub_result.delete_buffer);
+  }
+  position = sub_result.position;
+}
+
 }  // namespace afc::editor::transformation

@@ -105,12 +105,12 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
 }
 }  // namespace
 namespace transformation {
-futures::Value<Transformation::Result> ApplyBase(const Delete& options,
-                                                 Transformation::Input input) {
+futures::Value<transformation::Result> ApplyBase(const Delete& options,
+                                                 Input input) {
   CHECK(input.buffer != nullptr);
   input.mode = options.mode.value_or(input.mode);
 
-  auto output = std::make_shared<Transformation::Result>(
+  auto output = std::make_shared<transformation::Result>(
       input.buffer->AdjustLineColumn(input.position));
   Range range =
       input.buffer->FindPartialRange(options.modifiers, output->position);
@@ -125,7 +125,7 @@ futures::Value<Transformation::Result> ApplyBase(const Delete& options,
 
   if (options.modifiers.delete_behavior ==
           Modifiers::DeleteBehavior::kDeleteText &&
-      input.mode == Transformation::Input::Mode::kFinal) {
+      input.mode == Input::Mode::kFinal) {
     LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
     for (LineColumn delete_position = range.begin;
          delete_position.line < range.end.line;
@@ -140,14 +140,14 @@ futures::Value<Transformation::Result> ApplyBase(const Delete& options,
   auto delete_buffer = GetDeletedTextBuffer(*input.buffer, range);
   if (options.modifiers.paste_buffer_behavior ==
           Modifiers::PasteBufferBehavior::kDeleteInto &&
-      input.mode == Transformation::Input::Mode::kFinal) {
+      input.mode == Input::Mode::kFinal) {
     VLOG(5) << "Preparing delete buffer.";
     output->delete_buffer = delete_buffer;
   }
 
   if (options.modifiers.delete_behavior ==
           Modifiers::DeleteBehavior::kDoNothing &&
-      input.mode == Transformation::Input::Mode::kFinal) {
+      input.mode == Input::Mode::kFinal) {
     LOG(INFO) << "Not actually deleting region.";
     return futures::Past(std::move(*output));
   }
@@ -156,10 +156,9 @@ futures::Value<Transformation::Result> ApplyBase(const Delete& options,
   output->modified_buffer = true;
 
   return futures::Transform(
-      transformation::Build(transformation::SetPosition(range.begin))
-          ->Apply(input),
+      Apply(transformation::SetPosition(range.begin), input),
       [options, range, output, input,
-       delete_buffer](Transformation::Result result) mutable {
+       delete_buffer](transformation::Result result) mutable {
         output->MergeFrom(std::move(result));
 
         transformation::Insert insert_options(std::move(delete_buffer));
@@ -170,7 +169,7 @@ futures::Value<Transformation::Result> ApplyBase(const Delete& options,
         output->undo_stack->PushFront(insert_options);
         output->undo_stack->PushFront(transformation::SetPosition(range.begin));
 
-        if (input.mode != Transformation::Input::Mode::kPreview) {
+        if (input.mode != Input::Mode::kPreview) {
           return futures::Past(std::move(*output));
         }
         LOG(INFO) << "Inserting preview at: " << range.begin;
@@ -180,14 +179,15 @@ futures::Value<Transformation::Result> ApplyBase(const Delete& options,
                 ? LineModifierSet{LineModifier::UNDERLINE, LineModifier::GREEN}
                 : options.preview_modifiers;
         input.position = range.begin;
-        return futures::Transform(
-            transformation::Build(std::move(insert_options))->Apply(input),
-            [output](Transformation::Result result) {
-              output->MergeFrom(std::move(result));
-              return std::move(*output);
-            });
+        return futures::Transform(Apply(std::move(insert_options), input),
+                                  [output](transformation::Result result) {
+                                    output->MergeFrom(std::move(result));
+                                    return std::move(*output);
+                                  });
       });
 }
+
+std::wstring ToStringBase(const Delete& v) { return L"Delete(...);"; }
 
 void RegisterDelete(vm::Environment* environment) {
   auto builder = std::make_unique<ObjectType>(L"DeleteTransformationBuilder");
@@ -223,13 +223,11 @@ void RegisterDelete(vm::Environment* environment) {
             return options;
           })));
 
-  builder->AddField(
-      L"build",
-      vm::NewCallback(std::function<Transformation*(std::shared_ptr<Delete>)>(
-          [](std::shared_ptr<Delete> options) {
-            CHECK(options != nullptr);
-            return transformation::Build(*options).release();
-          })));
+  builder->AddField(L"build",
+                    vm::NewCallback([](std::shared_ptr<Delete> options) {
+                      CHECK(options != nullptr);
+                      return std::make_unique<Variant>(*options).release();
+                    }));
 
   environment->DefineType(L"DeleteTransformationBuilder", std::move(builder));
 }

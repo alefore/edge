@@ -1,64 +1,61 @@
 #include "src/transformation/stack.h"
 
+#include "src/buffer.h"
+#include "src/log.h"
+#include "src/transformation/composite.h"
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
-TransformationStack::TransformationStack()
-    : stack_(std::make_shared<std::list<std::unique_ptr<Transformation>>>()) {}
-
-void TransformationStack::PushBack(
-    std::unique_ptr<Transformation> transformation) {
-  stack_->push_back(std::move(transformation));
-}
-
-void TransformationStack::PushFront(
-    std::unique_ptr<Transformation> transformation) {
-  stack_->push_front(std::move(transformation));
-}
-
-void TransformationStack::PushFront(
-    transformation::BaseTransformation transformation) {
-  PushFront(transformation::Build(std::move(transformation)));
-}
-
-futures::Value<Transformation::Result> TransformationStack::Apply(
-    const Input& input) const {
+namespace transformation {
+futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   auto output = std::make_shared<Result>(input.position);
+  auto copy = std::make_shared<Stack>(parameters);
+  std::shared_ptr<Log> trace =
+      input.buffer->log()->NewChild(L"ApplyBase(Stack)");
   return futures::Transform(
       futures::ForEach(
-          stack_->begin(), stack_->end(),
-          [output, input, stack = stack_](
-              const std::unique_ptr<Transformation>& transformation) {
+          copy->stack.begin(), copy->stack.end(),
+          [output, input,
+           trace](const transformation::Variant& transformation) {
+            trace->Append(L"Transformation: " + ToString(transformation));
             Input sub_input(input.buffer);
             sub_input.position = output->position;
             sub_input.mode = input.mode;
             return futures::Transform(
-                transformation->Apply(sub_input),
-                [output](Transformation::Result result) {
+                Apply(transformation, sub_input), [output](Result result) {
                   output->MergeFrom(std::move(result));
                   return output->success
                              ? futures::IterationControlCommand::kContinue
                              : futures::IterationControlCommand::kStop;
                 });
           }),
-      [output](futures::IterationControlCommand) {
+      [output, copy](futures::IterationControlCommand) {
         return std::move(*output);
       });
 }
 
-std::unique_ptr<Transformation> TransformationStack::Clone() const {
-  auto output = std::make_unique<TransformationStack>();
-  for (auto& it : *stack_) {
-    output->PushBack(it->Clone());
+std::wstring ToStringBase(const Stack& stack) {
+  std::wstring output = L"Stack(";
+  std::wstring separator;
+  for (auto& v : stack.stack) {
+    output += separator + ToString(v);
+    separator = L", ";
   }
+  output += L")";
   return output;
 }
 
-std::unique_ptr<Transformation> ComposeTransformation(
-    std::unique_ptr<Transformation> a, std::unique_ptr<Transformation> b) {
-  auto stack = std::make_unique<TransformationStack>();
-  stack->PushBack(std::move(a));
-  stack->PushBack(std::move(b));
-  return stack;
+void Stack::PushBack(Variant transformation) {
+  stack.push_back(std::move(transformation));
+}
+
+void Stack::PushFront(Variant transformation) {
+  stack.push_front(std::move(transformation));
+}
+}  // namespace transformation
+
+transformation::Variant ComposeTransformation(transformation::Variant a,
+                                              transformation::Variant b) {
+  return transformation::Stack{{std::move(a), std::move(b)}};
 }
 }  // namespace afc::editor

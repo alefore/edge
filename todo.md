@@ -42,6 +42,8 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
 Make the delete buffer history (used by `p` paste) a stack; make it possible to pop.
 
+Don't crash on ctrl+space.
+
 * Improve reflow:
 
   * Somehow integrate reflow (logic from `wrap_from_content`) with `reflow` script?

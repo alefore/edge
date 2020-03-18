@@ -47,7 +47,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
         Modifiers::PasteBufferBehavior::kDoNothing;
     delete_options.modifiers.repetitions =
         buffer_to_insert->contents()->CountCharacters();
-    delete_options.mode = Transformation::Input::Mode::kFinal;
+    delete_options.mode = transformation::Input::Mode::kFinal;
     output.Push(std::move(delete_options));
 
     transformation::Insert insert_options(buffer_to_insert);
@@ -55,14 +55,13 @@ class SwitchCaseTransformation : public CompositeTransformation {
       insert_options.final_position =
           transformation::Insert::FinalPosition::kStart;
     }
-    if (input.mode == Transformation::Input::Mode::kPreview) {
+    if (input.mode == transformation::Input::Mode::kPreview) {
       insert_options.modifiers_set = {LineModifier::UNDERLINE,
                                       LineModifier::BLUE};
     }
     output.Push(std::move(insert_options));
-    if (input.mode == Transformation::Input::Mode::kPreview) {
-      output.Push(
-          transformation::Build(transformation::SetPosition(input.position)));
+    if (input.mode == transformation::Input::Mode::kPreview) {
+      output.Push(transformation::SetPosition(input.position));
     }
     return futures::Past(std::move(output));
   }
@@ -73,9 +72,9 @@ class SwitchCaseTransformation : public CompositeTransformation {
 };
 }  // namespace
 
-std::unique_ptr<Transformation> NewSwitchCaseTransformation(
-    Modifiers modifiers) {
-  return NewTransformation(std::move(modifiers),
-                           std::make_unique<SwitchCaseTransformation>());
+// TODO(easy): Change return type to be Composite.
+transformation::Variant NewSwitchCaseTransformation(Modifiers modifiers) {
+  return transformation::ModifiersAndComposite{
+      std::move(modifiers), std::make_unique<SwitchCaseTransformation>()};
 }
 }  // namespace afc::editor

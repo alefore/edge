@@ -15,6 +15,7 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
+#include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 
 namespace afc::editor {
@@ -164,7 +165,7 @@ class NavigateTransformation : public CompositeTransformation {
     Output output;
     auto range = GetRange(state_, input.buffer, input.position);
 
-    if (input.mode == Transformation::Input::Mode::kPreview) {
+    if (input.mode == transformation::Input::Mode::kPreview) {
       std::vector<NavigateOperation::Type> directions = {
           NavigateOperation::Type::kForward,
           NavigateOperation::Type::kBackward};
@@ -184,7 +185,7 @@ class NavigateTransformation : public CompositeTransformation {
         transformation::Delete delete_options;
         delete_options.modifiers.paste_buffer_behavior =
             Modifiers::PasteBufferBehavior::kDoNothing;
-        delete_options.mode = Transformation::Input::Mode::kPreview;
+        delete_options.mode = transformation::Input::Mode::kPreview;
         delete_options.modifiers.delete_behavior =
             Modifiers::DeleteBehavior::kDoNothing;
         output.Push(std::move(delete_options));
@@ -214,15 +215,14 @@ class NavigateTransformation : public CompositeTransformation {
       // Otherwise we'll be saying that we want to delete the previous line.
       return;
     }
-    output->Push(transformation::Build(
-        transformation::SetPosition(WriteIndex(position, index))));
+    output->Push(transformation::SetPosition(WriteIndex(position, index)));
     transformation::Delete options;
     options.modifiers.structure = StructureLine();
     options.modifiers.direction = direction;
     options.modifiers.paste_buffer_behavior =
         Modifiers::PasteBufferBehavior::kDoNothing;
     options.line_end_behavior = transformation::Delete::LineEndBehavior::kStop;
-    options.mode = Transformation::Input::Mode::kPreview;
+    options.mode = transformation::Input::Mode::kPreview;
     options.preview_modifiers = {LineModifier::DIM};
     output->Push(std::move(options));
   }
@@ -311,11 +311,9 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
              .char_consumer = CharConsumer,
              .status_factory = BuildStatus};
          SetOptionsForBufferTransformation<NavigateState>(
-             [](EditorState*,
-                NavigateState state) -> std::unique_ptr<Transformation> {
-               return NewTransformation(
-                   Modifiers(),
-                   std::make_unique<NavigateTransformation>(std::move(state)));
+             [](EditorState*, NavigateState state) -> transformation::Variant {
+               return std::make_unique<NavigateTransformation>(
+                   std::move(state));
              },
              [](const NavigateState&) {
                return std::optional<Modifiers::CursorsAffected>();

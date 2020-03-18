@@ -2,6 +2,7 @@
 
 #include "src/char_buffer.h"
 #include "src/server.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
@@ -34,16 +35,15 @@ const VMType
         VMType::ObjectType(L"RepetitionsTransformationBuilder");
 }  // namespace vm
 namespace editor::transformation {
-futures::Value<Transformation::Result> ApplyBase(const Repetitions& options,
-                                                 Transformation::Input input) {
+futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
   CHECK(input.buffer != nullptr);
   struct Data {
     size_t index = 0;
-    std::unique_ptr<Transformation::Result> output;
+    std::unique_ptr<Result> output;
     Repetitions options;
   };
   auto data = std::make_shared<Data>();
-  data->output = std::make_unique<Transformation::Result>(input.position);
+  data->output = std::make_unique<Result>(input.position);
   data->options = options;
   return futures::Transform(
       futures::While([data, input]() mutable {
@@ -51,12 +51,12 @@ futures::Value<Transformation::Result> ApplyBase(const Repetitions& options,
           return futures::Past(futures::IterationControlCommand::kStop);
         }
         data->index++;
-        Transformation::Input current_input(input.buffer);
+        Input current_input(input.buffer);
         current_input.mode = input.mode;
         current_input.position = data->output->position;
         return futures::Transform(
-            data->options.transformation->Apply(current_input),
-            [data](Transformation::Result result) {
+            Apply(*data->options.transformation, current_input),
+            [data](Result result) {
               bool made_progress = result.made_progress;
               data->output->MergeFrom(std::move(result));
               return made_progress && data->output->success
@@ -67,6 +67,11 @@ futures::Value<Transformation::Result> ApplyBase(const Repetitions& options,
       [data](const futures::IterationControlCommand&) {
         return std::move(*data->output);
       });
+}
+
+std::wstring ToStringBase(const Repetitions& v) {
+  return L"Repetitions(" + std::to_wstring(v.repetitions) + L", " +
+         ToString(*v.transformation) + L")";
 }
 
 }  // namespace editor::transformation

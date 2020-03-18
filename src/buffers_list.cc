@@ -8,6 +8,7 @@
 #include "src/buffer_widget.h"
 #include "src/char_buffer.h"
 #include "src/dirname.h"
+#include "src/editor.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_trim.h"
@@ -74,12 +75,54 @@ std::optional<std::unordered_set<OpenBuffer*>> OptimizeFilter(
 struct BuffersListOptions {
   const std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers;
   std::shared_ptr<OpenBuffer> active_buffer;
+  std::set<OpenBuffer*> active_buffers;
   size_t buffers_per_line;
   ColumnNumberDelta width;
   std::optional<std::unordered_set<OpenBuffer*>> filter;
 };
 
 enum class FilterResult { kExcluded, kIncluded };
+
+LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
+                                   OpenBuffer* buffer,
+                                   FilterResult filter_result) {
+  LineModifierSet output;
+  if (buffer->status()->GetType() == Status::Type::kWarning) {
+    output.insert(LineModifier::RED);
+    const double kSecondsWarningHighlight = 5;
+    if (GetElapsedSecondsSince(buffer->status()->last_change_time()) <
+        kSecondsWarningHighlight) {
+      output.insert(LineModifier::REVERSE);
+    }
+  } else if (filter_result == FilterResult::kExcluded) {
+    output.insert(LineModifier::DIM);
+  } else if (buffer->child_pid() != -1) {
+    output.insert(LineModifier::YELLOW);
+  } else if (buffer->child_exit_status().has_value()) {
+    auto status = buffer->child_exit_status().value();
+    if (!WIFEXITED(status)) {
+      output.insert(LineModifier::RED);
+      output.insert(LineModifier::BOLD);
+    } else if (WEXITSTATUS(status) == 0) {
+      output.insert(LineModifier::GREEN);
+    } else {
+      output.insert(LineModifier::RED);
+    }
+    if (GetElapsedSecondsSince(buffer->time_last_exit()) < 5.0) {
+      output.insert({LineModifier::REVERSE});
+    }
+  } else {
+    if (buffer->dirty()) {
+      output.insert(LineModifier::ITALIC);
+    }
+    output.insert(LineModifier::CYAN);
+  }
+  if (buffer == options.active_buffer.get()) {
+    output.insert(LineModifier::BOLD);
+    output.insert(LineModifier::REVERSE);
+  }
+  return output;
+}
 
 class BuffersListProducer : public OutputProducer {
  public:
@@ -102,6 +145,7 @@ class BuffersListProducer : public OutputProducer {
     VLOG(2) << "BuffersListProducer::WriteLine start, index: " << index_
             << ", buffers_per_line: " << options_.buffers_per_line
             << ", size: " << options_.buffers->size();
+
     Generator output{
         std::nullopt, [this, index = index_]() {
           CHECK_LT(index, options_.buffers->size())
@@ -127,36 +171,9 @@ class BuffersListProducer : public OutputProducer {
                     ? FilterResult::kIncluded
                     : FilterResult::kExcluded;
 
-            LineModifierSet number_modifiers;
+            LineModifierSet number_modifiers =
+                GetNumberModifiers(options_, buffer, filter_result);
 
-            if (filter_result == FilterResult::kExcluded) {
-              number_modifiers.insert(LineModifier::DIM);
-            } else if (buffer->child_pid() != -1) {
-              number_modifiers.insert(LineModifier::YELLOW);
-            } else if (buffer->child_exit_status().has_value()) {
-              auto status = buffer->child_exit_status().value();
-              if (!WIFEXITED(status)) {
-                number_modifiers.insert(LineModifier::RED);
-                number_modifiers.insert(LineModifier::BOLD);
-              } else if (WEXITSTATUS(status) == 0) {
-                number_modifiers.insert(LineModifier::GREEN);
-              } else {
-                number_modifiers.insert(LineModifier::RED);
-              }
-              if (GetElapsedSecondsSince(buffer->time_last_exit()) < 5.0) {
-                number_modifiers.insert({LineModifier::REVERSE});
-              }
-            } else {
-              if (buffer->dirty()) {
-                number_modifiers.insert(LineModifier::ITALIC);
-              }
-              number_modifiers.insert(LineModifier::CYAN);
-            }
-
-            if (buffer == options_.active_buffer.get()) {
-              number_modifiers.insert(LineModifier::BOLD);
-              number_modifiers.insert(LineModifier::REVERSE);
-            }
             start +=
                 prefix_width_ - ColumnNumberDelta(number_prefix.size() + 2);
             output.AppendString(
@@ -188,11 +205,22 @@ class BuffersListProducer : public OutputProducer {
                                 filter_result == FilterResult::kExcluded
                                     ? LineModifierSet{LineModifier::DIM}
                                     : progress_modifier);
+            SelectionState selection_state;
+            switch (filter_result) {
+              case FilterResult::kExcluded:
+                selection_state = SelectionState::kExcludedByFilter;
+                break;
+              case FilterResult::kIncluded:
+                selection_state = options_.active_buffers.find(buffer) !=
+                                          options_.active_buffers.end()
+                                      ? SelectionState::kReceivingInput
+                                      : SelectionState::kIdle;
+            }
             AppendBufferPath(columns_per_buffer_, *buffer,
                              buffer->dirty()
                                  ? LineModifierSet{LineModifier::ITALIC}
                                  : LineModifierSet{},
-                             filter_result, &output);
+                             selection_state, &output);
           }
           return LineWithCursor{std::make_shared<Line>(std::move(output)),
                                 std::nullopt};
@@ -202,22 +230,31 @@ class BuffersListProducer : public OutputProducer {
   }
 
  private:
+  enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
   static void AppendBufferPath(ColumnNumberDelta columns,
                                const OpenBuffer& buffer,
                                LineModifierSet modifiers,
-                               FilterResult filter_result,
+                               SelectionState selection_state,
                                Line::Options* output) {
+    std::optional<LineModifierSet> modifiers_override;
+
     LineModifierSet dim = modifiers;
     dim.insert(LineModifier::DIM);
 
     LineModifierSet bold = modifiers;
 
-    switch (filter_result) {
-      case FilterResult::kExcluded:
+    switch (selection_state) {
+      case SelectionState::kExcludedByFilter:
         modifiers.insert(LineModifier::DIM);
         bold.insert(LineModifier::DIM);
         break;
-      case FilterResult::kIncluded:
+      case SelectionState::kReceivingInput:
+        modifiers.insert(LineModifier::REVERSE);
+        modifiers.insert(LineModifier::CYAN);
+        bold = dim = modifiers;
+        bold.insert(LineModifier::BOLD);
+        break;
+      case SelectionState::kIdle:
         bold.insert(LineModifier::BOLD);
         break;
     }
@@ -269,8 +306,9 @@ class BuffersListProducer : public OutputProducer {
 };
 }  // namespace
 
-BuffersList::BuffersList(std::unique_ptr<Widget> widget)
-    : widget_(std::move(widget)) {
+BuffersList::BuffersList(const EditorState* editor_state,
+                         std::unique_ptr<Widget> widget)
+    : editor_state_(editor_state), widget_(std::move(widget)) {
   CHECK(widget_ != nullptr);
 }
 
@@ -420,8 +458,8 @@ class BuffersPerLineTests : public tests::TestGroup<BuffersPerLineTests> {
             {.name = L"TwoLinesJustAtBoundary",
              .callback =
                  [] {
-                   // Identical to SingleLineFull, but the buffers don't fit by
-                   // 1 position.
+                   // Identical to SingleLineFull, but the buffers don't fit
+                   // by 1 position.
                    auto layout = BuffersPerLine(ColumnNumberDelta(99), 5);
                    CHECK_EQ(layout.lines, LineNumberDelta(2));
                    CHECK_EQ(layout.buffers_per_line, 3ul);
@@ -466,9 +504,14 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
             << ", from: " << buffers_.size()
             << " buffers with lines: " << layout.lines;
 
+    std::set<OpenBuffer*> active_buffers;
+    for (auto& b : editor_state_->active_buffers()) {
+      active_buffers.insert(b.get());
+    }
     rows.push_back({std::make_unique<BuffersListProducer>(BuffersListOptions{
                         .buffers = &buffers_,
                         .active_buffer = widget_->GetActiveLeaf()->Lock(),
+                        .active_buffers = std::move(active_buffers),
                         .buffers_per_line = layout.buffers_per_line,
                         .width = options.size.column,
                         .filter = OptimizeFilter(filter_)}),

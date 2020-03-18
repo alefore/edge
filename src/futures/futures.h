@@ -52,6 +52,9 @@ class Value {
   std::shared_ptr<FutureData> data_ = std::make_shared<FutureData>();
 };
 
+template <typename T>
+using ValueOrError = Value<editor::ValueOrError<T>>;
+
 // Similar to Value, but allows us to queue multiple listeners. The listeners
 // receive the value by const-ref.
 template <typename Type>
@@ -241,9 +244,11 @@ Value<editor::PossibleError> IgnoreErrors(Value<editor::PossibleError> value);
 // If value evaluates to an error, runs error_callback. error_callback will
 // receive the error and should return a ValueOrError<T> to replace it. If it
 // wants to preserve the error, it can just return it.
+//
+// TODO(easy): error_callback should receive the error directly (not the
+// ValueOrError).
 template <typename T, typename Callable>
-Value<editor::ValueOrError<T>> OnError(Value<editor::ValueOrError<T>> value,
-                                       Callable error_callback) {
+ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
   Future<editor::ValueOrError<T>> future;
   value.SetConsumer([consumer = std::move(future.consumer),
                      error_callback = std::move(error_callback)](
@@ -262,9 +267,14 @@ auto Transform(Value<InitialType> delayed_value, Value<Type> value) {
                        const InitialType&) -> Value<Type> { return value; });
 }
 
-template <typename T0, typename T1, typename T2>
-auto Transform(Value<T0> t0, T1 t1, T2 t2) {
-  return Transform(Transform(std::move(t0), std::move(t1)), std::move(t2));
+template <typename T0>
+auto Transform(Value<T0> t0) {
+  return t0;
+}
+
+template <typename T0, typename T1, typename... Args>
+auto Transform(Value<T0> t0, T1 t1, Args... args) {
+  return Transform(Transform(std::move(t0), std::move(t1)), args...);
 }
 
 template <typename Iterator, typename Callable>

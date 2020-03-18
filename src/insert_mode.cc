@@ -72,8 +72,7 @@ class NewLineTransformation : public CompositeTransformation {
       output.Push(std::move(insert_options));
     }
 
-    output.Push(
-        transformation::Build(transformation::SetPosition(input.position)));
+    output.Push(transformation::SetPosition(input.position));
     output.Push(NewDeleteSuffixSuperfluousCharacters());
     output.Push(transformation::SetPosition(
         LineColumn(input.position.line + LineNumberDelta(1), prefix_end)));
@@ -94,10 +93,9 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
       ++input.position.line;
     }
     Output output = Output::SetPosition(LineColumn(input.position.line));
-    output.Push(NewTransformation(Modifiers(),
-                                  std::make_unique<NewLineTransformation>()));
-    output.Push(
-        transformation::Build(transformation::SetPosition(input.position)));
+    output.Push(transformation::ModifiersAndComposite{
+        Modifiers(), std::make_unique<NewLineTransformation>()});
+    output.Push(transformation::SetPosition(input.position));
     return futures::Past(std::move(output));
   }
 
@@ -312,8 +310,7 @@ class InsertMode : public EditorMode {
                         const std::shared_ptr<OpenBuffer>& buffer) {
               return CallModifyHandler(
                   options, buffer,
-                  buffer->ApplyToCursors(
-                      transformation::Build(std::move(delete_options))));
+                  buffer->ApplyToCursors(std::move(delete_options)));
             });
         return;
       }
@@ -339,8 +336,7 @@ class InsertMode : public EditorMode {
                     options.editor_state->modifiers().insertion;
                 return CallModifyHandler(
                     options, buffer,
-                    buffer->ApplyToCursors(
-                        transformation::Build(std::move(insert_options))));
+                    buffer->ApplyToCursors(std::move(insert_options)));
               });
         });
   }
@@ -384,9 +380,9 @@ class InsertMode : public EditorMode {
           delete_options.modifiers.paste_buffer_behavior =
               Modifiers::PasteBufferBehavior::kDoNothing;
           return futures::Transform(
-              CallModifyHandler(options, buffer,
-                                buffer->ApplyToCursors(transformation::Build(
-                                    std::move(delete_options)))),
+              CallModifyHandler(
+                  options, buffer,
+                  buffer->ApplyToCursors(std::move(delete_options))),
               [options, direction, buffer](EmptyValue) {
                 if (options.editor_state->modifiers().insertion !=
                     Modifiers::ModifyMode::kOverwrite)
@@ -402,8 +398,7 @@ class InsertMode : public EditorMode {
                   insert_options.final_position =
                       transformation::Insert::FinalPosition::kStart;
                 }
-                return buffer->ApplyToCursors(
-                    transformation::Build(std::move(insert_options)));
+                return buffer->ApplyToCursors(std::move(insert_options));
               },
               [handler = options.modify_handler, buffer](EmptyValue) {
                 return handler(buffer);
@@ -528,33 +523,35 @@ void DefaultScrollBehavior::Up(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
   modifiers.structure = StructureLine();
-  buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+  buffer->ApplyToCursors(transformation::ModifiersAndComposite{
+      modifiers, NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::Down(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.structure = StructureLine();
-  buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+  buffer->ApplyToCursors(transformation::ModifiersAndComposite{
+      modifiers, NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::Left(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
-  buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+  buffer->ApplyToCursors(transformation::ModifiersAndComposite{
+      modifiers, NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(NewMoveTransformation(Modifiers()));
+  buffer->ApplyToCursors(NewMoveTransformation());
 }
 
 void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(
-      transformation::Build(transformation::SetPosition(ColumnNumber(0))));
+  buffer->ApplyToCursors(transformation::SetPosition(ColumnNumber(0)));
 }
 
 void DefaultScrollBehavior::End(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(transformation::Build(
-      transformation::SetPosition(std::numeric_limits<ColumnNumber>::max())));
+  buffer->ApplyToCursors(
+      transformation::SetPosition(std::numeric_limits<ColumnNumber>::max()));
 }
 
 std::unique_ptr<Command> NewFindCompletionCommand() {
@@ -609,8 +606,7 @@ void EnterInsertMode(InsertModeOptions options) {
 
   if (!options.new_line_handler) {
     options.new_line_handler = [](const std::shared_ptr<OpenBuffer>& buffer) {
-      return buffer->ApplyToCursors(NewTransformation(
-          Modifiers(), std::make_unique<NewLineTransformation>()));
+      return buffer->ApplyToCursors(std::make_unique<NewLineTransformation>());
     };
   }
 
@@ -636,9 +632,8 @@ void EnterInsertMode(InsertModeOptions options) {
     }
     if (editor_state->structure() == StructureLine()) {
       for (auto& buffer : options.buffers.value()) {
-        buffer->ApplyToCursors(NewTransformation(
-            Modifiers(), std::make_unique<InsertEmptyLineTransformation>(
-                             editor_state->direction())));
+        buffer->ApplyToCursors(std::make_unique<InsertEmptyLineTransformation>(
+            editor_state->direction()));
       }
     }
     EnterInsertCharactersMode(options);

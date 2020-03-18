@@ -23,8 +23,10 @@
 #include "src/terminal.h"
 #include "src/tests/tests.h"
 #include "src/tokenize.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
+#include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 #include "src/wstring.h"
 
@@ -349,6 +351,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             }
             return condition;
           };
+          if (line.empty()) return true;
           auto line_keys = ParseHistoryLine(line.contents());
           if (line_keys.IsError()) {
             output.errors.push_back(line_keys.error.value());
@@ -522,10 +525,10 @@ class HistoryScrollBehavior : public ScrollBehavior {
     delete_options.modifiers.structure = StructureLine();
     delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
     delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-    buffer->ApplyToCursors(transformation::Build(delete_options));
+    buffer->ApplyToCursors(delete_options);
     transformation::Insert insert_options;
     insert_options.buffer_to_insert = std::move(buffer_to_insert);
-    buffer->ApplyToCursors(transformation::Build(std::move(insert_options)));
+    buffer->ApplyToCursors(std::move(insert_options));
   }
 
   const std::shared_ptr<OpenBuffer> history_;
@@ -594,48 +597,50 @@ class LinePromptCommand : public Command {
 // received as a future so that we can detect if the prompt input changes
 // between the time when `ColorizePrompt` is executed and the time when the
 // tokens become available.
-futures::Value<EmptyValue> ColorizePrompt(
-    std::shared_ptr<OpenBuffer> status_buffer, Status* status,
-    int status_version, std::shared_ptr<Notification> abort_notification,
-    futures::Value<ColorizePromptOptions> options_future) {
+void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer, Status* status,
+                    std::shared_ptr<Notification> abort_notification,
+                    const std::shared_ptr<const Line>& original_line,
+                    ColorizePromptOptions options) {
   CHECK(status_buffer != nullptr);
   CHECK(status);
   CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
-  auto original_line = status_buffer->LineAt(LineNumber(0));
+  if (status->GetType() != Status::Type::kPrompt) {
+    LOG(INFO) << "Status is no longer a prompt, aborting colorize prompt.";
+    return;
+  }
 
-  return futures::Transform(options_future, [status_buffer, status,
-                                             status_version, abort_notification,
-                                             original_line](
-                                                ColorizePromptOptions options) {
-    if (status->GetType() != Status::Type::kPrompt) {
-      LOG(INFO) << "Status is no longer a prompt, aborting colorize prompt.";
-      return futures::Past(EmptyValue());
-    }
+  if (status->prompt_buffer() != status_buffer) {
+    LOG(INFO) << "Prompt buffer has changed, aborting colorize prompt.";
+    return;
+  }
+  if (abort_notification->HasBeenNotified()) {
+    LOG(INFO) << "Abort notification notified, aborting colorize prompt.";
+    return;
+  }
 
-    if (status->prompt_buffer() != status_buffer) {
-      LOG(INFO) << "Prompt buffer has changed, aborting colorize prompt.";
-      return futures::Past(EmptyValue());
-    }
-    if (abort_notification->HasBeenNotified()) {
-      LOG(INFO) << "Abort notification notified, aborting colorize prompt.";
-      return futures::Past(EmptyValue());
-    }
+  CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
+  auto line = status_buffer->LineAt(LineNumber(0));
+  if (original_line->ToString() != line->ToString()) {
+    LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
+    return;
+  }
 
-    CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
-    auto line = status_buffer->LineAt(LineNumber(0));
-    if (original_line->ToString() != line->ToString()) {
-      LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
-      return futures::Past(EmptyValue());
-    }
+  status_buffer->AppendRawLine(
+      ColorizeLine(line->contents(), std::move(options.tokens)));
+  status_buffer->EraseLines(LineNumber(0), LineNumber(1));
+  if (options.context.has_value()) {
+    status->set_prompt_context(options.context.value());
+  }
+}
 
-    status_buffer->AppendRawLine(
-        ColorizeLine(line->contents(), std::move(options.tokens)));
-    status_buffer->EraseLines(LineNumber(0), LineNumber(1));
-    if (options.context.has_value()) {
-      status->set_prompt_context(options.context.value());
-    }
-    status->prompt_extra_information()->MarkVersionDone(status_version);
-    return futures::Past(EmptyValue());
+template <typename T0, typename T1>
+futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> t0,
+                                              futures::Value<T1> t1) {
+  return futures::Transform(std::move(t0), [t1 = std::move(t1)](T0 v0) mutable {
+    return futures::Transform(std::move(t1),
+                              [v0 = std::move(v0)](T1 v1) mutable {
+                                return std::tuple{std::move(v0), std::move(v1)};
+                              });
   });
 }
 }  // namespace
@@ -670,8 +675,7 @@ void Prompt(PromptOptions options) {
         OpenBuffer::New({.editor = editor_state, .name = L"- text inserted"});
     buffer_to_insert->AppendToLastLine(
         NewLazyString(std::move(options.initial_value)));
-    buffer->ApplyToCursors(transformation::Build(
-        transformation::Insert(std::move(buffer_to_insert))));
+    buffer->ApplyToCursors(transformation::Insert(std::move(buffer_to_insert)));
   }
 
   InsertModeOptions insert_mode_options;
@@ -687,42 +691,59 @@ void Prompt(PromptOptions options) {
   // new notification that will be given to the `colorize_options_provider`.
   auto abort_notification_ptr = std::make_shared<std::shared_ptr<Notification>>(
       std::make_shared<Notification>());
-  insert_mode_options.modify_handler =
-      [editor_state, history_evaluator, history, status, options,
-       abort_notification_ptr](const std::shared_ptr<OpenBuffer>& buffer) {
-        auto line = buffer->LineAt(LineNumber())->contents();
-        int status_version =
-            status->prompt_extra_information()->StartNewVersion();
-        if (options.colorize_options_provider == nullptr) {
+  insert_mode_options
+      .modify_handler = [editor_state, history_evaluator, history, status,
+                         options, abort_notification_ptr](
+                            const std::shared_ptr<OpenBuffer>& buffer) {
+    auto line = buffer->LineAt(LineNumber())->contents();
+    int status_version = status->prompt_extra_information()->StartNewVersion();
+    if (options.colorize_options_provider == nullptr) {
+      return futures::Past(EmptyValue());
+    }
+    auto progress_channel = std::make_unique<ProgressChannel>(
+        buffer->work_queue(),
+        [status, status_version](ProgressInformation extra_information) {
+          if (status->GetType() != Status::Type::kPrompt) return;
+          CHECK(status->prompt_extra_information() != nullptr);
+          for (const auto& [key, value] : extra_information.values) {
+            status->prompt_extra_information()->SetValue(key, status_version,
+                                                         value);
+          }
+        },
+        WorkQueueChannelConsumeMode::kAll);
+    (*abort_notification_ptr)->Notify();
+    *abort_notification_ptr = std::make_shared<Notification>();
+    return futures::Transform(
+        JoinValues(
+            futures::Transform(
+                FilterHistory(editor_state, history.get(),
+                              history_evaluator.get(), *abort_notification_ptr,
+                              line->ToString()),
+                [status,
+                 status_version](std::shared_ptr<OpenBuffer> filtered_history) {
+                  if (status->GetType() == Status::Type::kPrompt) {
+                    status->prompt_extra_information()->SetValue(
+                        L"history", status_version,
+                        std::to_wstring(
+                            filtered_history->lines_size().line_delta));
+                  }
+                  return EmptyValue();
+                }),
+            futures::Transform(
+                options.colorize_options_provider(
+                    line, std::move(progress_channel), *abort_notification_ptr),
+                [buffer, status, abort_notification_ptr,
+                 original_line = buffer->LineAt(LineNumber(0))](
+                    ColorizePromptOptions options) {
+                  ColorizePrompt(buffer, status, *abort_notification_ptr,
+                                 original_line, options);
+                  return EmptyValue();
+                })),
+        [status, status_version](std::tuple<EmptyValue, EmptyValue>) {
+          status->prompt_extra_information()->MarkVersionDone(status_version);
           return futures::Past(EmptyValue());
-        }
-        auto progress_channel = std::make_unique<ProgressChannel>(
-            buffer->work_queue(),
-            [status, status_version](ProgressInformation extra_information) {
-              if (status->GetType() != Status::Type::kPrompt) return;
-              CHECK(status->prompt_extra_information() != nullptr);
-              for (const auto& [key, value] : extra_information.values) {
-                status->prompt_extra_information()->SetValue(
-                    key, status_version, value);
-              }
-            },
-            WorkQueueChannelConsumeMode::kLastAvailable);
-        (*abort_notification_ptr)->Notify();
-        *abort_notification_ptr = std::make_shared<Notification>();
-        FilterHistory(editor_state, history.get(), history_evaluator.get(),
-                      *abort_notification_ptr, line->ToString())
-            .SetConsumer([status, status_version](
-                             std::shared_ptr<OpenBuffer> filtered_history) {
-              if (status->GetType() != Status::Type::kPrompt) return;
-              status->prompt_extra_information()->SetValue(
-                  L"history", status_version,
-                  std::to_wstring(filtered_history->lines_size().line_delta));
-            });
-        return ColorizePrompt(
-            buffer, status, status_version, *abort_notification_ptr,
-            options.colorize_options_provider(line, std::move(progress_channel),
-                                              *abort_notification_ptr));
-      };
+        });
+  };
 
   insert_mode_options.scroll_behavior =
       std::make_unique<HistoryScrollBehaviorFactory>(
@@ -790,21 +811,19 @@ void Prompt(PromptOptions options) {
                     Modifiers::LIMIT_CURRENT;
                 delete_options.modifiers.boundary_end =
                     Modifiers::LIMIT_CURRENT;
-                buffer->ApplyToCursors(transformation::Build(delete_options));
+                buffer->ApplyToCursors(delete_options);
 
                 std::shared_ptr<LazyString> line =
                     NewLazyString(results.value().common_prefix.value());
                 auto buffer_to_insert = OpenBuffer::New(
                     {.editor = editor_state, .name = L"- text inserted"});
                 buffer_to_insert->AppendToLastLine(line);
-                buffer->ApplyToCursors(transformation::Build(
-                    transformation::Insert(std::move(buffer_to_insert))));
+                buffer->ApplyToCursors(
+                    transformation::Insert(std::move(buffer_to_insert)));
                 if (options.colorize_options_provider != nullptr) {
                   int status_version =
                       status->prompt_extra_information()->StartNewVersion();
-                  ColorizePrompt(
-                      buffer, status, status_version,
-                      std::make_shared<Notification>(),
+                  futures::Transform(
                       options.colorize_options_provider(
                           line,
                           std::make_unique<ProgressChannel>(
@@ -812,8 +831,18 @@ void Prompt(PromptOptions options) {
                               [](ProgressInformation) {
                                 /* Nothing for now. */
                               },
-                              WorkQueueChannelConsumeMode::kLastAvailable),
-                          std::make_shared<Notification>()));
+                              WorkQueueChannelConsumeMode::kAll),
+                          std::make_shared<Notification>()),
+                      [buffer, status, status_version,
+                       original_line = buffer->LineAt(LineNumber(0))](
+                          ColorizePromptOptions options) {
+                        ColorizePrompt(buffer, status,
+                                       std::make_shared<Notification>(),
+                                       original_line, options);
+                        status->prompt_extra_information()->MarkVersionDone(
+                            status_version);
+                        return Success();
+                      });
                 }
               } else {
                 LOG(INFO) << "Prediction didn't advance.";

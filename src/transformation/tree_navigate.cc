@@ -52,7 +52,9 @@ class TreeNavigate : public CompositeTransformation {
   }
 };
 }  // namespace
-std::unique_ptr<Transformation> NewTreeNavigateTransformation() {
-  return NewTransformation(Modifiers(), std::make_unique<TreeNavigate>());
+
+// TODO(easy): Change return type to Composite.
+transformation::Variant NewTreeNavigateTransformation() {
+  return std::make_unique<TreeNavigate>();
 }
 }  // namespace afc::editor

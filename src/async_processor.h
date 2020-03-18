@@ -59,6 +59,8 @@ class AsyncProcessor {
           return options;
         }()) {}
 
+  // As we return, we guarantee that there's no ongoing execution of
+  // `options_.factory` and none will happen in the future.
   ~AsyncProcessor() { PauseThread(); }
 
   void Push(Input input) {
@@ -96,6 +98,7 @@ class AsyncProcessor {
   }
 
   void PauseThread() {
+    LOG(INFO) << "Starting Pause Thread.";
     std::unique_lock<std::mutex> thread_creation_lock(thread_creation_mutex_);
     std::unique_lock<std::mutex> lock(mutex_);
     if (state_ == State::kNotRunning) {
@@ -173,15 +176,20 @@ using BackgroundCallbackRunner = AsyncProcessor<std::function<void()>, int>;
 
 class AsyncEvaluator {
  public:
+  // work_queue is optional. It will be required if AsyncEvaluator::Run is used.
+  // Otherwise, it may be null.
   AsyncEvaluator(
       std::wstring name, WorkQueue* work_queue,
       BackgroundCallbackRunner::Options::QueueBehavior push_behavior =
           BackgroundCallbackRunner::Options::QueueBehavior::kWait);
 
+  // Callers must ensure that the underlying `work_queue` doesn't get destroyed
+  // until the future is notified.
   template <typename Callable>
   auto Run(Callable callable) {
+    CHECK(work_queue_ != nullptr);
     futures::Future<decltype(callable())> output;
-    background_callback_runner_.Push(
+    background_callback_runner_->Push(
         [this, callable = std::move(callable),
          consumer = std::move(output.consumer)]() mutable {
           work_queue_->Schedule(
@@ -191,8 +199,14 @@ class AsyncEvaluator {
     return std::move(output.value);
   }
 
+  template <typename Callable>
+  void RunIgnoringResults(Callable callable) {
+    background_callback_runner_->Push(
+        [callable = std::move(callable)]() { callable(); });
+  }
+
  private:
-  BackgroundCallbackRunner background_callback_runner_;
+  std::unique_ptr<BackgroundCallbackRunner> background_callback_runner_;
   WorkQueue* work_queue_;
 };
 

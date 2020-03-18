@@ -7,8 +7,7 @@
 #include "src/transformation.h"
 
 namespace afc::editor {
-std::unique_ptr<Transformation> NewSwitchCaseTransformation(
-    Modifiers modifiers);
+transformation::Variant NewSwitchCaseTransformation(Modifiers modifiers);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_TRANSFORMATION_SWITCH_CASE_H__
