@@ -178,23 +178,18 @@ class MarkdownParser : public TreeParser {
       result->PopBack();
     }
 
+    static const auto modifiers_by_depth = new std::vector<LineModifierSet>(
+        {{LineModifier::REVERSE, LineModifier::UNDERLINE},
+         {LineModifier::CYAN, LineModifier::REVERSE, LineModifier::UNDERLINE},
+         {LineModifier::BOLD, LineModifier::UNDERLINE},
+         {LineModifier::BOLD}});
+
     if (depth <= 5) {
       result->Push(DepthToState(depth), ColumnNumberDelta(0), {});
     }
 
-    LineModifierSet modifiers;
-    if (depth < 2) {
-      if (depth == 0) {
-        modifiers.insert(LineModifier::UNDERLINE);
-      }
-      modifiers.insert(LineModifier::BOLD);
-    } else if (depth == 2) {
-      modifiers.insert(LineModifier::YELLOW);
-    } else if (depth == 3) {
-      modifiers.insert(LineModifier::CYAN);
-    }
-
-    AdvanceLine(result, std::move(modifiers));
+    AdvanceLine(result, modifiers_by_depth->at(
+                            std::min(depth, modifiers_by_depth->size() - 1)));
   }
 
   size_t StateToDepth(State state) {
@@ -241,7 +236,7 @@ class MarkdownParser : public TreeParser {
     result->seek().ToEndOfLine();
     result->PushAndPop(result->position().column.ToDelta(), {modifiers});
   }
-};
+};  // namespace
 
 }  // namespace
 
