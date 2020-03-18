@@ -25,7 +25,7 @@ void zkrev() {
 void zki() { OpenFile("index.md", true); }
 
 void zks(string query) {
-  zkRunCommand("s: " + query, "grep " + query.shell_escape() + " ???.md");
+  zkRunCommand("s: " + query, "grep -i " + query.shell_escape() + " ???.md");
 }
 
 // Find the smallest unused ID. This assumes that files are of the form `???.md`
