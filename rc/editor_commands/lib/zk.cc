@@ -31,5 +31,9 @@ void zks(string query) {
 // Find the smallest unused ID. This assumes that files are of the form `???.md`
 // and are created in advance.
 void zkn() {
-  zkRunCommand("id", "find . -size 0b -name '???.md' | sort | head -1");
+  ForkCommandOptions options = ForkCommandOptions();
+  options.set_command(
+      "edge -X $( find . -size 0b -name '???.md' | sort | head -1 )");
+  options.set_insertion_type("ignore");
+  ForkCommand(options);
 }

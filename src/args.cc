@@ -169,6 +169,24 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                     L"Invalid value (valid values are `run` and `list`): " +
                     input;
                 return std::nullopt;
+              }),
+
+      Handler<CommandLineValues>({L"view"}, L"Widget mode")
+          .Require(L"mode",
+                   L"The default view mode. Valid values are `all` and "
+                   L"`default`.")
+          .Set<CommandLineValues::ViewMode>(
+              &CommandLineValues::view_mode,
+              [](std::wstring input, std::wstring* error)
+                  -> std::optional<CommandLineValues::ViewMode> {
+                if (input == L"all")
+                  return CommandLineValues::ViewMode::kAllBuffers;
+                if (input == L"default")
+                  return CommandLineValues::ViewMode::kDefault;
+                *error =
+                    L"Invalid value (valid values are `all` and `default`): " +
+                    input;
+                return std::nullopt;
               })};
   return handlers;
 }
