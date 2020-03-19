@@ -82,6 +82,9 @@ class WorkQueueChannel {
     CHECK(data_->consume_callback != nullptr);
   }
 
+  WorkQueue* work_queue() const { return work_queue_; }
+  WorkQueueChannelConsumeMode consume_mode() const { return consume_mode_; }
+
   void Push(T value) {
     switch (consume_mode_) {
       case WorkQueueChannelConsumeMode::kAll:
