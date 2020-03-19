@@ -47,6 +47,15 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
 
   enum class TestsBehavior { kIgnore, kRunAndExit, kListAndExit };
   TestsBehavior tests_behavior = TestsBehavior::kIgnore;
+
+  enum class ViewMode {
+    // Automatically start editing all files opened (as soon as they have been
+    // loaded).
+    kAllBuffers,
+    // Default mode (where only a given file is edited).
+    kDefault
+  };
+  ViewMode view_mode = ViewMode::kDefault;
 };
 
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&

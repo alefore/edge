@@ -106,6 +106,14 @@ wstring CommandsToRun(CommandLineValues args) {
         (args.background ? L"skip" : L"search_or_create") +
         L"\");\nForkCommand(options);";
   }
+  switch (args.view_mode) {
+    case CommandLineValues::ViewMode::kAllBuffers:
+      commands_to_run += L"editor.set_multiple_buffers(true);\n";
+      commands_to_run += L"editor.SetHorizontalSplitsWithAllBuffers();\n";
+      break;
+    case CommandLineValues::ViewMode::kDefault:
+      break;
+  }
   if (!args.client.empty()) {
     commands_to_run +=
         L"Screen screen = RemoteScreen(\"" +
