@@ -70,6 +70,67 @@ ColorizePromptOptions SearchResultsModifiers(
                       .modifiers = std::move(modifiers)}}};
 }
 
+// Wraps a progress channel and provides a builder to create "child" progress
+// channels. Information added to the children gets aggregated before being
+// propagated to the parent.
+//
+// This class isn't thread-safe.
+class ProgressAggregator {
+ public:
+  ProgressAggregator(std::unique_ptr<ProgressChannel> parent_channel)
+      : data_(std::make_shared<Data>(std::move(parent_channel))) {}
+
+  std::unique_ptr<ProgressChannel> NewChild() {
+    auto child_information = std::make_shared<ProgressInformation>();
+    data_->children_created++;
+    return std::make_unique<ProgressChannel>(
+        data_->parent_channel->work_queue(),
+        [data = data_, child_information](ProgressInformation information) {
+          if (HasMatches(information) && !HasMatches(*child_information)) {
+            data->buffers_with_matches++;
+          }
+
+          for (auto& [token, value] : information.counters) {
+            auto& child_token_value = child_information->counters[token];
+            data->aggregates.counters[token] -= child_token_value;
+            child_token_value = value;
+            data->aggregates.counters[token] += child_token_value;
+          }
+
+          for (auto& [token, value] : information.values) {
+            data->aggregates.values[token] = value;
+          }
+
+          if (data->children_created > 1) {
+            data->aggregates.values[L"buffers"] =
+                std::to_wstring(data->buffers_with_matches) + L"/" +
+                std::to_wstring(data->children_created);
+          }
+
+          data->parent_channel->Push(data->aggregates);
+        },
+        data_->parent_channel->consume_mode());
+  }
+
+ private:
+  static bool HasMatches(const ProgressInformation& info) {
+    auto it = info.counters.find(L"matches");
+    return it != info.counters.end() && it->second > 0;
+  }
+
+  struct Data {
+    Data(std::unique_ptr<ProgressChannel> parent_channel)
+        : parent_channel(std::move(parent_channel)) {}
+
+    const std::unique_ptr<ProgressChannel> parent_channel;
+
+    ProgressInformation aggregates;
+    size_t buffers_with_matches = 0;
+    size_t children_created = 0;
+  };
+  const std::shared_ptr<Data> data_;
+};
+
 class SearchCommand : public Command {
  public:
   wstring Description() const override { return L"Searches for a string."; }
@@ -149,70 +210,67 @@ class SearchCommand : public Command {
     auto async_search_processor =
         std::make_shared<AsyncSearchProcessor>(editor_state->work_queue());
 
-    options.colorize_options_provider = [editor_state, async_search_processor,
-                                         buffers = std::make_shared<std::vector<
-                                             std::shared_ptr<OpenBuffer>>>(
-                                             editor_state->active_buffers())](
-                                            const std::shared_ptr<LazyString>&
-                                                line,
-                                            std::unique_ptr<ProgressChannel>
-                                                progress_channel,
-                                            std::shared_ptr<Notification>
-                                                abort_notification) {
-      VLOG(5) << "Triggering async search.";
-      auto results = std::make_shared<AsyncSearchProcessor::Output>();
-      auto progress_channel_shared =
-          std::shared_ptr<ProgressChannel>(std::move(progress_channel));
-      return futures::Transform(
-          futures::ForEach(
-              buffers->begin(), buffers->end(),
-              [editor_state, async_search_processor, line,
-               progress_channel_shared, abort_notification,
-               results](const std::shared_ptr<OpenBuffer>& buffer) {
-                if (buffer->Read(buffer_variables::search_case_sensitive)) {
-                  progress_channel_shared->Push({.values = {{L"case", L"on"}}});
+    options.colorize_options_provider =
+        [editor_state, async_search_processor,
+         buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
+             editor_state->active_buffers())](
+            const std::shared_ptr<LazyString>& line,
+            std::unique_ptr<ProgressChannel> progress_channel,
+            std::shared_ptr<Notification> abort_notification) {
+          VLOG(5) << "Triggering async search.";
+          auto results = std::make_shared<AsyncSearchProcessor::Output>();
+          auto progress_aggregator =
+              std::make_shared<ProgressAggregator>(std::move(progress_channel));
+          return futures::Transform(
+              futures::ForEach(
+                  buffers->begin(), buffers->end(),
+                  [editor_state, async_search_processor, line,
+                   progress_aggregator, abort_notification,
+                   results](const std::shared_ptr<OpenBuffer>& buffer) {
+                    auto progress_channel = progress_aggregator->NewChild();
+                    if (buffer->Read(buffer_variables::search_case_sensitive)) {
+                      progress_channel->Push({.values = {{L"case", L"on"}}});
+                    }
+                    if (line->size().IsZero()) {
+                      return futures::Past(
+                          futures::IterationControlCommand::kContinue);
+                    }
+                    auto search_options = BuildPromptSearchOptions(
+                        line->ToString(), buffer.get(), abort_notification);
+                    if (!search_options.has_value()) {
+                      VLOG(6) << "search_options has no value.";
+                      return futures::Past(
+                          futures::IterationControlCommand::kContinue);
+                    }
+                    VLOG(5) << "Starting search in buffer: "
+                            << buffer->Read(buffer_variables::name);
+                    return futures::Transform(
+                        async_search_processor->Search(
+                            search_options.value(), *buffer,
+                            std::move(progress_channel)),
+                        [results, abort_notification,
+                         line](AsyncSearchProcessor::Output current_results) {
+                          MergeInto(current_results, results.get());
+                          return abort_notification->HasBeenNotified()
+                                     ? futures::IterationControlCommand::kStop
+                                     : futures::IterationControlCommand::
+                                           kContinue;
+                        });
+                  }),
+              [results, buffers, abort_notification,
+               line](futures::IterationControlCommand iteration_result) {
+                switch (iteration_result) {
+                  case futures::IterationControlCommand::kStop:
+                    return ColorizePromptOptions();
+                  case futures::IterationControlCommand::kContinue:
+                    VLOG(5) << "Drawing of search results.";
+                    return SearchResultsModifiers(line, std::move(*results));
+                  default:
+                    LOG(FATAL) << "Invalid value for iteration_result.";
+                    return ColorizePromptOptions();
                 }
-                if (line->size().IsZero()) {
-                  return futures::Past(
-                      futures::IterationControlCommand::kContinue);
-                }
-                auto search_options = BuildPromptSearchOptions(
-                    line->ToString(), buffer.get(), abort_notification);
-                if (!search_options.has_value()) {
-                  VLOG(6) << "search_options has no value.";
-                  return futures::Past(
-                      futures::IterationControlCommand::kContinue);
-                }
-                VLOG(5) << "Starting search in buffer: "
-                        << buffer->Read(buffer_variables::name);
-                // TODO: This handles poorly multiple buffers with regards
-                // to progress_channel_shared.
-                return futures::Transform(
-                    async_search_processor->Search(search_options.value(),
-                                                   *buffer,
-                                                   progress_channel_shared),
-                    [results, abort_notification,
-                     line](AsyncSearchProcessor::Output current_results) {
-                      MergeInto(current_results, results.get());
-                      return abort_notification->HasBeenNotified()
-                                 ? futures::IterationControlCommand::kStop
-                                 : futures::IterationControlCommand::kContinue;
-                    });
-              }),
-          [results, buffers, abort_notification,
-           line](futures::IterationControlCommand iteration_result) {
-            switch (iteration_result) {
-              case futures::IterationControlCommand::kStop:
-                return ColorizePromptOptions();
-              case futures::IterationControlCommand::kContinue:
-                VLOG(5) << "Drawing of search results.";
-                return SearchResultsModifiers(line, std::move(*results));
-              default:
-                LOG(FATAL) << "Invalid value for iteration_result.";
-                return ColorizePromptOptions();
-            }
-          });
-    };
+              });
+        };
 
     options.predictor = SearchHandlerPredictor;
     options.status = PromptOptions::Status::kBuffer;

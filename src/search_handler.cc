@@ -77,18 +77,18 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
 
   SearchResults output;
 
-  bool searched_every_line = contents.EveryLine([&](LineNumber position,
-                                                    const Line& line) {
-    for (const auto& column : GetMatches(line.ToString(), pattern)) {
-      output.positions.push_back(LineColumn(position, column));
-    }
+  bool searched_every_line =
+      contents.EveryLine([&](LineNumber position, const Line& line) {
+        for (const auto& column : GetMatches(line.ToString(), pattern)) {
+          output.positions.push_back(LineColumn(position, column));
+        }
 
-    progress_channel->Push(
-        {.values = {{L"matches", std::to_wstring(output.positions.size())}}});
-    return !options.abort_notification->HasBeenNotified() &&
-           (!options.required_positions.has_value() ||
-            options.required_positions.value() > output.positions.size());
-  });
+        progress_channel->Push(
+            {.counters = {{L"matches", output.positions.size()}}});
+        return !options.abort_notification->HasBeenNotified() &&
+               (!options.required_positions.has_value() ||
+                options.required_positions.value() > output.positions.size());
+      });
   progress_channel->Push(
       {.values = {{L"matches", std::to_wstring(output.positions.size()) +
                                    (searched_every_line ? L"" : L"+")}}});

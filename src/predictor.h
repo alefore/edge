@@ -24,7 +24,15 @@ class OpenBuffer;
 class Notification;
 
 struct ProgressInformation {
-  std::map<std::wstring, std::wstring> values;
+  std::map<std::wstring, std::wstring> values = {};
+  // Similar to values but will be added in the case where multiple values are
+  // reported from predictions that run independently (whereas for values the
+  // last value reported triumps all others).
+  //
+  // This is useful, in particular, when searching with `multiple_buffers`
+  // enabled; the search will be performed in each buffer and the results will
+  // be aggregated.
+  std::map<std::wstring, size_t> counters = {};
 };
 
 using ProgressChannel = WorkQueueChannel<ProgressInformation>;

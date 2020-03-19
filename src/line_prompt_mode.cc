@@ -709,6 +709,10 @@ void Prompt(PromptOptions options) {
             status->prompt_extra_information()->SetValue(key, status_version,
                                                          value);
           }
+          for (const auto& [key, value] : extra_information.counters) {
+            status->prompt_extra_information()->SetValue(
+                key, status_version, std::to_wstring(value));
+          }
         },
         WorkQueueChannelConsumeMode::kAll);
     (*abort_notification_ptr)->Notify();
