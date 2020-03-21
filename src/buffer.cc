@@ -1907,9 +1907,9 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
       {.contents = buffer->contents(),
        .line_column = buffer->position(),
        .token_characters = buffer->Read(buffer_variables::path_characters)});
-  if (line.find_first_not_of(L"/") == wstring::npos) {
-    // If there are only slashes, it's probably not very useful to show the
-    // contents of `/`.
+  if (line.find_first_not_of(L"/.") == wstring::npos) {
+    // If there are only slashes or dots, it's probably not very useful to show
+    // the contents of this path.
     return;
   }
   futures::Transform(
