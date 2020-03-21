@@ -1907,6 +1907,11 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
       {.contents = buffer->contents(),
        .line_column = buffer->position(),
        .token_characters = buffer->Read(buffer_variables::path_characters)});
+  if (line.find_first_not_of("/") == wstring::npos) {
+    // If there are only slashes, it's probably not very useful to show the
+    // contents of `/`.
+    return;
+  }
   futures::Transform(
       futures::OnError(buffer->file_system_driver()->Stat(line),
                        [buffer](ValueOrError<struct stat> error) {
