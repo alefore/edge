@@ -362,15 +362,21 @@ futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
   auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
   const wstring tmp_path = path + L".tmp";
   return futures::Transform(
-      file_system_driver->Stat(path),
+      futures::OnError(
+          file_system_driver->Stat(path),
+          [](Error error) {
+            LOG(INFO)
+                << "Ignoring stat error; maybe a new file is being created: "
+                << error.description;
+            struct stat value;
+            value.st_mode =
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+            return Success(value);
+          }),
       [path, contents, work_queue, file_system_driver,
-       tmp_path](std::optional<struct stat> original_stat) {
-        mode_t mode =
-            original_stat.has_value()
-                ? original_stat.value().st_mode
-                : S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+       tmp_path](struct stat stat_value) {
         return file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
-                                        mode);
+                                        stat_value.st_mode);
       },
       [path, contents, work_queue, tmp_path, file_system_driver](int fd) {
         CHECK_NE(fd, -1);
