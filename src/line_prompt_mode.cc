@@ -744,7 +744,9 @@ void Prompt(PromptOptions options) {
                   return EmptyValue();
                 })),
         [status, status_version](std::tuple<EmptyValue, EmptyValue>) {
-          status->prompt_extra_information()->MarkVersionDone(status_version);
+          auto prompt_extra_information = status->prompt_extra_information();
+          if (prompt_extra_information != nullptr)
+            prompt_extra_information->MarkVersionDone(status_version);
           return futures::Past(EmptyValue());
         });
   };
