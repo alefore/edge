@@ -280,10 +280,7 @@ futures::Value<PossibleError> Save(
   return futures::Transform(
       OnError(
           SaveContentsToFile(path, *buffer->contents(), buffer->work_queue()),
-          [status = buffer->status()](PossibleError error) {
-            status->SetWarningText(L"🖫 Save failed: " + error.error.value());
-            return error;
-          }),
+          [status = buffer->status()](PossibleError error) { return error; }),
       [buffer](EmptyValue) { return buffer->PersistState(); },
       [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
         switch (options.save_type) {
@@ -562,9 +559,14 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   buffer_options.handle_save =
       [editor_state,
        stat_buffer](OpenBuffer::Options::HandleSaveOptions options) {
-        // TODO(easy): When fail:
-        // options.buffer->status()->SetInformationText(error.value());
-        return Save(editor_state, stat_buffer.get(), std::move(options));
+        auto buffer = options.buffer;
+        return futures::OnError(
+            Save(editor_state, stat_buffer.get(), std::move(options)),
+            [buffer](PossibleError error) {
+              buffer->status()->SetWarningText(L"🖫 Save failed: " +
+                                               error.error.value());
+              return PossibleError(error);
+            });
       };
 
   auto resolve_path_options =
