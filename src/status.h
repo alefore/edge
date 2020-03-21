@@ -58,8 +58,11 @@ class Status {
   Type GetType() const;
 
   void set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer);
-  // Can be called with `nullptr` to remove the context. Should only be called
-  // with a non-null value if `GetType` returns kPrompt.
+  // Sets the context buffer.
+  //
+  // Can be called with `nullptr` to remove the context.
+  //
+  // TODO(easy): Rename to just `set_context`. Also the accesser.
   void set_prompt_context(std::shared_ptr<OpenBuffer> prompt_context);
   // May be nullptr.
   const std::shared_ptr<OpenBuffer>& prompt_buffer() const;

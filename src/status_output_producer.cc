@@ -198,11 +198,8 @@ StatusOutputProducerSupplier::StatusOutputProducerSupplier(
 }
 
 LineNumberDelta StatusOutputProducerSupplier::lines() const {
-  LineNumberDelta output;
-  if (buffer_ != nullptr || status_->GetType() == Status::Type::kPrompt ||
-      !status_->text().empty()) {
-    ++output;
-  }
+  LineNumberDelta output =
+      has_info_line() ? LineNumberDelta(1) : LineNumberDelta(0);
   auto context = status_->prompt_context();
   if (context != nullptr) {
     static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
@@ -210,6 +207,11 @@ LineNumberDelta StatusOutputProducerSupplier::lines() const {
                        LineNumberDelta(10));
   }
   return output;
+}
+
+bool StatusOutputProducerSupplier::has_info_line() const {
+  return status_->GetType() == Status::Type::kPrompt ||
+         !status_->text().empty() || buffer_ != nullptr;
 }
 
 std::unique_ptr<OutputProducer>
@@ -221,7 +223,7 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   }
 
   const auto context_lines = total_lines - LineNumberDelta(1);
-  std::vector<HorizontalSplitOutputProducer::Row> rows(2);
+  std::vector<HorizontalSplitOutputProducer::Row> rows;
 
   std::vector<VerticalSplitOutputProducer::Column> context_columns(2);
   context_columns[0].width = ColumnNumberDelta(1);
@@ -235,12 +237,15 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
 
   context_columns[1].producer =
       CreateBufferOutputProducer(buffer_producer_input).producer;
-  rows[0].lines = total_lines - LineNumberDelta(1);
-  rows[0].producer = std::make_unique<VerticalSplitOutputProducer>(
-      std::move(context_columns), 1);
+  rows.push_back({
+      .producer = std::make_unique<VerticalSplitOutputProducer>(
+          std::move(context_columns), 1),
+      .lines = total_lines - LineNumberDelta(1),
+  });
 
-  rows[1].lines = LineNumberDelta(1);
-  rows[1].producer = std::move(base);
+  if (has_info_line()) {
+    rows.push_back({.producer = std::move(base), .lines = LineNumberDelta(1)});
+  }
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 1);
 }
 

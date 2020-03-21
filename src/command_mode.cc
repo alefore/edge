@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 
+#include "src/buffer_contents_util.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command.h"
@@ -510,32 +511,10 @@ class ActivateLink : public Command {
     }
 
     buffer->MaybeAdjustPositionCol();
-    wstring line = buffer->current_line()->ToString();
-
-    const wstring& path_characters =
-        buffer->Read(buffer_variables::path_characters);
-
-    // Scroll back to the first non-path character. If we're in a non-path
-    // character, this is a no-op.
-    size_t start = line.find_last_not_of(path_characters,
-                                         buffer->current_position_col().column);
-    if (start == line.npos) {
-      start = 0;
-    }
-
-    // Scroll past any non-path characters. Typically this will just skip the
-    // character we landed at in the block above. However, if we started in a
-    // sequence of non-path characters, we skip them all.
-    start = line.find_first_of(path_characters, start);
-    if (start != line.npos) {
-      line = line.substr(start);
-    }
-
-    size_t end = line.find_first_not_of(path_characters);
-    if (end != line.npos) {
-      line = line.substr(0, end);
-    }
-
+    std::wstring line = GetCurrentToken(
+        {.contents = buffer->contents(),
+         .line_column = buffer->position(),
+         .token_characters = buffer->Read(buffer_variables::path_characters)});
     if (line.empty()) {
       return;
     }

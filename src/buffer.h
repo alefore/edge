@@ -385,6 +385,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   Viewers* viewers();
   const Viewers* viewers() const;
 
+  FileSystemDriver* file_system_driver();
+
   // Returns the path to the directory that should be used to keep state for the
   // current buffer. If the directory doesn't exist, creates it.
   ValueOrError<std::wstring> GetEdgeStateDirectory() const;
@@ -616,6 +618,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
       zoomed_out_parse_trees_;
 
   AsyncEvaluator async_read_evaluator_;
+  FileSystemDriver file_system_driver_;
 };
 
 }  // namespace editor

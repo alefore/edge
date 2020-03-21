@@ -22,6 +22,8 @@ src/buffer.cc \
 src/buffer.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
+src/buffer_contents_util.cc \
+src/buffer_contents_util.h \
 src/buffer_metadata_output_producer.cc \
 src/buffer_metadata_output_producer.h \
 src/buffer_output_producer.cc \

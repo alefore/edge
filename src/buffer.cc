@@ -18,6 +18,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/buffer_contents_util.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command_with_modifiers.h"
@@ -465,7 +466,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
       syntax_data_(L"SyntaxData", &work_queue_),
-      async_read_evaluator_(L"ReadEvaluator", &work_queue_) {}
+      async_read_evaluator_(L"ReadEvaluator", &work_queue_),
+      file_system_driver_(&work_queue_) {}
 
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Start destructor.";
@@ -1608,6 +1610,10 @@ void OpenBuffer::PushSignal(int sig) {
 Viewers* OpenBuffer::viewers() { return &viewers_; }
 const Viewers* OpenBuffer::viewers() const { return &viewers_; }
 
+FileSystemDriver* OpenBuffer::file_system_driver() {
+  return &file_system_driver_;
+}
+
 futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {
   using afc::vm::VMType;
@@ -1896,6 +1902,33 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
                         transformation::Input::Mode::kFinal);
 }
 
+void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
+  std::wstring line = GetCurrentToken(
+      {.contents = buffer->contents(),
+       .line_column = buffer->position(),
+       .token_characters = buffer->Read(buffer_variables::path_characters)});
+  futures::Transform(
+      buffer->file_system_driver()->Stat(line),
+      [buffer, line](std::optional<struct stat> stat) {
+        if (!stat.has_value()) {
+          buffer->status()->set_prompt_context(nullptr);
+          return EmptyValue();
+        }
+        OpenFileOptions options;
+        options.editor_state = buffer->editor();
+        options.path = line;
+        options.ignore_if_not_found = true;
+        options.insertion_type = BuffersList::AddBufferType::kIgnore;
+        options.use_search_paths = false;
+        auto buffer_context_it = OpenFile(std::move(options));
+        buffer->status()->set_prompt_context(
+            buffer_context_it == buffer->editor()->buffers()->end()
+                ? nullptr
+                : buffer_context_it->second);
+        return EmptyValue();
+      });
+}
+
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     transformation::Variant transformation,
     Modifiers::CursorsAffected cursors_affected,
@@ -1915,11 +1948,12 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   undo_past_.back()->PushFront(transformation::Cursors{
       .cursors = *active_cursors(), .active = position()});
 
+  std::optional<futures::Value<EmptyValue>> transformation_result;
   if (cursors_affected == Modifiers::CursorsAffected::kAll) {
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
-    return cursors_tracker_.ApplyTransformationToCursors(
+    transformation_result = cursors_tracker_.ApplyTransformationToCursors(
         cursors, [this, transformation = std::move(transformation),
                   mode](LineColumn position) {
           return futures::Transform(
@@ -1928,13 +1962,22 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-    return futures::Transform(
+    transformation_result = futures::Transform(
         Apply(std::move(transformation), position(), mode),
         [this](const transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
           return EmptyValue();
         });
   }
+  return futures::Transform(transformation_result.value(),
+                            [shared_this = shared_from_this()](EmptyValue) {
+                              // This proceeds in the background but we can only
+                              // start it once the transformation is evaluated
+                              // (since we don't know the cursor position
+                              // otherwise).
+                              StartAdjustingStatusContext(shared_this);
+                              return EmptyValue();
+                            });
 }
 
 futures::Value<typename transformation::Result> OpenBuffer::Apply(

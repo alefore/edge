@@ -182,7 +182,9 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
 
-  auto status_lines = min(size.line, LineNumberDelta(1));
+  StatusOutputProducerSupplier status_output_producer_supplier(
+      buffer->status(), buffer.get(), buffer->editor()->modifiers());
+  auto status_lines = min(size.line, status_output_producer_supplier.lines());
   // Screen lines that are dedicated to the buffer.
   auto buffer_lines = size.line - status_lines;
 
@@ -284,10 +286,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     rows[0].producer = std::move(output.producer);
     rows[0].lines = buffer_lines;
 
-    rows[1].producer =
-        StatusOutputProducerSupplier(buffer->status(), buffer.get(),
-                                     buffer->editor()->modifiers())
-            .CreateOutputProducer(LineColumnDelta(status_lines, size.column));
+    rows[1].producer = status_output_producer_supplier.CreateOutputProducer(
+        LineColumnDelta(status_lines, size.column));
     rows[1].lines = status_lines;
 
     output.producer = std::make_unique<HorizontalSplitOutputProducer>(

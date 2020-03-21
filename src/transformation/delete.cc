@@ -187,7 +187,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
       });
 }
 
-std::wstring ToStringBase(const Delete& v) { return L"Delete(...);"; }
+std::wstring ToStringBase(const Delete&) { return L"Delete(...);"; }
 
 void RegisterDelete(vm::Environment* environment) {
   auto builder = std::make_unique<ObjectType>(L"DeleteTransformationBuilder");

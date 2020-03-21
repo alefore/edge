@@ -38,6 +38,7 @@ class BufferContents : public fuzz::FuzzTestable {
   Range range() const;
 
   // Returns a copy of the contents of the tree. No actual copying takes place.
+  // This is dirt cheap.
   std::unique_ptr<BufferContents> copy() const;
 
   shared_ptr<const Line> at(LineNumber position) const {

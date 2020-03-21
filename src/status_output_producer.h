@@ -17,7 +17,6 @@ class OpenBuffer;
 
 class StatusOutputProducerSupplier {
  public:
-  // `buffer` may be null.
   StatusOutputProducerSupplier(const Status* status, const OpenBuffer* buffer,
                                Modifiers modifiers);
 
@@ -26,7 +25,11 @@ class StatusOutputProducerSupplier {
   std::unique_ptr<OutputProducer> CreateOutputProducer(LineColumnDelta size);
 
  private:
+  bool has_info_line() const;
+
   const Status* const status_;
+  // `buffer` will be null if this status isn't associated with a specific
+  // buffer (i.e., if it's the editor's status).
   const OpenBuffer* const buffer_;
   const Modifiers modifiers_;
 };
