@@ -184,7 +184,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   StatusOutputProducerSupplier status_output_producer_supplier(
       buffer->status(), buffer.get(), buffer->editor()->modifiers());
-  auto status_lines = min(size.line, status_output_producer_supplier.lines());
+  const auto status_lines =
+      min(size.line / 4, status_output_producer_supplier.lines());
   // Screen lines that are dedicated to the buffer.
   auto buffer_lines = size.line - status_lines;
 

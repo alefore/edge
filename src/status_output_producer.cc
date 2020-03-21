@@ -216,13 +216,16 @@ bool StatusOutputProducerSupplier::has_info_line() const {
 
 std::unique_ptr<OutputProducer>
 StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
-  const auto total_lines = lines();
+  const auto total_lines = min(lines(), size.line);
+  const auto info_lines =
+      has_info_line() ? LineNumberDelta(1) : LineNumberDelta();
   auto base = std::make_unique<InfoProducer>(status_, buffer_, modifiers_);
-  if (total_lines <= LineNumberDelta(1) || total_lines > size.line) {
+  if (total_lines <= info_lines) {
     return base;
   }
 
-  const auto context_lines = total_lines - LineNumberDelta(1);
+  const auto context_lines = total_lines - info_lines;
+  CHECK_GT(context_lines, LineNumberDelta(0));
   std::vector<HorizontalSplitOutputProducer::Row> rows;
 
   std::vector<VerticalSplitOutputProducer::Column> context_columns(2);
@@ -240,11 +243,11 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   rows.push_back({
       .producer = std::make_unique<VerticalSplitOutputProducer>(
           std::move(context_columns), 1),
-      .lines = total_lines - LineNumberDelta(1),
+      .lines = total_lines - info_lines,
   });
 
   if (has_info_line()) {
-    rows.push_back({.producer = std::move(base), .lines = LineNumberDelta(1)});
+    rows.push_back({.producer = std::move(base), .lines = info_lines});
   }
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 1);
 }
