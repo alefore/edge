@@ -38,7 +38,8 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(std::wstring path) {
     if (path.empty()) {
       return Error(L"Stat failed: Empty path.");
     } else if (stat(ToByteString(path).c_str(), &output) == -1) {
-      return Error(L"Stat failed: " + FromByteString(strerror(errno)));
+      return Error(L"Stat failed: `" + path + L"`: " +
+                   FromByteString(strerror(errno)));
     }
     return Success(output);
   });
