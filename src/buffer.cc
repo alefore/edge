@@ -1908,12 +1908,12 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
        .line_column = buffer->position(),
        .token_characters = buffer->Read(buffer_variables::path_characters)});
   futures::Transform(
-      buffer->file_system_driver()->Stat(line),
-      [buffer, line](std::optional<struct stat> stat) {
-        if (!stat.has_value()) {
-          buffer->status()->set_prompt_context(nullptr);
-          return EmptyValue();
-        }
+      futures::OnError(buffer->file_system_driver()->Stat(line),
+                       [buffer](ValueOrError<struct stat> error) {
+                         buffer->status()->set_prompt_context(nullptr);
+                         return error;
+                       }),
+      [buffer, line](struct stat) {
         OpenFileOptions options;
         options.editor_state = buffer->editor();
         options.path = line;
@@ -1925,7 +1925,7 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
             buffer_context_it == buffer->editor()->buffers()->end()
                 ? nullptr
                 : buffer_context_it->second);
-        return EmptyValue();
+        return Success();
       });
 }
 
