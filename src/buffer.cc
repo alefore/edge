@@ -628,9 +628,9 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   contents.push_back(L"");
 
   return OnError(SaveContentsToFile(path, contents, work_queue()),
-                 [this](PossibleError error) {
+                 [this](Error error) {
                    status()->SetWarningText(L"Unable to persist state: " +
-                                            error.error.value());
+                                            error.description);
                    return error;
                  });
 }
@@ -913,8 +913,8 @@ void OpenBuffer::Reload() {
                                  return options_.log_supplier(&work_queue_,
                                                               dir);
                                }),
-            [](ValueOrError<std::unique_ptr<Log>> error) {
-              LOG(INFO) << "Error opening log: " << error.error.value();
+            [](Error error) {
+              LOG(INFO) << "Error opening log: " << error.description;
               return Success(NewNullLog());
             });
       },
@@ -1914,7 +1914,7 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
   }
   futures::Transform(
       futures::OnError(buffer->file_system_driver()->Stat(line),
-                       [buffer](ValueOrError<struct stat> error) {
+                       [buffer](Error error) {
                          buffer->status()->set_context(nullptr);
                          return error;
                        }),

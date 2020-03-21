@@ -74,13 +74,11 @@ class OnErrorTests : public tests::TestGroup<OnErrorTests> {
                  [] {
                    Future<ValueOrError<int>> internal;
                    bool executed = false;
-                   auto external =
-                       OnError(internal.value, [&](ValueOrError<int> value) {
-                         executed = true;
-                         CHECK(value.error.has_value());
-                         CHECK(value.error.value() == L"Foo");
-                         return value;
-                       });
+                   auto external = OnError(internal.value, [&](Error error) {
+                     executed = true;
+                     CHECK(error.description == L"Foo");
+                     return error;
+                   });
                    CHECK(!executed);
                    internal.consumer(Error(L"Foo"));
                    CHECK(executed);
@@ -90,9 +88,7 @@ class OnErrorTests : public tests::TestGroup<OnErrorTests> {
                  [] {
                    std::optional<ValueOrError<int>> value;
                    OnError(futures::Past(ValueOrError<int>(Error(L"Foo"))),
-                           [&](ValueOrError<int>) -> ValueOrError<int> {
-                             return Success(27);
-                           })
+                           [&](Error) { return Success(27); })
                        .SetConsumer(
                            [&](ValueOrError<int> result) { value = result; });
                    CHECK(value.value().value.has_value());
@@ -100,7 +96,7 @@ class OnErrorTests : public tests::TestGroup<OnErrorTests> {
                  }},
             {.name = L"SkippedOnSuccess", .callback = [] {
                OnError(futures::Past(ValueOrError(Success(12))),
-                       [&](ValueOrError<int> value) {
+                       [&](Error value) {
                          CHECK(false);
                          return value;
                        });

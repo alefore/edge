@@ -172,10 +172,10 @@ futures::Value<PossibleError> GenerateContents(
   LOG(INFO) << L"Server starts: " << address;
   return futures::Transform(
       OnError(file_system_driver->Open(address, O_RDONLY | O_NDELAY, 0),
-              [address](ValueOrError<int> error) {
+              [address](Error error) {
                 LOG(FATAL) << address
                            << ": Server: GenerateContents: Open failed: "
-                           << error.error.value();
+                           << error.description;
                 return error;
               }),
       [target, address](int fd) {

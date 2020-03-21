@@ -254,7 +254,7 @@ ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
                      error_callback = std::move(error_callback)](
                         editor::ValueOrError<T> value_or_error) {
     consumer(value_or_error.IsError()
-                 ? error_callback(std::move(value_or_error))
+                 ? error_callback(std::move(value_or_error.error.value()))
                  : std::move(value_or_error));
   });
   return future.value;
