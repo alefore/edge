@@ -464,7 +464,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
       : history_(std::move(history)),
         original_input_(std::move(original_input)),
         status_(status),
-        previous_prompt_context_(status->prompt_context()) {
+        previous_context_(status->context()) {
     CHECK(original_input_ != nullptr);
     CHECK(status_ != nullptr);
     CHECK(status->GetType() == Status::Type::kPrompt);
@@ -508,13 +508,13 @@ class HistoryScrollBehavior : public ScrollBehavior {
                           LineNumber() + history_->contents()->size());
       history_->set_position(position);
       if (position.line < LineNumber(0) + history_->contents()->size()) {
-        status_->set_prompt_context(history_);
+        status_->set_context(history_);
         if (history_->current_line() != nullptr) {
           buffer_to_insert->AppendToLastLine(
               history_->current_line()->contents());
         }
       } else {
-        status_->set_prompt_context(previous_prompt_context_);
+        status_->set_context(previous_context_);
         buffer_to_insert->AppendToLastLine(original_input_);
       }
     }
@@ -534,7 +534,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   const std::shared_ptr<OpenBuffer> history_;
   const std::shared_ptr<LazyString> original_input_;
   Status* const status_;
-  const std::shared_ptr<OpenBuffer> previous_prompt_context_;
+  const std::shared_ptr<OpenBuffer> previous_context_;
 };
 
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
@@ -629,7 +629,7 @@ void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer, Status* status,
       ColorizeLine(line->contents(), std::move(options.tokens)));
   status_buffer->EraseLines(LineNumber(0), LineNumber(1));
   if (options.context.has_value()) {
-    status->set_prompt_context(options.context.value());
+    status->set_context(options.context.value());
   }
 }
 

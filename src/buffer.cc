@@ -1907,7 +1907,7 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
       {.contents = buffer->contents(),
        .line_column = buffer->position(),
        .token_characters = buffer->Read(buffer_variables::path_characters)});
-  if (line.find_first_not_of("/") == wstring::npos) {
+  if (line.find_first_not_of(L"/") == wstring::npos) {
     // If there are only slashes, it's probably not very useful to show the
     // contents of `/`.
     return;
@@ -1915,7 +1915,7 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
   futures::Transform(
       futures::OnError(buffer->file_system_driver()->Stat(line),
                        [buffer](ValueOrError<struct stat> error) {
-                         buffer->status()->set_prompt_context(nullptr);
+                         buffer->status()->set_context(nullptr);
                          return error;
                        }),
       [buffer, line](struct stat) {
@@ -1926,10 +1926,10 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
         options.insertion_type = BuffersList::AddBufferType::kIgnore;
         options.use_search_paths = false;
         auto buffer_context_it = OpenFile(std::move(options));
-        buffer->status()->set_prompt_context(
-            buffer_context_it == buffer->editor()->buffers()->end()
-                ? nullptr
-                : buffer_context_it->second);
+        buffer->status()->set_context(buffer_context_it ==
+                                              buffer->editor()->buffers()->end()
+                                          ? nullptr
+                                          : buffer_context_it->second);
         return Success();
       });
 }

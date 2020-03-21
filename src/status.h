@@ -61,12 +61,11 @@ class Status {
   // Sets the context buffer.
   //
   // Can be called with `nullptr` to remove the context.
-  //
-  // TODO(easy): Rename to just `set_context`. Also the accesser.
-  void set_prompt_context(std::shared_ptr<OpenBuffer> prompt_context);
+  void set_context(std::shared_ptr<OpenBuffer> context);
+  const std::shared_ptr<OpenBuffer>& context() const;
+
   // May be nullptr.
   const std::shared_ptr<OpenBuffer>& prompt_buffer() const;
-  const std::shared_ptr<OpenBuffer>& prompt_context() const;
 
   // Returns nullptr if the status type isn't kPrompt.
   StatusPromptExtraInformation* prompt_extra_information();
@@ -116,10 +115,10 @@ class Status {
     std::wstring text;
     const std::shared_ptr<OpenBuffer> prompt_buffer = nullptr;
 
-    // When `prompt_buffer` isn't nullptr, `prompt_context` may be set to a
+    // When `prompt_buffer` isn't nullptr, `context` may be set to a
     // buffer that contains either a preview of the results of executing the
     // prompt or possible completions.
-    std::shared_ptr<OpenBuffer> prompt_context = nullptr;
+    std::shared_ptr<OpenBuffer> context = nullptr;
 
     // Should only be used when type is Type::kPrompt.
     std::unique_ptr<StatusPromptExtraInformation> extra_information = nullptr;

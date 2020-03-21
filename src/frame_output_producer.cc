@@ -8,14 +8,12 @@
 
 namespace afc {
 namespace editor {
-FrameOutputProducer::FrameOutputProducer(FrameOptions options)
+FrameOutputProducer::FrameOutputProducer(Options options)
     : options_(std::move(options)),
-      line_modifiers_(options_.active_state ==
-                              FrameOptions::ActiveState::kInactive
+      line_modifiers_(options_.active_state == Options::ActiveState::kInactive
                           ? LineModifierSet({LineModifier::DIM})
                           : LineModifierSet({LineModifier::BOLD})),
-      title_modifiers_(options_.active_state ==
-                               FrameOptions::ActiveState::kActive
+      title_modifiers_(options_.active_state == Options::ActiveState::kActive
                            ? LineModifierSet({LineModifier::BOLD})
                            : LineModifierSet()) {}
 

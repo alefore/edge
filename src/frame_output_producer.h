@@ -11,8 +11,7 @@ namespace afc::editor {
 
 class FrameOutputProducer : public OutputProducer {
  public:
-  // TODO(easy): Rename to `Options`.
-  struct FrameOptions {
+  struct Options {
     ColumnNumberDelta width = ColumnNumberDelta();
     std::wstring title;
     std::optional<size_t> position_in_parent = std::nullopt;
@@ -22,12 +21,12 @@ class FrameOutputProducer : public OutputProducer {
     std::wstring prefix = L"";
   };
 
-  FrameOutputProducer(FrameOptions options);
+  FrameOutputProducer(Options options);
 
   Generator Next() override;
 
  private:
-  const FrameOptions options_;
+  const Options options_;
   const LineModifierSet line_modifiers_;
   const LineModifierSet title_modifiers_;
 };

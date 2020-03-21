@@ -200,7 +200,7 @@ StatusOutputProducerSupplier::StatusOutputProducerSupplier(
 LineNumberDelta StatusOutputProducerSupplier::lines() const {
   LineNumberDelta output =
       has_info_line() ? LineNumberDelta(1) : LineNumberDelta(0);
-  auto context = status_->prompt_context();
+  auto context = status_->context();
   if (context != nullptr) {
     static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
     output += std::min(context->lines_size() + kLinesForStatusContextStatus,
@@ -233,7 +233,7 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
       LineColumnDelta(context_lines, size.column);
-  buffer_producer_input.buffer = status_->prompt_context();
+  buffer_producer_input.buffer = status_->context();
 
   context_columns[1].producer =
       CreateBufferOutputProducer(buffer_producer_input).producer;

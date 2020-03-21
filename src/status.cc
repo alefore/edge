@@ -165,9 +165,9 @@ void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   ValidatePreconditions();
 }
 
-void Status::set_prompt_context(std::shared_ptr<OpenBuffer> prompt_context) {
+void Status::set_context(std::shared_ptr<OpenBuffer> context) {
   ValidatePreconditions();
-  data_->prompt_context = std::move(prompt_context);
+  data_->context = std::move(context);
   ValidatePreconditions();
 }
 
@@ -176,9 +176,9 @@ const std::shared_ptr<OpenBuffer>& Status::prompt_buffer() const {
   return data_->prompt_buffer;
 }
 
-const std::shared_ptr<OpenBuffer>& Status::prompt_context() const {
+const std::shared_ptr<OpenBuffer>& Status::context() const {
   ValidatePreconditions();
-  return data_->prompt_context;
+  return data_->context;
 }
 
 StatusPromptExtraInformation* Status::prompt_extra_information() {
