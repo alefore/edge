@@ -386,6 +386,23 @@ using std::to_wstring;
         buffer->EvaluateFile(path);
       }));
 
+  buffer->AddField(
+      L"WaitForEndOfFile",
+      Value::NewFunction(
+          {VMType::Void(), VMType::ObjectType(buffer.get())},
+          [](vector<Value::Ptr> args, Trampoline*) {
+            CHECK_EQ(args.size(), 1ul);
+            auto buffer =
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
+                    args[0].get());
+            futures::Future<EvaluationOutput> future;
+            buffer->AddEndOfFileObserver(
+                [consumer = std::move(future.consumer)] {
+                  consumer(EvaluationOutput::Return(Value::NewVoid()));
+                });
+            return future.value;
+          }));
+
   environment->DefineType(L"Buffer", std::move(buffer));
 }
 
