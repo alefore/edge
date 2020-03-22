@@ -55,10 +55,11 @@ futures::Value<EmptyValue> SetVariableHandler(const wstring& input_name,
       var != nullptr) {
     options.initial_value = active_buffers[0]->Read(var);
     options.handler = [var](const wstring& input, EditorState* editor) {
+      editor->ResetRepetitions();
       return editor->ForEachActiveBuffer(
           [var, input](const std::shared_ptr<OpenBuffer>& buffer) {
             buffer->Set(var, input);
-            // TODO(easy): Update status.
+            buffer->status()->SetInformationText(var->name() + L" := " + input);
             return futures::Past(EmptyValue());
           });
     };
