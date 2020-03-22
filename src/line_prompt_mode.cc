@@ -796,7 +796,6 @@ void Prompt(PromptOptions options) {
         predict_options.source_buffers = options.source_buffers;
         predict_options.input_buffer = buffer;
         predict_options.input_selection_structure = StructureLine();
-        predict_options.status = status;
 
         CHECK(status->prompt_extra_information() != nullptr);
         Predict(std::move(predict_options))

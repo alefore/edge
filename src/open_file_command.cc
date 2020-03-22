@@ -92,7 +92,6 @@ futures::Value<ColorizePromptOptions> AdjustPath(
   PredictOptions options;
   options.editor_state = editor;
   options.predictor = FilePredictor;
-  options.status = editor->status();
   options.source_buffers = editor->active_buffers();
   options.text = line->ToString();
   options.input_selection_structure = StructureLine();

@@ -105,8 +105,6 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
 struct PredictOptions {
   EditorState* editor_state;
   Predictor predictor;
-  // TODO(easy): Remove this?
-  Status* status;
 
   // The text to use for the prediction. If not set, it'll be extracted from
   // `input_buffer` based on `input_selection_structure`.
