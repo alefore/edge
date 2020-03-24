@@ -106,6 +106,11 @@ The following commands download, configure, and build Edge:
     $ ./autogen.sh && ./glog-0.4.0/autogen.sh && ./configure
     $ make
 
+You'll probably want to create a symlink to the `rc` directory in `~/.edge` (or
+copy the contents). Among other things, Edge will read most of its initial key
+bindings from `~/.edge/hooks/start.cc` so you won't get very far if that file
+is missing.
+
 TODO: Document the list of dependencies.
 
 
