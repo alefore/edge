@@ -5,6 +5,11 @@
 
 namespace afc::editor {
 
+std::ostream& operator<<(std::ostream& os, const Error& p) {
+  os << "[Error: " << p.description << "]";
+  return os;
+}
+
 ValueOrError<EmptyValue> Success() { return ValueType(EmptyValue()); }
 
 }  // namespace afc::editor

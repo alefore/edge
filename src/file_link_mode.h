@@ -39,7 +39,7 @@ struct OpenFileOptions {
 
   // Should the contents of the search paths buffer be used to find the file?
   bool use_search_paths = true;
-  vector<wstring> initial_search_paths;
+  std::vector<std::wstring> initial_search_paths;
 };
 
 shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state);
