@@ -511,27 +511,30 @@ class ActivateLink : public Command {
     }
 
     buffer->MaybeAdjustPositionCol();
-    std::wstring line = GetCurrentToken(
+    OpenFileOptions options;
+
+    auto path = Path::FromString(GetCurrentToken(
         {.contents = buffer->contents(),
          .line_column = buffer->position(),
-         .token_characters = buffer->Read(buffer_variables::path_characters)});
-    if (line.empty()) {
+         .token_characters = buffer->Read(buffer_variables::path_characters)}));
+    if (path.IsError()) {
       return;
     }
+    options.path = path.value.value();
 
-    OpenFileOptions options;
     options.editor_state = editor_state;
-    options.path = line;
     options.ignore_if_not_found = true;
 
     options.initial_search_paths.clear();
-    // Works if the current buffer is a directory listing:
-    options.initial_search_paths.push_back(
-        buffer->Read(buffer_variables::path));
-    // And a fall-back for the current buffer being a file:
-    options.initial_search_paths.push_back(
-        Dirname(options.initial_search_paths[0]));
-    LOG(INFO) << "Initial search path: " << options.initial_search_paths[0];
+    if (auto path = Path::FromString(buffer->Read(buffer_variables::path));
+        !path.IsError()) {
+      // Works if the current buffer is a directory listing:
+      options.initial_search_paths.push_back(path.value.value());
+      // And a fall-back for the current buffer being a file:
+      if (auto dir = path.value.value().Dirname(); !dir.IsError()) {
+        options.initial_search_paths.push_back(dir.value.value());
+      }
+    }
 
     OpenFile(options);
   }

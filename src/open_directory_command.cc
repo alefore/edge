@@ -26,9 +26,13 @@ class OpenDirectoryCommand : public Command {
     OpenFileOptions options;
     auto buffer = editor_state->current_buffer();
     if (buffer == nullptr) {
-      options.path = L".";
-    } else {
-      options.path = Dirname(buffer->Read(buffer_variables::name));
+      options.path = Path::LocalDirectory();
+    } else if (auto path =
+                   Path::FromString(buffer->Read(buffer_variables::name));
+               !path.IsError()) {
+      if (auto dir = path.value.value().Dirname(); !dir.IsError()) {
+        options.path = dir.value.value();
+      }
     }
     options.editor_state = editor_state;
     OpenFile(options);

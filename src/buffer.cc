@@ -1938,7 +1938,9 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
       [buffer, line](struct stat) {
         OpenFileOptions options;
         options.editor_state = buffer->editor();
-        options.path = line;
+        if (auto path = Path::FromString(line); !path.IsError()) {
+          options.path = path.value.value();
+        }
         options.ignore_if_not_found = true;
         options.insertion_type = BuffersList::AddBufferType::kIgnore;
         options.use_search_paths = false;

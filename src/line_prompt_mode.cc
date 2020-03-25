@@ -193,8 +193,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
     return it;
   }
   if (!editor_state->edge_path().empty()) {
-    options.path =
-        (*editor_state->edge_path().begin()) + L"/" + name + L"_history";
+    options.path = Path::FromString(PathJoin(*editor_state->edge_path().begin(),
+                                             name + L"_history"))
+                       .value.value();
   }
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   it = OpenFile(options);

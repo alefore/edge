@@ -24,15 +24,21 @@ class PathComponent {
   const std::wstring& ToString();
 
  private:
-  PathComponent(std::wstring component);
+  explicit PathComponent(std::wstring component);
   const std::wstring component_;
 };
+
+#define GHOST_TYPE_EQ(ClassName, variable) \
+  bool operator==(const ClassName& other) { return variable == other.variable; }
 
 class AbsolutePath;
 class Path {
  public:
   Path(const Path&) = default;
   Path(Path&&) = default;
+
+  static Path LocalDirectory();  // Similar to FromString(L".").
+  static Path Root();            // Similar to FromString(L"/").
 
   static Path Join(Path a, Path b);
   static ValueOrError<Path> FromString(std::wstring path);
@@ -46,8 +52,10 @@ class Path {
 
   Path& operator=(Path path);
 
+  GHOST_TYPE_EQ(Path, path_);
+
  protected:
-  Path(std::wstring path);
+  explicit Path(std::wstring path);
 
  private:
   std::wstring path_;
@@ -58,7 +66,7 @@ class AbsolutePath : public Path {
   static ValueOrError<AbsolutePath> FromString(std::wstring path);
 
  private:
-  AbsolutePath(std::wstring path);
+  explicit AbsolutePath(std::wstring path);
 };
 
 std::ostream& operator<<(std::ostream& os, const Path& p);

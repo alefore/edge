@@ -20,19 +20,26 @@ futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
                                            EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
-  options.path = name;
+  if (auto path = Path::FromString(name); !path.IsError()) {
+    options.path = path.value.value();
+  }
   options.insertion_type = BuffersList::AddBufferType::kVisit;
   OpenFile(options);
   return futures::Past(EmptyValue());
 }
 
+// Returns the buffer to show for context, or nullptr.
 std::shared_ptr<OpenBuffer> StatusContext(EditorState* editor,
                                           const PredictResults& results,
                                           const LazyString& line) {
   if (results.found_exact_match) {
     OpenFileOptions open_file_options;
     open_file_options.editor_state = editor;
-    open_file_options.path = line.ToString();
+    auto path = Path::FromString(line.ToString());
+    if (path.IsError()) {
+      return nullptr;
+    }
+    open_file_options.path = path.value.value();
     open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
     open_file_options.ignore_if_not_found = true;
     if (auto result = OpenFile(open_file_options);
@@ -126,29 +133,36 @@ std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
         return AdjustPath(editor, line, std::move(progress_channel),
                           std::move(abort_notification));
       };
-  return NewLinePromptCommand(
-      L"loads a file", [options](EditorState* editor_state) {
-        PromptOptions options_copy = options;
-        options_copy.editor_state = editor_state;
-        options_copy.source_buffers = editor_state->active_buffers();
-        if (!options_copy.source_buffers.empty()) {
-          auto buffer = options_copy.source_buffers[0];
-          wstring path = buffer->Read(buffer_variables::path);
-          struct stat stat_buffer;
-          if (stat(ToByteString(path).c_str(), &stat_buffer) == -1 ||
-              !S_ISDIR(stat_buffer.st_mode)) {
-            LOG(INFO) << "Taking dirname for prompt: " << path;
-            path = Dirname(path);
+  return NewLinePromptCommand(L"loads a file", [options](
+                                                   EditorState* editor_state) {
+    PromptOptions options_copy = options;
+    options_copy.editor_state = editor_state;
+    options_copy.source_buffers = editor_state->active_buffers();
+    if (!options_copy.source_buffers.empty()) {
+      auto buffer = options_copy.source_buffers[0];
+      // TODO(easy): Move this block to a stand-alone function
+      // GetInitialPromptValue to aid readability.
+      if (auto path = Path::FromString(buffer->Read(buffer_variables::path));
+          !path.IsError()) {
+        struct stat stat_buffer;
+        if (stat(ToByteString(path.value.value().ToString()).c_str(),
+                 &stat_buffer) == -1 ||
+            !S_ISDIR(stat_buffer.st_mode)) {
+          LOG(INFO) << "Taking dirname for prompt: " << path.value.value();
+          auto dir = path.value.value().Dirname();
+          if (!dir.IsError()) {
+            path = dir;
           }
-          if (path == L".") {
-            path = L"";
-          } else if (path.empty() || *path.rbegin() != L'/') {
-            path += L'/';
-          }
-          options_copy.initial_value = path;
         }
-        return options_copy;
-      });
+        if (path.value.value() == Path::LocalDirectory()) {
+          // Pass.
+        } else {
+          options_copy.initial_value = path.value.value().ToString();
+        }
+      }
+    }
+    return options_copy;
+  });
 }
 
 }  // namespace editor

@@ -66,6 +66,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   struct Options {
     EditorState* editor = nullptr;
     wstring name = L"";
+    // TODO(easy): Convert to std::optional<Path>.
     wstring path = L"";
 
     // Optional function that will be run to generate the contents of the

@@ -371,7 +371,9 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             CHECK(args[1]->IsBool());
             OpenFileOptions options;
             options.editor_state = this;
-            options.path = args[0]->str;
+            if (auto path = Path::FromString(args[0]->str); !path.IsError()) {
+              options.path = std::move(path.value.value());
+            }
             options.insertion_type = args[1]->boolean
                                          ? BuffersList::AddBufferType::kVisit
                                          : BuffersList::AddBufferType::kIgnore;
@@ -909,7 +911,11 @@ void EditorState::PushPosition(LineColumn position) {
     options.editor_state = this;
     options.name = kPositionsBufferName;
     if (!edge_path().empty()) {
-      options.path = PathJoin(edge_path().front(), L"positions");
+      if (auto edge_path_front = Path::FromString(edge_path().front());
+          !edge_path_front.IsError()) {
+        options.path = Path::Join(edge_path_front.value.value(),
+                                  Path::FromString(L"positions").value.value());
+      }
     }
     options.insertion_type = BuffersList::AddBufferType::kIgnore;
     buffer_it = OpenFile(options);

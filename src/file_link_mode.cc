@@ -405,7 +405,9 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,
     LOG(INFO) << "search paths buffer already existed.";
     return it->second;
   }
-  options.path = edge_path + L"/search_paths";
+  options.path = Path::Join(
+      Path::FromString(edge_path).value.value_or(Path::LocalDirectory()),
+      Path::FromString(L"/search_paths").value.value());
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   options.use_search_paths = false;
   it = OpenFile(options);
@@ -420,8 +422,8 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,
   return it->second;
 }
 
-void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
-  output->push_back(L"");
+void GetSearchPaths(EditorState* editor_state, vector<Path>* output) {
+  output->push_back(Path::LocalDirectory());
 
   for (auto& edge_path : editor_state->edge_path()) {
     auto search_paths_buffer = GetSearchPathsBuffer(editor_state, edge_path);
@@ -431,10 +433,11 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
     }
     search_paths_buffer->contents()->ForEach(
         [editor_state, output](wstring line) {
-          if (line.empty()) {
-            return;
-          }
-          output->push_back(editor_state->expand_path(line));
+          auto path = Path::FromString(line);
+          if (path.IsError()) return;
+          output->push_back(Path::FromString(editor_state->expand_path(
+                                                 path.value.value().ToString()))
+                                .value.value());
           LOG(INFO) << "Pushed search path: " << output->back();
         });
   }
@@ -457,9 +460,9 @@ ResolvePathOptions ResolvePathOptions::New(EditorState* editor_state) {
 
 std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   ResolvePathOutput output;
-  if (find(input.search_paths.begin(), input.search_paths.end(), L"") ==
-      input.search_paths.end()) {
-    input.search_paths.push_back(L"");
+  if (find(input.search_paths.begin(), input.search_paths.end(),
+           Path::LocalDirectory()) == input.search_paths.end()) {
+    input.search_paths.push_back(Path::LocalDirectory());
   }
 
   if (input.path == L"~" ||
@@ -468,16 +471,17 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   }
 
   if (!input.path.empty() && input.path[0] == L'/') {
-    input.search_paths = {L""};
+    input.search_paths = {Path::LocalDirectory()};
   }
   for (auto& search_path : input.search_paths) {
     for (size_t str_end = input.path.size();
          str_end != input.path.npos && str_end != 0;
          str_end = input.path.find_last_of(':', str_end - 1)) {
-      wstring path_with_prefix =
-          PathJoin(search_path, input.path.substr(0, str_end));
+      auto input_path = Path::FromString(input.path.substr(0, str_end));
+      if (input_path.IsError()) continue;
+      auto path_with_prefix = Path::Join(search_path, input_path.value.value());
 
-      if (!input.validator(path_with_prefix)) {
+      if (!input.validator(path_with_prefix.ToString())) {
         continue;
       }
 
@@ -522,7 +526,11 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
           break;
         }
       }
-      output.path = Realpath(path_with_prefix);
+      if (auto resolved = path_with_prefix.Resolve(); !resolved.IsError()) {
+        output.path = resolved.value.value().ToString();
+      } else {
+        output.path = path_with_prefix.ToString();
+      }
       VLOG(4) << "Resolved path: " << output.path;
       return output;
     }
@@ -536,7 +544,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   std::optional<LineColumn> position;
   wstring pattern;
 
-  vector<wstring> search_paths = options.initial_search_paths;
+  vector<Path> search_paths = options.initial_search_paths;
   if (options.use_search_paths) {
     GetSearchPaths(editor_state, &search_paths);
   }
@@ -577,7 +585,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       ResolvePathOptions::NewWithEmptySearchPaths(editor_state);
   resolve_path_options.home_directory = editor_state->home_directory();
   resolve_path_options.search_paths = search_paths;
-  resolve_path_options.path = options.path;
+  if (options.path.has_value()) {
+    resolve_path_options.path = options.path.value().ToString();
+  }
   if (auto output = ResolvePath(resolve_path_options); output.has_value()) {
     buffer_options.path = output->path;
     position = output->position;
@@ -601,7 +611,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       }
       return false;
     };
-    resolve_path_options.search_paths = {L""};
+    resolve_path_options.search_paths = {Path::LocalDirectory()};
     if (auto output = ResolvePath(resolve_path_options); output.has_value()) {
       buffer_options.path = output->path;
       editor_state->set_current_buffer(buffer->second);
@@ -614,7 +624,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     if (options.ignore_if_not_found) {
       return editor_state->buffers()->end();
     }
-    buffer_options.path = options.path;
+    buffer_options.path =
+        options.path.has_value() ? options.path.value().ToString() : L"";
   }
 
   buffer_options.log_supplier = [editor_state, path = buffer_options.path](

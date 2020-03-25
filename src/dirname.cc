@@ -101,6 +101,9 @@ Path::Path(std::wstring path) : path_(std::move(path)) {
   CHECK(!path_.empty());
 }
 
+Path Path::LocalDirectory() { return Path::FromString(L".").value.value(); }
+Path Path::Root() { return Path::FromString(L"/").value.value(); }
+
 ValueOrError<AbsolutePath> AbsolutePath::FromString(std::wstring path) {
   if (path.empty()) {
     return Error(L"Path can't be empty");
