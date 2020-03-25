@@ -126,7 +126,7 @@ std::wstring GetInitialPromptValue(std::wstring buffer_path) {
       path = dir_or_error.value.value();
     }
   }
-  return path == Path::LocalDirectory() ? L"" : path.ToString();
+  return path == Path::LocalDirectory() ? L"" : (path.ToString() + L"/");
 }
 }  // namespace
 
