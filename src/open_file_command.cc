@@ -111,6 +111,23 @@ futures::Value<ColorizePromptOptions> AdjustPath(
         return DrawPath(editor, line, std::move(results.value()));
       });
 }
+
+std::wstring GetInitialPromptValue(std::wstring buffer_path) {
+  auto path_or_error = Path::FromString(buffer_path);
+  if (path_or_error.IsError()) return L"";
+  auto path = path_or_error.value.value();
+  struct stat stat_buffer;
+  // TODO(blocking): Use FileSystemDriver here!
+  if (stat(ToByteString(path.ToString()).c_str(), &stat_buffer) == -1 ||
+      !S_ISDIR(stat_buffer.st_mode)) {
+    LOG(INFO) << "Taking dirname for prompt: " << path;
+    auto dir_or_error = path.Dirname();
+    if (!dir_or_error.IsError()) {
+      path = dir_or_error.value.value();
+    }
+  }
+  return path == Path::LocalDirectory() ? L"" : path.ToString();
+}
 }  // namespace
 
 std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
@@ -133,36 +150,17 @@ std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
         return AdjustPath(editor, line, std::move(progress_channel),
                           std::move(abort_notification));
       };
-  return NewLinePromptCommand(L"loads a file", [options](
-                                                   EditorState* editor_state) {
-    PromptOptions options_copy = options;
-    options_copy.editor_state = editor_state;
-    options_copy.source_buffers = editor_state->active_buffers();
-    if (!options_copy.source_buffers.empty()) {
-      auto buffer = options_copy.source_buffers[0];
-      // TODO(easy): Move this block to a stand-alone function
-      // GetInitialPromptValue to aid readability.
-      if (auto path = Path::FromString(buffer->Read(buffer_variables::path));
-          !path.IsError()) {
-        struct stat stat_buffer;
-        if (stat(ToByteString(path.value.value().ToString()).c_str(),
-                 &stat_buffer) == -1 ||
-            !S_ISDIR(stat_buffer.st_mode)) {
-          LOG(INFO) << "Taking dirname for prompt: " << path.value.value();
-          auto dir = path.value.value().Dirname();
-          if (!dir.IsError()) {
-            path = dir;
-          }
+  return NewLinePromptCommand(
+      L"loads a file", [options](EditorState* editor_state) {
+        PromptOptions options_copy = options;
+        options_copy.editor_state = editor_state;
+        options_copy.source_buffers = editor_state->active_buffers();
+        if (!options_copy.source_buffers.empty()) {
+          options_copy.initial_value = GetInitialPromptValue(
+              options_copy.source_buffers[0]->Read(buffer_variables::path));
         }
-        if (path.value.value() == Path::LocalDirectory()) {
-          // Pass.
-        } else {
-          options_copy.initial_value = path.value.value().ToString();
-        }
-      }
-    }
-    return options_copy;
-  });
+        return options_copy;
+      });
 }
 
 }  // namespace editor
