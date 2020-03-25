@@ -251,15 +251,24 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
   }
 }
 
+template <typename T, typename Callable, typename ErrorCallable>
+auto HandleError(ValueOrError<T> expr, ErrorCallable error_callable,
+                 Callable callable) {
+  return expr.IsError() ? error_callable(expr.error.value())
+                        : callable(expr.value.value());
+}
+
 futures::Value<PossibleError> Save(
     EditorState* editor_state, struct stat* stat_buffer,
     OpenBuffer::Options::HandleSaveOptions options) {
   auto buffer = options.buffer;
-  std::wstring path = buffer->Read(buffer_variables::path);
-  if (path.empty()) {
+  auto path_or_error = Path::FromString(buffer->Read(buffer_variables::path));
+  if (path_or_error.IsError()) {
     return futures::Past(PossibleError(
-        Error(L"Buffer can't be saved: “path” variable is empty.")));
+        Error(L"Buffer can't be saved: Invalid “path” variable: " +
+              path_or_error.error.value())));
   }
+  auto path = path_or_error.value.value();
   if (S_ISDIR(stat_buffer->st_mode)) {
     return futures::Past(
         PossibleError(Error(L"Buffer can't be saved: Buffer is a directory.")));
@@ -274,16 +283,19 @@ futures::Value<PossibleError> Save(
         return futures::Past(PossibleError(Error(
             L"Unable to backup buffer: " + state_directory.error.value())));
       }
-      path = PathJoin(state_directory.value.value(), L"backup");
+      path = Path::Join(state_directory.value.value(),
+                        PathComponent::FromString(L"backup").value.value());
   }
 
   return futures::Transform(
-      SaveContentsToFile(path, *buffer->contents(), buffer->work_queue()),
+      SaveContentsToFile(path.ToString(), *buffer->contents(),
+                         buffer->work_queue()),
       [buffer](EmptyValue) { return buffer->PersistState(); },
       [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
         switch (options.save_type) {
           case OpenBuffer::Options::SaveType::kMainFile:
-            buffer->status()->SetInformationText(L"🖫 Saved: " + path);
+            buffer->status()->SetInformationText(L"🖫 Saved: " +
+                                                 path.ToString());
             // TODO(easy): Move this to the caller, for symmetry with
             // kBackup case.
             buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
@@ -301,7 +313,7 @@ futures::Value<PossibleError> Save(
                 }
               }
             }
-            stat(ToByteString(path).c_str(), stat_buffer);
+            stat(ToByteString(path.ToString()).c_str(), stat_buffer);
             break;
           case OpenBuffer::Options::SaveType::kBackup:
             break;

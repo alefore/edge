@@ -604,10 +604,12 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         PossibleError(Error(edge_state_directory.error.value())));
   }
 
-  auto path = PathJoin(edge_state_directory.value.value(), L".edge_state");
+  auto path =
+      Path::Join(edge_state_directory.value.value(),
+                 PathComponent::FromString(L".edge_state").value.value());
   LOG(INFO) << "PersistState: Preparing state file: " << path;
   BufferContents contents;
-  contents.push_back(L"// State of file: " + path);
+  contents.push_back(L"// State of file: " + path.ToString());
   contents.push_back(L"");
 
   contents.push_back(L"buffer.set_position(" + position().ToCppString() +
@@ -644,7 +646,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   }
   contents.push_back(L"");
 
-  return OnError(SaveContentsToFile(path, contents, work_queue()),
+  return OnError(SaveContentsToFile(path.ToString(), contents, work_queue()),
                  [this](Error error) {
                    status()->SetWarningText(L"Unable to persist state: " +
                                             error.description);
@@ -926,9 +928,9 @@ void OpenBuffer::Reload() {
       [this](EmptyValue) {
         return futures::OnError(
             futures::Transform(futures::Past(GetEdgeStateDirectory()),
-                               [this](std::wstring dir) {
+                               [this](Path dir) {
                                  return options_.log_supplier(&work_queue_,
-                                                              dir);
+                                                              dir.ToString());
                                }),
             [](Error error) {
               LOG(INFO) << "Error opening log: " << error.description;
@@ -972,43 +974,55 @@ futures::Value<PossibleError> OpenBuffer::Save() {
       {.buffer = this, .save_type = Options::SaveType::kMainFile});
 }
 
-ValueOrError<std::wstring> OpenBuffer::GetEdgeStateDirectory() const {
+ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   auto path_vector = editor()->edge_path();
-  if (path_vector.empty() || path_vector[0].empty()) {
+  if (path_vector.empty()) {
     return Error(L"Empty edge path.");
   }
+  auto path_or_error = Path::FromString(path_vector[0]);
+  if (path_or_error.IsError()) {
+    return Error(L"Invalid edge path: " + path_or_error.error.value());
+  }
+  auto path = path_or_error.value.value();
 
-  auto file_path = Read(buffer_variables::path);
-  list<wstring> file_path_components;
-  if (file_path.empty() || file_path[0] != '/') {
+  auto file_path_or_error =
+      AbsolutePath::FromString(Read(buffer_variables::path));
+  if (file_path_or_error.IsError()) {
     return Error(
-        L"Unable to persist buffer with empty path: " +
-        Read(buffer_variables::name) + L" " +
+        L"Unable to persist buffer with invalid path: " +
+        file_path_or_error.error.value() +
         (dirty() ? L" (dirty)" : L" (clean)") + L" " +
         (disk_state_ == DiskState::kStale ? L"modified" : L"not modified"));
   }
-
-  if (!DirectorySplit(file_path, &file_path_components)) {
-    return Error(L"Unable to split path: " + file_path);
+  auto file_path = file_path_or_error.value.value();
+  if (file_path.GetRootType() != Path::RootType::kAbsolute) {
+    return Error(L"Unable to persist buffer without absolute path: " +
+                 file_path.ToString());
   }
 
-  file_path_components.push_front(L"state");
+  auto file_path_components_or_error = file_path.DirectorySplit();
+  if (file_path_components_or_error.IsError()) {
+    return Error(L"Unable to split path: " +
+                 file_path_components_or_error.error.value());
+  }
+  auto file_path_components = file_path_components_or_error.value.value();
+  file_path_components.push_front(
+      PathComponent::FromString(L"state").value.value());
 
-  wstring path = path_vector[0];
   LOG(INFO) << "GetEdgeStateDirectory: Preparing directory for state: " << path;
   for (auto& component : file_path_components) {
-    path = PathJoin(path, component);
+    path = Path::Join(path, component);
     struct stat stat_buffer;
-    auto path_byte_string = ToByteString(path);
+    auto path_byte_string = ToByteString(path.ToString());
     if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
       if (S_ISDIR(stat_buffer.st_mode)) {
         continue;
       }
-      return Error(L"Oops, exists, but is not a directory: " + path);
+      return Error(L"Oops, exists, but is not a directory: " + path.ToString());
     }
     if (mkdir(path_byte_string.c_str(), 0700)) {
       return Error(L"mkdir failed: " + FromByteString(strerror(errno)) + L": " +
-                   path);
+                   path.ToString());
     }
   }
   return Success(path);

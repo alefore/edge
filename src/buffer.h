@@ -13,6 +13,7 @@
 #include "src/buffer_contents.h"
 #include "src/buffer_terminal.h"
 #include "src/cursors.h"
+#include "src/dirname.h"
 #include "src/file_descriptor_reader.h"
 #include "src/futures/futures.h"
 #include "src/lazy_string.h"
@@ -390,7 +391,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // Returns the path to the directory that should be used to keep state for the
   // current buffer. If the directory doesn't exist, creates it.
-  ValueOrError<std::wstring> GetEdgeStateDirectory() const;
+  ValueOrError<Path> GetEdgeStateDirectory() const;
 
   Log* log() const;
 

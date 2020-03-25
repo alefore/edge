@@ -24,6 +24,7 @@ class PathComponent {
   const std::wstring& ToString();
 
  private:
+  friend class Path;
   explicit PathComponent(std::wstring component);
   const std::wstring component_;
 };
@@ -36,6 +37,7 @@ class Path {
  public:
   Path(const Path&) = default;
   Path(Path&&) = default;
+  Path(PathComponent path_component);
 
   static Path LocalDirectory();  // Similar to FromString(L".").
   static Path Root();            // Similar to FromString(L"/").
@@ -47,6 +49,9 @@ class Path {
   const std::wstring& ToString() const;
   ValueOrError<std::list<PathComponent>> DirectorySplit() const;
   bool IsRoot() const;
+
+  enum class RootType { kAbsolute, kRelative };
+  RootType GetRootType() const;
 
   ValueOrError<AbsolutePath> Resolve() const;
 
@@ -63,6 +68,7 @@ class Path {
 
 class AbsolutePath : public Path {
  public:
+  // Doesn't do any resolution; path must begin with '/'.
   static ValueOrError<AbsolutePath> FromString(std::wstring path);
 
  private:

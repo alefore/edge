@@ -30,6 +30,9 @@ const std::wstring& PathComponent::ToString() { return component_; }
 PathComponent::PathComponent(std::wstring component)
     : component_(std::move(component)) {}
 
+Path::Path(PathComponent path_component)
+    : path_(std::move(path_component.component_)) {}
+
 /* static */ Path Path::Join(Path a, Path b) {
   if (a.IsRoot() && b.IsRoot()) {
     return b;
@@ -85,6 +88,11 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
 }
 
 bool Path::IsRoot() const { return path_ == L"/"; }
+
+Path::RootType Path::GetRootType() const {
+  return path_[0] == L'/' ? Path::RootType::kAbsolute
+                          : Path::RootType::kRelative;
+}
 
 ValueOrError<AbsolutePath> Path::Resolve() const {
   char* result = realpath(ToByteString(path_).c_str(), nullptr);
