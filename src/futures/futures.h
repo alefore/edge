@@ -219,9 +219,9 @@ struct TransformTraits<editor::ValueOrError<InitialType>, Callable> {
                         Callable& callable,
                         typename ReturnType::Consumer consumer) {
     if (initial_value.IsError()) {
-      consumer(editor::Error(initial_value.error.value()));
+      consumer(initial_value.error());
     } else {
-      ReturnTraits::Feed(callable(std::move(initial_value.value.value())),
+      ReturnTraits::Feed(callable(std::move(initial_value.value())),
                          std::move(consumer));
     }
   }
@@ -254,7 +254,7 @@ ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
                      error_callback = std::move(error_callback)](
                         editor::ValueOrError<T> value_or_error) {
     consumer(value_or_error.IsError()
-                 ? error_callback(std::move(value_or_error.error.value()))
+                 ? error_callback(std::move(value_or_error.error()))
                  : std::move(value_or_error));
   });
   return future.value;

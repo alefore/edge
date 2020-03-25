@@ -22,7 +22,7 @@ futures::Value<ValueOrError<int>> FileSystemDriver::Open(std::wstring path,
     LOG(INFO) << "Opening file:" << path;
     int fd = open(ToByteString(path).c_str(), flags, mode);
     PossibleError output = SyscallReturnValue(L"Open: " + path, fd);
-    return output.IsError() ? Error(output.error.value()) : Success(fd);
+    return output.IsError() ? output.error() : Success(fd);
   });
 }
 

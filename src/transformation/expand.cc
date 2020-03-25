@@ -125,9 +125,9 @@ class ReadAndInsert : public CompositeTransformation {
     if (edge_path_front.IsError()) {
       return futures::Past(Output());
     }
-    open_file_options.path = Path::Join(
-        edge_path_front.value.value(),
-        Path::Join(Path::FromString(L"expand").value.value(), path_));
+    open_file_options.path =
+        Path::Join(edge_path_front.value(),
+                   Path::Join(Path::FromString(L"expand").value(), path_));
     open_file_options.ignore_if_not_found = true;
     open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
     open_file_options.use_search_paths = false;
@@ -211,7 +211,7 @@ class ExpandTransformation : public CompositeTransformation {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output.Push(DeleteLastCharacters(1 + symbol.size()));
         if (auto path = Path::FromString(symbol); !path.IsError()) {
-          transformation = std::make_unique<ReadAndInsert>(path.value.value());
+          transformation = std::make_unique<ReadAndInsert>(path.value());
         }
       } break;
       case '/': {
@@ -243,8 +243,6 @@ class ExpandTransformation : public CompositeTransformation {
   std::unique_ptr<CompositeTransformation> Clone() const override {
     return std::make_unique<ExpandTransformation>();
   }
-
- private:
 };
 }  // namespace
 

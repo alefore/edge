@@ -30,8 +30,8 @@ class OpenDirectoryCommand : public Command {
     } else if (auto path =
                    Path::FromString(buffer->Read(buffer_variables::name));
                !path.IsError()) {
-      if (auto dir = path.value.value().Dirname(); !dir.IsError()) {
-        options.path = dir.value.value();
+      if (auto dir = path.value().Dirname(); !dir.IsError()) {
+        options.path = dir.value();
       }
     }
     options.editor_state = editor_state;

@@ -266,9 +266,9 @@ futures::Value<PossibleError> Save(
   if (path_or_error.IsError()) {
     return futures::Past(PossibleError(
         Error(L"Buffer can't be saved: Invalid “path” variable: " +
-              path_or_error.error.value())));
+              path_or_error.error().description)));
   }
-  auto path = path_or_error.value.value();
+  auto path = path_or_error.value();
   if (S_ISDIR(stat_buffer->st_mode)) {
     return futures::Past(
         PossibleError(Error(L"Buffer can't be saved: Buffer is a directory.")));
@@ -280,11 +280,11 @@ futures::Value<PossibleError> Save(
     case OpenBuffer::Options::SaveType::kBackup:
       auto state_directory = buffer->GetEdgeStateDirectory();
       if (state_directory.IsError()) {
-        return futures::Past(PossibleError(Error(
-            L"Unable to backup buffer: " + state_directory.error.value())));
+        return futures::Past(PossibleError(Error::Augment(
+            L"Unable to backup buffer: ", state_directory.error())));
       }
-      path = Path::Join(state_directory.value.value(),
-                        PathComponent::FromString(L"backup").value.value());
+      path = Path::Join(state_directory.value(),
+                        PathComponent::FromString(L"backup").value());
   }
 
   return futures::Transform(
@@ -417,9 +417,9 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,
     LOG(INFO) << "search paths buffer already existed.";
     return it->second;
   }
-  options.path = Path::Join(
-      Path::FromString(edge_path).value.value_or(Path::LocalDirectory()),
-      Path::FromString(L"/search_paths").value.value());
+  options.path =
+      Path::Join(Path::FromString(edge_path).value_or(Path::LocalDirectory()),
+                 Path::FromString(L"/search_paths").value());
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   options.use_search_paths = false;
   it = OpenFile(options);
@@ -443,15 +443,15 @@ void GetSearchPaths(EditorState* editor_state, vector<Path>* output) {
       LOG(INFO) << edge_path << ": No search paths buffer.";
       continue;
     }
-    search_paths_buffer->contents()->ForEach(
-        [editor_state, output](wstring line) {
-          auto path = Path::FromString(line);
-          if (path.IsError()) return;
-          output->push_back(Path::FromString(editor_state->expand_path(
-                                                 path.value.value().ToString()))
-                                .value.value());
-          LOG(INFO) << "Pushed search path: " << output->back();
-        });
+    search_paths_buffer->contents()->ForEach([editor_state,
+                                              output](wstring line) {
+      auto path = Path::FromString(line);
+      if (path.IsError()) return;
+      output->push_back(
+          Path::FromString(editor_state->expand_path(path.value().ToString()))
+              .value());
+      LOG(INFO) << "Pushed search path: " << output->back();
+    });
   }
 }
 
@@ -491,7 +491,7 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
          str_end = input.path.find_last_of(':', str_end - 1)) {
       auto input_path = Path::FromString(input.path.substr(0, str_end));
       if (input_path.IsError()) continue;
-      auto path_with_prefix = Path::Join(search_path, input_path.value.value());
+      auto path_with_prefix = Path::Join(search_path, input_path.value());
 
       if (!input.validator(path_with_prefix.ToString())) {
         continue;
@@ -539,7 +539,7 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
         }
       }
       if (auto resolved = path_with_prefix.Resolve(); !resolved.IsError()) {
-        output.path = resolved.value.value().ToString();
+        output.path = resolved.value().ToString();
       } else {
         output.path = path_with_prefix.ToString();
       }

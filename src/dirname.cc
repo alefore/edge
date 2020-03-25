@@ -38,8 +38,7 @@ Path::Path(PathComponent path_component)
     return b;
   }
   bool has_slash = a.path_[a.path_.size() - 1] == L'/' || b.path_[0] == L'/';
-  return Path::FromString(a.path_ + (has_slash ? L"" : L"/") + b.path_)
-      .value.value();
+  return Path::FromString(a.path_ + (has_slash ? L"" : L"/") + b.path_).value();
 }
 
 ValueOrError<Path> Path::FromString(std::wstring path) {
@@ -68,21 +67,17 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
   std::list<PathComponent> output;
   Path path = *this;
   while (!path.IsRoot()) {
-    auto base = path.Basename();
-    if (base.IsError()) return Error(base.error.value());
-    output.push_front(base.value.value());
+    ASSIGN_OR_RETURN(auto base, path.Basename());
+    output.push_front(base);
     if (output.front().ToString() == path.path_) {
       return Success(output);
     }
-    auto tmp = path.Dirname();
-    if (tmp.IsError()) {
-      LOG(INFO) << "Dirname error: " << tmp.error.value();
-      return Error(tmp.error.value());
-    } else if (tmp.value.value().path_.size() >= path.path_.size()) {
-      LOG(INFO) << "Unable to advance: " << path << " -> " << tmp;
+    ASSIGN_OR_RETURN(auto dir, AugmentErrors(L"Dirname error", path.Dirname()));
+    if (dir.path_.size() >= path.path_.size()) {
+      LOG(INFO) << "Unable to advance: " << path << " -> " << dir;
       return Error(L"Unable to advance: " + path.ToString());
     }
-    path = std::move(tmp.value.value());
+    path = std::move(dir);
   }
   return Success(output);
 }
@@ -109,8 +104,8 @@ Path::Path(std::wstring path) : path_(std::move(path)) {
   CHECK(!path_.empty());
 }
 
-Path Path::LocalDirectory() { return Path::FromString(L".").value.value(); }
-Path Path::Root() { return Path::FromString(L"/").value.value(); }
+Path Path::LocalDirectory() { return Path::FromString(L".").value(); }
+Path Path::Root() { return Path::FromString(L"/").value(); }
 
 ValueOrError<AbsolutePath> AbsolutePath::FromString(std::wstring path) {
   if (path.empty()) {
@@ -130,22 +125,22 @@ std::ostream& operator<<(std::ostream& os, const Path& p) {
 }
 
 wstring Realpath(const wstring& path) {
-  auto output = Path::FromString(path).value.value().Resolve();
-  return output.IsError() ? path : output.value.value().ToString();
+  auto output = Path::FromString(path).value().Resolve();
+  return output.IsError() ? path : output.value().ToString();
 }
 
 wstring Dirname(wstring path_str) {
   auto path = Path::FromString(path_str);
   if (path.IsError()) return L"";
-  auto output = path.value.value().Dirname();
-  return output.IsError() ? L"" : output.value.value().ToString();
+  auto output = path.value().Dirname();
+  return output.IsError() ? L"" : output.value().ToString();
 }
 
 wstring Basename(wstring path_str) {
   auto path = Path::FromString(path_str);
   if (path.IsError()) return L"";
-  auto output = path.value.value().Basename();
-  return output.IsError() ? L"" : output.value.value().ToString();
+  auto output = path.value().Basename();
+  return output.IsError() ? L"" : output.value().ToString();
 }
 
 bool DirectorySplit(wstring path_str, list<wstring>* output) {
@@ -153,12 +148,12 @@ bool DirectorySplit(wstring path_str, list<wstring>* output) {
   if (path.IsError()) {
     return false;
   }
-  auto components = path.value.value().DirectorySplit();
+  auto components = path.value().DirectorySplit();
   if (components.IsError()) {
     return false;
   }
   output->clear();
-  for (auto& component : components.value.value()) {
+  for (auto& component : components.value()) {
     output->push_back(component.ToString());
   }
   return true;
@@ -171,8 +166,7 @@ wstring PathJoin(const wstring& a, const wstring& b) {
   if (b.empty()) {
     return a;
   }
-  return Path::Join(Path::FromString(a).value.value(),
-                    Path::FromString(b).value.value())
+  return Path::Join(Path::FromString(a).value(), Path::FromString(b).value())
       .ToString();
 }
 

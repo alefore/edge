@@ -372,7 +372,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             OpenFileOptions options;
             options.editor_state = this;
             if (auto path = Path::FromString(args[0]->str); !path.IsError()) {
-              options.path = std::move(path.value.value());
+              options.path = std::move(path.value());
             }
             options.insertion_type = args[1]->boolean
                                          ? BuffersList::AddBufferType::kVisit
@@ -509,7 +509,8 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
     if (error.IsError()) {
       buffer->status()->SetWarningText(
           L"🖝  Unable to close (“*ad” to ignore): " +
-          error.error.value() + L": " + buffer->Read(buffer_variables::name));
+          error.error().description + L": " +
+          buffer->Read(buffer_variables::name));
       return;
     }
 
@@ -752,8 +753,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           result.IsError()) {
         buffers_with_problems.push_back(
             it.second->Read(buffer_variables::name));
-        it.second->status()->SetWarningText(L"Unable to close: " +
-                                            result.error.value());
+        it.second->status()->SetWarningText(
+            Error::Augment(L"Unable to close", result.error()).description);
       }
     }
     if (!buffers_with_problems.empty()) {
@@ -913,8 +914,8 @@ void EditorState::PushPosition(LineColumn position) {
     if (!edge_path().empty()) {
       if (auto edge_path_front = Path::FromString(edge_path().front());
           !edge_path_front.IsError()) {
-        options.path = Path::Join(edge_path_front.value.value(),
-                                  Path::FromString(L"positions").value.value());
+        options.path = Path::Join(edge_path_front.value(),
+                                  Path::FromString(L"positions").value());
       }
     }
     options.insertion_type = BuffersList::AddBufferType::kIgnore;

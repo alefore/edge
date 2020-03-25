@@ -234,15 +234,14 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     auto positions =
         PerformSearchWithDirection(input.editor, options, search_buffer.get());
     if (positions.IsError()) {
-      search_buffer->status()->SetWarningText(positions.error.value());
+      search_buffer->status()->SetWarningText(positions.error().description);
       continue;
     }
 
     // Get the first kMatchesLimit matches:
     for (size_t i = 0;
-         i < positions.value.value().size() && matches.size() < kMatchesLimit;
-         i++) {
-      auto position = positions.value.value()[i];
+         i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
+      auto position = positions.value()[i];
       if (i == 0) {
         search_buffer->set_position(position);
       }

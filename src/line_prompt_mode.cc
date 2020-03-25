@@ -195,7 +195,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   if (!editor_state->edge_path().empty()) {
     options.path = Path::FromString(PathJoin(*editor_state->edge_path().begin(),
                                              name + L"_history"))
-                       .value.value();
+                       .value();
   }
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   it = OpenFile(options);
@@ -355,10 +355,10 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
           if (line.empty()) return true;
           auto line_keys = ParseHistoryLine(line.contents());
           if (line_keys.IsError()) {
-            output.errors.push_back(line_keys.error.value());
+            output.errors.push_back(line_keys.error().description);
             return !abort_notification->HasBeenNotified();
           }
-          auto range = line_keys.value.value().equal_range(L"prompt");
+          auto range = line_keys.value().equal_range(L"prompt");
           int prompt_count = std::distance(range.first, range.second);
           if (warn_if(prompt_count == 0, L"Line is missing `prompt` section") ||
               warn_if(prompt_count != 1,
@@ -385,7 +385,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             return !abort_notification->HasBeenNotified();
           }
           std::unordered_set<std::wstring> features;
-          for (auto& [key, value] : line_keys.value.value()) {
+          for (auto& [key, value] : line_keys.value()) {
             if (key != L"prompt") {
               features.insert(key + L":" + QuoteString(value)->ToString());
             }

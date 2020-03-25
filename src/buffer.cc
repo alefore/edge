@@ -599,14 +599,12 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 
   auto edge_state_directory = GetEdgeStateDirectory();
   if (edge_state_directory.IsError()) {
-    status_.SetWarningText(edge_state_directory.error.value());
-    return futures::Past(
-        PossibleError(Error(edge_state_directory.error.value())));
+    status_.SetWarningText(edge_state_directory.error().description);
+    return futures::Past(PossibleError(edge_state_directory.error()));
   }
 
-  auto path =
-      Path::Join(edge_state_directory.value.value(),
-                 PathComponent::FromString(L".edge_state").value.value());
+  auto path = Path::Join(edge_state_directory.value(),
+                         PathComponent::FromString(L".edge_state").value());
   LOG(INFO) << "PersistState: Preparing state file: " << path;
   BufferContents contents;
   contents.push_back(L"// State of file: " + path.ToString());
@@ -979,35 +977,27 @@ ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   if (path_vector.empty()) {
     return Error(L"Empty edge path.");
   }
-  auto path_or_error = Path::FromString(path_vector[0]);
-  if (path_or_error.IsError()) {
-    return Error(L"Invalid edge path: " + path_or_error.error.value());
-  }
-  auto path = path_or_error.value.value();
+  ASSIGN_OR_RETURN(auto path, AugmentErrors(L"Invalid Edge path",
+                                            Path::FromString(path_vector[0])));
 
-  auto file_path_or_error =
-      AbsolutePath::FromString(Read(buffer_variables::path));
-  if (file_path_or_error.IsError()) {
-    return Error(
-        L"Unable to persist buffer with invalid path: " +
-        file_path_or_error.error.value() +
-        (dirty() ? L" (dirty)" : L" (clean)") + L" " +
-        (disk_state_ == DiskState::kStale ? L"modified" : L"not modified"));
-  }
-  auto file_path = file_path_or_error.value.value();
+  ASSIGN_OR_RETURN(
+      auto file_path,
+      AugmentErrors(
+          std::wstring{L"Unable to persist buffer with invalid path "} +
+              (dirty() ? L" (dirty)" : L" (clean)") + L" " +
+              (disk_state_ == DiskState::kStale ? L"modified"
+                                                : L"not modified"),
+          AbsolutePath::FromString(Read(buffer_variables::path))));
+
   if (file_path.GetRootType() != Path::RootType::kAbsolute) {
     return Error(L"Unable to persist buffer without absolute path: " +
                  file_path.ToString());
   }
 
-  auto file_path_components_or_error = file_path.DirectorySplit();
-  if (file_path_components_or_error.IsError()) {
-    return Error(L"Unable to split path: " +
-                 file_path_components_or_error.error.value());
-  }
-  auto file_path_components = file_path_components_or_error.value.value();
-  file_path_components.push_front(
-      PathComponent::FromString(L"state").value.value());
+  ASSIGN_OR_RETURN(
+      auto file_path_components,
+      AugmentErrors(L"Unable to split path", file_path.DirectorySplit()));
+  file_path_components.push_front(PathComponent::FromString(L"state").value());
 
   LOG(INFO) << "GetEdgeStateDirectory: Preparing directory for state: " << path;
   for (auto& component : file_path_components) {
@@ -1953,7 +1943,7 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
         OpenFileOptions options;
         options.editor_state = buffer->editor();
         if (auto path = Path::FromString(line); !path.IsError()) {
-          options.path = path.value.value();
+          options.path = path.value();
         }
         options.ignore_if_not_found = true;
         options.insertion_type = BuffersList::AddBufferType::kIgnore;

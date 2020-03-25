@@ -356,7 +356,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       std::vector<Path> resolved_paths;
       for (auto& search_path : input.search_paths) {
         if (auto output = search_path.Resolve(); !output.IsError()) {
-          resolved_paths.push_back(output.value.value());
+          resolved_paths.push_back(output.value());
         }
       }
       input.search_paths = std::move(resolved_paths);

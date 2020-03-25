@@ -51,7 +51,7 @@ class TransformTests : public tests::TestGroup<TransformTests> {
                inner_value.consumer(Error(L"xyz"));
                CHECK(final_result.has_value());
                CHECK(final_result.value().IsError());
-               CHECK(final_result.value().error.value() == L"xyz");
+               CHECK(final_result.value().error().description == L"xyz");
              }},
     };
   }
@@ -91,8 +91,8 @@ class OnErrorTests : public tests::TestGroup<OnErrorTests> {
                            [&](Error) { return Success(27); })
                        .SetConsumer(
                            [&](ValueOrError<int> result) { value = result; });
-                   CHECK(value.value().value.has_value());
-                   CHECK_EQ(value.value().value.value(), 27);  // Lovely...
+                   CHECK(!value.value().IsError());
+                   CHECK_EQ(value.value().value(), 27);
                  }},
             {.name = L"SkippedOnSuccess", .callback = [] {
                OnError(futures::Past(ValueOrError(Success(12))),

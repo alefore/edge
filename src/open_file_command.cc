@@ -21,7 +21,7 @@ futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
   OpenFileOptions options;
   options.editor_state = editor_state;
   if (auto path = Path::FromString(name); !path.IsError()) {
-    options.path = path.value.value();
+    options.path = path.value();
   }
   options.insertion_type = BuffersList::AddBufferType::kVisit;
   OpenFile(options);
@@ -39,7 +39,7 @@ std::shared_ptr<OpenBuffer> StatusContext(EditorState* editor,
     if (path.IsError()) {
       return nullptr;
     }
-    open_file_options.path = path.value.value();
+    open_file_options.path = path.value();
     open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
     open_file_options.ignore_if_not_found = true;
     if (auto result = OpenFile(open_file_options);
@@ -115,7 +115,7 @@ futures::Value<ColorizePromptOptions> AdjustPath(
 std::wstring GetInitialPromptValue(std::wstring buffer_path) {
   auto path_or_error = Path::FromString(buffer_path);
   if (path_or_error.IsError()) return L"";
-  auto path = path_or_error.value.value();
+  auto path = path_or_error.value();
   struct stat stat_buffer;
   // TODO(blocking): Use FileSystemDriver here!
   if (stat(ToByteString(path.ToString()).c_str(), &stat_buffer) == -1 ||
@@ -123,7 +123,7 @@ std::wstring GetInitialPromptValue(std::wstring buffer_path) {
     LOG(INFO) << "Taking dirname for prompt: " << path;
     auto dir_or_error = path.Dirname();
     if (!dir_or_error.IsError()) {
-      path = dir_or_error.value.value();
+      path = dir_or_error.value();
     }
   }
   return path == Path::LocalDirectory() ? L"" : (path.ToString() + L"/");

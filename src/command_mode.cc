@@ -520,7 +520,7 @@ class ActivateLink : public Command {
     if (path.IsError()) {
       return;
     }
-    options.path = path.value.value();
+    options.path = path.value();
 
     options.editor_state = editor_state;
     options.ignore_if_not_found = true;
@@ -529,10 +529,10 @@ class ActivateLink : public Command {
     if (auto path = Path::FromString(buffer->Read(buffer_variables::path));
         !path.IsError()) {
       // Works if the current buffer is a directory listing:
-      options.initial_search_paths.push_back(path.value.value());
+      options.initial_search_paths.push_back(path.value());
       // And a fall-back for the current buffer being a file:
-      if (auto dir = path.value.value().Dirname(); !dir.IsError()) {
-        options.initial_search_paths.push_back(dir.value.value());
+      if (auto dir = path.value().Dirname(); !dir.IsError()) {
+        options.initial_search_paths.push_back(dir.value());
       }
     }
 

@@ -85,10 +85,10 @@ class Status {
   template <typename T>
   T ConsumeErrors(ValueOrError<T> value, T replacement_value) {
     if (value.IsError()) {
-      SetWarningText(value.error.value());
+      SetWarningText(value.error().description);
       return replacement_value;
     }
-    return value.value.value();
+    return value.value();
   }
 
   void Reset();
