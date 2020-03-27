@@ -28,21 +28,22 @@ string ZkInternalNextEmpty() {
   return buffer.line(0);
 }
 
-void zkRunCommand(string name, string command) {
+Buffer zkRunCommand(string name, string command, string insertion_type) {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(command);
-  options.set_insertion_type("visit");
+  options.set_insertion_type(insertion_type);
   options.set_name("zk: " + name);
-  ForkCommand(options);
+  return ForkCommand(options);
 }
 
-void zkls() { zkRunCommand("ls", "~/bin/zkls"); }
+void zkls() { zkRunCommand("ls", "~/bin/zkls", "visit"); }
 
 void zkrev() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     string path = Basename(buffer.path());
     if (path == "") return;
-    zkRunCommand("rev: " + path, "grep " + path.shell_escape() + " ???.md");
+    zkRunCommand("rev: " + path, "grep " + path.shell_escape() + " ???.md",
+                 "visit");
   });
   return;
 }
@@ -51,7 +52,29 @@ void zkrev() {
 void zki() { OpenFile("index.md", true); }
 
 void zks(string query) {
-  zkRunCommand("s: " + query, "grep -i " + query.shell_escape() + " ???.md");
+  zkRunCommand("s: " + query, "grep -i " + query.shell_escape() + " ???.md",
+               "visit");
+}
+
+Buffer Previewzks(string query) {
+  auto buffer = zkRunCommand(
+      "s: " + query, "grep -i " + query.shell_escape() + " ???.md", "ignore");
+  buffer.WaitForEndOfFile();
+  return buffer;
+}
+
+Buffer zkInternalTitleSearch(string query, string insertion_type) {
+  auto buffer = zkRunCommand("t: " + query,
+                             "awk '{if (tolower($0)~\"" + query.shell_escape() +
+                                 "\") print FILENAME, $0; nextfile;}' ???.md",
+                             insertion_type);
+  buffer.WaitForEndOfFile();
+  return buffer;
+}
+
+void zkt(string query) { zkInternalTitleSearch(query, "visit"); }
+Buffer Previewzkt(string query) {
+  return zkInternalTitleSearch(query, "ignore");
 }
 
 // Find the smallest unused ID. This assumes that files are of the form `???.md`

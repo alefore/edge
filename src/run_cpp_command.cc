@@ -6,6 +6,7 @@
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/lazy_string_append.h"
 #include "src/line_prompt_mode.h"
 #include "src/substring.h"
 #include "src/tokenize.h"
@@ -30,30 +31,30 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
 }
 
 struct ParsedCommand {
-  static ParsedCommand Error(std::wstring error) {
-    ParsedCommand output;
-    output.error = error;
-    return output;
-  }
-
-  std::optional<std::wstring> error;
   std::vector<Token> tokens;
   vm::Value* function = nullptr;
   std::vector<std::unique_ptr<Expression>> inputs;
 };
 
-ParsedCommand Parse(const LazyString& command, Environment* environment) {
+ValueOrError<ParsedCommand> Parse(
+    std::shared_ptr<LazyString> command, Environment* environment,
+    std::shared_ptr<LazyString> function_name_prefix,
+    std::unordered_set<VMType> accepted_return_types) {
   ParsedCommand output;
-  output.tokens = TokenizeBySpaces(command);
+  output.tokens = TokenizeBySpaces(*command);
   if (output.tokens.empty()) {
-    return ParsedCommand::Error(L"");  // No-op.
+    // Deliberately empty so as to not trigger a status update.
+    return Error(L"");
   }
 
   std::vector<Value*> functions;
-  environment->CaseInsensitiveLookup(output.tokens[0].value, &functions);
+  environment->CaseInsensitiveLookup(
+      StringAppend(function_name_prefix, NewLazyString(output.tokens[0].value))
+          ->ToString(),
+      &functions);
 
   if (functions.empty()) {
-    return ParsedCommand::Error(L"Unknown symbol: " + output.tokens[0].value);
+    return Error(L"Unknown symbol: " + output.tokens[0].value);
   }
 
   // Filter functions that match our type expectations.
@@ -64,10 +65,11 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
       continue;
     }
     const auto& arguments = candidate->type.type_arguments;
-    if (!(arguments[0] == VMType::Void()) &&
-        !(arguments[0] == VMType::String())) {
+    if (accepted_return_types.find(arguments[0]) ==
+        accepted_return_types.end()) {
       continue;
     }
+
     bool all_arguments_are_strings = true;
     for (auto it = arguments.begin() + 1;
          all_arguments_are_strings && it != arguments.end(); ++it) {
@@ -98,9 +100,9 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
              1ul /* return type */);
     size_t expected_arguments = output.function->type.type_arguments.size() - 1;
     if (output.tokens.size() - 1 > expected_arguments) {
-      return ParsedCommand::Error(L"Too many arguments given for `" +
-                                  output.tokens[0].value + L"` (expected: " +
-                                  std::to_wstring(expected_arguments) + L")");
+      return Error(L"Too many arguments given for `" + output.tokens[0].value +
+                   L"` (expected: " + std::to_wstring(expected_arguments) +
+                   L")");
     }
 
     for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
@@ -113,14 +115,19 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
           vm::NewConstantExpression(vm::Value::NewString(L"")));
     }
   } else {
-    return ParsedCommand::Error(L"No suitable definition found: " +
-                                output.tokens[0].value);
+    return Error(L"No suitable definition found: " + output.tokens[0].value);
   }
 
-  return output;
+  return Success(std::move(output));
 }
 
-futures::Value<std::unique_ptr<Value>> Execute(
+ValueOrError<ParsedCommand> Parse(std::shared_ptr<LazyString> command,
+                                  Environment* environment) {
+  return Parse(command, environment, EmptyString(),
+               {VMType::Void(), VMType::String()});
+}
+
+futures::ValueOrError<std::unique_ptr<Value>> Execute(
     std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
   std::shared_ptr<Expression> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(
@@ -128,10 +135,12 @@ futures::Value<std::unique_ptr<Value>> Execute(
       std::move(parsed_command.inputs));
   if (expression->Types().empty()) {
     // TODO: Show the error.
-    buffer->status()->SetWarningText(L"Unable to compile (type mismatch).");
-    return futures::Past(std::unique_ptr<Value>());
+    return futures::Past(ValueOrError<std::unique_ptr<Value>>(
+        Error(L"Unable to compile (type mismatch).")));
   }
-  return buffer->EvaluateExpression(expression.get());
+  return futures::Transform(
+      buffer->EvaluateExpression(expression.get()),
+      [](std::unique_ptr<Value> value) { return Success(std::move(value)); });
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
@@ -142,21 +151,37 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
     EditorState* editor, std::shared_ptr<LazyString> line) {
-  auto current_buffer = editor->current_buffer();
-  auto parsed_command =
-      Parse(*line, (current_buffer == nullptr ? editor->environment()
-                                              : current_buffer->environment())
-                       .get());
-
-  std::vector<TokenAndModifiers> tokens;
-  if (!parsed_command.error.has_value()) {
-    tokens.push_back({{.value = L"",
-                       .begin = ColumnNumber(0),
-                       .end = ColumnNumber() + line->size()},
-                      .modifiers = {LineModifier::CYAN}});
+  ColorizePromptOptions output;
+  auto buffer = editor->current_buffer();
+  auto environment =
+      (buffer == nullptr ? editor->environment() : buffer->environment()).get();
+  if (auto parsed_command = Parse(line, environment);
+      !parsed_command.IsError()) {
+    output.tokens.push_back({{.value = L"",
+                              .begin = ColumnNumber(0),
+                              .end = ColumnNumber() + line->size()},
+                             .modifiers = {LineModifier::CYAN}});
   }
 
-  return futures::Past(ColorizePromptOptions{.tokens = std::move(tokens)});
+  using BufferMapper = vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>;
+  futures::Future<ColorizePromptOptions> output_future;
+  if (auto command = Parse(line, environment, NewLazyString(L"Preview"),
+                           {BufferMapper::vmtype});
+      buffer != nullptr && !command.IsError()) {
+    Execute(buffer, std::move(command.value()))
+        .SetConsumer(
+            [consumer = output_future.consumer, buffer,
+             output](ValueOrError<std::unique_ptr<vm::Value>> value) mutable {
+              if (!value.IsError() &&
+                  value.value()->type == BufferMapper::vmtype) {
+                output.context = BufferMapper::get(value.value().get());
+              }
+              consumer(output);
+            });
+  } else {
+    output_future.consumer(std::move(output));
+  }
+  return output_future.value;
 }
 
 class RunCppCommand : public Command {
@@ -229,15 +254,26 @@ futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
   buffer->ResetMode();
 
   auto parsed_command =
-      Parse(*NewLazyString(std::move(command)), buffer->environment().get());
-  if (parsed_command.error.has_value()) {
-    if (!parsed_command.error.value().empty()) {
-      buffer->status()->SetWarningText(parsed_command.error.value());
+      Parse(NewLazyString(std::move(command)), buffer->environment().get());
+  if (parsed_command.IsError()) {
+    if (!parsed_command.error().description.empty()) {
+      buffer->status()->SetWarningText(parsed_command.error().description);
     }
     return futures::Past(std::unique_ptr<vm::Value>());
   }
 
-  return Execute(buffer, std::move(parsed_command));
+  futures::Future<std::unique_ptr<vm::Value>> output;
+  Execute(buffer, std::move(parsed_command.value()))
+      .SetConsumer([consumer = output.consumer,
+                    buffer](ValueOrError<std::unique_ptr<vm::Value>> value) {
+        if (value.IsError()) {
+          buffer->status()->SetWarningText(value.error().description);
+          consumer(nullptr);
+        } else {
+          consumer(std::move(value.value()));
+        }
+      });
+  return output.value;
 }
 
 std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode) {
