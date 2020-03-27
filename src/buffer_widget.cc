@@ -18,6 +18,7 @@
 #include "src/line_scroll_control.h"
 #include "src/section_brackets_producer.h"
 #include "src/status_output_producer.h"
+#include "src/tests/tests.h"
 #include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
@@ -87,17 +88,38 @@ std::unique_ptr<OutputProducer> LinesSpanView(
 std::set<Range> MergeSections(std::set<Range> input) {
   std::set<Range> output;
   for (auto& section : input) {
-    auto result = output.rbegin()->Union(section);
-    auto merged_section = output.empty() || result.IsError()
-                              ? std::nullopt
-                              : std::optional<Range>(result.value());
-    if (merged_section.has_value()) {
-      output.erase(--output.end());
+    if (!output.empty()) {
+      if (auto result = output.rbegin()->Union(section); !result.IsError()) {
+        output.erase(--output.end());
+        output.insert(result.value());
+        continue;
+      }
     }
-    output.insert(merged_section.value_or(section));
+    output.insert(section);
   }
   return output;
 }
+
+class MergeSectionsTests : public tests::TestGroup<MergeSectionsTests> {
+ public:
+  MergeSectionsTests() : TestGroup<MergeSectionsTests>() {}
+  std::wstring Name() const override { return L"MergeSectionsTests"; }
+  std::vector<tests::Test> Tests() const override {
+    return {{.name = L"Empty",
+             .callback = [] { CHECK_EQ(MergeSections({}).size(), 0ul); }},
+            {.name = L"Singleton", .callback = [] {
+               Range input = Range(LineColumn(LineNumber(10), ColumnNumber(0)),
+                                   LineColumn(LineNumber(15), ColumnNumber(0)));
+               auto output = MergeSections({input});
+               CHECK_EQ(output.size(), 1ul);
+               CHECK_EQ(*output.begin(), input);
+             }}};
+  }
+};
+
+template <>
+const bool tests::TestGroup<MergeSectionsTests>::registration_ =
+    tests::Add<editor::MergeSectionsTests>();
 
 LineNumberDelta SumSectionsLines(const std::set<Range> sections) {
   LineNumberDelta output;
