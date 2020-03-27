@@ -163,6 +163,31 @@ AddBinding("J", "Edit: Fold next line into the current line", []() -> void {
   });
 });
 
+AddBinding("`", "Edit: Add/remove ticks around current section.", []() -> void {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          // TODO: Instead of FindSymbol{Begin,End}, do something based on the
+          // current modifier.
+          //
+          // TODO: If a tick was already present at both positions, delete
+          // (rather than insert).
+          //
+          // TODO: If a tick was already present at only one position, don't
+          // insert there?
+          auto start = FindSymbolBegin(buffer, input.position());
+          auto end = FindSymbolEnd(buffer, input.position());
+          return TransformationOutput()
+              .push(SetPositionTransformation(end))
+              .push(InsertTransformationBuilder().set_text("`").build())
+              .push(SetPositionTransformation(start))
+              .push(InsertTransformationBuilder().set_text("`").build())
+              .push(SetPositionTransformation(LineColumn(
+                  input.position().line(), input.position().column() - 1)));
+        }));
+  });
+});
+
 AddBinding("#", "Edit: Reflow current paragraph",
            []() -> void { editor.ForEachActiveBuffer(Reflow); });
 
