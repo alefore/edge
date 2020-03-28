@@ -146,7 +146,10 @@ TransformationOutput ZKInternalNewLink(Buffer buffer,
           .push(SetColumnTransformation(end))
           .push(
               InsertTransformationBuilder().set_text("(" + path + ")").build());
-
+  if (input.position().line() + 1 >= buffer.line_count()) {
+    output.push(SetColumnTransformation(99999999))
+        .push(InsertTransformationBuilder().set_text("\n").build());
+  }
   auto new_note = OpenFile(path, true);
   new_note.WaitForEndOfFile();
   new_note.ApplyTransformation(FunctionTransformation(
