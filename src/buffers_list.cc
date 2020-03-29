@@ -420,10 +420,17 @@ struct Layout {
   LineNumberDelta lines;
 };
 
-Layout BuffersPerLine(ColumnNumberDelta width, size_t buffers_count) {
+Layout BuffersPerLine(LineNumberDelta maximum_lines, ColumnNumberDelta width,
+                      size_t buffers_count) {
+  if (buffers_count == 0 || maximum_lines.IsZero()) {
+    return Layout{.buffers_per_line = 0, .lines = LineNumberDelta(0)};
+  }
   double count = buffers_count;
-  static const auto kMinimumColumnsPerBuffer = ColumnNumberDelta(20);
-  size_t max_buffers_per_line = width / kMinimumColumnsPerBuffer;
+  static const auto kDesiredColumnsPerBuffer = ColumnNumberDelta(20);
+  size_t max_buffers_per_line =
+      width /
+      min(kDesiredColumnsPerBuffer,
+          width / static_cast<size_t>(ceil(count / maximum_lines.line_delta)));
   auto lines = LineNumberDelta(ceil(count / max_buffers_per_line));
   return Layout{
       .buffers_per_line = static_cast<size_t>(ceil(count / lines.line_delta)),
@@ -434,24 +441,28 @@ class BuffersPerLineTests : public tests::TestGroup<BuffersPerLineTests> {
  public:
   std::wstring Name() const override { return L"BuffersPerLineTests"; }
   std::vector<tests::Test> Tests() const override {
+    static const auto kSizeLines = LineNumberDelta(10);
     return {{.name = L"SingleBuffer",
              .callback =
                  [] {
-                   auto layout = BuffersPerLine(ColumnNumberDelta(100), 1);
+                   auto layout =
+                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 1);
                    CHECK_EQ(layout.lines, LineNumberDelta(1));
                    CHECK_EQ(layout.buffers_per_line, 1ul);
                  }},
             {.name = L"SingleLine",
              .callback =
                  [] {
-                   auto layout = BuffersPerLine(ColumnNumberDelta(100), 4);
+                   auto layout =
+                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 4);
                    CHECK_EQ(layout.lines, LineNumberDelta(1));
                    CHECK_EQ(layout.buffers_per_line, 4ul);
                  }},
             {.name = L"SingleLineFull",
              .callback =
                  [] {
-                   auto layout = BuffersPerLine(ColumnNumberDelta(100), 5);
+                   auto layout =
+                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 5);
                    CHECK_EQ(layout.lines, LineNumberDelta(1));
                    CHECK_EQ(layout.buffers_per_line, 5ul);
                  }},
@@ -460,21 +471,55 @@ class BuffersPerLineTests : public tests::TestGroup<BuffersPerLineTests> {
                  [] {
                    // Identical to SingleLineFull, but the buffers don't fit
                    // by 1 position.
-                   auto layout = BuffersPerLine(ColumnNumberDelta(99), 5);
+                   auto layout =
+                       BuffersPerLine(kSizeLines, ColumnNumberDelta(99), 5);
                    CHECK_EQ(layout.lines, LineNumberDelta(2));
                    CHECK_EQ(layout.buffers_per_line, 3ul);
                  }},
             {.name = L"ThreeLines",
              .callback =
                  [] {
-                   auto layout = BuffersPerLine(ColumnNumberDelta(100), 11);
+                   auto layout =
+                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 11);
                    CHECK_EQ(layout.lines, LineNumberDelta(3));
                    CHECK_EQ(layout.buffers_per_line, 4ul);
                  }},
-            {.name = L"ManyLines", .callback = [] {
-               auto layout = BuffersPerLine(ColumnNumberDelta(100), 250);
-               CHECK_EQ(layout.lines, LineNumberDelta(50));
-               CHECK_EQ(layout.buffers_per_line, 5ul);
+            {.name = L"ManyLinesFits",
+             .callback =
+                 [] {
+                   auto layout = BuffersPerLine(LineNumberDelta(100),
+                                                ColumnNumberDelta(100), 250);
+                   CHECK_EQ(layout.lines, LineNumberDelta(50));
+                   CHECK_EQ(layout.buffers_per_line, 5ul);
+                 }},
+            {.name = L"ZeroBuffers",
+             .callback =
+                 [] {
+                   auto layout =
+                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 0);
+                   CHECK_EQ(layout.lines, LineNumberDelta(0));
+                   CHECK_EQ(layout.buffers_per_line, 0ul);
+                 }},
+            {.name = L"ZeroMaximumLines",
+             .callback =
+                 [] {
+                   auto layout = BuffersPerLine(LineNumberDelta(0),
+                                                ColumnNumberDelta(100), 5);
+                   CHECK_EQ(layout.lines, LineNumberDelta(0));
+                   CHECK_EQ(layout.buffers_per_line, 0ul);
+                 }},
+            {.name = L"Overcrowded", .callback = [] {
+               // This test checks that kDesiredColumnsPerBuffer can be trimmed
+               // due to maximum_lines.
+               //
+               // We'll produce a result that allows each buffer 7 characters.
+               // With a line length of 100, that yields 14 buffers per line
+               // (filling up 98 characters). With 3 lines, that yields 42
+               // buffers. We subtract 1 to make it not fit in fully.
+               auto layout = BuffersPerLine(LineNumberDelta(3),
+                                            ColumnNumberDelta(100), 41);
+               CHECK_EQ(layout.lines, LineNumberDelta(3));
+               CHECK_EQ(layout.buffers_per_line, 14ul);
              }}};
   }
 };
@@ -486,7 +531,8 @@ const bool tests::TestGroup<BuffersPerLineTests>::registration_ =
 
 std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
     OutputProducerOptions options) const {
-  auto layout = BuffersPerLine(options.size.column, buffers_.size());
+  auto layout = BuffersPerLine(options.size.line / 2, options.size.column,
+                               buffers_.size());
   VLOG(1) << "Buffers list lines: " << layout.lines
           << ", size: " << buffers_.size()
           << ", size column: " << options.size.column;
