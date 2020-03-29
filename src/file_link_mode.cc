@@ -485,7 +485,7 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   }
 
   if (!input.path.empty() && input.path[0] == L'/') {
-    input.search_paths = {Path::LocalDirectory()};
+    input.search_paths = {Path::Root()};
   }
   for (auto& search_path : input.search_paths) {
     for (size_t str_end = input.path.size();

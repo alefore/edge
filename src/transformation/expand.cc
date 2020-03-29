@@ -123,6 +123,8 @@ class ReadAndInsert : public CompositeTransformation {
     auto edge_path_front =
         Path::FromString(input.buffer->editor()->edge_path().front());
     if (edge_path_front.IsError()) {
+      LOG(INFO) << "Error preparing path for completion: "
+                << edge_path_front.error().description;
       return futures::Past(Output());
     }
     open_file_options.path =
@@ -133,6 +135,7 @@ class ReadAndInsert : public CompositeTransformation {
     open_file_options.use_search_paths = false;
     auto buffer_it = OpenFile(open_file_options);
     if (buffer_it == input.buffer->editor()->buffers()->end()) {
+      LOG(INFO) << "Unable to open file: " << open_file_options.path.value();
       return futures::Past(Output());
     }
     futures::Future<Output> output;
