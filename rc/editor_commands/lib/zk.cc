@@ -122,8 +122,8 @@ TransformationOutput ZKInternalLink(Buffer buffer, TransformationInput input) {
   return output;
 }
 
-// Replaces a path (e.g., `03d.md` with a link to it, extracting the text of the
-// link from the first line in the file (e.g. `[Bauhaus](03d.md)`).
+// Replaces a path (e.g., `03d.md`) with a link to it, extracting the text of
+// the link from the first line in the file (e.g. `[Bauhaus](03d.md)`).
 void zkl() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     buffer.ApplyTransformation(FunctionTransformation(
