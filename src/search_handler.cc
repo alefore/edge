@@ -278,8 +278,14 @@ vector<LineColumn> SearchHandler(EditorState* editor_state,
     return {};
   }
 
-  return buffer->status()->ConsumeErrors(
-      PerformSearchWithDirection(editor_state, options, buffer), {});
+  auto output = PerformSearchWithDirection(editor_state, options, buffer);
+  if (!output.IsError() && output.value().empty() &&
+      buffer->Read(buffer_variables::search_filter_buffer)) {
+    buffer->editor()->CloseBuffer(buffer);
+    return {};
+  } else {
+    return buffer->status()->ConsumeErrors(output, {});
+  }
 }
 
 void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options,
