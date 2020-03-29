@@ -1,4 +1,11 @@
 // This file contains functions that I use to manage my Zettelkasten.
+//
+// The following functions are defined (intended to be executed with `:`):
+//
+// * zki - Open the index file (index.md)
+// * zkls - List all notes (with their title).
+// * zkl - Expand the paths under the cursors to a full link.
+// * zkln - Create a new entry based on the title under the cursor.
 
 #include "paths.cc"
 #include "strings.cc"
@@ -48,7 +55,7 @@ void zkrev() {
   return;
 }
 
-// Produce the index.
+// Open the index. index.md is expected to be a link to the main entry point.
 void zki() { OpenFile("index.md", true); }
 
 void zks(string query) {
@@ -72,6 +79,8 @@ Buffer zkInternalTitleSearch(string query, string insertion_type) {
   return buffer;
 }
 
+// Receives a string and produces a list of all Zettel that include that string
+// in their title.
 void zkt(string query) { zkInternalTitleSearch(query, "visit"); }
 Buffer Previewzkt(string query) {
   return zkInternalTitleSearch(query, "ignore");
@@ -114,7 +123,7 @@ TransformationOutput ZKInternalLink(Buffer buffer, TransformationInput input) {
 }
 
 // Replaces a path (e.g., `03d.md` with a link to it, extracting the text of the
-// link from the first line in the file.
+// link from the first line in the file (e.g. `[Bauhaus](03d.md)`).
 void zkl() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     buffer.ApplyTransformation(FunctionTransformation(
@@ -173,7 +182,8 @@ TransformationOutput ZKInternalNewLink(Buffer buffer,
 
 // Turns a text like "[Some Title]" into a link "[Some Title](xxx.md)", where
 // xxx.md is the next available (unused) identifier; loads the next note (from
-// said identifier) and inserts the title.
+// said identifier) and inserts some initial skeleton into the new file
+// (including the title).
 void zkln() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     buffer.ApplyTransformation(FunctionTransformation(
