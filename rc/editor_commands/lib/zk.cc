@@ -97,15 +97,20 @@ TransformationOutput ZKInternalLink(Buffer buffer, TransformationInput input) {
 
   string path = line.substr(start, end - start);
   string title = GetNoteTitle(path);
-  return TransformationOutput()
-      .push(SetColumnTransformation(end))
-      .push(InsertTransformationBuilder().set_text(")").build())
-      .push(SetColumnTransformation(start))
-      .push(InsertTransformationBuilder().set_text("[](").build())
-      .push(SetColumnTransformation(start + 1))
-      .push(InsertTransformationBuilder().set_text(title).build())
-      .push(SetColumnTransformation(start + 1 + title.size() + 1 + 1 +
-                                    path.size() + 1));
+  auto output = TransformationOutput()
+                    .push(SetColumnTransformation(end))
+                    .push(InsertTransformationBuilder().set_text(")").build())
+                    .push(SetColumnTransformation(start))
+                    .push(InsertTransformationBuilder().set_text("[](").build())
+                    .push(SetColumnTransformation(start + 1))
+                    .push(InsertTransformationBuilder().set_text(title).build())
+                    .push(SetColumnTransformation(start + 1 + title.size() + 1 +
+                                                  1 + path.size() + 1));
+  if (input.position().line() + 1 >= buffer.line_count()) {
+    output.push(SetColumnTransformation(99999999))
+        .push(InsertTransformationBuilder().set_text("\n").build());
+  }
+  return output;
 }
 
 // Replaces a path (e.g., `03d.md` with a link to it, extracting the text of the
