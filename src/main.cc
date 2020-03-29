@@ -138,10 +138,29 @@ wstring CommandsToRun(CommandLineValues args) {
 }
 
 void SendCommandsToParent(int fd, const string commands_to_run) {
+  // We write the command to a temporary file and then instruct the server to
+  // load the file. Otherwise, if the command is too long, it may not fit in the
+  // size limit that the reader uses.
   CHECK_NE(fd, -1);
   using std::cerr;
-  LOG(INFO) << "Sending commands to parent: " << commands_to_run;
-  if (write(fd, commands_to_run.c_str(), commands_to_run.size()) == -1) {
+  size_t pos = 0;
+  char* path = strdup("/tmp/edge-initial-commands-XXXXXX");
+  int tmp_fd = mkstemp(path);
+  while (pos < commands_to_run.size()) {
+    VLOG(5) << commands_to_run.substr(pos);
+    int bytes_written = write(tmp_fd, commands_to_run.c_str() + pos,
+                              commands_to_run.size() - pos);
+    if (bytes_written == -1) {
+      cerr << "write: " << strerror(errno);
+      exit(1);
+    }
+    pos += bytes_written;
+  }
+  close(tmp_fd);
+  string command = "#include \"" + string(path) + "\"\n";
+  free(path);
+  if (write(fd, command.c_str(), command.size()) !=
+      static_cast<int>(command.size())) {
     cerr << "write: " << strerror(errno);
     exit(1);
   }
