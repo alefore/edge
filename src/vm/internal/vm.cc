@@ -106,7 +106,8 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
   wstring path = str.substr(start, pos - start);
   string low_level_path = ToByteString(path);
 
-  if (delimiter == '\"') {
+  if (delimiter == '\"' && !low_level_path.empty() &&
+      low_level_path[0] != L'/') {
     low_level_path = compilation->directory + "/" + low_level_path;
   }
 
