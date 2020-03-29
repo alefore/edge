@@ -270,8 +270,10 @@ futures::Value<PossibleError> Save(
   }
   auto path = path_or_error.value();
   if (S_ISDIR(stat_buffer->st_mode)) {
-    return futures::Past(
-        PossibleError(Error(L"Buffer can't be saved: Buffer is a directory.")));
+    return options.save_type == OpenBuffer::Options::SaveType::kBackup
+               ? futures::Past(Success())
+               : futures::Past(PossibleError(
+                     Error(L"Buffer can't be saved: Buffer is a directory.")));
   }
 
   switch (options.save_type) {
