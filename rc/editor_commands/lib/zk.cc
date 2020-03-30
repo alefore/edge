@@ -24,6 +24,15 @@ string GetNoteTitle(string path) {
   return GetNoteTitle(buffer);
 }
 
+string ToMarkdownPath(string path) {
+  string path_without_extension = path;
+  int last_dot = path.find_last_of(".", path.size());
+  if (last_dot != -1) {
+    return path_without_extension = path.substr(0, last_dot);
+  }
+  return path_without_extension + ".md";
+}
+
 // Returns the path (ID) of the next available (empty) file.
 string ZkInternalNextEmpty() {
   ForkCommandOptions options = ForkCommandOptions();
@@ -105,16 +114,20 @@ TransformationOutput ZKInternalLink(Buffer buffer, TransformationInput input) {
   }
 
   string path = line.substr(start, end - start);
-  string title = GetNoteTitle(path);
-  auto output = TransformationOutput()
-                    .push(SetColumnTransformation(end))
-                    .push(InsertTransformationBuilder().set_text(")").build())
-                    .push(SetColumnTransformation(start))
-                    .push(InsertTransformationBuilder().set_text("[](").build())
-                    .push(SetColumnTransformation(start + 1))
-                    .push(InsertTransformationBuilder().set_text(title).build())
-                    .push(SetColumnTransformation(start + 1 + title.size() + 1 +
-                                                  1 + path.size() + 1));
+  string adjusted_path = ToMarkdownPath(path);
+  string title = GetNoteTitle(adjusted_path);
+  auto output =
+      TransformationOutput()
+          .push(SetColumnTransformation(end))
+          .push(InsertTransformationBuilder()
+                    .set_text((path != adjusted_path ? ".md" : "") + ")")
+                    .build())
+          .push(SetColumnTransformation(start))
+          .push(InsertTransformationBuilder().set_text("[](").build())
+          .push(SetColumnTransformation(start + 1))
+          .push(InsertTransformationBuilder().set_text(title).build())
+          .push(SetColumnTransformation(start + 1 + title.size() + 1 + 1 +
+                                        path.size() + 1));
   if (input.position().line() + 1 >= buffer.line_count()) {
     output.push(SetColumnTransformation(99999999))
         .push(InsertTransformationBuilder().set_text("\n").build());
