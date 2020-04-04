@@ -5,8 +5,7 @@
 
 #include <memory>
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 // An immutable tree supporting fast `Prefix` (get initial sequence), `Suffix`,
 // and `Append` operations.
@@ -166,9 +165,8 @@ class ConstTree {
 
   const std::shared_ptr<ConstTree<T>> left_;
   const std::shared_ptr<ConstTree<T>> right_;
-};  // namespace editor
+};
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  //  __AFC_EDITOR_CONST_TREE_H__
