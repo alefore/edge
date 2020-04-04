@@ -16,6 +16,7 @@ extern "C" {
 
 #include "src/command_line.h"
 #include "src/server.h"
+#include "src/tests/benchmarks.h"
 #include "src/wstring.h"
 
 namespace afc::editor {
@@ -152,6 +153,27 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"delete corresponding buffers.")
           .Set(&CommandLineValues::nested_edge_behavior,
                CommandLineValues::NestedEdgeBehavior::kExitEarly),
+
+      Handler<CommandLineValues>({L"benchmark"}, L"Run a benchmark")
+          .Require(L"benchmark", L"The benchmark to run.")
+          .Set<std::wstring>(
+              &CommandLineValues::benchmark,
+              [](std::wstring input,
+                 std::wstring* error) -> std::optional<std::wstring> {
+                auto benchmarks = tests::BenchmarkNames();
+                if (std::find(benchmarks.begin(), benchmarks.end(), input) !=
+                    benchmarks.end()) {
+                  return input;
+                }
+                *error = L"Invalid value (valid values: ";
+                std::wstring sep;
+                for (auto& b : benchmarks) {
+                  *error += sep + b;
+                  sep = L", ";
+                }
+                *error += L")";
+                return std::nullopt;
+              }),
 
       Handler<CommandLineValues>({L"tests"}, L"Unit tests behavior")
           .Require(

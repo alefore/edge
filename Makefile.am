@@ -48,6 +48,7 @@ src/command_mode.cc \
 src/command_mode.h \
 src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
+src/const_tree.cc \
 src/const_tree.h \
 src/cursors.cc \
 src/cursors.h \
@@ -161,6 +162,8 @@ src/status_output_producer.h \
 src/structure.cc \
 src/substring.cc \
 src/terminal.cc \
+src/tests/benchmarks.cc \
+src/tests/benchmarks.h \
 src/tests/tests.cc \
 src/tests/tests.h \
 src/time.cc \

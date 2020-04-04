@@ -30,6 +30,7 @@ extern "C" {
 #include "src/screen_vm.h"
 #include "src/server.h"
 #include "src/terminal.h"
+#include "src/tests/benchmarks.h"
 #include "src/tests/tests.h"
 #include "src/time.h"
 #include "src/vm/public/value.h"
@@ -248,6 +249,11 @@ int main(int argc, const char** argv) {
       exit(0);
     case CommandLineValues::TestsBehavior::kIgnore:
       break;
+  }
+
+  if (!args.benchmark.empty()) {
+    afc::tests::RunBenchmark(args.benchmark);
+    exit(0);
   }
 
   int remote_server_fd = -1;

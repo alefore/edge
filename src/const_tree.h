@@ -28,7 +28,10 @@ class ConstTree {
         size_(1 + Size(left) + Size(right)),
         element_(std::move(element)),
         left_(std::move(left)),
-        right_(std::move(right)) {}
+        right_(std::move(right)) {
+    CHECK_LE(std::max(Depth(left), Depth(right)),
+             std::min(Depth(left), Depth(right)) + 1);
+  }
 
   static Ptr Leaf(T element) {
     return New(std::move(element), nullptr, nullptr);
@@ -37,11 +40,11 @@ class ConstTree {
   static Ptr Append(const Ptr& a, const Ptr& b) {
     if (a == nullptr) return b;
     if (b == nullptr) return a;
-    return New(a->element_, a->left_, Append(a->right_, std::move(b)));
+    return New(a->Last(), a->MinusLast(), b);
   }
 
   static Ptr PushBack(const Ptr& a, T element) {
-    return Append(a, Leaf(std::move(element)));
+    return New(std::move(element), a, nullptr);
   }
 
   static size_t Size(const Ptr& tree) {
@@ -115,42 +118,49 @@ class ConstTree {
   }
 
  private:
+  // T First() { return left_ == nullptr ? element_ : left_->First(); }
+  T Last() { return right_ == nullptr ? element_ : right_->Last(); }
+
+  Ptr MinusLast() {
+    return right_ == nullptr ? left_
+                             : New(element_, left_, right_->MinusLast());
+  }
+
   static Ptr RotateRight(Ptr tree) {
     CHECK(tree != nullptr);
     CHECK(tree->left_ != nullptr);
-    return std::make_shared<ConstTree<T>>(
-        ConstructorAccessTag(), tree->left_->element_, tree->left_->left_,
-        std::make_shared<ConstTree<T>>(ConstructorAccessTag(), tree->element_,
-                                       tree->left_->right_, tree->right_));
+    return NewFinal(
+        tree->left_->element_, tree->left_->left_,
+        NewFinal(tree->element_, tree->left_->right_, tree->right_));
   }
 
   static Ptr RotateLeft(Ptr tree) {
     CHECK(tree != nullptr);
     CHECK(tree->right_ != nullptr);
-    return std::make_shared<ConstTree<T>>(
-        ConstructorAccessTag(), tree->right_->element_,
-        std::make_shared<ConstTree<T>>(ConstructorAccessTag(), tree->element_,
-                                       tree->left_, tree->right_->left_),
-        tree->right_->right_);
+    return NewFinal(tree->right_->element_,
+                    NewFinal(tree->element_, tree->left_, tree->right_->left_),
+                    tree->right_->right_);
   }
 
   static Ptr New(T element, Ptr left, Ptr right) {
     VLOG(5) << "New with depths: " << Depth(left) << ", " << Depth(right);
     if (Depth(right) > Depth(left) + 1) {
-      CHECK(right != nullptr);
       if (Depth(right->left_) > Depth(right->right_)) {
         right = RotateRight(std::move(right));
       }
-      return New(right->element_, New(element, left, right->left_),
-                 right->right_);
+      return NewFinal(right->element_, New(element, left, right->left_),
+                      right->right_);
     } else if (Depth(left) > Depth(right) + 1) {
-      CHECK(left != nullptr);
       if (Depth(left->right_) > Depth(left->left_)) {
         left = RotateLeft(std::move(left));
       }
-      return New(left->element_, left->left_,
-                 New(element, left->right_, right));
+      return NewFinal(left->element_, left->left_,
+                      New(element, left->right_, right));
     }
+    return NewFinal(element, left, right);
+  }
+
+  static Ptr NewFinal(T element, Ptr left, Ptr right) {
     return std::make_shared<ConstTree<T>>(ConstructorAccessTag{}, element, left,
                                           right);
   }
