@@ -118,7 +118,6 @@ class ConstTree {
   }
 
  private:
-  // T First() { return left_ == nullptr ? element_ : left_->First(); }
   T Last() { return right_ == nullptr ? element_ : right_->Last(); }
 
   Ptr MinusLast() {
@@ -126,33 +125,29 @@ class ConstTree {
                              : New(element_, left_, right_->MinusLast());
   }
 
-  static Ptr RotateRight(Ptr tree) {
-    CHECK(tree != nullptr);
-    CHECK(tree->left_ != nullptr);
-    return NewFinal(
-        tree->left_->element_, tree->left_->left_,
-        NewFinal(tree->element_, tree->left_->right_, tree->right_));
+  Ptr RotateRight() {
+    CHECK(left_ != nullptr);
+    return NewFinal(left_->element_, left_->left_,
+                    NewFinal(element_, left_->right_, right_));
   }
 
-  static Ptr RotateLeft(Ptr tree) {
-    CHECK(tree != nullptr);
-    CHECK(tree->right_ != nullptr);
-    return NewFinal(tree->right_->element_,
-                    NewFinal(tree->element_, tree->left_, tree->right_->left_),
-                    tree->right_->right_);
+  Ptr RotateLeft() {
+    CHECK(right_ != nullptr);
+    return NewFinal(right_->element_, NewFinal(element_, left_, right_->left_),
+                    right_->right_);
   }
 
   static Ptr New(T element, Ptr left, Ptr right) {
     VLOG(5) << "New with depths: " << Depth(left) << ", " << Depth(right);
     if (Depth(right) > Depth(left) + 1) {
       if (Depth(right->left_) > Depth(right->right_)) {
-        right = RotateRight(std::move(right));
+        right = right->RotateRight();
       }
       return NewFinal(right->element_, New(element, left, right->left_),
                       right->right_);
     } else if (Depth(left) > Depth(right) + 1) {
       if (Depth(left->right_) > Depth(left->left_)) {
-        left = RotateLeft(std::move(left));
+        left = left->RotateLeft();
       }
       return NewFinal(left->element_, left->left_,
                       New(element, left->right_, right));
