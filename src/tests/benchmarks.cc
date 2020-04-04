@@ -25,9 +25,13 @@ void RunBenchmark(std::wstring name) {
   }
 
   int input_size = 1;
+  static const int kRuns = 5;
   while (true) {
-    std::cerr << input_size << " " << benchmark->second(input_size)
-              << std::endl;
+    double total_seconds = 0;
+    for (int i = 0; i < kRuns; i++) {
+      total_seconds += benchmark->second(input_size);
+    }
+    std::cerr << input_size << " " << total_seconds / kRuns << std::endl;
     if (input_size * 2 < input_size) return;
     input_size *= 2;
   }
