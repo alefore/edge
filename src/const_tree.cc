@@ -7,10 +7,18 @@
 namespace afc::editor {
 namespace {
 using IntTree = ConstTree<int>;
+
+IntTree::Ptr Insert(IntTree::Ptr tree, size_t position) {
+  static const int kNumberToInsert = 25;
+  return IntTree::Append(
+      IntTree::PushBack(IntTree::Prefix(tree, position), kNumberToInsert),
+      IntTree::Suffix(tree, position));
+}
+
 IntTree::Ptr GetTree(int size) {
   IntTree::Ptr tree;
   for (int i = 0; i < size; ++i) {
-    tree = IntTree::PushBack(tree, 0);
+    tree = Insert(tree, random() % (i + 1));
   }
   return tree;
 }
@@ -35,12 +43,16 @@ bool registration_prefix =
       return SecondsBetween(start, end);
     });
 
-IntTree::Ptr Insert(IntTree::Ptr tree, size_t position) {
-  static const int kNumberToInsert = 25;
-  return IntTree::Append(
-      IntTree::PushBack(IntTree::Prefix(tree, position), kNumberToInsert),
-      IntTree::Suffix(tree, position));
-}
+bool registration_insert =
+    tests::RegisterBenchmark(L"ConstTree::Insert", [](int elements) {
+      auto tree = GetTree(elements);
+      int position = random() % (elements + 1);
+      auto start = Now();
+      tree = Insert(tree, position);
+      auto end = Now();
+      CHECK_EQ(IntTree::Size(tree), static_cast<size_t>(elements) + 1);
+      return SecondsBetween(start, end);
+    });
 
 IntTree::Ptr Remove(IntTree::Ptr tree, size_t position) {
   return IntTree::Append(IntTree::Prefix(tree, position),
