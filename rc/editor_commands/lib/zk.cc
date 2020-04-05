@@ -234,6 +234,69 @@ void zkeRegisterLinks(Buffer buffer, VectorString output) {
   }
 }
 
+LineColumn FindNextOpenLink(Buffer buffer, LineColumn start) {
+  while (start.line() < buffer.line_count()) {
+    auto line_contents = buffer.line(start.line());
+    int column = line_contents.find_first_of("[", start.column());
+    if (column == -1) {
+      start = LineColumn(start.line() + 1, 0);
+    } else {
+      return LineColumn(start.line(), column);
+    }
+  }
+  return start;
+}
+
+LineColumn FindLinkTextEnd(Buffer buffer, LineColumn start) {
+  while (start.line() < buffer.line_count()) {
+    auto line_contents = buffer.line(start.line());
+    int column = line_contents.find_first_of("](", start.column());
+    if (column == -1) {
+      start = LineColumn(start.line() + 1, 0);
+    } else {
+      return LineColumn(start.line(), column);
+    }
+  }
+  return start;
+}
+
+bool IsLocalLink(Buffer buffer, LineColumn link_start) {
+  auto line_contents = buffer.line(link_start.line());
+  auto basename = "XXX";
+  auto tail = ".md)";
+  return line_contents.size() >=
+             link_start.column() + basename.size() + tail.size() &&
+         line_contents.substr(link_start.column() + basename.size(),
+                              tail.size()) == tail;
+}
+
+void zkeRemoveLocalLinks(Buffer buffer) {
+  LineColumn position = LineColumn(0, 0);
+  while (position.line() < buffer.line_count()) {
+    auto start = FindNextOpenLink(buffer, position);
+    if (start.line() == buffer.line_count()) {
+      return;
+    }
+    auto end = FindLinkTextEnd(buffer, start);
+    if (end.line() == buffer.line_count()) {
+      return;
+    }
+    if (IsLocalLink(buffer,
+                    LineColumn(end.line(), end.column() + "](".size()))) {
+      buffer.ApplyTransformation(SetPositionTransformation(end));
+      buffer.ApplyTransformation(
+          DeleteTransformationBuilder()
+              .set_modifiers(Modifiers().set_repetitions("](XXX.md)".size()))
+              .build());
+      buffer.ApplyTransformation(SetPositionTransformation(start));
+      buffer.ApplyTransformation(DeleteTransformationBuilder().build());
+      position = start;
+    } else {
+      position = LineColumn(start.line(), start.column() + 1);
+    }
+  }
+}
+
 void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
                SetString visited) {
   if (visited.contains(path) || visited.size() > 100) return;
@@ -297,6 +360,9 @@ void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
   }
 }
 
-void zke(string start, SetString visited) {
-  zkeExpand(OpenFile("article.md", true), start, SetString(), 0, visited);
+Buffer zke(string start, SetString visited) {
+  auto buffer = OpenFile("article.md", true);
+  zkeExpand(buffer, start, SetString(), 0, visited);
+  zkeRemoveLocalLinks(buffer);
+  return buffer;
 }
