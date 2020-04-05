@@ -46,6 +46,19 @@ class ConstTree {
     return New(std::move(element), a, nullptr);
   }
 
+  static Ptr Insert(const Ptr& tree, size_t index, T element) {
+    CHECK_LE(index, Size(tree));
+    if (tree == nullptr) return Leaf(std::move(element));
+    auto size_left = Size(tree->left_);
+    if (index <= size_left)
+      return New(tree->element_, Insert(tree->left_, index, std::move(element)),
+                 tree->right_);
+    else
+      return New(
+          tree->element_, tree->left_,
+          Insert(tree->right_, index - size_left - 1, std::move(element)));
+  }
+
   static size_t Size(const Ptr& tree) {
     return tree == nullptr ? 0 : tree->size_;
   }
