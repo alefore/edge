@@ -205,3 +205,98 @@ void zkln() {
         }));
   });
 }
+
+void zkeRegisterLinks(string line, VectorString output) {
+  int column = 0;
+  string extension = ".md";
+  while (column < line.size()) {
+    column = line.find_first_of("(", column);
+    if (column == -1) {
+      return;
+    }
+    column++;
+    if (line.size() < column + "XXX".size() + extension.size() + ")".size() ||
+        line.substr(column + "XXX".size(), extension.size() + 1) !=
+            extension + ")") {
+      return;
+    }
+    string path = line.substr(column, "XXX".size() + extension.size());
+    column += path.size() + ")".size();
+    output.push_back(path);
+  }
+}
+
+void zkeRegisterLinks(Buffer buffer, VectorString output) {
+  int line = 0;
+  while (line < buffer.line_count()) {
+    zkeRegisterLinks(buffer.line(line), output);
+    line++;
+  }
+}
+
+void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
+               SetString visited) {
+  if (visited.contains(path) || visited.size() > 100) return;
+  visited.insert(path);
+  Buffer sub_buffer = OpenFile(path, false);
+  sub_buffer.WaitForEndOfFile();
+  int line = 0;
+  string text = "";
+  for (int i = 0; i < depth; i++) {
+    text += "#";
+  }
+  bool copy_contents = true;
+  bool first_line = true;
+  string title = "";
+  while (line < sub_buffer.line_count()) {
+    if (sub_buffer.line(line) == "Related:") {
+      copy_contents = false;
+    }
+    auto line_contents = sub_buffer.line(line);
+    if (first_line) {
+      title = line_contents;
+      int candidate_index = -1;
+      for (int i = 0; i < titles.size(); i++) {
+        string candidate = titles.get(i);
+        if (line_contents.size() > candidate.size() &&
+            line_contents.substr(0, candidate.size()) == candidate) {
+          candidate_index = i;
+        }
+      }
+      if (candidate_index != -1) {
+        string candidate = titles.get(candidate_index);
+        line_contents = line_contents.substr(
+            candidate.size(), line_contents.size() - candidate.size());
+        if (!line_contents.empty() && line_contents.substr(0, 1) == ":") {
+          line_contents = "# " + SkipSpaces(line_contents.substr(
+                                     1, line_contents.size() - 1));
+        }
+      }
+      first_line = false;
+    }
+    if (copy_contents) {
+      text += line_contents + "\n";
+    }
+    line++;
+  }
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text(text).build());
+
+  VectorString pending = VectorString();
+  zkeRegisterLinks(sub_buffer, pending);
+  int links = 0;
+  if (!title.empty()) {
+    titles.insert(title);
+  }
+  while (links < pending.size()) {
+    zkeExpand(buffer, pending.get(links), titles, depth + 1, visited);
+    links++;
+  }
+  if (!titles.empty()) {
+    titles.erase(title);
+  }
+}
+
+void zke(string start, SetString visited) {
+  zkeExpand(OpenFile("article.md", true), start, SetString(), 0, visited);
+}
