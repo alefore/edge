@@ -60,6 +60,7 @@ struct VMTypeMapper<std::vector<T>*> {
                             return static_cast<int>(v->size());
                           }));
     vector_type->AddField(L"get", vm::NewCallback([](std::vector<T>* v, int i) {
+                            CHECK_LT(static_cast<size_t>(i), v->size());
                             return v->at(i);
                           }));
     vector_type->AddField(L"erase",

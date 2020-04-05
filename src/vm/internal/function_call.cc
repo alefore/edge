@@ -86,6 +86,7 @@ class FunctionCall : public Expression {
                            VMType::Function(std::move(type_arguments))),
         [trampoline, args_types = args_](EvaluationOutput callback) {
           DVLOG(6) << "Got function: " << *callback.value;
+          CHECK_EQ(callback.value->type.type, VMType::FUNCTION);
           CHECK(callback.value->callback != nullptr);
           futures::Future<EvaluationOutput> output;
           CaptureArgs(trampoline, std::move(output.consumer), args_types,
