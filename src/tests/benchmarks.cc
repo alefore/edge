@@ -20,7 +20,7 @@ bool RegisterBenchmark(std::wstring name, BenchmarkFunction benchmark) {
 void RunBenchmark(std::wstring name) {
   auto benchmark = benchmarks_map()->find(name);
   if (benchmark == benchmarks_map()->end()) {
-    std::cerr << "Unknown Benchmark: " << name;
+    std::cerr << "Unknown Benchmark: " << name << std::endl;
     exit(1);
   }
 

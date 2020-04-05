@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 
 SUBDIRS = glog-0.4.0
 
-bin_PROGRAMS = edge test fuzz_test test_fuzz_parser test_fuzz_compiler test_fuzz_classes
+bin_PROGRAMS = edge benchmark test fuzz_test test_fuzz_parser test_fuzz_compiler test_fuzz_classes
 
 noinst_PROGRAMS = lemon
 
@@ -247,6 +247,8 @@ dist_doc_DATA = README.md
 
 edge_SOURCES = $(COMMON_SOURCES) src/main.cc
 
+benchmark_SOURCES = $(COMMON_SOURCES) src/tests/benchmarks_main.cc
+
 test_SOURCES = \
 $(COMMON_SOURCES) \
 src/test/buffer_contents_test.cc \
@@ -280,6 +282,7 @@ glog-0.4.0/libglog_la-vlog_is_on.o
 AM_CPPFLAGS=-std=c++17 -g -Wall -Wextra -Iglog-0.4.0/src -DDOCDIR='"$(docdir)"'
 AM_LDFLAGS=-std=c++17 -g
 edge_LDADD=glog-0.4.0/libglog.la
+benchmark_LDADD=glog-0.4.0/libglog.la
 test_LDADD=glog-0.4.0/libglog.la
 fuzz_test_LDADD=glog-0.4.0/libglog.la
 test_fuzz_parser_LDADD=glog-0.4.0/libglog.la

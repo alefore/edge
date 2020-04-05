@@ -10,6 +10,15 @@ using IntTree = ConstTree<int>;
 
 const int kNumberToInsert = 25;
 
+std::vector<size_t> RandomIndices(size_t output_size, size_t elements) {
+  std::vector<size_t> indices;
+  for (size_t i = 0; i < output_size; i++) {
+    indices.push_back(random() % elements);
+  }
+  CHECK_EQ(indices.size(), output_size);
+  return indices;
+}
+
 IntTree::Ptr GetTree(int size) {
   IntTree::Ptr tree;
   for (int i = 0; i < size; ++i) {
@@ -59,12 +68,11 @@ bool registration_tree_insert =
     tests::RegisterBenchmark(L"ConstTree::Insert", [](int elements) {
       auto tree = GetTree(elements);
       static const int kRuns = 1e5;
+      auto indices = RandomIndices(kRuns, elements);
       auto start = Now();
-      for (int i = 0; i < kRuns; i++) {
-        int position = random() % (elements + 1);
-        CHECK_EQ(
-            IntTree::Size(IntTree::Insert(tree, position, kNumberToInsert)),
-            static_cast<size_t>(elements) + 1);
+      for (auto& index : indices) {
+        CHECK_EQ(IntTree::Size(IntTree::Insert(tree, index, kNumberToInsert)),
+                 static_cast<size_t>(elements) + 1);
       }
       auto end = Now();
       return SecondsBetween(start, end) / kRuns;
@@ -124,12 +132,7 @@ double RunGet(const IntTree::Ptr& tree, const std::vector<size_t>& indices) {
 bool registration_get =
     tests::RegisterBenchmark(L"ConstTree::Get", [](int elements) {
       static const size_t kRuns = 1e5;
-      std::vector<size_t> indices;
-      for (size_t i = 0; i < kRuns; i++) {
-        indices.push_back(random() % elements);
-      }
-      CHECK_EQ(indices.size(), kRuns);
-      return RunGet(GetTree(elements), indices);
+      return RunGet(GetTree(elements), RandomIndices(kRuns, elements));
     });
 
 bool registration_get_first =
