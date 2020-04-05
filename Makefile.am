@@ -238,6 +238,18 @@ src/work_queue.cc \
 src/work_queue.h \
 src/wstring.cc
 
+BENCHMARK_SOURCES = \
+src/const_tree.cc \
+src/const_tree.h \
+src/tests/benchmarks.cc \
+src/tests/benchmarks.h \
+src/tests/tests.cc \
+src/tests/tests.h \
+src/time.cc \
+src/time.h \
+src/wstring.cc \
+src/wstring.h
+
 CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
 
 BUILT_SOURCES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
@@ -247,7 +259,7 @@ dist_doc_DATA = README.md
 
 edge_SOURCES = $(COMMON_SOURCES) src/main.cc
 
-benchmark_SOURCES = $(COMMON_SOURCES) src/tests/benchmarks_main.cc
+benchmark_SOURCES = $(BENCHMARK_SOURCES) src/tests/benchmarks_main.cc
 
 test_SOURCES = \
 $(COMMON_SOURCES) \
