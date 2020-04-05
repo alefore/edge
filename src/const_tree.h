@@ -78,8 +78,7 @@ class ConstTree {
     if (len <= size_left) {
       return Prefix(a->left_, len);
     }
-    auto prefix = PushBack(a->left_, a->element_);
-    return Append(prefix, Prefix(a->right_, len - Size(prefix)));
+    return New(a->element_, a->left_, Prefix(a->right_, len - size_left - 1));
   }
 
   // Returns a tree skipping the first len elements (i.e., from element `len` to
@@ -92,7 +91,7 @@ class ConstTree {
     if (len >= size_left + 1) {
       return Suffix(a->right_, len - size_left - 1);
     }
-    return Append(PushBack(Suffix(a->left_, len), a->element_), a->right_);
+    return New(a->element_, Suffix(a->left_, len), a->right_);
   }
 
   // Similar to std::upper_bound(begin(), end(), val, compare). Returns the
