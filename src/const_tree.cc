@@ -8,17 +8,12 @@ namespace afc::editor {
 namespace {
 using IntTree = ConstTree<int>;
 
-IntTree::Ptr Insert(IntTree::Ptr tree, size_t position) {
-  static const int kNumberToInsert = 25;
-  return IntTree::Append(
-      IntTree::PushBack(IntTree::Prefix(tree, position), kNumberToInsert),
-      IntTree::Suffix(tree, position));
-}
+const int kNumberToInsert = 25;
 
 IntTree::Ptr GetTree(int size) {
   IntTree::Ptr tree;
   for (int i = 0; i < size; ++i) {
-    tree = Insert(tree, random() % (i + 1));
+    tree = IntTree::Insert(tree, random() % (i + 1), kNumberToInsert);
   }
   return tree;
 }
@@ -46,15 +41,33 @@ bool registration_prefix =
       return SecondsBetween(start, end) / kRuns;
     });
 
+bool registration_suffix =
+    tests::RegisterBenchmark(L"ConstTree::Suffix", [](int elements) {
+      auto tree = GetTree(elements);
+      static const int kRuns = 1e5;
+      auto start = Now();
+      for (int i = 0; i < kRuns; i++) {
+        size_t position = random() % elements;
+        CHECK_EQ(IntTree::Size(IntTree::Suffix(tree, position)),
+                 elements - position);
+      }
+      auto end = Now();
+      return SecondsBetween(start, end) / kRuns;
+    });
+
 bool registration_tree_insert =
     tests::RegisterBenchmark(L"ConstTree::Insert", [](int elements) {
       auto tree = GetTree(elements);
+      static const int kRuns = 1e5;
       auto start = Now();
-      int position = random() % (elements + 1);
-      tree = Insert(tree, position);
-      CHECK_EQ(IntTree::Size(tree), static_cast<size_t>(elements) + 1);
+      for (int i = 0; i < kRuns; i++) {
+        int position = random() % (elements + 1);
+        CHECK_EQ(
+            IntTree::Size(IntTree::Insert(tree, position, kNumberToInsert)),
+            static_cast<size_t>(elements) + 1);
+      }
       auto end = Now();
-      return SecondsBetween(start, end);
+      return SecondsBetween(start, end) / kRuns;
     });
 
 bool registration_vector_insert =
@@ -99,16 +112,40 @@ bool registration_vector_append =
       return SecondsBetween(start, end) / kRuns;
     });
 
+double RunGet(const IntTree::Ptr& tree, const std::vector<size_t>& indices) {
+  auto start = Now();
+  for (auto& index : indices) {
+    CHECK_EQ(tree->Get(index), kNumberToInsert);
+  }
+  auto end = Now();
+  return SecondsBetween(start, end) / indices.size();
+}
+
 bool registration_get =
     tests::RegisterBenchmark(L"ConstTree::Get", [](int elements) {
-      auto tree = GetTree(elements);
-      static const int kRuns = 1e5;
-      auto start = Now();
-      for (int i = 0; i < kRuns; i++) {
-        tree->Get(random() % elements);
+      static const size_t kRuns = 1e5;
+      std::vector<size_t> indices;
+      for (size_t i = 0; i < kRuns; i++) {
+        indices.push_back(random() % elements);
       }
-      auto end = Now();
-      return SecondsBetween(start, end) / kRuns;
+      CHECK_EQ(indices.size(), kRuns);
+      return RunGet(GetTree(elements), indices);
+    });
+
+bool registration_get_first =
+    tests::RegisterBenchmark(L"ConstTree::GetFirst", [](int elements) {
+      static const size_t kRuns = 1e5;
+      std::vector<size_t> indices(kRuns);
+      CHECK_EQ(indices.size(), kRuns);
+      return RunGet(GetTree(elements), indices);
+    });
+
+bool registration_get_middle =
+    tests::RegisterBenchmark(L"ConstTree::GetMiddle", [](int elements) {
+      static const size_t kRuns = 1e5;
+      std::vector<size_t> indices(kRuns, elements / 2);
+      CHECK_EQ(indices.size(), kRuns);
+      return RunGet(GetTree(elements), indices);
     });
 
 bool registration_vector_get =
@@ -136,8 +173,16 @@ class ConstTreeTests : public tests::TestGroup<ConstTreeTests> {
     // Tests that the invariants (about balance of the tree) hold.
     return {{.name = L"RandomWalk", .callback = [] {
                IntTree::Ptr tree;
+               std::vector<int> v;
                while (IntTree::Size(tree) < 1e4) {
-                 tree = Insert(tree, random() % (IntTree::Size(tree) + 1));
+                 size_t position = random() % (IntTree::Size(tree) + 1);
+                 int number = random();
+                 tree = IntTree::Insert(tree, position, number);
+                 v.insert(v.begin() + position, number);
+               }
+               CHECK_EQ(v.size(), IntTree::Size(tree));
+               for (size_t i = 0; i < v.size(); ++i) {
+                 CHECK_EQ(v.at(i), tree->Get(i));
                }
                while (tree != nullptr) {
                  tree = Remove(tree, random() % (IntTree::Size(tree)));
