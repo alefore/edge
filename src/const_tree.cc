@@ -163,7 +163,29 @@ bool registration_vector_get =
       return SecondsBetween(start, end) / kRuns;
     });
 
-IntTree::Ptr Remove(IntTree::Ptr tree, size_t position) {
+bool registration_erase =
+    tests::RegisterBenchmark(L"ConstTree::Erase", [](int elements) {
+      static const size_t kRuns = 1e5;
+      auto indices = RandomIndices(kRuns, elements);
+      auto tree = GetTree(elements);
+      auto start = Now();
+      for (auto& index : indices) {
+        CHECK_EQ(IntTree::Size(IntTree::Erase(tree, index)),
+                 static_cast<size_t>(elements - 1));
+      }
+      auto end = Now();
+      return SecondsBetween(start, end) / indices.size();
+    });
+
+bool IsEqual(const std::vector<int>& v, const IntTree::Ptr& tree) {
+  if (v.size() != IntTree::Size(tree)) return false;
+  for (size_t i = 0; i < v.size(); ++i) {
+    if (v.at(i) != tree->Get(i)) return false;
+  }
+  return true;
+}
+
+IntTree::Ptr EraseWithAppend(IntTree::Ptr tree, size_t position) {
   return IntTree::Append(IntTree::Prefix(tree, position),
                          IntTree::Suffix(tree, position + 1));
 }
@@ -183,12 +205,20 @@ class ConstTreeTests : public tests::TestGroup<ConstTreeTests> {
                  tree = IntTree::Insert(tree, position, number);
                  v.insert(v.begin() + position, number);
                }
-               CHECK_EQ(v.size(), IntTree::Size(tree));
-               for (size_t i = 0; i < v.size(); ++i) {
-                 CHECK_EQ(v.at(i), tree->Get(i));
+               CHECK(IsEqual(v, tree));
+               auto v_copy = v;
+               auto tree_copy = tree;
+               while (tree_copy != nullptr) {
+                 tree_copy = EraseWithAppend(
+                     tree_copy, random() % (IntTree::Size(tree_copy)));
+                 CHECK(IsEqual(v, tree));
                }
-               while (tree != nullptr) {
-                 tree = Remove(tree, random() % (IntTree::Size(tree)));
+
+               tree_copy = tree;
+               while (tree_copy != nullptr) {
+                 tree_copy = IntTree::Erase(
+                     tree_copy, random() % (IntTree::Size(tree_copy)));
+                 CHECK(IsEqual(v, tree));
                }
              }}};
   }
