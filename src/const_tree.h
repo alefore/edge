@@ -59,6 +59,22 @@ class ConstTree {
           Insert(tree->right_, index - size_left - 1, std::move(element)));
   }
 
+  static Ptr Erase(const Ptr& tree, size_t index) {
+    CHECK_LE(index, Size(tree));
+    auto size_left = Size(tree->left_);
+    if (index < size_left) {
+      return New(tree->element_, Erase(tree->left_, index), tree->right_);
+    } else if (index > size_left) {
+      return New(tree->element_, tree->left_,
+                 Erase(tree->right_, index - size_left - 1));
+    } else if (tree->left_ == nullptr) {
+      return tree->right_;
+    } else {
+      return New(tree->left_->element_,
+                 Erase(tree->left_, Size(tree->left_->left_)), tree->right_);
+    }
+  }
+
   static size_t Size(const Ptr& tree) {
     return tree == nullptr ? 0 : tree->size_;
   }
