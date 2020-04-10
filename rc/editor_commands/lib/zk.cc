@@ -360,9 +360,17 @@ void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
   }
 }
 
-Buffer zke(string start, SetString visited) {
-  auto buffer = OpenFile("article.md", true);
+Buffer zke(string path, string start, SetString visited) {
+  auto buffer = OpenFile(path, true);
+  buffer.WaitForEndOfFile();
+  buffer.ApplyTransformation(SetPositionTransformation(LineColumn(0, 0)));
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder()
+          // TODO: Add `set_buffer` and use that?
+          .set_modifiers(Modifiers().set_line().set_repetitions(9999999))
+          .build());
   zkeExpand(buffer, start, SetString(), 0, visited);
   zkeRemoveLocalLinks(buffer);
+  buffer.Save();
   return buffer;
 }
