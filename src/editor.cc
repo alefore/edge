@@ -439,6 +439,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
     : bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       home_directory_(args.home_directory),
       edge_path_(args.config_paths),
+      frames_per_second_(args.frames_per_second),
       environment_(BuildEditorEnvironment()),
       default_commands_(NewCommandMode(this)),
       pipe_to_communicate_internal_events_(BuildPipe()),
@@ -875,8 +876,17 @@ void EditorState::MoveBufferBackwards(size_t times) {
   PushCurrentPosition();
 }
 
-EditorState::ScreenState EditorState::FlushScreenState() {
+std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
+  auto now = Now();
+  if (now < next_screen_update_) {
+    // This is enough to cause the main loop to wake up; it'll attempt to do a
+    // redraw then. Multiple attempts may be scheduled, but that's fine (just
+    // a bit wasteful of memory).
+    work_queue_.ScheduleAt(next_screen_update_, [] {});
+    return {};
+  }
   std::unique_lock<std::mutex> lock(mutex_);
+  next_screen_update_ = AddSeconds(now, 1.0 / frames_per_second_);
   ScreenState output = screen_state_;
   screen_state_ = ScreenState();
   return output;

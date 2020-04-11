@@ -215,6 +215,51 @@ std::wstring GetGreetingMessage() {
   });
   return errors[rand() % errors.size()];
 }
+
+void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
+                   std::optional<LineColumnDelta>* last_screen_size,
+                   Terminal* terminal, Screen* screen_curses) {
+  auto screen_state = editor_state()->FlushScreenState();
+  if (!screen_state.has_value()) return;
+  if (screen_curses != nullptr) {
+    if (args.client.empty()) {
+      terminal->Display(editor_state(), screen_curses, screen_state.value());
+    } else {
+      screen_curses->Refresh();  // Don't want this to be buffered!
+      auto screen_size =
+          LineColumnDelta{screen_curses->lines(), screen_curses->columns()};
+      if (last_screen_size->has_value() &&
+          screen_size != last_screen_size->value()) {
+        LOG(INFO) << "Sending screen size update to server.";
+        SendCommandsToParent(
+            remote_server_fd,
+            "screen.set_size(" +
+                std::to_string(screen_size.column.column_delta) + "," +
+                std::to_string(screen_size.line.line_delta) + ");" +
+                "set_screen_needs_hard_redraw(true);\n");
+        *last_screen_size = screen_size;
+      }
+    }
+  }
+  VLOG(5) << "Updating remote screens.";
+  for (auto& buffer : *editor_state()->buffers()) {
+    auto value =
+        buffer.second->environment()->Lookup(L"screen", GetScreenVmType());
+    if (value->type.type != VMType::OBJECT_TYPE ||
+        value->type.object_type != L"Screen") {
+      continue;
+    }
+    auto buffer_screen = static_cast<Screen*>(value->user_value.get());
+    if (buffer_screen == nullptr) {
+      continue;
+    }
+    if (buffer_screen == screen_curses) {
+      continue;
+    }
+    LOG(INFO) << "Remote screen for buffer: " << buffer.first;
+    terminal->Display(editor_state(), buffer_screen, screen_state.value());
+  }
+}
 }  // namespace
 
 int main(int argc, const char** argv) {
@@ -340,45 +385,8 @@ int main(int argc, const char** argv) {
     editor_state()->ExecutePendingWork();
 
     VLOG(5) << "Updating screens.";
-    auto screen_state = editor_state()->FlushScreenState();
-    if (screen_curses != nullptr) {
-      if (args.client.empty()) {
-        terminal.Display(editor_state(), screen_curses.get(), screen_state);
-      } else {
-        screen_curses->Refresh();  // Don't want this to be buffered!
-        auto screen_size =
-            LineColumnDelta{screen_curses->lines(), screen_curses->columns()};
-        if (last_screen_size.has_value() &&
-            screen_size != last_screen_size.value()) {
-          LOG(INFO) << "Sending screen size update to server.";
-          SendCommandsToParent(
-              remote_server_fd,
-              "screen.set_size(" +
-                  std::to_string(screen_size.column.column_delta) + "," +
-                  std::to_string(screen_size.line.line_delta) + ");" +
-                  "set_screen_needs_hard_redraw(true);\n");
-          last_screen_size = screen_size;
-        }
-      }
-    }
-    VLOG(5) << "Updating remote screens.";
-    for (auto& buffer : *editor_state()->buffers()) {
-      auto value =
-          buffer.second->environment()->Lookup(L"screen", GetScreenVmType());
-      if (value->type.type != VMType::OBJECT_TYPE ||
-          value->type.object_type != L"Screen") {
-        continue;
-      }
-      auto buffer_screen = static_cast<Screen*>(value->user_value.get());
-      if (buffer_screen == nullptr) {
-        continue;
-      }
-      if (buffer_screen == screen_curses.get()) {
-        continue;
-      }
-      LOG(INFO) << "Remote screen for buffer: " << buffer.first;
-      terminal.Display(editor_state(), buffer_screen, screen_state);
-    }
+    RedrawScreens(args, remote_server_fd, &last_screen_size, &terminal,
+                  screen_curses.get());
 
     std::vector<std::shared_ptr<OpenBuffer>> buffers;
 
