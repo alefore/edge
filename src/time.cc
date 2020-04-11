@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include <cmath>
 #include <memory>
 
 #include "src/wstring.h"
@@ -60,6 +61,18 @@ std::optional<double> UpdateIfMillisecondsHavePassed(
   }
   *spec = now;
   return elapsed;
+}
+
+struct timespec AddSeconds(struct timespec time, double seconds_duration) {
+  double int_part;
+  double dec_part = modf(seconds_duration, &int_part);
+  time.tv_nsec += static_cast<long>(dec_part * 1e9);
+  if (time.tv_nsec > 1e9) {
+    time.tv_sec += time.tv_nsec / 1000000000;
+    time.tv_nsec = time.tv_nsec % 1000000000;
+  }
+  time.tv_sec += static_cast<time_t>(int_part);
+  return time;
 }
 
 ValueOrError<std::wstring> HumanReadableTime(const struct timespec& time) {
