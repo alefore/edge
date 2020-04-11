@@ -140,6 +140,7 @@ class BufferContents : public fuzz::FuzzTestable {
 
   void push_back(wstring str);
   void push_back(shared_ptr<const Line> line);
+  void append_back(std::vector<std::shared_ptr<const Line>> lines);
 
   std::vector<fuzz::Handler> FuzzHandlers() override;
 

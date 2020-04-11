@@ -42,6 +42,15 @@ class ConstTree {
     return New(a->Last(), a->MinusLast(), b);
   }
 
+  // Efficient construction, which runs in linear time.
+  template <typename Iterator>
+  static Ptr FromRange(Iterator begin, Iterator end) {
+    if (begin == end) return nullptr;
+    Iterator middle = begin + std::distance(begin, end) / 2;
+    return NewFinal(*middle, FromRange(begin, middle),
+                    FromRange(middle + 1, end));
+  }
+
   static Ptr PushBack(const Ptr& a, T element) {
     return New(std::move(element), a, nullptr);
   }
@@ -88,6 +97,7 @@ class ConstTree {
       return NewFinal(new_element, left_, right_);
     }
   }
+
   static size_t Size(const Ptr& tree) {
     return tree == nullptr ? 0 : tree->size_;
   }

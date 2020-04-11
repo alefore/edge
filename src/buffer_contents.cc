@@ -252,6 +252,20 @@ void BufferContents::push_back(shared_ptr<const Line> line) {
   update_listener_({});
 }
 
+void BufferContents::append_back(
+    std::vector<std::shared_ptr<const Line>> lines) {
+  static Tracker tracker_subtree(L"BufferContents::append_back::subtree");
+  auto tracker_subtree_call = tracker_subtree.Call();
+  Lines::Ptr subtree = Lines::FromRange(lines.begin(), lines.end());
+  tracker_subtree_call = nullptr;
+
+  static Tracker tracker(L"BufferContents::append_back::append");
+  auto tracker_call = tracker.Call();
+
+  lines_ = Lines::Append(lines_, subtree);
+  update_listener_({});
+}
+
 std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
   using namespace fuzz;
   std::vector<Handler> output;

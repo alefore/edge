@@ -213,6 +213,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
   void StartNewLine(std::shared_ptr<Line> line);
+  // Equivalent to calling StartNewLine repeatedly, but significantly more
+  // efficient.
+  void AppendLines(std::vector<std::shared_ptr<const Line>> lines);
 
   void DeleteRange(const Range& range);
 

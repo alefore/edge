@@ -862,24 +862,37 @@ void OpenBuffer::StartNewLine(std::shared_ptr<Line> line) {
   CHECK(line != nullptr);
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
+  AppendLines({line});
+}
+
+void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
+  static Tracker tracker(L"OpenBuffer::AppendLines");
+  auto tracker_call = tracker.Call();
+
+  auto lines_added = LineNumberDelta(lines.size());
+  if (lines_added.IsZero()) return;
+
+  contents_.append_back(std::move(lines));
   if (Read(buffer_variables::contains_line_marks)) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
     auto options = ResolvePathOptions::New(editor());
-    options.path = contents_.back()->ToString();
-    if (auto results = ResolvePath(std::move(options)); results.has_value()) {
-      LineMarks::Mark mark;
-      mark.source = Read(buffer_variables::name);
-      mark.source_line = contents_.EndLine();
-      mark.target_buffer = results->path;
-      if (results->position.has_value()) {
-        mark.target = *results->position;
+    for (LineNumber i = contents_.EndLine() - lines_added - LineNumberDelta(1);
+         i + LineNumberDelta(1) < contents_.EndLine(); ++i) {
+      options.path = contents_.at(i)->ToString();
+      if (auto results = ResolvePath(std::move(options)); results.has_value()) {
+        LineMarks::Mark mark;
+        mark.source = Read(buffer_variables::name);
+        mark.source_line = contents_.EndLine();
+        mark.target_buffer = results->path;
+        if (results->position.has_value()) {
+          mark.target = *results->position;
+        }
+        LOG(INFO) << "Found a mark: " << mark;
+        editor()->line_marks()->AddMark(mark);
       }
-      LOG(INFO) << "Found a mark: " << mark;
-      editor()->line_marks()->AddMark(mark);
     }
   }
-  contents_.push_back(std::move(line));
 }
 
 void OpenBuffer::Reload() {
