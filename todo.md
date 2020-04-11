@@ -19,9 +19,6 @@ Change the cursor when we're in `type` mode.
 Highlight the token under the cursor:
 * If we're in a syntax tree, highlight other occurrences of the same token.
 
-Add a --fps flag, default to 30?
-- In the main loop, delay/collapse draw calls based on this.
-
 ### Markdown
 
 Handle links better:
