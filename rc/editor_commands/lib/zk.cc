@@ -196,13 +196,14 @@ TransformationOutput ZKInternalNewLink(Buffer buffer,
 // Turns a text like "[Some Title]" into a link "[Some Title](xxx.md)", where
 // xxx.md is the next available (unused) identifier; loads the next note (from
 // said identifier) and inserts some initial skeleton into the new file
-// (including the title).
+// (including the title); and saves the original buffer.
 void zkln() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     buffer.ApplyTransformation(FunctionTransformation(
         [](TransformationInput input) -> TransformationOutput {
           return ZKInternalNewLink(buffer, input);
         }));
+    buffer.Save();
   });
 }
 
@@ -360,8 +361,26 @@ void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
   }
 }
 
-Buffer zke(string path, string start, SetString visited) {
-  auto buffer = OpenFile(path, true);
+SetString zkeParseBlacklist(string blacklist) {
+  SetString output = SetString();
+  int start = 0;
+  while (true) {
+    if (start == blacklist.size()) {
+      return output;
+    }
+    int end = blacklist.find_first_of(" ", start);
+    if (end == -1) {
+      end = blacklist.size();
+    }
+    output.insert(blacklist.substr(start, end - start) + ".md");
+    start = end;
+    while (start < blacklist.size() && blacklist.substr(start, 1) == " ")
+      start++;
+  }
+}
+
+Buffer zke(string path, string start, string blacklist) {
+  auto buffer = OpenFile(path + ".md", true);
   buffer.WaitForEndOfFile();
   buffer.ApplyTransformation(SetPositionTransformation(LineColumn(0, 0)));
   buffer.ApplyTransformation(
@@ -369,7 +388,8 @@ Buffer zke(string path, string start, SetString visited) {
           // TODO: Add `set_buffer` and use that?
           .set_modifiers(Modifiers().set_line().set_repetitions(9999999))
           .build());
-  zkeExpand(buffer, start, SetString(), 0, visited);
+  zkeExpand(buffer, start + ".md", SetString(), 0,
+            zkeParseBlacklist(blacklist));
   zkeRemoveLocalLinks(buffer);
   buffer.Save();
   return buffer;
