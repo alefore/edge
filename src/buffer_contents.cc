@@ -134,9 +134,7 @@ void BufferContents::set_line(LineNumber position,
     return push_back(line);
   }
 
-  lines_ = Lines::Append(
-      Lines::PushBack(Lines::Prefix(lines_, position.line), std::move(line)),
-      Lines::Suffix(lines_, position.line + 1));
+  lines_ = lines_->Replace(position.line, std::move(line));
   // TODO: Why no notify update listeners?
 }
 
