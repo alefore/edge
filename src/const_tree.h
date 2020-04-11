@@ -75,6 +75,19 @@ class ConstTree {
     }
   }
 
+  Ptr Replace(size_t index, T new_element) {
+    auto size_left = Size(left_);
+    if (index < size_left) {
+      return NewFinal(element_, left_->Replace(index, std::move(new_element)),
+                      right_);
+    } else if (index > size_left) {
+      return NewFinal(
+          element_, left_,
+          right_->Replace(index - size_left - 1, std::move(new_element)));
+    } else {
+      return NewFinal(new_element, left_, right_);
+    }
+  }
   static size_t Size(const Ptr& tree) {
     return tree == nullptr ? 0 : tree->size_;
   }
