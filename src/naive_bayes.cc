@@ -29,7 +29,6 @@ ProbabilityMap GetEventProbability(const History& history) {
 class GetEventProbabilityTests
     : public tests::TestGroup<GetEventProbabilityTests> {
  public:
-  GetEventProbabilityTests() : TestGroup<GetEventProbabilityTests>() {}
   std::wstring Name() const override { return L"GetEventProbabilityTests"; }
   std::vector<tests::Test> Tests() const override {
     return {{.name = L"Empty",
@@ -102,8 +101,6 @@ std::unordered_map<std::wstring, ProbabilityMap> GetPerEventFeatureProbability(
 class GetPerEventFeatureProbabilityTests
     : public tests::TestGroup<GetPerEventFeatureProbabilityTests> {
  public:
-  GetPerEventFeatureProbabilityTests()
-      : TestGroup<GetPerEventFeatureProbabilityTests>() {}
   std::wstring Name() const override {
     return L"GetPerEventFeatureProbabilityTests";
   }
@@ -199,8 +196,6 @@ double MinimalFeatureProbability(
 class MinimalFeatureProbabilityTests
     : public tests::TestGroup<MinimalFeatureProbabilityTests> {
  public:
-  MinimalFeatureProbabilityTests()
-      : TestGroup<MinimalFeatureProbabilityTests>() {}
   std::wstring Name() const override {
     return L"MinimalFeatureProbabilityTests";
   }
@@ -323,7 +318,6 @@ std::vector<std::wstring> Sort(const History& history,
 
 class SortTests : public tests::TestGroup<SortTests> {
  public:
-  SortTests() : TestGroup<SortTests>() {}
   std::wstring Name() const override { return L"SortTests"; }
   std::vector<tests::Test> Tests() const override {
     return {

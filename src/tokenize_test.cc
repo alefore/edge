@@ -9,7 +9,6 @@ namespace {
 
 class TokenizeBySpacesTests : public tests::TestGroup<TokenizeBySpacesTests> {
  public:
-  TokenizeBySpacesTests() : TestGroup<TokenizeBySpacesTests>() {}
   std::wstring Name() const override { return L"TokenizeBySpaces"; }
   std::vector<tests::Test> Tests() const override {
     return {

@@ -23,7 +23,6 @@ std::unique_ptr<BackgroundCallbackRunner> NewBackgroundCallbackRunner(
 
 class AsyncEvaluatorTests : public tests::TestGroup<AsyncEvaluatorTests> {
  public:
-  AsyncEvaluatorTests() : TestGroup<AsyncEvaluatorTests>() {}
   std::wstring Name() const override { return L"AsyncEvaluatorTests"; }
   std::vector<tests::Test> Tests() const override {
     return {{.name = L"Empty",

@@ -30,7 +30,6 @@ class LowerCaseImpl : public LazyString {
 
 class LowerCaseTests : public tests::TestGroup<LowerCaseTests> {
  public:
-  LowerCaseTests() : TestGroup<LowerCaseTests>() {}
   std::wstring Name() const override { return L"LowerCaseTests"; }
   std::vector<tests::Test> Tests() const override {
     return {

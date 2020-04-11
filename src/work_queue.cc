@@ -48,7 +48,6 @@ std::optional<struct timespec> WorkQueue::NextExecution() {
 namespace {
 class WorkQueueChannelTests : public tests::TestGroup<WorkQueueChannelTests> {
  public:
-  WorkQueueChannelTests() : TestGroup<WorkQueueChannelTests>() {}
   std::wstring Name() const override { return L"WorkQueueChannelTests"; }
   std::vector<tests::Test> Tests() const override {
     return {

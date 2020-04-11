@@ -192,7 +192,6 @@ IntTree::Ptr EraseWithAppend(IntTree::Ptr tree, size_t position) {
 
 class ConstTreeTests : public tests::TestGroup<ConstTreeTests> {
  public:
-  ConstTreeTests() : TestGroup<ConstTreeTests>() {}
   std::wstring Name() const override { return L"ConstTreeTests"; }
   std::vector<tests::Test> Tests() const override {
     // Tests that the invariants (about balance of the tree) hold.

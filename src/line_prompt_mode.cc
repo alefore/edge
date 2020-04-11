@@ -90,7 +90,6 @@ GetSyntheticFeatures(
 class GetSyntheticFeaturesTests
     : public tests::TestGroup<GetSyntheticFeaturesTests> {
  public:
-  GetSyntheticFeaturesTests() : TestGroup<GetSyntheticFeaturesTests>() {}
   std::wstring Name() const override { return L"GetSyntheticFeaturesTests"; }
   std::vector<tests::Test> Tests() const override {
     return {

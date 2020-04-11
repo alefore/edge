@@ -102,7 +102,6 @@ std::set<Range> MergeSections(std::set<Range> input) {
 
 class MergeSectionsTests : public tests::TestGroup<MergeSectionsTests> {
  public:
-  MergeSectionsTests() : TestGroup<MergeSectionsTests>() {}
   std::wstring Name() const override { return L"MergeSectionsTests"; }
   std::vector<tests::Test> Tests() const override {
     return {
