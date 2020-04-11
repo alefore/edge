@@ -16,23 +16,7 @@ struct Test {
   std::function<void()> callback;
 };
 
-template <typename T>
-class TestGroup {
- public:
-  virtual std::wstring Name() const = 0;
-  virtual std::vector<Test> Tests() const = 0;
-
- private:
-  static const bool registration_;
-};
-
 bool Register(std::wstring name, std::vector<Test> tests);
-
-template <typename T>
-bool Add() {
-  return Register(T().Name(), T().Tests());
-}
-
 void Run();
 void List();
 

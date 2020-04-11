@@ -16,15 +16,14 @@ Value<editor::ValueOrError<editor::EmptyValue>> IgnoreErrors(
 }
 
 namespace {
+using editor::Error;
+using editor::Success;
+using editor::ValueOrError;
+
 // TODO(easy): Add more tests.
-class TransformTests : public tests::TestGroup<TransformTests> {
- public:
-  std::wstring Name() const override { return L"TransformTests"; }
-  std::vector<tests::Test> Tests() const override {
-    using editor::Error;
-    using editor::Success;
-    using editor::ValueOrError;
-    return {
+const bool futures_transform_tests_registration = tests::Register(
+    L"TransformTests",
+    {
         {.name = L"StopsEarlyOnError",
          .callback =
              [] {
@@ -53,60 +52,40 @@ class TransformTests : public tests::TestGroup<TransformTests> {
                CHECK(final_result.value().IsError());
                CHECK(final_result.value().error().description == L"xyz");
              }},
-    };
-  }
-};
+    });
 
-template <>
-const bool tests::TestGroup<TransformTests>::registration_ =
-    tests::Add<futures::TransformTests>();
-
-class OnErrorTests : public tests::TestGroup<OnErrorTests> {
- public:
-  OnErrorTests() : TestGroup<OnErrorTests>() {}
-  std::wstring Name() const override { return L"OnErrorTests"; }
-  std::vector<tests::Test> Tests() const override {
-    using editor::Error;
-    using editor::Success;
-    using editor::ValueOrError;
-    return {{.name = L"WaitsForFuture",
-             .callback =
-                 [] {
-                   Future<ValueOrError<int>> internal;
-                   bool executed = false;
-                   auto external = OnError(internal.value, [&](Error error) {
-                     executed = true;
-                     CHECK(error.description == L"Foo");
-                     return error;
-                   });
-                   CHECK(!executed);
-                   internal.consumer(Error(L"Foo"));
-                   CHECK(executed);
-                 }},
-            {.name = L"OverridesReturnedValue",
-             .callback =
-                 [] {
-                   std::optional<ValueOrError<int>> value;
-                   OnError(futures::Past(ValueOrError<int>(Error(L"Foo"))),
-                           [&](Error) { return Success(27); })
-                       .SetConsumer(
-                           [&](ValueOrError<int> result) { value = result; });
-                   CHECK(!value.value().IsError());
-                   CHECK_EQ(value.value().value(), 27);
-                 }},
-            {.name = L"SkippedOnSuccess", .callback = [] {
-               OnError(futures::Past(ValueOrError(Success(12))),
-                       [&](Error value) {
-                         CHECK(false);
-                         return value;
-                       });
-             }}};
-  }
-};
-
-template <>
-const bool tests::TestGroup<OnErrorTests>::registration_ =
-    tests::Add<futures::OnErrorTests>();
+const bool futures_on_error_tests_registration = tests::Register(
+    L"OnErrorTests",
+    {{.name = L"WaitsForFuture",
+      .callback =
+          [] {
+            Future<ValueOrError<int>> internal;
+            bool executed = false;
+            auto external = OnError(internal.value, [&](Error error) {
+              executed = true;
+              CHECK(error.description == L"Foo");
+              return error;
+            });
+            CHECK(!executed);
+            internal.consumer(Error(L"Foo"));
+            CHECK(executed);
+          }},
+     {.name = L"OverridesReturnedValue",
+      .callback =
+          [] {
+            std::optional<ValueOrError<int>> value;
+            OnError(futures::Past(ValueOrError<int>(Error(L"Foo"))),
+                    [&](Error) { return Success(27); })
+                .SetConsumer([&](ValueOrError<int> result) { value = result; });
+            CHECK(!value.value().IsError());
+            CHECK_EQ(value.value().value(), 27);
+          }},
+     {.name = L"SkippedOnSuccess", .callback = [] {
+        OnError(futures::Past(ValueOrError(Success(12))), [&](Error value) {
+          CHECK(false);
+          return value;
+        });
+      }}});
 }  // namespace
 
 }  // namespace afc::futures

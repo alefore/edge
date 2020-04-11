@@ -26,56 +26,47 @@ ProbabilityMap GetEventProbability(const History& history) {
   return output;
 }
 
-class GetEventProbabilityTests
-    : public tests::TestGroup<GetEventProbabilityTests> {
- public:
-  std::wstring Name() const override { return L"GetEventProbabilityTests"; }
-  std::vector<tests::Test> Tests() const override {
-    return {{.name = L"Empty",
-             .callback = [] { CHECK_EQ(GetEventProbability({}).size(), 0ul); }},
-            {.name = L"SingleEventSingleInstance",
-             .callback =
-                 [] {
-                   History history;
-                   history[L"m0"].push_back({L"foo", L"bar"});
-                   auto result = GetEventProbability(history);
-                   CHECK_EQ(result.size(), 1ul);
-                   CHECK_EQ(result.count(L"m0"), 1ul);
-                   CHECK_EQ(result.find(L"m0")->second, 1.0);
-                 }},
-            {.name = L"SingleEventMultipleInstance",
-             .callback =
-                 [] {
-                   History history;
-                   history[L"m0"] = {{L"foo", L"bar"}, {L"foo"}, {L"bar"}};
-                   auto result = GetEventProbability(history);
-                   CHECK_EQ(result.size(), 1ul);
-                   CHECK_EQ(result.count(L"m0"), 1ul);
-                   CHECK_EQ(result.find(L"m0")->second, 1.0);
-                 }},
-            {.name = L"MultipleEvents", .callback = [] {
-               History history;
-               history[L"m0"] = {{L"1"}, {L"2"}, {L"3"}, {L"4"}, {L"5"}};
-               history[L"m1"] = {{L"1"}, {L"2"}, {L"3"}, {L"4"}};
-               history[L"m2"] = {{L"1"}};
-               auto result = GetEventProbability(history);
-               CHECK_EQ(result.size(), 3ul);
+const bool get_event_probability_tests_registration = tests::Register(
+    L"GetEventProbabilityTests",
+    {{.name = L"Empty",
+      .callback = [] { CHECK_EQ(GetEventProbability({}).size(), 0ul); }},
+     {.name = L"SingleEventSingleInstance",
+      .callback =
+          [] {
+            History history;
+            history[L"m0"].push_back({L"foo", L"bar"});
+            auto result = GetEventProbability(history);
+            CHECK_EQ(result.size(), 1ul);
+            CHECK_EQ(result.count(L"m0"), 1ul);
+            CHECK_EQ(result.find(L"m0")->second, 1.0);
+          }},
+     {.name = L"SingleEventMultipleInstance",
+      .callback =
+          [] {
+            History history;
+            history[L"m0"] = {{L"foo", L"bar"}, {L"foo"}, {L"bar"}};
+            auto result = GetEventProbability(history);
+            CHECK_EQ(result.size(), 1ul);
+            CHECK_EQ(result.count(L"m0"), 1ul);
+            CHECK_EQ(result.find(L"m0")->second, 1.0);
+          }},
+     {.name = L"MultipleEvents", .callback = [] {
+        History history;
+        history[L"m0"] = {{L"1"}, {L"2"}, {L"3"}, {L"4"}, {L"5"}};
+        history[L"m1"] = {{L"1"}, {L"2"}, {L"3"}, {L"4"}};
+        history[L"m2"] = {{L"1"}};
+        auto result = GetEventProbability(history);
+        CHECK_EQ(result.size(), 3ul);
 
-               CHECK_EQ(result.count(L"m0"), 1ul);
-               CHECK_EQ(result.find(L"m0")->second, 0.5);
+        CHECK_EQ(result.count(L"m0"), 1ul);
+        CHECK_EQ(result.find(L"m0")->second, 0.5);
 
-               CHECK_EQ(result.count(L"m1"), 1ul);
-               CHECK_EQ(result.find(L"m1")->second, 0.4);
+        CHECK_EQ(result.count(L"m1"), 1ul);
+        CHECK_EQ(result.find(L"m1")->second, 0.4);
 
-               CHECK_EQ(result.count(L"m2"), 1ul);
-               CHECK_EQ(result.find(L"m2")->second, 0.1);
-             }}};
-  }
-};
-
-template <>
-const bool tests::TestGroup<GetEventProbabilityTests>::registration_ =
-    tests::Add<naive_bayes::GetEventProbabilityTests>();
+        CHECK_EQ(result.count(L"m2"), 1ul);
+        CHECK_EQ(result.find(L"m2")->second, 0.1);
+      }}});
 
 std::unordered_map<std::wstring, ProbabilityMap> GetPerEventFeatureProbability(
     const History& history) {
@@ -98,88 +89,77 @@ std::unordered_map<std::wstring, ProbabilityMap> GetPerEventFeatureProbability(
   return output;
 }
 
-class GetPerEventFeatureProbabilityTests
-    : public tests::TestGroup<GetPerEventFeatureProbabilityTests> {
- public:
-  std::wstring Name() const override {
-    return L"GetPerEventFeatureProbabilityTests";
-  }
-  std::vector<tests::Test> Tests() const override {
-    return {
-        {.name = L"Empty",
-         .callback =
-             [] { CHECK_EQ(GetPerEventFeatureProbability({}).size(), 0ul); }},
-        {.name = L"SingleEventSingleInstance",
-         .callback =
-             [] {
-               History history;
-               history[L"m0"].push_back({L"a", L"b"});
-               auto result = GetPerEventFeatureProbability(history);
-               CHECK_EQ(result.size(), 1ul);
-               CHECK_EQ(result.count(L"m0"), 1ul);
-               CHECK_EQ(result[L"m0"].size(), 2ul);
+const bool get_per_event_feature_probability_tests_registration =
+    tests::Register(
+        L"GetPerEventFeatureProbabilityTests",
+        {{.name = L"Empty",
+          .callback =
+              [] { CHECK_EQ(GetPerEventFeatureProbability({}).size(), 0ul); }},
+         {.name = L"SingleEventSingleInstance",
+          .callback =
+              [] {
+                History history;
+                history[L"m0"].push_back({L"a", L"b"});
+                auto result = GetPerEventFeatureProbability(history);
+                CHECK_EQ(result.size(), 1ul);
+                CHECK_EQ(result.count(L"m0"), 1ul);
+                CHECK_EQ(result[L"m0"].size(), 2ul);
 
-               CHECK_EQ(result[L"m0"].count(L"a"), 1ul);
-               CHECK_EQ(result[L"m0"][L"a"], 1.0);
+                CHECK_EQ(result[L"m0"].count(L"a"), 1ul);
+                CHECK_EQ(result[L"m0"][L"a"], 1.0);
 
-               CHECK_EQ(result[L"m0"].count(L"b"), 1ul);
-               CHECK_EQ(result[L"m0"][L"b"], 1.0);
-             }},
-        {.name = L"SingleEventMultipleInstances",
-         .callback =
-             [] {
-               History history;
-               history[L"m0"] = {
-                   {L"a", L"b", L"c"}, {L"a", L"b"}, {L"a"}, {L"a"}, {L"a"}};
-               auto result = GetPerEventFeatureProbability(history);
-               CHECK_EQ(result.size(), 1ul);
-               CHECK_EQ(result.count(L"m0"), 1ul);
-               CHECK_EQ(result[L"m0"].size(), 3ul);
+                CHECK_EQ(result[L"m0"].count(L"b"), 1ul);
+                CHECK_EQ(result[L"m0"][L"b"], 1.0);
+              }},
+         {.name = L"SingleEventMultipleInstances",
+          .callback =
+              [] {
+                History history;
+                history[L"m0"] = {
+                    {L"a", L"b", L"c"}, {L"a", L"b"}, {L"a"}, {L"a"}, {L"a"}};
+                auto result = GetPerEventFeatureProbability(history);
+                CHECK_EQ(result.size(), 1ul);
+                CHECK_EQ(result.count(L"m0"), 1ul);
+                CHECK_EQ(result[L"m0"].size(), 3ul);
 
-               CHECK_EQ(result[L"m0"].count(L"a"), 1ul);
-               CHECK_EQ(result[L"m0"][L"a"], 1.0);
+                CHECK_EQ(result[L"m0"].count(L"a"), 1ul);
+                CHECK_EQ(result[L"m0"][L"a"], 1.0);
 
-               CHECK_EQ(result[L"m0"].count(L"b"), 1ul);
-               CHECK_EQ(result[L"m0"][L"b"], 0.4);
+                CHECK_EQ(result[L"m0"].count(L"b"), 1ul);
+                CHECK_EQ(result[L"m0"][L"b"], 0.4);
 
-               CHECK_EQ(result[L"m0"].count(L"c"), 1ul);
-               CHECK_EQ(result[L"m0"][L"c"], 0.2);
-             }},
-        {.name = L"MultipleEventMultipleInstance", .callback = [] {
-           History history;
-           history[L"m0"] = {
-               {L"a", L"b", L"c"}, {L"a", L"b"}, {L"a"}, {L"a"}, {L"a"}};
-           history[L"m1"] = {{L"a", L"b", L"c"}, {L"c"}};
+                CHECK_EQ(result[L"m0"].count(L"c"), 1ul);
+                CHECK_EQ(result[L"m0"][L"c"], 0.2);
+              }},
+         {.name = L"MultipleEventMultipleInstance", .callback = [] {
+            History history;
+            history[L"m0"] = {
+                {L"a", L"b", L"c"}, {L"a", L"b"}, {L"a"}, {L"a"}, {L"a"}};
+            history[L"m1"] = {{L"a", L"b", L"c"}, {L"c"}};
 
-           auto result = GetPerEventFeatureProbability(history);
+            auto result = GetPerEventFeatureProbability(history);
 
-           CHECK_EQ(result.size(), 2ul);
-           CHECK_EQ(result.count(L"m0"), 1ul);
-           CHECK_EQ(result.count(L"m1"), 1ul);
-           CHECK_EQ(result[L"m0"].size(), 3ul);
-           CHECK_EQ(result[L"m1"].size(), 3ul);
+            CHECK_EQ(result.size(), 2ul);
+            CHECK_EQ(result.count(L"m0"), 1ul);
+            CHECK_EQ(result.count(L"m1"), 1ul);
+            CHECK_EQ(result[L"m0"].size(), 3ul);
+            CHECK_EQ(result[L"m1"].size(), 3ul);
 
-           CHECK_EQ(result[L"m0"].count(L"a"), 1ul);
-           CHECK_EQ(result[L"m0"][L"a"], 1.0);
+            CHECK_EQ(result[L"m0"].count(L"a"), 1ul);
+            CHECK_EQ(result[L"m0"][L"a"], 1.0);
 
-           CHECK_EQ(result[L"m0"].count(L"b"), 1ul);
-           CHECK_EQ(result[L"m0"][L"b"], 0.4);
+            CHECK_EQ(result[L"m0"].count(L"b"), 1ul);
+            CHECK_EQ(result[L"m0"][L"b"], 0.4);
 
-           CHECK_EQ(result[L"m0"].count(L"c"), 1ul);
-           CHECK_EQ(result[L"m0"][L"c"], 0.2);
+            CHECK_EQ(result[L"m0"].count(L"c"), 1ul);
+            CHECK_EQ(result[L"m0"][L"c"], 0.2);
 
-           CHECK_EQ(result[L"m1"].count(L"a"), 1ul);
-           CHECK_EQ(result[L"m1"][L"a"], 0.5);
+            CHECK_EQ(result[L"m1"].count(L"a"), 1ul);
+            CHECK_EQ(result[L"m1"][L"a"], 0.5);
 
-           CHECK_EQ(result[L"m1"].count(L"c"), 1ul);
-           CHECK_EQ(result[L"m1"][L"c"], 1.0);
-         }}};
-  }
-};
-
-template <>
-const bool tests::TestGroup<GetPerEventFeatureProbabilityTests>::registration_ =
-    tests::Add<naive_bayes::GetPerEventFeatureProbabilityTests>();
+            CHECK_EQ(result[L"m1"].count(L"c"), 1ul);
+            CHECK_EQ(result[L"m1"][L"c"], 1.0);
+          }}});
 
 double MinimalFeatureProbability(
     std::unordered_map<std::wstring, std::unordered_map<std::wstring, double>>
@@ -193,34 +173,22 @@ double MinimalFeatureProbability(
   return output;
 }
 
-class MinimalFeatureProbabilityTests
-    : public tests::TestGroup<MinimalFeatureProbabilityTests> {
- public:
-  std::wstring Name() const override {
-    return L"MinimalFeatureProbabilityTests";
-  }
-  std::vector<tests::Test> Tests() const override {
-    return {{.name = L"Empty",
-             .callback = [] { CHECK_EQ(MinimalFeatureProbability({}), 1.0); }},
-            {.name = L"SomeData", .callback = [] {
-               std::unordered_map<std::wstring,
-                                  std::unordered_map<std::wstring, double>>
-                   data;
-               data[L"m0"][L"a"] = 0.2;
-               data[L"m0"][L"b"] = 0.8;
-               data[L"m1"][L"a"] = 0.8;
-               data[L"m1"][L"b"] = 0.5;
-               data[L"m2"][L"a"] = 0.1;  // <--- Minimal.
-               data[L"m2"][L"b"] = 0.5;
-               CHECK_EQ(MinimalFeatureProbability(data), 0.1);
-             }}};
-  }
-};
-
-template <>
-const bool tests::TestGroup<MinimalFeatureProbabilityTests>::registration_ =
-    tests::Add<naive_bayes::MinimalFeatureProbabilityTests>();
-
+const bool minimal_feature_probability_tests_registration = tests::Register(
+    L"MinimalFeatureProbabilityTests",
+    {{.name = L"Empty",
+      .callback = [] { CHECK_EQ(MinimalFeatureProbability({}), 1.0); }},
+     {.name = L"SomeData", .callback = [] {
+        std::unordered_map<std::wstring,
+                           std::unordered_map<std::wstring, double>>
+            data;
+        data[L"m0"][L"a"] = 0.2;
+        data[L"m0"][L"b"] = 0.8;
+        data[L"m1"][L"a"] = 0.8;
+        data[L"m1"][L"b"] = 0.5;
+        data[L"m2"][L"a"] = 0.1;  // <--- Minimal.
+        data[L"m2"][L"b"] = 0.5;
+        CHECK_EQ(MinimalFeatureProbability(data), 0.1);
+      }}});
 }  // namespace
 
 std::vector<std::wstring> Sort(const History& history,
@@ -316,11 +284,9 @@ std::vector<std::wstring> Sort(const History& history,
   return output;
 }
 
-class SortTests : public tests::TestGroup<SortTests> {
- public:
-  std::wstring Name() const override { return L"SortTests"; }
-  std::vector<tests::Test> Tests() const override {
-    return {
+const bool bayes_sort_tests_probability_tests_registration = tests::Register(
+    L"BayesSortTests",
+    {
         {.name = L"EmptyHistoryAndFeatures",
          .callback = [] { CHECK_EQ(Sort({}, {}).size(), 0ul); }},
         {.name = L"EmptyHistory",
@@ -365,12 +331,5 @@ class SortTests : public tests::TestGroup<SortTests> {
                CHECK(results.back() == L"m1");
              }},
         // TODO(easy): Add more complex tests.
-    };
-  }
-};
-
-template <>
-const bool tests::TestGroup<SortTests>::registration_ =
-    tests::Add<naive_bayes::SortTests>();
-
+    });
 }  // namespace afc::naive_bayes

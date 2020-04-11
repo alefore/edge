@@ -437,96 +437,88 @@ Layout BuffersPerLine(LineNumberDelta maximum_lines, ColumnNumberDelta width,
       .lines = lines};
 }
 
-class BuffersPerLineTests : public tests::TestGroup<BuffersPerLineTests> {
- public:
-  std::wstring Name() const override { return L"BuffersPerLineTests"; }
-  std::vector<tests::Test> Tests() const override {
-    static const auto kSizeLines = LineNumberDelta(10);
-    return {{.name = L"SingleBuffer",
-             .callback =
-                 [] {
-                   auto layout =
-                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 1);
-                   CHECK_EQ(layout.lines, LineNumberDelta(1));
-                   CHECK_EQ(layout.buffers_per_line, 1ul);
-                 }},
-            {.name = L"SingleLine",
-             .callback =
-                 [] {
-                   auto layout =
-                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 4);
-                   CHECK_EQ(layout.lines, LineNumberDelta(1));
-                   CHECK_EQ(layout.buffers_per_line, 4ul);
-                 }},
-            {.name = L"SingleLineFull",
-             .callback =
-                 [] {
-                   auto layout =
-                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 5);
-                   CHECK_EQ(layout.lines, LineNumberDelta(1));
-                   CHECK_EQ(layout.buffers_per_line, 5ul);
-                 }},
-            {.name = L"TwoLinesJustAtBoundary",
-             .callback =
-                 [] {
-                   // Identical to SingleLineFull, but the buffers don't fit
-                   // by 1 position.
-                   auto layout =
-                       BuffersPerLine(kSizeLines, ColumnNumberDelta(99), 5);
-                   CHECK_EQ(layout.lines, LineNumberDelta(2));
-                   CHECK_EQ(layout.buffers_per_line, 3ul);
-                 }},
-            {.name = L"ThreeLines",
-             .callback =
-                 [] {
-                   auto layout =
-                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 11);
-                   CHECK_EQ(layout.lines, LineNumberDelta(3));
-                   CHECK_EQ(layout.buffers_per_line, 4ul);
-                 }},
-            {.name = L"ManyLinesFits",
-             .callback =
-                 [] {
-                   auto layout = BuffersPerLine(LineNumberDelta(100),
-                                                ColumnNumberDelta(100), 250);
-                   CHECK_EQ(layout.lines, LineNumberDelta(50));
-                   CHECK_EQ(layout.buffers_per_line, 5ul);
-                 }},
-            {.name = L"ZeroBuffers",
-             .callback =
-                 [] {
-                   auto layout =
-                       BuffersPerLine(kSizeLines, ColumnNumberDelta(100), 0);
-                   CHECK_EQ(layout.lines, LineNumberDelta(0));
-                   CHECK_EQ(layout.buffers_per_line, 0ul);
-                 }},
-            {.name = L"ZeroMaximumLines",
-             .callback =
-                 [] {
-                   auto layout = BuffersPerLine(LineNumberDelta(0),
-                                                ColumnNumberDelta(100), 5);
-                   CHECK_EQ(layout.lines, LineNumberDelta(0));
-                   CHECK_EQ(layout.buffers_per_line, 0ul);
-                 }},
-            {.name = L"Overcrowded", .callback = [] {
-               // This test checks that kDesiredColumnsPerBuffer can be trimmed
-               // due to maximum_lines.
-               //
-               // We'll produce a result that allows each buffer 7 characters.
-               // With a line length of 100, that yields 14 buffers per line
-               // (filling up 98 characters). With 3 lines, that yields 42
-               // buffers. We subtract 1 to make it not fit in fully.
-               auto layout = BuffersPerLine(LineNumberDelta(3),
-                                            ColumnNumberDelta(100), 41);
-               CHECK_EQ(layout.lines, LineNumberDelta(3));
-               CHECK_EQ(layout.buffers_per_line, 14ul);
-             }}};
-  }
-};
-
-template <>
-const bool tests::TestGroup<BuffersPerLineTests>::registration_ =
-    tests::Add<editor::BuffersPerLineTests>();
+static const auto kTestSizeLines = LineNumberDelta(10);
+const bool buffers_per_line_tests_registration = tests::Register(
+    L"BuffersPerLineTests",
+    {{.name = L"SingleBuffer",
+      .callback =
+          [] {
+            auto layout =
+                BuffersPerLine(kTestSizeLines, ColumnNumberDelta(100), 1);
+            CHECK_EQ(layout.lines, LineNumberDelta(1));
+            CHECK_EQ(layout.buffers_per_line, 1ul);
+          }},
+     {.name = L"SingleLine",
+      .callback =
+          [] {
+            auto layout =
+                BuffersPerLine(kTestSizeLines, ColumnNumberDelta(100), 4);
+            CHECK_EQ(layout.lines, LineNumberDelta(1));
+            CHECK_EQ(layout.buffers_per_line, 4ul);
+          }},
+     {.name = L"SingleLineFull",
+      .callback =
+          [] {
+            auto layout =
+                BuffersPerLine(kTestSizeLines, ColumnNumberDelta(100), 5);
+            CHECK_EQ(layout.lines, LineNumberDelta(1));
+            CHECK_EQ(layout.buffers_per_line, 5ul);
+          }},
+     {.name = L"TwoLinesJustAtBoundary",
+      .callback =
+          [] {
+            // Identical to SingleLineFull, but the buffers don't fit
+            // by 1 position.
+            auto layout =
+                BuffersPerLine(kTestSizeLines, ColumnNumberDelta(99), 5);
+            CHECK_EQ(layout.lines, LineNumberDelta(2));
+            CHECK_EQ(layout.buffers_per_line, 3ul);
+          }},
+     {.name = L"ThreeLines",
+      .callback =
+          [] {
+            auto layout =
+                BuffersPerLine(kTestSizeLines, ColumnNumberDelta(100), 11);
+            CHECK_EQ(layout.lines, LineNumberDelta(3));
+            CHECK_EQ(layout.buffers_per_line, 4ul);
+          }},
+     {.name = L"ManyLinesFits",
+      .callback =
+          [] {
+            auto layout = BuffersPerLine(LineNumberDelta(100),
+                                         ColumnNumberDelta(100), 250);
+            CHECK_EQ(layout.lines, LineNumberDelta(50));
+            CHECK_EQ(layout.buffers_per_line, 5ul);
+          }},
+     {.name = L"ZeroBuffers",
+      .callback =
+          [] {
+            auto layout =
+                BuffersPerLine(kTestSizeLines, ColumnNumberDelta(100), 0);
+            CHECK_EQ(layout.lines, LineNumberDelta(0));
+            CHECK_EQ(layout.buffers_per_line, 0ul);
+          }},
+     {.name = L"ZeroMaximumLines",
+      .callback =
+          [] {
+            auto layout =
+                BuffersPerLine(LineNumberDelta(0), ColumnNumberDelta(100), 5);
+            CHECK_EQ(layout.lines, LineNumberDelta(0));
+            CHECK_EQ(layout.buffers_per_line, 0ul);
+          }},
+     {.name = L"Overcrowded", .callback = [] {
+        // This test checks that kDesiredColumnsPerBuffer can be trimmed
+        // due to maximum_lines.
+        //
+        // We'll produce a result that allows each buffer 7 characters.
+        // With a line length of 100, that yields 14 buffers per line
+        // (filling up 98 characters). With 3 lines, that yields 42
+        // buffers. We subtract 1 to make it not fit in fully.
+        auto layout =
+            BuffersPerLine(LineNumberDelta(3), ColumnNumberDelta(100), 41);
+        CHECK_EQ(layout.lines, LineNumberDelta(3));
+        CHECK_EQ(layout.buffers_per_line, 14ul);
+      }}});
 }  // namespace
 
 std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
