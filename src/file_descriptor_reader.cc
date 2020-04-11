@@ -133,8 +133,9 @@ std::vector<std::shared_ptr<const Line>> CreateLineInstances(
   auto tracker_call = tracker.Call();
 
   std::vector<std::shared_ptr<const Line>> lines_to_insert;
+  lines_to_insert.reserve(4096);
   ColumnNumber line_start;
-  for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); i++) {
+  for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); ++i) {
     if (contents->get(i) == '\n') {
       VLOG(8) << "Adding line from " << line_start << " to " << i;
 
