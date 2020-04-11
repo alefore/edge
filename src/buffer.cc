@@ -872,15 +872,16 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
   auto lines_added = LineNumberDelta(lines.size());
   if (lines_added.IsZero()) return;
 
+  LineNumberDelta start_new_section = contents_.size();
   contents_.append_back(std::move(lines));
   if (Read(buffer_variables::contains_line_marks)) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
     auto options = ResolvePathOptions::New(editor());
-    for (LineNumber i = contents_.EndLine() - lines_added - LineNumberDelta(1);
-         i + LineNumberDelta(1) < contents_.EndLine(); ++i) {
-      options.path = contents_.at(i)->ToString();
-      if (auto results = ResolvePath(std::move(options)); results.has_value()) {
+    for (LineNumberDelta i; i < lines_added; ++i) {
+      options.path =
+          contents_.at(LineNumber() + start_new_section + i)->ToString();
+      if (auto results = ResolvePath(options); results.has_value()) {
         LineMarks::Mark mark;
         mark.source = Read(buffer_variables::name);
         mark.source_line = contents_.EndLine();
