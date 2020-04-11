@@ -209,7 +209,14 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                     L"Invalid value (valid values are `all` and `default`): " +
                     input;
                 return std::nullopt;
-              })};
+              }),
+
+      Handler<CommandLineValues>({L"fps"}, L"Frames per second")
+          .Require(L"fps",
+                   L"The maximum number of frames per second to render. If the "
+                   L"state in the editor changes more frequently than this "
+                   L"value, not all changes will be displaed.")
+          .Set(&CommandLineValues::frames_per_second)};
   return handlers;
 }
 
