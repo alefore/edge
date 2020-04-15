@@ -253,12 +253,10 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
 
   if (children_skipped > 0) {
     rows.push_back(
-        {std::make_unique<FrameOutputProducer>(
-             FrameOutputProducer::FrameOptions{
-                 .title =
-                     L"Additional files: " + std::to_wstring(children_skipped),
-                 .active_state =
-                     FrameOutputProducer::FrameOptions::ActiveState::kActive}),
+        {std::make_unique<FrameOutputProducer>(FrameOutputProducer::Options{
+             .title = L"Additional files: " + std::to_wstring(children_skipped),
+             .active_state =
+                 FrameOutputProducer::Options::ActiveState::kActive}),
          LineNumberDelta(1)});
   }
 
@@ -321,7 +319,7 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
   std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
 
   VLOG(5) << "Producing row with frame.";
-  FrameOutputProducer::FrameOptions frame_options;
+  FrameOutputProducer::Options frame_options;
   frame_options.title = child->Name();
   frame_options.position_in_parent = index;
   bool is_active =
@@ -329,7 +327,7 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
   if (is_active && options.main_cursor_behavior ==
                        OutputProducerOptions::MainCursorBehavior::kIgnore) {
     frame_options.active_state =
-        FrameOutputProducer::FrameOptions::ActiveState::kActive;
+        FrameOutputProducer::Options::ActiveState::kActive;
   }
 
   static const auto kFrameLines = LineNumberDelta(1);

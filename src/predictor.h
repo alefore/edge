@@ -24,7 +24,15 @@ class OpenBuffer;
 class Notification;
 
 struct ProgressInformation {
-  std::map<std::wstring, std::wstring> values;
+  std::map<std::wstring, std::wstring> values = {};
+  // Similar to values but will be added in the case where multiple values are
+  // reported from predictions that run independently (whereas for values the
+  // last value reported triumps all others).
+  //
+  // This is useful, in particular, when searching with `multiple_buffers`
+  // enabled; the search will be performed in each buffer and the results will
+  // be aggregated.
+  std::map<std::wstring, size_t> counters = {};
 };
 
 using ProgressChannel = WorkQueueChannel<ProgressInformation>;
@@ -97,8 +105,6 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
 struct PredictOptions {
   EditorState* editor_state;
   Predictor predictor;
-  // TODO(easy): Remove this?
-  Status* status;
 
   // The text to use for the prediction. If not set, it'll be extracted from
   // `input_buffer` based on `input_selection_structure`.

@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 
+#include "src/buffer_contents_util.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command.h"
@@ -510,49 +511,30 @@ class ActivateLink : public Command {
     }
 
     buffer->MaybeAdjustPositionCol();
-    wstring line = buffer->current_line()->ToString();
+    OpenFileOptions options;
 
-    const wstring& path_characters =
-        buffer->Read(buffer_variables::path_characters);
-
-    // Scroll back to the first non-path character. If we're in a non-path
-    // character, this is a no-op.
-    size_t start = line.find_last_not_of(path_characters,
-                                         buffer->current_position_col().column);
-    if (start == line.npos) {
-      start = 0;
-    }
-
-    // Scroll past any non-path characters. Typically this will just skip the
-    // character we landed at in the block above. However, if we started in a
-    // sequence of non-path characters, we skip them all.
-    start = line.find_first_of(path_characters, start);
-    if (start != line.npos) {
-      line = line.substr(start);
-    }
-
-    size_t end = line.find_first_not_of(path_characters);
-    if (end != line.npos) {
-      line = line.substr(0, end);
-    }
-
-    if (line.empty()) {
+    auto path = Path::FromString(GetCurrentToken(
+        {.contents = buffer->contents(),
+         .line_column = buffer->position(),
+         .token_characters = buffer->Read(buffer_variables::path_characters)}));
+    if (path.IsError()) {
       return;
     }
+    options.path = path.value();
 
-    OpenFileOptions options;
     options.editor_state = editor_state;
-    options.path = line;
     options.ignore_if_not_found = true;
 
     options.initial_search_paths.clear();
-    // Works if the current buffer is a directory listing:
-    options.initial_search_paths.push_back(
-        buffer->Read(buffer_variables::path));
-    // And a fall-back for the current buffer being a file:
-    options.initial_search_paths.push_back(
-        Dirname(options.initial_search_paths[0]));
-    LOG(INFO) << "Initial search path: " << options.initial_search_paths[0];
+    if (auto path = Path::FromString(buffer->Read(buffer_variables::path));
+        !path.IsError()) {
+      // Works if the current buffer is a directory listing:
+      options.initial_search_paths.push_back(path.value());
+      // And a fall-back for the current buffer being a file:
+      if (auto dir = path.value().Dirname(); !dir.IsError()) {
+        options.initial_search_paths.push_back(dir.value());
+      }
+    }
 
     OpenFile(options);
   }

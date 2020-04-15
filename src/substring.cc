@@ -28,24 +28,26 @@ class SubstringImpl : public LazyString {
   const ColumnNumberDelta delta_;
 };
 
-shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
-                                 ColumnNumber column) {
-  return Substring(input, column, input->size() - column.ToDelta());
+std::shared_ptr<LazyString> Substring(std::shared_ptr<LazyString> input,
+                                      ColumnNumber column) {
+  auto size = input->size();
+  return Substring(std::move(input), column, size - column.ToDelta());
 }
 
-shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
-                                 ColumnNumber column, ColumnNumberDelta delta) {
+std::shared_ptr<LazyString> Substring(std::shared_ptr<LazyString> input,
+                                      ColumnNumber column,
+                                      ColumnNumberDelta delta) {
   CHECK(input != nullptr);
   if (column.IsZero() && delta == ColumnNumberDelta(input->size())) {
     return input;  // Optimization.
   }
   CHECK_LE(column, ColumnNumber(0) + input->size());
   CHECK_LE(column + delta, ColumnNumber(0) + input->size());
-  return std::make_shared<SubstringImpl>(input, column, delta);
+  return std::make_shared<SubstringImpl>(std::move(input), column, delta);
 }
 
 std::shared_ptr<LazyString> SubstringWithRangeChecks(
-    const shared_ptr<LazyString>& input, ColumnNumber column,
+    std::shared_ptr<LazyString> input, ColumnNumber column,
     ColumnNumberDelta delta) {
   auto length = ColumnNumberDelta(input->size());
   column = std::min(column, ColumnNumber(0) + length);

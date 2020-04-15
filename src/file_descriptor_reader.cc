@@ -127,14 +127,15 @@ FileDescriptorReader::ReadData() {
   return futures::Past(ReadResult::kContinue);
 }
 
-std::vector<std::shared_ptr<Line>> CreateLineInstances(
+std::vector<std::shared_ptr<const Line>> CreateLineInstances(
     std::shared_ptr<LazyString> contents, const LineModifierSet& modifiers) {
   static Tracker tracker(L"FileDescriptorReader::CreateLineInstances");
   auto tracker_call = tracker.Call();
 
-  std::vector<std::shared_ptr<Line>> lines_to_insert;
+  std::vector<std::shared_ptr<const Line>> lines_to_insert;
+  lines_to_insert.reserve(4096);
   ColumnNumber line_start;
-  for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); i++) {
+  for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); ++i) {
     if (contents->get(i) == '\n') {
       VLOG(8) << "Adding line from " << line_start << " to " << i;
 
@@ -159,22 +160,25 @@ std::vector<std::shared_ptr<Line>> CreateLineInstances(
 }
 
 void InsertLines(const FileDescriptorReader::Options& options,
-                 std::vector<std::shared_ptr<Line>> lines_to_insert) {
+                 std::vector<std::shared_ptr<const Line>> lines_to_insert) {
   static Tracker tracker(L"FileDescriptorReader::InsertLines");
   auto tracker_call = tracker.Call();
+
+  if (lines_to_insert.empty()) return;
 
   // These changes don't count: they come from disk.
   auto disk_state_freezer = options.buffer->FreezeDiskState();
 
   auto follower = options.buffer->GetEndPositionFollower();
+  options.buffer->AppendToLastLine(**lines_to_insert.begin());
+  // TODO: Avoid the linear complexity operation in the next line. However,
+  // according to `tracker_erase`, it doesn't seem to matter much.
+  static Tracker tracker_erase(L"FileDescriptorReader::InsertLines::Erase");
+  auto tracker_erase_call = tracker_erase.Call();
+  lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
+  tracker_erase_call = nullptr;
 
-  for (auto it = lines_to_insert.begin(); it != lines_to_insert.end(); ++it) {
-    if (it == lines_to_insert.begin()) {
-      options.buffer->AppendToLastLine(std::move(**it));
-    } else {
-      options.buffer->StartNewLine(std::move(*it));
-    }
-  }
+  options.buffer->AppendLines(std::move(lines_to_insert));
 }
 
 futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
@@ -184,14 +188,14 @@ futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
           // TODO: Find a way to remove the `std::function`, letting the read
           // evaluator somehow detect the return type. Not sure why it doesn't
           // work.
-          std::function<std::vector<std::shared_ptr<Line>>()>(
+          std::function<std::vector<std::shared_ptr<const Line>>()>(
               [modifiers = options_->modifiers,
                contents = std::move(contents)]() mutable {
                 return CreateLineInstances(std::move(contents),
                                            std::move(modifiers));
               })),
       [options = options_, lines_read_rate = lines_read_rate_](
-          std::vector<std::shared_ptr<Line>> lines) {
+          std::vector<std::shared_ptr<const Line>> lines) {
         lines_read_rate->IncrementAndGetEventsPerSecond(lines.size() - 1);
         InsertLines(*options, std::move(lines));
         return true;

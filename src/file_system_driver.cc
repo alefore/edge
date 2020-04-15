@@ -22,7 +22,7 @@ futures::Value<ValueOrError<int>> FileSystemDriver::Open(std::wstring path,
     LOG(INFO) << "Opening file:" << path;
     int fd = open(ToByteString(path).c_str(), flags, mode);
     PossibleError output = SyscallReturnValue(L"Open: " + path, fd);
-    return output.IsError() ? Error(output.error.value()) : Success(fd);
+    return output.IsError() ? output.error() : Success(fd);
   });
 }
 
@@ -31,15 +31,17 @@ futures::Value<PossibleError> FileSystemDriver::Close(int fd) {
       [fd] { return SyscallReturnValue(L"Close", close(fd)); });
 }
 
-futures::Value<std::optional<struct stat>> FileSystemDriver::Stat(
-    std::wstring path) {
+futures::ValueOrError<struct stat> FileSystemDriver::Stat(std::wstring path) {
   return evaluator_.Run([path =
-                             std::move(path)]() -> std::optional<struct stat> {
+                             std::move(path)]() -> ValueOrError<struct stat> {
     struct stat output;
-    if (path.empty() || stat(ToByteString(path).c_str(), &output) == -1) {
-      return std::nullopt;
+    if (path.empty()) {
+      return Error(L"Stat failed: Empty path.");
+    } else if (stat(ToByteString(path).c_str(), &output) == -1) {
+      return Error(L"Stat failed: `" + path + L"`: " +
+                   FromByteString(strerror(errno)));
     }
-    return output;
+    return Success(output);
   });
 }
 

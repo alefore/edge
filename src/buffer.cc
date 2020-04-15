@@ -18,6 +18,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/buffer_contents_util.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command_with_modifiers.h"
@@ -385,6 +386,23 @@ using std::to_wstring;
         buffer->EvaluateFile(path);
       }));
 
+  buffer->AddField(
+      L"WaitForEndOfFile",
+      Value::NewFunction(
+          {VMType::Void(), VMType::ObjectType(buffer.get())},
+          [](vector<Value::Ptr> args, Trampoline*) {
+            CHECK_EQ(args.size(), 1ul);
+            auto buffer =
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
+                    args[0].get());
+            futures::Future<EvaluationOutput> future;
+            buffer->AddEndOfFileObserver(
+                [consumer = std::move(future.consumer)] {
+                  consumer(EvaluationOutput::Return(Value::NewVoid()));
+                });
+            return future.value;
+          }));
+
   environment->DefineType(L"Buffer", std::move(buffer));
 }
 
@@ -465,7 +483,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
       syntax_data_(L"SyntaxData", &work_queue_),
-      async_read_evaluator_(L"ReadEvaluator", &work_queue_) {}
+      async_read_evaluator_(L"ReadEvaluator", &work_queue_),
+      file_system_driver_(&work_queue_) {}
 
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Start destructor.";
@@ -580,15 +599,15 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 
   auto edge_state_directory = GetEdgeStateDirectory();
   if (edge_state_directory.IsError()) {
-    status_.SetWarningText(edge_state_directory.error.value());
-    return futures::Past(
-        PossibleError(Error(edge_state_directory.error.value())));
+    status_.SetWarningText(edge_state_directory.error().description);
+    return futures::Past(PossibleError(edge_state_directory.error()));
   }
 
-  auto path = PathJoin(edge_state_directory.value.value(), L".edge_state");
+  auto path = Path::Join(edge_state_directory.value(),
+                         PathComponent::FromString(L".edge_state").value());
   LOG(INFO) << "PersistState: Preparing state file: " << path;
   BufferContents contents;
-  contents.push_back(L"// State of file: " + path);
+  contents.push_back(L"// State of file: " + path.ToString());
   contents.push_back(L"");
 
   contents.push_back(L"buffer.set_position(" + position().ToCppString() +
@@ -625,10 +644,10 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   }
   contents.push_back(L"");
 
-  return OnError(SaveContentsToFile(path, contents, work_queue()),
-                 [this](PossibleError error) {
+  return OnError(SaveContentsToFile(path.ToString(), contents, work_queue()),
+                 [this](Error error) {
                    status()->SetWarningText(L"Unable to persist state: " +
-                                            error.error.value());
+                                            error.description);
                    return error;
                  });
 }
@@ -843,24 +862,38 @@ void OpenBuffer::StartNewLine(std::shared_ptr<Line> line) {
   CHECK(line != nullptr);
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
+  AppendLines({line});
+}
+
+void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
+  static Tracker tracker(L"OpenBuffer::AppendLines");
+  auto tracker_call = tracker.Call();
+
+  auto lines_added = LineNumberDelta(lines.size());
+  if (lines_added.IsZero()) return;
+
+  LineNumberDelta start_new_section = contents_.size();
+  contents_.append_back(std::move(lines));
   if (Read(buffer_variables::contains_line_marks)) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
     auto options = ResolvePathOptions::New(editor());
-    options.path = contents_.back()->ToString();
-    if (auto results = ResolvePath(std::move(options)); results.has_value()) {
-      LineMarks::Mark mark;
-      mark.source = Read(buffer_variables::name);
-      mark.source_line = contents_.EndLine();
-      mark.target_buffer = results->path;
-      if (results->position.has_value()) {
-        mark.target = *results->position;
+    for (LineNumberDelta i; i < lines_added; ++i) {
+      options.path =
+          contents_.at(LineNumber() + start_new_section + i)->ToString();
+      if (auto results = ResolvePath(options); results.has_value()) {
+        LineMarks::Mark mark;
+        mark.source = Read(buffer_variables::name);
+        mark.source_line = contents_.EndLine();
+        mark.target_buffer = results->path;
+        if (results->position.has_value()) {
+          mark.target = *results->position;
+        }
+        LOG(INFO) << "Found a mark: " << mark;
+        editor()->line_marks()->AddMark(mark);
       }
-      LOG(INFO) << "Found a mark: " << mark;
-      editor()->line_marks()->AddMark(mark);
     }
   }
-  contents_.push_back(std::move(line));
 }
 
 void OpenBuffer::Reload() {
@@ -907,12 +940,12 @@ void OpenBuffer::Reload() {
       [this](EmptyValue) {
         return futures::OnError(
             futures::Transform(futures::Past(GetEdgeStateDirectory()),
-                               [this](std::wstring dir) {
+                               [this](Path dir) {
                                  return options_.log_supplier(&work_queue_,
-                                                              dir);
+                                                              dir.ToString());
                                }),
-            [](ValueOrError<std::unique_ptr<Log>> error) {
-              LOG(INFO) << "Error opening log: " << error.error.value();
+            [](Error error) {
+              LOG(INFO) << "Error opening log: " << error.description;
               return Success(NewNullLog());
             });
       },
@@ -953,43 +986,47 @@ futures::Value<PossibleError> OpenBuffer::Save() {
       {.buffer = this, .save_type = Options::SaveType::kMainFile});
 }
 
-ValueOrError<std::wstring> OpenBuffer::GetEdgeStateDirectory() const {
+ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   auto path_vector = editor()->edge_path();
-  if (path_vector.empty() || path_vector[0].empty()) {
+  if (path_vector.empty()) {
     return Error(L"Empty edge path.");
   }
+  ASSIGN_OR_RETURN(auto path, AugmentErrors(L"Invalid Edge path",
+                                            Path::FromString(path_vector[0])));
 
-  auto file_path = Read(buffer_variables::path);
-  list<wstring> file_path_components;
-  if (file_path.empty() || file_path[0] != '/') {
-    return Error(
-        L"Unable to persist buffer with empty path: " +
-        Read(buffer_variables::name) + L" " +
-        (dirty() ? L" (dirty)" : L" (clean)") + L" " +
-        (disk_state_ == DiskState::kStale ? L"modified" : L"not modified"));
+  ASSIGN_OR_RETURN(
+      auto file_path,
+      AugmentErrors(
+          std::wstring{L"Unable to persist buffer with invalid path "} +
+              (dirty() ? L" (dirty)" : L" (clean)") + L" " +
+              (disk_state_ == DiskState::kStale ? L"modified"
+                                                : L"not modified"),
+          AbsolutePath::FromString(Read(buffer_variables::path))));
+
+  if (file_path.GetRootType() != Path::RootType::kAbsolute) {
+    return Error(L"Unable to persist buffer without absolute path: " +
+                 file_path.ToString());
   }
 
-  if (!DirectorySplit(file_path, &file_path_components)) {
-    return Error(L"Unable to split path: " + file_path);
-  }
+  ASSIGN_OR_RETURN(
+      auto file_path_components,
+      AugmentErrors(L"Unable to split path", file_path.DirectorySplit()));
+  file_path_components.push_front(PathComponent::FromString(L"state").value());
 
-  file_path_components.push_front(L"state");
-
-  wstring path = path_vector[0];
   LOG(INFO) << "GetEdgeStateDirectory: Preparing directory for state: " << path;
   for (auto& component : file_path_components) {
-    path = PathJoin(path, component);
+    path = Path::Join(path, component);
     struct stat stat_buffer;
-    auto path_byte_string = ToByteString(path);
+    auto path_byte_string = ToByteString(path.ToString());
     if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
       if (S_ISDIR(stat_buffer.st_mode)) {
         continue;
       }
-      return Error(L"Oops, exists, but is not a directory: " + path);
+      return Error(L"Oops, exists, but is not a directory: " + path.ToString());
     }
     if (mkdir(path_byte_string.c_str(), 0700)) {
       return Error(L"mkdir failed: " + FromByteString(strerror(errno)) + L": " +
-                   path);
+                   path.ToString());
     }
   }
   return Success(path);
@@ -1608,6 +1645,10 @@ void OpenBuffer::PushSignal(int sig) {
 Viewers* OpenBuffer::viewers() { return &viewers_; }
 const Viewers* OpenBuffer::viewers() const { return &viewers_; }
 
+FileSystemDriver* OpenBuffer::file_system_driver() {
+  return &file_system_driver_;
+}
+
 futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {
   using afc::vm::VMType;
@@ -1896,6 +1937,40 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
                         transformation::Input::Mode::kFinal);
 }
 
+void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
+  std::wstring line = GetCurrentToken(
+      {.contents = buffer->contents(),
+       .line_column = buffer->position(),
+       .token_characters = buffer->Read(buffer_variables::path_characters)});
+  if (line.find_first_not_of(L"/.") == wstring::npos) {
+    // If there are only slashes or dots, it's probably not very useful to show
+    // the contents of this path.
+    return;
+  }
+  futures::Transform(
+      futures::OnError(buffer->file_system_driver()->Stat(line),
+                       [buffer](Error error) {
+                         buffer->status()->set_context(nullptr);
+                         return error;
+                       }),
+      [buffer, line](struct stat) {
+        OpenFileOptions options;
+        options.editor_state = buffer->editor();
+        if (auto path = Path::FromString(line); !path.IsError()) {
+          options.path = path.value();
+        }
+        options.ignore_if_not_found = true;
+        options.insertion_type = BuffersList::AddBufferType::kIgnore;
+        options.use_search_paths = false;
+        auto buffer_context_it = OpenFile(std::move(options));
+        buffer->status()->set_context(buffer_context_it ==
+                                              buffer->editor()->buffers()->end()
+                                          ? nullptr
+                                          : buffer_context_it->second);
+        return Success();
+      });
+}
+
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     transformation::Variant transformation,
     Modifiers::CursorsAffected cursors_affected,
@@ -1915,11 +1990,12 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   undo_past_.back()->PushFront(transformation::Cursors{
       .cursors = *active_cursors(), .active = position()});
 
+  std::optional<futures::Value<EmptyValue>> transformation_result;
   if (cursors_affected == Modifiers::CursorsAffected::kAll) {
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
-    return cursors_tracker_.ApplyTransformationToCursors(
+    transformation_result = cursors_tracker_.ApplyTransformationToCursors(
         cursors, [this, transformation = std::move(transformation),
                   mode](LineColumn position) {
           return futures::Transform(
@@ -1928,13 +2004,22 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-    return futures::Transform(
+    transformation_result = futures::Transform(
         Apply(std::move(transformation), position(), mode),
         [this](const transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
           return EmptyValue();
         });
   }
+  return futures::Transform(transformation_result.value(),
+                            [shared_this = shared_from_this()](EmptyValue) {
+                              // This proceeds in the background but we can only
+                              // start it once the transformation is evaluated
+                              // (since we don't know the cursor position
+                              // otherwise).
+                              StartAdjustingStatusContext(shared_this);
+                              return EmptyValue();
+                            });
 }
 
 futures::Value<typename transformation::Result> OpenBuffer::Apply(

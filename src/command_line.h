@@ -148,6 +148,20 @@ class Handler {
     });
   }
 
+  Handler<ParsedValues>& Set(double ParsedValues::*field) {
+    return PushDelegate([field](ParsingData<ParsedValues>* data) {
+      try {
+        data->output.*field = std::stod(data->current_value.value());
+      } catch (const std::invalid_argument& ia) {
+        std::cerr << data->output.binary_name << ": " << data->current_flag
+                  << ": " << ia.what() << std::endl;
+      } catch (const std::out_of_range& oor) {
+        std::cerr << data->output.binary_name << ": " << data->current_flag
+                  << ": " << oor.what() << std::endl;
+      }
+    });
+  }
+
   Handler<ParsedValues>& Run(
       std::function<void(ParsingData<ParsedValues>*)> callback) {
     return PushDelegate(callback);

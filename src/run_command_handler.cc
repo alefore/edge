@@ -121,7 +121,7 @@ futures::Value<PossibleError> GenerateContents(
   if (child_pid == -1) {
     auto error = PossibleError(
         Error(L"fork failed: " + FromByteString(strerror(errno))));
-    target->status()->SetWarningText(error.error.value());
+    target->status()->SetWarningText(error.error().description);
     return futures::Past(error);
   }
   if (child_pid == 0) {

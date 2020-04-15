@@ -11,13 +11,34 @@ specific commands. These sequences are given in this document between quotes.
 Edge uses *buffers* to represent an open file or a process, which might still be
 running and which may or may not have a full terminal (pts).
 
+The following are a few characteristics of Edge:
+
+* Always responsive. Edge is implemented with the philosophy that the user
+  should never be forced to wait for the completion of operations they initiate
+  (such as loading a file, running a shell command and collecting its output, or
+  compiling the program in the current directory). More accurately, the editor
+  should never cease to respond to user commands simply because it is executing
+  an action.
+
+  * Edge reads buffers asynchronously and never blocks while performing IO
+    operations (modulo a few infrequent operations). You can start editing a
+    file while Edge is loading it or saving it - a save operation will ignore
+    any changes you apply after you start the save operation, saving the file
+    exactly as it was.
+
+  * Edge doesn't block while executing extension commands. Changes are shown to
+    the buffer as they are applied (unless extensions explicitly bundle changes
+    together so that they get applied atomically) and the user can continue to
+    interact with the buffer (or switch to other buffers) even if an extension
+    runs a loop that never returns.
+
 * Extensibility:
 
   * Edge uses a simplified version of C++ as its extension language. Extensions
-    are interpreted (type errors are detected statically) and the language uses
-    garbage collection. See
-    [buffer-reload.cc](https://github.com/alefore/edge/blob/master/rc/hooks/buffer-reload.cc)
-    for an example extension.
+    are interpreted (type errors are detected statically) and memory is
+    managed automatically.
+    [zk.cc](https://github.com/alefore/edge/blob/master/rc/editor_commands/lib/zk.cc)
+    shows you how it looks.
 
   * All buffers have *variables* that control their behavior. For example,
     variable `scrollbar` controls whether the scrollbar should be shown in the
@@ -36,21 +57,6 @@ running and which may or may not have a full terminal (pts).
     (this is controlled by buffer's variable `pts`). For example, one can run a
     shell process (or even some other text editor) inside Edge.
 
-* Always responsive. Edge is designed with the philosophy that the user should
-  not be forced to wait for the completion of operations they initiate (such as
-  loading a file, running a shell command and collecting its output, or
-  compiling the program in the current directory). More accurately, the editor
-  should never cease to respond to user commands simply because it is executing
-  an action.
-
-  * Edge reads buffers asynchronously and never blocks while performing IO
-    operations (modulo a few exceptions that we would like to fix).
-
-  * Edge doesn't block while executing extensions. Changes are shown to the
-    buffer as they are applied (unless extensions explicitly bundle changes
-    together so that they get applied atomically) and the user can continue to
-    interact with the buffer (or switch to other buffers) even if an extension
-    runs a loop that never returns.
 
 * Editing:
 
@@ -58,6 +64,10 @@ running and which may or may not have a full terminal (pts).
     match of the query string (and jumps to the one following the previous
     cursor position). One can toggle whether edit commands apply to all cursors
     or just to the "current" one.
+
+  * Supports editing multiple buffers simultaneously. You can open seven
+    different files, enable `multiple_buffers` mode, and directly edit all seven
+    buffers at once.
 
   * Supports syntax highlighting for a few programming languages (C++, Java) and
     file formats (Markdown, diff/patch).
@@ -106,55 +116,82 @@ The following commands download, configure, and build Edge:
     $ ./autogen.sh && ./glog-0.4.0/autogen.sh && ./configure
     $ make
 
+You'll probably want to create a symlink to the `rc` directory in `~/.edge` (or
+copy the contents). Among other things, Edge will read most of its initial key
+bindings from `~/.edge/hooks/start.cc` so you won't get very far if that file
+is missing.
+
 TODO: Document the list of dependencies.
 
 
-### 2.1. Example commands
+### 2.1. Basic commands
 
-The following are a few example commands:
+In a file view, the following are some basic commands:
 
-* `?` - Shows the help information for the current buffer (it looks something
-  [like this](/help.md)).
+* `?` - Help information for the current buffer ([like this](/help.md)).
+
+* `h` `j` `k` `l` and arrows move around. `55j` goes down 55 lines.
+
+* `i` lets you type into the buffer (and `Escape` takes you back).
+
+* `aw` ("Advanced > Write") saves the current buffer. `ar` reloads it
+  (discards your changes). `ad` deletes it (closes it).
+
+* `d\n` - Delete the current character. Takes many modifiers that can be
+  combined:
+
+  * `d5\n` - Delete 5 times.
+
+  * `de\n` - Delete until the end of line (Delete; Line). Instead of `e` you can
+    use other structures: `w` (word), `p` (paragraph), `t` (current token in the
+    syntax tree), `S` (sentence), `b` (entire buffer), `W` (symbol; similar to
+    word but doesn't stop at characters like `_`), `c` (delete until the next
+    cursor).
+
+  * `de[\n` - Start deletion at the beginning of the line (rather than current
+    character).
+
+  * Other deletion sequences: `Ctrl+k` (to end of line), `Ctrl+u` (to beginning
+    of line), `K` (delete current line)
+
+* `p` pastes previously deleted sequence.
+
+* `~\n` switches the case of the current character. `~` takes the same modifiers
+  as `d` (above).
+
+* `u` undoes last command. `U` redoes it. `.` repeates it.
+
+* `af` ("Advanced > Fork") prompts for a shell command and create a buffer
+  running it. `ss` creates a buffer with a shell. `ao` prompts for a file and
+  opens it.
+
+* `a.` opens a buffer showing the current directory.
+
+* `ag` ("Advanced > Go") lets you change the buffer shown (when multiple buffers
+  are open, as shown at the bottom). You can then use `h` or `l` to move left or
+  right and `w` to filter down the selection to buffers with a given word (in
+  their name). Press \`n` to exit (and stay in the new buffer).
+
+* `+` creates a new (inactive) cursor (under current cursor). `-` removes the
+  current cursor. `_` toggles whether all cursors apply transformations (or just
+  the current one). `=` removes all cursors except for the current one.
+
+* `/` asks for a regular expression and creates a cursor in each occurrence.
 
 * `aq` - Quit (short for "Advanced > Quit"). At the beginning of the execution
-  of Edge, Ctrl+c will also quit (until the moment when you start editing any
-  buffer).
+  of Edge, `Ctrl+c` will also quit (until you start editing any buffer). If
+  there are warnings (e.g., unsaved changes), `*aq` with ignore them and quit
+  (`*` means "strong" and other commands also honor it).
 
-* `?` - Shows help.
+* In insert mode, you can use autocompletion by:
+  * Path: type the beginning of a path, followed by slash, and press `Tab`.
+  * Predefined files: create files in `~/.edge/expand/`, then type the name of
+    one such file, followed by `r`, and press `Tab`.
+  * Tokens (for source code): enter the prefix of a token (e.g., an identifier)
+    in the current file, followed by space, and press `Tab`.
 
-* `i` - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
-
-* `d\n` - Delete the current character.
-
-  * `d5\n` - Delete 5 characters.  Delete is covered in section 4.2.
-
-  * `de\n` - Delete until the end of line (Delete; Line).  Section 6.1 explains
-    the Line modifier (and other structure modifiers).
-
-  * `dwj\n` - Delete until the end of the word (Word; from beginning to end).
-    The word modifier is covered in section 6.1.
-
-  * `d5wj\n` - Delete five words (starting at the current position).
-
-* `p` - Paste the previously deleted sequence.  See section 4.3.
-
-* `u` - Undo the last command.  See section 4.4.
-
-* `af make\n` - Open a new buffer with the output of a given command. `af` is
-  short for "Advanced > Fork" and is covered in section 5.3.
-
-* `ar` - Reload the current buffer.  See section 5.2.
-
-* `al` - Shows the list of buffers currently open.  See section 5.1.
-
-* `a.` - Show the list of files in the current directory.  See section 5.5.
-
-* `+` - Creates a new cursor (at the same position as the current one). See
-  section 8.1.
-
-* `_` - Toggles whether all cursors apply transformations (or just the current
-  one). See section 8.3.
-
+* For C++: `cc` toggles camel case / snake case for the current identifier,
+  `sh` goes from a source header to the implementation and back.
 
 ## 3. Navigating a buffer
 
@@ -721,77 +758,9 @@ The contents at that path will be compiled and the resulting expression will be
 evaluated in the environment of the buffer.
 
 
-### 9.3. Syntax supported
+### 9.3.1. bool Buffer::AddKeyboardTextTransformer(function<string(string)> transformer)
 
-### 9.4. Programming interface
-
-#### 9.4.1. string
-
-String represents a string of characters.
-
-The following is an example:
-
-  string s = "alejandro";
-  return s.substr(3, 5);  // Returns: "jandr"
-
-
-##### 9.4.1.1. int string::size()
-
-Returns an integer with the number of characters in the string.
-
-
-##### 9.4.1.2. string::substr(int start, int len)
-
-
-##### 9.4.1.3. bool string::empty()
-
-Returns a boolean value indicating if the string is empty.
-
-
-##### 9.4.1.4. bool string::starts_with(string prefix)
-
-Returns a boolean value indicating if the string starts with a given prefix.
-
-
-##### 9.4.1.5. int string::find(string prefix, int start)
-
-
-##### 9.4.1.6. int string::find_last_of(string chars, int start)
-
-
-##### 9.4.1.7. int string::find_last_not_of(string chars, int start)
-
-
-##### 9.4.1.8. int string::find_first_of(string chars, int start)
-
-
-##### 9.4.1.9. int string::find_first_not_of(string chars, int start)
-
-
-##### 9.4.1.10. string string::toupper()
-
-Returns a copy of the string, with all characters converted to uppercase.
-
-Example:
-
-    string x = "Alejandro";
-    x.toupper();  // Returns: "ALEJANDRO"
-
-
-##### 9.4.1.11. string string::tolower()
-
-Returns a copy of the string, with all characters converted to lowercase.
-
-Example:
-
-    string x = "Alejandro";
-    x.toupper();  // Returns: "alejandro"
-
-
-#### 9.4.2. Buffer
-
-
-##### 9.4.2.1. bool Buffer::AddKeyboardTextTransformer(function<string(string)> transformer)
+TODO: Move this somewhere else.
 
 If you pass a function mapping a string to a string, it'll be called by Edge on
 every character that the user attempts to insert (by typing "i", section 4.1.).

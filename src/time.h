@@ -25,6 +25,8 @@ double GetElapsedSecondsAndUpdate(struct timespec* spec);
 std::optional<double> UpdateIfMillisecondsHavePassed(
     struct timespec* spec, double required_milliseconds);
 
+struct timespec AddSeconds(struct timespec time, double seconds_duration);
+
 ValueOrError<std::wstring> HumanReadableTime(const struct timespec& time);
 }  // namespace editor
 }  // namespace afc

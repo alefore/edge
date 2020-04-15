@@ -30,6 +30,7 @@ extern "C" {
 #include "src/screen_vm.h"
 #include "src/server.h"
 #include "src/terminal.h"
+#include "src/tests/benchmarks.h"
 #include "src/tests/tests.h"
 #include "src/time.h"
 #include "src/vm/public/value.h"
@@ -138,10 +139,29 @@ wstring CommandsToRun(CommandLineValues args) {
 }
 
 void SendCommandsToParent(int fd, const string commands_to_run) {
+  // We write the command to a temporary file and then instruct the server to
+  // load the file. Otherwise, if the command is too long, it may not fit in the
+  // size limit that the reader uses.
   CHECK_NE(fd, -1);
   using std::cerr;
-  LOG(INFO) << "Sending commands to parent: " << commands_to_run;
-  if (write(fd, commands_to_run.c_str(), commands_to_run.size()) == -1) {
+  size_t pos = 0;
+  char* path = strdup("/tmp/edge-initial-commands-XXXXXX");
+  int tmp_fd = mkstemp(path);
+  while (pos < commands_to_run.size()) {
+    VLOG(5) << commands_to_run.substr(pos);
+    int bytes_written = write(tmp_fd, commands_to_run.c_str() + pos,
+                              commands_to_run.size() - pos);
+    if (bytes_written == -1) {
+      cerr << "write: " << strerror(errno);
+      exit(1);
+    }
+    pos += bytes_written;
+  }
+  close(tmp_fd);
+  string command = "#include \"" + string(path) + "\"\n";
+  free(path);
+  if (write(fd, command.c_str(), command.size()) !=
+      static_cast<int>(command.size())) {
     cerr << "write: " << strerror(errno);
     exit(1);
   }
@@ -184,6 +204,9 @@ std::wstring GetGreetingMessage() {
       L"All modules are now active.",
       L"Booting up Edge. . . . . . . . . . . . . DONE",
       L"What are you up to today?",
+      L"Stop trying to calm the storm. Calm yourself, the storm will pass.",
+      L"Learn to be indifferent to what makes no difference.",
+      L"Whatever can happen at any time can happen today.",
       L"The trouble is, you think you have time.",
       L"Happiness is here, and now.",
       L"The journey of a thousand miles begins with a single step.",
@@ -191,6 +214,51 @@ std::wstring GetGreetingMessage() {
       L"Action is the foundational key to all success.",
   });
   return errors[rand() % errors.size()];
+}
+
+void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
+                   std::optional<LineColumnDelta>* last_screen_size,
+                   Terminal* terminal, Screen* screen_curses) {
+  auto screen_state = editor_state()->FlushScreenState();
+  if (!screen_state.has_value()) return;
+  if (screen_curses != nullptr) {
+    if (args.client.empty()) {
+      terminal->Display(editor_state(), screen_curses, screen_state.value());
+    } else {
+      screen_curses->Refresh();  // Don't want this to be buffered!
+      auto screen_size =
+          LineColumnDelta{screen_curses->lines(), screen_curses->columns()};
+      if (last_screen_size->has_value() &&
+          screen_size != last_screen_size->value()) {
+        LOG(INFO) << "Sending screen size update to server.";
+        SendCommandsToParent(
+            remote_server_fd,
+            "screen.set_size(" +
+                std::to_string(screen_size.column.column_delta) + "," +
+                std::to_string(screen_size.line.line_delta) + ");" +
+                "set_screen_needs_hard_redraw(true);\n");
+        *last_screen_size = screen_size;
+      }
+    }
+  }
+  VLOG(5) << "Updating remote screens.";
+  for (auto& buffer : *editor_state()->buffers()) {
+    auto value =
+        buffer.second->environment()->Lookup(L"screen", GetScreenVmType());
+    if (value->type.type != VMType::OBJECT_TYPE ||
+        value->type.object_type != L"Screen") {
+      continue;
+    }
+    auto buffer_screen = static_cast<Screen*>(value->user_value.get());
+    if (buffer_screen == nullptr) {
+      continue;
+    }
+    if (buffer_screen == screen_curses) {
+      continue;
+    }
+    LOG(INFO) << "Remote screen for buffer: " << buffer.first;
+    terminal->Display(editor_state(), buffer_screen, screen_state.value());
+  }
 }
 }  // namespace
 
@@ -226,6 +294,11 @@ int main(int argc, const char** argv) {
       exit(0);
     case CommandLineValues::TestsBehavior::kIgnore:
       break;
+  }
+
+  if (!args.benchmark.empty()) {
+    afc::tests::RunBenchmark(args.benchmark);
+    exit(0);
   }
 
   int remote_server_fd = -1;
@@ -312,45 +385,8 @@ int main(int argc, const char** argv) {
     editor_state()->ExecutePendingWork();
 
     VLOG(5) << "Updating screens.";
-    auto screen_state = editor_state()->FlushScreenState();
-    if (screen_curses != nullptr) {
-      if (args.client.empty()) {
-        terminal.Display(editor_state(), screen_curses.get(), screen_state);
-      } else {
-        screen_curses->Refresh();  // Don't want this to be buffered!
-        auto screen_size =
-            LineColumnDelta{screen_curses->lines(), screen_curses->columns()};
-        if (last_screen_size.has_value() &&
-            screen_size != last_screen_size.value()) {
-          LOG(INFO) << "Sending screen size update to server.";
-          SendCommandsToParent(
-              remote_server_fd,
-              "screen.set_size(" +
-                  std::to_string(screen_size.column.column_delta) + "," +
-                  std::to_string(screen_size.line.line_delta) + ");" +
-                  "set_screen_needs_hard_redraw(true);\n");
-          last_screen_size = screen_size;
-        }
-      }
-    }
-    VLOG(5) << "Updating remote screens.";
-    for (auto& buffer : *editor_state()->buffers()) {
-      auto value =
-          buffer.second->environment()->Lookup(L"screen", GetScreenVmType());
-      if (value->type.type != VMType::OBJECT_TYPE ||
-          value->type.object_type != L"Screen") {
-        continue;
-      }
-      auto buffer_screen = static_cast<Screen*>(value->user_value.get());
-      if (buffer_screen == nullptr) {
-        continue;
-      }
-      if (buffer_screen == screen_curses.get()) {
-        continue;
-      }
-      LOG(INFO) << "Remote screen for buffer: " << buffer.first;
-      terminal.Display(editor_state(), buffer_screen, screen_state);
-    }
+    RedrawScreens(args, remote_server_fd, &last_screen_size, &terminal,
+                  screen_curses.get());
 
     std::vector<std::shared_ptr<OpenBuffer>> buffers;
 

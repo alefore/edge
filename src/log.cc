@@ -50,8 +50,8 @@ class FileLog : public Log {
     LoggingEvaluator()->RunIgnoringResults(
         [data = std::move(data),
          statement = ToByteString(
-             (time.IsError() ? L"[error:" + time.error.value() + L"]"
-                             : time.value.value()) +
+             (time.IsError() ? L"[error:" + time.error().description + L"]"
+                             : time.value()) +
              L" " + std::to_wstring(id) + L": " + statement + L"\n")] {
           return write(data->fd, statement.c_str(), statement.size());
         });

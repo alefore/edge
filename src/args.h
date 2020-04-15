@@ -45,6 +45,9 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   // start a prompt for opening a file.
   bool prompt_for_path = false;
 
+  // If non-empty, benchmark to run.
+  std::wstring benchmark = L"";
+
   enum class TestsBehavior { kIgnore, kRunAndExit, kListAndExit };
   TestsBehavior tests_behavior = TestsBehavior::kIgnore;
 
@@ -56,6 +59,8 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
     kDefault
   };
   ViewMode view_mode = ViewMode::kDefault;
+
+  double frames_per_second = 30.0;
 };
 
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&

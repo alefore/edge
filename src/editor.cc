@@ -371,7 +371,9 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             CHECK(args[1]->IsBool());
             OpenFileOptions options;
             options.editor_state = this;
-            options.path = args[0]->str;
+            if (auto path = Path::FromString(args[0]->str); !path.IsError()) {
+              options.path = std::move(path.value());
+            }
             options.insertion_type = args[1]->boolean
                                          ? BuffersList::AddBufferType::kVisit
                                          : BuffersList::AddBufferType::kIgnore;
@@ -437,6 +439,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
     : bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       home_directory_(args.home_directory),
       edge_path_(args.config_paths),
+      frames_per_second_(args.frames_per_second),
       environment_(BuildEditorEnvironment()),
       default_commands_(NewCommandMode(this)),
       pipe_to_communicate_internal_events_(BuildPipe()),
@@ -507,7 +510,8 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
     if (error.IsError()) {
       buffer->status()->SetWarningText(
           L"🖝  Unable to close (“*ad” to ignore): " +
-          error.error.value() + L": " + buffer->Read(buffer_variables::name));
+          error.error().description + L": " +
+          buffer->Read(buffer_variables::name));
       return;
     }
 
@@ -750,8 +754,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           result.IsError()) {
         buffers_with_problems.push_back(
             it.second->Read(buffer_variables::name));
-        it.second->status()->SetWarningText(L"Unable to close: " +
-                                            result.error.value());
+        it.second->status()->SetWarningText(
+            Error::Augment(L"Unable to close", result.error()).description);
       }
     }
     if (!buffers_with_problems.empty()) {
@@ -872,8 +876,17 @@ void EditorState::MoveBufferBackwards(size_t times) {
   PushCurrentPosition();
 }
 
-EditorState::ScreenState EditorState::FlushScreenState() {
+std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
+  auto now = Now();
+  if (now < next_screen_update_) {
+    // This is enough to cause the main loop to wake up; it'll attempt to do a
+    // redraw then. Multiple attempts may be scheduled, but that's fine (just
+    // a bit wasteful of memory).
+    work_queue_.ScheduleAt(next_screen_update_, [] {});
+    return {};
+  }
   std::unique_lock<std::mutex> lock(mutex_);
+  next_screen_update_ = AddSeconds(now, 1.0 / frames_per_second_);
   ScreenState output = screen_state_;
   screen_state_ = ScreenState();
   return output;
@@ -909,7 +922,11 @@ void EditorState::PushPosition(LineColumn position) {
     options.editor_state = this;
     options.name = kPositionsBufferName;
     if (!edge_path().empty()) {
-      options.path = PathJoin(edge_path().front(), L"positions");
+      if (auto edge_path_front = Path::FromString(edge_path().front());
+          !edge_path_front.IsError()) {
+        options.path = Path::Join(edge_path_front.value(),
+                                  Path::FromString(L"positions").value());
+      }
     }
     options.insertion_type = BuffersList::AddBufferType::kIgnore;
     buffer_it = OpenFile(options);

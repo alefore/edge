@@ -91,6 +91,7 @@ if (path == "") {
         // the shell to exit. If the shell is currently running a process, it
         // will simply ignore the signal.
         buffer.set_term_on_close(true);
+        buffer.set_allow_dirty_delete(true);
       }
     } else if (base_command == "make") {
       buffer.set_contains_line_marks(true);

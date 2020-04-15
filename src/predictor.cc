@@ -220,6 +220,7 @@ struct DescendDirectoryTreeOutput {
   size_t valid_proper_prefix_length = 0;
 };
 
+// TODO(easy): Receive Paths rather than wstrings.
 DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
                                                 wstring path) {
   DescendDirectoryTreeOutput output;
@@ -338,7 +339,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
     std::shared_ptr<Notification> abort_notification;
     OpenBuffer::LockFunction get_buffer;
     std::wstring path;
-    std::vector<std::wstring> search_paths;
+    std::vector<Path> search_paths;
     ResolvePathOptions resolve_path_options;
     std::wregex noise_regex;
     futures::Value<PredictorOutput>::Consumer output_consumer;
@@ -350,16 +351,21 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   options.factory = [](AsyncInput input) {
     std::wstring path = input.path;
     if (!path.empty() && *path.begin() == L'/') {
-      input.search_paths = {L"/"};
+      input.search_paths = {Path::Root()};
     } else {
+      std::vector<Path> resolved_paths;
       for (auto& search_path : input.search_paths) {
-        search_path = Realpath(search_path.empty() ? L"." : search_path);
+        if (auto output = search_path.Resolve(); !output.IsError()) {
+          resolved_paths.push_back(output.value());
+        }
       }
+      input.search_paths = std::move(resolved_paths);
 
+      // TODO(easy): Change std::wstring to Path.
       std::set<std::wstring> unique_paths_set;
-      std::vector<std::wstring> unique_paths;  // Preserve the order.
+      std::vector<Path> unique_paths;  // Preserve the order.
       for (const auto& search_path : input.search_paths) {
-        if (unique_paths_set.insert(search_path).second) {
+        if (unique_paths_set.insert(search_path.ToString()).second) {
           unique_paths.push_back(search_path);
         }
       }
@@ -370,7 +376,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
     int matches = 0;
     for (const auto& search_path : input.search_paths) {
       VLOG(4) << "Considering search path: " << search_path;
-      auto descend_results = DescendDirectoryTree(search_path, input.path);
+      auto descend_results =
+          DescendDirectoryTree(search_path.ToString(), input.path);
       if (descend_results.dir == nullptr) {
         LOG(WARNING) << "Unable to descend: " << search_path;
         continue;

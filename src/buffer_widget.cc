@@ -18,6 +18,7 @@
 #include "src/line_scroll_control.h"
 #include "src/section_brackets_producer.h"
 #include "src/status_output_producer.h"
+#include "src/tests/tests.h"
 #include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
@@ -87,15 +88,68 @@ std::unique_ptr<OutputProducer> LinesSpanView(
 std::set<Range> MergeSections(std::set<Range> input) {
   std::set<Range> output;
   for (auto& section : input) {
-    auto merged_section =
-        output.empty() ? std::nullopt : output.rbegin()->Union(section).value;
-    if (merged_section.has_value()) {
-      output.erase(--output.end());
+    if (!output.empty()) {
+      if (auto result = output.rbegin()->Union(section); !result.IsError()) {
+        output.erase(--output.end());
+        output.insert(result.value());
+        continue;
+      }
     }
-    output.insert(merged_section.value_or(section));
+    output.insert(section);
   }
   return output;
 }
+
+const bool merge_sections_tests_registration = tests::Register(
+    L"MergeSectionsTests",
+    {{.name = L"Empty",
+      .callback = [] { CHECK_EQ(MergeSections({}).size(), 0ul); }},
+     {.name = L"Singleton",
+      .callback =
+          [] {
+            Range input = Range(LineColumn(LineNumber(10), ColumnNumber(0)),
+                                LineColumn(LineNumber(15), ColumnNumber(0)));
+            auto output = MergeSections({input});
+            CHECK_EQ(output.size(), 1ul);
+            CHECK_EQ(*output.begin(), input);
+          }},
+     {.name = L"Disjoint",
+      .callback =
+          [] {
+            Range input_0 = Range(LineColumn(LineNumber(10), ColumnNumber(0)),
+                                  LineColumn(LineNumber(15), ColumnNumber(0)));
+            Range input_1 = Range(LineColumn(LineNumber(30), ColumnNumber(0)),
+                                  LineColumn(LineNumber(35), ColumnNumber(0)));
+            Range input_2 = Range(LineColumn(LineNumber(50), ColumnNumber(0)),
+                                  LineColumn(LineNumber(55), ColumnNumber(0)));
+            auto output = MergeSections({input_0, input_1, input_2});
+            CHECK_EQ(output.size(), 3ul);
+            CHECK_EQ(output.count(input_0), 1ul);
+            CHECK_EQ(output.count(input_1), 1ul);
+            CHECK_EQ(output.count(input_2), 1ul);
+          }},
+     {
+         .name = L"SomeOverlap",
+         .callback =
+             [] {
+               Range input_0 =
+                   Range(LineColumn(LineNumber(10), ColumnNumber(0)),
+                         LineColumn(LineNumber(15), ColumnNumber(0)));
+               Range input_1 =
+                   Range(LineColumn(LineNumber(13), ColumnNumber(0)),
+                         LineColumn(LineNumber(18), ColumnNumber(0)));
+               Range input_separate =
+                   Range(LineColumn(LineNumber(50), ColumnNumber(0)),
+                         LineColumn(LineNumber(55), ColumnNumber(0)));
+               auto output = MergeSections({input_0, input_1, input_separate});
+               CHECK_EQ(output.size(), 2ul);
+               CHECK_EQ(output.count(
+                            Range(LineColumn(LineNumber(10), ColumnNumber(0)),
+                                  LineColumn(LineNumber(18), ColumnNumber(0)))),
+                        1ul);
+               CHECK_EQ(output.count(input_separate), 1ul);
+             },
+     }});
 
 LineNumberDelta SumSectionsLines(const std::set<Range> sections) {
   LineNumberDelta output;
@@ -182,7 +236,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
 
-  auto status_lines = min(size.line, LineNumberDelta(1));
+  StatusOutputProducerSupplier status_output_producer_supplier(
+      buffer->status(), buffer.get(), buffer->editor()->modifiers());
+  const auto status_lines =
+      min(size.line / 4, status_output_producer_supplier.lines());
   // Screen lines that are dedicated to the buffer.
   auto buffer_lines = size.line - status_lines;
 
@@ -284,10 +341,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     rows[0].producer = std::move(output.producer);
     rows[0].lines = buffer_lines;
 
-    rows[1].producer =
-        StatusOutputProducerSupplier(buffer->status(), buffer.get(),
-                                     buffer->editor()->modifiers())
-            .CreateOutputProducer(LineColumnDelta(status_lines, size.column));
+    rows[1].producer = status_output_producer_supplier.CreateOutputProducer(
+        LineColumnDelta(status_lines, size.column));
     rows[1].lines = status_lines;
 
     output.producer = std::make_unique<HorizontalSplitOutputProducer>(

@@ -6,7 +6,14 @@
 namespace afc::editor {
 namespace {
 struct Operation {
-  enum class Type { kForward, kBackward, kNumber, kFilter };
+  enum class Type {
+    kForward,
+    kBackward,
+    kNumber,
+    kFilter,
+    // Toggle WarningFilter: Only select buffers that have a warning status.
+    kWarningFilter
+  };
   Type type;
   size_t number = 0;
   std::wstring filter = L"";
@@ -27,6 +34,10 @@ bool CharConsumer(wint_t c, Data* data) {
   switch (data->state) {
     case Data::State::kDefault:
       switch (c) {
+        case L'!':
+          data->operations.push_back({Operation::Type::kWarningFilter});
+          return true;
+
         case L'l':
           data->operations.push_back({Operation::Type::kForward});
           return true;
@@ -103,6 +114,9 @@ std::wstring BuildStatus(const Data& data) {
           output += L"…";
         }
         break;
+      case Operation::Type::kWarningFilter:
+        output += L" !";
+        break;
     }
   }
   return output;
@@ -117,6 +131,25 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
   std::vector<size_t> indices(buffers_list->BuffersCount());
   for (size_t i = 0; i < indices.size(); ++i) {
     indices[i] = i;
+  }
+
+  bool warning_filter_enabled = false;
+  for (const auto& operation : data.operations) {
+    if (operation.type == Operation::Type::kWarningFilter) {
+      warning_filter_enabled = !warning_filter_enabled;
+    }
+  }
+
+  if (warning_filter_enabled) {
+    std::vector<size_t> new_indices;
+    for (auto& index : indices) {
+      if (auto buffer = buffers_list->GetBuffer(index).get();
+          buffer->status()->GetType() == Status::Type::kWarning) {
+        new_indices.push_back(index);
+      }
+    }
+    if (new_indices.empty()) return futures::Past(EmptyValue());
+    indices = std::move(new_indices);
   }
 
   // This is an index into `indices`.
@@ -148,7 +181,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
                                     : std::distance(indices.begin(), it);
       } break;
 
-      case Operation::Type::kFilter:
+      case Operation::Type::kFilter: {
         std::vector<size_t> new_indices;
         auto filter = TokenizeBySpaces(*NewLazyString(operation.filter));
         for (auto& index : indices) {
@@ -166,10 +199,14 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
         }
         if (new_indices.empty()) return futures::Past(EmptyValue());
         indices = std::move(new_indices);
-        break;
+      } break;
+
+      case Operation::Type::kWarningFilter:
+        break;  // Already handled.
     }
   }
   CHECK(!indices.empty());
+
   index %= indices.size();
   editor->set_current_buffer(buffers_list->GetBuffer(indices[index]));
   switch (mode) {

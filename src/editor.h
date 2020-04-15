@@ -176,7 +176,8 @@ class EditorState {
   void MoveBufferForwards(size_t times);
   void MoveBufferBackwards(size_t times);
 
-  ScreenState FlushScreenState();
+  // Returns nullptr if the redraw should be skipped.
+  std::optional<ScreenState> FlushScreenState();
   void set_screen_needs_hard_redraw(bool value) {
     std::unique_lock<std::mutex> lock(mutex_);
     screen_state_.needs_hard_redraw = value;
@@ -234,8 +235,11 @@ class EditorState {
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
 
+  // TODO(easy): Turn these into Path types?
   const wstring home_directory_;
   vector<wstring> edge_path_;
+
+  double frames_per_second_;
 
   const std::shared_ptr<Environment> environment_;
 
@@ -246,6 +250,9 @@ class EditorState {
   std::shared_ptr<EditorMode> keyboard_redirect_;
 
   std::mutex mutex_;
+  // Used to honor command line argument frames_per_second. Holds the earliest
+  // time when a redraw should be allowed.
+  struct timespec next_screen_update_ = {0, 0};
   ScreenState screen_state_;
 
   // Initially we don't consume SIGINT: we let it crash the process (in case

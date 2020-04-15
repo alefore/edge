@@ -77,20 +77,20 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
 
   SearchResults output;
 
-  bool searched_every_line = contents.EveryLine([&](LineNumber position,
-                                                    const Line& line) {
-    for (const auto& column : GetMatches(line.ToString(), pattern)) {
-      output.positions.push_back(LineColumn(position, column));
-    }
+  bool searched_every_line =
+      contents.EveryLine([&](LineNumber position, const Line& line) {
+        for (const auto& column : GetMatches(line.ToString(), pattern)) {
+          output.positions.push_back(LineColumn(position, column));
+        }
 
-    progress_channel->Push(
-        {.values = {{L"matches", std::to_wstring(output.positions.size())}}});
-    return !options.abort_notification->HasBeenNotified() &&
-           (!options.required_positions.has_value() ||
-            options.required_positions.value() > output.positions.size());
-  });
+        progress_channel->Push(
+            ProgressInformation{.counters = {{L"matches", output.positions.size()}}});
+        return !options.abort_notification->HasBeenNotified() &&
+               (!options.required_positions.has_value() ||
+                options.required_positions.value() > output.positions.size());
+      });
   progress_channel->Push(
-      {.values = {{L"matches", std::to_wstring(output.positions.size()) +
+      ProgressInformation{.values = {{L"matches", std::to_wstring(output.positions.size()) +
                                    (searched_every_line ? L"" : L"+")}}});
   VLOG(5) << "Perform search found matches: " << output.positions.size();
   return output;
@@ -234,15 +234,14 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     auto positions =
         PerformSearchWithDirection(input.editor, options, search_buffer.get());
     if (positions.IsError()) {
-      search_buffer->status()->SetWarningText(positions.error.value());
+      search_buffer->status()->SetWarningText(positions.error().description);
       continue;
     }
 
     // Get the first kMatchesLimit matches:
     for (size_t i = 0;
-         i < positions.value.value().size() && matches.size() < kMatchesLimit;
-         i++) {
-      auto position = positions.value.value()[i];
+         i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
+      auto position = positions.value()[i];
       if (i == 0) {
         search_buffer->set_position(position);
       }
@@ -279,8 +278,14 @@ vector<LineColumn> SearchHandler(EditorState* editor_state,
     return {};
   }
 
-  return buffer->status()->ConsumeErrors(
-      PerformSearchWithDirection(editor_state, options, buffer), {});
+  auto output = PerformSearchWithDirection(editor_state, options, buffer);
+  if (!output.IsError() && output.value().empty() &&
+      buffer->Read(buffer_variables::search_filter_buffer)) {
+    buffer->editor()->CloseBuffer(buffer);
+    return {};
+  } else {
+    return buffer->status()->ConsumeErrors(output, {});
+  }
 }
 
 void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options,

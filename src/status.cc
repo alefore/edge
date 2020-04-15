@@ -165,11 +165,9 @@ void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   ValidatePreconditions();
 }
 
-void Status::set_prompt_context(std::shared_ptr<OpenBuffer> prompt_context) {
+void Status::set_context(std::shared_ptr<OpenBuffer> context) {
   ValidatePreconditions();
-  // This one failed on 2020-02-09.
-  CHECK(prompt_context == nullptr || data_->type == Status::Type::kPrompt);
-  data_->prompt_context = std::move(prompt_context);
+  data_->context = std::move(context);
   ValidatePreconditions();
 }
 
@@ -178,9 +176,9 @@ const std::shared_ptr<OpenBuffer>& Status::prompt_buffer() const {
   return data_->prompt_buffer;
 }
 
-const std::shared_ptr<OpenBuffer>& Status::prompt_context() const {
+const std::shared_ptr<OpenBuffer>& Status::context() const {
   ValidatePreconditions();
-  return data_->prompt_context;
+  return data_->context;
 }
 
 StatusPromptExtraInformation* Status::prompt_extra_information() {
@@ -268,7 +266,6 @@ const std::wstring& Status::text() const {
 void Status::ValidatePreconditions() const {
   CHECK(data_ != nullptr);
   CHECK((data_->prompt_buffer != nullptr) == (data_->type == Type::kPrompt));
-  CHECK((data_->prompt_context == nullptr) || (data_->type == Type::kPrompt));
 }
 
 }  // namespace editor

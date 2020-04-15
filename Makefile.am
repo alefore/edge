@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 
 SUBDIRS = glog-0.4.0
 
-bin_PROGRAMS = edge test fuzz_test test_fuzz_parser test_fuzz_compiler test_fuzz_classes
+bin_PROGRAMS = edge benchmark test fuzz_test test_fuzz_parser test_fuzz_compiler test_fuzz_classes
 
 noinst_PROGRAMS = lemon
 
@@ -22,6 +22,8 @@ src/buffer.cc \
 src/buffer.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
+src/buffer_contents_util.cc \
+src/buffer_contents_util.h \
 src/buffer_metadata_output_producer.cc \
 src/buffer_metadata_output_producer.h \
 src/buffer_output_producer.cc \
@@ -46,6 +48,7 @@ src/command_mode.cc \
 src/command_mode.h \
 src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
+src/const_tree.cc \
 src/const_tree.h \
 src/cursors.cc \
 src/cursors.h \
@@ -159,6 +162,8 @@ src/status_output_producer.h \
 src/structure.cc \
 src/substring.cc \
 src/terminal.cc \
+src/tests/benchmarks.cc \
+src/tests/benchmarks.h \
 src/tests/tests.cc \
 src/tests/tests.h \
 src/time.cc \
@@ -233,6 +238,18 @@ src/work_queue.cc \
 src/work_queue.h \
 src/wstring.cc
 
+BENCHMARK_SOURCES = \
+src/const_tree.cc \
+src/const_tree.h \
+src/tests/benchmarks.cc \
+src/tests/benchmarks.h \
+src/tests/tests.cc \
+src/tests/tests.h \
+src/time.cc \
+src/time.h \
+src/wstring.cc \
+src/wstring.h
+
 CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
 
 BUILT_SOURCES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
@@ -241,6 +258,8 @@ docdir = $(prefix)/share/doc/$(PACKAGE)-$(VERSION)
 dist_doc_DATA = README.md
 
 edge_SOURCES = $(COMMON_SOURCES) src/main.cc
+
+benchmark_SOURCES = $(BENCHMARK_SOURCES) src/tests/benchmarks_main.cc
 
 test_SOURCES = \
 $(COMMON_SOURCES) \
@@ -275,6 +294,7 @@ glog-0.4.0/libglog_la-vlog_is_on.o
 AM_CPPFLAGS=-std=c++17 -g -Wall -Wextra -Iglog-0.4.0/src -DDOCDIR='"$(docdir)"'
 AM_LDFLAGS=-std=c++17 -g
 edge_LDADD=glog-0.4.0/libglog.la
+benchmark_LDADD=glog-0.4.0/libglog.la
 test_LDADD=glog-0.4.0/libglog.la
 fuzz_test_LDADD=glog-0.4.0/libglog.la
 test_fuzz_parser_LDADD=glog-0.4.0/libglog.la

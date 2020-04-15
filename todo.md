@@ -1,4 +1,3 @@
-
 ## Display
 
 Consider using unicode watches to display duration, using exponential/logarithmic growth.
@@ -16,6 +15,20 @@ Display the state of bool variables set different than their default values?
 If a file is smaller than the screen (or available lines for its widget), show it centered (vertically) in the widget.
 
 Change the cursor when we're in `type` mode.
+
+Highlight the token under the cursor:
+* If we're in a syntax tree, highlight other occurrences of the same token.
+
+### Markdown
+
+Handle links better:
+
+* Underline link text.
+* Allow enter to be pressed inside the link text (rather than just in the file).
+* Have a "render" view (probably with a better name) that aims to display the
+  "final" view of a file (rather than its source code). For links, this would
+  hide the file and syntax tokens. It would also have effects in other syntax
+  elements (e.g., bold, titles...).
 
 ### Syntax
 

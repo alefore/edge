@@ -251,18 +251,29 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
   }
 }
 
+template <typename T, typename Callable, typename ErrorCallable>
+auto HandleError(ValueOrError<T> expr, ErrorCallable error_callable,
+                 Callable callable) {
+  return expr.IsError() ? error_callable(expr.error.value())
+                        : callable(expr.value.value());
+}
+
 futures::Value<PossibleError> Save(
     EditorState* editor_state, struct stat* stat_buffer,
     OpenBuffer::Options::HandleSaveOptions options) {
   auto buffer = options.buffer;
-  std::wstring path = buffer->Read(buffer_variables::path);
-  if (path.empty()) {
+  auto path_or_error = Path::FromString(buffer->Read(buffer_variables::path));
+  if (path_or_error.IsError()) {
     return futures::Past(PossibleError(
-        Error(L"Buffer can't be saved: “path” variable is empty.")));
+        Error(L"Buffer can't be saved: Invalid “path” variable: " +
+              path_or_error.error().description)));
   }
+  auto path = path_or_error.value();
   if (S_ISDIR(stat_buffer->st_mode)) {
-    return futures::Past(
-        PossibleError(Error(L"Buffer can't be saved: Buffer is a directory.")));
+    return options.save_type == OpenBuffer::Options::SaveType::kBackup
+               ? futures::Past(Success())
+               : futures::Past(PossibleError(
+                     Error(L"Buffer can't be saved: Buffer is a directory.")));
   }
 
   switch (options.save_type) {
@@ -271,24 +282,22 @@ futures::Value<PossibleError> Save(
     case OpenBuffer::Options::SaveType::kBackup:
       auto state_directory = buffer->GetEdgeStateDirectory();
       if (state_directory.IsError()) {
-        return futures::Past(PossibleError(Error(
-            L"Unable to backup buffer: " + state_directory.error.value())));
+        return futures::Past(PossibleError(Error::Augment(
+            L"Unable to backup buffer: ", state_directory.error())));
       }
-      path = PathJoin(state_directory.value.value(), L"backup");
+      path = Path::Join(state_directory.value(),
+                        PathComponent::FromString(L"backup").value());
   }
 
   return futures::Transform(
-      OnError(
-          SaveContentsToFile(path, *buffer->contents(), buffer->work_queue()),
-          [status = buffer->status()](PossibleError error) {
-            status->SetWarningText(L"🖫 Save failed: " + error.error.value());
-            return error;
-          }),
+      SaveContentsToFile(path.ToString(), *buffer->contents(),
+                         buffer->work_queue()),
       [buffer](EmptyValue) { return buffer->PersistState(); },
       [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
         switch (options.save_type) {
           case OpenBuffer::Options::SaveType::kMainFile:
-            buffer->status()->SetInformationText(L"🖫 Saved: " + path);
+            buffer->status()->SetInformationText(L"🖫 Saved: " +
+                                                 path.ToString());
             // TODO(easy): Move this to the caller, for symmetry with
             // kBackup case.
             buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
@@ -306,7 +315,7 @@ futures::Value<PossibleError> Save(
                 }
               }
             }
-            stat(ToByteString(path).c_str(), stat_buffer);
+            stat(ToByteString(path.ToString()).c_str(), stat_buffer);
             break;
           case OpenBuffer::Options::SaveType::kBackup:
             break;
@@ -367,21 +376,27 @@ futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
   auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
   const wstring tmp_path = path + L".tmp";
   return futures::Transform(
-      file_system_driver->Stat(path),
+      futures::OnError(
+          file_system_driver->Stat(path),
+          [](Error error) {
+            LOG(INFO)
+                << "Ignoring stat error; maybe a new file is being created: "
+                << error.description;
+            struct stat value;
+            value.st_mode =
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+            return Success(value);
+          }),
       [path, contents, work_queue, file_system_driver,
-       tmp_path](std::optional<struct stat> original_stat) {
-        mode_t mode =
-            original_stat.has_value()
-                ? original_stat.value().st_mode
-                : S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+       tmp_path](struct stat stat_value) {
         return file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
-                                        mode);
+                                        stat_value.st_mode);
       },
       [path, contents, work_queue, tmp_path, file_system_driver](int fd) {
         CHECK_NE(fd, -1);
         return futures::Transform(
             OnError(SaveContentsToOpenFile(work_queue, tmp_path, fd, contents),
-                    [file_system_driver, fd](ValueOrError<EmptyValue> error) {
+                    [file_system_driver, fd](Error error) {
                       file_system_driver->Close(fd);
                       return error;
                     }),
@@ -404,7 +419,9 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,
     LOG(INFO) << "search paths buffer already existed.";
     return it->second;
   }
-  options.path = edge_path + L"/search_paths";
+  options.path =
+      Path::Join(Path::FromString(edge_path).value_or(Path::LocalDirectory()),
+                 Path::FromString(L"/search_paths").value());
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   options.use_search_paths = false;
   it = OpenFile(options);
@@ -419,8 +436,8 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,
   return it->second;
 }
 
-void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
-  output->push_back(L"");
+void GetSearchPaths(EditorState* editor_state, vector<Path>* output) {
+  output->push_back(Path::LocalDirectory());
 
   for (auto& edge_path : editor_state->edge_path()) {
     auto search_paths_buffer = GetSearchPathsBuffer(editor_state, edge_path);
@@ -428,14 +445,15 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
       LOG(INFO) << edge_path << ": No search paths buffer.";
       continue;
     }
-    search_paths_buffer->contents()->ForEach(
-        [editor_state, output](wstring line) {
-          if (line.empty()) {
-            return;
-          }
-          output->push_back(editor_state->expand_path(line));
-          LOG(INFO) << "Pushed search path: " << output->back();
-        });
+    search_paths_buffer->contents()->ForEach([editor_state,
+                                              output](wstring line) {
+      auto path = Path::FromString(line);
+      if (path.IsError()) return;
+      output->push_back(
+          Path::FromString(editor_state->expand_path(path.value().ToString()))
+              .value());
+      LOG(INFO) << "Pushed search path: " << output->back();
+    });
   }
 }
 
@@ -456,9 +474,9 @@ ResolvePathOptions ResolvePathOptions::New(EditorState* editor_state) {
 
 std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   ResolvePathOutput output;
-  if (find(input.search_paths.begin(), input.search_paths.end(), L"") ==
-      input.search_paths.end()) {
-    input.search_paths.push_back(L"");
+  if (find(input.search_paths.begin(), input.search_paths.end(),
+           Path::LocalDirectory()) == input.search_paths.end()) {
+    input.search_paths.push_back(Path::LocalDirectory());
   }
 
   if (input.path == L"~" ||
@@ -467,16 +485,17 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   }
 
   if (!input.path.empty() && input.path[0] == L'/') {
-    input.search_paths = {L""};
+    input.search_paths = {Path::Root()};
   }
   for (auto& search_path : input.search_paths) {
     for (size_t str_end = input.path.size();
          str_end != input.path.npos && str_end != 0;
          str_end = input.path.find_last_of(':', str_end - 1)) {
-      wstring path_with_prefix =
-          PathJoin(search_path, input.path.substr(0, str_end));
+      auto input_path = Path::FromString(input.path.substr(0, str_end));
+      if (input_path.IsError()) continue;
+      auto path_with_prefix = Path::Join(search_path, input_path.value());
 
-      if (!input.validator(path_with_prefix)) {
+      if (!input.validator(path_with_prefix.ToString())) {
         continue;
       }
 
@@ -521,7 +540,11 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
           break;
         }
       }
-      output.path = Realpath(path_with_prefix);
+      if (auto resolved = path_with_prefix.Resolve(); !resolved.IsError()) {
+        output.path = resolved.value().ToString();
+      } else {
+        output.path = path_with_prefix.ToString();
+      }
       VLOG(4) << "Resolved path: " << output.path;
       return output;
     }
@@ -535,7 +558,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   std::optional<LineColumn> position;
   wstring pattern;
 
-  vector<wstring> search_paths = options.initial_search_paths;
+  vector<Path> search_paths = options.initial_search_paths;
   if (options.use_search_paths) {
     GetSearchPaths(editor_state, &search_paths);
   }
@@ -562,16 +585,23 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   buffer_options.handle_save =
       [editor_state,
        stat_buffer](OpenBuffer::Options::HandleSaveOptions options) {
-        // TODO(easy): When fail:
-        // options.buffer->status()->SetInformationText(error.value());
-        return Save(editor_state, stat_buffer.get(), std::move(options));
+        auto buffer = options.buffer;
+        return futures::OnError(
+            Save(editor_state, stat_buffer.get(), std::move(options)),
+            [buffer](Error error) {
+              buffer->status()->SetWarningText(L"🖫 Save failed: " +
+                                               error.description);
+              return error;
+            });
       };
 
   auto resolve_path_options =
       ResolvePathOptions::NewWithEmptySearchPaths(editor_state);
   resolve_path_options.home_directory = editor_state->home_directory();
   resolve_path_options.search_paths = search_paths;
-  resolve_path_options.path = options.path;
+  if (options.path.has_value()) {
+    resolve_path_options.path = options.path.value().ToString();
+  }
   if (auto output = ResolvePath(resolve_path_options); output.has_value()) {
     buffer_options.path = output->path;
     position = output->position;
@@ -595,7 +625,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       }
       return false;
     };
-    resolve_path_options.search_paths = {L""};
+    resolve_path_options.search_paths = {Path::LocalDirectory()};
     if (auto output = ResolvePath(resolve_path_options); output.has_value()) {
       buffer_options.path = output->path;
       editor_state->set_current_buffer(buffer->second);
@@ -608,7 +638,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     if (options.ignore_if_not_found) {
       return editor_state->buffers()->end();
     }
-    buffer_options.path = options.path;
+    buffer_options.path =
+        options.path.has_value() ? options.path.value().ToString() : L"";
   }
 
   buffer_options.log_supplier = [editor_state, path = buffer_options.path](

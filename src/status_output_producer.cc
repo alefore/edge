@@ -198,12 +198,9 @@ StatusOutputProducerSupplier::StatusOutputProducerSupplier(
 }
 
 LineNumberDelta StatusOutputProducerSupplier::lines() const {
-  LineNumberDelta output;
-  if (buffer_ != nullptr || status_->GetType() == Status::Type::kPrompt ||
-      !status_->text().empty()) {
-    ++output;
-  }
-  auto context = status_->prompt_context();
+  LineNumberDelta output =
+      has_info_line() ? LineNumberDelta(1) : LineNumberDelta(0);
+  auto context = status_->context();
   if (context != nullptr) {
     static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
     output += std::min(context->lines_size() + kLinesForStatusContextStatus,
@@ -212,16 +209,24 @@ LineNumberDelta StatusOutputProducerSupplier::lines() const {
   return output;
 }
 
+bool StatusOutputProducerSupplier::has_info_line() const {
+  return status_->GetType() == Status::Type::kPrompt ||
+         !status_->text().empty() || buffer_ != nullptr;
+}
+
 std::unique_ptr<OutputProducer>
 StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
-  const auto total_lines = lines();
+  const auto total_lines = min(lines(), size.line);
+  const auto info_lines =
+      has_info_line() ? LineNumberDelta(1) : LineNumberDelta();
   auto base = std::make_unique<InfoProducer>(status_, buffer_, modifiers_);
-  if (total_lines <= LineNumberDelta(1) || total_lines > size.line) {
+  if (total_lines <= info_lines) {
     return base;
   }
 
-  const auto context_lines = total_lines - LineNumberDelta(1);
-  std::vector<HorizontalSplitOutputProducer::Row> rows(2);
+  const auto context_lines = total_lines - info_lines;
+  CHECK_GT(context_lines, LineNumberDelta(0));
+  std::vector<HorizontalSplitOutputProducer::Row> rows;
 
   std::vector<VerticalSplitOutputProducer::Column> context_columns(2);
   context_columns[0].width = ColumnNumberDelta(1);
@@ -231,16 +236,19 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
       LineColumnDelta(context_lines, size.column);
-  buffer_producer_input.buffer = status_->prompt_context();
+  buffer_producer_input.buffer = status_->context();
 
   context_columns[1].producer =
       CreateBufferOutputProducer(buffer_producer_input).producer;
-  rows[0].lines = total_lines - LineNumberDelta(1);
-  rows[0].producer = std::make_unique<VerticalSplitOutputProducer>(
-      std::move(context_columns), 1);
+  rows.push_back({
+      .producer = std::make_unique<VerticalSplitOutputProducer>(
+          std::move(context_columns), 1),
+      .lines = total_lines - info_lines,
+  });
 
-  rows[1].lines = LineNumberDelta(1);
-  rows[1].producer = std::move(base);
+  if (has_info_line()) {
+    rows.push_back({.producer = std::move(base), .lines = info_lines});
+  }
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 1);
 }
 

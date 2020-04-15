@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "src/dirname.h"
 #include "src/editor.h"
 #include "src/value_or_error.h"
 #include "src/widget_list.h"
@@ -22,15 +23,13 @@ futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
                                                  WorkQueue* work_queue);
 
 struct OpenFileOptions {
-  OpenFileOptions() {}
-
   EditorState* editor_state = nullptr;
 
   // Name can be empty, in which case the name will come from the path.
   wstring name;
 
   // The path of the file to open.
-  wstring path;
+  std::optional<Path> path;
   // TODO: Turn into an enum.
   bool ignore_if_not_found = false;
 
@@ -39,11 +38,11 @@ struct OpenFileOptions {
 
   // Should the contents of the search paths buffer be used to find the file?
   bool use_search_paths = true;
-  vector<wstring> initial_search_paths;
+  std::vector<Path> initial_search_paths;
 };
 
 shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state);
-void GetSearchPaths(EditorState* editor_state, vector<wstring>* output);
+void GetSearchPaths(EditorState* editor_state, vector<Path>* output);
 
 // Takes a specification of a path (which can be absolute or relative) and, if
 // relative, looks it up in the search paths. If a file is found, returns an
@@ -54,7 +53,7 @@ struct ResolvePathOptions {
   static ResolvePathOptions NewWithEmptySearchPaths(EditorState* editor_state);
 
   std::wstring path;
-  std::vector<std::wstring> search_paths;
+  std::vector<Path> search_paths;
   std::wstring home_directory;
   std::function<bool(const wstring&)> validator;
 

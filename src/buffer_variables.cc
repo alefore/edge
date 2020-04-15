@@ -274,8 +274,17 @@ EdgeVariable<bool>* const search_case_sensitive =
         ->Add()
         .Name(L"search_case_sensitive")
         .Key(L"/c")
+        .Description(L"Should search (through `/`) be case sensitive?")
+        .Build();
+
+EdgeVariable<bool>* const search_filter_buffer =
+    BoolStruct()
+        ->Add()
+        .Name(L"search_filter_buffer")
+        .Key(L"/d")
         .Description(
-            L"If set to true, search (through \"/\") is case sensitive.")
+            L"Should search delete this buffer if it fails to find any "
+            L"matches?")
         .Build();
 
 EdgeVariable<bool>* const wrap_from_content =

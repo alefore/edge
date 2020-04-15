@@ -87,101 +87,84 @@ GetSyntheticFeatures(
   return output;
 }
 
-class GetSyntheticFeaturesTests
-    : public tests::TestGroup<GetSyntheticFeaturesTests> {
- public:
-  GetSyntheticFeaturesTests() : TestGroup<GetSyntheticFeaturesTests>() {}
-  std::wstring Name() const override { return L"GetSyntheticFeaturesTests"; }
-  std::vector<tests::Test> Tests() const override {
-    return {
-        {.name = L"Empty",
-         .callback = [] { CHECK_EQ(GetSyntheticFeatures({}).size(), 0ul); }},
-        {.name = L"ExtensionsSimple",
-         .callback =
-             [] {
-               std::unordered_multimap<std::wstring,
-                                       std::shared_ptr<LazyString>>
-                   input;
-               input.insert({L"name", NewLazyString(L"foo.cc")});
-               auto output = GetSyntheticFeatures(input);
-               CHECK_EQ(output.count(L"extension"), 1ul);
-               CHECK(output.find(L"extension")->second->ToString() == L"cc");
-             }},
-        {.name = L"ExtensionsLongDirectory",
-         .callback =
-             [] {
-               std::unordered_multimap<std::wstring,
-                                       std::shared_ptr<LazyString>>
-                   input;
-               input.insert(
-                   {L"name", NewLazyString(L"/home/alejo/src/edge/foo.cc")});
-               auto output = GetSyntheticFeatures(input);
-               CHECK_EQ(output.count(L"extension"), 1ul);
-               CHECK(output.find(L"extension")->second->ToString() == L"cc");
-             }},
-        {.name = L"ExtensionsMultiple",
-         .callback =
-             [] {
-               std::unordered_multimap<std::wstring,
-                                       std::shared_ptr<LazyString>>
-                   input;
-               input.insert({L"name", NewLazyString(L"/home/alejo/foo.cc")});
-               input.insert({L"name", NewLazyString(L"bar.cc")});
-               input.insert({L"name", NewLazyString(L"/home/alejo/buffer.h")});
-               input.insert({L"name", NewLazyString(L"/home/alejo/README.md")});
-               auto output = GetSyntheticFeatures(input);
-               auto range = output.equal_range(L"extension");
-               CHECK_EQ(std::distance(range.first, range.second), 3l);
-               while (range.first != range.second) {
-                 auto value = range.first->second->ToString();
-                 CHECK(value == L"cc" || value == L"h" || value == L"md");
-                 ++range.first;
-               }
-             }},
-        {.name = L"DirectoryPlain",
-         .callback =
-             [] {
-               std::unordered_multimap<std::wstring,
-                                       std::shared_ptr<LazyString>>
-                   input;
-               input.insert({L"name", NewLazyString(L"foo.cc")});
-               auto output = GetSyntheticFeatures(input);
-               CHECK_EQ(output.count(L"directory"), 0ul);
-             }},
-        {.name = L"DirectoryPath",
-         .callback =
-             [] {
-               std::unordered_multimap<std::wstring,
-                                       std::shared_ptr<LazyString>>
-                   input;
-               input.insert(
-                   {L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
-               auto output = GetSyntheticFeatures(input);
-               CHECK_EQ(output.count(L"directory"), 1ul);
-               CHECK(output.find(L"directory")->second->ToString() ==
-                     L"/home/alejo/edge");
-             }},
-        {.name = L"DirectoryMultiple", .callback = [] {
-           std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
-               input;
-           input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
-           input.insert({L"name", NewLazyString(L"/home/alejo/edge/bar.cc")});
-           input.insert({L"name", NewLazyString(L"/home/alejo/btc/input.txt")});
-           auto output = GetSyntheticFeatures(input);
-           auto range = output.equal_range(L"directory");
-           CHECK_EQ(std::distance(range.first, range.second), 2l);
-           while (range.first != range.second) {
-             auto value = range.first->second->ToString();
-             CHECK(value == L"/home/alejo/edge" || value == L"/home/alejo/btc");
-             ++range.first;
-           }
-         }}};
-  }
-};
-
-template <>
-const bool tests::TestGroup<GetSyntheticFeaturesTests>::registration_ =
-    tests::Add<editor::GetSyntheticFeaturesTests>();
+const bool get_synthetic_features_tests_registration = tests::Register(
+    L"GetSyntheticFeaturesTests",
+    {{.name = L"Empty",
+      .callback = [] { CHECK_EQ(GetSyntheticFeatures({}).size(), 0ul); }},
+     {.name = L"ExtensionsSimple",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+                input;
+            input.insert({L"name", NewLazyString(L"foo.cc")});
+            auto output = GetSyntheticFeatures(input);
+            CHECK_EQ(output.count(L"extension"), 1ul);
+            CHECK(output.find(L"extension")->second->ToString() == L"cc");
+          }},
+     {.name = L"ExtensionsLongDirectory",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+                input;
+            input.insert(
+                {L"name", NewLazyString(L"/home/alejo/src/edge/foo.cc")});
+            auto output = GetSyntheticFeatures(input);
+            CHECK_EQ(output.count(L"extension"), 1ul);
+            CHECK(output.find(L"extension")->second->ToString() == L"cc");
+          }},
+     {.name = L"ExtensionsMultiple",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+                input;
+            input.insert({L"name", NewLazyString(L"/home/alejo/foo.cc")});
+            input.insert({L"name", NewLazyString(L"bar.cc")});
+            input.insert({L"name", NewLazyString(L"/home/alejo/buffer.h")});
+            input.insert({L"name", NewLazyString(L"/home/alejo/README.md")});
+            auto output = GetSyntheticFeatures(input);
+            auto range = output.equal_range(L"extension");
+            CHECK_EQ(std::distance(range.first, range.second), 3l);
+            while (range.first != range.second) {
+              auto value = range.first->second->ToString();
+              CHECK(value == L"cc" || value == L"h" || value == L"md");
+              ++range.first;
+            }
+          }},
+     {.name = L"DirectoryPlain",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+                input;
+            input.insert({L"name", NewLazyString(L"foo.cc")});
+            auto output = GetSyntheticFeatures(input);
+            CHECK_EQ(output.count(L"directory"), 0ul);
+          }},
+     {.name = L"DirectoryPath",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+                input;
+            input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
+            auto output = GetSyntheticFeatures(input);
+            CHECK_EQ(output.count(L"directory"), 1ul);
+            CHECK(output.find(L"directory")->second->ToString() ==
+                  L"/home/alejo/edge");
+          }},
+     {.name = L"DirectoryMultiple", .callback = [] {
+        std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+            input;
+        input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
+        input.insert({L"name", NewLazyString(L"/home/alejo/edge/bar.cc")});
+        input.insert({L"name", NewLazyString(L"/home/alejo/btc/input.txt")});
+        auto output = GetSyntheticFeatures(input);
+        auto range = output.equal_range(L"directory");
+        CHECK_EQ(std::distance(range.first, range.second), 2l);
+        while (range.first != range.second) {
+          auto value = range.first->second->ToString();
+          CHECK(value == L"/home/alejo/edge" || value == L"/home/alejo/btc");
+          ++range.first;
+        }
+      }}});
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
     EditorState* editor_state, const wstring& name) {
@@ -193,8 +176,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
     return it;
   }
   if (!editor_state->edge_path().empty()) {
-    options.path =
-        (*editor_state->edge_path().begin()) + L"/" + name + L"_history";
+    options.path = Path::FromString(PathJoin(*editor_state->edge_path().begin(),
+                                             name + L"_history"))
+                       .value();
   }
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   it = OpenFile(options);
@@ -354,10 +338,10 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
           if (line.empty()) return true;
           auto line_keys = ParseHistoryLine(line.contents());
           if (line_keys.IsError()) {
-            output.errors.push_back(line_keys.error.value());
+            output.errors.push_back(line_keys.error().description);
             return !abort_notification->HasBeenNotified();
           }
-          auto range = line_keys.value.value().equal_range(L"prompt");
+          auto range = line_keys.value().equal_range(L"prompt");
           int prompt_count = std::distance(range.first, range.second);
           if (warn_if(prompt_count == 0, L"Line is missing `prompt` section") ||
               warn_if(prompt_count != 1,
@@ -384,7 +368,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             return !abort_notification->HasBeenNotified();
           }
           std::unordered_set<std::wstring> features;
-          for (auto& [key, value] : line_keys.value.value()) {
+          for (auto& [key, value] : line_keys.value()) {
             if (key != L"prompt") {
               features.insert(key + L":" + QuoteString(value)->ToString());
             }
@@ -464,7 +448,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
       : history_(std::move(history)),
         original_input_(std::move(original_input)),
         status_(status),
-        previous_prompt_context_(status->prompt_context()) {
+        previous_context_(status->context()) {
     CHECK(original_input_ != nullptr);
     CHECK(status_ != nullptr);
     CHECK(status->GetType() == Status::Type::kPrompt);
@@ -508,13 +492,13 @@ class HistoryScrollBehavior : public ScrollBehavior {
                           LineNumber() + history_->contents()->size());
       history_->set_position(position);
       if (position.line < LineNumber(0) + history_->contents()->size()) {
-        status_->set_prompt_context(history_);
+        status_->set_context(history_);
         if (history_->current_line() != nullptr) {
           buffer_to_insert->AppendToLastLine(
               history_->current_line()->contents());
         }
       } else {
-        status_->set_prompt_context(previous_prompt_context_);
+        status_->set_context(previous_context_);
         buffer_to_insert->AppendToLastLine(original_input_);
       }
     }
@@ -534,7 +518,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   const std::shared_ptr<OpenBuffer> history_;
   const std::shared_ptr<LazyString> original_input_;
   Status* const status_;
-  const std::shared_ptr<OpenBuffer> previous_prompt_context_;
+  const std::shared_ptr<OpenBuffer> previous_context_;
 };
 
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
@@ -629,7 +613,7 @@ void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer, Status* status,
       ColorizeLine(line->contents(), std::move(options.tokens)));
   status_buffer->EraseLines(LineNumber(0), LineNumber(1));
   if (options.context.has_value()) {
-    status->set_prompt_context(options.context.value());
+    status->set_context(options.context.value());
   }
 }
 
@@ -709,6 +693,10 @@ void Prompt(PromptOptions options) {
             status->prompt_extra_information()->SetValue(key, status_version,
                                                          value);
           }
+          for (const auto& [key, value] : extra_information.counters) {
+            status->prompt_extra_information()->SetValue(
+                key, status_version, std::to_wstring(value));
+          }
         },
         WorkQueueChannelConsumeMode::kAll);
     (*abort_notification_ptr)->Notify();
@@ -740,7 +728,9 @@ void Prompt(PromptOptions options) {
                   return EmptyValue();
                 })),
         [status, status_version](std::tuple<EmptyValue, EmptyValue>) {
-          status->prompt_extra_information()->MarkVersionDone(status_version);
+          auto prompt_extra_information = status->prompt_extra_information();
+          if (prompt_extra_information != nullptr)
+            prompt_extra_information->MarkVersionDone(status_version);
           return futures::Past(EmptyValue());
         });
   };
@@ -790,7 +780,6 @@ void Prompt(PromptOptions options) {
         predict_options.source_buffers = options.source_buffers;
         predict_options.input_buffer = buffer;
         predict_options.input_selection_structure = StructureLine();
-        predict_options.status = status;
 
         CHECK(status->prompt_extra_information() != nullptr);
         Predict(std::move(predict_options))

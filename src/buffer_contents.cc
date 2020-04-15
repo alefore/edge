@@ -134,9 +134,7 @@ void BufferContents::set_line(LineNumber position,
     return push_back(line);
   }
 
-  lines_ = Lines::Append(
-      Lines::PushBack(Lines::Prefix(lines_, position.line), std::move(line)),
-      Lines::Suffix(lines_, position.line + 1));
+  lines_ = lines_->Replace(position.line, std::move(line));
   // TODO: Why no notify update listeners?
 }
 
@@ -251,6 +249,20 @@ void BufferContents::push_back(wstring str) {
 
 void BufferContents::push_back(shared_ptr<const Line> line) {
   lines_ = Lines::PushBack(std::move(lines_), line);
+  update_listener_({});
+}
+
+void BufferContents::append_back(
+    std::vector<std::shared_ptr<const Line>> lines) {
+  static Tracker tracker_subtree(L"BufferContents::append_back::subtree");
+  auto tracker_subtree_call = tracker_subtree.Call();
+  Lines::Ptr subtree = Lines::FromRange(lines.begin(), lines.end());
+  tracker_subtree_call = nullptr;
+
+  static Tracker tracker(L"BufferContents::append_back::append");
+  auto tracker_call = tracker.Call();
+
+  lines_ = Lines::Append(lines_, subtree);
   update_listener_({});
 }
 

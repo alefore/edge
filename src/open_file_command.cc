@@ -20,19 +20,26 @@ futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
                                            EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
-  options.path = name;
+  if (auto path = Path::FromString(name); !path.IsError()) {
+    options.path = path.value();
+  }
   options.insertion_type = BuffersList::AddBufferType::kVisit;
   OpenFile(options);
   return futures::Past(EmptyValue());
 }
 
+// Returns the buffer to show for context, or nullptr.
 std::shared_ptr<OpenBuffer> StatusContext(EditorState* editor,
                                           const PredictResults& results,
                                           const LazyString& line) {
   if (results.found_exact_match) {
     OpenFileOptions open_file_options;
     open_file_options.editor_state = editor;
-    open_file_options.path = line.ToString();
+    auto path = Path::FromString(line.ToString());
+    if (path.IsError()) {
+      return nullptr;
+    }
+    open_file_options.path = path.value();
     open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
     open_file_options.ignore_if_not_found = true;
     if (auto result = OpenFile(open_file_options);
@@ -92,7 +99,6 @@ futures::Value<ColorizePromptOptions> AdjustPath(
   PredictOptions options;
   options.editor_state = editor;
   options.predictor = FilePredictor;
-  options.status = editor->status();
   options.source_buffers = editor->active_buffers();
   options.text = line->ToString();
   options.input_selection_structure = StructureLine();
@@ -104,6 +110,23 @@ futures::Value<ColorizePromptOptions> AdjustPath(
         if (!results.has_value()) return ColorizePromptOptions{};
         return DrawPath(editor, line, std::move(results.value()));
       });
+}
+
+std::wstring GetInitialPromptValue(std::wstring buffer_path) {
+  auto path_or_error = Path::FromString(buffer_path);
+  if (path_or_error.IsError()) return L"";
+  auto path = path_or_error.value();
+  struct stat stat_buffer;
+  // TODO(blocking): Use FileSystemDriver here!
+  if (stat(ToByteString(path.ToString()).c_str(), &stat_buffer) == -1 ||
+      !S_ISDIR(stat_buffer.st_mode)) {
+    LOG(INFO) << "Taking dirname for prompt: " << path;
+    auto dir_or_error = path.Dirname();
+    if (!dir_or_error.IsError()) {
+      path = dir_or_error.value();
+    }
+  }
+  return path == Path::LocalDirectory() ? L"" : (path.ToString() + L"/");
 }
 }  // namespace
 
@@ -133,20 +156,8 @@ std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
         options_copy.editor_state = editor_state;
         options_copy.source_buffers = editor_state->active_buffers();
         if (!options_copy.source_buffers.empty()) {
-          auto buffer = options_copy.source_buffers[0];
-          wstring path = buffer->Read(buffer_variables::path);
-          struct stat stat_buffer;
-          if (stat(ToByteString(path).c_str(), &stat_buffer) == -1 ||
-              !S_ISDIR(stat_buffer.st_mode)) {
-            LOG(INFO) << "Taking dirname for prompt: " << path;
-            path = Dirname(path);
-          }
-          if (path == L".") {
-            path = L"";
-          } else if (path.empty() || *path.rbegin() != L'/') {
-            path += L'/';
-          }
-          options_copy.initial_value = path;
+          options_copy.initial_value = GetInitialPromptValue(
+              options_copy.source_buffers[0]->Read(buffer_variables::path));
         }
         return options_copy;
       });

@@ -28,30 +28,19 @@ class LowerCaseImpl : public LazyString {
   const shared_ptr<LazyString> input_;
 };
 
-class LowerCaseTests : public tests::TestGroup<LowerCaseTests> {
- public:
-  LowerCaseTests() : TestGroup<LowerCaseTests>() {}
-  std::wstring Name() const override { return L"LowerCaseTests"; }
-  std::vector<tests::Test> Tests() const override {
-    return {
-        {.name = L"EmptyString",
-         .callback =
-             [] {
-               CHECK_EQ(LowerCaseImpl(EmptyString()).size(),
-                        ColumnNumberDelta());
-             }},
-        {.name = L"SimpleString", .callback = [] {
-           // TODO: Why can't we use CHECK_EQ? Why can't the compiler find
-           // the operator<<?
-           CHECK(LowerCaseImpl(NewLazyString(L"Alejandro Forero")).ToString() ==
-                 L"alejandro forero");
-         }}};
-  }
-};
-
-template <>
-const bool tests::TestGroup<LowerCaseTests>::registration_ =
-    tests::Add<editor::LowerCaseTests>();
+const bool lower_case_tests_registration = tests::Register(
+    L"LowerCaseTests",
+    {{.name = L"EmptyString",
+      .callback =
+          [] {
+            CHECK_EQ(LowerCaseImpl(EmptyString()).size(), ColumnNumberDelta());
+          }},
+     {.name = L"SimpleString", .callback = [] {
+        // TODO: Why can't we use CHECK_EQ? Why can't the compiler find
+        // the operator<<?
+        CHECK(LowerCaseImpl(NewLazyString(L"Alejandro Forero")).ToString() ==
+              L"alejandro forero");
+      }}});
 }  // namespace
 
 shared_ptr<LazyString> LowerCase(shared_ptr<LazyString> input) {

@@ -113,21 +113,29 @@ class PredictorTransformation : public CompositeTransformation {
 
 class ReadAndInsert : public CompositeTransformation {
  public:
-  ReadAndInsert(std::wstring path) : path_(std::move(path)) {}
+  ReadAndInsert(Path path) : path_(std::move(path)) {}
 
   std::wstring Serialize() const override { return L"ReadAndInsert();"; }
 
   futures::Value<Output> Apply(Input input) const override {
     OpenFileOptions open_file_options;
     open_file_options.editor_state = input.buffer->editor();
+    auto edge_path_front =
+        Path::FromString(input.buffer->editor()->edge_path().front());
+    if (edge_path_front.IsError()) {
+      LOG(INFO) << "Error preparing path for completion: "
+                << edge_path_front.error().description;
+      return futures::Past(Output());
+    }
     open_file_options.path =
-        PathJoin(input.buffer->editor()->edge_path().front(),
-                 PathJoin(L"expand", path_));
+        Path::Join(edge_path_front.value(),
+                   Path::Join(Path::FromString(L"expand").value(), path_));
     open_file_options.ignore_if_not_found = true;
     open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
     open_file_options.use_search_paths = false;
     auto buffer_it = OpenFile(open_file_options);
     if (buffer_it == input.buffer->editor()->buffers()->end()) {
+      LOG(INFO) << "Unable to open file: " << open_file_options.path.value();
       return futures::Past(Output());
     }
     futures::Future<Output> output;
@@ -152,7 +160,7 @@ class ReadAndInsert : public CompositeTransformation {
   }
 
  private:
-  const std::wstring path_;
+  const Path path_;
 };
 
 class Execute : public CompositeTransformation {
@@ -205,7 +213,9 @@ class ExpandTransformation : public CompositeTransformation {
       case 'r': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output.Push(DeleteLastCharacters(1 + symbol.size()));
-        transformation = std::make_unique<ReadAndInsert>(symbol);
+        if (auto path = Path::FromString(symbol); !path.IsError()) {
+          transformation = std::make_unique<ReadAndInsert>(path.value());
+        }
       } break;
       case '/': {
         auto path = GetToken(input, buffer_variables::path_characters);
@@ -236,8 +246,6 @@ class ExpandTransformation : public CompositeTransformation {
   std::unique_ptr<CompositeTransformation> Clone() const override {
     return std::make_unique<ExpandTransformation>();
   }
-
- private:
 };
 }  // namespace
 
