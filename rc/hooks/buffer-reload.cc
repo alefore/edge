@@ -64,7 +64,7 @@ void HandleFileTypes(string basename, string extension) {
   if (extension == "md") {
     buffer.set_tree_parser("md");
     buffer.set_paragraph_line_prefix_characters("*-# ");
-    buffer.set_line_prefix_characters(" ");
+    buffer.set_line_prefix_characters("> ");
     buffer.SetStatus("🔡 Markdown file (" + extension + ")");
   }
 }
