@@ -175,9 +175,6 @@ class Execute : public CompositeTransformation {
         [command_size = command_.size(),
          editor = input.editor](std::unique_ptr<Value> value) {
           Output output;
-          if (value != nullptr) {
-            output.Push(DeleteLastCharacters(command_size));
-          }
           if (value != nullptr && value->type == VMType::String()) {
             auto buffer_to_insert =
                 OpenBuffer::New({.editor = editor, .name = L"- text inserted"});
@@ -231,7 +228,7 @@ class ExpandTransformation : public CompositeTransformation {
       } break;
       case ':': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output.Push(DeleteLastCharacters(1));
+        output.Push(DeleteLastCharacters(1 + symbol.size() + 1));
         transformation = std::make_unique<Execute>(symbol);
       }
     }
