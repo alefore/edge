@@ -102,7 +102,18 @@ void zkn() { OpenFile(ZkInternalNextEmpty(), true); }
 TransformationOutput ZKInternalLink(Buffer buffer, TransformationInput input) {
   auto line = buffer.line(input.position().line());
   auto path_characters = buffer.path_characters();
-  int start = line.find_last_not_of(path_characters, input.position().column());
+
+  // Scroll back until we're at a path.
+  int start = line.find_last_of(path_characters, input.position().column());
+  if (start == -1) {
+    // Nothing before us in the current line. Nothing.
+    //
+    // TODO(easy): Scroll back to the previous line and keep trying?
+    return TransformationOutput();
+  }
+
+  // Scroll back to the beginning of the path.
+  start = line.find_last_not_of(path_characters, start);
   if (start == -1) {
     start = 0;  // Didn't find, must be at beginning.
   } else {
@@ -306,7 +317,7 @@ void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
   sub_buffer.WaitForEndOfFile();
   int line = 0;
   string text = "";
-  for (int i = 0; i < depth; i++) {
+  for (int i = 0; i < min(6, depth); i++) {
     text += "#";
   }
   bool copy_contents = true;
