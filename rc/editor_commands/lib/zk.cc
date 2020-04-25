@@ -10,6 +10,10 @@
 #include "paths.cc"
 #include "strings.cc"
 
+// String that identifies the end of the main contents of a note. This is used
+// when expanding the note into an article or into a flashcard.
+string kEndOfContentLine = "Related:";
+
 string GetNoteTitle(Buffer buffer) {
   auto line = buffer.line(0);
   if (line.substr(0, 1) == "#") {
@@ -324,7 +328,7 @@ void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
   bool first_line = true;
   string title = "";
   while (line < sub_buffer.line_count()) {
-    if (sub_buffer.line(line) == "Related:") {
+    if (sub_buffer.line(line) == kEndOfContentLine) {
       copy_contents = false;
     }
     auto line_contents = sub_buffer.line(line);
@@ -404,4 +408,55 @@ Buffer zke(string path, string start, string blacklist) {
   zkeRemoveLocalLinks(buffer);
   buffer.Save();
   return buffer;
+}
+
+string ReplaceText(string pattern, string replacement, string input) {
+  string output = "";
+  int position = 0;
+  while (position < input.size()) {
+    int next = input.find(pattern, position);
+    bool at_match = next != -1;
+    if (next == -1) {
+      next = input.size();
+    }
+    output += input.substr(position, next - position);
+    if (at_match) {
+      output += "<b>" + replacement + "</b>";
+    }
+    position = next + pattern.size();
+  }
+
+  return output;
+}
+void zkCopyContent(Buffer input, Buffer output, string pattern,
+                   string replacement) {
+  string text = "";
+  int initial_line = 1;  // Skip the title.
+  for (int line = initial_line;
+       line < input.line_count() && input.line(line) != kEndOfContentLine;
+       line++) {
+    string line_text = input.line(line);
+    if (line_text != "") {
+      text += (text != "" ? " " : "") + line_text;
+    }
+  }
+  output.ApplyTransformation(
+      InsertTransformationBuilder()
+          .set_text(ReplaceText(pattern, replacement, text))
+          .build());
+}
+
+void zkcloze(string answer, string hint) {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    auto output_buffer = OpenFile("flashcards.txt", true);
+    output_buffer.WaitForEndOfFile();
+    output_buffer.ApplyTransformation(SetPositionTransformation(
+        LineColumn(output_buffer.line_count() - 1, 0)));
+    zkCopyContent(buffer, output_buffer, answer, "___" + hint + "___");
+    output_buffer.ApplyTransformation(
+        InsertTransformationBuilder().set_text("\t").build());
+    zkCopyContent(buffer, output_buffer, answer, answer);
+    output_buffer.ApplyTransformation(
+        InsertTransformationBuilder().set_text("\n").build());
+  });
 }
