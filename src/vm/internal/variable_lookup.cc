@@ -56,6 +56,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   }
   std::vector<VMType> types;
   std::unordered_set<VMType> types_already_seen;
+
   for (auto& v : result) {
     if (types_already_seen.insert(v->type).second) {
       types.push_back(v->type);

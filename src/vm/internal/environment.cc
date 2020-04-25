@@ -164,6 +164,12 @@ void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
   it->second[value->type] = std::move(value);
 }
 
+void Environment::Remove(const wstring& symbol, VMType type) {
+  auto it = table_.find(symbol);
+  if (it == table_.end()) return;
+  it->second.erase(type);
+}
+
 void Environment::ForEachType(
     std::function<void(const wstring&, ObjectType*)> callback) {
   if (parent_environment_ != nullptr) {

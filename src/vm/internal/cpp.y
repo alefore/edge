@@ -75,7 +75,12 @@ statement(OUT) ::= RETURN SEMICOLON . {
 
 statement(OUT) ::= function_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET. {
-  if (FUNC == nullptr || BODY == nullptr) {
+  if (FUNC == nullptr) {
+    OUT = nullptr;
+  } else if (BODY == nullptr) {
+    // Compilation of the body failed. We should try to restore the environment.
+    FUNC->Abort(compilation);
+    delete FUNC;
     OUT = nullptr;
   } else {
     std::wstring error;
@@ -191,7 +196,8 @@ function_declaration_arguments(OUT) ::= . {
   OUT = new vector<pair<VMType, wstring>>;
 }
 
-function_declaration_arguments(OUT) ::= non_empty_function_declaration_arguments(L). {
+function_declaration_arguments(OUT) ::=
+    non_empty_function_declaration_arguments(L). {
   OUT = L;
   L = nullptr;
 }
@@ -215,7 +221,8 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
 }
 
 non_empty_function_declaration_arguments(OUT) ::=
-    non_empty_function_declaration_arguments(LIST) COMMA SYMBOL(TYPE) SYMBOL(NAME). {
+    non_empty_function_declaration_arguments(LIST) COMMA SYMBOL(TYPE)
+    SYMBOL(NAME). {
   if (LIST == nullptr) {
     OUT = nullptr;
   } else {
@@ -271,7 +278,11 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
 
 expr(OUT) ::= lambda_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET . {
-  if (FUNC == nullptr || BODY == nullptr) {
+  if (FUNC == nullptr) {
+    OUT = nullptr;
+  } else if (BODY == nullptr) {
+    FUNC->Abort(compilation);
+    delete FUNC;
     OUT = nullptr;
   } else {
     std::wstring error;
@@ -287,8 +298,6 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
     }
   }
 }
-
-
 
 expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
   OUT = NewAssignExpression(compilation, NAME->str,

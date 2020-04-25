@@ -156,4 +156,11 @@ std::unique_ptr<Expression> UserFunction::BuildExpression(
                                std::move(body), error);
 }
 
+void UserFunction::Abort(Compilation* compilation) {
+  compilation->environment = compilation->environment->parent_environment();
+  if (name.has_value()) {
+    compilation->environment->Remove(name.value(), type);
+  }
+}
+
 }  // namespace afc::vm
