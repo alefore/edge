@@ -175,7 +175,7 @@ class Execute : public CompositeTransformation {
         [command_size = command_.size(),
          editor = input.editor](std::unique_ptr<Value> value) {
           Output output;
-          if (value != nullptr && value->type == VMType::String()) {
+          if (value != nullptr && value->IsString()) {
             auto buffer_to_insert =
                 OpenBuffer::New({.editor = editor, .name = L"- text inserted"});
             buffer_to_insert->AppendLazyString(NewLazyString(value->str));
