@@ -26,6 +26,7 @@
 
 import glob
 import hashlib
+import html
 import os
 import re
 import shlex
@@ -59,7 +60,7 @@ class FactData(object):
 
   def Print(self):
     print('<log type="16" o_id="%s"><text>%s</text></log>' % (
-        self.Id(), self.contents))
+        self.Id(), html.escape(self.contents)))
 
   def PrintClozes(self):
     for i in range(len(self.clozes)):
@@ -71,9 +72,8 @@ class FactData(object):
             'fact_v="5.1" tags="%s" gr="-1" e="2.5" ac_rp="0" rt_rp="0" '
             'lps="0" ac_rp_l="0" rt_rp_l="0" l_rp="-1" n_rp="-1">' % (
                 cloze_id, self.Id(), TAG_ID))
-      # TODO: Escape answer/hint?
       print("<extra>{'cloze': '%s:%s', 'index': %s}</extra></log>" % (
-                answer, hint, i))
+                html.escape(answer), html.escape(hint), i))
 
 for path in glob.glob('???.md'):
   with open(path) as f:
