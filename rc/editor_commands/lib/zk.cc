@@ -140,13 +140,13 @@ TransformationOutput ZKInternalLink(Buffer buffer, TransformationInput input) {
           .push(SetColumnTransformation(start))
           .push(InsertTransformationBuilder().set_text("[](").build())
           .push(SetColumnTransformation(start + 1))
-          .push(InsertTransformationBuilder().set_text(title).build())
-          .push(SetColumnTransformation(start + 1 + title.size() + 1 + 1 +
-                                        path.size() + 1));
+          .push(InsertTransformationBuilder().set_text(title).build());
   if (input.position().line() + 1 >= buffer.line_count()) {
     output.push(SetColumnTransformation(99999999))
         .push(InsertTransformationBuilder().set_text("\n").build());
   }
+  int end_column = start + 1 + title.size() + 1 + 1 + adjusted_path.size() + 1;
+  output.push(SetColumnTransformation(end_column));
   return output;
 }
 
@@ -427,36 +427,4 @@ string ReplaceText(string pattern, string replacement, string input) {
   }
 
   return output;
-}
-void zkCopyContent(Buffer input, Buffer output, string pattern,
-                   string replacement) {
-  string text = "";
-  int initial_line = 1;  // Skip the title.
-  for (int line = initial_line;
-       line < input.line_count() && input.line(line) != kEndOfContentLine;
-       line++) {
-    string line_text = input.line(line);
-    if (line_text != "") {
-      text += (text != "" ? " " : "") + line_text;
-    }
-  }
-  output.ApplyTransformation(
-      InsertTransformationBuilder()
-          .set_text(ReplaceText(pattern, replacement, text))
-          .build());
-}
-
-void zkcloze(string answer, string hint) {
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    auto output_buffer = OpenFile("flashcards.txt", true);
-    output_buffer.WaitForEndOfFile();
-    output_buffer.ApplyTransformation(SetPositionTransformation(
-        LineColumn(output_buffer.line_count() - 1, 0)));
-    zkCopyContent(buffer, output_buffer, answer, "___" + hint + "___");
-    output_buffer.ApplyTransformation(
-        InsertTransformationBuilder().set_text("\t").build());
-    zkCopyContent(buffer, output_buffer, answer, answer);
-    output_buffer.ApplyTransformation(
-        InsertTransformationBuilder().set_text("\n").build());
-  });
 }
