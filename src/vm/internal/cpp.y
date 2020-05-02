@@ -629,7 +629,8 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
         unique_ptr<Expression>(B),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
-          if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {
+          if (a.type.type == VMType::VM_INTEGER
+              && b.type.type == VMType::VM_INTEGER) {
             output->boolean = a.integer > b.integer;
             return;
           }
