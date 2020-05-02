@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 
 SUBDIRS = glog-0.4.0
 
-bin_PROGRAMS = edge benchmark test fuzz_test test_fuzz_parser test_fuzz_compiler test_fuzz_classes
+bin_PROGRAMS = edge benchmark test fuzz_test test_fuzz_parser test_fuzz_compiler test_fuzz_classes test_fuzz_vm
 
 noinst_PROGRAMS = lemon
 
@@ -277,6 +277,8 @@ test_fuzz_compiler_SOURCES = $(COMMON_SOURCES) src/test/fuzz/compiler.cc
 
 test_fuzz_classes_SOURCES = $(COMMON_SOURCES) src/test/fuzz/classes.cc
 
+test_fuzz_vm_SOURCES = $(COMMON_SOURCES) src/vm/internal/fuzz.cc
+
 lemon_SOURCES = src/vm/internal/lemon.c
 
 src/vm/internal/cpp.h: src/vm/internal/cpp.y lemon
@@ -300,3 +302,4 @@ fuzz_test_LDADD=glog-0.4.0/libglog.la
 test_fuzz_parser_LDADD=glog-0.4.0/libglog.la
 test_fuzz_compiler_LDADD=glog-0.4.0/libglog.la
 test_fuzz_classes_LDADD=glog-0.4.0/libglog.la
+test_fuzz_vm_LDADD=glog-0.4.0/libglog.la
