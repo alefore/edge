@@ -56,14 +56,18 @@ Buffer zkRunCommand(string name, string command, string insertion_type) {
   return ForkCommand(options);
 }
 
-void zkls() { zkRunCommand("ls", "~/bin/zkls", "visit"); }
+void zkls() {
+  zkRunCommand("ls", "~/bin/zkls", "visit").set_allow_dirty_delete(true);
+}
 
 void zkrev() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     string path = Basename(buffer.path());
     if (path == "") return;
     zkRunCommand("rev: " + path, "grep " + path.shell_escape() + " ???.md",
-                 "visit");
+                 "visit")
+        .set_allow_dirty_delete(true);
+    ;
   });
   return;
 }
@@ -73,13 +77,16 @@ void zki() { OpenFile("index.md", true); }
 
 void zks(string query) {
   zkRunCommand("s: " + query, "grep -i " + query.shell_escape() + " ???.md",
-               "visit");
+               "visit")
+      .set_allow_dirty_delete(true);
+  ;
 }
 
 Buffer Previewzks(string query) {
   auto buffer = zkRunCommand(
       "s: " + query, "grep -i " + query.shell_escape() + " ???.md", "ignore");
   buffer.WaitForEndOfFile();
+  buffer.set_allow_dirty_delete(true);
   return buffer;
 }
 
@@ -88,6 +95,7 @@ Buffer zkInternalTitleSearch(string query, string insertion_type) {
                              "awk '{if (tolower($0)~\"" + query.shell_escape() +
                                  "\") print FILENAME, $0; nextfile;}' ???.md",
                              insertion_type);
+  buffer.set_allow_dirty_delete(true);
   buffer.WaitForEndOfFile();
   return buffer;
 }
@@ -315,7 +323,7 @@ void zkeRemoveLocalLinks(Buffer buffer) {
 
 void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
                SetString visited) {
-  if (visited.contains(path) || visited.size() > 100) return;
+  if (visited.contains(path) || visited.size() > 1000) return;
   visited.insert(path);
   Buffer sub_buffer = OpenFile(path, false);
   sub_buffer.WaitForEndOfFile();
