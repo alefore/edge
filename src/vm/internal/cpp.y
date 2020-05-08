@@ -312,9 +312,9 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
                 compilation,
                 NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
-                [](wstring a, wstring b) { return a + b; },
-                [](int a, int b) { return a + b; },
-                [](double a, double b) { return a + b; },
+                [](wstring a, wstring b) { return Success(a + b); },
+                [](int a, int b) { return Success(a + b); },
+                [](double a, double b) { return Success(a + b); },
                 nullptr)).release();
   NAME = nullptr;
   VALUE = nullptr;
@@ -327,8 +327,8 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
                 NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
-                [](int a, int b) { return a - b; },
-                [](double a, double b) { return a - b; },
+                [](int a, int b) { return Success(a - b); },
+                [](double a, double b) { return Success(a - b); },
                 nullptr)).release();
   NAME = nullptr;
   VALUE = nullptr;
@@ -341,14 +341,22 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
                 NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
-                [](int a, int b) { return a * b; },
-                [](double a, double b) { return a * b; },
-                [](wstring a, int b) {
+                [](int a, int b) { return Success(a * b); },
+                [](double a, double b) { return Success(a * b); },
+                [](wstring a, int b) -> afc::editor::ValueOrError<wstring> {
                   wstring output;
                   for(int i = 0; i < b; i++) {
-                    output += a;
+                    try {
+                      output += a;
+                    } catch (const std::bad_alloc& e) {
+                      output = L"";
+                      return Error(L"Bad Alloc");
+                    } catch (const std::length_error& e) {
+                      output = L"";
+                      return Error(L"Length Error");
+                    }
                   }
-                  return output;
+                  return Success(output);
                 })).release();
   NAME = nullptr;
   VALUE = nullptr;
@@ -361,8 +369,12 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
                 NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
-                [](int a, int b) { return a / b; },
-                [](double a, double b) { return a / b; },
+                [](int a, int b) {
+                  return b == 0 ? Error(L"Division by zero") : Success(a / b);
+                },
+                [](double a, double b) {
+                  return b == 0 ? Error(L"Division by zero") : Success(a / b);
+                },
                 nullptr)).release();
   NAME = nullptr;
   VALUE = nullptr;
@@ -383,9 +395,11 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
                   var->IsInteger()
                       ? [](const Value&, const Value& a, Value* output) {
                           output->integer = a.integer + 1;
+                          return Success();
                         }
                       : [](const Value&, const Value& a, Value* output) {
                           output->double_value = a.double_value + 1.0;
+                          return Success();
                         })).release();
   } else {
     compilation->errors.push_back(
@@ -410,9 +424,11 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
                   var->IsInteger()
                       ? [](const Value&, const Value& a, Value* output) {
                           output->integer = a.integer - 1;
+                          return Success();
                         }
                       : [](const Value&, const Value& a, Value* output) {
                           output->double_value = a.double_value - 1.0;
+                          return Success();
                         })).release();
   } else {
     compilation->errors.push_back(
@@ -495,6 +511,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.str == b.str;
+          return Success();
         });
     A = nullptr;
     B = nullptr;
@@ -505,6 +522,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.integer == b.integer;
+          return Success();
         });
     A = nullptr;
     B = nullptr;
@@ -526,6 +544,7 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.str != b.str;
+          return Success();
         });
     A = nullptr;
     B = nullptr;
@@ -536,6 +555,7 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.integer != b.integer;
+          return Success();
         });
     A = nullptr;
     B = nullptr;
@@ -557,9 +577,10 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
         unique_ptr<Expression>(B),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
-          if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {
+          if (a.type.type == VMType::VM_INTEGER
+              && b.type.type == VMType::VM_INTEGER) {
             output->boolean = a.integer < b.integer;
-            return;
+            return Success();
           }
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
@@ -572,6 +593,7 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
             }
           };
           output->boolean = to_double(a) < to_double(b);
+          return Success();
         });
     A = nullptr;
     B = nullptr;
@@ -593,9 +615,10 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
         unique_ptr<Expression>(B),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
-          if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {
+          if (a.type.type == VMType::VM_INTEGER
+              && b.type.type == VMType::VM_INTEGER) {
             output->boolean = a.integer <= b.integer;
-            return;
+            return Success();
           }
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
@@ -608,6 +631,7 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
             }
           };
           output->boolean = to_double(a) <= to_double(b);
+          return Success();
         });
     A = nullptr;
     B = nullptr;
@@ -632,7 +656,7 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
           if (a.type.type == VMType::VM_INTEGER
               && b.type.type == VMType::VM_INTEGER) {
             output->boolean = a.integer > b.integer;
-            return;
+            return Success();
           }
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
@@ -645,6 +669,7 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
             }
           };
           output->boolean = to_double(a) > to_double(b);
+          return Success();
         });
     A = nullptr;
     B = nullptr;
@@ -668,7 +693,7 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
         [](const Value& a, const Value& b, Value* output) {
           if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {
             output->boolean = a.integer >= b.integer;
-            return;
+            return Success();
           }
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
@@ -681,6 +706,7 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
             }
           };
           output->boolean = to_double(a) >= to_double(b);
+          return Success();
         });
     A = nullptr;
     B = nullptr;
@@ -712,9 +738,9 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
   OUT = NewBinaryExpression(
             compilation, std::unique_ptr<Expression>(A),
             std::unique_ptr<Expression>(B),
-            [](wstring a, wstring b) { return a + b; },
-            [](int a, int b) { return a + b; },
-            [](double a, double b) { return a + b; },
+            [](wstring a, wstring b) { return Success(a + b); },
+            [](int a, int b) { return Success(a + b); },
+            [](double a, double b) { return Success(a + b); },
             nullptr).release();
   A = nullptr;
   B = nullptr;
@@ -725,8 +751,8 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
   OUT = NewBinaryExpression(
             compilation, std::unique_ptr<Expression>(A),
             std::unique_ptr<Expression>(B), nullptr,
-            [](int a, int b) { return a - b; },
-            [](double a, double b) { return a - b; },
+            [](int a, int b) { return Success(a - b); },
+            [](double a, double b) { return Success(a - b); },
             nullptr).release();
   A = nullptr;
   B = nullptr;
@@ -758,14 +784,22 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
   OUT = NewBinaryExpression(
             compilation, std::unique_ptr<Expression>(A),
             std::unique_ptr<Expression>(B), nullptr,
-            [](int a, int b) { return a * b; },
-            [](double a, double b) { return a * b; },
-            [](wstring a, int b) {
+            [](int a, int b) { return Success(a * b); },
+            [](double a, double b) { return Success(a * b); },
+            [](wstring a, int b) -> afc::editor::ValueOrError<wstring> {
               wstring output;
               for(int i = 0; i < b; i++) {
-                output += a;
+                try {
+                  output += a;
+                } catch (const std::bad_alloc& e) {
+                  output = L"";
+                  return Error(L"Bad Alloc");
+                } catch (const std::length_error& e) {
+                  output = L"";
+                  return Error(L"Length Error");
+                }
               }
-              return output;
+              return Success(output);
             }).release();
   A = nullptr;
   B = nullptr;
@@ -775,8 +809,12 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
   OUT = NewBinaryExpression(
             compilation, std::unique_ptr<Expression>(A),
             std::unique_ptr<Expression>(B), nullptr,
-            [](int a, int b) { return a / b; },
-            [](double a, double b) { return a / b; },
+            [](int a, int b) {
+              return b == 0 ? Error(L"Division by zero") : Success(a / b);
+            },
+            [](double a, double b) {
+              return b == 0 ? Error(L"Division by zero") : Success(a / b);
+            },
             nullptr).release();
   A = nullptr;
   B = nullptr;

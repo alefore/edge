@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "../../value_or_error.h"
 #include "../public/vm.h"
 
 namespace afc {
@@ -15,9 +16,10 @@ class Compilation;
 
 class BinaryOperator : public Expression {
  public:
-  BinaryOperator(unique_ptr<Expression> a, unique_ptr<Expression> b,
-                 const VMType type,
-                 function<void(const Value&, const Value&, Value*)> callback);
+  BinaryOperator(
+      unique_ptr<Expression> a, unique_ptr<Expression> b, const VMType type,
+      function<afc::editor::PossibleError(const Value&, const Value&, Value*)>
+          callback);
 
   std::vector<VMType> Types() override;
   std::unordered_set<VMType> ReturnTypes() const override;
@@ -31,7 +33,8 @@ class BinaryOperator : public Expression {
   const std::shared_ptr<Expression> a_;
   const std::shared_ptr<Expression> b_;
   VMType type_;
-  std::function<void(const Value&, const Value&, Value*)> operator_;
+  std::function<afc::editor::PossibleError(const Value&, const Value&, Value*)>
+      operator_;
 };
 
 // A convenience wrapper of BinaryOperator that combines primitive types
@@ -39,10 +42,13 @@ class BinaryOperator : public Expression {
 std::unique_ptr<Expression> NewBinaryExpression(
     Compilation* compilation, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b,
-    std::function<wstring(wstring, wstring)> str_operator,
-    std::function<int(int, int)> int_operator,
-    std::function<double(double, double)> double_operator,
-    std::function<wstring(wstring, int)> str_int_operator);
+    std::function<afc::editor::ValueOrError<wstring>(wstring, wstring)>
+        str_operator,
+    std::function<afc::editor::ValueOrError<int>(int, int)> int_operator,
+    std::function<afc::editor::ValueOrError<double>(double, double)>
+        double_operator,
+    std::function<afc::editor::ValueOrError<wstring>(wstring, int)>
+        str_int_operator);
 
 }  // namespace vm
 }  // namespace afc

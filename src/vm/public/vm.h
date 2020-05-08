@@ -92,7 +92,7 @@ class Expression {
 };
 
 struct EvaluationOutput {
-  enum class OutputType { kReturn, kContinue };
+  enum class OutputType { kReturn, kContinue, kAbort };
 
   static EvaluationOutput New(std::unique_ptr<Value> value) {
     EvaluationOutput output;
@@ -105,8 +105,15 @@ struct EvaluationOutput {
     output.type = OutputType::kReturn;
     return output;
   }
+  static EvaluationOutput Abort(afc::editor::Error error) {
+    EvaluationOutput output;
+    output.error = std::move(error);
+    output.type = OutputType::kAbort;
+    return output;
+  }
 
   std::unique_ptr<Value> value;
+  std::optional<afc::editor::Error> error;
   OutputType type = OutputType::kContinue;
 };
 

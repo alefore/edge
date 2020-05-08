@@ -33,17 +33,23 @@ class AssignExpression : public Expression {
         trampoline->Bounce(value_.get(), type),
         [trampoline, symbol = symbol_,
          assignment_type = assignment_type_](EvaluationOutput value_output) {
-          DVLOG(3) << "Setting value for: " << symbol;
-          DVLOG(4) << "Value: " << *value_output.value;
-          if (assignment_type == AssignmentType::kDefine) {
-            trampoline->environment()->Define(symbol,
-                                              std::move(value_output.value));
-          } else {
-            trampoline->environment()->Assign(symbol,
-                                              std::move(value_output.value));
+          switch (value_output.type) {
+            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::kAbort:
+              return value_output;
+            case EvaluationOutput::OutputType::kContinue:
+              DVLOG(3) << "Setting value for: " << symbol;
+              DVLOG(4) << "Value: " << *value_output.value;
+              auto copy = std::make_unique<Value>(*value_output.value);
+              if (assignment_type == AssignmentType::kDefine) {
+                trampoline->environment()->Define(symbol, std::move(copy));
+              } else {
+                trampoline->environment()->Assign(symbol, std::move(copy));
+              }
+              return EvaluationOutput::New(std::move(value_output.value));
           }
-          // TODO: This seems wrong: shouldn't it be `value`?
-          return EvaluationOutput::New(Value::NewVoid());
+          LOG(FATAL) << "Unhandled case.";
+          return EvaluationOutput::Abort(afc::editor::Error(L"Unhandled case"));
         });
   }
 

@@ -47,24 +47,35 @@ class WhileExpression : public Expression {
     trampoline->Bounce(condition.get(), VMType::Bool())
         .SetConsumer([condition, body, consumer,
                       trampoline](EvaluationOutput condition_output) {
-          CHECK(condition_output.value->IsBool());
-          if (!condition_output.value->boolean) {
-            DVLOG(3) << "Iteration is done.";
-            consumer(EvaluationOutput::New(Value::NewVoid()));
-            return;
-          }
+          switch (condition_output.type) {
+            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::kAbort:
+              consumer(std::move(condition_output));
+              return;
 
-          DVLOG(5) << "Iterating...";
-          trampoline->Bounce(body.get(), body->Types()[0])
-              .SetConsumer([condition, body, consumer,
-                            trampoline](EvaluationOutput body_output) {
-                if (body_output.type == EvaluationOutput::OutputType::kReturn) {
-                  consumer(std::move(body_output));
-                } else {
-                  Iterate(trampoline, std::move(condition), std::move(body),
-                          std::move(consumer));
-                }
-              });
+            case EvaluationOutput::OutputType::kContinue:
+              CHECK(condition_output.value->IsBool());
+              if (!condition_output.value->boolean) {
+                DVLOG(3) << "Iteration is done.";
+                consumer(EvaluationOutput::New(Value::NewVoid()));
+                return;
+              }
+
+              DVLOG(5) << "Iterating...";
+              trampoline->Bounce(body.get(), body->Types()[0])
+                  .SetConsumer([condition, body, consumer,
+                                trampoline](EvaluationOutput body_output) {
+                    switch (body_output.type) {
+                      case EvaluationOutput::OutputType::kReturn:
+                      case EvaluationOutput::OutputType::kAbort:
+                        consumer(std::move(body_output));
+                        break;
+                      case EvaluationOutput::OutputType::kContinue:
+                        Iterate(trampoline, std::move(condition),
+                                std::move(body), std::move(consumer));
+                    }
+                  });
+          }
         });
   }
 

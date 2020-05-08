@@ -25,14 +25,22 @@ class LogicalExpression : public Expression {
 
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) override {
-    return futures::Transform(trampoline->Bounce(expr_a_.get(), VMType::Bool()),
-                              [type, trampoline, identity = identity_,
-                               expr_b = expr_b_](EvaluationOutput a_output) {
-                                return a_output.value->boolean == identity
-                                           ? trampoline->Bounce(expr_b.get(),
-                                                                type)
-                                           : futures::Past(std::move(a_output));
-                              });
+    return futures::Transform(
+        trampoline->Bounce(expr_a_.get(), VMType::Bool()),
+        [type, trampoline, identity = identity_,
+         expr_b = expr_b_](EvaluationOutput a_output) {
+          switch (a_output.type) {
+            case EvaluationOutput::OutputType::kAbort:
+            case EvaluationOutput::OutputType::kReturn:
+              return futures::Past(std::move(a_output));
+            case EvaluationOutput::OutputType::kContinue:
+              return a_output.value->boolean == identity
+                         ? trampoline->Bounce(expr_b.get(), type)
+                         : futures::Past(std::move(a_output));
+          }
+          LOG(FATAL) << "Unhandled case.";
+          return futures::Past(std::move(a_output));
+        });
   }
 
   std::unique_ptr<Expression> Clone() override {

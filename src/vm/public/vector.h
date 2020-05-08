@@ -35,6 +35,7 @@ namespace vm {
 template <typename T>
 struct VMTypeMapper<std::vector<T>*> {
   static std::vector<T>* get(Value* value) {
+    CHECK_EQ(value->type, vmtype);
     return static_cast<std::vector<T>*>(value->user_value.get());
   }
 
@@ -45,13 +46,11 @@ struct VMTypeMapper<std::vector<T>*> {
 
     auto name = vmtype.object_type;
     environment->Define(
-        name, Value::NewFunction({VMType::ObjectType(vector_type.get())},
-                                 [name](std::vector<Value::Ptr> args) {
-                                   CHECK(args.empty());
-                                   return Value::NewObject(
-                                       name,
-                                       std::make_shared<std::vector<T>>());
-                                 }));
+        name,
+        Value::NewFunction({vmtype}, [name](std::vector<Value::Ptr> args) {
+          CHECK(args.empty());
+          return Value::NewObject(name, std::make_shared<std::vector<T>>());
+        }));
 
     vector_type->AddField(L"empty", vm::NewCallback([](std::vector<T>* v) {
                             return v->empty();
@@ -59,10 +58,22 @@ struct VMTypeMapper<std::vector<T>*> {
     vector_type->AddField(L"size", vm::NewCallback([](std::vector<T>* v) {
                             return static_cast<int>(v->size());
                           }));
-    vector_type->AddField(L"get", vm::NewCallback([](std::vector<T>* v, int i) {
-                            CHECK_LT(static_cast<size_t>(i), v->size());
-                            return v->at(i);
-                          }));
+    vector_type->AddField(
+        L"get",
+        Value::NewFunction(
+            {VMTypeMapper<T>::vmtype, vmtype, VMType::Integer()},
+            [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
+              CHECK_EQ(args.size(), 2ul);
+              auto* v = get(args[0].get());
+              CHECK(args[1]->IsInteger());
+              int index = args[1]->integer;
+              if (index < 1 || static_cast<size_t>(index) >= v->size()) {
+                return futures::Past(EvaluationOutput::Abort(
+                    afc::editor::Error(L"Index out of range.")));
+              }
+              return futures::Past(
+                  EvaluationOutput::New(VMTypeMapper<T>::New(v->at(index))));
+            }));
     vector_type->AddField(L"erase",
                           vm::NewCallback([](std::vector<T>* v, int i) {
                             v->erase(v->begin() + i);

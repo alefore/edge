@@ -38,9 +38,19 @@ class IfExpression : public Expression {
         trampoline->Bounce(cond_.get(), VMType::Bool()),
         [type, true_case = true_case_, false_case = false_case_,
          trampoline](EvaluationOutput cond_output) {
-          return trampoline->Bounce(
-              cond_output.value->boolean ? true_case.get() : false_case.get(),
-              type);
+          switch (cond_output.type) {
+            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::kAbort:
+              return futures::Past(std::move(cond_output));
+            case EvaluationOutput::OutputType::kContinue:
+              return trampoline->Bounce(cond_output.value->boolean
+                                            ? true_case.get()
+                                            : false_case.get(),
+                                        type);
+          }
+          auto error = afc::editor::Error(L"Unhandled OutputType case.");
+          LOG(FATAL) << error;
+          return futures::Past(EvaluationOutput::Abort(error));
         });
   }
 

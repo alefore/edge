@@ -27,9 +27,14 @@ class AppendExpression : public Expression {
     return futures::Transform(
         trampoline->Bounce(e0_.get(), e0_->Types()[0]),
         [trampoline, e1 = e1_](EvaluationOutput e0_output) {
-          return e0_output.type == EvaluationOutput::OutputType::kReturn
-                     ? futures::Past(std::move(e0_output))
-                     : trampoline->Bounce(e1.get(), e1->Types()[0]);
+          switch (e0_output.type) {
+            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::kAbort:
+              return futures::Past(std::move(e0_output));
+            case EvaluationOutput::OutputType::kContinue:
+              CHECK(e0_output.value != nullptr);
+              return trampoline->Bounce(e1.get(), e1->Types()[0]);
+          }
         });
   }
 

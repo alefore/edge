@@ -2,15 +2,20 @@
 
 #include <glog/logging.h>
 
+#include "../../value_or_error.h"
 #include "../public/value.h"
 #include "src/vm/internal/compilation.h"
 
 namespace afc {
 namespace vm {
 
+using afc::editor::PossibleError;
+using afc::editor::Success;
+using afc::editor::ValueOrError;
+
 BinaryOperator::BinaryOperator(
     unique_ptr<Expression> a, unique_ptr<Expression> b, const VMType type,
-    function<void(const Value&, const Value&, Value*)> callback)
+    function<PossibleError(const Value&, const Value&, Value*)> callback)
     : a_(std::move(a)), b_(std::move(b)), type_(type), operator_(callback) {
   CHECK(a_ != nullptr);
   CHECK(b_ != nullptr);
@@ -31,13 +36,19 @@ futures::Value<EvaluationOutput> BinaryOperator::Evaluate(
       trampoline->Bounce(a_.get(), a_->Types()[0]),
       [b = b_, type = type_, op = operator_,
        trampoline](EvaluationOutput a_value) {
+        if (a_value.type == EvaluationOutput::OutputType::kAbort)
+          return futures::Past(std::move(a_value));
         return futures::Transform(
             trampoline->Bounce(b.get(), b->Types()[0]),
             [a_value = std::make_shared<Value>(std::move(*a_value.value)), type,
              op](EvaluationOutput b_value) {
+              if (b_value.type == EvaluationOutput::OutputType::kAbort)
+                return b_value;
               auto output = std::make_unique<Value>(type);
-              op(*a_value, *b_value.value, output.get());
-              return EvaluationOutput::New(std::move(output));
+              auto result = op(*a_value, *b_value.value, output.get());
+              return result.IsError()
+                         ? EvaluationOutput::Abort(result.error())
+                         : EvaluationOutput::New(std::move(output));
             });
       });
 }
@@ -50,10 +61,10 @@ std::unique_ptr<Expression> BinaryOperator::Clone() {
 std::unique_ptr<Expression> NewBinaryExpression(
     Compilation* compilation, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b,
-    std::function<wstring(wstring, wstring)> str_operator,
-    std::function<int(int, int)> int_operator,
-    std::function<double(double, double)> double_operator,
-    std::function<wstring(wstring, int)> str_int_operator) {
+    std::function<ValueOrError<wstring>(wstring, wstring)> str_operator,
+    std::function<ValueOrError<int>(int, int)> int_operator,
+    std::function<ValueOrError<double>(double, double)> double_operator,
+    std::function<ValueOrError<wstring>(wstring, int)> str_int_operator) {
   if (a == nullptr || b == nullptr) {
     return nullptr;
   }
@@ -62,8 +73,11 @@ std::unique_ptr<Expression> NewBinaryExpression(
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::String(),
         [str_operator](const Value& value_a, const Value& value_b,
-                       Value* output) {
-          output->str = str_operator(value_a.str, value_b.str);
+                       Value* output) -> PossibleError {
+          auto result = str_operator(value_a.str, value_b.str);
+          if (result.IsError()) return result.error();
+          output->str = std::move(result.value());
+          return Success();
         });
   }
 
@@ -71,8 +85,11 @@ std::unique_ptr<Expression> NewBinaryExpression(
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::Integer(),
         [int_operator](const Value& value_a, const Value& value_b,
-                       Value* output) {
-          output->integer = int_operator(value_a.integer, value_b.integer);
+                       Value* output) -> PossibleError {
+          auto result = int_operator(value_a.integer, value_b.integer);
+          if (result.IsError()) return result.error();
+          output->integer = std::move(result.value());
+          return Success();
         });
   }
 
@@ -80,7 +97,8 @@ std::unique_ptr<Expression> NewBinaryExpression(
       (b->IsInteger() || b->IsDouble())) {
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::Double(),
-        [double_operator](const Value& a, const Value& b, Value* output) {
+        [double_operator](const Value& a, const Value& b,
+                          Value* output) -> PossibleError {
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
               return static_cast<double>(x.integer);
@@ -91,7 +109,10 @@ std::unique_ptr<Expression> NewBinaryExpression(
               return 0.0;  // Silence warning: no return.
             }
           };
-          output->double_value = double_operator(to_double(a), to_double(b));
+          auto result = double_operator(to_double(a), to_double(b));
+          if (result.IsError()) return result.error();
+          output->double_value = result.value();
+          return Success();
         });
   }
 
@@ -99,8 +120,11 @@ std::unique_ptr<Expression> NewBinaryExpression(
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::String(),
         [str_int_operator](const Value& value_a, const Value& value_b,
-                           Value* output) {
-          output->str = str_int_operator(value_a.str, value_b.integer);
+                           Value* output) -> PossibleError {
+          auto result = str_int_operator(value_a.str, value_b.integer);
+          if (result.IsError()) return result.error();
+          output->str = std::move(result.value());
+          return Success();
         });
   }
 

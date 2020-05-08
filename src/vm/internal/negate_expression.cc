@@ -25,6 +25,8 @@ class NegateExpression : public Expression {
     return futures::Transform(
         trampoline->Bounce(expr_.get(), expr_->Types()[0]),
         [negate = negate_](EvaluationOutput expr_output) {
+          if (expr_output.type == EvaluationOutput::OutputType::kAbort)
+            return expr_output;
           CHECK(expr_output.value != nullptr);
           negate(expr_output.value.get());
           return EvaluationOutput::New(std::move(expr_output.value));
