@@ -1,7 +1,14 @@
 #ifndef __AFC_EDITOR_AUDIO_H__
 #define __AFC_EDITOR_AUDIO_H__
 
+// clang-format off
+#include "config.h"
+// clang-format on
+
+#if HAVE_LIBAO
 #include <ao/ao.h>
+#endif
+
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -13,9 +20,7 @@
 #include <thread>
 #include <vector>
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 class AudioPlayer {
  public:
   enum GeneratorContinuation { STOP, CONTINUE };
@@ -50,7 +55,6 @@ AudioPlayer::Generator Volume(double volume, AudioPlayer::Generator generator);
 AudioPlayer::Generator Expiration(double expiration,
                                   AudioPlayer::Generator delegate);
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_AUDIO_H__

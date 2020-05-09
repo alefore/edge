@@ -2,10 +2,10 @@
 
 #include <glog/logging.h>
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 namespace {
+#if HAVE_LIBAO
 class Frame {
  public:
   Frame(int size)
@@ -138,6 +138,7 @@ class AudioPlayerImpl : public AudioPlayer {
   bool shutting_down_ = false;
   std::thread background_thread_;
 };
+#endif
 
 class NullAudioPlayer : public AudioPlayer {
   class NullLock : public AudioPlayer::Lock {
@@ -156,6 +157,7 @@ std::unique_ptr<AudioPlayer> NewNullAudioPlayer() {
 }
 
 std::unique_ptr<AudioPlayer> NewAudioPlayer() {
+#if HAVE_LIBAO
   ao_initialize();
   ao_sample_format format;
   memset(&format, 0, sizeof(format));
@@ -170,6 +172,9 @@ std::unique_ptr<AudioPlayer> NewAudioPlayer() {
     return NewNullAudioPlayer();
   }
   return std::make_unique<AudioPlayerImpl>(device, format);
+#else
+  return NewNullAudioPlayer();
+#endif
 }
 
 AudioPlayer::Generator Smooth(double weight, int end_interval_samples,
@@ -266,5 +271,4 @@ AudioPlayer::Generator Expiration(double expiration,
   };
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
