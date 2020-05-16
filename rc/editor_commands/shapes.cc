@@ -459,11 +459,13 @@ void ShapesAddSquareInPositions(Buffer buffer, LineColumn a, LineColumn b) {
   DrawLineColumns(buffer, output_right, output_down, "");
 }
 
-void ShapesAddSquare(Buffer buffer) {
-  LineColumn position = buffer.position();
-  ShapesAddSquareInPositions(buffer, position, source);
-  buffer.ApplyTransformation(SetPositionTransformation(position));
-  source = position;
+void ShapesSquare() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    LineColumn position = buffer.position();
+    ShapesAddSquareInPositions(buffer, position, source);
+    buffer.ApplyTransformation(SetPositionTransformation(position));
+    source = position;
+  });
 }
 
 bool IsActualContent(Buffer buffer, string c) {
@@ -520,35 +522,37 @@ string BuildPadding(int size, string c) {
   return output;
 }
 
-void ShapesSquareCenter(Buffer buffer) {
-  LineColumn a = buffer.position();
-  LineColumn b = source;
-  int border_delta = 1;
-  LineColumn start = LineColumn(min(a.line(), b.line()) + border_delta,
-                                min(a.column(), b.column()) + border_delta);
-  LineColumn end = LineColumn(max(a.line(), b.line()) - border_delta,
-                              max(a.column(), b.column()) - border_delta);
-  if (start.line() > end.line() || start.column() > end.column()) {
-    ShapesSetStatus("Square is too small.");
-    return;
-  }
-  int width = end.column() - start.column() + 1;
-  VectorString contents =
-      ShapesReflow(BreakWords(GetSquareContents(buffer, start, end)), width);
-  int start_contents = (end.line() - start.line() + 1 - contents.size()) / 2;
-  for (int i = 0; start.line() + i <= end.line(); i++) {
-    string input = "";
-    if (i >= start_contents && i - start_contents < contents.size()) {
-      input = contents.get(i - start_contents);
-      int padding = (width - input.size()) / 2;
-      input = BuildPadding(padding, " ") + input +
-              BuildPadding(width - padding - input.size(), " ");
-    } else {
-      input = BuildPadding(width, " ");
+void ShapesSquareCenter() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    LineColumn a = buffer.position();
+    LineColumn b = source;
+    int border_delta = 1;
+    LineColumn start = LineColumn(min(a.line(), b.line()) + border_delta,
+                                  min(a.column(), b.column()) + border_delta);
+    LineColumn end = LineColumn(max(a.line(), b.line()) - border_delta,
+                                max(a.column(), b.column()) - border_delta);
+    if (start.line() > end.line() || start.column() > end.column()) {
+      ShapesSetStatus("Square is too small.");
+      return;
     }
-    DrawPosition(buffer, LineColumn(start.line() + i, start.column()), input);
-  }
-  buffer.ApplyTransformation(SetPositionTransformation(a));
+    int width = end.column() - start.column() + 1;
+    VectorString contents =
+        ShapesReflow(BreakWords(GetSquareContents(buffer, start, end)), width);
+    int start_contents = (end.line() - start.line() + 1 - contents.size()) / 2;
+    for (int i = 0; start.line() + i <= end.line(); i++) {
+      string input = "";
+      if (i >= start_contents && i - start_contents < contents.size()) {
+        input = contents.get(i - start_contents);
+        int padding = (width - input.size()) / 2;
+        input = BuildPadding(padding, " ") + input +
+                BuildPadding(width - padding - input.size(), " ");
+      } else {
+        input = BuildPadding(width, " ");
+      }
+      DrawPosition(buffer, LineColumn(start.line() + i, start.column()), input);
+    }
+    buffer.ApplyTransformation(SetPositionTransformation(a));
+  });
 }
 
 void ShapesAddLineToPosition(Buffer buffer, LineColumn a, LineColumn b) {
@@ -558,11 +562,14 @@ void ShapesAddLineToPosition(Buffer buffer, LineColumn a, LineColumn b) {
   DrawLineColumns(buffer, output_right, output_down, "");
 }
 
-void ShapesAddLine(Buffer buffer) {
-  LineColumn position = buffer.position();
-  ShapesAddLineToPosition(buffer, position, source);
-  buffer.ApplyTransformation(SetPositionTransformation(position));
-  source = position;
+// Draws a line.
+void ShapesLine() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    LineColumn position = buffer.position();
+    ShapesAddLineToPosition(buffer, position, source);
+    buffer.ApplyTransformation(SetPositionTransformation(position));
+    source = position;
+  });
 }
 
 void ShapesAddBezier(Buffer buffer) {
@@ -587,14 +594,16 @@ void ShapesToggleDeleteMode() {
   ShapesSetStatus(delete_mode ? "Delete" : "Insert");
 }
 
-void ShapesToggleBoldMode() {
+void ShapesBold() {
   bold_mode = !bold_mode;
   ShapesSetStatus(bold_mode ? "Bold" : "Normal");
 }
 
-void ShapesSet(Buffer buffer) {
-  ShapesSetStatus("Set source position.");
-  source = buffer.position();
+void ShapesSource() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    source = buffer.position();
+    ShapesSetStatus("Source position: " + source.tostring());
+  });
 }
 
 void ShapesPushBezierPoint(Buffer buffer) {
@@ -804,16 +813,12 @@ void ShapesDrawDiagram(Buffer buffer) {
   DiagramDrawEdges(buffer, lines, start, nouns, column_width, row_width);
 }
 
-AddBinding("Sl", "shapes: line: draw",
-           []() -> void { editor.ForEachActiveBuffer(ShapesAddLine); });
-AddBinding("Sq", "shapes: square: draw",
-           []() -> void { editor.ForEachActiveBuffer(ShapesAddSquare); });
-AddBinding("Sc", "shapes: square: center contents",
-           []() -> void { editor.ForEachActiveBuffer(ShapesSquareCenter); });
+AddBinding("Sl", "shapes: line: draw", ShapesLine);
+AddBinding("Sq", "shapes: square: draw", ShapesSquare);
+AddBinding("Sc", "shapes: square: center contents", ShapesSquareCenter);
 AddBinding("Sd", "shapes: delete_mode = !delete_mode", ShapesToggleDeleteMode);
-AddBinding("S=", "shapes: set source",
-           []() -> void { editor.ForEachActiveBuffer(ShapesSet); });
-AddBinding("Sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
+AddBinding("S=", "shapes: set source", ShapesSource);
+AddBinding("Sb", "shapes: bold_mode = !bold_mode", ShapesBold);
 AddBinding("SB", "shapes: bezier: draw",
            []() -> void { editor.ForEachActiveBuffer(ShapesAddBezier); });
 AddBinding("SM", "shapes: bezier: set middle point",
