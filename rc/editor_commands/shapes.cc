@@ -15,7 +15,7 @@ void ShapesSetStatus(string description) {
   SetStatus("Shapes: " + description);
 }
 
-void PadToLineColumn(LineColumn position) {
+void PadToLineColumn(Buffer buffer, LineColumn position) {
   buffer.ApplyTransformation(SetPositionTransformation(position));
   if (buffer.line_count() <= position.line()) {
     buffer.ApplyTransformation(
@@ -32,10 +32,10 @@ void PadToLineColumn(LineColumn position) {
                                  .build());
 }
 
-void DrawPosition(LineColumn position, string text) {
+void DrawPosition(Buffer buffer, LineColumn position, string text) {
   if (text.empty()) return;
   string line = buffer.line(position.line());
-  PadToLineColumn(position);
+  PadToLineColumn(buffer, position);
   if (line.size() > position.column()) {
     buffer.ApplyTransformation(
         DeleteTransformationBuilder()
@@ -361,7 +361,7 @@ bool IsMovingDownBold(string c) {
   return ("╋╉╊╈╆╅╂╁┫┣┳┨┠┪┱┢┲┧┟┰┃┓┏╽┒┎").find(c, 0) != -1;
 }
 
-void DrawLineColumns(SetLineColumn line_column_right,
+void DrawLineColumns(Buffer buffer, SetLineColumn line_column_right,
                      SetLineColumn line_column_down, string code) {
   buffer.PushTransformationStack();
   SetLineColumn line_columns = SetLineColumn();
@@ -434,7 +434,7 @@ void DrawLineColumns(SetLineColumn line_column_right,
       current_code = GetCode(up, down, left, right, up_bold, down_bold,
                              left_bold, right_bold);
     }
-    DrawPosition(line_columns.get(i), current_code);
+    DrawPosition(buffer, line_columns.get(i), current_code);
   }
   buffer.PopTransformationStack();
 }
@@ -452,48 +452,51 @@ void FindBoundariesSquare(LineColumn start, LineColumn end,
                      output_down);
 }
 
-void ShapesAddSquareInPositions(LineColumn a, LineColumn b) {
+void ShapesAddSquareInPositions(Buffer buffer, LineColumn a, LineColumn b) {
   SetLineColumn output_right = SetLineColumn();
   SetLineColumn output_down = SetLineColumn();
   FindBoundariesSquare(a, b, output_right, output_down);
-  DrawLineColumns(output_right, output_down, "");
+  DrawLineColumns(buffer, output_right, output_down, "");
 }
 
-void ShapesAddSquare() {
+void ShapesAddSquare(Buffer buffer) {
   LineColumn position = buffer.position();
-  ShapesAddSquareInPositions(position, source);
+  ShapesAddSquareInPositions(buffer, position, source);
   buffer.ApplyTransformation(SetPositionTransformation(position));
   source = position;
 }
 
-bool IsActualContent(string c) {
+bool IsActualContent(Buffer buffer, string c) {
   string additional = "()";
   return buffer.symbol_characters().find(c, 0) != -1 ||
          additional.find(c, 0) != -1;
 }
 
-string TrimLine(string line) {
+string TrimLine(Buffer buffer, string line) {
   int start = 0;
-  while (start < line.size() && !IsActualContent(line.substr(start, 1))) {
+  while (start < line.size() &&
+         !IsActualContent(buffer, line.substr(start, 1))) {
     start++;
   }
   if (start == line.size()) {
     return "";
   }
   int end = line.size() - 1;
-  while (end > start && !IsActualContent(line.substr(end, 1))) {
+  while (end > start && !IsActualContent(buffer, line.substr(end, 1))) {
     end = end - 1;
   }
   return line.substr(start, end - start + 1);
 }
 
-string GetSquareContents(LineColumn start, LineColumn end) {
+string GetSquareContents(Buffer buffer, LineColumn start, LineColumn end) {
   string output = "";
   while (start.line() <= end.line() && start.line() < buffer.line_count()) {
     string line = buffer.line(start.line());
     if (line.size() > start.column()) {
-      string part = TrimLine(line.substr(
-          start.column(), min(end.column() + 1, line.size()) - start.column()));
+      string part = TrimLine(
+          buffer,
+          line.substr(start.column(),
+                      min(end.column() + 1, line.size()) - start.column()));
       output = output + (!output.empty() && !part.empty() ? " " : "") + part;
     }
     start = LineColumn(start.line() + 1, start.column());
@@ -517,7 +520,7 @@ string BuildPadding(int size, string c) {
   return output;
 }
 
-void ShapesSquareCenter() {
+void ShapesSquareCenter(Buffer buffer) {
   LineColumn a = buffer.position();
   LineColumn b = source;
   int border_delta = 1;
@@ -531,7 +534,7 @@ void ShapesSquareCenter() {
   }
   int width = end.column() - start.column() + 1;
   VectorString contents =
-      ShapesReflow(BreakWords(GetSquareContents(start, end)), width);
+      ShapesReflow(BreakWords(GetSquareContents(buffer, start, end)), width);
   int start_contents = (end.line() - start.line() + 1 - contents.size()) / 2;
   for (int i = 0; start.line() + i <= end.line(); i++) {
     string input = "";
@@ -543,26 +546,26 @@ void ShapesSquareCenter() {
     } else {
       input = BuildPadding(width, " ");
     }
-    DrawPosition(LineColumn(start.line() + i, start.column()), input);
+    DrawPosition(buffer, LineColumn(start.line() + i, start.column()), input);
   }
   buffer.ApplyTransformation(SetPositionTransformation(a));
 }
 
-void ShapesAddLineToPosition(LineColumn a, LineColumn b) {
+void ShapesAddLineToPosition(Buffer buffer, LineColumn a, LineColumn b) {
   SetLineColumn output_right = SetLineColumn();
   SetLineColumn output_down = SetLineColumn();
   FindBoundariesLine(a, b, output_right, output_down);
-  DrawLineColumns(output_right, output_down, "");
+  DrawLineColumns(buffer, output_right, output_down, "");
 }
 
-void ShapesAddLine() {
+void ShapesAddLine(Buffer buffer) {
   LineColumn position = buffer.position();
-  ShapesAddLineToPosition(position, source);
+  ShapesAddLineToPosition(buffer, position, source);
   buffer.ApplyTransformation(SetPositionTransformation(position));
   source = position;
 }
 
-void ShapesAddBezier() {
+void ShapesAddBezier(Buffer buffer) {
   auto position = buffer.position();
   SetLineColumn output_right = SetLineColumn();
   SetLineColumn output_down = SetLineColumn();
@@ -573,7 +576,7 @@ void ShapesAddBezier() {
   }
   points.push_back(position);
   FindBoundariesBezier(points, output_right, output_down);
-  DrawLineColumns(output_right, output_down, "");
+  DrawLineColumns(buffer, output_right, output_down, "");
   buffer.ApplyTransformation(SetPositionTransformation(position));
   source = position;
   bezier_points = VectorLineColumn();
@@ -589,17 +592,17 @@ void ShapesToggleBoldMode() {
   ShapesSetStatus(bold_mode ? "Bold" : "Normal");
 }
 
-void ShapesSet() {
+void ShapesSet(Buffer buffer) {
   ShapesSetStatus("Set source position.");
   source = buffer.position();
 }
 
-void ShapesPushBezierPoint() {
+void ShapesPushBezierPoint(Buffer buffer) {
   bezier_points.push_back(buffer.position());
   ShapesSetStatus("Add Bezier point (" + bezier_points.size().tostring() + ")");
 }
 
-int GetDiagramInputLinesCount() {
+int GetDiagramInputLinesCount(Buffer buffer) {
   for (int i = 0; i < buffer.line_count(); i++) {
     if (SkipSpaces(buffer.line(i + 1)) == "") {
       return i;
@@ -608,7 +611,7 @@ int GetDiagramInputLinesCount() {
   return i;
 }
 
-VectorString GetDiagramNouns(int lines) {
+VectorString GetDiagramNouns(Buffer buffer, int lines) {
   // Use a set to eliminate repetitions.
   SetString nouns = SetString();
   for (int i = 0; i < lines; i++) {
@@ -635,7 +638,8 @@ VectorString GetDiagramNouns(int lines) {
   return output;
 }
 
-VectorInt DiagramGetEdges(int lines, string a, VectorString nouns) {
+VectorInt DiagramGetEdges(Buffer buffer, int lines, string a,
+                          VectorString nouns) {
   string source = "";
   SetString edges = SetString();
   for (int i = 0; i < lines; i++) {
@@ -711,7 +715,7 @@ LineColumn DiagramPositionForNoun(int start, int i, int column_width,
   return LineColumn(start + (row * lines_per_noun), column_width * column);
 }
 
-void DiagramDrawEdge(int start, VectorString nouns, int i, int j,
+void DiagramDrawEdge(Buffer buffer, int start, VectorString nouns, int i, int j,
                      int column_width, int lines_per_noun) {
   LineColumn position_i =
       DiagramPositionForNoun(start, i, column_width, lines_per_noun);
@@ -722,6 +726,7 @@ void DiagramDrawEdge(int start, VectorString nouns, int i, int j,
   VectorString noun_lines_j = NounLines(nouns.get(j));
 
   ShapesAddLineToPosition(
+      buffer,
       LineColumn(
           position_i.line() + (position_i.line() >= position_j.line()
                                    ? 0
@@ -739,19 +744,19 @@ void DiagramDrawEdge(int start, VectorString nouns, int i, int j,
                                      : NounWidth(noun_lines_j))));
 }
 
-void DiagramDrawEdges(int lines, int start, VectorString nouns,
+void DiagramDrawEdges(Buffer buffer, int lines, int start, VectorString nouns,
                       int column_width, int lines_per_noun) {
   for (int i = 0; i < nouns.size(); i++) {
-    VectorInt edges = DiagramGetEdges(lines, nouns.get(i), nouns);
+    VectorInt edges = DiagramGetEdges(buffer, lines, nouns.get(i), nouns);
     for (int j = 0; j < edges.size(); j++) {
       SetStatus("Connected: " + nouns.get(i) + "->" + nouns.get(j));
-      DiagramDrawEdge(start, nouns, i, edges.get(j), column_width,
+      DiagramDrawEdge(buffer, start, nouns, i, edges.get(j), column_width,
                       lines_per_noun);
     }
   }
 }
 
-void DrawNouns(int start, VectorString nouns, int column_width,
+void DrawNouns(Buffer buffer, int start, VectorString nouns, int column_width,
                int lines_per_noun) {
   int columns = 3;
 
@@ -767,13 +772,13 @@ void DrawNouns(int start, VectorString nouns, int column_width,
     for (int line = 0; line < noun_lines.size(); line++) {
       LineColumn position = LineColumn(base_position.line() + line + 1,
                                        base_position.column() + 1);
-      PadToLineColumn(position);
+      PadToLineColumn(buffer, position);
       buffer.ApplyTransformation(
           InsertTransformationBuilder().set_text(noun_lines.get(line)).build());
     }
 
     ShapesAddSquareInPositions(
-        base_position,
+        buffer, base_position,
         LineColumn(base_position.line() + noun_lines.size() + 1,
                    base_position.column() + NounWidth(noun_lines) + 2));
 
@@ -785,9 +790,9 @@ void DrawNouns(int start, VectorString nouns, int column_width,
   }
 }
 
-void ShapesDrawDiagramInner() {
-  int lines = GetDiagramInputLinesCount();
-  VectorString nouns = GetDiagramNouns(lines);
+void ShapesDrawDiagram(Buffer buffer) {
+  int lines = GetDiagramInputLinesCount(buffer);
+  VectorString nouns = GetDiagramNouns(buffer, lines);
 
   buffer.ApplyTransformation(
       SetPositionTransformation(LineColumn(buffer.line_count(), 0)));
@@ -795,20 +800,23 @@ void ShapesDrawDiagramInner() {
   int start = buffer.position().line();
   int column_width = GetMaxNounWidth(nouns) + 6;
   int row_width = GetMaxNounSize(nouns) + 6;
-  DrawNouns(start, nouns, column_width, row_width);
-  DiagramDrawEdges(lines, start, nouns, column_width, row_width);
+  DrawNouns(buffer, start, nouns, column_width, row_width);
+  DiagramDrawEdges(buffer, lines, start, nouns, column_width, row_width);
 }
 
-void ShapesDrawDiagram() { ShapesDrawDiagramInner(); }
-
-buffer.AddBinding("Sl", "shapes: line: draw", ShapesAddLine);
-buffer.AddBinding("Sq", "shapes: square: draw", ShapesAddSquare);
-buffer.AddBinding("Sc", "shapes: square: center contents", ShapesSquareCenter);
-buffer.AddBinding("Sd", "shapes: delete_mode = !delete_mode",
-                  ShapesToggleDeleteMode);
-buffer.AddBinding("S=", "shapes: set source", ShapesSet);
-buffer.AddBinding("Sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
-buffer.AddBinding("SB", "shapes: bezier: draw", ShapesAddBezier);
-buffer.AddBinding("SM", "shapes: bezier: set middle point",
-                  ShapesPushBezierPoint);
-buffer.AddBinding("SD", "shapes: Draw a diagram", ShapesDrawDiagram);
+AddBinding("Sl", "shapes: line: draw",
+           []() -> void { editor.ForEachActiveBuffer(ShapesAddLine); });
+AddBinding("Sq", "shapes: square: draw",
+           []() -> void { editor.ForEachActiveBuffer(ShapesAddSquare); });
+AddBinding("Sc", "shapes: square: center contents",
+           []() -> void { editor.ForEachActiveBuffer(ShapesSquareCenter); });
+AddBinding("Sd", "shapes: delete_mode = !delete_mode", ShapesToggleDeleteMode);
+AddBinding("S=", "shapes: set source",
+           []() -> void { editor.ForEachActiveBuffer(ShapesSet); });
+AddBinding("Sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
+AddBinding("SB", "shapes: bezier: draw",
+           []() -> void { editor.ForEachActiveBuffer(ShapesAddBezier); });
+AddBinding("SM", "shapes: bezier: set middle point",
+           []() -> void { editor.ForEachActiveBuffer(ShapesPushBezierPoint); });
+AddBinding("SD", "shapes: Draw a diagram",
+           []() -> void { editor.ForEachActiveBuffer(ShapesDrawDiagram); });

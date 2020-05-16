@@ -7,6 +7,7 @@
 #include "../editor_commands/lib/paths.cc"
 #include "../editor_commands/lib/zk.cc"
 #include "../editor_commands/reflow.cc"
+#include "../editor_commands/shapes.cc"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Cursors
