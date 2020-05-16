@@ -538,6 +538,16 @@ EdgeVariable<wstring>* const shell_command_help_filter =
             L"[^|;]*$")
         .Build();
 
+EdgeVariable<wstring>* const cpp_prompt_namespaces =
+    StringStruct()
+        ->Add()
+        .Name(L"cpp_prompt_namespaces")
+        .Key(L"n")
+        .Description(
+            L"Space-separated list of identifiers for namespaces to search for "
+            L"commands (functions) given to the CPP prompt (`:`).")
+        .Build();
+
 EdgeStruct<int>* IntStruct() {
   static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;

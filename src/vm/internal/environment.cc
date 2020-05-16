@@ -146,7 +146,7 @@ void Environment::PolyLookup(const wstring& symbol,
   PolyLookup(*empty_namespace, symbol, output);
 }
 
-void Environment::PolyLookup(const std::vector<std::wstring>& symbol_namespace,
+void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
                              const wstring& symbol,
                              std::vector<Value*>* output) {
   auto environment = this;
@@ -157,27 +157,40 @@ void Environment::PolyLookup(const std::vector<std::wstring>& symbol_namespace,
     }
     environment = it->second.get();
   }
-  if (auto it = table_.find(symbol); it != table_.end()) {
+  if (auto it = environment->table_.find(symbol);
+      it != environment->table_.end()) {
     for (auto& entry : it->second) {
       output->push_back(entry.second.get());
     }
   }
+  // Deliverately ignoring `environment`:
   if (parent_environment_ != nullptr) {
     parent_environment_->PolyLookup(symbol, output);
   }
 }
 
-void Environment::CaseInsensitiveLookup(const wstring& symbol,
-                                        std::vector<Value*>* output) {
-  for (auto& item : table_) {
+void Environment::CaseInsensitiveLookup(
+    const Environment::Namespace& symbol_namespace, const wstring& symbol,
+    std::vector<Value*>* output) {
+  auto environment = this;
+  for (auto& n : symbol_namespace) {
+    auto it = environment->namespaces_.find(n);
+    if (it == environment->namespaces_.end()) {
+      return;
+    }
+    environment = it->second.get();
+  }
+  for (auto& item : environment->table_) {
     if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
       for (auto& entry : item.second) {
         output->push_back(entry.second.get());
       }
     }
   }
+  // Deliverately ignoring `environment`:
   if (parent_environment_ != nullptr) {
-    parent_environment_->CaseInsensitiveLookup(symbol, output);
+    parent_environment_->CaseInsensitiveLookup(symbol_namespace, symbol,
+                                               output);
   }
 }
 

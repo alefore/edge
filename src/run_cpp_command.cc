@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "src/buffer.h"
+#include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/editor.h"
@@ -17,6 +18,21 @@
 
 namespace afc::editor {
 namespace {
+
+struct SearchNamespaces {
+  SearchNamespaces(const OpenBuffer& buffer)
+      : namespaces([&] {
+          std::vector<Environment::Namespace> output(1);
+          auto var = NewLazyString(
+              buffer.Read(buffer_variables::cpp_prompt_namespaces));
+          for (auto& token : TokenizeBySpaces(*var)) {
+            output.push_back({token.value});
+          }
+          return output;
+        }()) {}
+
+  const std::vector<Environment::Namespace> namespaces;
+};
 
 futures::Value<EmptyValue> RunCppCommandLiteralHandler(
     const wstring& name, EditorState* editor_state) {
@@ -39,7 +55,8 @@ struct ParsedCommand {
 ValueOrError<ParsedCommand> Parse(
     std::shared_ptr<LazyString> command, Environment* environment,
     std::shared_ptr<LazyString> function_name_prefix,
-    std::unordered_set<VMType> accepted_return_types) {
+    std::unordered_set<VMType> accepted_return_types,
+    const SearchNamespaces& search_namespaces) {
   ParsedCommand output;
   output.tokens = TokenizeBySpaces(*command);
   if (output.tokens.empty()) {
@@ -47,11 +64,17 @@ ValueOrError<ParsedCommand> Parse(
     return Error(L"");
   }
 
+  CHECK(!search_namespaces.namespaces.empty());
   std::vector<Value*> functions;
-  environment->CaseInsensitiveLookup(
-      StringAppend(function_name_prefix, NewLazyString(output.tokens[0].value))
-          ->ToString(),
-      &functions);
+  for (const auto& n : search_namespaces.namespaces) {
+    environment->CaseInsensitiveLookup(
+        n,
+        StringAppend(function_name_prefix,
+                     NewLazyString(output.tokens[0].value))
+            ->ToString(),
+        &functions);
+    if (!functions.empty()) break;
+  }
 
   if (functions.empty()) {
     return Error(L"Unknown symbol: " + output.tokens[0].value);
@@ -122,9 +145,10 @@ ValueOrError<ParsedCommand> Parse(
 }
 
 ValueOrError<ParsedCommand> Parse(std::shared_ptr<LazyString> command,
-                                  Environment* environment) {
+                                  Environment* environment,
+                                  const SearchNamespaces& search_namespaces) {
   return Parse(command, environment, EmptyString(),
-               {VMType::Void(), VMType::String()});
+               {VMType::Void(), VMType::String()}, search_namespaces);
 }
 
 futures::ValueOrError<std::unique_ptr<Value>> Execute(
@@ -150,12 +174,13 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
-    EditorState* editor, std::shared_ptr<LazyString> line) {
+    EditorState* editor, std::shared_ptr<LazyString> line,
+    const SearchNamespaces& search_namespaces) {
   ColorizePromptOptions output;
   auto buffer = editor->current_buffer();
   auto environment =
       (buffer == nullptr ? editor->environment() : buffer->environment()).get();
-  if (auto parsed_command = Parse(line, environment);
+  if (auto parsed_command = Parse(line, environment, search_namespaces);
       !parsed_command.IsError()) {
     output.tokens.push_back({{.value = L"",
                               .begin = ColumnNumber(0),
@@ -166,7 +191,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   using BufferMapper = vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>;
   futures::Future<ColorizePromptOptions> output_future;
   if (auto command = Parse(line, environment, NewLazyString(L"Preview"),
-                           {BufferMapper::vmtype});
+                           {BufferMapper::vmtype}, search_namespaces);
       buffer != nullptr && !command.IsError()) {
     Execute(buffer, std::move(command.value()))
         .SetConsumer(
@@ -217,11 +242,14 @@ class RunCppCommand : public Command {
         break;
       case CppCommandMode::kShell:
         options.handler = RunCppCommandShellHandler;
+        SearchNamespaces search_namespaces(*buffer);
         options.colorize_options_provider =
-            [editor_state](const std::shared_ptr<LazyString>& line,
-                           std::unique_ptr<ProgressChannel>,
-                           std::shared_ptr<Notification>) {
-              return ColorizeOptionsProvider(editor_state, line);
+            [editor_state, search_namespaces](
+                const std::shared_ptr<LazyString>& line,
+                std::unique_ptr<ProgressChannel>,
+                std::shared_ptr<Notification>) {
+              return ColorizeOptionsProvider(editor_state, line,
+                                             search_namespaces);
             };
         prompt = L":";
         break;
@@ -253,8 +281,9 @@ futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
   }
   buffer->ResetMode();
 
-  auto parsed_command =
-      Parse(NewLazyString(std::move(command)), buffer->environment().get());
+  SearchNamespaces search_namespaces(*buffer);
+  auto parsed_command = Parse(NewLazyString(std::move(command)),
+                              buffer->environment().get(), search_namespaces);
   if (parsed_command.IsError()) {
     if (!parsed_command.error().description.empty()) {
       buffer->status()->SetWarningText(parsed_command.error().description);

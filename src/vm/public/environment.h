@@ -57,7 +57,8 @@ class Environment {
                   std::vector<Value*>* output);
   // Same as `PolyLookup` but ignores case and thus is much slower (runtime
   // complexity is linear to the total number of symbols defined);
-  void CaseInsensitiveLookup(const wstring& symbol,
+  void CaseInsensitiveLookup(const Namespace& symbol_namespace,
+                             const wstring& symbol,
                              std::vector<Value*>* output);
   void Define(const wstring& symbol, unique_ptr<Value> value);
   void Assign(const wstring& symbol, unique_ptr<Value> value);
