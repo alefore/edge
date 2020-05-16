@@ -128,7 +128,7 @@ futures::Value<PossibleError> GenerateContents(
     LOG(INFO) << "I am the children. Life is beautiful!";
 
     close(pipefd_out[parent_fd]);
-    close(pipefd_err[parent_fd]);
+    if (pipefd_err[parent_fd] != -1) close(pipefd_err[parent_fd]);
 
     if (setsid() == -1) {
       cerr << "setsid failed: " << string(strerror(errno));
@@ -142,12 +142,12 @@ futures::Value<PossibleError> GenerateContents(
              2) == -1) {
       LOG(FATAL) << "dup2 failed!";
     }
-    if (pipefd_out[child_fd] != 0 && pipefd_out[child_fd] != 1 &&
-        pipefd_out[child_fd] != 2) {
+    if (pipefd_out[child_fd] != -1 && pipefd_out[child_fd] != 0 &&
+        pipefd_out[child_fd] != 1 && pipefd_out[child_fd] != 2) {
       close(pipefd_out[child_fd]);
     }
-    if (pipefd_err[child_fd] != 0 && pipefd_err[child_fd] != 1 &&
-        pipefd_err[child_fd] != 2) {
+    if (pipefd_err[child_fd] != -1 && pipefd_err[child_fd] != 0 &&
+        pipefd_err[child_fd] != 1 && pipefd_err[child_fd] != 2) {
       close(pipefd_err[child_fd]);
     }
 
@@ -192,7 +192,8 @@ futures::Value<PossibleError> GenerateContents(
     exit(WIFEXITED(status) ? WEXITSTATUS(status) : EX_OSERR);
   }
   close(pipefd_out[child_fd]);
-  close(pipefd_err[child_fd]);
+  if (pipefd_err[child_fd] != -1) close(pipefd_err[child_fd]);
+
   LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
             << pipefd_err[parent_fd];
   target->SetInputFiles(pipefd_out[parent_fd], pipefd_err[parent_fd],
