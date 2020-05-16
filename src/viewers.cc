@@ -14,7 +14,7 @@ void Viewers::set_view_size(LineColumnDelta view_size) {
 }
 
 Viewers::Registration Viewers::AddListener(std::function<void()> listener) {
-  CHECK_LT(listeners_.size(), 10000);
+  CHECK_LT(listeners_.size(), 10000ul);
   listeners_.push_front(listener);
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this, it = listeners_.begin()](bool* value) {
