@@ -366,6 +366,9 @@ void BufferTerminal::UpdateSize() {
             << " to: " << view_size;
   screen_size.ws_row = view_size.line.line_delta;
   screen_size.ws_col = view_size.column.column_delta;
+  // Silence valgrind warnings about uninitialized values:
+  screen_size.ws_xpixel = 0;
+  screen_size.ws_ypixel = 0;
   if (buffer_->fd() == nullptr) {
     LOG(INFO) << "Buffer fd is nullptr!";
   } else if (ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
