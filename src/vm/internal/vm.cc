@@ -436,22 +436,28 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           pos++;
         }
         wstring symbol = str.substr(start, pos - start);
-        if (symbol == L"true") {
-          token = BOOL;
-          input = Value::NewBool(true);
-        } else if (symbol == L"false") {
-          token = BOOL;
-          input = Value::NewBool(false);
-        } else if (symbol == L"while") {
-          token = WHILE;
-        } else if (symbol == L"for") {
-          token = FOR;
-        } else if (symbol == L"if") {
-          token = IF;
-        } else if (symbol == L"else") {
-          token = ELSE;
-        } else if (symbol == L"return") {
-          token = RETURN;
+        struct Keyword {
+          int token;
+          std::function<std::unique_ptr<Value>()> value_supplier = nullptr;
+        };
+        static const auto* const keywords =
+            new std::unordered_map<std::wstring, Keyword>(
+                {{L"true",
+                  {.token = BOOL,
+                   .value_supplier = [] { return Value::NewBool(true); }}},
+                 {L"false",
+                  {.token = BOOL,
+                   .value_supplier = [] { return Value::NewBool(false); }}},
+                 {L"while", {.token = WHILE}},
+                 {L"for", {.token = FOR}},
+                 {L"if", {.token = IF}},
+                 {L"else", {.token = ELSE}},
+                 {L"return", {.token = RETURN}}});
+        if (auto it = keywords->find(symbol); it != keywords->end()) {
+          token = it->second.token;
+          if (auto supplier = it->second.value_supplier; supplier != nullptr) {
+            input = supplier();
+          }
         } else {
           token = SYMBOL;
           input = std::make_unique<Value>(VMType::VM_SYMBOL);
