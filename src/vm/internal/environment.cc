@@ -98,6 +98,25 @@ Environment::Environment() = default;
 Environment::Environment(std::shared_ptr<Environment> parent_environment)
     : parent_environment_(std::move(parent_environment)) {}
 
+/* static */ std::shared_ptr<Environment> Environment::NewNamespace(
+    std::shared_ptr<Environment> parent, std::wstring name) {
+  auto result = parent->namespaces_.insert({name, nullptr}).first;
+  if (result->second == nullptr) {
+    result->second = std::make_shared<Environment>(std::move(parent));
+  }
+  return result->second;
+}
+
+/* static */ std::shared_ptr<Environment> Environment::LookupNamespace(
+    std::shared_ptr<Environment> source, const Namespace& name) {
+  for (auto& n : name) {
+    auto it = source->namespaces_.find(n);
+    if (it == source->namespaces_.end()) return nullptr;
+    source = it->second;
+  }
+  return source;
+}
+
 void Environment::DefineType(const wstring& name,
                              unique_ptr<ObjectType> value) {
   auto it = object_types_.insert(make_pair(name, nullptr));
@@ -105,8 +124,14 @@ void Environment::DefineType(const wstring& name,
 }
 
 Value* Environment::Lookup(const wstring& symbol, VMType expected_type) {
+  static const auto* empty_namespace = new Environment::Namespace();
+  return Lookup(*empty_namespace, symbol, expected_type);
+}
+
+Value* Environment::Lookup(const Namespace& symbol_namespace,
+                           const wstring& symbol, VMType expected_type) {
   std::vector<Value*> values;
-  PolyLookup(symbol, &values);
+  PolyLookup(symbol_namespace, symbol, &values);
   for (auto& value : values) {
     if (value->type == expected_type) {
       return value;
@@ -117,6 +142,21 @@ Value* Environment::Lookup(const wstring& symbol, VMType expected_type) {
 
 void Environment::PolyLookup(const wstring& symbol,
                              std::vector<Value*>* output) {
+  static const auto* empty_namespace = new Environment::Namespace();
+  PolyLookup(*empty_namespace, symbol, output);
+}
+
+void Environment::PolyLookup(const std::vector<std::wstring>& symbol_namespace,
+                             const wstring& symbol,
+                             std::vector<Value*>* output) {
+  auto environment = this;
+  for (auto& n : symbol_namespace) {
+    auto it = environment->namespaces_.find(n);
+    if (it == environment->namespaces_.end()) {
+      return;
+    }
+    environment = it->second.get();
+  }
   if (auto it = table_.find(symbol); it != table_.end()) {
     for (auto& entry : it->second) {
       output->push_back(entry.second.get());

@@ -228,6 +228,8 @@ src/vm/internal/function_call.cc \
 src/vm/internal/environment.cc \
 src/vm/internal/assign_expression.cc \
 src/vm/internal/append_expression.cc \
+src/vm/internal/namespace_expression.cc \
+src/vm/internal/namespace_expression.h \
 src/vm/internal/negate_expression.cc \
 src/vm/internal/logical_expression.cc \
 src/vm/internal/variable_lookup.cc \

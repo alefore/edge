@@ -2,6 +2,7 @@
 #define __AFC_VM_PUBLIC_VM_H__
 
 #include <functional>
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -48,6 +49,7 @@ class Trampoline {
                                           VMType expression_type);
 
  private:
+  std::list<std::wstring> namespace_;
   std::shared_ptr<Environment> environment_;
 
   std::function<void(std::function<void()>)> yield_callback_;

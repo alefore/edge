@@ -28,7 +28,9 @@ class VariableLookup : public Expression {
     // DVLOG(5) << "Look up symbol: " << symbol_;
     CHECK(trampoline != nullptr);
     CHECK(trampoline->environment() != nullptr);
-    Value* result = trampoline->environment()->Lookup(symbol_, type);
+    static const auto* empty_namespace = new Environment::Namespace();
+    Value* result =
+        trampoline->environment()->Lookup(*empty_namespace, symbol_, type);
     CHECK(result != nullptr);
     DVLOG(5) << "Variable lookup: " << *result;
     return futures::Past(
@@ -49,7 +51,11 @@ class VariableLookup : public Expression {
 std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
                                               std::wstring symbol) {
   std::vector<Value*> result;
-  compilation->environment->PolyLookup(symbol, &result);
+  // We don't need to switch namespaces (i.e., we can use
+  // `compilation->environment` directly) because during compilation, we know
+  // that we'll be in the right environment.
+  static const auto* empty_namespace = new Environment::Namespace();
+  compilation->environment->PolyLookup(*empty_namespace, symbol, &result);
   if (result.empty()) {
     compilation->AddError(L"Variable not found: `" + symbol + L"`");
     return nullptr;

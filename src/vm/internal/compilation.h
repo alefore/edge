@@ -36,6 +36,7 @@ struct Compilation {
   unique_ptr<Expression> expr;
   vector<wstring> errors;
 
+  std::vector<std::wstring> current_namespace;
   std::shared_ptr<Environment> environment;
   wstring last_token;
 };

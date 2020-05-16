@@ -22,6 +22,7 @@
 #include "if_expression.h"
 #include "lambda.h"
 #include "logical_expression.h"
+#include "namespace_expression.h"
 #include "negate_expression.h"
 #include "return_expression.h"
 #include "string.h"
@@ -452,7 +453,8 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
                  {L"for", {.token = FOR}},
                  {L"if", {.token = IF}},
                  {L"else", {.token = ELSE}},
-                 {L"return", {.token = RETURN}}});
+                 {L"return", {.token = RETURN}},
+                 {L"namespace", {.token = NAMESPACE}}});
         if (auto it = keywords->find(symbol); it != keywords->end()) {
           token = it->second.token;
           if (auto supplier = it->second.value_supplier; supplier != nullptr) {
