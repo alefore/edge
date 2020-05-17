@@ -168,7 +168,7 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
   }
   // Deliverately ignoring `environment`:
   if (parent_environment_ != nullptr) {
-    parent_environment_->PolyLookup(symbol, output);
+    parent_environment_->PolyLookup(symbol_namespace, symbol, output);
   }
 }
 
