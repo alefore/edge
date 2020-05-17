@@ -52,21 +52,6 @@ statement_list(OUT) ::= statement_list(A) statement(B). {
   B = nullptr;
 }
 
-statement_list(OUT) ::= namespace_declaration
-    LBRACKET statement_list(A) RBRACKET. {
-  OUT = NewNamespaceExpression(
-      compilation, std::unique_ptr<Expression>(A)).release();
-  A = nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Statements
-////////////////////////////////////////////////////////////////////////////////
-
-namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
-  StartNamespaceDeclaration(compilation, NAME->str);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Statements
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,6 +62,17 @@ namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
 statement(A) ::= assignment_statement(B) . {
   A = B;
   B = nullptr;
+}
+
+statement(OUT) ::= namespace_declaration
+    LBRACKET statement_list(A) RBRACKET. {
+  OUT = NewNamespaceExpression(
+      compilation, std::unique_ptr<Expression>(A)).release();
+  A = nullptr;
+}
+
+namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
+  StartNamespaceDeclaration(compilation, NAME->str);
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
