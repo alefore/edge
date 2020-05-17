@@ -625,6 +625,27 @@ void ToggleVariable(EditorState* editor_state,
 
 void ToggleVariable(EditorState* editor_state,
                     VariableLocation variable_location,
+                    const EdgeVariable<wstring>* variable,
+                    MapModeCommands* map_mode) {
+  // TODO: Honor variable_location.
+  auto name = variable->name();
+  std::wstring command;
+  switch (variable_location) {
+    case VariableLocation::kBuffer:
+      command = L"// Variables: Toggle buffer variable (string): " + name +
+                L"\neditor.SetVariablePrompt(\"" + name + L"\");";
+      break;
+    case VariableLocation::kEditor:
+      CHECK(false) << "Not implemented.";
+      break;
+  }
+  LOG(INFO) << "Command: " << command;
+  map_mode->Add(L"v" + variable->key(),
+                NewCppCommand(editor_state->environment(), command));
+}
+
+void ToggleVariable(EditorState* editor_state,
+                    VariableLocation variable_location,
                     const EdgeVariable<int>* variable,
                     MapModeCommands* map_mode) {
   // TODO: Honor variable_location.
@@ -764,6 +785,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   RegisterVariableKeys(editor_state, editor_variables::BoolStruct(),
                        VariableLocation::kEditor, commands.get());
   RegisterVariableKeys(editor_state, buffer_variables::BoolStruct(),
+                       VariableLocation::kBuffer, commands.get());
+  RegisterVariableKeys(editor_state, buffer_variables::StringStruct(),
                        VariableLocation::kBuffer, commands.get());
   RegisterVariableKeys(editor_state, buffer_variables::IntStruct(),
                        VariableLocation::kBuffer, commands.get());

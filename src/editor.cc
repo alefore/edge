@@ -27,6 +27,7 @@ extern "C" {
 #include "src/run_command_handler.h"
 #include "src/server.h"
 #include "src/set_buffer_mode.h"
+#include "src/set_variable_command.h"
 #include "src/shapes.h"
 #include "src/substring.h"
 #include "src/terminal.h"
@@ -206,6 +207,12 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(L"ZoomToLeaf", vm::NewCallback([](EditorState* editor) {
                           editor->ZoomToLeaf();
                         }));
+
+  editor_type->AddField(
+      L"SetVariablePrompt",
+      vm::NewCallback([](EditorState* editor, std::wstring variable) {
+        SetVariableCommandHandler(variable, editor);
+      }));
 
   editor_type->AddField(L"home", vm::NewCallback([](EditorState* editor) {
                           return editor->home_directory();

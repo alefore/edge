@@ -33,8 +33,18 @@ wstring TrimWhitespace(const wstring& in) {
   return in.substr(begin, end - begin + 1);
 }
 
-futures::Value<EmptyValue> SetVariableHandler(const wstring& input_name,
-                                              EditorState* editor_state) {
+Predictor VariablesPredictor() {
+  vector<wstring> variables;
+  buffer_variables::BoolStruct()->RegisterVariableNames(&variables);
+  buffer_variables::StringStruct()->RegisterVariableNames(&variables);
+  buffer_variables::IntStruct()->RegisterVariableNames(&variables);
+  buffer_variables::DoubleStruct()->RegisterVariableNames(&variables);
+  return PrecomputedPredictor(variables, '_');
+}
+}  // namespace
+
+futures::Value<EmptyValue> SetVariableCommandHandler(
+    const std::wstring& input_name, EditorState* editor_state) {
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) {
     return futures::Past(EmptyValue());
@@ -147,23 +157,13 @@ futures::Value<EmptyValue> SetVariableHandler(const wstring& input_name,
   return futures::Past(EmptyValue());
 }
 
-Predictor VariablesPredictor() {
-  vector<wstring> variables;
-  buffer_variables::BoolStruct()->RegisterVariableNames(&variables);
-  buffer_variables::StringStruct()->RegisterVariableNames(&variables);
-  buffer_variables::IntStruct()->RegisterVariableNames(&variables);
-  buffer_variables::DoubleStruct()->RegisterVariableNames(&variables);
-  return PrecomputedPredictor(variables, '_');
-}
-}  // namespace
-
 unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state) {
   static Predictor variables_predictor = VariablesPredictor();
   PromptOptions options;
   options.editor_state = editor_state;
   options.prompt = L"🔧 ";
   options.history_file = L"variables";
-  options.handler = SetVariableHandler;
+  options.handler = SetVariableCommandHandler;
   options.cancel_handler = [](EditorState*) { /* Nothing. */ };
   options.predictor = variables_predictor;
   options.status = PromptOptions::Status::kBuffer;
