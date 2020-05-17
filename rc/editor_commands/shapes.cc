@@ -12,7 +12,7 @@
 #include "lib/numbers.cc"
 #include "lib/strings.cc"
 
-namespace shapes {
+namespace shapes_internal {
 double total_columns = 80.0;
 double total_lines = 25.0;
 
@@ -824,17 +824,28 @@ void ShapesDrawDiagram(Buffer buffer) {
   DrawNouns(buffer, start, nouns, column_width, row_width);
   DiagramDrawEdges(buffer, lines, start, nouns, column_width, row_width);
 }
+}  // namespace shapes_internal
+namespace shapes {
+auto L = shapes_internal::Line;
+auto Sq = shapes_internal::Square;
+auto SqC = shapes_internal::SquareCenter;
+auto Delete = shapes_internal::Delete;
+auto Bold = shapes_internal::Bold;
+auto Source = shapes_internal::Source;
 
-AddBinding("Sl", "shapes: line: draw", Line);
-AddBinding("Sq", "shapes: square: draw", Square);
-AddBinding("Sc", "shapes: square: center contents", SquareCenter);
+AddBinding("Sl", "shapes: line: draw", L);
+AddBinding("Sq", "shapes: square: draw", Sq);
+AddBinding("Sc", "shapes: square: center contents", SqC);
 AddBinding("Sd", "shapes: delete_mode = !delete_mode", Delete);
 AddBinding("S=", "shapes: set source", Source);
 AddBinding("Sb", "shapes: bold_mode = !bold_mode", Bold);
-AddBinding("SB", "shapes: bezier: draw",
-           []() -> void { editor.ForEachActiveBuffer(ShapesAddBezier); });
-AddBinding("SM", "shapes: bezier: set middle point",
-           []() -> void { editor.ForEachActiveBuffer(ShapesPushBezierPoint); });
-AddBinding("SD", "shapes: Draw a diagram",
-           []() -> void { editor.ForEachActiveBuffer(ShapesDrawDiagram); });
+AddBinding("SB", "shapes: bezier: draw", []() -> void {
+  editor.ForEachActiveBuffer(shapes_internal::ShapesAddBezier);
+});
+AddBinding("SM", "shapes: bezier: set middle point", []() -> void {
+  editor.ForEachActiveBuffer(shapes_internal::ShapesPushBezierPoint);
+});
+AddBinding("SD", "shapes: Draw a diagram", []() -> void {
+  editor.ForEachActiveBuffer(shapes_internal::ShapesDrawDiagram);
+});
 }  // namespace shapes
