@@ -107,7 +107,6 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
         str);
     return;
   }
-  wstring error_description;
   wstring path = str.substr(start, pos - start);
   string low_level_path = ToByteString(path);
 
