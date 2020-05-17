@@ -1,15 +1,19 @@
 // This file contains functions that I use to manage my Zettelkasten.
 //
-// The following functions are defined (intended to be executed with `:`):
+// The following functions are defined in the zettelkasten namespace (intended
+// to be executed with `:` after adding zettelkasten to cpp_prompt_namespaces):
 //
-// * zki - Open the index file (index.md)
-// * zkls - List all notes (with their title).
-// * zkl - Expand the paths under the cursors to a full link.
-// * zkln - Create a new entry based on the title under the cursor.
+// * i - Open the index file (index.md)
+// * ls - List all notes (with their title).
+// * l - Expand the paths under the cursors to a full link.
+// * ln - Create a new entry based on the title under the cursor.
+// * Expand - Generate an article.
 
 #include "paths.cc"
 #include "strings.cc"
 
+namespace zettelkasten {
+namespace internal {
 // String that identifies the end of the main contents of a note. This is used
 // when expanding the note into an article or into a flashcard.
 string kEndOfContentLine = "Related:";
@@ -38,7 +42,7 @@ string ToMarkdownPath(string path) {
 }
 
 // Returns the path (ID) of the next available (empty) file.
-string ZkInternalNextEmpty() {
+string NextEmpty() {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(
       "find -size 0b -name '???.md' -printf '%f\n' | sort | head -1");
@@ -48,7 +52,7 @@ string ZkInternalNextEmpty() {
   return buffer.line(0);
 }
 
-Buffer zkRunCommand(string name, string command, string insertion_type) {
+Buffer RunCommand(string name, string command, string insertion_type) {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(command);
   options.set_insertion_type(insertion_type);
@@ -56,62 +60,17 @@ Buffer zkRunCommand(string name, string command, string insertion_type) {
   return ForkCommand(options);
 }
 
-void zkls() {
-  zkRunCommand("ls", "~/bin/zkls", "visit").set_allow_dirty_delete(true);
-}
-
-void zkrev() {
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    string path = Basename(buffer.path());
-    if (path == "") return;
-    zkRunCommand("rev: " + path, "grep " + path.shell_escape() + " ???.md",
-                 "visit")
-        .set_allow_dirty_delete(true);
-    ;
-  });
-  return;
-}
-
-// Open the index. index.md is expected to be a link to the main entry point.
-void zki() { OpenFile("index.md", true); }
-
-void zks(string query) {
-  zkRunCommand("s: " + query, "grep -i " + query.shell_escape() + " ???.md",
-               "visit")
-      .set_allow_dirty_delete(true);
-  ;
-}
-
-Buffer Previewzks(string query) {
-  auto buffer = zkRunCommand(
-      "s: " + query, "grep -i " + query.shell_escape() + " ???.md", "ignore");
-  buffer.WaitForEndOfFile();
-  buffer.set_allow_dirty_delete(true);
-  return buffer;
-}
-
-Buffer zkInternalTitleSearch(string query, string insertion_type) {
-  auto buffer = zkRunCommand("t: " + query,
-                             "awk '{if (tolower($0)~\"" + query.shell_escape() +
-                                 "\") print FILENAME, $0; nextfile;}' ???.md",
-                             insertion_type);
+Buffer TitleSearch(string query, string insertion_type) {
+  auto buffer = RunCommand("t: " + query,
+                           "awk '{if (tolower($0)~\"" + query.shell_escape() +
+                               "\") print FILENAME, $0; nextfile;}' ???.md",
+                           insertion_type);
   buffer.set_allow_dirty_delete(true);
   buffer.WaitForEndOfFile();
   return buffer;
 }
 
-// Receives a string and produces a list of all Zettel that include that string
-// in their title.
-void zkt(string query) { zkInternalTitleSearch(query, "visit"); }
-Buffer Previewzkt(string query) {
-  return zkInternalTitleSearch(query, "ignore");
-}
-
-// Find the smallest unused ID. This assumes that files are of the form `???.md`
-// and are created in advance.
-void zkn() { OpenFile(ZkInternalNextEmpty(), true); }
-
-TransformationOutput ZKInternalLink(Buffer buffer, TransformationInput input) {
+TransformationOutput Link(Buffer buffer, TransformationInput input) {
   auto line = buffer.line(input.position().line());
   auto path_characters = buffer.path_characters();
 
@@ -158,19 +117,7 @@ TransformationOutput ZKInternalLink(Buffer buffer, TransformationInput input) {
   return output;
 }
 
-// Replaces a path (e.g., `03d.md`) with a link to it, extracting the text of
-// the link from the first line in the file (e.g. `[Bauhaus](03d.md)`).
-void zkl() {
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    buffer.ApplyTransformation(FunctionTransformation(
-        [](TransformationInput input) -> TransformationOutput {
-          return ZKInternalLink(buffer, input);
-        }));
-  });
-}
-
-TransformationOutput ZKInternalNewLink(Buffer buffer,
-                                       TransformationInput input) {
+TransformationOutput NewLink(Buffer buffer, TransformationInput input) {
   auto line = buffer.line(input.position().line());
   auto path_characters = buffer.path_characters();
   int start = line.find_last_of("[", input.position().column());
@@ -189,7 +136,7 @@ TransformationOutput ZKInternalNewLink(Buffer buffer,
     title_length = end - start - 1;
   }
 
-  auto path = ZkInternalNextEmpty();
+  auto path = NextEmpty();
   string title = line.substr(start, title_length);
   auto output =
       TransformationOutput()
@@ -216,21 +163,7 @@ TransformationOutput ZKInternalNewLink(Buffer buffer,
   return output;
 }
 
-// Turns a text like "[Some Title]" into a link "[Some Title](xxx.md)", where
-// xxx.md is the next available (unused) identifier; loads the next note (from
-// said identifier) and inserts some initial skeleton into the new file
-// (including the title); and saves the original buffer.
-void zkln() {
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    buffer.ApplyTransformation(FunctionTransformation(
-        [](TransformationInput input) -> TransformationOutput {
-          return ZKInternalNewLink(buffer, input);
-        }));
-    buffer.Save();
-  });
-}
-
-void zkeRegisterLinks(string line, VectorString output) {
+void RegisterLinks(string line, VectorString output) {
   int column = 0;
   string extension = ".md";
   while (column < line.size()) {
@@ -250,10 +183,10 @@ void zkeRegisterLinks(string line, VectorString output) {
   }
 }
 
-void zkeRegisterLinks(Buffer buffer, VectorString output) {
+void RegisterLinks(Buffer buffer, VectorString output) {
   int line = 0;
   while (line < buffer.line_count()) {
-    zkeRegisterLinks(buffer.line(line), output);
+    RegisterLinks(buffer.line(line), output);
     line++;
   }
 }
@@ -294,7 +227,7 @@ bool IsLocalLink(Buffer buffer, LineColumn link_start) {
                               tail.size()) == tail;
 }
 
-void zkeRemoveLocalLinks(Buffer buffer) {
+void RemoveLocalLinks(Buffer buffer) {
   LineColumn position = LineColumn(0, 0);
   while (position.line() < buffer.line_count()) {
     auto start = FindNextOpenLink(buffer, position);
@@ -321,8 +254,8 @@ void zkeRemoveLocalLinks(Buffer buffer) {
   }
 }
 
-void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
-               SetString visited) {
+void Expand(Buffer buffer, string path, SetString titles, int depth,
+            SetString visited) {
   if (visited.contains(path) || visited.size() > 1000) return;
   visited.insert(path);
   Buffer sub_buffer = OpenFile(path, false);
@@ -370,13 +303,13 @@ void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
       InsertTransformationBuilder().set_text(text).build());
 
   VectorString pending = VectorString();
-  zkeRegisterLinks(sub_buffer, pending);
+  RegisterLinks(sub_buffer, pending);
   int links = 0;
   if (!title.empty()) {
     titles.insert(title);
   }
   while (links < pending.size()) {
-    zkeExpand(buffer, pending.get(links), titles, depth + 1, visited);
+    Expand(buffer, pending.get(links), titles, depth + 1, visited);
     links++;
   }
   if (!titles.empty()) {
@@ -384,7 +317,7 @@ void zkeExpand(Buffer buffer, string path, SetString titles, int depth,
   }
 }
 
-SetString zkeParseBlacklist(string blacklist) {
+SetString ParseBlacklist(string blacklist) {
   SetString output = SetString();
   int start = 0;
   while (true) {
@@ -402,7 +335,7 @@ SetString zkeParseBlacklist(string blacklist) {
   }
 }
 
-Buffer zke(string path, string start, string blacklist) {
+Buffer ExpandIntoPath(string path, string start, string blacklist) {
   auto buffer = OpenFile(path + ".md", true);
   buffer.WaitForEndOfFile();
   buffer.ApplyTransformation(SetPositionTransformation(LineColumn(0, 0)));
@@ -411,13 +344,13 @@ Buffer zke(string path, string start, string blacklist) {
           // TODO: Add `set_buffer` and use that?
           .set_modifiers(Modifiers().set_line().set_repetitions(9999999))
           .build());
-  zkeExpand(buffer, start + ".md", SetString(), 0,
-            zkeParseBlacklist(blacklist));
-  zkeRemoveLocalLinks(buffer);
+  Expand(buffer, start + ".md", SetString(), 0, ParseBlacklist(blacklist));
+  RemoveLocalLinks(buffer);
   buffer.Save();
   return buffer;
 }
 
+// TODO(easy): This is garbage. Delete.
 string ReplaceText(string pattern, string replacement, string input) {
   string output = "";
   int position = 0;
@@ -436,3 +369,78 @@ string ReplaceText(string pattern, string replacement, string input) {
 
   return output;
 }
+
+}  // namespace internal
+
+// Open the index. index.md is expected to be a link to the main entry point.
+void I() { OpenFile("index.md", true); }
+
+void Ls() {
+  internal::RunCommand("ls", "~/bin/zkls", "visit")
+      .set_allow_dirty_delete(true);
+}
+
+void Rev() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    string path = Basename(buffer.path());
+    if (path == "") return;
+    internal::RunCommand("rev: " + path,
+                         "grep " + path.shell_escape() + " ???.md", "visit")
+        .set_allow_dirty_delete(true);
+    ;
+  });
+  return;
+}
+
+void S(string query) {
+  internal::RunCommand("s: " + query,
+                       "grep -i " + query.shell_escape() + " ???.md", "visit")
+      .set_allow_dirty_delete(true);
+  ;
+}
+
+Buffer PreviewS(string query) {
+  auto buffer = internal::RunCommand(
+      "s: " + query, "grep -i " + query.shell_escape() + " ???.md", "ignore");
+  buffer.WaitForEndOfFile();
+  buffer.set_allow_dirty_delete(true);
+  return buffer;
+}
+
+// Receives a string and produces a list of all Zettel that include that string
+// in their title.
+void T(string query) { internal::TitleSearch(query, "visit"); }
+
+Buffer PreviewT(string query) { return internal::TitleSearch(query, "ignore"); }
+
+// Find the smallest unused ID. This assumes that files are of the form `???.md`
+// and are created in advance.
+void N() { OpenFile(internal::NextEmpty(), true); }
+
+// Replaces a path (e.g., `03d.md`) with a link to it, extracting the text of
+// the link from the first line in the file (e.g. `[Bauhaus](03d.md)`).
+void L() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          return internal::Link(buffer, input);
+        }));
+  });
+}
+
+// Turns a text like "[Some Title]" into a link "[Some Title](xxx.md)", where
+// xxx.md is the next available (unused) identifier; loads the next note (from
+// said identifier) and inserts some initial skeleton into the new file
+// (including the title); and saves the original buffer.
+void N() {  // Short for New.
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          return internal::NewLink(buffer, input);
+        }));
+    buffer.Save();
+  });
+}
+
+auto Expand = internal::ExpandIntoPath;
+}  // namespace zettelkasten
