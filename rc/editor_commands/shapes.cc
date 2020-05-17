@@ -1,6 +1,18 @@
+// Edge Extension for drawing diagrams.
+//
+// Probably the easiest way to use it is through the `:` prompt, after adding
+// `shapes` to the `cpp_prompt_namespaces` variable (by pressing `vn`).
+//
+// The following functions are available (among others):
+//
+// Source - Sets the source point at the current position.
+// Line   - Draws a line from the source to the current position.
+// Square - Draws a square from the source to the current position.
+
 #include "lib/numbers.cc"
 #include "lib/strings.cc"
 
+namespace shapes {
 double total_columns = 80.0;
 double total_lines = 25.0;
 
@@ -459,7 +471,7 @@ void ShapesAddSquareInPositions(Buffer buffer, LineColumn a, LineColumn b) {
   DrawLineColumns(buffer, output_right, output_down, "");
 }
 
-void ShapesSquare() {
+void Square() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     LineColumn position = buffer.position();
     ShapesAddSquareInPositions(buffer, position, source);
@@ -522,7 +534,7 @@ string BuildPadding(int size, string c) {
   return output;
 }
 
-void ShapesSquareCenter() {
+void SquareCenter() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     LineColumn a = buffer.position();
     LineColumn b = source;
@@ -563,7 +575,7 @@ void ShapesAddLineToPosition(Buffer buffer, LineColumn a, LineColumn b) {
 }
 
 // Draws a line.
-void ShapesLine() {
+void Line() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     LineColumn position = buffer.position();
     ShapesAddLineToPosition(buffer, position, source);
@@ -589,17 +601,17 @@ void ShapesAddBezier(Buffer buffer) {
   bezier_points = VectorLineColumn();
 }
 
-void ShapesToggleDeleteMode() {
+void Delete() {
   delete_mode = !delete_mode;
   ShapesSetStatus(delete_mode ? "Delete" : "Insert");
 }
 
-void ShapesBold() {
+void Bold() {
   bold_mode = !bold_mode;
   ShapesSetStatus(bold_mode ? "Bold" : "Normal");
 }
 
-void ShapesSource() {
+void Source() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     source = buffer.position();
     ShapesSetStatus("Source position: " + source.tostring());
@@ -813,15 +825,16 @@ void ShapesDrawDiagram(Buffer buffer) {
   DiagramDrawEdges(buffer, lines, start, nouns, column_width, row_width);
 }
 
-AddBinding("Sl", "shapes: line: draw", ShapesLine);
-AddBinding("Sq", "shapes: square: draw", ShapesSquare);
-AddBinding("Sc", "shapes: square: center contents", ShapesSquareCenter);
-AddBinding("Sd", "shapes: delete_mode = !delete_mode", ShapesToggleDeleteMode);
-AddBinding("S=", "shapes: set source", ShapesSource);
-AddBinding("Sb", "shapes: bold_mode = !bold_mode", ShapesBold);
+AddBinding("Sl", "shapes: line: draw", Line);
+AddBinding("Sq", "shapes: square: draw", Square);
+AddBinding("Sc", "shapes: square: center contents", SquareCenter);
+AddBinding("Sd", "shapes: delete_mode = !delete_mode", Delete);
+AddBinding("S=", "shapes: set source", Source);
+AddBinding("Sb", "shapes: bold_mode = !bold_mode", Bold);
 AddBinding("SB", "shapes: bezier: draw",
            []() -> void { editor.ForEachActiveBuffer(ShapesAddBezier); });
 AddBinding("SM", "shapes: bezier: set middle point",
            []() -> void { editor.ForEachActiveBuffer(ShapesPushBezierPoint); });
 AddBinding("SD", "shapes: Draw a diagram",
            []() -> void { editor.ForEachActiveBuffer(ShapesDrawDiagram); });
+}  // namespace shapes
