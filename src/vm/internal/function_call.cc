@@ -112,11 +112,24 @@ class FunctionCall : public Expression {
     CHECK_EQ(callback->type.type, VMType::FUNCTION);
     CHECK(callback->callback != nullptr);
 
-    DVLOG(5) << "Evaluating function parameters, args: " << args_types->size();
+    DVLOG(5) << "Evaluating function parameters, args: " << values->size()
+             << " of " << args_types->size();
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
       callback->callback(std::move(*values), trampoline)
           .SetConsumer([consumer, callback](EvaluationOutput return_value) {
+            switch (return_value.type) {
+              case EvaluationOutput::OutputType::kContinue:
+              case EvaluationOutput::OutputType::kReturn:
+                CHECK(return_value.value != nullptr);
+                DVLOG(5) << "Function call consumer gets value: "
+                         << *return_value.value;
+                break;
+              case EvaluationOutput::OutputType::kAbort:
+                DVLOG(3) << "Function call aborted: "
+                         << return_value.error.value();
+                break;
+            }
             consumer(EvaluationOutput::New(std::move(return_value.value)));
           });
       return;
@@ -126,12 +139,20 @@ class FunctionCall : public Expression {
         .SetConsumer([trampoline, consumer, args_types, values,
                       callback](EvaluationOutput value) {
           CHECK(values != nullptr);
-          CHECK(value.value != nullptr);
-          DVLOG(5) << "Received results of parameter " << values->size() + 1
-                   << " (of " << args_types->size() << "): " << *value.value;
-          values->push_back(std::move(value.value));
-          DVLOG(6) << "Recursive call.";
-          CaptureArgs(trampoline, consumer, args_types, values, callback);
+          switch (value.type) {
+            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::kAbort:
+              consumer(std::move(value));
+              return;
+            case EvaluationOutput::OutputType::kContinue:
+              CHECK(value.value != nullptr);
+              DVLOG(5) << "Received results of parameter " << values->size() + 1
+                       << " (of " << args_types->size()
+                       << "): " << *value.value;
+              values->push_back(std::move(value.value));
+              DVLOG(6) << "Recursive call.";
+              CaptureArgs(trampoline, consumer, args_types, values, callback);
+          }
         });
   }
 
