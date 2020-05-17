@@ -100,6 +100,9 @@ Environment::Environment(std::shared_ptr<Environment> parent_environment)
 
 /* static */ std::shared_ptr<Environment> Environment::NewNamespace(
     std::shared_ptr<Environment> parent, std::wstring name) {
+  if (auto previous = LookupNamespace(parent, {name}); previous != nullptr) {
+    return previous;
+  }
   auto result = parent->namespaces_.insert({name, nullptr}).first;
   if (result->second == nullptr) {
     result->second = std::make_shared<Environment>(std::move(parent));
@@ -109,12 +112,21 @@ Environment::Environment(std::shared_ptr<Environment> parent_environment)
 
 /* static */ std::shared_ptr<Environment> Environment::LookupNamespace(
     std::shared_ptr<Environment> source, const Namespace& name) {
+  if (source == nullptr) return nullptr;
+  auto output = source;
   for (auto& n : name) {
-    auto it = source->namespaces_.find(n);
-    if (it == source->namespaces_.end()) return nullptr;
-    source = it->second;
+    if (auto it = output->namespaces_.find(n);
+        it != output->namespaces_.end()) {
+      output = it->second;
+      continue;
+    }
+    output = nullptr;
+    break;
   }
-  return source;
+  if (output != nullptr) {
+    return output;
+  }
+  return LookupNamespace(source->parent_environment(), name);
 }
 
 void Environment::DefineType(const wstring& name,
