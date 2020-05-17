@@ -153,14 +153,17 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
   for (auto& n : symbol_namespace) {
     auto it = environment->namespaces_.find(n);
     if (it == environment->namespaces_.end()) {
-      return;
+      environment = nullptr;
+      break;
     }
     environment = it->second.get();
   }
-  if (auto it = environment->table_.find(symbol);
-      it != environment->table_.end()) {
-    for (auto& entry : it->second) {
-      output->push_back(entry.second.get());
+  if (environment != nullptr) {
+    if (auto it = environment->table_.find(symbol);
+        it != environment->table_.end()) {
+      for (auto& entry : it->second) {
+        output->push_back(entry.second.get());
+      }
     }
   }
   // Deliverately ignoring `environment`:
@@ -176,14 +179,17 @@ void Environment::CaseInsensitiveLookup(
   for (auto& n : symbol_namespace) {
     auto it = environment->namespaces_.find(n);
     if (it == environment->namespaces_.end()) {
-      return;
+      environment = nullptr;
+      break;
     }
     environment = it->second.get();
   }
-  for (auto& item : environment->table_) {
-    if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
-      for (auto& entry : item.second) {
-        output->push_back(entry.second.get());
+  if (environment != nullptr) {
+    for (auto& item : environment->table_) {
+      if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
+        for (auto& entry : item.second) {
+          output->push_back(entry.second.get());
+        }
       }
     }
   }
