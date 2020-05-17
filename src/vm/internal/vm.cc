@@ -226,6 +226,10 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
       case ':':
         token = COLON;
         pos++;
+        if (pos < str.size() && str.at(pos) == ':') {
+          pos++;
+          token = DOUBLECOLON;
+        }
         break;
 
       case '?':

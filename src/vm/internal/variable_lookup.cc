@@ -16,8 +16,11 @@ namespace {
 
 class VariableLookup : public Expression {
  public:
-  VariableLookup(std::wstring symbol, std::vector<VMType> types)
-      : symbol_(std::move(symbol)), types_(types) {}
+  VariableLookup(Environment::Namespace symbol_namespace, std::wstring symbol,
+                 std::vector<VMType> types)
+      : symbol_namespace_(std::move(symbol_namespace)),
+        symbol_(std::move(symbol)),
+        types_(types) {}
 
   std::vector<VMType> Types() override { return types_; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
@@ -28,9 +31,8 @@ class VariableLookup : public Expression {
     // DVLOG(5) << "Look up symbol: " << symbol_;
     CHECK(trampoline != nullptr);
     CHECK(trampoline->environment() != nullptr);
-    static const auto* empty_namespace = new Environment::Namespace();
     Value* result =
-        trampoline->environment()->Lookup(*empty_namespace, symbol_, type);
+        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type);
     CHECK(result != nullptr);
     DVLOG(5) << "Variable lookup: " << *result;
     return futures::Past(
@@ -38,10 +40,11 @@ class VariableLookup : public Expression {
   }
 
   std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<VariableLookup>(symbol_, types_);
+    return std::make_unique<VariableLookup>(symbol_namespace_, symbol_, types_);
   }
 
  private:
+  const Environment::Namespace symbol_namespace_;
   const std::wstring symbol_;
   const std::vector<VMType> types_;
 };
@@ -49,13 +52,19 @@ class VariableLookup : public Expression {
 }  // namespace
 
 std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
-                                              std::wstring symbol) {
+                                              std::list<std::wstring> symbols) {
+  CHECK(!symbols.empty());
+
   std::vector<Value*> result;
+
+  auto symbol = std::move(symbols.back());
+  symbols.pop_back();
+  Environment::Namespace symbol_namespace(symbols.begin(), symbols.end());
+
   // We don't need to switch namespaces (i.e., we can use
   // `compilation->environment` directly) because during compilation, we know
   // that we'll be in the right environment.
-  static const auto* empty_namespace = new Environment::Namespace();
-  compilation->environment->PolyLookup(*empty_namespace, symbol, &result);
+  compilation->environment->PolyLookup(symbol_namespace, symbol, &result);
   if (result.empty()) {
     compilation->AddError(L"Variable not found: `" + symbol + L"`");
     return nullptr;
@@ -68,7 +77,8 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
       types.push_back(v->type);
     }
   }
-  return std::make_unique<VariableLookup>(std::move(symbol), types);
+  return std::make_unique<VariableLookup>(std::move(symbol_namespace),
+                                          std::move(symbol), types);
 }
 
 }  // namespace vm

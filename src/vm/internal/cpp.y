@@ -321,7 +321,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, NAME->str),
+                NewVariableLookup(compilation, {NAME->str}),
                 std::unique_ptr<Expression>(VALUE),
                 [](wstring a, wstring b) { return Success(a + b); },
                 [](int a, int b) { return Success(a + b); },
@@ -335,7 +335,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, NAME->str),
+                NewVariableLookup(compilation, {NAME->str}),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return Success(a - b); },
@@ -349,7 +349,7 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, NAME->str),
+                NewVariableLookup(compilation, {NAME->str}),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return Success(a * b); },
@@ -377,7 +377,7 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, NAME->str),
+                NewVariableLookup(compilation, {NAME->str}),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) {
@@ -392,7 +392,7 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
 }
 
 expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
-  auto var = NewVariableLookup(compilation, NAME->str);
+  auto var = NewVariableLookup(compilation, {NAME->str});
   if (var == nullptr) {
     OUT = nullptr;
   } else if (var->IsInteger() || var->IsDouble()) {
@@ -421,7 +421,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
 }
 
 expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
-  auto var = NewVariableLookup(compilation, NAME->str);
+  auto var = NewVariableLookup(compilation, {NAME->str});
   if (var == nullptr) {
     OUT = nullptr;
   } else if (var->IsInteger() || var->IsDouble()) {
@@ -872,10 +872,24 @@ string(OUT) ::= string(A) STRING(B). {
   A = nullptr;
 }
 
-expr(OUT) ::= SYMBOL(S). {
-  assert(S->type.type == VMType::VM_SYMBOL);
-  OUT = NewVariableLookup(compilation, std::move(S->str)).release();
-  delete S;
+expr(OUT) ::= non_empty_symbols_list(N) . {
+  OUT = NewVariableLookup(compilation, std::move(*N)).release();
+}
+
+%type non_empty_symbols_list { std::list<std::wstring>* }
+%destructor non_empty_symbols_list { delete $$; }
+
+non_empty_symbols_list(OUT) ::= SYMBOL(S). {
+  CHECK_EQ(S->type.type, VMType::VM_SYMBOL);
+  OUT = new std::list<std::wstring>({std::move(S->str)});
+}
+
+non_empty_symbols_list(OUT) ::=
+    SYMBOL(S) DOUBLECOLON non_empty_symbols_list(L). {
+  CHECK_NE(L, nullptr);
+  CHECK_EQ(S->type.type, VMType::VM_SYMBOL);
+  L->push_front(S->str);
+  OUT = std::move(L);
 }
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
