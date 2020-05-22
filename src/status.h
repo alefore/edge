@@ -25,6 +25,8 @@ class StatusPromptExtraInformation {
  public:
   int StartNewVersion();
   void SetValue(std::wstring key, int version, std::wstring value);
+  void SetValue(std::wstring key, int version, int value);
+
   // Once the caller thinks that it won't be doing any additional calls to
   // SetValue for a given version, it should call `MarkVersionDone`. Completion
   // will be reflected by `GetLine`. It is okay to call `SetValue` after this,

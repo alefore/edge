@@ -97,6 +97,11 @@ void StatusPromptExtraInformation::SetValue(std::wstring key, int version,
   }
 }
 
+void StatusPromptExtraInformation::SetValue(std::wstring key, int version,
+                                            int value) {
+  return SetValue(key, version, std::to_wstring(value));
+}
+
 std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
   Line::Options options;
   static const auto dim = LineModifierSet{LineModifier::DIM};
