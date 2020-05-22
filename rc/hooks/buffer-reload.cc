@@ -130,4 +130,10 @@ if (path == "") {
   buffer.set_typos("overriden optoins");
 
   HandleFileTypes(basename, extension);
+
+  if (path.find("/zettelkasten", 0) != -1 &&
+      buffer.cpp_prompt_namespaces().find("zettelkasten", 0) == -1) {
+    buffer.set_cpp_prompt_namespaces(buffer.cpp_prompt_namespaces() +
+                                     " zettelkasten");
+  }
 }
