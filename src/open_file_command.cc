@@ -1,5 +1,7 @@
 #include "src/open_file_command.h"
 
+#include "src/wstring.h"
+
 extern "C" {
 #include <sys/stat.h>
 }
@@ -9,13 +11,12 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/line_prompt_mode.h"
-#include "src/wstring.h"
+#include "src/tests/tests.h"
 
 namespace afc {
 namespace editor {
 
 namespace {
-
 futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
                                            EditorState* editor_state) {
   OpenFileOptions options;
@@ -112,7 +113,8 @@ futures::Value<ColorizePromptOptions> AdjustPath(
       });
 }
 
-std::wstring GetInitialPromptValue(std::wstring buffer_path) {
+std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
+                                   std::wstring buffer_path) {
   auto path_or_error = Path::FromString(buffer_path);
   if (path_or_error.IsError()) return L"";
   auto path = path_or_error.value();
@@ -126,8 +128,90 @@ std::wstring GetInitialPromptValue(std::wstring buffer_path) {
       path = dir_or_error.value();
     }
   }
-  return path == Path::LocalDirectory() ? L"" : (path.ToString() + L"/");
+  if (path == Path::LocalDirectory()) {
+    return L"";
+  }
+  if (repetitions.has_value()) {
+    if (repetitions.value() == 0) {
+      return L"";
+    }
+    auto split = path.DirectorySplit();
+    if (!split.IsError() && split.value().size() > repetitions.value()) {
+      std::optional<Path> output_path;
+      switch (path.GetRootType()) {
+        case Path::RootType::kAbsolute:
+          output_path = Path::Root();
+          break;
+        case Path::RootType::kRelative:
+          break;
+      }
+      for (size_t i = 0; i < repetitions.value(); i++) {
+        auto part = Path(split.value().front());
+        split.value().pop_front();
+        if (output_path.has_value()) {
+          output_path = Path::Join(output_path.value(), part);
+        } else {
+          output_path = part;
+        }
+      }
+      path = output_path.value();
+    }
+  }
+  return path.ToString() + L"/";
 }
+
+const bool get_initial_prompt_value_tests_registration = tests::Register(
+    L"GetInitialPromptValue",
+    {
+        {.name = L"EmptyNoRepetitions",
+         .callback = [] { CHECK(GetInitialPromptValue({}, L"") == L""); }},
+        {.name = L"EmptyRepetitions",
+         .callback = [] { CHECK(GetInitialPromptValue(5, L"") == L""); }},
+        {.name = L"NoRepetitionsRelative",
+         .callback =
+             [] { CHECK(GetInitialPromptValue({}, L"foo/bar") == L"foo/"); }},
+        {.name = L"NoRepetitionsAbsolute",
+         .callback =
+             [] { CHECK(GetInitialPromptValue({}, L"/foo/bar") == L"/foo/"); }},
+        {.name = L"ZeroRepetitionsRelative",
+         .callback =
+             [] { CHECK(GetInitialPromptValue(0, L"foo/bar") == L""); }},
+        {.name = L"ZeroRepetitionsAbsolute",
+         .callback =
+             [] { CHECK(GetInitialPromptValue(0, L"/foo/bar") == L""); }},
+        {.name = L"LowRepetitionsRelative",
+         .callback =
+             [] {
+               CHECK(GetInitialPromptValue(2, L"a0/b1/c2/d3") == L"a0/b1/");
+             }},
+        {.name = L"LowRepetitionsAbsolute",
+         .callback =
+             [] {
+               CHECK(GetInitialPromptValue(2, L"/a0/b1/c2/d3") == L"/a0/b1/");
+             }},
+        {.name = L"BoundaryRepetitionsRelative",
+         .callback =
+             [] {
+               CHECK(GetInitialPromptValue(3, L"a0/b1/c2/d3") == L"a0/b1/c2/");
+             }},
+        {.name = L"BoundaryRepetitionsAbsolute",
+         .callback =
+             [] {
+               CHECK(GetInitialPromptValue(3, L"/a0/b1/c2/d3") ==
+                     L"/a0/b1/c2/");
+             }},
+        {.name = L"HighRepetitionsRelative",
+         .callback =
+             [] {
+               CHECK(GetInitialPromptValue(40, L"a0/b1/c2/d3") == L"a0/b1/c2/");
+             }},
+        {.name = L"HighRepetitionsAbsolute",
+         .callback =
+             [] {
+               CHECK(GetInitialPromptValue(40, L"/a0/b1/c2/d3") ==
+                     L"/a0/b1/c2/");
+             }},
+    });
 }  // namespace
 
 std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
@@ -157,6 +241,7 @@ std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
         options_copy.source_buffers = editor_state->active_buffers();
         if (!options_copy.source_buffers.empty()) {
           options_copy.initial_value = GetInitialPromptValue(
+              editor_state->modifiers().repetitions,
               options_copy.source_buffers[0]->Read(buffer_variables::path));
         }
         return options_copy;
