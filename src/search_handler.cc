@@ -83,15 +83,15 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
           output.positions.push_back(LineColumn(position, column));
         }
 
-        progress_channel->Push(
-            ProgressInformation{.counters = {{L"matches", output.positions.size()}}});
+        progress_channel->Push(ProgressInformation{
+            .counters = {{L"matches", output.positions.size()}}});
         return !options.abort_notification->HasBeenNotified() &&
                (!options.required_positions.has_value() ||
                 options.required_positions.value() > output.positions.size());
       });
-  progress_channel->Push(
-      ProgressInformation{.values = {{L"matches", std::to_wstring(output.positions.size()) +
-                                   (searched_every_line ? L"" : L"+")}}});
+  progress_channel->Push(ProgressInformation{
+      .values = {{L"matches", std::to_wstring(output.positions.size()) +
+                                  (searched_every_line ? L"" : L"+")}}});
   VLOG(5) << "Perform search found matches: " << output.positions.size();
   return output;
 }
