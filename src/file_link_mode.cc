@@ -246,7 +246,13 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
   if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
     return;
   }
-  if (current_stat_buffer.st_mtime > stat_buffer.st_mtime) {
+  if (current_stat_buffer.st_mtime <= stat_buffer.st_mtime) {
+    return;
+  }
+  if (S_ISDIR(stat_buffer.st_mode)) {
+    buffer.status()->SetInformationText(
+        L"🌷Directory changed in disk since last read.");
+  } else {
     buffer.status()->SetWarningText(L"🌷File changed in disk since last read.");
   }
 }
