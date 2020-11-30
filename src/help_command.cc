@@ -21,7 +21,7 @@ using std::unique_ptr;
 namespace {
 wstring DescribeSequence(wstring input) {
   wstring output = L"`";
-  for (wint_t c : input) {
+  for (auto& c : input) {
     switch (c) {
       case '\t':
         output += L"Tab";

@@ -55,7 +55,8 @@ class CommandArgumentMode : public EditorMode {
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
     futures::Transform(options_.undo(), [this, c, editor_state](EmptyValue) {
-      switch (c) {
+      // TODO: Get rid of this cast, ugh.
+      switch (static_cast<int>(c)) {
         case Terminal::BACKSPACE:
           if (!argument_string_.empty()) {
             argument_string_.pop_back();

@@ -33,7 +33,8 @@ bool CharConsumer(wint_t c, Data* data) {
          data->operations.back().type == Operation::Type::kFilter));
   switch (data->state) {
     case Data::State::kDefault:
-      switch (c) {
+      // TODO: Get rid of this cast, ugh.
+      switch (static_cast<int>(c)) {
         case L'!':
           data->operations.push_back({Operation::Type::kWarningFilter});
           return true;
@@ -76,7 +77,7 @@ bool CharConsumer(wint_t c, Data* data) {
       }
 
     case Data::State::kReadingFilter:
-      switch (c) {
+      switch (static_cast<int>(c)) {
         case L'\n':
           data->state = Data::State::kDefault;
           return true;
