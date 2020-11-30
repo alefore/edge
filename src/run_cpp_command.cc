@@ -1,6 +1,7 @@
 #include "src/run_cpp_command.h"
 
 #include <memory>
+#include <sstream>
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
@@ -42,8 +43,19 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
     return futures::Past(EmptyValue());
   }
   buffer->ResetMode();
-  buffer->EvaluateString(name);
-  return futures::Past(EmptyValue());
+  auto result = buffer->EvaluateString(name);
+  if (result == std::nullopt) {
+    return futures::Past(EmptyValue());
+  }
+  return futures::Transform(
+      result.value(), [buffer](std::unique_ptr<Value> value) {
+        if (value->IsVoid()) return EmptyValue();
+        std::ostringstream oss;
+        CHECK(value != nullptr);
+        oss << "Evaluation result: " << *value;
+        buffer->status()->SetInformationText(FromByteString(oss.str()));
+        return EmptyValue();
+      });
 }
 
 struct ParsedCommand {
