@@ -42,6 +42,7 @@ struct Value {
       std::vector<VMType> arguments,
       std::function<Ptr(std::vector<Ptr>)> callback);
 
+  bool IsVoid() const { return type.type == VMType::VM_VOID; };
   bool IsBool() const { return type.type == VMType::VM_BOOLEAN; };
   bool IsInteger() const { return type.type == VMType::VM_INTEGER; };
   bool IsDouble() const { return type.type == VMType::VM_DOUBLE; };
