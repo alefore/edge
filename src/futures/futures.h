@@ -199,8 +199,9 @@ struct TransformTraits;
 
 template <class InitialType, class Callable>
 struct TransformTraits {
-  using ReturnTraits = TransformTraitsCallableReturn<decltype(
-      std::declval<Callable>()(std::declval<InitialType>()))>;
+  using ReturnTraits =
+      TransformTraitsCallableReturn<decltype(std::declval<Callable>()(
+          std::declval<InitialType>()))>;
   using ReturnType = typename ReturnTraits::Type;
 
   static void FeedValue(InitialType initial_value, Callable& callable,
@@ -211,8 +212,9 @@ struct TransformTraits {
 
 template <class InitialType, class Callable>
 struct TransformTraits<editor::ValueOrError<InitialType>, Callable> {
-  using ReturnTraits = TransformTraitsCallableReturn<decltype(
-      std::declval<Callable>()(std::declval<InitialType>()))>;
+  using ReturnTraits =
+      TransformTraitsCallableReturn<decltype(std::declval<Callable>()(
+          std::declval<InitialType>()))>;
   using ReturnType = typename ReturnTraits::Type;
 
   static void FeedValue(editor::ValueOrError<InitialType> initial_value,
