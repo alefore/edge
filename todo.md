@@ -115,6 +115,8 @@ Bug: Often shows `history:1` when there's no matches. [p:5]
 
 Fix problem with first read of prompt history (at start); doesn't refresh list of matches. [p:20]
 
+Automatically save prompt buffers after a few seconds of inactivity.
+
 ## Commands
 
 Improve "af":
@@ -134,6 +136,8 @@ Create some "barriers" that limit the number of subprocesses.  Set a limit for e
 Persist undo history?
 
 Make follow_end_of_file the default.
+
+When the cursor lands over a file and thus a new buffer is shown, don't move the cursor to end of file (when follow_end_of_file is on).
 
 ## Directory view
 
@@ -179,7 +183,7 @@ Make aC honor cursors (select based on cursors, similar to search). [p:10]
 
 Make aC replace the text with a string visualization of the result of evaluating the expression.
 * So that `12+45+89` gets replaced with a single number
-* A string gets inserted, `void` just becomes the empty string, a string just gets inserted.
+* A string gets inserted, `void` just becomes the empty string, anything else gets converted to string and inserted.
 * Have undo honor this.
 
 ### Client/server
