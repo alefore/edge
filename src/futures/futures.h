@@ -1,3 +1,28 @@
+// Simple settable futures implementation.
+//
+// Usage:
+//
+//   Futures::Future<X> my_future;
+//
+// Dispatch some async work:
+//
+//   Futures::Value<X>::Consumer consumer = my_future.consumer;
+//   StartAsyncWork(consumer);
+//
+// When the async work is done:
+//
+//   X my_x = ComputeX(...);
+//   consumer(my_x);
+//
+// The original caller will have returned:
+//
+//   Futures::Value<X> value = my_future.value;
+//   return value;
+//
+// Customers of value can then schedule work to be executed when the value
+// becomes known:
+//
+//   value.SetConsumer([](X x) { ... });
 #ifndef __AFC_EDITOR_FUTURES_FUTURES_H__
 #define __AFC_EDITOR_FUTURES_FUTURES_H__
 
