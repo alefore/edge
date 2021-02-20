@@ -27,13 +27,13 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input);
 // to background threads.
 struct SearchOptions {
   // The position in which to start searching for positions.
-  LineColumn starting_position;
+  LineColumn starting_position = {};
 
   // The regular expression to search.
   wstring search_query;
 
   // An optional position where the search should stop.
-  std::optional<LineColumn> limit_position;
+  std::optional<LineColumn> limit_position = std::nullopt;
 
   // If set, signals that it is okay for the search operation to stop once this
   // number of positions has been found.
@@ -53,7 +53,10 @@ void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options,
 
 class AsyncSearchProcessor {
  public:
-  AsyncSearchProcessor(WorkQueue* work_queue);
+  AsyncSearchProcessor(
+      WorkQueue* work_queue,
+      BackgroundCallbackRunner::Options::QueueBehavior queue_behavior =
+          BackgroundCallbackRunner::Options::QueueBehavior::kFlush);
 
   struct Output {
     std::optional<std::wstring> pattern_error;

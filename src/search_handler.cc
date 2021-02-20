@@ -98,9 +98,10 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
 
 }  // namespace
 
-AsyncSearchProcessor::AsyncSearchProcessor(WorkQueue* work_queue)
-    : evaluator_(L"search", work_queue,
-                 BackgroundCallbackRunner::Options::QueueBehavior::kFlush) {}
+AsyncSearchProcessor::AsyncSearchProcessor(
+    WorkQueue* work_queue,
+    BackgroundCallbackRunner::Options::QueueBehavior queue_behavior)
+    : evaluator_(L"search", work_queue, queue_behavior) {}
 
 std::wstring AsyncSearchProcessor::Output::ToString() const {
   if (pattern_error.has_value()) {
