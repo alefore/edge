@@ -60,7 +60,7 @@ class BuffersList : public DelegatingWidget {
   std::map<wstring, std::shared_ptr<OpenBuffer>> buffers_;
   std::unique_ptr<Widget> widget_;
 
-  // If it has a value, buffers not included will be dimmed.
+  // If it has a value, buffers not included will be dimmed (disabled).
   std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter_;
 };
 
