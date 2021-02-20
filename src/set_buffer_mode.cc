@@ -167,7 +167,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
   }
 
   if (warning_filter_enabled) {
-    std::vector<size_t> new_indices;
+    Indices new_indices;
     for (auto& index : initial_indices) {
       if (auto buffer = buffers_list->GetBuffer(index).get();
           buffer->status()->GetType() == Status::Type::kWarning) {
@@ -232,7 +232,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
             state,
             [filter = TokenizeBySpaces(*NewLazyString(operation.text_input)),
              buffers_list](State state) {
-              std::vector<size_t> new_indices;
+              Indices new_indices;
               for (auto& index : state.indices) {
                 if (auto buffer = buffers_list->GetBuffer(index).get();
                     buffer != nullptr) {
