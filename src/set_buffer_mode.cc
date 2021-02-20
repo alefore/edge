@@ -179,10 +179,9 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
   }
 
   struct State {
-    // This is an index into `indices`.
-
-    size_t index;
-    Indices indices;
+    size_t index;  // This is an index into `indices`.
+    Indices indices = {};
+    std::optional<std::wstring> pattern_error = std::nullopt;
   };
   futures::Value<State> state = futures::Past(State{
       .index = data.initial_number.value_or(buffers_list->GetCurrentIndex()) %
@@ -283,8 +282,9 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
                       *buffer, progress_channel),
                   [new_state,
                    index](AsyncSearchProcessor::Output search_output) {
-                    if (search_output.pattern_error) {
-                      // TODO: Communicate the error.
+                    if (search_output.pattern_error.has_value()) {
+                      new_state->pattern_error =
+                          std::move(search_output.pattern_error.value());
                       return futures::IterationControlCommand::kStop;
                     }
                     if (search_output.matches > 0) {
@@ -309,6 +309,12 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
   }
 
   return futures::Transform(state, [editor, mode, buffers_list](State state) {
+    if (state.pattern_error.has_value()) {
+      // TODO: Find a better way to show it without hiding the input, ugh.
+      editor->status()->SetWarningText(L"Pattern error: " +
+                                       state.pattern_error.value());
+      return EmptyValue();
+    }
     if (state.indices.empty()) {
       return EmptyValue();
     }
