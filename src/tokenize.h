@@ -39,9 +39,9 @@ std::vector<Token> ExtendTokensToEndOfString(std::shared_ptr<LazyString> str,
 // If all tokens in `filter` are valid prefix (by a case-insensitive comparison)
 // of a token in `substrings`, returns a vector with the same length as
 // `filter`, containing one token for the first match of each filter. Otherwise,
-// returns an empty vector.
-std::vector<Token> FindFilterPositions(const std::vector<Token>& filter,
-                                       std::vector<Token> substrings);
+// returns std::nullopt.
+std::optional<std::vector<Token>> FindFilterPositions(
+    const std::vector<Token>& filter, std::vector<Token> substrings);
 
 }  // namespace afc::editor
 

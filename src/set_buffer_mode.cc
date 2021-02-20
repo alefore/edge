@@ -238,10 +238,10 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
                     buffer != nullptr) {
                   if (std::shared_ptr<LazyString> str =
                           NewLazyString(buffer->Read(buffer_variables::name));
-                      !FindFilterPositions(
-                           filter, ExtendTokensToEndOfString(
-                                       str, TokenizeNameForPrefixSearches(str)))
-                           .empty()) {
+                      FindFilterPositions(
+                          filter, ExtendTokensToEndOfString(
+                                      str, TokenizeNameForPrefixSearches(str)))
+                          .has_value()) {
                     new_indices.push_back(index);
                   }
                 }

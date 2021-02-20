@@ -124,8 +124,8 @@ std::vector<Token> ExtendTokensToEndOfString(std::shared_ptr<LazyString> str,
   return output;
 }
 
-std::vector<Token> FindFilterPositions(const std::vector<Token>& filter,
-                                       std::vector<Token> substrings) {
+std::optional<std::vector<Token>> FindFilterPositions(
+    const std::vector<Token>& filter, std::vector<Token> substrings) {
   std::vector<Token> output;
   for (auto& filter_token : filter) {
     if (auto token = FindPrefixInTokens(filter_token.value, substrings);
@@ -133,7 +133,7 @@ std::vector<Token> FindFilterPositions(const std::vector<Token>& filter,
       output.push_back(std::move(token.value()));
     } else {
       VLOG(8) << "Token not found: " << filter_token.value;
-      return {};
+      return std::nullopt;
     }
   }
   return output;

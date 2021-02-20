@@ -359,10 +359,10 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             features_output = &history_data[event_key];
           } else if (auto match =
                          FindFilterPositions(filter_tokens, line_tokens);
-                     !match.empty()) {
+                     match.has_value()) {
             VLOG(5) << "Accepting value, produced a match: " << line.ToString();
             features_output = &history_data[event_key];
-            history_prompt_tokens.insert({event_key, std::move(match)});
+            history_prompt_tokens.insert({event_key, std::move(match.value())});
           } else {
             VLOG(6) << "Ignoring value, no match: " << line.ToString();
             return !abort_notification->HasBeenNotified();
