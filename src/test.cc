@@ -6,6 +6,7 @@
 
 #include "src/audio.h"
 #include "src/buffer_variables.h"
+#include "src/command_argument_mode.h"
 #include "src/const_tree.h"
 #include "src/editor.h"
 #include "src/terminal.h"
@@ -27,7 +28,8 @@ bool IsEmpty(EditorState* editor_state) {
 void Clear(EditorState* editor_state) {
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->set_current_buffer(
-      editor_state->buffers()->find(L"anonymous buffer 0")->second);
+      editor_state->buffers()->find(L"anonymous buffer 0")->second,
+      CommandArgumentModeApplyMode::kFinal);
 
   editor_state->ProcessInputString("eegde999999999999999\n");
   editor_state->ProcessInput(Terminal::ESCAPE);

@@ -7,6 +7,7 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/command.h"
+#include "src/command_argument_mode.h"
 #include "src/editor.h"
 #include "src/futures/futures.h"
 #include "src/lazy_string_functional.h"
@@ -103,7 +104,8 @@ class GotoCommand : public Command {
       auto it = editor_state->buffers()->begin();
       advance(it, position);
       if (it->second != editor_state->current_buffer()) {
-        editor_state->set_current_buffer(it->second);
+        editor_state->set_current_buffer(it->second,
+                                         CommandArgumentModeApplyMode::kFinal);
       }
     }
 

@@ -10,6 +10,10 @@ struct Operation {
   enum class Type {
     kForward,
     kBackward,
+    // kPrevious and kNext move in the list of buffers according to their access
+    // time (per OpenBuffer::last_visit).
+    kPrevious,
+    kNext,
     kNumber,
     kFilter,
     // Toggle WarningFilter: Only select buffers that have a warning status.
@@ -54,6 +58,14 @@ bool CharConsumer(wint_t c, Data* data) {
 
         case L'h':
           data->operations.push_back({Operation::Type::kBackward});
+          return true;
+
+        case L'j':
+          data->operations.push_back({Operation::Type::kNext});
+          return true;
+
+        case L'k':
+          data->operations.push_back({Operation::Type::kPrevious});
           return true;
 
         case L'0':
@@ -121,6 +133,12 @@ std::wstring BuildStatus(const Data& data) {
         break;
       case Operation::Type::kBackward:
         output += L"⮜";
+        break;
+      case Operation::Type::kPrevious:
+        output += L"⮝";
+        break;
+      case Operation::Type::kNext:
+        output += L"⮟";
         break;
       case Operation::Type::kNumber:
         output += std::to_wstring(operation.number);
@@ -210,6 +228,43 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
         });
         break;
 
+      case Operation::Type::kPrevious:
+      case Operation::Type::kNext:
+        state = futures::Transform(state, [buffers_list,
+                                           op_type =
+                                               operation.type](State state) {
+          if (state.indices.empty()) {
+            state.index = 0;
+            return state;
+          }
+          CHECK_LT(state.index, state.indices.size());
+          auto last_visit_current_buffer =
+              buffers_list->GetBuffer(state.indices[state.index])->last_visit();
+          std::optional<size_t> new_index;
+          for (size_t i = 0; i < state.indices.size(); i++) {
+            auto candidate = buffers_list->GetBuffer(state.indices[i]);
+            std::optional<time_t> last_visit_new_index;
+            if (new_index.has_value()) {
+              last_visit_new_index =
+                  buffers_list->GetBuffer(new_index.value())->last_visit();
+            }
+            if (op_type == Operation::Type::kPrevious
+                    ? (candidate->last_visit() < last_visit_current_buffer &&
+                       (last_visit_new_index == std::nullopt ||
+                        candidate->last_visit() > last_visit_new_index))
+                    : (candidate->last_visit() > last_visit_current_buffer &&
+                       (last_visit_new_index == std::nullopt ||
+                        candidate->last_visit() <= last_visit_new_index))) {
+              new_index = i;
+            }
+          }
+          if (new_index.has_value()) {
+            state.index = new_index.value();
+          }
+          return state;
+        });
+        break;
+
       case Operation::Type::kNumber: {
         CHECK_GT(operation.number, 0ul);
         state = futures::Transform(
@@ -221,7 +276,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
                                        return index >= number_requested;
                                      });
               state.index = it == state.indices.end()
-                                ? state.indices[0]
+                                ? 0
                                 : std::distance(state.indices.begin(), it);
               return state;
             });
@@ -319,8 +374,8 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
       return EmptyValue();
     }
     state.index %= state.indices.size();
-    editor->set_current_buffer(
-        buffers_list->GetBuffer(state.indices[state.index]));
+    auto buffer = buffers_list->GetBuffer(state.indices[state.index]);
+    editor->set_current_buffer(buffer, mode);
     switch (mode) {
       case CommandArgumentModeApplyMode::kFinal:
         editor->buffer_tree()->set_filter(std::nullopt);
@@ -347,9 +402,11 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
   auto buffers_list = editor->buffer_tree();
   Data initial_value;
   if (editor->modifiers().repetitions.has_value()) {
-    editor->set_current_buffer(buffers_list->GetBuffer(
-        (max(editor->modifiers().repetitions.value(), 1ul) - 1) %
-        buffers_list->BuffersCount()));
+    editor->set_current_buffer(
+        buffers_list->GetBuffer(
+            (max(editor->modifiers().repetitions.value(), 1ul) - 1) %
+            buffers_list->BuffersCount()),
+        CommandArgumentModeApplyMode::kFinal);
     editor->ResetRepetitions();
     return nullptr;
   }
@@ -361,7 +418,8 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
       .status_factory = &BuildStatus,
       .undo =
           [editor, initial_buffer]() {
-            editor->set_current_buffer(initial_buffer);
+            editor->set_current_buffer(initial_buffer,
+                                       CommandArgumentModeApplyMode::kFinal);
             editor->buffer_tree()->set_filter(std::nullopt);
             return futures::Past(EmptyValue());
           },

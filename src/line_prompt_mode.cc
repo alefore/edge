@@ -10,6 +10,7 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command.h"
+#include "src/command_argument_mode.h"
 #include "src/command_mode.h"
 #include "src/dirname.h"
 #include "src/editor.h"
@@ -190,7 +191,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   it->second->Set(buffer_variables::atomic_lines, true);
   if (!editor_state->has_current_buffer()) {
     // Seems lame, but what can we do?
-    editor_state->set_current_buffer(it->second);
+    editor_state->set_current_buffer(it->second,
+                                     CommandArgumentModeApplyMode::kFinal);
   }
   return it;
 }
@@ -894,7 +896,8 @@ void Prompt(PromptOptions options) {
             auto name = PredictionsBufferName();
             if (auto it = buffers->find(name); it != buffers->end()) {
               it->second->set_current_position_line(LineNumber(0));
-              editor_state->set_current_buffer(it->second);
+              editor_state->set_current_buffer(
+                  it->second, CommandArgumentModeApplyMode::kFinal);
               if (editor_state->status()->prompt_buffer() == nullptr) {
                 it->second->status()->CopyFrom(*prompt_state->status());
               }

@@ -576,11 +576,15 @@ void OpenBuffer::AddCloseObserver(std::function<void()> observer) {
   close_observers_.push_back(std::move(observer));
 }
 
-void OpenBuffer::Visit() {
+void OpenBuffer::Enter() {
   if (Read(buffer_variables::reload_on_enter)) {
     Reload();
     CheckPosition();
   }
+}
+
+void OpenBuffer::Visit() {
+  Enter();
   time(&last_visit_);
   time(&last_action_);
   if (options_.handle_visit != nullptr) {

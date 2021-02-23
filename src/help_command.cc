@@ -7,6 +7,7 @@
 
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
+#include "src/command_argument_mode.h"
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
 #include "src/terminal.h"
@@ -130,7 +131,8 @@ class HelpCommand : public Command {
     buffer->ResetMode();
 
     (*editor_state->buffers())[name] = buffer;
-    editor_state->set_current_buffer(buffer);
+    editor_state->set_current_buffer(buffer,
+                                     CommandArgumentModeApplyMode::kFinal);
 
     editor_state->ResetRepetitions();
   }

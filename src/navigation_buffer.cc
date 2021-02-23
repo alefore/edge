@@ -3,6 +3,7 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command.h"
+#include "src/command_argument_mode.h"
 #include "src/dirname.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
@@ -162,7 +163,8 @@ class NavigationBufferCommand : public Command {
       it.first->second = buffer;
       editor_state->StartHandlingInterrupts();
     }
-    editor_state->set_current_buffer(it.first->second);
+    editor_state->set_current_buffer(it.first->second,
+                                     CommandArgumentModeApplyMode::kFinal);
     editor_state->status()->Reset();
     it.first->second->Reload();
     editor_state->PushCurrentPosition();

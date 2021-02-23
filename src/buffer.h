@@ -140,7 +140,12 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void AddEndOfFileObserver(std::function<void()> observer);
   void AddCloseObserver(std::function<void()> observer);
 
+  // Enter signals that the buffer went from being hidden to being displayed.
+  void Enter();
+  // Visit implies Enter but also signals that the buffer was actively selected
+  // (rather than just temporarily shown).
   void Visit();
+
   time_t last_visit() const;
   time_t last_action() const;
 

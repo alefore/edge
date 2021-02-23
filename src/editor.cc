@@ -540,10 +540,15 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
   });
 }
 
-void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
+void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
+                                     CommandArgumentModeApplyMode apply_mode) {
   buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
   if (buffer != nullptr) {
-    buffer->Visit();
+    if (apply_mode == CommandArgumentModeApplyMode::kFinal) {
+      buffer->Visit();
+    } else {
+      buffer->Enter();
+    }
   }
 }
 
@@ -591,7 +596,8 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
 
 void EditorState::SetActiveBuffer(size_t position) {
   set_current_buffer(
-      buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()));
+      buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()),
+      CommandArgumentModeApplyMode::kFinal);
 }
 
 void EditorState::AdvanceActiveLeaf(int delta) {
@@ -623,7 +629,8 @@ void EditorState::AdvanceActiveBuffer(int delta) {
   } else {
     delta %= total;
   }
-  set_current_buffer(buffer_tree_.GetBuffer(delta % total));
+  set_current_buffer(buffer_tree_.GetBuffer(delta % total),
+                     CommandArgumentModeApplyMode::kFinal);
 }
 
 void EditorState::ZoomToLeaf() {
@@ -824,7 +831,7 @@ void EditorState::ProcessInput(int c) {
   } else {
     auto buffer = OpenAnonymousBuffer(this);
     if (!has_current_buffer()) {
-      set_current_buffer(buffer);
+      set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
     }
     handler = buffer->mode();
     CHECK(has_current_buffer());
@@ -854,7 +861,7 @@ void EditorState::MoveBufferForwards(size_t times) {
       it = buffers_.begin();
     }
   }
-  set_current_buffer(it->second);
+  set_current_buffer(it->second, CommandArgumentModeApplyMode::kFinal);
   PushCurrentPosition();
 }
 
@@ -879,7 +886,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
     }
     --it;
   }
-  set_current_buffer(it->second);
+  set_current_buffer(it->second, CommandArgumentModeApplyMode::kFinal);
   PushCurrentPosition();
 }
 

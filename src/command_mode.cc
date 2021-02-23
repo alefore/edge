@@ -15,6 +15,7 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command.h"
+#include "src/command_argument_mode.h"
 #include "src/cpp_command.h"
 #include "src/delete_mode.h"
 #include "src/dirname.h"
@@ -220,7 +221,8 @@ class GotoPreviousPositionCommand : public Command {
         LOG(INFO) << "Jumping to position: "
                   << it->second->Read(buffer_variables::name) << " "
                   << pos.position;
-        editor_state->set_current_buffer(it->second);
+        editor_state->set_current_buffer(it->second,
+                                         CommandArgumentModeApplyMode::kFinal);
         it->second->set_position(pos.position);
         editor_state->set_repetitions(editor_state->repetitions().value_or(1) -
                                       1);
@@ -496,7 +498,8 @@ class ActivateLink : public Command {
       LOG(INFO) << "Visiting buffer: " << target->Read(buffer_variables::name);
       editor_state->status()->Reset();
       buffer->status()->Reset();
-      editor_state->set_current_buffer(target);
+      editor_state->set_current_buffer(target,
+                                       CommandArgumentModeApplyMode::kFinal);
       auto target_position = buffer->current_line()->environment()->Lookup(
           L"buffer_position", vm::VMTypeMapper<LineColumn>::vmtype);
       if (target_position != nullptr &&

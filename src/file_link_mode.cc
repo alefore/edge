@@ -23,6 +23,7 @@ extern "C" {
 
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
+#include "src/command_argument_mode.h"
 #include "src/dirname.h"
 #include "src/editor.h"
 #include "src/file_system_driver.h"
@@ -437,7 +438,8 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,
   it->second->Set(buffer_variables::trigger_reload_on_buffer_write, false);
   it->second->Set(buffer_variables::show_in_buffers_list, false);
   if (!editor_state->has_current_buffer()) {
-    editor_state->set_current_buffer(it->second);
+    editor_state->set_current_buffer(it->second,
+                                     CommandArgumentModeApplyMode::kFinal);
   }
   return it->second;
 }
@@ -634,7 +636,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     resolve_path_options.search_paths = {Path::LocalDirectory()};
     if (auto output = ResolvePath(resolve_path_options); output.has_value()) {
       buffer_options.path = output->path;
-      editor_state->set_current_buffer(buffer->second);
+      editor_state->set_current_buffer(buffer->second,
+                                       CommandArgumentModeApplyMode::kFinal);
       if (output->position.has_value()) {
         buffer->second->set_position(output->position.value());
       }

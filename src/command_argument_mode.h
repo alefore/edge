@@ -11,7 +11,7 @@
 
 namespace afc::editor {
 
-enum CommandArgumentModeApplyMode {
+enum class CommandArgumentModeApplyMode {
   // We're only updating the state to preview what the result of the operation
   // would be.
   kPreview,

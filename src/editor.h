@@ -42,6 +42,8 @@ using std::shared_ptr;
 using std::unique_ptr;
 using std::vector;
 
+enum class CommandArgumentModeApplyMode;
+
 class EditorState {
  public:
   struct ScreenState {
@@ -66,7 +68,8 @@ class EditorState {
   map<wstring, shared_ptr<OpenBuffer>>* buffers() { return &buffers_; }
   BuffersList* buffer_tree() { return &buffer_tree_; }
 
-  void set_current_buffer(shared_ptr<OpenBuffer> buffer);
+  void set_current_buffer(shared_ptr<OpenBuffer> buffer,
+                          CommandArgumentModeApplyMode apply_mode);
   void AddHorizontalSplit();
   void AddVerticalSplit();
   void SetHorizontalSplitsWithAllBuffers();
