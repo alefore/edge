@@ -31,6 +31,11 @@ ValueOrError<std::wstring> HumanReadableTime(const struct timespec& time);
 }  // namespace editor
 }  // namespace afc
 
+bool operator==(const struct timespec& a, const struct timespec& b);
+bool operator!=(const struct timespec& a, const struct timespec& b);
 bool operator<(const struct timespec& a, const struct timespec& b);
+bool operator>(const struct timespec& a, const struct timespec& b);
+bool operator<=(const struct timespec& a, const struct timespec& b);
+bool operator>=(const struct timespec& a, const struct timespec& b);
 
 #endif  // __AFC_EDITOR_TIME_H__

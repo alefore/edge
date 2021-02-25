@@ -243,7 +243,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
           std::optional<size_t> new_index;
           for (size_t i = 0; i < state.indices.size(); i++) {
             auto candidate = buffers_list->GetBuffer(state.indices[i]);
-            std::optional<time_t> last_visit_new_index;
+            std::optional<struct timespec> last_visit_new_index;
             if (new_index.has_value()) {
               last_visit_new_index =
                   buffers_list->GetBuffer(new_index.value())->last_visit();

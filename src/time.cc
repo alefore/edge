@@ -89,6 +89,26 @@ ValueOrError<std::wstring> HumanReadableTime(const struct timespec& time) {
 }  // namespace editor
 }  // namespace afc
 
+bool operator==(const struct timespec& a, const struct timespec& b) {
+  return a.tv_sec == b.tv_sec && a.tv_nsec == b.tv_nsec;
+}
+
+bool operator!=(const struct timespec& a, const struct timespec& b) {
+  return !(a == b);
+}
+
 bool operator<(const struct timespec& a, const struct timespec& b) {
   return a.tv_sec < b.tv_sec || (a.tv_sec == b.tv_sec && a.tv_nsec < b.tv_nsec);
+}
+
+bool operator>(const struct timespec& a, const struct timespec& b) {
+  return !(a < b) && a != b;
+}
+
+bool operator<=(const struct timespec& a, const struct timespec& b) {
+  return a < b || a == b;
+}
+
+bool operator>=(const struct timespec& a, const struct timespec& b) {
+  return a > b || a == b;
 }

@@ -146,8 +146,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // (rather than just temporarily shown).
   void Visit();
 
-  time_t last_visit() const;
-  time_t last_action() const;
+  struct timespec last_visit() const;
+  struct timespec last_action() const;
 
   // Saves state of this buffer (not including contents). Currently that means
   // the values of variables, but in the future it could include other things.
@@ -580,10 +580,10 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::shared_ptr<EditorMode> mode_;
 
   // The time when the buffer was last selected as active.
-  time_t last_visit_ = 0;
+  struct timespec last_visit_ = {};
   // The time when the buffer last saw some action. This includes being visited,
   // receiving input and probably other things.
-  time_t last_action_ = 0;
+  struct timespec last_action_ = {};
 
   // The time when variable_progress was last incremented.
   //

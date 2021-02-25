@@ -466,7 +466,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
               break;  // Nothing.
           }
         }
-        time(&last_action_);
+        last_action_ = Now();
         cursors_tracker_.AdjustCursors(transformation);
       }),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
@@ -585,15 +585,18 @@ void OpenBuffer::Enter() {
 
 void OpenBuffer::Visit() {
   Enter();
-  time(&last_visit_);
-  time(&last_action_);
+  last_visit_ = last_action_ = Now();
   if (options_.handle_visit != nullptr) {
     options_.handle_visit(this);
   }
 }
 
-time_t OpenBuffer::last_visit() const { return last_visit_; }
-time_t OpenBuffer::last_action() const { return last_action_; }
+struct timespec OpenBuffer::last_visit() const {
+  return last_visit_;
+}
+struct timespec OpenBuffer::last_action() const {
+  return last_action_;
+}
 
 futures::Value<PossibleError> OpenBuffer::PersistState() const {
   auto trace = log_->NewChild(L"Persist State");
@@ -680,7 +683,7 @@ void OpenBuffer::AppendEmptyLine() {
 }
 
 void OpenBuffer::EndOfFile() {
-  time(&last_action_);
+  last_action_ = Now();
   CHECK(fd_ == nullptr);
   CHECK(fd_error_ == nullptr);
   if (child_pid_ != -1) {
