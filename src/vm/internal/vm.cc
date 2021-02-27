@@ -617,10 +617,11 @@ futures::Value<std::unique_ptr<Value>> Evaluate(
   return futures::Transform(trampoline->Bounce(expr, expr->Types()[0]),
                             [trampoline](EvaluationOutput value) {
                               DVLOG(4) << "Evaluation done.";
-                              DVLOG(5) << "Result: " << *value.value;
                               switch (value.type) {
                                 case EvaluationOutput::OutputType::kContinue:
                                 case EvaluationOutput::OutputType::kReturn:
+                                  CHECK(value.value != nullptr);
+                                  DVLOG(5) << "Result: " << *value.value;
                                   return std::move(value.value);
                                 case EvaluationOutput::OutputType::kAbort:
                                   LOG(INFO) << "Evaluation error: "
