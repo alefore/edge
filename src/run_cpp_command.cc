@@ -49,6 +49,7 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
   }
   return futures::Transform(
       result.value(), [buffer](std::unique_ptr<Value> value) {
+        CHECK(value != nullptr);
         if (value->IsVoid()) return EmptyValue();
         std::ostringstream oss;
         CHECK(value != nullptr);
