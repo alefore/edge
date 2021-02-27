@@ -124,13 +124,14 @@ class FunctionCall : public Expression {
                 CHECK(return_value.value != nullptr);
                 DVLOG(5) << "Function call consumer gets value: "
                          << *return_value.value;
+                consumer(EvaluationOutput::New(std::move(return_value.value)));
                 break;
               case EvaluationOutput::OutputType::kAbort:
                 DVLOG(3) << "Function call aborted: "
                          << return_value.error.value();
+                consumer(std::move(return_value));
                 break;
             }
-            consumer(EvaluationOutput::New(std::move(return_value.value)));
           });
       return;
     }
