@@ -319,6 +319,7 @@ void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
     case AddBufferType::kVisit:
       buffers_[buffer->Read(buffer_variables::name)] = buffer;
       GetActiveLeaf()->SetBuffer(buffer);
+      buffer->Visit();
       break;
 
     case AddBufferType::kOnlyList:
