@@ -210,7 +210,11 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
     switch (operation.type) {
       case Operation::Type::kForward:
         state = futures::Transform(state, [](State state) {
-          state.index++;
+          if (state.indices.empty()) {
+            state.index = 0;
+          } else {
+            state.index = (state.index + 1) % state.indices.size();
+          }
           return state;
         });
         break;
