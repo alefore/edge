@@ -303,17 +303,34 @@ using std::to_wstring;
                      buffer->editor()->ResetModifiers();
                    }));
 
-  buffer->AddField(L"Save",
-                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     if (buffer->editor()->structure() == StructureLine()) {
-                       auto target_buffer = buffer->GetBufferFromCurrentLine();
-                       if (target_buffer != nullptr) {
-                         buffer = target_buffer;
-                       }
-                     }
-                     buffer->Save();
-                     buffer->editor()->ResetModifiers();
-                   }));
+  // using Callback = std::function<futures::Value<EvaluationOutput>(
+  //     std::vector<Ptr>, Trampoline*)>;
+  buffer->AddField(
+      L"Save",
+      Value::NewFunction(
+          {VMType::Void(), VMType::ObjectType(buffer.get())},
+          [](vector<Value::Ptr> args, Trampoline*) {
+            CHECK_EQ(args.size(), 1ul);
+            auto buffer =
+                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
+                    args[0].get());
+            if (buffer->editor()->structure() == StructureLine()) {
+              auto target_buffer = buffer->GetBufferFromCurrentLine();
+              if (target_buffer != nullptr) {
+                buffer = target_buffer;
+              }
+            }
+
+            futures::Future<EvaluationOutput> future;
+            buffer->Save().SetConsumer(
+                [consumer = std::move(future.consumer)](PossibleError result) {
+                  consumer(result.IsError()
+                               ? EvaluationOutput::Abort(result.error())
+                               : EvaluationOutput::Return(Value::NewVoid()));
+                });
+            buffer->editor()->ResetModifiers();
+            return future.value;
+          }));
 
   buffer->AddField(L"Close",
                    vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
