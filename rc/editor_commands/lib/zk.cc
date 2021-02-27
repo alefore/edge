@@ -41,7 +41,8 @@ string ToMarkdownPath(string path) {
   return path_without_extension + ".md";
 }
 
-// Returns the path (ID) of the next available (empty) file.
+// Returns the path (ID) of the next available (empty) file. Includes the `.md`
+// extension.
 string NextEmpty() {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(
@@ -117,6 +118,22 @@ TransformationOutput Link(Buffer buffer, TransformationInput input) {
   return output;
 }
 
+Buffer InitializeNewNote(string path, string title, string parent_title,
+                         string parent_path) {
+  auto new_note = OpenFile(path, true);
+  new_note.WaitForEndOfFile();
+  new_note.ApplyTransformation(FunctionTransformation(
+      [](TransformationInput input) -> TransformationOutput {
+        return TransformationOutput()
+            .push(InsertTransformationBuilder()
+                      .set_text("# " + title + "\n\n\n\n## Related\n* [" +
+                                parent_title + "](" + parent_path + ")\n")
+                      .build())
+            .push(SetPositionTransformation(LineColumn(2, 0)));
+      }));
+  return new_note;
+}
+
 TransformationOutput NewLink(Buffer buffer, TransformationInput input) {
   auto line = buffer.line(input.position().line());
   auto path_characters = buffer.path_characters();
@@ -147,19 +164,8 @@ TransformationOutput NewLink(Buffer buffer, TransformationInput input) {
     output.push(SetColumnTransformation(99999999))
         .push(InsertTransformationBuilder().set_text("\n").build());
   }
-  auto new_note = OpenFile(path, true);
-  new_note.WaitForEndOfFile();
-  new_note.ApplyTransformation(FunctionTransformation(
-      [](TransformationInput input) -> TransformationOutput {
-        return TransformationOutput()
-            .push(InsertTransformationBuilder()
-                      .set_text("# " + title + "\n\n\n\nRelated:\n* [" +
-                                GetNoteTitle(buffer.path()) + "](" +
-                                Basename(buffer.path()) + ")\n")
-                      .build())
-            .push(SetPositionTransformation(LineColumn(2, 0)));
-      }));
-
+  InitializeNewNote(path, title, GetNoteTitle(buffer.path()),
+                    Basename(buffer.path()));
   return output;
 }
 
@@ -370,7 +376,97 @@ string ReplaceText(string pattern, string replacement, string input) {
   return output;
 }
 
+void AppendLink(Buffer buffer, string title, string path) {
+  buffer.ApplyTransformation(FunctionTransformation(
+      [](TransformationInput input) -> TransformationOutput {
+        return TransformationOutput()
+            .push(SetPositionTransformation(LineColumn(10000, 0)))
+            .push(InsertTransformationBuilder()
+                      .set_text("* [" + title + "](" + path + ")\n")
+                      .build());
+      }));
+}
+
+string ExtractContentsFromTemplate(string path) {
+  Buffer template = OpenFile(path + ".md", false);
+  template.WaitForEndOfFile();
+  string output = "";
+  bool found_start_marker = false;
+  for (int line = 0; line < template.line_count(); line++) {
+    string contents = template.line(line);
+    if (!found_start_marker) {
+      if (contents.starts_with("## ")) {
+        found_start_marker = true;
+      }
+    } else if (contents.starts_with("## ")) {
+      return output;
+    } else {
+      output = output + contents + "\n";
+    }
+  }
+  return output;
+}
+
+void Journal(int days_to_generate, Time start, string template_path) {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    auto parent_title = GetNoteTitle(buffer.path());
+    auto parent_path = Basename(buffer.path());
+    auto template_contents = ExtractContentsFromTemplate(template_path);
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          auto output = TransformationOutput();
+          string previous_child_path = "";
+          string previous_child_title = "";
+          auto next_child_path = NextEmpty();
+          for (int i = 0; i < days_to_generate; i++) {
+            auto child_title = start.format("%Y-%m-%d");
+            auto child_buffer = InitializeNewNote(next_child_path, child_title,
+                                                  parent_title, parent_path);
+            // Append the template.
+            child_buffer.ApplyTransformation(FunctionTransformation(
+                [](TransformationInput input) -> TransformationOutput {
+                  return TransformationOutput()
+                      .push(SetPositionTransformation(LineColumn(2, 0)))
+                      .push(InsertTransformationBuilder()
+                                .set_text(template_contents)
+                                .build());
+                }));
+
+            if (previous_child_path != "") {
+              AppendLink(child_buffer, previous_child_title,
+                         previous_child_path);
+            }
+
+            output.push(SetPositionTransformation(input.position()))
+                .push(InsertTransformationBuilder()
+                          .set_text("* [" + child_title + "](" +
+                                    next_child_path + ")\n")
+                          .build());
+            previous_child_path = next_child_path;
+            previous_child_title = child_title;
+            start = start.AddDays(1);
+            // This is suboptimal: we need to save before we call NextEmpty (so
+            // that it won't return the current buffer). That forces us to save
+            // again after we append a link to it.
+            child_buffer.Save();
+            if (i + 1 < days_to_generate) {
+              next_child_path = NextEmpty();
+              AppendLink(child_buffer, start.format("%Y-%m-%d"),
+                         next_child_path);
+              child_buffer.Save();
+            }
+          }
+          return output;
+        }));
+    // buffer.Save();
+  });
+}
 }  // namespace internal
+
+void Journal(string days_to_generate, string start_day, string template_path) {
+  internal::Journal(days_to_generate.toint(), ParseTime(start_day, "%Y-%m-%d"),
+                    template_path);
+}
 
 // Open the index. index.md is expected to be a link to the main entry point.
 void I() { OpenFile("index.md", true); }
@@ -396,7 +492,6 @@ void S(string query) {
   internal::RunCommand("s: " + query,
                        "grep -i " + query.shell_escape() + " ???.md", "visit")
       .set_allow_dirty_delete(true);
-  ;
 }
 
 Buffer PreviewS(string query) {
@@ -412,10 +507,6 @@ Buffer PreviewS(string query) {
 void T(string query) { internal::TitleSearch(query, "visit"); }
 
 Buffer PreviewT(string query) { return internal::TitleSearch(query, "ignore"); }
-
-// Find the smallest unused ID. This assumes that files are of the form `???.md`
-// and are created in advance.
-void N() { OpenFile(internal::NextEmpty(), true); }
 
 // Replaces a path (e.g., `03d.md`) with a link to it, extracting the text of
 // the link from the first line in the file (e.g. `[Bauhaus](03d.md)`).
