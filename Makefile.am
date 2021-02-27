@@ -218,6 +218,8 @@ src/vm/internal/lambda.h \
 src/vm/internal/vm.cc \
 src/vm/internal/value.cc \
 src/vm/internal/string.cc \
+src/vm/internal/time.cc \
+src/vm/internal/time.h \
 src/vm/internal/types.cc \
 src/vm/internal/binary_operator.cc \
 src/vm/internal/if_expression.cc \

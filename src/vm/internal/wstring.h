@@ -2,6 +2,7 @@
 #define __AFC_EDITOR_VM_INTERNAL_WSTRING_H__
 
 #include <wchar.h>
+
 #include <iostream>
 #include <string>
 #include <vector>

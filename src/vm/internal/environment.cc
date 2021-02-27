@@ -11,6 +11,7 @@
 #include "../public/value.h"
 #include "../public/vector.h"
 #include "string.h"
+#include "time.h"
 
 namespace afc {
 namespace vm {
@@ -28,7 +29,7 @@ const VMType VMTypeMapper<std::set<int>*>::vmtype =
 std::shared_ptr<Environment> BuildDefaultEnvironment() {
   auto environment = std::make_shared<Environment>();
   RegisterStringType(environment.get());
-
+  RegisterTimeType(environment.get());
   auto bool_type = std::make_unique<ObjectType>(VMType::Bool());
   bool_type->AddField(L"tostring",
                       NewCallback(std::function<wstring(bool)>(
