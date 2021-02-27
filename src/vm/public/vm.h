@@ -98,11 +98,13 @@ struct EvaluationOutput {
 
   static EvaluationOutput New(std::unique_ptr<Value> value) {
     EvaluationOutput output;
+    CHECK(value != nullptr);
     output.value = std::move(value);
     return output;
   }
   static EvaluationOutput Return(std::unique_ptr<Value> value) {
     EvaluationOutput output;
+    CHECK(value != nullptr);
     output.value = std::move(value);
     output.type = OutputType::kReturn;
     return output;
