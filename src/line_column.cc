@@ -674,7 +674,7 @@ namespace vm {
 /* static */
 editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value* value) {
   CHECK(value != nullptr);
-  CHECK_EQ(value->type, VMTypeMapper<editor::LineColumn>::vmtype);
+  CHECK_EQ(value->type, vmtype);
   CHECK(value->user_value != nullptr);
   return *static_cast<editor::LineColumn*>(value->user_value.get());
 }
@@ -682,7 +682,7 @@ editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value* value) {
 /* static */
 Value::Ptr VMTypeMapper<editor::LineColumn>::New(editor::LineColumn value) {
   return Value::NewObject(
-      VMTypeMapper<editor::LineColumn>::vmtype.object_type,
+      vmtype.object_type,
       shared_ptr<void>(new editor::LineColumn(value), [](void* v) {
         delete static_cast<editor::LineColumn*>(v);
       }));
