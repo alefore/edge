@@ -63,7 +63,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
   } else if (value.IsString()) {
     os << '"' << value.str << '"';
   } else if (value.IsBool()) {
-    os << value.boolean ? "true" : "false";
+    os << (value.boolean ? "true" : "false");
   } else if (value.IsDouble()) {
     os << value.double_value;
   } else {
