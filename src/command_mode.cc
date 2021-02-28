@@ -16,8 +16,8 @@
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/command_argument_mode.h"
+#include "src/command_with_modifiers.h"
 #include "src/cpp_command.h"
-#include "src/delete_mode.h"
 #include "src/dirname.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
@@ -752,17 +752,26 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
     return L"";
   };
   commands->Add(
-      L"D", NewCommandWithModifiers(
-                delete_name_callback, L"starts a new delete backwards command",
-                [] {
-                  Modifiers output;
-                  output.direction = Direction::kBackwards;
-                  return output;
-                }(),
-                ApplyDeleteCommand, editor_state));
-  commands->Add(L"d", NewCommandWithModifiers(
-                          delete_name_callback, L"starts a new delete command",
-                          Modifiers(), ApplyDeleteCommand, editor_state));
+      L"D",
+      NewCommandWithModifiers(
+          delete_name_callback, L"starts a new delete backwards command",
+          [] {
+            Modifiers output;
+            output.direction = Direction::kBackwards;
+            return output;
+          }(),
+          [](EditorState*, Modifiers modifiers) {
+            return transformation::Delete{.modifiers = std::move(modifiers)};
+          },
+          editor_state));
+  commands->Add(
+      L"d",
+      NewCommandWithModifiers(
+          delete_name_callback, L"starts a new delete command", Modifiers(),
+          [](EditorState*, Modifiers modifiers) {
+            return transformation::Delete{.modifiers = std::move(modifiers)};
+          },
+          editor_state));
   commands->Add(L"p", std::make_unique<Paste>());
 
   commands->Add(L"u", std::make_unique<UndoCommand>(std::nullopt));

@@ -54,8 +54,6 @@ src/cursors.cc \
 src/cursors.h \
 src/decaying_counter.cc \
 src/decaying_counter.h \
-src/delete_mode.cc \
-src/delete_mode.h \
 src/dirname.cc \
 src/dirname.h \
 src/direction.cc \
