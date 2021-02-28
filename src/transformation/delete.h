@@ -27,7 +27,7 @@ struct Delete {
   // If set, overrides the mode passed when the transformation is executed. This
   // is used by CompositeTransformations that want to effectively erase text
   // even in kPreview mode.
-  std::optional<Input::Mode> mode;
+  std::optional<Input::Mode> mode = std::nullopt;
 };
 
 std::ostream& operator<<(std::ostream& os, const Delete& options);
