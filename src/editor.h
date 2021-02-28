@@ -196,7 +196,7 @@ class EditorState {
   Status* status();
   const Status* status() const;
 
-  const wstring& home_directory() const { return home_directory_; }
+  const wstring& home_directory() const { return home_directory_.ToString(); }
   const vector<wstring>& edge_path() const { return edge_path_; }
 
   std::shared_ptr<Environment> environment() { return environment_; }
@@ -238,8 +238,8 @@ class EditorState {
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
 
-  // TODO(easy): Turn these into Path types?
-  const wstring home_directory_;
+  const Path home_directory_;
+  // TODO(easy): Turn into Path type.
   vector<wstring> edge_path_;
 
   double frames_per_second_;

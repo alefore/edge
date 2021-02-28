@@ -15,28 +15,41 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/command_line.h"
+#include "src/dirname.h"
 #include "src/server.h"
 #include "src/tests/benchmarks.h"
 #include "src/wstring.h"
 
 namespace afc::editor {
 namespace {
-static wstring GetHomeDirectory() {
+static Path GetHomeDirectory() {
   char* env = getenv("HOME");
   if (env != nullptr) {
-    return FromByteString(env);
+    auto path = Path::FromString(FromByteString(env));
+    if (path.IsError()) {
+      LOG(FATAL)
+          << "Invalid home directory (from `HOME` environment variable): "
+          << path.error() << ": " << env;
+    }
+    return path.value();
   }
   struct passwd* entry = getpwuid(getuid());
   if (entry != nullptr) {
-    return FromByteString(entry->pw_dir);
+    auto path = Path::FromString(FromByteString(entry->pw_dir));
+    if (path.IsError()) {
+      LOG(FATAL) << "Invalid home directory (from `getpwuid`): " << path.error()
+                 << ": " << env;
+    }
+    return path.value();
   }
-  return L"/";  // What else?
+  return Path::Root();  // What else?
 }
 
-static vector<std::wstring> GetEdgeConfigPath(const std::wstring& home) {
+static vector<std::wstring> GetEdgeConfigPath(const Path& home) {
   // TODO: Don't add repeated paths?
   vector<wstring> output;
-  output.push_back(home + L"/.edge");
+  output.push_back(
+      Path::Join(home, PathComponent::FromString(L".edge").value()).ToString());
   LOG(INFO) << "Pushing config path: " << output[0];
   char* env = getenv("EDGE_PATH");
   if (env != nullptr) {

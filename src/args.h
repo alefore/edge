@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/command_line.h"
+#include "src/dirname.h"
 
 namespace afc::editor {
 
@@ -15,7 +16,7 @@ using std::wstring;
 struct CommandLineValues : public command_line_arguments::StandardArguments {
   CommandLineValues();
 
-  std::wstring home_directory;
+  Path home_directory;
 
   std::vector<std::wstring> commands_to_fork;
 
