@@ -2,7 +2,7 @@ string cpp_build_command = "";
 
 void build() {
   if (cpp_build_command == "") {
-    SetStatus(
+    editor.SetStatus(
         "Error: Must assign a non-empty value to variable `cpp_build_command`");
     return;
   }
@@ -12,14 +12,16 @@ void build() {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(
       "if " + cpp_build_command + "; then " +
-      "edge --run 'Buffer build_buffer = OpenFile(\"" + path + "\", false); " +
+      "edge --run 'Buffer build_buffer = " +
+      "editor.OpenFile(\"" + path + "\", false); " +
       "build_buffer.SetStatus(\"🗸 build success\");';" + " else " +
-      "STATUS=$?;" + "edge --run 'Buffer build_buffer = OpenFile(\"" + path +
+      "STATUS=$?;" + "edge --run 'Buffer build_buffer = " +
+      "editor.OpenFile(\"" + path +
       "\", false); " + "build_buffer.SetStatus(\"💥 build fail\");';" +
       "exit $STATUS;" + "fi");
   options.set_insertion_type("only_list");
   options.set_name("build: " + cpp_build_command);
-  Buffer build_buffer = ForkCommand(options);
+  Buffer build_buffer = editor.ForkCommand(options);
   SetAsCompiler(build_buffer);
 }
 

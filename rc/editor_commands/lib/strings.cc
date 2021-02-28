@@ -94,7 +94,7 @@ bool LineIsInParagraph(Buffer buffer, string prefix, int line) {
 //
 // That is: the paragraph begins at "bar", not at "foo" nor at "alejandro".
 void ScrollBackToBeginningOfParagraph(Buffer buffer, string prefix) {
-  SetStatus("Scrolling back to beginning of paragraph.");
+  editor.SetStatus("Scrolling back to beginning of paragraph.");
   int line = buffer.position().line();
   if (GetPrefix(buffer.line(line),
                 buffer.paragraph_line_prefix_characters()) == prefix) {

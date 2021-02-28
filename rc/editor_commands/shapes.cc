@@ -25,7 +25,7 @@ LineColumn source = LineColumn(0, 0);
 VectorLineColumn bezier_points = VectorLineColumn();
 
 void ShapesSetStatus(string description) {
-  SetStatus("Shapes: " + description);
+  editor.SetStatus("Shapes: " + description);
 }
 
 void PadToLineColumn(Buffer buffer, LineColumn position) {
@@ -771,7 +771,7 @@ void DiagramDrawEdges(Buffer buffer, int lines, int start, VectorString nouns,
   for (int i = 0; i < nouns.size(); i++) {
     VectorInt edges = DiagramGetEdges(buffer, lines, nouns.get(i), nouns);
     for (int j = 0; j < edges.size(); j++) {
-      SetStatus("Connected: " + nouns.get(i) + "->" + nouns.get(j));
+      editor.SetStatus("Connected: " + nouns.get(i) + "->" + nouns.get(j));
       DiagramDrawEdge(buffer, start, nouns, i, edges.get(j), column_width,
                       lines_per_noun);
     }
@@ -785,7 +785,7 @@ void DrawNouns(Buffer buffer, int start, VectorString nouns, int column_width,
   int row = 0;
   int column = 0;
 
-  SetStatus("Writing nouns");
+  editor.SetStatus("Writing nouns");
   for (int noun = 0; noun < nouns.size(); noun++) {
     VectorString noun_lines = NounLines(nouns.get(noun));
     LineColumn base_position =
@@ -835,19 +835,19 @@ auto Delete = internal::Delete;
 auto Bold = internal::Bold;
 auto Source = internal::Source;
 
-AddBinding("Sl", "shapes: line: draw", L);
-AddBinding("Sq", "shapes: square: draw", Sq);
-AddBinding("Sc", "shapes: square: center contents", SqC);
-AddBinding("Sd", "shapes: delete_mode = !delete_mode", Delete);
-AddBinding("S=", "shapes: set source", Source);
-AddBinding("Sb", "shapes: bold_mode = !bold_mode", Bold);
-AddBinding("SB", "shapes: bezier: draw", []() -> void {
+editor.AddBinding("Sl", "shapes: line: draw", L);
+editor.AddBinding("Sq", "shapes: square: draw", Sq);
+editor.AddBinding("Sc", "shapes: square: center contents", SqC);
+editor.AddBinding("Sd", "shapes: delete_mode = !delete_mode", Delete);
+editor.AddBinding("S=", "shapes: set source", Source);
+editor.AddBinding("Sb", "shapes: bold_mode = !bold_mode", Bold);
+editor.AddBinding("SB", "shapes: bezier: draw", []() -> void {
   editor.ForEachActiveBuffer(internal::ShapesAddBezier);
 });
-AddBinding("SM", "shapes: bezier: set middle point", []() -> void {
+editor.AddBinding("SM", "shapes: bezier: set middle point", []() -> void {
   editor.ForEachActiveBuffer(internal::ShapesPushBezierPoint);
 });
-AddBinding("SD", "shapes: Draw a diagram", []() -> void {
+editor.AddBinding("SD", "shapes: Draw a diagram", []() -> void {
   editor.ForEachActiveBuffer(internal::ShapesDrawDiagram);
 });
 }  // namespace shapes

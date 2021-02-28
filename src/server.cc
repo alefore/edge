@@ -118,7 +118,8 @@ int MaybeConnectToServer(const string& address, wstring* error) {
     return -1;
   }
   LOG(INFO) << "Fifo created: " << private_fifo;
-  string command = "ConnectTo(\"" + ToByteString(private_fifo) + "\");\n";
+  string command =
+      "editor.ConnectTo(\"" + ToByteString(private_fifo) + "\");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {
     *error = FromByteString(address) + L": write failed: " +

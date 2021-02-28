@@ -9,12 +9,12 @@ string SubstituteComponent(string path) {
   }
   string last_component = path.substr(second_to_last_slash + 1,
                                       last_slash - second_to_last_slash - 1);
-  SetStatus("last: " + last_component);
+  editor.SetStatus("last: " + last_component);
   if (last_component == "public") {
     return path.substr(0, second_to_last_slash) + "/internal" +
            path.substr(last_slash, path.size() - last_slash);
   } else if (last_component == "internal") {
-    SetStatus("XXX");
+    editor.SetStatus("XXX");
     return path.substr(0, second_to_last_slash) + "/public" +
            path.substr(last_slash, path.size() - last_slash);
   }
@@ -23,15 +23,15 @@ string SubstituteComponent(string path) {
 
 void LoadFileWithExtension(string old_path, int dot, string extension) {
   string new_path = old_path.substr(0, dot + 1) + extension;
-  OpenFile(SubstituteComponent(new_path), true);
-  SetStatus(new_path);
+  editor.OpenFile(SubstituteComponent(new_path), true);
+  editor.SetStatus(new_path);
 }
 
 void ShowHeader(Buffer buffer) {
   string path = buffer.path();
   int dot = path.find_last_of(".", path.size());
   if (dot == -1) {
-    SetStatus("Unable to extract extension: " + path);
+    editor.SetStatus("Unable to extract extension: " + path);
   } else {
     string extension = path.substr(dot + 1, path.size() - dot - 1);
     if (extension == "cc") {
@@ -39,7 +39,7 @@ void ShowHeader(Buffer buffer) {
     } else if (extension == "h") {
       LoadFileWithExtension(path, dot, "cc");
     } else {
-      SetStatus("Unrecognized extension: " + extension);
+      editor.SetStatus("Unrecognized extension: " + extension);
     }
   }
 }

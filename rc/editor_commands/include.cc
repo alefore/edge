@@ -2,7 +2,7 @@
 void AddIncludeLine(Buffer buffer) {
   LineColumn position = buffer.position();
   string line = buffer.line(position.line());
-  SetStatus(line);
+  editor.SetStatus(line);
 
   if (line == "#include <>") {
     buffer.ApplyTransformation(

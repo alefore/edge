@@ -27,7 +27,7 @@ string GetNoteTitle(Buffer buffer) {
 }
 
 string GetNoteTitle(string path) {
-  auto buffer = OpenFile(path, false);
+  auto buffer = editor.OpenFile(path, false);
   buffer.WaitForEndOfFile();
   return GetNoteTitle(buffer);
 }
@@ -48,7 +48,7 @@ string NextEmpty() {
   options.set_command(
       "find -size 0b -name '???.md' -printf '%f\n' | sort | head -1");
   options.set_insertion_type("ignore");
-  auto buffer = ForkCommand(options);
+  auto buffer = editor.ForkCommand(options);
   buffer.WaitForEndOfFile();
   return buffer.line(0);
 }
@@ -58,7 +58,7 @@ Buffer RunCommand(string name, string command, string insertion_type) {
   options.set_command(command);
   options.set_insertion_type(insertion_type);
   options.set_name("zk: " + name);
-  return ForkCommand(options);
+  return editor.ForkCommand(options);
 }
 
 Buffer TitleSearch(string query, string insertion_type) {
@@ -120,7 +120,7 @@ TransformationOutput Link(Buffer buffer, TransformationInput input) {
 
 Buffer InitializeNewNote(string path, string title, string parent_title,
                          string parent_path) {
-  auto new_note = OpenFile(path, true);
+  auto new_note = editor.OpenFile(path, true);
   new_note.WaitForEndOfFile();
   new_note.ApplyTransformation(FunctionTransformation(
       [](TransformationInput input) -> TransformationOutput {
@@ -264,7 +264,7 @@ void Expand(Buffer buffer, string path, SetString titles, int depth,
             SetString visited) {
   if (visited.contains(path) || visited.size() > 1000) return;
   visited.insert(path);
-  Buffer sub_buffer = OpenFile(path, false);
+  Buffer sub_buffer = editor.OpenFile(path, false);
   sub_buffer.WaitForEndOfFile();
   int line = 0;
   string text = "";
@@ -342,7 +342,7 @@ SetString ParseBlacklist(string blacklist) {
 }
 
 Buffer ExpandIntoPath(string path, string start, string blacklist) {
-  auto buffer = OpenFile(path + ".md", true);
+  auto buffer = editor.OpenFile(path + ".md", true);
   buffer.WaitForEndOfFile();
   buffer.ApplyTransformation(SetPositionTransformation(LineColumn(0, 0)));
   buffer.ApplyTransformation(
@@ -388,7 +388,7 @@ void AppendLink(Buffer buffer, string title, string path) {
 }
 
 string ExtractContentsFromTemplate(string path) {
-  Buffer template = OpenFile(path + ".md", false);
+  Buffer template = editor.OpenFile(path + ".md", false);
   template.WaitForEndOfFile();
   string output = "";
   bool found_start_marker = false;
@@ -469,7 +469,7 @@ void Journal(string days_to_generate, string start_day, string template_path) {
 }
 
 // Open the index. index.md is expected to be a link to the main entry point.
-void I() { OpenFile("index.md", true); }
+void I() { editor.OpenFile("index.md", true); }
 
 void Ls() {
   internal::RunCommand("ls", "~/bin/zkls", "visit")

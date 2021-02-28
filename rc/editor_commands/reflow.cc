@@ -13,7 +13,7 @@ bool break_words = false;
 // LineHasPrefix). The end result is that the current line will contain the
 // entire paragraph (probably being far larger than `buffer.line_width()`).
 void FoldNextLineWhilePrefixIs(Buffer buffer, string prefix) {
-  SetStatus("Folding paragraph into a single line.");
+  editor.SetStatus("Folding paragraph into a single line.");
   int line = buffer.position().line();
   bool first_line = true;
   while (line + 1 < buffer.line_count() &&
@@ -56,7 +56,7 @@ void BreakAt(Buffer buffer, string prefix, int start, int length) {
 }
 
 void BreakLine(Buffer buffer, string prefix, int line_width) {
-  SetStatus("Breaking line by line width: " + line_width.tostring());
+  editor.SetStatus("Breaking line by line width: " + line_width.tostring());
   while (buffer.line(buffer.position().line()).size() > line_width) {
     string s = buffer.line(buffer.position().line());
 
@@ -68,7 +68,7 @@ void BreakLine(Buffer buffer, string prefix, int line_width) {
       // Find the last non-space character preceeding it.
       int last_char = s.find_last_not_of(" ", last_space);
       if (last_char == -1) {
-        SetStatus("Giving up: couldn't find start of break.");
+        editor.SetStatus("Giving up: couldn't find start of break.");
         return;
       }
       BreakAt(buffer, prefix, last_char + 1, last_space - last_char);
@@ -77,12 +77,12 @@ void BreakLine(Buffer buffer, string prefix, int line_width) {
       int break_at =
           break_words ? line_width : s.find_first_of(" ", line_width);
       if (break_at == -1) {
-        SetStatus("We're done: No space remains.");
+        editor.SetStatus("We're done: No space remains.");
         return;
       }
       int next_char = s.find_first_of(buffer.symbol_characters(), break_at);
       if (next_char == -1) {
-        SetStatus("We're done: Only spaces now.");
+        editor.SetStatus("We're done: Only spaces now.");
         return;
       }
       BreakAt(buffer, prefix, break_at, next_char - break_at);

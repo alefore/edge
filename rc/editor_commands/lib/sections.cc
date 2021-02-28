@@ -17,7 +17,7 @@ LineColumn FindSymbolEnd(Buffer buffer, LineColumn position) {
       return LineColumn(position.line(), column + 1);
     column++;
   }
-  SetStatus("Moved from " + position.column().tostring() + " to " +
+  editor.SetStatus("Moved from " + position.column().tostring() + " to " +
             column.tostring());
   return LineColumn(position.line(), column + 1);
 }

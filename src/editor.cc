@@ -279,29 +279,34 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
-  // TODO(easy): Many of these functions should really be methods of the editor
-  // type.
-  environment->Define(L"ProcessInput",
-                      vm::NewCallback([this](int c) { ProcessInput(c); }));
+  editor_type->AddField(L"ProcessInput",
+                        vm::NewCallback([](EditorState* editor, int c) {
+                          CHECK(editor != nullptr);
+                          editor->ProcessInput(c);
+                        }));
 
-  environment->Define(L"ConnectTo", vm::NewCallback([this](wstring target) {
-                        OpenServerBuffer(this, target);
-                      }));
+  editor_type->AddField(
+      L"ConnectTo", vm::NewCallback([](EditorState* editor, wstring target) {
+        CHECK(editor != nullptr);
+        OpenServerBuffer(editor, target);
+      }));
 
-  environment->Define(
+  editor_type->AddField(
       L"WaitForClose",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(L"SetString")},
-          [this](vector<Value::Ptr> args, Trampoline*) {
-            CHECK_EQ(args.size(), 1u);
+          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
+           VMType::ObjectType(L"SetString")},
+          [](vector<Value::Ptr> args, Trampoline*) {
+            CHECK_EQ(args.size(), 2u);
+            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
             const auto& buffers_to_wait =
-                *static_cast<std::set<wstring>*>(args[0]->user_value.get());
+                *static_cast<std::set<wstring>*>(args[1]->user_value.get());
 
             auto values =
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
             for (const auto& buffer_name : buffers_to_wait) {
-              auto buffer_it = buffers()->find(buffer_name);
-              if (buffer_it == buffers()->end()) {
+              auto buffer_it = editor->buffers()->find(buffer_name);
+              if (buffer_it == editor->buffers()->end()) {
                 continue;
               }
               futures::Future<EmptyValue> future;
@@ -324,82 +329,98 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 futures::Past(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
-  environment->Define(L"SendExitTo", vm::NewCallback([](wstring args) {
-                        int fd = open(ToByteString(args).c_str(), O_WRONLY);
-                        string command = "Exit(0);\n";
-                        write(fd, command.c_str(), command.size());
-                        close(fd);
-                      }));
+  editor_type->AddField(L"SendExitTo",
+                        vm::NewCallback([](EditorState*, wstring args) {
+                          int fd = open(ToByteString(args).c_str(), O_WRONLY);
+                          string command = "Exit(0);\n";
+                          write(fd, command.c_str(), command.size());
+                          close(fd);
+                        }));
 
-  environment->Define(L"Exit", vm::NewCallback([](int status) {
-                        LOG(INFO) << "Exit: " << status;
-                        exit(status);
-                      }));
+  editor_type->AddField(L"Exit", vm::NewCallback([](EditorState*, int status) {
+                          LOG(INFO) << "Exit: " << status;
+                          exit(status);
+                        }));
 
-  environment->Define(L"SetStatus", vm::NewCallback([this](wstring s) {
-                        status_.SetInformationText(s);
-                      }));
+  editor_type->AddField(L"SetStatus",
+                        vm::NewCallback([](EditorState* editor, wstring s) {
+                          editor->status_.SetInformationText(s);
+                        }));
 
-  environment->Define(L"PromptAndOpenFile", vm::NewCallback([this]() {
-                        NewOpenFileCommand(this)->ProcessInput(0, this);
-                      }));
+  editor_type->AddField(L"PromptAndOpenFile",
+                        vm::NewCallback([](EditorState* editor) {
+                          NewOpenFileCommand(editor)->ProcessInput(0, editor);
+                        }));
 
-  environment->Define(L"set_screen_needs_hard_redraw",
-                      vm::NewCallback([this](bool value) {
-                        set_screen_needs_hard_redraw(value);
-                      }));
+  editor_type->AddField(L"set_screen_needs_hard_redraw",
+                        vm::NewCallback([](EditorState* editor, bool value) {
+                          editor->set_screen_needs_hard_redraw(value);
+                        }));
 
-  environment->Define(
+  editor_type->AddField(
       L"set_exit_value",
-      vm::NewCallback([this](int exit_value) { exit_value_ = exit_value; }));
+      vm::NewCallback([](EditorState* editor, int exit_value) {
+        editor->exit_value_ = exit_value;
+      }));
 
-  environment->Define(L"ForkCommand",
-                      vm::NewCallback([this](ForkCommandOptions* options) {
-                        return ForkCommand(this, *options);
-                      }));
+  editor_type->AddField(
+      L"ForkCommand",
+      vm::NewCallback([](EditorState* editor, ForkCommandOptions* options) {
+        return ForkCommand(editor, *options);
+      }));
 
-  environment->Define(L"repetitions", vm::NewCallback([this]() {
-                        // TODO: Somehow expose the optional to the VM.
-                        return static_cast<int>(repetitions().value_or(1));
-                      }));
+  editor_type->AddField(
+      L"repetitions", vm::NewCallback([](EditorState* editor) {
+        // TODO: Somehow expose the optional to the VM.
+        return static_cast<int>(editor->repetitions().value_or(1));
+      }));
 
-  environment->Define(L"set_repetitions", vm::NewCallback([this](int times) {
-                        set_repetitions(times);
-                      }));
+  editor_type->AddField(L"set_repetitions",
+                        vm::NewCallback([](EditorState* editor, int times) {
+                          editor->set_repetitions(times);
+                        }));
 
-  environment->Define(
+  editor_type->AddField(
       L"OpenFile",
       Value::NewFunction(
-          {VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
-           VMType::VM_BOOLEAN},
-          [this](vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args.size(), 2u);
-            CHECK(args[0]->IsString());
-            CHECK(args[1]->IsBool());
+          {VMType::ObjectType(L"Buffer"), VMTypeMapper<EditorState*>::vmtype,
+           VMType::VM_STRING, VMType::VM_BOOLEAN},
+          [](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), 3u);
+            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
+            CHECK(args[1]->IsString());
+            CHECK(args[2]->IsBool());
             OpenFileOptions options;
-            options.editor_state = this;
-            if (auto path = Path::FromString(args[0]->str); !path.IsError()) {
+            options.editor_state =
+                static_cast<EditorState*>(args[0]->user_value.get());
+            CHECK(options.editor_state != nullptr);
+            if (auto path = Path::FromString(args[1]->str); !path.IsError()) {
               options.path = std::move(path.value());
             }
-            options.insertion_type = args[1]->boolean
+            options.insertion_type = args[2]->boolean
                                          ? BuffersList::AddBufferType::kVisit
                                          : BuffersList::AddBufferType::kIgnore;
             return Value::NewObject(L"Buffer", OpenFile(options)->second);
           }));
 
-  environment->Define(
+  editor_type->AddField(
       L"AddBinding",
-      Value::NewFunction({VMType::Void(), VMType::String(), VMType::String(),
-                          VMType::Function({VMType::Void()})},
-                         [this](vector<unique_ptr<Value>> args) {
-                           CHECK_EQ(args.size(), 3u);
-                           CHECK_EQ(args[0]->type, VMType::VM_STRING);
-                           CHECK_EQ(args[1]->type, VMType::VM_STRING);
-                           default_commands_->Add(args[0]->str, args[1]->str,
-                                                  std::move(args[2]),
-                                                  environment_);
-                           return Value::NewVoid();
-                         }));
+      Value::NewFunction(
+          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype, VMType::String(),
+           VMType::String(), VMType::Function({VMType::Void()})},
+          [](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), 4u);
+            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
+            CHECK_EQ(args[1]->type, VMType::VM_STRING);
+            CHECK_EQ(args[2]->type, VMType::VM_STRING);
+            EditorState* editor =
+                static_cast<EditorState*>(args[0]->user_value.get());
+            CHECK(editor != nullptr);
+            editor->default_commands_->Add(args[1]->str, args[2]->str,
+                                           std::move(args[3]),
+                                           editor->environment_);
+            return Value::NewVoid();
+          }));
 
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);

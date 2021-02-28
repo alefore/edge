@@ -78,7 +78,7 @@ static const wchar_t* kDefaultCommandsToRun =
     L"options.set_command(\"sh -l\");\n"
     L"options.set_insertion_type(\"search_or_create\");\n"
     L"options.set_name(\"💻shell\");\n"
-    L"ForkCommand(options);";
+    L"editor.ForkCommand(options);";
 
 wstring CommandsToRun(CommandLineValues args) {
   wstring commands_to_run = args.commands_to_run;
@@ -95,7 +95,7 @@ wstring CommandsToRun(CommandLineValues args) {
       free(dir);
     }
     commands_to_run +=
-        L"OpenFile(\"" + CppEscapeString(full_path) + L"\", true);\n";
+        L"editor.OpenFile(\"" + CppEscapeString(full_path) + L"\", true);\n";
     buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
@@ -105,7 +105,7 @@ wstring CommandsToRun(CommandLineValues args) {
         CppEscapeString(command_to_fork) +
         L"\");\noptions.set_insertion_type(\"" +
         (args.background ? L"skip" : L"search_or_create") +
-        L"\");\nForkCommand(options);";
+        L"\");\neditor.ForkCommand(options);";
   }
   switch (args.view_mode) {
     case CommandLineValues::ViewMode::kAllBuffers:
@@ -127,10 +127,10 @@ wstring CommandsToRun(CommandLineValues args) {
       commands_to_run +=
           L"buffers_to_watch.insert(\"" + CppEscapeString(block) + L"\");\n";
     }
-    commands_to_run += L"WaitForClose(buffers_to_watch);\n";
+    commands_to_run += L"editor.WaitForClose(buffers_to_watch);\n";
   }
   if (args.prompt_for_path) {
-    commands_to_run += L"PromptAndOpenFile();";
+    commands_to_run += L"editor.PromptAndOpenFile();";
   }
   if (commands_to_run.empty()) {
     commands_to_run = kDefaultCommandsToRun;
@@ -236,7 +236,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
             "screen.set_size(" +
                 std::to_string(screen_size.column.column_delta) + "," +
                 std::to_string(screen_size.line.line_delta) + ");" +
-                "set_screen_needs_hard_redraw(true);\n");
+                "editor.set_screen_needs_hard_redraw(true);\n");
         *last_screen_size = screen_size;
       }
     }
@@ -340,7 +340,7 @@ int main(int argc, const char** argv) {
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
-      commands_to_run += L"SendExitTo(\"" + server_path + L"\");";
+      commands_to_run += L"editor.SendExitTo(\"" + server_path + L"\");";
     }
 
     LOG(INFO) << "Sending commands.";

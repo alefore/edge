@@ -3,7 +3,7 @@
 string original_path = buffer.path();
 
 if (original_path.empty()) {
-  SetStatus("Buffer doesn't have a path: " + buffer.name());
+  editor.SetStatus("Buffer doesn't have a path: " + buffer.name());
 } else {
   // TODO: Get this from mkstemp.
   string tmp_path = "/tmp/edge-file-diff";
@@ -18,6 +18,6 @@ if (original_path.empty()) {
   options.set_name("🔀" + Basename(buffer.name()));
   options.set_insertion_type("visit");
 
-  Buffer diff_buffer = ForkCommand(options);
+  Buffer diff_buffer = editor.ForkCommand(options);
   diff_buffer.set_allow_dirty_delete(true);
 }

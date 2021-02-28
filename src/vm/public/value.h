@@ -48,6 +48,7 @@ struct Value {
   bool IsDouble() const { return type.type == VMType::VM_DOUBLE; };
   bool IsString() const { return type.type == VMType::VM_STRING; };
   bool IsFunction() const { return type.type == VMType::FUNCTION; };
+  bool IsObject() const { return type.type == VMType::OBJECT_TYPE; };
 
   VMType type;
 

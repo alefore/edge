@@ -23,7 +23,7 @@ string LeadingPrefix(Buffer buffer, string text) {
 TransformationOutput FoldNextLine(Buffer buffer, TransformationInput input) {
   TransformationOutput output = TransformationOutput();
   int column = buffer.line(input.position().line()).size();
-  for (int i = 0; i < repetitions(); i++) {
+  for (int i = 0; i < editor.repetitions(); i++) {
     output.push(SetColumnTransformation(column));
     int next_line = input.position().line() + i + 1;
     if (next_line < buffer.line_count()) {
@@ -40,6 +40,6 @@ TransformationOutput FoldNextLine(Buffer buffer, TransformationInput input) {
       }
     }
   }
-  set_repetitions(1);
+  editor.set_repetitions(1);
   return output;
 }
