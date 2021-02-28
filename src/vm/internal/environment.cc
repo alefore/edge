@@ -136,11 +136,6 @@ void Environment::DefineType(const wstring& name,
   it.first->second = std::move(value);
 }
 
-Value* Environment::Lookup(const wstring& symbol, VMType expected_type) {
-  static const auto* empty_namespace = new Environment::Namespace();
-  return Lookup(*empty_namespace, symbol, expected_type);
-}
-
 Value* Environment::Lookup(const Namespace& symbol_namespace,
                            const wstring& symbol, VMType expected_type) {
   std::vector<Value*> values;

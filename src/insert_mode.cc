@@ -256,7 +256,7 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
         Value* callback = editor_state->environment()->Lookup(
-            L"HandleKeyboardControlU",
+            Environment::Namespace(), L"HandleKeyboardControlU",
             VMType::Function(
                 {VMType::Void(),
                  VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype}));

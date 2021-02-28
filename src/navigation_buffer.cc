@@ -117,8 +117,8 @@ futures::Value<PossibleError> GenerateContents(
   }
 
   target->AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
-  auto depth_value =
-      target->environment()->Lookup(kDepthSymbol, VMType::Integer());
+  auto depth_value = target->environment()->Lookup(
+      Environment::Namespace(), kDepthSymbol, VMType::Integer());
   int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
   DisplayTree(source, depth, *tree, EmptyString(), target);
   return futures::Past(Success());

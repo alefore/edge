@@ -58,8 +58,8 @@ futures::Value<PossibleError> GenerateContents(EditorState* editor_state,
       target->Read(buffer_variables::show_in_buffers_list);
 
   LineNumberDelta screen_lines;
-  auto screen_value =
-      target->environment()->Lookup(L"screen", GetScreenVmType());
+  auto screen_value = target->environment()->Lookup(
+      Environment::Namespace(), L"screen", GetScreenVmType());
   if (screen_value != nullptr && screen_value->type == VMType::OBJECT_TYPE &&
       screen_value->user_value != nullptr) {
     auto screen = static_cast<Screen*>(screen_value->user_value.get());

@@ -1626,7 +1626,8 @@ std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
     return nullptr;
   }
   auto target = current_line()->environment()->Lookup(
-      L"buffer", vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype);
+      Environment::Namespace(), L"buffer",
+      vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype);
   if (target == nullptr) {
     return nullptr;
   }

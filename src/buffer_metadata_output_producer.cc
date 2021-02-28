@@ -143,7 +143,8 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
 
   auto contents = *buffer_->LineAt(range.begin.line);
   auto target_buffer_value = contents.environment()->Lookup(
-      L"buffer", vm::VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype);
+      Environment::Namespace(), L"buffer",
+      vm::VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype);
   const auto target_buffer =
       (target_buffer_value != nullptr &&
        target_buffer_value->user_value != nullptr)

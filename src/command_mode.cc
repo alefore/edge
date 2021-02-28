@@ -501,7 +501,8 @@ class ActivateLink : public Command {
       editor_state->set_current_buffer(target,
                                        CommandArgumentModeApplyMode::kFinal);
       auto target_position = buffer->current_line()->environment()->Lookup(
-          L"buffer_position", vm::VMTypeMapper<LineColumn>::vmtype);
+          Environment::Namespace(), L"buffer_position",
+          vm::VMTypeMapper<LineColumn>::vmtype);
       if (target_position != nullptr &&
           target_position->type == VMType::ObjectType(L"LineColumn")) {
         target->set_position(

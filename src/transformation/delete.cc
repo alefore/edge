@@ -92,7 +92,8 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
 
   if (contents == nullptr) return;
   Value* callback = contents->environment()->Lookup(
-      L"EdgeLineDeleteHandler", VMType::Function({VMType::Void()}));
+      Environment::Namespace(), L"EdgeLineDeleteHandler",
+      VMType::Function({VMType::Void()}));
   if (callback == nullptr) return;
   LOG(INFO) << "Running EdgeLineDeleteHandler.";
   std::shared_ptr<Expression> expr = vm::NewFunctionCall(

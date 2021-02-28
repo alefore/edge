@@ -365,7 +365,7 @@ class ForkEditorCommand : public Command {
           .original_buffer = original_buffer,
           .base_command = std::nullopt,
           .context_command_callback = original_buffer->environment()->Lookup(
-              L"GetShellPromptContextProgram",
+              Environment::Namespace(), L"GetShellPromptContextProgram",
               VMType::Function({VMType::String(), VMType::String()}))});
 
       PromptOptions options;

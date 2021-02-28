@@ -97,19 +97,22 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
   }
 
   if (auto value = predictions_buffer->environment()->Lookup(
-          kLongestPrefixEnvironmentVariable, VMType::VM_INTEGER);
+          Environment::Namespace(), kLongestPrefixEnvironmentVariable,
+          VMType::VM_INTEGER);
       value != nullptr) {
     predict_results.longest_prefix = ColumnNumberDelta(value->integer);
   }
 
   if (auto value = predictions_buffer->environment()->Lookup(
-          kLongestDirectoryMatchEnvironmentVariable, VMType::VM_INTEGER);
+          Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
+          VMType::VM_INTEGER);
       value != nullptr) {
     predict_results.longest_directory_match = ColumnNumberDelta(value->integer);
   }
 
   if (auto value = predictions_buffer->environment()->Lookup(
-          kExactMatchEnvironmentVariable, VMType::VM_BOOLEAN);
+          Environment::Namespace(), kExactMatchEnvironmentVariable,
+          VMType::VM_BOOLEAN);
       value != nullptr) {
     predict_results.found_exact_match = value->boolean;
   }
@@ -485,7 +488,8 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
 }
 
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer* buffer) {
-  auto value = buffer->environment()->Lookup(kLongestPrefixEnvironmentVariable,
+  auto value = buffer->environment()->Lookup(Environment::Namespace(),
+                                             kLongestPrefixEnvironmentVariable,
                                              VMType::VM_INTEGER);
   if (value == nullptr) return;
   value->integer = std::max(value->integer, static_cast<int>(new_value));
@@ -493,13 +497,15 @@ void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer* buffer) {
 
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer* buffer) {
   auto value = buffer->environment()->Lookup(
-      kLongestDirectoryMatchEnvironmentVariable, VMType::VM_INTEGER);
+      Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
+      VMType::VM_INTEGER);
   if (value == nullptr) return;
   value->integer = std::max(value->integer, static_cast<int>(new_value));
 }
 
 void RegisterPredictorExactMatch(OpenBuffer* buffer) {
-  auto value = buffer->environment()->Lookup(kExactMatchEnvironmentVariable,
+  auto value = buffer->environment()->Lookup(Environment::Namespace(),
+                                             kExactMatchEnvironmentVariable,
                                              VMType::VM_BOOLEAN);
   if (value == nullptr) return;
   value->boolean = true;
