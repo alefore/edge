@@ -21,7 +21,8 @@ namespace afc::editor {
 #define GHOST_TYPE_EQ(ClassName, variable)        \
   bool operator==(const ClassName& other) const { \
     return variable == other.variable;            \
-  }
+  }                                               \
+  bool operator!=(const ClassName& other) const { return !(*this == other); }
 
 class PathComponent {
  public:
