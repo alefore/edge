@@ -127,8 +127,9 @@ const std::wstring& Path::ToString() const { return path_; }
 ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
   std::list<PathComponent> output;
   Path path = *this;
-  while (!path.IsRoot()) {
+  while (!path.IsRoot() && path != Path::LocalDirectory()) {
     ASSIGN_OR_RETURN(auto base, path.Basename());
+    VLOG(5) << "DirectorySplit: PushFront: " << base;
     output.push_front(base);
     if (output.front().ToString() == path.path_) {
       return Success(output);
@@ -138,10 +139,66 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
       LOG(INFO) << "Unable to advance: " << path << " -> " << dir;
       return Error(L"Unable to advance: " + path.ToString());
     }
+    VLOG(5) << "DirectorySplit: Advance: " << dir;
     path = std::move(dir);
   }
   return Success(output);
 }
+
+const bool directory_split_tests_registration = tests::Register(
+    L"DirectorySplitTests",
+    {
+        {.name = L"NoSplit",
+         .callback =
+             [] {
+               auto result = Path::FromString(L"alejo.txt")
+                                 .value()
+                                 .DirectorySplit()
+                                 .value();
+               CHECK_EQ(result.size(), 1ul);
+               CHECK_EQ(result.front(),
+                        PathComponent::FromString(L"alejo.txt").value());
+             }},
+        {.name = L"Directory",
+         .callback =
+             [] {
+               auto result =
+                   Path::FromString(L"alejo/").value().DirectorySplit().value();
+               CHECK_EQ(result.size(), 1ul);
+               CHECK_EQ(result.front(),
+                        PathComponent::FromString(L"alejo").value());
+             }},
+        {.name = L"LongSplit",
+         .callback =
+             [] {
+               auto result_list = Path::FromString(L"aaa/b/cc/ddd")
+                                      .value()
+                                      .DirectorySplit()
+                                      .value();
+               CHECK_EQ(result_list.size(), 4ul);
+               std::vector<PathComponent> result(result_list.begin(),
+                                                 result_list.end());
+               CHECK_EQ(result[0], PathComponent::FromString(L"aaa").value());
+               CHECK_EQ(result[1], PathComponent::FromString(L"b").value());
+               CHECK_EQ(result[2], PathComponent::FromString(L"cc").value());
+               CHECK_EQ(result[3], PathComponent::FromString(L"ddd").value());
+             }},
+        {.name = L"LongSplitMultiSlash",
+         .callback =
+             [] {
+               auto result_list = Path::FromString(L"aaa////b////cc/////ddd")
+                                      .value()
+                                      .DirectorySplit()
+                                      .value();
+               CHECK_EQ(result_list.size(), 4ul);
+               std::vector<PathComponent> result(result_list.begin(),
+                                                 result_list.end());
+               CHECK_EQ(result[0], PathComponent::FromString(L"aaa").value());
+               CHECK_EQ(result[1], PathComponent::FromString(L"b").value());
+               CHECK_EQ(result[2], PathComponent::FromString(L"cc").value());
+               CHECK_EQ(result[3], PathComponent::FromString(L"ddd").value());
+             }},
+    });
 
 bool Path::IsRoot() const { return path_ == L"/"; }
 
