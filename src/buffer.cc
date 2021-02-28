@@ -1978,7 +1978,13 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
                          buffer->status()->set_context(nullptr);
                          return error;
                        }),
-      [buffer, line](struct stat) {
+      [buffer, line](struct stat s) {
+        if (S_ISSOCK(s.st_mode) || S_ISBLK(s.st_mode) || S_ISCHR(s.st_mode) ||
+            S_ISFIFO(s.st_mode)) {
+          // Don't bother with these special file types.
+          buffer->status()->set_context(nullptr);
+          return Success();
+        }
         OpenFileOptions options;
         options.editor_state = buffer->editor();
         if (auto path = Path::FromString(line); !path.IsError()) {
