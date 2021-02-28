@@ -52,11 +52,11 @@ struct ResolvePathOptions {
   static ResolvePathOptions New(EditorState* editor_state);
   static ResolvePathOptions NewWithEmptySearchPaths(EditorState* editor_state);
 
-  std::wstring path;
-  std::vector<Path> search_paths;
-  // TODO(easy): Convert to Path.
-  std::wstring home_directory;
-  std::function<bool(const wstring&)> validator;
+  // TODO(easy): Change to type Path.
+  std::wstring path = L"";
+  std::vector<Path> search_paths = {};
+  Path home_directory;
+  std::function<bool(const wstring&)> validator = nullptr;
 
  private:
   ResolvePathOptions() = default;

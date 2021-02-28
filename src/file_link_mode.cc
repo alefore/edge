@@ -474,10 +474,8 @@ ResolvePathOptions ResolvePathOptions::New(EditorState* editor_state) {
 
 /* static */ ResolvePathOptions ResolvePathOptions::NewWithEmptySearchPaths(
     EditorState* editor_state) {
-  ResolvePathOptions output;
-  output.home_directory = editor_state->home_directory().ToString();
-  output.validator = CanStatPath;
-  return output;
+  return ResolvePathOptions{.home_directory = editor_state->home_directory(),
+                            .validator = CanStatPath};
 }
 
 std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
@@ -487,11 +485,11 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
     input.search_paths.push_back(Path::LocalDirectory());
   }
 
-  if (input.path == L"~" ||
-      (input.path.size() > 2 && input.path.substr(0, 2) == L"~/")) {
-    input.path = PathJoin(input.home_directory, input.path.substr(1));
+  // TODO(easy): Don't call Path::FromString here; receive input.path as a path.
+  if (auto path = Path::FromString(input.path); !path.IsError()) {
+    input.path = Path::ExpandHomeDirectory(input.home_directory, path.value())
+                     .ToString();
   }
-
   if (!input.path.empty() && input.path[0] == L'/') {
     input.search_paths = {Path::Root()};
   }
@@ -605,8 +603,6 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
 
   auto resolve_path_options =
       ResolvePathOptions::NewWithEmptySearchPaths(editor_state);
-  resolve_path_options.home_directory =
-      editor_state->home_directory().ToString();
   resolve_path_options.search_paths = search_paths;
   if (options.path.has_value()) {
     resolve_path_options.path = options.path.value().ToString();

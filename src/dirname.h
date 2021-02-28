@@ -18,19 +18,23 @@ extern "C" {
 
 namespace afc::editor {
 
+#define GHOST_TYPE_EQ(ClassName, variable)        \
+  bool operator==(const ClassName& other) const { \
+    return variable == other.variable;            \
+  }
+
 class PathComponent {
  public:
   static ValueOrError<PathComponent> FromString(std::wstring component);
   const std::wstring& ToString();
+
+  GHOST_TYPE_EQ(PathComponent, component_);
 
  private:
   friend class Path;
   explicit PathComponent(std::wstring component);
   const std::wstring component_;
 };
-
-#define GHOST_TYPE_EQ(ClassName, variable) \
-  bool operator==(const ClassName& other) { return variable == other.variable; }
 
 class AbsolutePath;
 class Path {
@@ -44,6 +48,8 @@ class Path {
 
   static Path Join(Path a, Path b);
   static ValueOrError<Path> FromString(std::wstring path);
+  static Path ExpandHomeDirectory(const Path& home_directory, const Path& path);
+
   ValueOrError<Path> Dirname() const;
   ValueOrError<PathComponent> Basename() const;
   const std::wstring& ToString() const;

@@ -1044,13 +1044,11 @@ bool EditorState::MovePositionsStack(Direction direction) {
 Status* EditorState::status() { return &status_; }
 const Status* EditorState::status() const { return &status_; }
 
-wstring EditorState::expand_path(const wstring& path) const {
-  // TODO: Also support ~user/foo.
-  if (path == L"~" || (path.size() > 2 && path.substr(0, 2) == L"~/")) {
-    // TODO(easy): Operate in Path space.
-    return home_directory().ToString() + path.substr(1);
+wstring EditorState::expand_path(const wstring& path_str) const {
+  if (auto path = Path::FromString(path_str); !path.IsError()) {
+    return Path::ExpandHomeDirectory(home_directory(), path.value()).ToString();
   }
-  return path;
+  return path_str;
 }
 
 void EditorState::ProcessSignals() {

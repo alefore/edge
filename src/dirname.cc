@@ -8,6 +8,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/tests/tests.h"
 #include "src/wstring.h"
 
 namespace afc::editor {
@@ -44,6 +45,66 @@ Path::Path(PathComponent path_component)
 ValueOrError<Path> Path::FromString(std::wstring path) {
   return path.empty() ? Error(L"Empty path.") : Success(Path(std::move(path)));
 }
+
+Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
+  // TODO: Also support ~user/foo.
+  if (ValueOrError<std::list<PathComponent>> components = path.DirectorySplit();
+      !components.IsError() && !components.value().empty() &&
+      components.value().front() == PathComponent::FromString(L"~").value()) {
+    components.value().pop_front();
+    auto output = home_directory;
+    for (auto& c : components.value()) {
+      output = Path::Join(output, c);
+    }
+    return output;
+  }
+  return path;
+}
+
+const bool expand_home_directory_tests_registration = tests::Register(
+    L"ExpandHomeDirectoryTests",
+    {
+        {.name = L"NoExpansion",
+         .callback =
+             [] {
+               CHECK_EQ(Path::ExpandHomeDirectory(
+                            Path::FromString(L"/home/alejo").value(),
+                            Path::FromString(L"foo/bar").value()),
+                        Path::FromString(L"foo/bar").value());
+             }},
+        {.name = L"MinimalExpansion",
+         .callback =
+             [] {
+               CHECK_EQ(Path::ExpandHomeDirectory(
+                            Path::FromString(L"/home/alejo").value(),
+                            Path::FromString(L"~").value()),
+                        Path::FromString(L"/home/alejo").value());
+             }},
+        {.name = L"SmallExpansion",
+         .callback =
+             [] {
+               CHECK_EQ(Path::ExpandHomeDirectory(
+                            Path::FromString(L"/home/alejo").value(),
+                            Path::FromString(L"~/").value()),
+                        Path::FromString(L"/home/alejo").value());
+             }},
+        {.name = L"LongExpansion",
+         .callback =
+             [] {
+               CHECK_EQ(Path::ExpandHomeDirectory(
+                            Path::FromString(L"/home/alejo").value(),
+                            Path::FromString(L"~/foo/bar").value()),
+                        Path::FromString(L"/home/alejo/foo/bar").value());
+             }},
+        {.name = L"LongExpansionRedundantSlash",
+         .callback =
+             [] {
+               CHECK_EQ(Path::ExpandHomeDirectory(
+                            Path::FromString(L"/home/alejo/").value(),
+                            Path::FromString(L"~/foo/bar").value()),
+                        Path::FromString(L"/home/alejo/foo/bar").value());
+             }},
+    });
 
 ValueOrError<Path> Path::Dirname() const {
   VLOG(5) << "Dirname: " << path_;
