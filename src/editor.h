@@ -196,7 +196,7 @@ class EditorState {
   Status* status();
   const Status* status() const;
 
-  const wstring& home_directory() const { return home_directory_.ToString(); }
+  const Path& home_directory() const { return home_directory_; }
   const vector<wstring>& edge_path() const { return edge_path_; }
 
   std::shared_ptr<Environment> environment() { return environment_; }

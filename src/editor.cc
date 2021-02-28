@@ -215,7 +215,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       }));
 
   editor_type->AddField(L"home", vm::NewCallback([](EditorState* editor) {
-                          return editor->home_directory();
+                          return editor->home_directory().ToString();
                         }));
 
   editor_type->AddField(
@@ -1047,7 +1047,8 @@ const Status* EditorState::status() const { return &status_; }
 wstring EditorState::expand_path(const wstring& path) const {
   // TODO: Also support ~user/foo.
   if (path == L"~" || (path.size() > 2 && path.substr(0, 2) == L"~/")) {
-    return home_directory() + path.substr(1);
+    // TODO(easy): Operate in Path space.
+    return home_directory().ToString() + path.substr(1);
   }
   return path;
 }

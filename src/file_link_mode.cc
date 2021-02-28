@@ -475,7 +475,7 @@ ResolvePathOptions ResolvePathOptions::New(EditorState* editor_state) {
 /* static */ ResolvePathOptions ResolvePathOptions::NewWithEmptySearchPaths(
     EditorState* editor_state) {
   ResolvePathOptions output;
-  output.home_directory = editor_state->home_directory();
+  output.home_directory = editor_state->home_directory().ToString();
   output.validator = CanStatPath;
   return output;
 }
@@ -605,7 +605,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
 
   auto resolve_path_options =
       ResolvePathOptions::NewWithEmptySearchPaths(editor_state);
-  resolve_path_options.home_directory = editor_state->home_directory();
+  resolve_path_options.home_directory =
+      editor_state->home_directory().ToString();
   resolve_path_options.search_paths = search_paths;
   if (options.path.has_value()) {
     resolve_path_options.path = options.path.value().ToString();

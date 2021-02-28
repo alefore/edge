@@ -54,6 +54,7 @@ struct ResolvePathOptions {
 
   std::wstring path;
   std::vector<Path> search_paths;
+  // TODO(easy): Convert to Path.
   std::wstring home_directory;
   std::function<bool(const wstring&)> validator;
 
