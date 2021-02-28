@@ -91,7 +91,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"The `--run` command-line argument must be followed by a string "
               L"with a VM command to run.\n\n"
               L"Example:\n\n"
-              L"    edge --run 'string flags = \"-R\"; ForkCommand(\"ls \" + "
+              L"    edge --run 'string flags = \"-R\"; editor.ForkCommand(\"ls "
+              L"\" + "
               L"flags, true);'\n\n")
           .Require(L"vmcmd", L"VM command to run")
           .AppendTo(&CommandLineValues::commands_to_run),
