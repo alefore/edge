@@ -335,6 +335,7 @@ static bool CanStatPath(const wstring& path) {
   CHECK(!path.empty());
   VLOG(5) << "Considering path: " << path;
   struct stat dummy;
+  // TODO: Turn this into an async stat.
   if (stat(ToByteString(path).c_str(), &dummy) == -1) {
     VLOG(6) << path << ": stat failed";
     return false;
