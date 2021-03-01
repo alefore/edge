@@ -56,7 +56,7 @@ futures::Value<EmptyValue> RunCppFileHandler(const wstring& input,
   auto options = ResolvePathOptions::New(editor_state);
   options.path = input;
   auto resolved_path = ResolvePath(std::move(options));
-  if (!resolved_path.has_value()) {
+  if (resolved_path.IsError()) {
     buffer->status()->SetWarningText(L"🗱  File not found: " + input);
     return futures::Past(EmptyValue());
   }
@@ -65,7 +65,7 @@ futures::Value<EmptyValue> RunCppFileHandler(const wstring& input,
   auto index = std::make_shared<size_t>(0);
   return futures::Transform(
       futures::While([buffer, total = editor_state->repetitions(),
-                      adjusted_input = resolved_path->path, index]() {
+                      adjusted_input = resolved_path.value().path, index]() {
         if (*index >= total)
           return futures::Past(IterationControlCommand::kStop);
         auto evaluation = buffer->EvaluateFile(adjusted_input);

@@ -76,7 +76,7 @@ struct ResolvePathOutput {
   std::optional<wstring> pattern;
 };
 
-std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions options);
+ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions options);
 
 // Creates a new buffer for the file at the path given.
 futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(

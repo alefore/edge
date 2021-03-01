@@ -495,7 +495,7 @@ ResolvePathOptions ResolvePathOptions::New(EditorState* editor_state) {
                             .validator = CanStatPath};
 }
 
-std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
+ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   ResolvePathOutput output;
   if (find(input.search_paths.begin(), input.search_paths.end(),
            Path::LocalDirectory()) == input.search_paths.end()) {
@@ -569,10 +569,12 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
         output.path = path_with_prefix.ToString();
       }
       VLOG(4) << "Resolved path: " << output.path;
-      return std::make_optional(output);
+      return Success(output);
     }
   }
-  return std::optional<ResolvePathOutput>();
+  // TODO(easy): Give a better error. Perhaps include the paths in which we
+  // searched? Perhaps the last result of the validator?
+  return Error(L"Unable to resolve file.");
 }
 
 futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
@@ -629,10 +631,10 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
     if (options.path.has_value()) {
       resolve_path_options.path = options.path.value().ToString();
     }
-    if (auto output = ResolvePath(resolve_path_options); output.has_value()) {
-      buffer_options.path = output->path;
-      position = output->position;
-      pattern = output->pattern.value_or(L"");
+    if (auto output = ResolvePath(resolve_path_options); !output.IsError()) {
+      buffer_options.path = output.value().path;
+      position = output.value().position;
+      pattern = output.value().pattern.value_or(L"");
     } else {
       map<wstring, shared_ptr<OpenBuffer>>::iterator buffer;
       resolve_path_options.validator = [editor_state,
@@ -653,12 +655,12 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
         return false;
       };
       resolve_path_options.search_paths = {Path::LocalDirectory()};
-      if (auto output = ResolvePath(resolve_path_options); output.has_value()) {
-        buffer_options.path = output->path;
+      if (auto output = ResolvePath(resolve_path_options); !output.IsError()) {
+        buffer_options.path = output.value().path;
         editor_state->set_current_buffer(buffer->second,
                                          CommandArgumentModeApplyMode::kFinal);
-        if (output->position.has_value()) {
-          buffer->second->set_position(output->position.value());
+        if (output.value().position.has_value()) {
+          buffer->second->set_position(output.value().position.value());
         }
         // TODO: Apply pattern.
         return buffer;

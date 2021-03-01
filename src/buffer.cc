@@ -375,11 +375,13 @@ using std::to_wstring;
               wstring resolved_path;
               auto options = ResolvePathOptions::New(editor_state);
               options.path = path;
-              if (auto results = ResolvePath(std::move(options));
-                  results.has_value()) {
-                buffer->EvaluateFile(results->path);
+              auto results = ResolvePath(std::move(options));
+              if (results.IsError()) {
+                buffer->status()->SetWarningText(L"Unable to resolve: " + path +
+                                                 L": " +
+                                                 results.error().description);
               } else {
-                buffer->status()->SetWarningText(L"Unable to resolve: " + path);
+                buffer->EvaluateFile(results.value().path);
               }
             },
             L"Load file: " + path);
@@ -907,13 +909,13 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
       auto source_line = LineNumber() + start_new_section + i;
       options.path = contents_.at(source_line)->ToString();
       auto results = ResolvePath(options);
-      if (!results.has_value()) return;
+      if (results.IsError()) continue;
       LineMarks::Mark mark;
       mark.source = buffer_name;
       mark.source_line = source_line;
-      mark.target_buffer = results->path;
-      if (results->position.has_value()) {
-        mark.target = *results->position;
+      mark.target_buffer = results.value().path;
+      if (results.value().position.has_value()) {
+        mark.target = *results.value().position;
       }
       LOG(INFO) << "Found a mark: " << mark;
       editor()->line_marks()->AddMark(mark);
