@@ -411,7 +411,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   futures::Future<PredictorOutput> output;
   CHECK(predictor_input.progress_channel != nullptr);
 
-  AsyncInput input{
+  auto input = std::make_shared<AsyncInput>(AsyncInput{
       .progress_channel = predictor_input.progress_channel,
       .abort_notification = predictor_input.abort_notification,
       .get_buffer = predictor_input.predictions->GetLockFunction(),
@@ -423,9 +423,10 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                          ? std::wregex()
                          : std::wregex(predictor_input.source_buffers[0]->Read(
                                buffer_variables::directory_noise)),
-      .output_consumer = std::move(output.consumer)};
-  GetSearchPaths(predictor_input.editor, &input.search_paths);
-  async_processor.Push(std::move(input));
+      .output_consumer = std::move(output.consumer)});
+  GetSearchPaths(predictor_input.editor, &input->search_paths)
+      .SetConsumer(
+          [input](EmptyValue) { async_processor.Push(std::move(*input)); });
   return output.value;
 }
 

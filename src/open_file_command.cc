@@ -30,66 +30,79 @@ futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
 }
 
 // Returns the buffer to show for context, or nullptr.
-std::shared_ptr<OpenBuffer> StatusContext(EditorState* editor,
-                                          const PredictResults& results,
-                                          const LazyString& line) {
+futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
+    EditorState* editor, const PredictResults& results,
+    const LazyString& line) {
+  auto output = futures::Past(std::shared_ptr<OpenBuffer>());
   if (results.found_exact_match) {
     OpenFileOptions open_file_options;
     open_file_options.editor_state = editor;
     auto path = Path::FromString(line.ToString());
     if (path.IsError()) {
-      return nullptr;
+      return output;
     }
     open_file_options.path = path.value();
     open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
     open_file_options.ignore_if_not_found = true;
-    if (auto result = OpenFile(open_file_options);
-        result != editor->buffers()->end()) {
-      return result->second;
-    }
+    output = futures::Transform(
+        OpenFile(open_file_options),
+        [editor](map<wstring, shared_ptr<OpenBuffer>>::iterator result) {
+          return result != editor->buffers()->end() ? result->second : nullptr;
+        });
   }
-  if (results.predictions_buffer->lines_size() == LineNumberDelta(1) &&
-      results.predictions_buffer->LineAt(LineNumber())->empty()) {
-    return nullptr;
-  }
-  LOG(INFO) << "Setting context: "
-            << results.predictions_buffer->Read(buffer_variables::name);
-  return results.predictions_buffer;
+  return futures::Transform(
+      output, [results](std::shared_ptr<OpenBuffer> buffer) {
+        if (buffer != nullptr) return buffer;
+        if (results.predictions_buffer->lines_size() == LineNumberDelta(1) &&
+            results.predictions_buffer->LineAt(LineNumber())->empty()) {
+          return std::shared_ptr<OpenBuffer>();
+        }
+        LOG(INFO) << "Setting context: "
+                  << results.predictions_buffer->Read(buffer_variables::name);
+        return results.predictions_buffer;
+      });
 }
 
-ColorizePromptOptions DrawPath(EditorState* editor,
-                               const std::shared_ptr<LazyString>& line,
-                               PredictResults results) {
-  ColorizePromptOptions output;
-  output.context = StatusContext(editor, results, *line);
+futures::Value<ColorizePromptOptions> DrawPath(
+    EditorState* editor, const std::shared_ptr<LazyString>& line,
+    PredictResults results) {
+  return futures::Transform(
+      StatusContext(editor, results, *line),
+      [editor, line, results](std::shared_ptr<OpenBuffer> context_buffer) {
+        ColorizePromptOptions output;
+        output.context = context_buffer;
 
-  for (auto i = ColumnNumber(0); i < ColumnNumber(0) + line->size(); ++i) {
-    LineModifierSet modifiers;
-    switch (line->get(i)) {
-      case L'/':
-      case L'.':
-        modifiers.insert(LineModifier::DIM);
-        break;
-      default:
-        if (i.ToDelta() >= results.longest_directory_match) {
-          if (results.found_exact_match) {
-            modifiers.insert(LineModifier::BOLD);
+        for (auto i = ColumnNumber(0); i < ColumnNumber(0) + line->size();
+             ++i) {
+          LineModifierSet modifiers;
+          switch (line->get(i)) {
+            case L'/':
+            case L'.':
+              modifiers.insert(LineModifier::DIM);
+              break;
+            default:
+              if (i.ToDelta() >= results.longest_directory_match) {
+                if (results.found_exact_match) {
+                  modifiers.insert(LineModifier::BOLD);
+                }
+                if (results.matches == 0 &&
+                    i.ToDelta() >= results.longest_prefix) {
+                  modifiers.insert(LineModifier::RED);
+                } else if (results.matches == 1) {
+                  modifiers.insert(LineModifier::GREEN);
+                } else if (results.common_prefix.has_value() &&
+                           ColumnNumber() + line->size() <
+                               ColumnNumber(
+                                   results.common_prefix.value().size())) {
+                  modifiers.insert(LineModifier::YELLOW);
+                }
+              }
           }
-          if (results.matches == 0 && i.ToDelta() >= results.longest_prefix) {
-            modifiers.insert(LineModifier::RED);
-          } else if (results.matches == 1) {
-            modifiers.insert(LineModifier::GREEN);
-          } else if (results.common_prefix.has_value() &&
-                     ColumnNumber() + line->size() <
-                         ColumnNumber(results.common_prefix.value().size())) {
-            modifiers.insert(LineModifier::YELLOW);
-          }
+          output.tokens.push_back(TokenAndModifiers{
+              .token = {.begin = i, .end = i.next()}, .modifiers = modifiers});
         }
-    }
-    output.tokens.push_back(TokenAndModifiers{
-        .token = {.begin = i, .end = i.next()}, .modifiers = modifiers});
-  }
-  return output;
+        return output;
+      });
 }
 
 futures::Value<ColorizePromptOptions> AdjustPath(
@@ -108,7 +121,7 @@ futures::Value<ColorizePromptOptions> AdjustPath(
   return futures::Transform(
       Predict(std::move(options)),
       [editor, line](std::optional<PredictResults> results) {
-        if (!results.has_value()) return ColorizePromptOptions{};
+        if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
         return DrawPath(editor, line, std::move(results.value()));
       });
 }

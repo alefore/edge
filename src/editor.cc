@@ -332,7 +332,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(L"SendExitTo",
                         vm::NewCallback([](EditorState*, wstring args) {
                           int fd = open(ToByteString(args).c_str(), O_WRONLY);
-                          string command = "Exit(0);\n";
+                          string command = "editor.Exit(0);\n";
                           write(fd, command.c_str(), command.size());
                           close(fd);
                         }));
@@ -385,7 +385,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       Value::NewFunction(
           {VMType::ObjectType(L"Buffer"), VMTypeMapper<EditorState*>::vmtype,
            VMType::VM_STRING, VMType::VM_BOOLEAN},
-          [](vector<unique_ptr<Value>> args) {
+          [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
             CHECK_EQ(args.size(), 3u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
             CHECK(args[1]->IsString());
@@ -400,7 +400,12 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             options.insertion_type = args[2]->boolean
                                          ? BuffersList::AddBufferType::kVisit
                                          : BuffersList::AddBufferType::kIgnore;
-            return Value::NewObject(L"Buffer", OpenFile(options)->second);
+            return futures::Transform(
+                OpenFile(options),
+                [](map<wstring, shared_ptr<OpenBuffer>>::iterator result) {
+                  return EvaluationOutput::Return(
+                      Value::NewObject(L"Buffer", result->second));
+                });
           }));
 
   editor_type->AddField(
@@ -582,7 +587,10 @@ void EditorState::AddVerticalSplit() {
     casted_child = dynamic_cast<WidgetListVertical*>(buffer_tree_.Child());
     CHECK(casted_child != nullptr);
   }
-  casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
+  OpenAnonymousBuffer(this).SetConsumer(
+      [casted_child](std::shared_ptr<OpenBuffer> buffer) {
+        casted_child->AddChild(BufferWidget::New(buffer));
+      });
 }
 
 void EditorState::AddHorizontalSplit() {
@@ -594,7 +602,10 @@ void EditorState::AddHorizontalSplit() {
     casted_child = dynamic_cast<WidgetListHorizontal*>(buffer_tree_.Child());
     CHECK(casted_child != nullptr);
   }
-  casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
+  OpenAnonymousBuffer(this).SetConsumer(
+      [casted_child](std::shared_ptr<OpenBuffer> buffer) {
+        casted_child->AddChild(BufferWidget::New(buffer));
+      });
 }
 
 void EditorState::SetHorizontalSplitsWithAllBuffers() {
@@ -844,20 +855,24 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
 }
 
 void EditorState::ProcessInput(int c) {
-  EditorMode* handler = keyboard_redirect().get();
-  if (handler != nullptr) {
-    // Pass.
-  } else if (has_current_buffer()) {
-    handler = current_buffer()->mode();
-  } else {
-    auto buffer = OpenAnonymousBuffer(this);
-    if (!has_current_buffer()) {
-      set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
-    }
-    handler = buffer->mode();
-    CHECK(has_current_buffer());
+  if (auto handler = keyboard_redirect().get(); handler != nullptr) {
+    handler->ProcessInput(c, this);
+    return;
   }
-  handler->ProcessInput(c, this);
+
+  if (has_current_buffer()) {
+    current_buffer()->mode()->ProcessInput(c, this);
+    return;
+  }
+
+  OpenAnonymousBuffer(this).SetConsumer(
+      [this, c](std::shared_ptr<OpenBuffer> buffer) {
+        if (!has_current_buffer()) {
+          set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
+        }
+        buffer->mode()->ProcessInput(c, this);
+        CHECK(has_current_buffer());
+      });
 }
 
 void EditorState::MoveBufferForwards(size_t times) {
@@ -950,8 +965,11 @@ void EditorState::PushPosition(LineColumn position) {
       !buffer->Read(buffer_variables::push_positions_to_history)) {
     return;
   }
-  auto buffer_it = buffers_.find(kPositionsBufferName);
-  if (buffer_it == buffers_.end()) {
+  auto positions_buffer = futures::Past(std::shared_ptr<OpenBuffer>());
+  if (auto buffer_it = buffers_.find(kPositionsBufferName);
+      buffer_it != buffers_.end()) {
+    positions_buffer = futures::Past(buffer_it->second);
+  } else {
     // Insert a new entry into the list of buffers.
     OpenFileOptions options;
     options.editor_state = this;
@@ -964,24 +982,30 @@ void EditorState::PushPosition(LineColumn position) {
       }
     }
     options.insertion_type = BuffersList::AddBufferType::kIgnore;
-    buffer_it = OpenFile(options);
-    CHECK(buffer_it != buffers()->end());
-    CHECK(buffer_it->second != nullptr);
-    buffer_it->second->Set(buffer_variables::save_on_close, true);
-    buffer_it->second->Set(buffer_variables::trigger_reload_on_buffer_write,
-                           false);
-    buffer_it->second->Set(buffer_variables::show_in_buffers_list, false);
+    positions_buffer = futures::Transform(
+        OpenFile(options),
+        [](map<wstring, shared_ptr<OpenBuffer>>::iterator buffer_it) {
+          CHECK(buffer_it->second != nullptr);
+          buffer_it->second->Set(buffer_variables::save_on_close, true);
+          buffer_it->second->Set(
+              buffer_variables::trigger_reload_on_buffer_write, false);
+          buffer_it->second->Set(buffer_variables::show_in_buffers_list, false);
+          return buffer_it->second;
+        });
   }
-  CHECK(buffer_it->second != nullptr);
-  buffer_it->second->CheckPosition();
-  CHECK_LE(buffer_it->second->position().line,
-           LineNumber(0) + buffer_it->second->contents()->size());
-  buffer_it->second->InsertLine(
-      buffer_it->second->current_position_line(),
-      std::make_shared<Line>(position.ToString() + L" " +
-                             buffer->Read(buffer_variables::name)));
-  CHECK_LE(buffer_it->second->position().line,
-           LineNumber(0) + buffer_it->second->contents()->size());
+
+  positions_buffer.SetConsumer(
+      [line_to_insert = std::make_shared<Line>(
+           position.ToString() + L" " + buffer->Read(buffer_variables::name))](
+          std::shared_ptr<OpenBuffer> buffer) {
+        CHECK(buffer != nullptr);
+        buffer->CheckPosition();
+        CHECK_LE(buffer->position().line,
+                 LineNumber(0) + buffer->contents()->size());
+        buffer->InsertLine(buffer->current_position_line(), line_to_insert);
+        CHECK_LE(buffer->position().line,
+                 LineNumber(0) + buffer->contents()->size());
+      });
 }
 
 static BufferPosition PositionFromLine(const wstring& line) {

@@ -902,20 +902,21 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
     auto options = ResolvePathOptions::New(editor());
+    auto buffer_name = Read(buffer_variables::name);
     for (LineNumberDelta i; i < lines_added; ++i) {
-      options.path =
-          contents_.at(LineNumber() + start_new_section + i)->ToString();
-      if (auto results = ResolvePath(options); results.has_value()) {
-        LineMarks::Mark mark;
-        mark.source = Read(buffer_variables::name);
-        mark.source_line = contents_.EndLine();
-        mark.target_buffer = results->path;
-        if (results->position.has_value()) {
-          mark.target = *results->position;
-        }
-        LOG(INFO) << "Found a mark: " << mark;
-        editor()->line_marks()->AddMark(mark);
+      auto source_line = LineNumber() + start_new_section + i;
+      options.path = contents_.at(source_line)->ToString();
+      auto results = ResolvePath(options);
+      if (!results.has_value()) return;
+      LineMarks::Mark mark;
+      mark.source = buffer_name;
+      mark.source_line = source_line;
+      mark.target_buffer = results->path;
+      if (results->position.has_value()) {
+        mark.target = *results->position;
       }
+      LOG(INFO) << "Found a mark: " << mark;
+      editor()->line_marks()->AddMark(mark);
     }
   }
 }
@@ -1983,7 +1984,7 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
             S_ISFIFO(s.st_mode)) {
           // Don't bother with these special file types.
           buffer->status()->set_context(nullptr);
-          return Success();
+          return futures::Past(Success());
         }
         OpenFileOptions options;
         options.editor_state = buffer->editor();
@@ -1993,12 +1994,16 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
         options.ignore_if_not_found = true;
         options.insertion_type = BuffersList::AddBufferType::kIgnore;
         options.use_search_paths = false;
-        auto buffer_context_it = OpenFile(std::move(options));
-        buffer->status()->set_context(buffer_context_it ==
-                                              buffer->editor()->buffers()->end()
-                                          ? nullptr
-                                          : buffer_context_it->second);
-        return Success();
+        return futures::Transform(
+            OpenFile(std::move(options)),
+            [buffer](map<wstring, shared_ptr<OpenBuffer>>::iterator
+                         buffer_context_it) {
+              buffer->status()->set_context(
+                  buffer_context_it == buffer->editor()->buffers()->end()
+                      ? nullptr
+                      : buffer_context_it->second);
+              return Success();
+            });
       });
 }
 

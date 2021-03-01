@@ -127,31 +127,39 @@ class ReadAndInsert : public CompositeTransformation {
                 << edge_path_front.error().description;
       return futures::Past(Output());
     }
-    open_file_options.path =
+    auto full_path =
         Path::Join(edge_path_front.value(),
                    Path::Join(Path::FromString(L"expand").value(), path_));
+    open_file_options.path = full_path;
     open_file_options.ignore_if_not_found = true;
     open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
     open_file_options.use_search_paths = false;
     auto buffer_it = OpenFile(open_file_options);
-    if (buffer_it == input.buffer->editor()->buffers()->end()) {
-      LOG(INFO) << "Unable to open file: " << open_file_options.path.value();
-      return futures::Past(Output());
-    }
     futures::Future<Output> output;
-    buffer_it->second->AddEndOfFileObserver(
-        [consumer = std::move(output.consumer),
-         buffer_to_insert = buffer_it->second, input = std::move(input)] {
-          Output output;
-          output.Push(transformation::Insert(buffer_to_insert));
-          LineColumn position = buffer_to_insert->position();
-          if (position.line.IsZero()) {
-            position.column += input.position.column.ToDelta();
-          }
-          position.line += input.position.line.ToDelta();
-          output.Push(transformation::SetPosition(position));
-          consumer(std::move(output));
-        });
+    OpenFile(open_file_options)
+        .SetConsumer(
+            [consumer = std::move(output.consumer), full_path,
+             input = std::move(input)](
+                map<wstring, shared_ptr<OpenBuffer>>::iterator buffer_it) {
+              if (buffer_it == input.buffer->editor()->buffers()->end()) {
+                LOG(INFO) << "Unable to open file: " << full_path;
+                return futures::Past(Output());
+              }
+
+              buffer_it->second->AddEndOfFileObserver(
+                  [consumer, buffer_to_insert = buffer_it->second,
+                   input = std::move(input)] {
+                    Output output;
+                    output.Push(transformation::Insert(buffer_to_insert));
+                    LineColumn position = buffer_to_insert->position();
+                    if (position.line.IsZero()) {
+                      position.column += input.position.column.ToDelta();
+                    }
+                    position.line += input.position.line.ToDelta();
+                    output.Push(transformation::SetPosition(position));
+                    consumer(std::move(output));
+                  });
+            });
     return output.value;
   }
 

@@ -124,6 +124,7 @@ wstring CommandsToRun(CommandLineValues args) {
                  CommandLineValues::NestedEdgeBehavior::kWaitForClose) {
     commands_to_run += L"SetString buffers_to_watch = SetString();\n";
     for (auto& block : buffers_to_watch) {
+      LOG(INFO) << "XXXX child: Wait: " << block;
       commands_to_run +=
           L"buffers_to_watch.insert(\"" + CppEscapeString(block) + L"\");\n";
     }
@@ -135,10 +136,12 @@ wstring CommandsToRun(CommandLineValues args) {
   if (commands_to_run.empty()) {
     commands_to_run = kDefaultCommandsToRun;
   }
+  LOG(INFO) << "XXXX: Command to run: " << commands_to_run;
   return commands_to_run;
 }
 
 void SendCommandsToParent(int fd, const string commands_to_run) {
+  LOG(INFO) << "XXXX: Asking server to run: " << commands_to_run;
   // We write the command to a temporary file and then instruct the server to
   // load the file. Otherwise, if the command is too long, it may not fit in the
   // size limit that the reader uses.
@@ -337,6 +340,7 @@ int main(int argc, const char** argv) {
     editor_state()->ExecutePendingWork();
   }
 
+  LOG(INFO) << "XXXX Getting commands to run";
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
