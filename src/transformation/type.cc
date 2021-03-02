@@ -6,8 +6,7 @@
 
 namespace afc::editor::transformation {
 
-futures::Value<Result> Apply(BaseTransformation base_transformation,
-                             const Input& input) {
+futures::Value<Result> Apply(Variant base_transformation, const Input& input) {
   return std::visit([&](auto& value) { return ApplyBase(value, input); },
                     base_transformation);
 }

@@ -25,8 +25,6 @@ class SwapActiveCursor;
 using Variant =
     std::variant<Delete, ModifiersAndComposite, CompositePtr, Cursors, Insert,
                  Repetitions, SetPosition, Stack, SwapActiveCursor>;
-// TODO(easy): Remove this alias.
-using BaseTransformation = Variant;
 }  // namespace transformation
 }  // namespace afc::editor
 
