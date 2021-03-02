@@ -38,9 +38,27 @@ Path::Path(PathComponent path_component)
   if (a.IsRoot() && b.IsRoot()) {
     return b;
   }
+  if (a == LocalDirectory() && b.path_[0] != L'/') {
+    return b;
+  }
   bool has_slash = a.path_[a.path_.size() - 1] == L'/' || b.path_[0] == L'/';
   return Path::FromString(a.path_ + (has_slash ? L"" : L"/") + b.path_).value();
 }
+
+const bool path_join_tests_registration = tests::Register(
+    L"PathJoinTests",
+    {{.name = L"LocalRedundant",
+      .callback =
+          [] {
+            CHECK_EQ(Path::Join(Path::LocalDirectory(),
+                                Path::FromString(L"alejo.txt").value()),
+                     Path::FromString(L"alejo.txt").value());
+          }},
+     {.name = L"LocalImportant", .callback = [] {
+        CHECK_EQ(Path::Join(Path::LocalDirectory(),
+                            Path::FromString(L"/alejo.txt").value()),
+                 Path::FromString(L"./alejo.txt").value());
+      }}});
 
 ValueOrError<Path> Path::FromString(std::wstring path) {
   return path.empty() ? Error(L"Empty path.") : Success(Path(std::move(path)));
