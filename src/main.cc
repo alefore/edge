@@ -115,7 +115,7 @@ wstring CommandsToRun(CommandLineValues args) {
     case CommandLineValues::ViewMode::kDefault:
       break;
   }
-  if (!args.client.empty()) {
+  if (args.client.has_value()) {
     commands_to_run +=
         L"Screen screen = RemoteScreen(\"" +
         CppEscapeString(FromByteString(getenv(kEdgeParentAddress))) + L"\");\n";
@@ -221,7 +221,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
   auto screen_state = editor_state()->FlushScreenState();
   if (!screen_state.has_value()) return;
   if (screen_curses != nullptr) {
-    if (args.client.empty()) {
+    if (!args.client.has_value()) {
       terminal->Display(editor_state(), screen_curses, screen_state.value());
     } else {
       screen_curses->Refresh();  // Don't want this to be buffered!
@@ -302,8 +302,8 @@ int main(int argc, const char** argv) {
 
   int remote_server_fd = -1;
   bool connected_to_parent = false;
-  if (!args.client.empty()) {
-    auto output = MaybeConnectToServer(Path::FromString(args.client).value());
+  if (args.client.has_value()) {
+    auto output = MaybeConnectToServer(args.client.value());
     if (output.IsError()) {
       cerr << args.binary_name << ": Unable to connect to remote server: "
            << output.error().description << std::endl;
@@ -430,7 +430,7 @@ int main(int argc, const char** argv) {
       CHECK_EQ(errno, EINTR) << "poll failed: " << strerror(errno);
 
       LOG(INFO) << "Received signals.";
-      if (args.client.empty()) {
+      if (!args.client.has_value()) {
         // We schedule a redraw in case the signal was SIGWINCH (the screen
         // size has changed). Ideally we'd only do that for that signal, to
         // avoid spurious refreshes, but... who cares.

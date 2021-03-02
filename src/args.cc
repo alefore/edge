@@ -62,6 +62,7 @@ static vector<std::wstring> GetEdgeConfigPath(const Path& home) {
   }
   return output;
 }
+
 }  // namespace
 
 using afc::command_line_arguments::Handler;
@@ -134,6 +135,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                                                                 std::wstring*)>(
                    [](std::wstring input, std::wstring* error)
                        -> std::optional<std::optional<Path>> {
+                     if (input.empty()) {
+                       return {std::optional<Path>()};
+                     }
                      auto output = Path::FromString(input);
                      if (output.IsError()) {
                        *error = output.error().description;
@@ -147,7 +151,18 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                                  L"Connect to daemon at a given path")
           .Require(L"path",
                    L"Path to the pipe in which the daemon is listening")
-          .Set(&CommandLineValues::client),
+          .Set(&CommandLineValues::client,
+               std::function<std::optional<std::optional<Path>>(std::wstring,
+                                                                std::wstring*)>(
+                   [](std::wstring input, std::wstring* error)
+                       -> std::optional<std::optional<Path>> {
+                     auto output = Path::FromString(input);
+                     if (output.IsError()) {
+                       *error = output.error().description;
+                       return std::nullopt;
+                     }
+                     return std::optional<std::optional<Path>>(output.value());
+                   })),
 
       Handler<CommandLineValues>({L"mute"}, L"Disable audio output")
           .Set(&CommandLineValues::mute, true)

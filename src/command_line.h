@@ -124,19 +124,16 @@ class Handler {
                                  std::wstring input, std::wstring* error)>
                                  callback) {
     return PushDelegate([field, callback](ParsingData<ParsedValues>* data) {
-      if (!data->current_value.has_value()) {
-        std::cerr << data->output.binary_name << ": " << data->current_flag
-                  << ": Expected value." << std::endl;
-        exit(EX_USAGE);
+      if (data->current_value.has_value()) {
+        std::wstring error;
+        auto value = callback(data->current_value.value(), &error);
+        if (!value.has_value()) {
+          std::cerr << data->output.binary_name << ": " << data->current_flag
+                    << ": " << error << std::endl;
+          exit(EX_USAGE);
+        }
+        (data->output.*field) = value.value();
       }
-      std::wstring error;
-      auto value = callback(data->current_value.value(), &error);
-      if (!value.has_value()) {
-        std::cerr << data->output.binary_name << ": " << data->current_flag
-                  << ": " << error << std::endl;
-        exit(EX_USAGE);
-      }
-      (data->output.*field) = value.value();
     });
   }
 
