@@ -194,30 +194,22 @@ futures::Value<PossibleError> GenerateContents(
       });
 }
 
-bool StartServer(EditorState* editor_state, wstring address,
-                 wstring* actual_address, wstring* error) {
+ValueOrError<Path> StartServer(EditorState* editor_state,
+                               std::optional<Path> address) {
   wstring dummy;
-  if (actual_address == nullptr) {
-    actual_address = &dummy;
+  auto output = CreateFifo(address);
+  if (output.IsError()) {
+    return Error(L"Error creating fifo: " + output.error().description);
   }
 
-  auto address_path = Path::FromString(address);
-  auto actual_address_path = CreateFifo(
-      address_path.IsError() ? std::optional<Path>() : address_path.value());
-  if (actual_address_path.IsError()) {
-    *error = L"Error creating fifo: " + actual_address_path.error().description;
-    return false;
-  }
-
-  LOG(INFO) << "Starting server: " << actual_address_path.value().ToString();
-  setenv("EDGE_PARENT_ADDRESS",
-         ToByteString(actual_address_path.value().ToString()).c_str(), 1);
+  LOG(INFO) << "Starting server: " << output.value().ToString();
+  setenv("EDGE_PARENT_ADDRESS", ToByteString(output.value().ToString()).c_str(),
+         1);
   // TODO(easy): Pass a Path.
-  auto buffer = OpenServerBuffer(editor_state, actual_address_path.value());
+  auto buffer = OpenServerBuffer(editor_state, output.value());
   buffer->Set(buffer_variables::reload_after_exit, true);
   buffer->Set(buffer_variables::default_reload_after_exit, true);
-  *actual_address = actual_address_path.value().ToString();
-  return true;
+  return output;
 }
 
 shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,

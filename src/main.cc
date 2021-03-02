@@ -170,32 +170,34 @@ void SendCommandsToParent(int fd, const string commands_to_run) {
   }
 }
 
-wstring StartServer(const CommandLineValues& args, bool connected_to_parent) {
+Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
   LOG(INFO) << "Starting server.";
 
-  wstring address;
+  std::optional<Path> address;
   std::unordered_set<int> surviving_fds = {1, 2};
   if (args.server && !args.server_path.empty()) {
-    address = args.server_path;
+    // TODO(easy): Use a Path already in args::server_path.
+    address = Path::FromString(args.server_path).value();
     // We can't close stdout until we've printed the address in which the server
     // will run.
     Daemonize(surviving_fds);
   }
-  wstring actual_address;
-  wstring error;
-  if (!StartServer(editor_state(), address, &actual_address, &error)) {
-    LOG(FATAL) << args.binary_name << ": Unable to start server: " << error;
+  auto server_address = StartServer(editor_state(), address);
+  if (server_address.IsError()) {
+    LOG(FATAL) << args.binary_name
+               << ": Unable to start server: " << server_address.error();
   }
   if (args.server) {
     if (!connected_to_parent) {
       std::cout << args.binary_name
-                << ": Server starting at: " << actual_address << std::endl;
+                << ": Server starting at: " << server_address.value()
+                << std::endl;
     }
     for (int fd : surviving_fds) {
       close(fd);
     }
   }
-  return actual_address;
+  return server_address.value();
 }
 
 std::wstring GetGreetingMessage() {
@@ -344,7 +346,9 @@ int main(int argc, const char** argv) {
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
-      commands_to_run += L"editor.SendExitTo(\"" + server_path + L"\");";
+      // TODO(easy): Escape server_path.
+      commands_to_run +=
+          L"editor.SendExitTo(\"" + server_path.ToString() + L"\");";
     }
 
     LOG(INFO) << "Sending commands.";
@@ -498,6 +502,6 @@ int main(int argc, const char** argv) {
   }
 
   LOG(INFO) << "Removing server file: " << server_path;
-  unlink(ToByteString(server_path).c_str());
+  unlink(ToByteString(server_path.ToString()).c_str());
   return editor_state()->exit_value().value();
 }
