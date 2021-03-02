@@ -117,7 +117,7 @@ int MaybeConnectToServer(const string& address, wstring* error) {
              FromByteString(strerror(errno));
     return -1;
   }
-  auto private_fifo = CreateFifo({});
+  ValueOrError<Path> private_fifo = CreateFifo({});
   if (private_fifo.IsError()) {
     *error = L"Unable to create fifo for communication with server: " +
              private_fifo.error().description;
@@ -205,7 +205,6 @@ ValueOrError<Path> StartServer(EditorState* editor_state,
   LOG(INFO) << "Starting server: " << output.value().ToString();
   setenv("EDGE_PARENT_ADDRESS", ToByteString(output.value().ToString()).c_str(),
          1);
-  // TODO(easy): Pass a Path.
   auto buffer = OpenServerBuffer(editor_state, output.value());
   buffer->Set(buffer_variables::reload_after_exit, true);
   buffer->Set(buffer_variables::default_reload_after_exit, true);
