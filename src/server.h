@@ -18,6 +18,7 @@ wstring CppEscapeString(wstring input);
 
 void Daemonize(const std::unordered_set<int>& surviving_fd);
 
+// TODO(easy): Address should use Path.
 int MaybeConnectToServer(const string& address, wstring* error);
 int MaybeConnectToParentServer(wstring* error);
 

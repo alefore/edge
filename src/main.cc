@@ -170,16 +170,13 @@ void SendCommandsToParent(int fd, const string commands_to_run) {
 Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
   LOG(INFO) << "Starting server.";
 
-  std::optional<Path> address;
   std::unordered_set<int> surviving_fds = {1, 2};
-  if (args.server && !args.server_path.empty()) {
-    // TODO(easy): Use a Path already in args::server_path.
-    address = Path::FromString(args.server_path).value();
+  if (args.server && args.server_path.has_value()) {
     // We can't close stdout until we've printed the address in which the server
     // will run.
     Daemonize(surviving_fds);
   }
-  auto server_address = StartServer(editor_state(), address);
+  auto server_address = StartServer(editor_state(), args.server_path);
   if (server_address.IsError()) {
     LOG(FATAL) << args.binary_name
                << ": Unable to start server: " << server_address.error();
@@ -351,8 +348,9 @@ int main(int argc, const char** argv) {
     wstring errors;
     if (remote_server_fd != -1) {
       self_fd = remote_server_fd;
-    } else if (args.server && !args.server_path.empty()) {
-      self_fd = MaybeConnectToServer(ToByteString(args.server_path), &errors);
+    } else if (args.server && args.server_path.has_value()) {
+      self_fd = MaybeConnectToServer(
+          ToByteString(args.server_path.value().ToString()), &errors);
     } else {
       self_fd = MaybeConnectToParentServer(&errors);
     }

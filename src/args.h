@@ -24,7 +24,7 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   wstring commands_to_run;
 
   bool server = false;
-  wstring server_path = L"";
+  std::optional<Path> server_path = {};
 
   // If non-empty, path of the server to connect to.
   wstring client = L"";

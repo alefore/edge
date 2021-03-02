@@ -129,7 +129,18 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"If your session is terminated (e.g. your SSH connection dies), "
               L"you can run the client command again.")
           .Accept(L"path", L"Path to the pipe in which to run the server")
-          .Set(&CommandLineValues::server_path)
+          .Set(&CommandLineValues::server_path,
+               std::function<std::optional<std::optional<Path>>(std::wstring,
+                                                                std::wstring*)>(
+                   [](std::wstring input, std::wstring* error)
+                       -> std::optional<std::optional<Path>> {
+                     auto output = Path::FromString(input);
+                     if (output.IsError()) {
+                       *error = output.error().description;
+                       return std::nullopt;
+                     }
+                     return std::optional<std::optional<Path>>(output.value());
+                   }))
           .Set(&CommandLineValues::server, true),
 
       Handler<CommandLineValues>({L"client", L"c"},
