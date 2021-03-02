@@ -566,8 +566,8 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                               input.path.find_last_of(':', state->str_end - 1);
                           return Past(IterationControlCommand::kContinue);
                         }
-                        ResolvePathOutput output_candidate;
-                        output_candidate.pattern = L"";
+                        std::wstring output_pattern = L"";
+                        std::optional<LineColumn> output_position;
                         for (size_t i = 0; i < 2; i++) {
                           while (state->str_end < input.path.size() &&
                                  ':' == input.path[state->str_end]) {
@@ -581,7 +581,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                           const wstring arg =
                               input.path.substr(state->str_end, next_str_end);
                           if (i == 0 && arg.size() > 0 && arg[0] == '/') {
-                            output_candidate.pattern = arg.substr(1);
+                            output_pattern = arg.substr(1);
                             break;
                           } else {
                             size_t value;
@@ -598,15 +598,13 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                               LOG(INFO) << "stoi failed: out of range: " << arg;
                               break;
                             }
-                            if (!output_candidate.position.has_value()) {
-                              output_candidate.position = LineColumn();
+                            if (!output_position.has_value()) {
+                              output_position = LineColumn();
                             }
                             if (i == 0) {
-                              output_candidate.position->line =
-                                  LineNumber(value);
+                              output_position->line = LineNumber(value);
                             } else {
-                              output_candidate.position->column =
-                                  ColumnNumber(value);
+                              output_position->column = ColumnNumber(value);
                             }
                           }
                           state->str_end = next_str_end;
@@ -614,14 +612,14 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                             break;
                           }
                         }
-                        if (auto resolved = path_with_prefix.Resolve();
-                            !resolved.IsError()) {
-                          output_candidate.path = resolved.value().ToString();
-                        } else {
-                          output_candidate.path = path_with_prefix.ToString();
-                        }
-                        VLOG(4) << "Resolved path: " << output_candidate.path;
-                        *output = {output_candidate};
+                        auto resolved = path_with_prefix.Resolve();
+                        *output = Success(ResolvePathOutput{
+                            .path = resolved.IsError() ? path_with_prefix
+                                                       : resolved.value(),
+                            .position = output_position,
+                            .pattern = output_pattern});
+                        VLOG(4) << "Resolved path: "
+                                << output->value().value().path;
                         return Past(IterationControlCommand::kStop);
                       });
                 }),
@@ -644,7 +642,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
 struct OpenFileResolvePathOutput {
   // If set, this is the buffer to open.
   std::optional<map<wstring, shared_ptr<OpenBuffer>>::iterator> buffer = {};
-  std::wstring path = {};
+  std::optional<Path> path = {};
   std::optional<LineColumn> position = {};
   wstring pattern = L"";
 };
@@ -710,7 +708,9 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
                 if (ignore_if_not_found) {
                   output->buffer = editor_state->buffers()->end();
                 }
-                output->path = path.has_value() ? path.value().ToString() : L"";
+                if (path.has_value()) {
+                  output->path = path.value();
+                }
               }
               consumer(*output);
             });
@@ -773,7 +773,9 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
                     return error;
                   });
             };
-        buffer_options->path = input.path;
+        if (input.path.has_value()) {
+          buffer_options->path = input.path.value().ToString();
+        }
         buffer_options->log_supplier = [editor_state, path = input.path](
                                            WorkQueue* work_queue,
                                            std::wstring edge_state_directory) {

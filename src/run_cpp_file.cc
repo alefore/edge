@@ -80,7 +80,7 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                             adjusted_input = resolved_path.path, index]() {
               if (*index >= total)
                 return futures::Past(IterationControlCommand::kStop);
-              auto evaluation = buffer->EvaluateFile(adjusted_input);
+              auto evaluation = buffer->EvaluateFile(adjusted_input.ToString());
               if (!evaluation.has_value())
                 return futures::Past(IterationControlCommand::kStop);
               ++*index;

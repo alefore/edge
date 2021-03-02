@@ -385,7 +385,7 @@ using std::to_wstring;
                               L"Unable to resolve: " + path + L": " +
                               results.error().description);
                         } else {
-                          buffer->EvaluateFile(results.value().path);
+                          buffer->EvaluateFile(results.value().path.ToString());
                         }
                       });
             },
@@ -926,7 +926,7 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
                            LineMarks::Mark mark;
                            mark.source = buffer_name;
                            mark.source_line = source_line;
-                           mark.target_buffer = results.path;
+                           mark.target_buffer = results.path.ToString();
                            if (results.position.has_value()) {
                              mark.target = *results.position;
                            }

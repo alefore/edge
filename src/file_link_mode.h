@@ -71,8 +71,8 @@ struct ResolvePathOptions {
 };
 
 struct ResolvePathOutput {
-  // The absolute path pointing to the file. Absent if the operation failed.
-  std::wstring path;
+  // The absolute path pointing to the file.
+  Path path;
 
   // The position to jump to.
   std::optional<LineColumn> position;
