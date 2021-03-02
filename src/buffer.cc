@@ -831,7 +831,9 @@ void OpenBuffer::Initialize() {
           std::shared_ptr<OpenBuffer>(std::shared_ptr<OpenBuffer>(), this)));
 
   Set(buffer_variables::name, options_.name);
-  Set(buffer_variables::path, options_.path);
+  if (options_.path.has_value()) {
+    Set(buffer_variables::path, options_.path.value().ToString());
+  }
   Set(buffer_variables::pts_path, L"");
   Set(buffer_variables::command, L"");
   Set(buffer_variables::reload_after_exit, false);
@@ -842,22 +844,20 @@ void OpenBuffer::Initialize() {
   }
   ClearContents(BufferContents::CursorsBehavior::kUnmodified);
 
-  if (!options_.path.empty()) {
-    if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
-        !buffer_path.IsError()) {
-      for (const auto& dir : options_.editor->edge_path()) {
-        auto state_path = Path::Join(
-            Path::Join(dir, PathComponent::FromString(L"state").value()),
-            Path::Join(buffer_path.value(),
-                       PathComponent::FromString(L".edge_state").value()));
-        // TODO(easy): Use async stat.
-        struct stat stat_buffer;
-        if (stat(ToByteString(state_path.ToString()).c_str(), &stat_buffer) ==
-            -1) {
-          continue;
-        }
-        EvaluateFile(state_path.ToString());
+  if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
+      !buffer_path.IsError()) {
+    for (const auto& dir : options_.editor->edge_path()) {
+      auto state_path = Path::Join(
+          Path::Join(dir, PathComponent::FromString(L"state").value()),
+          Path::Join(buffer_path.value(),
+                     PathComponent::FromString(L".edge_state").value()));
+      // TODO(easy): Use async stat.
+      struct stat stat_buffer;
+      if (stat(ToByteString(state_path.ToString()).c_str(), &stat_buffer) ==
+          -1) {
+        continue;
       }
+      EvaluateFile(state_path.ToString());
     }
   }
 }

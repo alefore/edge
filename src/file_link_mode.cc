@@ -774,7 +774,7 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
                   });
             };
         if (input.path.has_value()) {
-          buffer_options->path = input.path.value().ToString();
+          buffer_options->path = input.path.value();
         }
         buffer_options->log_supplier = [editor_state, path = input.path](
                                            WorkQueue* work_queue,
@@ -795,12 +795,12 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
 
         if (!options.name.empty()) {
           buffer_options->name = options.name;
-        } else if (buffer_options->path.empty()) {
+        } else if (buffer_options->path.has_value()) {
+          buffer_options->name = buffer_options->path.value().ToString();
+        } else {
           buffer_options->name =
               editor_state->GetUnusedBufferName(L"anonymous buffer");
           buffer = OpenBuffer::New(*buffer_options);
-        } else {
-          buffer_options->name = buffer_options->path;
         }
         auto it =
             editor_state->buffers()->insert({buffer_options->name, buffer});

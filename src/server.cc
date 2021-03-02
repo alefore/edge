@@ -212,7 +212,9 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
   OpenBuffer::Options options;
   options.editor = editor_state;
   options.name = editor_state->GetUnusedBufferName(L"- server");
-  options.path = address;
+  if (auto address_path = Path::FromString(address); !address_path.IsError()) {
+    options.path = address_path.value();
+  }
   options.generate_contents =
       [file_system_driver = std::make_shared<FileSystemDriver>(
            editor_state->work_queue())](OpenBuffer* target) {

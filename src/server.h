@@ -27,6 +27,7 @@ class EditorState;
 bool StartServer(EditorState* editor_state, wstring address,
                  wstring* actual_address, wstring* error);
 
+// TODO(easy): Receive address as a Path.
 shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
                                         const wstring& address);
 
