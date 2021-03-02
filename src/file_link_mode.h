@@ -59,6 +59,7 @@ struct ResolvePathOptions {
   std::wstring path = L"";
   std::vector<Path> search_paths = {};
   Path home_directory;
+
   std::function<bool(const wstring&)> validator = nullptr;
 
  private:
@@ -76,7 +77,8 @@ struct ResolvePathOutput {
   std::optional<wstring> pattern;
 };
 
-ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions options);
+futures::ValueOrError<ResolvePathOutput> ResolvePath(
+    ResolvePathOptions options);
 
 // Creates a new buffer for the file at the path given.
 futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(

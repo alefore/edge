@@ -29,7 +29,14 @@ class RunCppFileCommand : public Command {
     options.history_file = L"editor_commands";
     options.initial_value =
         buffer->Read(buffer_variables::editor_commands_path);
-    options.handler = RunCppFileHandler;
+    options.handler = [](const wstring& input, EditorState* editor_state) {
+      futures::Future<EmptyValue> output;
+      RunCppFileHandler(input, editor_state)
+          .SetConsumer(
+              [consumer = std::move(output.consumer)](
+                  ValueOrError<EmptyValue>) { consumer(EmptyValue()); });
+      return output.value;
+    };
     options.cancel_handler = [](EditorState*) { /* Nothing. */ };
     options.predictor = FilePredictor;
     Prompt(std::move(options));
@@ -37,12 +44,12 @@ class RunCppFileCommand : public Command {
 };
 }  // namespace
 
-futures::Value<EmptyValue> RunCppFileHandler(const wstring& input,
-                                             EditorState* editor_state) {
+futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
+                                                EditorState* editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
   auto buffer = editor_state->current_buffer();
   if (buffer == nullptr) {
-    return futures::Past(EmptyValue());
+    return futures::Past(ValueOrError<EmptyValue>(Error(L"No current buffer")));
   }
   if (editor_state->structure() == StructureLine()) {
     auto target = buffer->GetBufferFromCurrentLine();
@@ -55,31 +62,35 @@ futures::Value<EmptyValue> RunCppFileHandler(const wstring& input,
   buffer->ResetMode();
   auto options = ResolvePathOptions::New(editor_state);
   options.path = input;
-  auto resolved_path = ResolvePath(std::move(options));
-  if (resolved_path.IsError()) {
-    buffer->status()->SetWarningText(L"🗱  File not found: " + input);
-    return futures::Past(EmptyValue());
-  }
-
-  using futures::IterationControlCommand;
-  auto index = std::make_shared<size_t>(0);
   return futures::Transform(
-      futures::While([buffer, total = editor_state->repetitions(),
-                      adjusted_input = resolved_path.value().path, index]() {
-        if (*index >= total)
-          return futures::Past(IterationControlCommand::kStop);
-        auto evaluation = buffer->EvaluateFile(adjusted_input);
-        if (!evaluation.has_value())
-          return futures::Past(IterationControlCommand::kStop);
-        ++*index;
+      OnError(ResolvePath(std::move(options)),
+              [buffer, input](Error error) {
+                buffer->status()->SetWarningText(L"🗱  File not found: " +
+                                                 input);
+                return error;
+              }),
+      [buffer, editor_state, input](
+          ResolvePathOutput resolved_path) -> futures::Value<PossibleError> {
+        using futures::IterationControlCommand;
+        auto index = std::make_shared<size_t>(0);
         return futures::Transform(
-            evaluation.value(), [](const std::unique_ptr<Value>&) {
-              return futures::Past(IterationControlCommand::kContinue);
+            futures::While([buffer, total = editor_state->repetitions(),
+                            adjusted_input = resolved_path.path, index]() {
+              if (*index >= total)
+                return futures::Past(IterationControlCommand::kStop);
+              auto evaluation = buffer->EvaluateFile(adjusted_input);
+              if (!evaluation.has_value())
+                return futures::Past(IterationControlCommand::kStop);
+              ++*index;
+              return futures::Transform(
+                  evaluation.value(), [](const std::unique_ptr<Value>&) {
+                    return futures::Past(IterationControlCommand::kContinue);
+                  });
+            }),
+            [editor_state](IterationControlCommand) {
+              editor_state->ResetRepetitions();
+              return futures::Past(Success());
             });
-      }),
-      [editor_state](IterationControlCommand) {
-        editor_state->ResetRepetitions();
-        return futures::Past(EmptyValue());
       });
 }
 

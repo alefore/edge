@@ -9,8 +9,8 @@
 
 namespace afc::editor {
 
-futures::Value<EmptyValue> RunCppFileHandler(const std::wstring& input,
-                                             EditorState* editor_state);
+futures::Value<PossibleError> RunCppFileHandler(const std::wstring& input,
+                                                EditorState* editor_state);
 std::unique_ptr<Command> NewRunCppFileCommand();
 
 }  // namespace afc::editor
