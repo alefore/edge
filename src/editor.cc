@@ -288,7 +288,11 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(
       L"ConnectTo", vm::NewCallback([](EditorState* editor, wstring target) {
         CHECK(editor != nullptr);
-        OpenServerBuffer(editor, target);
+        auto target_path = Path::FromString(target);
+        if (target_path.IsError()) {
+          return;  // TODO(easy): Don't silently ignore the error.
+        }
+        OpenServerBuffer(editor, target_path.value());
       }));
 
   editor_type->AddField(

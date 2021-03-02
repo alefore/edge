@@ -59,27 +59,32 @@ wstring CppEscapeString(wstring input) {
   return output;
 }
 
-bool CreateFifo(wstring input_path, wstring* output, wstring* error) {
+namespace {
+ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
   while (true) {
     // Using mktemp here is secure: if the attacker creates the file, mkfifo
     // will fail.
-    char* path_str = input_path.empty()
-                         ? mktemp(strdup("/tmp/edge-server-XXXXXX"))
-                         : strdup(ToByteString(input_path).c_str());
-    if (mkfifo(path_str, 0600) == -1) {
-      *error =
-          FromByteString(path_str) + L": " + FromByteString(strerror(errno));
-      free(path_str);
-      if (!input_path.empty()) {
-        return false;
-      }
-      continue;
-    }
-    *output = FromByteString(path_str);
+    Path output =
+        input_path.has_value()
+            ? input_path.value()
+            : Path::FromString(
+                  FromByteString(mktemp(strdup("/tmp/edge-server-XXXXXX"))))
+                  .value();
+
+    char* path_str = strdup(ToByteString(output.ToString()).c_str());
+    int mkfifo_result = mkfifo(path_str, 0600);
     free(path_str);
-    return true;
+    if (mkfifo_result != -1) {
+      return Success(output);
+    }
+
+    if (input_path.has_value()) {
+      // No point retrying.
+      return Error(output.ToString() + L": " + FromByteString(strerror(errno)));
+    }
   }
 }
+}  // namespace
 
 int MaybeConnectToParentServer(wstring* error) {
   wstring dummy;
@@ -112,14 +117,16 @@ int MaybeConnectToServer(const string& address, wstring* error) {
              FromByteString(strerror(errno));
     return -1;
   }
-  wstring private_fifo;
-  if (!CreateFifo(L"", &private_fifo, error)) {
-    *error = L"Unable to create fifo for communication with server: " + *error;
+  auto private_fifo = CreateFifo({});
+  if (private_fifo.IsError()) {
+    *error = L"Unable to create fifo for communication with server: " +
+             private_fifo.error().description;
     return -1;
   }
-  LOG(INFO) << "Fifo created: " << private_fifo;
-  string command =
-      "editor.ConnectTo(\"" + ToByteString(private_fifo) + "\");\n";
+  LOG(INFO) << "Fifo created: " << private_fifo.value().ToString();
+  // TODO(easy): Escape private_fifo.
+  string command = "editor.ConnectTo(\"" +
+                   ToByteString(private_fifo.value().ToString()) + "\");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {
     *error = FromByteString(address) + L": write failed: " +
@@ -128,12 +135,13 @@ int MaybeConnectToServer(const string& address, wstring* error) {
   }
   close(fd);
 
-  LOG(INFO) << "Opening private fifo: " << private_fifo;
-  int private_fd = open(ToByteString(private_fifo).c_str(), O_RDWR);
+  LOG(INFO) << "Opening private fifo: " << private_fifo.value().ToString();
+  int private_fd =
+      open(ToByteString(private_fifo.value().ToString()).c_str(), O_RDWR);
   LOG(INFO) << "Connection fd: " << private_fd;
   if (private_fd == -1) {
-    *error =
-        private_fifo + L": open failed: " + FromByteString(strerror(errno));
+    *error = private_fifo.value().ToString() + L": open failed: " +
+             FromByteString(strerror(errno));
     return -1;
   }
   CHECK_GT(private_fd, -1);
@@ -193,28 +201,31 @@ bool StartServer(EditorState* editor_state, wstring address,
     actual_address = &dummy;
   }
 
-  if (!CreateFifo(address, actual_address, error)) {
-    *error = L"Error creating fifo: " + *error;
+  auto address_path = Path::FromString(address);
+  auto actual_address_path = CreateFifo(
+      address_path.IsError() ? std::optional<Path>() : address_path.value());
+  if (actual_address_path.IsError()) {
+    *error = L"Error creating fifo: " + actual_address_path.error().description;
     return false;
   }
 
-  LOG(INFO) << "Starting server: " << *actual_address;
-  setenv("EDGE_PARENT_ADDRESS", ToByteString(*actual_address).c_str(), 1);
-  auto buffer = OpenServerBuffer(editor_state, *actual_address);
+  LOG(INFO) << "Starting server: " << actual_address_path.value().ToString();
+  setenv("EDGE_PARENT_ADDRESS",
+         ToByteString(actual_address_path.value().ToString()).c_str(), 1);
+  // TODO(easy): Pass a Path.
+  auto buffer = OpenServerBuffer(editor_state, actual_address_path.value());
   buffer->Set(buffer_variables::reload_after_exit, true);
   buffer->Set(buffer_variables::default_reload_after_exit, true);
-
+  *actual_address = actual_address_path.value().ToString();
   return true;
 }
 
 shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
-                                        const wstring& address) {
+                                        const Path& address) {
   OpenBuffer::Options options;
   options.editor = editor_state;
   options.name = editor_state->GetUnusedBufferName(L"- server");
-  if (auto address_path = Path::FromString(address); !address_path.IsError()) {
-    options.path = address_path.value();
-  }
+  options.path = address;
   options.generate_contents =
       [file_system_driver = std::make_shared<FileSystemDriver>(
            editor_state->work_queue())](OpenBuffer* target) {

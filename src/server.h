@@ -5,7 +5,8 @@
 #include <string>
 #include <unordered_set>
 
-#include "buffer.h"
+#include "src/buffer.h"
+#include "src/dirname.h"
 
 namespace afc {
 namespace editor {
@@ -27,9 +28,8 @@ class EditorState;
 bool StartServer(EditorState* editor_state, wstring address,
                  wstring* actual_address, wstring* error);
 
-// TODO(easy): Receive address as a Path.
 shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
-                                        const wstring& address);
+                                        const Path& address);
 
 }  // namespace editor
 }  // namespace afc
