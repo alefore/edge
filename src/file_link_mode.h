@@ -59,7 +59,8 @@ struct ResolvePathOptions {
       EditorState* editor_state,
       std::shared_ptr<FileSystemDriver> file_system_driver);
 
-  // TODO(easy): Change to type Path.
+  // This is not a Path because it may contain various embedded tokens such as
+  // a ':LINE:COLUMN' suffix. A Path will be extracted from it.
   std::wstring path = L"";
   std::vector<Path> search_paths = {};
   Path home_directory;

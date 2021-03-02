@@ -516,7 +516,6 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
     input.search_paths.push_back(Path::LocalDirectory());
   }
 
-  // TODO(easy): Don't call Path::FromString here; receive input.path as a path.
   if (auto path = Path::FromString(input.path); !path.IsError()) {
     input.path = Path::ExpandHomeDirectory(input.home_directory, path.value())
                      .ToString();
