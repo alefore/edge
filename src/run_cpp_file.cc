@@ -60,7 +60,9 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
   }
 
   buffer->ResetMode();
-  auto options = ResolvePathOptions::New(editor_state);
+  auto options = ResolvePathOptions::New(
+      editor_state,
+      std::make_shared<FileSystemDriver>(editor_state->work_queue()));
   options.path = input;
   return futures::Transform(
       OnError(ResolvePath(std::move(options)),

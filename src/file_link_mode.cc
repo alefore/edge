@@ -331,18 +331,23 @@ futures::Value<PossibleError> Save(
       });
 }
 
-// TODO(easy): Actually use an async stat.
-static futures::Value<bool> CanStatPath(const wstring& path) {
+static futures::Value<bool> CanStatPath(
+    std::shared_ptr<FileSystemDriver> file_system_driver, const wstring& path) {
   CHECK(!path.empty());
   VLOG(5) << "Considering path: " << path;
-  struct stat dummy;
-  // TODO: Turn this into an async stat.
-  if (stat(ToByteString(path).c_str(), &dummy) == -1) {
-    VLOG(6) << path << ": stat failed";
-    return futures::Past(false);
-  }
-  VLOG(4) << "Stat succeeded: " << path;
-  return futures::Past(true);
+  futures::Future<bool> output;
+  file_system_driver->Stat(path).SetConsumer(
+      [path, consumer =
+                 std::move(output.consumer)](ValueOrError<struct stat> result) {
+        if (result.IsError()) {
+          VLOG(6) << path << ": stat failed: " << result.error();
+          consumer(false);
+        } else {
+          VLOG(4) << "Stat succeeded: " << path;
+          consumer(true);
+        }
+      });
+  return output.value;
 }
 
 }  // namespace
@@ -484,16 +489,23 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState* editor_state,
 }
 
 /* static */
-ResolvePathOptions ResolvePathOptions::New(EditorState* editor_state) {
-  auto output = NewWithEmptySearchPaths(editor_state);
+ResolvePathOptions ResolvePathOptions::New(
+    EditorState* editor_state,
+    std::shared_ptr<FileSystemDriver> file_system_driver) {
+  auto output =
+      NewWithEmptySearchPaths(editor_state, std::move(file_system_driver));
   GetSearchPaths(editor_state, &output.search_paths);
   return output;
 }
 
 /* static */ ResolvePathOptions ResolvePathOptions::NewWithEmptySearchPaths(
-    EditorState* editor_state) {
-  return ResolvePathOptions{.home_directory = editor_state->home_directory(),
-                            .validator = CanStatPath};
+    EditorState* editor_state,
+    std::shared_ptr<FileSystemDriver> file_system_driver) {
+  return ResolvePathOptions{
+      .home_directory = editor_state->home_directory(),
+      .validator = [file_system_driver](const std::wstring& path) {
+        return CanStatPath(file_system_driver, path);
+      }};
 }
 
 futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
@@ -637,9 +649,10 @@ struct OpenFileResolvePathOutput {
 
 futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
     EditorState* editor_state, std::shared_ptr<std::vector<Path>> search_paths,
-    std::optional<Path> path, bool ignore_if_not_found) {
-  auto resolve_path_options =
-      ResolvePathOptions::NewWithEmptySearchPaths(editor_state);
+    std::optional<Path> path, bool ignore_if_not_found,
+    std::shared_ptr<FileSystemDriver> file_system_driver) {
+  auto resolve_path_options = ResolvePathOptions::NewWithEmptySearchPaths(
+      editor_state, file_system_driver);
   resolve_path_options.search_paths = *search_paths;
   if (path.has_value()) {
     resolve_path_options.path = path.value().ToString();
@@ -714,13 +727,18 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
     search_paths_future = GetSearchPaths(editor_state, search_paths.get());
   }
 
+  auto file_system_driver =
+      std::make_shared<FileSystemDriver>(options.editor_state->work_queue());
+
   return futures::Transform(
       search_paths_future,
-      [editor_state, options, search_paths](EmptyValue) {
+      [editor_state, options, search_paths, file_system_driver](EmptyValue) {
         return OpenFileResolvePath(editor_state, search_paths, options.path,
-                                   options.ignore_if_not_found);
+                                   options.ignore_if_not_found,
+                                   file_system_driver);
       },
-      [editor_state, options](OpenFileResolvePathOutput input) {
+      [editor_state, options,
+       file_system_driver](OpenFileResolvePathOutput input) {
         if (input.buffer.has_value()) {
           return input.buffer.value();  // Found the buffer, just return it.
         }
@@ -728,8 +746,6 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
         buffer_options->editor = editor_state;
 
         auto stat_buffer = std::make_shared<struct stat>();
-        auto file_system_driver = std::make_shared<FileSystemDriver>(
-            options.editor_state->work_queue());
         auto background_directory_reader = std::make_shared<AsyncEvaluator>(
             L"ReadDir", options.editor_state->work_queue());
         buffer_options->generate_contents =

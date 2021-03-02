@@ -52,8 +52,12 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState* editor_state,
 // absolute path pointing to it.
 struct ResolvePathOptions {
  public:
-  static ResolvePathOptions New(EditorState* editor_state);
-  static ResolvePathOptions NewWithEmptySearchPaths(EditorState* editor_state);
+  static ResolvePathOptions New(
+      EditorState* editor_state,
+      std::shared_ptr<FileSystemDriver> file_system_driver);
+  static ResolvePathOptions NewWithEmptySearchPaths(
+      EditorState* editor_state,
+      std::shared_ptr<FileSystemDriver> file_system_driver);
 
   // TODO(easy): Change to type Path.
   std::wstring path = L"";

@@ -373,7 +373,9 @@ using std::to_wstring;
             keys,
             [buffer, path](EditorState* editor_state) {
               wstring resolved_path;
-              auto options = ResolvePathOptions::New(editor_state);
+              auto options = ResolvePathOptions::New(
+                  editor_state, std::make_shared<FileSystemDriver>(
+                                    editor_state->work_queue()));
               options.path = path;
               ResolvePath(std::move(options))
                   .SetConsumer(
@@ -906,7 +908,8 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
   if (Read(buffer_variables::contains_line_marks)) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
-    auto options = ResolvePathOptions::New(editor());
+    auto options = ResolvePathOptions::New(
+        editor(), std::make_shared<FileSystemDriver>(editor()->work_queue()));
     auto buffer_name = Read(buffer_variables::name);
     for (LineNumberDelta i; i < lines_added; ++i) {
       auto source_line = LineNumber() + start_new_section + i;
