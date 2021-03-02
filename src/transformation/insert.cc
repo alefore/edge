@@ -118,37 +118,30 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
                       vm::NewCallback(std::function<std::shared_ptr<Insert>()>(
                           [] { return std::make_shared<Insert>(); })));
 
-  // TODO(easy): Remove the std::function bit.
   builder->AddField(
       L"set_text",
-      vm::NewCallback(std::function<std::shared_ptr<Insert>(
-                          std::shared_ptr<Insert>, wstring)>(
-          [editor](std::shared_ptr<Insert> options, wstring text) {
-            CHECK(options != nullptr);
-            auto buffer_to_insert = OpenBuffer::New(OpenBuffer::Options(
-                {.editor = editor, .name = L"- text inserted"}));
-            if (!text.empty()) {
-              buffer_to_insert->AppendLazyString(
-                  NewLazyString(std::move(text)));
-              buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
-            }
-            options->buffer_to_insert = buffer_to_insert;
-            return options;
-          })));
+      vm::NewCallback([editor](std::shared_ptr<Insert> options, wstring text) {
+        CHECK(options != nullptr);
+        auto buffer_to_insert = OpenBuffer::New(OpenBuffer::Options(
+            {.editor = editor, .name = L"- text inserted"}));
+        if (!text.empty()) {
+          buffer_to_insert->AppendLazyString(NewLazyString(std::move(text)));
+          buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
+        }
+        options->buffer_to_insert = buffer_to_insert;
+        return options;
+      }));
 
-  // TODO(easy): Remove the std::function bit.
   builder->AddField(
       L"set_modifiers",
-      vm::NewCallback(std::function<std::shared_ptr<Insert>(
-                          std::shared_ptr<Insert>, std::shared_ptr<Modifiers>)>(
-          [editor](std::shared_ptr<Insert> options,
-                   std::shared_ptr<Modifiers> modifiers) {
-            CHECK(options != nullptr);
-            CHECK(modifiers != nullptr);
+      vm::NewCallback([editor](std::shared_ptr<Insert> options,
+                               std::shared_ptr<Modifiers> modifiers) {
+        CHECK(options != nullptr);
+        CHECK(modifiers != nullptr);
 
-            options->modifiers = *modifiers;
-            return options;
-          })));
+        options->modifiers = *modifiers;
+        return options;
+      }));
 
   builder->AddField(L"set_position",
                     NewCallback([editor](std::shared_ptr<Insert> options,
