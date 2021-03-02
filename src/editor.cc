@@ -286,14 +286,26 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                         }));
 
   editor_type->AddField(
-      L"ConnectTo", vm::NewCallback([](EditorState* editor, wstring target) {
-        CHECK(editor != nullptr);
-        auto target_path = Path::FromString(target);
-        if (target_path.IsError()) {
-          return;  // TODO(easy): Don't silently ignore the error.
-        }
-        OpenServerBuffer(editor, target_path.value());
-      }));
+      L"ConnectTo",
+      Value::NewFunction(
+          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
+           VMType::VM_STRING},
+          [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
+            CHECK_EQ(args.size(), 2u);
+            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
+            CHECK_EQ(args[1]->type, VMType::VM_STRING);
+            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+            CHECK(editor != nullptr);
+            auto target_path = Path::FromString(args[1]->str);
+            if (target_path.IsError()) {
+              editor->status()->SetWarningText(L"ConnectTo error: " +
+                                               target_path.error().description);
+              return futures::Past(
+                  EvaluationOutput::Abort(target_path.error()));
+            }
+            OpenServerBuffer(editor, target_path.value());
+            return futures::Past(EvaluationOutput::Return(Value::NewVoid()));
+          }));
 
   editor_type->AddField(
       L"WaitForClose",
