@@ -7,6 +7,7 @@
 
 #include "src/buffer.h"
 #include "src/dirname.h"
+#include "src/value_or_error.h"
 
 namespace afc {
 namespace editor {
@@ -18,9 +19,8 @@ wstring CppEscapeString(wstring input);
 
 void Daemonize(const std::unordered_set<int>& surviving_fd);
 
-// TODO(easy): Address should use Path.
-int MaybeConnectToServer(const string& address, wstring* error);
-int MaybeConnectToParentServer(wstring* error);
+ValueOrError<int> MaybeConnectToServer(const Path& address);
+ValueOrError<int> MaybeConnectToParentServer();
 
 class EditorState;
 

@@ -303,18 +303,17 @@ int main(int argc, const char** argv) {
   int remote_server_fd = -1;
   bool connected_to_parent = false;
   if (!args.client.empty()) {
-    wstring parent_server_error;
-    remote_server_fd =
-        MaybeConnectToServer(ToByteString(args.client), &parent_server_error);
-    if (remote_server_fd == -1) {
-      cerr << args.binary_name
-           << ": Unable to connect to remote server: " << parent_server_error
-           << std::endl;
+    auto output = MaybeConnectToServer(Path::FromString(args.client).value());
+    if (output.IsError()) {
+      cerr << args.binary_name << ": Unable to connect to remote server: "
+           << output.error().description << std::endl;
       exit(1);
     }
+    remote_server_fd = output.value();
   } else {
-    remote_server_fd = MaybeConnectToParentServer(nullptr);
-    if (remote_server_fd != -1) {
+    auto output = MaybeConnectToParentServer();
+    if (!output.IsError()) {
+      remote_server_fd = output.value();
       args.server = true;
       connected_to_parent = true;
     }
@@ -344,22 +343,21 @@ int main(int argc, const char** argv) {
     }
 
     LOG(INFO) << "Sending commands.";
-    int self_fd;
-    wstring errors;
+    ValueOrError<int> self_fd = Success(remote_server_fd);
     if (remote_server_fd != -1) {
-      self_fd = remote_server_fd;
+      // Pass.
     } else if (args.server && args.server_path.has_value()) {
-      self_fd = MaybeConnectToServer(
-          ToByteString(args.server_path.value().ToString()), &errors);
+      self_fd = MaybeConnectToServer(args.server_path.value());
     } else {
-      self_fd = MaybeConnectToParentServer(&errors);
+      self_fd = MaybeConnectToParentServer();
     }
-    if (self_fd == -1) {
-      std::cerr << args.binary_name << ": " << errors << std::endl;
+    if (self_fd.IsError()) {
+      std::cerr << args.binary_name << ": " << self_fd.error().description
+                << std::endl;
       exit(1);
     }
-    CHECK_NE(self_fd, -1);
-    SendCommandsToParent(self_fd, ToByteString(commands_to_run));
+    CHECK_NE(self_fd.value(), -1);
+    SendCommandsToParent(self_fd.value(), ToByteString(commands_to_run));
   }
 
   LOG(INFO) << "Creating terminal.";

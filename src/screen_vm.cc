@@ -107,12 +107,22 @@ void RegisterScreenType(Environment* environment) {
       L"RemoteScreen",
       Value::NewFunction(
           {VMType::ObjectType(screen_type.get()), VMType::String()},
-          [](vector<unique_ptr<Value>> args) {
+          [](vector<unique_ptr<Value>> args, Trampoline*) {
             CHECK_EQ(args.size(), 1u);
             CHECK_EQ(args[0]->type, VMType::VM_STRING);
-            wstring error;
-            int fd = MaybeConnectToServer(ToByteString(args[0]->str), &error);
-            return Value::NewObject(L"Screen", std::make_shared<ScreenVm>(fd));
+            auto path = Path::FromString(args[0]->str);
+            if (path.IsError()) {
+              LOG(ERROR) << "RemoteScreen: " << path.error();
+              return futures::Past(EvaluationOutput::Abort(path.error()));
+            }
+            auto output = MaybeConnectToServer(path.value());
+            if (output.IsError()) {
+              LOG(ERROR) << "RemoteScreen: MaybeConnectToServer: "
+                         << output.error();
+              return futures::Past(EvaluationOutput::Abort(output.error()));
+            }
+            return futures::Past(EvaluationOutput::Return(Value::NewObject(
+                L"Screen", std::make_shared<ScreenVm>(output.value()))));
           }));
 
   // Methods for Screen.

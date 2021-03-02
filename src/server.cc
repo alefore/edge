@@ -86,42 +86,33 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 }
 }  // namespace
 
-int MaybeConnectToParentServer(wstring* error) {
-  wstring dummy;
-  if (error == nullptr) {
-    error = &dummy;
-  }
-
+ValueOrError<int> MaybeConnectToParentServer() {
   const char* variable = "EDGE_PARENT_ADDRESS";
-  char* server_address = getenv(variable);
-  if (server_address == nullptr) {
-    *error =
-        L"Unable to find remote address (through environment variable "
-        L"EDGE_PARENT_ADDRESS).";
-    return -1;
+  if (char* server_address = getenv(variable); server_address != nullptr) {
+    auto path = Path::FromString(FromByteString(server_address));
+    if (path.IsError()) {
+      return Error::Augment(
+          L"Value from environment variable EDGE_PARENT_ADDRESS", path.error());
+    }
+    return MaybeConnectToServer(path.value());
   }
-  return MaybeConnectToServer(string(server_address), error);
+  return Error(
+      L"Unable to find remote address (through environment variable "
+      L"EDGE_PARENT_ADDRESS).");
 }
 
-int MaybeConnectToServer(const string& address, wstring* error) {
-  LOG(INFO) << "Connecting to server: " << address;
-  wstring dummy;
-  if (error == nullptr) {
-    error = &dummy;
-  }
-
-  int fd = open(address.c_str(), O_WRONLY);
+ValueOrError<int> MaybeConnectToServer(const Path& path) {
+  LOG(INFO) << "Connecting to server: " << path.ToString();
+  int fd = open(ToByteString(path.ToString()).c_str(), O_WRONLY);
   if (fd == -1) {
-    *error = FromByteString(address) +
-             L": Connecting to server: open failed: " +
-             FromByteString(strerror(errno));
-    return -1;
+    return Error(path.ToString() + L": Connecting to server: open failed: " +
+                 FromByteString(strerror(errno)));
   }
   ValueOrError<Path> private_fifo = CreateFifo({});
   if (private_fifo.IsError()) {
-    *error = L"Unable to create fifo for communication with server: " +
-             private_fifo.error().description;
-    return -1;
+    return Error::Augment(
+        L"Unable to create fifo for communication with server",
+        private_fifo.error());
   }
   LOG(INFO) << "Fifo created: " << private_fifo.value().ToString();
   string command =
@@ -129,9 +120,8 @@ int MaybeConnectToServer(const string& address, wstring* error) {
       ToByteString(CppEscapeString(private_fifo.value().ToString())) + "\");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {
-    *error = FromByteString(address) + L": write failed: " +
-             FromByteString(strerror(errno));
-    return -1;
+    return Error(path.ToString() + L": write failed: " +
+                 FromByteString(strerror(errno)));
   }
   close(fd);
 
@@ -140,12 +130,11 @@ int MaybeConnectToServer(const string& address, wstring* error) {
       open(ToByteString(private_fifo.value().ToString()).c_str(), O_RDWR);
   LOG(INFO) << "Connection fd: " << private_fd;
   if (private_fd == -1) {
-    *error = private_fifo.value().ToString() + L": open failed: " +
-             FromByteString(strerror(errno));
-    return -1;
+    return Error(private_fifo.value().ToString() + L": open failed: " +
+                 FromByteString(strerror(errno)));
   }
   CHECK_GT(private_fd, -1);
-  return private_fd;
+  return Success(private_fd);
 }
 
 void Daemonize(const std::unordered_set<int>& surviving_fds) {
