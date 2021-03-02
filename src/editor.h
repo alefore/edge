@@ -197,7 +197,7 @@ class EditorState {
   const Status* status() const;
 
   const Path& home_directory() const { return home_directory_; }
-  const vector<wstring>& edge_path() const { return edge_path_; }
+  const vector<Path>& edge_path() const { return edge_path_; }
 
   std::shared_ptr<Environment> environment() { return environment_; }
 
@@ -240,8 +240,7 @@ class EditorState {
   std::optional<int> exit_value_;
 
   const Path home_directory_;
-  // TODO(easy): Turn into Path type.
-  vector<wstring> edge_path_;
+  const std::vector<Path> edge_path_;
 
   double frames_per_second_;
 

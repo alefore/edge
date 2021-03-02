@@ -102,7 +102,10 @@ futures::Value<PossibleError> GenerateContents(
     OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   for (const auto& dir : editor_state->edge_path()) {
-    target->EvaluateFile(PathJoin(dir, L"hooks/navigation-buffer-reload.cc"));
+    target->EvaluateFile(
+        Path::Join(
+            dir, Path::FromString(L"hooks/navigation-buffer-reload.cc").value())
+            .ToString());
   }
   auto source = source_weak.lock();
   if (source == nullptr) {

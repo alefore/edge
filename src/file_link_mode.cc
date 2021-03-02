@@ -309,7 +309,10 @@ futures::Value<PossibleError> Save(
             // kBackup case.
             buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
             for (const auto& dir : editor_state->edge_path()) {
-              buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
+              buffer->EvaluateFile(
+                  Path::Join(dir,
+                             Path::FromString(L"/hooks/buffer-save.cc").value())
+                      .ToString());
             }
             if (buffer->Read(
                     buffer_variables::trigger_reload_on_buffer_write)) {
@@ -424,7 +427,7 @@ futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
 }
 
 futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
-    EditorState* editor_state, const wstring& edge_path) {
+    EditorState* editor_state, const Path& edge_path) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.name = L"- search paths";
@@ -434,8 +437,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
     return futures::Past(it->second);
   }
   options.path =
-      Path::Join(Path::FromString(edge_path).value_or(Path::LocalDirectory()),
-                 Path::FromString(L"/search_paths").value());
+      Path::Join(edge_path, Path::FromString(L"/search_paths").value());
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   options.use_search_paths = false;
   return futures::Transform(
@@ -463,7 +465,7 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState* editor_state,
   return futures::Transform(
       futures::ForEachWithCopy(
           paths.begin(), paths.end(),
-          [editor_state, output](std::wstring edge_path) {
+          [editor_state, output](Path edge_path) {
             return futures::Transform(
                 GetSearchPathsBuffer(editor_state, edge_path),
                 [editor_state, output,

@@ -45,7 +45,7 @@ struct CommandData {
 };
 
 map<wstring, wstring> LoadEnvironmentVariables(
-    const vector<wstring>& path, const wstring& full_command,
+    const vector<Path>& path, const wstring& full_command,
     map<wstring, wstring> environment) {
   static const wstring whitespace = L"\t ";
   size_t start = full_command.find_first_not_of(whitespace);
@@ -57,9 +57,15 @@ map<wstring, wstring> LoadEnvironmentVariables(
     return environment;
   }
   wstring command = full_command.substr(start, end - start);
+  auto command_component = PathComponent::FromString(command);
+  if (command_component.IsError()) return environment;
+  auto environment_local_path =
+      Path::Join(PathComponent::FromString(L"commands").value(),
+                 Path::Join(command_component.value(),
+                            PathComponent::FromString(L"environment").value()));
   for (auto dir : path) {
-    wstring full_path = dir + L"/commands/" + command + L"/environment";
-    std::ifstream infile(ToByteString(full_path));
+    Path full_path = Path::Join(dir, environment_local_path);
+    std::ifstream infile(ToByteString(full_path.ToString()));
     if (!infile.is_open()) {
       continue;
     }

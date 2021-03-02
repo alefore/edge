@@ -177,9 +177,9 @@ futures::Value<shared_ptr<OpenBuffer>> GetHistoryBuffer(
     return futures::Past(it->second);
   }
   if (!editor_state->edge_path().empty()) {
-    options.path = Path::FromString(PathJoin(*editor_state->edge_path().begin(),
-                                             name + L"_history"))
-                       .value();
+    options.path =
+        Path::Join(editor_state->edge_path().front(),
+                   PathComponent::FromString(name + L"_history").value());
   }
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   return futures::Transform(

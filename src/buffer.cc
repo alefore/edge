@@ -843,15 +843,21 @@ void OpenBuffer::Initialize() {
   ClearContents(BufferContents::CursorsBehavior::kUnmodified);
 
   if (!options_.path.empty()) {
-    for (const auto& dir : options_.editor->edge_path()) {
-      auto state_path =
-          PathJoin(PathJoin(dir, L"state"),
-                   PathJoin(Read(buffer_variables::path), L".edge_state"));
-      struct stat stat_buffer;
-      if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
-        continue;
+    if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
+        !buffer_path.IsError()) {
+      for (const auto& dir : options_.editor->edge_path()) {
+        auto state_path = Path::Join(
+            Path::Join(dir, PathComponent::FromString(L"state").value()),
+            Path::Join(buffer_path.value(),
+                       PathComponent::FromString(L".edge_state").value()));
+        // TODO(easy): Use async stat.
+        struct stat stat_buffer;
+        if (stat(ToByteString(state_path.ToString()).c_str(), &stat_buffer) ==
+            -1) {
+          continue;
+        }
+        EvaluateFile(state_path.ToString());
       }
-      EvaluateFile(state_path);
     }
   }
 }
@@ -955,9 +961,12 @@ void OpenBuffer::Reload() {
   futures::Transform(
       futures::ForEach(
           paths.begin(), paths.end(),
-          [this](std::wstring dir) {
-            if (auto value =
-                    EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
+          [this](Path dir) {
+            if (auto value = EvaluateFile(
+                    Path::Join(
+                        dir,
+                        Path::FromString(L"hooks/buffer-reload.cc").value())
+                        .ToString());
                 value.has_value()) {
               return futures::Transform(
                   value.value(),
@@ -1027,9 +1036,7 @@ ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   if (path_vector.empty()) {
     return Error(L"Empty edge path.");
   }
-  ASSIGN_OR_RETURN(auto path, AugmentErrors(L"Invalid Edge path",
-                                            Path::FromString(path_vector[0])));
-
+  auto path = path_vector[0];
   ASSIGN_OR_RETURN(
       auto file_path,
       AugmentErrors(
@@ -1054,6 +1061,7 @@ ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
     path = Path::Join(path, component);
     struct stat stat_buffer;
     auto path_byte_string = ToByteString(path.ToString());
+    // TODO(easy): Use async stat.
     if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
       if (S_ISDIR(stat_buffer.st_mode)) {
         continue;

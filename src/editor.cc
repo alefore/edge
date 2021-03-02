@@ -471,7 +471,15 @@ std::pair<int, int> BuildPipe() {
 EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
     : bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       home_directory_(args.home_directory),
-      edge_path_(args.config_paths),
+      edge_path_([](std::vector<std::wstring> paths) {
+        std::vector<Path> output;
+        for (auto& candidate : paths) {
+          if (auto path = Path::FromString(candidate); !path.IsError()) {
+            output.push_back(std::move(path.value()));
+          }
+        }
+        return output;
+      }(args.config_paths)),
       frames_per_second_(args.frames_per_second),
       environment_(BuildEditorEnvironment()),
       default_commands_(NewCommandMode(this)),
@@ -482,15 +490,16 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       status_(GetConsole(), audio_player_),
       work_queue_([this] { NotifyInternalEvent(); }) {
   auto paths = edge_path();
-  futures::ForEach(paths.begin(), paths.end(), [this](std::wstring dir) {
-    auto path = PathJoin(dir, L"hooks/start.cc");
+  futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
+    auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
     wstring error_description;
-    std::shared_ptr<Expression> expression =
-        CompileFile(ToByteString(path), environment_, &error_description);
+    std::shared_ptr<Expression> expression = CompileFile(
+        ToByteString(path.ToString()), environment_, &error_description);
     if (expression == nullptr) {
       LOG(INFO) << "Compilation error for " << path << ": "
                 << error_description;
-      status_.SetWarningText(path + L": error: " + error_description);
+      status_.SetWarningText(path.ToString() + L": error: " +
+                             error_description);
       return futures::Past(futures::IterationControlCommand::kContinue);
     }
     LOG(INFO) << "Evaluating file: " << path;
@@ -975,11 +984,8 @@ void EditorState::PushPosition(LineColumn position) {
     options.editor_state = this;
     options.name = kPositionsBufferName;
     if (!edge_path().empty()) {
-      if (auto edge_path_front = Path::FromString(edge_path().front());
-          !edge_path_front.IsError()) {
-        options.path = Path::Join(edge_path_front.value(),
-                                  Path::FromString(L"positions").value());
-      }
+      options.path = Path::Join(edge_path().front(),
+                                Path::FromString(L"positions").value());
     }
     options.insertion_type = BuffersList::AddBufferType::kIgnore;
     positions_buffer = futures::Transform(

@@ -120,15 +120,14 @@ class ReadAndInsert : public CompositeTransformation {
   futures::Value<Output> Apply(Input input) const override {
     OpenFileOptions open_file_options;
     open_file_options.editor_state = input.buffer->editor();
-    auto edge_path_front =
-        Path::FromString(input.buffer->editor()->edge_path().front());
-    if (edge_path_front.IsError()) {
-      LOG(INFO) << "Error preparing path for completion: "
-                << edge_path_front.error().description;
+    if (input.buffer->editor()->edge_path().empty()) {
+      LOG(INFO) << "Error preparing path for completion: Empty "
+                   "edge_path.";
       return futures::Past(Output());
     }
+    auto edge_path_front = input.buffer->editor()->edge_path().front();
     auto full_path =
-        Path::Join(edge_path_front.value(),
+        Path::Join(edge_path_front,
                    Path::Join(Path::FromString(L"expand").value(), path_));
     open_file_options.path = full_path;
     open_file_options.ignore_if_not_found = true;
@@ -143,7 +142,7 @@ class ReadAndInsert : public CompositeTransformation {
                 map<wstring, shared_ptr<OpenBuffer>>::iterator buffer_it) {
               if (buffer_it == input.buffer->editor()->buffers()->end()) {
                 LOG(INFO) << "Unable to open file: " << full_path;
-                return futures::Past(Output());
+                consumer(Output());
               }
 
               buffer_it->second->AddEndOfFileObserver(
