@@ -182,7 +182,7 @@ futures::Value<PossibleError> GenerateContents(
   return futures::Transform(
       OnError(file_system_driver->Open(address, O_RDONLY | O_NDELAY, 0),
               [address](Error error) {
-                LOG(FATAL) << address
+                LOG(ERROR) << address
                            << ": Server: GenerateContents: Open failed: "
                            << error.description;
                 return error;
