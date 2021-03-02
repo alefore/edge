@@ -331,17 +331,18 @@ futures::Value<PossibleError> Save(
       });
 }
 
-static bool CanStatPath(const wstring& path) {
+// TODO(easy): Actually use an async stat.
+static futures::Value<bool> CanStatPath(const wstring& path) {
   CHECK(!path.empty());
   VLOG(5) << "Considering path: " << path;
   struct stat dummy;
   // TODO: Turn this into an async stat.
   if (stat(ToByteString(path).c_str(), &dummy) == -1) {
     VLOG(6) << path << ": stat failed";
-    return false;
+    return futures::Past(false);
   }
   VLOG(4) << "Stat succeeded: " << path;
-  return true;
+  return futures::Past(true);
 }
 
 }  // namespace
@@ -496,7 +497,6 @@ ResolvePathOptions ResolvePathOptions::New(EditorState* editor_state) {
 }
 
 futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
-  ResolvePathOutput output;
   if (find(input.search_paths.begin(), input.search_paths.end(),
            Path::LocalDirectory()) == input.search_paths.end()) {
     input.search_paths.push_back(Path::LocalDirectory());
@@ -510,72 +510,121 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (!input.path.empty() && input.path[0] == L'/') {
     input.search_paths = {Path::Root()};
   }
-  for (auto& search_path : input.search_paths) {
-    for (size_t str_end = input.path.size();
-         str_end != input.path.npos && str_end != 0;
-         str_end = input.path.find_last_of(':', str_end - 1)) {
-      auto input_path = Path::FromString(input.path.substr(0, str_end));
-      if (input_path.IsError()) continue;
-      auto path_with_prefix = Path::Join(search_path, input_path.value());
+  auto output =
+      std::make_shared<std::optional<ValueOrError<ResolvePathOutput>>>();
+  using futures::IterationControlCommand;
+  using futures::Past;
+  using futures::Transform;
+  return Transform(
+      futures::ForEachWithCopy(
+          input.search_paths.begin(), input.search_paths.end(),
+          [input, output](Path search_path) {
+            struct State {
+              const Path search_path;
+              size_t str_end;
+            };
+            auto state = std::make_shared<State>(
+                State{.search_path = std::move(search_path),
+                      .str_end = input.path.size()});
+            return futures::Transform(
+                futures::While([input, output, state]() {
+                  if (state->str_end == input.path.npos ||
+                      state->str_end == 0) {
+                    return Past(IterationControlCommand::kStop);
+                  }
 
-      if (!input.validator(path_with_prefix.ToString())) {
-        continue;
-      }
+                  auto input_path =
+                      Path::FromString(input.path.substr(0, state->str_end));
+                  if (input_path.IsError()) {
+                    state->str_end =
+                        input.path.find_last_of(':', state->str_end - 1);
+                    return Past(IterationControlCommand::kContinue);
+                  }
+                  auto path_with_prefix =
+                      Path::Join(state->search_path, input_path.value());
+                  return futures::Transform(
+                      input.validator(path_with_prefix.ToString()),
+                      [input, output, state,
+                       path_with_prefix](bool validator_output)
+                          -> futures::Value<IterationControlCommand> {
+                        if (!validator_output) {
+                          state->str_end =
+                              input.path.find_last_of(':', state->str_end - 1);
+                          return Past(IterationControlCommand::kContinue);
+                        }
+                        ResolvePathOutput output_candidate;
+                        output_candidate.pattern = L"";
+                        for (size_t i = 0; i < 2; i++) {
+                          while (state->str_end < input.path.size() &&
+                                 ':' == input.path[state->str_end]) {
+                            state->str_end++;
+                          }
+                          if (state->str_end == input.path.size()) {
+                            break;
+                          }
+                          size_t next_str_end =
+                              input.path.find(':', state->str_end);
+                          const wstring arg =
+                              input.path.substr(state->str_end, next_str_end);
+                          if (i == 0 && arg.size() > 0 && arg[0] == '/') {
+                            output_candidate.pattern = arg.substr(1);
+                            break;
+                          } else {
+                            size_t value;
+                            try {
+                              value = stoi(arg);
+                              if (value > 0) {
+                                value--;
+                              }
+                            } catch (const std::invalid_argument& ia) {
+                              LOG(INFO)
+                                  << "stoi failed: invalid argument: " << arg;
+                              break;
+                            } catch (const std::out_of_range& ia) {
+                              LOG(INFO) << "stoi failed: out of range: " << arg;
+                              break;
+                            }
+                            if (!output_candidate.position.has_value()) {
+                              output_candidate.position = LineColumn();
+                            }
+                            if (i == 0) {
+                              output_candidate.position->line =
+                                  LineNumber(value);
+                            } else {
+                              output_candidate.position->column =
+                                  ColumnNumber(value);
+                            }
+                          }
+                          state->str_end = next_str_end;
+                          if (state->str_end == input.path.npos) {
+                            break;
+                          }
+                        }
+                        if (auto resolved = path_with_prefix.Resolve();
+                            !resolved.IsError()) {
+                          output_candidate.path = resolved.value().ToString();
+                        } else {
+                          output_candidate.path = path_with_prefix.ToString();
+                        }
+                        VLOG(4) << "Resolved path: " << output_candidate.path;
+                        *output = {output_candidate};
+                        return Past(IterationControlCommand::kStop);
+                      });
+                }),
+                [output](IterationControlCommand) {
+                  return output->has_value()
+                             ? IterationControlCommand::kStop
+                             : IterationControlCommand::kContinue;
+                });
+          }),
+      [output](IterationControlCommand) -> ValueOrError<ResolvePathOutput> {
+        if (output->has_value()) return output->value();
 
-      output.pattern = L"";
-      for (size_t i = 0; i < 2; i++) {
-        while (str_end < input.path.size() && ':' == input.path[str_end]) {
-          str_end++;
-        }
-        if (str_end == input.path.size()) {
-          break;
-        }
-        size_t next_str_end = input.path.find(':', str_end);
-        const wstring arg = input.path.substr(str_end, next_str_end);
-        if (i == 0 && arg.size() > 0 && arg[0] == '/') {
-          output.pattern = arg.substr(1);
-          break;
-        } else {
-          size_t value;
-          try {
-            value = stoi(arg);
-            if (value > 0) {
-              value--;
-            }
-          } catch (const std::invalid_argument& ia) {
-            LOG(INFO) << "stoi failed: invalid argument: " << arg;
-            break;
-          } catch (const std::out_of_range& ia) {
-            LOG(INFO) << "stoi failed: out of range: " << arg;
-            break;
-          }
-          if (!output.position.has_value()) {
-            output.position = LineColumn();
-          }
-          if (i == 0) {
-            output.position->line = LineNumber(value);
-          } else {
-            output.position->column = ColumnNumber(value);
-          }
-        }
-        str_end = next_str_end;
-        if (str_end == input.path.npos) {
-          break;
-        }
-      }
-      if (auto resolved = path_with_prefix.Resolve(); !resolved.IsError()) {
-        output.path = resolved.value().ToString();
-      } else {
-        output.path = path_with_prefix.ToString();
-      }
-      VLOG(4) << "Resolved path: " << output.path;
-      return futures::Past(Success(output));
-    }
-  }
-  // TODO(easy): Give a better error. Perhaps include the paths in which we
-  // searched? Perhaps the last result of the validator?
-  return futures::Past(
-      ValueOrError<ResolvePathOutput>(Error(L"Unable to resolve file.")));
+        // TODO(easy): Give a better error. Perhaps include the paths in which
+        // we searched? Perhaps the last result of the validator?
+        return ValueOrError<ResolvePathOutput>(
+            Error(L"Unable to resolve file."));
+      });
 }
 
 struct OpenFileResolvePathOutput {
@@ -622,10 +671,10 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
                 (buffer_path.size() == path.size() || path[0] == L'/' ||
                  buffer_path[buffer_path.size() - path.size() - 1] == L'/')) {
               output->buffer = it;
-              return true;
+              return futures::Past(true);
             }
           }
-          return false;
+          return futures::Past(false);
         };
         resolve_path_options.search_paths = {Path::LocalDirectory()};
         ResolvePath(resolve_path_options)

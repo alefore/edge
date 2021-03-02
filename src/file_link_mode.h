@@ -60,7 +60,7 @@ struct ResolvePathOptions {
   std::vector<Path> search_paths = {};
   Path home_directory;
 
-  std::function<bool(const wstring&)> validator = nullptr;
+  std::function<futures::Value<bool>(const wstring&)> validator = nullptr;
 
  private:
   ResolvePathOptions() = default;
