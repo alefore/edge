@@ -377,6 +377,7 @@ using std::to_wstring;
                   editor_state, std::make_shared<FileSystemDriver>(
                                     editor_state->work_queue()));
               options.path = path;
+              // TODO(easy): Switch to OnError + Transform.
               ResolvePath(std::move(options))
                   .SetConsumer(
                       [buffer, path](ValueOrError<ResolvePathOutput> results) {
@@ -385,7 +386,7 @@ using std::to_wstring;
                               L"Unable to resolve: " + path + L": " +
                               results.error().description);
                         } else {
-                          buffer->EvaluateFile(results.value().path.ToString());
+                          buffer->EvaluateFile(results.value().path);
                         }
                       });
             },
@@ -405,9 +406,13 @@ using std::to_wstring;
 
   buffer->AddField(
       L"EvaluateFile",
-      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, wstring path) {
-        LOG(INFO) << "Evaluating file: " << path;
-        buffer->EvaluateFile(path);
+      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, wstring path_str) {
+        auto path = Path::FromString(path_str);
+        if (path.IsError()) {
+          LOG(ERROR) << path.error().description;
+          return;
+        }
+        buffer->EvaluateFile(std::move(path.value()));
       }));
 
   buffer->AddField(
@@ -857,7 +862,7 @@ void OpenBuffer::Initialize() {
           -1) {
         continue;
       }
-      EvaluateFile(state_path.ToString());
+      EvaluateFile(state_path);
     }
   }
 }
@@ -962,11 +967,8 @@ void OpenBuffer::Reload() {
       futures::ForEach(
           paths.begin(), paths.end(),
           [this](Path dir) {
-            if (auto value = EvaluateFile(
-                    Path::Join(
-                        dir,
-                        Path::FromString(L"hooks/buffer-reload.cc").value())
-                        .ToString());
+            if (auto value = EvaluateFile(Path::Join(
+                    dir, Path::FromString(L"hooks/buffer-reload.cc").value()));
                 value.has_value()) {
               return futures::Transform(
                   value.value(),
@@ -1198,12 +1200,12 @@ OpenBuffer::EvaluateString(const wstring& code) {
 }
 
 std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
-    const wstring& path) {
+    const Path& path) {
   wstring error_description;
-  std::shared_ptr<Expression> expression =
-      CompileFile(ToByteString(path), environment_, &error_description);
+  std::shared_ptr<Expression> expression = CompileFile(
+      ToByteString(path.ToString()), environment_, &error_description);
   if (expression == nullptr) {
-    status_.SetWarningText(path + L": error: " + error_description);
+    status_.SetWarningText(path.ToString() + L": error: " + error_description);
     return std::nullopt;
   }
   LOG(INFO) << Read(buffer_variables::path) << " ("

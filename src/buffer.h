@@ -346,7 +346,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::optional<futures::Value<std::unique_ptr<Value>>> EvaluateString(
       const wstring& str);
   std::optional<futures::Value<std::unique_ptr<Value>>> EvaluateFile(
-      const wstring& path);
+      const Path& path);
 
   WorkQueue* work_queue() const;
 

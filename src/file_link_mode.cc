@@ -309,10 +309,8 @@ futures::Value<PossibleError> Save(
             // kBackup case.
             buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
             for (const auto& dir : editor_state->edge_path()) {
-              buffer->EvaluateFile(
-                  Path::Join(dir,
-                             Path::FromString(L"/hooks/buffer-save.cc").value())
-                      .ToString());
+              buffer->EvaluateFile(Path::Join(
+                  dir, Path::FromString(L"/hooks/buffer-save.cc").value()));
             }
             if (buffer->Read(
                     buffer_variables::trigger_reload_on_buffer_write)) {
