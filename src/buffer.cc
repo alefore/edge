@@ -377,18 +377,18 @@ using std::to_wstring;
                   editor_state, std::make_shared<FileSystemDriver>(
                                     editor_state->work_queue()));
               options.path = path;
-              // TODO(easy): Switch to OnError + Transform.
-              ResolvePath(std::move(options))
-                  .SetConsumer(
-                      [buffer, path](ValueOrError<ResolvePathOutput> results) {
-                        if (results.IsError()) {
-                          buffer->status()->SetWarningText(
-                              L"Unable to resolve: " + path + L": " +
-                              results.error().description);
-                        } else {
-                          buffer->EvaluateFile(results.value().path);
-                        }
-                      });
+              futures::OnError(
+                  futures::Transform(ResolvePath(std::move(options)),
+                                     [buffer, path](ResolvePathOutput results) {
+                                       buffer->EvaluateFile(results.path);
+                                       return Success();
+                                     }),
+                  [buffer, path](Error error) {
+                    buffer->status()->SetWarningText(L"Unable to resolve: " +
+                                                     path + L": " +
+                                                     error.description);
+                    return Success();
+                  });
             },
             L"Load file: " + path);
       }));
