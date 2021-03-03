@@ -260,11 +260,6 @@ std::ostream& operator<<(std::ostream& os, const Path& p) {
   return os;
 }
 
-wstring Realpath(const wstring& path) {
-  auto output = Path::FromString(path).value().Resolve();
-  return output.IsError() ? path : output.value().ToString();
-}
-
 wstring Dirname(wstring path_str) {
   auto path = Path::FromString(path_str);
   if (path.IsError()) return L"";

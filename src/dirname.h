@@ -85,7 +85,6 @@ class AbsolutePath : public Path {
 std::ostream& operator<<(std::ostream& os, const Path& p);
 
 // TODO(easy): Remove these.
-std::wstring Realpath(const std::wstring& path);
 std::wstring Dirname(std::wstring path);
 std::wstring Basename(std::wstring path);
 bool DirectorySplit(std::wstring path, std::list<std::wstring>* output);
