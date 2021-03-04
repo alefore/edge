@@ -138,6 +138,7 @@ struct BackgroundReadDirOutput {
   std::vector<dirent> noise;
 };
 
+// TODO(easy): Receive a Path.
 BackgroundReadDirOutput ReadDir(std::wstring path, std::wregex noise_regex) {
   BackgroundReadDirOutput output;
   auto dir = OpenDir(path);
@@ -174,14 +175,15 @@ futures::Value<PossibleError> GenerateContents(
     std::shared_ptr<AsyncEvaluator> background_directory_reader,
     OpenBuffer* target) {
   CHECK(target->disk_state() == OpenBuffer::DiskState::kCurrent);
-  const wstring path = target->Read(buffer_variables::path);
-  LOG(INFO) << "GenerateContents: " << path;
+  auto path = Path::FromString(target->Read(buffer_variables::path));
+  if (path.IsError()) return futures::Past(PossibleError(path.error()));
+  LOG(INFO) << "GenerateContents: " << path.value();
   return futures::Transform(
-      file_system_driver->Stat(path),
+      file_system_driver->Stat(path.value()),
       [editor_state, stat_buffer, file_system_driver,
        background_directory_reader, target,
        path](std::optional<struct stat> stat_results) {
-        if ((path.empty() || stat_results.has_value()) &&
+        if (stat_results.has_value() &&
             target->Read(buffer_variables::clear_on_reload)) {
           target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
           target->SetDiskState(OpenBuffer::DiskState::kCurrent);
@@ -193,7 +195,8 @@ futures::Value<PossibleError> GenerateContents(
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
           return futures::Transform(
-              file_system_driver->Open(path, O_RDONLY | O_NONBLOCK, 0),
+              file_system_driver->Open(path.value().ToString(),
+                                       O_RDONLY | O_NONBLOCK, 0),
               [target](int fd) {
                 target->SetInputFiles(fd, -1, false, -1);
                 return Success();
@@ -207,7 +210,8 @@ futures::Value<PossibleError> GenerateContents(
             background_directory_reader->Run(
                 [path, noise_regexp =
                            target->Read(buffer_variables::directory_noise)]() {
-                  return ReadDir(path, std::wregex(noise_regexp));
+                  return ReadDir(path.value().ToString(),
+                                 std::wregex(noise_regexp));
                 }),
             [editor_state, target, path](BackgroundReadDirOutput results) {
               auto disk_state_freezer = target->FreezeDiskState();
@@ -219,8 +223,8 @@ futures::Value<PossibleError> GenerateContents(
                 return Success();
               }
 
-              target->AppendToLastLine(
-                  NewLazyString(L"# 🗁  File listing: " + path));
+              target->AppendToLastLine(NewLazyString(L"# 🗁  File listing: " +
+                                                     path.value().ToString()));
               target->AppendEmptyLine();
 
               ShowFiles(editor_state, L"🗁  Directories",
@@ -333,18 +337,20 @@ futures::Value<PossibleError> Save(
 }
 
 static futures::Value<bool> CanStatPath(
-    std::shared_ptr<FileSystemDriver> file_system_driver, const wstring& path) {
-  CHECK(!path.empty());
-  VLOG(5) << "Considering path: " << path;
+    std::shared_ptr<FileSystemDriver> file_system_driver,
+    const wstring& path_str) {
+  CHECK(!path_str.empty());
+  VLOG(5) << "Considering path: " << path_str;
   futures::Future<bool> output;
+  Path path = Path::FromString(path_str).value();
   file_system_driver->Stat(path).SetConsumer(
       [path, consumer =
                  std::move(output.consumer)](ValueOrError<struct stat> result) {
         if (result.IsError()) {
-          VLOG(6) << path << ": stat failed: " << result.error();
+          VLOG(6) << path.ToString() << ": stat failed: " << result.error();
           consumer(false);
         } else {
-          VLOG(4) << "Stat succeeded: " << path;
+          VLOG(4) << "Stat succeeded: " << path.ToString();
           consumer(true);
         }
       });
@@ -385,14 +391,19 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
       [contents_writer](EmptyValue) { return Success(); });
 }
 
-futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
+// TODO(easy): Receive path as Path.
+futures::Value<PossibleError> SaveContentsToFile(const wstring& path_str,
                                                  const BufferContents& contents,
                                                  WorkQueue* work_queue) {
   auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
-  const wstring tmp_path = path + L".tmp";
+  auto path = Path::FromString(path_str);
+  if (path.IsError()) {
+    return futures::Past(PossibleError(path.error()));
+  }
+  const wstring tmp_path = path.value().ToString() + L".tmp";
   return futures::Transform(
       futures::OnError(
-          file_system_driver->Stat(path),
+          file_system_driver->Stat(path.value()),
           [](Error error) {
             LOG(INFO)
                 << "Ignoring stat error; maybe a new file is being created: "
@@ -419,7 +430,8 @@ futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
               return file_system_driver->Close(fd);
             },
             [path, file_system_driver, tmp_path](EmptyValue) {
-              return file_system_driver->Rename(tmp_path, path);
+              return file_system_driver->Rename(tmp_path,
+                                                path.value().ToString());
             });
       });
 }

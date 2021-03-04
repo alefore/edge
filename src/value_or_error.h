@@ -41,6 +41,11 @@ class ValueOrError {
     return Error(error_.value());
   }
 
+  const T& value() const {
+    CHECK(!IsError());
+    return value_.value();
+  }
+
   T& value() {
     CHECK(!IsError());
     return value_.value();

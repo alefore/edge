@@ -31,14 +31,12 @@ futures::Value<PossibleError> FileSystemDriver::Close(int fd) {
       [fd] { return SyscallReturnValue(L"Close", close(fd)); });
 }
 
-futures::ValueOrError<struct stat> FileSystemDriver::Stat(std::wstring path) {
+futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) {
   return evaluator_.Run([path =
                              std::move(path)]() -> ValueOrError<struct stat> {
     struct stat output;
-    if (path.empty()) {
-      return Error(L"Stat failed: Empty path.");
-    } else if (stat(ToByteString(path).c_str(), &output) == -1) {
-      return Error(L"Stat failed: `" + path + L"`: " +
+    if (stat(ToByteString(path.ToString()).c_str(), &output) == -1) {
+      return Error(L"Stat failed: `" + path.ToString() + L"`: " +
                    FromByteString(strerror(errno)));
     }
     return Success(output);

@@ -35,6 +35,7 @@ class AppendExpression : public Expression {
               CHECK(e0_output.value != nullptr);
               return trampoline->Bounce(e1.get(), e1->Types()[0]);
           }
+          LOG(FATAL) << "Unhandled evaluation type";
         });
   }
 

@@ -859,7 +859,7 @@ void OpenBuffer::Initialize() {
                      PathComponent::FromString(L".edge_state").value()));
       // TODO: Ensure that the buffer won't be deleted before the calls to
       // EvaluateFile are done?
-      futures::Transform(file_system_driver.Stat(state_path.ToString()),
+      futures::Transform(file_system_driver.Stat(state_path),
                          [state_path, this](struct stat) {
                            auto results = EvaluateFile(state_path);
                            if (results.has_value()) {
@@ -1999,12 +1999,15 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
     // the contents of this path.
     return;
   }
+  auto path = Path::FromString(line);
+  if (path.IsError()) return;
   futures::Transform(
-      futures::OnError(buffer->file_system_driver()->Stat(line),
-                       [buffer](Error error) {
-                         buffer->status()->set_context(nullptr);
-                         return error;
-                       }),
+      futures::OnError(
+          buffer->file_system_driver()->Stat(std::move(path.value())),
+          [buffer](Error error) {
+            buffer->status()->set_context(nullptr);
+            return error;
+          }),
       [buffer, line](struct stat s) {
         if (S_ISSOCK(s.st_mode) || S_ISBLK(s.st_mode) || S_ISCHR(s.st_mode) ||
             S_ISFIFO(s.st_mode)) {

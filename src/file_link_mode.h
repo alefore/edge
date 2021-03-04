@@ -65,6 +65,7 @@ struct ResolvePathOptions {
   std::vector<Path> search_paths = {};
   Path home_directory;
 
+  // TODO(easy): Receive the path using the Path type.
   std::function<futures::Value<bool>(const wstring&)> validator = nullptr;
 
  private:
