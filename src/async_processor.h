@@ -184,17 +184,19 @@ class AsyncEvaluator {
           BackgroundCallbackRunner::Options::QueueBehavior::kWait);
 
   // Callers must ensure that the underlying `work_queue` doesn't get destroyed
-  // until the future is notified.
+  // until the future is notified. It is OK for the AsyncEvaluator itself to
+  // be destroyed before the future is notified.
   template <typename Callable>
   auto Run(Callable callable) {
     CHECK(work_queue_ != nullptr);
     futures::Future<decltype(callable())> output;
     background_callback_runner_->Push(
-        [this, callable = std::move(callable),
+        [work_queue = work_queue_, callable = std::move(callable),
          consumer = std::move(output.consumer)]() mutable {
-          work_queue_->Schedule(
-              [this, consumer = std::move(consumer),
-               value = callable()]() mutable { consumer(std::move(value)); });
+          work_queue->Schedule(
+              [consumer = std::move(consumer), value = callable()]() mutable {
+                consumer(std::move(value));
+              });
         });
     return std::move(output.value);
   }
