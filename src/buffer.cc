@@ -680,7 +680,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   }
   contents.push_back(L"");
 
-  return OnError(SaveContentsToFile(path.ToString(), contents, work_queue()),
+  return OnError(SaveContentsToFile(path, contents, work_queue()),
                  [this](Error error) {
                    status()->SetWarningText(L"Unable to persist state: " +
                                             error.description);

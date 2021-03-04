@@ -19,7 +19,7 @@ using std::string;
 using std::unique_ptr;
 
 // Saves the contents of the buffer to the path given.
-futures::Value<PossibleError> SaveContentsToFile(const wstring& path,
+futures::Value<PossibleError> SaveContentsToFile(const Path& path,
                                                  const BufferContents& contents,
                                                  WorkQueue* work_queue);
 

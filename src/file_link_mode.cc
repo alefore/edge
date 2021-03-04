@@ -301,8 +301,7 @@ futures::Value<PossibleError> Save(
   }
 
   return futures::Transform(
-      SaveContentsToFile(path.ToString(), *buffer->contents(),
-                         buffer->work_queue()),
+      SaveContentsToFile(path, *buffer->contents(), buffer->work_queue()),
       [buffer](EmptyValue) { return buffer->PersistState(); },
       [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
         switch (options.save_type) {
@@ -391,19 +390,14 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
       [contents_writer](EmptyValue) { return Success(); });
 }
 
-// TODO(easy): Receive path as Path.
-futures::Value<PossibleError> SaveContentsToFile(const wstring& path_str,
+futures::Value<PossibleError> SaveContentsToFile(const Path& path,
                                                  const BufferContents& contents,
                                                  WorkQueue* work_queue) {
   auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
-  auto path = Path::FromString(path_str);
-  if (path.IsError()) {
-    return futures::Past(PossibleError(path.error()));
-  }
-  const wstring tmp_path = path.value().ToString() + L".tmp";
+  const wstring tmp_path = path.ToString() + L".tmp";
   return futures::Transform(
       futures::OnError(
-          file_system_driver->Stat(path.value()),
+          file_system_driver->Stat(path),
           [](Error error) {
             LOG(INFO)
                 << "Ignoring stat error; maybe a new file is being created: "
@@ -430,8 +424,7 @@ futures::Value<PossibleError> SaveContentsToFile(const wstring& path_str,
               return file_system_driver->Close(fd);
             },
             [path, file_system_driver, tmp_path](EmptyValue) {
-              return file_system_driver->Rename(tmp_path,
-                                                path.value().ToString());
+              return file_system_driver->Rename(tmp_path, path.ToString());
             });
       });
 }
