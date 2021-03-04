@@ -43,11 +43,12 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) {
   });
 }
 
-futures::Value<PossibleError> FileSystemDriver::Rename(std::wstring oldpath,
-                                                       std::wstring newpath) {
+futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
+                                                       Path newpath) {
   return evaluator_.Run([oldpath, newpath] {
-    return SyscallReturnValue(L"Rename", rename(ToByteString(oldpath).c_str(),
-                                                ToByteString(newpath).c_str()));
+    return SyscallReturnValue(L"Rename",
+                              rename(ToByteString(oldpath.ToString()).c_str(),
+                                     ToByteString(newpath.ToString()).c_str()));
   });
 }
 

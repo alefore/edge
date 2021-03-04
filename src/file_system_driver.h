@@ -32,13 +32,12 @@ class FileSystemDriver {
  public:
   FileSystemDriver(WorkQueue* work_queue);
 
+  // TODO(easy): Use `Path` type.
   futures::Value<ValueOrError<int>> Open(std::wstring path, int flags,
                                          mode_t mode);
   futures::Value<PossibleError> Close(int fd);
   futures::Value<ValueOrError<struct stat>> Stat(Path path);
-  // TODO(easy): Use `Path` type.
-  futures::Value<PossibleError> Rename(std::wstring oldpath,
-                                       std::wstring newpath);
+  futures::Value<PossibleError> Rename(Path oldpath, Path newpath);
 
  private:
   AsyncEvaluator evaluator_;

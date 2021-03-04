@@ -362,8 +362,7 @@ using std::unique_ptr;
 
 // Always returns an actual value.
 futures::Value<PossibleError> SaveContentsToOpenFile(
-    WorkQueue* work_queue, const wstring& path, int fd,
-    const BufferContents& contents) {
+    WorkQueue* work_queue, Path path, int fd, const BufferContents& contents) {
   auto contents_writer =
       std::make_shared<AsyncEvaluator>(L"SaveContentsToOpenFile", work_queue);
   return futures::Transform(
@@ -375,8 +374,9 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
           string str = (position == LineNumber(0) ? "" : "\n") +
                        ToByteString(line.ToString());
           if (write(fd, str.c_str(), str.size()) == -1) {
-            error = Error(path + L": write failed: " + std::to_wstring(fd) +
-                          L": " + FromByteString(strerror(errno)));
+            error = Error(path.ToString() + L": write failed: " +
+                          std::to_wstring(fd) + L": " +
+                          FromByteString(strerror(errno)));
             return false;
           }
           return true;
@@ -394,7 +394,10 @@ futures::Value<PossibleError> SaveContentsToFile(const Path& path,
                                                  const BufferContents& contents,
                                                  WorkQueue* work_queue) {
   auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
-  const wstring tmp_path = path.ToString() + L".tmp";
+  Path tmp_path = Path::Join(
+      path.Dirname().value(),
+      PathComponent::FromString(path.Basename().value().ToString() + L".tmp")
+          .value());
   return futures::Transform(
       futures::OnError(
           file_system_driver->Stat(path),
@@ -409,7 +412,8 @@ futures::Value<PossibleError> SaveContentsToFile(const Path& path,
           }),
       [path, contents, work_queue, file_system_driver,
        tmp_path](struct stat stat_value) {
-        return file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
+        return file_system_driver->Open(tmp_path.ToString(),
+                                        O_WRONLY | O_CREAT | O_TRUNC,
                                         stat_value.st_mode);
       },
       [path, contents, work_queue, tmp_path, file_system_driver](int fd) {
@@ -424,7 +428,7 @@ futures::Value<PossibleError> SaveContentsToFile(const Path& path,
               return file_system_driver->Close(fd);
             },
             [path, file_system_driver, tmp_path](EmptyValue) {
-              return file_system_driver->Rename(tmp_path, path.ToString());
+              return file_system_driver->Rename(tmp_path, path);
             });
       });
 }
