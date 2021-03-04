@@ -34,6 +34,7 @@ class FileSystemDriver {
   futures::Value<ValueOrError<int>> Open(std::wstring path, int flags,
                                          mode_t mode);
   futures::Value<PossibleError> Close(int fd);
+  // TODO(easy): Use `Path` type.
   futures::Value<ValueOrError<struct stat>> Stat(std::wstring path);
   futures::Value<PossibleError> Rename(std::wstring oldpath,
                                        std::wstring newpath);

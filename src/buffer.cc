@@ -851,18 +851,23 @@ void OpenBuffer::Initialize() {
 
   if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
       !buffer_path.IsError()) {
+    FileSystemDriver file_system_driver(editor()->work_queue());
     for (const auto& dir : options_.editor->edge_path()) {
       auto state_path = Path::Join(
           Path::Join(dir, PathComponent::FromString(L"state").value()),
           Path::Join(buffer_path.value(),
                      PathComponent::FromString(L".edge_state").value()));
-      // TODO(easy): Use async stat.
-      struct stat stat_buffer;
-      if (stat(ToByteString(state_path.ToString()).c_str(), &stat_buffer) ==
-          -1) {
-        continue;
-      }
-      EvaluateFile(state_path);
+      // TODO: Ensure that the buffer won't be deleted before the calls to
+      // EvaluateFile are done?
+      futures::Transform(file_system_driver.Stat(state_path.ToString()),
+                         [state_path, this](struct stat) {
+                           auto results = EvaluateFile(state_path);
+                           if (results.has_value()) {
+                             return futures::Transform(
+                                 results.value(), futures::Past(Success()));
+                           }
+                           return futures::Past(Success());
+                         });
     }
   }
 }
