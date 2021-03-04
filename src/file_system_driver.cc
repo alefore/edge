@@ -15,13 +15,12 @@ PossibleError SyscallReturnValue(std::wstring description, int return_value) {
 FileSystemDriver::FileSystemDriver(WorkQueue* work_queue)
     : evaluator_(L"FilesystemDriver", work_queue) {}
 
-futures::Value<ValueOrError<int>> FileSystemDriver::Open(std::wstring path,
-                                                         int flags,
+futures::Value<ValueOrError<int>> FileSystemDriver::Open(Path path, int flags,
                                                          mode_t mode) {
   return evaluator_.Run([path = std::move(path), flags, mode]() {
     LOG(INFO) << "Opening file:" << path;
-    int fd = open(ToByteString(path).c_str(), flags, mode);
-    PossibleError output = SyscallReturnValue(L"Open: " + path, fd);
+    int fd = open(ToByteString(path.ToString()).c_str(), flags, mode);
+    PossibleError output = SyscallReturnValue(L"Open: " + path.ToString(), fd);
     return output.IsError() ? output.error() : Success(fd);
   });
 }

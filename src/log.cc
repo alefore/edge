@@ -66,7 +66,7 @@ futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
   LOG(INFO) << "Opening log: " << path;
   return futures::Transform(
       file_system->Open(
-          path.ToString(), O_WRONLY | O_CREAT | O_APPEND,
+          path, O_WRONLY | O_CREAT | O_APPEND,
           S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH),
       [](int fd) {
         // TODO(easy): Make `Success` able to convert the unique_ptr to its

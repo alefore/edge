@@ -174,8 +174,7 @@ futures::Value<PossibleError> GenerateContents(
 
   LOG(INFO) << L"Server starts: " << path.value();
   return futures::Transform(
-      OnError(file_system_driver->Open(path.value().ToString(),
-                                       O_RDONLY | O_NDELAY, 0),
+      OnError(file_system_driver->Open(path.value(), O_RDONLY | O_NDELAY, 0),
               [path](Error error) {
                 LOG(ERROR) << path.value()
                            << ": Server: GenerateContents: Open failed: "

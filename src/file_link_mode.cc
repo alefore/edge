@@ -195,8 +195,7 @@ futures::Value<PossibleError> GenerateContents(
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
           return futures::Transform(
-              file_system_driver->Open(path.value().ToString(),
-                                       O_RDONLY | O_NONBLOCK, 0),
+              file_system_driver->Open(path.value(), O_RDONLY | O_NONBLOCK, 0),
               [target](int fd) {
                 target->SetInputFiles(fd, -1, false, -1);
                 return Success();
@@ -412,8 +411,7 @@ futures::Value<PossibleError> SaveContentsToFile(const Path& path,
           }),
       [path, contents, work_queue, file_system_driver,
        tmp_path](struct stat stat_value) {
-        return file_system_driver->Open(tmp_path.ToString(),
-                                        O_WRONLY | O_CREAT | O_TRUNC,
+        return file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
                                         stat_value.st_mode);
       },
       [path, contents, work_queue, tmp_path, file_system_driver](int fd) {
