@@ -190,7 +190,6 @@ futures::Value<PossibleError> GenerateContents(
 
 ValueOrError<Path> StartServer(EditorState* editor_state,
                                std::optional<Path> address) {
-  wstring dummy;
   auto output = CreateFifo(address);
   if (output.IsError()) {
     return Error(L"Error creating fifo: " + output.error().description);
