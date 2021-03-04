@@ -64,7 +64,7 @@ const bool async_evaluator_tests_registration = tests::Register(
           }},
      // Tests that the WorkQueue instance can be deleted while calls to
      // `RunIgnoringResults` are ongoing.
-     {.name = L"WorkQueueDeleteWhileBusy", .callback = [] {
+     {.name = L"EvaluatorDeleteWhileBusyIgnoringResults", .callback = [] {
         auto queue = std::make_unique<WorkQueue>([] {});
 
         Notification started_running;
