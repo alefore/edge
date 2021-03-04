@@ -783,18 +783,11 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
         buffer_options->log_supplier = [editor_state, path = input.path](
                                            WorkQueue* work_queue,
                                            Path edge_state_directory) {
-          // TODO(easy): Improve FileSystemDriver so that it can be deleted
-          // while operations are ongoing, so that we don't have to create a
-          // shared_ptr.
-          auto driver = std::make_shared<FileSystemDriver>(work_queue);
-          return futures::Transform(
-              NewFileLog(
-                  driver.get(),
-                  Path::Join(edge_state_directory,
-                             PathComponent::FromString(L".edge_log").value())),
-              [driver](std::unique_ptr<Log> log) {
-                return Success(std::move(log));
-              });
+          FileSystemDriver driver(work_queue);
+          return NewFileLog(
+              &driver,
+              Path::Join(edge_state_directory,
+                         PathComponent::FromString(L".edge_log").value()));
         };
 
         std::shared_ptr<OpenBuffer> buffer;

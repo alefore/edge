@@ -17,6 +17,8 @@ class Log {
   virtual std::unique_ptr<Log> NewChild(std::wstring name) = 0;
 };
 
+// file_system may be deleted as soon as this function returns (i.e., before the
+// future has a value).
 futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
     FileSystemDriver* file_system, Path path);
 
