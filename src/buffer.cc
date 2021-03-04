@@ -994,7 +994,7 @@ void OpenBuffer::Reload() {
             futures::Transform(futures::Past(GetEdgeStateDirectory()),
                                [this](Path dir) {
                                  return options_.log_supplier(&work_queue_,
-                                                              dir.ToString());
+                                                              dir);
                                }),
             [](Error error) {
               LOG(INFO) << "Error opening log: " << error.description;

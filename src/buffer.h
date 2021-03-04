@@ -108,8 +108,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
     // Optional log to use. Must never return nullptr.
     std::function<futures::ValueOrError<std::unique_ptr<Log>>(
-        WorkQueue* work_queue, std::wstring edge_state_directory)>
-        log_supplier = [](WorkQueue*, std::wstring) {
+        WorkQueue* work_queue, Path edge_state_directory)>
+        log_supplier = [](WorkQueue*, Path) {
           return futures::Past(Success(NewNullLog()));
         };
   };
