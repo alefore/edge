@@ -166,17 +166,23 @@ void Daemonize(const std::unordered_set<int>& surviving_fds) {
 
 futures::Value<PossibleError> GenerateContents(
     std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer* target) {
-  wstring address = target->Read(buffer_variables::path);
-  LOG(INFO) << L"Server starts: " << address;
+  wstring address_str = target->Read(buffer_variables::path);
+  auto path = Path::FromString(address_str);
+  if (path.IsError()) {
+    return futures::Past(PossibleError(path.error()));
+  }
+
+  LOG(INFO) << L"Server starts: " << path.value();
   return futures::Transform(
-      OnError(file_system_driver->Open(address, O_RDONLY | O_NDELAY, 0),
-              [address](Error error) {
-                LOG(ERROR) << address
+      OnError(file_system_driver->Open(path.value().ToString(),
+                                       O_RDONLY | O_NDELAY, 0),
+              [path](Error error) {
+                LOG(ERROR) << path.value()
                            << ": Server: GenerateContents: Open failed: "
                            << error.description;
                 return error;
               }),
-      [target, address](int fd) {
+      [target](int fd) {
         LOG(INFO) << "Server received connection: " << fd;
         target->SetInputFiles(fd, -1, false, -1);
         return Success();
