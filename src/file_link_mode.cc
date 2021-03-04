@@ -793,8 +793,7 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
               NewFileLog(
                   driver.get(),
                   Path::Join(edge_state_directory,
-                             PathComponent::FromString(L".edge_log").value())
-                      .ToString()),
+                             PathComponent::FromString(L".edge_log").value())),
               [driver](std::unique_ptr<Log> log) {
                 return Success(std::move(log));
               });

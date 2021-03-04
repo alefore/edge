@@ -62,11 +62,11 @@ class FileLog : public Log {
 };
 }  // namespace
 futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
-    FileSystemDriver* file_system, std::wstring path) {
+    FileSystemDriver* file_system, Path path) {
   LOG(INFO) << "Opening log: " << path;
   return futures::Transform(
       file_system->Open(
-          path, O_WRONLY | O_CREAT | O_APPEND,
+          path.ToString(), O_WRONLY | O_CREAT | O_APPEND,
           S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH),
       [](int fd) {
         // TODO(easy): Make `Success` able to convert the unique_ptr to its
