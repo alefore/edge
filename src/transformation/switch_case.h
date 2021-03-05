@@ -7,7 +7,12 @@
 #include "src/transformation.h"
 
 namespace afc::editor {
-transformation::Variant NewSwitchCaseTransformation(Modifiers modifiers);
+class SwitchCaseTransformation : public CompositeTransformation {
+ public:
+  std::wstring Serialize() const override;
+  futures::Value<Output> Apply(Input input) const override;
+  std::unique_ptr<CompositeTransformation> Clone() const override;
+};
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_TRANSFORMATION_SWITCH_CASE_H__

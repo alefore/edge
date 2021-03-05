@@ -577,11 +577,6 @@ class HardRedrawCommand : public Command {
   }
 };
 
-transformation::Variant ApplySwitchCaseCommand(EditorState*,
-                                               Modifiers modifiers) {
-  return NewSwitchCaseTransformation(modifiers);
-}
-
 class TreeNavigateCommand : public Command {
  public:
   wstring Description() const override {
@@ -786,10 +781,16 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"l", std::make_unique<MoveForwards>(Direction::kForwards));
   commands->Add(L"h", std::make_unique<MoveForwards>(Direction::kBackwards));
 
-  commands->Add(L"~", NewCommandWithModifiers(
-                          [](const Modifiers&) { return L"🔠🔡"; },
-                          L"Switches the case of the current character.",
-                          Modifiers(), ApplySwitchCaseCommand, editor_state));
+  commands->Add(
+      L"~", NewCommandWithModifiers(
+                [](const Modifiers&) { return L"🔠🔡"; },
+                L"Switches the case of the current character.", Modifiers(),
+                [transformation = std::make_shared<SwitchCaseTransformation>()](
+                    EditorState*, Modifiers modifiers) {
+                  return transformation::ModifiersAndComposite{
+                      std::move(modifiers), transformation};
+                },
+                editor_state));
 
   commands->Add(L"%", std::make_unique<TreeNavigateCommand>());
   commands->Add(L"sr", NewRecordCommand());
