@@ -39,7 +39,7 @@ constexpr int Terminal::CTRL_K;
 
 Terminal::Terminal() : lines_cache_(1024) {}
 
-void Terminal::Display(EditorState* editor_state, Screen* screen,
+void Terminal::Display(const EditorState& editor_state, Screen* screen,
                        const EditorState::ScreenState& screen_state) {
   if (screen_state.needs_hard_redraw) {
     screen->HardRefresh();
@@ -48,17 +48,17 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
   screen->Move(LineNumber(0), ColumnNumber(0));
 
-  StatusOutputProducerSupplier status_supplier(editor_state->status(), nullptr,
-                                               editor_state->modifiers());
+  StatusOutputProducerSupplier status_supplier(editor_state.status(), nullptr,
+                                               editor_state.modifiers());
   std::vector<HorizontalSplitOutputProducer::Row> rows(2);
   rows[1].lines = status_supplier.lines();
   rows[0].lines = screen->lines() - rows[1].lines;
 
-  auto buffer = editor_state->current_buffer();
-  rows[0].producer = editor_state->buffer_tree()->CreateOutputProducer(
+  auto buffer = editor_state.current_buffer();
+  rows[0].producer = editor_state.buffer_tree()->CreateOutputProducer(
       {.size = LineColumnDelta(rows[0].lines, screen->columns()),
        .main_cursor_behavior =
-           (editor_state->status()->GetType() == Status::Type::kPrompt ||
+           (editor_state.status()->GetType() == Status::Type::kPrompt ||
             (buffer != nullptr &&
              buffer->status()->GetType() == Status::Type::kPrompt))
                ? Widget::OutputProducerOptions::MainCursorBehavior::kHighlight
@@ -69,13 +69,13 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
 
   HorizontalSplitOutputProducer producer(
       std::move(rows),
-      editor_state->status()->GetType() == Status::Type::kPrompt ? 1 : 0);
+      editor_state.status()->GetType() == Status::Type::kPrompt ? 1 : 0);
 
   for (auto line = LineNumber(); line.ToDelta() < screen->lines(); ++line) {
     WriteLine(screen, line, producer.Next());
   }
 
-  if (editor_state->status()->GetType() == Status::Type::kPrompt ||
+  if (editor_state.status()->GetType() == Status::Type::kPrompt ||
       (buffer != nullptr &&
        buffer->status()->GetType() == Status::Type::kPrompt) ||
       (buffer != nullptr && !buffer->Read(buffer_variables::atomic_lines) &&

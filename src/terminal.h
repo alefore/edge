@@ -37,10 +37,7 @@ class Terminal {
   Terminal();
 
   // Reads the widgets' state from editor_state and writes it to screen.
-  //
-  // TODO(easy): Make EditorState a const-ref parameter (or document why it
-  // can't be one).
-  void Display(EditorState* editor_state, Screen* screen,
+  void Display(const EditorState& editor_state, Screen* screen,
                const EditorState::ScreenState& screen_state);
 
  private:

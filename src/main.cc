@@ -222,7 +222,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
   if (!screen_state.has_value()) return;
   if (screen_curses != nullptr) {
     if (!args.client.has_value()) {
-      terminal->Display(editor_state(), screen_curses, screen_state.value());
+      terminal->Display(*editor_state(), screen_curses, screen_state.value());
     } else {
       screen_curses->Refresh();  // Don't want this to be buffered!
       auto screen_size =
@@ -256,7 +256,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
       continue;
     }
     LOG(INFO) << "Remote screen for buffer: " << buffer.first;
-    terminal->Display(editor_state(), buffer_screen, screen_state.value());
+    terminal->Display(*editor_state(), buffer_screen, screen_state.value());
   }
 }
 }  // namespace
