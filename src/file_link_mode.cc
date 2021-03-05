@@ -138,10 +138,9 @@ struct BackgroundReadDirOutput {
   std::vector<dirent> noise;
 };
 
-// TODO(easy): Receive a Path.
-BackgroundReadDirOutput ReadDir(std::wstring path, std::wregex noise_regex) {
+BackgroundReadDirOutput ReadDir(Path path, std::wregex noise_regex) {
   BackgroundReadDirOutput output;
-  auto dir = OpenDir(path);
+  auto dir = OpenDir(path.ToString());
   if (dir == nullptr) {
     output.error_description =
         L"Unable to open directory: " + FromByteString(strerror(errno));
@@ -149,12 +148,12 @@ BackgroundReadDirOutput ReadDir(std::wstring path, std::wregex noise_regex) {
   }
   struct dirent* entry;
   while ((entry = readdir(dir.get())) != nullptr) {
-    auto path = FromByteString(entry->d_name);
     if (strcmp(entry->d_name, ".") == 0) {
       continue;  // Showing the link to itself is rather pointless.
     }
 
-    if (std::regex_match(path, noise_regex)) {
+    auto name = FromByteString(entry->d_name);
+    if (std::regex_match(name, noise_regex)) {
       output.noise.push_back(*entry);
       continue;
     }
@@ -209,8 +208,7 @@ futures::Value<PossibleError> GenerateContents(
             background_directory_reader->Run(
                 [path, noise_regexp =
                            target->Read(buffer_variables::directory_noise)]() {
-                  return ReadDir(path.value().ToString(),
-                                 std::wregex(noise_regexp));
+                  return ReadDir(path.value(), std::wregex(noise_regexp));
                 }),
             [editor_state, target, path](BackgroundReadDirOutput results) {
               auto disk_state_freezer = target->FreezeDiskState();
