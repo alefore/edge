@@ -19,7 +19,6 @@ class WidgetList : public SelectingWidget {
   BufferWidget* GetActiveLeaf() override;
   const BufferWidget* GetActiveLeaf() const;
 
-  size_t count() const override;
   // Returns the currently selected index. An invariant is that it will be
   // smaller than count.
   size_t index() const override;

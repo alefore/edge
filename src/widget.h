@@ -38,9 +38,6 @@ class Widget {
 // A widget that contains one or more children.
 class SelectingWidget : public Widget {
  public:
-  // Returns the current number of children. Will always return a value greater
-  // than 0.
-  virtual size_t count() const = 0;
   // Returns the currently selected index. An invariant is that it will be
   // smaller than count.
   virtual size_t index() const = 0;
