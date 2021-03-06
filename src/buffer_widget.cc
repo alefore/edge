@@ -13,6 +13,7 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/frame_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/line_number_output_producer.h"
 #include "src/line_scroll_control.h"
@@ -25,6 +26,43 @@
 
 namespace afc::editor {
 namespace {
+std::unique_ptr<OutputProducer> ProducerForString(std::wstring src,
+                                                  LineModifierSet modifiers) {
+  Line::Options options;
+  options.AppendString(std::move(src), std::move(modifiers));
+  return OutputProducer::Constant(
+      {.line = std::make_shared<Line>(std::move(options))});
+}
+
+std::unique_ptr<OutputProducer> AddLeftFrame(
+    std::unique_ptr<OutputProducer> producer, LineNumberDelta lines,
+    LineModifierSet modifiers) {
+  if (lines.IsZero()) {
+    return OutputProducer::Empty();
+  }
+
+  std::vector<VerticalSplitOutputProducer::Column> columns;
+
+  std::vector<HorizontalSplitOutputProducer::Row> rows;
+  if (lines > LineNumberDelta(1)) {
+    rows.push_back({
+        .producer = ProducerForString(L"│", modifiers),
+        .lines = lines - LineNumberDelta(1),
+    });
+  }
+  rows.push_back({.producer = ProducerForString(L"╰", modifiers),
+                  .lines = LineNumberDelta(1)});
+
+  columns.push_back(
+      {.producer =
+           std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0),
+       .width = ColumnNumberDelta(1)});
+
+  columns.push_back({.producer = std::move(producer)});
+
+  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
+}
+
 ColumnNumber GetCurrentColumn(OpenBuffer* buffer) {
   if (buffer->lines_size() == LineNumberDelta(0)) {
     return ColumnNumber(0);
@@ -392,6 +430,54 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
       buffer->lines_size() >= buffer->position().line.ToDelta() &&
       (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
     buffer->Set(buffer_variables::view_start, output.view_start);
+  }
+
+  if (options.position_in_parent.has_value()) {
+    std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
+    FrameOutputProducer::Options frame_options;
+    frame_options.title = Name();
+    frame_options.position_in_parent = options.position_in_parent.value();
+    bool is_active = options.is_active;
+    if (is_active && options.main_cursor_behavior ==
+                         OutputProducerOptions::MainCursorBehavior::kIgnore) {
+      frame_options.active_state =
+          FrameOutputProducer::Options::ActiveState::kActive;
+    }
+
+    static const auto kFrameLines = LineNumberDelta(1);
+
+    bool add_left_frame = true;
+    if (buffer != nullptr) {
+      frame_options.extra_information =
+          OpenBuffer::FlagsToString(buffer->Flags());
+      frame_options.width =
+          ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
+      add_left_frame = !buffer->Read(buffer_variables::paste_mode);
+    }
+
+    frame_options.prefix =
+        (options.size.line > kFrameLines && add_left_frame) ? L"╭" : L"─";
+
+    nested_rows.push_back(
+        {std::make_unique<FrameOutputProducer>(std::move(frame_options)),
+         LineNumberDelta(1)});
+
+    options.size.line -= nested_rows.back().lines;
+    options.main_cursor_behavior =
+        options.is_active
+            ? options.main_cursor_behavior
+            : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
+
+    if (add_left_frame) {
+      output.producer = AddLeftFrame(
+          std::move(output.producer), options.size.line,
+          is_active ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
+                    : LineModifierSet{LineModifier::DIM});
+    }
+    nested_rows.push_back(
+        {.producer = std::move(output.producer), .lines = options.size.line});
+    output.producer = std::make_unique<HorizontalSplitOutputProducer>(
+        std::move(nested_rows), 1);
   }
   return std::move(output.producer);
 }

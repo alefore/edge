@@ -185,43 +185,6 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
       std::move(rows), active_ - children_skipped_before_active);
 }
 
-std::unique_ptr<OutputProducer> ProducerForString(std::wstring src,
-                                                  LineModifierSet modifiers) {
-  Line::Options options;
-  options.AppendString(std::move(src), std::move(modifiers));
-  return OutputProducer::Constant(
-      {.line = std::make_shared<Line>(std::move(options))});
-}
-
-std::unique_ptr<OutputProducer> AddLeftFrame(
-    std::unique_ptr<OutputProducer> producer, LineNumberDelta lines,
-    LineModifierSet modifiers) {
-  if (lines.IsZero()) {
-    return OutputProducer::Empty();
-  }
-
-  std::vector<VerticalSplitOutputProducer::Column> columns;
-
-  std::vector<HorizontalSplitOutputProducer::Row> rows;
-  if (lines > LineNumberDelta(1)) {
-    rows.push_back({
-        .producer = ProducerForString(L"│", modifiers),
-        .lines = lines - LineNumberDelta(1),
-    });
-  }
-  rows.push_back({.producer = ProducerForString(L"╰", modifiers),
-                  .lines = LineNumberDelta(1)});
-
-  columns.push_back(
-      {.producer =
-           std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0),
-       .width = ColumnNumberDelta(1)});
-
-  columns.push_back({.producer = std::move(producer)});
-
-  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
-}
-
 std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
     OutputProducerOptions options, size_t index, LineNumberDelta lines) const {
   options.size.line = lines;
@@ -230,60 +193,12 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
   }
 
   Widget* child = children_[index].get();
-  if (children_.size() <= 1) {
-    return child->CreateOutputProducer(options);
+  if (children_.size() > 1) {
+    options.position_in_parent = index;
+    options.is_active =
+        index == active_ || editor_->Read(editor_variables::multiple_buffers);
   }
-
-  std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
-
-  VLOG(5) << "Producing row with frame.";
-  FrameOutputProducer::Options frame_options;
-  frame_options.title = child->Name();
-  frame_options.position_in_parent = index;
-  bool is_active =
-      index == active_ || editor_->Read(editor_variables::multiple_buffers);
-  if (is_active && options.main_cursor_behavior ==
-                       OutputProducerOptions::MainCursorBehavior::kIgnore) {
-    frame_options.active_state =
-        FrameOutputProducer::Options::ActiveState::kActive;
-  }
-
-  static const auto kFrameLines = LineNumberDelta(1);
-
-  bool add_left_frame = true;
-  if (auto buffer = child->GetActiveLeaf()->Lock(); buffer != nullptr) {
-    frame_options.extra_information =
-        OpenBuffer::FlagsToString(buffer->Flags());
-    frame_options.width =
-        ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
-    add_left_frame = !buffer->Read(buffer_variables::paste_mode);
-  }
-
-  frame_options.prefix =
-      (options.size.line > kFrameLines && add_left_frame) ? L"╭" : L"─";
-
-  nested_rows.push_back(
-      {std::make_unique<FrameOutputProducer>(std::move(frame_options)),
-       LineNumberDelta(1)});
-
-  options.size.line -= nested_rows.back().lines;
-  options.main_cursor_behavior =
-      index == active_
-          ? options.main_cursor_behavior
-          : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
-
-  auto child_producer = child->CreateOutputProducer(options);
-  if (add_left_frame) {
-    child_producer = AddLeftFrame(
-        std::move(child_producer), options.size.line,
-        is_active ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
-                  : LineModifierSet{LineModifier::DIM});
-  }
-  nested_rows.push_back(
-      {.producer = std::move(child_producer), .lines = options.size.line});
-
-  return std::make_unique<HorizontalSplitOutputProducer>(std::move(nested_rows),
-                                                         1);
+  return child->CreateOutputProducer(options);
 }
 
 LineNumberDelta WidgetListHorizontal::MinimumLines() const {
