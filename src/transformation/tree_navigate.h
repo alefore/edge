@@ -7,7 +7,11 @@
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {
-transformation::Variant NewTreeNavigateTransformation();
+class TreeNavigate : public CompositeTransformation {
+  std::wstring Serialize() const override;
+  futures::Value<Output> Apply(Input input) const override;
+  std::unique_ptr<CompositeTransformation> Clone() const override;
+};
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_TRANSFORMATION_TREE_NAVIGATE_H__

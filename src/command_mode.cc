@@ -585,7 +585,10 @@ class TreeNavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->ApplyToActiveBuffers(NewTreeNavigateTransformation());
+    static const auto transformation =
+        new std::shared_ptr<CompositeTransformation>(
+            std::make_shared<TreeNavigate>());
+    editor_state->ApplyToActiveBuffers(*transformation);
   }
 };
 

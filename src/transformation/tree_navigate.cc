@@ -9,52 +9,45 @@
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
-namespace {
-class TreeNavigate : public CompositeTransformation {
-  std::wstring Serialize() const override { return L"TreeNavigate()"; }
-  futures::Value<Output> Apply(Input input) const override {
-    auto root = input.buffer->parse_tree();
-    if (root == nullptr) return futures::Past(Output());
-    const ParseTree* tree = root.get();
-    auto next_position = input.position;
-    Seek(*input.buffer->contents(), &next_position).Once();
+std::wstring TreeNavigate::Serialize() const { return L"TreeNavigate()"; }
 
-    while (true) {
-      // Find the first relevant child at the current level.
-      size_t child = 0;
-      while (child < tree->children().size() &&
-             (tree->children()[child].range().end <= input.position ||
-              tree->children()[child].children().empty())) {
-        child++;
-      }
+futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
+    Input input) const {
+  auto root = input.buffer->parse_tree();
+  if (root == nullptr) return futures::Past(Output());
+  const ParseTree* tree = root.get();
+  auto next_position = input.position;
+  Seek(*input.buffer->contents(), &next_position).Once();
 
-      if (child >= tree->children().size()) {
-        break;
-      }
-
-      auto candidate = &tree->children()[child];
-      if (tree->range().begin >= input.position &&
-          (tree->range().end != next_position ||
-           candidate->range().end != next_position)) {
-        break;
-      }
-      tree = candidate;
+  while (true) {
+    // Find the first relevant child at the current level.
+    size_t child = 0;
+    while (child < tree->children().size() &&
+           (tree->children()[child].range().end <= input.position ||
+            tree->children()[child].children().empty())) {
+      child++;
     }
 
-    auto last_position = tree->range().end;
-    Seek(*input.buffer->contents(), &last_position).Backwards().Once();
-    return futures::Past(Output::SetPosition(
-        input.position == last_position ? tree->range().begin : last_position));
+    if (child >= tree->children().size()) {
+      break;
+    }
+
+    auto candidate = &tree->children()[child];
+    if (tree->range().begin >= input.position &&
+        (tree->range().end != next_position ||
+         candidate->range().end != next_position)) {
+      break;
+    }
+    tree = candidate;
   }
 
-  std::unique_ptr<CompositeTransformation> Clone() const override {
-    return std::make_unique<TreeNavigate>();
-  }
-};
-}  // namespace
+  auto last_position = tree->range().end;
+  Seek(*input.buffer->contents(), &last_position).Backwards().Once();
+  return futures::Past(Output::SetPosition(
+      input.position == last_position ? tree->range().begin : last_position));
+}
 
-// TODO(easy): Change return type to Composite.
-transformation::Variant NewTreeNavigateTransformation() {
+std::unique_ptr<CompositeTransformation> TreeNavigate::Clone() const {
   return std::make_unique<TreeNavigate>();
 }
 }  // namespace afc::editor
