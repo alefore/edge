@@ -390,12 +390,11 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   return output;
 }
 
-BufferWidget::BufferWidget(Options options)
-    : leaf_(std::move(options.buffer)) {}
+BufferWidget::BufferWidget(Options options) : options_(std::move(options)) {}
 
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
     OutputProducerOptions options) const {
-  auto buffer = leaf_.lock();
+  auto buffer = options_.buffer.lock();
   BufferOutputProducerInput input;
   input.output_producer_options = std::move(options);
   input.buffer = buffer;
@@ -409,16 +408,16 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
     buffer->Set(buffer_variables::view_start, output.view_start);
   }
 
-  if (options.position_in_parent.has_value()) {
+  if (options_.position_in_parent.has_value()) {
     std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
     FrameOutputProducer::Options frame_options;
     frame_options.title =
         buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
 
-    frame_options.position_in_parent = options.position_in_parent.value();
-    bool is_active = options.is_active;
-    if (is_active && options.main_cursor_behavior ==
-                         OutputProducerOptions::MainCursorBehavior::kIgnore) {
+    frame_options.position_in_parent = options_.position_in_parent.value();
+    if (options_.is_active &&
+        options.main_cursor_behavior ==
+            OutputProducerOptions::MainCursorBehavior::kIgnore) {
       frame_options.active_state =
           FrameOutputProducer::Options::ActiveState::kActive;
     }
@@ -443,15 +442,16 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
 
     options.size.line -= nested_rows.back().lines;
     options.main_cursor_behavior =
-        options.is_active
+        options_.is_active
             ? options.main_cursor_behavior
             : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
 
     if (add_left_frame) {
       output.producer = AddLeftFrame(
           std::move(output.producer), options.size.line,
-          is_active ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
-                    : LineModifierSet{LineModifier::DIM});
+          options_.is_active
+              ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
+              : LineModifierSet{LineModifier::DIM});
     }
     nested_rows.push_back(
         {.producer = std::move(output.producer), .lines = options.size.line});
@@ -471,15 +471,17 @@ LineNumberDelta BufferWidget::MinimumLines() const {
 }
 
 LineColumn BufferWidget::view_start() const {
-  auto buffer = leaf_.lock();
+  auto buffer = Lock();
   return buffer == nullptr ? LineColumn()
                            : buffer->Read(buffer_variables::view_start);
 }
 
-std::shared_ptr<OpenBuffer> BufferWidget::Lock() const { return leaf_.lock(); }
+std::shared_ptr<OpenBuffer> BufferWidget::Lock() const {
+  return options_.buffer.lock();
+}
 
 void BufferWidget::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
-  leaf_ = std::move(buffer);
+  options_.buffer = std::move(buffer);
 }
 
 }  // namespace afc::editor

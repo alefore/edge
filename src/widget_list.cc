@@ -172,11 +172,6 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
   }
 
   Widget* child = children_[index].get();
-  if (children_.size() > 1) {
-    options.position_in_parent = index;
-    options.is_active =
-        index == active_ || editor_->Read(editor_variables::multiple_buffers);
-  }
   return child->CreateOutputProducer(options);
 }
 

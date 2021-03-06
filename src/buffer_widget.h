@@ -33,6 +33,10 @@ class BufferWidget : public Widget {
  public:
   struct Options {
     std::weak_ptr<OpenBuffer> buffer = std::shared_ptr<OpenBuffer>();
+    bool is_active = false;
+    // Presence of this field indicates that a frame should be drawn around the
+    // buffer.
+    std::optional<size_t> position_in_parent = {};
   };
 
   BufferWidget(Options options);
@@ -50,7 +54,8 @@ class BufferWidget : public Widget {
   void SetBuffer(std::weak_ptr<OpenBuffer> buffer);
 
  private:
-  std::weak_ptr<OpenBuffer> leaf_;
+  // Non-const: SetBuffer modifies it.
+  Options options_;
 };
 
 }  // namespace afc::editor

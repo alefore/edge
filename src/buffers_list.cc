@@ -538,8 +538,10 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
 LineNumberDelta BuffersList::MinimumLines() const { return LineNumberDelta(0); }
 
 void BuffersList::ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer) {
-  widget_ = std::make_unique<BufferWidget>(
-      BufferWidget::Options{.buffer = std::move(buffer)});
+  if (buffer != nullptr) {
+    widget_ = std::make_unique<BufferWidget>(
+        BufferWidget::Options{.buffer = std::move(buffer), .is_active = true});
+  }
 }
 
 void BuffersList::ShowContext() {
@@ -550,11 +552,17 @@ void BuffersList::ShowContext() {
     if (auto buffer = GetBuffer(index);
         buffer != nullptr &&
         buffer->Read(buffer_variables::show_in_buffers_list)) {
+      bool is_active = editor_state_->Read(editor_variables::multiple_buffers);
       if (buffer == active_buffer_widget_->Lock()) {
         index_active = buffers.size();
+        is_active = true;
       }
-      buffers.push_back(std::make_unique<BufferWidget>(
-          BufferWidget::Options{.buffer = buffer}));
+      buffers.push_back(std::make_unique<BufferWidget>(BufferWidget::Options{
+          .buffer = buffer,
+          .is_active = is_active,
+          .position_in_parent =
+              (BuffersCount() > 1 ? buffers.size()
+                                  : std::optional<size_t>())}));
     }
   }
   if (buffers.empty()) {

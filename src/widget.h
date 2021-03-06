@@ -22,9 +22,6 @@ class Widget {
     LineColumnDelta size;
     enum class MainCursorBehavior { kHighlight, kIgnore };
     MainCursorBehavior main_cursor_behavior;
-
-    std::optional<size_t> position_in_parent = {};
-    bool is_active = true;
   };
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer(
       OutputProducerOptions options) const = 0;
