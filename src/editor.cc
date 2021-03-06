@@ -580,26 +580,7 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
 }
 
 void EditorState::SetHorizontalSplitsWithAllBuffers() {
-  auto active_buffer = current_buffer();
-  std::vector<std::unique_ptr<Widget>> buffers;
-  buffers.reserve(buffer_tree_.BuffersCount());
-  size_t index_active = 0;
-  for (size_t index = 0; index < buffer_tree_.BuffersCount(); index++) {
-    auto buffer = buffer_tree_.GetBuffer(index);
-    if (buffer == nullptr ||
-        !buffer->Read(buffer_variables::show_in_buffers_list)) {
-      continue;
-    }
-    if (buffer == active_buffer) {
-      index_active = buffers.size();
-    }
-    buffers.push_back(BufferWidget::New(buffer));
-  }
-  if (buffer_tree_.BuffersCount() == 0) {
-    return;
-  }
-  buffer_tree_.SetChild(std::make_unique<WidgetListHorizontal>(
-      this, std::move(buffers), index_active));
+  buffer_tree_.ShowContext();
 }
 
 void EditorState::SetActiveBuffer(size_t position) {
@@ -620,10 +601,7 @@ void EditorState::AdvanceActiveBuffer(int delta) {
                      CommandArgumentModeApplyMode::kFinal);
 }
 
-void EditorState::ZoomToLeaf() {
-  buffer_tree_.SetChild(
-      BufferWidget::New(buffer_tree_.GetActiveLeaf()->Lock()));
-}
+void EditorState::ZoomToLeaf() { buffer_tree_.ZoomToBuffer(current_buffer()); }
 
 void EditorState::AdjustWidgets() {
   if (Read(editor_variables::focus)) {

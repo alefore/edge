@@ -24,8 +24,8 @@ class BuffersList : public Widget {
   std::optional<size_t> GetBufferIndex(const OpenBuffer* buffer) const;
   size_t GetCurrentIndex();
   size_t BuffersCount() const;
-  void SetChild(std::unique_ptr<Widget> widget);
-  Widget* Child();
+  void ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer);
+  void ShowContext();
 
   // See comments on `filter_`.
   void set_filter(std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter);

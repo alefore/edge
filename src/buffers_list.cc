@@ -315,6 +315,8 @@ void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
   switch (add_buffer_type) {
     case AddBufferType::kVisit:
       buffers_[buffer->Read(buffer_variables::name)] = buffer;
+      // TODO(easy): This probably should be removed? But maybe we need the
+      // parent to find a way to know what the active buffer is, hmm.
       GetActiveLeaf()->SetBuffer(buffer);
       buffer->Visit();
       break;
@@ -542,11 +544,30 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
 
 LineNumberDelta BuffersList::MinimumLines() const { return LineNumberDelta(0); }
 
-Widget* BuffersList::Child() { return widget_.get(); }
+void BuffersList::ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer) {
+  widget_ = BufferWidget::New(std::move(buffer));
+}
 
-void BuffersList::SetChild(std::unique_ptr<Widget> widget) {
-  CHECK(widget != nullptr);
-  widget_ = std::move(widget);
+void BuffersList::ShowContext() {
+  auto active_buffer = GetActiveLeaf()->Lock();
+  std::vector<std::unique_ptr<Widget>> buffers;
+  buffers.reserve(BuffersCount());
+  size_t index_active = 0;
+  for (size_t index = 0; index < BuffersCount(); index++) {
+    if (auto buffer = GetBuffer(index);
+        buffer != nullptr &&
+        buffer->Read(buffer_variables::show_in_buffers_list)) {
+      if (buffer == active_buffer) {
+        index_active = buffers.size();
+      }
+      buffers.push_back(BufferWidget::New(buffer));
+    }
+  }
+  if (buffers.empty()) {
+    return;
+  }
+  widget_ = std::make_unique<WidgetListHorizontal>(
+      editor_state_, std::move(buffers), index_active);
 }
 
 }  // namespace afc::editor
