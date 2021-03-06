@@ -36,8 +36,8 @@ class BuffersList : public Widget {
   wstring Name() const override;
   wstring ToString() const override;
 
-  BufferWidget* GetActiveLeaf() override;
-  const BufferWidget* GetActiveLeaf() const override;
+  BufferWidget* GetActiveLeaf();
+  const BufferWidget* GetActiveLeaf() const;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer(
       OutputProducerOptions options) const override;
@@ -47,7 +47,10 @@ class BuffersList : public Widget {
  private:
   const EditorState* const editor_state_;
   std::map<wstring, std::shared_ptr<OpenBuffer>> buffers_;
+  // Contains the whole hierarchy of widgets.
   std::unique_ptr<Widget> widget_;
+  // Points to the BufferWidget that corresponds to the active buffer.
+  BufferWidget* active_buffer_widget_ = nullptr;
 
   // If it has a value, buffers not included will be dimmed (disabled).
   std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter_;

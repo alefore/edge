@@ -21,9 +21,6 @@ class Widget {
   virtual wstring Name() const = 0;
   virtual wstring ToString() const = 0;
 
-  virtual BufferWidget* GetActiveLeaf() = 0;
-  virtual const BufferWidget* GetActiveLeaf() const = 0;
-
   struct OutputProducerOptions {
     LineColumnDelta size;
     enum class MainCursorBehavior { kHighlight, kIgnore };

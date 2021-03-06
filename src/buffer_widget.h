@@ -45,9 +45,6 @@ class BufferWidget : public Widget {
   wstring Name() const override;
   wstring ToString() const override;
 
-  BufferWidget* GetActiveLeaf() override;
-  const BufferWidget* GetActiveLeaf() const override;
-
   std::unique_ptr<OutputProducer> CreateOutputProducer(
       OutputProducerOptions options) const override;
 

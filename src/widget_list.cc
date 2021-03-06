@@ -25,18 +25,6 @@
 namespace afc {
 namespace editor {
 
-BufferWidget* WidgetList::GetActiveLeaf() {
-  return const_cast<BufferWidget*>(
-      const_cast<const WidgetList*>(this)->GetActiveLeaf());
-}
-
-const BufferWidget* WidgetList::GetActiveLeaf() const {
-  CHECK(!children_.empty());
-  CHECK_LT(active_, children_.size());
-  CHECK(children_[active_] != nullptr);
-  return children_[active_]->GetActiveLeaf();
-}
-
 WidgetList::WidgetList(const EditorState* editor,
                        std::vector<std::unique_ptr<Widget>> children,
                        size_t active)

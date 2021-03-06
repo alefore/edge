@@ -413,9 +413,6 @@ wstring BufferWidget::ToString() const {
          L"]";
 }
 
-BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
-const BufferWidget* BufferWidget::GetActiveLeaf() const { return this; }
-
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
     OutputProducerOptions options) const {
   auto buffer = leaf_.lock();

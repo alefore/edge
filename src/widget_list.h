@@ -15,10 +15,6 @@ namespace editor {
 class EditorState;
 
 class WidgetList : public Widget {
- public:
-  BufferWidget* GetActiveLeaf() override;
-  const BufferWidget* GetActiveLeaf() const;
-
  protected:
   WidgetList(const EditorState* editor, std::unique_ptr<Widget> children);
   WidgetList(const EditorState* editor,

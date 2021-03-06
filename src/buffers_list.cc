@@ -307,7 +307,9 @@ class BuffersListProducer : public OutputProducer {
 }  // namespace
 
 BuffersList::BuffersList(const EditorState* editor_state)
-    : editor_state_(editor_state), widget_(BufferWidget::New()) {}
+    : editor_state_(editor_state),
+      widget_(BufferWidget::New()),
+      active_buffer_widget_(static_cast<BufferWidget*>(widget_.get())) {}
 
 void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                             AddBufferType add_buffer_type) {
@@ -315,9 +317,7 @@ void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
   switch (add_buffer_type) {
     case AddBufferType::kVisit:
       buffers_[buffer->Read(buffer_variables::name)] = buffer;
-      // TODO(easy): This probably should be removed? But maybe we need the
-      // parent to find a way to know what the active buffer is, hmm.
-      GetActiveLeaf()->SetBuffer(buffer);
+      active_buffer_widget_->SetBuffer(buffer);
       buffer->Visit();
       break;
 
@@ -340,9 +340,12 @@ std::vector<std::shared_ptr<OpenBuffer>> BuffersList::GetAllBuffers() const {
 }
 
 void BuffersList::RemoveBuffer(OpenBuffer* buffer) {
-  CHECK(widget_ != nullptr);
   CHECK(buffer != nullptr);
   buffers_.erase(buffer->Read(buffer_variables::name));
+  // TODO: Figure out wtf we need a call to std::shared_ptr<>::get() below.
+  if (active_buffer_widget_->Lock().get() == buffer) {
+    active_buffer_widget_->SetBuffer(std::shared_ptr<OpenBuffer>());
+  }
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::GetBuffer(size_t index) {
@@ -393,8 +396,7 @@ BufferWidget* BuffersList::GetActiveLeaf() {
 }
 
 const BufferWidget* BuffersList::GetActiveLeaf() const {
-  CHECK(widget_ != nullptr);
-  return widget_->GetActiveLeaf();
+  return active_buffer_widget_;
 }
 
 namespace {
@@ -549,7 +551,6 @@ void BuffersList::ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer) {
 }
 
 void BuffersList::ShowContext() {
-  auto active_buffer = GetActiveLeaf()->Lock();
   std::vector<std::unique_ptr<Widget>> buffers;
   buffers.reserve(BuffersCount());
   size_t index_active = 0;
@@ -557,7 +558,7 @@ void BuffersList::ShowContext() {
     if (auto buffer = GetBuffer(index);
         buffer != nullptr &&
         buffer->Read(buffer_variables::show_in_buffers_list)) {
-      if (buffer == active_buffer) {
+      if (buffer == active_buffer_widget_->Lock()) {
         index_active = buffers.size();
       }
       buffers.push_back(BufferWidget::New(buffer));
@@ -566,13 +567,14 @@ void BuffersList::ShowContext() {
   if (buffers.empty()) {
     return;
   }
+  active_buffer_widget_ =
+      static_cast<BufferWidget*>(buffers[index_active].get());
   widget_ = std::make_unique<WidgetListHorizontal>(
       editor_state_, std::move(buffers), index_active);
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::active_buffer() const {
-  auto leaf = GetActiveLeaf();
-  CHECK(leaf != nullptr);
-  return leaf->Lock();
+  CHECK(active_buffer_widget_);
+  return active_buffer_widget_->Lock();
 }
 }  // namespace afc::editor
