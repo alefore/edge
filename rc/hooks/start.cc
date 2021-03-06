@@ -81,6 +81,8 @@ editor.AddBinding("aj", "Frames: Move to the next active leaf", []() -> void {
 });
 editor.AddBinding("ag", "Frames: Set the active buffer",
                   []() -> void { editor.EnterSetBufferMode(); });
+editor.AddBinding("G", "Frames: Set the active buffer",
+                  []() -> void { editor.EnterSetBufferMode(); });
 editor.AddBinding("a+j", "Frames: Add a horizontal split",
                   editor.AddHorizontalSplit);
 editor.AddBinding("a+l", "Frames: Add a vertical split",
