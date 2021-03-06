@@ -43,7 +43,6 @@
 #include "src/search_command.h"
 #include "src/search_handler.h"
 #include "src/seek.h"
-#include "src/send_end_of_file_command.h"
 #include "src/set_variable_command.h"
 #include "src/substring.h"
 #include "src/terminal.h"
@@ -696,7 +695,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L":", NewRunCppCommand(CppCommandMode::kShell));
   commands->Add(L"a.", NewOpenDirectoryCommand());
   commands->Add(L"aL", NewListBuffersCommand());
-  commands->Add(L"ae", NewSendEndOfFileCommand());
   commands->Add(L"ao", NewOpenFileCommand(editor_state));
   {
     PromptOptions options;

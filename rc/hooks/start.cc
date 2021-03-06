@@ -97,6 +97,13 @@ editor.AddBinding("ar", "Buffers: Reload the current buffer.", []() -> void {
       [](Buffer buffer) -> void { buffer.Reload(); });
 });
 
+editor.AddBinding(
+    "ae", "Buffers: stops writing to a subprocess (effectively sending EOF).",
+    []() -> void {
+      editor.ForEachActiveBufferWithRepetitions(
+          [](Buffer buffer) -> void { buffer.SendEndOfFileToProcess(); });
+    });
+
 editor.AddBinding("aw", "Buffers: Save the current buffer.", []() -> void {
   editor.ForEachActiveBufferWithRepetitions(
       [](Buffer buffer) -> void { buffer.Save(); });

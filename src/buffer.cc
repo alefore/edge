@@ -10,6 +10,7 @@
 #include <unordered_set>
 
 extern "C" {
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -303,8 +304,18 @@ using std::to_wstring;
                      buffer->editor()->ResetModifiers();
                    }));
 
-  // using Callback = std::function<futures::Value<EvaluationOutput>(
-  //     std::vector<Ptr>, Trampoline*)>;
+  buffer->AddField(L"SendEndOfFileToProcess",
+                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+                     if (buffer->editor()->structure() == StructureLine()) {
+                       auto target_buffer = buffer->GetBufferFromCurrentLine();
+                       if (target_buffer != nullptr) {
+                         buffer = target_buffer;
+                       }
+                     }
+                     buffer->SendEndOfFileToProcess();
+                     buffer->editor()->ResetModifiers();
+                   }));
+
   buffer->AddField(
       L"Save",
       Value::NewFunction(
@@ -758,6 +769,29 @@ void OpenBuffer::EndOfFile() {
   if (current_buffer != nullptr &&
       current_buffer->Read(buffer_variables::name) == kBuffersName) {
     current_buffer->Reload();
+  }
+}
+
+void OpenBuffer::SendEndOfFileToProcess() {
+  if (fd() == nullptr) {
+    status()->SetInformationText(L"No active subprocess for current buffer.");
+    return;
+  }
+  if (Read(buffer_variables::pts)) {
+    char str[1] = {4};
+    if (write(fd()->fd(), str, sizeof(str)) == -1) {
+      status()->SetInformationText(L"Sending EOF failed: " +
+                                   FromByteString(strerror(errno)));
+      return;
+    }
+    status()->SetInformationText(L"EOF sent");
+  } else {
+    if (shutdown(fd()->fd(), SHUT_WR) == -1) {
+      status()->SetInformationText(L"shutdown(SHUT_WR) failed: " +
+                                   FromByteString(strerror(errno)));
+      return;
+    }
+    status()->SetInformationText(L"shutdown sent");
   }
 }
 

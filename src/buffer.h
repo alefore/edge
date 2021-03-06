@@ -175,7 +175,12 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void ReadErrorData();
 
   void Reload();
+  // Signal that EndOfFile was received (in the input that the editor is reading
+  // from fd_).
   void EndOfFile();
+
+  // If the buffer has a child process, sends EndOfFile to it.
+  void SendEndOfFileToProcess();
 
   void ClearContents(BufferContents::CursorsBehavior cursors_behavior);
   void AppendEmptyLine();

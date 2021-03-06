@@ -143,7 +143,6 @@ src/section_brackets_producer.cc \
 src/section_brackets_producer.h \
 src/seek.cc \
 src/seek.h \
-src/send_end_of_file_command.cc \
 src/server.cc \
 src/set_buffer_mode.cc \
 src/set_buffer_mode.h \

@@ -13,7 +13,6 @@
 #include "src/line_prompt_mode.h"
 #include "src/parse_tree.h"
 #include "src/screen.h"
-#include "src/send_end_of_file_command.h"
 #include "src/wstring.h"
 
 namespace afc {
