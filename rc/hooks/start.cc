@@ -72,19 +72,10 @@ editor.AddBinding("ah", "Frames: Move to the previous buffer", []() -> void {
 editor.AddBinding("al", "Frames: Move to the next buffer", []() -> void {
   editor.AdvanceActiveBuffer(editor.pop_repetitions());
 });
-editor.AddBinding("ak", "Frames: Move to the previous active leaf",
-                  []() -> void {
-                    editor.AdvanceActiveLeaf(-editor.pop_repetitions());
-                  });
-editor.AddBinding("aj", "Frames: Move to the next active leaf", []() -> void {
-  editor.AdvanceActiveLeaf(editor.pop_repetitions());
-});
 editor.AddBinding("ag", "Frames: Set the active buffer",
                   []() -> void { editor.EnterSetBufferMode(); });
 editor.AddBinding("G", "Frames: Set the active buffer",
                   []() -> void { editor.EnterSetBufferMode(); });
-editor.AddBinding("aR", "Frames: Show all open buffers",
-                  editor.SetHorizontalSplitsWithAllBuffers);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Buffers manipulation (saving, reloading...)

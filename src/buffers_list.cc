@@ -306,11 +306,8 @@ class BuffersListProducer : public OutputProducer {
 };
 }  // namespace
 
-BuffersList::BuffersList(const EditorState* editor_state,
-                         std::unique_ptr<Widget> widget)
-    : editor_state_(editor_state), widget_(std::move(widget)) {
-  CHECK(widget_ != nullptr);
-}
+BuffersList::BuffersList(const EditorState* editor_state)
+    : editor_state_(editor_state), widget_(BufferWidget::New()) {}
 
 void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                             AddBufferType add_buffer_type) {
@@ -344,18 +341,6 @@ void BuffersList::RemoveBuffer(OpenBuffer* buffer) {
   CHECK(widget_ != nullptr);
   CHECK(buffer != nullptr);
   buffers_.erase(buffer->Read(buffer_variables::name));
-}
-
-size_t BuffersList::CountLeaves() const { return widget_->CountLeaves(); }
-
-int BuffersList::AdvanceActiveLeafWithoutWrapping(int delta) {
-  CHECK(widget_ != nullptr);
-  return widget_->AdvanceActiveLeafWithoutWrapping(delta);
-}
-
-void BuffersList::SetActiveLeavesAtStart() {
-  CHECK(widget_ != nullptr);
-  widget_->SetActiveLeavesAtStart();
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::GetBuffer(size_t index) {

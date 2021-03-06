@@ -51,44 +51,6 @@ void WidgetList::AddChild(std::unique_ptr<Widget> widget) {
   set_index(children_.size() - 1);
 }
 
-size_t WidgetList::CountLeaves() const {
-  int count = 0;
-  for (const auto& child : children_) {
-    count += child->CountLeaves();
-  }
-  return count;
-}
-
-int WidgetList::AdvanceActiveLeafWithoutWrapping(int delta) {
-  LOG(INFO) << "WidgetList advances leaf: " << delta;
-  while (delta > 0) {
-    delta = children_[active_]->AdvanceActiveLeafWithoutWrapping(delta);
-    if (active_ == children_.size() - 1) {
-      return delta;
-    } else if (delta > 0) {
-      delta--;
-      active_++;
-    }
-  }
-  return delta;
-}
-
-void WidgetList::SetActiveLeavesAtStart() {
-  active_ = 0;
-  children_[active_]->SetActiveLeavesAtStart();
-}
-
-void WidgetList::RemoveActiveLeaf() {
-  CHECK_LT(active_, children_.size());
-  if (children_.size() == 1) {
-    children_[0] = BufferWidget::New(std::weak_ptr<OpenBuffer>());
-  } else {
-    children_.erase(children_.begin() + active_);
-    active_ %= children_.size();
-  }
-  CHECK_LT(active_, children_.size());
-}
-
 WidgetList::WidgetList(const EditorState* editor,
                        std::vector<std::unique_ptr<Widget>> children,
                        size_t active)

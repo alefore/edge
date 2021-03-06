@@ -14,7 +14,7 @@ namespace afc::editor {
 // widget. At the bottom, displays a numbered list of buffers.
 class BuffersList : public Widget {
  public:
-  BuffersList(const EditorState* editor_state, std::unique_ptr<Widget> widget);
+  BuffersList(const EditorState* editor_state);
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
   void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                  AddBufferType add_buffer_type);
@@ -41,11 +41,6 @@ class BuffersList : public Widget {
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;
-
-  size_t CountLeaves() const override;
-
-  int AdvanceActiveLeafWithoutWrapping(int delta) override;
-  void SetActiveLeavesAtStart() override;
 
  private:
   const EditorState* const editor_state_;

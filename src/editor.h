@@ -76,7 +76,6 @@ class EditorState {
   void SetHorizontalSplitsWithAllBuffers();
   void SetActiveBuffer(size_t position);
   void AdvanceActiveBuffer(int delta);
-  void AdvanceActiveLeaf(int delta);
   void ZoomToLeaf();
   void AdjustWidgets();
 

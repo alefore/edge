@@ -26,18 +26,6 @@ class WidgetList : public SelectingWidget {
   void set_index(size_t new_index) override;
   void AddChild(std::unique_ptr<Widget> widget) override;
 
-  size_t CountLeaves() const override;
-
-  // Advances the active leaf (recursing down into child containers) by this
-  // number of positions.
-  //
-  // Doesn't wrap. Returns the number of steps pending.
-  int AdvanceActiveLeafWithoutWrapping(int delta) override;
-
-  void SetActiveLeavesAtStart() override;
-
-  void RemoveActiveLeaf();
-
  protected:
   WidgetList(const EditorState* editor, std::unique_ptr<Widget> children);
   WidgetList(const EditorState* editor,

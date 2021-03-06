@@ -405,12 +405,6 @@ LineNumberDelta BufferWidget::MinimumLines() const {
                        buffer_variables::buffer_list_context_lines)));
 }
 
-size_t BufferWidget::CountLeaves() const { return 1; }
-
-int BufferWidget::AdvanceActiveLeafWithoutWrapping(int delta) { return delta; }
-
-void BufferWidget::SetActiveLeavesAtStart() {}
-
 LineColumn BufferWidget::view_start() const {
   auto buffer = leaf_.lock();
   return buffer == nullptr ? LineColumn()

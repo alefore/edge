@@ -176,11 +176,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
         editor->set_keyboard_redirect(NewSetBufferMode(editor));
       }));
 
-  editor_type->AddField(L"SetHorizontalSplitsWithAllBuffers",
-                        vm::NewCallback([](EditorState* editor) {
-                          editor->SetHorizontalSplitsWithAllBuffers();
-                        }));
-
   editor_type->AddField(L"SetActiveBuffer",
                         vm::NewCallback([](EditorState* editor, int delta) {
                           editor->SetActiveBuffer(delta);
@@ -189,11 +184,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(L"AdvanceActiveBuffer",
                         vm::NewCallback([](EditorState* editor, int delta) {
                           editor->AdvanceActiveBuffer(delta);
-                        }));
-
-  editor_type->AddField(L"AdvanceActiveLeaf",
-                        vm::NewCallback([](EditorState* editor, int delta) {
-                          editor->AdvanceActiveLeaf(delta);
                         }));
 
   editor_type->AddField(L"ZoomToLeaf", vm::NewCallback([](EditorState* editor) {
@@ -493,8 +483,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       default_commands_(NewCommandMode(this)),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player),
-      buffer_tree_(this, std::make_unique<WidgetListHorizontal>(
-                             this, BufferWidget::New())),
+      buffer_tree_(this),
       status_(GetConsole(), audio_player_),
       work_queue_([this] { NotifyInternalEvent(); }) {
   auto paths = edge_path();
@@ -617,27 +606,6 @@ void EditorState::SetActiveBuffer(size_t position) {
   set_current_buffer(
       buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()),
       CommandArgumentModeApplyMode::kFinal);
-}
-
-void EditorState::AdvanceActiveLeaf(int delta) {
-  size_t leaves = buffer_tree_.CountLeaves();
-  LOG(INFO) << "AdvanceActiveLeaf with delta " << delta << " and leaves "
-            << leaves;
-  if (delta < 0) {
-    delta = leaves - ((-delta) % leaves);
-  } else {
-    delta %= leaves;
-  }
-  VLOG(5) << "Delta adjusted to: " << delta;
-  delta = buffer_tree_.AdvanceActiveLeafWithoutWrapping(delta);
-  VLOG(6) << "After first advance, delta remaining: " << delta;
-  if (delta > 0) {
-    VLOG(7) << "Wrapping around end of tree";
-    buffer_tree_.SetActiveLeavesAtStart();
-    delta--;
-  }
-  delta = buffer_tree_.AdvanceActiveLeafWithoutWrapping(delta);
-  VLOG(5) << "Done advance, with delta: " << delta;
 }
 
 void EditorState::AdvanceActiveBuffer(int delta) {

@@ -33,17 +33,6 @@ class Widget {
       OutputProducerOptions options) const = 0;
 
   virtual LineNumberDelta MinimumLines() const = 0;
-
-  virtual size_t CountLeaves() const = 0;
-
-  // Advances the active leaf (recursing down into child containers) by this
-  // number of positions.
-  //
-  // Doesn't wrap. Returns the number of steps pending.
-  //
-  // If the buffer has a single leaf, it should just return delta.
-  virtual int AdvanceActiveLeafWithoutWrapping(int delta) = 0;
-  virtual void SetActiveLeavesAtStart() = 0;
 };
 
 // A widget that contains one or more children.

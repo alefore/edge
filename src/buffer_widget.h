@@ -53,10 +53,6 @@ class BufferWidget : public Widget {
 
   LineNumberDelta MinimumLines() const override;
 
-  size_t CountLeaves() const override;
-  int AdvanceActiveLeafWithoutWrapping(int delta) override;
-  void SetActiveLeavesAtStart() override;
-
   LineColumn view_start() const;
 
   // Custom methods.
