@@ -23,10 +23,6 @@ class Widget {
 
   virtual BufferWidget* GetActiveLeaf() = 0;
   virtual const BufferWidget* GetActiveLeaf() const = 0;
-  virtual void ForEachBufferWidget(
-      std::function<void(BufferWidget*)> callback) = 0;
-  virtual void ForEachBufferWidgetConst(
-      std::function<void(const BufferWidget*)> callback) const = 0;
 
   struct OutputProducerOptions {
     LineColumnDelta size;
@@ -37,7 +33,6 @@ class Widget {
       OutputProducerOptions options) const = 0;
 
   virtual LineNumberDelta MinimumLines() const = 0;
-  virtual void RemoveBuffer(OpenBuffer* buffer) = 0;
 
   virtual size_t CountLeaves() const = 0;
 

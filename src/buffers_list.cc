@@ -331,12 +331,19 @@ void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
   }
 }
 
+std::vector<std::shared_ptr<OpenBuffer>> BuffersList::GetAllBuffers() const {
+  std::vector<std::shared_ptr<OpenBuffer>> output;
+  output.reserve(buffers_.size());
+  for (const auto& it : buffers_) {
+    output.push_back(it.second);
+  }
+  return output;
+}
+
 void BuffersList::RemoveBuffer(OpenBuffer* buffer) {
   CHECK(widget_ != nullptr);
   CHECK(buffer != nullptr);
   buffers_.erase(buffer->Read(buffer_variables::name));
-  CHECK(widget_ != nullptr);
-  widget_->RemoveBuffer(buffer);
 }
 
 size_t BuffersList::CountLeaves() const { return widget_->CountLeaves(); }
@@ -401,18 +408,6 @@ BufferWidget* BuffersList::GetActiveLeaf() {
 const BufferWidget* BuffersList::GetActiveLeaf() const {
   CHECK(widget_ != nullptr);
   return widget_->GetActiveLeaf();
-}
-
-void BuffersList::ForEachBufferWidget(
-    std::function<void(BufferWidget*)> callback) {
-  CHECK(widget_ != nullptr);
-  widget_->ForEachBufferWidget(std::move(callback));
-}
-
-void BuffersList::ForEachBufferWidgetConst(
-    std::function<void(const BufferWidget*)> callback) const {
-  CHECK(widget_ != nullptr);
-  widget_->ForEachBufferWidgetConst(callback);
 }
 
 namespace {

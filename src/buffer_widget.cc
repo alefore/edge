@@ -378,16 +378,6 @@ wstring BufferWidget::ToString() const {
 BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
 const BufferWidget* BufferWidget::GetActiveLeaf() const { return this; }
 
-void BufferWidget::ForEachBufferWidget(
-    std::function<void(BufferWidget*)> callback) {
-  callback(this);
-}
-
-void BufferWidget::ForEachBufferWidgetConst(
-    std::function<void(const BufferWidget*)> callback) const {
-  callback(this);
-}
-
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
     OutputProducerOptions options) const {
   auto buffer = leaf_.lock();
@@ -413,12 +403,6 @@ LineNumberDelta BufferWidget::MinimumLines() const {
              : max(LineNumberDelta(0),
                    LineNumberDelta(buffer->Read(
                        buffer_variables::buffer_list_context_lines)));
-}
-
-void BufferWidget::RemoveBuffer(OpenBuffer* buffer) {
-  if (Lock().get() == buffer) {
-    SetBuffer(std::shared_ptr<OpenBuffer>());
-  }
 }
 
 size_t BufferWidget::CountLeaves() const { return 1; }

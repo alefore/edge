@@ -37,25 +37,6 @@ const BufferWidget* WidgetList::GetActiveLeaf() const {
   return children_[active_]->GetActiveLeaf();
 }
 
-void WidgetList::ForEachBufferWidget(
-    std::function<void(BufferWidget*)> callback) {
-  for (auto& widget : children_) {
-    widget->ForEachBufferWidget(callback);
-  }
-}
-void WidgetList::ForEachBufferWidgetConst(
-    std::function<void(const BufferWidget*)> callback) const {
-  for (const auto& widget : children_) {
-    widget->ForEachBufferWidgetConst(callback);
-  }
-}
-
-void WidgetList::RemoveBuffer(OpenBuffer* buffer) {
-  for (auto& child : children_) {
-    child->RemoveBuffer(buffer);
-  }
-}
-
 size_t WidgetList::count() const { return children_.size(); }
 
 size_t WidgetList::index() const { return active_; }

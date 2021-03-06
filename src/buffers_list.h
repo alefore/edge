@@ -18,6 +18,8 @@ class BuffersList : public DelegatingWidget {
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
   void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                  AddBufferType add_buffer_type);
+  void RemoveBuffer(OpenBuffer* buffer);
+  std::vector<std::shared_ptr<OpenBuffer>> GetAllBuffers() const;
   std::shared_ptr<OpenBuffer> GetBuffer(size_t index);
   std::optional<size_t> GetBufferIndex(const OpenBuffer* buffer) const;
   size_t GetCurrentIndex();
@@ -32,17 +34,11 @@ class BuffersList : public DelegatingWidget {
 
   BufferWidget* GetActiveLeaf() override;
   const BufferWidget* GetActiveLeaf() const override;
-  void ForEachBufferWidget(
-      std::function<void(BufferWidget*)> callback) override;
-  void ForEachBufferWidgetConst(
-      std::function<void(const BufferWidget*)> callback) const override;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer(
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;
-
-  void RemoveBuffer(OpenBuffer* buffer) override;
 
   size_t CountLeaves() const override;
 

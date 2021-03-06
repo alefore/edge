@@ -18,12 +18,6 @@ class WidgetList : public SelectingWidget {
  public:
   BufferWidget* GetActiveLeaf() override;
   const BufferWidget* GetActiveLeaf() const;
-  void ForEachBufferWidget(
-      std::function<void(BufferWidget*)> callback) override;
-  void ForEachBufferWidgetConst(
-      std::function<void(const BufferWidget*)> callback) const override;
-
-  void RemoveBuffer(OpenBuffer* buffer) override;
 
   size_t count() const override;
   // Returns the currently selected index. An invariant is that it will be
