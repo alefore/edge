@@ -25,8 +25,6 @@ class BuffersList : public Widget {
   size_t GetCurrentIndex();
   size_t BuffersCount() const;
   void SetChild(std::unique_ptr<Widget> widget);
-  void WrapChild(
-      std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)> callback);
   Widget* Child();
 
   // See comments on `filter_`.

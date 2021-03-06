@@ -170,19 +170,11 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   // Methods for Editor.
   RegisterVariableFields(editor_variables::BoolStruct(), editor_type.get(),
                          &EditorState::Read, &EditorState::Set);
-  editor_type->AddField(
-      L"AddVerticalSplit",
-      vm::NewCallback([](EditorState* editor) { editor->AddVerticalSplit(); }));
 
   editor_type->AddField(
       L"EnterSetBufferMode", vm::NewCallback([](EditorState* editor) {
         editor->set_keyboard_redirect(NewSetBufferMode(editor));
       }));
-
-  editor_type->AddField(L"AddHorizontalSplit",
-                        vm::NewCallback([](EditorState* editor) {
-                          editor->AddHorizontalSplit();
-                        }));
 
   editor_type->AddField(L"SetHorizontalSplitsWithAllBuffers",
                         vm::NewCallback([](EditorState* editor) {
@@ -596,36 +588,6 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
       buffer->Enter();
     }
   }
-}
-
-void EditorState::AddVerticalSplit() {
-  auto casted_child = dynamic_cast<WidgetListVertical*>(buffer_tree_.Child());
-  if (casted_child == nullptr) {
-    buffer_tree_.WrapChild([this](std::unique_ptr<Widget> child) {
-      return std::make_unique<WidgetListVertical>(this, std::move(child));
-    });
-    casted_child = dynamic_cast<WidgetListVertical*>(buffer_tree_.Child());
-    CHECK(casted_child != nullptr);
-  }
-  OpenAnonymousBuffer(this).SetConsumer(
-      [casted_child](std::shared_ptr<OpenBuffer> buffer) {
-        casted_child->AddChild(BufferWidget::New(buffer));
-      });
-}
-
-void EditorState::AddHorizontalSplit() {
-  auto casted_child = dynamic_cast<WidgetListHorizontal*>(buffer_tree_.Child());
-  if (casted_child == nullptr) {
-    buffer_tree_.WrapChild([this](std::unique_ptr<Widget> child) {
-      return std::make_unique<WidgetListHorizontal>(this, std::move(child));
-    });
-    casted_child = dynamic_cast<WidgetListHorizontal*>(buffer_tree_.Child());
-    CHECK(casted_child != nullptr);
-  }
-  OpenAnonymousBuffer(this).SetConsumer(
-      [casted_child](std::shared_ptr<OpenBuffer> buffer) {
-        casted_child->AddChild(BufferWidget::New(buffer));
-      });
 }
 
 void EditorState::SetHorizontalSplitsWithAllBuffers() {

@@ -564,10 +564,4 @@ void BuffersList::SetChild(std::unique_ptr<Widget> widget) {
   widget_ = std::move(widget);
 }
 
-void BuffersList::WrapChild(
-    std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)> callback) {
-  widget_ = callback(std::move(widget_));
-  CHECK(widget_ != nullptr);
-}
-
 }  // namespace afc::editor

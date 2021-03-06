@@ -83,10 +83,6 @@ editor.AddBinding("ag", "Frames: Set the active buffer",
                   []() -> void { editor.EnterSetBufferMode(); });
 editor.AddBinding("G", "Frames: Set the active buffer",
                   []() -> void { editor.EnterSetBufferMode(); });
-editor.AddBinding("a+j", "Frames: Add a horizontal split",
-                  editor.AddHorizontalSplit);
-editor.AddBinding("a+l", "Frames: Add a vertical split",
-                  editor.AddVerticalSplit);
 editor.AddBinding("aR", "Frames: Show all open buffers",
                   editor.SetHorizontalSplitsWithAllBuffers);
 
