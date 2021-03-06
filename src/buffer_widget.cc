@@ -390,15 +390,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   return output;
 }
 
-BufferWidget::BufferWidget(ConstructorAccessTag,
-                           std::weak_ptr<OpenBuffer> buffer)
-    : leaf_(buffer) {}
-
-/* static */
-std::unique_ptr<BufferWidget> BufferWidget::New(
-    std::weak_ptr<OpenBuffer> buffer) {
-  return std::make_unique<BufferWidget>(ConstructorAccessTag(), buffer);
-}
+BufferWidget::BufferWidget(Options options)
+    : leaf_(std::move(options.buffer)) {}
 
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
     OutputProducerOptions options) const {

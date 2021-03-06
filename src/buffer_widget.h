@@ -30,16 +30,12 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input);
 
 class BufferWidget : public Widget {
- private:
-  struct ConstructorAccessTag {};
-
  public:
-  static std::unique_ptr<BufferWidget> New(std::weak_ptr<OpenBuffer> buffer);
-  static std::unique_ptr<BufferWidget> New() {
-    return New(std::shared_ptr<OpenBuffer>());
-  }
+  struct Options {
+    std::weak_ptr<OpenBuffer> buffer = std::shared_ptr<OpenBuffer>();
+  };
 
-  BufferWidget(ConstructorAccessTag, std::weak_ptr<OpenBuffer> buffer);
+  BufferWidget(Options options);
 
   // Overrides from Widget.
   std::unique_ptr<OutputProducer> CreateOutputProducer(

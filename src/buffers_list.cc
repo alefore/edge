@@ -308,7 +308,7 @@ class BuffersListProducer : public OutputProducer {
 
 BuffersList::BuffersList(const EditorState* editor_state)
     : editor_state_(editor_state),
-      widget_(BufferWidget::New()),
+      widget_(std::make_unique<BufferWidget>(BufferWidget::Options{})),
       active_buffer_widget_(static_cast<BufferWidget*>(widget_.get())) {}
 
 void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
@@ -538,7 +538,8 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
 LineNumberDelta BuffersList::MinimumLines() const { return LineNumberDelta(0); }
 
 void BuffersList::ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer) {
-  widget_ = BufferWidget::New(std::move(buffer));
+  widget_ = std::make_unique<BufferWidget>(
+      BufferWidget::Options{.buffer = std::move(buffer)});
 }
 
 void BuffersList::ShowContext() {
@@ -552,7 +553,8 @@ void BuffersList::ShowContext() {
       if (buffer == active_buffer_widget_->Lock()) {
         index_active = buffers.size();
       }
-      buffers.push_back(BufferWidget::New(buffer));
+      buffers.push_back(std::make_unique<BufferWidget>(
+          BufferWidget::Options{.buffer = buffer}));
     }
   }
   if (buffers.empty()) {
