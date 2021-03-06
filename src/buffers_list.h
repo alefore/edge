@@ -33,9 +33,6 @@ class BuffersList : public Widget {
   void set_filter(std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter);
 
   // Overrides from Widget
-  wstring Name() const override;
-  wstring ToString() const override;
-
   BufferWidget* GetActiveLeaf();
   const BufferWidget* GetActiveLeaf() const;
 

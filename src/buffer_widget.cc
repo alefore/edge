@@ -400,19 +400,6 @@ std::unique_ptr<BufferWidget> BufferWidget::New(
   return std::make_unique<BufferWidget>(ConstructorAccessTag(), buffer);
 }
 
-wstring BufferWidget::Name() const {
-  auto buffer = Lock();
-  return buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
-}
-
-wstring BufferWidget::ToString() const {
-  auto buffer = leaf_.lock();
-  return L"[buffer tree leaf" +
-         (buffer == nullptr ? L"nullptr"
-                            : buffer->Read(buffer_variables::name)) +
-         L"]";
-}
-
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
     OutputProducerOptions options) const {
   auto buffer = leaf_.lock();
@@ -432,7 +419,9 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
   if (options.position_in_parent.has_value()) {
     std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
     FrameOutputProducer::Options frame_options;
-    frame_options.title = Name();
+    frame_options.title =
+        buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
+
     frame_options.position_in_parent = options.position_in_parent.value();
     bool is_active = options.is_active;
     if (is_active && options.main_cursor_behavior ==

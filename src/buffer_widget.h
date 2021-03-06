@@ -42,9 +42,6 @@ class BufferWidget : public Widget {
   BufferWidget(ConstructorAccessTag, std::weak_ptr<OpenBuffer> buffer);
 
   // Overrides from Widget.
-  wstring Name() const override;
-  wstring ToString() const override;
-
   std::unique_ptr<OutputProducer> CreateOutputProducer(
       OutputProducerOptions options) const override;
 

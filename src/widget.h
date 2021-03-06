@@ -18,9 +18,6 @@ class Widget {
  public:
   ~Widget() = default;
 
-  virtual wstring Name() const = 0;
-  virtual wstring ToString() const = 0;
-
   struct OutputProducerOptions {
     LineColumnDelta size;
     enum class MainCursorBehavior { kHighlight, kIgnore };
@@ -35,7 +32,7 @@ class Widget {
   virtual LineNumberDelta MinimumLines() const = 0;
 };
 
-std::ostream& operator<<(std::ostream& os, const Widget& lc);
+// std::ostream& operator<<(std::ostream& os, const Widget& lc);
 
 }  // namespace editor
 }  // namespace afc

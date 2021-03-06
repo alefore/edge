@@ -233,7 +233,6 @@ src/vm/internal/negate_expression.cc \
 src/vm/internal/logical_expression.cc \
 src/vm/internal/variable_lookup.cc \
 src/vm/internal/wstring.cc \
-src/widget.cc \
 src/widget.h \
 src/work_queue.cc \
 src/work_queue.h \

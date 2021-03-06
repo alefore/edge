@@ -57,15 +57,6 @@ WidgetListHorizontal::WidgetListHorizontal(
     size_t active)
     : WidgetList(editor, std::move(children), active) {}
 
-wstring WidgetListHorizontal::Name() const { return L""; }
-
-wstring WidgetListHorizontal::ToString() const {
-  wstring output = L"[buffer tree horizontal, children: " +
-                   std::to_wstring(children_.size()) + L", active: " +
-                   std::to_wstring(active_) + L"]";
-  return output;
-}
-
 std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
     OutputProducerOptions options) const {
   if (options.size.line.IsZero()) return OutputProducer::Empty();
@@ -206,15 +197,6 @@ WidgetListVertical::WidgetListVertical(
     const EditorState* editor, std::vector<std::unique_ptr<Widget>> children,
     size_t active)
     : WidgetList(editor, std::move(children), active) {}
-
-wstring WidgetListVertical::Name() const { return L""; }
-
-wstring WidgetListVertical::ToString() const {
-  wstring output = L"[buffer tree vertical, children: " +
-                   std::to_wstring(children_.size()) + L", active: " +
-                   std::to_wstring(active_) + L"]";
-  return output;
-}
 
 std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer(
     OutputProducerOptions options) const {

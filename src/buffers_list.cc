@@ -381,15 +381,6 @@ void BuffersList::set_filter(
   filter_ = std::move(filter);
 }
 
-wstring BuffersList::Name() const {
-  CHECK(widget_ != nullptr);
-  return widget_->Name();
-}
-
-wstring BuffersList::ToString() const {
-  return L"BuffersList: " + widget_->Name();
-}
-
 BufferWidget* BuffersList::GetActiveLeaf() {
   return const_cast<BufferWidget*>(
       const_cast<const BuffersList*>(this)->GetActiveLeaf());

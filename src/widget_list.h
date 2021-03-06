@@ -35,9 +35,6 @@ class WidgetListHorizontal : public WidgetList {
                        std::vector<std::unique_ptr<Widget>> children,
                        size_t active);
 
-  wstring Name() const;
-  wstring ToString() const override;
-
   std::unique_ptr<OutputProducer> CreateOutputProducer(
       OutputProducerOptions options) const override;
 
@@ -57,9 +54,6 @@ class WidgetListVertical : public WidgetList {
   WidgetListVertical(const EditorState* editor,
                      std::vector<std::unique_ptr<Widget>> children,
                      size_t active);
-
-  wstring Name() const;
-  wstring ToString() const override;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer(
       OutputProducerOptions options) const override;
