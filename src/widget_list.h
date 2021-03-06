@@ -26,12 +26,6 @@ class WidgetList : public SelectingWidget {
   void set_index(size_t new_index) override;
   void AddChild(std::unique_ptr<Widget> widget) override;
 
-  // Overrides from DelegatingWidget.
-  Widget* Child() override;
-  void SetChild(std::unique_ptr<Widget> widget) override;
-  void WrapChild(std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)>
-                     callback) override;
-
   size_t CountLeaves() const override;
 
   // Advances the active leaf (recursing down into child containers) by this

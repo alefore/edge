@@ -46,20 +46,8 @@ class Widget {
   virtual void SetActiveLeavesAtStart() = 0;
 };
 
-// A widget that contains a child. It typically adds something extra for that
-// children, such as a status or a frame.
-class DelegatingWidget : public Widget {
- public:
-  // Can be nullptr.
-  virtual Widget* Child() = 0;
-  virtual void SetChild(std::unique_ptr<Widget> widget) = 0;
-  virtual void WrapChild(
-      std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)>
-          callback) = 0;
-};
-
 // A widget that contains one or more children.
-class SelectingWidget : public DelegatingWidget {
+class SelectingWidget : public Widget {
  public:
   // Returns the current number of children. Will always return a value greater
   // than 0.

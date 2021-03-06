@@ -51,17 +51,6 @@ void WidgetList::AddChild(std::unique_ptr<Widget> widget) {
   set_index(children_.size() - 1);
 }
 
-Widget* WidgetList::Child() { return children_[active_].get(); }
-
-void WidgetList::SetChild(std::unique_ptr<Widget> widget) {
-  children_[active_] = std::move(widget);
-}
-
-void WidgetList::WrapChild(
-    std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)> callback) {
-  children_[active_] = callback(std::move(children_[active_]));
-}
-
 size_t WidgetList::CountLeaves() const {
   int count = 0;
   for (const auto& child : children_) {

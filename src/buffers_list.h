@@ -12,7 +12,7 @@ namespace afc::editor {
 
 // Divides the screen vertically into two sections: at the top, displays a given
 // widget. At the bottom, displays a numbered list of buffers.
-class BuffersList : public DelegatingWidget {
+class BuffersList : public Widget {
  public:
   BuffersList(const EditorState* editor_state, std::unique_ptr<Widget> widget);
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
@@ -24,6 +24,10 @@ class BuffersList : public DelegatingWidget {
   std::optional<size_t> GetBufferIndex(const OpenBuffer* buffer) const;
   size_t GetCurrentIndex();
   size_t BuffersCount() const;
+  void SetChild(std::unique_ptr<Widget> widget);
+  void WrapChild(
+      std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)> callback);
+  Widget* Child();
 
   // See comments on `filter_`.
   void set_filter(std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter);
@@ -44,12 +48,6 @@ class BuffersList : public DelegatingWidget {
 
   int AdvanceActiveLeafWithoutWrapping(int delta) override;
   void SetActiveLeavesAtStart() override;
-
-  // Overrides from DelegatingWidget:
-  Widget* Child() override;
-  void SetChild(std::unique_ptr<Widget> widget) override;
-  void WrapChild(std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)>
-                     callback) override;
 
  private:
   const EditorState* const editor_state_;
