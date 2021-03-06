@@ -26,6 +26,8 @@
 
 namespace afc::editor {
 namespace {
+static const auto kFrameLines = LineNumberDelta(1);
+
 std::unique_ptr<OutputProducer> ProducerForString(std::wstring src,
                                                   LineModifierSet modifiers) {
   Line::Options options;
@@ -399,6 +401,11 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
   input.output_producer_options = std::move(options);
   input.buffer = buffer;
   input.view_start = view_start();
+  if (options_.position_in_parent.has_value()) {
+    input.output_producer_options.size.line =
+        max(LineNumberDelta(),
+            input.output_producer_options.size.line - kFrameLines);
+  }
   auto output = CreateBufferOutputProducer(std::move(input));
   // We avoid updating the desired view_start while the buffer is still being
   // read.
@@ -421,8 +428,6 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
       frame_options.active_state =
           FrameOutputProducer::Options::ActiveState::kActive;
     }
-
-    static const auto kFrameLines = LineNumberDelta(1);
 
     bool add_left_frame = true;
     if (buffer != nullptr) {
@@ -465,9 +470,11 @@ LineNumberDelta BufferWidget::MinimumLines() const {
   auto buffer = Lock();
   return buffer == nullptr
              ? LineNumberDelta(0)
-             : max(LineNumberDelta(0),
-                   LineNumberDelta(buffer->Read(
-                       buffer_variables::buffer_list_context_lines)));
+             : (options_.position_in_parent.has_value() ? kFrameLines
+                                                        : LineNumberDelta(0)) +
+                   max(LineNumberDelta(0),
+                       LineNumberDelta(buffer->Read(
+                           buffer_variables::buffer_list_context_lines)));
 }
 
 LineColumn BufferWidget::view_start() const {
