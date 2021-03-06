@@ -110,17 +110,32 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
   size_t children_skipped = std::count(
       lines_per_child.begin(), lines_per_child.end(), LineNumberDelta());
 
-  if (lines_available > lines_given) {
-    LineNumberDelta lines_each = (lines_available - lines_given) /
-                                 (lines_per_child.size() - children_skipped);
-    lines_given += (lines_per_child.size() - children_skipped) * lines_each;
-    for (auto& l : lines_per_child) {
-      if (l.IsZero()) continue;
-      LineNumberDelta extra_line = lines_given < lines_available
-                                       ? LineNumberDelta(1)
-                                       : LineNumberDelta(0);
-      l += lines_each + extra_line;
-      lines_given += extra_line;
+  bool expand_beyond_desired = false;
+  while (lines_available > lines_given && !lines_per_child.empty()) {
+    std::set<size_t> indices_minimal;  // Only includes those who can grow.
+    for (size_t i = 0; i < lines_per_child.size(); i++) {
+      if (!expand_beyond_desired &&
+          lines_per_child[i] >= children_[i]->DesiredLines())
+        continue;
+      if (!indices_minimal.empty()) {
+        auto minimal = lines_per_child[*indices_minimal.begin()];
+        if (minimal < lines_per_child[i]) {
+          continue;
+        } else if (lines_per_child[i] < minimal) {
+          indices_minimal.clear();
+        }
+      }
+      indices_minimal.insert(i);
+    }
+    if (indices_minimal.empty()) {
+      CHECK(!expand_beyond_desired);
+      expand_beyond_desired = true;
+      continue;
+    }
+    for (auto& i : indices_minimal) {
+      if (lines_available == lines_given) break;
+      ++lines_per_child[i];
+      ++lines_given;
     }
   }
 
