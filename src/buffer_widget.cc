@@ -473,8 +473,9 @@ LineNumberDelta BufferWidget::MinimumLines() const {
              : (options_.position_in_parent.has_value() ? kFrameLines
                                                         : LineNumberDelta(0)) +
                    max(LineNumberDelta(0),
-                       LineNumberDelta(buffer->Read(
-                           buffer_variables::buffer_list_context_lines)));
+                       min(buffer->lines_size(),
+                           LineNumberDelta(buffer->Read(
+                               buffer_variables::buffer_list_context_lines))));
 }
 
 LineColumn BufferWidget::view_start() const {
