@@ -10,12 +10,15 @@ namespace afc {
 namespace editor {
 FrameOutputProducer::FrameOutputProducer(Options options)
     : options_(std::move(options)),
-      line_modifiers_(options_.active_state == Options::ActiveState::kInactive
-                          ? LineModifierSet({LineModifier::DIM})
-                          : LineModifierSet({LineModifier::BOLD})),
-      title_modifiers_(options_.active_state == Options::ActiveState::kActive
-                           ? LineModifierSet({LineModifier::BOLD})
-                           : LineModifierSet()) {}
+      line_modifiers_(
+          options_.active_state == Options::ActiveState::kInactive
+              ? LineModifierSet({LineModifier::DIM})
+              : LineModifierSet({LineModifier::BOLD, LineModifier::CYAN})),
+      title_modifiers_(
+          options_.active_state == Options::ActiveState::kActive
+              ? LineModifierSet({LineModifier::BOLD, LineModifier::CYAN,
+                                 LineModifier::REVERSE})
+              : LineModifierSet()) {}
 
 OutputProducer::Generator FrameOutputProducer::Next() {
   return Generator{

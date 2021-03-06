@@ -78,6 +78,7 @@ class EditorState {
   void AdvanceActiveBuffer(int delta);
   void AdvanceActiveLeaf(int delta);
   void ZoomToLeaf();
+  void AdjustWidgets();
 
   bool has_current_buffer() const;
   shared_ptr<OpenBuffer> current_buffer();

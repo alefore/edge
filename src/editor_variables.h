@@ -8,7 +8,7 @@ namespace afc::editor::editor_variables {
 
 EdgeStruct<bool>* BoolStruct();
 extern EdgeVariable<bool>* const multiple_buffers;
-
+extern EdgeVariable<bool>* const focus;
 }  // namespace afc::editor::editor_variables
 
 #endif  // __AFC_EDITOR_EDITOR_VARIABLES_H__

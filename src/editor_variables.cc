@@ -15,4 +15,11 @@ EdgeVariable<bool>* const multiple_buffers =
         .Description(L"Should all visible buffers be considered as active?")
         .Build();
 
+EdgeVariable<bool>* const focus =
+    BoolStruct()
+        ->Add()
+        .Name(L"focus")
+        .Key(L"F")
+        .Description(L"Should we focus on a single file?")
+        .Build();
 }  // namespace afc::editor::editor_variables

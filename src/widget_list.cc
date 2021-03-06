@@ -356,9 +356,10 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
 
   auto child_producer = child->CreateOutputProducer(options);
   if (add_left_frame) {
-    child_producer =
-        AddLeftFrame(std::move(child_producer), options.size.line,
-                     {is_active ? LineModifier::BOLD : LineModifier::DIM});
+    child_producer = AddLeftFrame(
+        std::move(child_producer), options.size.line,
+        is_active ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
+                  : LineModifierSet{LineModifier::DIM});
   }
   nested_rows.push_back(
       {.producer = std::move(child_producer), .lines = options.size.line});

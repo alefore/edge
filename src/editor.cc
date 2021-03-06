@@ -547,6 +547,9 @@ const bool& EditorState::Read(const EdgeVariable<bool>* variable) const {
 
 void EditorState::Set(const EdgeVariable<bool>* variable, bool value) {
   bool_variables_.Set(variable, value);
+  if (variable == editor_variables::focus) {
+    AdjustWidgets();
+  }
 }
 
 void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
@@ -577,6 +580,7 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
     auto index = buffer_tree_.GetBufferIndex(buffer);
     buffer_tree_.RemoveBuffer(buffer);
     buffers_.erase(buffer->Read(buffer_variables::name));
+    AdjustWidgets();
     LOG(INFO) << "Adjusting widgets that may be displaying the buffer we "
                  "are deleting.";
     if (buffer_tree_.BuffersCount() == 0) return;
@@ -594,6 +598,9 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
 void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
                                      CommandArgumentModeApplyMode apply_mode) {
   buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
+  if (!Read(editor_variables::focus)) {
+    AdjustWidgets();
+  }
   if (buffer != nullptr) {
     if (apply_mode == CommandArgumentModeApplyMode::kFinal) {
       buffer->Visit();
@@ -636,17 +643,22 @@ void EditorState::AddHorizontalSplit() {
 void EditorState::SetHorizontalSplitsWithAllBuffers() {
   auto active_buffer = current_buffer();
   std::vector<std::unique_ptr<Widget>> buffers;
+  buffers.reserve(buffer_tree_.BuffersCount());
   size_t index_active = 0;
-  for (auto& buffer : buffers_) {
-    if (!buffer.second->Read(buffer_variables::show_in_buffers_list)) {
+  for (size_t index = 0; index < buffer_tree_.BuffersCount(); index++) {
+    auto buffer = buffer_tree_.GetBuffer(index);
+    if (buffer == nullptr ||
+        !buffer->Read(buffer_variables::show_in_buffers_list)) {
       continue;
     }
-    if (buffer.second == active_buffer) {
+    if (buffer == active_buffer) {
       index_active = buffers.size();
     }
-    buffers.push_back(BufferWidget::New(buffer.second));
+    buffers.push_back(BufferWidget::New(buffer));
   }
-  CHECK(!buffers.empty());
+  if (buffer_tree_.BuffersCount() == 0) {
+    return;
+  }
   buffer_tree_.SetChild(std::make_unique<WidgetListHorizontal>(
       this, std::move(buffers), index_active));
 }
@@ -693,6 +705,14 @@ void EditorState::AdvanceActiveBuffer(int delta) {
 void EditorState::ZoomToLeaf() {
   buffer_tree_.SetChild(
       BufferWidget::New(buffer_tree_.GetActiveLeaf()->Lock()));
+}
+
+void EditorState::AdjustWidgets() {
+  if (Read(editor_variables::focus)) {
+    ZoomToLeaf();
+    return;
+  }
+  SetHorizontalSplitsWithAllBuffers();
 }
 
 bool EditorState::has_current_buffer() const {
@@ -752,6 +772,7 @@ void EditorState::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                             BuffersList::AddBufferType insertion_type) {
   auto initial_active_buffers = active_buffers();
   buffer_tree()->AddBuffer(buffer, insertion_type);
+  AdjustWidgets();
   if (initial_active_buffers != active_buffers()) {
     // The set of buffers changed; if some mode was active, ... cancel it.
     // Perhaps the keyboard redirect should have a method to react to this, so
@@ -972,8 +993,8 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
 //
 //   line column buffer
 //
-// The current line position is set to one line after the line to be returned
-// by a pop.  To insert a new position, we insert it right at the current line.
+// The current line position is set to one line after the line to be returned by
+// a pop.  To insert a new position, we insert it right at the current line.
 
 static wstring kPositionsBufferName = L"- positions";
 
