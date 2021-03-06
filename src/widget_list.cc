@@ -66,16 +66,6 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
     lines_per_child.push_back(child->MinimumLines());
   }
 
-  if (children_.size() > 1) {
-    LOG(INFO) << "Adding lines for frames.";
-    for (auto& lines : lines_per_child) {
-      if (lines > LineNumberDelta(0)) {
-        static const LineNumberDelta kFrameLines(1);
-        lines += kFrameLines;
-      }
-    }
-  }
-
   LineNumberDelta lines_given = std::accumulate(
       lines_per_child.begin(), lines_per_child.end(), LineNumberDelta(0));
 
