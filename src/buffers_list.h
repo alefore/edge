@@ -27,6 +27,8 @@ class BuffersList : public Widget {
   void ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer);
   void ShowContext();
 
+  std::shared_ptr<OpenBuffer> active_buffer() const;
+
   // See comments on `filter_`.
   void set_filter(std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter);
 

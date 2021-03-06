@@ -540,8 +540,7 @@ void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
 }
 
 void EditorState::CheckPosition() {
-  auto buffer = buffer_tree_.GetActiveLeaf()->Lock();
-  if (buffer != nullptr) {
+  if (auto buffer = buffer_tree_.active_buffer(); buffer != nullptr) {
     buffer->CheckPosition();
   }
 }
@@ -615,12 +614,10 @@ bool EditorState::has_current_buffer() const {
   return current_buffer() != nullptr;
 }
 shared_ptr<OpenBuffer> EditorState::current_buffer() {
-  auto leaf = buffer_tree_.GetActiveLeaf();
-  CHECK(leaf != nullptr);
-  return leaf->Lock();
+  return buffer_tree_.active_buffer();
 }
 const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
-  return buffer_tree_.GetActiveLeaf()->Lock();
+  return buffer_tree_.active_buffer();
 }
 
 std::vector<std::shared_ptr<OpenBuffer>> EditorState::active_buffers() const {

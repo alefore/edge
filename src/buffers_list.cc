@@ -360,7 +360,7 @@ std::optional<size_t> BuffersList::GetBufferIndex(
 }
 
 size_t BuffersList::GetCurrentIndex() {
-  auto buffer = GetActiveLeaf()->Lock();
+  auto buffer = active_buffer();
   if (buffer == nullptr) {
     return 0;
   }
@@ -531,7 +531,7 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
     }
     rows.push_back({std::make_unique<BuffersListProducer>(BuffersListOptions{
                         .buffers = &buffers_,
-                        .active_buffer = widget_->GetActiveLeaf()->Lock(),
+                        .active_buffer = active_buffer(),
                         .active_buffers = std::move(active_buffers),
                         .buffers_per_line = layout.buffers_per_line,
                         .width = options.size.column,
@@ -570,4 +570,9 @@ void BuffersList::ShowContext() {
       editor_state_, std::move(buffers), index_active);
 }
 
+std::shared_ptr<OpenBuffer> BuffersList::active_buffer() const {
+  auto leaf = GetActiveLeaf();
+  CHECK(leaf != nullptr);
+  return leaf->Lock();
+}
 }  // namespace afc::editor

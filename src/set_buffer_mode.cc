@@ -414,14 +414,13 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
     editor->ResetRepetitions();
     return nullptr;
   }
-  auto initial_buffer = editor->buffer_tree()->GetActiveLeaf()->Lock();
   CommandArgumentMode<Data>::Options options{
       .editor_state = editor,
       .initial_value = std::move(initial_value),
       .char_consumer = &CharConsumer,
       .status_factory = &BuildStatus,
       .undo =
-          [editor, initial_buffer]() {
+          [editor, initial_buffer = editor->buffer_tree()->active_buffer()]() {
             editor->set_current_buffer(initial_buffer,
                                        CommandArgumentModeApplyMode::kFinal);
             editor->buffer_tree()->set_filter(std::nullopt);
