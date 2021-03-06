@@ -23,8 +23,6 @@ class WidgetList : public SelectingWidget {
   // Returns the currently selected index. An invariant is that it will be
   // smaller than count.
   size_t index() const override;
-  void set_index(size_t new_index) override;
-  void AddChild(std::unique_ptr<Widget> widget) override;
 
  protected:
   WidgetList(const EditorState* editor, std::unique_ptr<Widget> children);

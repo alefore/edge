@@ -41,16 +41,6 @@ size_t WidgetList::count() const { return children_.size(); }
 
 size_t WidgetList::index() const { return active_; }
 
-void WidgetList::set_index(size_t position) {
-  CHECK(!children_.empty());
-  active_ = position % children_.size();
-}
-
-void WidgetList::AddChild(std::unique_ptr<Widget> widget) {
-  children_.push_back(std::move(widget));
-  set_index(children_.size() - 1);
-}
-
 WidgetList::WidgetList(const EditorState* editor,
                        std::vector<std::unique_ptr<Widget>> children,
                        size_t active)

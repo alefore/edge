@@ -44,8 +44,6 @@ class SelectingWidget : public Widget {
   // Returns the currently selected index. An invariant is that it will be
   // smaller than count.
   virtual size_t index() const = 0;
-  virtual void set_index(size_t new_index) = 0;
-  virtual void AddChild(std::unique_ptr<Widget> widget) = 0;
 };
 
 std::ostream& operator<<(std::ostream& os, const Widget& lc);
