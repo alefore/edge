@@ -35,14 +35,6 @@ class Widget {
   virtual LineNumberDelta MinimumLines() const = 0;
 };
 
-// A widget that contains one or more children.
-class SelectingWidget : public Widget {
- public:
-  // Returns the currently selected index. An invariant is that it will be
-  // smaller than count.
-  virtual size_t index() const = 0;
-};
-
 std::ostream& operator<<(std::ostream& os, const Widget& lc);
 
 }  // namespace editor

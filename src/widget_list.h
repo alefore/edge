@@ -14,14 +14,10 @@ namespace editor {
 
 class EditorState;
 
-class WidgetList : public SelectingWidget {
+class WidgetList : public Widget {
  public:
   BufferWidget* GetActiveLeaf() override;
   const BufferWidget* GetActiveLeaf() const;
-
-  // Returns the currently selected index. An invariant is that it will be
-  // smaller than count.
-  size_t index() const override;
 
  protected:
   WidgetList(const EditorState* editor, std::unique_ptr<Widget> children);

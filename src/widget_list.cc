@@ -37,8 +37,6 @@ const BufferWidget* WidgetList::GetActiveLeaf() const {
   return children_[active_]->GetActiveLeaf();
 }
 
-size_t WidgetList::index() const { return active_; }
-
 WidgetList::WidgetList(const EditorState* editor,
                        std::vector<std::unique_ptr<Widget>> children,
                        size_t active)
