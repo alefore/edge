@@ -171,6 +171,7 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
     return nullptr;
   }
 
+  // TODO(easy): Fold the two expressions.
   Widget* child = children_[index].get();
   return child->CreateOutputProducer(options);
 }
@@ -178,8 +179,15 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
 LineNumberDelta WidgetListHorizontal::MinimumLines() const {
   LineNumberDelta count;
   for (auto& child : children_) {
-    static const LineNumberDelta kFrameLines = LineNumberDelta(1);
-    count += child->MinimumLines() + kFrameLines;
+    count += child->MinimumLines();
+  }
+  return count;
+}
+
+LineNumberDelta WidgetListHorizontal::DesiredLines() const {
+  LineNumberDelta count;
+  for (auto& child : children_) {
+    count += child->DesiredLines();
   }
   return count;
 }
@@ -232,6 +240,15 @@ LineNumberDelta WidgetListVertical::MinimumLines() const {
   LineNumberDelta output = children_[0]->MinimumLines();
   for (auto& child : children_) {
     output = max(child->MinimumLines(), output);
+  }
+  static const LineNumberDelta kFrameLines = LineNumberDelta(1);
+  return output + kFrameLines;
+}
+
+LineNumberDelta WidgetListVertical::DesiredLines() const {
+  LineNumberDelta output = children_[0]->DesiredLines();
+  for (auto& child : children_) {
+    output = max(child->DesiredLines(), output);
   }
   static const LineNumberDelta kFrameLines = LineNumberDelta(1);
   return output + kFrameLines;

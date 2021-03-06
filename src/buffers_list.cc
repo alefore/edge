@@ -535,7 +535,13 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);
 }
 
-LineNumberDelta BuffersList::MinimumLines() const { return LineNumberDelta(0); }
+LineNumberDelta BuffersList::MinimumLines() const {
+  return widget_->MinimumLines();
+}
+
+LineNumberDelta BuffersList::DesiredLines() const {
+  return widget_->DesiredLines();
+}
 
 void BuffersList::ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer) {
   if (buffer != nullptr) {

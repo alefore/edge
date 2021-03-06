@@ -39,6 +39,7 @@ class WidgetListHorizontal : public WidgetList {
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;
+  LineNumberDelta DesiredLines() const override;
 
  private:
   // Will return nullptr when the child should be skipped.
@@ -59,6 +60,7 @@ class WidgetListVertical : public WidgetList {
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;
+  LineNumberDelta DesiredLines() const override;
 
  private:
   std::vector<ColumnNumberDelta> columns_per_child_;

@@ -40,6 +40,7 @@ class BuffersList : public Widget {
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;
+  LineNumberDelta DesiredLines() const override;
 
  private:
   const EditorState* const editor_state_;

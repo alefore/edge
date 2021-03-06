@@ -27,6 +27,7 @@ class Widget {
       OutputProducerOptions options) const = 0;
 
   virtual LineNumberDelta MinimumLines() const = 0;
+  virtual LineNumberDelta DesiredLines() const = 0;
 };
 
 // std::ostream& operator<<(std::ostream& os, const Widget& lc);

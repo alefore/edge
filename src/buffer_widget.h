@@ -46,6 +46,7 @@ class BufferWidget : public Widget {
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;
+  LineNumberDelta DesiredLines() const override;
 
   LineColumn view_start() const;
 

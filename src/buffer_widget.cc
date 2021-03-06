@@ -478,6 +478,15 @@ LineNumberDelta BufferWidget::MinimumLines() const {
                                buffer_variables::buffer_list_context_lines))));
 }
 
+LineNumberDelta BufferWidget::DesiredLines() const {
+  auto buffer = Lock();
+  return buffer == nullptr
+             ? LineNumberDelta(0)
+             : (options_.position_in_parent.has_value() ? kFrameLines
+                                                        : LineNumberDelta(0)) +
+                   buffer->lines_size();
+}
+
 LineColumn BufferWidget::view_start() const {
   auto buffer = Lock();
   return buffer == nullptr ? LineColumn()
