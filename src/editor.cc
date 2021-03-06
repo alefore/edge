@@ -566,9 +566,7 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
 void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
                                      CommandArgumentModeApplyMode apply_mode) {
   buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
-  if (!Read(editor_variables::focus)) {
-    AdjustWidgets();
-  }
+  AdjustWidgets();
   if (buffer != nullptr) {
     if (apply_mode == CommandArgumentModeApplyMode::kFinal) {
       buffer->Visit();
