@@ -76,6 +76,9 @@ class Line {
     // over past an entry.
     std::map<ColumnNumber, LineModifierSet> modifiers;
 
+    // The semantics of this is that any characters at the end of the line
+    // (i.e., the space that represents the end of the line) should be rendered
+    // using these modifiers.
     LineModifierSet end_of_line_modifiers;
 
    private:

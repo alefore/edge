@@ -12,6 +12,7 @@
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_functional.h"
 #include "src/substring.h"
+#include "src/tests/tests.h"
 #include "src/tracker.h"
 #include "src/wstring.h"
 
@@ -21,6 +22,37 @@ namespace editor {
 using std::hash;
 using std::unordered_set;
 using std::wstring;
+
+namespace {
+const bool line_tests_registration = tests::Register(
+    L"LineTests",
+    {{.name = L"ConstructionOfEmptySetsEndOfLine",
+      .callback =
+          [] {
+            Line::Options options;
+            options.end_of_line_modifiers.insert(LineModifier::RED);
+            Line line(std::move(options));
+            CHECK(line.end_of_line_modifiers().find(LineModifier::RED) !=
+                  line.end_of_line_modifiers().end());
+          }},
+     {.name = L"CopyOfEmptyPreservesEndOfLine",
+      .callback =
+          [] {
+            Line::Options options;
+            options.end_of_line_modifiers.insert(LineModifier::RED);
+            Line initial_line(std::move(options));
+            Line final_line(std::move(initial_line));
+            CHECK(final_line.end_of_line_modifiers().find(LineModifier::RED) !=
+                  final_line.end_of_line_modifiers().end());
+          }},
+     {.name = L"EndOfLineModifiersChangesHash", .callback = [] {
+        Line::Options options;
+        auto initial_hash = Line(options).GetHash();
+        options.end_of_line_modifiers.insert(LineModifier::RED);
+        auto final_hash = Line(options).GetHash();
+        CHECK(initial_hash != final_hash);
+      }}});
+}
 
 Line::Options::Options(Line line)
     : contents(std::move(line.contents())),
@@ -86,7 +118,6 @@ void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(modifier.find(LineModifier::RESET) == modifier.end());
   modifiers[ColumnNumber(0) + contents->size()] = modifier;
-  end_of_line_modifiers = std::move(modifier);
   contents = StringAppend(std::move(contents), NewLazyString(wstring(1, c)));
   ValidateInvariants();
 }
@@ -100,12 +131,12 @@ void Line::Options::AppendString(
     std::optional<LineModifierSet> suffix_modifiers) {
   ValidateInvariants();
   Line::Options suffix_line;
+  // TODO(easy): Avoid this assignment; just pass suffix to the constructor.
   suffix_line.contents = std::move(suffix);
   if (suffix_modifiers.has_value()) {
     if (suffix_line.contents->size() > ColumnNumberDelta(0)) {
       suffix_line.modifiers[ColumnNumber(0)] = suffix_modifiers.value();
     }
-    suffix_line.end_of_line_modifiers = suffix_modifiers.value();
   }
   Append(Line(std::move(suffix_line)));
   ValidateInvariants();
@@ -118,29 +149,28 @@ void Line::Options::AppendString(std::wstring suffix,
 
 void Line::Options::Append(Line line) {
   ValidateInvariants();
+  end_of_line_modifiers = std::move(line.end_of_line_modifiers());
   if (line.empty()) return;
   auto original_length = EndColumn().ToDelta();
   contents = StringAppend(std::move(contents), std::move(line.contents()));
 
-  LineModifierSet current_modifiers;
-  if (!modifiers.empty()) {
-    current_modifiers = std::move(end_of_line_modifiers);
+  auto initial_modifier =
+      line.modifiers().empty() ||
+              line.modifiers().begin()->first != ColumnNumber(0)
+          ? LineModifierSet{}
+          : line.modifiers().begin()->second;
+  auto final_modifier =
+      modifiers.empty() ? LineModifierSet{} : modifiers.rbegin()->second;
+  if (initial_modifier != final_modifier) {
+    modifiers[ColumnNumber() + original_length] = initial_modifier;
   }
-
-  if (!current_modifiers.empty() &&
-      line.modifiers().find(ColumnNumber(0)) == line.modifiers().end()) {
-    modifiers[ColumnNumber(0) + original_length] = {};  // Reset.
-    current_modifiers.clear();
-  }
-
-  for (auto& m : line.modifiers()) {
-    if (m.second != current_modifiers) {
-      current_modifiers = m.second;
-      modifiers[m.first + original_length] = std::move(m.second);
+  for (auto& [position, new_modifiers] : line.modifiers()) {
+    if ((modifiers.empty() ? LineModifierSet{} : modifiers.rbegin()->second) !=
+        new_modifiers) {
+      modifiers[position + original_length] = std::move(new_modifiers);
     }
   }
 
-  end_of_line_modifiers = std::move(line.end_of_line_modifiers());
   ValidateInvariants();
 }
 
@@ -257,8 +287,9 @@ void Line::Append(const Line& line) {
   hash_ = std::nullopt;
   auto original_length = EndColumnWithLock().ToDelta();
   options_.contents = StringAppend(options_.contents, line.options_.contents);
-  for (auto& m : line.options_.modifiers) {
-    options_.modifiers[m.first + original_length] = m.second;
+  options_.modifiers[ColumnNumber() + original_length] = LineModifierSet{};
+  for (auto& [position, modifiers] : line.options_.modifiers) {
+    options_.modifiers[position + original_length] = modifiers;
   }
   options_.end_of_line_modifiers = line.options_.end_of_line_modifiers;
   ValidateInvariants();
@@ -348,6 +379,7 @@ OutputProducer::LineWithCursor Line::Output(
         output_column += ColumnNumberDelta(wcwidth(c));
     }
   }
+
   line_output.end_of_line_modifiers =
       input_column == EndColumnWithLock()
           ? options_.end_of_line_modifiers
@@ -370,6 +402,8 @@ size_t Line::GetHash() const {
     value = hash_combine(value, std::hash<ColumnNumber>{}(modifiers.first),
                          std::hash<LineModifierSet>{}(modifiers.second));
   }
+  value = hash_combine(
+      value, std::hash<LineModifierSet>{}(options_.end_of_line_modifiers));
   ForEachColumn(*options_.contents, [&](ColumnNumber, wchar_t c) {
     value = hash_combine(value, c);
   });
