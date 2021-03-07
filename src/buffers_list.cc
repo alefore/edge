@@ -73,7 +73,7 @@ std::optional<std::unordered_set<OpenBuffer*>> OptimizeFilter(
 }
 
 struct BuffersListOptions {
-  const std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers;
+  const std::vector<std::shared_ptr<OpenBuffer>>* buffers;
   std::shared_ptr<OpenBuffer> active_buffer;
   std::set<OpenBuffer*> active_buffers;
   size_t buffers_per_line;
@@ -154,7 +154,7 @@ class BuffersListProducer : public OutputProducer {
           for (size_t i = 0; i < options_.buffers_per_line &&
                              index + i < options_.buffers->size();
                i++) {
-            auto buffer = buffers_iterator_->second.get();
+            auto buffer = buffers_iterator_->get();
             ++buffers_iterator_;
             auto number_prefix = std::to_wstring(index + i + 1);
             ColumnNumber start =
@@ -300,8 +300,7 @@ class BuffersListProducer : public OutputProducer {
   const ColumnNumberDelta prefix_width_;
   const ColumnNumberDelta columns_per_buffer_;
 
-  std::map<wstring, std::shared_ptr<OpenBuffer>>::const_iterator
-      buffers_iterator_;
+  std::vector<std::shared_ptr<OpenBuffer>>::const_iterator buffers_iterator_;
   size_t index_ = 0;
 };
 }  // namespace
@@ -316,13 +315,21 @@ void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
   CHECK(buffer != nullptr);
   switch (add_buffer_type) {
     case AddBufferType::kVisit:
-      buffers_[buffer->Read(buffer_variables::name)] = buffer;
+      if (std::find(buffers_.begin(), buffers_.end(), buffer) ==
+          buffers_.end()) {
+        buffers_.push_back(buffer);
+      }
       active_buffer_widget_->SetBuffer(buffer);
       buffer->Visit();
+      RecomputeBuffersAndWidget();
       break;
 
     case AddBufferType::kOnlyList:
-      buffers_[buffer->Read(buffer_variables::name)] = buffer;
+      if (std::find(buffers_.begin(), buffers_.end(), buffer) ==
+          buffers_.end()) {
+        buffers_.push_back(buffer);
+      }
+      RecomputeBuffersAndWidget();
       break;
 
     case AddBufferType::kIgnore:
@@ -331,33 +338,33 @@ void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
 }
 
 std::vector<std::shared_ptr<OpenBuffer>> BuffersList::GetAllBuffers() const {
-  std::vector<std::shared_ptr<OpenBuffer>> output;
-  output.reserve(buffers_.size());
-  for (const auto& it : buffers_) {
-    output.push_back(it.second);
-  }
-  return output;
+  return buffers_;
 }
 
 void BuffersList::RemoveBuffer(OpenBuffer* buffer) {
   CHECK(buffer != nullptr);
-  buffers_.erase(buffer->Read(buffer_variables::name));
-  // TODO: Figure out wtf we need a call to std::shared_ptr<>::get() below.
-  if (active_buffer_widget_->Lock().get() == buffer) {
-    active_buffer_widget_->SetBuffer(std::shared_ptr<OpenBuffer>());
+  if (auto it = std::find_if(buffers_.begin(), buffers_.end(),
+                             [buffer](std::shared_ptr<OpenBuffer>& candidate) {
+                               return candidate.get() == buffer;
+                             });
+      it != buffers_.end()) {
+    buffers_.erase(it);
   }
+  RecomputeBuffersAndWidget();
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::GetBuffer(size_t index) {
   CHECK_LT(index, buffers_.size());
-  auto it = buffers_.begin();
-  std::advance(it, index);
-  return it->second;
+  return buffers_[index];
 }
 
 std::optional<size_t> BuffersList::GetBufferIndex(
     const OpenBuffer* buffer) const {
-  auto it = buffers_.find(buffer->Read(buffer_variables::name));
+  auto it =
+      std::find_if(buffers_.begin(), buffers_.end(),
+                   [buffer](const std::shared_ptr<OpenBuffer>& candidate) {
+                     return candidate.get() == buffer;
+                   });
   return it == buffers_.end() ? std::optional<size_t>()
                               : std::distance(buffers_.begin(), it);
 }
@@ -367,11 +374,7 @@ size_t BuffersList::GetCurrentIndex() {
   if (buffer == nullptr) {
     return 0;
   }
-  auto it = buffers_.find(buffer->Read(buffer_variables::name));
-  if (it == buffers_.end()) {
-    return 0;
-  }
-  return std::distance(buffers_.begin(), it);
+  return GetBufferIndex(buffer.get()).value();
 }
 
 size_t BuffersList::BuffersCount() const { return buffers_.size(); }
@@ -545,43 +548,60 @@ LineNumberDelta BuffersList::DesiredLines() const {
 
 void BuffersList::ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer) {
   if (buffer != nullptr) {
-    widget_ = std::make_unique<BufferWidget>(
-        BufferWidget::Options{.buffer = std::move(buffer), .is_active = true});
+    buffer_ = std::move(buffer);
+    RecomputeBuffersAndWidget();
   }
 }
 
 void BuffersList::ShowContext() {
-  std::vector<std::unique_ptr<Widget>> buffers;
-  buffers.reserve(BuffersCount());
-  size_t index_active = 0;
-  for (size_t index = 0; index < BuffersCount(); index++) {
-    if (auto buffer = GetBuffer(index);
-        buffer != nullptr &&
-        buffer->Read(buffer_variables::show_in_buffers_list)) {
-      bool is_active = editor_state_->Read(editor_variables::multiple_buffers);
-      if (buffer == active_buffer_widget_->Lock()) {
-        index_active = buffers.size();
-        is_active = true;
-      }
-      buffers.push_back(std::make_unique<BufferWidget>(BufferWidget::Options{
-          .buffer = buffer,
-          .is_active = is_active,
-          .position_in_parent =
-              (BuffersCount() > 1 ? buffers.size()
-                                  : std::optional<size_t>())}));
-    }
-  }
-  if (buffers.empty()) {
-    return;
-  }
-  active_buffer_widget_ =
-      static_cast<BufferWidget*>(buffers[index_active].get());
-  widget_ = std::make_unique<WidgetListHorizontal>(
-      editor_state_, std::move(buffers), index_active);
+  buffer_ = nullptr;
+  RecomputeBuffersAndWidget();
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::active_buffer() const {
   CHECK(active_buffer_widget_);
   return active_buffer_widget_->Lock();
+}
+
+void BuffersList::RecomputeBuffersAndWidget() {
+  std::sort(buffers_.begin(), buffers_.end(),
+            [](const std::shared_ptr<OpenBuffer>& a,
+               const std::shared_ptr<OpenBuffer>& b) {
+              return a->last_visit() > b->last_visit();
+            });
+
+  if (buffer_ != nullptr) {
+    widget_ = std::make_unique<BufferWidget>(
+        BufferWidget::Options{.buffer = buffer_, .is_active = true});
+  } else {
+    std::vector<std::unique_ptr<Widget>> buffers;
+    buffers.reserve(BuffersCount());
+    size_t index_active = 0;
+    for (size_t index = 0; index < BuffersCount(); index++) {
+      if (auto buffer = GetBuffer(index);
+          buffer != nullptr &&
+          buffer->Read(buffer_variables::show_in_buffers_list)) {
+        bool is_active =
+            editor_state_->Read(editor_variables::multiple_buffers);
+        if (buffer == active_buffer_widget_->Lock()) {
+          index_active = buffers.size();
+          is_active = true;
+        }
+        buffers.push_back(std::make_unique<BufferWidget>(BufferWidget::Options{
+            .buffer = buffer,
+            .is_active = is_active,
+            .position_in_parent =
+                (BuffersCount() > 1 ? buffers.size()
+                                    : std::optional<size_t>())}));
+      }
+    }
+    if (buffers.empty()) {
+      return;
+    }
+    active_buffer_widget_ =
+        static_cast<BufferWidget*>(buffers[index_active].get());
+    widget_ = std::make_unique<WidgetListHorizontal>(
+        editor_state_, std::move(buffers), index_active);
+  }
 }
 }  // namespace afc::editor

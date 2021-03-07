@@ -565,8 +565,6 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
 
 void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
                                      CommandArgumentModeApplyMode apply_mode) {
-  buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
-  AdjustWidgets();
   if (buffer != nullptr) {
     if (apply_mode == CommandArgumentModeApplyMode::kFinal) {
       buffer->Visit();
@@ -574,6 +572,8 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
       buffer->Enter();
     }
   }
+  buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
+  AdjustWidgets();
 }
 
 void EditorState::SetHorizontalSplitsWithAllBuffers() {

@@ -43,8 +43,10 @@ class BuffersList : public Widget {
   LineNumberDelta DesiredLines() const override;
 
  private:
+  void RecomputeBuffersAndWidget();
+
   const EditorState* const editor_state_;
-  std::map<wstring, std::shared_ptr<OpenBuffer>> buffers_;
+  std::vector<std::shared_ptr<OpenBuffer>> buffers_;
   // Contains the whole hierarchy of widgets.
   std::unique_ptr<Widget> widget_;
   // Points to the BufferWidget that corresponds to the active buffer.
@@ -52,6 +54,10 @@ class BuffersList : public Widget {
 
   // If it has a value, buffers not included will be dimmed (disabled).
   std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter_;
+
+  // If non-null, will zoom to this buffer. Otherwise, will show context of all
+  // buffers.
+  std::shared_ptr<OpenBuffer> buffer_;
 };
 
 }  // namespace afc::editor
