@@ -179,7 +179,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   }
 
   std::optional<ColumnNumber> active_cursor_column;
-  auto line_contents = buffer_->LineAt(line);
+  std::shared_ptr<const Line> line_contents = buffer_->LineAt(line);
 
   Generator output;
 
