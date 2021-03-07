@@ -47,6 +47,7 @@ void TestBufferInsertModifiers() {
     CHECK_EQ(contents.size(), LineNumberDelta(5));
 
     {
+      // Check line 1: 0:CYAN
       auto modifiers_1 = contents.at(LineNumber(1))->modifiers();
       CHECK_EQ(modifiers_1.size(), 1ul);
       CHECK(modifiers_1.find(ColumnNumber(0))->second ==
@@ -54,6 +55,7 @@ void TestBufferInsertModifiers() {
     }
 
     {
+      // Check line 2: 0:CYAN
       auto modifiers_2 = contents.at(LineNumber(2))->modifiers();
       CHECK_EQ(modifiers_2.size(), 1ul);
       CHECK(modifiers_2.find(ColumnNumber(0))->second ==
@@ -61,6 +63,7 @@ void TestBufferInsertModifiers() {
     }
 
     {
+      // Check line 3: 0:CYAN, 2:BOLD
       auto modifiers_3 = contents.at(LineNumber(3))->modifiers();
       CHECK_EQ(modifiers_3.size(), 2ul);
       CHECK(modifiers_3.find(ColumnNumber(0))->second ==
@@ -70,18 +73,49 @@ void TestBufferInsertModifiers() {
     }
 
     {
+      // Check line 4: 0:DIM
       auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
       CHECK_EQ(modifiers_4.size(), 1ul);
       CHECK(modifiers_4.find(ColumnNumber(0))->second ==
             LineModifierSet({LineModifier::DIM}));
     }
 
+    // Contents:
+    //
+    // alejo 0:C
+    // alejo 0:C
+    // alejo 0:C 2:B
+    // alejo 0:D
     contents.SplitLine(LineColumn(LineNumber(1), ColumnNumber(2)));
+
+    // Contents:
+    //
+    // al 0:C
+    // ejo 0:C
+    // alejo 0:C
+    // alejo 0:C 2:B
+    // alejo 0:D
     CHECK_EQ(contents.size(), LineNumberDelta(6));
     contents.FoldNextLine(LineNumber(1));
+
+    // Contents:
+    //
+    // alejo 0:C
+    // alejo 0:C
+    // alejo 0:C 2:B
+    // alejo 0:D
+
     CHECK_EQ(contents.size(), LineNumberDelta(5));
 
     contents.SplitLine(LineColumn(LineNumber(4), ColumnNumber(2)));
+    // Contents:
+    //
+    // alejo 0:C
+    // alejo 0:C
+    // alejo 0:C 2:B
+    // al 0:D
+    // ejo 0:D
+
     CHECK_EQ(contents.size(), LineNumberDelta(6));
     {
       auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
@@ -89,6 +123,13 @@ void TestBufferInsertModifiers() {
     }
 
     contents.FoldNextLine(LineNumber(4));
+    // Contents:
+    //
+    // alejo 0:C
+    // alejo 0:C
+    // alejo 0:C 2:B
+    // alejo 0:D
+
     CHECK_EQ(contents.size(), LineNumberDelta(5));
     {
       auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
