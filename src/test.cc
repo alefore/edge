@@ -670,8 +670,11 @@ int main(int, char** argv) {
 
   testing::BufferContentsTests();
   testing::LineTests();
+  LOG(INFO) << "Basic tests";
   TestCases();
+  LOG(INFO) << "TreeTestsLong";
   TreeTestsLong();
+  LOG(INFO) << "TreeTestsBasic";
   TreeTestsBasic();
 
   std::cout << "Pass!\n";
