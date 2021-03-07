@@ -1,5 +1,7 @@
 ## Display
 
+On the scroll bar, show positions that have cursors (+ the active cursor).
+
 Consider using unicode watches to display duration, using exponential/logarithmic growth.
 
 Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
