@@ -26,7 +26,8 @@
 
 namespace afc::editor {
 namespace {
-static const auto kFrameLines = LineNumberDelta(1);
+static const auto kTopFrameLines = LineNumberDelta(1);
+static const auto kStatusFrameLines = LineNumberDelta(1);
 
 std::unique_ptr<OutputProducer> ProducerForString(std::wstring src,
                                                   LineModifierSet modifiers) {
@@ -404,7 +405,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
   if (options_.position_in_parent.has_value()) {
     input.output_producer_options.size.line =
         max(LineNumberDelta(),
-            input.output_producer_options.size.line - kFrameLines);
+            input.output_producer_options.size.line - kTopFrameLines);
   }
   auto output = CreateBufferOutputProducer(std::move(input));
   // We avoid updating the desired view_start while the buffer is still being
@@ -439,7 +440,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
     }
 
     frame_options.prefix =
-        (options.size.line > kFrameLines && add_left_frame) ? L"╭" : L"─";
+        (options.size.line > kTopFrameLines && add_left_frame) ? L"╭" : L"─";
 
     nested_rows.push_back(
         {std::make_unique<FrameOutputProducer>(std::move(frame_options)),
@@ -470,21 +471,22 @@ LineNumberDelta BufferWidget::MinimumLines() const {
   auto buffer = Lock();
   return buffer == nullptr
              ? LineNumberDelta(0)
-             : (options_.position_in_parent.has_value() ? kFrameLines
+             : (options_.position_in_parent.has_value() ? kTopFrameLines
                                                         : LineNumberDelta(0)) +
                    max(LineNumberDelta(0),
                        min(buffer->lines_size(),
                            LineNumberDelta(buffer->Read(
-                               buffer_variables::buffer_list_context_lines))));
+                               buffer_variables::buffer_list_context_lines)))) +
+                   kStatusFrameLines;
 }
 
 LineNumberDelta BufferWidget::DesiredLines() const {
   auto buffer = Lock();
   return buffer == nullptr
              ? LineNumberDelta(0)
-             : (options_.position_in_parent.has_value() ? kFrameLines
+             : (options_.position_in_parent.has_value() ? kTopFrameLines
                                                         : LineNumberDelta(0)) +
-                   buffer->lines_size();
+                   buffer->lines_size() + kStatusFrameLines;
 }
 
 LineColumn BufferWidget::view_start() const {
