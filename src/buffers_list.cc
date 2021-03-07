@@ -501,7 +501,7 @@ const bool buffers_per_line_tests_registration = tests::Register(
 }  // namespace
 
 std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
-    OutputProducerOptions options) const {
+    Widget::OutputProducerOptions options) const {
   auto layout = BuffersPerLine(options.size.line / 2, options.size.column,
                                buffers_.size());
   VLOG(1) << "Buffers list lines: " << layout.lines
@@ -536,14 +536,6 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
   }
 
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);
-}
-
-LineNumberDelta BuffersList::MinimumLines() const {
-  return widget_->MinimumLines();
-}
-
-LineNumberDelta BuffersList::DesiredLines() const {
-  return widget_->DesiredLines();
 }
 
 void BuffersList::ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer) {

@@ -12,7 +12,7 @@ namespace afc::editor {
 
 // Divides the screen vertically into two sections: at the top, displays a given
 // widget. At the bottom, displays a numbered list of buffers.
-class BuffersList : public Widget {
+class BuffersList {
  public:
   BuffersList(const EditorState* editor_state);
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
@@ -32,15 +32,11 @@ class BuffersList : public Widget {
   // See comments on `filter_`.
   void set_filter(std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter);
 
-  // Overrides from Widget
   BufferWidget* GetActiveLeaf();
   const BufferWidget* GetActiveLeaf() const;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer(
-      OutputProducerOptions options) const override;
-
-  LineNumberDelta MinimumLines() const override;
-  LineNumberDelta DesiredLines() const override;
+      Widget::OutputProducerOptions options) const;
 
  private:
   void RecomputeBuffersAndWidget();
