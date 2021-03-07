@@ -67,7 +67,7 @@ void BufferContents::insert(LineNumber position_line,
     if (modifiers.has_value()) {
       auto replacement = std::make_shared<Line>(*line);
       replacement->SetAllModifiers(modifiers.value());
-      line = replacement;
+      line = std::move(replacement);
     }
     prefix = Lines::PushBack(prefix, line);
     return true;
