@@ -38,6 +38,9 @@ class BuffersList {
   std::unique_ptr<OutputProducer> CreateOutputProducer(
       Widget::OutputProducerOptions options) const;
 
+  enum class BufferSortOrder { kAlphabetic, kLastVisit };
+  void SetBufferSortOrder(BufferSortOrder buffer_sort_order);
+
  private:
   void RecomputeBuffersAndWidget();
 
@@ -54,6 +57,8 @@ class BuffersList {
   // If non-null, will zoom to this buffer. Otherwise, will show context of all
   // buffers.
   std::shared_ptr<OpenBuffer> buffer_;
+
+  BufferSortOrder buffer_sort_order_ = BufferSortOrder::kLastVisit;
 };
 
 }  // namespace afc::editor

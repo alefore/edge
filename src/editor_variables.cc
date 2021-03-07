@@ -2,6 +2,19 @@
 
 namespace afc::editor::editor_variables {
 
+EdgeStruct<wstring>* StringStruct() {
+  static EdgeStruct<wstring>* output = new EdgeStruct<wstring>();
+  return output;
+}
+
+EdgeVariable<wstring>* const buffer_sort_order =
+    StringStruct()
+        ->Add()
+        .Name(L"buffer_sort_order")
+        .Description(L"Set the sort order for the buffers.")
+        .DefaultValue(L"last_visit")
+        .Build();
+
 EdgeStruct<bool>* BoolStruct() {
   static EdgeStruct<bool>* output = new EdgeStruct<bool>();
   return output;

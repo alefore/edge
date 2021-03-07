@@ -168,8 +168,13 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   auto editor_type = std::make_unique<ObjectType>(L"Editor");
 
   // Methods for Editor.
-  RegisterVariableFields(editor_variables::BoolStruct(), editor_type.get(),
-                         &EditorState::Read, &EditorState::Set);
+  RegisterVariableFields<EdgeStruct<bool>, bool>(
+      editor_variables::BoolStruct(), editor_type.get(), &EditorState::Read,
+      &EditorState::Set);
+
+  RegisterVariableFields<EdgeStruct<wstring>, wstring>(
+      editor_variables::StringStruct(), editor_type.get(), &EditorState::Read,
+      &EditorState::Set);
 
   editor_type->AddField(
       L"EnterSetBufferMode", vm::NewCallback([](EditorState* editor) {
@@ -468,6 +473,7 @@ std::pair<int, int> BuildPipe() {
 
 EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
     : bool_variables_(editor_variables::BoolStruct()->NewInstance()),
+      string_variables_(editor_variables::StringStruct()->NewInstance()),
       home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
         std::vector<Path> output;
@@ -539,6 +545,17 @@ void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
                     : !Read(variable));
 }
 
+const wstring& EditorState::Read(const EdgeVariable<wstring>* variable) const {
+  return string_variables_.Get(variable);
+}
+
+void EditorState::Set(const EdgeVariable<wstring>* variable, wstring value) {
+  string_variables_.Set(variable, value);
+  if (variable == editor_variables::buffer_sort_order) {
+    AdjustWidgets();
+  }
+}
+
 void EditorState::CheckPosition() {
   if (auto buffer = buffer_tree_.active_buffer(); buffer != nullptr) {
     buffer->CheckPosition();
@@ -576,10 +593,6 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
   AdjustWidgets();
 }
 
-void EditorState::SetHorizontalSplitsWithAllBuffers() {
-  buffer_tree_.ShowContext();
-}
-
 void EditorState::SetActiveBuffer(size_t position) {
   set_current_buffer(
       buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()),
@@ -601,11 +614,15 @@ void EditorState::AdvanceActiveBuffer(int delta) {
 void EditorState::ZoomToLeaf() { buffer_tree_.ZoomToBuffer(current_buffer()); }
 
 void EditorState::AdjustWidgets() {
+  buffer_tree_.SetBufferSortOrder(
+      Read(editor_variables::buffer_sort_order) == L"last_visit"
+          ? BuffersList::BufferSortOrder::kLastVisit
+          : BuffersList::BufferSortOrder::kAlphabetic);
   if (Read(editor_variables::focus)) {
     ZoomToLeaf();
-    return;
+  } else {
+    buffer_tree_.ShowContext();
   }
-  SetHorizontalSplitsWithAllBuffers();
 }
 
 bool EditorState::has_current_buffer() const {

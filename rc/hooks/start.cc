@@ -74,6 +74,13 @@ editor.AddBinding("al", "Frames: Move to the next buffer", []() -> void {
 });
 editor.AddBinding("ag", "Frames: Set the active buffer",
                   []() -> void { editor.EnterSetBufferMode(); });
+editor.AddBinding("aO", "Frames: Toggle the buffer sort order", []() -> void {
+  if (editor.buffer_sort_order() == "last_visit")
+    editor.set_buffer_sort_order("name");
+  else
+    editor.set_buffer_sort_order("last_visit");
+  editor.SetStatus("Sort order: " + editor.buffer_sort_order());
+});
 editor.AddBinding("G", "Frames: Set the active buffer",
                   []() -> void { editor.EnterSetBufferMode(); });
 

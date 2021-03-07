@@ -555,12 +555,21 @@ std::shared_ptr<OpenBuffer> BuffersList::active_buffer() const {
   return active_buffer_widget_->Lock();
 }
 
+void BuffersList::SetBufferSortOrder(BufferSortOrder buffer_sort_order) {
+  buffer_sort_order_ = buffer_sort_order;
+}
+
 void BuffersList::RecomputeBuffersAndWidget() {
   std::sort(buffers_.begin(), buffers_.end(),
-            [](const std::shared_ptr<OpenBuffer>& a,
-               const std::shared_ptr<OpenBuffer>& b) {
-              return a->last_visit() > b->last_visit();
-            });
+            (buffer_sort_order_ == BufferSortOrder::kLastVisit
+                 ? [](const std::shared_ptr<OpenBuffer>& a,
+                      const std::shared_ptr<OpenBuffer>&
+                          b) { return a->last_visit() > b->last_visit(); }
+                 : [](const std::shared_ptr<OpenBuffer>& a,
+                      const std::shared_ptr<OpenBuffer>& b) {
+                     return a->Read(buffer_variables::name) <
+                            b->Read(buffer_variables::name);
+                   }));
 
   if (buffer_ != nullptr) {
     widget_ = std::make_unique<BufferWidget>(

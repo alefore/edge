@@ -6,6 +6,9 @@
 
 namespace afc::editor::editor_variables {
 
+EdgeStruct<wstring>* StringStruct();
+extern EdgeVariable<wstring>* const buffer_sort_order;
+
 EdgeStruct<bool>* BoolStruct();
 extern EdgeVariable<bool>* const multiple_buffers;
 extern EdgeVariable<bool>* const focus;
