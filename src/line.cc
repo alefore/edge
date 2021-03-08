@@ -130,13 +130,10 @@ void Line::Options::AppendString(
     std::shared_ptr<LazyString> suffix,
     std::optional<LineModifierSet> suffix_modifiers) {
   ValidateInvariants();
-  Line::Options suffix_line;
-  // TODO(easy): Avoid this assignment; just pass suffix to the constructor.
-  suffix_line.contents = std::move(suffix);
-  if (suffix_modifiers.has_value()) {
-    if (suffix_line.contents->size() > ColumnNumberDelta(0)) {
-      suffix_line.modifiers[ColumnNumber(0)] = suffix_modifiers.value();
-    }
+  Line::Options suffix_line(std::move(suffix));
+  if (suffix_modifiers.has_value() &&
+      suffix_line.contents->size() > ColumnNumberDelta(0)) {
+    suffix_line.modifiers[ColumnNumber(0)] = suffix_modifiers.value();
   }
   Append(Line(std::move(suffix_line)));
   ValidateInvariants();
