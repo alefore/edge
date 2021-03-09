@@ -8,6 +8,8 @@
 namespace afc {
 namespace editor {
 
+// OutputProducer that prints the metadata that is usually shown right after the
+// contents of the buffer (at the right side).
 class BufferMetadataOutputProducer : public OutputProducer {
  public:
   BufferMetadataOutputProducer(
