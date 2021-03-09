@@ -183,7 +183,6 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
     auto source = buffer_->editor()->buffers()->find(mark.source);
     PushGenerator(
         '!', LineModifier::RED,
-
         (source != buffer_->editor()->buffers()->end() &&
          mark.source_line < LineNumber(0) + source->second->contents()->size())
             ? source->second->contents()->at(mark.source_line)->ToString()
@@ -210,7 +209,8 @@ wstring BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
   if (buffer_->Read(buffer_variables::scrollbar) &&
       buffer_->lines_size() > lines_shown_) {
     CHECK_GE(line, initial_line_.value());
-    output += ComputeScrollBarCharacter(line);
+    output += ComputeCursorsCharacter(line) +
+              std::wstring(1, ComputeScrollBarCharacter(line));
   }
   if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children().empty()) {
     output += DrawTree(line - initial_line_.value().ToDelta(), lines_shown_,
@@ -232,6 +232,56 @@ void BufferMetadataOutputProducer::PushGenerator(wchar_t info_char,
         options.AppendString(NewLazyString(str));
         return LineWithCursor{std::make_shared<Line>(options), std::nullopt};
       }});
+}
+
+// Assume that the screen is currently showing the screen_position lines out of
+// a buffer of size total_size. Map current_line to its associated range of
+// lines (for the purposes of the scroll bar). The columns are entirely ignored
+// by this function.
+Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
+                                   LineNumberDelta total_size) {
+  CHECK_GE(current_line, lines_shown.begin.line);
+  double buffer_lines_per_screen_line =
+      static_cast<double>(total_size.line_delta) /
+      (lines_shown.end.line - lines_shown.begin.line).line_delta;
+  Range output;
+  output.begin.line = LineNumber(
+      std::round(buffer_lines_per_screen_line *
+                 (current_line - lines_shown.begin.line).line_delta));
+  output.end.line = LineNumber(std::round(
+      buffer_lines_per_screen_line *
+      (current_line + LineNumberDelta(1) - lines_shown.begin.line).line_delta));
+  return output;
+}
+
+std::wstring BufferMetadataOutputProducer::ComputeCursorsCharacter(
+    LineNumber line) {
+  auto cursors = buffer_->active_cursors();
+  if (cursors->size() <= 1) {
+    return L"";
+  }
+  CHECK(initial_line_.has_value());
+  CHECK_GE(line, initial_line_.value());
+  auto range = MapScreenLineToContentsRange(
+      Range{
+          .begin = LineColumn(LineNumber(initial_line_.value())),
+          .end = LineColumn(LineNumber(initial_line_.value() + lines_shown_))},
+      line, buffer_->lines_size());
+  int count = 0;
+  auto cursors_end = cursors->lower_bound(range.end);
+  for (auto cursors_it = cursors->lower_bound(range.begin);
+       cursors_it != cursors_end; ++cursors_it) {
+    count++;
+    if (count == 10) return L"+";
+  }
+
+  switch (count) {
+    case 0:
+      return L" ";
+    case 1:
+      return range.Contains(*cursors->active()) ? L"*" : L"1";
+  }
+  return std::wstring(1, L'0' + count);
 }
 
 wchar_t BufferMetadataOutputProducer::ComputeScrollBarCharacter(

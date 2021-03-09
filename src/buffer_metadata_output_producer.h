@@ -25,6 +25,7 @@ class BufferMetadataOutputProducer : public OutputProducer {
   wstring GetDefaultInformation(LineNumber line);
   void PushGenerator(wchar_t info_char, LineModifier modifier, wstring str);
 
+  std::wstring ComputeCursorsCharacter(LineNumber line);
   wchar_t ComputeScrollBarCharacter(LineNumber line);
 
   const std::shared_ptr<OpenBuffer> buffer_;
