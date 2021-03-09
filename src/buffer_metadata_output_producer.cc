@@ -157,7 +157,7 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
   if (target_buffer != buffer_.get()) {
     if (buffers_shown_.insert(target_buffer).second) {
       PushGenerator(info_char, info_char_modifier,
-                    OpenBuffer::FlagsToString(target_buffer->Flags()));
+                    Line(OpenBuffer::FlagsToString(target_buffer->Flags())));
     }
   } else if (contents.modified()) {
     info_char_modifier = LineModifier::GREEN;
@@ -185,13 +185,13 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
         '!', LineModifier::RED,
         (source != buffer_->editor()->buffers()->end() &&
          mark.source_line < LineNumber(0) + source->second->contents()->size())
-            ? source->second->contents()->at(mark.source_line)->ToString()
-            : L"(dead mark)");
+            ? *source->second->contents()->at(mark.source_line)
+            : Line(L"(dead mark)"));
   }
 
   for (const auto& mark : marks_expired) {
     PushGenerator('!', LineModifier::RED,
-                  L"👻 " + mark.source_line_content->ToString());
+                  Line(L"👻 " + mark.source_line_content->ToString()));
   }
 
   if (range_data_.empty()) {
@@ -200,36 +200,39 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
   }
 }
 
-wstring BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
-  wstring output;
+Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
+  Line::Options options;
   auto parse_tree = buffer_->simplified_parse_tree();
   if (parse_tree != nullptr) {
-    output += DrawTree(line, buffer_->lines_size(), *parse_tree);
+    options.AppendString(DrawTree(line, buffer_->lines_size(), *parse_tree),
+                         std::nullopt);
   }
   if (buffer_->Read(buffer_variables::scrollbar) &&
       buffer_->lines_size() > lines_shown_) {
     CHECK_GE(line, initial_line_.value());
-    output += ComputeCursorsCharacter(line) +
-              std::wstring(1, ComputeScrollBarCharacter(line));
+    options.Append(ComputeCursorsSuffix(line));
+    options.AppendString(std::wstring(1, ComputeScrollBarCharacter(line)),
+                         std::nullopt);
   }
   if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children().empty()) {
-    output += DrawTree(line - initial_line_.value().ToDelta(), lines_shown_,
-                       *zoomed_out_tree_);
+    options.AppendString(DrawTree(line - initial_line_.value().ToDelta(),
+                                  lines_shown_, *zoomed_out_tree_),
+                         std::nullopt);
   }
-  return output;
+  return Line(std::move(options));
 }
 
 void BufferMetadataOutputProducer::PushGenerator(wchar_t info_char,
                                                  LineModifier modifier,
-                                                 wstring str) {
+                                                 Line suffix) {
   range_data_.push_back(Generator{
       hash_combine(
           hash_combine(hash_combine(0, info_char), static_cast<int>(modifier)),
-          std::hash<wstring>{}(str)),
-      [info_char, modifier, str]() {
+          suffix.GetHash()),
+      [info_char, modifier, suffix = std::move(suffix)]() {
         Line::Options options;
         options.AppendCharacter(info_char, {modifier});
-        options.AppendString(NewLazyString(str));
+        options.Append(suffix);
         return LineWithCursor{std::make_shared<Line>(options), std::nullopt};
       }});
 }
@@ -254,11 +257,10 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
   return output;
 }
 
-std::wstring BufferMetadataOutputProducer::ComputeCursorsCharacter(
-    LineNumber line) {
+Line BufferMetadataOutputProducer::ComputeCursorsSuffix(LineNumber line) {
   auto cursors = buffer_->active_cursors();
   if (cursors->size() <= 1) {
-    return L"";
+    return Line(L"");
   }
   CHECK(initial_line_.has_value());
   CHECK_GE(line, initial_line_.value());
@@ -269,19 +271,30 @@ std::wstring BufferMetadataOutputProducer::ComputeCursorsCharacter(
       line, buffer_->lines_size());
   int count = 0;
   auto cursors_end = cursors->lower_bound(range.end);
+  static const int kStopCount = 10;
   for (auto cursors_it = cursors->lower_bound(range.begin);
-       cursors_it != cursors_end; ++cursors_it) {
+       cursors_it != cursors_end && count < kStopCount; ++cursors_it) {
     count++;
-    if (count == 10) return L"+";
+    std::distance(cursors_it, cursors_end);
   }
 
-  switch (count) {
-    case 0:
-      return L" ";
-    case 1:
-      return range.Contains(*cursors->active()) ? L"*" : L"1";
+  if (count == 0) {
+    return Line(L" ");
   }
-  return std::wstring(1, L'0' + count);
+
+  std::wstring output_str = std::wstring(1, L'0' + count);
+  LineModifierSet modifiers;
+  if (count == kStopCount) {
+    output_str = L"+";
+    modifiers.insert(LineModifier::BOLD);
+  }
+  if (range.Contains(*cursors->active())) {
+    modifiers.insert(LineModifier::BOLD);
+    modifiers.insert(LineModifier::CYAN);
+  }
+  Line::Options options;
+  options.AppendString(output_str, modifiers);
+  return Line(std::move(options));
 }
 
 wchar_t BufferMetadataOutputProducer::ComputeScrollBarCharacter(
