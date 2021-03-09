@@ -350,6 +350,9 @@ void BuffersList::RemoveBuffer(OpenBuffer* buffer) {
       it != buffers_.end()) {
     buffers_.erase(it);
   }
+  if (buffer_.get() == buffer) {
+    buffer_ = nullptr;
+  }
   RecomputeBuffersAndWidget();
 }
 
