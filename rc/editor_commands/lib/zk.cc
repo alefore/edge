@@ -468,6 +468,20 @@ void Journal(string days_to_generate, string start_day, string template_path) {
                     template_path);
 }
 
+Buffer PreviewJournal(string days_to_generate, string start_day,
+                      string template_path) {
+  auto preview_buffer = editor.OpenFile("", false);
+  preview_buffer.ApplyTransformation(
+      InsertTransformationBuilder()
+          .set_text(
+              "Generate journal entries for many days from a given template.\n"
+              "Format: journal DAYS_TO_GENERATE START_DATE TEMPLATE_PATH\n"
+              "Ex: journal 10 2021-03-10 00a")
+          .build());
+  preview_buffer.set_name("Journal (help)");
+  return preview_buffer;
+}
+
 // Open the index. index.md is expected to be a link to the main entry point.
 void I() { editor.OpenFile("index.md", true); }
 
