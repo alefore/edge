@@ -328,6 +328,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     output.view_start.line =
         view_end_line + LineNumberDelta(1) -
         min(buffer_lines, view_end_line.ToDelta() + LineNumberDelta(1));
+  } else if (output.view_start.line + buffer_lines >
+             LineNumber(0) + buffer->lines_size()) {
+    output.view_start.line = (LineNumber(0) + buffer->lines_size())
+                                 .MinusHandlingOverflow(buffer_lines);
   }
 
   output.view_start.column =

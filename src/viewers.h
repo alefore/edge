@@ -12,6 +12,10 @@
 namespace afc {
 namespace editor {
 
+// Keeps track of the view size of the last active viewer (last caller to
+// `set_view_size`), allowing the buffer to inspect that. When the view size
+// changes, notifies any registered listeners.
+//
 // Not thread safe.
 class Viewers {
  public:
