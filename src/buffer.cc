@@ -953,7 +953,7 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
   auto lines_added = LineNumberDelta(lines.size());
   if (lines_added.IsZero()) return;
 
-  LineNumberDelta start_new_section = contents_.size();
+  LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
   contents_.append_back(std::move(lines));
   if (Read(buffer_variables::contains_line_marks)) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
