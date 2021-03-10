@@ -123,23 +123,19 @@ OutputProducer::Generator BufferMetadataOutputProducer::Next() {
     return Generator::Empty();
   }
 
-  if (range_data_.empty()) {
-    Prepare(range.value());
-    CHECK(!range_data_.empty());
-  }
+  Prepare(range.value());
+  CHECK(!range_data_.empty());
 
   Generator output = std::move(range_data_.front());
   range_data_.pop_front();
 
-  if (range_data_.empty()) {
-    line_scroll_control_reader_->RangeDone();
-  }
-
+  line_scroll_control_reader_->RangeDone();
   return output;
 }
 
 void BufferMetadataOutputProducer::Prepare(Range range) {
-  CHECK(range_data_.empty());
+  std::list<Generator> previous_range_data;
+  range_data_.swap(previous_range_data);
 
   auto contents = *buffer_->LineAt(range.begin.line);
   auto target_buffer_value = contents.environment()->Lookup(
@@ -182,22 +178,42 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
   for (const auto& mark : marks) {
     auto source = buffer_->editor()->buffers()->find(mark.source);
     PushGenerator(
-        '!', LineModifier::RED,
+        range_data_.empty() ? L'!' : L' ',
+        range_data_.empty() ? LineModifier::RED : LineModifier::DIM,
         (source != buffer_->editor()->buffers()->end() &&
          mark.source_line < LineNumber(0) + source->second->contents()->size())
             ? *source->second->contents()->at(mark.source_line)
             : Line(L"(dead mark)"));
   }
 
+  // When an expired mark appears again, no need to show it redundantly (as
+  // expired). We use `marks_strings` to detect this.
+  std::set<std::wstring> marks_strings;
+  for (const auto& mark : marks) {
+    if (auto source = buffer_->editor()->buffers()->find(mark.source);
+        source != buffer_->editor()->buffers()->end() &&
+        mark.source_line < LineNumber(0) + source->second->contents()->size()) {
+      marks_strings.insert(
+          source->second->contents()->at(mark.source_line)->ToString());
+    }
+  }
+
   for (const auto& mark : marks_expired) {
-    PushGenerator('!', LineModifier::RED,
-                  Line(L"👻 " + mark.source_line_content->ToString()));
+    if (auto contents = mark.source_line_content->ToString();
+        marks_strings.find(contents) == marks_strings.end()) {
+      PushGenerator('!', LineModifier::RED, Line(L"👻 " + contents));
+    }
   }
 
   if (range_data_.empty()) {
-    PushGenerator(info_char, info_char_modifier,
-                  GetDefaultInformation(range.begin.line));
+    if (previous_range_data.empty()) {
+      PushGenerator(info_char, info_char_modifier,
+                    GetDefaultInformation(range.begin.line));
+    } else {
+      range_data_ = std::move(previous_range_data);  // Carry over.
+    }
   }
+  CHECK(!range_data_.empty());
 }
 
 Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
