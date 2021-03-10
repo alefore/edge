@@ -1919,8 +1919,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     }
   }
 
-  if (work_queue()->NextExecution().has_value() &&
-      work_queue()->NextExecution().value() < Now()) {
+  if (work_queue()->RecentUtilization() > 0.1) {
     output.insert({L"⏳", L""});
   }
 
