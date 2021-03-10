@@ -30,16 +30,21 @@ void WorkQueue::Execute() {
   mutex_.lock();
   auto start = Now();
   VLOG(5) << "Executing work queue: callbacks: " << callbacks_.size();
+  std::vector<std::function<void()>> callbacks_ready;
   while (!callbacks_.empty() && callbacks_.top().time < Now()) {
-    auto callback = std::move(callbacks_.top().callback);
+    callbacks_ready.push_back(std::move(callbacks_.top().callback));
     callbacks_.pop();
+  }
+
+  for (auto& callback : callbacks_ready) {
     mutex_.unlock();
     callback();
+    callback = nullptr;  // Allow it to be deleted now.
     mutex_.lock();
-    auto next_update = Now();
+    auto end = Now();
     execution_seconds_.IncrementAndGetEventsPerSecond(
-        SecondsBetween(start, next_update));
-    start = next_update;
+        SecondsBetween(start, end));
+    start = end;
   }
   mutex_.unlock();
 }

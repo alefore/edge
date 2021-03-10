@@ -33,6 +33,9 @@ class WorkQueue {
   void Schedule(std::function<void()> callback);
   void ScheduleAt(struct timespec when, std::function<void()> callback);
 
+  // Takes all the scheduled callbacks at a time in the past and executes them.
+  // Any new callbacks that they transitively schedule may not (and typically
+  // won't) be executed.
   void Execute();
 
   // Returns the time at which the earliest callback wants to run, or nullopt if
