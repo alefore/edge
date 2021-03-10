@@ -321,7 +321,7 @@ void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
       }
       active_buffer_widget_->SetBuffer(buffer);
       buffer->Visit();
-      RecomputeBuffersAndWidget();
+      Update();
       break;
 
     case AddBufferType::kOnlyList:
@@ -329,7 +329,7 @@ void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
           buffers_.end()) {
         buffers_.push_back(buffer);
       }
-      RecomputeBuffersAndWidget();
+      Update();
       break;
 
     case AddBufferType::kIgnore:
@@ -350,10 +350,7 @@ void BuffersList::RemoveBuffer(OpenBuffer* buffer) {
       it != buffers_.end()) {
     buffers_.erase(it);
   }
-  if (buffer_.get() == buffer) {
-    buffer_ = nullptr;
-  }
-  RecomputeBuffersAndWidget();
+  Update();
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::GetBuffer(size_t index) {
@@ -541,18 +538,6 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);
 }
 
-void BuffersList::ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer) {
-  if (buffer != nullptr) {
-    buffer_ = std::move(buffer);
-    RecomputeBuffersAndWidget();
-  }
-}
-
-void BuffersList::ShowContext() {
-  buffer_ = nullptr;
-  RecomputeBuffersAndWidget();
-}
-
 std::shared_ptr<OpenBuffer> BuffersList::active_buffer() const {
   CHECK(active_buffer_widget_);
   return active_buffer_widget_->Lock();
@@ -566,7 +551,11 @@ void BuffersList::SetBuffersToRetain(std::optional<size_t> buffers_to_retain) {
   buffers_to_retain_ = buffers_to_retain;
 }
 
-void BuffersList::RecomputeBuffersAndWidget() {
+void BuffersList::SetBuffersToShow(std::optional<size_t> buffers_to_show) {
+  buffers_to_show_ = buffers_to_show;
+}
+
+void BuffersList::Update() {
   std::sort(buffers_.begin(), buffers_.end(),
             (buffer_sort_order_ == BufferSortOrder::kLastVisit
                  ? [](const std::shared_ptr<OpenBuffer>& a,
@@ -592,38 +581,57 @@ void BuffersList::RecomputeBuffersAndWidget() {
     buffers_ = std::move(retained_buffers);
   }
 
-  if (buffer_ != nullptr) {
-    widget_ = std::make_unique<BufferWidget>(
-        BufferWidget::Options{.buffer = buffer_, .is_active = true});
-  } else {
-    std::vector<std::unique_ptr<Widget>> buffers;
-    buffers.reserve(BuffersCount());
-    size_t index_active = 0;
-    for (size_t index = 0; index < BuffersCount(); index++) {
-      if (auto buffer = GetBuffer(index);
-          buffer != nullptr &&
-          buffer->Read(buffer_variables::show_in_buffers_list)) {
-        bool is_active =
-            editor_state_->Read(editor_variables::multiple_buffers);
-        if (buffer == active_buffer_widget_->Lock()) {
-          index_active = buffers.size();
-          is_active = true;
-        }
-        buffers.push_back(std::make_unique<BufferWidget>(BufferWidget::Options{
-            .buffer = buffer,
-            .is_active = is_active,
-            .position_in_parent =
-                (BuffersCount() > 1 ? buffers.size()
-                                    : std::optional<size_t>())}));
+  // This is a copy of buffers_ but filtering down some buffers that shouldn't
+  // be shown.
+  std::vector<std::shared_ptr<OpenBuffer>> buffers;
+  auto active_buffer = active_buffer_widget_->Lock();
+  size_t index_active = 0;  // The index in `buffers` of `active_buffer`.
+  for (size_t index = 0; index < BuffersCount(); index++) {
+    if (auto buffer = GetBuffer(index);
+        buffer != nullptr &&
+        buffer->Read(buffer_variables::show_in_buffers_list)) {
+      if (buffer == active_buffer) {
+        index_active = buffers.size();
       }
+      buffers.push_back(std::move(buffer));
     }
-    if (buffers.empty()) {
-      return;
-    }
-    active_buffer_widget_ =
-        static_cast<BufferWidget*>(buffers[index_active].get());
+  }
+
+  if (!buffers_to_show_.has_value()) {
+    // Pass.
+  } else if (buffers_to_show_.value() <= index_active) {
+    auto active_buffer = std::move(buffers[index_active]);
+    buffers[0] = active_buffer;
+    index_active = 0;
+    buffers.resize(1);
+  } else if (buffers_to_show_.value() < buffers.size()) {
+    buffers.resize(buffers_to_show_.value());
+  }
+
+  if (buffers.empty()) {
+    return;
+  }
+
+  std::vector<std::unique_ptr<Widget>> widgets;
+  widgets.reserve(buffers.size());
+  for (auto& buffer : buffers) {
+    widgets.push_back(std::make_unique<BufferWidget>(BufferWidget::Options{
+        .buffer = buffer,
+        .is_active = widgets.size() == index_active ||
+                     editor_state_->Read(editor_variables::multiple_buffers),
+        .position_in_parent =
+            (buffers.size() > 1 ? widgets.size() : std::optional<size_t>())}));
+  }
+
+  CHECK_LT(index_active, widgets.size());
+  active_buffer_widget_ =
+      static_cast<BufferWidget*>(widgets[index_active].get());
+
+  if (widgets.size() == 1) {
+    widget_ = std::move(widgets[index_active]);
+  } else {
     widget_ = std::make_unique<WidgetListHorizontal>(
-        editor_state_, std::move(buffers), index_active);
+        editor_state_, std::move(widgets), index_active);
   }
 }
 }  // namespace afc::editor

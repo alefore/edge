@@ -24,8 +24,6 @@ class BuffersList {
   std::optional<size_t> GetBufferIndex(const OpenBuffer* buffer) const;
   size_t GetCurrentIndex();
   size_t BuffersCount() const;
-  void ZoomToBuffer(std::shared_ptr<OpenBuffer> buffer);
-  void ShowContext();
 
   std::shared_ptr<OpenBuffer> active_buffer() const;
 
@@ -40,12 +38,12 @@ class BuffersList {
 
   enum class BufferSortOrder { kAlphabetic, kLastVisit };
   void SetBufferSortOrder(BufferSortOrder buffer_sort_order);
-
   void SetBuffersToRetain(std::optional<size_t> buffers_to_retain);
+  void SetBuffersToShow(std::optional<size_t> buffers_to_show);
+
+  void Update();
 
  private:
-  void RecomputeBuffersAndWidget();
-
   const EditorState* const editor_state_;
   std::vector<std::shared_ptr<OpenBuffer>> buffers_;
   // Contains the whole hierarchy of widgets.
@@ -56,12 +54,10 @@ class BuffersList {
   // If it has a value, buffers not included will be dimmed (disabled).
   std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter_;
 
-  // If non-null, will zoom to this buffer. Otherwise, will show context of all
-  // buffers.
-  std::shared_ptr<OpenBuffer> buffer_;
-
   BufferSortOrder buffer_sort_order_ = BufferSortOrder::kLastVisit;
   std::optional<size_t> buffers_to_retain_ = {};
+  // Must be always >0.
+  std::optional<size_t> buffers_to_show_ = {};
 };
 
 }  // namespace afc::editor

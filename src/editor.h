@@ -79,7 +79,6 @@ class EditorState {
   void AddVerticalSplit();
   void SetActiveBuffer(size_t position);
   void AdvanceActiveBuffer(int delta);
-  void ZoomToLeaf();
   void AdjustWidgets();
 
   bool has_current_buffer() const;

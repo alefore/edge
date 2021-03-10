@@ -195,9 +195,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                           editor->AdvanceActiveBuffer(delta);
                         }));
 
-  editor_type->AddField(L"ZoomToLeaf", vm::NewCallback([](EditorState* editor) {
-                          editor->ZoomToLeaf();
-                        }));
+  editor_type->AddField(L"ZoomToLeaf",
+                        vm::NewCallback([](EditorState* editor) {}));
 
   editor_type->AddField(
       L"SetVariablePrompt",
@@ -539,9 +538,6 @@ const bool& EditorState::Read(const EdgeVariable<bool>* variable) const {
 
 void EditorState::Set(const EdgeVariable<bool>* variable, bool value) {
   bool_variables_.Set(variable, value);
-  if (variable == editor_variables::focus) {
-    AdjustWidgets();
-  }
 }
 
 void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
@@ -567,7 +563,8 @@ const int& EditorState::Read(const EdgeVariable<int>* variable) const {
 
 void EditorState::Set(const EdgeVariable<int>* variable, int value) {
   int_variables_.Set(variable, value);
-  if (variable == editor_variables::buffers_to_retain) {
+  if (variable == editor_variables::buffers_to_retain ||
+      variable == editor_variables::buffers_to_show) {
     AdjustWidgets();
   }
 }
@@ -627,8 +624,6 @@ void EditorState::AdvanceActiveBuffer(int delta) {
                      CommandArgumentModeApplyMode::kFinal);
 }
 
-void EditorState::ZoomToLeaf() { buffer_tree_.ZoomToBuffer(current_buffer()); }
-
 void EditorState::AdjustWidgets() {
   buffer_tree_.SetBufferSortOrder(
       Read(editor_variables::buffer_sort_order) == L"last_visit"
@@ -639,11 +634,12 @@ void EditorState::AdjustWidgets() {
       buffers_to_retain >= 0
           ? std::optional<size_t>(static_cast<size_t>(buffers_to_retain))
           : std::nullopt);
-  if (Read(editor_variables::focus)) {
-    ZoomToLeaf();
-  } else {
-    buffer_tree_.ShowContext();
-  }
+  auto buffers_to_show = Read(editor_variables::buffers_to_show);
+  buffer_tree_.SetBuffersToShow(
+      buffers_to_show >= 1
+          ? std::optional<size_t>(static_cast<size_t>(buffers_to_show))
+          : std::nullopt);
+  buffer_tree_.Update();
 }
 
 bool EditorState::has_current_buffer() const {

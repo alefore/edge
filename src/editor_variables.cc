@@ -28,14 +28,6 @@ EdgeVariable<bool>* const multiple_buffers =
         .Description(L"Should all visible buffers be considered as active?")
         .Build();
 
-EdgeVariable<bool>* const focus =
-    BoolStruct()
-        ->Add()
-        .Name(L"focus")
-        .Key(L"F")
-        .Description(L"Should we focus on a single file?")
-        .Build();
-
 EdgeStruct<int>* IntStruct() {
   static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;
@@ -52,4 +44,13 @@ EdgeVariable<int>* const buffers_to_retain =
             L"they are clean.")
         .DefaultValue(24)
         .Build();
+
+EdgeVariable<int>* const buffers_to_show =
+    IntStruct()
+        ->Add()
+        .Name(L"buffers_to_show")
+        .Key(L"C")
+        .Description(L"How many buffers to show (on the screen)?")
+        .Build();
+
 }  // namespace afc::editor::editor_variables
