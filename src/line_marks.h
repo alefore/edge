@@ -28,7 +28,7 @@ struct LineMarks {
     // preserved for some time after their source buffer is removed. In that
     // case, contents will be set to non-null (and source_line must be ignored).
     //
-    // We say that a mark is "expired" if source_line_content == nullptr;
+    // We say that a mark is "expired" if source_line_content != nullptr;
     // otherwise, we say that it is "fresh".
     //
     // The reason for expired marks is to preserve marks while recompilation is
