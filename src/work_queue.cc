@@ -28,6 +28,7 @@ void WorkQueue::ScheduleAt(struct timespec time,
 
 void WorkQueue::Execute() {
   mutex_.lock();
+  auto start = Now();
   VLOG(5) << "Executing work queue: callbacks: " << callbacks_.size();
   while (!callbacks_.empty() && callbacks_.top().time < Now()) {
     auto callback = std::move(callbacks_.top().callback);
@@ -35,6 +36,10 @@ void WorkQueue::Execute() {
     mutex_.unlock();
     callback();
     mutex_.lock();
+    auto next_update = Now();
+    execution_seconds_.IncrementAndGetEventsPerSecond(
+        SecondsBetween(start, next_update));
+    start = next_update;
   }
   mutex_.unlock();
 }
@@ -43,6 +48,11 @@ std::optional<struct timespec> WorkQueue::NextExecution() {
   return callbacks_.empty()
              ? std::nullopt
              : std::optional<struct timespec>(callbacks_.top().time);
+}
+
+double WorkQueue::RecentUtilization() const {
+  std::unique_lock<std::mutex> lock(mutex_);
+  return execution_seconds_.GetEventsPerSecond();
 }
 
 namespace {

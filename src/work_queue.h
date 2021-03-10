@@ -9,6 +9,8 @@
 #include <queue>
 #include <vector>
 
+#include "src/decaying_counter.h"
+
 namespace afc::editor {
 // Contains a list of callbacks that will be executed later, at some point
 // shortly before the Editor attempts to sleep waiting for IO (in the main
@@ -37,6 +39,10 @@ class WorkQueue {
   // there are no pending callbacks.
   std::optional<struct timespec> NextExecution();
 
+  // Returns a value between 0.0 and 1.0 that indicates how much time this
+  // WorkQueue is spending running callbacks, recently.
+  double RecentUtilization() const;
+
  private:
   const std::function<void()> schedule_listener_;
 
@@ -49,6 +55,10 @@ class WorkQueue {
   std::priority_queue<Callback, std::vector<Callback>,
                       std::function<bool(const Callback&, const Callback&)>>
       callbacks_;
+
+  // This is used to track the percentage of time spent executing (seconds per
+  // second).
+  DecayingCounter execution_seconds_ = DecayingCounter(1.0);
 };
 
 enum class WorkQueueChannelConsumeMode {
