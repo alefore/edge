@@ -79,6 +79,10 @@ class Line {
     // The semantics of this is that any characters at the end of the line
     // (i.e., the space that represents the end of the line) should be rendered
     // using these modifiers.
+    //
+    // If two lines are concatenated, the end of line modifiers of the first
+    // line is entirely ignored; it doesn't affect the first characters from the
+    // second line.
     LineModifierSet end_of_line_modifiers;
 
    private:
