@@ -41,6 +41,8 @@ class BuffersList {
   enum class BufferSortOrder { kAlphabetic, kLastVisit };
   void SetBufferSortOrder(BufferSortOrder buffer_sort_order);
 
+  void SetBuffersToRetain(std::optional<size_t> buffers_to_retain);
+
  private:
   void RecomputeBuffersAndWidget();
 
@@ -59,6 +61,7 @@ class BuffersList {
   std::shared_ptr<OpenBuffer> buffer_;
 
   BufferSortOrder buffer_sort_order_ = BufferSortOrder::kLastVisit;
+  std::optional<size_t> buffers_to_retain_ = {};
 };
 
 }  // namespace afc::editor

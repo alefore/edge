@@ -176,6 +176,10 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       editor_variables::StringStruct(), editor_type.get(), &EditorState::Read,
       &EditorState::Set);
 
+  RegisterVariableFields<EdgeStruct<int>, int>(
+      editor_variables::IntStruct(), editor_type.get(), &EditorState::Read,
+      &EditorState::Set);
+
   editor_type->AddField(
       L"EnterSetBufferMode", vm::NewCallback([](EditorState* editor) {
         editor->set_keyboard_redirect(NewSetBufferMode(editor));
@@ -472,8 +476,9 @@ std::pair<int, int> BuildPipe() {
 }
 
 EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
-    : bool_variables_(editor_variables::BoolStruct()->NewInstance()),
-      string_variables_(editor_variables::StringStruct()->NewInstance()),
+    : string_variables_(editor_variables::StringStruct()->NewInstance()),
+      bool_variables_(editor_variables::BoolStruct()->NewInstance()),
+      int_variables_(editor_variables::IntStruct()->NewInstance()),
       home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
         std::vector<Path> output;
@@ -556,6 +561,17 @@ void EditorState::Set(const EdgeVariable<wstring>* variable, wstring value) {
   }
 }
 
+const int& EditorState::Read(const EdgeVariable<int>* variable) const {
+  return int_variables_.Get(variable);
+}
+
+void EditorState::Set(const EdgeVariable<int>* variable, int value) {
+  int_variables_.Set(variable, value);
+  if (variable == editor_variables::buffers_to_retain) {
+    AdjustWidgets();
+  }
+}
+
 void EditorState::CheckPosition() {
   if (auto buffer = buffer_tree_.active_buffer(); buffer != nullptr) {
     buffer->CheckPosition();
@@ -618,6 +634,11 @@ void EditorState::AdjustWidgets() {
       Read(editor_variables::buffer_sort_order) == L"last_visit"
           ? BuffersList::BufferSortOrder::kLastVisit
           : BuffersList::BufferSortOrder::kAlphabetic);
+  auto buffers_to_retain = Read(editor_variables::buffers_to_retain);
+  buffer_tree_.SetBuffersToRetain(
+      buffers_to_retain >= 0
+          ? std::optional<size_t>(static_cast<size_t>(buffers_to_retain))
+          : std::nullopt);
   if (Read(editor_variables::focus)) {
     ZoomToLeaf();
   } else {

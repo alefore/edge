@@ -562,6 +562,10 @@ void BuffersList::SetBufferSortOrder(BufferSortOrder buffer_sort_order) {
   buffer_sort_order_ = buffer_sort_order;
 }
 
+void BuffersList::SetBuffersToRetain(std::optional<size_t> buffers_to_retain) {
+  buffers_to_retain_ = buffers_to_retain;
+}
+
 void BuffersList::RecomputeBuffersAndWidget() {
   std::sort(buffers_.begin(), buffers_.end(),
             (buffer_sort_order_ == BufferSortOrder::kLastVisit
@@ -573,6 +577,20 @@ void BuffersList::RecomputeBuffersAndWidget() {
                      return a->Read(buffer_variables::name) <
                             b->Read(buffer_variables::name);
                    }));
+
+  if (buffers_to_retain_.has_value() &&
+      buffers_.size() > buffers_to_retain_.value()) {
+    std::vector<std::shared_ptr<OpenBuffer>> retained_buffers;
+    retained_buffers.reserve(buffers_.size());
+    for (size_t index = 0; index < buffers_.size(); ++index) {
+      if (index < buffers_to_retain_.value() || buffers_[index]->dirty()) {
+        retained_buffers.push_back(std::move(buffers_[index]));
+      } else {
+        buffers_[index]->Close();
+      }
+    }
+    buffers_ = std::move(retained_buffers);
+  }
 
   if (buffer_ != nullptr) {
     widget_ = std::make_unique<BufferWidget>(

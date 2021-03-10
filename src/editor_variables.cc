@@ -35,4 +35,21 @@ EdgeVariable<bool>* const focus =
         .Key(L"F")
         .Description(L"Should we focus on a single file?")
         .Build();
+
+EdgeStruct<int>* IntStruct() {
+  static EdgeStruct<int>* output = new EdgeStruct<int>();
+  return output;
+}
+
+EdgeVariable<int>* const buffers_to_retain =
+    IntStruct()
+        ->Add()
+        .Name(L"buffers_to_retain")
+        .Key(L"B")
+        .Description(
+            L"Number of buffers to retain. If more than the given number of "
+            L"buffers are open, the oldest buffers will be closed, as long as "
+            L"they are clean.")
+        .DefaultValue(24)
+        .Build();
 }  // namespace afc::editor::editor_variables

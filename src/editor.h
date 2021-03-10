@@ -58,6 +58,8 @@ class EditorState {
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
   const wstring& Read(const EdgeVariable<wstring>* variable) const;
   void Set(const EdgeVariable<wstring>* variable, wstring value);
+  const int& Read(const EdgeVariable<int>* variable) const;
+  void Set(const EdgeVariable<int>* variable, int value);
 
   void CheckPosition();
 
@@ -236,8 +238,9 @@ class EditorState {
  private:
   std::shared_ptr<Environment> BuildEditorEnvironment();
 
-  EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<wstring> string_variables_;
+  EdgeStructInstance<bool> bool_variables_;
+  EdgeStructInstance<int> int_variables_;
 
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
