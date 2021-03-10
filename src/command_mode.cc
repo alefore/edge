@@ -662,7 +662,11 @@ void ToggleVariable(EditorState* editor_state,
                 L"().tostring()); }); editor.set_repetitions(1);\n";
       break;
     case VariableLocation::kEditor:
-      CHECK(false) << "Not implemented.";
+      command = L"// Variables: Toggle editor variable (int): " + name +
+                L"\neditor.set_" + name +
+                L"(editor.repetitions());editor.SetStatus(\"editor." + name +
+                L" := \" + editor." + name +
+                L"().tostring());editor.set_repetitions(1);\n";
       break;
   }
   LOG(INFO) << "Command: " << command;
@@ -798,6 +802,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"\t", NewFindCompletionCommand());
 
   RegisterVariableKeys(editor_state, editor_variables::BoolStruct(),
+                       VariableLocation::kEditor, commands.get());
+  RegisterVariableKeys(editor_state, editor_variables::IntStruct(),
                        VariableLocation::kEditor, commands.get());
   RegisterVariableKeys(editor_state, buffer_variables::BoolStruct(),
                        VariableLocation::kBuffer, commands.get());
