@@ -65,7 +65,6 @@ editor.AddBinding("M", "Center the screen around the current line.",
 // Frames / widget manipulation
 ////////////////////////////////////////////////////////////////////////////////
 
-editor.AddBinding("a=", "Frames: Zoom to the active leaf", editor.ZoomToLeaf);
 editor.AddBinding("ah", "Frames: Move to the previous buffer", []() -> void {
   editor.AdvanceActiveBuffer(-editor.pop_repetitions());
 });
