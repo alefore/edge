@@ -613,6 +613,7 @@ void EditorState::SetActiveBuffer(size_t position) {
 }
 
 void EditorState::AdvanceActiveBuffer(int delta) {
+  if (buffer_tree_.BuffersCount() <= 1) return;
   delta += buffer_tree_.GetCurrentIndex();
   size_t total = buffer_tree_.BuffersCount();
   if (delta < 0) {
