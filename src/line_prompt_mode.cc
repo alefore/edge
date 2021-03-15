@@ -650,19 +650,28 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 class LinePromptCommand : public Command {
  public:
   LinePromptCommand(wstring description,
-                    std::function<PromptOptions(EditorState*)> options)
-      : description_(std::move(description)), options_(std::move(options)) {}
+                    std::function<PromptOptions(EditorState*)> options_supplier)
+      : description_(std::move(description)),
+        options_supplier_(std::move(options_supplier)) {}
 
   wstring Description() const override { return description_; }
   wstring Category() const override { return L"Prompt"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    Prompt(options_(editor_state));
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) return;
+    auto options = options_supplier_(editor_state);
+    if (editor_state->structure() == StructureLine()) {
+      editor_state->ResetStructure();
+      options.handler(buffer->current_line()->ToString(), editor_state);
+    } else {
+      Prompt(std::move(options));
+    }
   }
 
  private:
   const wstring description_;
-  std::function<PromptOptions(EditorState*)> options_;
+  const std::function<PromptOptions(EditorState*)> options_supplier_;
 };
 
 // status_buffer is the buffer with the contents of the prompt. tokens_future is
@@ -942,9 +951,10 @@ void Prompt(PromptOptions options) {
 }
 
 std::unique_ptr<Command> NewLinePromptCommand(
-    wstring description, std::function<PromptOptions(EditorState*)> options) {
+    wstring description,
+    std::function<PromptOptions(EditorState*)> options_supplier) {
   return std::make_unique<LinePromptCommand>(std::move(description),
-                                             std::move(options));
+                                             std::move(options_supplier));
 }
 
 }  // namespace editor

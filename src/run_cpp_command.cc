@@ -222,68 +222,6 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   return output_future.value;
 }
 
-class RunCppCommand : public Command {
- public:
-  RunCppCommand(CppCommandMode mode) : mode_(mode) {}
-
-  wstring Description() const override {
-    switch (mode_) {
-      case CppCommandMode::kLiteral:
-        return L"prompts for a command (a C string) and runs it";
-      case CppCommandMode::kShell:
-        return L"prompts for a command, splits it into tokens, and runs it";
-    }
-    CHECK(false);
-    return L"";
-  }
-
-  wstring Category() const override { return L"Extensions"; }
-
-  void ProcessInput(wint_t, EditorState* editor_state) override {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
-
-    PromptOptions options;
-    options.editor_state = editor_state;
-    std::wstring prompt;
-    switch (mode_) {
-      case CppCommandMode::kLiteral:
-        options.handler = RunCppCommandLiteralHandler;
-        prompt = L"cpp";
-        break;
-      case CppCommandMode::kShell:
-        options.handler = RunCppCommandShellHandler;
-        SearchNamespaces search_namespaces(*buffer);
-        options.colorize_options_provider =
-            [editor_state, search_namespaces](
-                const std::shared_ptr<LazyString>& line,
-                std::unique_ptr<ProgressChannel>,
-                std::shared_ptr<Notification>) {
-              return ColorizeOptionsProvider(editor_state, line,
-                                             search_namespaces);
-            };
-        prompt = L":";
-        break;
-    }
-
-    if (editor_state->structure() == StructureLine()) {
-      editor_state->ResetStructure();
-      options.handler(buffer->current_line()->ToString(), editor_state);
-    } else {
-      options.prompt = prompt + L" ";
-      options.history_file = prompt == L":" ? L"colon" : prompt;
-      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-      options.status = PromptOptions::Status::kBuffer;
-      Prompt(options);
-    }
-  }
-
- private:
-  const CppCommandMode mode_;
-};
-
 }  // namespace
 
 futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
@@ -319,6 +257,48 @@ futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
 }
 
 std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode) {
-  return std::make_unique<RunCppCommand>(mode);
+  std::wstring description;
+  switch (mode) {
+    case CppCommandMode::kLiteral:
+      description = L"prompts for a command (a C string) and runs it";
+      break;
+    case CppCommandMode::kShell:
+      description =
+          L"prompts for a command, splits it into tokens, and runs it";
+      break;
+  }
+  CHECK(!description.empty());
+  return NewLinePromptCommand(description, [mode](EditorState* editor_state) {
+    PromptOptions options;
+    auto buffer = editor_state->current_buffer();
+    CHECK(buffer != nullptr);
+    options.editor_state = editor_state;
+    std::wstring prompt;
+    switch (mode) {
+      case CppCommandMode::kLiteral:
+        options.handler = RunCppCommandLiteralHandler;
+        prompt = L"cpp";
+        break;
+      case CppCommandMode::kShell:
+        options.handler = RunCppCommandShellHandler;
+        SearchNamespaces search_namespaces(*buffer);
+        options.colorize_options_provider =
+            [editor_state, search_namespaces](
+                const std::shared_ptr<LazyString>& line,
+                std::unique_ptr<ProgressChannel>,
+                std::shared_ptr<Notification>) {
+              return ColorizeOptionsProvider(editor_state, line,
+                                             search_namespaces);
+            };
+        prompt = L":";
+        break;
+    }
+
+    options.prompt = prompt + L" ";
+    options.history_file = prompt == L":" ? L"colon" : prompt;
+    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
+    options.status = PromptOptions::Status::kBuffer;
+    return options;
+  });
 }
 }  // namespace afc::editor
