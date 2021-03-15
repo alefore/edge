@@ -539,7 +539,7 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::active_buffer() const {
-  CHECK(active_buffer_widget_);
+  CHECK(active_buffer_widget_ != nullptr);
   return active_buffer_widget_->Lock();
 }
 
@@ -609,6 +609,8 @@ void BuffersList::Update() {
   }
 
   if (buffers.empty()) {
+    widget_ = std::make_unique<BufferWidget>(BufferWidget::Options{});
+    active_buffer_widget_ = static_cast<BufferWidget*>(widget_.get());
     return;
   }
 
