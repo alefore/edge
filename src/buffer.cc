@@ -598,7 +598,9 @@ void OpenBuffer::Close() {
     log_->Append(L"Saving buffer: " + Read(buffer_variables::name));
     Save();
   }
-  for (auto& observer : close_observers_) {
+  std::vector<std::function<void()>> close_observers;
+  close_observers.swap(close_observers_);
+  for (auto& observer : close_observers) {
     observer();
   }
 }
