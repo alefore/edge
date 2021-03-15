@@ -663,7 +663,9 @@ class LinePromptCommand : public Command {
     auto options = options_supplier_(editor_state);
     if (editor_state->structure() == StructureLine()) {
       editor_state->ResetStructure();
-      options.handler(buffer->current_line()->ToString(), editor_state);
+      auto input = buffer->current_line();
+      AddLineToHistory(editor_state, options.history_file, input->contents());
+      options.handler(input->ToString(), editor_state);
     } else {
       Prompt(std::move(options));
     }
