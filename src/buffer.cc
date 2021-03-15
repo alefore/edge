@@ -1925,6 +1925,10 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     output.insert({L"⏳", L""});
   }
 
+  if (Read(buffer_variables::pin)) {
+    output.insert({L"📌", L""});
+  }
+
   if (child_pid_ != -1) {
     output.insert({L"🤴", std::to_wstring(child_pid_)});
   } else if (!child_exit_status_.has_value()) {

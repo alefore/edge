@@ -336,6 +336,17 @@ EdgeVariable<bool>* const persist_state =
             L"$EDGE_PATH/state/)?")
         .Build();
 
+EdgeVariable<bool>* const pin =
+    BoolStruct()
+        ->Add()
+        .Name(L"pin")
+        .Key(L"P")
+        .Description(
+            L"If true, this buffer will be pinned: Edge will try hard to "
+            L"display it in the screen (while honoring other variables that "
+            L"affect which buffers are displayed).")
+        .Build();
+
 EdgeStruct<wstring>* StringStruct() {
   static EdgeStruct<wstring>* output = new EdgeStruct<wstring>();
   return output;

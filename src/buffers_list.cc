@@ -556,16 +556,25 @@ void BuffersList::SetBuffersToShow(std::optional<size_t> buffers_to_show) {
 }
 
 void BuffersList::Update() {
-  std::sort(buffers_.begin(), buffers_.end(),
-            (buffer_sort_order_ == BufferSortOrder::kLastVisit
-                 ? [](const std::shared_ptr<OpenBuffer>& a,
-                      const std::shared_ptr<OpenBuffer>&
-                          b) { return a->last_visit() > b->last_visit(); }
-                 : [](const std::shared_ptr<OpenBuffer>& a,
-                      const std::shared_ptr<OpenBuffer>& b) {
-                     return a->Read(buffer_variables::name) <
-                            b->Read(buffer_variables::name);
-                   }));
+  auto order_predicate =
+      buffer_sort_order_ == BufferSortOrder::kLastVisit
+          ? [](const std::shared_ptr<OpenBuffer>& a,
+               const std::shared_ptr<OpenBuffer>&
+                   b) { return a->last_visit() > b->last_visit(); }
+          : [](const std::shared_ptr<OpenBuffer>& a,
+               const std::shared_ptr<OpenBuffer>& b) {
+              return a->Read(buffer_variables::name) <
+                     b->Read(buffer_variables::name);
+            };
+  std::sort(
+      buffers_.begin(), buffers_.end(),
+      [order_predicate](const std::shared_ptr<OpenBuffer>& a,
+                        const std::shared_ptr<OpenBuffer>& b) {
+        return (a->Read(buffer_variables::pin) == b->Read(buffer_variables::pin)
+                    ? order_predicate(a, b)
+                    : a->Read(buffer_variables::pin) >
+                          b->Read(buffer_variables::pin));
+      });
 
   if (buffers_to_retain_.has_value() &&
       buffers_.size() > buffers_to_retain_.value()) {

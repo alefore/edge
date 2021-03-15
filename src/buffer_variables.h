@@ -39,6 +39,7 @@ extern EdgeVariable<bool>* const wrap_long_lines;
 extern EdgeVariable<bool>* const extend_lines;
 extern EdgeVariable<bool>* const display_progress;
 extern EdgeVariable<bool>* const persist_state;
+extern EdgeVariable<bool>* const pin;
 
 EdgeStruct<wstring>* StringStruct();
 extern EdgeVariable<wstring>* const name;
