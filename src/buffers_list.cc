@@ -596,9 +596,7 @@ void BuffersList::Update() {
   auto active_buffer = active_buffer_widget_->Lock();
   size_t index_active = 0;  // The index in `buffers` of `active_buffer`.
   for (size_t index = 0; index < BuffersCount(); index++) {
-    if (auto buffer = GetBuffer(index);
-        buffer != nullptr &&
-        buffer->Read(buffer_variables::show_in_buffers_list)) {
+    if (auto buffer = GetBuffer(index); buffer != nullptr) {
       if (buffer == active_buffer) {
         index_active = buffers.size();
       }

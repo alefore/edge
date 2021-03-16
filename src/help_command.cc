@@ -101,7 +101,6 @@ class HelpCommand : public Command {
     buffer->Set(buffer_variables::tree_parser, L"md");
     buffer->Set(buffer_variables::wrap_from_content, true);
     buffer->Set(buffer_variables::allow_dirty_delete, true);
-    buffer->Set(buffer_variables::show_in_buffers_list, false);
 
     buffer->AppendToLastLine(NewLazyString(L"# Edge - Help"));
     buffer->AppendEmptyLine();
@@ -131,9 +130,7 @@ class HelpCommand : public Command {
     buffer->ResetMode();
 
     (*editor_state->buffers())[name] = buffer;
-    editor_state->set_current_buffer(buffer,
-                                     CommandArgumentModeApplyMode::kFinal);
-
+    editor_state->AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
     editor_state->ResetRepetitions();
   }
 
