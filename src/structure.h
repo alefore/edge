@@ -9,6 +9,7 @@
 namespace afc {
 namespace editor {
 
+class Modifiers;
 class DeleteOptions;
 class Transformation;
 class OpenBuffer;
@@ -64,7 +65,8 @@ class Structure {
                            LineColumn* position) = 0;
 
   virtual std::optional<LineColumn> ComputeGoToPosition(
-      const OpenBuffer* buffer, LineColumn position, int calls) = 0;
+      const OpenBuffer* buffer, const Modifiers& modifiers, LineColumn position,
+      int calls) = 0;
 };
 
 Structure* StructureChar();

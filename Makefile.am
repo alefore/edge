@@ -72,6 +72,8 @@ src/find_mode.cc \
 src/function_traits.h \
 src/futures/futures.cc \
 src/futures/futures.h \
+src/futures/serializer.cc \
+src/futures/serializer.h \
 src/fuzz.h \
 src/fuzz.cc \
 src/fuzz_testable.h \
@@ -113,6 +115,8 @@ src/notification.cc \
 src/notification.h \
 src/open_directory_command.cc \
 src/open_file_command.cc \
+src/operation.cc \
+src/operation.h \
 src/output_producer.cc \
 src/output_producer.h \
 src/parse_tools.cc \

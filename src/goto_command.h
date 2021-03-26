@@ -4,9 +4,23 @@
 #include <memory>
 
 #include "command.h"
+#include "src/transformation/composite.h"
 
 namespace afc {
 namespace editor {
+class GotoTransformation : public CompositeTransformation {
+ public:
+  GotoTransformation(int calls);
+
+  std::wstring Serialize() const override;
+
+  futures::Value<Output> Apply(Input input) const override;
+
+  std::unique_ptr<CompositeTransformation> Clone() const override;
+
+ private:
+  const int calls_;
+};
 
 std::unique_ptr<Command> NewGotoCommand();
 

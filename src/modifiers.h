@@ -127,7 +127,7 @@ struct Modifiers {
   std::optional<CursorsAffected> cursors_affected = std::nullopt;
 
   // The currently active cursors.
-  std::wstring active_cursors;
+  std::wstring active_cursors = L"";
 };
 
 Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary);

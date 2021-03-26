@@ -33,6 +33,7 @@
 #include "src/navigation_buffer.h"
 #include "src/open_directory_command.h"
 #include "src/open_file_command.h"
+#include "src/operation.h"
 #include "src/parse_tree.h"
 #include "src/quit_command.h"
 #include "src/record_command.h"
@@ -727,7 +728,9 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"f", NewFindModeCommand(Direction::kForwards));
   commands->Add(L"F", NewFindModeCommand(Direction::kBackwards));
 
-  commands->Add(L"r", std::make_unique<ReverseDirectionCommand>());
+  commands->Add(L"r", operation::NewTopLevelCommand(
+                          L"delete", L"starts a new delete command",
+                          operation::TopCommand::kReach, editor_state));
   commands->Add(L"R", std::make_unique<InsertionModifierCommand>());
 
   commands->Add(L"/", NewSearchCommand());
@@ -735,7 +738,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
 
   commands->Add(L"W", std::make_unique<SetStructureCommand>(StructureSymbol()));
   commands->Add(L"w", std::make_unique<SetStructureCommand>(StructureWord()));
-  commands->Add(L"e", std::make_unique<SetStructureCommand>(StructureLine()));
+  // commands->Add(L"e",
+  // std::make_unique<SetStructureCommand>(StructureLine()));
   commands->Add(L"E", std::make_unique<SetStructureCommand>(StructurePage()));
   commands->Add(L"c", std::make_unique<SetStructureCommand>(StructureCursor()));
   commands->Add(L"B", std::make_unique<SetStructureCommand>(StructureBuffer()));
@@ -752,19 +756,9 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
     LOG(DFATAL) << "Invalid direction.";
     return L"";
   };
-  commands->Add(
-      L"D",
-      NewCommandWithModifiers(
-          delete_name_callback, L"starts a new delete backwards command",
-          [] {
-            Modifiers output;
-            output.direction = Direction::kBackwards;
-            return output;
-          }(),
-          [](EditorState*, Modifiers modifiers) {
-            return transformation::Delete{.modifiers = std::move(modifiers)};
-          },
-          editor_state));
+  commands->Add(L"e", operation::NewTopLevelCommand(
+                          L"delete", L"starts a new delete command",
+                          operation::TopCommand::kErase, editor_state));
   commands->Add(
       L"d",
       NewCommandWithModifiers(

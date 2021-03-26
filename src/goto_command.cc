@@ -51,28 +51,6 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
   return 0;
 }
 
-class GotoTransformation : public CompositeTransformation {
- public:
-  GotoTransformation(int calls) : calls_(calls) {}
-
-  std::wstring Serialize() const override { return L"GotoTransformation()"; }
-
-  futures::Value<Output> Apply(Input input) const override {
-    auto position = input.editor->structure()->ComputeGoToPosition(
-        input.buffer, input.position, calls_);
-    return futures::Past(position.has_value()
-                             ? Output::SetPosition(position.value())
-                             : Output());
-  }
-
-  std::unique_ptr<CompositeTransformation> Clone() const override {
-    return std::make_unique<GotoTransformation>(calls_);
-  }
-
- private:
-  const int calls_;
-};
-
 class GotoCommand : public Command {
  public:
   GotoCommand(size_t calls) : calls_(calls % 4) {}
@@ -122,6 +100,24 @@ class GotoCommand : public Command {
 };
 
 }  // namespace
+
+GotoTransformation::GotoTransformation(int calls) : calls_(calls) {}
+
+std::wstring GotoTransformation::Serialize() const {
+  return L"GotoTransformation()";
+}
+
+futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
+    CompositeTransformation::Input input) const {
+  auto position = input.modifiers.structure->ComputeGoToPosition(
+      input.buffer, input.modifiers, input.position, calls_);
+  return futures::Past(
+      position.has_value() ? Output::SetPosition(position.value()) : Output());
+}
+
+std::unique_ptr<CompositeTransformation> GotoTransformation::Clone() const {
+  return std::make_unique<GotoTransformation>(calls_);
+}
 
 std::unique_ptr<Command> NewGotoCommand() {
   return std::make_unique<GotoCommand>(0);

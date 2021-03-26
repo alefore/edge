@@ -80,6 +80,7 @@ Structure* StructureChar() {
     }
 
     std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer* buffer,
+                                                  const Modifiers& modifiers,
                                                   LineColumn position,
                                                   int calls) override {
       const wstring& line_prefix_characters =
@@ -97,10 +98,9 @@ Structure* StructureChar() {
                   line->get(end - ColumnNumberDelta(1))) != string::npos)) {
         end--;
       }
-      auto editor = buffer->editor();
       position.column = ColumnNumber(ComputePosition(
           start.column, end.column, line->EndColumn().column,
-          editor->direction(), editor->repetitions().value_or(1), calls));
+          modifiers.direction, modifiers.repetitions.value_or(1), calls));
       CHECK_LE(position.column, line->EndColumn());
       return position;
     }
@@ -150,7 +150,8 @@ Structure* StructureWord() {
       return true;
     }
 
-    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*, LineColumn,
+    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*,
+                                                  const Modifiers&, LineColumn,
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
     }
@@ -192,18 +193,18 @@ Structure* StructureSymbol() {
     }
 
     std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer* buffer,
+                                                  const Modifiers& modifiers,
                                                   LineColumn position,
                                                   int) override {
-      auto editor = buffer->editor();
-      position.column = editor->direction() == Direction::kBackwards
+      position.column = modifiers.direction == Direction::kBackwards
                             ? buffer->LineAt(position.line)->EndColumn()
                             : ColumnNumber();
 
-      VLOG(4) << "Start SYMBOL GotoCommand: " << editor->modifiers();
-      Range range = buffer->FindPartialRange(editor->modifiers(), position);
-      switch (editor->direction()) {
+      VLOG(4) << "Start SYMBOL GotoCommand: " << modifiers;
+      Range range = buffer->FindPartialRange(modifiers, position);
+      switch (modifiers.direction) {
         case Direction::kForwards: {
-          Modifiers modifiers_copy = editor->modifiers();
+          Modifiers modifiers_copy = modifiers;
           modifiers_copy.repetitions = 1;
           range = buffer->FindPartialRange(modifiers_copy,
                                            buffer->PositionBefore(range.end));
@@ -211,7 +212,7 @@ Structure* StructureSymbol() {
         } break;
 
         case Direction::kBackwards: {
-          Modifiers modifiers_copy = editor->modifiers();
+          Modifiers modifiers_copy = modifiers;
           modifiers_copy.repetitions = 1;
           modifiers_copy.direction = Direction::kForwards;
           range = buffer->FindPartialRange(modifiers_copy, range.begin);
@@ -275,13 +276,13 @@ Structure* StructureLine() {
     }
 
     std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer* buffer,
+                                                  const Modifiers& modifiers,
                                                   LineColumn position,
                                                   int calls) override {
-      auto editor = buffer->editor();
       size_t lines = buffer->EndLine().line;
       position.line =
-          LineNumber(ComputePosition(0, lines, lines, editor->direction(),
-                                     editor->repetitions().value_or(1), calls));
+          LineNumber(ComputePosition(0, lines, lines, modifiers.direction,
+                                     modifiers.repetitions.value_or(1), calls));
       CHECK_LE(position.line, LineNumber(0) + buffer->contents()->size());
       return position;
     }
@@ -313,9 +314,9 @@ Structure* StructureMark() {
     }
 
     std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer* buffer,
+                                                  const Modifiers& modifiers,
                                                   LineColumn position,
                                                   int calls) override {
-      auto editor = buffer->editor();
       // Navigates marks in the current buffer.
       const std::multimap<size_t, LineMarks::Mark>* marks =
           buffer->GetLineMarks();
@@ -326,8 +327,8 @@ Structure* StructureMark() {
                          return (entry1.first == entry2.first);
                        });
       size_t index =
-          ComputePosition(0, lines.size(), lines.size(), editor->direction(),
-                          editor->repetitions().value_or(1), calls);
+          ComputePosition(0, lines.size(), lines.size(), modifiers.direction,
+                          modifiers.repetitions.value_or(1), calls);
       CHECK_LE(index, lines.size());
       position.line = LineNumber(lines.at(index).first);
       return position;
@@ -360,9 +361,9 @@ Structure* StructurePage() {
     }
 
     std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer* buffer,
+                                                  const Modifiers& modifiers,
                                                   LineColumn position,
                                                   int calls) override {
-      auto editor = buffer->editor();
       CHECK_GT(buffer->contents()->size(), LineNumberDelta(0));
       auto view_size = buffer->viewers()->view_size();
       auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
@@ -371,8 +372,8 @@ Structure* StructurePage() {
                lines.line_delta);
       position.line =
           LineNumber(0) +
-          lines * ComputePosition(0, pages, pages, editor->direction(),
-                                  editor->repetitions().value_or(1), calls);
+          lines * ComputePosition(0, pages, pages, modifiers.direction,
+                                  modifiers.repetitions.value_or(1), calls);
       CHECK_LT(position.line.ToDelta(), buffer->contents()->size());
       return position;
     }
@@ -403,7 +404,8 @@ Structure* StructureSearch() {
       return true;
     }
 
-    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*, LineColumn,
+    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*,
+                                                  const Modifiers&, LineColumn,
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
     }
@@ -494,7 +496,8 @@ Structure* StructureTree() {
       }
     }
 
-    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*, LineColumn,
+    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*,
+                                                  const Modifiers&, LineColumn,
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
     }
@@ -546,7 +549,8 @@ Structure* StructureCursor() {
       return true;
     }
 
-    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*, LineColumn,
+    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*,
+                                                  const Modifiers&, LineColumn,
                                                   int) override {
       // TODO: Implement.
 #if 0
@@ -631,7 +635,8 @@ Structure* StructureSentence() {
       }
     }
 
-    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*, LineColumn,
+    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*,
+                                                  const Modifiers&, LineColumn,
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
     }
@@ -670,7 +675,8 @@ Structure* StructureParagraph() {
                      buffer_variables::line_prefix_characters)) == Seek::DONE;
     }
 
-    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*, LineColumn,
+    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*,
+                                                  const Modifiers&, LineColumn,
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
     }
@@ -707,7 +713,8 @@ Structure* StructureBuffer() {
       return false;
     }
 
-    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*, LineColumn,
+    std::optional<LineColumn> ComputeGoToPosition(const OpenBuffer*,
+                                                  const Modifiers&, LineColumn,
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
     }

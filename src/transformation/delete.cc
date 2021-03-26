@@ -165,8 +165,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         transformation::Insert insert_options(std::move(delete_buffer));
         insert_options.final_position =
             options.modifiers.direction == Direction::kForwards
-                ? Insert::FinalPosition::kStart
-                : Insert::FinalPosition::kEnd;
+                ? Insert::FinalPosition::kEnd
+                : Insert::FinalPosition::kStart;
         output->undo_stack->PushFront(insert_options);
         output->undo_stack->PushFront(transformation::SetPosition(range.begin));
 
