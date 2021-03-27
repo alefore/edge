@@ -28,12 +28,21 @@ enum class ApplicationType { kPreview, kCommit };
 // Operation that is executed if there are no arguments at all.
 enum class TopCommand { kErase, kReach };
 
-struct CommandArgumentRepetitions {
-  int repetitions = 0;
+class CommandArgumentRepetitions {
+ public:
+  CommandArgumentRepetitions(int repetitions)
+      : additive_default_(repetitions) {}
 
-  // Controls how to react to numbers. Irrelevant for increments.
-  enum class NumberBehavior { kAccept, kAcceptReset, kReject };
-  NumberBehavior number_behavior = NumberBehavior::kAcceptReset;
+  std::wstring ToString() const;
+  int get() const;
+  void sum(int value);
+  void factor(int value);
+
+ private:
+  // The total will be the sum of these 3 factors.
+  int additive_default_ = 0;
+  int additive_ = 0;
+  int multiplicative_ = 0;
 };
 
 // A sequence of arguments becomes a command.

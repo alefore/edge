@@ -160,40 +160,24 @@ std::wstring BuildStatus(
 }
 #endif
 
-std::wstring ToString(const CommandArgumentRepetitions& in) {
-  auto output = std::to_wstring(in.repetitions);
-  switch (in.number_behavior) {
-    case CommandArgumentRepetitions::NumberBehavior::kAccept:
-      output += L"";
-      break;
-    case CommandArgumentRepetitions::NumberBehavior::kAcceptReset:
-      output += L"?";
-      break;
-    case CommandArgumentRepetitions::NumberBehavior::kReject:
-      output += L"+";
-      break;
-  }
-  return output;
-}
-
 Modifiers GetModifiers(Structure* structure,
                        const CommandArgumentRepetitions& repetitions,
                        Direction direction) {
   return Modifiers{
       .structure = structure == nullptr ? StructureChar() : structure,
       .direction =
-          repetitions.repetitions < 0 ? ReverseDirection(direction) : direction,
-      .repetitions = abs(repetitions.repetitions)};
+          repetitions.get() < 0 ? ReverseDirection(direction) : direction,
+      .repetitions = abs(repetitions.get())};
 }
 
 std::wstring ToStatus(const CommandErase& erase) {
-  return L"Erase(" + ToString(erase.repetitions) + L", " +
+  return L"Erase(" + erase.repetitions.ToString() + L", " +
          (erase.structure != nullptr ? erase.structure->ToString() : L"") +
          L")";
 }
 
 std::wstring ToStatus(const CommandReach& reach) {
-  return L"Reach(" + ToString(reach.repetitions) + L", " +
+  return L"Reach(" + reach.repetitions.ToString() + L", " +
          (reach.structure != nullptr ? reach.structure->ToString() : L"") +
          L")";
 }
@@ -203,36 +187,31 @@ std::wstring ToStatus(const CommandReachBegin& reach) {
                                                               : L"End") +
          L"(" +
          (reach.structure != nullptr ? reach.structure->ToString() : L"") +
-         L", " + ToString(reach.repetitions) + L")";
+         L", " + reach.repetitions.ToString() + L")";
 }
 
 std::wstring ToStatus(const CommandReachLine& reach_line) {
-  return std::wstring(reach_line.repetitions.repetitions >= 0 ? L"Down"
-                                                              : L"Up") +
-         L"(" + ToString(reach_line.repetitions) + L")";
+  return std::wstring(reach_line.repetitions.get() >= 0 ? L"Down" : L"Up") +
+         L"(" + reach_line.repetitions.ToString() + L")";
 }
 
 std::wstring ToStatus(const CommandReachChar& c) {
   return L"Char(" + (c.c.has_value() ? std::wstring(1, c.c.value()) : L"…") +
-         +L", " + ToString(c.repetitions) + L")";
+         +L", " + c.repetitions.ToString() + L")";
 }
 
-bool IsNoop(const CommandErase& erase) {
-  return erase.repetitions.repetitions == 0;
-}
+bool IsNoop(const CommandErase& erase) { return erase.repetitions.get() == 0; }
 
-bool IsNoop(const CommandReach& reach) {
-  return reach.repetitions.repetitions == 0;
-}
+bool IsNoop(const CommandReach& reach) { return reach.repetitions.get() == 0; }
 
 bool IsNoop(const CommandReachBegin&) { return false; }
 
 bool IsNoop(const CommandReachLine& reach_line) {
-  return reach_line.repetitions.repetitions == 0;
+  return reach_line.repetitions.get() == 0;
 }
 
 bool IsNoop(const CommandReachChar& reach_char) {
-  return !reach_char.c.has_value() || reach_char.repetitions.repetitions == 0;
+  return !reach_char.c.has_value() || reach_char.repetitions.get() == 0;
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -277,7 +256,7 @@ futures::Value<UndoCallback> Execute(CommandErase erase, EditorState* editor,
 
 futures::Value<UndoCallback> Execute(CommandReach reach, EditorState* editor,
                                      ApplicationType application_type) {
-  if (reach.repetitions.repetitions == 0)
+  if (reach.repetitions.get() == 0)
     return Past(UndoCallback([] { return Past(EmptyValue()); }));
   return ExecuteTransformation(
       editor, application_type,
@@ -302,7 +281,7 @@ futures::Value<UndoCallback> Execute(CommandReachBegin reach_begin,
 futures::Value<UndoCallback> Execute(CommandReachLine reach_line,
                                      EditorState* editor,
                                      ApplicationType application_type) {
-  if (reach_line.repetitions.repetitions == 0)
+  if (reach_line.repetitions.get() == 0)
     return Past(UndoCallback([] { return Past(EmptyValue()); }));
   return ExecuteTransformation(
       editor, application_type,
@@ -315,7 +294,7 @@ futures::Value<UndoCallback> Execute(CommandReachLine reach_line,
 futures::Value<UndoCallback> Execute(CommandReachChar reach_char,
                                      EditorState* editor,
                                      ApplicationType application_type) {
-  if (!reach_char.c.has_value() || reach_char.repetitions.repetitions == 0)
+  if (!reach_char.c.has_value() || reach_char.repetitions.get() == 0)
     return Past(UndoCallback([] { return Past(EmptyValue()); }));
   return ExecuteTransformation(
       editor, application_type,
@@ -419,15 +398,6 @@ class State {
   std::vector<std::shared_ptr<ExecutedCommand>> executed_commands_ = {};
 };
 
-bool Increment(CommandArgumentRepetitions* output, int delta) {
-  output->repetitions = output->repetitions + delta;
-  output->number_behavior =
-      abs(output->repetitions) <= 1
-          ? CommandArgumentRepetitions::NumberBehavior::kAcceptReset
-          : CommandArgumentRepetitions::NumberBehavior::kReject;
-  return true;
-}
-
 bool CheckStructureChar(wint_t c, Structure** structure,
                         CommandArgumentRepetitions* repetitions) {
   CHECK(structure != nullptr);
@@ -464,7 +434,8 @@ bool CheckStructureChar(wint_t c, Structure** structure,
   } else if (selected_structure != *structure) {
     return false;
   } else {
-    return Increment(repetitions, 1);
+    repetitions->sum(1);
+    return true;
   }
   return true;
 }
@@ -472,15 +443,16 @@ bool CheckStructureChar(wint_t c, Structure** structure,
 bool CheckIncrementsChar(wint_t c, CommandArgumentRepetitions* output) {
   switch (static_cast<int>(c)) {
     case L'h':
-      return Increment(output, -1);
+      output->sum(-1);
+      return true;
     case L'l':
-      return Increment(output, 1);
+      output->sum(1);
+      return true;
   }
   return false;
 }
 
 bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
-  int direction = output->repetitions < 0 ? -1 : 1;
   switch (static_cast<int>(c)) {
     case L'0':
     case L'1':
@@ -492,23 +464,11 @@ bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
     case L'7':
     case L'8':
     case L'9':
-      switch (output->number_behavior) {
-        case CommandArgumentRepetitions::NumberBehavior::kReject:
-          return false;
-        case CommandArgumentRepetitions::NumberBehavior::kAcceptReset:
-          output->repetitions = 0;
-          output->number_behavior =
-              CommandArgumentRepetitions::NumberBehavior::kAccept;
-          break;
-        case CommandArgumentRepetitions::NumberBehavior::kAccept:
-          break;  // Nothing.
-      }
-      output->repetitions = output->repetitions * 10 + direction * (c - L'0');
-      break;
-    default:
-      return false;
+      int direction = output->get() < 0 ? -1 : 1;
+      output->factor(direction * (c - L'0'));
+      return true;
   }
-  return true;
+  return false;
 }
 
 bool ReceiveInput(CommandErase* output, wint_t c, State* state) {
@@ -554,10 +514,10 @@ bool ReceiveInput(CommandReachLine* output, wint_t c, State*) {
   if (CheckRepetitionsChar(c, &output->repetitions)) return true;
   switch (static_cast<int>(c)) {
     case L'j':
-      Increment(&output->repetitions, 1);
+      output->repetitions.sum(1);
       return true;
     case L'k':
-      Increment(&output->repetitions, -1);
+      output->repetitions.sum(-1);
       return true;
   }
   return false;
@@ -724,6 +684,29 @@ class TopLevelCommandMode : public EditorMode {
   State state_;
 };
 }  // namespace
+
+std::wstring CommandArgumentRepetitions::ToString() const {
+  if (additive_default_ + additive_ == 0) {
+    return std::to_wstring(get());
+  }
+  return std::to_wstring(additive_default_ + additive_) + L" + " +
+         std::to_wstring(multiplicative_);
+}
+
+int CommandArgumentRepetitions::get() const {
+  return additive_default_ + additive_ + multiplicative_;
+}
+
+void CommandArgumentRepetitions::sum(int value) {
+  additive_ += value + additive_default_ + multiplicative_;
+  additive_default_ = 0;
+  multiplicative_ = 0;
+}
+
+void CommandArgumentRepetitions::factor(int value) {
+  additive_default_ = 0;
+  multiplicative_ = multiplicative_ * 10 + value;
+}
 
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,
