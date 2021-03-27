@@ -203,7 +203,7 @@ std::wstring ToStatus(const CommandReachBegin& reach) {
                                                               : L"End") +
          L"(" +
          (reach.structure != nullptr ? reach.structure->ToString() : L"") +
-         L")";
+         L", " + ToString(reach.repetitions) + L")";
 }
 
 std::wstring ToStatus(const CommandReachLine& reach_line) {
@@ -294,8 +294,7 @@ futures::Value<UndoCallback> Execute(CommandReachBegin reach_begin,
       editor, application_type,
       transformation::ModifiersAndComposite{
           .modifiers =
-              GetModifiers(reach_begin.structure,
-                           CommandArgumentRepetitions{.repetitions = 1},
+              GetModifiers(reach_begin.structure, reach_begin.repetitions,
                            reach_begin.direction),
           .transformation = std::make_unique<GotoTransformation>(0)});
 }
@@ -543,8 +542,9 @@ bool ReceiveInput(CommandReach* output, wint_t c, State*) {
 }
 
 bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
-  CommandArgumentRepetitions repetitions_dummy;
-  if (CheckStructureChar(c, &output->structure, &repetitions_dummy)) {
+  if (CheckStructureChar(c, &output->structure, &output->repetitions) ||
+      CheckIncrementsChar(c, &output->repetitions) ||
+      CheckRepetitionsChar(c, &output->repetitions)) {
     return true;
   }
   return false;

@@ -49,6 +49,7 @@ struct CommandReach {
 
 struct CommandReachBegin {
   Structure* structure = nullptr;
+  CommandArgumentRepetitions repetitions = {.repetitions = 1};
   Direction direction = Direction::kForwards;
 };
 
