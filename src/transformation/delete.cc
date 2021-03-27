@@ -137,13 +137,15 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
 
   output->success = true;
   output->made_progress = true;
+  output->added_to_paste_buffer = true;
 
   auto delete_buffer = GetDeletedTextBuffer(*input.buffer, range);
   if (options.modifiers.paste_buffer_behavior ==
           Modifiers::PasteBufferBehavior::kDeleteInto &&
-      input.mode == Input::Mode::kFinal) {
+      input.mode == Input::Mode::kFinal && input.delete_buffer != nullptr) {
     VLOG(5) << "Preparing delete buffer.";
-    output->delete_buffer = delete_buffer;
+    input.delete_buffer->ApplyToCursors(
+        transformation::Insert{.buffer_to_insert = delete_buffer});
   }
 
   if (options.modifiers.delete_behavior ==

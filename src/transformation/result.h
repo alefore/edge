@@ -30,8 +30,7 @@ struct Result {
   // Transformation that will undo any changes done by this one.
   std::unique_ptr<transformation::Stack> undo_stack;
 
-  // If set to a buffer, it will replace the previous paste buffer.
-  std::shared_ptr<OpenBuffer> delete_buffer;
+  bool added_to_paste_buffer = false;
 
   // Where should the cursor move to after the transformation?
   LineColumn position;

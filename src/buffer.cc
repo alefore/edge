@@ -128,7 +128,20 @@ using namespace afc::vm;
 using std::to_wstring;
 
 /* static */ const wstring OpenBuffer::kBuffersName = L"- buffers";
+
+// Name of the buffer that holds the contents that the paste command should
+// paste, which corresponds to things that have been deleted recently.
 /* static */ const wstring OpenBuffer::kPasteBuffer = L"- paste buffer";
+
+// Name of the buffer that holds the contents that have been deleted recently
+// and which should still be included in the delete buffer for additional
+// deletions.
+//
+// This is used so that multiple subsequent deletion transformations (without
+// any interspersed non-delete transformations) will all aggregate into the
+// paste buffer (rather than retaining only the deletion corresponding to the
+// last such transformation).
+/* static */ const wstring kFuturePasteBuffer = L"- future paste buffer";
 
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
@@ -878,7 +891,8 @@ void OpenBuffer::Initialize() {
   Set(buffer_variables::pts_path, L"");
   Set(buffer_variables::command, L"");
   Set(buffer_variables::reload_after_exit, false);
-  if (Read(buffer_variables::name) == kPasteBuffer) {
+  if (Read(buffer_variables::name) == kPasteBuffer ||
+      Read(buffer_variables::name) == kFuturePasteBuffer) {
     Set(buffer_variables::allow_dirty_delete, true);
     Set(buffer_variables::show_in_buffers_list, false);
     Set(buffer_variables::delete_into_paste_buffer, false);
@@ -2132,27 +2146,45 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   transformation::Input input(this);
   input.mode = mode;
   input.position = position;
+  if (Read(buffer_variables::delete_into_paste_buffer)) {
+    auto it = editor()->buffers()->insert({kFuturePasteBuffer, nullptr});
+    if (it.first->second == nullptr) {
+      LOG(INFO) << "Creating paste buffer.";
+      it.first->second =
+          OpenBuffer::New({.editor = editor(), .name = kFuturePasteBuffer});
+    }
+    input.delete_buffer = it.first->second.get();
+    CHECK(input.delete_buffer != nullptr);
+  } else {
+    input.delete_buffer = nullptr;
+  }
+
   auto inner_future = transformation::Apply(transformation, std::move(input));
-  return futures::Transform(inner_future, [this, transformation =
-                                                     std::move(transformation)](
-                                              transformation::Result result) {
-    if (result.delete_buffer != nullptr &&
-        Read(buffer_variables::delete_into_paste_buffer)) {
-      (*editor()
-            ->buffers())[result.delete_buffer->Read(buffer_variables::name)] =
-          result.delete_buffer;
-    }
+  return futures::Transform(
+      inner_future, [this, transformation = std::move(transformation),
+                     mode](transformation::Result result) {
+        if (mode == transformation::Input::Mode::kFinal &&
+            Read(buffer_variables::delete_into_paste_buffer)) {
+          if (result.added_to_paste_buffer) {
+            editor()
+                ->buffers()
+                ->insert({OpenBuffer::kPasteBuffer, nullptr})
+                .first->second = editor()->buffers()->at(kFuturePasteBuffer);
+          } else {
+            editor()->buffers()->erase(kFuturePasteBuffer);
+          }
+        }
 
-    if (result.modified_buffer) {
-      editor()->StartHandlingInterrupts();
-      last_transformation_ = std::move(transformation);
-    }
+        if (result.modified_buffer) {
+          editor()->StartHandlingInterrupts();
+          last_transformation_ = std::move(transformation);
+        }
 
-    CHECK(!undo_past_.empty());
-    undo_past_.back()->PushFront(
-        transformation::Stack{.stack = result.undo_stack->stack});
-    return result;
-  });
+        CHECK(!undo_past_.empty());
+        undo_past_.back()->PushFront(
+            transformation::Stack{.stack = result.undo_stack->stack});
+        return result;
+      });
 }
 
 futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {

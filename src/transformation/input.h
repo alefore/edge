@@ -24,6 +24,10 @@ struct Input {
   // The buffer that the transformation should modify.
   editor::OpenBuffer* const buffer;
 
+  // If non-null, if the transformation deletes text, it should append it to
+  // this buffer (for pasting it later).
+  editor::OpenBuffer* delete_buffer = nullptr;
+
   // Where should the transformation be applied?
   editor::LineColumn position;
 };
