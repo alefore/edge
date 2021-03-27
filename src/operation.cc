@@ -225,7 +225,10 @@ futures::Value<UndoCallback> ExecuteTransformation(
            application_type](const std::shared_ptr<OpenBuffer>& buffer) {
             buffers_modified->push_back(buffer);
             return buffer->ApplyToCursors(
-                transformation, Modifiers::CursorsAffected::kOnlyCurrent,
+                transformation,
+                buffer->Read(buffer_variables::multiple_cursors)
+                    ? Modifiers::CursorsAffected::kAll
+                    : Modifiers::CursorsAffected::kOnlyCurrent,
                 application_type == ApplicationType::kPreview
                     ? transformation::Input::Mode::kPreview
                     : transformation::Input::Mode::kFinal);
@@ -671,10 +674,10 @@ class TopLevelCommandMode : public EditorMode {
     std::wstring output;
     switch (top_command_) {
       case TopCommand::kErase:
-        output += L"erase";
+        output += L"Erase";
         break;
       case TopCommand::kReach:
-        output += L"reach";
+        output += L"Reach:";
         break;
     }
     return output + state_.GetStatusString();
