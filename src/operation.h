@@ -31,9 +31,9 @@ enum class TopCommand { kErase, kReach };
 struct CommandArgumentRepetitions {
   int repetitions = 0;
 
-  enum class OperationBehavior { kAccept, kAcceptReset, kReject };
-  OperationBehavior additive_behavior = OperationBehavior::kAccept;
-  OperationBehavior multiplicative_behavior = OperationBehavior::kAcceptReset;
+  // Controls how to react to numbers. Irrelevant for increments.
+  enum class NumberBehavior { kAccept, kAcceptReset, kReject };
+  NumberBehavior number_behavior = NumberBehavior::kAcceptReset;
 };
 
 // A sequence of arguments becomes a command.
@@ -52,14 +52,19 @@ struct CommandReachBegin {
   Direction direction = Direction::kForwards;
 };
 
-using Command = std::variant<CommandErase, CommandReach, CommandReachBegin>;
+struct CommandReachLine {
+  CommandArgumentRepetitions repetitions = {.repetitions = 0};
+};
+
+struct CommandReachChar {
+  std::optional<wchar_t> c;
+  CommandArgumentRepetitions repetitions = {.repetitions = 1};
+};
+
+using Command = std::variant<CommandErase, CommandReach, CommandReachBegin,
+                             CommandReachLine, CommandReachChar>;
 
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
-
-// Starts applying the operations (in either kPreview or kCommit mode) and
-// returns a future that can be used to cancel the application.
-using ApplyCallback =
-    std::function<futures::Value<UndoCallback>(Command, ApplicationType)>;
 
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,

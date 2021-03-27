@@ -4,6 +4,7 @@
 
 #include "src/buffer_variables.h"
 #include "src/editor.h"
+#include "src/find_mode.h"
 #include "src/futures/futures.h"
 #include "src/futures/serializer.h"
 #include "src/goto_command.h"
@@ -16,6 +17,18 @@
 namespace afc::editor::operation {
 using futures::Past;
 namespace {
+
+Command GetDefaultCommand(TopCommand top_command) {
+  switch (top_command) {
+    case TopCommand::kErase:
+      return CommandErase();
+    case TopCommand::kReach:
+      return CommandReach();
+  }
+  LOG(FATAL) << " Invalid top command.";
+  return CommandReach();
+}
+
 #if 0
 bool CharConsumer(wint_t c, Modifiers* modifiers) {
   switch (c) {
@@ -149,26 +162,15 @@ std::wstring BuildStatus(
 
 std::wstring ToString(const CommandArgumentRepetitions& in) {
   auto output = std::to_wstring(in.repetitions);
-  switch (in.additive_behavior) {
-    case CommandArgumentRepetitions::OperationBehavior::kAccept:
+  switch (in.number_behavior) {
+    case CommandArgumentRepetitions::NumberBehavior::kAccept:
+      output += L"";
+      break;
+    case CommandArgumentRepetitions::NumberBehavior::kAcceptReset:
+      output += L"?";
+      break;
+    case CommandArgumentRepetitions::NumberBehavior::kReject:
       output += L"+";
-      break;
-    case CommandArgumentRepetitions::OperationBehavior::kAcceptReset:
-      output += L"?";
-      break;
-    case CommandArgumentRepetitions::OperationBehavior::kReject:
-      output += L"|";
-      break;
-  }
-  switch (in.multiplicative_behavior) {
-    case CommandArgumentRepetitions::OperationBehavior::kAccept:
-      output += L"*";
-      break;
-    case CommandArgumentRepetitions::OperationBehavior::kAcceptReset:
-      output += L"?";
-      break;
-    case CommandArgumentRepetitions::OperationBehavior::kReject:
-      output += L"|";
       break;
   }
   return output;
@@ -204,6 +206,17 @@ std::wstring ToStatus(const CommandReachBegin& reach) {
          L")";
 }
 
+std::wstring ToStatus(const CommandReachLine& reach_line) {
+  return std::wstring(reach_line.repetitions.repetitions >= 0 ? L"Down"
+                                                              : L"Up") +
+         L"(" + ToString(reach_line.repetitions) + L")";
+}
+
+std::wstring ToStatus(const CommandReachChar& c) {
+  return L"Char(" + (c.c.has_value() ? std::wstring(1, c.c.value()) : L"…") +
+         +L", " + ToString(c.repetitions) + L")";
+}
+
 bool IsNoop(const CommandErase& erase) {
   return erase.repetitions.repetitions == 0;
 }
@@ -213,6 +226,14 @@ bool IsNoop(const CommandReach& reach) {
 }
 
 bool IsNoop(const CommandReachBegin&) { return false; }
+
+bool IsNoop(const CommandReachLine& reach_line) {
+  return reach_line.repetitions.repetitions == 0;
+}
+
+bool IsNoop(const CommandReachChar& reach_char) {
+  return !reach_char.c.has_value() || reach_char.repetitions.repetitions == 0;
+}
 
 futures::Value<UndoCallback> ExecuteTransformation(
     EditorState* editor, ApplicationType application_type,
@@ -279,6 +300,33 @@ futures::Value<UndoCallback> Execute(CommandReachBegin reach_begin,
           .transformation = std::make_unique<GotoTransformation>(0)});
 }
 
+futures::Value<UndoCallback> Execute(CommandReachLine reach_line,
+                                     EditorState* editor,
+                                     ApplicationType application_type) {
+  if (reach_line.repetitions.repetitions == 0)
+    return Past(UndoCallback([] { return Past(EmptyValue()); }));
+  return ExecuteTransformation(
+      editor, application_type,
+      transformation::ModifiersAndComposite{
+          .modifiers = GetModifiers(StructureLine(), reach_line.repetitions,
+                                    Direction::kForwards),
+          .transformation = NewMoveTransformation()});
+}
+
+futures::Value<UndoCallback> Execute(CommandReachChar reach_char,
+                                     EditorState* editor,
+                                     ApplicationType application_type) {
+  if (!reach_char.c.has_value() || reach_char.repetitions.repetitions == 0)
+    return Past(UndoCallback([] { return Past(EmptyValue()); }));
+  return ExecuteTransformation(
+      editor, application_type,
+      transformation::ModifiersAndComposite{
+          .modifiers = GetModifiers(StructureChar(), reach_char.repetitions,
+                                    Direction::kForwards),
+          .transformation =
+              std::make_unique<FindTransformation>(reach_char.c.value())});
+}
+
 class State {
  public:
   State(EditorState* editor_state) : editor_state_(editor_state) {}
@@ -323,7 +371,6 @@ class State {
 
   void Abort() {
     while (!empty()) UndoLast();
-    editor_state_->status()->SetExpiringInformationText(L"Aborted!");
     editor_state_->set_keyboard_redirect(nullptr);
   }
 
@@ -343,7 +390,6 @@ class State {
           buffer->PopTransformationStack();
           return Past(EmptyValue());
         });
-    editor_state_->status()->SetExpiringInformationText(L"Executed!");
     editor_state_->set_keyboard_redirect(nullptr);
   }
 
@@ -375,21 +421,11 @@ class State {
 };
 
 bool Increment(CommandArgumentRepetitions* output, int delta) {
-  switch (output->additive_behavior) {
-    case CommandArgumentRepetitions::OperationBehavior::kAccept:
-      break;
-    case CommandArgumentRepetitions::OperationBehavior::kAcceptReset:
-      output->repetitions = 0;
-      break;
-    case CommandArgumentRepetitions::OperationBehavior::kReject:
-      return false;
-  }
-
   output->repetitions = output->repetitions + delta;
-  output->additive_behavior =
-      CommandArgumentRepetitions::OperationBehavior::kAccept;
-  output->multiplicative_behavior =
-      CommandArgumentRepetitions::OperationBehavior::kReject;
+  output->number_behavior =
+      abs(output->repetitions) <= 1
+          ? CommandArgumentRepetitions::NumberBehavior::kAcceptReset
+          : CommandArgumentRepetitions::NumberBehavior::kReject;
   return true;
 }
 
@@ -434,12 +470,19 @@ bool CheckStructureChar(wint_t c, Structure** structure,
   return true;
 }
 
-bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
+bool CheckIncrementsChar(wint_t c, CommandArgumentRepetitions* output) {
   switch (static_cast<int>(c)) {
     case L'h':
       return Increment(output, -1);
     case L'l':
       return Increment(output, 1);
+  }
+  return false;
+}
+
+bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
+  int direction = output->repetitions < 0 ? -1 : 1;
+  switch (static_cast<int>(c)) {
     case L'0':
     case L'1':
     case L'2':
@@ -450,18 +493,18 @@ bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
     case L'7':
     case L'8':
     case L'9':
-      switch (output->multiplicative_behavior) {
-        case CommandArgumentRepetitions::OperationBehavior::kReject:
+      switch (output->number_behavior) {
+        case CommandArgumentRepetitions::NumberBehavior::kReject:
           return false;
-        case CommandArgumentRepetitions::OperationBehavior::kAcceptReset:
+        case CommandArgumentRepetitions::NumberBehavior::kAcceptReset:
           output->repetitions = 0;
-          output->multiplicative_behavior =
-              CommandArgumentRepetitions::OperationBehavior::kAccept;
+          output->number_behavior =
+              CommandArgumentRepetitions::NumberBehavior::kAccept;
           break;
-        case CommandArgumentRepetitions::OperationBehavior::kAccept:
+        case CommandArgumentRepetitions::NumberBehavior::kAccept:
           break;  // Nothing.
       }
-      output->repetitions = output->repetitions * 10 + c - L'0';
+      output->repetitions = output->repetitions * 10 + direction * (c - L'0');
       break;
     default:
       return false;
@@ -471,6 +514,7 @@ bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
 
 bool ReceiveInput(CommandErase* output, wint_t c, State* state) {
   if (CheckStructureChar(c, &output->structure, &output->repetitions) ||
+      CheckIncrementsChar(c, &output->repetitions) ||
       CheckRepetitionsChar(c, &output->repetitions)) {
     return true;
   }
@@ -483,56 +527,19 @@ bool ReceiveInput(CommandErase* output, wint_t c, State* state) {
   return false;
 }
 
-bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
+bool ReceiveInput(CommandReach* output, wint_t c, State*) {
   if (CheckStructureChar(c, &output->structure, &output->repetitions)) {
     return true;
   }
-  if (CheckRepetitionsChar(c, &output->repetitions)) {
+
+  if (CheckIncrementsChar(c, &output->repetitions) ||
+      CheckRepetitionsChar(c, &output->repetitions)) {
     if (output->structure == nullptr) {
       output->structure = StructureChar();
     }
     return true;
   }
-  switch (static_cast<int>(c)) {
-    case L'h':
-    case L'l': {
-      int delta = c == L'h' ? -1 : 1;
-      if (output->structure == StructureChar() ||
-          output->structure == nullptr) {
-        output->structure = StructureChar();
-        output->repetitions.additive_behavior =
-            CommandArgumentRepetitions::OperationBehavior::kAccept;
-        output->repetitions.multiplicative_behavior =
-            output->repetitions.repetitions == 0
-                ? CommandArgumentRepetitions::OperationBehavior::kAcceptReset
-                : CommandArgumentRepetitions::OperationBehavior::kReject;
-        output->repetitions.repetitions += delta;
-        return true;
-      }
-      return false;
-    }
-
-    case L'k':
-    case L'j': {
-      int delta = c == L'k' ? -1 : 1;
-      if (output->structure == StructureLine() ||
-          output->structure == nullptr) {
-        output->structure = StructureLine();
-        output->repetitions.additive_behavior =
-            CommandArgumentRepetitions::OperationBehavior::kReject;
-        output->repetitions.multiplicative_behavior =
-            output->repetitions.repetitions == 0
-                ? CommandArgumentRepetitions::OperationBehavior::kAcceptReset
-                : CommandArgumentRepetitions::OperationBehavior::kReject;
-        output->repetitions.repetitions += delta;
-        return true;
-      }
-      return false;
-    }
-    default:
-      return false;
-  }
-  return true;
+  return false;
 }
 
 bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
@@ -540,11 +547,34 @@ bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
   if (CheckStructureChar(c, &output->structure, &repetitions_dummy)) {
     return true;
   }
+  return false;
+}
+
+bool ReceiveInput(CommandReachLine* output, wint_t c, State*) {
+  if (CheckRepetitionsChar(c, &output->repetitions)) return true;
   switch (static_cast<int>(c)) {
-    default:
-      return false;
+    case L'j':
+      Increment(&output->repetitions, 1);
+      return true;
+    case L'k':
+      Increment(&output->repetitions, -1);
+      return true;
   }
-  return true;
+  return false;
+}
+
+bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
+  if (!output->c.has_value()) {
+    output->c = c;
+    return true;
+  }
+  if (c == L' ') {
+    state->Push(GetDefaultCommand(TopCommand::kReach),
+                ApplicationType::kPreview);
+    return true;
+  }
+  return CheckIncrementsChar(c, &output->repetitions) ||
+         CheckRepetitionsChar(c, &output->repetitions);
 }
 
 #if 0
@@ -593,6 +623,7 @@ class TopLevelCommandMode : public EditorMode {
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
+    editor_state->status()->Reset();
     if (!state_.empty() &&
         std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
                    state_.GetLastCommand())) {
@@ -620,11 +651,12 @@ class TopLevelCommandMode : public EditorMode {
         ReceiveInputTopCommand(c)) {
       state_.ReApplyLast();
       ShowStatus(editor_state);
-    } else {
-      state_.UndoLast();
-      state_.Commit();
-      editor_state->ProcessInput(c);
+      return;
     }
+    // Unhandled character.
+    state_.UndoLast();  // The one we just pushed a few lines above.
+    state_.Commit();
+    editor_state->ProcessInput(c);
   }
 
   void ShowStatus(EditorState* editor_state) {
@@ -633,18 +665,7 @@ class TopLevelCommandMode : public EditorMode {
 
  private:
   void PushDefault() {
-    state_.Push(GetDefaultCommand(), ApplicationType::kPreview);
-  }
-
-  Command GetDefaultCommand() {
-    switch (top_command_) {
-      case TopCommand::kErase:
-        return CommandErase();
-      case TopCommand::kReach:
-        return CommandReach();
-    }
-    LOG(FATAL) << " Invalid top command.";
-    return CommandReach();
+    state_.Push(GetDefaultCommand(top_command_), ApplicationType::kPreview);
   }
 
   bool ReceiveInputTopCommand(wint_t t) {
@@ -653,6 +674,17 @@ class TopLevelCommandMode : public EditorMode {
         return false;
       case TopCommand::kReach:
         switch (t) {
+          case L'f':
+            state_.Push(CommandReachChar{}, ApplicationType::kPreview);
+            return true;
+          case L'j':
+          case L'k':
+            state_.Push(
+                CommandReachLine{.repetitions =
+                                     CommandArgumentRepetitions{
+                                         .repetitions = t == L'k' ? -1 : 1}},
+                ApplicationType::kPreview);
+            return true;
           case L'H':
             state_.Push(CommandReachBegin{}, ApplicationType::kPreview);
             return true;
