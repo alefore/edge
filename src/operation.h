@@ -31,7 +31,8 @@ enum class TopCommand { kErase, kReach };
 class CommandArgumentRepetitions {
  public:
   CommandArgumentRepetitions(int repetitions)
-      : additive_default_(repetitions) {}
+      : additive_default_(repetitions),
+        multiplicative_sign_(repetitions >= 0 ? 1 : -1) {}
 
   std::wstring ToString() const;
   int get() const;
@@ -43,6 +44,10 @@ class CommandArgumentRepetitions {
   int additive_default_ = 0;
   int additive_ = 0;
   int multiplicative_ = 0;
+  // Holds the sign of the last value given to `sum`. Used to know if values
+  // given to `factor` should be considered positive or negative (i.e., move in
+  // the direction that was last given explicitly through `sum`).
+  int multiplicative_sign_ = 1;
 };
 
 // A sequence of arguments becomes a command.

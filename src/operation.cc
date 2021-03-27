@@ -467,8 +467,7 @@ bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
     case L'7':
     case L'8':
     case L'9':
-      int direction = output->get() < 0 ? -1 : 1;
-      output->factor(direction * (c - L'0'));
+      output->factor(c - L'0');
       return true;
   }
   return false;
@@ -692,8 +691,9 @@ std::wstring CommandArgumentRepetitions::ToString() const {
   if (additive_default_ + additive_ == 0) {
     return std::to_wstring(get());
   }
-  return std::to_wstring(additive_default_ + additive_) + L" + " +
-         std::to_wstring(multiplicative_);
+  return std::to_wstring(additive_default_ + additive_) +
+         (multiplicative_ >= 0 ? L" + " : L" - ") +
+         std::to_wstring(abs(multiplicative_));
 }
 
 int CommandArgumentRepetitions::get() const {
@@ -704,11 +704,12 @@ void CommandArgumentRepetitions::sum(int value) {
   additive_ += value + additive_default_ + multiplicative_;
   additive_default_ = 0;
   multiplicative_ = 0;
+  multiplicative_sign_ = value >= 0 ? 1 : -1;
 }
 
 void CommandArgumentRepetitions::factor(int value) {
   additive_default_ = 0;
-  multiplicative_ = multiplicative_ * 10 + value;
+  multiplicative_ = multiplicative_ * 10 + multiplicative_sign_ * value;
 }
 
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
