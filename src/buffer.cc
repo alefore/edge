@@ -2165,13 +2165,15 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
                      mode](transformation::Result result) {
         if (mode == transformation::Input::Mode::kFinal &&
             Read(buffer_variables::delete_into_paste_buffer)) {
-          if (result.added_to_paste_buffer) {
+          if (!result.added_to_paste_buffer) {
+            editor()->buffers()->erase(kFuturePasteBuffer);
+          } else if (auto paste_buffer =
+                         editor()->buffers()->find(kFuturePasteBuffer);
+                     paste_buffer != editor()->buffers()->end()) {
             editor()
                 ->buffers()
                 ->insert({OpenBuffer::kPasteBuffer, nullptr})
-                .first->second = editor()->buffers()->at(kFuturePasteBuffer);
-          } else {
-            editor()->buffers()->erase(kFuturePasteBuffer);
+                .first->second = paste_buffer->second;
           }
         }
 
