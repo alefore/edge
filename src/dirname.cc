@@ -26,7 +26,78 @@ ValueOrError<PathComponent> PathComponent::FromString(std::wstring component) {
   return Success(PathComponent(std::move(component)));
 }
 
-const std::wstring& PathComponent::ToString() { return component_; }
+/*  static */ PathComponent PathComponent::WithExtension(
+    const PathComponent& path, const std::wstring& extension) {
+  auto index = path.component_.find_last_of(L".");
+  return PathComponent((index == std::string::npos
+                            ? path.component_
+                            : path.component_.substr(0, index)) +
+                       L"." + extension);
+}
+
+const bool path_component_with_extension_tests_registration = tests::Register(
+    L"PathComponentWithExtension",
+    {{.name = L"Absent",
+      .callback =
+          [] {
+            CHECK_EQ(PathComponent::WithExtension(
+                         PathComponent::FromString(L"foo").value(), L"md"),
+                     PathComponent::FromString(L"foo.md").value());
+          }},
+     {.name = L"Empty",
+      .callback =
+          [] {
+            CHECK_EQ(PathComponent::WithExtension(
+                         PathComponent::FromString(L"foo").value(), L""),
+                     PathComponent::FromString(L"foo.").value());
+          }},
+     {.name = L"Present",
+      .callback =
+          [] {
+            CHECK_EQ(PathComponent::WithExtension(
+                         PathComponent::FromString(L"foo.txt").value(), L"md"),
+                     PathComponent::FromString(L"foo.md").value());
+          }},
+     {.name = L"MultipleReplacesOnlyLast", .callback = [] {
+        CHECK_EQ(PathComponent::WithExtension(
+                     PathComponent::FromString(L"foo.blah.txt").value(), L"md"),
+                 PathComponent::FromString(L"foo.blah.md").value());
+      }}});
+
+const std::wstring& PathComponent::ToString() const { return component_; }
+
+std::optional<std::wstring> PathComponent::extension() const {
+  auto index = component_.find_last_of(L".");
+  if (index == std::string::npos) {
+    return std::nullopt;
+  }
+  return component_.substr(index + 1);
+}
+
+const bool path_component_extension_tests_registration = tests::Register(
+    L"PathComponentExtension",
+    {{.name = L"Absent",
+      .callback =
+          [] {
+            CHECK(!PathComponent::FromString(L"foo")
+                       .value()
+                       .extension()
+                       .has_value());
+          }},
+     {.name = L"Empty",
+      .callback =
+          [] {
+            CHECK(PathComponent::FromString(L"foo.")
+                      .value()
+                      .extension()
+                      .value()
+                      .empty());
+          }},
+     {.name = L"Present", .callback = [] {
+        CHECK(
+            PathComponent::FromString(L"foo.md").value().extension().value() ==
+            L"md");
+      }}});
 
 PathComponent::PathComponent(std::wstring component)
     : component_(std::move(component)) {}
@@ -124,6 +195,16 @@ const bool expand_home_directory_tests_registration = tests::Register(
              }},
     });
 
+/* static */ Path Path::WithExtension(const Path& path,
+                                      const std::wstring& extension) {
+  auto dir = path.Dirname();
+  auto base = path.Basename();
+  CHECK(!dir.IsError());
+  CHECK(!base.IsError());
+  return Path::Join(dir.value(),
+                    PathComponent::WithExtension(base.value(), extension));
+}
+
 ValueOrError<Path> Path::Dirname() const {
   VLOG(5) << "Dirname: " << path_;
   std::unique_ptr<char, decltype(&std::free)> tmp(
@@ -138,6 +219,12 @@ ValueOrError<PathComponent> Path::Basename() const {
       strdup(ToByteString(path_).c_str()), &std::free);
   CHECK(tmp != nullptr);
   return PathComponent::FromString(FromByteString(basename(tmp.get())));
+}
+
+std::optional<std::wstring> Path::extension() const {
+  auto name = Basename();
+  if (name.IsError()) return std::nullopt;
+  return name.value().extension();
 }
 
 const std::wstring& Path::ToString() const { return path_; }
@@ -256,6 +343,11 @@ ValueOrError<AbsolutePath> AbsolutePath::FromString(std::wstring path) {
 AbsolutePath::AbsolutePath(std::wstring path) : Path(std::move(path)) {}
 
 std::ostream& operator<<(std::ostream& os, const Path& p) {
+  os << p.ToString();
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const PathComponent& p) {
   os << p.ToString();
   return os;
 }
