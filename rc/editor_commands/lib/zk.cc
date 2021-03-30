@@ -419,7 +419,7 @@ void Journal(int days_to_generate, Time start, string template_path) {
           string previous_child_title = "";
           auto next_child_path = NextEmpty();
           for (int i = 0; i < days_to_generate; i++) {
-            auto child_title = start.format("%Y-%m-%d");
+            auto child_title = start.format("%Y-%m-%d (%a)");
             auto child_buffer = InitializeNewNote(next_child_path, child_title,
                                                   parent_title, parent_path);
             // Append the template.
@@ -451,7 +451,7 @@ void Journal(int days_to_generate, Time start, string template_path) {
             child_buffer.Save();
             if (i + 1 < days_to_generate) {
               next_child_path = NextEmpty();
-              AppendLink(child_buffer, start.format("%Y-%m-%d"),
+              AppendLink(child_buffer, start.format("%Y-%m-%d (%a)"),
                          next_child_path);
               child_buffer.Save();
             }
