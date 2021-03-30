@@ -41,6 +41,77 @@ namespace afc::futures {
 template <typename Type>
 class Future;
 
+template <typename Type>
+class Value;
+
+enum class IterationControlCommand { kContinue, kStop };
+
+template <typename>
+struct TransformTraitsCallableReturn;
+
+template <typename T>
+struct TransformTraitsCallableReturn {
+  using Type = Value<T>;
+  static void Feed(T output, typename Value<T>::Consumer consumer) {
+    consumer(std::move(output));
+  }
+};
+
+template <typename T>
+struct TransformTraitsCallableReturn<Value<T>> {
+  using Type = Value<T>;
+  static void Feed(Value<T> output, typename Value<T>::Consumer consumer) {
+    output.SetConsumer(std::move(consumer));
+  }
+};
+
+template <typename, typename>
+struct TransformTraits;
+
+template <class InitialType, class Callable>
+struct TransformTraits {
+  using ReturnTraits =
+      TransformTraitsCallableReturn<decltype(std::declval<Callable>()(
+          std::declval<InitialType>()))>;
+  using ReturnType = typename ReturnTraits::Type;
+
+  static void FeedValue(InitialType initial_value, Callable& callable,
+                        typename ReturnType::Consumer consumer) {
+    ReturnTraits::Feed(callable(std::move(initial_value)), std::move(consumer));
+  }
+};
+
+template <class InitialType, class Callable>
+struct TransformTraits<editor::ValueOrError<InitialType>, Callable> {
+  using ReturnTraits =
+      TransformTraitsCallableReturn<decltype(std::declval<Callable>()(
+          std::declval<InitialType>()))>;
+  using ReturnType = typename ReturnTraits::Type;
+
+  static void FeedValue(editor::ValueOrError<InitialType> initial_value,
+                        Callable& callable,
+                        typename ReturnType::Consumer consumer) {
+    if (initial_value.IsError()) {
+      consumer(initial_value.error());
+    } else {
+      ReturnTraits::Feed(callable(std::move(initial_value.value())),
+                         std::move(consumer));
+    }
+  }
+};
+
+template <typename InitialType, typename Callable>
+auto Transform(Value<InitialType> delayed_value, Callable callable) {
+  using Traits = TransformTraits<InitialType, Callable>;
+  Future<typename Traits::ReturnType::type> output;
+  delayed_value.SetConsumer(
+      [consumer = output.consumer,
+       callable = std::move(callable)](InitialType initial_value) mutable {
+        Traits::FeedValue(std::move(initial_value), callable, consumer);
+      });
+  return output.value;
+}
+
 // TODO(ms0): If A can be converted to type B, make it possible for Value<A> to
 // be converted to Value<B> implicitly.
 template <typename Type>
@@ -61,6 +132,22 @@ class Value {
       data_->consumer = std::move(consumer);
     }
   }
+
+  template <typename Callable>
+  auto Transform(Callable callable) {
+    return futures::Transform(*this, std::move(callable));
+  }
+
+  // Turns a futures::Value<ValueOrError<T>> into a futures::Value<T>; if the
+  // future has errors, uses the callable (which receives the error) to turn
+  // them into a value (and ignore them).
+  //
+  // Example:
+  //
+  // futures::Value<int> value = futures::Past(futures::ValueOrError<int>(...))
+  //     .ConsumeErrors([](Error error) { ... return 0; });
+  template <typename Callable>
+  auto ConsumeErrors(Callable error_callback);
 
  private:
   friend Future<Type>;
@@ -140,13 +227,25 @@ struct Future {
 };
 
 template <typename Type>
+template <typename Callable>
+auto Value<Type>::ConsumeErrors(Callable error_callback) {
+  Future<typename Type::ValueType> output;
+  SetConsumer(
+      [consumer = std::move(output.consumer),
+       error_callback = std::move(error_callback)](Type value_or_error) {
+        consumer(value_or_error.IsError()
+                     ? error_callback(std::move(value_or_error.error()))
+                     : value_or_error.value());
+      });
+  return output.value;
+}
+
+template <typename Type>
 static Value<Type> Past(Type value) {
   Future<Type> output;
   output.consumer(std::move(value));
   return output.value;
 }
-
-enum class IterationControlCommand { kContinue, kStop };
 
 // Evaluate `callable` for each element in the range [begin, end). `callable`
 // receives a reference to each element and must return a
@@ -197,72 +296,6 @@ Value<IterationControlCommand> While(Callable callable) {
     });
   };
   resume(resume);
-  return output.value;
-}
-
-template <typename>
-struct TransformTraitsCallableReturn;
-
-template <typename T>
-struct TransformTraitsCallableReturn {
-  using Type = Value<T>;
-  static void Feed(T output, typename Value<T>::Consumer consumer) {
-    consumer(std::move(output));
-  }
-};
-
-template <typename T>
-struct TransformTraitsCallableReturn<Value<T>> {
-  using Type = Value<T>;
-  static void Feed(Value<T> output, typename Value<T>::Consumer consumer) {
-    output.SetConsumer(std::move(consumer));
-  }
-};
-
-template <typename, typename>
-struct TransformTraits;
-
-template <class InitialType, class Callable>
-struct TransformTraits {
-  using ReturnTraits =
-      TransformTraitsCallableReturn<decltype(std::declval<Callable>()(
-          std::declval<InitialType>()))>;
-  using ReturnType = typename ReturnTraits::Type;
-
-  static void FeedValue(InitialType initial_value, Callable& callable,
-                        typename ReturnType::Consumer consumer) {
-    ReturnTraits::Feed(callable(std::move(initial_value)), std::move(consumer));
-  }
-};
-
-template <class InitialType, class Callable>
-struct TransformTraits<editor::ValueOrError<InitialType>, Callable> {
-  using ReturnTraits =
-      TransformTraitsCallableReturn<decltype(std::declval<Callable>()(
-          std::declval<InitialType>()))>;
-  using ReturnType = typename ReturnTraits::Type;
-
-  static void FeedValue(editor::ValueOrError<InitialType> initial_value,
-                        Callable& callable,
-                        typename ReturnType::Consumer consumer) {
-    if (initial_value.IsError()) {
-      consumer(initial_value.error());
-    } else {
-      ReturnTraits::Feed(callable(std::move(initial_value.value())),
-                         std::move(consumer));
-    }
-  }
-};
-
-template <typename InitialType, typename Callable>
-auto Transform(Value<InitialType> delayed_value, Callable callable) {
-  using Traits = TransformTraits<InitialType, Callable>;
-  Future<typename Traits::ReturnType::type> output;
-  delayed_value.SetConsumer(
-      [consumer = output.consumer,
-       callable = std::move(callable)](InitialType initial_value) mutable {
-        Traits::FeedValue(std::move(initial_value), callable, consumer);
-      });
   return output.value;
 }
 

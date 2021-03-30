@@ -559,6 +559,16 @@ EdgeVariable<wstring>* const cpp_prompt_namespaces =
             L"commands (functions) given to the CPP prompt (`:`).")
         .Build();
 
+EdgeVariable<wstring>* const file_context_extensions =
+    StringStruct()
+        ->Add()
+        .Name(L"file_context_extensions")
+        .Key(L"E")
+        .Description(
+            L"Space-separated list of extensions to look for files based on "
+            L"the identifier under the cursor.")
+        .Build();
+
 EdgeStruct<int>* IntStruct() {
   static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;

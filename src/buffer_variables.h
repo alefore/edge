@@ -61,6 +61,7 @@ extern EdgeVariable<wstring>* const directory_noise;
 extern EdgeVariable<wstring>* const contents_type;
 extern EdgeVariable<wstring>* const shell_command_help_filter;
 extern EdgeVariable<wstring>* const cpp_prompt_namespaces;
+extern EdgeVariable<wstring>* const file_context_extensions;
 
 EdgeStruct<int>* IntStruct();
 extern EdgeVariable<int>* const line_width;

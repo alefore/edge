@@ -44,6 +44,7 @@ extern "C" {
 #include "src/status.h"
 #include "src/substring.h"
 #include "src/time.h"
+#include "src/tokenize.h"
 #include "src/tracker.h"
 #include "src/transformation.h"
 #include "src/transformation/cursors.h"
@@ -2042,6 +2043,18 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
                         transformation::Input::Mode::kFinal);
 }
 
+std::vector<Path> GetPathsWithExtensionsForContext(const OpenBuffer& buffer,
+                                                   const Path& original_path) {
+  std::vector<Path> output = {original_path};
+  auto extensions = TokenizeBySpaces(
+      *NewLazyString(buffer.Read(buffer_variables::file_context_extensions)));
+  for (auto& extension_token : extensions) {
+    CHECK(!extension_token.value.empty());
+    output.push_back(Path::WithExtension(original_path, extension_token.value));
+  }
+  return output;
+}
+
 void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
   std::wstring line = GetCurrentToken(
       {.contents = buffer->contents(),
@@ -2054,39 +2067,40 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
   }
   auto path = Path::FromString(line);
   if (path.IsError()) return;
-  futures::Transform(
-      futures::OnError(
-          buffer->file_system_driver()->Stat(std::move(path.value())),
-          [buffer](Error error) {
-            buffer->status()->set_context(nullptr);
-            return error;
-          }),
-      [buffer, line](struct stat s) {
-        if (S_ISSOCK(s.st_mode) || S_ISBLK(s.st_mode) || S_ISCHR(s.st_mode) ||
-            S_ISFIFO(s.st_mode)) {
-          // Don't bother with these special file types.
-          buffer->status()->set_context(nullptr);
-          return futures::Past(Success());
-        }
-        OpenFileOptions options;
-        options.editor_state = buffer->editor();
-        if (auto path = Path::FromString(line); !path.IsError()) {
-          options.path = path.value();
-        }
-        options.ignore_if_not_found = true;
-        options.insertion_type = BuffersList::AddBufferType::kIgnore;
-        options.use_search_paths = false;
-        return futures::Transform(
-            OpenFile(std::move(options)),
-            [buffer](map<wstring, shared_ptr<OpenBuffer>>::iterator
-                         buffer_context_it) {
-              buffer->status()->set_context(
-                  buffer_context_it == buffer->editor()->buffers()->end()
-                      ? nullptr
-                      : buffer_context_it->second);
-              return Success();
-            });
-      });
+  auto paths = GetPathsWithExtensionsForContext(*buffer, path.value());
+  futures::ForEachWithCopy(paths.begin(), paths.end(), [buffer](Path path) {
+    return buffer->file_system_driver()
+        ->Stat(path)
+        .Transform([buffer, path](struct stat s) {
+          if (S_ISSOCK(s.st_mode) || S_ISBLK(s.st_mode) || S_ISCHR(s.st_mode) ||
+              S_ISFIFO(s.st_mode)) {
+            return futures::Past(
+                Success(futures::IterationControlCommand::kContinue));
+          }
+          OpenFileOptions options;
+          options.editor_state = buffer->editor();
+          options.path = path;
+          options.ignore_if_not_found = true;
+          options.insertion_type = BuffersList::AddBufferType::kIgnore;
+          options.use_search_paths = false;
+          return OpenFile(std::move(options))
+              .Transform([buffer](map<wstring, shared_ptr<OpenBuffer>>::iterator
+                                      buffer_context_it) {
+                buffer->status()->set_context(
+                    buffer_context_it == buffer->editor()->buffers()->end()
+                        ? nullptr
+                        : buffer_context_it->second);
+                return Success(futures::IterationControlCommand::kStop);
+              });
+        })
+        .ConsumeErrors(
+            [](Error) { return futures::IterationControlCommand::kContinue; });
+  }).Transform([buffer](futures::IterationControlCommand result) {
+    if (result == futures::IterationControlCommand::kContinue) {
+      buffer->status()->set_context(nullptr);
+    }
+    return Success();
+  });
 }
 
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
