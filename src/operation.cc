@@ -634,7 +634,9 @@ class TopLevelCommandMode : public EditorMode {
         state_.Commit();
         return;
       case Terminal::BACKSPACE:
-        state_.UndoLast();
+        if (!state_.empty()) {
+          state_.UndoLast();
+        }
         ShowStatus(editor_state);
         return;
     }
