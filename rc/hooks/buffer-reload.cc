@@ -21,6 +21,13 @@ if (buffer.buffer_list_context_lines() < 5) {
   buffer.set_buffer_list_context_lines(5);
 }
 
+void AddContextExtension(string ext) {
+  if (buffer.file_context_extensions().find(ext, 0) == -1) {
+    buffer.set_file_context_extensions(buffer.file_context_extensions() +
+                                     " " + ext);
+  }
+}
+
 void HandleFileTypes(string basename, string extension) {
   if (extension == "cc" || extension == "h" || extension == "c" ||
       extension == "cpp") {
@@ -59,6 +66,8 @@ void HandleFileTypes(string basename, string extension) {
 
   if (extension == "txt" || extension == "md") {
     buffer.set_wrap_from_content(true);
+    AddContextExtension("md");
+    AddContextExtension("txt");
   }
 
   if (extension == "md") {
