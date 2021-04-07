@@ -160,6 +160,23 @@ std::wstring BuildStatus(
 }
 #endif
 
+std::wstring SerializeCall(std::wstring name,
+                           std::vector<std::wstring> arguments) {
+  std::wstring output = name + L"(";
+  std::wstring separator = L"";
+  for (auto& a : arguments) {
+    if (!a.empty()) {
+      output += separator + a;
+      separator = L", ";
+    }
+  }
+  return output + L")";
+}
+
+std::wstring StructureToString(Structure* structure) {
+  return structure == nullptr ? L"?" : structure->ToString();
+}
+
 Modifiers GetModifiers(Structure* structure,
                        const CommandArgumentRepetitions& repetitions,
                        Direction direction) {
@@ -171,33 +188,30 @@ Modifiers GetModifiers(Structure* structure,
 }
 
 std::wstring ToStatus(const CommandErase& erase) {
-  return L"Erase(" + erase.repetitions.ToString() + L", " +
-         (erase.structure != nullptr ? erase.structure->ToString() : L"") +
-         L")";
+  return SerializeCall(L"Erase", {StructureToString(erase.structure),
+                                  erase.repetitions.ToString()});
 }
 
 std::wstring ToStatus(const CommandReach& reach) {
-  return L"Reach(" + reach.repetitions.ToString() + L", " +
-         (reach.structure != nullptr ? reach.structure->ToString() : L"") +
-         L")";
+  return SerializeCall(L"Reach", {StructureToString(reach.structure),
+                                  reach.repetitions.ToString()});
 }
 
 std::wstring ToStatus(const CommandReachBegin& reach) {
-  return std::wstring(reach.direction == Direction::kForwards ? L"Home"
-                                                              : L"End") +
-         L"(" +
-         (reach.structure != nullptr ? reach.structure->ToString() : L"") +
-         L", " + reach.repetitions.ToString() + L")";
+  return SerializeCall(
+      reach.direction == Direction::kForwards ? L"Home" : L"End",
+      {StructureToString(reach.structure), reach.repetitions.ToString()});
 }
 
 std::wstring ToStatus(const CommandReachLine& reach_line) {
-  return std::wstring(reach_line.repetitions.get() >= 0 ? L"Down" : L"Up") +
-         L"(" + reach_line.repetitions.ToString() + L")";
+  return SerializeCall(reach_line.repetitions.get() >= 0 ? L"Down" : L"Up",
+                       {reach_line.repetitions.ToString()});
 }
 
 std::wstring ToStatus(const CommandReachChar& c) {
-  return L"Char(" + (c.c.has_value() ? std::wstring(1, c.c.value()) : L"…") +
-         +L", " + c.repetitions.ToString() + L")";
+  return SerializeCall(L"Char",
+                       {c.c.has_value() ? std::wstring(1, c.c.value()) : L"…",
+                        c.repetitions.ToString()});
 }
 
 bool IsNoop(const CommandErase& erase) { return erase.repetitions.get() == 0; }
@@ -706,11 +720,13 @@ class TopLevelCommandMode : public EditorMode {
 }  // namespace
 
 std::wstring CommandArgumentRepetitions::ToString() const {
+  if (get() == 0) return L"";
+
   if (additive_default_ + additive_ == 0) {
     return std::to_wstring(get());
   }
   return std::to_wstring(additive_default_ + additive_) +
-         (multiplicative_ >= 0 ? L" + " : L" - ") +
+         (multiplicative_ >= 0 ? L"+" : L"-") +
          std::to_wstring(abs(multiplicative_));
 }
 
