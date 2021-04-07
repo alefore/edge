@@ -504,6 +504,18 @@ bool ReceiveInput(CommandReach* output, wint_t c, State*) {
 }
 
 bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
+  if (output->structure == StructureLine()) {
+    switch (c) {
+      case 'j':
+      case 'k':
+        int delta = c == L'j' ? 1 : -1;
+        if (output->direction == Direction::kBackwards) {
+          delta *= -1;
+        }
+        output->repetitions.sum(delta);
+        return true;
+    }
+  }
   if (CheckStructureChar(c, &output->structure, &output->repetitions) ||
       CheckIncrementsChar(c, &output->repetitions) ||
       CheckRepetitionsChar(c, &output->repetitions)) {
