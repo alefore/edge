@@ -507,13 +507,19 @@ bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
   if (output->structure == StructureLine()) {
     switch (c) {
       case 'j':
-      case 'k':
+      case 'k': {
         int delta = c == L'j' ? 1 : -1;
         if (output->direction == Direction::kBackwards) {
           delta *= -1;
         }
         output->repetitions.sum(delta);
+      }
         return true;
+      case 'h':
+      case 'l':
+        // Don't let CheckRepetitionsChar below handle these; we'd rather
+        // preserve the usual meaning (of scrolling by a character).
+        return false;
     }
   }
   if (CheckStructureChar(c, &output->structure, &output->repetitions) ||
