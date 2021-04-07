@@ -814,10 +814,11 @@ void EditorState::ProcessInput(int c) {
   OpenAnonymousBuffer(this).SetConsumer(
       [this, c](std::shared_ptr<OpenBuffer> buffer) {
         if (!has_current_buffer()) {
+          buffer_tree_.AddBuffer(buffer, BuffersList::AddBufferType::kOnlyList);
           set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
+          CHECK(has_current_buffer());
         }
         buffer->mode()->ProcessInput(c, this);
-        CHECK(has_current_buffer());
       });
 }
 
