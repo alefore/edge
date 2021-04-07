@@ -14,10 +14,6 @@
 
 namespace zettelkasten {
 namespace internal {
-// String that identifies the end of the main contents of a note. This is used
-// when expanding the note into an article or into a flashcard.
-string kEndOfContentLine = "Related:";
-
 string GetNoteTitle(Buffer buffer) {
   auto line = buffer.line(0);
   if (line.substr(0, 1) == "#") {
@@ -275,7 +271,9 @@ void Expand(Buffer buffer, string path, SetString titles, int depth,
   bool first_line = true;
   string title = "";
   while (line < sub_buffer.line_count()) {
-    if (sub_buffer.line(line) == kEndOfContentLine) {
+    if (sub_buffer.line(line) == "Related:" ||
+        sub_buffer.line(line) == "## Related" ||
+        sub_buffer.line(line) == "## Related:") {
       copy_contents = false;
     }
     auto line_contents = sub_buffer.line(line);
