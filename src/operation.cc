@@ -428,10 +428,10 @@ bool CheckStructureChar(wint_t c, Structure** structure,
       selected_structure = StructureWord();
       break;
     case L'c':
-      selected_structure = StructureLine();
+      selected_structure = StructureSymbol();
       break;
     case L'v':
-      selected_structure = StructureTree();
+      selected_structure = StructureLine();
       break;
     case L'b':
       selected_structure = StructureParagraph();
@@ -441,6 +441,9 @@ bool CheckStructureChar(wint_t c, Structure** structure,
       break;
     case L'm':
       selected_structure = StructureBuffer();
+      break;
+    case L'V':
+      selected_structure = StructureTree();
       break;
     default:
       return false;
