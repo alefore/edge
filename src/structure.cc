@@ -13,6 +13,11 @@
 
 namespace afc::editor {
 namespace {
+LineColumn MoveInRange(Range range, Modifiers modifiers) {
+  CHECK_LE(range.begin, range.end);
+  return modifiers.direction == Direction::kForwards ? range.end : range.begin;
+}
+
 // Arguments:
 //   prefix_len: The length of prefix that we skip when calls is 0.
 //   suffix_start: The position where the suffix starts. This is the base when
@@ -104,6 +109,11 @@ Structure* StructureChar() {
       CHECK_LE(position.column, line->EndColumn());
       return position;
     }
+
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range range,
+                                   const Modifiers& modifiers) override {
+      return MoveInRange(range, modifiers);
+    }
   };
   static Impl output;
   return &output;
@@ -154,6 +164,11 @@ Structure* StructureWord() {
                                                   const Modifiers&, LineColumn,
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
+    }
+
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range range,
+                                   const Modifiers& modifiers) override {
+      return MoveInRange(range, modifiers);
     }
   };
   static Impl output;
@@ -221,6 +236,11 @@ Structure* StructureSymbol() {
       }
       return position;
     }
+
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range range,
+                                   const Modifiers& modifiers) override {
+      return MoveInRange(range, modifiers);
+    }
   };
   static Impl output;
   return &output;
@@ -286,10 +306,57 @@ Structure* StructureLine() {
       CHECK_LE(position.line, LineNumber(0) + buffer->contents()->size());
       return position;
     }
+
+    std::optional<LineColumn> Move(const OpenBuffer& buffer,
+                                   LineColumn position, Range,
+                                   const Modifiers& modifiers) override {
+      int direction = (modifiers.direction == Direction::kBackwards ? -1 : 1);
+      size_t repetitions = modifiers.repetitions.value_or(1);
+      if (modifiers.direction == Direction::kBackwards &&
+          repetitions > position.line.line) {
+        position.line = LineNumber(0);
+      } else {
+        position.line += LineNumberDelta(direction * repetitions);
+        position.line = min(position.line, buffer.contents()->EndLine());
+      }
+      return position;
+    }
   };
   static Impl output;
   return &output;
 }
+
+namespace {
+template <typename Iterator>
+static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
+                                  LineColumn current,
+                                  const Modifiers& modifiers) {
+  using P = pair<const size_t, LineMarks::Mark>;
+  Iterator it = std::upper_bound(
+      it_begin, it_end, P(current.line.line, LineMarks::Mark()),
+      modifiers.direction == Direction::kForwards
+          ? [](const P& a, const P& b) { return a.first < b.first; }
+          : [](const P& a, const P& b) { return a.first > b.first; });
+  if (it == it_end) {
+    return current;
+  }
+
+  for (size_t i = 1; i < modifiers.repetitions; i++) {
+    size_t position = it->first;
+    ++it;
+    // Skip more marks for the same line.
+    while (it != it_end && it->first == position) {
+      ++it;
+    }
+    if (it == it_end) {
+      // Can't move past the current mark.
+      return LineColumn(LineNumber(position));
+    }
+  }
+
+  return it->second.target;
+}
+}  // namespace
 
 Structure* StructureMark() {
   class Impl : public Structure {
@@ -333,6 +400,25 @@ Structure* StructureMark() {
       position.line = LineNumber(lines.at(index).first);
       return position;
     }
+
+    std::optional<LineColumn> Move(const OpenBuffer& buffer,
+                                   LineColumn position, Range,
+                                   const Modifiers& modifiers) override {
+      const multimap<size_t, LineMarks::Mark>* marks = buffer.GetLineMarks();
+      switch (modifiers.direction) {
+        case Direction::kForwards:
+          return GetMarkPosition(marks->begin(), marks->end(), position,
+                                 modifiers);
+          break;
+        case Direction::kBackwards:
+          return GetMarkPosition(marks->rbegin(), marks->rend(), position,
+                                 modifiers);
+      }
+      CHECK(false);
+      return std::nullopt;
+    }
+
+   private:
   };
   static Impl output;
   return &output;
@@ -377,6 +463,23 @@ Structure* StructurePage() {
       CHECK_LT(position.line.ToDelta(), buffer->contents()->size());
       return position;
     }
+
+    std::optional<LineColumn> Move(const OpenBuffer& buffer,
+                                   LineColumn position, Range range,
+                                   const Modifiers& modifiers) override {
+      static const auto kDefaultScreenLines = LineNumberDelta(24);
+      auto view_size = buffer.viewers()->view_size();
+      auto screen_lines =
+          max(0.2,
+              1.0 - 2.0 * buffer.Read(buffer_variables::margin_lines_ratio)) *
+          (view_size.has_value() ? view_size->line : kDefaultScreenLines);
+      auto lines =
+          modifiers.repetitions.value_or(1) * screen_lines - LineNumberDelta(1);
+      return StructureLine()->Move(buffer, position, range,
+                                   {.structure = StructureLine(),
+                                    .direction = modifiers.direction,
+                                    .repetitions = lines.line_delta});
+    }
   };
   static Impl output;
   return &output;
@@ -408,6 +511,11 @@ Structure* StructureSearch() {
                                                   const Modifiers&, LineColumn,
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
+    }
+
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range,
+                                   const Modifiers&) override {
+      return std::nullopt;
     }
   };
   static Impl output;
@@ -501,6 +609,11 @@ Structure* StructureTree() {
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
     }
+
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range range,
+                                   const Modifiers& modifiers) override {
+      return MoveInRange(range, modifiers);
+    }
   };
   static Impl output;
   return &output;
@@ -564,6 +677,11 @@ Structure* StructureCursor() {
         --current;
       }
 #endif
+      return std::nullopt;
+    }
+
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range,
+                                   const Modifiers&) override {
       return std::nullopt;
     }
   };
@@ -640,6 +758,11 @@ Structure* StructureSentence() {
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
     }
+
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range,
+                                   const Modifiers&) override {
+      return std::nullopt;
+    }
   };
   static Impl output;
   return &output;
@@ -680,6 +803,11 @@ Structure* StructureParagraph() {
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
     }
+
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range,
+                                   const Modifiers&) override {
+      return std::nullopt;
+    }
   };
   static Impl output;
   return &output;
@@ -717,6 +845,11 @@ Structure* StructureBuffer() {
                                                   const Modifiers&, LineColumn,
                                                   int) override {
       return std::nullopt;  // TODO: Implement.
+    }
+
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range,
+                                   const Modifiers&) override {
+      return std::nullopt;
     }
   };
   static Impl output;

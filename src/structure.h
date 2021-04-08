@@ -67,6 +67,10 @@ class Structure {
   virtual std::optional<LineColumn> ComputeGoToPosition(
       const OpenBuffer* buffer, const Modifiers& modifiers, LineColumn position,
       int calls) = 0;
+
+  virtual std::optional<LineColumn> Move(const OpenBuffer& buffer,
+                                         LineColumn position, Range range,
+                                         const Modifiers& modifiers) = 0;
 };
 
 Structure* StructureChar();
