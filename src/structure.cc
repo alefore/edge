@@ -804,9 +804,9 @@ Structure* StructureParagraph() {
       return std::nullopt;  // TODO: Implement.
     }
 
-    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range,
-                                   const Modifiers&) override {
-      return std::nullopt;
+    std::optional<LineColumn> Move(const OpenBuffer&, LineColumn, Range range,
+                                   const Modifiers& modifiers) override {
+      return MoveInRange(range, modifiers);
     }
   };
   static Impl output;
