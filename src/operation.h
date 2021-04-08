@@ -67,10 +67,12 @@ struct CommandReachBegin {
   Direction direction = Direction::kForwards;
 };
 
+// Similar to CommandReach with structure = StructureLine.
 struct CommandReachLine {
   CommandArgumentRepetitions repetitions = {.repetitions = 0};
 };
 
+// Finds occurrences of a given character in the current line.
 struct CommandReachChar {
   std::optional<wchar_t> c;
   CommandArgumentRepetitions repetitions = {.repetitions = 1};
