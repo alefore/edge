@@ -67,6 +67,15 @@ Buffer TitleSearch(string query, string insertion_type) {
   return buffer;
 }
 
+void VisitFileWithTitleSearch(string query) {
+  auto buffer = RunCommand("search: " + query,
+                           "awk '{if (tolower($0)~\"" + query.shell_escape() +
+                               "\") system(\"edge -X \" FILENAME); "
+                               "nextfile;}' ???.md | head -1",
+                           "visit");
+  buffer.set_allow_dirty_delete(true);
+}
+
 TransformationOutput Link(Buffer buffer, TransformationInput input) {
   auto line = buffer.line(input.position().line());
   auto path_characters = buffer.path_characters();
@@ -517,6 +526,8 @@ Buffer PreviewS(string query) {
 // Receives a string and produces a list of all Zettel that include that string
 // in their title.
 void T(string query) { internal::TitleSearch(query, "visit"); }
+
+void Today() { internal::VisitFileWithTitleSearch(Now().format("%Y-%m-%d")); }
 
 Buffer PreviewT(string query) { return internal::TitleSearch(query, "ignore"); }
 
