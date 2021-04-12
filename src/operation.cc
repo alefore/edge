@@ -216,7 +216,9 @@ std::wstring ToStatus(const CommandReachChar& c) {
 
 bool IsNoop(const CommandErase& erase) { return erase.repetitions.get() == 0; }
 
-bool IsNoop(const CommandReach& reach) { return reach.repetitions.get() == 0; }
+bool IsNoop(const CommandReach& reach) {
+  return reach.repetitions.get() == 0 && reach.structure == StructureChar();
+}
 
 bool IsNoop(const CommandReachBegin&) { return false; }
 
@@ -532,6 +534,15 @@ bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
         output->repetitions.sum(delta);
       }
         return true;
+      case 'h':
+      case 'l':
+        // Don't let CheckRepetitionsChar below handle these; we'd rather
+        // preserve the usual meaning (of scrolling by a character).
+        return false;
+    }
+  }
+  if (output->structure == StructureChar() || output->structure == nullptr) {
+    switch (c) {
       case 'h':
       case 'l':
         // Don't let CheckRepetitionsChar below handle these; we'd rather
