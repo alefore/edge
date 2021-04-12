@@ -314,10 +314,13 @@ Structure* StructureLine() {
       size_t repetitions = modifiers.repetitions.value_or(1);
       if (modifiers.direction == Direction::kBackwards &&
           repetitions > position.line.line) {
-        position.line = LineNumber(0);
+        position = LineColumn();
       } else {
         position.line += LineNumberDelta(direction * repetitions);
-        position.line = min(position.line, buffer.contents()->EndLine());
+        if (position.line > buffer.contents()->EndLine()) {
+          position = LineColumn(buffer.contents()->EndLine(),
+                                std::numeric_limits<ColumnNumber>::max());
+        }
       }
       return position;
     }
