@@ -529,6 +529,14 @@ void T(string query) { internal::TitleSearch(query, "visit"); }
 
 void Today() { internal::VisitFileWithTitleSearch(Now().format("%Y-%m-%d")); }
 
+void Yesterday() {
+  internal::VisitFileWithTitleSearch(Now().AddDays(-1).format("%Y-%m-%d"));
+}
+
+void Tomorrow() {
+  internal::VisitFileWithTitleSearch(Now().AddDays(1).format("%Y-%m-%d"));
+}
+
 Buffer PreviewT(string query) { return internal::TitleSearch(query, "ignore"); }
 
 // Replaces a path (e.g., `03d.md`) with a link to it, extracting the text of
