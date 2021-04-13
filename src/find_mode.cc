@@ -89,10 +89,18 @@ std::optional<ColumnNumber> FindTransformation::SeekOnce(
   }
 
   CHECK_GE(times, ColumnNumberDelta(0));
-  for (size_t i = 1; i < static_cast<size_t>(times.column_delta); i++) {
-    if (line.get(column + direction * i) == static_cast<wint_t>(c_)) {
-      return column + direction * i;
+  size_t start = 0;
+
+  // Seek until we're at a different character:
+  while (start < static_cast<size_t>(times.column_delta) &&
+         line.get(column + direction * start) == static_cast<wint_t>(c_))
+    start++;
+
+  while (start < static_cast<size_t>(times.column_delta)) {
+    if (line.get(column + direction * start) == static_cast<wint_t>(c_)) {
+      return column + direction * start;
     }
+    start++;
   }
   return std::nullopt;
 }
