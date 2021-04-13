@@ -94,6 +94,7 @@ struct Modifiers {
 
   std::optional<size_t> repetitions = std::nullopt;
 
+  // TODO(easy): Change kDoNothing to kPreserveText.
   enum class DeleteBehavior { kDeleteText, kDoNothing };
   DeleteBehavior delete_behavior = DeleteBehavior::kDeleteText;
 
