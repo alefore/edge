@@ -72,7 +72,7 @@ void VisitFileWithTitleSearch(string query) {
                            "awk '{if (tolower($0)~\"" + query.shell_escape() +
                                "\") system(\"edge -X \" FILENAME); "
                                "nextfile;}' ???.md | head -1",
-                           "visit");
+                           "ignore");
   buffer.set_allow_dirty_delete(true);
 }
 
