@@ -730,7 +730,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
 
   commands->Add(L"r", operation::NewTopLevelCommand(
                           L"delete", L"starts a new delete command",
-                          operation::TopCommand::kReach, editor_state));
+                          operation::TopCommandReach(), editor_state));
   commands->Add(L"R", std::make_unique<InsertionModifierCommand>());
 
   commands->Add(L"/", NewSearchCommand());
@@ -758,7 +758,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   };
   commands->Add(L"e", operation::NewTopLevelCommand(
                           L"delete", L"starts a new delete command",
-                          operation::TopCommand::kErase, editor_state));
+                          operation::TopCommandErase(), editor_state));
   commands->Add(
       L"d",
       NewCommandWithModifiers(

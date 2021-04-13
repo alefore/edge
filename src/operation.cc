@@ -18,16 +18,8 @@ namespace afc::editor::operation {
 using futures::Past;
 namespace {
 
-Command GetDefaultCommand(TopCommand top_command) {
-  switch (top_command) {
-    case TopCommand::kErase:
-      return CommandErase();
-    case TopCommand::kReach:
-      return CommandReach();
-  }
-  LOG(FATAL) << " Invalid top command.";
-  return CommandReach();
-}
+Command GetDefaultCommand(TopCommandErase) { return CommandErase(); }
+Command GetDefaultCommand(TopCommandReach) { return CommandReach(); }
 
 #if 0
 bool CharConsumer(wint_t c, Modifiers* modifiers) {
@@ -264,16 +256,20 @@ futures::Value<UndoCallback> ExecuteTransformation(
       });
 }
 
-futures::Value<UndoCallback> Execute(CommandErase erase, EditorState* editor,
+futures::Value<UndoCallback> Execute(TopCommand top_command, CommandErase erase,
+                                     EditorState* editor,
                                      ApplicationType application_type) {
+  Modifiers modifiers =
+      GetModifiers(erase.structure, erase.repetitions, Direction::kForwards);
+  modifiers.delete_behavior =
+      std::get<TopCommandErase>(top_command).delete_behavior;
   return ExecuteTransformation(
       editor, application_type,
-      transformation::Delete{.modifiers = GetModifiers(erase.structure,
-                                                       erase.repetitions,
-                                                       Direction::kForwards)});
+      transformation::Delete{.modifiers = std::move(modifiers)});
 }
 
-futures::Value<UndoCallback> Execute(CommandReach reach, EditorState* editor,
+futures::Value<UndoCallback> Execute(TopCommand, CommandReach reach,
+                                     EditorState* editor,
                                      ApplicationType application_type) {
   if (reach.repetitions.get() == 0)
     return Past(UndoCallback([] { return Past(EmptyValue()); }));
@@ -285,7 +281,7 @@ futures::Value<UndoCallback> Execute(CommandReach reach, EditorState* editor,
           .transformation = NewMoveTransformation()});
 }
 
-futures::Value<UndoCallback> Execute(CommandReachBegin reach_begin,
+futures::Value<UndoCallback> Execute(TopCommand, CommandReachBegin reach_begin,
                                      EditorState* editor,
                                      ApplicationType application_type) {
   return ExecuteTransformation(
@@ -297,7 +293,7 @@ futures::Value<UndoCallback> Execute(CommandReachBegin reach_begin,
           .transformation = std::make_unique<GotoTransformation>(0)});
 }
 
-futures::Value<UndoCallback> Execute(CommandReachLine reach_line,
+futures::Value<UndoCallback> Execute(TopCommand, CommandReachLine reach_line,
                                      EditorState* editor,
                                      ApplicationType application_type) {
   if (reach_line.repetitions.get() == 0)
@@ -310,7 +306,7 @@ futures::Value<UndoCallback> Execute(CommandReachLine reach_line,
           .transformation = NewMoveTransformation()});
 }
 
-futures::Value<UndoCallback> Execute(CommandReachChar reach_char,
+futures::Value<UndoCallback> Execute(TopCommand, CommandReachChar reach_char,
                                      EditorState* editor,
                                      ApplicationType application_type) {
   if (!reach_char.c.has_value() || reach_char.repetitions.get() == 0)
@@ -326,28 +322,39 @@ futures::Value<UndoCallback> Execute(CommandReachChar reach_char,
 
 class State {
  public:
-  State(EditorState* editor_state) : editor_state_(editor_state) {}
+  State(EditorState* editor_state, TopCommand top_command)
+      : editor_state_(editor_state), top_command_(top_command) {}
 
   Command& GetLastCommand() { return executed_commands_.back()->command; }
 
   bool empty() const { return executed_commands_.empty(); }
 
+  const TopCommand& top_command() const { return top_command_; }
+
+  void set_top_command(TopCommand new_value) {
+    auto commands = executed_commands_;
+    top_command_ = new_value;
+    UndoEverything();
+    for (auto& c : commands) {
+      Push(std::move(c->command), ApplicationType::kPreview);
+    }
+  }
+
   void Push(Command command, ApplicationType application_type) {
     if (!empty() && std::visit([](auto& t) { return IsNoop(t); },
                                executed_commands_.back()->command)) {
-      serializer_.Push(
-          [command = executed_commands_.back()] { return command->undo(); });
-      executed_commands_.pop_back();
+      UndoLast();
     }
 
     executed_commands_.push_back(
         std::make_shared<ExecutedCommand>(ExecutedCommand{.command = command}));
     serializer_.Push([executed_command = executed_commands_.back(),
-                      editor_state = editor_state_, application_type] {
+                      editor_state = editor_state_, application_type,
+                      top_command = top_command_] {
       return futures::Transform(
           std::visit(
               [&](auto t) {
-                return Execute(t, editor_state, application_type);
+                return Execute(top_command, t, editor_state, application_type);
               },
               executed_command->command),
           [executed_command](UndoCallback undo_callback) {
@@ -367,13 +374,13 @@ class State {
   }
 
   void Abort() {
-    while (!empty()) UndoLast();
+    UndoEverything();
     editor_state_->set_keyboard_redirect(nullptr);
   }
 
   void Commit() {
     auto commands = executed_commands_;
-    while (!empty()) UndoLast();
+    UndoEverything();
     editor_state_->ForEachActiveBuffer(
         [](const std::shared_ptr<OpenBuffer>& buffer) {
           buffer->PushTransformationStack();
@@ -388,6 +395,10 @@ class State {
           return Past(EmptyValue());
         });
     editor_state_->set_keyboard_redirect(nullptr);
+  }
+
+  void UndoEverything() {
+    while (!empty()) UndoLast();
   }
 
   void UndoLast() {
@@ -414,6 +425,7 @@ class State {
 
   EditorState* const editor_state_;
   futures::Serializer serializer_;
+  TopCommand top_command_;
   std::vector<std::shared_ptr<ExecutedCommand>> executed_commands_ = {};
 };
 
@@ -503,6 +515,20 @@ bool ReceiveInput(CommandErase* output, wint_t c, State* state) {
     case L'e':
       state->Push(CommandErase(), ApplicationType::kPreview);
       return true;
+    case L's':
+      auto top_command_erase = std::get<TopCommandErase>(state->top_command());
+      switch (top_command_erase.delete_behavior) {
+        case Modifiers::DeleteBehavior::kDeleteText:
+          top_command_erase.delete_behavior =
+              Modifiers::DeleteBehavior::kDoNothing;
+          break;
+        case Modifiers::DeleteBehavior::kDoNothing:
+          top_command_erase.delete_behavior =
+              Modifiers::DeleteBehavior::kDeleteText;
+          break;
+      }
+      state->set_top_command(top_command_erase);
+      return true;
   }
   return false;
 }
@@ -577,7 +603,7 @@ bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
     return true;
   }
   if (c == L' ') {
-    state->Push(GetDefaultCommand(TopCommand::kReach),
+    state->Push(GetDefaultCommand(TopCommandReach()),
                 ApplicationType::kPreview);
     return true;
   }
@@ -626,7 +652,7 @@ bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
 class TopLevelCommandMode : public EditorMode {
  public:
   TopLevelCommandMode(TopCommand top_command, EditorState* editor_state)
-      : top_command_(top_command), state_(editor_state) {
+      : state_(editor_state, top_command) {
     PushDefault();
   }
 
@@ -656,10 +682,15 @@ class TopLevelCommandMode : public EditorMode {
     }
 
     PushDefault();
+    auto old_state = state_.top_command();
     if (std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
-                   state_.GetLastCommand()) ||
-        ReceiveInputTopCommand(c)) {
+                   state_.GetLastCommand())) {
       state_.ReApplyLast();
+      ShowStatus(editor_state);
+      return;
+    }
+    if (std::visit([&](auto& t) { return ReceiveInputTopCommand(t, c); },
+                   state_.top_command())) {
       ShowStatus(editor_state);
       return;
     }
@@ -670,67 +701,66 @@ class TopLevelCommandMode : public EditorMode {
   }
 
   void ShowStatus(EditorState* editor_state) {
-    editor_state->status()->SetInformationText(ToStatus());
+    editor_state->status()->SetInformationText(
+        std::visit([](auto& t) { return ToStatus(t); }, state_.top_command()) +
+        state_.GetStatusString());
   }
 
  private:
   void PushDefault() {
-    state_.Push(GetDefaultCommand(top_command_), ApplicationType::kPreview);
+    state_.Push(std::visit([](auto& t) { return GetDefaultCommand(t); },
+                           state_.top_command()),
+                ApplicationType::kPreview);
   }
 
-  bool ReceiveInputTopCommand(wint_t t) {
-    switch (top_command_) {
-      case TopCommand::kErase:
-        return false;
-      case TopCommand::kReach:
-        switch (t) {
-          case L'f':
-            state_.Push(CommandReachChar{}, ApplicationType::kPreview);
-            return true;
-          case L'j':
-          case L'k':
-            state_.Push(
-                CommandReachLine{.repetitions =
-                                     CommandArgumentRepetitions{
-                                         .repetitions = t == L'k' ? -1 : 1}},
-                ApplicationType::kPreview);
-            return true;
-          case L'H':
-            state_.Push(CommandReachBegin{}, ApplicationType::kPreview);
-            return true;
-          case L'L':
-            state_.Push(CommandReachBegin{.direction = Direction::kBackwards},
-                        ApplicationType::kPreview);
-            return true;
-          case L'K':
-            state_.Push(CommandReachBegin{.structure = StructureLine()},
-                        ApplicationType::kPreview);
-            return true;
-          case L'J':
-            state_.Push(CommandReachBegin{.structure = StructureLine(),
-                                          .direction = Direction::kBackwards},
-                        ApplicationType::kPreview);
-            return true;
-        }
-        return false;
+  bool ReceiveInputTopCommand(TopCommandErase, wint_t t) { return false; }
+
+  bool ReceiveInputTopCommand(TopCommandReach, wint_t t) {
+    switch (t) {
+      case L'f':
+        state_.Push(CommandReachChar{}, ApplicationType::kPreview);
+        return true;
+      case L'j':
+      case L'k':
+        state_.Push(
+            CommandReachLine{.repetitions =
+                                 CommandArgumentRepetitions{
+                                     .repetitions = t == L'k' ? -1 : 1}},
+            ApplicationType::kPreview);
+        return true;
+      case L'H':
+        state_.Push(CommandReachBegin{}, ApplicationType::kPreview);
+        return true;
+      case L'L':
+        state_.Push(CommandReachBegin{.direction = Direction::kBackwards},
+                    ApplicationType::kPreview);
+        return true;
+      case L'K':
+        state_.Push(CommandReachBegin{.structure = StructureLine()},
+                    ApplicationType::kPreview);
+        return true;
+      case L'J':
+        state_.Push(CommandReachBegin{.structure = StructureLine(),
+                                      .direction = Direction::kBackwards},
+                    ApplicationType::kPreview);
+        return true;
     }
     return false;
   }
 
-  std::wstring ToStatus() {
-    std::wstring output;
-    switch (top_command_) {
-      case TopCommand::kErase:
-        output += L"Erase";
-        break;
-      case TopCommand::kReach:
-        output += L"Reach:";
-        break;
+  static std::wstring ToStatus(TopCommandErase erase) {
+    switch (erase.delete_behavior) {
+      case Modifiers::DeleteBehavior::kDeleteText:
+        return L"E";
+      case Modifiers::DeleteBehavior::kDoNothing:
+        return L"P";
     }
-    return output + state_.GetStatusString();
+    LOG(FATAL) << "Invalid delete behavior.";
+    return L"";
   }
 
-  const TopCommand top_command_;
+  static std::wstring ToStatus(TopCommandReach) { return L"R"; }
+
   State state_;
 };
 }  // namespace

@@ -26,7 +26,13 @@ enum class ApplicationType { kPreview, kCommit };
 // => Reach(Line, 7); ReachNextCharacter(" ", 3);
 
 // Operation that is executed if there are no arguments at all.
-enum class TopCommand { kErase, kReach };
+struct TopCommandErase {
+  Modifiers::DeleteBehavior delete_behavior =
+      Modifiers::DeleteBehavior::kDeleteText;
+};
+struct TopCommandReach {};
+
+using TopCommand = std::variant<TopCommandErase, TopCommandReach>;
 
 class CommandArgumentRepetitions {
  public:
