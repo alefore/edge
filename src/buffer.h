@@ -272,7 +272,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   void set_current_cursor(LineColumn new_cursor);
   void CreateCursor();
-  LineColumn FindNextCursor(LineColumn cursor);
+  LineColumn FindNextCursor(LineColumn cursor, const Modifiers& modifiers);
   void DestroyCursor();
   void DestroyOtherCursors();
 

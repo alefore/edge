@@ -4,13 +4,18 @@
 #include <memory>
 #include <string>
 
+#include "src/modifiers.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
 
 namespace afc::editor {
 namespace transformation {
 // Transformation that swaps the current cursor with the next active cursor.
-struct SwapActiveCursor {};
+struct SwapActiveCursor {
+  // Honors `direction` and `repetitions`. May honor more modifiers in the
+  // future.
+  Modifiers modifiers;
+};
 
 futures::Value<Result> ApplyBase(const SwapActiveCursor& parameters,
                                  Input input);

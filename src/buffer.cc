@@ -1482,9 +1482,10 @@ void OpenBuffer::CreateCursor() {
   status_.SetInformationText(L"Cursor created.");
 }
 
-LineColumn OpenBuffer::FindNextCursor(LineColumn position) {
-  LOG(INFO) << "Visiting next cursor: " << options_.editor->modifiers();
-  auto direction = options_.editor->modifiers().direction;
+LineColumn OpenBuffer::FindNextCursor(LineColumn position,
+                                      const Modifiers& modifiers) {
+  LOG(INFO) << "Visiting next cursor: " << modifiers;
+  auto direction = modifiers.direction;
   auto cursors = active_cursors();
   CHECK(!cursors->empty());
 
@@ -1499,8 +1500,7 @@ LineColumn OpenBuffer::FindNextCursor(LineColumn position) {
     ++index;
   }
 
-  size_t repetitions =
-      options_.editor->modifiers().repetitions.value_or(1) % cursors->size();
+  size_t repetitions = modifiers.repetitions.value_or(1) % cursors->size();
   size_t final_position;  // From cursors->begin().
   if (direction == Direction::kForwards) {
     final_position = (index + repetitions) % cursors->size();
