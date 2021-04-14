@@ -325,6 +325,9 @@ bool CheckStructureChar(wint_t c, Structure** structure,
     case L'm':
       selected_structure = StructureBuffer();
       break;
+    case L'C':
+      selected_structure = StructureCursor();
+      break;
     case L'V':
       selected_structure = StructureTree();
       break;
