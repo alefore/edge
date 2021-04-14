@@ -611,44 +611,6 @@ bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
          CheckRepetitionsChar(c, &output->repetitions);
 }
 
-#if 0
-{
-  // TODO: Get rid of this cast, ugh.
-  switch (static_cast<int>(c)) {
-    case Terminal::BACKSPACE:
-      if (data_->executed_operations.empty()) return;
-      if (std::visit([&](auto t) { return ConsumeBackspace(t); },
-                     data_->executed_operations.back().operation)) {
-        return ReApplyLast();
-      }
-      return futures::Transform(UndoLast(), [data](EmptyValue) {
-        data->operations.pop_back();
-        return Success();
-      });
-
-
-    default:
-      if (ApplyChar(c, &argument)) {
-        argument_string_.push_back(c);
-        return Transform(CommandArgumentModeApplyMode::kPreview, argument);
-      }
-      return futures::Transform(
-          static_cast<int>(c) == Terminal::ESCAPE
-              ? futures::Past(EmptyValue())
-              : Transform(CommandArgumentModeApplyMode::kFinal, argument),
-          [editor_state, c](EmptyValue) {
-            editor_state->status()->Reset();
-            auto editor_state_copy = editor_state;
-            editor_state->set_keyboard_redirect(nullptr);
-            if (c != L'\n') {
-              editor_state_copy->ProcessInput(c);
-            }
-            return futures::Past(EmptyValue());
-          });
-  }
-}
-#endif
-
 class TopLevelCommandMode : public EditorMode {
  public:
   TopLevelCommandMode(TopCommand top_command, EditorState* editor_state)
