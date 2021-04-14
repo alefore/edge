@@ -20,8 +20,6 @@ class FindTransformation : public CompositeTransformation {
 
   const wchar_t c_;
 };
-
-std::unique_ptr<Command> NewFindModeCommand(Direction initial_direction);
 }  // namespace afc::editor
 
 #endif

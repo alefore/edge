@@ -74,13 +74,17 @@ struct CommandReachBegin {
 };
 
 // Similar to CommandReach with structure = StructureLine.
+//
+// We separate them to avoid clashes of 'h' and 'l'. With CommandReach, 'h' and
+// 'l' should advance by the structure; with CommandReachLine, they switch us
+// back to CommandReach (to move left or right).
 struct CommandReachLine {
   CommandArgumentRepetitions repetitions = {.repetitions = 0};
 };
 
 // Finds occurrences of a given character in the current line.
 struct CommandReachChar {
-  std::optional<wchar_t> c;
+  std::optional<wchar_t> c = std::nullopt;
   CommandArgumentRepetitions repetitions = {.repetitions = 1};
 };
 
@@ -91,7 +95,7 @@ using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,
-    EditorState* editor_state);
+    EditorState* editor_state, std::vector<Command> commands);
 
 }  // namespace operation
 }  // namespace afc::editor

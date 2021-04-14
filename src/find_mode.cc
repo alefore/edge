@@ -14,39 +14,6 @@
 #include "src/transformation/stack.h"
 
 namespace afc::editor {
-namespace {
-class FindMode : public EditorMode {
- public:
-  FindMode(Direction initial_direction)
-      : initial_direction_(initial_direction) {}
-
-  void ProcessInput(wint_t c, EditorState* editor_state) override {
-    editor_state->PushCurrentPosition();
-    switch (initial_direction_) {
-      case Direction::kBackwards:
-        editor_state->set_direction(
-            ReverseDirection(editor_state->direction()));
-        break;
-      case Direction::kForwards:
-        break;
-    }
-    futures::Transform(editor_state->ApplyToActiveBuffers(
-                           transformation::ModifiersAndComposite{
-                               editor_state->modifiers(),
-                               std::make_unique<FindTransformation>(c)}),
-                       [editor_state](EmptyValue) {
-                         editor_state->ResetRepetitions();
-                         editor_state->ResetDirection();
-                         editor_state->set_keyboard_redirect(nullptr);
-                         return futures::Past(EmptyValue());
-                       });
-  }
-
- private:
-  const Direction initial_direction_;
-};
-}  // namespace
-
 FindTransformation::FindTransformation(wchar_t c) : c_(c) {}
 
 std::wstring FindTransformation::Serialize() const {
@@ -103,17 +70,6 @@ std::optional<ColumnNumber> FindTransformation::SeekOnce(
     start++;
   }
   return std::nullopt;
-}
-
-std::unique_ptr<Command> NewFindModeCommand(Direction initial_direction) {
-  return NewSetModeCommand(
-      {.description =
-           L"Waits for a character to be typed and moves the cursor to its "
-           L"next occurrence in the current line.",
-       .category = L"Navigate",
-       .factory = [initial_direction] {
-         return std::make_unique<FindMode>(initial_direction);
-       }});
 }
 
 }  // namespace afc::editor

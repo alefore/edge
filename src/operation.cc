@@ -652,9 +652,7 @@ bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
 class TopLevelCommandMode : public EditorMode {
  public:
   TopLevelCommandMode(TopCommand top_command, EditorState* editor_state)
-      : state_(editor_state, top_command) {
-    PushDefault();
-  }
+      : state_(editor_state, top_command) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
     editor_state->status()->Reset();
@@ -706,13 +704,16 @@ class TopLevelCommandMode : public EditorMode {
         state_.GetStatusString());
   }
 
- private:
   void PushDefault() {
-    state_.Push(std::visit([](auto& t) { return GetDefaultCommand(t); },
-                           state_.top_command()),
-                ApplicationType::kPreview);
+    PushCommand(std::visit([](auto& t) { return GetDefaultCommand(t); },
+                           state_.top_command()));
   }
 
+  void PushCommand(Command command) {
+    state_.Push(std::move(command), ApplicationType::kPreview);
+  }
+
+ private:
   bool ReceiveInputTopCommand(TopCommandErase, wint_t t) { return false; }
 
   bool ReceiveInputTopCommand(TopCommandReach, wint_t t) {
@@ -794,13 +795,20 @@ void CommandArgumentRepetitions::factor(int value) {
 
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,
-    EditorState* editor_state) {
+    EditorState* editor_state, std::vector<Command> commands) {
   return NewSetModeCommand({.description = description,
                             .category = L"Edit",
-                            .factory = [top_command, editor_state] {
+                            .factory = [top_command, editor_state, commands] {
                               auto output =
                                   std::make_unique<TopLevelCommandMode>(
                                       top_command, editor_state);
+                              if (commands.empty()) {
+                                output->PushDefault();
+                              } else {
+                                for (auto& c : commands) {
+                                  output->PushCommand(c);
+                                }
+                              }
                               output->ShowStatus(editor_state);
                               return output;
                             }});
