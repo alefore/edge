@@ -19,7 +19,10 @@ using futures::Past;
 namespace {
 
 Command GetDefaultCommand(TopCommandErase) { return CommandErase(); }
-Command GetDefaultCommand(TopCommandReach) { return CommandReach(); }
+
+Command GetDefaultCommand(TopCommandReach) {
+  return CommandReach{.repetitions{.repetitions = 1}};
+}
 
 std::wstring SerializeCall(std::wstring name,
                            std::vector<std::wstring> arguments) {
