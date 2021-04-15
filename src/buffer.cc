@@ -2063,44 +2063,68 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
   if (line.find_first_not_of(L"/.") == wstring::npos) {
     // If there are only slashes or dots, it's probably not very useful to show
     // the contents of this path.
+    buffer->status()->set_context(nullptr);
     return;
   }
   auto path = Path::FromString(line);
-  if (path.IsError()) return;
+  if (path.IsError()) {
+    buffer->status()->set_context(nullptr);
+    return;
+  }
+
+  // When the cursor moves quickly, there's a race between multiple executions
+  // of this logic. To avoid this, each call captures the original position and
+  // uses that to avoid taking any effects when the position changes in the
+  // meantime.
   auto paths = GetPathsWithExtensionsForContext(*buffer, path.value());
-  futures::ForEachWithCopy(paths.begin(), paths.end(), [buffer](Path path) {
-    return buffer->file_system_driver()
-        ->Stat(path)
-        .Transform([buffer, path](struct stat s) {
-          if (S_ISSOCK(s.st_mode) || S_ISBLK(s.st_mode) || S_ISCHR(s.st_mode) ||
-              S_ISFIFO(s.st_mode)) {
-            return futures::Past(
-                Success(futures::IterationControlCommand::kContinue));
-          }
-          OpenFileOptions options;
-          options.editor_state = buffer->editor();
-          options.path = path;
-          options.ignore_if_not_found = true;
-          options.insertion_type = BuffersList::AddBufferType::kIgnore;
-          options.use_search_paths = false;
-          return OpenFile(std::move(options))
-              .Transform([buffer](map<wstring, shared_ptr<OpenBuffer>>::iterator
-                                      buffer_context_it) {
-                buffer->status()->set_context(
-                    buffer_context_it == buffer->editor()->buffers()->end()
-                        ? nullptr
-                        : buffer_context_it->second);
-                return Success(futures::IterationControlCommand::kStop);
-              });
-        })
-        .ConsumeErrors(
-            [](Error) { return futures::IterationControlCommand::kContinue; });
-  }).Transform([buffer](futures::IterationControlCommand result) {
-    if (result == futures::IterationControlCommand::kContinue) {
-      buffer->status()->set_context(nullptr);
-    }
-    return Success();
-  });
+  futures::ForEachWithCopy(
+      paths.begin(), paths.end(),
+      [buffer](Path path) {
+        return buffer->file_system_driver()
+            ->Stat(path)
+            .Transform([buffer, path,
+                        original_position = buffer->position()](struct stat s) {
+              if (S_ISSOCK(s.st_mode) || S_ISBLK(s.st_mode) ||
+                  S_ISCHR(s.st_mode) || S_ISFIFO(s.st_mode)) {
+                return futures::Past(
+                    Success(futures::IterationControlCommand::kContinue));
+              }
+              if (original_position != buffer->position()) {
+                return futures::Past(
+                    Success(futures::IterationControlCommand::kStop));
+              }
+              OpenFileOptions options;
+              options.editor_state = buffer->editor();
+              options.path = path;
+              options.ignore_if_not_found = true;
+              options.insertion_type = BuffersList::AddBufferType::kIgnore;
+              options.use_search_paths = false;
+              return OpenFile(std::move(options))
+                  .Transform([buffer, original_position](
+                                 map<wstring, shared_ptr<OpenBuffer>>::iterator
+                                     buffer_context_it) {
+                    if (original_position == buffer->position()) {
+                      buffer->status()->set_context(
+                          buffer_context_it ==
+                                  buffer->editor()->buffers()->end()
+                              ? nullptr
+                              : buffer_context_it->second);
+                    }
+                    return Success(futures::IterationControlCommand::kStop);
+                  });
+            })
+            .ConsumeErrors([](Error) {
+              return futures::IterationControlCommand::kContinue;
+            });
+      })
+      .Transform([buffer, original_position = buffer->position()](
+                     futures::IterationControlCommand result) {
+        if (result == futures::IterationControlCommand::kContinue &&
+            original_position == buffer->position()) {
+          buffer->status()->set_context(nullptr);
+        }
+        return Success();
+      });
 }
 
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
@@ -2264,7 +2288,10 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
               return IterationControlCommand::kContinue;
             });
       }),
-      futures::Past(EmptyValue()));
+      [shared_this = shared_from_this()](IterationControlCommand) {
+        StartAdjustingStatusContext(shared_this);
+        return EmptyValue();
+      });
 }
 
 void OpenBuffer::set_filter(unique_ptr<Value> filter) {
