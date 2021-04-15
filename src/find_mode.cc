@@ -22,9 +22,10 @@ std::wstring FindTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> FindTransformation::Apply(
     CompositeTransformation::Input input) const {
-  auto line = input.buffer->LineAt(input.position.line);
+  auto position = input.buffer->AdjustLineColumn(input.position);
+  auto line = input.buffer->LineAt(position.line);
   if (line == nullptr) return futures::Past(Output());
-  ColumnNumber column = min(input.position.column, line->EndColumn());
+  ColumnNumber column = min(position.column, line->EndColumn());
   for (size_t i = 0; i < input.modifiers.repetitions.value_or(1); i++) {
     auto candidate = SeekOnce(*line, column, input.modifiers);
     if (!candidate.has_value()) break;
@@ -60,11 +61,13 @@ std::optional<ColumnNumber> FindTransformation::SeekOnce(
 
   // Seek until we're at a different character:
   while (start < static_cast<size_t>(times.column_delta) &&
+         column + direction * start < line.EndColumn() &&
          line.get(column + direction * start) == static_cast<wint_t>(c_))
     start++;
 
   while (start < static_cast<size_t>(times.column_delta)) {
-    if (line.get(column + direction * start) == static_cast<wint_t>(c_)) {
+    if (column + direction * start < line.EndColumn() &&
+        line.get(column + direction * start) == static_cast<wint_t>(c_)) {
       return column + direction * start;
     }
     start++;
