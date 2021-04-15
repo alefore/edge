@@ -19,10 +19,7 @@ using futures::Past;
 namespace {
 
 Command GetDefaultCommand(TopCommandErase) { return CommandErase(); }
-
-Command GetDefaultCommand(TopCommandReach) {
-  return CommandReach{.repetitions{.repetitions = 1}};
-}
+Command GetDefaultCommand(TopCommandReach) { return CommandReach(); }
 
 std::wstring SerializeCall(std::wstring name,
                            std::vector<std::wstring> arguments) {
@@ -81,7 +78,8 @@ std::wstring ToStatus(const CommandReachChar& c) {
 bool IsNoop(const CommandErase& erase) { return erase.repetitions.get() == 0; }
 
 bool IsNoop(const CommandReach& reach) {
-  return reach.repetitions.get() == 0 && reach.structure == StructureChar();
+  return reach.repetitions.get() == 0 &&
+         (reach.structure == StructureChar() || reach.structure == nullptr);
 }
 
 bool IsNoop(const CommandReachBegin&) { return false; }
@@ -213,8 +211,8 @@ class State {
   }
 
   void Push(Command command, ApplicationType application_type) {
-    if (!empty() && std::visit([](auto& t) { return IsNoop(t); },
-                               executed_commands_.back()->command)) {
+    while (!empty() && std::visit([](auto& t) { return IsNoop(t); },
+                                  executed_commands_.back()->command)) {
       UndoLast();
     }
 
@@ -340,6 +338,9 @@ bool CheckStructureChar(wint_t c, Structure** structure,
   CHECK(selected_structure != nullptr);
   if (*structure == nullptr) {
     *structure = selected_structure;
+    if (repetitions->get() == 0) {
+      repetitions->sum(1);
+    }
   } else if (selected_structure != *structure) {
     return false;
   } else {
