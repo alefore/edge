@@ -559,6 +559,10 @@ class TopLevelCommandMode : public EditorMode {
       case L'f':
         state_.Push(CommandReachChar{}, ApplicationType::kPreview);
         return true;
+      case L'F':
+        state_.Push(CommandReachChar{.repetitions = {.repetitions = -1}},
+                    ApplicationType::kPreview);
+        return true;
       case L'j':
       case L'k':
         state_.Push(
