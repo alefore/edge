@@ -48,6 +48,7 @@ class CommandArgumentRepetitions {
   void sum(int value);
   void factor(int value);
 
+  bool empty() const;
   bool PopValue();
 
  private:

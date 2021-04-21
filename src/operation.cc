@@ -82,18 +82,18 @@ std::wstring ToStatus(const CommandReachChar& c) {
 bool IsNoop(const CommandErase& erase) { return erase.repetitions.get() == 0; }
 
 bool IsNoop(const CommandReach& reach) {
-  return reach.repetitions.get() == 0 &&
+  return reach.repetitions.empty() &&
          (reach.structure == StructureChar() || reach.structure == nullptr);
 }
 
 bool IsNoop(const CommandReachBegin&) { return false; }
 
 bool IsNoop(const CommandReachLine& reach_line) {
-  return reach_line.repetitions.get() == 0;
+  return reach_line.repetitions.empty();
 }
 
 bool IsNoop(const CommandReachChar& reach_char) {
-  return !reach_char.c.has_value() || reach_char.repetitions.get() == 0;
+  return !reach_char.c.has_value() || reach_char.repetitions.empty();
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -711,6 +711,8 @@ void CommandArgumentRepetitions::factor(int value) {
   last_entry.multiplicative =
       last_entry.multiplicative * 10 + last_entry.multiplicative_sign * value;
 }
+
+bool CommandArgumentRepetitions::empty() const { return entries_.empty(); }
 
 bool CommandArgumentRepetitions::PopValue() {
   if (entries_.empty()) return false;
