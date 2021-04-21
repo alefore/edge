@@ -2056,9 +2056,10 @@ std::vector<Path> GetPathsWithExtensionsForContext(const OpenBuffer& buffer,
 }
 
 void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
+  auto adjusted_position = buffer->AdjustLineColumn(buffer->position());
   std::wstring line = GetCurrentToken(
       {.contents = buffer->contents(),
-       .line_column = buffer->position(),
+       .line_column = adjusted_position,
        .token_characters = buffer->Read(buffer_variables::path_characters)});
   if (line.find_first_not_of(L"/.") == wstring::npos) {
     // If there are only slashes or dots, it's probably not very useful to show
@@ -2079,17 +2080,17 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
   auto paths = GetPathsWithExtensionsForContext(*buffer, path.value());
   futures::ForEachWithCopy(
       paths.begin(), paths.end(),
-      [buffer](Path path) {
+      [buffer, adjusted_position](Path path) {
         return buffer->file_system_driver()
             ->Stat(path)
-            .Transform([buffer, path,
-                        original_position = buffer->position()](struct stat s) {
+            .Transform([buffer, path, adjusted_position](struct stat s) {
               if (S_ISSOCK(s.st_mode) || S_ISBLK(s.st_mode) ||
                   S_ISCHR(s.st_mode) || S_ISFIFO(s.st_mode)) {
                 return futures::Past(
                     Success(futures::IterationControlCommand::kContinue));
               }
-              if (original_position != buffer->position()) {
+              if (adjusted_position !=
+                  buffer->AdjustLineColumn(buffer->position())) {
                 return futures::Past(
                     Success(futures::IterationControlCommand::kStop));
               }
@@ -2100,10 +2101,11 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
               options.insertion_type = BuffersList::AddBufferType::kIgnore;
               options.use_search_paths = false;
               return OpenFile(std::move(options))
-                  .Transform([buffer, original_position](
+                  .Transform([buffer, adjusted_position](
                                  map<wstring, shared_ptr<OpenBuffer>>::iterator
                                      buffer_context_it) {
-                    if (original_position == buffer->position()) {
+                    if (adjusted_position ==
+                        buffer->AdjustLineColumn(buffer->position())) {
                       buffer->status()->set_context(
                           buffer_context_it ==
                                   buffer->editor()->buffers()->end()
@@ -2117,10 +2119,10 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
               return futures::IterationControlCommand::kContinue;
             });
       })
-      .Transform([buffer, original_position = buffer->position()](
-                     futures::IterationControlCommand result) {
+      .Transform([buffer,
+                  adjusted_position](futures::IterationControlCommand result) {
         if (result == futures::IterationControlCommand::kContinue &&
-            original_position == buffer->position()) {
+            adjusted_position == buffer->AdjustLineColumn(buffer->position())) {
           buffer->status()->set_context(nullptr);
         }
         return Success();
