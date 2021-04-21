@@ -203,14 +203,15 @@ futures::Value<UndoCallback> Execute(TopCommand, CommandReachBegin reach_begin,
 futures::Value<UndoCallback> Execute(TopCommand, CommandReachLine reach_line,
                                      EditorState* editor,
                                      ApplicationType application_type) {
-  if (reach_line.repetitions.get() == 0)
-    return Past(UndoCallback([] { return Past(EmptyValue()); }));
-  return ExecuteTransformation(
-      editor, application_type,
-      transformation::ModifiersAndComposite{
-          .modifiers = GetModifiers(StructureLine(), reach_line.repetitions,
-                                    Direction::kForwards),
-          .transformation = NewMoveTransformation()});
+  std::list<transformation::Variant> transformations;
+  for (int repetitions : reach_line.repetitions.get_list()) {
+    transformations.push_back(transformation::ModifiersAndComposite{
+        .modifiers =
+            GetModifiers(StructureLine(), repetitions, Direction::kForwards),
+        .transformation = NewMoveTransformation()});
+  }
+  return ExecuteTransformations(editor, application_type,
+                                std::move(transformations));
 }
 
 futures::Value<UndoCallback> Execute(TopCommand, CommandReachChar reach_char,
