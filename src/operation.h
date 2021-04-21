@@ -36,24 +36,31 @@ using TopCommand = std::variant<TopCommandErase, TopCommandReach>;
 
 class CommandArgumentRepetitions {
  public:
-  CommandArgumentRepetitions(int repetitions)
-      : additive_default_(repetitions),
-        multiplicative_sign_(repetitions >= 0 ? 1 : -1) {}
+  CommandArgumentRepetitions(int repetitions) {
+    entries_.push_back({.additive_default = repetitions,
+                        .multiplicative_sign = repetitions >= 0 ? 1 : -1});
+  }
 
   std::wstring ToString() const;
+  // Returns the total sum of all entries.
   int get() const;
+  std::list<int> get_list() const;
   void sum(int value);
   void factor(int value);
 
+  bool PopValue();
+
  private:
-  // The total will be the sum of these 3 factors.
-  int additive_default_ = 0;
-  int additive_ = 0;
-  int multiplicative_ = 0;
-  // Holds the sign of the last value given to `sum`. Used to know if values
-  // given to `factor` should be considered positive or negative (i.e., move in
-  // the direction that was last given explicitly through `sum`).
-  int multiplicative_sign_ = 1;
+  enum class FactorDirection { kNegative, kPositive };
+  struct Entry {
+    int additive = 0;
+    int additive_default = 0;
+    int multiplicative = 0;
+    int multiplicative_sign;
+  };
+  static int Flatten(const Entry& entry);
+
+  std::list<Entry> entries_;
 };
 
 // A sequence of arguments becomes a command.

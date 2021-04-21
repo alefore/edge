@@ -38,14 +38,18 @@ std::wstring StructureToString(Structure* structure) {
   return structure == nullptr ? L"?" : structure->ToString();
 }
 
-Modifiers GetModifiers(Structure* structure,
-                       const CommandArgumentRepetitions& repetitions,
+Modifiers GetModifiers(Structure* structure, int repetitions,
                        Direction direction) {
   return Modifiers{
       .structure = structure == nullptr ? StructureChar() : structure,
-      .direction =
-          repetitions.get() < 0 ? ReverseDirection(direction) : direction,
-      .repetitions = abs(repetitions.get())};
+      .direction = repetitions < 0 ? ReverseDirection(direction) : direction,
+      .repetitions = abs(repetitions)};
+}
+
+Modifiers GetModifiers(Structure* structure,
+                       const CommandArgumentRepetitions& repetitions,
+                       Direction direction) {
+  return GetModifiers(structure, repetitions.get(), direction);
 }
 
 std::wstring ToStatus(const CommandErase& erase) {
@@ -126,6 +130,38 @@ futures::Value<UndoCallback> ExecuteTransformation(
       });
 }
 
+futures::Value<UndoCallback> ExecuteTransformations(
+    EditorState* editor, ApplicationType application_type,
+    std::list<transformation::Variant> transformations) {
+  auto undo_callbacks = std::make_shared<std::vector<UndoCallback>>();
+  return futures::ForEachWithCopy(
+             transformations.begin(), transformations.end(),
+             [editor, application_type,
+              undo_callbacks](transformation::Variant transformation) {
+               return ExecuteTransformation(editor, application_type,
+                                            transformation)
+                   .Transform([undo_callbacks](UndoCallback callback) {
+                     undo_callbacks->push_back(std::move(callback));
+                     return futures::IterationControlCommand::kContinue;
+                   });
+             })
+      .Transform([undo_callbacks](
+                     futures::IterationControlCommand) -> UndoCallback {
+        return [undo_callbacks]() -> futures::Value<EmptyValue> {
+          return futures::ForEach(
+                     undo_callbacks->rbegin(), undo_callbacks->rend(),
+                     [](UndoCallback callback) {
+                       return callback().Transform([](EmptyValue) {
+                         return futures::IterationControlCommand::kContinue;
+                       });
+                     })
+              .Transform([undo_callbacks](futures::IterationControlCommand) {
+                return EmptyValue();
+              });
+        };
+      });
+}
+
 futures::Value<UndoCallback> Execute(TopCommand top_command, CommandErase erase,
                                      EditorState* editor,
                                      ApplicationType application_type) {
@@ -141,14 +177,15 @@ futures::Value<UndoCallback> Execute(TopCommand top_command, CommandErase erase,
 futures::Value<UndoCallback> Execute(TopCommand, CommandReach reach,
                                      EditorState* editor,
                                      ApplicationType application_type) {
-  if (reach.repetitions.get() == 0)
-    return Past(UndoCallback([] { return Past(EmptyValue()); }));
-  return ExecuteTransformation(
-      editor, application_type,
-      transformation::ModifiersAndComposite{
-          .modifiers = GetModifiers(reach.structure, reach.repetitions,
-                                    Direction::kForwards),
-          .transformation = NewMoveTransformation()});
+  std::list<transformation::Variant> transformations;
+  for (int repetitions : reach.repetitions.get_list()) {
+    transformations.push_back(transformation::ModifiersAndComposite{
+        .modifiers =
+            GetModifiers(reach.structure, repetitions, Direction::kForwards),
+        .transformation = NewMoveTransformation()});
+  }
+  return ExecuteTransformations(editor, application_type,
+                                std::move(transformations));
 }
 
 futures::Value<UndoCallback> Execute(TopCommand, CommandReachBegin reach_begin,
@@ -179,15 +216,18 @@ futures::Value<UndoCallback> Execute(TopCommand, CommandReachLine reach_line,
 futures::Value<UndoCallback> Execute(TopCommand, CommandReachChar reach_char,
                                      EditorState* editor,
                                      ApplicationType application_type) {
-  if (!reach_char.c.has_value() || reach_char.repetitions.get() == 0)
+  if (!reach_char.c.has_value())
     return Past(UndoCallback([] { return Past(EmptyValue()); }));
-  return ExecuteTransformation(
-      editor, application_type,
-      transformation::ModifiersAndComposite{
-          .modifiers = GetModifiers(StructureChar(), reach_char.repetitions,
-                                    Direction::kForwards),
-          .transformation =
-              std::make_unique<FindTransformation>(reach_char.c.value())});
+  std::list<transformation::Variant> transformations;
+  for (int repetitions : reach_char.repetitions.get_list()) {
+    transformations.push_back(transformation::ModifiersAndComposite{
+        .modifiers =
+            GetModifiers(StructureChar(), repetitions, Direction::kForwards),
+        .transformation =
+            std::make_unique<FindTransformation>(reach_char.c.value())});
+  }
+  return ExecuteTransformations(editor, application_type,
+                                std::move(transformations));
 }
 
 class State {
@@ -364,6 +404,8 @@ bool CheckIncrementsChar(wint_t c, CommandArgumentRepetitions* output) {
 
 bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
   switch (static_cast<int>(c)) {
+    case Terminal::BACKSPACE:
+      return output->PopValue();
     case L'0':
     case L'1':
     case L'2':
@@ -609,30 +651,74 @@ class TopLevelCommandMode : public EditorMode {
 }  // namespace
 
 std::wstring CommandArgumentRepetitions::ToString() const {
-  if (get() == 0) return L"";
-
-  if (additive_default_ + additive_ == 0) {
-    return std::to_wstring(get());
+  std::wstring output;
+  for (auto& r : get_list()) {
+    if (!output.empty() && r > 0) {
+      output += L"+";
+    }
+    output += std::to_wstring(r);
   }
-  return std::to_wstring(additive_default_ + additive_) +
-         (multiplicative_ >= 0 ? L"+" : L"-") +
-         std::to_wstring(abs(multiplicative_));
+  return output;
 }
 
 int CommandArgumentRepetitions::get() const {
-  return additive_default_ + additive_ + multiplicative_;
+  int output = 0;
+  for (auto& c : get_list()) {
+    output += c;
+  }
+  return output;
+}
+
+std::list<int> CommandArgumentRepetitions::get_list() const {
+  std::list<int> output;
+  for (auto& c : entries_) {
+    if (Flatten(c) != 0) {
+      output.push_back(Flatten(c));
+    }
+  }
+  return output;
 }
 
 void CommandArgumentRepetitions::sum(int value) {
-  additive_ += value + additive_default_ + multiplicative_;
-  additive_default_ = 0;
-  multiplicative_ = 0;
-  multiplicative_sign_ = value >= 0 ? 1 : -1;
+  if (entries_.empty() || (Flatten(entries_.back()) != 0 &&
+                           Flatten(entries_.back()) >= 0) != (value >= 0)) {
+    if (!entries_.empty()) {
+      auto& entry_to_freeze = entries_.back();
+      entry_to_freeze.additive +=
+          entry_to_freeze.additive_default + entry_to_freeze.multiplicative;
+      entry_to_freeze.additive_default = 0;
+      entry_to_freeze.multiplicative = 0;
+    }
+    entries_.push_back({});  // Change of sign.
+  }
+  auto& last_entry = entries_.back();
+  last_entry.additive +=
+      value + last_entry.additive_default + last_entry.multiplicative;
+  last_entry.additive_default = 0;
+  last_entry.multiplicative = 0;
+  last_entry.multiplicative_sign = value >= 0 ? 1 : -1;
 }
 
 void CommandArgumentRepetitions::factor(int value) {
-  additive_default_ = 0;
-  multiplicative_ = multiplicative_ * 10 + multiplicative_sign_ * value;
+  if (entries_.empty() || entries_.back().multiplicative == 0) {
+    entries_.push_back(
+        {.multiplicative_sign =
+             entries_.empty() || Flatten(entries_.back()) >= 0 ? 1 : -1});
+  }
+  auto& last_entry = entries_.back();
+  last_entry.additive_default = 0;
+  last_entry.multiplicative =
+      last_entry.multiplicative * 10 + last_entry.multiplicative_sign * value;
+}
+
+bool CommandArgumentRepetitions::PopValue() {
+  if (entries_.empty()) return false;
+  entries_.pop_back();
+  return true;
+}
+
+/* static */ int CommandArgumentRepetitions::Flatten(const Entry& entry) {
+  return entry.additive_default + entry.additive + entry.multiplicative;
 }
 
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
