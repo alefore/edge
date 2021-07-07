@@ -51,6 +51,7 @@ EdgeVariable<int>* const buffers_to_show =
         .Name(L"buffers_to_show")
         .Key(L"C")
         .Description(L"How many buffers to show (on the screen)?")
+        .DefaultValue(1)
         .Build();
 
 }  // namespace afc::editor::editor_variables
