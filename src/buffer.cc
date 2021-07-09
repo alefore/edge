@@ -2196,7 +2196,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
     input.delete_buffer = it.first->second.get();
     CHECK(input.delete_buffer != nullptr);
   } else {
-    input.delete_buffer = nullptr;
+    CHECK_EQ(input.delete_buffer, nullptr);
   }
 
   auto inner_future = transformation::Apply(transformation, std::move(input));
