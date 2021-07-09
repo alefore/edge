@@ -244,21 +244,16 @@ class State {
   }
 
   void Commit() {
-    auto commands = executed_commands_;
-    UndoEverything();
-    editor_state_->ForEachActiveBuffer(
-        [](const std::shared_ptr<OpenBuffer>& buffer) {
-          buffer->PushTransformationStack();
-          return Past(EmptyValue());
-        });
-    for (auto& command : commands) {
-      Push(std::move(command->command), ApplicationType::kCommit);
+    transformation::Stack stack;
+    for (auto& command : executed_commands_) {
+      stack.PushBack(std::visit(
+          [&](auto t) -> transformation::Variant {
+            return GetTransformation(top_command_, t);
+          },
+          command->command));
     }
-    editor_state_->ForEachActiveBuffer(
-        [](const std::shared_ptr<OpenBuffer>& buffer) {
-          buffer->PopTransformationStack();
-          return Past(EmptyValue());
-        });
+    UndoEverything();
+    StartTransformationExecution(ApplicationType::kCommit, std::move(stack));
     editor_state_->set_keyboard_redirect(nullptr);
   }
 
