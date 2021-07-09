@@ -2217,7 +2217,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
           }
         }
 
-        if (result.modified_buffer) {
+        if (result.modified_buffer &&
+            mode == transformation::Input::Mode::kFinal) {
           editor()->StartHandlingInterrupts();
           last_transformation_ = std::move(transformation);
         }
