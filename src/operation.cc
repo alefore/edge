@@ -218,20 +218,15 @@ class State {
     auto command_output =
         std::make_shared<ExecutedCommand>(ExecutedCommand{.command = command});
     executed_commands_.push_back(command_output);
-    auto transformation = std::visit(
-        [&](auto t) -> transformation::Variant {
-          return GetTransformation(top_command_, t);
-        },
-        command);
-    serializer_.Push([editor_state = editor_state_, application_type,
-                      command_output, transformation] {
-      return futures::Transform(
-          ExecuteTransformation(editor_state, application_type, transformation),
-          [command_output](UndoCallback undo_callback) {
-            command_output->undo = std::move(undo_callback);
-            return Past(EmptyValue());
-          });
-    });
+    StartTransformationExecution(
+        application_type, std::visit(
+                              [&](auto t) -> transformation::Variant {
+                                return GetTransformation(top_command_, t);
+                              },
+                              command))
+        .SetConsumer([command_output](UndoCallback undo_callback) {
+          command_output->undo = std::move(undo_callback);
+        });
   }
 
   std::wstring GetStatusString() const {
@@ -292,6 +287,26 @@ class State {
       return Past(EmptyValue());
     };
   };
+
+  // Schedules execution of a transformation through serializer_. Returns a
+  // future that can be used to receive the callback that undoes the
+  // transformation. The future will be notified directly in the serializer_'s
+  // thread.
+  futures::Value<UndoCallback> StartTransformationExecution(
+      ApplicationType application_type,
+      transformation::Variant transformation) {
+    futures::Future<UndoCallback> output;
+    serializer_.Push([editor_state = editor_state_, application_type,
+                      consumer = output.consumer, transformation] {
+      return futures::Transform(
+          ExecuteTransformation(editor_state, application_type, transformation),
+          [consumer](UndoCallback undo_callback) {
+            consumer(std::move(undo_callback));
+            return Past(EmptyValue());
+          });
+    });
+    return output.value;
+  }
 
   EditorState* const editor_state_;
   futures::Serializer serializer_;
