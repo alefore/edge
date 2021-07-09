@@ -99,6 +99,9 @@ bool IsNoop(const CommandReachChar& reach_char) {
 futures::Value<UndoCallback> ExecuteTransformation(
     EditorState* editor, ApplicationType application_type,
     transformation::Variant transformation) {
+  // TODO(easy): Rename 'buffers_modified' to something else. Not all the
+  // transformations here modify the buffers (per
+  // transformation::Results::modified_buffer).
   auto buffers_modified =
       std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>();
   return futures::Transform(
