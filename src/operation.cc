@@ -215,20 +215,20 @@ class State {
       UndoLast();
     }
 
-    executed_commands_.push_back(
-        std::make_shared<ExecutedCommand>(ExecutedCommand{.command = command}));
-    serializer_.Push([executed_command = executed_commands_.back(),
-                      editor_state = editor_state_, application_type,
-                      top_command = top_command_] {
+    auto command_output =
+        std::make_shared<ExecutedCommand>(ExecutedCommand{.command = command});
+    executed_commands_.push_back(command_output);
+    auto transformation = std::visit(
+        [&](auto t) -> transformation::Variant {
+          return GetTransformation(top_command_, t);
+        },
+        command);
+    serializer_.Push([editor_state = editor_state_, application_type,
+                      command_output, transformation] {
       return futures::Transform(
-          std::visit(
-              [&](auto t) {
-                return ExecuteTransformation(editor_state, application_type,
-                                             GetTransformation(top_command, t));
-              },
-              executed_command->command),
-          [executed_command](UndoCallback undo_callback) {
-            executed_command->undo = std::move(undo_callback);
+          ExecuteTransformation(editor_state, application_type, transformation),
+          [command_output](UndoCallback undo_callback) {
+            command_output->undo = std::move(undo_callback);
             return Past(EmptyValue());
           });
     });
