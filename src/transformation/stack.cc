@@ -21,6 +21,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             Input sub_input(input.buffer);
             sub_input.position = output->position;
             sub_input.mode = input.mode;
+            sub_input.delete_buffer = input.delete_buffer;
             return futures::Transform(
                 Apply(transformation, sub_input), [output](Result result) {
                   output->MergeFrom(std::move(result));
