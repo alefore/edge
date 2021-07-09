@@ -54,6 +54,7 @@ futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
         Input current_input(input.buffer);
         current_input.mode = input.mode;
         current_input.position = data->output->position;
+        current_input.delete_buffer = input.delete_buffer;
         return futures::Transform(
             Apply(*data->options.transformation, current_input),
             [data](Result result) {
