@@ -51,12 +51,9 @@ futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
           return futures::Past(futures::IterationControlCommand::kStop);
         }
         data->index++;
-        Input current_input(input.buffer);
-        current_input.mode = input.mode;
-        current_input.position = data->output->position;
-        current_input.delete_buffer = input.delete_buffer;
         return futures::Transform(
-            Apply(*data->options.transformation, current_input),
+            Apply(*data->options.transformation,
+                  input.NewChild(data->output->position)),
             [data](Result result) {
               bool made_progress = result.made_progress;
               data->output->MergeFrom(std::move(result));

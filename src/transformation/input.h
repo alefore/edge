@@ -9,6 +9,7 @@ class CompositeTransformation;
 namespace transformation {
 struct Input {
   explicit Input(editor::OpenBuffer* buffer);
+  Input NewChild(LineColumn position) const;
 
   // Input parameter.
   enum class Mode {

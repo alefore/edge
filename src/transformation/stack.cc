@@ -3,6 +3,7 @@
 #include "src/buffer.h"
 #include "src/log.h"
 #include "src/transformation/composite.h"
+#include "src/transformation/input.h"
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
@@ -18,12 +19,9 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           [output, input,
            trace](const transformation::Variant& transformation) {
             trace->Append(L"Transformation: " + ToString(transformation));
-            Input sub_input(input.buffer);
-            sub_input.position = output->position;
-            sub_input.mode = input.mode;
-            sub_input.delete_buffer = input.delete_buffer;
             return futures::Transform(
-                Apply(transformation, sub_input), [output](Result result) {
+                Apply(transformation, input.NewChild(output->position)),
+                [output](Result result) {
                   output->MergeFrom(std::move(result));
                   return output->success
                              ? futures::IterationControlCommand::kContinue
