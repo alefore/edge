@@ -13,6 +13,7 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/move.h"
+#include "src/transformation/stack.h"
 
 namespace afc::editor::operation {
 using futures::Past;
@@ -133,38 +134,6 @@ futures::Value<UndoCallback> ExecuteTransformation(
       });
 }
 
-futures::Value<UndoCallback> ExecuteTransformations(
-    EditorState* editor, ApplicationType application_type,
-    std::list<transformation::Variant> transformations) {
-  auto undo_callbacks = std::make_shared<std::vector<UndoCallback>>();
-  return futures::ForEachWithCopy(
-             transformations.begin(), transformations.end(),
-             [editor, application_type,
-              undo_callbacks](transformation::Variant transformation) {
-               return ExecuteTransformation(editor, application_type,
-                                            transformation)
-                   .Transform([undo_callbacks](UndoCallback callback) {
-                     undo_callbacks->push_back(std::move(callback));
-                     return futures::IterationControlCommand::kContinue;
-                   });
-             })
-      .Transform([undo_callbacks](
-                     futures::IterationControlCommand) -> UndoCallback {
-        return [undo_callbacks]() -> futures::Value<EmptyValue> {
-          return futures::ForEach(
-                     undo_callbacks->rbegin(), undo_callbacks->rend(),
-                     [](UndoCallback callback) {
-                       return callback().Transform([](EmptyValue) {
-                         return futures::IterationControlCommand::kContinue;
-                       });
-                     })
-              .Transform([undo_callbacks](futures::IterationControlCommand) {
-                return EmptyValue();
-              });
-        };
-      });
-}
-
 futures::Value<UndoCallback> Execute(TopCommand top_command, CommandErase erase,
                                      EditorState* editor,
                                      ApplicationType application_type) {
@@ -180,15 +149,15 @@ futures::Value<UndoCallback> Execute(TopCommand top_command, CommandErase erase,
 futures::Value<UndoCallback> Execute(TopCommand, CommandReach reach,
                                      EditorState* editor,
                                      ApplicationType application_type) {
-  std::list<transformation::Variant> transformations;
+  transformation::Stack transformation;
   for (int repetitions : reach.repetitions.get_list()) {
-    transformations.push_back(transformation::ModifiersAndComposite{
+    transformation.PushBack(transformation::ModifiersAndComposite{
         .modifiers =
             GetModifiers(reach.structure, repetitions, Direction::kForwards),
         .transformation = NewMoveTransformation()});
   }
-  return ExecuteTransformations(editor, application_type,
-                                std::move(transformations));
+  return ExecuteTransformation(editor, application_type,
+                               std::move(transformation));
 }
 
 futures::Value<UndoCallback> Execute(TopCommand, CommandReachBegin reach_begin,
@@ -206,15 +175,15 @@ futures::Value<UndoCallback> Execute(TopCommand, CommandReachBegin reach_begin,
 futures::Value<UndoCallback> Execute(TopCommand, CommandReachLine reach_line,
                                      EditorState* editor,
                                      ApplicationType application_type) {
-  std::list<transformation::Variant> transformations;
+  transformation::Stack transformation;
   for (int repetitions : reach_line.repetitions.get_list()) {
-    transformations.push_back(transformation::ModifiersAndComposite{
+    transformation.PushBack(transformation::ModifiersAndComposite{
         .modifiers =
             GetModifiers(StructureLine(), repetitions, Direction::kForwards),
         .transformation = NewMoveTransformation()});
   }
-  return ExecuteTransformations(editor, application_type,
-                                std::move(transformations));
+  return ExecuteTransformation(editor, application_type,
+                               std::move(transformation));
 }
 
 futures::Value<UndoCallback> Execute(TopCommand, CommandReachChar reach_char,
@@ -222,16 +191,16 @@ futures::Value<UndoCallback> Execute(TopCommand, CommandReachChar reach_char,
                                      ApplicationType application_type) {
   if (!reach_char.c.has_value())
     return Past(UndoCallback([] { return Past(EmptyValue()); }));
-  std::list<transformation::Variant> transformations;
+  transformation::Stack transformation;
   for (int repetitions : reach_char.repetitions.get_list()) {
-    transformations.push_back(transformation::ModifiersAndComposite{
+    transformation.PushBack(transformation::ModifiersAndComposite{
         .modifiers =
             GetModifiers(StructureChar(), repetitions, Direction::kForwards),
         .transformation =
             std::make_unique<FindTransformation>(reach_char.c.value())});
   }
-  return ExecuteTransformations(editor, application_type,
-                                std::move(transformations));
+  return ExecuteTransformation(editor, application_type,
+                               std::move(transformation));
 }
 
 class State {
