@@ -589,13 +589,14 @@ class HistoryScrollBehavior : public ScrollBehavior {
       }
     }
 
-    transformation::Delete delete_options;
-    delete_options.modifiers.paste_buffer_behavior =
-        Modifiers::PasteBufferBehavior::kDoNothing;
-    delete_options.modifiers.structure = StructureLine();
-    delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
-    delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-    buffer->ApplyToCursors(delete_options);
+    buffer->ApplyToCursors(transformation::Delete{
+        .modifiers = {
+            .structure = StructureLine(),
+            .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
+            .paste_buffer_behavior = Modifiers::PasteBufferBehavior::kDoNothing,
+            .boundary_begin = Modifiers::LIMIT_CURRENT,
+            .boundary_end = Modifiers::LIMIT_CURRENT}});
+
     transformation::Insert insert_options;
     insert_options.buffer_to_insert = std::move(buffer_to_insert);
     buffer->ApplyToCursors(std::move(insert_options));
@@ -882,15 +883,15 @@ void Prompt(PromptOptions options) {
                   LOG(INFO) << "Prediction advanced from " << input << " to "
                             << results.value();
 
-                  transformation::Delete delete_options;
-                  delete_options.modifiers.paste_buffer_behavior =
-                      Modifiers::PasteBufferBehavior::kDoNothing;
-                  delete_options.modifiers.structure = StructureLine();
-                  delete_options.modifiers.boundary_begin =
-                      Modifiers::LIMIT_CURRENT;
-                  delete_options.modifiers.boundary_end =
-                      Modifiers::LIMIT_CURRENT;
-                  buffer->ApplyToCursors(delete_options);
+                  buffer->ApplyToCursors(transformation::Delete{
+                      .modifiers = {
+                          .structure = StructureLine(),
+                          .delete_behavior =
+                              Modifiers::DeleteBehavior::kDeleteText,
+                          .paste_buffer_behavior =
+                              Modifiers::PasteBufferBehavior::kDoNothing,
+                          .boundary_begin = Modifiers::LIMIT_CURRENT,
+                          .boundary_end = Modifiers::LIMIT_CURRENT}});
 
                   std::shared_ptr<LazyString> line =
                       NewLazyString(results.value().common_prefix.value());
