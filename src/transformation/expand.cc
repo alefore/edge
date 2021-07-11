@@ -37,12 +37,12 @@ std::wstring GetToken(const CompositeTransformation::Input& input,
 }
 
 transformation::Delete DeleteLastCharacters(int characters) {
-  transformation::Delete delete_options;
-  delete_options.modifiers.direction = Direction::kBackwards;
-  delete_options.modifiers.repetitions = characters;
-  delete_options.modifiers.paste_buffer_behavior =
-      Modifiers::PasteBufferBehavior::kDoNothing;
-  return delete_options;
+  return transformation::Delete{
+      .modifiers = {
+          .direction = Direction::kBackwards,
+          .repetitions = characters,
+          .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
+          .paste_buffer_behavior = Modifiers::PasteBufferBehavior::kDoNothing}};
 }
 
 class PredictorTransformation : public CompositeTransformation {
