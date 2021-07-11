@@ -299,18 +299,20 @@ class InsertMode : public EditorMode {
 
       case Terminal::CTRL_K: {
         ResetScrollBehavior();
-        transformation::Delete delete_options;
-        delete_options.modifiers.structure = StructureLine();
-        delete_options.modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
-        delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-        delete_options.modifiers.paste_buffer_behavior =
-            Modifiers::PasteBufferBehavior::kDoNothing;
         ForEachActiveBuffer(
-            {0x0b}, [options = options_, delete_options](
-                        const std::shared_ptr<OpenBuffer>& buffer) {
+            {0x0b},
+            [options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
               return CallModifyHandler(
                   options, buffer,
-                  buffer->ApplyToCursors(std::move(delete_options)));
+                  buffer->ApplyToCursors(transformation::Delete{
+                      .modifiers = {
+                          .structure = StructureLine(),
+                          .delete_behavior =
+                              Modifiers::DeleteBehavior::kDeleteText,
+                          .paste_buffer_behavior =
+                              Modifiers::PasteBufferBehavior::kDoNothing,
+                          .boundary_begin = Modifiers::CURRENT_POSITION,
+                          .boundary_end = Modifiers::LIMIT_CURRENT}}));
             });
         return;
       }
@@ -379,6 +381,8 @@ class InsertMode : public EditorMode {
           }
           delete_options.modifiers.paste_buffer_behavior =
               Modifiers::PasteBufferBehavior::kDoNothing;
+          delete_options.modifiers.delete_behavior =
+              Modifiers::DeleteBehavior::kDeleteText;
           return futures::Transform(
               CallModifyHandler(
                   options, buffer,
