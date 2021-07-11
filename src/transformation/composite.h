@@ -17,7 +17,7 @@ class Stack;
 
 // A particular type of transformation that doesn't directly modify the buffer
 // but only does so indirectly, through other transformations (that it passes to
-// Input::push).
+// Output::push).
 //
 // Ideally, most transformations will be expressed through this, so that we can
 // isolate the lower-level primitive transformations.
