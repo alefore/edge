@@ -35,12 +35,11 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     CHECK_LT(column, line->EndColumn());
     Output output = Output::SetColumn(column);
 
-    transformation::Delete delete_options;
-    delete_options.modifiers.repetitions =
-        (line->EndColumn() - column).column_delta;
-    delete_options.modifiers.paste_buffer_behavior =
-        Modifiers::PasteBufferBehavior::kDoNothing;
-    output.Push(delete_options);
+    output.Push(transformation::Delete{
+        .modifiers = {.repetitions = (line->EndColumn() - column).column_delta,
+                      .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
+                      .paste_buffer_behavior =
+                          Modifiers::PasteBufferBehavior::kDoNothing}});
     return futures::Past(std::move(output));
   }
 
