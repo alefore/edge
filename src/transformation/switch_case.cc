@@ -40,13 +40,13 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
 
   Output output = Output::SetPosition(input.range.begin);
 
-  transformation::Delete delete_options;
-  delete_options.modifiers.paste_buffer_behavior =
-      Modifiers::PasteBufferBehavior::kDoNothing;
-  delete_options.modifiers.repetitions =
-      buffer_to_insert->contents()->CountCharacters();
-  delete_options.mode = transformation::Input::Mode::kFinal;
-  output.Push(std::move(delete_options));
+  output.Push(transformation::Delete{
+      .modifiers = {.repetitions =
+                        buffer_to_insert->contents()->CountCharacters(),
+                    .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
+                    .paste_buffer_behavior =
+                        Modifiers::PasteBufferBehavior::kDoNothing},
+      .mode = transformation::Input::Mode::kFinal});
 
   transformation::Insert insert_options(buffer_to_insert);
   if (input.modifiers.direction == Direction::kBackwards) {
