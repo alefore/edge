@@ -76,6 +76,16 @@ void Modifiers::Register(vm::Environment* environment) {
         return output;
       }));
 
+  modifiers_type->AddField(L"set_delete_behavior",
+                           vm::NewCallback([](std::shared_ptr<Modifiers> output,
+                                              bool delete_behavior) {
+                             output->delete_behavior =
+                                 delete_behavior
+                                     ? Modifiers::DeleteBehavior::kDeleteText
+                                     : Modifiers::DeleteBehavior::kDoNothing;
+                             return output;
+                           }));
+
   modifiers_type->AddField(
       L"set_paste_buffer_behavior",
       vm::NewCallback([](std::shared_ptr<Modifiers> output,
