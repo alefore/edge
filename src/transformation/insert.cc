@@ -34,11 +34,11 @@ const VMType
 }  // namespace vm
 namespace editor::transformation {
 transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
-  transformation::Delete output;
-  output.modifiers.repetitions = repetitions;
-  output.modifiers.paste_buffer_behavior =
-      Modifiers::PasteBufferBehavior::kDoNothing;
-  return output;
+  return transformation::Delete{
+      .modifiers = {
+          .repetitions = repetitions,
+          .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
+          .paste_buffer_behavior = Modifiers::PasteBufferBehavior::kDoNothing}};
 }
 
 futures::Value<transformation::Result> ApplyBase(const Insert& options,
@@ -74,8 +74,6 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
         GetCharactersDeleteOptions(chars_inserted);
     delete_options.line_end_behavior =
         transformation::Delete::LineEndBehavior::kStop;
-    delete_options.modifiers.paste_buffer_behavior =
-        Modifiers::PasteBufferBehavior::kDoNothing;
     delayed_shared_result = futures::Transform(
         Apply(TransformationAtPosition(result->position,
                                        std::move(delete_options)),
