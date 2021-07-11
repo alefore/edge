@@ -136,15 +136,16 @@ editor.AddBinding("sh", "Buffers: Navigate to the header / implementation.",
 editor.AddBinding(".", "Edit: Repeats the last command.",
                   editor.RepeatLastTransformation);
 
-editor.AddBinding(terminal_backspace, "Edit: Delete previous character.",
-                  []() -> void {
-                    editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-                      buffer.ApplyTransformation(
-                          DeleteTransformationBuilder()
-                              .set_modifiers(Modifiers().set_backwards())
-                              .build());
-                    });
-                  });
+editor.AddBinding(
+    terminal_backspace, "Edit: Delete previous character.", []() -> void {
+      editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+        buffer.ApplyTransformation(
+            DeleteTransformationBuilder()
+                .set_modifiers(
+                    Modifiers().set_backwards().set_delete_behavior(true))
+                .build());
+      });
+    });
 
 void DeleteCurrentLine(Buffer buffer) {
   buffer.PushTransformationStack();
@@ -154,7 +155,8 @@ void DeleteCurrentLine(Buffer buffer) {
           .set_modifiers(Modifiers()
                              .set_line()
                              .set_repetitions(editor.repetitions())
-                             .set_boundary_end_neighbor())
+                             .set_boundary_end_neighbor()
+                             .set_delete_behavior(true))
           .build());
   buffer.PopTransformationStack();
 }
@@ -203,20 +205,21 @@ editor.AddBinding(
 editor.AddBinding("#", "Edit: Reflow current paragraph",
                   []() -> void { editor.ForEachActiveBuffer(Reflow); });
 
-editor.AddBinding(terminal_control_k, "Edit: Delete to end of line.",
-                  []() -> void {
-                    editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-                      buffer.ApplyTransformation(
-                          DeleteTransformationBuilder()
-                              .set_modifiers(Modifiers().set_line())
-                              .build());
-                    });
-                  });
+editor.AddBinding(
+    terminal_control_k, "Edit: Delete to end of line.", []() -> void {
+      editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+        buffer.ApplyTransformation(
+            DeleteTransformationBuilder()
+                .set_modifiers(Modifiers().set_line().set_delete_behavior(true))
+                .build());
+      });
+    });
 
 void HandleKeyboardControlU(Buffer buffer) {
   buffer.PushTransformationStack();
   Modifiers modifiers = Modifiers();
   modifiers.set_backwards();
+  modifiers.set_delete_behavior(true);
   if (buffer.contents_type() == "path") {
     LineColumn position = buffer.position();
     string line = buffer.line(position.line());
@@ -291,7 +294,10 @@ editor.AddBinding(terminal_control_d, "Edit: Delete current character.",
                   []() -> void {
                     editor.ForEachActiveBuffer([](Buffer buffer) -> void {
                       buffer.ApplyTransformation(
-                          DeleteTransformationBuilder().build());
+                          DeleteTransformationBuilder()
+                              .set_modifiers(
+                                  Modifiers().set_delete_behavior(true))
+                              .build());
                     });
                   });
 
