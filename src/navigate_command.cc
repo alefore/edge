@@ -182,13 +182,10 @@ class NavigateTransformation : public CompositeTransformation {
           output.Push(transformation::SetPosition(marker));
         }
 
-        transformation::Delete delete_options;
-        delete_options.modifiers.paste_buffer_behavior =
-            Modifiers::PasteBufferBehavior::kDoNothing;
-        delete_options.mode = transformation::Input::Mode::kPreview;
-        delete_options.modifiers.delete_behavior =
-            Modifiers::DeleteBehavior::kDoNothing;
-        output.Push(std::move(delete_options));
+        output.Push(transformation::Delete{
+            .modifiers = {.paste_buffer_behavior =
+                              Modifiers::PasteBufferBehavior::kDoNothing},
+            .mode = transformation::Input::Mode::kPreview});
       }
 
       DeleteExterior(range.begin(), Direction::kBackwards, input.position,
@@ -216,15 +213,15 @@ class NavigateTransformation : public CompositeTransformation {
       return;
     }
     output->Push(transformation::SetPosition(WriteIndex(position, index)));
-    transformation::Delete options;
-    options.modifiers.structure = StructureLine();
-    options.modifiers.direction = direction;
-    options.modifiers.paste_buffer_behavior =
-        Modifiers::PasteBufferBehavior::kDoNothing;
-    options.line_end_behavior = transformation::Delete::LineEndBehavior::kStop;
-    options.mode = transformation::Input::Mode::kPreview;
-    options.preview_modifiers = {LineModifier::DIM};
-    output->Push(std::move(options));
+    output->Push(transformation::Delete{
+        .modifiers = {.structure = StructureLine(),
+                      .direction = direction,
+                      .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
+                      .paste_buffer_behavior =
+                          Modifiers::PasteBufferBehavior::kDoNothing},
+        .line_end_behavior = transformation::Delete::LineEndBehavior::kStop,
+        .preview_modifiers = {LineModifier::DIM},
+        .mode = transformation::Input::Mode::kPreview});
   }
 
   LineColumn WriteIndex(LineColumn position, size_t index) const {
