@@ -10,6 +10,7 @@
 #include "src/command.h"
 #include "src/futures/futures.h"
 #include "src/modifiers.h"
+#include "src/transformation/stack.h"
 
 namespace afc::editor {
 class EditorState;
@@ -30,7 +31,10 @@ struct TopCommandErase {
   Modifiers::DeleteBehavior delete_behavior =
       Modifiers::DeleteBehavior::kDeleteText;
 };
-struct TopCommandReach {};
+struct TopCommandReach {
+  transformation::Stack::PostTransformationBehavior
+      post_transformation_behavior;
+};
 
 using TopCommand = std::variant<TopCommandErase, TopCommandReach>;
 

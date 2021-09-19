@@ -189,6 +189,16 @@ transformation::Stack GetTransformation(TopCommand,
   return transformation;
 }
 
+static transformation::Stack::PostTransformationBehavior
+GetPostTransformationBehavior(TopCommandErase) {
+  return transformation::Stack::kNone;
+}
+
+static transformation::Stack::PostTransformationBehavior
+GetPostTransformationBehavior(TopCommandReach top_command) {
+  return top_command.post_transformation_behavior;
+}
+
 class State {
  public:
   State(EditorState* editor_state, TopCommand top_command)
@@ -253,6 +263,8 @@ class State {
           command->command));
     }
     UndoEverything();
+    stack.post_transformation_behavior = std::visit(
+        [](auto t) { return GetPostTransformationBehavior(t); }, top_command_);
     StartTransformationExecution(ApplicationType::kCommit, std::move(stack));
     editor_state_->set_keyboard_redirect(nullptr);
   }
@@ -566,8 +578,16 @@ class TopLevelCommandMode : public EditorMode {
  private:
   bool ReceiveInputTopCommand(TopCommandErase, wint_t t) { return false; }
 
-  bool ReceiveInputTopCommand(TopCommandReach, wint_t t) {
+  bool ReceiveInputTopCommand(TopCommandReach top_command, wint_t t) {
+    using PTB = transformation::Stack::PostTransformationBehavior;
     switch (t) {
+      case L'd':
+        top_command.post_transformation_behavior =
+            top_command.post_transformation_behavior == PTB::kDeleteRegion
+                ? PTB::kNone
+                : PTB::kDeleteRegion;
+        state_.set_top_command(top_command);
+        return true;
       case L'f':
         state_.Push(CommandReachChar{}, ApplicationType::kPreview);
         return true;
@@ -614,7 +634,16 @@ class TopLevelCommandMode : public EditorMode {
     return L"";
   }
 
-  static std::wstring ToStatus(TopCommandReach) { return L"R"; }
+  static std::wstring ToStatus(TopCommandReach top_command) {
+    switch (top_command.post_transformation_behavior) {
+      case transformation::Stack::PostTransformationBehavior::kNone:
+        return L"R";
+      case transformation::Stack::PostTransformationBehavior::kDeleteRegion:
+        return L"D";
+    }
+    LOG(FATAL) << "Invalid post transformation behavior.";
+    return L"R";
+  }
 
   State state_;
 };
