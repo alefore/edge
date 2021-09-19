@@ -122,6 +122,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     range.begin = min(range.begin, output->position);
     range.end = max(range.end, output->position);
   }
+  range.begin = input.buffer->AdjustLineColumn(range.begin);
+  range.end = input.buffer->AdjustLineColumn(range.end);
 
   CHECK_LE(range.begin, range.end);
   if (range.IsEmpty()) {
