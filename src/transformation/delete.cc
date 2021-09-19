@@ -113,14 +113,19 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
 
   auto output = std::make_shared<transformation::Result>(
       input.buffer->AdjustLineColumn(input.position));
-  Range range =
-      input.buffer->FindPartialRange(options.modifiers, output->position);
-  range.begin = min(range.begin, output->position);
-  range.end = max(range.end, output->position);
+  Range range;
+
+  if (options.range.has_value()) {
+    range = *options.range;
+  } else {
+    range = input.buffer->FindPartialRange(options.modifiers, output->position);
+    range.begin = min(range.begin, output->position);
+    range.end = max(range.end, output->position);
+  }
 
   CHECK_LE(range.begin, range.end);
   if (range.IsEmpty()) {
-    VLOG(5) << "No repetitions.";
+    VLOG(5) << "Nothing to delete.";
     return futures::Past(std::move(*output));
   }
 

@@ -15,7 +15,7 @@ namespace afc::editor::transformation {
 struct Delete {
   std::wstring Serialize() const;
 
-  Modifiers modifiers;
+  Modifiers modifiers = Modifiers();
 
   enum class LineEndBehavior { kStop, kDelete };
   LineEndBehavior line_end_behavior = LineEndBehavior::kDelete;
@@ -28,6 +28,8 @@ struct Delete {
   // is used by CompositeTransformations that want to effectively erase text
   // even in kPreview mode.
   std::optional<Input::Mode> mode = std::nullopt;
+
+  std::optional<Range> range = std::nullopt;
 };
 
 std::ostream& operator<<(std::ostream& os, const Delete& options);
