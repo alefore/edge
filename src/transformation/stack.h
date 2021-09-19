@@ -11,9 +11,13 @@
 namespace afc::editor {
 namespace transformation {
 struct Stack {
+  enum PostTransformationBehavior { kNone, kDeleteRegion };
+
   void PushBack(Variant transformation);
   void PushFront(Variant transformation);
   std::list<Variant> stack;
+  PostTransformationBehavior post_transformation_behavior =
+      PostTransformationBehavior::kNone;
 };
 
 futures::Value<Result> ApplyBase(const Stack& parameters, Input input);

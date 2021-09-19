@@ -13,23 +13,29 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   auto copy = std::make_shared<Stack>(parameters);
   std::shared_ptr<Log> trace =
       input.buffer->log()->NewChild(L"ApplyBase(Stack)");
-  return futures::Transform(
-      futures::ForEach(
-          copy->stack.begin(), copy->stack.end(),
-          [output, input,
-           trace](const transformation::Variant& transformation) {
-            trace->Append(L"Transformation: " + ToString(transformation));
-            return futures::Transform(
-                Apply(transformation, input.NewChild(output->position)),
-                [output](Result result) {
-                  output->MergeFrom(std::move(result));
-                  return output->success
-                             ? futures::IterationControlCommand::kContinue
-                             : futures::IterationControlCommand::kStop;
-                });
-          }),
-      [output, copy](futures::IterationControlCommand) {
-        return std::move(*output);
+  return futures::ForEach(
+             copy->stack.begin(), copy->stack.end(),
+             [output, input,
+              trace](const transformation::Variant& transformation) {
+               trace->Append(L"Transformation: " + ToString(transformation));
+               return Apply(transformation, input.NewChild(output->position))
+                   .Transform([output](Result result) {
+                     output->MergeFrom(std::move(result));
+                     return output->success
+                                ? futures::IterationControlCommand::kContinue
+                                : futures::IterationControlCommand::kStop;
+                   });
+             })
+      .Transform([output, input, copy](futures::IterationControlCommand) {
+        switch (copy->post_transformation_behavior) {
+          case Stack::PostTransformationBehavior::kNone:
+            break;
+          case Stack::PostTransformationBehavior::kDeleteRegion:
+            Range range = {min(input.position, output->position),
+                           max(input.position, output->position)};
+            return Apply(Delete{.range = range}, input.NewChild(range.begin));
+        }
+        return futures::Past(std::move(*output));
       });
 }
 
