@@ -25,16 +25,16 @@ struct ForkCommandOptions {
   // The command to run.
   wstring command;
 
-  wstring name;
+  wstring name = L"";
 
   // Additional environment variables (e.g. getenv) to give to the command.
-  map<wstring, wstring> environment;
+  map<wstring, wstring> environment = {};
 
   BuffersList::AddBufferType insertion_type =
       BuffersList::AddBufferType::kVisit;
 
   // If non-empty, change to this directory in the children. Ignored if empty.
-  wstring children_path;
+  wstring children_path = L"";
 };
 
 unique_ptr<Command> NewForkCommand();
