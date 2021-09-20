@@ -11,7 +11,7 @@
 namespace afc::editor {
 namespace transformation {
 struct Stack {
-  enum PostTransformationBehavior { kNone, kDeleteRegion };
+  enum PostTransformationBehavior { kNone, kDeleteRegion, kCommandSystem };
 
   void PushBack(Variant transformation);
   void PushFront(Variant transformation);

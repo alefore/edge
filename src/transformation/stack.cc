@@ -2,6 +2,7 @@
 
 #include "src/buffer.h"
 #include "src/log.h"
+#include "src/run_command_handler.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/input.h"
 #include "src/vm_transformation.h"
@@ -27,14 +28,26 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                    });
              })
       .Transform([output, input, copy](futures::IterationControlCommand) {
+        Range range = {min(input.position, output->position),
+                       max(input.position, output->position)};
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone:
-            break;
+            return futures::Past(std::move(*output));
           case Stack::PostTransformationBehavior::kDeleteRegion:
-            Range range = {min(input.position, output->position),
-                           max(input.position, output->position)};
             return Apply(Delete{.range = range}, input.NewChild(range.begin));
+          case Stack::PostTransformationBehavior::kCommandSystem:
+            if (input.mode == Input::Mode::kPreview) {
+              return Apply(
+                  Delete{.preview_modifiers = {LineModifier::GREEN,
+                                               LineModifier::UNDERLINE},
+                         .range = range},
+                  input.NewChild(range.begin));
+            }
+            ForkCommand(input.buffer->editor(),
+                        ForkCommandOptions{.command = L"ls"});
+            return futures::Past(std::move(*output));
         }
+        LOG(FATAL) << "Invalid post transformation behavior.";
         return futures::Past(std::move(*output));
       });
 }
