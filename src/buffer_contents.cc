@@ -9,6 +9,7 @@
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
 #include "src/substring.h"
+#include "src/tests/tests.h"
 #include "src/viewers.h"
 #include "src/wstring.h"
 
@@ -37,6 +38,135 @@ std::unique_ptr<BufferContents> BufferContents::copy() const {
   output->lines_ = lines_;
   return output;
 }
+
+void BufferContents::FilterToRange(Range range) {
+  // Drop the tail.
+  if (range.end.line < EndLine()) {
+    EraseLines(range.end.line + LineNumberDelta(1),
+               EndLine() + LineNumberDelta(1), CursorsBehavior::kAdjust);
+  }
+  auto tail_line = at(range.end.line);
+  DeleteCharactersFromLine(range.end,
+                           tail_line->EndColumn() - range.end.column);
+
+  // Drop the head.
+  if (range.begin.line > LineNumber()) {
+    EraseLines(LineNumber(), range.begin.line, CursorsBehavior::kAdjust);
+  }
+  DeleteCharactersFromLine(LineColumn(), range.begin.column.ToDelta());
+}
+
+static BufferContents BufferContentsForTests() {
+  BufferContents output;
+  output.AppendToLine(LineNumber(), Line(L"alejandro"));
+  output.push_back(L"forero");
+  output.push_back(L"cuervo");
+  return output;
+}
+
+const bool path_component_with_extension_tests_registration = tests::Register(
+    L"BufferContents::FilterToRange",
+    {
+        {.name = L"EmptyInput",
+         .callback =
+             [] {
+               BufferContents empty;
+               empty.FilterToRange(Range());
+               CHECK(empty.ToString() == L"");
+             }},
+        {.name = L"EmptyRange",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(Range());
+               CHECK(buffer.ToString() == L"");
+             }},
+        {.name = L"WholeRange",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(buffer.range());
+               CHECK(buffer.ToString() == BufferContentsForTests().ToString());
+             }},
+        {.name = L"FirstLineFewChars",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(Range{
+                   LineColumn(), LineColumn(LineNumber(0), ColumnNumber(3))});
+               CHECK(buffer.ToString() == L"ale");
+             }},
+        {.name = L"FirstLineExcludingBreak",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(Range{
+                   LineColumn(), LineColumn(LineNumber(0), ColumnNumber(9))});
+               CHECK(buffer.ToString() == L"alejandro");
+             }},
+        {.name = L"FirstLineIncludingBreak",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(Range{
+                   LineColumn(), LineColumn(LineNumber(1), ColumnNumber(0))});
+               CHECK(buffer.ToString() == L"alejandro\n");
+             }},
+        {.name = L"FirstLineMiddleChars",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(
+                   Range{LineColumn(LineNumber(0), ColumnNumber(2)),
+                         LineColumn(LineNumber(0), ColumnNumber(5))});
+               CHECK(buffer.ToString() == L"eja");
+             }},
+        {.name = L"MultiLineMiddle",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(
+                   Range{LineColumn(LineNumber(0), ColumnNumber(2)),
+                         LineColumn(LineNumber(2), ColumnNumber(3))});
+               CHECK(buffer.ToString() == L"ejandro\nforero\ncue");
+             }},
+        {.name = L"LastLineFewChars",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(
+                   Range{LineColumn(LineNumber(2), ColumnNumber(2)),
+                         LineColumn(LineNumber(2), ColumnNumber(6))});
+               CHECK(buffer.ToString() == L"ervo");
+             }},
+        {.name = L"LastLineExcludingBreak",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(
+                   Range{LineColumn(LineNumber(2), ColumnNumber()),
+                         LineColumn(LineNumber(2), ColumnNumber(6))});
+               CHECK(buffer.ToString() == L"cuervo");
+             }},
+        {.name = L"LastLineIncludingBreak",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(
+                   Range{LineColumn(LineNumber(1), ColumnNumber(6)),
+                         LineColumn(LineNumber(2), ColumnNumber(6))});
+               CHECK(buffer.ToString() == L"\ncuervo");
+             }},
+        {.name = L"LastLineMiddleChars",
+         .callback =
+             [] {
+               auto buffer = BufferContentsForTests();
+               buffer.FilterToRange(
+                   Range{LineColumn(LineNumber(2), ColumnNumber(2)),
+                         LineColumn(LineNumber(2), ColumnNumber(5))});
+               CHECK(buffer.ToString() == L"erv");
+             }},
+    });
 
 wint_t BufferContents::character_at(const LineColumn& position) const {
   CHECK_LE(position.line, EndLine());

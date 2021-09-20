@@ -41,6 +41,9 @@ class BufferContents : public fuzz::FuzzTestable {
   // This is dirt cheap.
   std::unique_ptr<BufferContents> copy() const;
 
+  // Drops all contents outside of a specific range.
+  void FilterToRange(Range range);
+
   shared_ptr<const Line> at(LineNumber position) const {
     CHECK_LT(position, LineNumber(0) + size());
     return lines_->Get(position.line);
