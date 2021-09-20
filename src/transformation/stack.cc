@@ -43,8 +43,10 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                          .range = range},
                   input.NewChild(range.begin));
             }
+            auto contents = input.buffer->contents()->copy();
+            contents->FilterToRange(range);
             ForkCommand(input.buffer->editor(),
-                        ForkCommandOptions{.command = L"ls"});
+                        ForkCommandOptions{.command = contents->ToString()});
             return futures::Past(std::move(*output));
         }
         LOG(FATAL) << "Invalid post transformation behavior.";
