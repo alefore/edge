@@ -236,8 +236,10 @@ class State {
   void Update() { Update(ApplicationType::kPreview); }
 
   void Commit() {
+    // We make a copy because Update may delete us.
+    auto editor_state = editor_state_;
     Update(ApplicationType::kCommit);
-    editor_state_->set_keyboard_redirect(nullptr);
+    editor_state->set_keyboard_redirect(nullptr);
   }
 
   void RunUndoCallback() {
@@ -267,8 +269,9 @@ class State {
     }
     stack.post_transformation_behavior = std::visit(
         [](auto t) { return GetPostTransformationBehavior(t); }, top_command_);
+    auto undo_callback = undo_callback_;
     StartTransformationExecution(application_type, std::move(stack))
-        .SetConsumer([output = undo_callback_](UndoCallback undo_callback) {
+        .SetConsumer([output = undo_callback](UndoCallback undo_callback) {
           *output = [previous = std::move(*output), undo_callback]() {
             return undo_callback().Transform(
                 [previous](EmptyValue) { return previous(); });
@@ -286,9 +289,9 @@ class State {
     futures::Future<UndoCallback> output;
     serializer_.Push([editor_state = editor_state_, application_type,
                       consumer = output.consumer, transformation] {
-      return futures::Transform(
-          ExecuteTransformation(editor_state, application_type, transformation),
-          [consumer](UndoCallback undo_callback) {
+      return ExecuteTransformation(editor_state, application_type,
+                                   transformation)
+          .Transform([consumer](UndoCallback undo_callback) {
             consumer(std::move(undo_callback));
             return Past(EmptyValue());
           });
@@ -568,6 +571,14 @@ class TopLevelCommandMode : public EditorMode {
                 : PTB::kDeleteRegion;
         state_.set_top_command(top_command);
         return true;
+      case L'$':
+        top_command.post_transformation_behavior =
+            top_command.post_transformation_behavior == PTB::kCommandSystem
+                ? PTB::kNone
+                : PTB::kCommandSystem;
+        state_.set_top_command(top_command);
+        return true;
+
       case L'f':
         state_.Push(CommandReachChar{});
         return true;
@@ -613,6 +624,8 @@ class TopLevelCommandMode : public EditorMode {
         return L"R";
       case transformation::Stack::PostTransformationBehavior::kDeleteRegion:
         return L"D";
+      case transformation::Stack::PostTransformationBehavior::kCommandSystem:
+        return L"$";
     }
     LOG(FATAL) << "Invalid post transformation behavior.";
     return L"R";
