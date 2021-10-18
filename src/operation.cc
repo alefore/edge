@@ -482,7 +482,7 @@ class TopLevelCommandMode : public EditorMode {
   void ShowStatus(EditorState* editor_state) {
     editor_state->status()->SetInformationText(
         std::visit([](auto& t) { return ToStatus(t); }, state_.top_command()) +
-        state_.GetStatusString());
+        L":" + state_.GetStatusString());
   }
 
   void PushDefault() {
@@ -497,10 +497,17 @@ class TopLevelCommandMode : public EditorMode {
     using PTB = transformation::Stack::PostTransformationBehavior;
     switch (t) {
       case L'd':
-        top_command.post_transformation_behavior =
-            top_command.post_transformation_behavior == PTB::kDeleteRegion
-                ? PTB::kNone
-                : PTB::kDeleteRegion;
+        switch (top_command.post_transformation_behavior) {
+          case PTB::kDeleteRegion:
+            top_command.post_transformation_behavior = PTB::kCopyRegion;
+            break;
+          case PTB::kCopyRegion:
+            top_command.post_transformation_behavior = PTB::kNone;
+            break;
+          default:
+            top_command.post_transformation_behavior = PTB::kDeleteRegion;
+            break;
+        }
         state_.set_top_command(top_command);
         return true;
       case L'$':
@@ -542,14 +549,16 @@ class TopLevelCommandMode : public EditorMode {
   static std::wstring ToStatus(TopCommandReach top_command) {
     switch (top_command.post_transformation_behavior) {
       case transformation::Stack::PostTransformationBehavior::kNone:
-        return L"R";
+        return L"🦋 Move";
       case transformation::Stack::PostTransformationBehavior::kDeleteRegion:
-        return L"D";
+        return L"✂️  Delete";
+      case transformation::Stack::PostTransformationBehavior::kCopyRegion:
+        return L"📋 Copy";
       case transformation::Stack::PostTransformationBehavior::kCommandSystem:
-        return L"$";
+        return L"🐚 System";
     }
     LOG(FATAL) << "Invalid post transformation behavior.";
-    return L"R";
+    return L"Move";
   }
 
   State state_;

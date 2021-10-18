@@ -35,6 +35,12 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             return futures::Past(std::move(*output));
           case Stack::PostTransformationBehavior::kDeleteRegion:
             return Apply(Delete{.range = range}, input.NewChild(range.begin));
+          case Stack::PostTransformationBehavior::kCopyRegion:
+            return Apply(
+                Delete{.modifiers = {.delete_behavior =
+                                         Modifiers::DeleteBehavior::kDoNothing},
+                       .range = range},
+                input.NewChild(range.begin));
           case Stack::PostTransformationBehavior::kCommandSystem:
             if (input.mode == Input::Mode::kPreview) {
               return Apply(
