@@ -759,27 +759,14 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"!", std::make_unique<SetStructureCommand>(StructureMark()));
   commands->Add(L"t", std::make_unique<SetStructureCommand>(StructureTree()));
 
-  auto delete_name_callback = [](const Modifiers& modifiers) {
-    switch (modifiers.direction) {
-      case Direction::kForwards:
-        return L"⌦";
-      case Direction::kBackwards:
-        return L"⌫";
-    }
-    LOG(DFATAL) << "Invalid direction.";
-    return L"";
-  };
-  commands->Add(L"e", operation::NewTopLevelCommand(
-                          L"delete", L"starts a new delete command",
-                          operation::TopCommandErase(), editor_state, {}));
   commands->Add(
-      L"d",
-      NewCommandWithModifiers(
-          delete_name_callback, L"starts a new delete command", Modifiers(),
-          [](EditorState*, Modifiers modifiers) {
-            return transformation::Delete{.modifiers = std::move(modifiers)};
-          },
-          editor_state));
+      L"e", operation::NewTopLevelCommand(
+                L"delete", L"starts a new delete command",
+                operation::TopCommandReach{
+                    .post_transformation_behavior = transformation::Stack::
+                        PostTransformationBehavior::kDeleteRegion},
+                editor_state,
+                {operation::CommandReach{.repetitions = {.repetitions = 1}}}));
   commands->Add(L"p", std::make_unique<Paste>());
 
   commands->Add(L"u", std::make_unique<UndoCommand>(std::nullopt));

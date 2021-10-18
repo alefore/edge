@@ -20,7 +20,6 @@ namespace afc::editor::operation {
 using futures::Past;
 namespace {
 
-Command GetDefaultCommand(TopCommandErase) { return CommandErase(); }
 Command GetDefaultCommand(TopCommandReach) { return CommandReach(); }
 
 std::wstring SerializeCall(std::wstring name,
@@ -54,11 +53,6 @@ Modifiers GetModifiers(Structure* structure,
   return GetModifiers(structure, repetitions.get(), direction);
 }
 
-std::wstring ToStatus(const CommandErase& erase) {
-  return SerializeCall(L"Erase", {StructureToString(erase.structure),
-                                  erase.repetitions.ToString()});
-}
-
 std::wstring ToStatus(const CommandReach& reach) {
   return SerializeCall(L"Reach", {StructureToString(reach.structure),
                                   reach.repetitions.ToString()});
@@ -79,23 +73,6 @@ std::wstring ToStatus(const CommandReachChar& c) {
   return SerializeCall(L"Char",
                        {c.c.has_value() ? std::wstring(1, c.c.value()) : L"…",
                         c.repetitions.ToString()});
-}
-
-bool IsNoop(const CommandErase& erase) { return erase.repetitions.get() == 0; }
-
-bool IsNoop(const CommandReach& reach) {
-  return reach.repetitions.empty() &&
-         (reach.structure == StructureChar() || reach.structure == nullptr);
-}
-
-bool IsNoop(const CommandReachBegin&) { return false; }
-
-bool IsNoop(const CommandReachLine& reach_line) {
-  return reach_line.repetitions.empty();
-}
-
-bool IsNoop(const CommandReachChar& reach_char) {
-  return !reach_char.c.has_value() || reach_char.repetitions.empty();
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -133,15 +110,6 @@ futures::Value<UndoCallback> ExecuteTransformation(
               Past(EmptyValue()));
         });
       });
-}
-
-transformation::Delete GetTransformation(TopCommand top_command,
-                                         CommandErase erase) {
-  Modifiers modifiers =
-      GetModifiers(erase.structure, erase.repetitions, Direction::kForwards);
-  modifiers.delete_behavior =
-      std::get<TopCommandErase>(top_command).delete_behavior;
-  return transformation::Delete{.modifiers = std::move(modifiers)};
 }
 
 transformation::Stack GetTransformation(TopCommand, CommandReach reach) {
@@ -187,11 +155,6 @@ transformation::Stack GetTransformation(TopCommand,
             std::make_unique<FindTransformation>(reach_char.c.value())});
   }
   return transformation;
-}
-
-static transformation::Stack::PostTransformationBehavior
-GetPostTransformationBehavior(TopCommandErase) {
-  return transformation::Stack::kNone;
 }
 
 static transformation::Stack::PostTransformationBehavior
@@ -390,35 +353,6 @@ bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
   return false;
 }
 
-bool ReceiveInput(CommandErase* output, wint_t c, State* state) {
-  if (CheckStructureChar(c, &output->structure, &output->repetitions) ||
-      CheckIncrementsChar(c, &output->repetitions) ||
-      CheckRepetitionsChar(c, &output->repetitions)) {
-    return true;
-  }
-
-  switch (c) {
-    case L'e':
-      state->Push(CommandErase());
-      return true;
-    case L's':
-      auto top_command_erase = std::get<TopCommandErase>(state->top_command());
-      switch (top_command_erase.delete_behavior) {
-        case Modifiers::DeleteBehavior::kDeleteText:
-          top_command_erase.delete_behavior =
-              Modifiers::DeleteBehavior::kDoNothing;
-          break;
-        case Modifiers::DeleteBehavior::kDoNothing:
-          top_command_erase.delete_behavior =
-              Modifiers::DeleteBehavior::kDeleteText;
-          break;
-      }
-      state->set_top_command(top_command_erase);
-      return true;
-  }
-  return false;
-}
-
 bool ReceiveInput(CommandReach* output, wint_t c, State*) {
   if (CheckStructureChar(c, &output->structure, &output->repetitions)) {
     return true;
@@ -559,8 +493,6 @@ class TopLevelCommandMode : public EditorMode {
   void PushCommand(Command command) { state_.Push(std::move(command)); }
 
  private:
-  bool ReceiveInputTopCommand(TopCommandErase, wint_t t) { return false; }
-
   bool ReceiveInputTopCommand(TopCommandReach top_command, wint_t t) {
     using PTB = transformation::Stack::PostTransformationBehavior;
     switch (t) {
@@ -605,17 +537,6 @@ class TopLevelCommandMode : public EditorMode {
         return true;
     }
     return false;
-  }
-
-  static std::wstring ToStatus(TopCommandErase erase) {
-    switch (erase.delete_behavior) {
-      case Modifiers::DeleteBehavior::kDeleteText:
-        return L"E";
-      case Modifiers::DeleteBehavior::kDoNothing:
-        return L"P";
-    }
-    LOG(FATAL) << "Invalid delete behavior.";
-    return L"";
   }
 
   static std::wstring ToStatus(TopCommandReach top_command) {

@@ -27,16 +27,12 @@ enum class ApplicationType { kPreview, kCommit };
 // => Reach(Line, 7); ReachNextCharacter(" ", 3);
 
 // Operation that is executed if there are no arguments at all.
-struct TopCommandErase {
-  Modifiers::DeleteBehavior delete_behavior =
-      Modifiers::DeleteBehavior::kDeleteText;
-};
 struct TopCommandReach {
   transformation::Stack::PostTransformationBehavior
       post_transformation_behavior;
 };
 
-using TopCommand = std::variant<TopCommandErase, TopCommandReach>;
+using TopCommand = std::variant<TopCommandReach>;
 
 class CommandArgumentRepetitions {
  public:
@@ -69,11 +65,6 @@ class CommandArgumentRepetitions {
 };
 
 // A sequence of arguments becomes a command.
-struct CommandErase {
-  Structure* structure = nullptr;
-  CommandArgumentRepetitions repetitions = {.repetitions = 1};
-};
-
 struct CommandReach {
   Structure* structure = nullptr;
   CommandArgumentRepetitions repetitions = {.repetitions = 0};
@@ -100,8 +91,8 @@ struct CommandReachChar {
   CommandArgumentRepetitions repetitions = {.repetitions = 1};
 };
 
-using Command = std::variant<CommandErase, CommandReach, CommandReachBegin,
-                             CommandReachLine, CommandReachChar>;
+using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
+                             CommandReachChar>;
 
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
