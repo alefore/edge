@@ -28,29 +28,32 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                    });
              })
       .Transform([output, input, copy](futures::IterationControlCommand) {
-        Range range = {min(input.position, output->position),
-                       max(input.position, output->position)};
+        Delete delete_transformation{
+            .modifiers = {.direction = input.position < output->position
+                                           ? Direction::kForwards
+                                           : Direction::kBackwards},
+            .range = Range(min(input.position, output->position),
+                           max(input.position, output->position))};
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone:
             return futures::Past(std::move(*output));
           case Stack::PostTransformationBehavior::kDeleteRegion:
-            return Apply(Delete{.range = range}, input.NewChild(range.begin));
+            return Apply(delete_transformation,
+                         input.NewChild(delete_transformation.range->begin));
           case Stack::PostTransformationBehavior::kCopyRegion:
-            return Apply(
-                Delete{.modifiers = {.delete_behavior =
-                                         Modifiers::DeleteBehavior::kDoNothing},
-                       .range = range},
-                input.NewChild(range.begin));
+            delete_transformation.modifiers.delete_behavior =
+                Modifiers::DeleteBehavior::kDoNothing;
+            return Apply(delete_transformation,
+                         input.NewChild(delete_transformation.range->begin));
           case Stack::PostTransformationBehavior::kCommandSystem:
             if (input.mode == Input::Mode::kPreview) {
-              return Apply(
-                  Delete{.preview_modifiers = {LineModifier::GREEN,
-                                               LineModifier::UNDERLINE},
-                         .range = range},
-                  input.NewChild(range.begin));
+              delete_transformation.preview_modifiers = {
+                  LineModifier::GREEN, LineModifier::UNDERLINE};
+              return Apply(delete_transformation,
+                           input.NewChild(delete_transformation.range->begin));
             }
             auto contents = input.buffer->contents()->copy();
-            contents->FilterToRange(range);
+            contents->FilterToRange(*delete_transformation.range);
             ForkCommand(input.buffer->editor(),
                         ForkCommandOptions{.command = contents->ToString()});
             return futures::Past(std::move(*output));
