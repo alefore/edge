@@ -34,6 +34,9 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                            : Direction::kBackwards},
             .range = Range(min(input.position, output->position),
                            max(input.position, output->position))};
+        if (delete_transformation.range->IsEmpty()) {
+          return futures::Past(std::move(*output));
+        }
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone:
             return futures::Past(std::move(*output));
