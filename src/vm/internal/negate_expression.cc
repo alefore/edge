@@ -20,6 +20,8 @@ class NegateExpression : public Expression {
     return expr_->ReturnTypes();
   }
 
+  PurityType purity() override { return expr_->purity(); }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType&) override {
     return futures::Transform(

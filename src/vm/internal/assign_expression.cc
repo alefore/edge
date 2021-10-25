@@ -27,6 +27,8 @@ class AssignExpression : public Expression {
     return value_->ReturnTypes();
   }
 
+  PurityType purity() override { return PurityType::kUnknown; }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) override {
     return futures::Transform(

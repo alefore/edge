@@ -19,6 +19,8 @@ class ConstantExpression : public Expression {
   std::vector<VMType> Types() { return {value_->type}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
+  PurityType purity() override { return PurityType::kPure; }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline*, const VMType& type) {
     CHECK_EQ(type, value_->type);
     DVLOG(5) << "Evaluating constant value: " << *value_;

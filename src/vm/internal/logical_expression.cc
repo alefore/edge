@@ -23,6 +23,13 @@ class LogicalExpression : public Expression {
   std::vector<VMType> Types() override { return {VMType::Bool()}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
+  PurityType purity() {
+    return expr_a_->purity() == PurityType::kPure &&
+                   expr_b_->purity() == PurityType::kPure
+               ? PurityType::kPure
+               : PurityType::kUnknown;
+  }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) override {
     return futures::Transform(

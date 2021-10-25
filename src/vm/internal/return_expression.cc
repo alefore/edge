@@ -22,6 +22,8 @@ class ReturnExpression : public Expression {
     return {types.cbegin(), types.cend()};
   }
 
+  PurityType purity() override { return expr_->purity(); }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType&) override {
     return futures::Transform(

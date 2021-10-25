@@ -24,6 +24,8 @@ class BinaryOperator : public Expression {
   std::vector<VMType> Types() override;
   std::unordered_set<VMType> ReturnTypes() const override;
 
+  PurityType purity() override;
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* evaluation,
                                             const VMType& type) override;
 

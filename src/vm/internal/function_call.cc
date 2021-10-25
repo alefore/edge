@@ -73,6 +73,19 @@ class FunctionCall : public Expression {
 
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
+  PurityType purity() override {
+    if (func_->purity() != PurityType::kPure) {
+      return PurityType::kUnknown;
+    }
+    for (const auto& a : *args_) {
+      if (a->purity() != PurityType::kPure) {
+        return PurityType::kUnknown;
+      }
+    }
+    // TODO: Annotate all callbacks! Use a more meaningful value here.
+    return PurityType::kUnknown;
+  }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) {
     DVLOG(3) << "Function call evaluation starts.";
@@ -259,6 +272,11 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       std::unique_ptr<Expression> Clone() override {
         return std::make_unique<BindObjectExpression>(obj_expr_->Clone(),
                                                       delegate_);
+      }
+
+      PurityType purity() override {
+        // Annotate purity of callbacks and check the purity of delegate?
+        return PurityType::kUnknown;
       }
 
       futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,

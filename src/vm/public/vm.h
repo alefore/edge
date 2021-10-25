@@ -84,6 +84,9 @@ class Expression {
   bool IsDouble() { return SupportsType(VMType::Double()); };
   bool IsString() { return SupportsType(VMType::String()); };
 
+  enum class PurityType { kPure, kUnknown };
+  virtual PurityType purity() = 0;
+
   // Returns a new copy of this expression.
   virtual std::unique_ptr<Expression> Clone() = 0;
 

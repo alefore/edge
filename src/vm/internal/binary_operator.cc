@@ -29,6 +29,12 @@ std::unordered_set<VMType> BinaryOperator::ReturnTypes() const {
   return a_->ReturnTypes();
 }
 
+Expression::PurityType BinaryOperator::purity() {
+  return a_->purity() == PurityType::kPure && b_->purity() == PurityType::kPure
+             ? PurityType::kPure
+             : PurityType::kUnknown;
+}
+
 futures::Value<EvaluationOutput> BinaryOperator::Evaluate(
     Trampoline* trampoline, const VMType& type) {
   CHECK(type_ == type);

@@ -32,6 +32,14 @@ class IfExpression : public Expression {
     return return_types_;
   }
 
+  PurityType purity() override {
+    return cond_->purity() == PurityType::kPure &&
+                   true_case_->purity() == PurityType::kPure &&
+                   false_case_->purity() == PurityType::kPure
+               ? PurityType::kPure
+               : PurityType::kUnknown;
+  }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) override {
     return futures::Transform(

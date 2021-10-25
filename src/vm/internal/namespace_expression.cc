@@ -23,6 +23,8 @@ class NamespaceExpression : public Expression {
     return body_->ReturnTypes();
   }
 
+  PurityType purity() { return body_->purity(); }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) override {
     auto original_environment = trampoline->environment();

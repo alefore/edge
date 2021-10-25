@@ -25,6 +25,8 @@ class VariableLookup : public Expression {
   std::vector<VMType> Types() override { return types_; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
+  PurityType purity() override { return PurityType::kPure; }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) override {
     // TODO: Enable this logging.

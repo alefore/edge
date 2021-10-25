@@ -51,6 +51,8 @@ class LambdaExpression : public Expression {
   std::vector<VMType> Types() { return {type_}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
+  PurityType purity() override { return body_->purity(); }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) {
     CHECK_EQ(type, type_);

@@ -27,6 +27,13 @@ class WhileExpression : public Expression {
     return body_->ReturnTypes();
   }
 
+  PurityType purity() override {
+    return condition_->purity() == PurityType::kPure &&
+                   body_->purity() == PurityType::kPure
+               ? PurityType::kPure
+               : PurityType::kUnknown;
+  }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType&) override {
     DVLOG(4) << "Starting iteration.";

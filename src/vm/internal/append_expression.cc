@@ -22,6 +22,13 @@ class AppendExpression : public Expression {
     return return_types_;
   }
 
+  PurityType purity() override {
+    return e0_->purity() == PurityType::kPure &&
+                   e1_->purity() == PurityType::kPure
+               ? PurityType::kPure
+               : PurityType::kUnknown;
+  }
+
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType&) override {
     return futures::Transform(
