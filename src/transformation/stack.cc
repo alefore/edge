@@ -9,6 +9,62 @@
 
 namespace afc::editor {
 namespace transformation {
+namespace {
+void ShowValue(OpenBuffer& buffer, const Value& value) {
+  if (value.IsVoid()) return;
+  std::ostringstream oss;
+  oss << "Evaluation result: " << value;
+  buffer.status()->SetInformationText(FromByteString(oss.str()));
+}
+
+futures::Value<Result> HandleCommandCpp(Input input,
+                                        Delete delete_transformation) {
+  auto contents = input.buffer->contents()->copy();
+  contents->FilterToRange(*delete_transformation.range);
+  if (input.mode == Input::Mode::kPreview) {
+    std::wstring errors;
+    std::shared_ptr<Expression> expression =
+        input.buffer->CompileString(contents->ToString(), &errors);
+    delete_transformation.preview_modifiers = {
+        (expression == nullptr ? LineModifier::RED : LineModifier::GREEN),
+        LineModifier::UNDERLINE};
+    if (expression == nullptr && !errors.empty()) {
+      input.buffer->status()->SetInformationText(errors);
+    } else {
+      input.buffer->status()->Reset();
+    }
+    auto future_output =
+        futures::Past(std::make_shared<Result>(input.position));
+    if (expression != nullptr &&
+        expression->purity() == vm::Expression::PurityType::kPure) {
+      future_output = future_output.Transform(
+          [expression, buffer = input.buffer](std::shared_ptr<Result> output) {
+            return buffer->EvaluateExpression(expression.get())
+                .Transform(
+                    [buffer, expression, output](std::unique_ptr<Value> value) {
+                      ShowValue(*buffer, *value);
+                      return output;
+                    });
+          });
+    }
+    return future_output.Transform(
+        [delete_transformation, input](std::shared_ptr<Result>) {
+          return Apply(delete_transformation,
+                       input.NewChild(delete_transformation.range->begin));
+        });
+  }
+  auto expression = input.buffer->EvaluateString(contents->ToString());
+  if (expression == std::nullopt) {
+    return futures::Past(Result(input.position));
+  }
+  return expression->Transform([input](std::unique_ptr<Value> value) {
+    CHECK(value != nullptr);
+    ShowValue(*input.buffer, *value);
+    return Result(input.position);
+  });
+}
+}  // namespace
+
 futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   auto output = std::make_shared<Result>(input.position);
   auto copy = std::make_shared<Stack>(parameters);
@@ -61,39 +117,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                         ForkCommandOptions{.command = contents->ToString()});
             return futures::Past(std::move(*output));
           }
-          case Stack::PostTransformationBehavior::kCommandCpp: {
-            auto contents = input.buffer->contents()->copy();
-            contents->FilterToRange(*delete_transformation.range);
-            if (input.mode == Input::Mode::kPreview) {
-              std::wstring errors;
-              auto result =
-                  input.buffer->CompileString(contents->ToString(), &errors);
-              delete_transformation.preview_modifiers = {
-                  (result == nullptr ? LineModifier::RED : LineModifier::GREEN),
-                  LineModifier::UNDERLINE};
-              if (result == nullptr && !errors.empty()) {
-                input.buffer->status()->SetInformationText(errors);
-              } else {
-                input.buffer->status()->Reset();
-              }
-              return Apply(delete_transformation,
-                           input.NewChild(delete_transformation.range->begin));
-            }
-            auto result = input.buffer->EvaluateString(contents->ToString());
-            if (result == std::nullopt) {
-              return futures::Past(std::move(*output));
-            }
-            return result->Transform([buffer = input.buffer,
-                                      output](std::unique_ptr<Value> value) {
-              CHECK(value != nullptr);
-              if (value->IsVoid()) return std::move(*output);
-              std::ostringstream oss;
-              CHECK(value != nullptr);
-              oss << "Evaluation result: " << *value;
-              buffer->status()->SetInformationText(FromByteString(oss.str()));
-              return std::move(*output);
-            });
-          }
+          case Stack::PostTransformationBehavior::kCommandCpp:
+            return HandleCommandCpp(std::move(input), delete_transformation);
         }
         LOG(FATAL) << "Invalid post transformation behavior.";
         return futures::Past(std::move(*output));
