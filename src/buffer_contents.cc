@@ -51,6 +51,8 @@ void BufferContents::FilterToRange(Range range) {
                            tail_line->EndColumn() - range.end.column);
 
   // Drop the head.
+  range.begin.column =
+      min(range.begin.column, at(range.begin.line)->EndColumn());
   if (range.begin.line > LineNumber()) {
     EraseLines(LineNumber(), range.begin.line, CursorsBehavior::kAdjust);
   }
