@@ -48,7 +48,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                 Modifiers::DeleteBehavior::kDoNothing;
             return Apply(delete_transformation,
                          input.NewChild(delete_transformation.range->begin));
-          case Stack::PostTransformationBehavior::kCommandSystem:
+          case Stack::PostTransformationBehavior::kCommandSystem: {
             if (input.mode == Input::Mode::kPreview) {
               delete_transformation.preview_modifiers = {
                   LineModifier::GREEN, LineModifier::UNDERLINE};
@@ -60,6 +60,31 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             ForkCommand(input.buffer->editor(),
                         ForkCommandOptions{.command = contents->ToString()});
             return futures::Past(std::move(*output));
+          }
+          case Stack::PostTransformationBehavior::kCommandCpp: {
+            if (input.mode == Input::Mode::kPreview) {
+              delete_transformation.preview_modifiers = {
+                  LineModifier::GREEN, LineModifier::UNDERLINE};
+              return Apply(delete_transformation,
+                           input.NewChild(delete_transformation.range->begin));
+            }
+            auto contents = input.buffer->contents()->copy();
+            contents->FilterToRange(*delete_transformation.range);
+            auto result = input.buffer->EvaluateString(contents->ToString());
+            if (result == std::nullopt) {
+              return futures::Past(std::move(*output));
+            }
+            return result->Transform([buffer = input.buffer,
+                                      output](std::unique_ptr<Value> value) {
+              CHECK(value != nullptr);
+              if (value->IsVoid()) return std::move(*output);
+              std::ostringstream oss;
+              CHECK(value != nullptr);
+              oss << "Evaluation result: " << *value;
+              buffer->status()->SetInformationText(FromByteString(oss.str()));
+              return std::move(*output);
+            });
+          }
         }
         LOG(FATAL) << "Invalid post transformation behavior.";
         return futures::Past(std::move(*output));

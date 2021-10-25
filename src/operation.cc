@@ -511,13 +511,19 @@ class TopLevelCommandMode : public EditorMode {
         state_.set_top_command(top_command);
         return true;
       case L'$':
-        top_command.post_transformation_behavior =
-            top_command.post_transformation_behavior == PTB::kCommandSystem
-                ? PTB::kNone
-                : PTB::kCommandSystem;
+        switch (top_command.post_transformation_behavior) {
+          case PTB::kCommandSystem:
+            top_command.post_transformation_behavior = PTB::kCommandCpp;
+            break;
+          case PTB::kCommandCpp:
+            top_command.post_transformation_behavior = PTB::kNone;
+            break;
+          default:
+            top_command.post_transformation_behavior = PTB::kCommandSystem;
+            break;
+        }
         state_.set_top_command(top_command);
         return true;
-
       case L'f':
         state_.Push(CommandReachChar{});
         return true;
@@ -556,6 +562,8 @@ class TopLevelCommandMode : public EditorMode {
         return L"📋 Copy";
       case transformation::Stack::PostTransformationBehavior::kCommandSystem:
         return L"🐚 System";
+      case transformation::Stack::PostTransformationBehavior::kCommandCpp:
+        return L"🤖 Cpp";
     }
     LOG(FATAL) << "Invalid post transformation behavior.";
     return L"Move";
