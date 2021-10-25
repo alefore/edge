@@ -46,6 +46,7 @@ void BufferContents::FilterToRange(Range range) {
                EndLine() + LineNumberDelta(1), CursorsBehavior::kAdjust);
   }
   auto tail_line = at(range.end.line);
+  range.end.column = min(range.end.column, tail_line->EndColumn());
   DeleteCharactersFromLine(range.end,
                            tail_line->EndColumn() - range.end.column);
 
