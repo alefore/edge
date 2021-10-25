@@ -62,14 +62,23 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             return futures::Past(std::move(*output));
           }
           case Stack::PostTransformationBehavior::kCommandCpp: {
+            auto contents = input.buffer->contents()->copy();
+            contents->FilterToRange(*delete_transformation.range);
             if (input.mode == Input::Mode::kPreview) {
+              std::wstring errors;
+              auto result =
+                  input.buffer->CompileString(contents->ToString(), &errors);
               delete_transformation.preview_modifiers = {
-                  LineModifier::GREEN, LineModifier::UNDERLINE};
+                  (result == nullptr ? LineModifier::RED : LineModifier::GREEN),
+                  LineModifier::UNDERLINE};
+              if (result == nullptr && !errors.empty()) {
+                input.buffer->status()->SetInformationText(errors);
+              } else {
+                input.buffer->status()->Reset();
+              }
               return Apply(delete_transformation,
                            input.NewChild(delete_transformation.range->begin));
             }
-            auto contents = input.buffer->contents()->copy();
-            contents->FilterToRange(*delete_transformation.range);
             auto result = input.buffer->EvaluateString(contents->ToString());
             if (result == std::nullopt) {
               return futures::Past(std::move(*output));
