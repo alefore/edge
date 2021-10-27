@@ -40,6 +40,7 @@ std::unique_ptr<BufferContents> BufferContents::copy() const {
 }
 
 void BufferContents::FilterToRange(Range range) {
+  CHECK_LE(range.end.line, EndLine());
   // Drop the tail.
   if (range.end.line < EndLine()) {
     EraseLines(range.end.line + LineNumberDelta(1),
