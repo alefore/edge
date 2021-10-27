@@ -17,40 +17,49 @@ void ShowValue(OpenBuffer& buffer, const Value& value) {
   buffer.status()->SetInformationText(FromByteString(oss.str()));
 }
 
-futures::Value<Result> HandleCommandCpp(Input input,
-                                        Delete delete_transformation) {
-  auto contents = input.buffer->contents()->copy();
-  contents->FilterToRange(*delete_transformation.range);
-  if (input.mode == Input::Mode::kPreview) {
-    std::wstring errors;
-    std::shared_ptr<Expression> expression =
-        input.buffer->CompileString(contents->ToString(), &errors);
-    delete_transformation.preview_modifiers = {
-        (expression == nullptr ? LineModifier::RED : LineModifier::GREEN),
-        LineModifier::UNDERLINE};
-    if (expression == nullptr && !errors.empty()) {
-      input.buffer->status()->SetInformationText(errors);
-    } else {
-      input.buffer->status()->Reset();
-    }
-    auto future_output =
-        futures::Past(std::make_shared<Result>(input.position));
-    if (expression != nullptr &&
-        expression->purity() == vm::Expression::PurityType::kPure) {
-      future_output = future_output.Transform(
-          [expression, buffer = input.buffer](std::shared_ptr<Result> output) {
-            return buffer->EvaluateExpression(expression.get())
-                .Transform(
-                    [buffer, expression, output](std::unique_ptr<Value> value) {
-                      ShowValue(*buffer, *value);
-                      return output;
-                    });
+futures::Value<PossibleError> PreviewCppExpression(
+    OpenBuffer* buffer, const BufferContents& expression_str) {
+  std::wstring errors;
+  std::shared_ptr<Expression> expression =
+      buffer->CompileString(expression_str.ToString(), &errors);
+  if (expression == nullptr) {
+    return futures::Past(PossibleError(Error(errors)));
+  }
+
+  buffer->status()->Reset();
+  switch (expression->purity()) {
+    case vm::Expression::PurityType::kPure:
+      return buffer->EvaluateExpression(expression.get())
+          .Transform([buffer, expression](std::unique_ptr<Value> value) {
+            ShowValue(*buffer, *value);
+            return Success();
           });
-    }
-    return future_output.Transform(
-        [delete_transformation, input](std::shared_ptr<Result>) {
-          return Apply(delete_transformation,
-                       input.NewChild(delete_transformation.range->begin));
+    case vm::Expression::PurityType::kUnknown:
+      break;
+  }
+  return futures::Past(Success());
+}
+
+futures::Value<Result> HandleCommandCpp(Input input,
+                                        Delete original_delete_transformation) {
+  auto contents = input.buffer->contents()->copy();
+  contents->FilterToRange(*original_delete_transformation.range);
+  if (input.mode == Input::Mode::kPreview) {
+    auto delete_transformation =
+        std::make_shared<Delete>(std::move(original_delete_transformation));
+    delete_transformation->preview_modifiers = {LineModifier::GREEN,
+                                                LineModifier::UNDERLINE};
+    return PreviewCppExpression(input.buffer, *contents)
+        .ConsumeErrors(
+            [buffer = input.buffer, delete_transformation](Error error) {
+              delete_transformation->preview_modifiers = {
+                  LineModifier::RED, LineModifier::UNDERLINE};
+              buffer->status()->SetInformationText(error.description);
+              return EmptyValue();
+            })
+        .Transform([delete_transformation, input](EmptyValue) {
+          return Apply(*delete_transformation,
+                       input.NewChild(delete_transformation->range->begin));
         });
   }
   auto expression = input.buffer->EvaluateString(contents->ToString());
@@ -94,8 +103,15 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           return futures::Past(std::move(*output));
         }
         switch (copy->post_transformation_behavior) {
-          case Stack::PostTransformationBehavior::kNone:
-            return futures::Past(std::move(*output));
+          case Stack::PostTransformationBehavior::kNone: {
+            auto contents = input.buffer->contents()->copy();
+            contents->FilterToRange(*delete_transformation.range);
+            return PreviewCppExpression(input.buffer, *contents)
+                .ConsumeErrors([](Error) { return EmptyValue(); })
+                .Transform([output](EmptyValue) {
+                  return futures::Past(std::move(*output));
+                });
+          }
           case Stack::PostTransformationBehavior::kDeleteRegion:
             return Apply(delete_transformation,
                          input.NewChild(delete_transformation.range->begin));
