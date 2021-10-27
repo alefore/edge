@@ -1,6 +1,7 @@
 #include "src/transformation/stack.h"
 
 #include "src/buffer.h"
+#include "src/char_buffer.h"
 #include "src/log.h"
 #include "src/run_command_handler.h"
 #include "src/transformation/composite.h"
@@ -10,11 +11,20 @@
 namespace afc::editor {
 namespace transformation {
 namespace {
-void ShowValue(OpenBuffer& buffer, const Value& value) {
+void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
+               const Value& value) {
   if (value.IsVoid()) return;
   std::ostringstream oss;
-  oss << "Evaluation result: " << value;
-  buffer.status()->SetInformationText(FromByteString(oss.str()));
+  oss << value;
+  buffer.status()->SetInformationText(L"Value: " + FromByteString(oss.str()));
+  if (delete_buffer != nullptr) {
+    std::istringstream iss(oss.str());
+    for (std::string line_str; std::getline(iss, line_str);) {
+      delete_buffer->AppendToLastLine(
+          Line(Line::Options(NewLazyString(FromByteString(line_str)))));
+      delete_buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
+    }
+  }
 }
 
 futures::Value<PossibleError> PreviewCppExpression(
@@ -31,7 +41,7 @@ futures::Value<PossibleError> PreviewCppExpression(
     case vm::Expression::PurityType::kPure:
       return buffer->EvaluateExpression(expression.get())
           .Transform([buffer, expression](std::unique_ptr<Value> value) {
-            ShowValue(*buffer, *value);
+            ShowValue(*buffer, nullptr, *value);
             return Success();
           });
     case vm::Expression::PurityType::kUnknown:
@@ -68,8 +78,10 @@ futures::Value<Result> HandleCommandCpp(Input input,
   }
   return expression->Transform([input](std::unique_ptr<Value> value) {
     CHECK(value != nullptr);
-    ShowValue(*input.buffer, *value);
-    return Result(input.position);
+    ShowValue(*input.buffer, input.delete_buffer, *value);
+    Result output(input.position);
+    output.added_to_paste_buffer = true;
+    return output;
   });
 }
 }  // namespace
