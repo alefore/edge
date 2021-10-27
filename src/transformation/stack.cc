@@ -97,8 +97,10 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             .modifiers = {.direction = input.position < output->position
                                            ? Direction::kForwards
                                            : Direction::kBackwards},
-            .range = Range(min(input.position, output->position),
-                           max(input.position, output->position))};
+            .range = Range(min(min(input.position, output->position),
+                               input.buffer->end_position()),
+                           min(max(input.position, output->position),
+                               input.buffer->end_position()))};
         if (delete_transformation.range->IsEmpty()) {
           return futures::Past(std::move(*output));
         }
