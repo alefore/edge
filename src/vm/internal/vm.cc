@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 #include <libgen.h>
+#include <math.h>
 
 #include <fstream>
 #include <iostream>
@@ -125,6 +126,15 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
   *pos_output = pos + 1;
 
   VLOG(5) << path << ": Done compiling.";
+}
+
+int ConsumeDecimal(const wstring& str, size_t* pos) {
+  int output = 0;
+  while (*pos < str.size() && isdigit(str.at(*pos))) {
+    output = output * 10 + str.at(*pos) - '0';
+    (*pos)++;
+  }
+  return output;
 }
 
 void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
@@ -312,19 +322,21 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
       case '7':
       case '8':
       case '9': {
-        int decimal = 0;
-        while (pos < str.size() && isdigit(str.at(pos))) {
-          decimal = decimal * 10 + str.at(pos) - '0';
-          pos++;
-        }
-        if (pos < str.size() && str.at(pos) == '.') {
-          pos++;
+        int decimal = ConsumeDecimal(str, &pos);
+        if (pos < str.size() && (str.at(pos) == '.' || str.at(pos) == 'e')) {
           double value = decimal;
           double current_fraction = 1;
-          while (pos < str.size() && isdigit(str.at(pos))) {
-            current_fraction /= 10;
-            value += current_fraction * (str.at(pos) - '0');
+          if (str.at(pos) == '.') {
             pos++;
+            while (pos < str.size() && isdigit(str.at(pos))) {
+              current_fraction /= 10;
+              value += current_fraction * (str.at(pos) - '0');
+              pos++;
+            }
+          }
+          if (pos < str.size() && str.at(pos) == 'e') {
+            pos++;
+            value *= pow(10, ConsumeDecimal(str, &pos));
           }
           token = DOUBLE;
           input = Value::NewDouble(value);
