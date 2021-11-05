@@ -14,7 +14,10 @@ class AppendExpression : public Expression {
   AppendExpression(std::shared_ptr<Expression> e0,
                    std::shared_ptr<Expression> e1,
                    std::unordered_set<VMType> return_types)
-      : e0_(std::move(e0)), e1_(std::move(e1)), return_types_(return_types) {}
+      : e0_(std::move(e0)), e1_(std::move(e1)), return_types_(return_types) {
+    // Check that the optimization in NewAppendExpression is applied.
+    CHECK(e0_->purity() != PurityType::kPure);
+  }
 
   std::vector<VMType> Types() override { return e1_->Types(); }
 
@@ -22,12 +25,7 @@ class AppendExpression : public Expression {
     return return_types_;
   }
 
-  PurityType purity() override {
-    return e0_->purity() == PurityType::kPure &&
-                   e1_->purity() == PurityType::kPure
-               ? PurityType::kPure
-               : PurityType::kUnknown;
-  }
+  PurityType purity() override { return PurityType::kUnknown; }
 
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType&) override {
@@ -64,6 +62,7 @@ std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
   if (a == nullptr || b == nullptr) {
     return nullptr;
   }
+  if (a->purity() == Expression::PurityType::kPure) return b;
   std::wstring error;
   auto return_types =
       CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes(), &error);
