@@ -34,6 +34,13 @@ program(OUT) ::= statement_list(A). {
   A = nullptr;
 }
 
+program(OUT) ::= statement_list(A) assignment_statement(B). {
+  OUT = NewAppendExpression(compilation, unique_ptr<Expression>(A),
+                            unique_ptr<Expression>(B)).release();
+  A = nullptr;
+  B = nullptr;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Statement list
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,7 +66,7 @@ statement_list(OUT) ::= statement_list(A) statement(B). {
 %type statement { Expression* }
 %destructor statement { delete $$; }
 
-statement(A) ::= assignment_statement(B) . {
+statement(A) ::= assignment_statement(B) SEMICOLON . {
   A = B;
   B = nullptr;
 }
@@ -126,7 +133,9 @@ statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
 }
 
 statement(OUT) ::=
-    FOR LPAREN assignment_statement(INIT) expr(CONDITION) SEMICOLON expr(UPDATE)
+    FOR LPAREN assignment_statement(INIT) SEMICOLON
+        expr(CONDITION) SEMICOLON
+        expr(UPDATE)
     RPAREN statement(BODY). {
   OUT = NewForExpression(compilation, std::unique_ptr<Expression>(INIT),
                          std::unique_ptr<Expression>(CONDITION),
@@ -168,12 +177,12 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
 %type assignment_statement { Expression* }
 %destructor assignment_statement { delete $$; }
 
-assignment_statement(A) ::= expr(VALUE) SEMICOLON. {
+assignment_statement(A) ::= expr(VALUE) . {
   A = VALUE;
   VALUE = nullptr;
 }
 
-assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
+assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
   A = NewDefineExpression(compilation, TYPE->str, NAME->str,
                           unique_ptr<Expression>(VALUE)).release();
   delete TYPE;
