@@ -160,7 +160,7 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
         } else if (right) {
           return "┖";
         } else {
-          return "╵";  // Best fit.
+          return "╹";
         }
       }
     }
@@ -268,7 +268,7 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
         } else if (right) {
           return "┎";
         } else {
-          return "╷";  // Best fit.
+          return "╻";
         }
       }
     } else if (down) {
@@ -304,7 +304,7 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
         } else if (right) {
           return "╾";
         } else {
-          return "╶";  // Best fit.
+          return "╸";
         }
       } else if (left) {
         if (right_bold) {
@@ -316,7 +316,7 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
         }
       } else {
         if (right_bold) {
-          return "╶";  // Best fit.
+          return "╺";
         } else if (right) {
           return "╶";
         } else {
@@ -347,7 +347,7 @@ bool IsMovingLeft(string c) {
 }
 
 bool IsMovingLeftBold(string c) {
-  return ("╋╉╇╈┿╅╃┽┫┻┳┹┩┪┱┷┯┥┵┭┛┓━┙┑╾").find(c, 0) != -1;
+  return ("╋╉╇╈┿╅╃┽┫┻┳┹┩┪┱┷┯┥┵┭┛┓━┙┑╾╸").find(c, 0) != -1;
 }
 
 bool IsMovingUp(string c) {
@@ -355,7 +355,7 @@ bool IsMovingUp(string c) {
 }
 
 bool IsMovingUpBold(string c) {
-  return ("╋╉╊╇╄╃╂╀┫┣┻┨┠┹┩┺┡┦┞┸┃┛┗╿┚┖").find(c, 0) != -1;
+  return ("╋╉╊╇╄╃╂╀┫┣┻┨┠┹┩┺┡┦┞┸┃┛┗╿┚┖╹").find(c, 0) != -1;
 }
 
 bool IsMovingRight(string c) {
@@ -363,7 +363,7 @@ bool IsMovingRight(string c) {
 }
 
 bool IsMovingRightBold(string c) {
-  return ("╋╊╇╈┿╆╄┾┣┻┳┺┡┢┲┷┯┝┶┮┗┏┕┍╼━").find(c, 0) != -1;
+  return ("╋╊╇╈┿╆╄┾┣┻┳┺┡┢┲┷┯┝┶┮┗┏┕┍╼━╺").find(c, 0) != -1;
 }
 
 bool IsMovingDown(string c) {
@@ -371,7 +371,7 @@ bool IsMovingDown(string c) {
 }
 
 bool IsMovingDownBold(string c) {
-  return ("╋╉╊╈╆╅╂╁┫┣┳┨┠┪┱┢┲┧┟┰┃┓┏╽┒┎").find(c, 0) != -1;
+  return ("╋╉╊╈╆╅╂╁┫┣┳┨┠┪┱┢┲┧┟┰┃┓┏╽┒┎╻").find(c, 0) != -1;
 }
 
 void DrawLineColumns(Buffer buffer, SetLineColumn line_column_right,
