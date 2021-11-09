@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "src/futures/futures.h"
-#include "types.h"
+#include "src/vm/public/types.h"
 
 namespace afc::vm {
 

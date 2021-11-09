@@ -225,6 +225,8 @@ src/vm/internal/types.cc \
 src/vm/internal/binary_operator.cc \
 src/vm/internal/if_expression.cc \
 src/vm/internal/return_expression.cc \
+src/vm/internal/types_promotion.cc \
+src/vm/internal/types_promotion.h \
 src/vm/internal/while_expression.cc \
 src/vm/internal/constant_expression.cc \
 src/vm/internal/function_call.cc \

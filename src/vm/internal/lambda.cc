@@ -2,10 +2,11 @@
 
 #include <glog/logging.h>
 
-#include "../internal/compilation.h"
 #include "../public/constant_expression.h"
 #include "../public/environment.h"
 #include "../public/value.h"
+#include "compilation.h"
+#include "types_promotion.h"
 
 namespace afc::vm {
 namespace {
@@ -27,23 +28,30 @@ class LambdaExpression : public Expression {
         separator = L", ";
       }
       return nullptr;
-    } else if (deduced_types.find(expected_return_type) ==
-               deduced_types.end()) {
+    }
+    std::function<std::unique_ptr<Value>(std::unique_ptr<Value>)>
+        promotion_function =
+            GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
+    if (promotion_function == nullptr) {
       *error = L"Expected a return type of `" +
                expected_return_type.ToString() + L"` but found `" +
                deduced_types.cbegin()->ToString() + L"`.";
       return nullptr;
     }
     return std::make_unique<LambdaExpression>(
-        std::move(type), std::move(argument_names), std::move(body));
+        std::move(type), std::move(argument_names), std::move(body),
+        std::move(promotion_function));
   }
 
   LambdaExpression(VMType type,
                    std::shared_ptr<std::vector<std::wstring>> argument_names,
-                   std::shared_ptr<Expression> body)
+                   std::shared_ptr<Expression> body,
+                   std::function<std::unique_ptr<Value>(std::unique_ptr<Value>)>
+                       promotion_function)
       : type_(std::move(type)),
         argument_names_(std::move(argument_names)),
-        body_(std::move(body)) {
+        body_(std::move(body)),
+        promotion_function_(std::move(promotion_function)) {
     CHECK(body_ != nullptr);
     CHECK_EQ(type_.type, VMType::FUNCTION);
   }
@@ -66,7 +74,8 @@ class LambdaExpression : public Expression {
     auto output = std::make_unique<Value>(VMType::FUNCTION);
     output->type = type_;
     output->callback =
-        [body = body_, parent_environment, argument_names = argument_names_](
+        [body = body_, parent_environment, argument_names = argument_names_,
+         promotion_function = promotion_function_](
             vector<unique_ptr<Value>> args, Trampoline* trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
@@ -76,12 +85,13 @@ class LambdaExpression : public Expression {
           }
           auto original_trampoline = *trampoline;
           trampoline->SetEnvironment(environment);
-          return futures::Transform(
-              trampoline->Bounce(body.get(), body->Types()[0]),
-              [original_trampoline, trampoline,
-               body](EvaluationOutput body_output) {
+          return trampoline->Bounce(body.get(), body->Types()[0])
+              .Transform([original_trampoline, trampoline, body,
+                          promotion_function](EvaluationOutput body_output) {
                 *trampoline = original_trampoline;
                 body_output.type = EvaluationOutput::OutputType::kContinue;
+                body_output.value =
+                    promotion_function(std::move(body_output.value));
                 return body_output;
               });
         };
@@ -89,13 +99,16 @@ class LambdaExpression : public Expression {
   }
 
   std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<LambdaExpression>(type_, argument_names_, body_);
+    return std::make_unique<LambdaExpression>(type_, argument_names_, body_,
+                                              promotion_function_);
   }
 
  private:
   VMType type_;
   const std::shared_ptr<std::vector<std::wstring>> argument_names_;
   const std::shared_ptr<Expression> body_;
+  const std::function<std::unique_ptr<Value>(std::unique_ptr<Value>)>
+      promotion_function_;
 };
 }  // namespace
 
