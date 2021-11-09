@@ -84,7 +84,7 @@ class Expression {
   bool IsDouble() { return SupportsType(VMType::Double()); };
   bool IsString() { return SupportsType(VMType::String()); };
 
-  enum class PurityType { kPure, kUnknown };
+  using PurityType = VMType::PurityType;
   virtual PurityType purity() = 0;
 
   // Returns a new copy of this expression.

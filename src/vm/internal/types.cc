@@ -18,6 +18,7 @@ namespace vm {
 
 bool operator==(const VMType& lhs, const VMType& rhs) {
   return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments &&
+         lhs.function_purity == rhs.function_purity &&
          lhs.object_type == rhs.object_type;
 }
 
@@ -103,9 +104,11 @@ wstring VMType::ToString() const {
   return L"unknown";
 }
 
-/* static */ VMType VMType::Function(vector<VMType> arguments) {
+/* static */ VMType VMType::Function(vector<VMType> arguments,
+                                     PurityType function_purity) {
   VMType output(VMType::FUNCTION);
   output.type_arguments = arguments;
+  output.function_purity = function_purity;
   return output;
 }
 

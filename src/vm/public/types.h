@@ -31,6 +31,8 @@ struct VMType {
     OBJECT_TYPE,
   };
 
+  enum class PurityType { kPure, kUnknown };
+
   VMType() : type(VM_VOID) {}
   VMType(const Type& t) : type(t) {}
 
@@ -43,7 +45,8 @@ struct VMType {
   static VMType ObjectType(ObjectType* type);
   static VMType ObjectType(const wstring& name);
 
-  static VMType Function(vector<VMType> arguments);
+  static VMType Function(vector<VMType> arguments,
+                         PurityType function_purity = PurityType::kUnknown);
 
   wstring ToString() const;
 
@@ -52,6 +55,8 @@ struct VMType {
   // return type of the callback. Subsequent elements are the types of the
   // elements expected by the callback.
   vector<VMType> type_arguments;
+  PurityType function_purity = PurityType::kUnknown;
+
   wstring object_type;
 };
 
