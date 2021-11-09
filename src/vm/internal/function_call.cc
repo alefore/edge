@@ -170,6 +170,7 @@ class FunctionCall : public Expression {
         });
   }
 
+  // Expression that evaluates to get the function to call.
   const std::unique_ptr<Expression> func_;
   const std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_;
   const std::vector<VMType> types_;
