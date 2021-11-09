@@ -137,14 +137,11 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
                : std::make_shared<Line>(
                      Line::Options(*line).SetMetadata(nullptr));
 
-  std::wstring description;
-  for (auto& t : expr->Types()) {
-    description += L" " + t.ToString();
-  }
+  std::wstring description = L"C++: " + TypesToString(expr->Types());
   if (expr->purity() == Expression::PurityType::kPure) {
     description += L" ...";
   }
-  std::shared_ptr<LazyString> metadata = NewLazyString(L"C++:" + description);
+  std::shared_ptr<LazyString> metadata = NewLazyString(description);
   if (metadata == line->metadata()) return line;
 
   auto output =
