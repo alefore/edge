@@ -61,6 +61,8 @@ class Line {
                       std::optional<LineModifierSet> modifier);
     void Append(Line line);
 
+    Options& SetMetadata(std::shared_ptr<LazyString> metadata);
+
     // Delete characters in [position, position + amount).
     Options& DeleteCharacters(ColumnNumber position, ColumnNumberDelta amount);
 
@@ -88,7 +90,8 @@ class Line {
    private:
     friend Line;
 
-    std::shared_ptr<vm::Environment> environment;
+    std::shared_ptr<LazyString> metadata = nullptr;
+    std::shared_ptr<vm::Environment> environment = nullptr;
     void ValidateInvariants();
   };
 
@@ -110,6 +113,9 @@ class Line {
   shared_ptr<LazyString> Substring(ColumnNumber column) const;
 
   wstring ToString() const { return contents()->ToString(); }
+
+  std::shared_ptr<LazyString> metadata() const;
+  void SetMetadata(std::shared_ptr<LazyString> metadata);
 
   void SetAllModifiers(const LineModifierSet& modifiers);
   const std::map<ColumnNumber, LineModifierSet>& modifiers() const {

@@ -123,6 +123,54 @@ void RegisterBufferFields(
         }));
   }
 }
+
+std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
+                                            std::shared_ptr<const Line> line) {
+  std::wstring error_description;
+  std::shared_ptr<Expression> expr =
+      line->empty() ? nullptr
+                    : buffer->CompileString(line->contents()->ToString(),
+                                            &error_description);
+  if (expr == nullptr)
+    return line->metadata() == nullptr
+               ? line
+               : std::make_shared<Line>(
+                     Line::Options(*line).SetMetadata(nullptr));
+
+  std::wstring description;
+  for (auto& t : expr->Types()) {
+    description += L" " + t.ToString();
+  }
+  if (expr->purity() == Expression::PurityType::kPure) {
+    description += L" ...";
+  }
+  std::shared_ptr<LazyString> metadata = NewLazyString(L"C++:" + description);
+  if (metadata == line->metadata()) return line;
+
+  auto output =
+      std::make_shared<Line>(Line::Options(*line).SetMetadata(metadata));
+  if (expr->purity() == Expression::PurityType::kPure) {
+    buffer->work_queue()->Schedule([buffer, expr, output] {
+      buffer->EvaluateExpression(expr.get())
+          .Transform([output](std::unique_ptr<Value> value) {
+            CHECK(value != nullptr);
+            std::ostringstream oss;
+            oss << *value;
+            output->SetMetadata(NewLazyString(FromByteString(oss.str())));
+            return Success();
+          });
+    });
+  }
+  return output;
+}
+
+// We receive `contents` explicitly since `buffer` only gives us const access.
+void AddLineMetadata(OpenBuffer* buffer, BufferContents* contents,
+                     LineNumber position) {
+  contents->set_line(position,
+                     AddLineMetadata(buffer, buffer->contents()->at(position)));
+}
+
 }  // namespace
 
 using namespace afc::vm;
@@ -971,6 +1019,9 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
   if (lines_added.IsZero()) return;
 
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
+  for (auto& line : lines) {
+    line = AddLineMetadata(this, std::move(line));
+  }
   contents_.append_back(std::move(lines));
   if (Read(buffer_variables::contains_line_marks)) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
@@ -1181,7 +1232,7 @@ void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
 }
 
 void OpenBuffer::InsertLine(LineNumber line_position, shared_ptr<Line> line) {
-  contents_.insert_line(line_position, line);
+  contents_.insert_line(line_position, AddLineMetadata(this, line));
 }
 
 void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
@@ -1215,7 +1266,7 @@ void OpenBuffer::AppendRawLine(std::shared_ptr<LazyString> str) {
 
 void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(line);
+  contents_.push_back(AddLineMetadata(this, std::move(line)));
 }
 
 void OpenBuffer::AppendToLastLine(std::shared_ptr<LazyString> str) {
@@ -1226,7 +1277,12 @@ void OpenBuffer::AppendToLastLine(Line line) {
   static Tracker tracker(L"OpenBuffer::AppendToLastLine");
   auto tracker_call = tracker.Call();
   auto follower = GetEndPositionFollower();
-  contents_.AppendToLine(LineNumber(0) + contents_.size(), std::move(line));
+  Line::Options options(*contents_.back());
+  options.Append(line);
+  AppendRawLine(std::make_shared<Line>(std::move(options)));
+  contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
+                       contents_.EndLine(),
+                       BufferContents::CursorsBehavior::kUnmodified);
 }
 
 std::unique_ptr<Expression> OpenBuffer::CompileString(
@@ -1287,6 +1343,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
   if (range.begin.line == range.end.line) {
     contents_.DeleteCharactersFromLine(range.begin,
                                        range.end.column - range.begin.column);
+    AddLineMetadata(this, &contents_, range.begin.line);
   } else {
     contents_.DeleteToLineEnd(range.begin);
     contents_.DeleteCharactersFromLine(LineColumn(range.end.line),
@@ -1294,6 +1351,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
     // Lines in the middle.
     EraseLines(range.begin.line + LineNumberDelta(1), range.end.line);
     contents_.FoldNextLine(range.begin.line);
+    AddLineMetadata(this, &contents_, range.begin.line);
   }
 }
 
@@ -1314,6 +1372,7 @@ LineColumn OpenBuffer::InsertInPosition(
   contents_.SplitLine(position);
   contents_.insert(position.line.next(), buffer.contents_, modifiers);
   contents_.FoldNextLine(position.line);
+  AddLineMetadata(this, &contents_, position.line);
 
   LineNumber last_line =
       position.line + buffer.contents_.size() - LineNumberDelta(1);
@@ -1323,6 +1382,7 @@ LineColumn OpenBuffer::InsertInPosition(
   ColumnNumber column = line->EndColumn();
 
   contents_.FoldNextLine(last_line);
+  AddLineMetadata(this, &contents_, last_line);
   return LineColumn(last_line, column);
 }
 

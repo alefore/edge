@@ -45,12 +45,19 @@ const bool line_tests_registration = tests::Register(
             CHECK(final_line.end_of_line_modifiers().find(LineModifier::RED) !=
                   final_line.end_of_line_modifiers().end());
           }},
-     {.name = L"EndOfLineModifiersChangesHash", .callback = [] {
-        Line::Options options;
-        auto initial_hash = Line(options).GetHash();
-        options.end_of_line_modifiers.insert(LineModifier::RED);
-        auto final_hash = Line(options).GetHash();
-        CHECK(initial_hash != final_hash);
+     {.name = L"EndOfLineModifiersChangesHash",
+      .callback =
+          [] {
+            Line::Options options;
+            auto initial_hash = Line(options).GetHash();
+            options.end_of_line_modifiers.insert(LineModifier::RED);
+            auto final_hash = Line(options).GetHash();
+            CHECK(initial_hash != final_hash);
+          }},
+     {.name = L"MetadataPreservedFromOptionsToLine", .callback = [] {
+        CHECK(Line(Line::Options().SetMetadata(NewLazyString(L"Foo")))
+                  .metadata()
+                  ->ToString() == L"Foo");
       }}});
 }
 
@@ -58,6 +65,7 @@ Line::Options::Options(Line line)
     : contents(std::move(line.contents())),
       modifiers(std::move(line.modifiers())),
       end_of_line_modifiers(line.end_of_line_modifiers()),
+      metadata(line.metadata()),
       environment(line.environment()) {}
 
 ColumnNumber Line::Options::EndColumn() const {
@@ -171,6 +179,12 @@ void Line::Options::Append(Line line) {
   ValidateInvariants();
 }
 
+Line::Options& Line::Options::SetMetadata(
+    std::shared_ptr<LazyString> metadata) {
+  this->metadata = std::move(metadata);
+  return *this;
+}
+
 Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
                                                ColumnNumberDelta delta) {
   ValidateInvariants();
@@ -263,6 +277,18 @@ shared_ptr<LazyString> Line::Substring(ColumnNumber column,
 
 shared_ptr<LazyString> Line::Substring(ColumnNumber column) const {
   return afc::editor::Substring(contents(), column);
+}
+
+std::shared_ptr<LazyString> Line::metadata() const {
+  std::unique_lock<std::mutex> lock(mutex_);
+  ValidateInvariants();
+  return options_.metadata;
+}
+
+void Line::SetMetadata(std::shared_ptr<LazyString> metadata) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  ValidateInvariants();
+  options_.metadata = std::move(metadata);
 }
 
 void Line::SetAllModifiers(const LineModifierSet& modifiers) {

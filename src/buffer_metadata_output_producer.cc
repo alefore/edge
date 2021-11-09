@@ -162,6 +162,10 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
     info_char_modifier = LineModifier::DIM;
   }
 
+  if (auto metadata = contents.metadata(); metadata != nullptr) {
+    PushGenerator(L'>', LineModifier::GREEN, Line(metadata));
+  }
+
   std::list<LineMarks::Mark> marks;
   std::list<LineMarks::Mark> marks_expired;
 
