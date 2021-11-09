@@ -94,10 +94,9 @@ class FunctionCall : public Expression {
       type_arguments.push_back(arg->Types()[0]);
     }
 
-    return futures::Transform(
-        trampoline->Bounce(func_.get(),
-                           VMType::Function(std::move(type_arguments))),
-        [trampoline, args_types = args_](EvaluationOutput callback) {
+    return trampoline
+        ->Bounce(func_.get(), VMType::Function(std::move(type_arguments)))
+        .Transform([trampoline, args_types = args_](EvaluationOutput callback) {
           DVLOG(6) << "Got function: " << *callback.value;
           CHECK_EQ(callback.value->type.type, VMType::FUNCTION);
           CHECK(callback.value->callback != nullptr);
