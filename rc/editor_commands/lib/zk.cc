@@ -346,6 +346,7 @@ SetString ParseBlacklist(string blacklist) {
     while (start < blacklist.size() && blacklist.substr(start, 1) == " ")
       start++;
   }
+  return output;
 }
 
 Buffer ExpandIntoPath(string path, string start, string blacklist) {

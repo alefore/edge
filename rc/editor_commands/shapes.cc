@@ -325,6 +325,7 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
       }
     }
   }
+  return "";
 }
 
 void GetLineColumnsToDraw(SetLineColumn right, SetLineColumn down,
