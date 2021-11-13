@@ -28,21 +28,30 @@ struct VMTypeMapper<void> {
 
 template <>
 struct VMTypeMapper<bool> {
-  static int get(Value* value) { return value->boolean; }
+  static int get(Value* value) {
+    CHECK(value->IsBool());
+    return value->boolean;
+  }
   static Value::Ptr New(bool value) { return Value::NewBool(value); }
   static const VMType vmtype;
 };
 
 template <>
 struct VMTypeMapper<int> {
-  static int get(Value* value) { return value->integer; }
+  static int get(Value* value) {
+    CHECK(value->IsInteger());
+    return value->integer;
+  }
   static Value::Ptr New(int value) { return Value::NewInteger(value); }
   static const VMType vmtype;
 };
 
 template <>
 struct VMTypeMapper<double> {
-  static double get(Value* value) { return value->double_value; }
+  static double get(Value* value) {
+    CHECK(value->IsDouble());
+    return value->double_value;
+  }
   static Value::Ptr New(double value) { return Value::NewDouble(value); }
   static const VMType vmtype;
 };
@@ -111,9 +120,11 @@ Value::Ptr RunCallback(Callable& callback, std::vector<Value::Ptr> args,
 }
 
 template <typename Callable>
-Value::Ptr NewCallback(Callable callback) {
+Value::Ptr NewCallback(Callable callback, VMType::PurityType purity =
+                                              VMType::PurityType::kUnknown) {
   using ft = function_traits<Callable>;
   auto callback_wrapper = std::make_unique<Value>(VMType::FUNCTION);
+  callback_wrapper->type.function_purity = purity;
   callback_wrapper->type.type_arguments.push_back(
       VMTypeMapper<typename ft::ReturnType>().vmtype);
   AddArgs<typename ft::ArgTuple, 0>(&callback_wrapper->type.type_arguments);
