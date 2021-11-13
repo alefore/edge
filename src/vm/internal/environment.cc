@@ -5,11 +5,12 @@
 #include <map>
 #include <set>
 
-#include "../public/callbacks.h"
-#include "../public/set.h"
-#include "../public/types.h"
-#include "../public/value.h"
-#include "../public/vector.h"
+#include "numbers.h"
+#include "src/vm/public/callbacks.h"
+#include "src/vm/public/set.h"
+#include "src/vm/public/types.h"
+#include "src/vm/public/value.h"
+#include "src/vm/public/vector.h"
 #include "string.h"
 #include "time.h"
 #include "types_promotion.h"
@@ -30,6 +31,7 @@ const VMType VMTypeMapper<std::set<int>*>::vmtype =
 std::shared_ptr<Environment> BuildDefaultEnvironment() {
   auto environment = std::make_shared<Environment>();
   RegisterStringType(environment.get());
+  RegisterNumberFunctions(environment.get());
   RegisterTimeType(environment.get());
   auto bool_type = std::make_unique<ObjectType>(VMType::Bool());
   bool_type->AddField(L"tostring",
@@ -142,8 +144,10 @@ Value* Environment::Lookup(const Namespace& symbol_namespace,
   std::vector<Value*> values;
   PolyLookup(symbol_namespace, symbol, &values);
   for (auto& value : values) {
-    if (GetImplicitPromotion(value->type, expected_type)) {
-      return value;
+    if (auto callback = GetImplicitPromotion(value->type, expected_type);
+        callback != nullptr) {
+      // TODO: Ugh, don't leak memory here.
+      return callback(std::make_unique<Value>(*value)).release();
     }
   }
   return nullptr;

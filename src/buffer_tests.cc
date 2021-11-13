@@ -30,27 +30,27 @@ std::wstring GetMetadata(std::wstring line) {
 
 const bool buffer_tests_registration = tests::Register(
     L"BufferTests",
-    {
-        {.name = L"MetadataSimpleInt",
-         .callback = [] { CHECK(GetMetadata(L"5") == L"5"); }},
-        {.name = L"MetadataSimpleDouble",
-         .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.3"); }},
-        {.name = L"MetadataSimpleString",
-         .callback = [] { CHECK(GetMetadata(L"\"xyz\"") == L"\"xyz\""); }},
-        {.name = L"MetadataSimpleExpression",
-         .callback = [] { CHECK(GetMetadata(L"1 + 2 + 3") == L"6"); }},
-        {.name = L"MetadataFunctionPure",
-         .callback =
-             [] {
-               CHECK(GetMetadata(L"[](int x) -> int { return x * 2; }(4)") ==
-                     L"8");
-             }},
-        {.name = L"MetadataImpureDoesNotExecute",
-         .callback =
-             [] {
-               CHECK(GetMetadata(L"buffer.SetStatus(\"xyz\"); 4") ==
-                     L"C++: \"int\"");
-             }},
-    });
+    {{.name = L"MetadataSimpleInt",
+      .callback = [] { CHECK(GetMetadata(L"5") == L"5"); }},
+     {.name = L"MetadataSimpleDouble",
+      .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.3"); }},
+     {.name = L"MetadataSimpleString",
+      .callback = [] { CHECK(GetMetadata(L"\"xyz\"") == L"\"xyz\""); }},
+     {.name = L"MetadataSimpleExpression",
+      .callback = [] { CHECK(GetMetadata(L"1 + 2 + 3") == L"6"); }},
+     {.name = L"MetadataFunctionPure",
+      .callback =
+          [] {
+            CHECK(GetMetadata(L"[](int x) -> int { return x * 2; }(4)") ==
+                  L"8");
+          }},
+     {.name = L"MetadataImpureDoesNotExecute",
+      .callback =
+          [] {
+            CHECK(GetMetadata(L"buffer.SetStatus(\"xyz\"); 4") ==
+                  L"C++: \"int\"");
+          }},
+     {.name = L"MetadataPurePow",
+      .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }}});
 }  // namespace
 }  // namespace afc::editor
