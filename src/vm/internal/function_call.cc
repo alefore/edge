@@ -9,6 +9,7 @@
 #include "../public/vm.h"
 #include "src/vm/internal/compilation.h"
 #include "src/vm/public/environment.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace vm {
@@ -82,7 +83,12 @@ class FunctionCall : public Expression {
         return PurityType::kUnknown;
       }
     }
-    // TODO: Annotate all callbacks! Use a more meaningful value here.
+    for (const auto& callback_type : func_->Types()) {
+      CHECK_EQ(callback_type.type, VMType::FUNCTION);
+      if (callback_type.function_purity == PurityType::kPure) {
+        return PurityType::kPure;
+      }
+    }
     return PurityType::kUnknown;
   }
 
@@ -95,7 +101,8 @@ class FunctionCall : public Expression {
     }
 
     return trampoline
-        ->Bounce(func_.get(), VMType::Function(std::move(type_arguments)))
+        ->Bounce(func_.get(),
+                 VMType::Function(std::move(type_arguments), purity()))
         .Transform([trampoline, args_types = args_](EvaluationOutput callback) {
           DVLOG(6) << "Got function: " << *callback.value;
           CHECK_EQ(callback.value->type.type, VMType::FUNCTION);

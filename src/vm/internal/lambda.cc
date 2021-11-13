@@ -15,6 +15,7 @@ class LambdaExpression : public Expression {
   static std::unique_ptr<LambdaExpression> New(
       VMType type, std::shared_ptr<std::vector<std::wstring>> argument_names,
       std::shared_ptr<Expression> body, std::wstring* error) {
+    type.function_purity = body->purity();
     VMType expected_return_type = *type.type_arguments.cbegin();
     auto deduced_types = body->ReturnTypes();
     if (deduced_types.empty()) {
@@ -54,18 +55,20 @@ class LambdaExpression : public Expression {
         promotion_function_(std::move(promotion_function)) {
     CHECK(body_ != nullptr);
     CHECK_EQ(type_.type, VMType::FUNCTION);
+    CHECK(type_.function_purity == body_->purity());
   }
 
   std::vector<VMType> Types() { return {type_}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
-  PurityType purity() override { return body_->purity(); }
+  PurityType purity() override { return PurityType::kPure; }
 
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) {
-    CHECK_EQ(type, type_);
-    return futures::Past(
-        EvaluationOutput::New(BuildValue(trampoline->environment())));
+    auto promotion_function = GetImplicitPromotion(type_, type);
+    CHECK(promotion_function != nullptr);
+    return futures::Past(EvaluationOutput::New(
+        promotion_function(BuildValue(trampoline->environment()))));
   }
 
   std::unique_ptr<Value> BuildValue(

@@ -30,6 +30,7 @@ src/buffer_output_producer.cc \
 src/buffer_output_producer.h \
 src/buffer_terminal.cc \
 src/buffer_terminal.h \
+src/buffer_tests.cc \
 src/widget_list.cc \
 src/widget_list.h \
 src/buffer_variables.cc \

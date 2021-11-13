@@ -127,10 +127,12 @@ void RegisterBufferFields(
 std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
                                             std::shared_ptr<const Line> line) {
   std::wstring error_description;
-  std::shared_ptr<Expression> expr =
-      line->empty() ? nullptr
-                    : buffer->CompileString(line->contents()->ToString(),
-                                            &error_description);
+  std::shared_ptr<Expression> expr;
+  std::shared_ptr<Environment> sub_environment;
+  if (!line->empty()) {
+    std::tie(expr, sub_environment) =
+        buffer->CompileString(line->contents()->ToString(), &error_description);
+  }
   if (expr == nullptr)
     return line->metadata() == nullptr
                ? line
@@ -147,8 +149,8 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
   auto output =
       std::make_shared<Line>(Line::Options(*line).SetMetadata(metadata));
   if (expr->purity() == Expression::PurityType::kPure) {
-    buffer->work_queue()->Schedule([buffer, expr, output] {
-      buffer->EvaluateExpression(expr.get())
+    buffer->work_queue()->Schedule([buffer, expr, sub_environment, output] {
+      buffer->EvaluateExpression(expr.get(), sub_environment)
           .Transform([output](std::unique_ptr<Value> value) {
             CHECK(value != nullptr);
             std::ostringstream oss;
@@ -1282,14 +1284,17 @@ void OpenBuffer::AppendToLastLine(Line line) {
                        BufferContents::CursorsBehavior::kUnmodified);
 }
 
-std::unique_ptr<Expression> OpenBuffer::CompileString(
-    const std::wstring& code, std::wstring* error_description) {
-  return afc::vm::CompileString(code, environment_, error_description);
+std::pair<std::unique_ptr<Expression>, std::shared_ptr<Environment>>
+OpenBuffer::CompileString(const std::wstring& code,
+                          std::wstring* error_description) {
+  auto sub_environment = std::make_shared<Environment>(environment_);
+  return {afc::vm::CompileString(code, sub_environment, error_description),
+          sub_environment};
 }
 
 futures::Value<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
-    Expression* expr) {
-  return Evaluate(expr, environment_,
+    Expression* expr, std::shared_ptr<Environment> environment) {
+  return Evaluate(expr, environment,
                   [work_queue = work_queue()](std::function<void()> callback) {
                     work_queue->Schedule(std::move(callback));
                   });
@@ -1299,13 +1304,15 @@ std::optional<futures::Value<std::unique_ptr<Value>>>
 OpenBuffer::EvaluateString(const wstring& code) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
-  auto expression = CompileString(code, &error_description);
+  std::shared_ptr<Expression> expression;
+  std::shared_ptr<Environment> environment;
+  std::tie(expression, environment) = CompileString(code, &error_description);
   if (expression == nullptr) {
     status_.SetWarningText(L"🐜Compilation error: " + error_description);
     return std::nullopt;
   }
   LOG(INFO) << "Code compiled, evaluating.";
-  return EvaluateExpression(expression.get());
+  return EvaluateExpression(expression.get(), environment);
 }
 
 std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(

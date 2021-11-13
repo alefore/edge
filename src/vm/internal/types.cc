@@ -89,7 +89,10 @@ wstring VMType::ToString() const {
       return L"environment";
     case FUNCTION: {
       CHECK(!type_arguments.empty());
-      wstring output = L"function<" + type_arguments[0].ToString() + L"(";
+      wstring output =
+          wstring(function_purity == PurityType::kPure ? L"function"
+                                                       : L"Function") +
+          L"<" + type_arguments[0].ToString() + L"(";
       wstring separator = L"";
       for (size_t i = 1; i < type_arguments.size(); i++) {
         output += separator + type_arguments[i].ToString();

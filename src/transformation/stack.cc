@@ -30,7 +30,9 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 futures::Value<PossibleError> PreviewCppExpression(
     OpenBuffer* buffer, const BufferContents& expression_str) {
   std::wstring errors;
-  std::shared_ptr<Expression> expression =
+  std::shared_ptr<Expression> expression;
+  std::shared_ptr<Environment> environment;
+  std::tie(expression, environment) =
       buffer->CompileString(expression_str.ToString(), &errors);
   if (expression == nullptr) {
     return futures::Past(PossibleError(Error(errors)));
@@ -39,7 +41,7 @@ futures::Value<PossibleError> PreviewCppExpression(
   buffer->status()->Reset();
   switch (expression->purity()) {
     case vm::Expression::PurityType::kPure:
-      return buffer->EvaluateExpression(expression.get())
+      return buffer->EvaluateExpression(expression.get(), environment)
           .Transform([buffer, expression](std::unique_ptr<Value> value) {
             ShowValue(*buffer, nullptr, *value);
             return Success();

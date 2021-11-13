@@ -281,7 +281,8 @@ class InsertMode : public EditorMode {
               }
               return CallModifyHandler(
                   options, buffer,
-                  buffer->EvaluateExpression(expression.get()));
+                  buffer->EvaluateExpression(expression.get(),
+                                             buffer->environment()));
             });
         return;
       }

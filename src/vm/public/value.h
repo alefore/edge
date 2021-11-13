@@ -9,6 +9,7 @@
 
 #include "src/futures/futures.h"
 #include "src/vm/public/types.h"
+#include "src/vm/public/vm.h"
 
 namespace afc::vm {
 

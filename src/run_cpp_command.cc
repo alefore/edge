@@ -175,9 +175,10 @@ futures::ValueOrError<std::unique_ptr<Value>> Execute(
     return futures::Past(ValueOrError<std::unique_ptr<Value>>(
         Error(L"Unable to compile (type mismatch).")));
   }
-  return futures::Transform(
-      buffer->EvaluateExpression(expression.get()),
-      [](std::unique_ptr<Value> value) { return Success(std::move(value)); });
+  return buffer->EvaluateExpression(expression.get(), buffer->environment())
+      .Transform([](std::unique_ptr<Value> value) {
+        return Success(std::move(value));
+      });
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(

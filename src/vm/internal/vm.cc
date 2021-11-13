@@ -27,6 +27,7 @@
 #include "negate_expression.h"
 #include "return_expression.h"
 #include "string.h"
+#include "types_promotion.h"
 #include "variable_lookup.h"
 #include "while_expression.h"
 #include "wstring.h"
@@ -589,7 +590,10 @@ Trampoline::Trampoline(Options options)
 
 futures::Value<EvaluationOutput> Trampoline::Bounce(Expression* expression,
                                                     VMType type) {
-  CHECK(expression->SupportsType(type));
+  if (!expression->SupportsType(type)) {
+    LOG(FATAL) << "Expression has types: " << TypesToString(expression->Types())
+               << ", expected: " << type;
+  }
   static size_t kMaximumJumps = 100;
   if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr) {
     return expression->Evaluate(this, type);
@@ -615,7 +619,13 @@ const std::shared_ptr<Environment>& Trampoline::environment() const {
 
 bool Expression::SupportsType(const VMType& type) {
   auto types = Types();
-  return std::find(types.begin(), types.end(), type) != types.end();
+  if (std::find(types.begin(), types.end(), type) != types.end()) {
+    return true;
+  }
+  for (auto& source : types) {
+    if (GetImplicitPromotion(source, type) != nullptr) return true;
+  }
+  return false;
 }
 
 futures::Value<std::unique_ptr<Value>> Evaluate(
@@ -623,7 +633,7 @@ futures::Value<std::unique_ptr<Value>> Evaluate(
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK(expr != nullptr);
   Trampoline::Options options;
-  options.environment = environment;
+  options.environment = std::move(environment);
   options.yield_callback = yield_callback;
   auto trampoline = std::make_shared<Trampoline>(options);
   return futures::Transform(trampoline->Bounce(expr, expr->Types()[0]),

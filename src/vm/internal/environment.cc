@@ -12,6 +12,7 @@
 #include "../public/vector.h"
 #include "string.h"
 #include "time.h"
+#include "types_promotion.h"
 
 namespace afc {
 namespace vm {
@@ -141,7 +142,7 @@ Value* Environment::Lookup(const Namespace& symbol_namespace,
   std::vector<Value*> values;
   PolyLookup(symbol_namespace, symbol, &values);
   for (auto& value : values) {
-    if (value->type == expected_type) {
+    if (GetImplicitPromotion(value->type, expected_type)) {
       return value;
     }
   }

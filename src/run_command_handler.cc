@@ -432,9 +432,10 @@ class ForkEditorCommand : public Command {
           L"Unable to compile (type mismatch).");
       return futures::Past(ColorizePromptOptions{.context = nullptr});
     }
-    return futures::Transform(
-        prompt_state->original_buffer->EvaluateExpression(expression.get()),
-        [prompt_state, editor](std::unique_ptr<Value> value) {
+    return prompt_state->original_buffer
+        ->EvaluateExpression(expression.get(),
+                             prompt_state->original_buffer->environment())
+        .Transform([prompt_state, editor](std::unique_ptr<Value> value) {
           CHECK(value->IsString());
           auto base_command = value->str;
           if (prompt_state->base_command == base_command) {
