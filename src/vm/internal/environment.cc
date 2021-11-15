@@ -223,13 +223,11 @@ void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
     // TODO: Show the symbol.
     CHECK(parent_environment_ != nullptr)
         << "Environment::parent_environment_ is nullptr while trying to "
-           "assign "
-        << "a new value to a symbol `"
+           "assign a new value to a symbol `"
         << "..."
-        << "`. This likely means that "
-        << "the symbol is undefined (which the caller should have validated "
-           "as "
-        << "part of the compilation process).";
+        << "`. This likely means that the symbol is undefined (which the "
+           "caller should have validated "
+           "as part of the compilation process).";
     parent_environment_->Assign(symbol, std::move(value));
     return;
   }
