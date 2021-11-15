@@ -260,9 +260,10 @@ using std::to_wstring;
                     args[0].get());
             auto transformation = static_cast<editor::transformation::Variant*>(
                 args[1]->user_value.get());
-            return futures::Transform(
-                buffer->ApplyToCursors(*transformation),
-                futures::Past(EvaluationOutput::Return(Value::NewVoid())));
+            return buffer->ApplyToCursors(*transformation)
+                .Transform([](EmptyValue) {
+                  return EvaluationOutput::Return(Value::NewVoid());
+                });
           }));
 
 #if 0
@@ -450,11 +451,11 @@ using std::to_wstring;
                                     editor_state->work_queue()));
               options.path = path;
               futures::OnError(
-                  futures::Transform(ResolvePath(std::move(options)),
-                                     [buffer, path](ResolvePathOutput results) {
-                                       buffer->EvaluateFile(results.path);
-                                       return Success();
-                                     }),
+                  ResolvePath(std::move(options))
+                      .Transform([buffer, path](ResolvePathOutput results) {
+                        buffer->EvaluateFile(results.path);
+                        return Success();
+                      }),
                   [buffer, path](Error error) {
                     buffer->status()->SetWarningText(L"Unable to resolve: " +
                                                      path + L": " +
@@ -621,11 +622,10 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
     return futures::Past(is_unable);
   }
 
-  return futures::Transform(
-      options_.editor->modifiers().strength == Modifiers::Strength::kNormal
-          ? PersistState()
-          : futures::IgnoreErrors(PersistState()),
-      [this](EmptyValue) {
+  return (options_.editor->modifiers().strength == Modifiers::Strength::kNormal
+              ? PersistState()
+              : futures::IgnoreErrors(PersistState()))
+      .Transform([this](EmptyValue) {
         if (child_pid_ != -1) {
           if (Read(buffer_variables::term_on_close)) {
             LOG(INFO) << "Sending termination and preparing handler: "
@@ -957,15 +957,14 @@ void OpenBuffer::Initialize() {
                      PathComponent::FromString(L".edge_state").value()));
       // TODO: Ensure that the buffer won't be deleted before the calls to
       // EvaluateFile are done?
-      futures::Transform(file_system_driver.Stat(state_path),
-                         [state_path, this](struct stat) {
-                           auto results = EvaluateFile(state_path);
-                           if (results.has_value()) {
-                             return futures::Transform(
-                                 results.value(), futures::Past(Success()));
-                           }
-                           return futures::Past(Success());
-                         });
+      file_system_driver.Stat(state_path)
+          .Transform([state_path, this](struct stat) {
+            if (auto results = EvaluateFile(state_path); results.has_value()) {
+              return results.value().Transform(
+                  [](std::unique_ptr<Value>) { return Success(); });
+            }
+            return futures::Past(Success());
+          });
     }
   }
 }
@@ -1031,20 +1030,19 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
     for (LineNumberDelta i; i < lines_added; ++i) {
       auto source_line = LineNumber() + start_new_section + i;
       options.path = contents_.at(source_line)->ToString();
-      futures::Transform(ResolvePath(options),
-                         [editor = editor(), buffer_name,
-                          source_line](ResolvePathOutput results) {
-                           LineMarks::Mark mark;
-                           mark.source = buffer_name;
-                           mark.source_line = source_line;
-                           mark.target_buffer = results.path.ToString();
-                           if (results.position.has_value()) {
-                             mark.target = *results.position;
-                           }
-                           LOG(INFO) << "Found a mark: " << mark;
-                           editor->line_marks()->AddMark(mark);
-                           return Success();
-                         });
+      ResolvePath(options).Transform([editor = editor(), buffer_name,
+                                      source_line](ResolvePathOutput results) {
+        LineMarks::Mark mark;
+        mark.source = buffer_name;
+        mark.source_line = source_line;
+        mark.target_buffer = results.path.ToString();
+        if (results.position.has_value()) {
+          mark.target = *results.position;
+        }
+        LOG(INFO) << "Found a mark: " << mark;
+        editor->line_marks()->AddMark(mark);
+        return Success();
+      });
     }
   }
 }
@@ -1069,45 +1067,45 @@ void OpenBuffer::Reload() {
   }
 
   auto paths = editor()->edge_path();
-  futures::Transform(
-      futures::ForEach(
-          paths.begin(), paths.end(),
-          [this](Path dir) {
-            if (auto value = EvaluateFile(Path::Join(
-                    dir, Path::FromString(L"hooks/buffer-reload.cc").value()));
-                value.has_value()) {
-              return futures::Transform(
-                  value.value(),
-                  futures::Past(IterationControlCommand::kContinue));
-            }
-            return Past(IterationControlCommand::kContinue);
-          }),
-      [this](IterationControlCommand) -> futures::ValueOrError<EmptyValue> {
-        if (editor()->exit_value().has_value()) return futures::Past(Success());
-        SetDiskState(DiskState::kCurrent);
-        LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
-        return options_.generate_contents != nullptr
-                   ? IgnoreErrors(options_.generate_contents(this))
-                   : futures::Past(Success());
-      },
-      [this](EmptyValue) {
+
+  futures::ForEach(
+      paths.begin(), paths.end(),
+      [this](Path dir) {
+        if (auto value = EvaluateFile(Path::Join(
+                dir, Path::FromString(L"hooks/buffer-reload.cc").value()));
+            value.has_value()) {
+          return value.value().Transform([](std::unique_ptr<Value>) {
+            return IterationControlCommand::kContinue;
+          });
+        }
+        return Past(IterationControlCommand::kContinue);
+      })
+      .Transform(
+          [this](IterationControlCommand) -> futures::ValueOrError<EmptyValue> {
+            if (editor()->exit_value().has_value())
+              return futures::Past(Success());
+            SetDiskState(DiskState::kCurrent);
+            LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
+            return options_.generate_contents != nullptr
+                       ? IgnoreErrors(options_.generate_contents(this))
+                       : futures::Past(Success());
+          })
+      .Transform([this](EmptyValue) {
         return futures::OnError(
-            futures::Transform(futures::Past(GetEdgeStateDirectory()),
-                               [this](Path dir) {
-                                 return options_.log_supplier(&work_queue_,
-                                                              dir);
-                               }),
+            futures::Past(GetEdgeStateDirectory()).Transform([this](Path dir) {
+              return options_.log_supplier(&work_queue_, dir);
+            }),
             [](Error error) {
               LOG(INFO) << "Error opening log: " << error.description;
               return Success(NewNullLog());
             });
-      },
-      [this](std::unique_ptr<Log> log) -> futures::ValueOrError<EmptyValue> {
+      })
+      .Transform([this](std::unique_ptr<Log> log) -> ValueOrError<EmptyValue> {
         CHECK(log != nullptr);
         log_ = std::move(log);
-        return futures::Past(Success());
-      },
-      [shared_this = shared_from_this(), this](EmptyValue) {
+        return Success();
+      })
+      .Transform([shared_this = shared_from_this(), this](EmptyValue) {
         switch (reload_state_) {
           case ReloadState::kDone:
             LOG(FATAL) << "Invalid reload state! Can't be kDone.";
@@ -1125,7 +1123,7 @@ void OpenBuffer::Reload() {
             }
             Reload();
         }
-        return futures::Past(Success());
+        return Success();
       });
 }
 
@@ -1820,28 +1818,27 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {
   using afc::vm::VMType;
   auto input_shared = std::make_shared<std::wstring>(std::move(input));
-  return futures::Transform(
-      futures::ForEach(
-          keyboard_text_transformers_.begin(),
-          keyboard_text_transformers_.end(),
-          [this, input_shared](const std::unique_ptr<Value>& t) {
-            CHECK(t != nullptr);
-            std::vector<Value::Ptr> args;
-            args.push_back(Value::NewString(std::move(*input_shared)));
-            return futures::Transform(
-                Call(*t, std::move(args),
-                     [work_queue =
-                          work_queue()](std::function<void()> callback) {
-                       work_queue->Schedule(std::move(callback));
-                     }),
-                [input_shared](const std::unique_ptr<Value>& value) {
-                  CHECK(value != nullptr);
-                  CHECK(value->IsString());
-                  *input_shared = std::move(value->str);
-                  return IterationControlCommand::kContinue;
-                });
-          }),
-      [input_shared](IterationControlCommand) {
+  return futures::ForEach(
+             keyboard_text_transformers_.begin(),
+             keyboard_text_transformers_.end(),
+             [this, input_shared](const std::unique_ptr<Value>& t) {
+               CHECK(t != nullptr);
+               std::vector<Value::Ptr> args;
+               args.push_back(Value::NewString(std::move(*input_shared)));
+               return Call(*t, std::move(args),
+                           [work_queue =
+                                work_queue()](std::function<void()> callback) {
+                             work_queue->Schedule(std::move(callback));
+                           })
+                   .Transform(
+                       [input_shared](const std::unique_ptr<Value>& value) {
+                         CHECK(value != nullptr);
+                         CHECK(value->IsString());
+                         *input_shared = std::move(value->str);
+                         return IterationControlCommand::kContinue;
+                       });
+             })
+      .Transform([input_shared](IterationControlCommand) {
         return futures::Past(std::move(*input_shared));
       });
 }
@@ -2220,28 +2217,28 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     transformation_result = cursors_tracker_.ApplyTransformationToCursors(
         cursors, [this, transformation = std::move(transformation),
                   mode](LineColumn position) {
-          return futures::Transform(
-              Apply(transformation, position, mode),
-              [](transformation::Result result) { return result.position; });
+          return Apply(transformation, position, mode)
+              .Transform([](transformation::Result result) {
+                return result.position;
+              });
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-    transformation_result = futures::Transform(
-        Apply(std::move(transformation), position(), mode),
-        [this](const transformation::Result& result) {
-          active_cursors()->MoveCurrentCursor(result.position);
-          return EmptyValue();
-        });
+    transformation_result =
+        Apply(std::move(transformation), position(), mode)
+            .Transform([this](const transformation::Result& result) {
+              active_cursors()->MoveCurrentCursor(result.position);
+              return EmptyValue();
+            });
   }
-  return futures::Transform(transformation_result.value(),
-                            [shared_this = shared_from_this()](EmptyValue) {
-                              // This proceeds in the background but we can only
-                              // start it once the transformation is evaluated
-                              // (since we don't know the cursor position
-                              // otherwise).
-                              StartAdjustingStatusContext(shared_this);
-                              return EmptyValue();
-                            });
+  return transformation_result.value().Transform(
+      [shared_this = shared_from_this()](EmptyValue) {
+        // This proceeds in the background but we can only start it once the
+        // transformation is evaluated (since we don't know the cursor position
+        // otherwise).
+        StartAdjustingStatusContext(shared_this);
+        return EmptyValue();
+      });
 }
 
 futures::Value<typename transformation::Result> OpenBuffer::Apply(
@@ -2263,10 +2260,9 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
     CHECK_EQ(input.delete_buffer, nullptr);
   }
 
-  auto inner_future = transformation::Apply(transformation, std::move(input));
-  return futures::Transform(
-      inner_future, [this, transformation = std::move(transformation),
-                     mode](transformation::Result result) {
+  return transformation::Apply(transformation, std::move(input))
+      .Transform([this, transformation = std::move(transformation),
+                  mode](transformation::Result result) {
         if (mode == transformation::Input::Mode::kFinal &&
             Read(buffer_variables::delete_into_paste_buffer)) {
           if (!result.added_to_paste_buffer) {
@@ -2333,29 +2329,28 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
     data->source = &undo_future_;
     data->target = &undo_past_;
   }
-  return futures::Transform(
-      futures::While([this, undo_mode, data] {
-        if (data->repetitions == editor()->repetitions().value_or(1) ||
-            data->source->empty()) {
-          return futures::Past(IterationControlCommand::kStop);
-        }
-        transformation::Input input(this);
-        input.position = position();
-        // We've undone the entire changes, so...
-        last_transformation_stack_.clear();
-        return futures::Transform(
-            transformation::Apply(*data->source->back(), input),
-            [this, undo_mode, data](transformation::Result result) {
-              data->target->push_back(std::move(result.undo_stack));
-              data->source->pop_back();
-              if (result.modified_buffer ||
-                  undo_mode == OpenBuffer::UndoMode::kOnlyOne) {
-                data->repetitions++;
-              }
-              return IterationControlCommand::kContinue;
-            });
-      }),
-      [shared_this = shared_from_this()](IterationControlCommand) {
+  return futures::While([this, undo_mode, data] {
+           if (data->repetitions == editor()->repetitions().value_or(1) ||
+               data->source->empty()) {
+             return futures::Past(IterationControlCommand::kStop);
+           }
+           transformation::Input input(this);
+           input.position = position();
+           // We've undone the entire changes, so...
+           last_transformation_stack_.clear();
+           return transformation::Apply(*data->source->back(), input)
+               .Transform(
+                   [this, undo_mode, data](transformation::Result result) {
+                     data->target->push_back(std::move(result.undo_stack));
+                     data->source->pop_back();
+                     if (result.modified_buffer ||
+                         undo_mode == OpenBuffer::UndoMode::kOnlyOne) {
+                       data->repetitions++;
+                     }
+                     return IterationControlCommand::kContinue;
+                   });
+         })
+      .Transform([shared_this = shared_from_this()](IterationControlCommand) {
         StartAdjustingStatusContext(shared_this);
         return EmptyValue();
       });

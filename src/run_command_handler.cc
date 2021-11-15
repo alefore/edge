@@ -588,8 +588,8 @@ futures::Value<EmptyValue> RunCommandHandler(
 
 futures::Value<EmptyValue> RunMultipleCommandsHandler(
     const wstring& input, EditorState* editor_state) {
-  return futures::Transform(
-      editor_state->ForEachActiveBuffer(
+  return editor_state
+      ->ForEachActiveBuffer(
           [editor_state, input](const std::shared_ptr<OpenBuffer>& buffer) {
             buffer->contents()->ForEach([editor_state, input](wstring arg) {
               map<wstring, wstring> environment = {{L"ARG", arg}};
@@ -597,10 +597,10 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(
                          editor_state, GetChildrenPath(editor_state));
             });
             return futures::Past(EmptyValue());
-          }),
-      [editor_state](EmptyValue) {
+          })
+      .Transform([editor_state](EmptyValue) {
         editor_state->status()->Reset();
-        return futures::Past(EmptyValue());
+        return EmptyValue();
       });
 }
 

@@ -44,31 +44,33 @@ futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
     open_file_options.path = path.value();
     open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
     open_file_options.ignore_if_not_found = true;
-    output = futures::Transform(
-        OpenFile(open_file_options),
-        [editor](map<wstring, shared_ptr<OpenBuffer>>::iterator result) {
-          return result != editor->buffers()->end() ? result->second : nullptr;
-        });
+    output =
+        OpenFile(open_file_options)
+            .Transform(
+                [editor](
+                    map<wstring, shared_ptr<OpenBuffer>>::iterator result) {
+                  return result != editor->buffers()->end() ? result->second
+                                                            : nullptr;
+                });
   }
-  return futures::Transform(
-      output, [results](std::shared_ptr<OpenBuffer> buffer) {
-        if (buffer != nullptr) return buffer;
-        if (results.predictions_buffer->lines_size() == LineNumberDelta(1) &&
-            results.predictions_buffer->LineAt(LineNumber())->empty()) {
-          return std::shared_ptr<OpenBuffer>();
-        }
-        LOG(INFO) << "Setting context: "
-                  << results.predictions_buffer->Read(buffer_variables::name);
-        return results.predictions_buffer;
-      });
+  return output.Transform([results](std::shared_ptr<OpenBuffer> buffer) {
+    if (buffer != nullptr) return buffer;
+    if (results.predictions_buffer->lines_size() == LineNumberDelta(1) &&
+        results.predictions_buffer->LineAt(LineNumber())->empty()) {
+      return std::shared_ptr<OpenBuffer>();
+    }
+    LOG(INFO) << "Setting context: "
+              << results.predictions_buffer->Read(buffer_variables::name);
+    return results.predictions_buffer;
+  });
 }
 
 futures::Value<ColorizePromptOptions> DrawPath(
     EditorState* editor, const std::shared_ptr<LazyString>& line,
     PredictResults results) {
-  return futures::Transform(
-      StatusContext(editor, results, *line),
-      [editor, line, results](std::shared_ptr<OpenBuffer> context_buffer) {
+  return StatusContext(editor, results, *line)
+      .Transform([editor, line,
+                  results](std::shared_ptr<OpenBuffer> context_buffer) {
         ColorizePromptOptions output;
         output.context = context_buffer;
 
@@ -118,9 +120,8 @@ futures::Value<ColorizePromptOptions> AdjustPath(
   options.input_selection_structure = StructureLine();
   options.progress_channel = std::move(progress_channel);
   options.abort_notification = std::move(abort_notification);
-  return futures::Transform(
-      Predict(std::move(options)),
-      [editor, line](std::optional<PredictResults> results) {
+  return Predict(std::move(options))
+      .Transform([editor, line](std::optional<PredictResults> results) {
         if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
         return DrawPath(editor, line, std::move(results.value()));
       });

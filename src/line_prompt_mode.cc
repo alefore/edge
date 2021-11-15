@@ -182,8 +182,7 @@ futures::Value<shared_ptr<OpenBuffer>> GetHistoryBuffer(
                    PathComponent::FromString(name + L"_history").value());
   }
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
-  return futures::Transform(
-      OpenFile(options),
+  return OpenFile(options).Transform(
       [editor_state](map<wstring, shared_ptr<OpenBuffer>>::iterator it) {
         CHECK(it != editor_state->buffers()->end());
         CHECK(it->second != nullptr);
@@ -268,14 +267,14 @@ std::shared_ptr<LazyString> BuildHistoryLine(
 void AddLineToHistory(EditorState* editor, std::wstring history_file,
                       std::shared_ptr<LazyString> input) {
   if (input->size().IsZero()) return;
-  futures::Transform(GetHistoryBuffer(editor, history_file),
-                     [history_line = BuildHistoryLine(editor, input)](
-                         std::shared_ptr<OpenBuffer> history) {
-                       CHECK(history != nullptr);
-                       CHECK(history_line != nullptr);
-                       history->AppendLine(history_line);
-                       return Success();
-                     });
+  GetHistoryBuffer(editor, history_file)
+      .Transform([history_line = BuildHistoryLine(editor, input)](
+                     std::shared_ptr<OpenBuffer> history) {
+        CHECK(history != nullptr);
+        CHECK(history_line != nullptr);
+        history->AppendLine(history_line);
+        return Success();
+      });
 }
 
 std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
@@ -320,13 +319,11 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
     std::deque<std::shared_ptr<Line>> lines;
   };
 
-  return futures::Transform(
-      history_evaluator->Run([abort_notification, filter = std::move(filter),
-                              history_contents =
-                                  std::shared_ptr<BufferContents>(
-                                      history_buffer->contents()->copy()),
-                              features = GetCurrentFeatures(
-                                  editor_state)]() mutable -> Output {
+  return history_evaluator
+      ->Run([abort_notification, filter = std::move(filter),
+             history_contents = std::shared_ptr<BufferContents>(
+                 history_buffer->contents()->copy()),
+             features = GetCurrentFeatures(editor_state)]() mutable -> Output {
         Output output;
         // Sets of features for each unique `prompt` value in the history.
         std::unordered_map<std::wstring, std::vector<naive_bayes::FeaturesSet>>
@@ -406,25 +403,26 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
               ColorizeLine(NewLazyString(key), std::move(tokens)));
         }
         return output;
-      }),
-      [editor_state, abort_notification, filter_buffer](Output output) {
-        LOG(INFO) << "Receiving output from history evaluator.";
-        if (!output.errors.empty()) {
-          editor_state->status()->SetWarningText(output.errors.front());
-        }
-        if (!abort_notification->HasBeenNotified()) {
-          for (auto& line : output.lines) {
-            filter_buffer->AppendRawLine(line);
-          }
+      })
+      .Transform(
+          [editor_state, abort_notification, filter_buffer](Output output) {
+            LOG(INFO) << "Receiving output from history evaluator.";
+            if (!output.errors.empty()) {
+              editor_state->status()->SetWarningText(output.errors.front());
+            }
+            if (!abort_notification->HasBeenNotified()) {
+              for (auto& line : output.lines) {
+                filter_buffer->AppendRawLine(line);
+              }
 
-          if (filter_buffer->lines_size() > LineNumberDelta(1)) {
-            VLOG(5) << "Erasing the first (empty) line.";
-            CHECK(filter_buffer->LineAt(LineNumber())->empty());
-            filter_buffer->EraseLines(LineNumber(), LineNumber().next());
-          }
-        }
-        return futures::Past(std::move(filter_buffer));
-      });
+              if (filter_buffer->lines_size() > LineNumberDelta(1)) {
+                VLOG(5) << "Erasing the first (empty) line.";
+                CHECK(filter_buffer->LineAt(LineNumber())->empty());
+                filter_buffer->EraseLines(LineNumber(), LineNumber().next());
+              }
+            }
+            return filter_buffer;
+          });
 }
 
 shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
@@ -627,11 +625,11 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
       std::shared_ptr<Notification> abort_notification) override {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     auto input = buffer_->LineAt(LineNumber(0))->contents();
-    return futures::Transform(
-        FilterHistory(editor_state_, history_.get(), history_evaluator_.get(),
-                      abort_notification, input->ToString()),
-        [input,
-         prompt_state = prompt_state_](std::shared_ptr<OpenBuffer> history) {
+    return FilterHistory(editor_state_, history_.get(),
+                         history_evaluator_.get(), abort_notification,
+                         input->ToString())
+        .Transform([input, prompt_state = prompt_state_](
+                       std::shared_ptr<OpenBuffer> history) {
           history->set_current_position_line(LineNumber(0) +
                                              history->contents()->size());
           return std::unique_ptr<ScrollBehavior>(
@@ -722,11 +720,10 @@ void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
 template <typename T0, typename T1>
 futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
                                               futures::Value<T1> f1) {
-  return futures::Transform(std::move(f0), [f1 = std::move(f1)](T0 t0) mutable {
-    return futures::Transform(std::move(f1),
-                              [t0 = std::move(t0)](T1 t1) mutable {
-                                return std::tuple{std::move(t0), std::move(t1)};
-                              });
+  return f0.Transform([f1 = std::move(f1)](T0 t0) mutable {
+    return f1.Transform([t0 = std::move(t0)](T1 t1) mutable {
+      return std::tuple{std::move(t0), std::move(t1)};
+    });
   });
 }
 }  // namespace
@@ -795,37 +792,37 @@ void Prompt(PromptOptions options) {
               WorkQueueChannelConsumeMode::kAll);
           (*abort_notification_ptr)->Notify();
           *abort_notification_ptr = std::make_shared<Notification>();
-          return futures::Transform(
-              JoinValues(
-                  futures::Transform(
-                      FilterHistory(editor_state, history.get(),
-                                    history_evaluator.get(),
-                                    *abort_notification_ptr, line->ToString()),
-                      [prompt_render_state](
-                          std::shared_ptr<OpenBuffer> filtered_history) {
-                        LOG(INFO)
-                            << "Propagating history information to status.";
-                        if (!prompt_render_state->IsGone()) {
-                          prompt_render_state->SetStatusValue(
-                              L"history",
-                              filtered_history->lines_size().line_delta);
-                        }
-                        return EmptyValue();
-                      }),
-                  futures::Transform(
-                      options.colorize_options_provider(
-                          line, std::move(progress_channel),
-                          *abort_notification_ptr),
-                      [buffer, prompt_state, abort_notification_ptr,
-                       original_line = buffer->LineAt(LineNumber(0))](
-                          ColorizePromptOptions options) {
-                        LOG(INFO) << "Calling ColorizePrompt with results.";
-                        ColorizePrompt(buffer, prompt_state,
-                                       *abort_notification_ptr, original_line,
-                                       options);
-                        return EmptyValue();
-                      })),
-              futures::Past(EmptyValue()));
+          return JoinValues(
+                     FilterHistory(editor_state, history.get(),
+                                   history_evaluator.get(),
+                                   *abort_notification_ptr, line->ToString())
+                         .Transform([prompt_render_state](
+                                        std::shared_ptr<OpenBuffer>
+                                            filtered_history) {
+                           LOG(INFO)
+                               << "Propagating history information to status.";
+                           if (!prompt_render_state->IsGone()) {
+                             prompt_render_state->SetStatusValue(
+                                 L"history",
+                                 filtered_history->lines_size().line_delta);
+                           }
+                           return EmptyValue();
+                         }),
+                     options
+                         .colorize_options_provider(line,
+                                                    std::move(progress_channel),
+                                                    *abort_notification_ptr)
+                         .Transform([buffer, prompt_state,
+                                     abort_notification_ptr,
+                                     original_line = buffer->LineAt(LineNumber(
+                                         0))](ColorizePromptOptions options) {
+                           LOG(INFO) << "Calling ColorizePrompt with results.";
+                           ColorizePrompt(buffer, prompt_state,
+                                          *abort_notification_ptr,
+                                          original_line, options);
+                           return EmptyValue();
+                         }))
+              .Transform([](auto) { return EmptyValue(); });
         };
 
         insert_mode_options.scroll_behavior =
@@ -905,8 +902,8 @@ void Prompt(PromptOptions options) {
                           Status::Type::kPrompt);
                     auto prompt_render_state =
                         std::make_shared<PromptRenderState>(prompt_state);
-                    futures::Transform(
-                        options.colorize_options_provider(
+                    options
+                        .colorize_options_provider(
                             line,
                             std::make_unique<ProgressChannel>(
                                 buffer->work_queue(),
@@ -914,10 +911,10 @@ void Prompt(PromptOptions options) {
                                   /* Nothing for now. */
                                 },
                                 WorkQueueChannelConsumeMode::kAll),
-                            std::make_shared<Notification>()),
-                        [buffer, prompt_state, prompt_render_state,
-                         original_line = buffer->LineAt(LineNumber(0))](
-                            ColorizePromptOptions options) {
+                            std::make_shared<Notification>())
+                        .Transform([buffer, prompt_state, prompt_render_state,
+                                    original_line = buffer->LineAt(LineNumber(
+                                        0))](ColorizePromptOptions options) {
                           ColorizePrompt(buffer, prompt_state,
                                          std::make_shared<Notification>(),
                                          original_line, options);

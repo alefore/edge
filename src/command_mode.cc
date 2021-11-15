@@ -101,56 +101,53 @@ class Paste : public Command {
       return;
     }
     std::shared_ptr<OpenBuffer> paste_buffer = it->second;
-    futures::Transform(
-        editor_state->ForEachActiveBuffer(
-            [editor_state,
-             paste_buffer](const std::shared_ptr<OpenBuffer>& buffer) {
-              if (paste_buffer == buffer) {
-                const static wstring errors[] = {
-                    L"You shall not paste into the paste buffer.",
-                    L"Nope.",
-                    L"Bad things would happen if you pasted into the buffer.",
-                    L"There could be endless loops if you pasted into this "
-                    L"buffer.",
-                    L"This is not supported.",
-                    L"Go to a different buffer first?",
-                    L"The paste buffer is not for pasting into.",
-                    L"This editor is too important for me to allow you to "
-                    L"jeopardize it.",
-                    L"",
-                };
-                static int current_message = 0;
-                buffer->status()->SetWarningText(errors[current_message++]);
-                if (errors[current_message].empty()) {
-                  current_message = 0;
-                }
-                return futures::Past(EmptyValue());
+    editor_state
+        ->ForEachActiveBuffer([editor_state, paste_buffer](
+                                  const std::shared_ptr<OpenBuffer>& buffer) {
+          if (paste_buffer == buffer) {
+            const static wstring errors[] = {
+                L"You shall not paste into the paste buffer.",
+                L"Nope.",
+                L"Bad things would happen if you pasted into the buffer.",
+                L"There could be endless loops if you pasted into this "
+                L"buffer.",
+                L"This is not supported.",
+                L"Go to a different buffer first?",
+                L"The paste buffer is not for pasting into.",
+                L"This editor is too important for me to allow you to "
+                L"jeopardize it.",
+                L"",
+            };
+            static int current_message = 0;
+            buffer->status()->SetWarningText(errors[current_message++]);
+            if (errors[current_message].empty()) {
+              current_message = 0;
+            }
+            return futures::Past(EmptyValue());
+          }
+          if (buffer->fd() != nullptr) {
+            string text = ToByteString(paste_buffer->ToString());
+            for (size_t i = 0; i < editor_state->repetitions(); i++) {
+              if (write(buffer->fd()->fd(), text.c_str(), text.size()) == -1) {
+                buffer->status()->SetWarningText(L"Unable to paste.");
+                break;
               }
-              if (buffer->fd() != nullptr) {
-                string text = ToByteString(paste_buffer->ToString());
-                for (size_t i = 0; i < editor_state->repetitions(); i++) {
-                  if (write(buffer->fd()->fd(), text.c_str(), text.size()) ==
-                      -1) {
-                    buffer->status()->SetWarningText(L"Unable to paste.");
-                    break;
-                  }
-                }
-                return futures::Past(EmptyValue());
-              }
-              buffer->CheckPosition();
-              buffer->MaybeAdjustPositionCol();
-              transformation::Insert insert_options;
-              insert_options.buffer_to_insert = paste_buffer;
-              insert_options.modifiers.insertion =
-                  editor_state->modifiers().insertion;
-              insert_options.modifiers.repetitions =
-                  editor_state->repetitions();
-              return buffer->ApplyToCursors(std::move(insert_options));
-            }),
-        [editor_state](EmptyValue) {
+            }
+            return futures::Past(EmptyValue());
+          }
+          buffer->CheckPosition();
+          buffer->MaybeAdjustPositionCol();
+          transformation::Insert insert_options;
+          insert_options.buffer_to_insert = paste_buffer;
+          insert_options.modifiers.insertion =
+              editor_state->modifiers().insertion;
+          insert_options.modifiers.repetitions = editor_state->repetitions();
+          return buffer->ApplyToCursors(std::move(insert_options));
+        })
+        .Transform([editor_state](EmptyValue) {
           editor_state->ResetInsertionModifier();
           editor_state->ResetRepetitions();
-          return futures::Past(EmptyValue());
+          return EmptyValue();
         });
   }
 };
@@ -172,15 +169,14 @@ class UndoCommand : public Command {
     if (direction_.has_value()) {
       editor_state->set_direction(direction_.value());
     }
-    futures::Transform(editor_state->ForEachActiveBuffer(
-                           [](const std::shared_ptr<OpenBuffer>& buffer) {
-                             return buffer->Undo(OpenBuffer::UndoMode::kLoop);
-                           }),
-                       [editor_state](EmptyValue) {
-                         editor_state->ResetRepetitions();
-                         editor_state->ResetDirection();
-                         return EmptyValue();
-                       });
+    editor_state
+        ->ForEachActiveBuffer([](const std::shared_ptr<OpenBuffer>& buffer) {
+          return buffer->Undo(OpenBuffer::UndoMode::kLoop);
+        })
+        .SetConsumer([editor_state](EmptyValue) {
+          editor_state->ResetRepetitions();
+          editor_state->ResetDirection();
+        });
   }
 
  private:

@@ -90,17 +90,17 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
 
   if (auto var = buffer_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
-    return futures::Transform(
-        editor_state->ForEachActiveBuffer(
+    return editor_state
+        ->ForEachActiveBuffer(
             [var, name](const std::shared_ptr<OpenBuffer>& buffer) {
               buffer->toggle_bool_variable(var);
               buffer->status()->SetInformationText(
                   (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
               return futures::Past(EmptyValue());
-            }),
-        [editor_state](EmptyValue) {
+            })
+        .Transform([editor_state](EmptyValue) {
           editor_state->ResetRepetitions();
-          return futures::Past(EmptyValue());
+          return EmptyValue();
         });
   }
   if (auto var = buffer_variables::IntStruct()->find_variable(name);

@@ -209,7 +209,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
   for (const auto& operation : data.operations) {
     switch (operation.type) {
       case Operation::Type::kForward:
-        state = futures::Transform(state, [](State state) {
+        state = state.Transform([](State state) {
           if (state.indices.empty()) {
             state.index = 0;
           } else {
@@ -220,7 +220,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
         break;
 
       case Operation::Type::kBackward:
-        state = futures::Transform(state, [](State state) {
+        state = state.Transform([](State state) {
           if (state.indices.empty()) {
             state.index = 0;
           } else if (state.index == 0) {
@@ -234,9 +234,8 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
 
       case Operation::Type::kPrevious:
       case Operation::Type::kNext:
-        state = futures::Transform(state, [buffers_list,
-                                           op_type =
-                                               operation.type](State state) {
+        state = state.Transform([buffers_list,
+                                 op_type = operation.type](State state) {
           if (state.indices.empty()) {
             state.index = 0;
             return state;
@@ -271,8 +270,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
 
       case Operation::Type::kNumber: {
         CHECK_GT(operation.number, 0ul);
-        state = futures::Transform(
-            state,
+        state = state.Transform(
             [number_requested = (operation.number - 1) %
                                 buffers_list->BuffersCount()](State state) {
               auto it = std::find_if(state.indices.begin(), state.indices.end(),
@@ -287,8 +285,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
       } break;
 
       case Operation::Type::kFilter:
-        state = futures::Transform(
-            state,
+        state = state.Transform(
             [filter = TokenizeBySpaces(*NewLazyString(operation.text_input)),
              buffers_list](State state) {
               Indices new_indices;
@@ -314,9 +311,9 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
         break;  // Already handled.
 
       case Operation::Type::kSearch: {
-        state = futures::Transform(state, [editor, buffers_list,
-                                           text_input = operation.text_input](
-                                              State state) {
+        state = state.Transform([editor, buffers_list,
+                                 text_input =
+                                     operation.text_input](State state) {
           // TODO: Maybe tweak the parameters to allow more than just one to
           // run at a given time? Would require changes to async_processor.h
           // (I think).
@@ -335,31 +332,31 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
                 buffer != nullptr) {
               // TODO: Pass SearchOptions::abort_notification to allow
               // aborting as the user continues to type?
-              search_futures.push_back(futures::Transform(
-                  evaluator->Search(
-                      {.search_query = text_input, .required_positions = 1},
-                      *buffer, progress_channel),
-                  [new_state,
-                   index](AsyncSearchProcessor::Output search_output) {
-                    if (search_output.pattern_error.has_value()) {
-                      new_state->pattern_error =
-                          std::move(search_output.pattern_error.value());
-                      return futures::IterationControlCommand::kStop;
-                    }
-                    if (search_output.matches > 0) {
-                      new_state->indices.push_back(index);
-                    }
-                    return futures::IterationControlCommand::kContinue;
-                  }));
+              search_futures.push_back(
+                  evaluator
+                      ->Search(
+                          {.search_query = text_input, .required_positions = 1},
+                          *buffer, progress_channel)
+                      .Transform(
+                          [new_state,
+                           index](AsyncSearchProcessor::Output search_output) {
+                            if (search_output.pattern_error.has_value()) {
+                              new_state->pattern_error = std::move(
+                                  search_output.pattern_error.value());
+                              return futures::IterationControlCommand::kStop;
+                            }
+                            if (search_output.matches > 0) {
+                              new_state->indices.push_back(index);
+                            }
+                            return futures::IterationControlCommand::kContinue;
+                          }));
             }
           }
-          return futures::Transform(
-              futures::ForEachWithCopy(
-                  search_futures.begin(), search_futures.end(),
-                  [](futures::Value<futures::IterationControlCommand> output) {
-                    return output;
-                  }),
-              [new_state](futures::IterationControlCommand) {
+          return futures::ForEachWithCopy(
+                     search_futures.begin(), search_futures.end(),
+                     [](futures::Value<futures::IterationControlCommand>
+                            output) { return output; })
+              .Transform([new_state](futures::IterationControlCommand) {
                 return std::move(*new_state);
               });
         });
@@ -367,7 +364,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
     }
   }
 
-  return futures::Transform(state, [editor, mode, buffers_list](State state) {
+  return state.Transform([editor, mode, buffers_list](State state) {
     if (state.pattern_error.has_value()) {
       // TODO: Find a better way to show it without hiding the input, ugh.
       editor->status()->SetWarningText(L"Pattern error: " +

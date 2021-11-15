@@ -83,8 +83,8 @@ futures::Value<UndoCallback> ExecuteTransformation(
   // transformation::Results::modified_buffer).
   auto buffers_modified =
       std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>();
-  return futures::Transform(
-      editor->ForEachActiveBuffer(
+  return editor
+      ->ForEachActiveBuffer(
           [transformation = std::move(transformation), buffers_modified,
            application_type](const std::shared_ptr<OpenBuffer>& buffer) {
             buffers_modified->push_back(buffer);
@@ -96,18 +96,18 @@ futures::Value<UndoCallback> ExecuteTransformation(
                 application_type == ApplicationType::kPreview
                     ? transformation::Input::Mode::kPreview
                     : transformation::Input::Mode::kFinal);
-          }),
-      [buffers_modified](EmptyValue) {
+          })
+      .Transform([buffers_modified](EmptyValue) {
         return UndoCallback([buffers_modified] {
-          return futures::Transform(
-              futures::ForEach(
-                  buffers_modified->begin(), buffers_modified->end(),
-                  [buffers_modified](std::shared_ptr<OpenBuffer> buffer) {
-                    return futures::Transform(
-                        buffer->Undo(OpenBuffer::UndoMode::kOnlyOne),
-                        Past(futures::IterationControlCommand::kContinue));
-                  }),
-              Past(EmptyValue()));
+          return futures::ForEach(
+                     buffers_modified->begin(), buffers_modified->end(),
+                     [buffers_modified](std::shared_ptr<OpenBuffer> buffer) {
+                       return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
+                           .Transform([](auto) {
+                             return futures::IterationControlCommand::kContinue;
+                           });
+                     })
+              .Transform([](auto) { return EmptyValue(); });
         });
       });
 }

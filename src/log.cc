@@ -64,11 +64,10 @@ class FileLog : public Log {
 futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
     FileSystemDriver* file_system, Path path) {
   LOG(INFO) << "Opening log: " << path;
-  return futures::Transform(
-      file_system->Open(
-          path, O_WRONLY | O_CREAT | O_APPEND,
-          S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH),
-      [](int fd) {
+  return file_system
+      ->Open(path, O_WRONLY | O_CREAT | O_APPEND,
+             S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+      .Transform([](int fd) {
         // TODO(easy): Make `Success` able to convert the unique_ptr to its
         // parent class? So that we can use make_unique<FileLog> here.
         return Success(std::unique_ptr<Log>(

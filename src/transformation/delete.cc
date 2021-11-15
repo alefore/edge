@@ -167,10 +167,9 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   input.buffer->DeleteRange(range);
   output->modified_buffer = true;
 
-  return futures::Transform(
-      Apply(transformation::SetPosition(range.begin), input),
-      [options, range, output, input,
-       delete_buffer](transformation::Result result) mutable {
+  return Apply(transformation::SetPosition(range.begin), input)
+      .Transform([options, range, output, input,
+                  delete_buffer](transformation::Result result) mutable {
         output->MergeFrom(std::move(result));
 
         transformation::Insert insert_options(std::move(delete_buffer));
@@ -191,11 +190,11 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
                 ? LineModifierSet{LineModifier::UNDERLINE, LineModifier::GREEN}
                 : options.preview_modifiers;
         input.position = range.begin;
-        return futures::Transform(Apply(std::move(insert_options), input),
-                                  [output](transformation::Result result) {
-                                    output->MergeFrom(std::move(result));
-                                    return std::move(*output);
-                                  });
+        return Apply(std::move(insert_options), input)
+            .Transform([output](transformation::Result result) {
+              output->MergeFrom(std::move(result));
+              return std::move(*output);
+            });
       });
 }
 

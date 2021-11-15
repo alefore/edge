@@ -32,10 +32,9 @@ class LogicalExpression : public Expression {
 
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) override {
-    return futures::Transform(
-        trampoline->Bounce(expr_a_.get(), VMType::Bool()),
-        [type, trampoline, identity = identity_,
-         expr_b = expr_b_](EvaluationOutput a_output) {
+    return trampoline->Bounce(expr_a_.get(), VMType::Bool())
+        .Transform([type, trampoline, identity = identity_,
+                    expr_b = expr_b_](EvaluationOutput a_output) {
           switch (a_output.type) {
             case EvaluationOutput::OutputType::kAbort:
             case EvaluationOutput::OutputType::kReturn:

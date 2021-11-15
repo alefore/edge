@@ -173,15 +173,14 @@ futures::Value<PossibleError> GenerateContents(
   }
 
   LOG(INFO) << L"Server starts: " << path.value();
-  return futures::Transform(
-      OnError(file_system_driver->Open(path.value(), O_RDONLY | O_NDELAY, 0),
-              [path](Error error) {
-                LOG(ERROR) << path.value()
-                           << ": Server: GenerateContents: Open failed: "
-                           << error.description;
-                return error;
-              }),
-      [target](int fd) {
+  return OnError(file_system_driver->Open(path.value(), O_RDONLY | O_NDELAY, 0),
+                 [path](Error error) {
+                   LOG(ERROR) << path.value()
+                              << ": Server: GenerateContents: Open failed: "
+                              << error.description;
+                   return error;
+                 })
+      .Transform([target](int fd) {
         LOG(INFO) << "Server received connection: " << fd;
         target->SetInputFiles(fd, -1, false, -1);
         return Success();

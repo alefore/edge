@@ -64,34 +64,32 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
       editor_state,
       std::make_shared<FileSystemDriver>(editor_state->work_queue()));
   options.path = input;
-  return futures::Transform(
-      OnError(ResolvePath(std::move(options)),
-              [buffer, input](Error error) {
-                buffer->status()->SetWarningText(L"🗱  File not found: " +
-                                                 input);
-                return error;
-              }),
-      [buffer, editor_state, input](
-          ResolvePathOutput resolved_path) -> futures::Value<PossibleError> {
+  return OnError(ResolvePath(std::move(options)),
+                 [buffer, input](Error error) {
+                   buffer->status()->SetWarningText(L"🗱  File not found: " +
+                                                    input);
+                   return error;
+                 })
+      .Transform([buffer, editor_state, input](ResolvePathOutput resolved_path)
+                     -> futures::Value<PossibleError> {
         using futures::IterationControlCommand;
         auto index = std::make_shared<size_t>(0);
-        return futures::Transform(
-            futures::While([buffer, total = editor_state->repetitions(),
-                            adjusted_input = resolved_path.path, index]() {
-              if (*index >= total)
-                return futures::Past(IterationControlCommand::kStop);
-              auto evaluation = buffer->EvaluateFile(adjusted_input);
-              if (!evaluation.has_value())
-                return futures::Past(IterationControlCommand::kStop);
-              ++*index;
-              return futures::Transform(
-                  evaluation.value(), [](const std::unique_ptr<Value>&) {
-                    return futures::Past(IterationControlCommand::kContinue);
-                  });
-            }),
-            [editor_state](IterationControlCommand) {
+        return futures::While([buffer, total = editor_state->repetitions(),
+                               adjusted_input = resolved_path.path, index]() {
+                 if (*index >= total)
+                   return futures::Past(IterationControlCommand::kStop);
+                 auto evaluation = buffer->EvaluateFile(adjusted_input);
+                 if (!evaluation.has_value())
+                   return futures::Past(IterationControlCommand::kStop);
+                 ++*index;
+                 return evaluation.value().Transform(
+                     [](const std::unique_ptr<Value>&) {
+                       return IterationControlCommand::kContinue;
+                     });
+               })
+            .Transform([editor_state](IterationControlCommand) {
               editor_state->ResetRepetitions();
-              return futures::Past(Success());
+              return Success();
             });
       });
 }

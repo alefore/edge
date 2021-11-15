@@ -42,10 +42,9 @@ class IfExpression : public Expression {
 
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType& type) override {
-    return futures::Transform(
-        trampoline->Bounce(cond_.get(), VMType::Bool()),
-        [type, true_case = true_case_, false_case = false_case_,
-         trampoline](EvaluationOutput cond_output) {
+    return trampoline->Bounce(cond_.get(), VMType::Bool())
+        .Transform([type, true_case = true_case_, false_case = false_case_,
+                    trampoline](EvaluationOutput cond_output) {
           switch (cond_output.type) {
             case EvaluationOutput::OutputType::kReturn:
             case EvaluationOutput::OutputType::kAbort:

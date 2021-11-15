@@ -156,51 +156,50 @@ class InsertMode : public EditorMode {
 
       case Terminal::ESCAPE:
         ResetScrollBehavior();
-        futures::Transform(
-            ForEachActiveBuffer(
-                old_literal ? std::string{27} : "",
-                [options = options_,
-                 old_literal](const std::shared_ptr<OpenBuffer>& buffer) {
-                  if (buffer->fd() != nullptr) {
-                    if (old_literal) {
-                      buffer->status()->SetInformationText(L"ESC");
-                    } else {
-                      buffer->status()->Reset();
+
+        ForEachActiveBuffer(
+            old_literal ? std::string{27} : "",
+            [options = options_,
+             old_literal](const std::shared_ptr<OpenBuffer>& buffer) {
+              if (buffer->fd() != nullptr) {
+                if (old_literal) {
+                  buffer->status()->SetInformationText(L"ESC");
+                } else {
+                  buffer->status()->Reset();
+                }
+                return futures::Past(EmptyValue());
+              }
+              buffer->MaybeAdjustPositionCol();
+              // TODO(easy): Honor `old_literal`.
+              return buffer
+                  ->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
+                  .Transform([options, buffer](EmptyValue) {
+                    buffer->PopTransformationStack();
+                    auto repetitions =
+                        options.editor_state->repetitions().value_or(1);
+                    if (repetitions > 0) {
+                      options.editor_state->set_repetitions(repetitions - 1);
                     }
-                    return futures::Past(EmptyValue());
-                  }
-                  buffer->MaybeAdjustPositionCol();
-                  // TODO(easy): Honor `old_literal`.
-                  return futures::Transform(
-                      buffer->ApplyToCursors(
-                          NewDeleteSuffixSuperfluousCharacters()),
-                      [options, buffer](EmptyValue) {
-                        buffer->PopTransformationStack();
-                        auto repetitions =
-                            options.editor_state->repetitions().value_or(1);
-                        if (repetitions > 0) {
-                          options.editor_state->set_repetitions(repetitions -
-                                                                1);
-                        }
-                        return buffer->RepeatLastTransformation();
-                      },
-                      [options, buffer](EmptyValue) {
-                        buffer->PopTransformationStack();
-                        options.editor_state->PushCurrentPosition();
-                        buffer->status()->Reset();
-                        return futures::Past(EmptyValue());
-                      });
-                }),
-            [editor_state, options = options_, old_literal](EmptyValue) {
-              if (old_literal) return futures::Past(EmptyValue());
-              editor_state->status()->Reset();
-              CHECK(options.escape_handler != nullptr);
-              options.escape_handler();  // Probably deletes us.
-              editor_state->ResetRepetitions();
-              editor_state->ResetInsertionModifier();
-              editor_state->set_keyboard_redirect(nullptr);
-              return futures::Past(EmptyValue());
-            });
+                    return buffer->RepeatLastTransformation();
+                  })
+                  .Transform([options, buffer](EmptyValue) {
+                    buffer->PopTransformationStack();
+                    options.editor_state->PushCurrentPosition();
+                    buffer->status()->Reset();
+                    return EmptyValue();
+                  });
+            })
+            .Transform(
+                [editor_state, options = options_, old_literal](EmptyValue) {
+                  if (old_literal) return EmptyValue();
+                  editor_state->status()->Reset();
+                  CHECK(options.escape_handler != nullptr);
+                  options.escape_handler();  // Probably deletes us.
+                  editor_state->ResetRepetitions();
+                  editor_state->ResetInsertionModifier();
+                  editor_state->set_keyboard_redirect(nullptr);
+                  return EmptyValue();
+                });
         return;
 
       case Terminal::UP_ARROW:
@@ -324,9 +323,8 @@ class InsertMode : public EditorMode {
     ForEachActiveBuffer(
         {static_cast<char>(c)},
         [c, options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
-          return futures::Transform(
-              buffer->TransformKeyboardText(std::wstring(1, c)),
-              [options, buffer](std::wstring value) {
+          return buffer->TransformKeyboardText(std::wstring(1, c))
+              .Transform([options, buffer](std::wstring value) {
                 auto buffer_to_insert =
                     OpenBuffer::New({.editor = options.editor_state,
                                      .name = L"- text inserted"});
@@ -351,23 +349,22 @@ class InsertMode : public EditorMode {
       std::string line_buffer, std::function<futures::Value<EmptyValue>(
                                    const std::shared_ptr<OpenBuffer>&)>
                                    callable) {
-    return futures::Transform(
-        WriteLineBuffer(line_buffer),
-        [this, callable](EmptyValue) {
+    return WriteLineBuffer(line_buffer)
+        .Transform([this, callable](EmptyValue) {
           return futures::ForEachWithCopy(
               options_.buffers.value().begin(), options_.buffers.value().end(),
               [callable](const std::shared_ptr<OpenBuffer>& buffer) {
                 return buffer->fd() == nullptr
-                           ? futures::Transform(
-                                 callable(buffer),
-                                 futures::Past(
-                                     futures::IterationControlCommand::
-                                         kContinue))
+                           ? callable(buffer).Transform([](EmptyValue) {
+                               return futures::IterationControlCommand::
+                                   kContinue;
+                             })
                            : futures::Past(
                                  futures::IterationControlCommand::kContinue);
               });
-        },
-        futures::Past(EmptyValue()));
+        })
+        .Transform(
+            [](futures::IterationControlCommand) { return EmptyValue(); });
   }
 
   void HandleDelete(std::string line_buffer, Direction direction) {
@@ -384,11 +381,10 @@ class InsertMode : public EditorMode {
               Modifiers::PasteBufferBehavior::kDoNothing;
           delete_options.modifiers.delete_behavior =
               Modifiers::DeleteBehavior::kDeleteText;
-          return futures::Transform(
-              CallModifyHandler(
-                  options, buffer,
-                  buffer->ApplyToCursors(std::move(delete_options))),
-              [options, direction, buffer](EmptyValue) {
+          return CallModifyHandler(
+                     options, buffer,
+                     buffer->ApplyToCursors(std::move(delete_options)))
+              .Transform([options, direction, buffer](EmptyValue) {
                 if (options.editor_state->modifiers().insertion !=
                     Modifiers::ModifyMode::kOverwrite)
                   return futures::Past(EmptyValue());
@@ -404,10 +400,9 @@ class InsertMode : public EditorMode {
                       transformation::Insert::FinalPosition::kStart;
                 }
                 return buffer->ApplyToCursors(std::move(insert_options));
-              },
-              [handler = options.modify_handler, buffer](EmptyValue) {
-                return handler(buffer);
-              });
+              })
+              .Transform([handler = options.modify_handler,
+                          buffer](EmptyValue) { return handler(buffer); });
         });
   }
 
@@ -435,9 +430,8 @@ class InsertMode : public EditorMode {
   static futures::Value<EmptyValue> CallModifyHandler(
       InsertModeOptions options, const std::shared_ptr<OpenBuffer>& buffer,
       futures::Value<T> value) {
-    return futures::Transform(value, [options, buffer](const T&) {
-      return options.modify_handler(buffer);
-    });
+    return value.Transform(
+        [options, buffer](const T&) { return options.modify_handler(buffer); });
   }
 
   futures::ListenableValue<std::shared_ptr<ScrollBehavior>>
@@ -446,11 +440,12 @@ class InsertMode : public EditorMode {
       CHECK(options_.scroll_behavior != nullptr);
       scroll_behavior_abort_notification_->Notify();
       scroll_behavior_abort_notification_ = std::make_shared<Notification>();
-      scroll_behavior_ = futures::ListenableValue(futures::Transform(
-          options_.scroll_behavior->Build(scroll_behavior_abort_notification_),
-          [](std::unique_ptr<ScrollBehavior> scroll_behavior) {
-            return std::shared_ptr<ScrollBehavior>(std::move(scroll_behavior));
-          }));
+      scroll_behavior_ = futures::ListenableValue(
+          options_.scroll_behavior->Build(scroll_behavior_abort_notification_)
+              .Transform([](std::unique_ptr<ScrollBehavior> scroll_behavior) {
+                return std::shared_ptr<ScrollBehavior>(
+                    std::move(scroll_behavior));
+              }));
     }
     return scroll_behavior_.value();
   }
@@ -462,23 +457,24 @@ class InsertMode : public EditorMode {
 
   futures::Value<EmptyValue> WriteLineBuffer(std::string line_buffer) {
     if (line_buffer.empty()) return futures::Past(EmptyValue());
-    return futures::Transform(
-        futures::ForEachWithCopy(
-            options_.buffers.value().begin(), options_.buffers.value().end(),
-            [line_buffer = std::move(line_buffer)](
-                const std::shared_ptr<OpenBuffer>& buffer) {
-              if (auto fd = buffer->fd(); fd != nullptr) {
-                if (write(fd->fd(), line_buffer.c_str(), line_buffer.size()) ==
-                    -1) {
-                  buffer->status()->SetWarningText(
-                      L"Write failed: " + FromByteString(strerror(errno)));
-                } else {
-                  buffer->editor()->StartHandlingInterrupts();
-                }
-              }
-              return futures::Past(futures::IterationControlCommand::kContinue);
-            }),
-        futures::Past(EmptyValue()));
+    return futures::ForEachWithCopy(
+               options_.buffers.value().begin(), options_.buffers.value().end(),
+               [line_buffer = std::move(line_buffer)](
+                   const std::shared_ptr<OpenBuffer>& buffer) {
+                 if (auto fd = buffer->fd(); fd != nullptr) {
+                   if (write(fd->fd(), line_buffer.c_str(),
+                             line_buffer.size()) == -1) {
+                     buffer->status()->SetWarningText(
+                         L"Write failed: " + FromByteString(strerror(errno)));
+                   } else {
+                     buffer->editor()->StartHandlingInterrupts();
+                   }
+                 }
+                 return futures::Past(
+                     futures::IterationControlCommand::kContinue);
+               })
+        .Transform(
+            [](futures::IterationControlCommand) { return EmptyValue(); });
   }
 
   const InsertModeOptions options_;
@@ -588,16 +584,15 @@ void EnterInsertMode(InsertModeOptions options) {
 
   auto anonymous_buffer_future = futures::Past(EmptyValue());
   if (shared_options->buffers.value().empty()) {
-    anonymous_buffer_future = futures::Transform(
-        OpenAnonymousBuffer(editor_state),
-        [shared_options](std::shared_ptr<OpenBuffer> buffer) {
-          shared_options->buffers.value().push_back(buffer);
-          return EmptyValue();
-        });
+    anonymous_buffer_future =
+        OpenAnonymousBuffer(editor_state)
+            .Transform([shared_options](std::shared_ptr<OpenBuffer> buffer) {
+              shared_options->buffers.value().push_back(buffer);
+              return EmptyValue();
+            });
   }
 
-  futures::Transform(anonymous_buffer_future, [editor_state,
-                                               shared_options](EmptyValue) {
+  anonymous_buffer_future.Transform([editor_state, shared_options](EmptyValue) {
     for (auto& buffer : shared_options->buffers.value()) {
       auto target_buffer = buffer->GetBufferFromCurrentLine();
       if (target_buffer != nullptr) {

@@ -39,16 +39,17 @@ const bool async_evaluator_tests_registration = tests::Register(
             Notification proceed;
 
             auto evaluator = std::make_unique<AsyncEvaluator>(L"Test", &queue);
-            futures::Transform(evaluator->Run([&] {
-              started_running.Notify();
-              proceed.WaitForNotification();
-              sleep(1);
-              return 948;
-            }),
-                               [&](int result) {
-                                 future_result = result;
-                                 return EmptyValue();
-                               });
+            evaluator
+                ->Run([&] {
+                  started_running.Notify();
+                  proceed.WaitForNotification();
+                  sleep(1);
+                  return 948;
+                })
+                .Transform([&](int result) {
+                  future_result = result;
+                  return EmptyValue();
+                });
 
             started_running.WaitForNotification();
             LOG(INFO) << "Deleting.";

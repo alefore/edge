@@ -33,9 +33,8 @@ class NamespaceExpression : public Expression {
     CHECK(namespace_environment != nullptr);
     trampoline->SetEnvironment(namespace_environment);
 
-    return futures::Transform(
-        trampoline->Bounce(body_.get(), type),
-        [trampoline, original_environment](EvaluationOutput output) {
+    return trampoline->Bounce(body_.get(), type)
+        .Transform([trampoline, original_environment](EvaluationOutput output) {
           trampoline->SetEnvironment(original_environment);
           return output;
         });

@@ -54,7 +54,7 @@ class CommandArgumentMode : public EditorMode {
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
-    futures::Transform(options_.undo(), [this, c, editor_state](EmptyValue) {
+    options_.undo().Transform([this, c, editor_state](EmptyValue) {
       // TODO: Get rid of this cast, ugh.
       switch (static_cast<int>(c)) {
         case Terminal::BACKSPACE:
@@ -69,18 +69,18 @@ class CommandArgumentMode : public EditorMode {
             argument_string_.push_back(c);
             return Transform(CommandArgumentModeApplyMode::kPreview, argument);
           }
-          return futures::Transform(
-              static_cast<int>(c) == Terminal::ESCAPE
-                  ? futures::Past(EmptyValue())
-                  : Transform(CommandArgumentModeApplyMode::kFinal, argument),
-              [editor_state, c](EmptyValue) {
+          return (static_cast<int>(c) == Terminal::ESCAPE
+                      ? futures::Past(EmptyValue())
+                      : Transform(CommandArgumentModeApplyMode::kFinal,
+                                  argument))
+              .Transform([editor_state, c](EmptyValue) {
                 editor_state->status()->Reset();
                 auto editor_state_copy = editor_state;
                 editor_state->set_keyboard_redirect(nullptr);
                 if (c != L'\n') {
                   editor_state_copy->ProcessInput(c);
                 }
-                return futures::Past(EmptyValue());
+                return EmptyValue();
               });
       }
     });
@@ -128,17 +128,16 @@ void SetOptionsForBufferTransformation(
       [buffers](
           const std::function<futures::Value<futures::IterationControlCommand>(
               const std::shared_ptr<OpenBuffer>&)>& callback) {
-        return futures::Transform(
-            futures::ForEach(buffers->begin(), buffers->end(), callback),
-            [buffers](futures::IterationControlCommand) {
-              return futures::Past(EmptyValue());
+        return futures::ForEach(buffers->begin(), buffers->end(), callback)
+            .Transform([buffers](futures::IterationControlCommand) {
+              return EmptyValue();
             });
       };
 
   options->undo = [editor_state = options->editor_state, for_each_buffer] {
     return for_each_buffer([](const std::shared_ptr<OpenBuffer>& buffer) {
-      return futures::Transform(
-          buffer->Undo(OpenBuffer::UndoMode::kOnlyOne), [](EmptyValue) {
+      return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
+          .Transform([](EmptyValue) {
             return futures::IterationControlCommand::kContinue;
           });
     });
@@ -155,14 +154,16 @@ void SetOptionsForBufferTransformation(
               buffer->Read(buffer_variables::multiple_cursors)
                   ? Modifiers::CursorsAffected::kAll
                   : Modifiers::CursorsAffected::kOnlyCurrent);
-          return futures::Transform(
-              buffer->ApplyToCursors(
+          return buffer
+              ->ApplyToCursors(
                   transformation_factory(editor_state, std::move(argument)),
                   cursors_affected,
                   mode == CommandArgumentModeApplyMode::kPreview
                       ? transformation::Input::Mode::kPreview
-                      : transformation::Input::Mode::kFinal),
-              futures::Past(futures::IterationControlCommand::kContinue));
+                      : transformation::Input::Mode::kFinal)
+              .Transform([](auto) {
+                return futures::IterationControlCommand::kContinue;
+              });
         });
   };
 }

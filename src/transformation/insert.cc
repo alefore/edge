@@ -74,22 +74,21 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
         GetCharactersDeleteOptions(chars_inserted);
     delete_options.line_end_behavior =
         transformation::Delete::LineEndBehavior::kStop;
-    delayed_shared_result = futures::Transform(
+    delayed_shared_result =
         Apply(TransformationAtPosition(result->position,
                                        std::move(delete_options)),
-              input),
-        [result](transformation::Result inner_result) {
-          result->MergeFrom(std::move(inner_result));
-          return result;
-        });
+              input)
+            .Transform([result](transformation::Result inner_result) {
+              result->MergeFrom(std::move(inner_result));
+              return result;
+            });
   }
 
   LineColumn position = options.position.value_or(
       options.final_position == Insert::FinalPosition::kStart ? start_position
                                                               : final_position);
 
-  return futures::Transform(
-      delayed_shared_result,
+  return delayed_shared_result.Transform(
       [position](std::shared_ptr<transformation::Result> result) {
         result->position = position;
         return std::move(*result);

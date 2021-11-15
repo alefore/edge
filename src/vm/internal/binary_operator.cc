@@ -38,24 +38,23 @@ Expression::PurityType BinaryOperator::purity() {
 futures::Value<EvaluationOutput> BinaryOperator::Evaluate(
     Trampoline* trampoline, const VMType& type) {
   CHECK(type_ == type);
-  return futures::Transform(
-      trampoline->Bounce(a_.get(), a_->Types()[0]),
-      [b = b_, type = type_, op = operator_,
-       trampoline](EvaluationOutput a_value) {
+  return trampoline->Bounce(a_.get(), a_->Types()[0])
+      .Transform([b = b_, type = type_, op = operator_,
+                  trampoline](EvaluationOutput a_value) {
         if (a_value.type == EvaluationOutput::OutputType::kAbort)
           return futures::Past(std::move(a_value));
-        return futures::Transform(
-            trampoline->Bounce(b.get(), b->Types()[0]),
-            [a_value = std::make_shared<Value>(std::move(*a_value.value)), type,
-             op](EvaluationOutput b_value) {
-              if (b_value.type == EvaluationOutput::OutputType::kAbort)
-                return b_value;
-              auto output = std::make_unique<Value>(type);
-              auto result = op(*a_value, *b_value.value, output.get());
-              return result.IsError()
-                         ? EvaluationOutput::Abort(result.error())
-                         : EvaluationOutput::New(std::move(output));
-            });
+        return trampoline->Bounce(b.get(), b->Types()[0])
+            .Transform(
+                [a_value = std::make_shared<Value>(std::move(*a_value.value)),
+                 type, op](EvaluationOutput b_value) {
+                  if (b_value.type == EvaluationOutput::OutputType::kAbort)
+                    return b_value;
+                  auto output = std::make_unique<Value>(type);
+                  auto result = op(*a_value, *b_value.value, output.get());
+                  return result.IsError()
+                             ? EvaluationOutput::Abort(result.error())
+                             : EvaluationOutput::New(std::move(output));
+                });
       });
 }
 

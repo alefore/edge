@@ -45,24 +45,22 @@ futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
   auto data = std::make_shared<Data>();
   data->output = std::make_unique<Result>(input.position);
   data->options = options;
-  return futures::Transform(
-      futures::While([data, input]() mutable {
-        if (data->index == data->options.repetitions) {
-          return futures::Past(futures::IterationControlCommand::kStop);
-        }
-        data->index++;
-        return futures::Transform(
-            Apply(*data->options.transformation,
-                  input.NewChild(data->output->position)),
-            [data](Result result) {
-              bool made_progress = result.made_progress;
-              data->output->MergeFrom(std::move(result));
-              return made_progress && data->output->success
-                         ? futures::IterationControlCommand::kContinue
-                         : futures::IterationControlCommand::kStop;
-            });
-      }),
-      [data](const futures::IterationControlCommand&) {
+  return futures::While([data, input]() mutable {
+           if (data->index == data->options.repetitions) {
+             return futures::Past(futures::IterationControlCommand::kStop);
+           }
+           data->index++;
+           return Apply(*data->options.transformation,
+                        input.NewChild(data->output->position))
+               .Transform([data](Result result) {
+                 bool made_progress = result.made_progress;
+                 data->output->MergeFrom(std::move(result));
+                 return made_progress && data->output->success
+                            ? futures::IterationControlCommand::kContinue
+                            : futures::IterationControlCommand::kStop;
+               });
+         })
+      .Transform([data](futures::IterationControlCommand) {
         return std::move(*data->output);
       });
 }

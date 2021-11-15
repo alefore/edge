@@ -177,11 +177,10 @@ futures::Value<PossibleError> GenerateContents(
   auto path = Path::FromString(target->Read(buffer_variables::path));
   if (path.IsError()) return futures::Past(PossibleError(path.error()));
   LOG(INFO) << "GenerateContents: " << path.value();
-  return futures::Transform(
-      file_system_driver->Stat(path.value()),
-      [editor_state, stat_buffer, file_system_driver,
-       background_directory_reader, target,
-       path](std::optional<struct stat> stat_results) {
+  return file_system_driver->Stat(path.value())
+      .Transform([editor_state, stat_buffer, file_system_driver,
+                  background_directory_reader, target,
+                  path](std::optional<struct stat> stat_results) {
         if (stat_results.has_value() &&
             target->Read(buffer_variables::clear_on_reload)) {
           target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
@@ -193,9 +192,9 @@ futures::Value<PossibleError> GenerateContents(
         *stat_buffer = stat_results.value();
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
-          return futures::Transform(
-              file_system_driver->Open(path.value(), O_RDONLY | O_NONBLOCK, 0),
-              [target](int fd) {
+          return file_system_driver
+              ->Open(path.value(), O_RDONLY | O_NONBLOCK, 0)
+              .Transform([target](int fd) {
                 target->SetInputFiles(fd, -1, false, -1);
                 return Success();
               });
@@ -204,13 +203,13 @@ futures::Value<PossibleError> GenerateContents(
         target->Set(buffer_variables::atomic_lines, true);
         target->Set(buffer_variables::allow_dirty_delete, true);
         target->Set(buffer_variables::tree_parser, L"md");
-        return futures::Transform(
-            background_directory_reader->Run(
-                [path, noise_regexp =
-                           target->Read(buffer_variables::directory_noise)]() {
-                  return ReadDir(path.value(), std::wregex(noise_regexp));
-                }),
-            [editor_state, target, path](BackgroundReadDirOutput results) {
+        return background_directory_reader
+            ->Run([path, noise_regexp = target->Read(
+                             buffer_variables::directory_noise)]() {
+              return ReadDir(path.value(), std::wregex(noise_regexp));
+            })
+            .Transform([editor_state, target,
+                        path](BackgroundReadDirOutput results) {
               auto disk_state_freezer = target->FreezeDiskState();
               if (results.error_description.has_value()) {
                 target->status()->SetInformationText(
@@ -297,10 +296,10 @@ futures::Value<PossibleError> Save(
                         PathComponent::FromString(L"backup").value());
   }
 
-  return futures::Transform(
-      SaveContentsToFile(path, *buffer->contents(), buffer->work_queue()),
-      [buffer](EmptyValue) { return buffer->PersistState(); },
-      [editor_state, stat_buffer, options, buffer, path](EmptyValue) {
+  return SaveContentsToFile(path, *buffer->contents(), buffer->work_queue())
+      .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
+      .Transform([editor_state, stat_buffer, options, buffer,
+                  path](EmptyValue) {
         switch (options.save_type) {
           case OpenBuffer::Options::SaveType::kMainFile:
             buffer->status()->SetInformationText(L"🖫 Saved: " +
@@ -362,8 +361,8 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
     WorkQueue* work_queue, Path path, int fd, const BufferContents& contents) {
   auto contents_writer =
       std::make_shared<AsyncEvaluator>(L"SaveContentsToOpenFile", work_queue);
-  return futures::Transform(
-      contents_writer->Run([contents, path, fd]() {
+  return contents_writer
+      ->Run([contents, path, fd]() {
         // TODO: It'd be significant more efficient to do fewer (bigger)
         // writes.
         std::optional<PossibleError> error;
@@ -379,12 +378,13 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
           return true;
         });
         return error.value_or(Success());
-      }),
-      // Ensure that `contents_writer` survives the future.
-      //
-      // TODO: Improve AsyncEvaluator functionality to survive being deleted
-      // while executing?
-      [contents_writer](EmptyValue) { return Success(); });
+      })
+      .Transform(
+          // Ensure that `contents_writer` survives the future.
+          //
+          // TODO: Improve AsyncEvaluator functionality to survive being deleted
+          // while executing?
+          [contents_writer](EmptyValue) { return Success(); });
 }
 
 futures::Value<PossibleError> SaveContentsToFile(const Path& path,
@@ -395,35 +395,35 @@ futures::Value<PossibleError> SaveContentsToFile(const Path& path,
       path.Dirname().value(),
       PathComponent::FromString(path.Basename().value().ToString() + L".tmp")
           .value());
-  return futures::Transform(
-      futures::OnError(
-          file_system_driver->Stat(path),
-          [](Error error) {
-            LOG(INFO)
-                << "Ignoring stat error; maybe a new file is being created: "
-                << error.description;
-            struct stat value;
-            value.st_mode =
-                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-            return Success(value);
-          }),
-      [path, contents, work_queue, file_system_driver,
-       tmp_path](struct stat stat_value) {
+  return futures::OnError(
+             file_system_driver->Stat(path),
+             [](Error error) {
+               LOG(INFO)
+                   << "Ignoring stat error; maybe a new file is being created: "
+                   << error.description;
+               struct stat value;
+               value.st_mode =
+                   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+               return Success(value);
+             })
+      .Transform([path, contents, work_queue, file_system_driver,
+                  tmp_path](struct stat stat_value) {
         return file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
                                         stat_value.st_mode);
-      },
-      [path, contents, work_queue, tmp_path, file_system_driver](int fd) {
+      })
+      .Transform([path, contents, work_queue, tmp_path,
+                  file_system_driver](int fd) {
         CHECK_NE(fd, -1);
-        return futures::Transform(
-            OnError(SaveContentsToOpenFile(work_queue, tmp_path, fd, contents),
-                    [file_system_driver, fd](Error error) {
-                      file_system_driver->Close(fd);
-                      return error;
-                    }),
-            [file_system_driver, fd](EmptyValue) {
+        return OnError(
+                   SaveContentsToOpenFile(work_queue, tmp_path, fd, contents),
+                   [file_system_driver, fd](Error error) {
+                     file_system_driver->Close(fd);
+                     return error;
+                   })
+            .Transform([file_system_driver, fd](EmptyValue) {
               return file_system_driver->Close(fd);
-            },
-            [path, file_system_driver, tmp_path](EmptyValue) {
+            })
+            .Transform([path, file_system_driver, tmp_path](EmptyValue) {
               return file_system_driver->Rename(tmp_path, path);
             });
       });
@@ -443,8 +443,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
       Path::Join(edge_path, Path::FromString(L"/search_paths").value());
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   options.use_search_paths = false;
-  return futures::Transform(
-      OpenFile(options),
+  return OpenFile(options).Transform(
       [editor_state](map<wstring, shared_ptr<OpenBuffer>>::iterator it) {
         CHECK(it != editor_state->buffers()->end());
         CHECK(it->second != nullptr);
@@ -465,32 +464,30 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState* editor_state,
   output->push_back(Path::LocalDirectory());
 
   auto paths = editor_state->edge_path();
-  return futures::Transform(
-      futures::ForEachWithCopy(
-          paths.begin(), paths.end(),
-          [editor_state, output](Path edge_path) {
-            return futures::Transform(
-                GetSearchPathsBuffer(editor_state, edge_path),
-                [editor_state, output,
-                 edge_path](std::shared_ptr<OpenBuffer> buffer) {
-                  if (buffer == nullptr) {
-                    LOG(INFO) << edge_path << ": No search paths buffer.";
-                    return futures::IterationControlCommand::kContinue;
-                  }
-                  buffer->contents()->ForEach([editor_state,
-                                               output](wstring line) {
-                    auto path = Path::FromString(line);
-                    if (path.IsError()) return;
-                    output->push_back(
-                        Path::FromString(
-                            editor_state->expand_path(path.value().ToString()))
-                            .value());
-                    LOG(INFO) << "Pushed search path: " << output->back();
-                  });
-                  return futures::IterationControlCommand::kContinue;
-                });
-          }),
-      [](futures::IterationControlCommand) { return EmptyValue(); });
+  return futures::ForEachWithCopy(
+             paths.begin(), paths.end(),
+             [editor_state, output](Path edge_path) {
+               return GetSearchPathsBuffer(editor_state, edge_path)
+                   .Transform([editor_state, output,
+                               edge_path](std::shared_ptr<OpenBuffer> buffer) {
+                     if (buffer == nullptr) {
+                       LOG(INFO) << edge_path << ": No search paths buffer.";
+                       return futures::IterationControlCommand::kContinue;
+                     }
+                     buffer->contents()->ForEach([editor_state,
+                                                  output](wstring line) {
+                       auto path = Path::FromString(line);
+                       if (path.IsError()) return;
+                       output->push_back(
+                           Path::FromString(editor_state->expand_path(
+                                                path.value().ToString()))
+                               .value());
+                       LOG(INFO) << "Pushed search path: " << output->back();
+                     });
+                     return futures::IterationControlCommand::kContinue;
+                   });
+             })
+      .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
 }
 
 /* static */
@@ -530,115 +527,115 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
       std::make_shared<std::optional<ValueOrError<ResolvePathOutput>>>();
   using futures::IterationControlCommand;
   using futures::Past;
-  using futures::Transform;
-  return Transform(
-      futures::ForEachWithCopy(
-          input.search_paths.begin(), input.search_paths.end(),
-          [input, output](Path search_path) {
-            struct State {
-              const Path search_path;
-              size_t str_end;
-            };
-            auto state = std::make_shared<State>(
-                State{.search_path = std::move(search_path),
-                      .str_end = input.path.size()});
-            return futures::Transform(
-                futures::While([input, output, state]() {
-                  if (state->str_end == input.path.npos ||
-                      state->str_end == 0) {
-                    return Past(IterationControlCommand::kStop);
-                  }
+  return futures::ForEachWithCopy(
+             input.search_paths.begin(), input.search_paths.end(),
+             [input, output](Path search_path) {
+               struct State {
+                 const Path search_path;
+                 size_t str_end;
+               };
+               auto state = std::make_shared<State>(
+                   State{.search_path = std::move(search_path),
+                         .str_end = input.path.size()});
+               return futures::While([input, output, state]() {
+                        if (state->str_end == input.path.npos ||
+                            state->str_end == 0) {
+                          return Past(IterationControlCommand::kStop);
+                        }
 
-                  auto input_path =
-                      Path::FromString(input.path.substr(0, state->str_end));
-                  if (input_path.IsError()) {
-                    state->str_end =
-                        input.path.find_last_of(':', state->str_end - 1);
-                    return Past(IterationControlCommand::kContinue);
-                  }
-                  auto path_with_prefix =
-                      Path::Join(state->search_path, input_path.value());
-                  return futures::Transform(
-                      input.validator(path_with_prefix.ToString()),
-                      [input, output, state,
-                       path_with_prefix](bool validator_output)
-                          -> futures::Value<IterationControlCommand> {
-                        if (!validator_output) {
+                        auto input_path = Path::FromString(
+                            input.path.substr(0, state->str_end));
+                        if (input_path.IsError()) {
                           state->str_end =
                               input.path.find_last_of(':', state->str_end - 1);
                           return Past(IterationControlCommand::kContinue);
                         }
-                        std::wstring output_pattern = L"";
-                        std::optional<LineColumn> output_position;
-                        for (size_t i = 0; i < 2; i++) {
-                          while (state->str_end < input.path.size() &&
-                                 ':' == input.path[state->str_end]) {
-                            state->str_end++;
-                          }
-                          if (state->str_end == input.path.size()) {
-                            break;
-                          }
-                          size_t next_str_end =
-                              input.path.find(':', state->str_end);
-                          const wstring arg =
-                              input.path.substr(state->str_end, next_str_end);
-                          if (i == 0 && arg.size() > 0 && arg[0] == '/') {
-                            output_pattern = arg.substr(1);
-                            break;
-                          } else {
-                            size_t value;
-                            try {
-                              value = stoi(arg);
-                              if (value > 0) {
-                                value--;
+                        auto path_with_prefix =
+                            Path::Join(state->search_path, input_path.value());
+                        return input.validator(path_with_prefix.ToString())
+                            .Transform([input, output, state,
+                                        path_with_prefix](bool validator_output)
+                                           -> IterationControlCommand {
+                              if (!validator_output) {
+                                state->str_end = input.path.find_last_of(
+                                    ':', state->str_end - 1);
+                                return IterationControlCommand::kContinue;
                               }
-                            } catch (const std::invalid_argument& ia) {
-                              LOG(INFO)
-                                  << "stoi failed: invalid argument: " << arg;
-                              break;
-                            } catch (const std::out_of_range& ia) {
-                              LOG(INFO) << "stoi failed: out of range: " << arg;
-                              break;
-                            }
-                            if (!output_position.has_value()) {
-                              output_position = LineColumn();
-                            }
-                            if (i == 0) {
-                              output_position->line = LineNumber(value);
-                            } else {
-                              output_position->column = ColumnNumber(value);
-                            }
-                          }
-                          state->str_end = next_str_end;
-                          if (state->str_end == input.path.npos) {
-                            break;
-                          }
-                        }
-                        auto resolved = path_with_prefix.Resolve();
-                        *output = Success(ResolvePathOutput{
-                            .path = resolved.IsError() ? path_with_prefix
-                                                       : resolved.value(),
-                            .position = output_position,
-                            .pattern = output_pattern});
-                        VLOG(4) << "Resolved path: "
-                                << output->value().value().path;
-                        return Past(IterationControlCommand::kStop);
-                      });
-                }),
-                [output](IterationControlCommand) {
-                  return output->has_value()
-                             ? IterationControlCommand::kStop
-                             : IterationControlCommand::kContinue;
-                });
-          }),
-      [output](IterationControlCommand) -> ValueOrError<ResolvePathOutput> {
-        if (output->has_value()) return output->value();
+                              std::wstring output_pattern = L"";
+                              std::optional<LineColumn> output_position;
+                              for (size_t i = 0; i < 2; i++) {
+                                while (state->str_end < input.path.size() &&
+                                       ':' == input.path[state->str_end]) {
+                                  state->str_end++;
+                                }
+                                if (state->str_end == input.path.size()) {
+                                  break;
+                                }
+                                size_t next_str_end =
+                                    input.path.find(':', state->str_end);
+                                const wstring arg = input.path.substr(
+                                    state->str_end, next_str_end);
+                                if (i == 0 && arg.size() > 0 && arg[0] == '/') {
+                                  output_pattern = arg.substr(1);
+                                  break;
+                                } else {
+                                  size_t value;
+                                  try {
+                                    value = stoi(arg);
+                                    if (value > 0) {
+                                      value--;
+                                    }
+                                  } catch (const std::invalid_argument& ia) {
+                                    LOG(INFO)
+                                        << "stoi failed: invalid argument: "
+                                        << arg;
+                                    break;
+                                  } catch (const std::out_of_range& ia) {
+                                    LOG(INFO)
+                                        << "stoi failed: out of range: " << arg;
+                                    break;
+                                  }
+                                  if (!output_position.has_value()) {
+                                    output_position = LineColumn();
+                                  }
+                                  if (i == 0) {
+                                    output_position->line = LineNumber(value);
+                                  } else {
+                                    output_position->column =
+                                        ColumnNumber(value);
+                                  }
+                                }
+                                state->str_end = next_str_end;
+                                if (state->str_end == input.path.npos) {
+                                  break;
+                                }
+                              }
+                              auto resolved = path_with_prefix.Resolve();
+                              *output = Success(ResolvePathOutput{
+                                  .path = resolved.IsError() ? path_with_prefix
+                                                             : resolved.value(),
+                                  .position = output_position,
+                                  .pattern = output_pattern});
+                              VLOG(4) << "Resolved path: "
+                                      << output->value().value().path;
+                              return IterationControlCommand::kStop;
+                            });
+                      })
+                   .Transform([output](IterationControlCommand) {
+                     return output->has_value()
+                                ? IterationControlCommand::kStop
+                                : IterationControlCommand::kContinue;
+                   });
+             })
+      .Transform(
+          [output](IterationControlCommand) -> ValueOrError<ResolvePathOutput> {
+            if (output->has_value()) return output->value();
 
-        // TODO(easy): Give a better error. Perhaps include the paths in which
-        // we searched? Perhaps the last result of the validator?
-        return ValueOrError<ResolvePathOutput>(
-            Error(L"Unable to resolve file."));
-      });
+            // TODO(easy): Give a better error. Perhaps include the paths in
+            // which we searched? Perhaps the last result of the validator?
+            return ValueOrError<ResolvePathOutput>(
+                Error(L"Unable to resolve file."));
+          });
 }
 
 struct OpenFileResolvePathOutput {
@@ -734,15 +731,15 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
   auto file_system_driver =
       std::make_shared<FileSystemDriver>(options.editor_state->work_queue());
 
-  return futures::Transform(
-      search_paths_future,
-      [editor_state, options, search_paths, file_system_driver](EmptyValue) {
+  return search_paths_future
+      .Transform([editor_state, options, search_paths,
+                  file_system_driver](EmptyValue) {
         return OpenFileResolvePath(editor_state, search_paths, options.path,
                                    options.ignore_if_not_found,
                                    file_system_driver);
-      },
-      [editor_state, options,
-       file_system_driver](OpenFileResolvePathOutput input) {
+      })
+      .Transform([editor_state, options,
+                  file_system_driver](OpenFileResolvePathOutput input) {
         if (input.buffer.has_value()) {
           return input.buffer.value();  // Found the buffer, just return it.
         }
@@ -831,8 +828,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> OpenAnonymousBuffer(
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
-  return futures::Transform(OpenFile(options),
-                            [](auto it) { return it->second; });
+  return OpenFile(options).Transform([](auto it) { return it->second; });
 }
 
 }  // namespace editor

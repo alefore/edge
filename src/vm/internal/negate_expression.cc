@@ -24,9 +24,8 @@ class NegateExpression : public Expression {
 
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType&) override {
-    return futures::Transform(
-        trampoline->Bounce(expr_.get(), expr_->Types()[0]),
-        [negate = negate_](EvaluationOutput expr_output) {
+    return trampoline->Bounce(expr_.get(), expr_->Types()[0])
+        .Transform([negate = negate_](EvaluationOutput expr_output) {
           if (expr_output.type == EvaluationOutput::OutputType::kAbort)
             return expr_output;
           CHECK(expr_output.value != nullptr);

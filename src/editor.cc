@@ -79,14 +79,14 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
 
     auto editor = static_cast<EditorState*>(args[0]->user_value.get());
     CHECK(editor != nullptr);
-    return futures::Transform(
-        editor->ForEachActiveBuffer(
+    return editor
+        ->ForEachActiveBuffer(
             [method](const std::shared_ptr<OpenBuffer>& buffer) {
               CHECK(buffer != nullptr);
               (*buffer.*method)();
               return futures::Past(EmptyValue());
-            }),
-        [editor](EmptyValue) {
+            })
+        .Transform([editor](EmptyValue) {
           editor->ResetModifiers();
           return EvaluationOutput::New(Value::NewVoid());
         });
@@ -226,21 +226,20 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
              Trampoline* trampoline) {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
-            return futures::Transform(
-                editor->ForEachActiveBuffer([callback =
-                                                 std::move(input[1]->callback),
-                                             trampoline](
-                                                std::shared_ptr<OpenBuffer>
-                                                    buffer) {
+            return editor
+                ->ForEachActiveBuffer([callback = std::move(input[1]->callback),
+                                       trampoline](
+                                          std::shared_ptr<OpenBuffer> buffer) {
                   std::vector<std::unique_ptr<Value>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
                           std::move(buffer)));
-                  return futures::Transform(
-                      callback(std::move(args), trampoline),
-                      futures::Past(EmptyValue()));
-                }),
-                futures::Past(EvaluationOutput::Return(Value::NewVoid())));
+                  return callback(std::move(args), trampoline)
+                      .Transform([](EvaluationOutput) { return EmptyValue(); });
+                })
+                .Transform([](EmptyValue) {
+                  return EvaluationOutput::Return(Value::NewVoid());
+                });
           }));
 
   editor_type->AddField(
@@ -254,19 +253,21 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
              Trampoline* trampoline) {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
-            return futures::Transform(
-                editor->ForEachActiveBufferWithRepetitions(
+            return editor
+                ->ForEachActiveBufferWithRepetitions(
                     [callback = std::move(input[1]->callback),
                      trampoline](std::shared_ptr<OpenBuffer> buffer) {
                       std::vector<std::unique_ptr<Value>> args;
                       args.push_back(
                           VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::
                               New(std::move(buffer)));
-                      return futures::Transform(
-                          callback(std::move(args), trampoline),
-                          futures::Past(EmptyValue()));
-                    }),
-                futures::Past(EvaluationOutput::Return(Value::NewVoid())));
+                      return callback(std::move(args), trampoline)
+                          .Transform(
+                              [](EvaluationOutput) { return EmptyValue(); });
+                    })
+                .Transform([](EmptyValue) {
+                  return EvaluationOutput::Return(Value::NewVoid());
+                });
           }));
 
   editor_type->AddField(L"ProcessInput",
@@ -323,16 +324,16 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                   });
               values->push_back(std::move(future.value));
             }
-            return futures::Transform(
-                futures::ForEach(
-                    values->begin(), values->end(),
-                    [values](futures::Value<EmptyValue> future) {
-                      return futures::Transform(
-                          future,
-                          futures::Past(
-                              futures::IterationControlCommand::kContinue));
-                    }),
-                futures::Past(EvaluationOutput::Return(Value::NewVoid())));
+            return futures::ForEach(
+                       values->begin(), values->end(),
+                       [values](futures::Value<EmptyValue> future) {
+                         return future.Transform([](EmptyValue) {
+                           return futures::IterationControlCommand::kContinue;
+                         });
+                       })
+                .Transform([](futures::IterationControlCommand) {
+                  return EvaluationOutput::Return(Value::NewVoid());
+                });
           }));
 
   editor_type->AddField(L"SendExitTo",
@@ -406,8 +407,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             options.insertion_type = args[2]->boolean
                                          ? BuffersList::AddBufferType::kVisit
                                          : BuffersList::AddBufferType::kIgnore;
-            return futures::Transform(
-                OpenFile(options),
+            return OpenFile(options).Transform(
                 [](map<wstring, shared_ptr<OpenBuffer>>::iterator result) {
                   return EvaluationOutput::Return(
                       Value::NewObject(L"Buffer", result->second));
@@ -510,14 +510,15 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       return futures::Past(futures::IterationControlCommand::kContinue);
     }
     LOG(INFO) << "Evaluating file: " << path;
-    return futures::Transform(
-        Evaluate(
-            expression.get(), environment_,
-            [path, work_queue = work_queue()](std::function<void()> resume) {
-              LOG(INFO) << "Evaluation of file yields: " << path;
-              work_queue->Schedule(std::move(resume));
-            }),
-        futures::Past(futures::IterationControlCommand::kContinue));
+    return Evaluate(
+               expression.get(), environment_,
+               [path, work_queue = work_queue()](std::function<void()> resume) {
+                 LOG(INFO) << "Evaluation of file yields: " << path;
+                 work_queue->Schedule(std::move(resume));
+               })
+        .Transform([](std::unique_ptr<Value>) {
+          return futures::IterationControlCommand::kContinue;
+        });
   });
 }
 
@@ -687,15 +688,14 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
         futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
         callback) {
   auto buffers = active_buffers();
-  return futures::Transform(
-      futures::ForEachWithCopy(
-          buffers.begin(), buffers.end(),
-          [callback](const std::shared_ptr<OpenBuffer>& buffer) {
-            return futures::Transform(
-                callback(buffer),
-                futures::Past(futures::IterationControlCommand::kContinue));
-          }),
-      futures::Past(EmptyValue()));
+  return futures::ForEachWithCopy(
+             buffers.begin(), buffers.end(),
+             [callback](const std::shared_ptr<OpenBuffer>& buffer) {
+               return callback(buffer).Transform([](EmptyValue) {
+                 return futures::IterationControlCommand::kContinue;
+               });
+             })
+      .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
 }
 
 futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
@@ -711,7 +711,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
              buffer != nullptr) {
     value = callback(buffer);
   }
-  return futures::Transform(value, [this](EmptyValue) {
+  return value.Transform([this](EmptyValue) {
     ResetModifiers();
     return EmptyValue();
   });
@@ -926,8 +926,7 @@ void EditorState::PushPosition(LineColumn position) {
                                 Path::FromString(L"positions").value());
     }
     options.insertion_type = BuffersList::AddBufferType::kIgnore;
-    positions_buffer = futures::Transform(
-        OpenFile(options),
+    positions_buffer = OpenFile(options).Transform(
         [](map<wstring, shared_ptr<OpenBuffer>>::iterator buffer_it) {
           CHECK(buffer_it->second != nullptr);
           buffer_it->second->Set(buffer_variables::save_on_close, true);
@@ -1040,18 +1039,17 @@ void EditorState::ProcessSignals() {
 
 bool EditorState::handling_stop_signals() const {
   auto buffers = active_buffers();
-  return futures::Transform(
-             futures::ForEachWithCopy(
-                 buffers.begin(), buffers.end(),
-                 [](const std::shared_ptr<OpenBuffer>& buffer) {
-                   return futures::Past(
-                       buffer->Read(buffer_variables::pts)
-                           ? futures::IterationControlCommand::kStop
-                           : futures::IterationControlCommand::kContinue);
-                 }),
-             [](futures::IterationControlCommand c) {
-               return c == futures::IterationControlCommand::kStop;
+  return futures::ForEachWithCopy(
+             buffers.begin(), buffers.end(),
+             [](const std::shared_ptr<OpenBuffer>& buffer) {
+               return futures::Past(
+                   buffer->Read(buffer_variables::pts)
+                       ? futures::IterationControlCommand::kStop
+                       : futures::IterationControlCommand::kContinue);
              })
+      .Transform([](futures::IterationControlCommand c) {
+        return c == futures::IterationControlCommand::kStop;
+      })
       .Get()
       .value();
 }

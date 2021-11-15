@@ -67,10 +67,9 @@ class PredictorTransformation : public CompositeTransformation {
     // caller, based on its outputs.
     predict_options.source_buffers.push_back(
         std::const_pointer_cast<OpenBuffer>(input.buffer->shared_from_this()));
-    return futures::Transform(
-        Predict(std::move(predict_options)),
-        [text = text_,
-         buffer = input.buffer](std::optional<PredictResults> results) {
+    return Predict(std::move(predict_options))
+        .Transform([text = text_, buffer = input.buffer](
+                       std::optional<PredictResults> results) {
           if (!results.has_value()) {
             return Output();
           }
@@ -177,10 +176,9 @@ class Execute : public CompositeTransformation {
   std::wstring Serialize() const override { return L"Execute();"; }
 
   futures::Value<Output> Apply(Input input) const override {
-    return futures::Transform(
-        RunCppCommandShell(command_, input.editor),
-        [command_size = command_.size(),
-         editor = input.editor](std::unique_ptr<Value> value) {
+    return RunCppCommandShell(command_, input.editor)
+        .Transform([command_size = command_.size(),
+                    editor = input.editor](std::unique_ptr<Value> value) {
           Output output;
           if (value != nullptr && value->IsString()) {
             auto buffer_to_insert =

@@ -29,9 +29,8 @@ class AppendExpression : public Expression {
 
   futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                             const VMType&) override {
-    return futures::Transform(
-        trampoline->Bounce(e0_.get(), e0_->Types()[0]),
-        [trampoline, e1 = e1_](EvaluationOutput e0_output) {
+    return trampoline->Bounce(e0_.get(), e0_->Types()[0])
+        .Transform([trampoline, e1 = e1_](EvaluationOutput e0_output) {
           switch (e0_output.type) {
             case EvaluationOutput::OutputType::kReturn:
             case EvaluationOutput::OutputType::kAbort:

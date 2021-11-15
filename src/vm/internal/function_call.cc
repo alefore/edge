@@ -288,10 +288,9 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
       futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                                 const VMType& type) override {
-        return futures::Transform(
-            trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0]),
-            [type, shared_type = type_,
-             shared_delegate = delegate_](EvaluationOutput output) {
+        return trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0])
+            .Transform([type, shared_type = type_,
+                        shared_delegate = delegate_](EvaluationOutput output) {
               return EvaluationOutput::New(Value::NewFunction(
                   shared_type->type_arguments,
                   [obj = std::shared_ptr(std::move(output.value)),

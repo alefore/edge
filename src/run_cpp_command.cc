@@ -47,16 +47,15 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
   if (result == std::nullopt) {
     return futures::Past(EmptyValue());
   }
-  return futures::Transform(
-      result.value(), [buffer](std::unique_ptr<Value> value) {
-        CHECK(value != nullptr);
-        if (value->IsVoid()) return EmptyValue();
-        std::ostringstream oss;
-        CHECK(value != nullptr);
-        oss << "Evaluation result: " << *value;
-        buffer->status()->SetInformationText(FromByteString(oss.str()));
-        return EmptyValue();
-      });
+  return result.value().Transform([buffer](std::unique_ptr<Value> value) {
+    CHECK(value != nullptr);
+    if (value->IsVoid()) return EmptyValue();
+    std::ostringstream oss;
+    CHECK(value != nullptr);
+    oss << "Evaluation result: " << *value;
+    buffer->status()->SetInformationText(FromByteString(oss.str()));
+    return EmptyValue();
+  });
 }
 
 struct ParsedCommand {
@@ -183,8 +182,9 @@ futures::ValueOrError<std::unique_ptr<Value>> Execute(
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
     const std::wstring& command, EditorState* editor_state) {
-  return futures::Transform(RunCppCommandShell(command, editor_state),
-                            futures::Past(EmptyValue()));
+  return RunCppCommandShell(command, editor_state).Transform([](auto) {
+    return EmptyValue();
+  });
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(

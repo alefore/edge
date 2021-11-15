@@ -636,25 +636,24 @@ futures::Value<std::unique_ptr<Value>> Evaluate(
   options.environment = std::move(environment);
   options.yield_callback = yield_callback;
   auto trampoline = std::make_shared<Trampoline>(options);
-  return futures::Transform(trampoline->Bounce(expr, expr->Types()[0]),
-                            [trampoline](EvaluationOutput value) {
-                              DVLOG(4) << "Evaluation done.";
-                              switch (value.type) {
-                                case EvaluationOutput::OutputType::kContinue:
-                                case EvaluationOutput::OutputType::kReturn:
-                                  CHECK(value.value != nullptr);
-                                  DVLOG(5) << "Result: " << *value.value;
-                                  return std::move(value.value);
-                                case EvaluationOutput::OutputType::kAbort:
-                                  LOG(INFO) << "Evaluation error: "
-                                            << value.error.value();
-                                  // TODO(easy): Adjust the return type to be a
-                                  // ValueOrError and don't swallow the error.
-                                  return Value::NewVoid();
-                              }
-                              LOG(FATAL) << "Unhandled OutputType.";
-                              return Value::NewVoid();
-                            });
+  return trampoline->Bounce(expr, expr->Types()[0])
+      .Transform([trampoline](EvaluationOutput value) {
+        DVLOG(4) << "Evaluation done.";
+        switch (value.type) {
+          case EvaluationOutput::OutputType::kContinue:
+          case EvaluationOutput::OutputType::kReturn:
+            CHECK(value.value != nullptr);
+            DVLOG(5) << "Result: " << *value.value;
+            return std::move(value.value);
+          case EvaluationOutput::OutputType::kAbort:
+            LOG(INFO) << "Evaluation error: " << value.error.value();
+            // TODO(easy): Adjust the return type to be a ValueOrError and don't
+            // swallow the error.
+            return Value::NewVoid();
+        }
+        LOG(FATAL) << "Unhandled OutputType.";
+        return Value::NewVoid();
+      });
 }
 
 }  // namespace vm

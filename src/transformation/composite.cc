@@ -73,10 +73,9 @@ futures::Value<Result> ApplyBase(const Modifiers& modifiers,
   input.modifiers = modifiers;
   std::shared_ptr<Log> trace =
       input.buffer->log()->NewChild(L"ApplyBase(CompositeTransformation)");
-  return futures::Transform(
-      transformation->Apply(std::move(input)),
-      [transformation_input,
-       trace = std::move(trace)](CompositeTransformation::Output output) {
+  return transformation->Apply(std::move(input))
+      .Transform([transformation_input, trace = std::move(trace)](
+                     CompositeTransformation::Output output) {
         return Apply(std::move(*output.stack), transformation_input);
       });
 }
