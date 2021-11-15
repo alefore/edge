@@ -100,18 +100,6 @@ struct TransformTraits<editor::ValueOrError<InitialType>, Callable> {
   }
 };
 
-template <typename InitialType, typename Callable>
-auto Transform(Value<InitialType> delayed_value, Callable callable) {
-  using Traits = TransformTraits<InitialType, Callable>;
-  Future<typename Traits::ReturnType::type> output;
-  delayed_value.SetConsumer(
-      [consumer = output.consumer,
-       callable = std::move(callable)](InitialType initial_value) mutable {
-        Traits::FeedValue(std::move(initial_value), callable, consumer);
-      });
-  return output.value;
-}
-
 // TODO(ms0): If A can be converted to type B, make it possible for Value<A> to
 // be converted to Value<B> implicitly.
 template <typename Type>
@@ -135,7 +123,13 @@ class Value {
 
   template <typename Callable>
   auto Transform(Callable callable) {
-    return futures::Transform(*this, std::move(callable));
+    using Traits = TransformTraits<Type, Callable>;
+    Future<typename Traits::ReturnType::type> output;
+    SetConsumer([consumer = output.consumer,
+                 callable = std::move(callable)](Type initial_value) mutable {
+      Traits::FeedValue(std::move(initial_value), callable, consumer);
+    });
+    return output.value;
   }
 
   // Turns a futures::Value<ValueOrError<T>> into a futures::Value<T>; if the
@@ -320,32 +314,14 @@ ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
   return future.value;
 }
 
-template <typename InitialType, typename Type>
-auto Transform(Value<InitialType> delayed_value, Value<Type> value) {
-  return Transform(delayed_value,
-                   [value = std::move(value)](
-                       const InitialType&) -> Value<Type> { return value; });
-}
-
-template <typename T0>
-auto Transform(Value<T0> t0) {
-  return t0;
-}
-
-template <typename T0, typename T1, typename... Args>
-auto Transform(Value<T0> t0, T1 t1, Args... args) {
-  return Transform(Transform(std::move(t0), std::move(t1)), args...);
-}
-
 template <typename Iterator, typename Callable>
 Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
                                                Callable callable) {
   auto copy = std::make_shared<std::vector<typename std::remove_const<
       typename std::remove_reference<decltype(*begin)>::type>::type>>(begin,
                                                                       end);
-  return futures::Transform(
-      ForEach(copy->begin(), copy->end(), std::move(callable)),
-      [copy](IterationControlCommand output) { return output; });
+  return ForEach(copy->begin(), copy->end(), std::move(callable))
+      .Transform([copy](IterationControlCommand output) { return output; });
 }
 
 }  // namespace afc::futures

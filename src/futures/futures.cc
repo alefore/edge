@@ -29,7 +29,7 @@ const bool futures_transform_tests_registration = tests::Register(
              [] {
                std::optional<ValueOrError<bool>> final_result;
                Future<ValueOrError<bool>> inner_value;
-               auto value = futures::Transform(inner_value.value, [](bool) {
+               auto value = inner_value.value.Transform([](bool) {
                  CHECK(false);
                  return Success(true);
                });
@@ -43,8 +43,8 @@ const bool futures_transform_tests_registration = tests::Register(
              [] {
                std::optional<ValueOrError<bool>> final_result;
                Future<ValueOrError<bool>> inner_value;
-               auto value = futures::Transform(
-                   inner_value.value, [](bool) { return Success(true); });
+               auto value = inner_value.value.Transform(
+                   [](bool) { return Success(true); });
                value.SetConsumer(
                    [&](ValueOrError<bool> result) { final_result = result; });
                inner_value.consumer(Error(L"xyz"));
