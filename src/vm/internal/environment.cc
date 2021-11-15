@@ -1,4 +1,4 @@
-#include "../public/environment.h"
+#include "src/vm/public/environment.h"
 
 #include <glog/logging.h>
 
@@ -139,15 +139,15 @@ void Environment::DefineType(const wstring& name,
   it.first->second = std::move(value);
 }
 
-Value* Environment::Lookup(const Namespace& symbol_namespace,
-                           const wstring& symbol, VMType expected_type) {
+std::unique_ptr<Value> Environment::Lookup(const Namespace& symbol_namespace,
+                                           const wstring& symbol,
+                                           VMType expected_type) {
   std::vector<Value*> values;
   PolyLookup(symbol_namespace, symbol, &values);
   for (auto& value : values) {
     if (auto callback = GetImplicitPromotion(value->type, expected_type);
         callback != nullptr) {
-      // TODO: Ugh, don't leak memory here.
-      return callback(std::make_unique<Value>(*value)).release();
+      return callback(std::make_unique<Value>(*value));
     }
   }
   return nullptr;

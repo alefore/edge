@@ -44,8 +44,8 @@ class Environment {
   const VMType* LookupType(const wstring& symbol);
   void DefineType(const wstring& name, unique_ptr<ObjectType> value);
 
-  Value* Lookup(const Namespace& symbol_namespace, const wstring& symbol,
-                VMType expected_type);
+  std::unique_ptr<Value> Lookup(const Namespace& symbol_namespace,
+                                const wstring& symbol, VMType expected_type);
 
   // TODO(easy): Remove; switch all callers to the version that takes the
   // namespace.

@@ -91,13 +91,14 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
   }
 
   if (contents == nullptr) return;
-  Value* callback = contents->environment()->Lookup(
+  auto callback = contents->environment()->Lookup(
       Environment::Namespace(), L"EdgeLineDeleteHandler",
       VMType::Function({VMType::Void()}));
   if (callback == nullptr) return;
   LOG(INFO) << "Running EdgeLineDeleteHandler.";
-  std::shared_ptr<Expression> expr = vm::NewFunctionCall(
-      vm::NewConstantExpression(std::make_unique<Value>(*callback)), {});
+  std::shared_ptr<Expression> expr =
+      vm::NewFunctionCall(vm::NewConstantExpression(std::move(callback)), {});
+  // TODO(easy): I think we don't need to keep expr alive?
   Evaluate(
       expr.get(), buffer->environment(),
       [work_queue = target_buffer->work_queue()](

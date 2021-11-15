@@ -255,7 +255,7 @@ class InsertMode : public EditorMode {
       case Terminal::CTRL_U: {
         ResetScrollBehavior();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
-        Value* callback = editor_state->environment()->Lookup(
+        std::shared_ptr<Value> callback = editor_state->environment()->Lookup(
             Environment::Namespace(), L"HandleKeyboardControlU",
             VMType::Function(
                 {VMType::Void(),

@@ -355,7 +355,7 @@ class ForkEditorCommand : public Command {
   struct PromptState {
     const std::shared_ptr<OpenBuffer> original_buffer;
     std::optional<std::wstring> base_command;
-    afc::vm::Value* context_command_callback;
+    std::unique_ptr<const afc::vm::Value> context_command_callback;
   };
 
  public:

@@ -33,14 +33,13 @@ class VariableLookup : public Expression {
     // DVLOG(5) << "Look up symbol: " << symbol_;
     CHECK(trampoline != nullptr);
     CHECK(trampoline->environment() != nullptr);
-    Value* result =
-        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type);
-    CHECK(result != nullptr)
+    auto result = EvaluationOutput::New(
+        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type));
+    CHECK(result.value != nullptr)
         << "Invalid lookup: " << afc::editor::ToByteString(symbol_)
         << " (type: " << type << ")";
-    DVLOG(5) << "Variable lookup: " << *result;
-    return futures::Past(
-        EvaluationOutput::New(std::make_unique<Value>(*result)));
+    DVLOG(5) << "Variable lookup: " << *result.value;
+    return futures::Past(std::move(result));
   }
 
   std::unique_ptr<Expression> Clone() override {
