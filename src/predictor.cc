@@ -100,6 +100,7 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
           Environment::Namespace(), kLongestPrefixEnvironmentVariable,
           VMType::VM_INTEGER);
       value != nullptr) {
+    CHECK(value->IsInteger());
     predict_results.longest_prefix = ColumnNumberDelta(value->integer);
   }
 
@@ -107,6 +108,7 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
           Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
           VMType::VM_INTEGER);
       value != nullptr) {
+    CHECK(value->IsInteger());
     predict_results.longest_directory_match = ColumnNumberDelta(value->integer);
   }
 
@@ -114,6 +116,7 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
           Environment::Namespace(), kExactMatchEnvironmentVariable,
           VMType::VM_BOOLEAN);
       value != nullptr) {
+    CHECK(value->IsBool());
     predict_results.found_exact_match = value->boolean;
   }
 
@@ -496,7 +499,10 @@ void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer* buffer) {
                                              kLongestPrefixEnvironmentVariable,
                                              VMType::VM_INTEGER);
   if (value == nullptr) return;
-  value->integer = std::max(value->integer, static_cast<int>(new_value));
+  buffer->environment()->Assign(
+      kLongestPrefixEnvironmentVariable,
+      vm::Value::NewInteger(
+          std::max(value->integer, static_cast<int>(new_value))));
 }
 
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer* buffer) {
@@ -504,7 +510,10 @@ void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer* buffer) {
       Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
       VMType::VM_INTEGER);
   if (value == nullptr) return;
-  value->integer = std::max(value->integer, static_cast<int>(new_value));
+  buffer->environment()->Assign(
+      kLongestDirectoryMatchEnvironmentVariable,
+      vm::Value::NewInteger(
+          std::max(value->integer, static_cast<int>(new_value))));
 }
 
 void RegisterPredictorExactMatch(OpenBuffer* buffer) {
@@ -512,7 +521,8 @@ void RegisterPredictorExactMatch(OpenBuffer* buffer) {
                                              kExactMatchEnvironmentVariable,
                                              VMType::VM_BOOLEAN);
   if (value == nullptr) return;
-  value->boolean = true;
+  buffer->environment()->Assign(kExactMatchEnvironmentVariable,
+                                vm::Value::NewBool(true));
 }
 
 Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
