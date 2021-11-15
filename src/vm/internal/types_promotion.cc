@@ -12,6 +12,7 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
       switch (desired.type) {
         case VMType::VM_DOUBLE:
           return [](std::unique_ptr<Value> value) {
+            CHECK(value->IsInteger());
             return Value::NewDouble(value->integer);
           };
         default:
@@ -27,9 +28,12 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
           std::vector<PromotionCallback> argument_callbacks;
           for (size_t i = 0; i < original.type_arguments.size(); i++) {
             // Undo the promotion: we deliberately swap the order of desired and
-            // original parameters.
-            if (auto argument_callback = GetImplicitPromotion(
-                    desired.type_arguments[i], original.type_arguments[i]);
+            // original parameters for the function arguments.
+            if (auto argument_callback =
+                    i == 0 ? GetImplicitPromotion(original.type_arguments[i],
+                                                  desired.type_arguments[i])
+                           : GetImplicitPromotion(desired.type_arguments[i],
+                                                  original.type_arguments[i]);
                 argument_callback != nullptr) {
               argument_callbacks.push_back(std::move(argument_callback));
             } else {
