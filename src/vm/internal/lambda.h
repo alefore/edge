@@ -25,6 +25,7 @@ struct UserFunction {
                                     std::unique_ptr<Expression> body,
                                     std::wstring* error);
   void Abort(Compilation* compilation);
+  void Done(Compilation* compilation);
 
   std::optional<std::wstring> name;
   VMType type;

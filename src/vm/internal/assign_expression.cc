@@ -67,14 +67,36 @@ class AssignExpression : public Expression {
 };
 }  // namespace
 
+std::optional<VMType> NewDefineTypeExpression(
+    Compilation* compilation, std::wstring type, std::wstring symbol,
+    std::optional<VMType> default_type) {
+  VMType type_def;
+  if (type == L"auto") {
+    if (default_type == std::nullopt) {
+      compilation->errors.push_back(L"Unable to deduce type.");
+      return std::nullopt;
+    }
+    type_def = default_type.value();
+  } else {
+    auto type_ptr = compilation->environment->LookupType(type);
+    if (type_ptr == nullptr) {
+      compilation->errors.push_back(L"Unknown type: `" + type +
+                                    L"` for symbol `" + symbol + L"`.");
+      return std::nullopt;
+    }
+    type_def = *type_ptr;
+  }
+  compilation->environment->Define(symbol, std::make_unique<Value>(type_def));
+  return type_def;
+}
+
 std::unique_ptr<Expression> NewDefineExpression(
     Compilation* compilation, std::wstring type, std::wstring symbol,
     std::unique_ptr<Expression> value) {
   if (value == nullptr) {
     return nullptr;
   }
-
-  VMType type_def;
+  std::optional<VMType> default_type;
   if (type == L"auto") {
     auto types = value->Types();
     if (types.size() != 1) {
@@ -82,24 +104,18 @@ std::unique_ptr<Expression> NewDefineExpression(
                                     symbol + L"`.");
       return nullptr;
     }
-    type_def = *types.cbegin();
-  } else {
-    auto type_ptr = compilation->environment->LookupType(type);
-    if (type_ptr == nullptr) {
-      compilation->errors.push_back(L"Unknown type: `" + type +
-                                    L"` for symbol `" + symbol + L"`.");
-      return nullptr;
-    }
-    type_def = *type_ptr;
-    if (!value->SupportsType(type_def)) {
-      compilation->errors.push_back(
-          L"Unable to assign a value to a variable of type \"" +
-          type_def.ToString() + L"\". Value types: " +
-          TypesToString(value->Types()));
-      return nullptr;
-    }
+    default_type = *types.cbegin();
   }
-  compilation->environment->Define(symbol, std::make_unique<Value>(type_def));
+  auto vmtype =
+      NewDefineTypeExpression(compilation, type, symbol, default_type);
+  if (vmtype == std::nullopt) return nullptr;
+  if (!value->SupportsType(*vmtype)) {
+    compilation->errors.push_back(
+        L"Unable to assign a value to a variable of type \"" +
+        vmtype->ToString() + L"\". Value types: " +
+        TypesToString(value->Types()));
+    return nullptr;
+  }
   return std::make_unique<AssignExpression>(
       AssignExpression::AssignmentType::kDefine, std::move(symbol),
       std::move(value));

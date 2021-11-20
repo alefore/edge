@@ -98,7 +98,6 @@ statement(OUT) ::= function_declaration_params(FUNC)
   } else if (BODY == nullptr) {
     // Compilation of the body failed. We should try to restore the environment.
     FUNC->Abort(compilation);
-    delete FUNC;
     OUT = nullptr;
   } else {
     std::wstring error;
@@ -180,6 +179,31 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
 assignment_statement(A) ::= expr(VALUE) . {
   A = VALUE;
   VALUE = nullptr;
+}
+
+// Declaration of a function (signature).
+assignment_statement(OUT) ::= function_declaration_params(FUNC). {
+  if (FUNC == nullptr) {
+    OUT = nullptr;
+  } else {
+    CHECK(FUNC->name.has_value());
+    auto result = NewDefineTypeExpression(
+        compilation, L"auto", *FUNC->name, FUNC->type);
+    if (result == std::nullopt) {
+      OUT = nullptr;
+      FUNC->Abort(compilation);
+    } else {
+      OUT = NewVoidExpression().release();
+      FUNC->Done(compilation);
+    }
+  }
+}
+
+assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
+  auto result = NewDefineTypeExpression(compilation, TYPE->str, NAME->str, {});
+  delete TYPE;
+  delete NAME;
+  A = result == std::nullopt ? nullptr : NewVoidExpression().release();
 }
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
@@ -302,7 +326,6 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
     OUT = nullptr;
   } else if (BODY == nullptr) {
     FUNC->Abort(compilation);
-    delete FUNC;
     OUT = nullptr;
   } else {
     std::wstring error;

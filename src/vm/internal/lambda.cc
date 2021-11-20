@@ -175,10 +175,13 @@ std::unique_ptr<Expression> UserFunction::BuildExpression(
 }
 
 void UserFunction::Abort(Compilation* compilation) {
-  compilation->environment = compilation->environment->parent_environment();
+  Done(compilation);
   if (name.has_value()) {
     compilation->environment->Remove(name.value(), type);
   }
 }
 
+void UserFunction::Done(Compilation* compilation) {
+  compilation->environment = compilation->environment->parent_environment();
+}
 }  // namespace afc::vm
