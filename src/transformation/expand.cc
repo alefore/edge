@@ -7,6 +7,7 @@
 #include "src/file_link_mode.h"
 #include "src/predictor.h"
 #include "src/run_cpp_command.h"
+#include "src/tests/tests.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
@@ -110,9 +111,17 @@ class PredictorTransformation : public CompositeTransformation {
   const std::wstring text_;
 };
 
+using OpenFileCallback = std::function<
+    futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator>(
+        const OpenFileOptions& options)>;
+
 class ReadAndInsert : public CompositeTransformation {
  public:
-  ReadAndInsert(Path path) : path_(std::move(path)) {}
+  ReadAndInsert(Path path, OpenFileCallback open_file_callback)
+      : path_(std::move(path)),
+        open_file_callback_(std::move(open_file_callback)) {
+    CHECK(open_file_callback_ != nullptr);
+  }
 
   std::wstring Serialize() const override { return L"ReadAndInsert();"; }
 
@@ -132,9 +141,8 @@ class ReadAndInsert : public CompositeTransformation {
     open_file_options.ignore_if_not_found = true;
     open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
     open_file_options.use_search_paths = false;
-    auto buffer_it = OpenFile(open_file_options);
     futures::Future<Output> output;
-    OpenFile(open_file_options)
+    open_file_callback_(open_file_options)
         .SetConsumer(
             [consumer = std::move(output.consumer), full_path,
              input = std::move(input)](
@@ -142,6 +150,7 @@ class ReadAndInsert : public CompositeTransformation {
               if (buffer_it == input.buffer->editor()->buffers()->end()) {
                 LOG(INFO) << "Unable to open file: " << full_path;
                 consumer(Output());
+                return;
               }
 
               buffer_it->second->AddEndOfFileObserver(
@@ -162,12 +171,42 @@ class ReadAndInsert : public CompositeTransformation {
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {
-    return std::make_unique<ReadAndInsert>(path_);
+    return std::make_unique<ReadAndInsert>(path_, open_file_callback_);
   }
 
  private:
   const Path path_;
+  const OpenFileCallback open_file_callback_;
 };
+
+const bool read_and_insert_tests_registration = tests::Register(
+    L"ReadAndInsert",
+    {
+        {.name = L"BadPathCorrectlyHandled",
+         .callback =
+             [] {
+               auto buffer = NewBufferForTests();
+               std::optional<Path> path_opened;
+               bool transformation_done = false;
+               ReadAndInsert(
+                   Path::FromString(L"unexistent").value(),
+                   [&](OpenFileOptions options) {
+                     path_opened = options.path;
+                     return futures::Past(buffer->editor()->buffers()->end());
+                   })
+                   .Apply(CompositeTransformation::Input{
+                       .editor = buffer->editor(), .buffer = buffer.get()})
+                   .SetConsumer([&](CompositeTransformation::Output) {
+                     transformation_done = true;
+                   });
+               CHECK(transformation_done);
+               CHECK(path_opened.has_value());
+               CHECK(path_opened.value() ==
+                     Path::FromString(
+                         L"/home/edge-test-user/.edge/expand/unexistent")
+                         .value());
+             }},
+    });
 
 class Execute : public CompositeTransformation {
  public:
@@ -216,7 +255,8 @@ class ExpandTransformation : public CompositeTransformation {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output.Push(DeleteLastCharacters(1 + symbol.size()));
         if (auto path = Path::FromString(symbol); !path.IsError()) {
-          transformation = std::make_unique<ReadAndInsert>(path.value());
+          transformation =
+              std::make_unique<ReadAndInsert>(path.value(), OpenFile);
         }
       } break;
       case '/': {
