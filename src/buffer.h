@@ -636,6 +636,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   FileSystemDriver file_system_driver_;
 };
 
+std::shared_ptr<OpenBuffer> NewBufferForTests();
 }  // namespace editor
 namespace vm {
 template <>

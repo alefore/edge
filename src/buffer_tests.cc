@@ -6,22 +6,12 @@
 
 namespace afc::editor {
 namespace {
-EditorState* EditorForTests() {
-  static auto player = NewNullAudioPlayer();
-  static EditorState editor_for_tests(CommandLineValues{}, player.get());
-  return &editor_for_tests;
-}
-
-std::shared_ptr<OpenBuffer> NewBufferForTests() {
-  return OpenBuffer::New({.editor = EditorForTests()});
-}
-
 std::wstring GetMetadata(std::wstring line) {
   auto buffer = NewBufferForTests();
   buffer->AppendToLastLine(NewLazyString(line));
 
   // Gives it a chance to execute:
-  EditorForTests()->work_queue()->Execute();
+  buffer->editor()->work_queue()->Execute();
 
   auto metadata = buffer->LineAt(LineNumber())->metadata();
   auto output = metadata == nullptr ? L"" : metadata->ToString();
