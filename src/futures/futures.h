@@ -190,6 +190,8 @@ class ListenableValue {
     }
   }
 
+  const std::optional<Type>& get() const { return data_->value; }
+
  private:
   struct Data {
     std::optional<Type> value;
