@@ -24,6 +24,11 @@ namespace afc::editor {
   }                                               \
   bool operator!=(const ClassName& other) const { return !(*this == other); }
 
+#define GHOST_TYPE_LT(ClassName, variable)       \
+  bool operator<(const ClassName& other) const { \
+    return variable < other.variable;            \
+  }
+
 class PathComponent {
  public:
   static ValueOrError<PathComponent> FromString(std::wstring component);
@@ -32,6 +37,7 @@ class PathComponent {
   const std::wstring& ToString() const;
 
   GHOST_TYPE_EQ(PathComponent, component_);
+  GHOST_TYPE_LT(PathComponent, component_);
 
   // "hey" => nullopt
   // "hey." => ""
@@ -78,6 +84,7 @@ class Path {
   Path& operator=(Path path);
 
   GHOST_TYPE_EQ(Path, path_);
+  GHOST_TYPE_LT(Path, path_);
 
  protected:
   explicit Path(std::wstring path);
