@@ -111,7 +111,7 @@ class FunctionCall : public Expression {
           CaptureArgs(trampoline, std::move(output.consumer), args_types,
                       std::make_shared<vector<unique_ptr<Value>>>(),
                       std::move(callback.value));
-          return output.value;
+          return std::move(output.value);
         });
   }
 

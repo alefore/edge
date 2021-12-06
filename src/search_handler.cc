@@ -257,7 +257,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     input.predictions->EndOfFile();
     input.predictions->AddEndOfFileObserver(
         [consumer = output.consumer] { consumer(PredictorOutput()); });
-    return output.value;
+    return std::move(output.value);
   }
   // Add the matches to the predictions buffer.
   for (auto& match : matches) {
@@ -268,7 +268,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   input.predictions->EndOfFile();
   input.predictions->AddEndOfFileObserver(
       [consumer = output.consumer] { consumer(PredictorOutput()); });
-  return output.value;
+  return std::move(output.value);
 }
 
 vector<LineColumn> SearchHandler(EditorState* editor_state,

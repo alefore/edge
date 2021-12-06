@@ -402,7 +402,7 @@ using std::to_wstring;
                                : EvaluationOutput::Return(Value::NewVoid()));
                 });
             buffer->editor()->ResetModifiers();
-            return future.value;
+            return std::move(future.value);
           }));
 
   buffer->AddField(L"Close",
@@ -502,7 +502,7 @@ using std::to_wstring;
                 [consumer = std::move(future.consumer)] {
                   consumer(EvaluationOutput::Return(Value::NewVoid()));
                 });
-            return future.value;
+            return std::move(future.value);
           }));
 
   environment->DefineType(L"Buffer", std::move(buffer));

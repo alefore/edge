@@ -259,7 +259,7 @@ class State {
             return Past(EmptyValue());
           });
     });
-    return output.value;
+    return std::move(output.value);
   }
 
   EditorState* const editor_state_;

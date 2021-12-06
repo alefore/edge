@@ -349,7 +349,7 @@ static futures::Value<bool> CanStatPath(
           consumer(true);
         }
       });
-  return output.value;
+  return std::move(output.value);
 }
 
 }  // namespace
@@ -714,7 +714,7 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
               consumer(*output);
             });
       });
-  return output.value;
+  return std::move(output.value);
 }
 
 futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(

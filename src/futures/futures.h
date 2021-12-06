@@ -105,6 +105,10 @@ struct TransformTraits<editor::ValueOrError<InitialType>, Callable> {
 template <typename Type>
 class Value {
  public:
+  Value(const Value<Type>&) = delete;
+  Value(Value<Type>&&) = default;
+  Value<Type>& operator=(Value<Type>&&) = default;
+
   using Consumer = std::function<void(Type)>;
   using type = Type;
 
@@ -129,7 +133,7 @@ class Value {
                  callable = std::move(callable)](Type initial_value) mutable {
       Traits::FeedValue(std::move(initial_value), callable, consumer);
     });
-    return output.value;
+    return std::move(output.value);
   }
 
   // Turns a futures::Value<ValueOrError<T>> into a futures::Value<T>; if the
@@ -231,14 +235,14 @@ auto Value<Type>::ConsumeErrors(Callable error_callback) {
                      ? error_callback(std::move(value_or_error.error()))
                      : value_or_error.value());
       });
-  return output.value;
+  return std::move(output.value);
 }
 
 template <typename Type>
 static Value<Type> Past(Type value) {
   Future<Type> output;
   output.consumer(std::move(value));
-  return output.value;
+  return std::move(output.value);
 }
 
 // Evaluate `callable` for each element in the range [begin, end). `callable`
@@ -271,7 +275,7 @@ Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
     });
   };
   resume(begin, resume);
-  return output.value;
+  return std::move(output.value);
 }
 
 template <typename Callable>
@@ -290,7 +294,7 @@ Value<IterationControlCommand> While(Callable callable) {
     });
   };
   resume(resume);
-  return output.value;
+  return std::move(output.value);
 }
 
 Value<editor::PossibleError> IgnoreErrors(Value<editor::PossibleError> value);
@@ -302,7 +306,7 @@ Value<editor::PossibleError> IgnoreErrors(Value<editor::PossibleError> value);
 // TODO(easy): error_callback should receive the error directly (not the
 // ValueOrError).
 template <typename T, typename Callable>
-ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
+ValueOrError<T> OnError(ValueOrError<T>&& value, Callable error_callback) {
   Future<editor::ValueOrError<T>> future;
   value.SetConsumer([consumer = std::move(future.consumer),
                      error_callback = std::move(error_callback)](
@@ -311,15 +315,18 @@ ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
                  ? error_callback(std::move(value_or_error.error()))
                  : std::move(value_or_error));
   });
-  return future.value;
+  return std::move(future.value);
 }
 
 template <typename Iterator, typename Callable>
 Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
                                                Callable callable) {
   auto copy = std::make_shared<std::vector<typename std::remove_const<
-      typename std::remove_reference<decltype(*begin)>::type>::type>>(begin,
-                                                                      end);
+      typename std::remove_reference<decltype(*begin)>::type>::type>>();
+  while (begin != end) {
+    copy->push_back(std::move(*begin));
+    ++begin;
+  }
   return ForEach(copy->begin(), copy->end(), std::move(callable))
       .Transform([copy](IterationControlCommand output) { return output; });
 }

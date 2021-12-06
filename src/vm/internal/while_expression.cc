@@ -39,7 +39,7 @@ class WhileExpression : public Expression {
     DVLOG(4) << "Starting iteration.";
     futures::Future<EvaluationOutput> output;
     Iterate(trampoline, condition_, body_, std::move(output.consumer));
-    return output.value;
+    return std::move(output.value);
   }
 
   std::unique_ptr<Expression> Clone() override {

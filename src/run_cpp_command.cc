@@ -220,7 +220,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   } else {
     output_future.consumer(std::move(output));
   }
-  return output_future.value;
+  return std::move(output_future.value);
 }
 
 }  // namespace
@@ -254,7 +254,7 @@ futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
           consumer(std::move(value.value()));
         }
       });
-  return output.value;
+  return std::move(output.value);
 }
 
 std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode) {

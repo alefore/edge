@@ -216,7 +216,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer->Set(buffer_variables::paste_mode, true);
   predictions_buffer->Reload();
-  return output.value;
+  return std::move(output.value);
 }
 
 struct DescendDirectoryTreeOutput {
@@ -433,7 +433,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   GetSearchPaths(predictor_input.editor, &input->search_paths)
       .SetConsumer(
           [input](EmptyValue) { async_processor.Push(std::move(*input)); });
-  return output.value;
+  return std::move(output.value);
 }
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {

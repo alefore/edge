@@ -437,7 +437,7 @@ futures::Value<EmptyValue> CursorsTracker::ApplyTransformationToCursors(
         });
   };
   apply_next(apply_next);
-  return output.value;
+  return std::move(output.value);
 }
 
 size_t CursorsTracker::Push() {

@@ -354,8 +354,11 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
           }
           return futures::ForEachWithCopy(
                      search_futures.begin(), search_futures.end(),
-                     [](futures::Value<futures::IterationControlCommand>
-                            output) { return output; })
+                     [](futures::Value<futures::IterationControlCommand>&
+                            output)
+                         -> futures::Value<futures::IterationControlCommand> {
+                       return std::move(output);
+                     })
               .Transform([new_state](futures::IterationControlCommand) {
                 return std::move(*new_state);
               });

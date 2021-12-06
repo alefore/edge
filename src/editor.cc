@@ -326,7 +326,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             }
             return futures::ForEach(
                        values->begin(), values->end(),
-                       [values](futures::Value<EmptyValue> future) {
+                       [values](futures::Value<EmptyValue>& future) {
                          return future.Transform([](EmptyValue) {
                            return futures::IterationControlCommand::kContinue;
                          });

@@ -12,7 +12,7 @@ Value<editor::ValueOrError<editor::EmptyValue>> IgnoreErrors(
       [consumer = std::move(output.consumer)](const editor::PossibleError&) {
         consumer(editor::Success());
       });
-  return output.value;
+  return std::move(output.value);
 }
 
 namespace {
@@ -61,11 +61,12 @@ const bool futures_on_error_tests_registration = tests::Register(
           [] {
             Future<ValueOrError<int>> internal;
             bool executed = false;
-            auto external = OnError(internal.value, [&](Error error) {
-              executed = true;
-              CHECK(error.description == L"Foo");
-              return error;
-            });
+            auto external =
+                OnError(std::move(internal.value), [&](Error error) {
+                  executed = true;
+                  CHECK(error.description == L"Foo");
+                  return error;
+                });
             CHECK(!executed);
             internal.consumer(Error(L"Foo"));
             CHECK(executed);

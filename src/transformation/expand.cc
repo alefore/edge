@@ -167,7 +167,7 @@ class ReadAndInsert : public CompositeTransformation {
                     consumer(std::move(output));
                   });
             });
-    return output.value;
+    return std::move(output.value);
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

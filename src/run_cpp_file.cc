@@ -35,7 +35,7 @@ class RunCppFileCommand : public Command {
           .SetConsumer(
               [consumer = std::move(output.consumer)](
                   ValueOrError<EmptyValue>) { consumer(EmptyValue()); });
-      return output.value;
+      return std::move(output.value);
     };
     options.cancel_handler = [](EditorState*) { /* Nothing. */ };
     options.predictor = FilePredictor;
