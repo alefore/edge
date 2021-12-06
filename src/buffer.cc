@@ -716,7 +716,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 
   return OnError(
              futures::Past(GetEdgeStateDirectory()),
-             [this](Error error) -> Error {
+             [this](Error error) {
                status()->SetWarningText(
                    L"Unable to get Edge state directory: " + error.description);
                return error;
@@ -770,7 +770,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         contents.push_back(L"");
 
         return OnError(SaveContentsToFile(path, contents, work_queue()),
-                       [this](Error error) -> Error {
+                       [this](Error error) {
                          status()->SetWarningText(L"Unable to persist state: " +
                                                   error.description);
                          return error;
