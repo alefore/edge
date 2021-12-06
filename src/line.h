@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/futures/futures.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
@@ -36,6 +37,11 @@ using std::wstring;
 // This class is thread-safe.
 class Line {
  public:
+  struct MetadataEntry {
+    std::shared_ptr<LazyString> initial_value;
+    futures::ListenableValue<std::shared_ptr<LazyString>> value;
+  };
+
   class Options {
    public:
     Options() : contents(EmptyString()) {}
@@ -61,7 +67,7 @@ class Line {
                       std::optional<LineModifierSet> modifier);
     void Append(Line line);
 
-    Options& SetMetadata(std::shared_ptr<LazyString> metadata);
+    Options& SetMetadata(std::optional<MetadataEntry> metadata);
 
     // Delete characters in [position, position + amount).
     Options& DeleteCharacters(ColumnNumber position, ColumnNumberDelta amount);
@@ -90,7 +96,7 @@ class Line {
    private:
     friend Line;
 
-    std::shared_ptr<LazyString> metadata = nullptr;
+    std::optional<MetadataEntry> metadata = std::nullopt;
     std::shared_ptr<vm::Environment> environment = nullptr;
     void ValidateInvariants();
   };
@@ -115,7 +121,6 @@ class Line {
   wstring ToString() const { return contents()->ToString(); }
 
   std::shared_ptr<LazyString> metadata() const;
-  void SetMetadata(std::shared_ptr<LazyString> metadata);
 
   void SetAllModifiers(const LineModifierSet& modifiers);
   const std::map<ColumnNumber, LineModifierSet>& modifiers() const {
@@ -174,6 +179,8 @@ class Line {
   void ValidateInvariants() const;
   ColumnNumber EndColumnWithLock() const;
   wint_t GetWithLock(ColumnNumber column) const;
+
+  friend class Options;
 
   mutable std::mutex mutex_;
   std::shared_ptr<vm::Environment> environment_;

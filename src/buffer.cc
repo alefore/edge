@@ -137,29 +137,36 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
     return line->metadata() == nullptr
                ? line
                : std::make_shared<Line>(
-                     Line::Options(*line).SetMetadata(nullptr));
+                     Line::Options(*line).SetMetadata(std::nullopt));
 
   std::wstring description = L"C++: " + TypesToString(expr->Types());
   if (expr->purity() == Expression::PurityType::kPure) {
     description += L" ...";
   }
-  std::shared_ptr<LazyString> metadata = NewLazyString(description);
-  if (metadata == line->metadata()) return line;
 
-  auto output =
-      std::make_shared<Line>(Line::Options(*line).SetMetadata(metadata));
+  futures::ListenableValue<std::shared_ptr<LazyString>> metadata_value(
+      futures::Future<std::shared_ptr<LazyString>>().value);
+
   if (expr->purity() == Expression::PurityType::kPure) {
-    buffer->work_queue()->Schedule([buffer, expr, sub_environment, output] {
-      buffer->EvaluateExpression(expr.get(), sub_environment)
-          .Transform([output](std::unique_ptr<Value> value) {
-            CHECK(value != nullptr);
-            std::ostringstream oss;
-            oss << *value;
-            output->SetMetadata(NewLazyString(FromByteString(oss.str())));
-            return Success();
-          });
-    });
+    futures::Future<std::shared_ptr<LazyString>> metadata_future;
+    buffer->work_queue()->Schedule(
+        [buffer, expr, sub_environment, consumer = metadata_future.consumer] {
+          buffer->EvaluateExpression(expr.get(), sub_environment)
+              .Transform([consumer](std::unique_ptr<Value> value) {
+                CHECK(value != nullptr);
+                std::ostringstream oss;
+                oss << *value;
+                consumer(NewLazyString(FromByteString(oss.str())));
+                return Success();
+              });
+        });
+    metadata_value = std::move(metadata_future.value);
   }
+
+  auto output = std::make_shared<Line>(Line::Options(*line).SetMetadata(
+      Line::MetadataEntry{.initial_value = NewLazyString(description),
+                          .value = std::move(metadata_value)}));
+
   return output;
 }
 

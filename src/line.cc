@@ -54,10 +54,14 @@ const bool line_tests_registration = tests::Register(
             auto final_hash = Line(options).GetHash();
             CHECK(initial_hash != final_hash);
           }},
-     {.name = L"MetadataPreservedFromOptionsToLine", .callback = [] {
-        CHECK(Line(Line::Options().SetMetadata(NewLazyString(L"Foo")))
-                  .metadata()
-                  ->ToString() == L"Foo");
+     {.name = L"MetadataBecomesAvailable", .callback = [] {
+        futures::Future<std::shared_ptr<LazyString>> future;
+        Line line(Line::Options().SetMetadata(
+            Line::MetadataEntry{.initial_value = NewLazyString(L"Foo"),
+                                .value = std::move(future.value)}));
+        CHECK(line.metadata()->ToString() == L"Foo");
+        future.consumer(NewLazyString(L"Bar"));
+        CHECK(line.metadata()->ToString() == L"Bar");
       }}});
 }
 
@@ -65,7 +69,7 @@ Line::Options::Options(Line line)
     : contents(std::move(line.contents())),
       modifiers(std::move(line.modifiers())),
       end_of_line_modifiers(line.end_of_line_modifiers()),
-      metadata(line.metadata()),
+      metadata(line.options_.metadata),
       environment(line.environment()) {}
 
 ColumnNumber Line::Options::EndColumn() const {
@@ -180,7 +184,7 @@ void Line::Options::Append(Line line) {
 }
 
 Line::Options& Line::Options::SetMetadata(
-    std::shared_ptr<LazyString> metadata) {
+    std::optional<MetadataEntry> metadata) {
   this->metadata = std::move(metadata);
   return *this;
 }
@@ -282,13 +286,9 @@ shared_ptr<LazyString> Line::Substring(ColumnNumber column) const {
 std::shared_ptr<LazyString> Line::metadata() const {
   std::unique_lock<std::mutex> lock(mutex_);
   ValidateInvariants();
-  return options_.metadata;
-}
-
-void Line::SetMetadata(std::shared_ptr<LazyString> metadata) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  ValidateInvariants();
-  options_.metadata = std::move(metadata);
+  const auto& metadata = options_.metadata;
+  if (metadata == std::nullopt) return nullptr;
+  return metadata->value.get().value_or(metadata->initial_value);
 }
 
 void Line::SetAllModifiers(const LineModifierSet& modifiers) {
