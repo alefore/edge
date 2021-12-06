@@ -37,6 +37,7 @@ class FileSystemDriver {
   futures::Value<PossibleError> Close(int fd) const;
   futures::Value<ValueOrError<struct stat>> Stat(Path path) const;
   futures::Value<PossibleError> Rename(Path oldpath, Path newpath) const;
+  futures::Value<PossibleError> Mkdir(Path path, mode_t mode) const;
 
  private:
   mutable AsyncEvaluator evaluator_;
