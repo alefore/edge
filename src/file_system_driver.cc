@@ -16,7 +16,7 @@ FileSystemDriver::FileSystemDriver(WorkQueue* work_queue)
     : evaluator_(L"FilesystemDriver", work_queue) {}
 
 futures::Value<ValueOrError<int>> FileSystemDriver::Open(Path path, int flags,
-                                                         mode_t mode) {
+                                                         mode_t mode) const {
   return evaluator_.Run([path = std::move(path), flags, mode]() {
     LOG(INFO) << "Opening file:" << path;
     int fd = open(ToByteString(path.ToString()).c_str(), flags, mode);
@@ -25,12 +25,12 @@ futures::Value<ValueOrError<int>> FileSystemDriver::Open(Path path, int flags,
   });
 }
 
-futures::Value<PossibleError> FileSystemDriver::Close(int fd) {
+futures::Value<PossibleError> FileSystemDriver::Close(int fd) const {
   return evaluator_.Run(
       [fd] { return SyscallReturnValue(L"Close", close(fd)); });
 }
 
-futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) {
+futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
   return evaluator_.Run([path =
                              std::move(path)]() -> ValueOrError<struct stat> {
     struct stat output;
@@ -43,7 +43,7 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) {
 }
 
 futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
-                                                       Path newpath) {
+                                                       Path newpath) const {
   return evaluator_.Run([oldpath, newpath] {
     return SyscallReturnValue(L"Rename",
                               rename(ToByteString(oldpath.ToString()).c_str(),

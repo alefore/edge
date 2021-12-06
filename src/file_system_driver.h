@@ -32,13 +32,14 @@ class FileSystemDriver {
  public:
   FileSystemDriver(WorkQueue* work_queue);
 
-  futures::Value<ValueOrError<int>> Open(Path path, int flags, mode_t mode);
-  futures::Value<PossibleError> Close(int fd);
-  futures::Value<ValueOrError<struct stat>> Stat(Path path);
-  futures::Value<PossibleError> Rename(Path oldpath, Path newpath);
+  futures::Value<ValueOrError<int>> Open(Path path, int flags,
+                                         mode_t mode) const;
+  futures::Value<PossibleError> Close(int fd) const;
+  futures::Value<ValueOrError<struct stat>> Stat(Path path) const;
+  futures::Value<PossibleError> Rename(Path oldpath, Path newpath) const;
 
  private:
-  AsyncEvaluator evaluator_;
+  mutable AsyncEvaluator evaluator_;
 };
 
 }  // namespace afc::editor

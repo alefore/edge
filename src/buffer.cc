@@ -1188,26 +1188,33 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   return futures::ForEachWithCopy(
              file_path_components.value().begin(),
              file_path_components.value().end(),
-             [path, error](auto component) {
+             [this, path, error](auto component) {
                *path = Path::Join(*path, component);
-               struct stat stat_buffer;
-               auto path_byte_string = ToByteString(path->ToString());
-               // TODO(easy): Use async stat.
-               if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
-                 if (S_ISDIR(stat_buffer.st_mode)) {
-                   return futures::Past(IterationControlCommand::kContinue);
-                 }
-                 *error = Error(L"Oops, exists, but is not a directory: " +
-                                path->ToString());
-                 return futures::Past(IterationControlCommand::kStop);
-               }
-               if (mkdir(path_byte_string.c_str(), 0700)) {
-                 *error =
-                     Error(L"mkdir failed: " + FromByteString(strerror(errno)) +
-                           L": " + path->ToString());
-                 return futures::Past(IterationControlCommand::kStop);
-               }
-               return futures::Past(IterationControlCommand::kContinue);
+               return file_system_driver_.Stat(*path)
+                   .Transform(
+                       [path, error](struct stat stat_buffer)
+                           -> futures::ValueOrError<IterationControlCommand> {
+                         if (S_ISDIR(stat_buffer.st_mode)) {
+                           return futures::Past(
+                               Success(IterationControlCommand::kContinue));
+                         }
+                         *error =
+                             Error(L"Oops, exists, but is not a directory: " +
+                                   path->ToString());
+                         return futures::Past(
+                             Success(IterationControlCommand::kStop));
+                       })
+                   .ConsumeErrors([path,
+                                   error](Error) -> IterationControlCommand {
+                     // TODO(easy): Make this async.
+                     if (mkdir(ToByteString(path->ToString()).c_str(), 0700)) {
+                       *error = Error(L"mkdir failed: " +
+                                      FromByteString(strerror(errno)) + L": " +
+                                      path->ToString());
+                       return IterationControlCommand::kStop;
+                     }
+                     return IterationControlCommand::kContinue;
+                   });
              })
       .Transform([path, error](IterationControlCommand) -> ValueOrError<Path> {
         return error->has_value() ? ValueOrError<Path>(error->value())
