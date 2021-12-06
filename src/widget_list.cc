@@ -172,13 +172,9 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
 std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
     OutputProducerOptions options, size_t index, LineNumberDelta lines) const {
   options.size.line = lines;
-  if (options.size.line.IsZero()) {
-    return nullptr;
-  }
-
-  // TODO(easy): Fold the two expressions.
-  Widget* child = children_[index].get();
-  return child->CreateOutputProducer(options);
+  return options.size.line.IsZero()
+             ? nullptr
+             : children_[index].get()->CreateOutputProducer(options);
 }
 
 LineNumberDelta WidgetListHorizontal::MinimumLines() const {
