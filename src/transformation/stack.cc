@@ -67,7 +67,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
               delete_transformation->preview_modifiers = {
                   LineModifier::RED, LineModifier::UNDERLINE};
               buffer->status()->SetInformationText(error.description);
-              return EmptyValue();
+              return futures::Past(EmptyValue());
             })
         .Transform([delete_transformation, input](EmptyValue) {
           return Apply(*delete_transformation,
@@ -123,7 +123,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             auto contents = input.buffer->contents()->copy();
             contents->FilterToRange(*delete_transformation.range);
             return PreviewCppExpression(input.buffer, *contents)
-                .ConsumeErrors([](Error) { return EmptyValue(); })
+                .ConsumeErrors(
+                    [](Error) { return futures::Past(EmptyValue()); })
                 .Transform([output](EmptyValue) {
                   return futures::Past(std::move(*output));
                 });

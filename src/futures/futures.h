@@ -230,13 +230,15 @@ template <typename Type>
 template <typename Callable>
 auto Value<Type>::ConsumeErrors(Callable error_callback) {
   Future<typename Type::ValueType> output;
-  SetConsumer(
-      [consumer = std::move(output.consumer),
-       error_callback = std::move(error_callback)](Type value_or_error) {
-        consumer(value_or_error.IsError()
-                     ? error_callback(std::move(value_or_error.error()))
-                     : value_or_error.value());
-      });
+  SetConsumer([consumer = std::move(output.consumer),
+               error_callback =
+                   std::move(error_callback)](Type value_or_error) {
+    if (value_or_error.IsError()) {
+      error_callback(std::move(value_or_error.error())).SetConsumer(consumer);
+    } else {
+      consumer(value_or_error.value());
+    }
+  });
   return std::move(output.value);
 }
 

@@ -1193,28 +1193,26 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                return file_system_driver_.Stat(*path)
                    .Transform([path, error](struct stat stat_buffer) {
                      if (S_ISDIR(stat_buffer.st_mode)) {
-                       return futures::Past(
-                           Success(IterationControlCommand::kContinue));
+                       return Success(IterationControlCommand::kContinue);
                      }
                      *error = Error(L"Oops, exists, but is not a directory: " +
                                     path->ToString());
-                     return futures::Past(
-                         Success(IterationControlCommand::kStop));
+                     return Success(IterationControlCommand::kStop);
                    })
-                   .ConsumeErrors([path, error](Error) {
-                     // TODO(easy): Make this async.
-                     if (mkdir(ToByteString(path->ToString()).c_str(), 0700)) {
-                       *error = Error(L"mkdir failed: " +
-                                      FromByteString(strerror(errno)) + L": " +
-                                      path->ToString());
-                       return IterationControlCommand::kStop;
-                     }
-                     return IterationControlCommand::kContinue;
+                   .ConsumeErrors([this, path, error](Error) {
+                     return file_system_driver_.Mkdir(*path, 0700)
+                         .Transform([](EmptyValue) {
+                           return Success(IterationControlCommand::kContinue);
+                         })
+                         .ConsumeErrors([path, error](Error mkdir_error) {
+                           *error = mkdir_error;
+                           return futures::Past(IterationControlCommand::kStop);
+                         });
                    });
              })
-      .Transform([path, error](IterationControlCommand) {
-        return error->has_value() ? ValueOrError<Path>(error->value())
-                                  : Success(*path);
+      .Transform([path, error](IterationControlCommand) -> ValueOrError<Path> {
+        return error->has_value() ? ValueOrError<Path>(Error(error->value()))
+                                  : ValueOrError<Path>(Success(*path));
       });
 }
 
@@ -2213,7 +2211,7 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
                   });
             })
             .ConsumeErrors([](Error) {
-              return futures::IterationControlCommand::kContinue;
+              return futures::Past(futures::IterationControlCommand::kContinue);
             });
       })
       .Transform([buffer,

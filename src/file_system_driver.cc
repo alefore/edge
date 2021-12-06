@@ -54,8 +54,10 @@ futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
 futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
                                                       mode_t mode) const {
   return evaluator_.Run([path, mode] {
-    return SyscallReturnValue(
-        L"Mkdir", mkdir(ToByteString(path.ToString()).c_str(), mode));
+    return AugmentErrors(
+        path.ToString(),
+        SyscallReturnValue(L"Mkdir",
+                           mkdir(ToByteString(path.ToString()).c_str(), mode)));
   });
 }
 
