@@ -714,59 +714,68 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
     return futures::Past(ValueOrError(Success()));
   }
 
-  auto edge_state_directory = GetEdgeStateDirectory();
-  if (edge_state_directory.IsError()) {
-    status_.SetWarningText(edge_state_directory.error().description);
-    return futures::Past(PossibleError(edge_state_directory.error()));
-  }
+  return OnError(
+             futures::Past(GetEdgeStateDirectory()),
+             [this](Error error) -> Error {
+               status()->SetWarningText(
+                   L"Unable to get Edge state directory: " + error.description);
+               return error;
+             })
+      .Transform([this](Path edge_state_directory) {
+        auto path =
+            Path::Join(edge_state_directory,
+                       PathComponent::FromString(L".edge_state").value());
+        LOG(INFO) << "PersistState: Preparing state file: " << path;
+        BufferContents contents;
+        contents.push_back(L"// State of file: " + path.ToString());
+        contents.push_back(L"");
 
-  auto path = Path::Join(edge_state_directory.value(),
-                         PathComponent::FromString(L".edge_state").value());
-  LOG(INFO) << "PersistState: Preparing state file: " << path;
-  BufferContents contents;
-  contents.push_back(L"// State of file: " + path.ToString());
-  contents.push_back(L"");
+        contents.push_back(L"buffer.set_position(" + position().ToCppString() +
+                           L");");
+        contents.push_back(L"");
 
-  contents.push_back(L"buffer.set_position(" + position().ToCppString() +
-                     L");");
-  contents.push_back(L"");
+        contents.push_back(L"// String variables");
+        for (const auto& variable :
+             buffer_variables::StringStruct()->variables()) {
+          contents.push_back(L"buffer.set_" + variable.first + L"(\"" +
+                             CppEscapeString(Read(variable.second.get())) +
+                             L"\");");
+        }
+        contents.push_back(L"");
 
-  contents.push_back(L"// String variables");
-  for (const auto& variable : buffer_variables::StringStruct()->variables()) {
-    contents.push_back(L"buffer.set_" + variable.first + L"(\"" +
-                       CppEscapeString(Read(variable.second.get())) + L"\");");
-  }
-  contents.push_back(L"");
+        contents.push_back(L"// Int variables");
+        for (const auto& variable :
+             buffer_variables::IntStruct()->variables()) {
+          contents.push_back(L"buffer.set_" + variable.first + L"(" +
+                             std::to_wstring(Read(variable.second.get())) +
+                             L");");
+        }
+        contents.push_back(L"");
 
-  contents.push_back(L"// Int variables");
-  for (const auto& variable : buffer_variables::IntStruct()->variables()) {
-    contents.push_back(L"buffer.set_" + variable.first + L"(" +
-                       std::to_wstring(Read(variable.second.get())) + L");");
-  }
-  contents.push_back(L"");
+        contents.push_back(L"// Bool variables");
+        for (const auto& variable :
+             buffer_variables::BoolStruct()->variables()) {
+          contents.push_back(
+              L"buffer.set_" + variable.first + L"(" +
+              (Read(variable.second.get()) ? L"true" : L"false") + L");");
+        }
+        contents.push_back(L"");
 
-  contents.push_back(L"// Bool variables");
-  for (const auto& variable : buffer_variables::BoolStruct()->variables()) {
-    contents.push_back(L"buffer.set_" + variable.first + L"(" +
-                       (Read(variable.second.get()) ? L"true" : L"false") +
-                       L");");
-  }
-  contents.push_back(L"");
+        contents.push_back(L"// LineColumn variables");
+        for (const auto& variable :
+             buffer_variables::LineColumnStruct()->variables()) {
+          contents.push_back(L"buffer.set_" + variable.first + L"(" +
+                             Read(variable.second.get()).ToCppString() + L");");
+        }
+        contents.push_back(L"");
 
-  contents.push_back(L"// LineColumn variables");
-  for (const auto& variable :
-       buffer_variables::LineColumnStruct()->variables()) {
-    contents.push_back(L"buffer.set_" + variable.first + L"(" +
-                       Read(variable.second.get()).ToCppString() + L");");
-  }
-  contents.push_back(L"");
-
-  return OnError(SaveContentsToFile(path, contents, work_queue()),
-                 [this](Error error) {
-                   status()->SetWarningText(L"Unable to persist state: " +
-                                            error.description);
-                   return error;
-                 });
+        return OnError(SaveContentsToFile(path, contents, work_queue()),
+                       [this](Error error) -> Error {
+                         status()->SetWarningText(L"Unable to persist state: " +
+                                                  error.description);
+                         return error;
+                       });
+      });
 }
 
 void OpenBuffer::ClearContents(
