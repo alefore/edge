@@ -275,7 +275,6 @@ futures::Value<PossibleError> Save(
         Error(L"Buffer can't be saved: Invalid “path” variable: " +
               path_or_error.error().description)));
   }
-  auto path = path_or_error.value();
   if (S_ISDIR(stat_buffer->st_mode)) {
     return options.save_type == OpenBuffer::Options::SaveType::kBackup
                ? futures::Past(Success())
@@ -283,52 +282,59 @@ futures::Value<PossibleError> Save(
                      Error(L"Buffer can't be saved: Buffer is a directory.")));
   }
 
+  futures::ValueOrError<Path> path = futures::Past(path_or_error);
+
   switch (options.save_type) {
     case OpenBuffer::Options::SaveType::kMainFile:
       break;
     case OpenBuffer::Options::SaveType::kBackup:
-      auto state_directory = buffer->GetEdgeStateDirectory();
-      if (state_directory.IsError()) {
-        return futures::Past(PossibleError(Error::Augment(
-            L"Unable to backup buffer: ", state_directory.error())));
-      }
-      path = Path::Join(state_directory.value(),
-                        PathComponent::FromString(L"backup").value());
+      path =
+          OnError(futures::Past(buffer->GetEdgeStateDirectory()),
+                  [](Error error) {
+                    return Error::Augment(L"Unable to backup buffer: ", error);
+                  })
+              .Transform([](Path state_directory) {
+                return Success(
+                    Path::Join(state_directory,
+                               PathComponent::FromString(L"backup").value()));
+              });
   }
 
-  return SaveContentsToFile(path, *buffer->contents(), buffer->work_queue())
-      .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
-      .Transform([editor_state, stat_buffer, options, buffer,
-                  path](EmptyValue) {
-        switch (options.save_type) {
-          case OpenBuffer::Options::SaveType::kMainFile:
-            buffer->status()->SetInformationText(L"🖫 Saved: " +
-                                                 path.ToString());
-            // TODO(easy): Move this to the caller, for symmetry with
-            // kBackup case.
-            buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
-            for (const auto& dir : editor_state->edge_path()) {
-              buffer->EvaluateFile(Path::Join(
-                  dir, Path::FromString(L"/hooks/buffer-save.cc").value()));
-            }
-            if (buffer->Read(
-                    buffer_variables::trigger_reload_on_buffer_write)) {
-              for (auto& it : *editor_state->buffers()) {
-                CHECK(it.second != nullptr);
-                if (it.second->Read(buffer_variables::reload_on_buffer_write)) {
-                  LOG(INFO) << "Write of " << path << " triggers reload: "
-                            << it.second->Read(buffer_variables::name);
-                  it.second->Reload();
+  return path.Transform([stat_buffer, options, buffer](Path path) {
+    return SaveContentsToFile(path, *buffer->contents(), buffer->work_queue())
+        .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
+        .Transform([stat_buffer, options, buffer, path](EmptyValue) {
+          switch (options.save_type) {
+            case OpenBuffer::Options::SaveType::kMainFile:
+              buffer->status()->SetInformationText(L"🖫 Saved: " +
+                                                   path.ToString());
+              // TODO(easy): Move this to the caller, for symmetry with
+              // kBackup case.
+              buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
+              for (const auto& dir : buffer->editor()->edge_path()) {
+                buffer->EvaluateFile(Path::Join(
+                    dir, Path::FromString(L"/hooks/buffer-save.cc").value()));
+              }
+              if (buffer->Read(
+                      buffer_variables::trigger_reload_on_buffer_write)) {
+                for (auto& it : *buffer->editor()->buffers()) {
+                  CHECK(it.second != nullptr);
+                  if (it.second->Read(
+                          buffer_variables::reload_on_buffer_write)) {
+                    LOG(INFO) << "Write of " << path << " triggers reload: "
+                              << it.second->Read(buffer_variables::name);
+                    it.second->Reload();
+                  }
                 }
               }
-            }
-            stat(ToByteString(path.ToString()).c_str(), stat_buffer);
-            break;
-          case OpenBuffer::Options::SaveType::kBackup:
-            break;
-        }
-        return futures::Past(Success());
-      });
+              stat(ToByteString(path.ToString()).c_str(), stat_buffer);
+              break;
+            case OpenBuffer::Options::SaveType::kBackup:
+              break;
+          }
+          return futures::Past(Success());
+        });
+  });
 }
 
 static futures::Value<bool> CanStatPath(
