@@ -715,7 +715,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   }
 
   return OnError(
-             futures::Past(GetEdgeStateDirectory()),
+             GetEdgeStateDirectory(),
              [this](Error error) {
                status()->SetWarningText(
                    L"Unable to get Edge state directory: " + error.description);
@@ -1108,7 +1108,7 @@ void OpenBuffer::Reload() {
           })
       .Transform([this](EmptyValue) {
         return futures::OnError(
-            futures::Past(GetEdgeStateDirectory()).Transform([this](Path dir) {
+            GetEdgeStateDirectory().Transform([this](Path dir) {
               return options_.log_supplier(&work_queue_, dir);
             }),
             [](Error error) {
@@ -1153,49 +1153,66 @@ futures::Value<PossibleError> OpenBuffer::Save() {
       {.buffer = this, .save_type = Options::SaveType::kMainFile});
 }
 
-ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
+futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   auto path_vector = editor()->edge_path();
   if (path_vector.empty()) {
-    return Error(L"Empty edge path.");
+    return futures::Past(ValueOrError<Path>(Error(L"Empty edge path.")));
   }
-  auto path = path_vector[0];
-  ASSIGN_OR_RETURN(
-      auto file_path,
-      AugmentErrors(
-          std::wstring{L"Unable to persist buffer with invalid path "} +
-              (dirty() ? L" (dirty)" : L" (clean)") + L" " +
-              (disk_state_ == DiskState::kStale ? L"modified"
-                                                : L"not modified"),
-          AbsolutePath::FromString(Read(buffer_variables::path))));
-
-  if (file_path.GetRootType() != Path::RootType::kAbsolute) {
-    return Error(L"Unable to persist buffer without absolute path: " +
-                 file_path.ToString());
+  auto file_path = AugmentErrors(
+      std::wstring{L"Unable to persist buffer with invalid path "} +
+          (dirty() ? L" (dirty)" : L" (clean)") + L" " +
+          (disk_state_ == DiskState::kStale ? L"modified" : L"not modified"),
+      AbsolutePath::FromString(Read(buffer_variables::path)));
+  if (file_path.IsError()) {
+    return futures::Past(ValueOrError<Path>(file_path.error()));
   }
 
-  ASSIGN_OR_RETURN(
-      auto file_path_components,
-      AugmentErrors(L"Unable to split path", file_path.DirectorySplit()));
-  file_path_components.push_front(PathComponent::FromString(L"state").value());
-
-  LOG(INFO) << "GetEdgeStateDirectory: Preparing directory for state: " << path;
-  for (auto& component : file_path_components) {
-    path = Path::Join(path, component);
-    struct stat stat_buffer;
-    auto path_byte_string = ToByteString(path.ToString());
-    // TODO(easy): Use async stat.
-    if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
-      if (S_ISDIR(stat_buffer.st_mode)) {
-        continue;
-      }
-      return Error(L"Oops, exists, but is not a directory: " + path.ToString());
-    }
-    if (mkdir(path_byte_string.c_str(), 0700)) {
-      return Error(L"mkdir failed: " + FromByteString(strerror(errno)) + L": " +
-                   path.ToString());
-    }
+  if (file_path.value().GetRootType() != Path::RootType::kAbsolute) {
+    return futures::Past(ValueOrError<Path>(
+        Error(L"Unable to persist buffer without absolute path: " +
+              file_path.value().ToString())));
   }
-  return Success(path);
+
+  auto file_path_components = AugmentErrors(L"Unable to split path",
+                                            file_path.value().DirectorySplit());
+  if (file_path_components.IsError()) {
+    return futures::Past(ValueOrError<Path>(file_path_components.error()));
+  }
+
+  file_path_components.value().push_front(
+      PathComponent::FromString(L"state").value());
+
+  auto path = std::make_shared<Path>(path_vector[0]);
+  auto error = std::make_shared<std::optional<Error>>();
+  LOG(INFO) << "GetEdgeStateDirectory: Preparing state directory: " << *path;
+  return futures::ForEachWithCopy(
+             file_path_components.value().begin(),
+             file_path_components.value().end(),
+             [path, error](auto component) {
+               *path = Path::Join(*path, component);
+               struct stat stat_buffer;
+               auto path_byte_string = ToByteString(path->ToString());
+               // TODO(easy): Use async stat.
+               if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
+                 if (S_ISDIR(stat_buffer.st_mode)) {
+                   return futures::Past(IterationControlCommand::kContinue);
+                 }
+                 *error = Error(L"Oops, exists, but is not a directory: " +
+                                path->ToString());
+                 return futures::Past(IterationControlCommand::kStop);
+               }
+               if (mkdir(path_byte_string.c_str(), 0700)) {
+                 *error =
+                     Error(L"mkdir failed: " + FromByteString(strerror(errno)) +
+                           L": " + path->ToString());
+                 return futures::Past(IterationControlCommand::kStop);
+               }
+               return futures::Past(IterationControlCommand::kContinue);
+             })
+      .Transform([path, error](IterationControlCommand) -> ValueOrError<Path> {
+        return error->has_value() ? ValueOrError<Path>(error->value())
+                                  : Success(*path);
+      });
 }
 
 Log* OpenBuffer::log() const { return log_.get(); }

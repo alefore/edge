@@ -404,7 +404,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // Returns the path to the directory that should be used to keep state for the
   // current buffer. If the directory doesn't exist, creates it.
-  ValueOrError<Path> GetEdgeStateDirectory() const;
+  futures::ValueOrError<Path> GetEdgeStateDirectory() const;
 
   Log* log() const;
 

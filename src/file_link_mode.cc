@@ -266,7 +266,7 @@ auto HandleError(ValueOrError<T> expr, ErrorCallable error_callable,
 }
 
 futures::Value<PossibleError> Save(
-    EditorState* editor_state, struct stat* stat_buffer,
+    EditorState*, struct stat* stat_buffer,
     OpenBuffer::Options::HandleSaveOptions options) {
   auto buffer = options.buffer;
   auto path_or_error = Path::FromString(buffer->Read(buffer_variables::path));
@@ -288,16 +288,12 @@ futures::Value<PossibleError> Save(
     case OpenBuffer::Options::SaveType::kMainFile:
       break;
     case OpenBuffer::Options::SaveType::kBackup:
-      path =
-          OnError(futures::Past(buffer->GetEdgeStateDirectory()),
-                  [](Error error) {
-                    return Error::Augment(L"Unable to backup buffer: ", error);
-                  })
-              .Transform([](Path state_directory) {
-                return Success(
-                    Path::Join(state_directory,
-                               PathComponent::FromString(L"backup").value()));
-              });
+      path = OnError(buffer->GetEdgeStateDirectory(), [](Error error) {
+               return Error::Augment(L"Unable to backup buffer: ", error);
+             }).Transform([](Path state_directory) {
+        return Success(Path::Join(
+            state_directory, PathComponent::FromString(L"backup").value()));
+      });
   }
 
   return path.Transform([stat_buffer, options, buffer](Path path) {
