@@ -1191,21 +1191,17 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
              [this, path, error](auto component) {
                *path = Path::Join(*path, component);
                return file_system_driver_.Stat(*path)
-                   .Transform(
-                       [path, error](struct stat stat_buffer)
-                           -> futures::ValueOrError<IterationControlCommand> {
-                         if (S_ISDIR(stat_buffer.st_mode)) {
-                           return futures::Past(
-                               Success(IterationControlCommand::kContinue));
-                         }
-                         *error =
-                             Error(L"Oops, exists, but is not a directory: " +
-                                   path->ToString());
-                         return futures::Past(
-                             Success(IterationControlCommand::kStop));
-                       })
-                   .ConsumeErrors([path,
-                                   error](Error) -> IterationControlCommand {
+                   .Transform([path, error](struct stat stat_buffer) {
+                     if (S_ISDIR(stat_buffer.st_mode)) {
+                       return futures::Past(
+                           Success(IterationControlCommand::kContinue));
+                     }
+                     *error = Error(L"Oops, exists, but is not a directory: " +
+                                    path->ToString());
+                     return futures::Past(
+                         Success(IterationControlCommand::kStop));
+                   })
+                   .ConsumeErrors([path, error](Error) {
                      // TODO(easy): Make this async.
                      if (mkdir(ToByteString(path->ToString()).c_str(), 0700)) {
                        *error = Error(L"mkdir failed: " +
@@ -1216,7 +1212,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                      return IterationControlCommand::kContinue;
                    });
              })
-      .Transform([path, error](IterationControlCommand) -> ValueOrError<Path> {
+      .Transform([path, error](IterationControlCommand) {
         return error->has_value() ? ValueOrError<Path>(error->value())
                                   : Success(*path);
       });
