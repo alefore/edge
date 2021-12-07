@@ -1,7 +1,5 @@
 ## Display
 
-On the scroll bar, show positions that have cursors (+ the active cursor).
-
 Consider using unicode watches to display duration, using exponential/logarithmic growth.
 
 Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
@@ -26,7 +24,9 @@ Highlight the token under the cursor:
 Handle links better:
 
 * Underline link text.
+
 * Allow enter to be pressed inside the link text (rather than just in the file).
+
 * Have a "render" view (probably with a better name) that aims to display the
   "final" view of a file (rather than its source code). For links, this would
   hide the file and syntax tokens. It would also have effects in other syntax
@@ -77,20 +77,14 @@ Don't crash on ctrl+space.
 
 Don't save backups of internal files, perhaps based on a variable.
 
-Change `save_handler` to return a future and make the writing asynchronous.
-
 ### Autocomplete
 
 ## Navigation
-
-Make M center the widget around the current line.
 
 Improve "g", the current behavior is kind of annoying:
   There should be a way (other than pressing it again) to specify if it should ignore space.  Maybe a modifier can do it?
 
 Honor the `margin_columns` variable.
-
-Add a boolean variable `highlight_current_line` (default: false); when set, highlight the line with the current cursor position.
 
 In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
 
@@ -139,7 +133,7 @@ Persist undo history?
 
 Make follow_end_of_file the default.
 
-When the cursor lands over a file and thus a new buffer is shown, don't move the cursor to end of file (when follow_end_of_file is on).
+When follow_end_of_file is on: When the cursor lands over a file and thus a new buffer is shown, don't move the cursor to end of file.
 
 ## Directory view
 
@@ -161,8 +155,6 @@ Automatically adjust the width of the view to fit the screen.
 
 ## VM
 
-Create a hook for start of the editor, so that we can do more expensive things (without having to evaluate them for each buffer reload).
-
 LineNumber and ColumnNumber types should be exposed to extensions?
 
 Add support for templates, so that we can do "vector<string>".
@@ -175,18 +167,9 @@ Improve support for `for`: the environments aren't properly nested as they shoul
 
 Allow extensions to define classes or structures.
 
-Support `LineColumn line;` (rather than having to use `LineColumn line = LineColumn();`).
-
 ### VM Integration
 
-Have `:` honor repetitions? Apply in the buffer referenced? [p:10]
-
 Make aC honor cursors (select based on cursors, similar to search). [p:10]
-
-Make aC replace the text with a string visualization of the result of evaluating the expression.
-* So that `12+45+89` gets replaced with a single number
-* A string gets inserted, `void` just becomes the empty string, anything else gets converted to string and inserted.
-* Have undo honor this.
 
 ### Client/server
 
