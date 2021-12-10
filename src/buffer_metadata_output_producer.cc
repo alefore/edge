@@ -285,9 +285,8 @@ Line BufferMetadataOutputProducer::ComputeCursorsSuffix(LineNumber line) {
   CHECK(initial_line_.has_value());
   CHECK_GE(line, initial_line_.value());
   auto range = MapScreenLineToContentsRange(
-      Range{
-          .begin = LineColumn(LineNumber(initial_line_.value())),
-          .end = LineColumn(LineNumber(initial_line_.value() + lines_shown_))},
+      Range(LineColumn(LineNumber(initial_line_.value())),
+            LineColumn(LineNumber(initial_line_.value() + lines_shown_))),
       line, buffer_->lines_size());
   int count = 0;
   auto cursors_end = cursors->lower_bound(range.end);
