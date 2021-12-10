@@ -67,12 +67,12 @@ class CommandArgumentRepetitions {
 // A sequence of arguments becomes a command.
 struct CommandReach {
   Structure* structure = nullptr;
-  CommandArgumentRepetitions repetitions = {.repetitions = 0};
+  CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(0);
 };
 
 struct CommandReachBegin {
   Structure* structure = nullptr;
-  CommandArgumentRepetitions repetitions = {.repetitions = 1};
+  CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(1);
   Direction direction = Direction::kForwards;
 };
 
@@ -82,13 +82,13 @@ struct CommandReachBegin {
 // 'l' should advance by the structure; with CommandReachLine, they switch us
 // back to CommandReach (to move left or right).
 struct CommandReachLine {
-  CommandArgumentRepetitions repetitions = {.repetitions = 0};
+  CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(0);
 };
 
 // Finds occurrences of a given character in the current line.
 struct CommandReachChar {
   std::optional<wchar_t> c = std::nullopt;
-  CommandArgumentRepetitions repetitions = {.repetitions = 1};
+  CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(1);
 };
 
 using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,

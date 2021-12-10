@@ -528,12 +528,14 @@ class TopLevelCommandMode : public EditorMode {
         state_.Push(CommandReachChar{});
         return true;
       case L'F':
-        state_.Push(CommandReachChar{.repetitions = {.repetitions = -1}});
+        state_.Push(CommandReachChar{
+            .repetitions = operation::CommandArgumentRepetitions(-1)});
         return true;
       case L'j':
       case L'k':
-        state_.Push(CommandReachLine{.repetitions = CommandArgumentRepetitions{
-                                         .repetitions = t == L'k' ? -1 : 1}});
+        state_.Push(CommandReachLine{
+            .repetitions =
+                operation::CommandArgumentRepetitions(t == L'k' ? -1 : 1)});
         return true;
       case L'H':
         state_.Push(CommandReachBegin{});
