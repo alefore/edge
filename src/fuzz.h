@@ -5,6 +5,7 @@
 #include <fstream>
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include "src/fuzz_testable.h"
 #include "src/line_column.h"

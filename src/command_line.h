@@ -13,6 +13,7 @@
 #include <iostream>
 #include <list>
 #include <map>
+#include <optional>
 #include <string>
 
 extern "C" {
