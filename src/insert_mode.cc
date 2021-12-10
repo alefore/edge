@@ -331,13 +331,13 @@ class InsertMode : public EditorMode {
 
                 buffer_to_insert->AppendToLastLine(NewLazyString(value));
 
-                transformation::Insert insert_options(
-                    std::move(buffer_to_insert));
-                insert_options.modifiers.insertion =
-                    options.editor_state->modifiers().insertion;
                 return CallModifyHandler(
                     options, buffer,
-                    buffer->ApplyToCursors(std::move(insert_options)));
+                    buffer->ApplyToCursors(transformation::Insert{
+                        .buffer_to_insert = std::move(buffer_to_insert),
+                        .modifiers = {
+                            .insertion =
+                                options.editor_state->modifiers().insertion}}));
               });
         });
   }
@@ -393,8 +393,8 @@ class InsertMode : public EditorMode {
                     OpenBuffer::New({.editor = options.editor_state,
                                      .name = L"- text inserted"});
                 buffer_to_insert->AppendToLastLine(NewLazyString(L" "));
-                transformation::Insert insert_options(
-                    std::move(buffer_to_insert));
+                auto insert_options = transformation::Insert{
+                    .buffer_to_insert = std::move(buffer_to_insert)};
                 if (direction == Direction::kBackwards) {
                   insert_options.final_position =
                       transformation::Insert::FinalPosition::kStart;

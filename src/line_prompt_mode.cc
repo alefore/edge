@@ -753,8 +753,8 @@ void Prompt(PromptOptions options) {
               {.editor = editor_state, .name = L"- text inserted"});
           buffer_to_insert->AppendToLastLine(
               NewLazyString(std::move(options.initial_value)));
-          buffer->ApplyToCursors(
-              transformation::Insert(std::move(buffer_to_insert)));
+          buffer->ApplyToCursors(transformation::Insert(
+              {.buffer_to_insert = std::move(buffer_to_insert)}));
         }
 
         InsertModeOptions insert_mode_options;
@@ -896,8 +896,8 @@ void Prompt(PromptOptions options) {
                   auto buffer_to_insert = OpenBuffer::New(
                       {.editor = editor_state, .name = L"- text inserted"});
                   buffer_to_insert->AppendToLastLine(line);
-                  buffer->ApplyToCursors(
-                      transformation::Insert(std::move(buffer_to_insert)));
+                  buffer->ApplyToCursors(transformation::Insert(
+                      {.buffer_to_insert = std::move(buffer_to_insert)}));
                   if (options.colorize_options_provider != nullptr) {
                     CHECK(prompt_state->status()->GetType() ==
                           Status::Type::kPrompt);

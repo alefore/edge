@@ -157,7 +157,8 @@ class ReadAndInsert : public CompositeTransformation {
                   [consumer, buffer_to_insert = buffer_it->second,
                    input = std::move(input)] {
                     Output output;
-                    output.Push(transformation::Insert(buffer_to_insert));
+                    output.Push(transformation::Insert{.buffer_to_insert =
+                                                           buffer_to_insert});
                     LineColumn position = buffer_to_insert->position();
                     if (position.line.IsZero()) {
                       position.column += input.position.column.ToDelta();
@@ -220,11 +221,12 @@ class Execute : public CompositeTransformation {
                     editor = input.editor](std::unique_ptr<Value> value) {
           Output output;
           if (value != nullptr && value->IsString()) {
-            auto buffer_to_insert =
+            auto buffer =
                 OpenBuffer::New({.editor = editor, .name = L"- text inserted"});
-            buffer_to_insert->AppendLazyString(NewLazyString(value->str));
-            buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
-            output.Push(transformation::Insert(buffer_to_insert));
+            buffer->AppendLazyString(NewLazyString(value->str));
+            buffer->EraseLines(LineNumber(0), LineNumber(1));
+            output.Push(
+                transformation::Insert{.buffer_to_insert = std::move(buffer)});
           }
           return futures::Past(std::move(output));
         });

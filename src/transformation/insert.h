@@ -16,10 +16,6 @@ class EditorState;
 class OpenBuffer;
 namespace transformation {
 struct Insert {
-  Insert() = default;
-  explicit Insert(std::shared_ptr<const OpenBuffer> buffer_to_insert)
-      : buffer_to_insert(std::move(buffer_to_insert)) {}
-
   std::wstring Serialize() const;
 
   std::shared_ptr<const OpenBuffer> buffer_to_insert;

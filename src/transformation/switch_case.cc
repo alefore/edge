@@ -48,7 +48,8 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
                         Modifiers::PasteBufferBehavior::kDoNothing},
       .mode = transformation::Input::Mode::kFinal});
 
-  transformation::Insert insert_options(buffer_to_insert);
+  transformation::Insert insert_options{.buffer_to_insert =
+                                            std::move(buffer_to_insert)};
   if (input.modifiers.direction == Direction::kBackwards) {
     insert_options.final_position =
         transformation::Insert::FinalPosition::kStart;

@@ -172,11 +172,12 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
                   delete_buffer](transformation::Result result) mutable {
         output->MergeFrom(std::move(result));
 
-        transformation::Insert insert_options(std::move(delete_buffer));
-        insert_options.final_position =
-            options.modifiers.direction == Direction::kForwards
-                ? Insert::FinalPosition::kEnd
-                : Insert::FinalPosition::kStart;
+        transformation::Insert insert_options{
+            .buffer_to_insert = std::move(delete_buffer),
+            .final_position =
+                options.modifiers.direction == Direction::kForwards
+                    ? Insert::FinalPosition::kEnd
+                    : Insert::FinalPosition::kStart};
         output->undo_stack->PushFront(insert_options);
         output->undo_stack->PushFront(transformation::SetPosition(range.begin));
 
