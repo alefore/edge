@@ -368,11 +368,10 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       }
       input.search_paths = std::move(resolved_paths);
 
-      // TODO(easy): Change std::wstring to Path.
-      std::set<std::wstring> unique_paths_set;
-      std::vector<Path> unique_paths;  // Preserve the order.
+      std::set<Path> unique_paths_set;
+      std::vector<Path> unique_paths;
       for (const auto& search_path : input.search_paths) {
-        if (unique_paths_set.insert(search_path.ToString()).second) {
+        if (unique_paths_set.insert(search_path).second) {
           unique_paths.push_back(search_path);
         }
       }
