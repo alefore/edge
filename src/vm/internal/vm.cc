@@ -518,28 +518,28 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
   }
 }
 
-unique_ptr<void, std::function<void(void*)>> GetParser(
+std::unique_ptr<void, std::function<void(void*)>> GetParser(
     Compilation* compilation) {
-  return unique_ptr<void, std::function<void(void*)>>(
+  return std::unique_ptr<void, std::function<void(void*)>>(
       CppAlloc(malloc), [compilation](void* parser) {
         Cpp(parser, 0, nullptr, compilation);
         CppFree(parser, free);
       });
 }
 
-unique_ptr<Expression> ResultsFromCompilation(Compilation* compilation,
-                                              wstring* error_description) {
-  if (!compilation->errors.empty()) {
+std::unique_ptr<Expression> ResultsFromCompilation(
+    Compilation compilation, std::wstring* error_description) {
+  if (!compilation.errors.empty()) {
     if (error_description != nullptr) {
       wstring separator = L"";
-      for (auto& error : compilation->errors) {
+      for (auto& error : compilation.errors) {
         *error_description += separator + error;
         separator = L"\n  ";
       }
     }
     return nullptr;
   }
-  return std::move(compilation->expr);
+  return std::move(compilation.expr);
 }
 
 }  // namespace
@@ -560,32 +560,24 @@ std::optional<std::unordered_set<VMType>> CombineReturnTypes(
 unique_ptr<Expression> CompileFile(const string& path,
                                    std::shared_ptr<Environment> environment,
                                    wstring* error_description) {
-  Compilation compilation;
-  compilation.directory = CppDirname(path);
-  compilation.expr = nullptr;
-  compilation.environment = std::move(environment);
-
+  Compilation compilation{.directory = CppDirname(path),
+                          .environment = std::move(environment)};
   CompileFile(path, &compilation, GetParser(&compilation).get());
-
-  return ResultsFromCompilation(&compilation, error_description);
+  return ResultsFromCompilation(std::move(compilation), error_description);
 }
 
 std::unique_ptr<Expression> CompileString(
     const std::wstring& str, std::shared_ptr<Environment> environment,
     std::wstring* error_description) {
   std::wstringstream instr(str, std::ios_base::in);
-  Compilation compilation;
-  compilation.directory = ".";
-  compilation.expr = nullptr;
-  compilation.environment = std::move(environment);
-
+  Compilation compilation{.directory = ".",
+                          .environment = std::move(environment)};
   CompileStream(instr, &compilation, GetParser(&compilation).get());
-
-  return ResultsFromCompilation(&compilation, error_description);
+  return ResultsFromCompilation(std::move(compilation), error_description);
 }
 
 Trampoline::Trampoline(Options options)
-    : environment_(options.environment),
+    : environment_(std::move(options.environment)),
       yield_callback_(std::move(options.yield_callback)) {}
 
 futures::Value<EvaluationOutput> Trampoline::Bounce(Expression* expression,
@@ -594,7 +586,7 @@ futures::Value<EvaluationOutput> Trampoline::Bounce(Expression* expression,
     LOG(FATAL) << "Expression has types: " << TypesToString(expression->Types())
                << ", expected: " << type;
   }
-  static size_t kMaximumJumps = 100;
+  static const size_t kMaximumJumps = 100;
   if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr) {
     return expression->Evaluate(this, type);
   }
@@ -632,10 +624,9 @@ futures::Value<std::unique_ptr<Value>> Evaluate(
     Expression* expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK(expr != nullptr);
-  Trampoline::Options options;
-  options.environment = std::move(environment);
-  options.yield_callback = yield_callback;
-  auto trampoline = std::make_shared<Trampoline>(options);
+  auto trampoline = std::make_shared<Trampoline>(
+      Trampoline::Options{.environment = std::move(environment),
+                          .yield_callback = std::move(yield_callback)});
   return trampoline->Bounce(expr, expr->Types()[0])
       .Transform([trampoline](EvaluationOutput value) {
         DVLOG(4) << "Evaluation done.";

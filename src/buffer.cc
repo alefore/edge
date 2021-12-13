@@ -994,20 +994,19 @@ void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
   };
 
   syntax_data_
-      .Run(std::function<Output(void)>(
-          [contents = std::shared_ptr<BufferContents>(contents_.copy()),
-           parser = tree_parser_] {
-            static Tracker tracker(
-                L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
-            auto tracker_call = tracker.Call();
-            VLOG(3) << "Executing parse tree update.";
-            Output output;
-            output.parse_tree = std::make_shared<ParseTree>(
-                parser->FindChildren(*contents, contents->range()));
-            output.simplified_parse_tree =
-                std::make_shared<ParseTree>(SimplifyTree(*output.parse_tree));
-            return output;
-          }))
+      .Run([contents = std::shared_ptr<BufferContents>(contents_.copy()),
+            parser = tree_parser_] {
+        static Tracker tracker(
+            L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
+        auto tracker_call = tracker.Call();
+        VLOG(3) << "Executing parse tree update.";
+        Output output;
+        output.parse_tree = std::make_shared<ParseTree>(
+            parser->FindChildren(*contents, contents->range()));
+        output.simplified_parse_tree =
+            std::make_shared<ParseTree>(SimplifyTree(*output.parse_tree));
+        return output;
+      })
       .SetConsumer([this](Output output) {
         LOG(INFO) << "Installing new parse trees.";
         parse_tree_ = std::move(output.parse_tree);
@@ -1022,7 +1021,7 @@ void OpenBuffer::StartNewLine(std::shared_ptr<Line> line) {
   CHECK(line != nullptr);
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
-  AppendLines({line});
+  AppendLines({std::move(line)});
 }
 
 void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
@@ -1048,15 +1047,12 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
       options.path = contents_.at(source_line)->ToString();
       ResolvePath(options).Transform([editor = editor(), buffer_name,
                                       source_line](ResolvePathOutput results) {
-        LineMarks::Mark mark;
-        mark.source = buffer_name;
-        mark.source_line = source_line;
-        mark.target_buffer = results.path.ToString();
-        if (results.position.has_value()) {
-          mark.target = *results.position;
-        }
+        LineMarks::Mark mark{.source = buffer_name,
+                             .source_line = source_line,
+                             .target_buffer = results.path.ToString(),
+                             .target = results.position.value_or(LineColumn())};
         LOG(INFO) << "Found a mark: " << mark;
-        editor->line_marks()->AddMark(mark);
+        editor->line_marks()->AddMark(std::move(mark));
         return Success();
       });
     }

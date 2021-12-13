@@ -31,14 +31,14 @@ struct Compilation {
   // The directory containing the file currently being compiled. Used for
   // resolving relative paths (that are relative to this directory, rather than
   // to cwd).
-  string directory;
+  std::string directory;
 
-  unique_ptr<Expression> expr;
-  vector<wstring> errors;
+  std::unique_ptr<Expression> expr = nullptr;
+  std::vector<std::wstring> errors = {};
 
-  std::vector<std::wstring> current_namespace;
+  std::vector<std::wstring> current_namespace = {};
   std::shared_ptr<Environment> environment;
-  wstring last_token;
+  std::wstring last_token = L"";
 };
 
 }  // namespace vm

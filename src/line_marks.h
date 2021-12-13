@@ -34,7 +34,7 @@ struct LineMarks {
     // The reason for expired marks is to preserve marks while recompilation is
     // taking place: the user can still see the old marks (the output from the
     // previous run of the compiler) while they're being updated.
-    std::shared_ptr<LazyString> source_line_content;
+    std::shared_ptr<LazyString> source_line_content = nullptr;
     bool IsExpired() const { return source_line_content != nullptr; }
 
     // What line in the source did this mark occur in?
