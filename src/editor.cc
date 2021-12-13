@@ -466,14 +466,6 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   return environment;
 }
 
-std::pair<int, int> BuildPipe() {
-  int output[2];
-  if (pipe2(output, O_NONBLOCK) == -1) {
-    return {-1, -1};
-  }
-  return {output[0], output[1]};
-}
-
 EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
     : string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
@@ -491,7 +483,12 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       frames_per_second_(args.frames_per_second),
       environment_(BuildEditorEnvironment()),
       default_commands_(NewCommandMode(this)),
-      pipe_to_communicate_internal_events_(BuildPipe()),
+      pipe_to_communicate_internal_events_([] {
+        int output[2];
+        return pipe2(output, O_NONBLOCK) == -1
+                   ? std::make_pair(-1, -1)
+                   : std::make_pair(output[0], output[1]);
+      }()),
       audio_player_(audio_player),
       buffer_tree_(this),
       status_(GetConsole(), audio_player_),
