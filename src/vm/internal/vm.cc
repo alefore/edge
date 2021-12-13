@@ -62,8 +62,9 @@ string CppDirname(string path) {
 
 void CompileStream(std::wistream& stream, Compilation* compilation,
                    void* parser) {
+  CHECK(compilation != nullptr);
   std::wstring line;
-  while (std::getline(stream, line)) {
+  while (compilation->errors.empty() && std::getline(stream, line)) {
     VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
     CompileLine(compilation, parser, line);
   }
@@ -84,6 +85,8 @@ void CompileFile(const string& path, Compilation* compilation, void* parser) {
 
 void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
                    size_t* pos_output) {
+  CHECK(compilation->errors.empty());
+
   VLOG(6) << "Processing #include directive.";
   size_t pos = *pos_output;
   while (pos < str.size() && str[pos] == ' ') {
@@ -121,6 +124,9 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
   compilation->directory = CppDirname(low_level_path);
 
   CompileFile(low_level_path, compilation, parser);
+  for (auto& error : compilation->errors) {
+    error = L"During processing of included file \"" + path + L"\": " + error;
+  }
 
   compilation->directory = old_directory;
 
