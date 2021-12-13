@@ -522,33 +522,10 @@ using std::to_wstring;
   return output;
 }
 
-namespace {
-void Execute(std::shared_ptr<OpenBuffer> buffer) {
-  buffer->work_queue()->Execute();
-  if (auto next = buffer->work_queue()->NextExecution(); next.has_value()) {
-    auto editor_queue = buffer->editor()->work_queue();
-    editor_queue->ScheduleAt(
-        next.value(),
-        [buffer = std::move(buffer)]() mutable { Execute(std::move(buffer)); });
-  }
-}
-}  // namespace
-
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
-      work_queue_([this] {
-        auto next_execution = work_queue_.NextExecution();
-        if (!next_execution.has_value()) {
-          // Must have lost a race against the other thread. This happens when
-          // the thread that is scheduling work is not the main thread.
-          return;
-        }
-        options_.editor->work_queue()->ScheduleAt(
-            next_execution.value(),
-            [shared_this = shared_from_this()]() mutable {
-              Execute(std::move(shared_this));
-            });
-      }),
+      work_queue_(
+          [this] { MaybeScheduleNextWorkQueueExecution(shared_from_this()); }),
       contents_([this](const CursorsTracker::Transformation& transformation) {
         if (syntax_data_state_ == SyntaxDataState::kDone) {
           syntax_data_state_ = SyntaxDataState::kPending;
@@ -2444,6 +2421,20 @@ void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>* source) {
           EndOfFile();
         }
       });
+}
+
+/* static */ void OpenBuffer::MaybeScheduleNextWorkQueueExecution(
+    std::shared_ptr<OpenBuffer> buffer) {
+  if (auto next = buffer->work_queue()->NextExecution();
+      next.has_value() && next != buffer->next_scheduled_execution_) {
+    buffer->next_scheduled_execution_ = next;
+    buffer->editor()->work_queue()->ScheduleAt(
+        next.value(), [buffer = std::move(buffer)]() mutable {
+          buffer->next_scheduled_execution_ = std::nullopt;
+          buffer->work_queue()->Execute();
+          MaybeScheduleNextWorkQueueExecution(std::move(buffer));
+        });
+  }
 }
 
 namespace {
