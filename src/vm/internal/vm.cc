@@ -146,9 +146,10 @@ int ConsumeDecimal(const wstring& str, size_t* pos) {
 
 void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
   CHECK(compilation != nullptr);
+  CHECK(compilation->errors.empty());
   size_t pos = 0;
   int token;
-  while (pos < str.size()) {
+  while (compilation->errors.empty() && pos < str.size()) {
     VLOG(5) << "Compiling from character: " << str.at(pos);
     std::unique_ptr<Value> input;
     switch (str.at(pos)) {
