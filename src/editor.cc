@@ -95,14 +95,6 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
 }
 }  // namespace
 
-void EditorState::NotifyInternalEvent() {
-  VLOG(5) << "Internal event notification!";
-  if (write(pipe_to_communicate_internal_events_.second, " ", 1) == -1) {
-    status_.SetWarningText(L"Write to internal pipe failed: " +
-                           FromByteString(strerror(errno)));
-  }
-}
-
 // Executes pending work from all buffers.
 void EditorState::ExecutePendingWork() { work_queue_.Execute(); }
 
@@ -119,6 +111,26 @@ std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
 }
 
 WorkQueue* EditorState::work_queue() const { return &work_queue_; }
+
+void EditorState::ResetInternalEventNotifications() {
+  char buffer[4096];
+  VLOG(5) << "Internal events detected.";
+  while (read(fd_to_detect_internal_events(), buffer, sizeof(buffer)) > 0)
+    continue;
+  std::unique_lock lock(has_internal_events_mutex_);
+  has_internal_events_ = false;
+}
+
+void EditorState::NotifyInternalEvent() {
+  VLOG(5) << "Internal event notification!";
+  std::unique_lock lock(has_internal_events_mutex_);
+  if (has_internal_events_) return;  // Redundant notification.
+  has_internal_events_ = true;
+  if (write(pipe_to_communicate_internal_events_.second, " ", 1) == -1) {
+    status_.SetWarningText(L"Write to internal pipe failed: " +
+                           FromByteString(strerror(errno)));
+  }
+}
 
 template <typename EdgeStruct, typename FieldValue>
 void RegisterVariableFields(

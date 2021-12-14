@@ -468,9 +468,7 @@ int main(int argc, const char** argv) {
       }
 
       if (fds[i].fd == editor_state()->fd_to_detect_internal_events()) {
-        char buffer[4096];
-        VLOG(5) << "Internal events detected.";
-        while (read(fds[i].fd, buffer, sizeof(buffer)) > 0) continue;
+        editor_state()->ResetInternalEventNotifications();
         continue;
       }
 

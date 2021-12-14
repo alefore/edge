@@ -217,8 +217,6 @@ class EditorState {
     return pipe_to_communicate_internal_events_.first;
   }
 
-  void NotifyInternalEvent();
-
   AudioPlayer* audio_player() const { return audio_player_; }
 
   // Can return null.
@@ -234,7 +232,11 @@ class EditorState {
   std::optional<struct timespec> WorkQueueNextExecution() const;
   WorkQueue* work_queue() const;
 
+  void ResetInternalEventNotifications();
+
  private:
+  void NotifyInternalEvent();
+
   std::shared_ptr<Environment> BuildEditorEnvironment();
 
   EdgeStructInstance<wstring> string_variables_;
@@ -273,10 +275,16 @@ class EditorState {
   Modifiers modifiers_;
   LineMarks line_marks_;
 
-  // Each editor has a pipe. The customer of the editor can read from the read
+  // Each editor has a pipe. The customer of the editor can poll from the read
   // end, to detect the need to redraw the screen. Internally, background
   // threads write to the write end to trigger that.
+  //
+  // We use has_internal_events_ to avoid redundantly notifying this. The
+  // customer must call ResetInternalEventsNotifications to reset it just before
+  // starting to process events.
   const std::pair<int, int> pipe_to_communicate_internal_events_;
+  std::mutex has_internal_events_mutex_;
+  bool has_internal_events_ = false;
 
   AudioPlayer* const audio_player_;
 
