@@ -59,9 +59,6 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
                                     LineModifier::BLUE};
   }
   output.Push(std::move(insert_options));
-  if (input.mode == transformation::Input::Mode::kPreview) {
-    output.Push(transformation::SetPosition(input.position));
-  }
   return futures::Past(std::move(output));
 }
 

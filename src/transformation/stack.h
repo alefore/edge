@@ -16,7 +16,8 @@ struct Stack {
     kDeleteRegion,
     kCopyRegion,
     kCommandSystem,
-    kCommandCpp
+    kCommandCpp,
+    kCapitalsSwitch
   };
 
   void PushBack(Variant transformation);

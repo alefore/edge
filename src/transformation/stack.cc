@@ -6,6 +6,7 @@
 #include "src/run_command_handler.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/input.h"
+#include "src/transformation/switch_case.h"
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
@@ -86,16 +87,15 @@ futures::Value<Result> HandleCommandCpp(Input input,
     return output;
   });
 }
-}  // namespace
 
-futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
-  auto output = std::make_shared<Result>(input.position);
-  auto copy = std::make_shared<Stack>(parameters);
-  std::shared_ptr<Log> trace =
-      input.buffer->log()->NewChild(L"ApplyBase(Stack)");
+template <typename Iterator>
+futures::Value<EmptyValue> ApplyStackDirectly(Iterator begin, Iterator end,
+                                              Input& input,
+                                              std::shared_ptr<Log> trace,
+                                              std::shared_ptr<Result> output) {
   return futures::ForEach(
-             copy->stack.begin(), copy->stack.end(),
-             [output, input,
+             begin, end,
+             [output, &input,
               trace](const transformation::Variant& transformation) {
                trace->Append(L"Transformation: " + ToString(transformation));
                return Apply(transformation, input.NewChild(output->position))
@@ -106,15 +106,28 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                 : futures::IterationControlCommand::kStop;
                    });
              })
-      .Transform([output, input, copy](futures::IterationControlCommand) {
+      .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
+}
+
+}  // namespace
+
+futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
+  auto output = std::make_shared<Result>(input.position);
+  auto copy = std::make_shared<Stack>(parameters);
+  std::shared_ptr<Log> trace =
+      input.buffer->log()->NewChild(L"ApplyBase(Stack)");
+  return ApplyStackDirectly(copy->stack.begin(), copy->stack.end(), input,
+                            trace, output)
+      .Transform([output, input, copy, trace](EmptyValue) {
+        Range range{min(min(input.position, output->position),
+                        input.buffer->end_position()),
+                    min(max(input.position, output->position),
+                        input.buffer->end_position())};
         Delete delete_transformation{
             .modifiers = {.direction = input.position < output->position
                                            ? Direction::kForwards
                                            : Direction::kBackwards},
-            .range = Range(min(min(input.position, output->position),
-                               input.buffer->end_position()),
-                           min(max(input.position, output->position),
-                               input.buffer->end_position()))};
+            .range = range};
         if (delete_transformation.range->IsEmpty()) {
           return futures::Past(std::move(*output));
         }
@@ -141,8 +154,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             if (input.mode == Input::Mode::kPreview) {
               delete_transformation.preview_modifiers = {
                   LineModifier::GREEN, LineModifier::UNDERLINE};
-              return Apply(delete_transformation,
-                           input.NewChild(delete_transformation.range->begin));
+              return Apply(delete_transformation, input.NewChild(range.begin));
             }
             auto contents = input.buffer->contents()->copy();
             contents->FilterToRange(*delete_transformation.range);
@@ -152,6 +164,35 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           }
           case Stack::PostTransformationBehavior::kCommandCpp:
             return HandleCommandCpp(std::move(input), delete_transformation);
+          case Stack::PostTransformationBehavior::kCapitalsSwitch: {
+            auto transformation = std::make_shared<SwitchCaseTransformation>();
+            std::vector<ModifiersAndComposite> transformations;
+            if (range.lines() > LineNumberDelta(1))
+              transformations.push_back(
+                  {.modifiers =
+                       {.structure = StructureLine(),
+                        .repetitions =
+                            (range.lines() - LineNumberDelta(1)).line_delta,
+                        .boundary_end = Modifiers::LIMIT_NEIGHBOR},
+                   .transformation = transformation});
+            auto columns = range.lines() <= LineNumberDelta(1)
+                               ? range.end.column - range.begin.column
+                               : range.end.column.ToDelta();
+            if (!columns.IsZero())
+              transformations.push_back(
+                  {.modifiers = {.repetitions = columns.column_delta},
+                   .transformation = transformation});
+            auto final_position = output->position;
+            auto sub_input = input.NewChild(range.begin);
+            output->position = sub_input.position;
+            return ApplyStackDirectly(transformations.begin(),
+                                      transformations.end(), sub_input, trace,
+                                      output)
+                .Transform([output, final_position](EmptyValue) {
+                  output->position = final_position;
+                  return std::move(*output);
+                });
+          }
         }
         LOG(FATAL) << "Invalid post transformation behavior.";
         return futures::Past(std::move(*output));

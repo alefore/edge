@@ -510,6 +510,17 @@ class TopLevelCommandMode : public EditorMode {
         }
         state_.set_top_command(top_command);
         return true;
+      case L'~':
+        switch (top_command.post_transformation_behavior) {
+          case PTB::kCapitalsSwitch:
+            top_command.post_transformation_behavior = PTB::kNone;
+            break;
+          default:
+            top_command.post_transformation_behavior = PTB::kCapitalsSwitch;
+            break;
+        }
+        state_.set_top_command(top_command);
+        return true;
       case L'$':
         switch (top_command.post_transformation_behavior) {
           case PTB::kCommandSystem:
@@ -566,6 +577,8 @@ class TopLevelCommandMode : public EditorMode {
         return L"🐚 System";
       case transformation::Stack::PostTransformationBehavior::kCommandCpp:
         return L"🤖 Cpp";
+      case transformation::Stack::PostTransformationBehavior::kCapitalsSwitch:
+        return L" Aa";
     }
     LOG(FATAL) << "Invalid post transformation behavior.";
     return L"Move";
