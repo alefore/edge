@@ -63,6 +63,8 @@ class Environment {
 
   void ForEachType(std::function<void(const wstring&, ObjectType*)> callback);
   void ForEach(std::function<void(const wstring&, Value*)> callback);
+  void ForEachNonRecursive(
+      std::function<void(const wstring&, Value*)> callback);
 
  private:
   map<wstring, unique_ptr<ObjectType>> object_types_;

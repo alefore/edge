@@ -34,8 +34,8 @@ struct Value {
   static unique_ptr<Value> NewInteger(int value);
   static unique_ptr<Value> NewDouble(double value);
   static unique_ptr<Value> NewString(wstring value);
-  static unique_ptr<Value> NewObject(const wstring& name,
-                                     const shared_ptr<void>& value);
+  static unique_ptr<Value> NewObject(std::wstring name,
+                                     std::shared_ptr<void> value);
   static unique_ptr<Value> NewFunction(std::vector<VMType> arguments,
                                        Callback callback);
   // Convenience wrapper.

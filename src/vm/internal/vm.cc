@@ -19,6 +19,7 @@
 #include "append_expression.h"
 #include "assign_expression.h"
 #include "binary_operator.h"
+#include "class_expression.h"
 #include "compilation.h"
 #include "if_expression.h"
 #include "lambda.h"
@@ -477,7 +478,8 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
                  {L"if", {.token = IF}},
                  {L"else", {.token = ELSE}},
                  {L"return", {.token = RETURN}},
-                 {L"namespace", {.token = NAMESPACE}}});
+                 {L"namespace", {.token = NAMESPACE}},
+                 {L"class", {.token = CLASS}}});
         if (auto it = keywords->find(symbol); it != keywords->end()) {
           token = it->second.token;
           if (auto supplier = it->second.value_supplier; supplier != nullptr) {

@@ -37,6 +37,7 @@ struct Compilation {
   std::vector<std::wstring> errors = {};
 
   std::vector<std::wstring> current_namespace = {};
+  std::vector<VMType> current_class = {};
   std::shared_ptr<Environment> environment;
   std::wstring last_token = L"";
 };

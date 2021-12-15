@@ -255,6 +255,11 @@ void Environment::ForEach(
   if (parent_environment_ != nullptr) {
     parent_environment_->ForEach(callback);
   }
+  ForEachNonRecursive(callback);
+}
+
+void Environment::ForEachNonRecursive(
+    std::function<void(const wstring&, Value*)> callback) {
   for (auto& symbol_entry : table_) {
     for (auto& type_entry : symbol_entry.second) {
       callback(symbol_entry.first, type_entry.second.get());

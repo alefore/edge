@@ -226,6 +226,8 @@ src/vm/internal/time.cc \
 src/vm/internal/time.h \
 src/vm/internal/types.cc \
 src/vm/internal/binary_operator.cc \
+src/vm/internal/class_expression.cc \
+src/vm/internal/class_expression.h \
 src/vm/internal/if_expression.cc \
 src/vm/internal/return_expression.cc \
 src/vm/internal/types_promotion.cc \

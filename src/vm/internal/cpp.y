@@ -82,6 +82,21 @@ namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
   StartNamespaceDeclaration(compilation, NAME->str);
 }
 
+statement(OUT) ::= class_declaration
+    LBRACKET statement_list(A) RBRACKET SEMICOLON. {
+  if (A == nullptr) {
+    OUT = nullptr;
+  } else {
+    FinishClassDeclaration(compilation, std::unique_ptr<Expression>(A));
+    A = nullptr;
+    OUT = NewVoidExpression().release();
+  }
+}
+
+class_declaration ::= CLASS SYMBOL(NAME) . {
+  StartClassDeclaration(compilation, NAME->str);
+}
+
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
   OUT = NewReturnExpression(compilation, unique_ptr<Expression>(A)).release();
   A = nullptr;

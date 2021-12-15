@@ -35,9 +35,9 @@ namespace vm {
 }
 
 /* static */ std::unique_ptr<Value> Value::NewObject(
-    const wstring& name, const shared_ptr<void>& value) {
-  auto output = std::make_unique<Value>(VMType::ObjectType(name));
-  output->user_value = value;
+    std::wstring name, std::shared_ptr<void> value) {
+  auto output = std::make_unique<Value>(VMType::ObjectType(std::move(name)));
+  output->user_value = std::move(value);
   return output;
 }
 
