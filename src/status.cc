@@ -110,7 +110,7 @@ std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
   if (!information_.empty()) {
     options.AppendString(L"    -- ", dim);
     bool need_separator = false;
-    for (const auto [key, value] : information_) {
+    for (const auto& [key, value] : information_) {
       if (need_separator) {
         options.AppendString(L" ", empty);
       }
