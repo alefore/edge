@@ -34,7 +34,7 @@ const bool get_event_probability_tests_registration = tests::Register(
       .callback =
           [] {
             History history;
-            history[L"m0"].push_back({L"foo", L"bar"});
+            history[L"m0"].push_back(FeaturesSet({L"foo", L"bar"}));
             auto result = GetEventProbability(history);
             CHECK_EQ(result.size(), 1ul);
             CHECK_EQ(result.count(L"m0"), 1ul);
@@ -44,7 +44,8 @@ const bool get_event_probability_tests_registration = tests::Register(
       .callback =
           [] {
             History history;
-            history[L"m0"] = {{L"foo", L"bar"}, {L"foo"}, {L"bar"}};
+            history[L"m0"] = {FeaturesSet({L"foo", L"bar"}),
+                              FeaturesSet({L"foo"}), FeaturesSet({L"bar"})};
             auto result = GetEventProbability(history);
             CHECK_EQ(result.size(), 1ul);
             CHECK_EQ(result.count(L"m0"), 1ul);
@@ -52,9 +53,12 @@ const bool get_event_probability_tests_registration = tests::Register(
           }},
      {.name = L"MultipleEvents", .callback = [] {
         History history;
-        history[L"m0"] = {{L"1"}, {L"2"}, {L"3"}, {L"4"}, {L"5"}};
-        history[L"m1"] = {{L"1"}, {L"2"}, {L"3"}, {L"4"}};
-        history[L"m2"] = {{L"1"}};
+        history[L"m0"] = {FeaturesSet({L"1"}), FeaturesSet({L"2"}),
+                          FeaturesSet({L"3"}), FeaturesSet({L"4"}),
+                          FeaturesSet({L"5"})};
+        history[L"m1"] = {FeaturesSet({L"1"}), FeaturesSet({L"2"}),
+                          FeaturesSet({L"3"}), FeaturesSet({L"4"})};
+        history[L"m2"] = {FeaturesSet({L"1"})};
         auto result = GetEventProbability(history);
         CHECK_EQ(result.size(), 3ul);
 
@@ -74,7 +78,7 @@ std::unordered_map<std::wstring, ProbabilityMap> GetPerEventFeatureProbability(
   for (const auto& [event, instances] : history) {
     std::unordered_map<std::wstring, size_t> feature_count;
     for (const auto& instance : instances) {
-      for (const auto& feature : instance) {
+      for (const auto& feature : instance.features) {
         feature_count[feature]++;
       }
     }
@@ -99,7 +103,7 @@ const bool get_per_event_feature_probability_tests_registration =
           .callback =
               [] {
                 History history;
-                history[L"m0"].push_back({L"a", L"b"});
+                history[L"m0"].push_back(FeaturesSet({L"a", L"b"}));
                 auto result = GetPerEventFeatureProbability(history);
                 CHECK_EQ(result.size(), 1ul);
                 CHECK_EQ(result.count(L"m0"), 1ul);
@@ -115,8 +119,10 @@ const bool get_per_event_feature_probability_tests_registration =
           .callback =
               [] {
                 History history;
-                history[L"m0"] = {
-                    {L"a", L"b", L"c"}, {L"a", L"b"}, {L"a"}, {L"a"}, {L"a"}};
+                history[L"m0"] = {FeaturesSet({L"a", L"b", L"c"}),
+                                  FeaturesSet({L"a", L"b"}),
+                                  FeaturesSet({L"a"}), FeaturesSet({L"a"}),
+                                  FeaturesSet({L"a"})};
                 auto result = GetPerEventFeatureProbability(history);
                 CHECK_EQ(result.size(), 1ul);
                 CHECK_EQ(result.count(L"m0"), 1ul);
@@ -133,9 +139,11 @@ const bool get_per_event_feature_probability_tests_registration =
               }},
          {.name = L"MultipleEventMultipleInstance", .callback = [] {
             History history;
-            history[L"m0"] = {
-                {L"a", L"b", L"c"}, {L"a", L"b"}, {L"a"}, {L"a"}, {L"a"}};
-            history[L"m1"] = {{L"a", L"b", L"c"}, {L"c"}};
+            history[L"m0"] = {FeaturesSet({L"a", L"b", L"c"}),
+                              FeaturesSet({L"a", L"b"}), FeaturesSet({L"a"}),
+                              FeaturesSet({L"a"}), FeaturesSet({L"a"})};
+            history[L"m1"] = {FeaturesSet({L"a", L"b", L"c"}),
+                              FeaturesSet({L"c"})};
 
             auto result = GetPerEventFeatureProbability(history);
 
@@ -288,19 +296,19 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
     L"BayesSortTests",
     {
         {.name = L"EmptyHistoryAndFeatures",
-         .callback = [] { CHECK_EQ(Sort({}, {}).size(), 0ul); }},
+         .callback = [] { CHECK_EQ(Sort({}, FeaturesSet({})).size(), 0ul); }},
         {.name = L"EmptyHistory",
          .callback =
              [] {
-               CHECK_EQ(Sort({}, {L"a", L"b"}).size(), 0ul);
+               CHECK_EQ(Sort({}, FeaturesSet({L"a", L"b"})).size(), 0ul);
              }},
         {.name = L"EmptyFeatures",
          .callback =
              [] {
                History history;
-               history[L"m0"] = {{L"a"}, {L"b"}};
-               history[L"m1"] = {{L"c"}};
-               auto results = Sort(history, {});
+               history[L"m0"] = {FeaturesSet({L"a"}), FeaturesSet({L"b"})};
+               history[L"m1"] = {FeaturesSet({L"c"})};
+               auto results = Sort(history, FeaturesSet({}));
                CHECK_EQ(results.size(), 2ul);
                // TODO: Why can't I use CHECK_EQ below?
                CHECK(results.front() == L"m1");
@@ -310,9 +318,9 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
          .callback =
              [] {
                History history;
-               history[L"m0"] = {{L"a"}, {L"b"}};
-               history[L"m1"] = {{L"c"}};
-               auto results = Sort(history, {L"d"});
+               history[L"m0"] = {FeaturesSet({L"a"}), FeaturesSet({L"b"})};
+               history[L"m1"] = {FeaturesSet({L"c"})};
+               auto results = Sort(history, FeaturesSet({L"d"}));
                CHECK_EQ(results.size(), 2ul);
                // TODO: Why can't I use CHECK_EQ below?
                CHECK(results.front() == L"m1");
@@ -322,9 +330,9 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
          .callback =
              [] {
                History history;
-               history[L"m0"] = {{L"a"}, {L"b"}};
-               history[L"m1"] = {{L"c"}};
-               auto results = Sort(history, {L"c"});
+               history[L"m0"] = {FeaturesSet({L"a"}), FeaturesSet({L"b"})};
+               history[L"m1"] = {FeaturesSet({L"c"})};
+               auto results = Sort(history, FeaturesSet({L"c"}));
                CHECK_EQ(results.size(), 2ul);
                // TODO: Why can't I use CHECK_EQ below?
                CHECK(results.front() == L"m0");

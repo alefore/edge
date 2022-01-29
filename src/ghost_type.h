@@ -12,6 +12,11 @@ namespace afc::editor {
   bool operator<(const ClassName& other) const { \
     return variable < other.variable;            \
   }
+
+#define GHOST_TYPE_BEGIN_END(ClassName, variable) \
+  auto begin() const { return variable.begin(); } \
+  auto end() const { return variable.end(); }
+
 }  // namespace afc::editor
 
 #endif  //__AFC_EDITOR_GHOST_TYPE_H__

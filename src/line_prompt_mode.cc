@@ -379,7 +379,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
               features.insert(key + L":" + QuoteString(value)->ToString());
             }
           }
-          features_output->push_back(std::move(features));
+          features_output->push_back(
+              naive_bayes::FeaturesSet(std::move(features)));
           return !abort_notification->HasBeenNotified();
         });
 
@@ -394,7 +395,9 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
           current_features.insert(name + L":" + QuoteString(value)->ToString());
         }
 
-        for (auto& key : naive_bayes::Sort(history_data, current_features)) {
+        for (auto& key : naive_bayes::Sort(
+                 history_data,
+                 afc::naive_bayes::FeaturesSet(current_features))) {
           std::vector<TokenAndModifiers> tokens;
           for (auto token : history_prompt_tokens[key]) {
             tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});

@@ -3,9 +3,19 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/ghost_type.h"
+
 namespace afc::naive_bayes {
 
-using FeaturesSet = std::unordered_set<std::wstring>;
+struct FeaturesSet {
+  explicit FeaturesSet(std::unordered_set<std::wstring> features)
+      : features(std::move(features)) {}
+
+  GHOST_TYPE_EQ(FeaturesSet, features);
+  GHOST_TYPE_BEGIN_END(FeaturesSet, features);
+
+  std::unordered_set<std::wstring> features;
+};
 
 // Given a history of "events", each executed when a set of features was present
 // and the information about the currently present set of features, applies
