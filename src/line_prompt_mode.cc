@@ -326,8 +326,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
              features = GetCurrentFeatures(editor_state)]() mutable -> Output {
         Output output;
         // Sets of features for each unique `prompt` value in the history.
-        std::unordered_map<std::wstring, std::vector<naive_bayes::FeaturesSet>>
-            history_data;
+        naive_bayes::History history_data;
         // Tokens by parsing the `prompt` value in the history.
         std::unordered_map<std::wstring, std::vector<Token>>
             history_prompt_tokens;
@@ -373,10 +372,11 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             VLOG(6) << "Ignoring value, no match: " << line.ToString();
             return !abort_notification->HasBeenNotified();
           }
-          std::unordered_set<std::wstring> features;
+          std::unordered_set<naive_bayes::Feature> features;
           for (auto& [key, value] : line_keys.value()) {
             if (key != L"prompt") {
-              features.insert(key + L":" + QuoteString(value)->ToString());
+              features.insert(naive_bayes::Feature(
+                  key + L":" + QuoteString(value)->ToString()));
             }
           }
           features_output->push_back(
@@ -390,20 +390,21 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
         auto synthetic_features = GetSyntheticFeatures(features);
         features.insert(synthetic_features.begin(), synthetic_features.end());
 
-        std::unordered_set<std::wstring> current_features;
+        std::unordered_set<naive_bayes::Feature> current_features;
         for (const auto& [name, value] : features) {
-          current_features.insert(name + L":" + QuoteString(value)->ToString());
+          current_features.insert(naive_bayes::Feature(
+              name + L":" + QuoteString(value)->ToString()));
         }
 
-        for (auto& key : naive_bayes::Sort(
+        for (naive_bayes::Event& key : naive_bayes::Sort(
                  history_data,
                  afc::naive_bayes::FeaturesSet(current_features))) {
           std::vector<TokenAndModifiers> tokens;
-          for (auto token : history_prompt_tokens[key]) {
+          for (auto token : history_prompt_tokens[key.name]) {
             tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
           }
           output.lines.push_back(
-              ColorizeLine(NewLazyString(key), std::move(tokens)));
+              ColorizeLine(NewLazyString(key.name), std::move(tokens)));
         }
         return output;
       })
