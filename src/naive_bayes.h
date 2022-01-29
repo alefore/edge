@@ -7,14 +7,16 @@
 
 namespace afc::naive_bayes {
 
-struct FeaturesSet {
+class FeaturesSet {
+ public:
   explicit FeaturesSet(std::unordered_set<std::wstring> features)
-      : features(std::move(features)) {}
+      : features_(std::move(features)) {}
 
-  GHOST_TYPE_EQ(FeaturesSet, features);
-  GHOST_TYPE_BEGIN_END(FeaturesSet, features);
+  GHOST_TYPE_EQ(FeaturesSet, features_);
+  GHOST_TYPE_BEGIN_END(FeaturesSet, features_);
 
-  std::unordered_set<std::wstring> features;
+ private:
+  std::unordered_set<std::wstring> features_;
 };
 
 // Given a history of "events", each executed when a set of features was present

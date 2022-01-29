@@ -78,7 +78,7 @@ std::unordered_map<std::wstring, ProbabilityMap> GetPerEventFeatureProbability(
   for (const auto& [event, instances] : history) {
     std::unordered_map<std::wstring, size_t> feature_count;
     for (const auto& instance : instances) {
-      for (const auto& feature : instance.features) {
+      for (const auto& feature : instance) {
         feature_count[feature]++;
       }
     }
