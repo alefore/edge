@@ -14,20 +14,10 @@ extern "C" {
 }
 
 #include "src/command.h"
+#include "src/ghost_type.h"
 #include "src/value_or_error.h"
 
 namespace afc::editor {
-
-#define GHOST_TYPE_EQ(ClassName, variable)        \
-  bool operator==(const ClassName& other) const { \
-    return variable == other.variable;            \
-  }                                               \
-  bool operator!=(const ClassName& other) const { return !(*this == other); }
-
-#define GHOST_TYPE_LT(ClassName, variable)       \
-  bool operator<(const ClassName& other) const { \
-    return variable < other.variable;            \
-  }
 
 class PathComponent {
  public:

@@ -79,6 +79,7 @@ src/fuzz.h \
 src/fuzz.cc \
 src/fuzz_testable.h \
 src/fuzz_testable.cc \
+src/ghost_type.h \
 src/goto_command.cc \
 src/hash.h \
 src/help_command.cc \
