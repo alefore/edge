@@ -12,6 +12,8 @@
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
 #include "src/char_buffer.h"
+#include "src/editor.h"
+#include "src/editor_variables.h"
 #include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
 #include "src/line_scroll_control.h"
@@ -32,7 +34,9 @@ namespace editor {
 LineNumberOutputProducer::LineNumberOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
     std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader)
-    : width_(PrefixWidth(buffer->lines_size())),
+    : width_(max(PrefixWidth(buffer->lines_size()),
+                 ColumnNumberDelta(buffer->editor()->Read(
+                     editor_variables::numbers_column_padding)))),
       buffer_(std::move(buffer)),
       line_scroll_control_reader_(std::move(line_scroll_control_reader)) {}
 

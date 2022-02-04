@@ -54,4 +54,15 @@ EdgeVariable<int>* const buffers_to_show =
         .DefaultValue(1)
         .Build();
 
+EdgeVariable<int>* const numbers_column_padding =
+    IntStruct()
+        ->Add()
+        .Name(L"numbers_column_padding")
+        .Key(L"L")
+        .Description(
+            L"How many characters of padding to apply to the line numbers "
+            L"(when displaying buffers?")
+        .DefaultValue(0)
+        .Build();
+
 }  // namespace afc::editor::editor_variables

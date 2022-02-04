@@ -15,6 +15,7 @@ extern EdgeVariable<bool>* const multiple_buffers;
 EdgeStruct<int>* IntStruct();
 extern EdgeVariable<int>* const buffers_to_retain;
 extern EdgeVariable<int>* const buffers_to_show;
+extern EdgeVariable<int>* const numbers_column_padding;
 
 }  // namespace afc::editor::editor_variables
 
