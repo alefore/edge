@@ -41,6 +41,13 @@ const bool buffer_tests_registration = tests::Register(
                   L"C++: \"int\"");
           }},
      {.name = L"MetadataPurePow",
-      .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }}});
+      .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }},
+     {.name = L"MetadataScientificNotation",
+      .callback = [] { CHECK(GetMetadata(L"1e3") == L"1000"); }},
+     {.name = L"MetadataScientificNotationPlus",
+      .callback = [] { CHECK(GetMetadata(L"1e+3") == L"1000"); }},
+     {.name = L"MetadataScientificNotationMinus",
+      .callback = [] { CHECK(GetMetadata(L"1e-3") == L"0.001"); }}});
+
 }  // namespace
 }  // namespace afc::editor

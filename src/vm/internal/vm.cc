@@ -345,7 +345,20 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           }
           if (pos < str.size() && str.at(pos) == 'e') {
             pos++;
-            value *= pow(10, ConsumeDecimal(str, &pos));
+            int signal = 1;
+            if (pos < str.size()) {
+              switch (str.at(pos)) {
+                case '+':
+                  signal = 1;
+                  pos++;
+                  break;
+                case L'-':
+                  signal = -1;
+                  pos++;
+                  break;
+              }
+            }
+            value *= pow(10, signal * ConsumeDecimal(str, &pos));
           }
           token = DOUBLE;
           input = Value::NewDouble(value);
