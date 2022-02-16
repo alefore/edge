@@ -288,7 +288,6 @@ void TestCases() {
   CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(0));
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("gw/");
-  CHECK(editor_state.last_search_query() == L"hey");
   CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->position().column, ColumnNumber(10));
 

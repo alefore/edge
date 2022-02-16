@@ -131,12 +131,6 @@ class EditorState {
   void ResetRepetitions() { modifiers_.ResetRepetitions(); }
   void set_repetitions(size_t value) { modifiers_.repetitions = value; }
 
-  // TODO: Maybe use a compiled regexp?
-  const wstring& last_search_query() const { return last_search_query_; }
-  void set_last_search_query(const wstring& query) {
-    last_search_query_ = query;
-  }
-
   Modifiers modifiers() const { return modifiers_; }
   void set_modifiers(const Modifiers& modifiers) { modifiers_ = modifiers; }
 
@@ -252,8 +246,6 @@ class EditorState {
   double frames_per_second_;
 
   const std::shared_ptr<Environment> environment_;
-
-  wstring last_search_query_;
 
   // Should only be directly used when the editor has no buffer.
   std::shared_ptr<MapModeCommands> default_commands_;

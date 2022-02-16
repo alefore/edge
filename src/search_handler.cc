@@ -274,7 +274,6 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
 vector<LineColumn> SearchHandler(EditorState* editor_state,
                                  const SearchOptions& options,
                                  OpenBuffer* buffer) {
-  editor_state->set_last_search_query(options.search_query);
   if (!editor_state->has_current_buffer() || options.search_query.empty()) {
     return {};
   }
