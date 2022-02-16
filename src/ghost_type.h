@@ -85,6 +85,10 @@
 #include <functional>
 
 namespace afc::editor {
+#define GHOST_TYPE_CONSTRUCTOR(ClassName, variable) \
+  template <typename VariableType>                  \
+  explicit ClassName(VariableType variable) : variable(std::move(variable)) {}
+
 #define GHOST_TYPE_EQ(ClassName, variable)        \
   bool operator==(const ClassName& other) const { \
     return variable == other.variable;            \
@@ -126,6 +130,15 @@ namespace afc::editor {
       return std::hash<std::wstring>{}(self.variable);    \
     }                                                     \
   };
+
+#define GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable) \
+  friend std::ostream& operator<<(std::ostream& os, const ClassName& obj)
+
+#define GHOST_TYPE_OUTPUT(ClassName, variable)                              \
+  inline std::ostream& operator<<(std::ostream& os, const ClassName& obj) { \
+    os << "[" #ClassName ":" << obj.variable << "]";                        \
+    return os;                                                              \
+  }
 
 }  // namespace afc::editor
 
