@@ -29,7 +29,8 @@ EventProbabilityMap GetEventProbability(const History& history) {
 const bool get_event_probability_tests_registration = tests::Register(
     L"GetEventProbabilityTests",
     {{.name = L"Empty",
-      .callback = [] { CHECK_EQ(GetEventProbability({}).size(), 0ul); }},
+      .callback =
+          [] { CHECK_EQ(GetEventProbability(History({})).size(), 0ul); }},
      {.name = L"SingleEventSingleInstance",
       .callback =
           [] {

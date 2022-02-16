@@ -89,6 +89,8 @@ namespace afc::editor {
   template <typename VariableType>                  \
   explicit ClassName(VariableType variable) : variable(std::move(variable)) {}
 
+#define GHOST_TYPE_CONSTRUCTOR_EMPTY(ClassName) ClassName() = default;
+
 #define GHOST_TYPE_EQ(ClassName, variable)        \
   bool operator==(const ClassName& other) const { \
     return variable == other.variable;            \
@@ -130,6 +132,12 @@ namespace afc::editor {
       return std::hash<std::wstring>{}(self.variable);    \
     }                                                     \
   };
+
+#define GHOST_TYPE_INDEX(ClassName, variable)       \
+  template <typename KeyType>                       \
+  auto& operator[](const KeyType& ghost_type_key) { \
+    return variable[ghost_type_key];                \
+  }
 
 #define GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable) \
   friend std::ostream& operator<<(std::ostream& os, const ClassName& obj)

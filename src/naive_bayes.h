@@ -72,7 +72,19 @@ class FeaturesSet {
 
 // The history represents all the past executions of all events. For each
 // execution, we store the set of features that were present.
-using History = std::unordered_map<Event, std::vector<FeaturesSet>>;
+class History {
+ public:
+  GHOST_TYPE_CONSTRUCTOR_EMPTY(History);
+  GHOST_TYPE_CONSTRUCTOR(History, history);
+
+  GHOST_TYPE_BEGIN_END(History, history);
+  GHOST_TYPE_INDEX(History, history);
+
+  auto size() const { return history.size(); }
+
+ private:
+  std::unordered_map<Event, std::vector<FeaturesSet>> history;
+};
 
 // Given the history of all past executions of all events, apply Naive Bayes and
 // return the list of all keys, sorted by their predicted proportional
