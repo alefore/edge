@@ -1,9 +1,8 @@
 // Macros for easily defining ghost types.
 //
-// This is based on the principle that
-// code is more readable if the types it operates on convey more semantics than
-// just what their underlying representation as basic types is (e.g., string,
-// int, etc.).
+// This is based on the principle that code is more readable if the types it
+// operates on convey more semantics than just what their underlying
+// representation as basic types is (e.g., string, int, etc.).
 //
 // For example, suppose you have a class that represents the following values as
 // strings:
@@ -12,13 +11,18 @@
 // - Last name
 // - Email
 //
-// Instead of writing functions such as:
+// Instead of writing expressions such as:
 //
+//   string my_first_name;
+//   string my_last_name;
 //   Person New(string first_name, string last_name, string email);
 //   string GetEmail(const Person& person);
 //
-// We think it's better to use "alias" types:
+// We think it's better to use "alias" types (in this case FirstName, LastName
+// and Email):
 //
+//   FirstName my_first_name;
+//   LastName my_last_name;
 //   Person New(FirstName first_name, LastName last_name, Email email);
 //   Email GetEmail(const Person& person);
 //
@@ -29,9 +33,9 @@
 //   using Email = string;
 //
 // Unfortunately, with this approach, C++ won't detect typing errors if the
-// invalid types are used, such as in:
+// types are used incorrectly, such as in:
 //
-//   FirstName first_name = GetEmail(my_person);
+//   FirstName foo = GetEmail(my_person);
 //
 // This module proposes that you define "ghost types": a simple structure that
 // contains a single field with the underlying data representation, such as:
@@ -50,7 +54,8 @@
 // directly compared (based on the operators for the underlying
 // representations).
 //
-// You may need to provide an accessor for the underlying representation, like:
+// You may sometimes need to provide accessors exposing the underlying
+// representation, like:
 //
 //   class FirstName {
 //    public:
@@ -67,18 +72,26 @@
 //
 //   class FirstName {
 //    public:
-//     ...
+//     GHOST_TYPE_CONSTRUCTOR(FirstName, value);
 //     GHOST_TYPE_EQ(FirstName, value);
 //     GHOST_TYPE_LT(FirstName, value);
-//     ...
+//     GHOST_TYPE_OUTPUT_FRIEND(FirstName, value);
+//    private:
+//     std::string value;
 //   };
+//
+//   GHOST_TYPE_OUTPUT(FirstName, value);
 //
 // This is enough to make the following expressions valid:
 //
-//   if (last_name_a == last_name_b) ...
+//   LastName last_name_foo("Forero Cuervo");
+//
+//   if (last_name_a == last_name_b) return;
 //
 //   std::vector<LastName> names;
 //   sort(names.begin(), names.end());
+//
+//   std::out << "Found name: " << last_name_foo;
 #ifndef __AFC_EDITOR_GHOST_TYPE_H__
 #define __AFC_EDITOR_GHOST_TYPE_H__
 
