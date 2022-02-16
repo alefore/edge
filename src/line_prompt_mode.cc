@@ -328,7 +328,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
         // Sets of features for each unique `prompt` value in the history.
         naive_bayes::History history_data;
         // Tokens by parsing the `prompt` value in the history.
-        std::unordered_map<std::wstring, std::vector<Token>>
+        std::unordered_map<naive_bayes::Event, std::vector<Token>>
             history_prompt_tokens;
         std::vector<Token> filter_tokens =
             TokenizeBySpaces(*NewLazyString(filter));
@@ -357,7 +357,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
           VLOG(8) << "Considering history value: " << prompt_value->ToString();
           std::vector<Token> line_tokens = ExtendTokensToEndOfString(
               prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-          auto event_key = prompt_value->ToString();
+          naive_bayes::Event event_key(prompt_value->ToString());
           std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
           if (filter_tokens.empty()) {
             VLOG(6) << "Accepting value (empty filters): " << line.ToString();
@@ -400,11 +400,11 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
                  history_data,
                  afc::naive_bayes::FeaturesSet(current_features))) {
           std::vector<TokenAndModifiers> tokens;
-          for (auto token : history_prompt_tokens[key.name]) {
+          for (auto token : history_prompt_tokens[key]) {
             tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
           }
           output.lines.push_back(
-              ColorizeLine(NewLazyString(key.name), std::move(tokens)));
+              ColorizeLine(NewLazyString(key.ToString()), std::move(tokens)));
         }
         return output;
       })

@@ -1,22 +1,32 @@
+#include <iostream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "src/ghost_type.h"
+#include "src/wstring.h"
 
 namespace afc::naive_bayes {
+using ::operator<<;
+
 // An Event represents an arbitrary action, such as opening a specific file.
 class Event {
  public:
-  Event(std::wstring name) : name(std::move(name)) {}
+  GHOST_TYPE_CONSTRUCTOR(Event, name);
 
   GHOST_TYPE_EQ(Event, name);
   GHOST_TYPE_HASH_FRIEND(Event, name);
 
-  // TODO: Find a way to make name private?
+  GHOST_TYPE_OUTPUT_FRIEND(Event, name);
+
+  const std::wstring& ToString() const { return name; }
+
+ private:
   std::wstring name;
 };
+
+GHOST_TYPE_OUTPUT(Event, name);
 
 // A Feature represents some arbitrary characteristic of the environment where
 // events take place.
@@ -27,14 +37,18 @@ class Event {
 // - A given process is currently executing.
 class Feature {
  public:
-  Feature(std::wstring name) : name(std::move(name)) {}
+  GHOST_TYPE_CONSTRUCTOR(Feature, name);
 
   GHOST_TYPE_EQ(Feature, name);
   GHOST_TYPE_HASH_FRIEND(Feature, name);
 
-  // TODO: Find a way to make name private?
+  GHOST_TYPE_OUTPUT_FRIEND(Feature, name);
+
+ private:
   std::wstring name;
 };
+
+GHOST_TYPE_OUTPUT(Feature, name);
 }  // namespace afc::naive_bayes
 
 GHOST_TYPE_HASH(afc::naive_bayes::Event, name);

@@ -90,8 +90,8 @@ std::unordered_map<Event, FeatureProbabilityMap> GetPerEventFeatureProbability(
     for (const auto& [feature, count] : feature_count) {
       feature_probability->insert(
           {feature, static_cast<double>(count) / instances.size()});
-      VLOG(8) << "Probability for " << feature.name << " given " << event.name
-              << ": " << feature_probability->find(feature)->second;
+      VLOG(8) << "Probability for " << feature << " given " << event << ": "
+              << feature_probability->find(feature)->second;
     }
   }
   return output;
@@ -273,16 +273,15 @@ std::vector<Event> Sort(const History& history,
     for (const auto& feature : current_features) {
       if (auto it = feature_probability.find(feature);
           it != feature_probability.end()) {
-        VLOG(9) << event.name << ": Feature " << feature.name
+        VLOG(9) << event << ": Feature " << feature
                 << " contributes prob: " << it->second;
         p *= it->second;
       } else {
-        VLOG(9) << event.name << ": Feature " << feature.name
-                << " contributes epsilon.";
+        VLOG(9) << event << ": Feature " << feature << " contributes epsilon.";
         p *= epsilon;
       }
     }
-    VLOG(6) << "Current probability for " << event.name << ": " << p;
+    VLOG(6) << "Current probability for " << event << ": " << p;
     current_probability_value[event] = p;
   }
 
