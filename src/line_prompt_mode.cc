@@ -807,9 +807,14 @@ void Prompt(PromptOptions options) {
                            LOG(INFO)
                                << "Propagating history information to status.";
                            if (!prompt_render_state->IsGone()) {
+                             bool last_line_empty =
+                                 filtered_history
+                                     ->LineAt(filtered_history->EndLine())
+                                     ->empty();
                              prompt_render_state->SetStatusValue(
                                  L"history",
-                                 filtered_history->lines_size().line_delta);
+                                 filtered_history->lines_size().line_delta -
+                                     (last_line_empty ? 1 : 0));
                            }
                            return EmptyValue();
                          }),
