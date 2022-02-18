@@ -120,7 +120,7 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
       vm::NewCallback([editor](std::shared_ptr<Insert> options, wstring text) {
         CHECK(options != nullptr);
         auto buffer_to_insert = OpenBuffer::New(OpenBuffer::Options(
-            {.editor = editor, .name = L"- text inserted"}));
+            {.editor = editor, .name = BufferName::TextInsertion()}));
         if (!text.empty()) {
           buffer_to_insert->AppendLazyString(NewLazyString(std::move(text)));
           buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));

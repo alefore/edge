@@ -18,7 +18,7 @@ void LineMarks::AddMark(Mark mark) {
 }
 
 void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
-                                      const std::wstring& source) {
+                                      const BufferName& source) {
   auto it = marks.find(source);
   if (it == marks.end() || it->second.empty()) {
     LOG(INFO) << "No marks from source: " << source;
@@ -51,7 +51,7 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
   }
 }
 
-void LineMarks::RemoveExpiredMarksFromSource(const std::wstring& source) {
+void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
   auto it = marks.find(source);
   if (it == marks.end() || it->second.empty()) {
     LOG(INFO) << "No marks from source: " << source;
@@ -80,7 +80,7 @@ void LineMarks::RemoveExpiredMarksFromSource(const std::wstring& source) {
 }
 
 std::vector<LineMarks::Mark> LineMarks::GetMarksForTargetBuffer(
-    const std::wstring& target_buffer) const {
+    const BufferName& target_buffer) const {
   DLOG(INFO) << "Producing marks for buffer: " << target_buffer;
   std::vector<LineMarks::Mark> output;
   for (auto& source_it : marks) {

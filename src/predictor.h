@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "src/buffer_name.h"
 #include "src/futures/futures.h"
 #include "src/status.h"
 #include "src/structure.h"
@@ -75,7 +76,7 @@ struct PredictorOutput {};
 using Predictor =
     std::function<futures::Value<PredictorOutput>(PredictorInput)>;
 
-const wstring& PredictionsBufferName();
+const BufferName& PredictionsBufferName();
 
 struct PredictResults {
   // If the input matched at least one item, this will be the longest common

@@ -182,12 +182,6 @@ void AddLineMetadata(OpenBuffer* buffer, BufferContents* contents,
 using namespace afc::vm;
 using std::to_wstring;
 
-/* static */ const wstring OpenBuffer::kBuffersName = L"- buffers";
-
-// Name of the buffer that holds the contents that the paste command should
-// paste, which corresponds to things that have been deleted recently.
-/* static */ const wstring OpenBuffer::kPasteBuffer = L"- paste buffer";
-
 // Name of the buffer that holds the contents that have been deleted recently
 // and which should still be included in the delete buffer for additional
 // deletions.
@@ -196,7 +190,8 @@ using std::to_wstring;
 // any interspersed non-delete transformations) will all aggregate into the
 // paste buffer (rather than retaining only the deletion corresponding to the
 // last such transformation).
-/* static */ const wstring kFuturePasteBuffer = L"- future paste buffer";
+/* static */ const BufferName kFuturePasteBuffer =
+    BufferName(L"- future paste buffer");
 
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
@@ -758,10 +753,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 void OpenBuffer::ClearContents(
     BufferContents::CursorsBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
-  options_.editor->line_marks()->RemoveExpiredMarksFromSource(
-      Read(buffer_variables::name));
-  options_.editor->line_marks()->ExpireMarksFromSource(
-      *this, Read(buffer_variables::name));
+  options_.editor->line_marks()->RemoveExpiredMarksFromSource(name());
+  options_.editor->line_marks()->ExpireMarksFromSource(*this, name());
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
                        cursors_behavior);
   if (terminal_ != nullptr) {
@@ -801,8 +794,7 @@ void OpenBuffer::EndOfFile() {
 
   // We can remove expired marks now. We know that the set of fresh marks is now
   // complete.
-  editor()->line_marks()->RemoveExpiredMarksFromSource(
-      Read(buffer_variables::name));
+  editor()->line_marks()->RemoveExpiredMarksFromSource(name());
 
   vector<std::function<void()>> observers;
   observers.swap(end_of_file_observers_);
@@ -822,8 +814,7 @@ void OpenBuffer::EndOfFile() {
   }
 
   auto current_buffer = editor()->current_buffer();
-  if (current_buffer != nullptr &&
-      current_buffer->Read(buffer_variables::name) == kBuffersName) {
+  if (current_buffer != nullptr && name() == BufferName::BuffersList()) {
     current_buffer->Reload();
   }
 }
@@ -925,15 +916,14 @@ void OpenBuffer::Initialize() {
       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
           std::shared_ptr<OpenBuffer>(std::shared_ptr<OpenBuffer>(), this)));
 
-  Set(buffer_variables::name, options_.name);
+  Set(buffer_variables::name, options_.name.ToString());
   if (options_.path.has_value()) {
     Set(buffer_variables::path, options_.path.value().ToString());
   }
   Set(buffer_variables::pts_path, L"");
   Set(buffer_variables::command, L"");
   Set(buffer_variables::reload_after_exit, false);
-  if (Read(buffer_variables::name) == kPasteBuffer ||
-      Read(buffer_variables::name) == kFuturePasteBuffer) {
+  if (name() == BufferName::PasteBuffer() || name() == kFuturePasteBuffer) {
     Set(buffer_variables::allow_dirty_delete, true);
     Set(buffer_variables::show_in_buffers_list, false);
     Set(buffer_variables::delete_into_paste_buffer, false);
@@ -1018,7 +1008,7 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
     auto tracker_call = tracker.Call();
     auto options = ResolvePathOptions::New(
         editor(), std::make_shared<FileSystemDriver>(editor()->work_queue()));
-    auto buffer_name = Read(buffer_variables::name);
+    auto buffer_name = name();
     for (LineNumberDelta i; i < lines_added; ++i) {
       auto source_line = LineNumber() + start_new_section + i;
       options.path = contents_.at(source_line)->ToString();
@@ -1026,7 +1016,7 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
                                       source_line](ResolvePathOutput results) {
         LineMarks::Mark mark{.source = buffer_name,
                              .source_line = source_line,
-                             .target_buffer = results.path.ToString(),
+                             .target_buffer = BufferName(results.path),
                              .target = results.position.value_or(LineColumn())};
         LOG(INFO) << "Found a mark: " << mark;
         editor->line_marks()->AddMark(std::move(mark));
@@ -1864,6 +1854,10 @@ bool OpenBuffer::AddKeyboardTextTransformer(unique_ptr<Value> transformer) {
   return true;
 }
 
+BufferName OpenBuffer::name() const {
+  return BufferName(Read(buffer_variables::name));
+}
+
 void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
                                bool fd_is_terminal, pid_t child_pid) {
   if (Read(buffer_variables::clear_on_reload)) {
@@ -2170,7 +2164,8 @@ void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
               options.use_search_paths = false;
               return OpenFile(std::move(options))
                   .Transform([buffer, adjusted_position](
-                                 map<wstring, shared_ptr<OpenBuffer>>::iterator
+                                 std::map<BufferName,
+                                          std::shared_ptr<OpenBuffer>>::iterator
                                      buffer_context_it) {
                     if (adjusted_position ==
                         buffer->AdjustLineColumn(buffer->position())) {
@@ -2279,7 +2274,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
                      paste_buffer != editor()->buffers()->end()) {
             editor()
                 ->buffers()
-                ->insert({OpenBuffer::kPasteBuffer, nullptr})
+                ->insert({BufferName::PasteBuffer(), nullptr})
                 .first->second = paste_buffer->second;
           }
         }
@@ -2373,8 +2368,7 @@ const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {
   if (marks->updates > line_marks_last_updates_) {
     LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
     line_marks_.clear();
-    auto relevant_marks =
-        marks->GetMarksForTargetBuffer(Read(buffer_variables::name));
+    auto relevant_marks = marks->GetMarksForTargetBuffer(name());
     for (auto& mark : relevant_marks) {
       line_marks_.insert(make_pair(mark.target.line.line, mark));
     }

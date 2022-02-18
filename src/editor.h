@@ -12,6 +12,7 @@
 #include "src/args.h"
 #include "src/audio.h"
 #include "src/buffer.h"
+#include "src/buffer_name.h"
 #include "src/buffer_widget.h"
 #include "src/buffers_list.h"
 #include "src/command_mode.h"
@@ -65,11 +66,13 @@ class EditorState {
 
   void CloseBuffer(OpenBuffer* buffer);
 
-  const map<wstring, shared_ptr<OpenBuffer>>* buffers() const {
+  const std::map<BufferName, std::shared_ptr<OpenBuffer>>* buffers() const {
     return &buffers_;
   }
 
-  map<wstring, shared_ptr<OpenBuffer>>* buffers() { return &buffers_; }
+  std::map<BufferName, std::shared_ptr<OpenBuffer>>* buffers() {
+    return &buffers_;
+  }
   BuffersList* buffer_tree() { return &buffer_tree_; }
   const BuffersList* buffer_tree() const { return &buffer_tree_; }
 
@@ -104,7 +107,7 @@ class EditorState {
   futures::Value<EmptyValue> ApplyToActiveBuffers(
       transformation::Variant transformation);
 
-  wstring GetUnusedBufferName(const wstring& prefix);
+  BufferName GetUnusedBufferName(const wstring& prefix);
   std::optional<int> exit_value() const { return exit_value_; }
 
   enum class TerminationType { kWhenClean, kIgnoringErrors };
@@ -237,7 +240,7 @@ class EditorState {
   EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<int> int_variables_;
 
-  map<wstring, shared_ptr<OpenBuffer>> buffers_;
+  std::map<BufferName, std::shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
 
   const Path home_directory_;

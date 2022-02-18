@@ -48,7 +48,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
         OpenFile(open_file_options)
             .Transform(
                 [editor](
-                    map<wstring, shared_ptr<OpenBuffer>>::iterator result) {
+                    std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
+                        result) {
                   return result != editor->buffers()->end() ? result->second
                                                             : nullptr;
                 });

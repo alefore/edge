@@ -26,8 +26,8 @@ futures::Value<PossibleError> SaveContentsToFile(const Path& path,
 struct OpenFileOptions {
   EditorState* editor_state = nullptr;
 
-  // Name can be empty, in which case the name will come from the path.
-  wstring name;
+  // Name can be absent, in which case the name will come from the path.
+  std::optional<BufferName> name;
 
   // The path of the file to open.
   std::optional<Path> path;
@@ -87,8 +87,8 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(
     ResolvePathOptions options);
 
 // Creates a new buffer for the file at the path given.
-futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
-    const OpenFileOptions& options);
+futures::Value<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>
+OpenFile(const OpenFileOptions& options);
 
 futures::Value<shared_ptr<OpenBuffer>> OpenAnonymousBuffer(
     EditorState* editor_state);

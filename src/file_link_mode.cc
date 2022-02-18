@@ -435,8 +435,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
     EditorState* editor_state, const Path& edge_path) {
   OpenFileOptions options;
   options.editor_state = editor_state;
-  options.name = L"- search paths";
-  auto it = editor_state->buffers()->find(options.name);
+  options.name = BufferName(L"- search paths");
+  auto it = editor_state->buffers()->find(*options.name);
   if (it != editor_state->buffers()->end()) {
     LOG(INFO) << "search paths buffer already existed.";
     return futures::Past(it->second);
@@ -446,7 +446,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   options.use_search_paths = false;
   return OpenFile(options).Transform(
-      [editor_state](map<wstring, shared_ptr<OpenBuffer>>::iterator it) {
+      [editor_state](
+          std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator it) {
         CHECK(it != editor_state->buffers()->end());
         CHECK(it->second != nullptr);
         it->second->Set(buffer_variables::save_on_close, true);
@@ -642,9 +643,10 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
 
 struct OpenFileResolvePathOutput {
   // If set, this is the buffer to open.
-  std::optional<map<wstring, shared_ptr<OpenBuffer>>::iterator> buffer = {};
-  std::optional<Path> path = {};
-  std::optional<LineColumn> position = {};
+  std::optional<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>
+      buffer = std::nullopt;
+  std::optional<Path> path = std::nullopt;
+  std::optional<LineColumn> position = std::nullopt;
   wstring pattern = L"";
 };
 
@@ -719,8 +721,8 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
   return std::move(output.value);
 }
 
-futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
-    const OpenFileOptions& options) {
+futures::Value<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>
+OpenFile(const OpenFileOptions& options) {
   EditorState* editor_state = options.editor_state;
 
   auto search_paths = std::make_shared<std::vector<Path>>(
@@ -789,39 +791,45 @@ futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator> OpenFile(
 
         std::shared_ptr<OpenBuffer> buffer;
 
-        if (!options.name.empty()) {
-          buffer_options->name = options.name;
+        if (!options.name.has_value()) {
+          buffer_options->name = *options.name;
         } else if (buffer_options->path.has_value()) {
-          buffer_options->name = buffer_options->path.value().ToString();
+          buffer_options->name =
+              BufferName(buffer_options->path.value().ToString());
         } else {
           buffer_options->name =
               editor_state->GetUnusedBufferName(L"anonymous buffer");
           buffer = OpenBuffer::New(*buffer_options);
         }
-        auto it =
+        auto insert_result =
             editor_state->buffers()->insert({buffer_options->name, buffer});
-        if (it.second) {
-          if (it.first->second.get() == nullptr) {
-            it.first->second = OpenBuffer::New(std::move(*buffer_options));
-            it.first->second->Set(buffer_variables::persist_state, true);
+        if (insert_result.second) {
+          if (insert_result.first->second.get() == nullptr) {
+            insert_result.first->second =
+                OpenBuffer::New(std::move(*buffer_options));
+            insert_result.first->second->Set(buffer_variables::persist_state,
+                                             true);
           }
-          it.first->second->Reload();
+          insert_result.first->second->Reload();
         } else {
-          it.first->second->ResetMode();
+          insert_result.first->second->ResetMode();
         }
         if (input.position.has_value()) {
-          it.first->second->set_position(input.position.value());
+          insert_result.first->second->set_position(input.position.value());
         }
 
-        editor_state->AddBuffer(it.first->second, options.insertion_type);
+        editor_state->AddBuffer(insert_result.first->second,
+                                options.insertion_type);
 
         if (!input.pattern.empty()) {
           SearchOptions search_options;
-          search_options.starting_position = it.first->second->position();
+          search_options.starting_position =
+              insert_result.first->second->position();
           search_options.search_query = input.pattern;
-          JumpToNextMatch(editor_state, search_options, it.first->second.get());
+          JumpToNextMatch(editor_state, search_options,
+                          insert_result.first->second.get());
         }
-        return it.first;
+        return insert_result.first;
       });
 }
 

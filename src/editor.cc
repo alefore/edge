@@ -207,8 +207,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                           editor->AdvanceActiveBuffer(delta);
                         }));
 
-  editor_type->AddField(L"ZoomToLeaf",
-                        vm::NewCallback([](EditorState* editor) {}));
+  editor_type->AddField(L"ZoomToLeaf", vm::NewCallback([](EditorState*) {}));
 
   editor_type->AddField(
       L"SetVariablePrompt",
@@ -323,7 +322,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
             auto values =
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
-            for (const auto& buffer_name : buffers_to_wait) {
+            for (const auto& buffer_name_str : buffers_to_wait) {
+              BufferName buffer_name(buffer_name_str);
               auto buffer_it = editor->buffers()->find(buffer_name);
               if (buffer_it == editor->buffers()->end()) {
                 continue;
@@ -420,7 +420,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                                          ? BuffersList::AddBufferType::kVisit
                                          : BuffersList::AddBufferType::kIgnore;
             return OpenFile(options).Transform(
-                [](map<wstring, shared_ptr<OpenBuffer>>::iterator result) {
+                [](std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
+                       result) {
                   return EvaluationOutput::Return(
                       Value::NewObject(L"Buffer", result->second));
                 });
@@ -598,7 +599,7 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
 
     buffer->Close();
     buffer_tree_.RemoveBuffer(buffer);
-    buffers_.erase(buffer->Read(buffer_variables::name));
+    buffers_.erase(buffer->name());
     AdjustWidgets();
   });
 }
@@ -734,11 +735,11 @@ futures::Value<EmptyValue> EditorState::ApplyToActiveBuffers(
   });
 }
 
-wstring GetBufferName(const wstring& prefix, size_t count) {
-  return prefix + L" " + std::to_wstring(count);
+BufferName GetBufferName(const wstring& prefix, size_t count) {
+  return BufferName(prefix + L" " + std::to_wstring(count));
 }
 
-wstring EditorState::GetUnusedBufferName(const wstring& prefix) {
+BufferName EditorState::GetUnusedBufferName(const wstring& prefix) {
   size_t count = 0;
   while (buffers()->find(GetBufferName(prefix, count)) != buffers()->end()) {
     count++;
@@ -836,7 +837,7 @@ void EditorState::MoveBufferForwards(size_t times) {
 
   auto buffer = current_buffer();
   if (buffer != nullptr) {
-    it = buffers_.find(buffer->Read(buffer_variables::name));
+    it = buffers_.find(buffer->name());
   }
 
   if (it == buffers_.end()) {
@@ -862,7 +863,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
 
   auto buffer = current_buffer();
   if (buffer != nullptr) {
-    it = buffers_.find(buffer->Read(buffer_variables::name));
+    it = buffers_.find(buffer->name());
   }
 
   if (it == buffers_.end()) {
@@ -905,8 +906,10 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
 //
 // The current line position is set to one line after the line to be returned by
 // a pop.  To insert a new position, we insert it right at the current line.
-
-static wstring kPositionsBufferName = L"- positions";
+static const BufferName& PositionsBufferName() {
+  static const BufferName* const output = new BufferName(L"- positions");
+  return *output;
+}
 
 void EditorState::PushCurrentPosition() {
   auto buffer = current_buffer();
@@ -922,21 +925,22 @@ void EditorState::PushPosition(LineColumn position) {
     return;
   }
   auto positions_buffer = futures::Past(std::shared_ptr<OpenBuffer>());
-  if (auto buffer_it = buffers_.find(kPositionsBufferName);
+  if (auto buffer_it = buffers_.find(PositionsBufferName());
       buffer_it != buffers_.end()) {
     positions_buffer = futures::Past(buffer_it->second);
   } else {
     // Insert a new entry into the list of buffers.
     OpenFileOptions options;
     options.editor_state = this;
-    options.name = kPositionsBufferName;
+    options.name = PositionsBufferName();
     if (!edge_path().empty()) {
       options.path = Path::Join(edge_path().front(),
                                 Path::FromString(L"positions").value());
     }
     options.insertion_type = BuffersList::AddBufferType::kIgnore;
     positions_buffer = OpenFile(options).Transform(
-        [](map<wstring, shared_ptr<OpenBuffer>>::iterator buffer_it) {
+        [](std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
+               buffer_it) {
           CHECK(buffer_it->second != nullptr);
           buffer_it->second->Set(buffer_variables::save_on_close, true);
           buffer_it->second->Set(
@@ -962,11 +966,13 @@ void EditorState::PushPosition(LineColumn position) {
 
 static BufferPosition PositionFromLine(const wstring& line) {
   std::wstringstream line_stream(line);
-  BufferPosition pos;
-  line_stream >> pos.position.line.line >> pos.position.column.column;
+  LineColumn position;
+  line_stream >> position.line.line >> position.column.column;
   line_stream.get();
-  getline(line_stream, pos.buffer_name);
-  return pos;
+  std::wstring buffer_name;
+  getline(line_stream, buffer_name);
+  return BufferPosition{.buffer_name = BufferName(buffer_name),
+                        .position = std::move(position)};
 }
 
 std::shared_ptr<OpenBuffer> EditorState::GetConsole() {
@@ -983,14 +989,14 @@ std::shared_ptr<OpenBuffer> EditorState::GetConsole() {
 }
 
 bool EditorState::HasPositionsInStack() {
-  auto it = buffers_.find(kPositionsBufferName);
+  auto it = buffers_.find(PositionsBufferName());
   return it != buffers_.end() &&
          it->second->contents()->size() > LineNumberDelta(1);
 }
 
 BufferPosition EditorState::ReadPositionsStack() {
   CHECK(HasPositionsInStack());
-  auto buffer = buffers_.find(kPositionsBufferName)->second;
+  auto buffer = buffers_.find(PositionsBufferName())->second;
   return PositionFromLine(buffer->current_line()->ToString());
 }
 
@@ -999,7 +1005,7 @@ bool EditorState::MovePositionsStack(Direction direction) {
   // means the user is actually going "back" in the history, which means we have
   // to decrement the line counter.
   CHECK(HasPositionsInStack());
-  auto buffer = buffers_.find(kPositionsBufferName)->second;
+  auto buffer = buffers_.find(PositionsBufferName())->second;
   if (direction == Direction::kBackwards) {
     if (buffer->current_position_line() >= buffer->EndLine()) {
       return false;

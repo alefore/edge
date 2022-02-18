@@ -167,12 +167,12 @@ class ListBuffersCommand : public Command {
   wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    auto it = editor_state->buffers()->insert(
-        make_pair(OpenBuffer::kBuffersName, nullptr));
+    auto it =
+        editor_state->buffers()->insert({BufferName::BuffersList(), nullptr});
     if (it.second) {
       OpenBuffer::Options options;
       options.editor = editor_state;
-      options.name = OpenBuffer::kBuffersName;
+      options.name = BufferName::BuffersList();
       options.generate_contents = [editor_state](OpenBuffer* target) {
         return GenerateContents(editor_state, target);
       };

@@ -167,12 +167,12 @@ const bool get_synthetic_features_tests_registration = tests::Register(
         }
       }}});
 
-futures::Value<shared_ptr<OpenBuffer>> GetHistoryBuffer(
+futures::Value<std::shared_ptr<OpenBuffer>> GetHistoryBuffer(
     EditorState* editor_state, const wstring& name) {
   OpenFileOptions options;
   options.editor_state = editor_state;
-  options.name = L"- history: " + name;
-  auto it = editor_state->buffers()->find(options.name);
+  options.name = BufferName(L"- history: " + name);
+  auto it = editor_state->buffers()->find(*options.name);
   if (it != editor_state->buffers()->end()) {
     return futures::Past(it->second);
   }
@@ -183,7 +183,8 @@ futures::Value<shared_ptr<OpenBuffer>> GetHistoryBuffer(
   }
   options.insertion_type = BuffersList::AddBufferType::kIgnore;
   return OpenFile(options).Transform(
-      [editor_state](map<wstring, shared_ptr<OpenBuffer>>::iterator it) {
+      [editor_state](
+          std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator it) {
         CHECK(it != editor_state->buffers()->end());
         CHECK(it->second != nullptr);
         it->second->Set(buffer_variables::save_on_close, true);
@@ -305,8 +306,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
     AsyncEvaluator* history_evaluator,
     std::shared_ptr<Notification> abort_notification, std::wstring filter) {
   CHECK(history_buffer != nullptr);
-  auto name = L"- history filter: " +
-              history_buffer->Read(buffer_variables::name) + L": " + filter;
+  BufferName name(L"- history filter: " + history_buffer->name().ToString() +
+                  L": " + filter);
   auto filter_buffer = OpenBuffer::New({.editor = editor_state, .name = name});
   filter_buffer->Set(buffer_variables::allow_dirty_delete, true);
   filter_buffer->Set(buffer_variables::show_in_buffers_list, false);
@@ -431,8 +432,9 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
 
 shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
                                        EditorState* editor_state) {
-  auto& element =
-      *editor_state->buffers()->insert({L"- prompt", nullptr}).first;
+  auto& element = *editor_state->buffers()
+                       ->insert({BufferName(L"- prompt"), nullptr})
+                       .first;
   if (element.second == nullptr) {
     element.second =
         OpenBuffer::New({.editor = editor_state, .name = element.first});
@@ -569,8 +571,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
  private:
   void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer,
                      LineNumberDelta delta) const {
-    auto buffer_to_insert =
-        OpenBuffer::New({.editor = editor_state, .name = L"- text inserted"});
+    auto buffer_to_insert = OpenBuffer::New(
+        {.editor = editor_state, .name = BufferName::TextInsertion()});
 
     if (history_ != nullptr &&
         (history_->contents()->size() > LineNumberDelta(1) ||
@@ -754,7 +756,7 @@ void Prompt(PromptOptions options) {
 
         {
           auto buffer_to_insert = OpenBuffer::New(
-              {.editor = editor_state, .name = L"- text inserted"});
+              {.editor = editor_state, .name = BufferName::TextInsertion()});
           buffer_to_insert->AppendToLastLine(
               NewLazyString(std::move(options.initial_value)));
           buffer->ApplyToCursors(transformation::Insert(
@@ -902,8 +904,9 @@ void Prompt(PromptOptions options) {
 
                   std::shared_ptr<LazyString> line =
                       NewLazyString(results.value().common_prefix.value());
-                  auto buffer_to_insert = OpenBuffer::New(
-                      {.editor = editor_state, .name = L"- text inserted"});
+                  auto buffer_to_insert =
+                      OpenBuffer::New({.editor = editor_state,
+                                       .name = BufferName::TextInsertion()});
                   buffer_to_insert->AppendToLastLine(line);
                   buffer->ApplyToCursors(transformation::Insert(
                       {.buffer_to_insert = std::move(buffer_to_insert)}));
@@ -945,7 +948,7 @@ void Prompt(PromptOptions options) {
                   } else {
                     editor_state->status()->SetWarningText(
                         L"Error: Predict: predictions buffer not found: " +
-                        name);
+                        name.ToString());
                   }
                 }
               });

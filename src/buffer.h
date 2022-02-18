@@ -11,11 +11,13 @@
 
 #include "src/async_processor.h"
 #include "src/buffer_contents.h"
+#include "src/buffer_name.h"
 #include "src/buffer_terminal.h"
 #include "src/cursors.h"
 #include "src/dirname.h"
 #include "src/file_descriptor_reader.h"
 #include "src/futures/futures.h"
+#include "src/ghost_type.h"
 #include "src/lazy_string.h"
 #include "src/line.h"
 #include "src/line_column.h"
@@ -57,16 +59,12 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   struct ConstructorAccessTag {};
 
  public:
-  // Name of a special buffer that shows the list of buffers.
-  static const wstring kBuffersName;
-  static const wstring kPasteBuffer;
-
   static void RegisterBufferType(EditorState* editor_state,
                                  Environment* environment);
 
   struct Options {
     EditorState* editor = nullptr;
-    wstring name = L"";
+    BufferName name = BufferName(L"");
     std::optional<Path> path = {};
 
     // Optional function that will be run to generate the contents of the
@@ -381,6 +379,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // One exception to this is the BufferTerminal class (to which we pass a
   // reference).
   const BufferContents* contents() const { return &contents_; }
+
+  BufferName name() const;
 
   /////////////////////////////////////////////////////////////////////////////
   // Interaction with the operating system

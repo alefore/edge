@@ -1,6 +1,7 @@
 #include "src/transformation/switch_case.h"
 
 #include "src/buffer.h"
+#include "src/buffer_name.h"
 #include "src/char_buffer.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
@@ -17,8 +18,8 @@ std::wstring SwitchCaseTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
     Input input) const {
-  auto buffer_to_insert =
-      OpenBuffer::New({.editor = input.editor, .name = L"- text inserted"});
+  auto buffer_to_insert = OpenBuffer::New(
+      {.editor = input.editor, .name = BufferName(L"- text inserted")});
   VLOG(5) << "Switch Case Transformation at " << input.position << ": "
           << input.modifiers << ": Range: " << input.range;
   LineColumn i = input.range.begin;

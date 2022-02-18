@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "src/buffer_name.h"
 #include "src/direction.h"
 #include "src/line_column.h"
 #include "src/structure.h"
@@ -19,7 +20,7 @@ using std::ostream;
 
 struct BufferPosition {
   // The name of the buffer.
-  std::wstring buffer_name;
+  BufferName buffer_name;
   // The position within the buffer.
   LineColumn position;
 };

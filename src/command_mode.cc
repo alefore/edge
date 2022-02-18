@@ -76,7 +76,7 @@ class Paste : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    auto it = editor_state->buffers()->find(OpenBuffer::kPasteBuffer);
+    auto it = editor_state->buffers()->find(BufferName::PasteBuffer());
     if (it == editor_state->buffers()->end()) {
       const static wstring errors[] = {
           L"No text to paste.",
@@ -205,8 +205,7 @@ class GotoPreviousPositionCommand : public Command {
       const LineColumn current_position =
           editor_state->current_buffer()->position();
       if (it != editor_state->buffers()->end() &&
-          (pos.buffer_name !=
-               editor_state->current_buffer()->Read(buffer_variables::name) ||
+          (pos.buffer_name != editor_state->current_buffer()->name() ||
            ((editor_state->structure() == StructureLine() ||
              editor_state->structure() == StructureWord() ||
              editor_state->structure() == StructureSymbol() ||

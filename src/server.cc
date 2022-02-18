@@ -222,8 +222,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
   buffer->Set(buffer_variables::allow_dirty_delete, true);
   buffer->Set(buffer_variables::display_progress, false);
 
-  editor_state->buffers()->insert(
-      {buffer->Read(buffer_variables::name), buffer});
+  editor_state->buffers()->insert({buffer->name(), buffer});
   buffer->Reload();
   return buffer;
 }

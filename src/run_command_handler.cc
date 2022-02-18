@@ -295,7 +295,7 @@ std::map<wstring, wstring> Flags(const CommandData& data,
   return output;
 }
 
-void RunCommand(const wstring& name, const wstring& input,
+void RunCommand(const BufferName& name, const wstring& input,
                 map<wstring, wstring> environment, EditorState* editor_state,
                 wstring children_path) {
   auto buffer = editor_state->current_buffer();
@@ -339,7 +339,8 @@ futures::Value<EmptyValue> RunCommandHandler(const wstring& input,
         buffer->Read(buffer_variables::path);
   }
   name += L" " + input;
-  RunCommand(name, input, environment, editor_state, std::move(children_path));
+  RunCommand(BufferName(name), input, environment, editor_state,
+             std::move(children_path));
   return futures::Past(EmptyValue());
 }
 
@@ -450,7 +451,7 @@ class ForkEditorCommand : public Command {
           prompt_state->base_command = base_command;
           ForkCommandOptions options;
           options.command = base_command;
-          options.name = L"- help: " + base_command;
+          options.name = BufferName(L"- help: " + base_command);
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
           auto help_buffer = ForkCommand(editor, options);
           help_buffer->Set(buffer_variables::follow_end_of_file, false);
@@ -511,7 +512,7 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
       NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
           [](ForkCommandOptions* options, wstring name) {
             CHECK(options != nullptr);
-            options->name = std::move(name);
+            options->name = BufferName(std::move(name));
           })));
 
   fork_command_options->AddField(
@@ -542,8 +543,7 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
 
 std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
                                         const ForkCommandOptions& options) {
-  wstring name =
-      options.name.empty() ? (L"$ " + options.command) : options.name;
+  BufferName name = options.name.value_or(BufferName(L"$ " + options.command));
   auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
   if (it.second) {
     auto command_data = std::make_shared<CommandData>();
@@ -581,7 +581,7 @@ std::unique_ptr<Command> NewForkCommand() {
 futures::Value<EmptyValue> RunCommandHandler(
     const wstring& input, EditorState* editor_state,
     map<wstring, wstring> environment) {
-  RunCommand(L"$ " + input, input, environment, editor_state,
+  RunCommand(BufferName(L"$ " + input), input, environment, editor_state,
              GetChildrenPath(editor_state));
   return futures::Past(EmptyValue());
 }
@@ -589,15 +589,15 @@ futures::Value<EmptyValue> RunCommandHandler(
 futures::Value<EmptyValue> RunMultipleCommandsHandler(
     const wstring& input, EditorState* editor_state) {
   return editor_state
-      ->ForEachActiveBuffer(
-          [editor_state, input](const std::shared_ptr<OpenBuffer>& buffer) {
-            buffer->contents()->ForEach([editor_state, input](wstring arg) {
-              map<wstring, wstring> environment = {{L"ARG", arg}};
-              RunCommand(L"$ " + input + L" " + arg, input, environment,
-                         editor_state, GetChildrenPath(editor_state));
-            });
-            return futures::Past(EmptyValue());
-          })
+      ->ForEachActiveBuffer([editor_state,
+                             input](const std::shared_ptr<OpenBuffer>& buffer) {
+        buffer->contents()->ForEach([editor_state, input](wstring arg) {
+          map<wstring, wstring> environment = {{L"ARG", arg}};
+          RunCommand(BufferName(L"$ " + input + L" " + arg), input, environment,
+                     editor_state, GetChildrenPath(editor_state));
+        });
+        return futures::Past(EmptyValue());
+      })
       .Transform([editor_state](EmptyValue) {
         editor_state->status()->Reset();
         return EmptyValue();

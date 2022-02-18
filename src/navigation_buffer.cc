@@ -143,9 +143,9 @@ class NavigationBufferCommand : public Command {
       return;
     }
 
-    auto name = L"Navigation: " + source->Read(buffer_variables::name);
-    auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
-    if (it.second) {
+    BufferName name(L"Navigation: " + source->name().ToString());
+    auto insert_result = editor_state->buffers()->insert({name, nullptr});
+    if (insert_result.second) {
       OpenBuffer::Options options;
       options.editor = editor_state;
       options.name = name;
@@ -160,15 +160,15 @@ class NavigationBufferCommand : public Command {
       buffer->Set(buffer_variables::allow_dirty_delete, true);
       buffer->environment()->Define(kDepthSymbol, Value::NewInteger(3));
       buffer->Set(buffer_variables::reload_on_enter, true);
-      it.first->second = buffer;
+      insert_result.first->second = buffer;
       editor_state->StartHandlingInterrupts();
     }
-    editor_state->set_current_buffer(it.first->second,
+    editor_state->set_current_buffer(insert_result.first->second,
                                      CommandArgumentModeApplyMode::kFinal);
     editor_state->status()->Reset();
-    it.first->second->Reload();
+    insert_result.first->second->Reload();
     editor_state->PushCurrentPosition();
-    it.first->second->ResetMode();
+    insert_result.first->second->ResetMode();
     editor_state->ResetRepetitions();
   }
 };

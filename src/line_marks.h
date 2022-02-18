@@ -7,9 +7,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "editor_mode.h"
-#include "lazy_string.h"
-#include "line_column.h"
+#include "src/buffer_name.h"
+#include "src/editor_mode.h"
+#include "src/lazy_string.h"
+#include "src/line_column.h"
 
 namespace afc {
 namespace editor {
@@ -20,7 +21,7 @@ struct LineMarks {
  public:
   struct Mark {
     // What created this mark?
-    std::wstring source;
+    BufferName source = BufferName(L"");
 
     // The contents in the source that created this mark. Typically this will be
     // set to null: the customer must look it up directly through source and
@@ -41,7 +42,7 @@ struct LineMarks {
     LineNumber source_line;
 
     // What buffer does this mark identify?
-    std::wstring target_buffer;
+    BufferName target_buffer = BufferName(L"");
 
     // The line marked.
     LineColumn target;
@@ -50,14 +51,14 @@ struct LineMarks {
   void AddMark(Mark mark);
 
   void ExpireMarksFromSource(const OpenBuffer& source_buffer,
-                             const std::wstring& source);
-  void RemoveExpiredMarksFromSource(const std::wstring& source);
+                             const BufferName& source);
+  void RemoveExpiredMarksFromSource(const BufferName& source);
 
   std::vector<Mark> GetMarksForTargetBuffer(
-      const std::wstring& target_buffer) const;
+      const BufferName& target_buffer) const;
 
   // First key is the source, second key is the target_buffer.
-  std::unordered_map<std::wstring, std::multimap<std::wstring, Mark>> marks;
+  std::unordered_map<BufferName, std::multimap<BufferName, Mark>> marks;
   size_t updates = 0;
 };
 

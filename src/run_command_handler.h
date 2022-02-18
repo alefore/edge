@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "src/buffer_name.h"
 #include "src/command.h"
 #include "src/futures/futures.h"
 #include "src/widget_list.h"
@@ -25,7 +26,7 @@ struct ForkCommandOptions {
   // The command to run.
   wstring command;
 
-  wstring name = L"";
+  std::optional<BufferName> name = std::nullopt;
 
   // Additional environment variables (e.g. getenv) to give to the command.
   map<wstring, wstring> environment = {};
@@ -34,6 +35,7 @@ struct ForkCommandOptions {
       BuffersList::AddBufferType::kVisit;
 
   // If non-empty, change to this directory in the children. Ignored if empty.
+  // TODO(easy): Change to Path type.
   wstring children_path = L"";
 };
 

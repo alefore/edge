@@ -461,9 +461,9 @@ void RegisterVariations(const wstring& prediction, wchar_t separator,
 
 }  // namespace
 
-const wstring& PredictionsBufferName() {
-  static wstring output = L"- predictions";
-  return output;
+const BufferName& PredictionsBufferName() {
+  static const BufferName* const value = new BufferName(L"- predictions");
+  return *value;
 }
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
@@ -594,8 +594,8 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
     words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
                  std::istream_iterator<wstring, wchar_t>());
   }
-  auto dictionary =
-      OpenBuffer::New({.editor = input.editor, .name = L"Dictionary"});
+  auto dictionary = OpenBuffer::New(
+      {.editor = input.editor, .name = BufferName(L"Dictionary")});
   for (auto& word : words) {
     dictionary->AppendLine(NewLazyString(std::move(word)));
   }

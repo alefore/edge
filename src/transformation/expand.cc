@@ -89,8 +89,9 @@ class PredictorTransformation : public CompositeTransformation {
           Output output;
           output.Push(DeleteLastCharacters(text.size()));
 
-          auto buffer_to_insert = OpenBuffer::New(
-              {.editor = buffer->editor(), .name = L"- text inserted"});
+          auto buffer_to_insert =
+              OpenBuffer::New({.editor = buffer->editor(),
+                               .name = BufferName::TextInsertion()});
           buffer_to_insert->AppendLazyString(
               NewLazyString(results.value().common_prefix.value()));
           buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
@@ -112,7 +113,7 @@ class PredictorTransformation : public CompositeTransformation {
 };
 
 using OpenFileCallback = std::function<
-    futures::Value<map<wstring, shared_ptr<OpenBuffer>>::iterator>(
+    futures::Value<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>(
         const OpenFileOptions& options)>;
 
 class ReadAndInsert : public CompositeTransformation {
@@ -146,7 +147,8 @@ class ReadAndInsert : public CompositeTransformation {
         .SetConsumer(
             [consumer = std::move(output.consumer), full_path,
              input = std::move(input)](
-                map<wstring, shared_ptr<OpenBuffer>>::iterator buffer_it) {
+                std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
+                    buffer_it) {
               if (buffer_it == input.buffer->editor()->buffers()->end()) {
                 LOG(INFO) << "Unable to open file: " << full_path;
                 consumer(Output());
@@ -221,8 +223,8 @@ class Execute : public CompositeTransformation {
                     editor = input.editor](std::unique_ptr<Value> value) {
           Output output;
           if (value != nullptr && value->IsString()) {
-            auto buffer =
-                OpenBuffer::New({.editor = editor, .name = L"- text inserted"});
+            auto buffer = OpenBuffer::New(
+                {.editor = editor, .name = BufferName::TextInsertion()});
             buffer->AppendLazyString(NewLazyString(value->str));
             buffer->EraseLines(LineNumber(0), LineNumber(1));
             output.Push(

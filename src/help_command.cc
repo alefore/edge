@@ -95,7 +95,7 @@ class HelpCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     auto original_buffer = editor_state->current_buffer();
-    const wstring name = L"- help: " + mode_description_;
+    const BufferName name(L"- help: " + mode_description_);
 
     auto buffer = OpenBuffer::New({.editor = editor_state, .name = name});
     buffer->Set(buffer_variables::tree_parser, L"md");

@@ -56,7 +56,7 @@ std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
                                                  Range range) {
   LOG(INFO) << "Preparing deleted text buffer: " << range;
   auto delete_buffer = OpenBuffer::New(
-      {.editor = buffer.editor(), .name = OpenBuffer::kPasteBuffer});
+      {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});
   for (LineNumber i = range.begin.line; i <= range.end.line; ++i) {
     Line::Options line(*buffer.LineAt(i));
     if (i == range.end.line) {
