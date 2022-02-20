@@ -102,7 +102,8 @@ class ProgressAggregator {
           }
 
           if (data->children_created > 1) {
-            data->aggregates.values[L"buffers"] =
+            data->aggregates
+                .values[StatusPromptExtraInformationKey(L"buffers")] =
                 std::to_wstring(data->buffers_with_matches) + L"/" +
                 std::to_wstring(data->children_created);
           }
@@ -114,7 +115,7 @@ class ProgressAggregator {
 
  private:
   static bool HasMatches(const ProgressInformation& info) {
-    auto it = info.counters.find(L"matches");
+    auto it = info.counters.find(StatusPromptExtraInformationKey(L"matches"));
     return it != info.counters.end() && it->second > 0;
   }
 
@@ -229,7 +230,10 @@ class SearchCommand : public Command {
                        auto progress_channel = progress_aggregator->NewChild();
                        if (buffer->Read(
                                buffer_variables::search_case_sensitive)) {
-                         progress_channel->Push({.values = {{L"case", L"on"}}});
+                         progress_channel->Push(
+                             {.values = {
+                                  {StatusPromptExtraInformationKey(L"case"),
+                                   L"on"}}});
                        }
                        if (line->size().IsZero()) {
                          return futures::Past(

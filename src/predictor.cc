@@ -322,8 +322,9 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
       FlushPredictions();
     }
     ++*matches;
-    progress_channel->Push(
-        ProgressInformation{.values = {{L"files", std::to_wstring(*matches)}}});
+    progress_channel->Push(ProgressInformation{
+        .values = {{StatusPromptExtraInformationKey(L"files"),
+                    std::to_wstring(*matches)}}});
   }
   FlushPredictions();
   get_buffer([prefix_match = prefix.size() + longest_pattern_match,

@@ -4,11 +4,11 @@
 #include <memory>
 
 #include "src/audio.h"
+#include "src/ghost_type.h"
 #include "src/line_column.h"
 #include "src/time.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 class OpenBuffer;
 class Line;
@@ -21,11 +21,32 @@ std::wstring ProgressStringFillUp(size_t counter,
 // Opaque type returned by `SetExpiringInformationText`.
 struct StatusExpirationControl;
 
+class StatusPromptExtraInformationKey {
+ public:
+  GHOST_TYPE_CONSTRUCTOR(StatusPromptExtraInformationKey, value);
+  GHOST_TYPE_EQ(StatusPromptExtraInformationKey, value);
+  GHOST_TYPE_LT(StatusPromptExtraInformationKey, value);
+  GHOST_TYPE_OUTPUT_FRIEND(StatusPromptExtraInformationKey, value);
+  GHOST_TYPE_HASH_FRIEND(StatusPromptExtraInformationKey, value);
+
+ private:
+  friend class StatusPromptExtraInformation;
+  std::wstring value;
+};
+
+GHOST_TYPE_OUTPUT(StatusPromptExtraInformationKey, value);
+}  // namespace afc::editor
+
+GHOST_TYPE_HASH(afc::editor::StatusPromptExtraInformationKey, value);
+
+namespace afc::editor {
 class StatusPromptExtraInformation {
+  using Key = StatusPromptExtraInformationKey;
+
  public:
   int StartNewVersion();
-  void SetValue(std::wstring key, int version, std::wstring value);
-  void SetValue(std::wstring key, int version, int value);
+  void SetValue(Key key, int version, std::wstring value);
+  void SetValue(Key key, int version, int value);
 
   // Once the caller thinks that it won't be doing any additional calls to
   // SetValue for a given version, it should call `MarkVersionDone`. Completion
@@ -40,7 +61,7 @@ class StatusPromptExtraInformation {
     int version;
     std::wstring value;
   };
-  std::unordered_map<std::wstring, Value> information_;
+  std::unordered_map<Key, Value> information_;
   int version_ = 0;
   enum class VersionExecution {
     // MarkVersionDone hasn't executed for the last value of version_.
@@ -129,7 +150,6 @@ class Status {
   std::shared_ptr<Data> data_ = std::make_shared<Data>();
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_STATUS_H__

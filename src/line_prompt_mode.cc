@@ -510,7 +510,7 @@ class PromptRenderState {
   bool IsGone() const { return prompt_state_->IsGone(); }
 
   template <typename T>
-  void SetStatusValue(std::wstring key, T value) {
+  void SetStatusValue(StatusPromptExtraInformationKey key, T value) {
     CHECK(prompt_state_->status()->GetType() == Status::Type::kPrompt);
     prompt_state_->status()->prompt_extra_information()->SetValue(
         key, status_version_, value);
@@ -817,7 +817,7 @@ void Prompt(PromptOptions options) {
                                      ->LineAt(filtered_history->EndLine())
                                      ->empty();
                              prompt_render_state->SetStatusValue(
-                                 L"history",
+                                 StatusPromptExtraInformationKey(L"history"),
                                  filtered_history->lines_size().line_delta -
                                      (last_line_empty ? 1 : 0));
                            }

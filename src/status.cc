@@ -89,7 +89,7 @@ int StatusPromptExtraInformation::StartNewVersion() {
   return version_;
 }
 
-void StatusPromptExtraInformation::SetValue(std::wstring key, int version,
+void StatusPromptExtraInformation::SetValue(Key key, int version,
                                             std::wstring value) {
   auto& entry = information_[key];
   if (entry.version <= version) {
@@ -97,8 +97,7 @@ void StatusPromptExtraInformation::SetValue(std::wstring key, int version,
   }
 }
 
-void StatusPromptExtraInformation::SetValue(std::wstring key, int version,
-                                            int value) {
+void StatusPromptExtraInformation::SetValue(Key key, int version, int value) {
   return SetValue(key, version, std::to_wstring(value));
 }
 
@@ -117,7 +116,7 @@ std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
       need_separator = true;
 
       const auto& modifiers = value.version < version_ ? dim : empty;
-      options.AppendString(key, modifiers);
+      options.AppendString(key.value, modifiers);
       options.AppendString(L":", dim);
       options.AppendString(value.value, modifiers);
     }

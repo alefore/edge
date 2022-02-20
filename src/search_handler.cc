@@ -71,7 +71,8 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
   } catch (std::regex_error& e) {
     SearchResults output;
     output.error = L"Regex failure: " + FromByteString(e.what());
-    progress_channel->Push({.values = {{L"!", output.error.value()}}});
+    progress_channel->Push({.values = {{StatusPromptExtraInformationKey(L"!"),
+                                        output.error.value()}}});
     return output;
   }
 
@@ -84,14 +85,16 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
         }
 
         progress_channel->Push(ProgressInformation{
-            .counters = {{L"matches", output.positions.size()}}});
+            .counters = {{StatusPromptExtraInformationKey(L"matches"),
+                          output.positions.size()}}});
         return !options.abort_notification->HasBeenNotified() &&
                (!options.required_positions.has_value() ||
                 options.required_positions.value() > output.positions.size());
       });
   progress_channel->Push(ProgressInformation{
-      .values = {{L"matches", std::to_wstring(output.positions.size()) +
-                                  (searched_every_line ? L"" : L"+")}}});
+      .values = {{StatusPromptExtraInformationKey(L"matches"),
+                  std::to_wstring(output.positions.size()) +
+                      (searched_every_line ? L"" : L"+")}}});
   VLOG(5) << "Perform search found matches: " << output.positions.size();
   return output;
 }
