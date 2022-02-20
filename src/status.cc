@@ -117,8 +117,10 @@ std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
 
       const auto& modifiers = value.version < version_ ? dim : empty;
       options.AppendString(key.value, modifiers);
-      options.AppendString(L":", dim);
-      options.AppendString(value.value, modifiers);
+      if (!value.value.empty()) {
+        options.AppendString(L":", dim);
+        options.AppendString(value.value, modifiers);
+      }
     }
   }
   switch (last_version_state_) {
