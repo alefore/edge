@@ -26,6 +26,7 @@ class Notification;
 
 struct ProgressInformation {
   std::map<StatusPromptExtraInformationKey, std::wstring> values = {};
+
   // Similar to `values` but will be added in the case where multiple values are
   // reported from predictions that run independently (whereas for values the
   // last value reported triumps all others).

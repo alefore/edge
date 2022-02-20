@@ -80,21 +80,21 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
 
   bool searched_every_line =
       contents.EveryLine([&](LineNumber position, const Line& line) {
-        for (const auto& column : GetMatches(line.ToString(), pattern)) {
+        auto matches = GetMatches(line.ToString(), pattern);
+        for (const auto& column : matches) {
           output.positions.push_back(LineColumn(position, column));
         }
-
-        progress_channel->Push(ProgressInformation{
-            .counters = {{StatusPromptExtraInformationKey(L"matches"),
-                          output.positions.size()}}});
+        if (!matches.empty())
+          progress_channel->Push(ProgressInformation{
+              .counters = {{StatusPromptExtraInformationKey(L"matches"),
+                            output.positions.size()}}});
         return !options.abort_notification->HasBeenNotified() &&
                (!options.required_positions.has_value() ||
                 options.required_positions.value() > output.positions.size());
       });
-  progress_channel->Push(ProgressInformation{
-      .values = {{StatusPromptExtraInformationKey(L"matches"),
-                  std::to_wstring(output.positions.size()) +
-                      (searched_every_line ? L"" : L"+")}}});
+  if (!searched_every_line)
+    progress_channel->Push(ProgressInformation{
+        .values = {{StatusPromptExtraInformationKey(L"partial"), L""}}});
   VLOG(5) << "Perform search found matches: " << output.positions.size();
   return output;
 }

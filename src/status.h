@@ -61,7 +61,7 @@ class StatusPromptExtraInformation {
     int version;
     std::wstring value;
   };
-  std::unordered_map<Key, Value> information_;
+  std::map<Key, Value> information_;
   int version_ = 0;
   enum class VersionExecution {
     // MarkVersionDone hasn't executed for the last value of version_.
