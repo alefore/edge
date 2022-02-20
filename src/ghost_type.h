@@ -70,17 +70,21 @@
 //
 // For example:
 //
+//   namespace xxx {
 //   class FirstName {
 //    public:
 //     GHOST_TYPE_CONSTRUCTOR(FirstName, value);
 //     GHOST_TYPE_EQ(FirstName, value);
 //     GHOST_TYPE_LT(FirstName, value);
 //     GHOST_TYPE_OUTPUT_FRIEND(FirstName, value);
+//     GHOST_TYPE_HASH_FRIEND(FirstName, value);
 //    private:
 //     std::string value;
 //   };
 //
 //   GHOST_TYPE_OUTPUT(FirstName, value);
+//   }  // namespace xxx
+//   GHOST_TYPE_HASH(xxx::FirstName, value);
 //
 // This is enough to make the following expressions valid:
 //
@@ -138,6 +142,7 @@ namespace afc::editor {
 #define GHOST_TYPE_HASH_FRIEND(ClassName, variable) \
   friend class std::hash<ClassName>;
 
+// Can't be inside of a namespace; must be at the top-level.
 #define GHOST_TYPE_HASH(ClassName, variable)              \
   template <>                                             \
   struct std::hash<ClassName> {                           \
