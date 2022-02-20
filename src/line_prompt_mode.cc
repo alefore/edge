@@ -541,7 +541,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
         previous_context_(prompt_state_->status()->context()) {
     CHECK(original_input_ != nullptr);
     CHECK(prompt_state_ != nullptr);
-    CHECK(prompt_state_->status()->GetType() == Status::Type::kPrompt);
+    CHECK(prompt_state_->status()->GetType() == Status::Type::kPrompt ||
+          prompt_state_->IsGone());
   }
 
   void Up(EditorState* editor_state, OpenBuffer* buffer) override {
@@ -571,6 +572,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
  private:
   void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer,
                      LineNumberDelta delta) const {
+    if (prompt_state_->IsGone()) return;
     auto buffer_to_insert = OpenBuffer::New(
         {.editor = editor_state, .name = BufferName::TextInsertion()});
 
@@ -635,11 +637,12 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
                          history_evaluator_.get(), abort_notification,
                          input->ToString())
         .Transform([input, prompt_state = prompt_state_](
-                       std::shared_ptr<OpenBuffer> history) {
+                       std::shared_ptr<OpenBuffer> history)
+                       -> std::unique_ptr<ScrollBehavior> {
           history->set_current_position_line(LineNumber(0) +
                                              history->contents()->size());
-          return std::unique_ptr<ScrollBehavior>(
-              new HistoryScrollBehavior(history, input, prompt_state));
+          return std::make_unique<HistoryScrollBehavior>(std::move(history),
+                                                         input, prompt_state);
         });
   }
 
