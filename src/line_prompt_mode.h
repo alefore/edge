@@ -35,6 +35,8 @@ struct PromptOptions {
   // Text to show in the prompt.
   wstring prompt;
 
+  // Used to set buffer_variables::contents_type on the buffer for the prompt.
+  // The extensions code inspects this and can adjust behaviors.
   std::wstring prompt_contents_type;
 
   // Optional. Name of the file with the history for this type of prompt.
