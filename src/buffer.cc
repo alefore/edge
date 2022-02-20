@@ -126,6 +126,8 @@ void RegisterBufferFields(
 
 std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
                                             std::shared_ptr<const Line> line) {
+  CHECK(buffer != nullptr);
+  CHECK(line != nullptr);
   std::wstring error_description;
   std::shared_ptr<Expression> expr;
   std::shared_ptr<Environment> sub_environment;
@@ -148,6 +150,10 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
       futures::Future<std::shared_ptr<LazyString>>().value);
 
   if (expr->purity() == Expression::PurityType::kPure) {
+    if (expr->Types() == std::vector<VMType>({VMType::Void()})) {
+      return std::make_shared<Line>(
+          Line::Options(*line).SetMetadata(std::nullopt));
+    }
     futures::Future<std::shared_ptr<LazyString>> metadata_future;
     buffer->work_queue()->Schedule(
         [buffer, expr, sub_environment, consumer = metadata_future.consumer] {
