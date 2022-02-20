@@ -791,7 +791,7 @@ OpenFile(const OpenFileOptions& options) {
 
         std::shared_ptr<OpenBuffer> buffer;
 
-        if (!options.name.has_value()) {
+        if (options.name.has_value()) {
           buffer_options->name = *options.name;
         } else if (buffer_options->path.has_value()) {
           buffer_options->name =
