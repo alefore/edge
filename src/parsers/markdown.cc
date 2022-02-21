@@ -102,7 +102,14 @@ class MarkdownParser : public TreeParser {
   }
 
   void HandleList(size_t spaces_prefix, ParseData* result) {
+    auto seek = result->seek();
+    auto original_position = result->position();
     result->seek().Once();
+    if (seek.read() != L' ' && seek.read() != L'\n') {
+      result->set_position(original_position);
+      HandleNormalLine(result);
+      return;
+    }
     LineModifierSet modifiers;
     switch (spaces_prefix / 2) {
       case 0:
