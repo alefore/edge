@@ -24,6 +24,8 @@ enum State {
   EM,
   STRONG,
   CODE,
+  LINK_TEXT,
+  LINK_URL,
 };
 
 class MarkdownParser : public TreeParser {
@@ -95,16 +97,54 @@ class MarkdownParser : public TreeParser {
         case L'`':
           HandleBackTick(result);
           break;
+        case L'[':
+          HandleOpenLink(result);
+          break;
+        case L']':
+          HandleCloseLink(result);
+          break;
+        case L')':
+          HandleCloseLinkUrl(result);
+          break;
         default:
           seek.Once();
       }
     }
   }
 
-  void HandleList(size_t spaces_prefix, ParseData* result) {
-    auto seek = result->seek();
-    auto original_position = result->position();
+  void HandleOpenLink(ParseData* result) {
     result->seek().Once();
+    result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::CYAN});
+  }
+
+  void HandleCloseLink(ParseData* result) {
+    auto seek = result->seek();
+    if (result->state() != LINK_TEXT) {
+      seek.Once();
+      return;
+    }
+    result->PopBack();
+    seek.Once();
+    if (seek.read() == L'(') {
+      seek.Once();
+      result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::UNDERLINE});
+    }
+  }
+
+  void HandleCloseLinkUrl(ParseData* result) {
+    auto seek = result->seek();
+    if (result->state() != LINK_URL) {
+      seek.Once();
+      return;
+    }
+    result->PopBack();
+    seek.Once();
+  }
+
+  void HandleList(size_t spaces_prefix, ParseData* result) {
+    auto original_position = result->position();
+    auto seek = result->seek();
+    seek.Once();
     if (seek.read() != L' ' && seek.read() != L'\n') {
       result->set_position(original_position);
       HandleNormalLine(result);
