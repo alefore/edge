@@ -510,63 +510,13 @@ class ActivateLink : public Command {
     }
 
     buffer->MaybeAdjustPositionCol();
-    OpenFileOptions options;
-
-    auto path = GetPath(*buffer);
-    if (path.IsError()) {
-      return;
-    }
-    options.path = path.value();
-
-    options.editor_state = editor_state;
-    options.ignore_if_not_found = true;
-
-    options.initial_search_paths.clear();
-    if (auto path = Path::FromString(buffer->Read(buffer_variables::path));
-        !path.IsError()) {
-      // Works if the current buffer is a directory listing:
-      options.initial_search_paths.push_back(path.value());
-      // And a fall-back for the current buffer being a file:
-      if (auto dir = path.value().Dirname(); !dir.IsError()) {
-        options.initial_search_paths.push_back(dir.value());
-      }
-    }
-
-    OpenFile(options);
-  }
-
- private:
-  static ValueOrError<Path> GetPath(const OpenBuffer& buffer) {
-    auto tree = buffer.parse_tree();
-    CHECK(tree != nullptr);
-    ParseTree::Route route = FindRouteToPosition(*tree, buffer.position());
-    for (const ParseTree* subtree : MapRoute(*tree, route)) {
-      if (subtree->properties().find(ParseTreeProperty::Link()) !=
-          subtree->properties().end()) {
-        if (auto target = FindLinkTarget(buffer, *subtree); !target.IsError())
-          return target;
-      }
-    }
-
-    return Path::FromString(GetCurrentToken(
-        {.contents = buffer.contents(),
-         .line_column = buffer.position(),
-         .token_characters = buffer.Read(buffer_variables::path_characters)}));
-  }
-
-  static ValueOrError<Path> FindLinkTarget(const OpenBuffer& buffer,
-                                           const ParseTree& tree) {
-    if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
-        tree.properties().end()) {
-      auto contents = buffer.contents()->copy();
-      contents->FilterToRange(tree.range());
-      return Path::FromString(contents->ToString());
-    }
-    for (const auto& child : tree.children()) {
-      if (auto output = FindLinkTarget(buffer, child); !output.IsError())
-        return output;
-    }
-    return Error(L"Unable to find link.");
+    buffer->OpenBufferForCurrentPosition().Transform(
+        [editor_state](std::shared_ptr<OpenBuffer> target) {
+          if (target != nullptr) {
+            editor_state->AddBuffer(target, BuffersList::AddBufferType::kVisit);
+          }
+          return Success();
+        });
   }
 };
 

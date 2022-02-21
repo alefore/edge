@@ -1937,6 +1937,146 @@ void OpenBuffer::set_position(const LineColumn& position) {
   set_current_cursor(position);
 }
 
+namespace {
+std::vector<Path> GetPathsWithExtensionsForContext(const OpenBuffer& buffer,
+                                                   const Path& original_path) {
+  std::vector<Path> output = {original_path};
+  auto extensions = TokenizeBySpaces(
+      *NewLazyString(buffer.Read(buffer_variables::file_context_extensions)));
+  for (auto& extension_token : extensions) {
+    CHECK(!extension_token.value.empty());
+    output.push_back(Path::WithExtension(original_path, extension_token.value));
+  }
+  return output;
+}
+
+ValueOrError<Path> FindLinkTarget(const OpenBuffer& buffer,
+                                  const ParseTree& tree) {
+  if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
+      tree.properties().end()) {
+    auto contents = buffer.contents()->copy();
+    contents->FilterToRange(tree.range());
+    return Path::FromString(contents->ToString());
+  }
+  for (const auto& child : tree.children()) {
+    if (auto output = FindLinkTarget(buffer, child); !output.IsError())
+      return output;
+  }
+  return Error(L"Unable to find link.");
+}
+
+std::vector<Path> GetPathsForCurrentPosition(const OpenBuffer& buffer) {
+  auto adjusted_position = buffer.AdjustLineColumn(buffer.position());
+  std::optional<Path> initial_local_path;
+
+  auto tree = buffer.parse_tree();
+  CHECK(tree != nullptr);
+  ParseTree::Route route = FindRouteToPosition(*tree, adjusted_position);
+  for (const ParseTree* subtree : MapRoute(*tree, route)) {
+    if (subtree->properties().find(ParseTreeProperty::Link()) !=
+        subtree->properties().end()) {
+      if (auto target = FindLinkTarget(buffer, *subtree); !target.IsError())
+        initial_local_path = target.value();
+    }
+  }
+
+  if (!initial_local_path.has_value()) {
+    std::wstring line = GetCurrentToken(
+        {.contents = buffer.contents(),
+         .line_column = adjusted_position,
+         .token_characters = buffer.Read(buffer_variables::path_characters)});
+
+    if (line.find_first_not_of(L"/.") == wstring::npos) {
+      // If there are only slashes or dots, it's probably not very useful to
+      // show the contents of this path.
+      return {};
+    }
+
+    auto path = Path::FromString(line);
+    if (path.IsError()) {
+      return {};
+    }
+    initial_local_path = path.value();
+  }
+
+  auto local_paths =
+      GetPathsWithExtensionsForContext(buffer, *initial_local_path);
+
+  std::vector<Path> search_paths = {};
+  if (auto path = Path::FromString(buffer.Read(buffer_variables::path));
+      !path.IsError()) {
+    // Works if the current buffer is a directory listing:
+    search_paths.push_back(path.value());
+    // And a fall-back for the current buffer being a file:
+    if (auto dir = path.value().Dirname(); !dir.IsError()) {
+      search_paths.push_back(dir.value());
+    }
+  }
+
+  // Do the full expansion. This has square complexity, though luckily the
+  // number of local_paths tends to be very small.
+  std::vector<Path> paths;
+  for (const auto& search_path : search_paths) {
+    for (const auto& local_path : local_paths) {
+      paths.push_back(Path::Join(search_path, local_path));
+    }
+  }
+  for (auto& local_path : local_paths) {
+    paths.push_back(local_path);
+  }
+
+  return paths;
+}
+}  // namespace
+
+futures::ValueOrError<std::shared_ptr<OpenBuffer>>
+OpenBuffer::OpenBufferForCurrentPosition() {
+  // When the cursor moves quickly, there's a race between multiple executions
+  // of this logic. To avoid this, each call captures the original position and
+  // uses that to avoid taking any effects when the position changes in the
+  // meantime.
+  auto adjusted_position = AdjustLineColumn(position());
+  auto paths = GetPathsForCurrentPosition(*this);
+  struct Data {
+    size_t index = 0;
+    std::shared_ptr<OpenBuffer> source;
+    ValueOrError<std::shared_ptr<OpenBuffer>> output =
+        Error(L"Unexpected Error.");
+  };
+  auto data = std::make_shared<Data>();
+  data->source = shared_from_this();
+  return futures::While([adjusted_position, paths, data]() {
+           if (data->index >= paths.size()) {
+             data->output = Success(std::shared_ptr<OpenBuffer>());
+             return futures::Past(futures::IterationControlCommand::kStop);
+           }
+           return OpenFile(
+                      OpenFileOptions{
+                          .editor_state = data->source->editor(),
+                          .path = paths[data->index++],
+                          .ignore_if_not_found = true,
+                          .insertion_type = BuffersList::AddBufferType::kIgnore,
+                          .use_search_paths = false})
+               .Transform([data, adjusted_position](
+                              std::map<BufferName,
+                                       std::shared_ptr<OpenBuffer>>::iterator
+                                  buffer_context_it) {
+                 if (adjusted_position !=
+                     data->source->AdjustLineColumn(data->source->position())) {
+                   data->output = Error(L"Computation was cancelled.");
+                   return futures::IterationControlCommand::kStop;
+                 }
+                 if (buffer_context_it ==
+                     data->source->editor()->buffers()->end()) {
+                   return futures::IterationControlCommand::kContinue;
+                 }
+                 data->output = Success(buffer_context_it->second);
+                 return futures::IterationControlCommand::kStop;
+               });
+         })
+      .Transform([data](auto) { return std::move(data->output); });
+}
+
 LineColumn OpenBuffer::end_position() const {
   CHECK_GT(contents_.size(), LineNumberDelta(0));
   return LineColumn(contents_.EndLine(), contents_.back()->EndColumn());
@@ -2111,89 +2251,10 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
                         transformation::Input::Mode::kFinal);
 }
 
-std::vector<Path> GetPathsWithExtensionsForContext(const OpenBuffer& buffer,
-                                                   const Path& original_path) {
-  std::vector<Path> output = {original_path};
-  auto extensions = TokenizeBySpaces(
-      *NewLazyString(buffer.Read(buffer_variables::file_context_extensions)));
-  for (auto& extension_token : extensions) {
-    CHECK(!extension_token.value.empty());
-    output.push_back(Path::WithExtension(original_path, extension_token.value));
-  }
-  return output;
-}
-
 void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
-  auto adjusted_position = buffer->AdjustLineColumn(buffer->position());
-  std::wstring line = GetCurrentToken(
-      {.contents = buffer->contents(),
-       .line_column = adjusted_position,
-       .token_characters = buffer->Read(buffer_variables::path_characters)});
-  if (line.find_first_not_of(L"/.") == wstring::npos) {
-    // If there are only slashes or dots, it's probably not very useful to show
-    // the contents of this path.
-    buffer->status()->set_context(nullptr);
-    return;
-  }
-  auto path = Path::FromString(line);
-  if (path.IsError()) {
-    buffer->status()->set_context(nullptr);
-    return;
-  }
-
-  // When the cursor moves quickly, there's a race between multiple executions
-  // of this logic. To avoid this, each call captures the original position and
-  // uses that to avoid taking any effects when the position changes in the
-  // meantime.
-  auto paths = GetPathsWithExtensionsForContext(*buffer, path.value());
-  futures::ForEachWithCopy(
-      paths.begin(), paths.end(),
-      [buffer, adjusted_position](Path path) {
-        return buffer->file_system_driver()
-            ->Stat(path)
-            .Transform([buffer, path, adjusted_position](struct stat s) {
-              if (S_ISSOCK(s.st_mode) || S_ISBLK(s.st_mode) ||
-                  S_ISCHR(s.st_mode) || S_ISFIFO(s.st_mode)) {
-                return futures::Past(
-                    Success(futures::IterationControlCommand::kContinue));
-              }
-              if (adjusted_position !=
-                  buffer->AdjustLineColumn(buffer->position())) {
-                return futures::Past(
-                    Success(futures::IterationControlCommand::kStop));
-              }
-              OpenFileOptions options;
-              options.editor_state = buffer->editor();
-              options.path = path;
-              options.ignore_if_not_found = true;
-              options.insertion_type = BuffersList::AddBufferType::kIgnore;
-              options.use_search_paths = false;
-              return OpenFile(std::move(options))
-                  .Transform([buffer, adjusted_position](
-                                 std::map<BufferName,
-                                          std::shared_ptr<OpenBuffer>>::iterator
-                                     buffer_context_it) {
-                    if (adjusted_position ==
-                        buffer->AdjustLineColumn(buffer->position())) {
-                      buffer->status()->set_context(
-                          buffer_context_it ==
-                                  buffer->editor()->buffers()->end()
-                              ? nullptr
-                              : buffer_context_it->second);
-                    }
-                    return Success(futures::IterationControlCommand::kStop);
-                  });
-            })
-            .ConsumeErrors([](Error) {
-              return futures::Past(futures::IterationControlCommand::kContinue);
-            });
-      })
-      .Transform([buffer,
-                  adjusted_position](futures::IterationControlCommand result) {
-        if (result == futures::IterationControlCommand::kContinue &&
-            adjusted_position == buffer->AdjustLineColumn(buffer->position())) {
-          buffer->status()->set_context(nullptr);
-        }
+  buffer->OpenBufferForCurrentPosition().Transform(
+      [buffer](std::shared_ptr<OpenBuffer> result) {
+        buffer->status()->set_context(result);
         return Success();
       });
 }

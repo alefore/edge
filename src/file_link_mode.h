@@ -27,7 +27,7 @@ struct OpenFileOptions {
   EditorState* editor_state = nullptr;
 
   // Name can be absent, in which case the name will come from the path.
-  std::optional<BufferName> name;
+  std::optional<BufferName> name = std::nullopt;
 
   // The path of the file to open.
   std::optional<Path> path;
@@ -39,7 +39,7 @@ struct OpenFileOptions {
 
   // Should the contents of the search paths buffer be used to find the file?
   bool use_search_paths = true;
-  std::vector<Path> initial_search_paths;
+  std::vector<Path> initial_search_paths = {};
 };
 
 futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(

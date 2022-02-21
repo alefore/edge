@@ -699,9 +699,6 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
                           output](ValueOrError<ResolvePathOutput> input) {
               if (!input.IsError()) {
                 CHECK(output->buffer.has_value());
-                editor_state->set_current_buffer(
-                    output->buffer.value()->second,
-                    CommandArgumentModeApplyMode::kFinal);
                 if (input.value().position.has_value()) {
                   output->buffer.value()->second->set_position(
                       input.value().position.value());
@@ -745,7 +742,13 @@ OpenFile(const OpenFileOptions& options) {
       .Transform([editor_state, options,
                   file_system_driver](OpenFileResolvePathOutput input) {
         if (input.buffer.has_value()) {
-          return input.buffer.value();  // Found the buffer, just return it.
+          // Found the buffer, just return it.
+          auto value = input.buffer.value();
+          if (value != editor_state->buffers()->end()) {
+            CHECK(value->second != nullptr);
+            editor_state->AddBuffer(value->second, options.insertion_type);
+          }
+          return input.buffer.value();
         }
         auto buffer_options = std::make_shared<OpenBuffer::Options>();
         buffer_options->editor = editor_state;

@@ -416,6 +416,10 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   const LineColumn position() const;
   void set_position(const LineColumn& position);
 
+  // Can return nullptr.
+  futures::ValueOrError<std::shared_ptr<OpenBuffer>>
+  OpenBufferForCurrentPosition();
+
   // Returns the position of just after the last character of the current file.
   LineColumn end_position() const;
 
