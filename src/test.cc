@@ -28,7 +28,7 @@ bool IsEmpty(EditorState* editor_state) {
 void Clear(EditorState* editor_state) {
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->set_current_buffer(
-      editor_state->buffers()->find(L"anonymous buffer 0")->second,
+      editor_state->buffers()->find(BufferName(L"anonymous buffer 0"))->second,
       CommandArgumentModeApplyMode::kFinal);
 
   editor_state->ProcessInputString("eegde999999999999999\n");
