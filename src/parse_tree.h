@@ -6,14 +6,30 @@
 #include <string>
 #include <unordered_set>
 
+#include "src/ghost_type.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 class BufferContents;
 
+class ParseTreeProperty {
+ public:
+  static const ParseTreeProperty& Link();
+  static const ParseTreeProperty& LinkTarget();
+
+  GHOST_TYPE_CONSTRUCTOR(ParseTreeProperty, value);
+  GHOST_TYPE_EQ(ParseTreeProperty, value);
+
+ private:
+  GHOST_TYPE_HASH_FRIEND(afc::editor::ParseTreeProperty, value);
+  std::wstring value;
+};
+}  // namespace afc::editor
+
+GHOST_TYPE_HASH(afc::editor::ParseTreeProperty, value);
+
+namespace afc::editor {
 class ParseTree {
  public:
   // The empty route just means "stop at the root". Otherwise, it means to go
@@ -50,6 +66,9 @@ class ParseTree {
 
   size_t hash() const;
 
+  void set_properties(std::unordered_set<ParseTreeProperty> properties);
+  const std::unordered_set<ParseTreeProperty>& properties() const;
+
  private:
   void XorChildHash(size_t position);
 
@@ -61,6 +80,7 @@ class ParseTree {
   Range range_;
   size_t depth_ = 0;
   LineModifierSet modifiers_;
+  std::unordered_set<ParseTreeProperty> properties_;
 };
 
 // Returns a copy of tree that only includes children that cross line
@@ -104,7 +124,6 @@ std::unique_ptr<TreeParser> NewWordsTreeParser(
 std::unique_ptr<TreeParser> NewLineTreeParser(
     std::unique_ptr<TreeParser> delegate);
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_PARSE_TREE_H__

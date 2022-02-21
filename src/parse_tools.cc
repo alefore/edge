@@ -4,8 +4,8 @@ namespace afc {
 namespace editor {
 
 /* static */ Action Action::SetFirstChildModifiers(LineModifierSet modifiers) {
-  return Action(SET_FIRST_CHILD_MODIFIERS, ColumnNumber(),
-                std::move(modifiers));
+  return Action(SET_FIRST_CHILD_MODIFIERS, ColumnNumber(), std::move(modifiers),
+                {});
 }
 
 void Action::Execute(std::vector<ParseTree>* trees, LineNumber line) {
@@ -13,6 +13,7 @@ void Action::Execute(std::vector<ParseTree>* trees, LineNumber line) {
     case PUSH: {
       trees->emplace_back(Range(LineColumn(line, column), LineColumn()));
       trees->back().set_modifiers(modifiers);
+      trees->back().set_properties(properties);
       DVLOG(5) << "Tree: Push: " << trees->back().range();
       break;
     }
@@ -44,19 +45,21 @@ void ParseData::PopBack() {
 }
 
 void ParseData::Push(size_t nested_state, ColumnNumberDelta rewind_column,
-                     LineModifierSet modifiers) {
+                     LineModifierSet modifiers,
+                     std::unordered_set<ParseTreeProperty> properties) {
   CHECK_GE(position_.column.ToDelta(), rewind_column);
 
   parse_results_.states_stack.push_back(nested_state);
 
   parse_results_.actions.push_back(
-      Action::Push(position_.column - rewind_column, modifiers));
+      Action::Push(position_.column - rewind_column, std::move(modifiers),
+                   std::move(properties)));
 }
 
 void ParseData::PushAndPop(ColumnNumberDelta rewind_column,
                            LineModifierSet modifiers) {
   size_t ignored_state = 0;
-  Push(ignored_state, rewind_column, std::move(modifiers));
+  Push(ignored_state, rewind_column, std::move(modifiers), {});
   PopBack();
 }
 

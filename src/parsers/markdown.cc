@@ -24,6 +24,7 @@ enum State {
   EM,
   STRONG,
   CODE,
+  LINK,
   LINK_TEXT,
   LINK_URL,
 };
@@ -113,8 +114,9 @@ class MarkdownParser : public TreeParser {
   }
 
   void HandleOpenLink(ParseData* result) {
+    result->Push(LINK, ColumnNumberDelta(), {}, {ParseTreeProperty::Link()});
     result->seek().Once();
-    result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::CYAN});
+    result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::CYAN}, {});
   }
 
   void HandleCloseLink(ParseData* result) {
@@ -127,7 +129,8 @@ class MarkdownParser : public TreeParser {
     seek.Once();
     if (seek.read() == L'(') {
       seek.Once();
-      result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::UNDERLINE});
+      result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::UNDERLINE},
+                   {ParseTreeProperty::LinkTarget()});
     }
   }
 
@@ -139,6 +142,10 @@ class MarkdownParser : public TreeParser {
     }
     result->PopBack();
     seek.Once();
+    if (result->state() != LINK) {
+      return;
+    }
+    result->PopBack();
   }
 
   void HandleList(size_t spaces_prefix, ParseData* result) {
@@ -181,7 +188,7 @@ class MarkdownParser : public TreeParser {
     if (result->state() == CODE) {
       result->PopBack();
     } else {
-      result->Push(CODE, ColumnNumberDelta(1), {LineModifier::CYAN});
+      result->Push(CODE, ColumnNumberDelta(1), {LineModifier::CYAN}, {});
     }
   }
 
@@ -193,12 +200,12 @@ class MarkdownParser : public TreeParser {
       if (result->state() == STRONG) {
         result->PopBack();
       } else if (seek.read() != L' ' && seek.read() != L'\n') {
-        result->Push(STRONG, ColumnNumberDelta(2), {LineModifier::BOLD});
+        result->Push(STRONG, ColumnNumberDelta(2), {LineModifier::BOLD}, {});
       }
     } else if (result->state() == EM) {
       result->PopBack();
     } else if (seek.read() != L' ' && seek.read() != L'\n') {
-      result->Push(EM, ColumnNumberDelta(1), {LineModifier::ITALIC});
+      result->Push(EM, ColumnNumberDelta(1), {LineModifier::ITALIC}, {});
     }
   }
 
@@ -229,7 +236,7 @@ class MarkdownParser : public TreeParser {
          {LineModifier::BOLD}});
 
     if (depth <= 5) {
-      result->Push(DepthToState(depth), ColumnNumberDelta(0), {});
+      result->Push(DepthToState(depth), ColumnNumberDelta(0), {}, {});
     }
 
     AdvanceLine(result, modifiers_by_depth->at(

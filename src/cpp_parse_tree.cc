@@ -149,7 +149,7 @@ class CppTreeParser : public TreeParser {
         CommentToEndOfLine(result);
         break;
       case '*':
-        result->Push(COMMENT, ColumnNumberDelta(1), {LineModifier::BLUE});
+        result->Push(COMMENT, ColumnNumberDelta(1), {LineModifier::BLUE}, {});
         seek.Once();
         break;
       default:
@@ -320,7 +320,7 @@ class CppTreeParser : public TreeParser {
 
     if (c == L'{' || c == L'(') {
       result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT,
-                   ColumnNumberDelta(1), {});
+                   ColumnNumberDelta(1), {}, {});
       result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
       return;
     }

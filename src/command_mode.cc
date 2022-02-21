@@ -512,10 +512,7 @@ class ActivateLink : public Command {
     buffer->MaybeAdjustPositionCol();
     OpenFileOptions options;
 
-    auto path = Path::FromString(GetCurrentToken(
-        {.contents = buffer->contents(),
-         .line_column = buffer->position(),
-         .token_characters = buffer->Read(buffer_variables::path_characters)}));
+    auto path = GetPath(*buffer);
     if (path.IsError()) {
       return;
     }
@@ -536,6 +533,40 @@ class ActivateLink : public Command {
     }
 
     OpenFile(options);
+  }
+
+ private:
+  static ValueOrError<Path> GetPath(const OpenBuffer& buffer) {
+    auto tree = buffer.parse_tree();
+    CHECK(tree != nullptr);
+    ParseTree::Route route = FindRouteToPosition(*tree, buffer.position());
+    for (const ParseTree* subtree : MapRoute(*tree, route)) {
+      if (subtree->properties().find(ParseTreeProperty::Link()) !=
+          subtree->properties().end()) {
+        if (auto target = FindLinkTarget(buffer, *subtree); !target.IsError())
+          return target;
+      }
+    }
+
+    return Path::FromString(GetCurrentToken(
+        {.contents = buffer.contents(),
+         .line_column = buffer.position(),
+         .token_characters = buffer.Read(buffer_variables::path_characters)}));
+  }
+
+  static ValueOrError<Path> FindLinkTarget(const OpenBuffer& buffer,
+                                           const ParseTree& tree) {
+    if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
+        tree.properties().end()) {
+      auto contents = buffer.contents()->copy();
+      contents->FilterToRange(tree.range());
+      return Path::FromString(contents->ToString());
+    }
+    for (const auto& child : tree.children()) {
+      if (auto output = FindLinkTarget(buffer, child); !output.IsError())
+        return output;
+    }
+    return Error(L"Unable to find link.");
   }
 };
 

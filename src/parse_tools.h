@@ -11,11 +11,12 @@ namespace afc {
 namespace editor {
 
 struct Action {
-  static Action Push(ColumnNumber column, LineModifierSet modifiers) {
-    return Action(PUSH, column, std::move(modifiers));
+  static Action Push(ColumnNumber column, LineModifierSet modifiers,
+                     std::unordered_set<ParseTreeProperty> properties) {
+    return Action(PUSH, column, std::move(modifiers), std::move(properties));
   }
 
-  static Action Pop(ColumnNumber column) { return Action(POP, column, {}); }
+  static Action Pop(ColumnNumber column) { return Action(POP, column, {}, {}); }
 
   static Action SetFirstChildModifiers(LineModifierSet modifiers);
 
@@ -36,11 +37,16 @@ struct Action {
   // Used by PUSH and by SET_FIRST_CHILD_MODIFIERS.
   LineModifierSet modifiers;
 
+  // Used by PUSH.
+  std::unordered_set<ParseTreeProperty> properties;
+
  private:
-  Action(ActionType action_type, ColumnNumber column, LineModifierSet modifiers)
+  Action(ActionType action_type, ColumnNumber column, LineModifierSet modifiers,
+         std::unordered_set<ParseTreeProperty> properties)
       : action_type(action_type),
         column(column),
-        modifiers(std::move(modifiers)) {}
+        modifiers(std::move(modifiers)),
+        properties(std::move(properties)) {}
 };
 
 struct ParseResults {
@@ -80,7 +86,8 @@ class ParseData {
   void PopBack();
 
   void Push(size_t nested_state, ColumnNumberDelta rewind_column,
-            LineModifierSet modifiers);
+            LineModifierSet modifiers,
+            std::unordered_set<ParseTreeProperty> properties);
 
   void PushAndPop(ColumnNumberDelta rewind_column, LineModifierSet modifiers);
 

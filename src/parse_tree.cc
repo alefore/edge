@@ -11,8 +11,17 @@ extern "C" {
 #include "src/buffer.h"
 #include "src/hash.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+/*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
+  static const auto* output = new ParseTreeProperty(L"link");
+  return *output;
+}
+
+/*static*/ const ParseTreeProperty& ParseTreeProperty::LinkTarget() {
+  static const auto* output = new ParseTreeProperty(L"link_target");
+  return *output;
+}
+
 std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
   os << "[ParseTree: " << t.range() << ", children: ";
   for (auto& c : t.children()) {
@@ -29,7 +38,8 @@ ParseTree::ParseTree(const ParseTree& other)
       children_hashes_(other.children_hashes_),
       range_(other.range()),
       depth_(other.depth()),
-      modifiers_(other.modifiers()) {}
+      modifiers_(other.modifiers()),
+      properties_(other.properties()) {}
 
 Range ParseTree::range() const { return range_; }
 void ParseTree::set_range(Range range) { range_ = range; }
@@ -77,9 +87,24 @@ void ParseTree::PushChild(ParseTree child) {
 }
 
 size_t ParseTree::hash() const {
+  size_t properties_hash = 0;
+  for (const auto& property : properties_) {
+    properties_hash =
+        hash_combine(properties_hash, std::hash<ParseTreeProperty>{}(property));
+  }
+
   return hash_combine(std::hash<Range>{}(range_),
-                      std::hash<LineModifierSet>{}(modifiers_),
+                      std::hash<LineModifierSet>{}(modifiers_), properties_hash,
                       children_hashes_);
+}
+
+void ParseTree::set_properties(
+    std::unordered_set<ParseTreeProperty> properties) {
+  properties_ = std::move(properties);
+}
+
+const std::unordered_set<ParseTreeProperty>& ParseTree::properties() const {
+  return properties_;
 }
 
 ParseTree SimplifyTree(const ParseTree& tree) {
@@ -285,5 +310,4 @@ std::unique_ptr<TreeParser> NewLineTreeParser(
   return std::make_unique<LineTreeParser>(std::move(delegate));
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
