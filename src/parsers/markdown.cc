@@ -149,19 +149,16 @@ class MarkdownParser : public TreeParser {
     auto seek = result->seek();
     seek.Once();
     if (seek.read() == L'*') {
+      seek.Once();
       if (result->state() == STRONG) {
-        seek.Once();
         result->PopBack();
-      } else {
-        result->Push(STRONG, ColumnNumberDelta(1), {LineModifier::BOLD});
-        seek.Once();
+      } else if (seek.read() != L' ' && seek.read() != L'\n') {
+        result->Push(STRONG, ColumnNumberDelta(2), {LineModifier::BOLD});
       }
-    } else {
-      if (result->state() == EM) {
-        result->PopBack();
-      } else {
-        result->Push(EM, ColumnNumberDelta(1), {LineModifier::ITALIC});
-      }
+    } else if (result->state() == EM) {
+      result->PopBack();
+    } else if (seek.read() != L' ' && seek.read() != L'\n') {
+      result->Push(EM, ColumnNumberDelta(1), {LineModifier::ITALIC});
     }
   }
 
