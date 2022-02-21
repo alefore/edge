@@ -223,9 +223,8 @@ class MarkdownParser : public TreeParser {
     result->set_position(position);
 
     while (result->state() != DEFAULT &&
-           (result->state() == EM || result->state() == STRONG ||
-            result->state() == CODE ||
-            StateToDepth(static_cast<State>(result->state())) >= depth)) {
+           StateToDepth(static_cast<State>(result->state())).value_or(depth) >=
+               depth) {
       result->PopBack();
     }
 
@@ -243,7 +242,7 @@ class MarkdownParser : public TreeParser {
                             std::min(depth, modifiers_by_depth->size() - 1)));
   }
 
-  size_t StateToDepth(State state) {
+  std::optional<size_t> StateToDepth(State state) {
     switch (state) {
       case SECTION_0:
         return 0;
@@ -258,8 +257,7 @@ class MarkdownParser : public TreeParser {
       case SECTION_5:
         return 5;
       default:
-        LOG(FATAL) << "Invalid state: " << state;
-        return 0;  // Silence warning.
+        return std::nullopt;
     }
   }
 
