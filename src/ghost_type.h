@@ -76,9 +76,10 @@
 //     GHOST_TYPE_CONSTRUCTOR(FirstName, value);
 //     GHOST_TYPE_EQ(FirstName, value);
 //     GHOST_TYPE_LT(FirstName, value);
+//
+//    private:
 //     GHOST_TYPE_OUTPUT_FRIEND(FirstName, value);
 //     GHOST_TYPE_HASH_FRIEND(FirstName, value);
-//    private:
 //     std::string value;
 //   };
 //
