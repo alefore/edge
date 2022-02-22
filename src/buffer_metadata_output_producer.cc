@@ -20,15 +20,15 @@ namespace afc {
 namespace editor {
 namespace {
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
-          wchar_t connect_final_char, wstring* output) {
-  CHECK_LT(pos, output->size());
+          wchar_t connect_final_char, wstring& output) {
+  CHECK_LT(pos, output.size());
   for (size_t i = 0; i < pos; i++) {
-    output->at(i) = padding_char;
+    output[i] = padding_char;
   }
-  output->at(pos) = (pos + 1 == output->size() || output->at(pos + 1) == L' ' ||
-                     output->at(pos + 1) == L'│')
-                        ? final_char
-                        : connect_final_char;
+  output[pos] = (pos + 1 == output.size() || output[pos + 1] == L' ' ||
+                 output[pos + 1] == L'│')
+                    ? final_char
+                    : connect_final_char;
 }
 
 wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
@@ -60,24 +60,24 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
   size_t index_end = 0;
   while (index_begin < route_begin.size() || index_end < route_end.size()) {
     if (index_begin == route_begin.size()) {
-      Draw(route_end[index_end]->depth(), L'─', L'╮', L'┬', &output);
+      Draw(route_end[index_end]->depth(), L'─', L'╮', L'┬', output);
       index_end++;
       continue;
     }
     if (index_end == route_end.size()) {
-      Draw(route_begin[index_begin]->depth(), L'─', L'╯', L'┴', &output);
+      Draw(route_begin[index_begin]->depth(), L'─', L'╯', L'┴', output);
       index_begin++;
       continue;
     }
 
     if (route_begin[index_begin]->depth() > route_end[index_end]->depth()) {
-      Draw(route_begin[index_begin]->depth(), L'─', L'╯', L'┴', &output);
+      Draw(route_begin[index_begin]->depth(), L'─', L'╯', L'┴', output);
       index_begin++;
       continue;
     }
 
     if (route_end[index_end]->depth() > route_begin[index_begin]->depth()) {
-      Draw(route_end[index_end]->depth(), L'─', L'╮', L'┬', &output);
+      Draw(route_end[index_end]->depth(), L'─', L'╮', L'┬', output);
       index_end++;
       continue;
     }
@@ -89,7 +89,7 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
       continue;
     }
 
-    Draw(route_end[index_end]->depth(), L'─', L'┤', L'┼', &output);
+    Draw(route_end[index_end]->depth(), L'─', L'┤', L'┼', output);
     index_begin++;
     index_end++;
   }
