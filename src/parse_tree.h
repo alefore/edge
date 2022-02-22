@@ -18,10 +18,10 @@ class ParseTreeProperty {
   static const ParseTreeProperty& Link();
   static const ParseTreeProperty& LinkTarget();
 
-  GHOST_TYPE_CONSTRUCTOR(ParseTreeProperty, value);
   GHOST_TYPE_EQ(ParseTreeProperty, value);
 
  private:
+  GHOST_TYPE_CONSTRUCTOR(ParseTreeProperty, value);
   GHOST_TYPE_HASH_FRIEND(afc::editor::ParseTreeProperty, value);
   std::wstring value;
 };
