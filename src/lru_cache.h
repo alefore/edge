@@ -18,6 +18,13 @@ class LRUCache {
  public:
   LRUCache(size_t max_size) : max_size_(max_size) {}
 
+  void SetMaxSize(size_t max_size) {
+    ValidateInvariants();
+    max_size_ = max_size;
+    DeleteExpiredEntries();
+    ValidateInvariants();
+  }
+
   void Clear() {
     ValidateInvariants();
     LOG(INFO) << "Clearing LRU Cache (size: " << access_order_.size();
@@ -34,25 +41,17 @@ class LRUCache {
   template <typename Creator>
   Value* Get(Key key, Creator creator) {
     ValidateInvariants();
-    auto insert_result =
-        map_.insert(std::make_pair(std::move(key), access_order_.end()));
-    if (insert_result.second) {
-      VLOG(4) << "Inserted a new entry: " << insert_result.first->first;
-      access_order_.push_front({insert_result.first->first, creator()});
-      insert_result.first->second = access_order_.begin();
-
-      if (access_order_.size() >= max_size_) {
-        VLOG(5) << "Expiring entry with key: " << access_order_.back().key;
-        size_t erase_result = map_.erase(access_order_.back().key);
-        CHECK_EQ(erase_result, 1ul);
-        access_order_.pop_back();
-      }
-    } else if (insert_result.first->second != access_order_.begin()) {
-      VLOG(5) << "Entry already existed, but wasn't at front: "
-              << insert_result.first->first;
-      access_order_.push_front(std::move(*insert_result.first->second));
-      access_order_.erase(insert_result.first->second);
-      insert_result.first->second = access_order_.begin();
+    auto [it, inserted] = map_.insert({std::move(key), access_order_.end()});
+    if (inserted) {
+      VLOG(4) << "Inserted a new entry: " << it->first;
+      access_order_.push_front({it->first, creator()});
+      it->second = access_order_.begin();
+      DeleteExpiredEntries();
+    } else if (it->second != access_order_.begin()) {
+      VLOG(5) << "Entry already existed, but wasn't at front: " << it->first;
+      access_order_.push_front(std::move(*it->second));
+      access_order_.erase(it->second);
+      it->second = access_order_.begin();
     } else {
       VLOG(5) << "Entry is already at front.";
     }
@@ -66,14 +65,23 @@ class LRUCache {
     CHECK_EQ(access_order_.size(), map_.size());
   }
 
-  const size_t max_size_;
+  void DeleteExpiredEntries() {
+    while (access_order_.size() >= max_size_) {
+      VLOG(5) << "Expiring entry with key: " << access_order_.back().key;
+      size_t erase_result = map_.erase(access_order_.back().key);
+      CHECK_EQ(erase_result, 1ul);
+      access_order_.pop_back();
+    }
+  }
+
+  size_t max_size_;
 
   // Most recent at the front.
-  struct AccessEntry {
+  struct Entry {
     Key key;
     Value value;
   };
-  std::list<AccessEntry> access_order_;
+  std::list<Entry> access_order_;
   std::unordered_map<Key, decltype(access_order_.begin())> map_;
 };
 
