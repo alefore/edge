@@ -78,30 +78,40 @@ std::wstring ToStatus(const CommandReachChar& c) {
 futures::Value<UndoCallback> ExecuteTransformation(
     EditorState* editor, ApplicationType application_type,
     transformation::Variant transformation) {
+  static Tracker tracker(L"ExecuteTransformation");
+  auto call = tracker.Call();
+
   // TODO(easy): Rename 'buffers_modified' to something else. Not all the
   // transformations here modify the buffers (per
   // transformation::Results::modified_buffer).
   auto buffers_modified =
       std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>();
   return editor
-      ->ForEachActiveBuffer(
-          [transformation = std::move(transformation), buffers_modified,
-           application_type](const std::shared_ptr<OpenBuffer>& buffer) {
-            buffers_modified->push_back(buffer);
-            return buffer->ApplyToCursors(
-                transformation,
-                buffer->Read(buffer_variables::multiple_cursors)
-                    ? Modifiers::CursorsAffected::kAll
-                    : Modifiers::CursorsAffected::kOnlyCurrent,
-                application_type == ApplicationType::kPreview
-                    ? transformation::Input::Mode::kPreview
-                    : transformation::Input::Mode::kFinal);
-          })
+      ->ForEachActiveBuffer([transformation = std::move(transformation),
+                             buffers_modified, application_type](
+                                const std::shared_ptr<OpenBuffer>& buffer) {
+        static Tracker tracker(L"ExecuteTransformation::ApplyTransformation");
+        auto call = tracker.Call();
+        buffers_modified->push_back(buffer);
+        return buffer->ApplyToCursors(
+            transformation,
+            buffer->Read(buffer_variables::multiple_cursors)
+                ? Modifiers::CursorsAffected::kAll
+                : Modifiers::CursorsAffected::kOnlyCurrent,
+            application_type == ApplicationType::kPreview
+                ? transformation::Input::Mode::kPreview
+                : transformation::Input::Mode::kFinal);
+      })
       .Transform([buffers_modified](EmptyValue) {
         return UndoCallback([buffers_modified] {
+          static Tracker tracker(L"ExecuteTransformation::Undo");
+          auto call = tracker.Call();
           return futures::ForEach(
                      buffers_modified->begin(), buffers_modified->end(),
                      [buffers_modified](std::shared_ptr<OpenBuffer> buffer) {
+                       static Tracker tracker(
+                           L"ExecuteTransformation::Undo::Buffer");
+                       auto call = tracker.Call();
                        return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
                            .Transform([](auto) {
                              return futures::IterationControlCommand::kContinue;
@@ -179,6 +189,8 @@ class State {
   }
 
   void Push(Command command) {
+    static Tracker tracker(L"State::Push");
+    auto call = tracker.Call();
     commands_.push_back(command);
     Update(ApplicationType::kPreview);
   }
@@ -199,6 +211,8 @@ class State {
   void Update() { Update(ApplicationType::kPreview); }
 
   void Commit() {
+    static Tracker tracker(L"State::Commit");
+    auto call = tracker.Call();
     // We make a copy because Update may delete us.
     auto editor_state = editor_state_;
     Update(ApplicationType::kCommit);
@@ -206,6 +220,8 @@ class State {
   }
 
   void RunUndoCallback() {
+    static Tracker tracker(L"State::RunUndoCallback");
+    auto call = tracker.Call();
     serializer_.Push(
         [callback = std::move(undo_callback_)]() { return (*callback)(); });
     undo_callback_ = std::make_shared<UndoCallback>(
@@ -213,6 +229,8 @@ class State {
   }
 
   void UndoLast() {
+    static Tracker tracker(L"State::UndoLast");
+    auto call = tracker.Call();
     commands_.pop_back();
     RunUndoCallback();
     Update();
@@ -220,26 +238,34 @@ class State {
 
  private:
   void Update(ApplicationType application_type) {
+    static Tracker tracker(L"State::Update");
+    auto call = tracker.Call();
     CHECK(!commands_.empty());
     RunUndoCallback();
-    transformation::Stack stack;
-    for (auto& command : commands_) {
-      stack.PushBack(std::visit(
-          [&](auto t) -> transformation::Variant {
-            return GetTransformation(top_command_, t);
-          },
-          command));
-    }
-    stack.post_transformation_behavior = std::visit(
-        [](auto t) { return GetPostTransformationBehavior(t); }, top_command_);
     auto undo_callback = undo_callback_;
-    StartTransformationExecution(application_type, std::move(stack))
+    StartTransformationExecution(application_type, PrepareStack())
         .SetConsumer([output = undo_callback](UndoCallback undo_callback) {
           *output = [previous = std::move(*output), undo_callback]() {
             return undo_callback().Transform(
                 [previous](EmptyValue) { return previous(); });
           };
         });
+  }
+
+  transformation::Stack PrepareStack() {
+    transformation::Stack stack;
+    for (auto& command : commands_) {
+      stack.PushBack(std::visit(
+          [&](auto t) -> transformation::Variant {
+            static Tracker tracker(L"State::PrepareStack::GetTransformation");
+            auto call = tracker.Call();
+            return GetTransformation(top_command_, t);
+          },
+          command));
+    }
+    stack.post_transformation_behavior = std::visit(
+        [](auto t) { return GetPostTransformationBehavior(t); }, top_command_);
+    return stack;
   }
 
   // Schedules execution of a transformation through serializer_. Returns a
