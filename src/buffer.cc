@@ -527,14 +527,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       work_queue_(
           [this] { MaybeScheduleNextWorkQueueExecution(shared_from_this()); }),
       contents_([this](const CursorsTracker::Transformation& transformation) {
-        if (syntax_data_state_ == SyntaxDataState::kDone) {
-          syntax_data_state_ = SyntaxDataState::kPending;
-          work_queue_.Schedule([this] {
-            syntax_data_state_ = SyntaxDataState::kDone;
-            CHECK(tree_parser_ != nullptr);
-            MaybeStartUpdatingSyntaxTrees();
-          });
-        }
+        work_queue_.Schedule([this] { MaybeStartUpdatingSyntaxTrees(); });
         SetDiskState(DiskState::kStale);
         if (Read(buffer_variables::persist_state)) {
           switch (backup_state_) {
@@ -960,6 +953,7 @@ void OpenBuffer::Initialize() {
 }
 
 void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
+  CHECK(tree_parser_ != nullptr);
   if (TreeParser::IsNull(tree_parser_.get())) return;
 
   struct Output {

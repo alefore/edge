@@ -607,18 +607,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   mutable Status status_;
 
-  enum class SyntaxDataState {
-    // We need to schedule an update in syntax_data_. When we set
-    // syntax_data_state_ to kPending, we schedule into `pending_work_` a
-    // callback to trigger the update (through the background thread in
-    // `syntax_data_`).
-    kPending,
-    // We've already scheduled the last update in syntax_data_. It may not yet
-    // be fully computed (it may be currently being computing in the background
-    // thread of syntax_data_), but we don't have anything else to do.
-    kDone
-  };
-  SyntaxDataState syntax_data_state_ = SyntaxDataState::kDone;
   std::shared_ptr<TreeParser> tree_parser_ = NewNullTreeParser();
 
   mutable AsyncEvaluator syntax_data_;
