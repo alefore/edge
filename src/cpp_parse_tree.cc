@@ -3,6 +3,8 @@
 #include <glog/logging.h>
 
 #include "src/buffer.h"
+#include "src/lazy_string_functional.h"
+#include "src/lru_cache.h"
 #include "src/parse_tools.h"
 #include "src/seek.h"
 
@@ -39,28 +41,35 @@ class CppTreeParser : public TreeParser {
             L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", typos,
             NewNullTreeParser())),
         keywords_(std::move(keywords)),
-        typos_(std::move(typos)) {}
+        typos_(std::move(typos)),
+        cache_(1) {}
 
   ParseTree FindChildren(const BufferContents& buffer, Range range) override {
-    // TODO: Does this actually clean up expired references? Probably not?
-    cache_.erase(std::weak_ptr<LazyString>());
+    static Tracker top_tracker(L"CppTreeParser::FindChildren");
+    auto call = top_tracker.Call();
+    cache_.SetMaxSize(buffer.size().line_delta);
 
     std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
     std::vector<ParseTree> trees = {ParseTree(range)};
     range.ForEachLine([&](LineNumber i) {
-      auto insert_results = cache_[buffer.at(i)->contents()].insert(
-          {states_stack, ParseResults()});
-      if (insert_results.second) {
+      size_t hash = GetLineHash(*buffer.at(i)->contents(), states_stack);
+      auto parse_results = cache_.Get(hash, [&] {
+        static Tracker tracker(L"CppTreeParser::FindChildren::Parse");
+        auto call = tracker.Call();
         ParseData data(buffer, std::move(states_stack),
                        min(LineColumn(i + LineNumberDelta(1)), range.end));
         data.set_position(max(LineColumn(i), range.begin));
         ParseLine(&data);
-        insert_results.first->second = *data.parse_results();
-      }
-      for (auto& action : insert_results.first->second.actions) {
+        return *data.parse_results();
+      });
+
+      static Tracker execute_tracker(
+          L"CppTreeParser::FindChildren::ExecuteActions");
+      auto execute_call = execute_tracker.Call();
+      for (auto& action : parse_results->actions) {
         action.Execute(&trees, i);
       }
-      states_stack = insert_results.first->second.states_stack;
+      states_stack = parse_results->states_stack;
     });
 
     auto final_position =
@@ -140,6 +149,16 @@ class CppTreeParser : public TreeParser {
   }
 
  private:
+  size_t GetLineHash(const LazyString& line,
+                     const std::vector<size_t>& states) {
+    static Tracker tracker(L"CppTreeParser::GetLineHash");
+    auto call = tracker.Call();
+    size_t hash = Hash(line);
+    for (const auto& s : states)
+      hash = hash_combine(hash, std::hash<size_t>{}(s));
+    return hash;
+  }
+
   void AfterSlash(State state_default, State state_default_at_start_of_line,
                   ParseData* result) {
     auto seek = result->seek();
@@ -364,11 +383,14 @@ class CppTreeParser : public TreeParser {
   const std::unordered_set<wstring> keywords_;
   const std::unordered_set<wstring> typos_;
 
-  // Allows us to avoid reparsing previously parsed lines.
-  std::map<std::weak_ptr<LazyString>,
-           std::map<std::vector<size_t>, ParseResults>,
-           std::owner_less<std::weak_ptr<LazyString>>>
-      cache_;
+  // Allows us to avoid reparsing previously parsed lines. The key is the hash
+  // of:
+  //
+  // - The contents of a line.
+  // - The stack of states available when parsing of the line starts.
+  //
+  // The values are the results of parsing the line.
+  LRUCache<size_t, ParseResults> cache_;
 };
 
 }  // namespace
