@@ -118,6 +118,7 @@ Variant OptimizeBase(Stack stack) {
   for (auto& t : stack.stack) {
     t = Optimize(std::move(t));
   }
+
   stack.stack.remove_if([](auto& t) {
     Stack* sub_stack = std::get_if<Stack>(&t);
     return sub_stack != nullptr && sub_stack->stack.empty();
@@ -127,13 +128,15 @@ Variant OptimizeBase(Stack stack) {
   for (auto it = stack.stack.begin();
        it != stack.stack.end() && std::next(it) != stack.stack.end();) {
     auto next_it = std::next(it);
-    SetPosition* prev = std::get_if<SetPosition>(&*it);
-    SetPosition* next = std::get_if<SetPosition>(&*next_it);
-    if (prev != nullptr && next != nullptr) {
-      if (!next->line.has_value()) next->line = prev->line;
-      stack.stack.erase(it);
-    } else if (std::get_if<Cursors>(&*next_it)) {
-      stack.stack.erase(it);
+    SetPosition* current = std::get_if<SetPosition>(&*it);
+    if (current != nullptr) {
+      if (SetPosition* next = std::get_if<SetPosition>(&*next_it);
+          next != nullptr) {
+        if (!next->line.has_value()) next->line = current->line;
+        stack.stack.erase(it);
+      } else if (std::get_if<Cursors>(&*next_it)) {
+        stack.stack.erase(it);
+      }
     }
     it = next_it;
   }
