@@ -45,7 +45,13 @@ class AsyncProcessor {
 
     // Controls the behavior when `Push` is called while there are unprocessed
     // inputs.
-    enum class QueueBehavior { kFlush, kWait };
+    enum class QueueBehavior {
+      // The unprocessed inputs are discarded; we wait for the input currently
+      // being processed to be done and start the last one immediately.
+      kFlush,
+      // We process all inputs one-by-one.
+      kWait
+    };
     QueueBehavior push_behavior = QueueBehavior::kFlush;
 
     std::wstring name;
