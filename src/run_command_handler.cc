@@ -323,13 +323,13 @@ void RunCommand(const BufferName& name, const wstring& input,
   ForkCommand(editor_state, options);
 }
 
-futures::Value<EmptyValue> RunCommandHandler(const wstring& input,
-                                             EditorState* editor_state,
-                                             size_t i, size_t n,
-                                             wstring children_path) {
+futures::Value<EmptyValue> RunCommandHandler(
+    const wstring& input, EditorState* editor_state, size_t i, size_t n,
+    std::optional<Path> children_path) {
   map<wstring, wstring> environment = {{L"EDGE_RUN", std::to_wstring(i)},
                                        {L"EDGE_RUNS", std::to_wstring(n)}};
-  wstring name = children_path + L"$";
+  wstring name =
+      (children_path.has_value() ? children_path->ToString() : L"") + L"$";
   if (n > 1) {
     for (auto& it : environment) {
       name += L" " + it.first + L"=" + it.second;
@@ -341,8 +341,7 @@ futures::Value<EmptyValue> RunCommandHandler(const wstring& input,
         buffer->Read(buffer_variables::path);
   }
   name += L" " + input;
-  RunCommand(BufferName(name), input, environment, editor_state,
-             Path::FromString(children_path).AsOptional());
+  RunCommand(BufferName(name), input, environment, editor_state, children_path);
   return futures::Past(EmptyValue());
 }
 
@@ -397,9 +396,8 @@ class ForkEditorCommand : public Command {
       }
       options.handler = [children_path](const wstring& name,
                                         EditorState* editor_state) {
-        return RunCommandHandler(
-            name, editor_state, 0, 1,
-            children_path.IsError() ? L"" : children_path.value().ToString());
+        return RunCommandHandler(name, editor_state, 0, 1,
+                                 children_path.AsOptional());
       };
       Prompt(options);
     } else if (editor_state->structure() == StructureLine()) {
@@ -410,9 +408,9 @@ class ForkEditorCommand : public Command {
       auto children_path = GetChildrenPath(editor_state);
       auto line = buffer->current_line()->ToString();
       for (size_t i = 0; i < editor_state->repetitions().value_or(1); ++i) {
-        RunCommandHandler(
-            line, editor_state, i, editor_state->repetitions().value_or(1),
-            children_path.IsError() ? L"" : children_path.value().ToString());
+        RunCommandHandler(line, editor_state, i,
+                          editor_state->repetitions().value_or(1),
+                          children_path.AsOptional());
       }
     } else {
       auto buffer = editor_state->current_buffer();

@@ -34,7 +34,7 @@ class ValueOrError {
   ValueOrError(Error error) : error_(std::move(error)) {}
   ValueOrError(editor::ValueType<T> value) : value_(std::move(value.value)) {}
 
-  std::optional<T> AsOptional() {
+  std::optional<T> AsOptional() const {
     return IsError() ? std::optional<T>() : value();
   }
 
