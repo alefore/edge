@@ -35,8 +35,7 @@ struct ForkCommandOptions {
       BuffersList::AddBufferType::kVisit;
 
   // If non-empty, change to this directory in the children. Ignored if empty.
-  // TODO(easy): Change to Path type.
-  wstring children_path = L"";
+  std::optional<Path> children_path = std::nullopt;
 };
 
 unique_ptr<Command> NewForkCommand();

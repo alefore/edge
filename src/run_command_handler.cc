@@ -316,9 +316,7 @@ void RunCommand(const BufferName& name, const wstring& input,
               !buffer->Read(buffer_variables::commands_background_mode)
           ? BuffersList::AddBufferType::kVisit
           : BuffersList::AddBufferType::kIgnore;
-  if (children_path.has_value()) {
-    options.children_path = children_path->ToString();
-  }
+  options.children_path = children_path;
   options.environment = std::move(environment);
   ForkCommand(editor_state, options);
 }
@@ -541,7 +539,8 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
       NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
           [](ForkCommandOptions* options, wstring children_path) {
             CHECK(options != nullptr);
-            options->children_path = std::move(children_path);
+            options->children_path =
+                Path::FromString(std::move(children_path)).AsOptional();
           })));
 
   environment->DefineType(L"ForkCommandOptions",
@@ -567,7 +566,10 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
       return Flags(*command_data, buffer);
     };
     auto buffer = OpenBuffer::New(std::move(buffer_options));
-    buffer->Set(buffer_variables::children_path, options.children_path);
+    buffer->Set(buffer_variables::children_path,
+                options.children_path.has_value()
+                    ? options.children_path->ToString()
+                    : L"");
     buffer->Set(buffer_variables::command, options.command);
     it.first->second = std::move(buffer);
   } else {
