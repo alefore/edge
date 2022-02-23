@@ -344,10 +344,13 @@ futures::Value<EmptyValue> RunCommandHandler(const wstring& input,
   return futures::Past(EmptyValue());
 }
 
-wstring GetChildrenPath(EditorState* editor_state) {
-  auto buffer = editor_state->current_buffer();
-  return buffer != nullptr ? buffer->Read(buffer_variables::children_path)
-                           : L"";
+ValueOrError<Path> GetChildrenPath(EditorState* editor_state) {
+  if (auto buffer = editor_state->current_buffer(); buffer != nullptr) {
+    return AugmentErrors(
+        L"Getting children path of buffer",
+        Path::FromString(buffer->Read(buffer_variables::children_path)));
+  }
+  return Error(L"Editor doesn't have a current buffer.");
 }
 
 class ForkEditorCommand : public Command {
@@ -377,7 +380,10 @@ class ForkEditorCommand : public Command {
 
       PromptOptions options;
       options.editor_state = editor_state;
-      wstring children_path = GetChildrenPath(editor_state);
+      std::wstring children_path;
+      if (auto path = GetChildrenPath(editor_state); !path.IsError()) {
+        children_path = path.value().ToString();
+      }
       options.prompt = children_path + L"$ ";
       options.history_file = L"commands";
       if (prompt_state->context_command_callback != nullptr) {
@@ -401,9 +407,9 @@ class ForkEditorCommand : public Command {
       auto children_path = GetChildrenPath(editor_state);
       auto line = buffer->current_line()->ToString();
       for (size_t i = 0; i < editor_state->repetitions().value_or(1); ++i) {
-        RunCommandHandler(line, editor_state, i,
-                          editor_state->repetitions().value_or(1),
-                          children_path);
+        RunCommandHandler(
+            line, editor_state, i, editor_state->repetitions().value_or(1),
+            children_path.IsError() ? L"" : children_path.value().ToString());
       }
     } else {
       auto buffer = editor_state->current_buffer();
@@ -581,8 +587,9 @@ std::unique_ptr<Command> NewForkCommand() {
 futures::Value<EmptyValue> RunCommandHandler(
     const wstring& input, EditorState* editor_state,
     map<wstring, wstring> environment) {
+  auto children_path = GetChildrenPath(editor_state);
   RunCommand(BufferName(L"$ " + input), input, environment, editor_state,
-             GetChildrenPath(editor_state));
+             children_path.IsError() ? L"" : children_path.value().ToString());
   return futures::Past(EmptyValue());
 }
 
@@ -593,8 +600,11 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(
                              input](const std::shared_ptr<OpenBuffer>& buffer) {
         buffer->contents()->ForEach([editor_state, input](wstring arg) {
           map<wstring, wstring> environment = {{L"ARG", arg}};
-          RunCommand(BufferName(L"$ " + input + L" " + arg), input, environment,
-                     editor_state, GetChildrenPath(editor_state));
+          auto children_path = GetChildrenPath(editor_state);
+          RunCommand(
+              BufferName(L"$ " + input + L" " + arg), input, environment,
+              editor_state,
+              children_path.IsError() ? L"" : children_path.value().ToString());
         });
         return futures::Past(EmptyValue());
       })
