@@ -419,7 +419,7 @@ OutputProducer::LineWithCursor Line::Output(
 
 size_t Line::GetHash() const {
   std::unique_lock<std::mutex> lock(mutex_);
-  if (hash_.has_value()) return hash_.value();
+  if (hash_.has_value()) return *hash_;
   size_t value = 0;
   for (auto& modifiers : options_.modifiers) {
     value = hash_combine(value, std::hash<ColumnNumber>{}(modifiers.first),
@@ -427,11 +427,8 @@ size_t Line::GetHash() const {
   }
   value = hash_combine(
       value, std::hash<LineModifierSet>{}(options_.end_of_line_modifiers));
-  ForEachColumn(*options_.contents, [&](ColumnNumber, wchar_t c) {
-    value = hash_combine(value, c);
-  });
-  hash_ = value;
-  return value;
+  hash_ = hash_combine(value, Hash(*options_.contents));
+  return *hash_;
 }
 
 void Line::ValidateInvariants() const {

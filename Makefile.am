@@ -90,6 +90,7 @@ src/horizontal_split_output_producer.h \
 src/insert_mode.cc \
 src/lazy_string.cc \
 src/lazy_string_append.cc \
+src/lazy_string_functional.cc \
 src/lazy_string_functional.h \
 src/lazy_string_trim.cc \
 src/lazy_string_trim.h \
