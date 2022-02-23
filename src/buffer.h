@@ -622,6 +622,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::shared_ptr<TreeParser> tree_parser_ = NewNullTreeParser();
 
   mutable AsyncEvaluator syntax_data_;
+  mutable AsyncEvaluator syntax_data_view_;
 
   // Never nullptr.
   std::shared_ptr<const ParseTree> parse_tree_ =

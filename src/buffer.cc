@@ -140,7 +140,6 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
                ? line
                : std::make_shared<Line>(
                      Line::Options(*line).SetMetadata(std::nullopt));
-
   std::wstring description = L"C++: " + TypesToString(expr->Types());
   if (expr->purity() == Expression::PurityType::kPure) {
     description += L" ...";
@@ -569,7 +568,9 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
-      syntax_data_(L"SyntaxData", &work_queue_),
+      syntax_data_(L"SyntaxData", &work_queue_,
+                   BackgroundCallbackRunner::Options::QueueBehavior::kFlush),
+      syntax_data_view_(L"SyntaxDataView", &work_queue_),
       async_read_evaluator_(L"ReadEvaluator", &work_queue_),
       file_system_driver_(&work_queue_) {}
 
@@ -973,12 +974,10 @@ void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
             L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
         auto tracker_call = tracker.Call();
         VLOG(3) << "Executing parse tree update.";
-        Output output;
-        output.parse_tree = std::make_shared<ParseTree>(
-            parser->FindChildren(*contents, contents->range()));
-        output.simplified_parse_tree =
-            std::make_shared<ParseTree>(SimplifyTree(*output.parse_tree));
-        return output;
+        auto parse_tree = parser->FindChildren(*contents, contents->range());
+        return Output{.parse_tree = std::make_shared<ParseTree>(parse_tree),
+                      .simplified_parse_tree = std::make_shared<ParseTree>(
+                          SimplifyTree(parse_tree))};
       })
       .SetConsumer([this](Output output) {
         LOG(INFO) << "Installing new parse trees.";
@@ -1719,7 +1718,7 @@ std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
   auto it = zoomed_out_parse_trees_.find(view_size);
   if (it == zoomed_out_parse_trees_.end() ||
       it->second.simplified_parse_tree != simplified_tree) {
-    syntax_data_
+    syntax_data_view_
         .Run([lines_size = lines_size(), view_size,
               simplified_tree]() -> std::shared_ptr<ParseTree> {
           static Tracker tracker(
