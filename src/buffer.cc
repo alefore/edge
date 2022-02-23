@@ -1304,15 +1304,13 @@ std::optional<futures::Value<std::unique_ptr<Value>>>
 OpenBuffer::EvaluateString(const wstring& code) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
-  std::shared_ptr<Expression> expression;
-  std::shared_ptr<Environment> environment;
-  std::tie(expression, environment) = CompileString(code, &error_description);
-  if (expression == nullptr) {
-    status_.SetWarningText(L"🐜Compilation error: " + error_description);
-    return std::nullopt;
+  if (auto [expression, environment] = CompileString(code, &error_description);
+      expression != nullptr) {
+    LOG(INFO) << "Code compiled, evaluating.";
+    return EvaluateExpression(expression.get(), environment);
   }
-  LOG(INFO) << "Code compiled, evaluating.";
-  return EvaluateExpression(expression.get(), environment);
+  status_.SetWarningText(L"🐜Compilation error: " + error_description);
+  return std::nullopt;
 }
 
 std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
