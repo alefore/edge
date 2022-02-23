@@ -6,6 +6,8 @@
 #include <string>
 
 #include "line_column.h"
+#include "src/hash.h"
+#include "src/lazy_string.h"
 
 namespace afc {
 namespace editor {
@@ -35,6 +37,8 @@ void ForEachColumn(const LazyString& input, Callback callback) {
     return false;
   });
 }
+
+size_t Hash(const LazyString& input);
 
 }  // namespace editor
 }  // namespace afc
