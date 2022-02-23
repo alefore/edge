@@ -109,6 +109,8 @@ std::wstring GotoTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
     CompositeTransformation::Input input) const {
+  static Tracker tracker(L"GotoTransformation::Apply");
+  auto call = tracker.Call();
   auto position = input.modifiers.structure->ComputeGoToPosition(
       input.buffer, input.modifiers, input.position, calls_);
   return futures::Past(
