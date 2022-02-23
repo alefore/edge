@@ -17,6 +17,6 @@ struct Repetitions {
 
 futures::Value<Result> ApplyBase(const Repetitions& parameters, Input input);
 std::wstring ToStringBase(const Repetitions& v);
-
+Variant OptimizeBase(Repetitions transformation);
 }  // namespace afc::editor::transformation
 #endif  // __AFC_EDITOR_TRANSFORMATION_REPETITIONS_H__

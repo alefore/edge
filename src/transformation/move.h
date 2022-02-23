@@ -20,6 +20,7 @@ struct SwapActiveCursor {
 futures::Value<Result> ApplyBase(const SwapActiveCursor& parameters,
                                  Input input);
 std::wstring ToStringBase(const SwapActiveCursor& v);
+SwapActiveCursor OptimizeBase(SwapActiveCursor transformation);
 }  // namespace transformation
 
 class CompositeTransformation;

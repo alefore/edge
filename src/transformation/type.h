@@ -44,5 +44,7 @@ futures::Value<Result> Apply(Variant base_transformation, const Input& input);
 
 std::wstring ToString(const Variant& transformation);
 
+Variant Optimize(Variant transformation);
+
 }  // namespace afc::editor::transformation
 #endif

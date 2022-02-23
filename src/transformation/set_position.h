@@ -24,7 +24,7 @@ void RegisterSetPosition(vm::Environment* environment);
 
 futures::Value<Result> ApplyBase(const SetPosition& parameters, Input input);
 std::wstring ToStringBase(const SetPosition& parameters);
-
+SetPosition OptimizeBase(SetPosition transformation);
 }  // namespace afc::editor::transformation
 
 #endif  // __AFC_EDITOR_TRANSFORMATION_SET_POSITION_H__

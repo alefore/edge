@@ -108,6 +108,8 @@ std::wstring ToStringBase(const Insert& options) {
   return output;
 }
 
+Insert OptimizeBase(Insert transformation) { return transformation; }
+
 void RegisterInsert(EditorState* editor, vm::Environment* environment) {
   auto builder = std::make_unique<ObjectType>(L"InsertTransformationBuilder");
 

@@ -43,4 +43,10 @@ void Result::MergeFrom(Result sub_result) {
   position = sub_result.position;
 }
 
+Variant Optimize(Variant transformation) {
+  return std::visit(
+      [](auto value) -> Variant { return OptimizeBase(std::move(value)); },
+      std::move(transformation));
+}
+
 }  // namespace afc::editor::transformation

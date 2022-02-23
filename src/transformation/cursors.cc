@@ -28,4 +28,6 @@ std::wstring ToStringBase(const Cursors& v) {
   return L"Cursors{.size = " + std::to_wstring(v.cursors.size()) + L"};";
 }
 
+Cursors OptimizeBase(Cursors cursors) { return cursors; }
+
 }  // namespace afc::editor::transformation

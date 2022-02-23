@@ -42,7 +42,7 @@ struct Insert {
 void RegisterInsert(editor::EditorState* editor, vm::Environment* environment);
 futures::Value<Result> ApplyBase(const Insert& parameters, Input input);
 std::wstring ToStringBase(const Insert& v);
-
+Insert OptimizeBase(Insert transformation);
 }  // namespace transformation
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_TRANSFORMATION_INSERT_H__

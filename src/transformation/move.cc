@@ -44,6 +44,9 @@ std::wstring ToStringBase(const SwapActiveCursor&) {
   return L"SwapActiveCursor();";
 }
 
+SwapActiveCursor OptimizeBase(SwapActiveCursor transformation) {
+  return transformation;
+}
 };  // namespace transformation
 
 namespace {

@@ -44,4 +44,5 @@ std::wstring ToStringBase(const SetPosition& v) {
   return L"SetColumnTransformation(" + std::to_wstring(v.column.column) + L")";
 }
 
+SetPosition OptimizeBase(SetPosition transformation) { return transformation; }
 }  // namespace afc::editor::transformation

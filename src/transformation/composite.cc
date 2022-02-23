@@ -93,12 +93,21 @@ futures::Value<Result> ApplyBase(const ModifiersAndComposite& parameters,
                    std::move(input));
 }
 
-std::wstring ToStringBase(const ModifiersAndComposite& parameters) {
-  return L"ModifiersAndComposite();";
+std::wstring ToStringBase(const ModifiersAndComposite& transformation) {
+  return L"ModifiersAndComposite(" + ToString(transformation.transformation) +
+         L")";
 }
 std::wstring ToStringBase(
-    const std::shared_ptr<CompositeTransformation>& parameters) {
-  return L"CompositeTransformation();";
+    const std::shared_ptr<CompositeTransformation>& transformation) {
+  return L"CompositeTransformation(" + transformation->Serialize() + L")";
+}
+
+Variant OptimizeBase(ModifiersAndComposite transformation) {
+  return transformation;
+}
+Variant OptimizeBase(
+    const std::shared_ptr<CompositeTransformation>& transformation) {
+  return transformation;
 }
 
 }  // namespace transformation

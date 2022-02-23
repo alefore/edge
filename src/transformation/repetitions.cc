@@ -70,5 +70,10 @@ std::wstring ToStringBase(const Repetitions& v) {
          ToString(*v.transformation) + L")";
 }
 
+Variant OptimizeBase(Repetitions transformation) {
+  if (transformation.repetitions == 1)
+    return std::move(*transformation.transformation);
+  return transformation;
+}
 }  // namespace editor::transformation
 }  // namespace afc

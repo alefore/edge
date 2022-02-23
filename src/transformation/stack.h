@@ -27,6 +27,8 @@ struct Stack {
       PostTransformationBehavior::kNone;
 };
 
+Variant OptimizeBase(Stack stack);
+
 futures::Value<Result> ApplyBase(const Stack& parameters, Input input);
 std::wstring ToStringBase(const Stack& stack);
 }  // namespace transformation

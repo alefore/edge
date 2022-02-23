@@ -2320,6 +2320,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
     CHECK_EQ(input.delete_buffer, nullptr);
   }
 
+  VLOG(5) << "Apply transformation: "
+          << transformation::ToString(transformation);
   return transformation::Apply(transformation, std::move(input))
       .Transform([this, transformation = std::move(transformation),
                   mode](transformation::Result result) {
@@ -2346,6 +2348,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
         CHECK(!undo_past_.empty());
         undo_past_.back()->PushFront(
             transformation::Stack{.stack = result.undo_stack->stack});
+        *undo_past_.back() = transformation::Stack{
+            .stack = {OptimizeBase(std::move(*undo_past_.back()))}};
         return result;
       });
 }
@@ -2398,6 +2402,8 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
            input.position = position();
            // We've undone the entire changes, so...
            last_transformation_stack_.clear();
+           VLOG(5) << "Undo transformation: "
+                   << ToStringBase(*data->source->back());
            return transformation::Apply(*data->source->back(), input)
                .Transform(
                    [this, undo_mode, data](transformation::Result result) {

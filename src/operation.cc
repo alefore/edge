@@ -252,7 +252,7 @@ class State {
         });
   }
 
-  transformation::Stack PrepareStack() {
+  transformation::Variant PrepareStack() {
     transformation::Stack stack;
     for (auto& command : commands_) {
       stack.PushBack(std::visit(
@@ -265,7 +265,7 @@ class State {
     }
     stack.post_transformation_behavior = std::visit(
         [](auto t) { return GetPostTransformationBehavior(t); }, top_command_);
-    return stack;
+    return OptimizeBase(stack);
   }
 
   // Schedules execution of a transformation through serializer_. Returns a

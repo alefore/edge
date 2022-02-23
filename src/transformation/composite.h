@@ -66,6 +66,9 @@ std::wstring ToStringBase(const ModifiersAndComposite& parameters);
 std::wstring ToStringBase(
     const std::shared_ptr<CompositeTransformation>& parameters);
 
+Variant OptimizeBase(ModifiersAndComposite transformation);
+Variant OptimizeBase(
+    const std::shared_ptr<CompositeTransformation>& transformation);
 }  // namespace transformation
 }  // namespace afc::editor
 namespace afc::vm {

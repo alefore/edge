@@ -111,6 +111,38 @@ futures::Value<EmptyValue> ApplyStackDirectly(Iterator begin, Iterator end,
 
 }  // namespace
 
+Variant OptimizeBase(Stack stack) {
+  if (stack.post_transformation_behavior !=
+      Stack::PostTransformationBehavior::kNone)
+    return stack;
+  for (auto& t : stack.stack) {
+    t = Optimize(std::move(t));
+  }
+  stack.stack.remove_if([](auto& t) {
+    Stack* sub_stack = std::get_if<Stack>(&t);
+    return sub_stack != nullptr && sub_stack->stack.empty();
+  });
+
+  VLOG(5) << "Removing consecutive calls to SetPosition or Cursors.";
+  for (auto it = stack.stack.begin();
+       it != stack.stack.end() && std::next(it) != stack.stack.end();) {
+    auto next_it = std::next(it);
+    SetPosition* prev = std::get_if<SetPosition>(&*it);
+    SetPosition* next = std::get_if<SetPosition>(&*next_it);
+    if (prev != nullptr && next != nullptr) {
+      if (!next->line.has_value()) next->line = prev->line;
+      stack.stack.erase(it);
+    } else if (std::get_if<Cursors>(&*next_it)) {
+      stack.stack.erase(it);
+    }
+    it = next_it;
+  }
+
+  if (stack.stack.empty()) return stack;
+  if (stack.stack.size() == 1) return stack.stack.front();
+  return stack;
+}
+
 futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   auto output = std::make_shared<Result>(input.position);
   auto copy = std::make_shared<Stack>(parameters);
