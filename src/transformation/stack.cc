@@ -1,6 +1,7 @@
 #include "src/transformation/stack.h"
 
 #include "src/buffer.h"
+#include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/log.h"
 #include "src/run_command_handler.h"
@@ -194,7 +195,11 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             auto contents = input.buffer->contents()->copy();
             contents->FilterToRange(*delete_transformation.range);
             ForkCommand(input.buffer->editor(),
-                        ForkCommandOptions{.command = contents->ToString()});
+                        ForkCommandOptions{
+                            .command = contents->ToString(),
+                            .environment = {
+                                {L"EDGE_PARENT_BUFFER_PATH",
+                                 input.buffer->Read(buffer_variables::path)}}});
             return futures::Past(std::move(*output));
           }
           case Stack::PostTransformationBehavior::kCommandCpp:
