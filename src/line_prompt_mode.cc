@@ -169,36 +169,38 @@ const bool get_synthetic_features_tests_registration = tests::Register(
 
 futures::Value<std::shared_ptr<OpenBuffer>> GetHistoryBuffer(
     EditorState* editor_state, const wstring& name) {
-  OpenFileOptions options;
-  options.editor_state = editor_state;
-  options.name = BufferName(L"- history: " + name);
-  auto it = editor_state->buffers()->find(*options.name);
+  BufferName buffer_name(L"- history: " + name);
+  auto it = editor_state->buffers()->find(buffer_name);
   if (it != editor_state->buffers()->end()) {
     return futures::Past(it->second);
   }
-  if (!editor_state->edge_path().empty()) {
-    options.path =
-        Path::Join(editor_state->edge_path().front(),
-                   PathComponent::FromString(name + L"_history").value());
-  }
-  options.insertion_type = BuffersList::AddBufferType::kIgnore;
-  return OpenFile(options).Transform(
-      [editor_state](
-          std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator it) {
-        CHECK(it != editor_state->buffers()->end());
-        CHECK(it->second != nullptr);
-        it->second->Set(buffer_variables::save_on_close, true);
-        it->second->Set(buffer_variables::trigger_reload_on_buffer_write,
-                        false);
-        it->second->Set(buffer_variables::show_in_buffers_list, false);
-        it->second->Set(buffer_variables::atomic_lines, true);
-        if (!editor_state->has_current_buffer()) {
-          // Seems lame, but what can we do?
-          editor_state->set_current_buffer(
-              it->second, CommandArgumentModeApplyMode::kFinal);
-        }
-        return it->second;
-      });
+  return OpenFile(
+             {.editor_state = *editor_state,
+              .name = buffer_name,
+              .path = editor_state->edge_path().empty()
+                          ? std::nullopt
+                          : std::make_optional(Path::Join(
+                                editor_state->edge_path().front(),
+                                PathComponent::FromString(name + L"_history")
+                                    .value())),
+              .insertion_type = BuffersList::AddBufferType::kIgnore})
+      .Transform(
+          [editor_state](
+              std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator it) {
+            CHECK(it != editor_state->buffers()->end());
+            CHECK(it->second != nullptr);
+            it->second->Set(buffer_variables::save_on_close, true);
+            it->second->Set(buffer_variables::trigger_reload_on_buffer_write,
+                            false);
+            it->second->Set(buffer_variables::show_in_buffers_list, false);
+            it->second->Set(buffer_variables::atomic_lines, true);
+            if (!editor_state->has_current_buffer()) {
+              // Seems lame, but what can we do?
+              editor_state->set_current_buffer(
+                  it->second, CommandArgumentModeApplyMode::kFinal);
+            }
+            return it->second;
+          });
 }
 
 ValueOrError<std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>>

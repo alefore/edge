@@ -24,7 +24,7 @@ futures::Value<PossibleError> SaveContentsToFile(const Path& path,
                                                  WorkQueue* work_queue);
 
 struct OpenFileOptions {
-  EditorState* editor_state = nullptr;
+  EditorState& editor_state;
 
   // Name can be absent, in which case the name will come from the path.
   std::optional<BufferName> name = std::nullopt;

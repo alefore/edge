@@ -2053,7 +2053,7 @@ OpenBuffer::OpenBufferForCurrentPosition() {
            }
            return OpenFile(
                       OpenFileOptions{
-                          .editor_state = data->source->editor(),
+                          .editor_state = *data->source->editor(),
                           .path = paths[data->index++],
                           .ignore_if_not_found = true,
                           .insertion_type = BuffersList::AddBufferType::kIgnore,

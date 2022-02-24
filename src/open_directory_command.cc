@@ -23,19 +23,18 @@ class OpenDirectoryCommand : public Command {
   wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    OpenFileOptions options;
-    auto buffer = editor_state->current_buffer();
-    if (buffer == nullptr) {
-      options.path = Path::LocalDirectory();
-    } else if (auto path =
-                   Path::FromString(buffer->Read(buffer_variables::name));
-               !path.IsError()) {
-      if (auto dir = path.value().Dirname(); !dir.IsError()) {
-        options.path = dir.value();
-      }
-    }
-    options.editor_state = editor_state;
-    OpenFile(options);
+    OpenFile({.editor_state = *editor_state,
+              .path = GetPath(editor_state->current_buffer().get())});
+  }
+
+ private:
+  static std::optional<Path> GetPath(const OpenBuffer* buffer) {
+    if (buffer == nullptr) return Path::LocalDirectory();
+    auto path = Path::FromString(buffer->Read(buffer_variables::name));
+    if (path.IsError()) return std::nullopt;
+    auto dir = path.value().Dirname();
+    if (dir.IsError()) return std::nullopt;
+    return dir.value();
   }
 };
 

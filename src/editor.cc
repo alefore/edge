@@ -407,24 +407,25 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
           [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
             CHECK_EQ(args.size(), 3u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
+            auto editor_state =
+                static_cast<EditorState*>(args[0]->user_value.get());
             CHECK(args[1]->IsString());
             CHECK(args[2]->IsBool());
-            OpenFileOptions options;
-            options.editor_state =
-                static_cast<EditorState*>(args[0]->user_value.get());
-            CHECK(options.editor_state != nullptr);
-            if (auto path = Path::FromString(args[1]->str); !path.IsError()) {
-              options.path = std::move(path.value());
-            }
-            options.insertion_type = args[2]->boolean
-                                         ? BuffersList::AddBufferType::kVisit
-                                         : BuffersList::AddBufferType::kIgnore;
-            return OpenFile(options).Transform(
-                [](std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
-                       result) {
-                  return EvaluationOutput::Return(
-                      Value::NewObject(L"Buffer", result->second));
-                });
+            CHECK(editor_state != nullptr);
+            return OpenFile(
+                       OpenFileOptions{
+                           .editor_state = *editor_state,
+                           .path = Path::FromString(args[1]->str).AsOptional(),
+                           .insertion_type =
+                               args[2]->boolean
+                                   ? BuffersList::AddBufferType::kVisit
+                                   : BuffersList::AddBufferType::kIgnore})
+                .Transform(
+                    [](std::map<BufferName,
+                                std::shared_ptr<OpenBuffer>>::iterator result) {
+                      return EvaluationOutput::Return(
+                          Value::NewObject(L"Buffer", result->second));
+                    });
           }));
 
   editor_type->AddField(
@@ -933,24 +934,27 @@ void EditorState::PushPosition(LineColumn position) {
     positions_buffer = futures::Past(buffer_it->second);
   } else {
     // Insert a new entry into the list of buffers.
-    OpenFileOptions options;
-    options.editor_state = this;
-    options.name = PositionsBufferName();
-    if (!edge_path().empty()) {
-      options.path = Path::Join(edge_path().front(),
-                                Path::FromString(L"positions").value());
-    }
-    options.insertion_type = BuffersList::AddBufferType::kIgnore;
-    positions_buffer = OpenFile(options).Transform(
-        [](std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
-               buffer_it) {
-          CHECK(buffer_it->second != nullptr);
-          buffer_it->second->Set(buffer_variables::save_on_close, true);
-          buffer_it->second->Set(
-              buffer_variables::trigger_reload_on_buffer_write, false);
-          buffer_it->second->Set(buffer_variables::show_in_buffers_list, false);
-          return buffer_it->second;
-        });
+    positions_buffer =
+        OpenFile(OpenFileOptions{
+                     .editor_state = *this,
+                     .name = PositionsBufferName(),
+                     .path = edge_path().empty()
+                                 ? std::optional<Path>()
+                                 : Path::Join(
+                                       edge_path().front(),
+                                       Path::FromString(L"positions").value()),
+                     .insertion_type = BuffersList::AddBufferType::kIgnore})
+            .Transform(
+                [](std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
+                       buffer_it) {
+                  CHECK(buffer_it->second != nullptr);
+                  buffer_it->second->Set(buffer_variables::save_on_close, true);
+                  buffer_it->second->Set(
+                      buffer_variables::trigger_reload_on_buffer_write, false);
+                  buffer_it->second->Set(buffer_variables::show_in_buffers_list,
+                                         false);
+                  return buffer_it->second;
+                });
   }
 
   positions_buffer.SetConsumer(

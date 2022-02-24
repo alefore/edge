@@ -19,13 +19,10 @@ namespace editor {
 namespace {
 futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
                                            EditorState* editor_state) {
-  OpenFileOptions options;
-  options.editor_state = editor_state;
-  if (auto path = Path::FromString(name); !path.IsError()) {
-    options.path = path.value();
-  }
-  options.insertion_type = BuffersList::AddBufferType::kVisit;
-  OpenFile(options);
+  OpenFile(
+      OpenFileOptions{.editor_state = *editor_state,
+                      .path = Path::FromString(name).AsOptional(),
+                      .insertion_type = BuffersList::AddBufferType::kVisit});
   return futures::Past(EmptyValue());
 }
 
@@ -35,17 +32,16 @@ futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
     const LazyString& line) {
   auto output = futures::Past(std::shared_ptr<OpenBuffer>());
   if (results.found_exact_match) {
-    OpenFileOptions open_file_options;
-    open_file_options.editor_state = editor;
     auto path = Path::FromString(line.ToString());
     if (path.IsError()) {
       return output;
     }
-    open_file_options.path = path.value();
-    open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
-    open_file_options.ignore_if_not_found = true;
     output =
-        OpenFile(open_file_options)
+        OpenFile(OpenFileOptions{
+                     .editor_state = *editor,
+                     .path = path.value(),
+                     .ignore_if_not_found = true,
+                     .insertion_type = BuffersList::AddBufferType::kIgnore})
             .Transform(
                 [editor](
                     std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator

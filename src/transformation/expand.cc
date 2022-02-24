@@ -127,8 +127,6 @@ class ReadAndInsert : public CompositeTransformation {
   std::wstring Serialize() const override { return L"ReadAndInsert();"; }
 
   futures::Value<Output> Apply(Input input) const override {
-    OpenFileOptions open_file_options;
-    open_file_options.editor_state = input.buffer->editor();
     if (input.buffer->editor()->edge_path().empty()) {
       LOG(INFO) << "Error preparing path for completion: Empty "
                    "edge_path.";
@@ -138,12 +136,13 @@ class ReadAndInsert : public CompositeTransformation {
     auto full_path =
         Path::Join(edge_path_front,
                    Path::Join(Path::FromString(L"expand").value(), path_));
-    open_file_options.path = full_path;
-    open_file_options.ignore_if_not_found = true;
-    open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
-    open_file_options.use_search_paths = false;
     futures::Future<Output> output;
-    open_file_callback_(open_file_options)
+    open_file_callback_(
+        OpenFileOptions{.editor_state = *input.buffer->editor(),
+                        .path = full_path,
+                        .ignore_if_not_found = true,
+                        .insertion_type = BuffersList::AddBufferType::kIgnore,
+                        .use_search_paths = false})
         .SetConsumer(
             [consumer = std::move(output.consumer), full_path,
              input = std::move(input)](
