@@ -942,11 +942,7 @@ void OpenBuffer::Initialize() {
       // EvaluateFile are done?
       file_system_driver.Stat(state_path)
           .Transform([state_path, this](struct stat) {
-            if (auto results = EvaluateFile(state_path); results.has_value()) {
-              return results.value().Transform(
-                  [](std::unique_ptr<Value>) { return Success(); });
-            }
-            return futures::Past(Success());
+            return EvaluateFile(state_path);
           });
     }
   }
@@ -1049,14 +1045,15 @@ void OpenBuffer::Reload() {
   futures::ForEach(
       paths.begin(), paths.end(),
       [this](Path dir) {
-        if (auto value = EvaluateFile(Path::Join(
-                dir, Path::FromString(L"hooks/buffer-reload.cc").value()));
-            value.has_value()) {
-          return value.value().Transform([](std::unique_ptr<Value>) {
-            return IterationControlCommand::kContinue;
-          });
-        }
-        return Past(IterationControlCommand::kContinue);
+        return EvaluateFile(
+                   Path::Join(
+                       dir,
+                       Path::FromString(L"hooks/buffer-reload.cc").value()))
+            .Transform([](std::unique_ptr<Value>) {
+              return Success(IterationControlCommand::kContinue);
+            })
+            .ConsumeErrors(
+                [](Error) { return Past(IterationControlCommand::kContinue); });
       })
       .Transform(
           [this](IterationControlCommand) -> futures::ValueOrError<EmptyValue> {
@@ -1309,25 +1306,24 @@ OpenBuffer::EvaluateString(const wstring& code) {
   return std::nullopt;
 }
 
-std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
+futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
   wstring error_description;
   std::shared_ptr<Expression> expression = CompileFile(
       ToByteString(path.ToString()), environment_, &error_description);
   if (expression == nullptr) {
-    status_.SetWarningText(path.ToString() + L": error: " + error_description);
-    return std::nullopt;
+    Error error(path.ToString() + L": error: " + error_description);
+    status_.SetWarningText(error.description);
+    return futures::Past(ValueOrError<std::unique_ptr<Value>>(error));
   }
   LOG(INFO) << Read(buffer_variables::path) << " ("
             << Read(buffer_variables::name) << "): Evaluating file: " << path;
-  // TODO(easy): Don't consume errors.
   return Evaluate(
-             expression.get(), environment_,
-             [path, work_queue = work_queue()](std::function<void()> resume) {
-               LOG(INFO) << "Evaluation of file yields: " << path;
-               work_queue->Schedule(std::move(resume));
-             })
-      .ConsumeErrors([](Error) { return futures::Past(nullptr); });
+      expression.get(), environment_,
+      [path, work_queue = work_queue()](std::function<void()> resume) {
+        LOG(INFO) << "Evaluation of file yields: " << path;
+        work_queue->Schedule(std::move(resume));
+      });
 }
 
 WorkQueue* OpenBuffer::work_queue() const { return &work_queue_; }

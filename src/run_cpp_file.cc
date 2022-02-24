@@ -78,13 +78,13 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                                adjusted_input = resolved_path.path, index]() {
                  if (*index >= total)
                    return futures::Past(IterationControlCommand::kStop);
-                 auto evaluation = buffer->EvaluateFile(adjusted_input);
-                 if (!evaluation.has_value())
-                   return futures::Past(IterationControlCommand::kStop);
                  ++*index;
-                 return evaluation.value().Transform(
-                     [](const std::unique_ptr<Value>&) {
-                       return IterationControlCommand::kContinue;
+                 return buffer->EvaluateFile(adjusted_input)
+                     .Transform([](std::unique_ptr<Value>) {
+                       return Success(IterationControlCommand::kContinue);
+                     })
+                     .ConsumeErrors([](Error) {
+                       return futures::Past(IterationControlCommand::kStop);
                      });
                })
             .Transform([editor_state](IterationControlCommand) {
