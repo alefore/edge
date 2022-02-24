@@ -642,7 +642,7 @@ bool Expression::SupportsType(const VMType& type) {
   return false;
 }
 
-futures::Value<std::unique_ptr<Value>> Evaluate(
+futures::ValueOrError<std::unique_ptr<Value>> Evaluate(
     Expression* expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK(expr != nullptr);
@@ -650,22 +650,21 @@ futures::Value<std::unique_ptr<Value>> Evaluate(
       Trampoline::Options{.environment = std::move(environment),
                           .yield_callback = std::move(yield_callback)});
   return trampoline->Bounce(expr, expr->Types()[0])
-      .Transform([trampoline](EvaluationOutput value) {
+      .Transform([trampoline](EvaluationOutput value)
+                     -> afc::editor::ValueOrError<std::unique_ptr<Value>> {
         DVLOG(4) << "Evaluation done.";
         switch (value.type) {
           case EvaluationOutput::OutputType::kContinue:
           case EvaluationOutput::OutputType::kReturn:
             CHECK(value.value != nullptr);
             DVLOG(5) << "Result: " << *value.value;
-            return std::move(value.value);
+            return Success(std::move(value.value));
           case EvaluationOutput::OutputType::kAbort:
             LOG(INFO) << "Evaluation error: " << value.error.value();
-            // TODO(easy): Adjust the return type to be a ValueOrError and don't
-            // swallow the error.
-            return Value::NewVoid();
+            return value.error.value();
         }
         LOG(FATAL) << "Unhandled OutputType.";
-        return Value::NewVoid();
+        return Error(L"Unhandled OutputType.");
       });
 }
 

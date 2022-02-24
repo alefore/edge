@@ -340,7 +340,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
   return nullptr;
 }
 
-futures::Value<std::unique_ptr<Value>> Call(
+futures::ValueOrError<std::unique_ptr<Value>> Call(
     const Value& func, vector<Value::Ptr> args,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK_EQ(func.type.type, VMType::FUNCTION);

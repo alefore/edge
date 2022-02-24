@@ -527,7 +527,10 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
                  work_queue->Schedule(std::move(resume));
                })
         .Transform([](std::unique_ptr<Value>) {
-          return futures::IterationControlCommand::kContinue;
+          return Success(futures::IterationControlCommand::kContinue);
+        })
+        .ConsumeErrors([](Error) {
+          return futures::Past(futures::IterationControlCommand::kContinue);
         });
   });
 }

@@ -63,9 +63,10 @@ class FunctionTransformation : public CompositeTransformation {
                       buffer->work_queue()->Schedule(std::move(callback));
                     })
         .Transform([](std::unique_ptr<Value> value) {
-          return std::move(
-              *VMTypeMapper<std::shared_ptr<Output>>::get(value.get()));
-        });
+          return Success(std::move(
+              *VMTypeMapper<std::shared_ptr<Output>>::get(value.get())));
+        })
+        .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

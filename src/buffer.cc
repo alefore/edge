@@ -1288,10 +1288,12 @@ OpenBuffer::CompileString(const std::wstring& code,
 
 futures::Value<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
     Expression* expr, std::shared_ptr<Environment> environment) {
+  // TODO(easy): Bubble up errors.
   return Evaluate(expr, environment,
                   [work_queue = work_queue()](std::function<void()> callback) {
                     work_queue->Schedule(std::move(callback));
-                  });
+                  })
+      .ConsumeErrors([](Error) { return futures::Past(nullptr); });
 }
 
 std::optional<futures::Value<std::unique_ptr<Value>>>
@@ -1318,12 +1320,14 @@ std::optional<futures::Value<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
   }
   LOG(INFO) << Read(buffer_variables::path) << " ("
             << Read(buffer_variables::name) << "): Evaluating file: " << path;
+  // TODO(easy): Don't consume errors.
   return Evaluate(
-      expression.get(), environment_,
-      [path, work_queue = work_queue()](std::function<void()> resume) {
-        LOG(INFO) << "Evaluation of file yields: " << path;
-        work_queue->Schedule(std::move(resume));
-      });
+             expression.get(), environment_,
+             [path, work_queue = work_queue()](std::function<void()> resume) {
+               LOG(INFO) << "Evaluation of file yields: " << path;
+               work_queue->Schedule(std::move(resume));
+             })
+      .ConsumeErrors([](Error) { return futures::Past(nullptr); });
 }
 
 WorkQueue* OpenBuffer::work_queue() const { return &work_queue_; }
@@ -1829,8 +1833,12 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
                          CHECK(value != nullptr);
                          CHECK(value->IsString());
                          *input_shared = std::move(value->str);
-                         return IterationControlCommand::kContinue;
-                       });
+                         return Success(IterationControlCommand::kContinue);
+                       })
+                   .ConsumeErrors([](Error) {
+                     return futures::Past(IterationControlCommand::kContinue);
+                   });
+               ;
              })
       .Transform([input_shared](IterationControlCommand) {
         return futures::Past(std::move(*input_shared));
