@@ -104,14 +104,22 @@ class FunctionCall : public Expression {
         ->Bounce(func_.get(),
                  VMType::Function(std::move(type_arguments), purity()))
         .Transform([trampoline, args_types = args_](EvaluationOutput callback) {
-          DVLOG(6) << "Got function: " << *callback.value;
-          CHECK_EQ(callback.value->type.type, VMType::FUNCTION);
-          CHECK(callback.value->callback != nullptr);
-          futures::Future<EvaluationOutput> output;
-          CaptureArgs(trampoline, std::move(output.consumer), args_types,
-                      std::make_shared<vector<unique_ptr<Value>>>(),
-                      std::move(callback.value));
-          return std::move(output.value);
+          switch (callback.type) {
+            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::kAbort:
+              break;
+            case EvaluationOutput::OutputType::kContinue:
+              CHECK(callback.value != nullptr);
+              DVLOG(6) << "Got function: " << *callback.value;
+              CHECK_EQ(callback.value->type.type, VMType::FUNCTION);
+              CHECK(callback.value->callback != nullptr);
+              futures::Future<EvaluationOutput> output;
+              CaptureArgs(trampoline, std::move(output.consumer), args_types,
+                          std::make_shared<vector<unique_ptr<Value>>>(),
+                          std::move(callback.value));
+              return std::move(output.value);
+          }
+          return futures::Past(std::move(callback));
         });
   }
 
@@ -282,8 +290,10 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       }
 
       PurityType purity() override {
-        // Annotate purity of callbacks and check the purity of delegate?
-        return PurityType::kUnknown;
+        return (obj_expr_->purity() == PurityType::kPure &&
+                delegate_->type.function_purity == PurityType::kPure)
+                   ? PurityType::kPure
+                   : PurityType::kUnknown;
       }
 
       futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
@@ -291,15 +301,24 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         return trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0])
             .Transform([type, shared_type = type_,
                         shared_delegate = delegate_](EvaluationOutput output) {
-              return EvaluationOutput::New(Value::NewFunction(
-                  shared_type->type_arguments,
-                  [obj = std::shared_ptr(std::move(output.value)),
-                   shared_delegate](std::vector<Value::Ptr> args,
-                                    Trampoline* trampoline) {
-                    args.emplace(args.begin(), std::make_unique<Value>(*obj));
-                    return shared_delegate->callback(std::move(args),
-                                                     trampoline);
-                  }));
+              switch (output.type) {
+                case EvaluationOutput::OutputType::kReturn:
+                case EvaluationOutput::OutputType::kAbort:
+                  break;
+                case EvaluationOutput::OutputType::kContinue:
+                  CHECK(output.value != nullptr);
+                  return EvaluationOutput::New(Value::NewFunction(
+                      shared_type->type_arguments,
+                      [obj = std::shared_ptr(std::move(output.value)),
+                       shared_delegate](std::vector<Value::Ptr> args,
+                                        Trampoline* trampoline) {
+                        args.emplace(args.begin(),
+                                     std::make_unique<Value>(*obj));
+                        return shared_delegate->callback(std::move(args),
+                                                         trampoline);
+                      }));
+              }
+              return output;
             });
       }
 

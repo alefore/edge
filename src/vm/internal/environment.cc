@@ -35,23 +35,31 @@ std::shared_ptr<Environment> BuildDefaultEnvironment() {
   RegisterTimeType(environment.get());
   auto bool_type = std::make_unique<ObjectType>(VMType::Bool());
   bool_type->AddField(L"tostring",
-                      NewCallback(std::function<wstring(bool)>(
-                          [](bool v) { return v ? L"true" : L"false"; })));
+                      NewCallback(std::function<wstring(bool)>([](bool v) {
+                                    return v ? L"true" : L"false";
+                                  }),
+                                  VMType::PurityType::kPure));
   environment->DefineType(L"bool", std::move(bool_type));
 
   auto int_type = std::make_unique<ObjectType>(VMType::Integer());
-  int_type->AddField(L"tostring",
-                     NewCallback(std::function<std::wstring(int)>(
-                         [](int value) { return std::to_wstring(value); })));
+  int_type->AddField(
+      L"tostring", NewCallback(std::function<std::wstring(int)>([](int value) {
+                                 return std::to_wstring(value);
+                               }),
+                               VMType::PurityType::kPure));
   environment->DefineType(L"int", std::move(int_type));
 
   auto double_type = std::make_unique<ObjectType>(VMType::Double());
   double_type->AddField(
-      L"tostring", NewCallback(std::function<std::wstring(double)>(
-                       [](double value) { return std::to_wstring(value); })));
+      L"tostring",
+      NewCallback(std::function<std::wstring(double)>(
+                      [](double value) { return std::to_wstring(value); }),
+                  VMType::PurityType::kPure));
   double_type->AddField(
-      L"round", NewCallback(std::function<int(double)>(
-                    [](double value) { return static_cast<int>(value); })));
+      L"round", NewCallback(std::function<int(double)>([](double value) {
+                              return static_cast<int>(value);
+                            }),
+                            VMType::PurityType::kPure));
   environment->DefineType(L"double", std::move(double_type));
 
   VMTypeMapper<std::vector<int>*>::Export(environment.get());
