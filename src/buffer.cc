@@ -1283,18 +1283,16 @@ OpenBuffer::CompileString(const std::wstring& code,
           sub_environment};
 }
 
-futures::Value<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
+futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
     Expression* expr, std::shared_ptr<Environment> environment) {
-  // TODO(easy): Bubble up errors.
   return Evaluate(expr, environment,
                   [work_queue = work_queue()](std::function<void()> callback) {
                     work_queue->Schedule(std::move(callback));
-                  })
-      .ConsumeErrors([](Error) { return futures::Past(nullptr); });
+                  });
 }
 
-std::optional<futures::Value<std::unique_ptr<Value>>>
-OpenBuffer::EvaluateString(const wstring& code) {
+futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateString(
+    const wstring& code) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
   if (auto [expression, environment] = CompileString(code, &error_description);
@@ -1302,8 +1300,9 @@ OpenBuffer::EvaluateString(const wstring& code) {
     LOG(INFO) << "Code compiled, evaluating.";
     return EvaluateExpression(expression.get(), environment);
   }
-  status_.SetWarningText(L"🐜Compilation error: " + error_description);
-  return std::nullopt;
+  Error error(L"🐜Compilation error: " + error_description);
+  status_.SetWarningText(error.description);
+  return futures::Past(ValueOrError<std::unique_ptr<Value>>(std::move(error)));
 }
 
 futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateFile(

@@ -263,26 +263,26 @@ class InsertMode : public EditorMode {
           LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
           return;
         }
-        ForEachActiveBuffer(
-            {21}, [options = options_,
-                   callback](const std::shared_ptr<OpenBuffer>& buffer) {
-              std::vector<std::unique_ptr<vm::Expression>> args;
-              args.push_back(vm::NewConstantExpression(
-                  {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(buffer)}));
-              std::shared_ptr<Expression> expression = vm::NewFunctionCall(
-                  vm::NewConstantExpression(
-                      std::make_unique<vm::Value>(*callback)),
-                  std::move(args));
-              if (expression->Types().empty()) {
-                buffer->status()->SetWarningText(
-                    L"Unable to compile (type mismatch).");
-                return futures::Past(EmptyValue());
-              }
-              return CallModifyHandler(
-                  options, buffer,
-                  buffer->EvaluateExpression(expression.get(),
-                                             buffer->environment()));
-            });
+        ForEachActiveBuffer({21}, [options = options_,
+                                   callback](const std::shared_ptr<OpenBuffer>&
+                                                 buffer) {
+          std::vector<std::unique_ptr<vm::Expression>> args;
+          args.push_back(vm::NewConstantExpression(
+              {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(buffer)}));
+          std::shared_ptr<Expression> expression = vm::NewFunctionCall(
+              vm::NewConstantExpression(std::make_unique<vm::Value>(*callback)),
+              std::move(args));
+          if (expression->Types().empty()) {
+            buffer->status()->SetWarningText(
+                L"Unable to compile (type mismatch).");
+            return futures::Past(EmptyValue());
+          }
+          return CallModifyHandler(
+              options, buffer,
+              buffer
+                  ->EvaluateExpression(expression.get(), buffer->environment())
+                  .ConsumeErrors([](Error) { return futures::Past(nullptr); }));
+        });
         return;
       }
 

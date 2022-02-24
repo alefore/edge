@@ -43,19 +43,17 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
     return futures::Past(EmptyValue());
   }
   buffer->ResetMode();
-  auto result = buffer->EvaluateString(name);
-  if (result == std::nullopt) {
-    return futures::Past(EmptyValue());
-  }
-  return result.value().Transform([buffer](std::unique_ptr<Value> value) {
-    CHECK(value != nullptr);
-    if (value->IsVoid()) return EmptyValue();
-    std::ostringstream oss;
-    CHECK(value != nullptr);
-    oss << "Evaluation result: " << *value;
-    buffer->status()->SetInformationText(FromByteString(oss.str()));
-    return EmptyValue();
-  });
+  return buffer->EvaluateString(name)
+      .Transform([buffer](std::unique_ptr<Value> value) {
+        CHECK(value != nullptr);
+        if (value->IsVoid()) return Success();
+        std::ostringstream oss;
+        CHECK(value != nullptr);
+        oss << "Evaluation result: " << *value;
+        buffer->status()->SetInformationText(FromByteString(oss.str()));
+        return Success();
+      })
+      .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });
 }
 
 struct ParsedCommand {

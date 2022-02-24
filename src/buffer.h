@@ -345,9 +345,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   std::pair<std::unique_ptr<Expression>, std::shared_ptr<Environment>>
   CompileString(const wstring& str, wstring* error_description);
-  futures::Value<std::unique_ptr<Value>> EvaluateExpression(
+  futures::ValueOrError<std::unique_ptr<Value>> EvaluateExpression(
       Expression* expr, std::shared_ptr<Environment> environment);
-  std::optional<futures::Value<std::unique_ptr<Value>>> EvaluateString(
+  futures::ValueOrError<std::unique_ptr<Value>> EvaluateString(
       const wstring& str);
   futures::ValueOrError<std::unique_ptr<Value>> EvaluateFile(const Path& path);
 

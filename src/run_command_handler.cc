@@ -442,15 +442,16 @@ class ForkEditorCommand : public Command {
         ->EvaluateExpression(expression.get(),
                              prompt_state->original_buffer->environment())
         .Transform([prompt_state, editor](std::unique_ptr<Value> value) {
+          CHECK(value != nullptr);
           CHECK(value->IsString());
           auto base_command = value->str;
           if (prompt_state->base_command == base_command) {
-            return ColorizePromptOptions{};
+            return Success(ColorizePromptOptions{});
           }
 
           if (base_command.empty()) {
             prompt_state->base_command = std::nullopt;
-            return ColorizePromptOptions{.context = nullptr};
+            return Success(ColorizePromptOptions{.context = nullptr});
           }
 
           prompt_state->base_command = base_command;
@@ -462,8 +463,10 @@ class ForkEditorCommand : public Command {
           help_buffer->Set(buffer_variables::follow_end_of_file, false);
           help_buffer->Set(buffer_variables::show_in_buffers_list, false);
           help_buffer->set_position({});
-          return ColorizePromptOptions{.context = help_buffer};
-        });
+          return Success(ColorizePromptOptions{.context = help_buffer});
+        })
+        .ConsumeErrors(
+            [](Error) { return futures::Past(ColorizePromptOptions{}); });
   }
 };
 

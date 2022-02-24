@@ -76,17 +76,16 @@ futures::Value<Result> HandleCommandCpp(Input input,
                        input.NewChild(delete_transformation->range->begin));
         });
   }
-  auto expression = input.buffer->EvaluateString(contents->ToString());
-  if (expression == std::nullopt) {
-    return futures::Past(Result(input.position));
-  }
-  return expression->Transform([input](std::unique_ptr<Value> value) {
-    CHECK(value != nullptr);
-    ShowValue(*input.buffer, input.delete_buffer, *value);
-    Result output(input.position);
-    output.added_to_paste_buffer = true;
-    return output;
-  });
+  return input.buffer->EvaluateString(contents->ToString())
+      .Transform([input](std::unique_ptr<Value> value) {
+        CHECK(value != nullptr);
+        ShowValue(*input.buffer, input.delete_buffer, *value);
+        Result output(input.position);
+        output.added_to_paste_buffer = true;
+        return Success(std::move(output));
+      })
+      .ConsumeErrors(
+          [input](Error) { return futures::Past(Result(input.position)); });
 }
 
 template <typename Iterator>
