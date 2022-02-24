@@ -236,7 +236,7 @@ auto Value<Type>::ConsumeErrors(Callable error_callback) {
     if (value_or_error.IsError()) {
       error_callback(std::move(value_or_error.error())).SetConsumer(consumer);
     } else {
-      consumer(value_or_error.value());
+      consumer(std::move(value_or_error.value()));
     }
   });
   return std::move(output.value);
