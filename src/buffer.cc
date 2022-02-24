@@ -157,11 +157,18 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
     buffer->work_queue()->Schedule(
         [buffer, expr, sub_environment, consumer = metadata_future.consumer] {
           buffer->EvaluateExpression(expr.get(), sub_environment)
-              .Transform([consumer](std::unique_ptr<Value> value) {
+              .Transform([](std::unique_ptr<Value> value) {
                 CHECK(value != nullptr);
                 std::ostringstream oss;
                 oss << *value;
-                consumer(NewLazyString(FromByteString(oss.str())));
+                return Success(NewLazyString(FromByteString(oss.str())));
+              })
+              .ConsumeErrors([](Error error) {
+                return futures::Past(
+                    NewLazyString(L"E: " + std::move(error.description)));
+              })
+              .Transform([consumer](std::shared_ptr<LazyString> output) {
+                consumer(output);
                 return Success();
               });
         });
