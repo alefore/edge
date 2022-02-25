@@ -36,10 +36,9 @@ using TopCommand = std::variant<TopCommandReach>;
 
 class CommandArgumentRepetitions {
  public:
-  CommandArgumentRepetitions(int repetitions) {
-    entries_.push_back({.additive_default = repetitions,
-                        .multiplicative_sign = repetitions >= 0 ? 1 : -1});
-  }
+  CommandArgumentRepetitions(int repetitions)
+      : entries_({{.additive_default = repetitions,
+                   .multiplicative_sign = repetitions >= 0 ? 1 : -1}}) {}
 
   std::wstring ToString() const;
   // Returns the total sum of all entries.
