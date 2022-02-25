@@ -65,22 +65,26 @@ GetSyntheticFeatures(
     const std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>&
         input) {
   std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
-  std::unordered_set<std::wstring> directories;
+  std::unordered_set<Path> directories;
   std::unordered_set<std::wstring> extensions;
   for (const auto& [name, value] : input) {
     if (name == L"name") {
       auto value_str = value->ToString();
-      if (value_str.find(L'/') != wstring::npos) {
-        directories.insert(Dirname(value_str));
+      auto value_path = Path::FromString(value_str);
+      if (value_path.IsError()) continue;
+      if (auto directory = value_path.value().Dirname();
+          !directory.IsError() && directory.value() != Path::LocalDirectory()) {
+        directories.insert(directory.value());
       }
-      auto extension = SplitExtension(value_str);
-      if (extension.suffix.has_value()) {
-        extensions.insert(extension.suffix.value().extension);
+      if (std::optional<std::wstring> extension =
+              value_path.value().extension();
+          extension.has_value()) {
+        extensions.insert(extension.value());
       }
     }
   }
   for (auto& dir : directories) {
-    output.insert({L"directory", NewLazyString(std::move(dir))});
+    output.insert({L"directory", NewLazyString(dir.ToString())});
   }
   for (auto& extension : extensions) {
     output.insert({L"extension", NewLazyString(std::move(extension))});

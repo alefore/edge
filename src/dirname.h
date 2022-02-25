@@ -75,6 +75,7 @@ class Path {
 
   GHOST_TYPE_EQ(Path, path_);
   GHOST_TYPE_LT(Path, path_);
+  GHOST_TYPE_HASH_FRIEND(Path, path_);
 
  protected:
   explicit Path(std::wstring path);
@@ -96,7 +97,6 @@ std::ostream& operator<<(std::ostream& os, const PathComponent& p);
 std::ostream& operator<<(std::ostream& os, const Path& p);
 
 // TODO(easy): Remove these.
-std::wstring Dirname(std::wstring path);
 std::wstring Basename(std::wstring path);
 bool DirectorySplit(std::wstring path, std::list<std::wstring>* output);
 std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
@@ -115,5 +115,7 @@ SplitExtensionOutput SplitExtension(const std::wstring& path);
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);
 
 }  // namespace afc::editor
+
+GHOST_TYPE_HASH(afc::editor::Path, path_);
 
 #endif  // __AFC_EDITOR_DIRNAME_H__

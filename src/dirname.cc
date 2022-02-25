@@ -352,13 +352,6 @@ std::ostream& operator<<(std::ostream& os, const PathComponent& p) {
   return os;
 }
 
-wstring Dirname(wstring path_str) {
-  auto path = Path::FromString(path_str);
-  if (path.IsError()) return L"";
-  auto output = path.value().Dirname();
-  return output.IsError() ? L"" : output.value().ToString();
-}
-
 wstring Basename(wstring path_str) {
   auto path = Path::FromString(path_str);
   if (path.IsError()) return L"";
