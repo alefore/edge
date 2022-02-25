@@ -567,6 +567,13 @@ class TopLevelCommandMode : public EditorMode {
         return true;
       case L'j':
       case L'k':
+        if (CommandReach* reach =
+                state_.empty()
+                    ? nullptr
+                    : std::get_if<CommandReach>(&state_.GetLastCommand());
+            reach != nullptr && reach->structure == nullptr) {
+          state_.UndoLast();
+        }
         state_.Push(CommandReachLine{
             .repetitions =
                 operation::CommandArgumentRepetitions(t == L'k' ? -1 : 1)});
