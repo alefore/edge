@@ -21,7 +21,7 @@ futures::Value<Result> ApplyBase(const Cursors& parameters, Input input) {
     }
   }
   input.buffer->set_active_cursors(positions);
-  return futures::Past(Result(input.position));
+  return futures::Past(Result(parameters.active));
 }
 
 std::wstring ToStringBase(const Cursors& v) {
