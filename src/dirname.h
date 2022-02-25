@@ -97,7 +97,6 @@ std::ostream& operator<<(std::ostream& os, const PathComponent& p);
 std::ostream& operator<<(std::ostream& os, const Path& p);
 
 // TODO(easy): Remove these.
-std::wstring Basename(std::wstring path);
 bool DirectorySplit(std::wstring path, std::list<std::wstring>* output);
 std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
 

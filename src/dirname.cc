@@ -352,13 +352,6 @@ std::ostream& operator<<(std::ostream& os, const PathComponent& p) {
   return os;
 }
 
-wstring Basename(wstring path_str) {
-  auto path = Path::FromString(path_str);
-  if (path.IsError()) return L"";
-  auto output = path.value().Basename();
-  return output.IsError() ? L"" : output.value().ToString();
-}
-
 bool DirectorySplit(wstring path_str, list<wstring>* output) {
   auto path = Path::FromString(path_str);
   if (path.IsError()) {

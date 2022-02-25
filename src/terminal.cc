@@ -112,8 +112,14 @@ wstring TransformCommandNameForStatus(wstring name) {
     return kDefaultName;
   }
   size_t end = name.find_first_of(L' ', index);
-  wstring output = Basename(
-      name.substr(index, end == string::npos ? string::npos : end - index));
+  std::wstring output =
+      name.substr(index, end == string::npos ? string::npos : end - index);
+  auto first_path = Path::FromString(output);
+  if (!first_path.IsError()) {
+    if (auto basename = first_path.value().Basename(); !basename.IsError()) {
+      output = basename.value().ToString();
+    }
+  }
 
   if (output.size() > kMaxLength) {
     output = output.substr(0, kMaxLength - kDefaultName.size()) + kDefaultName;
