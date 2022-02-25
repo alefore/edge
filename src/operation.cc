@@ -558,6 +558,16 @@ class TopLevelCommandMode : public EditorMode {
         }
         state_.set_top_command(top_command);
         return true;
+      case L'+':
+        switch (top_command.post_transformation_behavior) {
+          case PTB::kCursorOnEachLine:
+            top_command.post_transformation_behavior = PTB::kNone;
+            break;
+          default:
+            top_command.post_transformation_behavior = PTB::kCursorOnEachLine;
+        }
+        state_.set_top_command(top_command);
+        return true;
       case L'f':
         state_.Push(CommandReachChar{});
         return true;
@@ -609,6 +619,8 @@ class TopLevelCommandMode : public EditorMode {
         return L"🤖 Cpp";
       case transformation::Stack::PostTransformationBehavior::kCapitalsSwitch:
         return L" Aa";
+      case transformation::Stack::PostTransformationBehavior::kCursorOnEachLine:
+        return L"Ꮖ Cursor";
     }
     LOG(FATAL) << "Invalid post transformation behavior.";
     return L"Move";
@@ -692,7 +704,7 @@ bool CommandArgumentRepetitions::PopValue() {
 }
 
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
-    std::wstring name, std::wstring description, TopCommand top_command,
+    std::wstring, std::wstring description, TopCommand top_command,
     EditorState* editor_state, std::vector<Command> commands) {
   return NewSetModeCommand({.description = description,
                             .category = L"Edit",

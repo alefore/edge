@@ -232,6 +232,22 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                   return std::move(*output);
                 });
           }
+          case Stack::PostTransformationBehavior::kCursorOnEachLine: {
+            if (input.mode == Input::Mode::kPreview) {
+              return futures::Past(std::move(*output));
+            }
+            struct Cursors cursors {
+              .cursors = {},
+              .active = LineColumn(delete_transformation.range->begin.line)
+            };
+            delete_transformation.range->ForEachLine(
+                [&cursors](LineNumber line) {
+                  cursors.cursors.insert(LineColumn(line));
+                });
+            cursors.cursors.insert(
+                LineColumn(delete_transformation.range->end.line));
+            return ApplyBase(cursors, input.NewChild(range.begin));
+          }
         }
         LOG(FATAL) << "Invalid post transformation behavior.";
         return futures::Past(std::move(*output));

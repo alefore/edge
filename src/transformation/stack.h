@@ -17,7 +17,10 @@ struct Stack {
     kCopyRegion,
     kCommandSystem,
     kCommandCpp,
-    kCapitalsSwitch
+    kCapitalsSwitch,
+    // If the region is non-empty, remove the cursors of the current document
+    // and add a cursor in every line that intersects with the range.
+    kCursorOnEachLine,
   };
 
   void PushBack(Variant transformation);
