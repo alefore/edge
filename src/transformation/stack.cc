@@ -84,8 +84,18 @@ futures::Value<Result> HandleCommandCpp(Input input,
         output.added_to_paste_buffer = true;
         return Success(std::move(output));
       })
-      .ConsumeErrors(
-          [input](Error) { return futures::Past(Result(input.position)); });
+      .ConsumeErrors([input](Error error) {
+        Result output(input.position);
+        input.buffer->status()->SetWarningText(L"Error: " + error.description);
+        if (input.delete_buffer != nullptr) {
+          input.delete_buffer->AppendToLastLine(Line(
+              Line::Options(NewLazyString(L"Error: " + error.description))));
+          input.delete_buffer->AppendRawLine(
+              std::make_shared<Line>(Line::Options{}));
+          output.added_to_paste_buffer = true;
+        }
+        return futures::Past(std::move(output));
+      });
 }
 
 template <typename Iterator>
