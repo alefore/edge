@@ -479,12 +479,8 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState* editor_state,
                      }
                      buffer->contents()->ForEach([editor_state,
                                                   output](wstring line) {
-                       auto path = Path::FromString(line);
-                       if (path.IsError()) return;
-                       output->push_back(
-                           Path::FromString(editor_state->expand_path(
-                                                path.value().ToString()))
-                               .value());
+                       ASSIGN_OR_RETURN(auto path, Path::FromString(line));
+                       output->push_back(editor_state->expand_path(path));
                        LOG(INFO) << "Pushed search path: " << output->back();
                      });
                      return futures::IterationControlCommand::kContinue;

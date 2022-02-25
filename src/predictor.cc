@@ -414,12 +414,15 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
 
   futures::Future<PredictorOutput> output;
   CHECK(predictor_input.progress_channel != nullptr);
-
+  auto input_path = Path::FromString(predictor_input.input);
   auto input = std::make_shared<AsyncInput>(AsyncInput{
       .progress_channel = predictor_input.progress_channel,
       .abort_notification = predictor_input.abort_notification,
       .get_buffer = predictor_input.predictions->GetLockFunction(),
-      .path = predictor_input.editor->expand_path(predictor_input.input),
+      .path = input_path.IsError()
+                  ? predictor_input.input
+                  : predictor_input.editor->expand_path(input_path.value())
+                        .ToString(),
       .search_paths = {},
       .resolve_path_options = ResolvePathOptions::New(
           predictor_input.editor, std::make_shared<FileSystemDriver>(

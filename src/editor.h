@@ -201,8 +201,7 @@ class EditorState {
 
   std::shared_ptr<Environment> environment() { return environment_; }
 
-  // TODO(easy): Return a Path type.
-  wstring expand_path(const wstring& path) const;
+  Path expand_path(Path path) const;
 
   void PushSignal(int signal) { pending_signals_.push_back(signal); }
   void ProcessSignals();

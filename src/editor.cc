@@ -1033,11 +1033,8 @@ bool EditorState::MovePositionsStack(Direction direction) {
 Status* EditorState::status() { return &status_; }
 const Status* EditorState::status() const { return &status_; }
 
-wstring EditorState::expand_path(const wstring& path_str) const {
-  if (auto path = Path::FromString(path_str); !path.IsError()) {
-    return Path::ExpandHomeDirectory(home_directory(), path.value()).ToString();
-  }
-  return path_str;
+Path EditorState::expand_path(Path path) const {
+  return Path::ExpandHomeDirectory(home_directory(), path);
 }
 
 void EditorState::ProcessSignals() {
