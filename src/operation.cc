@@ -81,18 +81,15 @@ futures::Value<UndoCallback> ExecuteTransformation(
   static Tracker tracker(L"ExecuteTransformation");
   auto call = tracker.Call();
 
-  // TODO(easy): Rename 'buffers_modified' to something else. Not all the
-  // transformations here modify the buffers (per
-  // transformation::Results::modified_buffer).
-  auto buffers_modified =
+  auto buffers_transformed =
       std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>();
   return editor
       ->ForEachActiveBuffer([transformation = std::move(transformation),
-                             buffers_modified, application_type](
+                             buffers_transformed, application_type](
                                 const std::shared_ptr<OpenBuffer>& buffer) {
         static Tracker tracker(L"ExecuteTransformation::ApplyTransformation");
         auto call = tracker.Call();
-        buffers_modified->push_back(buffer);
+        buffers_transformed->push_back(buffer);
         return buffer->ApplyToCursors(
             transformation,
             buffer->Read(buffer_variables::multiple_cursors)
@@ -102,13 +99,13 @@ futures::Value<UndoCallback> ExecuteTransformation(
                 ? transformation::Input::Mode::kPreview
                 : transformation::Input::Mode::kFinal);
       })
-      .Transform([buffers_modified](EmptyValue) {
-        return UndoCallback([buffers_modified] {
+      .Transform([buffers_transformed](EmptyValue) {
+        return UndoCallback([buffers_transformed] {
           static Tracker tracker(L"ExecuteTransformation::Undo");
           auto call = tracker.Call();
           return futures::ForEach(
-                     buffers_modified->begin(), buffers_modified->end(),
-                     [buffers_modified](std::shared_ptr<OpenBuffer> buffer) {
+                     buffers_transformed->begin(), buffers_transformed->end(),
+                     [buffers_transformed](std::shared_ptr<OpenBuffer> buffer) {
                        static Tracker tracker(
                            L"ExecuteTransformation::Undo::Buffer");
                        auto call = tracker.Call();
