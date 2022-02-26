@@ -122,6 +122,16 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     range = input.buffer->FindPartialRange(options.modifiers, output->position);
     range.begin = min(range.begin, output->position);
     range.end = max(range.end, output->position);
+    if (range.IsEmpty()) {
+      switch (options.modifiers.direction) {
+        case Direction::kForwards:
+          range.end = input.buffer->contents()->PositionAfter(range.end);
+          break;
+        case Direction::kBackwards:
+          range.begin = input.buffer->contents()->PositionBefore(range.begin);
+          break;
+      }
+    }
   }
   range.begin = input.buffer->AdjustLineColumn(range.begin);
   range.end = input.buffer->AdjustLineColumn(range.end);
