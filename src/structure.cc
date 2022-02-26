@@ -221,8 +221,8 @@ Structure* StructureSymbol() {
         case Direction::kForwards: {
           Modifiers modifiers_copy = modifiers;
           modifiers_copy.repetitions = 1;
-          range = buffer->FindPartialRange(modifiers_copy,
-                                           buffer->PositionBefore(range.end));
+          range = buffer->FindPartialRange(
+              modifiers_copy, buffer->contents()->PositionBefore(range.end));
           position = range.begin;
         } break;
 
@@ -231,7 +231,7 @@ Structure* StructureSymbol() {
           modifiers_copy.repetitions = 1;
           modifiers_copy.direction = Direction::kForwards;
           range = buffer->FindPartialRange(modifiers_copy, range.begin);
-          position = buffer->PositionBefore(range.end);
+          position = buffer->contents()->PositionBefore(range.end);
         } break;
       }
       return position;
