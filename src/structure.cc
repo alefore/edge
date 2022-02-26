@@ -266,9 +266,7 @@ Structure* StructureLine() {
       switch (direction) {
         case Direction::kForwards: {
           auto seek = Seek(*buffer->contents(), position).WrappingLines();
-          if (seek.read() == L'\n') {
-            seek.Once();
-          }
+          if (seek.read() == L'\n') seek.Once();
           return;
         }
         case Direction::kBackwards:
