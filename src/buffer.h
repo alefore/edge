@@ -427,8 +427,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   ColumnNumber current_position_col() const;
   void set_current_position_col(ColumnNumber column);
 
-  LineColumn PositionBefore(LineColumn position) const;
-
   //////////////////////////////////////////////////////////////////////////////
   // Buffer variables
 

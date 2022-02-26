@@ -1919,17 +1919,6 @@ void OpenBuffer::set_current_position_col(ColumnNumber column) {
   set_current_cursor(LineColumn(position().line, column));
 }
 
-LineColumn OpenBuffer::PositionBefore(LineColumn position) const {
-  if (position.column > ColumnNumber(0)) {
-    position.column--;
-  } else if (position.line > LineNumber(0)) {
-    position.line = min(position.line, LineNumber(0) + contents_.size()) -
-                    LineNumberDelta(1);
-    position.column = contents_.at(position.line)->EndColumn();
-  }
-  return position;
-}
-
 const LineColumn OpenBuffer::position() const {
   return cursors_tracker_.position();
 }
