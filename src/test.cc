@@ -128,6 +128,8 @@ void TestCases() {
 
   editor_state.ProcessInputString("i\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK(editor_state.has_current_buffer());
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->ToString()), "\n");
   editor_state.ProcessInputString("ib");
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("k");

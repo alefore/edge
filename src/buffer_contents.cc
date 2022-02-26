@@ -302,6 +302,7 @@ bool BufferContents::EveryLine(
     const std::function<bool(LineNumber, const Line&)>& callback) const {
   LineNumber line_number;
   return Lines::Every(lines_, [&](const std::shared_ptr<const Line>& line) {
+    CHECK(line != nullptr);
     return callback(line_number++, *line);
   });
 }
