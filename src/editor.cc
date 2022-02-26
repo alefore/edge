@@ -814,25 +814,39 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   }
 }
 
-void EditorState::ProcessInput(int c) {
+futures::Value<EmptyValue> EditorState::ProcessInputString(
+    const string& input) {
+  return futures::ForEachWithCopy(
+             input.begin(), input.end(),
+             [this](int c) {
+               return ProcessInput(c).Transform([](EmptyValue) {
+                 return futures::IterationControlCommand::kContinue;
+               });
+             })
+      .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
+}
+
+futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
   if (auto handler = keyboard_redirect().get(); handler != nullptr) {
     handler->ProcessInput(c, this);
-    return;
+    return futures::Past(EmptyValue());
   }
 
   if (has_current_buffer()) {
     current_buffer()->mode()->ProcessInput(c, this);
-    return;
+    return futures::Past(EmptyValue());
   }
 
-  OpenAnonymousBuffer(this).SetConsumer(
+  return OpenAnonymousBuffer(this).Transform(
       [this, c](std::shared_ptr<OpenBuffer> buffer) {
         if (!has_current_buffer()) {
           buffer_tree_.AddBuffer(buffer, BuffersList::AddBufferType::kOnlyList);
           set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
           CHECK(has_current_buffer());
+          CHECK(current_buffer() == buffer);
         }
         buffer->mode()->ProcessInput(c, this);
+        return EmptyValue();
       });
 }
 

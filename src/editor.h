@@ -161,13 +161,8 @@ class EditorState {
     modifiers_.default_insertion = default_insertion_modifier;
   }
 
-  void ProcessInputString(const string& input) {
-    for (size_t i = 0; i < input.size(); ++i) {
-      ProcessInput(input[i]);
-    }
-  }
-
-  void ProcessInput(int c);
+  futures::Value<EmptyValue> ProcessInputString(const string& input);
+  futures::Value<EmptyValue> ProcessInput(int c);
 
   const LineMarks* line_marks() const { return &line_marks_; }
   LineMarks* line_marks() { return &line_marks_; }
