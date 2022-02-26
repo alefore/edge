@@ -10,6 +10,11 @@ std::unordered_map<std::wstring, std::vector<Test>>* tests_map() {
 
 bool Register(std::wstring name, std::vector<Test> tests) {
   CHECK_GT(tests.size(), 0ul);
+  std::unordered_set<std::wstring> test_names;
+  for (const auto& test : tests) {
+    CHECK(test_names.insert(test.name).second)
+        << "Repeated test name: " << name << ": " << test.name;
+  }
   auto [_, result] = tests_map()->insert({name, std::move(tests)});
   CHECK(result) << "Unable to insert tests (repeated name for group?): "
                 << name;
