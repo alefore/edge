@@ -13,8 +13,7 @@
 #include "src/viewers.h"
 #include "src/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 BufferContents::BufferContents() : BufferContents(nullptr) {}
 
@@ -60,7 +59,8 @@ void BufferContents::FilterToRange(Range range) {
   DeleteCharactersFromLine(LineColumn(), range.begin.column.ToDelta());
 }
 
-static BufferContents BufferContentsForTests() {
+namespace {
+BufferContents BufferContentsForTests() {
   BufferContents output;
   output.AppendToLine(LineNumber(), Line(L"alejandro"));
   output.push_back(L"forero");
@@ -171,6 +171,7 @@ const bool path_component_with_extension_tests_registration = tests::Register(
                CHECK(buffer.ToString() == L"erv");
              }},
     });
+}  // namespace
 
 wint_t BufferContents::character_at(const LineColumn& position) const {
   CHECK_LE(position.line, EndLine());
@@ -195,6 +196,7 @@ LineColumn BufferContents::PositionBefore(LineColumn position) const {
   return position;
 }
 
+namespace {
 const bool position_before_tests_registration = tests::Register(
     L"BufferContents::PositionBefore",
     {{.name = L"EmptyBufferZeroLineColumn",
@@ -261,6 +263,7 @@ const bool position_before_tests_registration = tests::Register(
                      {LineNumber(25), ColumnNumber(10)}),
                  LineColumn(LineNumber(2), ColumnNumber(6)));
       }}});
+}
 
 wstring BufferContents::ToString() const {
   wstring output;
@@ -552,5 +555,4 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
   return output;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
