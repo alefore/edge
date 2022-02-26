@@ -180,7 +180,12 @@ wint_t BufferContents::character_at(const LineColumn& position) const {
 }
 
 LineColumn BufferContents::PositionBefore(LineColumn position) const {
-  if (position.column > ColumnNumber(0)) {
+  if (position.line > EndLine()) {
+    position.line = EndLine();
+    position.column = at(position.line)->EndColumn();
+  } else if (position.column > at(position.line)->EndColumn()) {
+    position.column = at(position.line)->EndColumn();
+  } else if (position.column > ColumnNumber(0)) {
     position.column--;
   } else if (position.line > LineNumber(0)) {
     position.line =
@@ -189,6 +194,73 @@ LineColumn BufferContents::PositionBefore(LineColumn position) const {
   }
   return position;
 }
+
+const bool position_before_tests_registration = tests::Register(
+    L"BufferContents::PositionBefore",
+    {{.name = L"EmptyBufferZeroLineColumn",
+      .callback =
+          [] { CHECK_EQ(BufferContents().PositionBefore({}), LineColumn()); }},
+     {.name = L"EmptyBufferZeroLine",
+      .callback =
+          [] {
+            CHECK_EQ(BufferContents().PositionBefore({{}, ColumnNumber(10)}),
+                     LineColumn());
+          }},
+     {.name = L"EmptyBufferNormalLineColumn",
+      .callback =
+          [] {
+            CHECK_EQ(BufferContents().PositionBefore(
+                         {LineNumber(25), ColumnNumber(10)}),
+                     LineColumn());
+          }},
+     {.name = L"NormalBufferZeroLineColumn",
+      .callback =
+          [] {
+            CHECK_EQ(BufferContentsForTests().PositionBefore({}), LineColumn());
+          }},
+     {.name = L"NormalBufferZeroLineNormalColumn",
+      .callback =
+          [] {
+            CHECK_EQ(
+                BufferContentsForTests().PositionBefore({{}, ColumnNumber(4)}),
+                LineColumn(LineNumber(), ColumnNumber(3)));
+          }},
+     {.name = L"NormalBufferZeroLineLargeColumn",
+      .callback =
+          [] {
+            CHECK_EQ(
+                BufferContentsForTests().PositionBefore({{}, ColumnNumber(30)}),
+                LineColumn(LineNumber(),
+                           ColumnNumber(sizeof("alejandro") - 1)));
+          }},
+     {.name = L"NormalBufferNormalLineZeroColumn",
+      .callback =
+          [] {
+            CHECK_EQ(BufferContentsForTests().PositionBefore(
+                         {LineNumber(1), ColumnNumber()}),
+                     LineColumn(LineNumber(0),
+                                ColumnNumber(sizeof("alejandro") - 1)));
+          }},
+     {.name = L"NormalBufferNormalLineNormalColumn",
+      .callback =
+          [] {
+            CHECK_EQ(BufferContentsForTests().PositionBefore(
+                         {LineNumber(1), ColumnNumber(4)}),
+                     LineColumn(LineNumber(1), ColumnNumber(3)));
+          }},
+     {.name = L"NormalBufferNormalLineLargeColumn",
+      .callback =
+          [] {
+            CHECK_EQ(
+                BufferContentsForTests().PositionBefore(
+                    {LineNumber(1), ColumnNumber(30)}),
+                LineColumn(LineNumber(1), ColumnNumber(sizeof("forero") - 1)));
+          }},
+     {.name = L"NormalBufferLargeLineColumn", .callback = [] {
+        CHECK_EQ(BufferContentsForTests().PositionBefore(
+                     {LineNumber(25), ColumnNumber(10)}),
+                 LineColumn(LineNumber(2), ColumnNumber(6)));
+      }}});
 
 wstring BufferContents::ToString() const {
   wstring output;
