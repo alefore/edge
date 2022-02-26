@@ -33,6 +33,7 @@ class BufferContents : public fuzz::FuzzTestable {
   wint_t character_at(const LineColumn& position) const;
 
   LineColumn PositionBefore(LineColumn position) const;
+  LineColumn PositionAfter(LineColumn position) const;
 
   LineNumberDelta size() const { return LineNumberDelta(Lines::Size(lines_)); }
 
