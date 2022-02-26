@@ -889,7 +889,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> OpenAnonymousBuffer(
   return OpenFile(OpenFileOptions{
                       .editor_state = *editor_state,
                       .path = std::nullopt,
-                      .insertion_type = BuffersList::AddBufferType::kIgnore})
+                      .insertion_type = BuffersList::AddBufferType::kIgnore,
+                      .use_search_paths = false})
       .Transform([](auto it) { return it->second; });
 }
 
