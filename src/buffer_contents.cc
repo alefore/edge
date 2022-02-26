@@ -68,7 +68,7 @@ BufferContents BufferContentsForTests() {
   return output;
 }
 
-const bool path_component_with_extension_tests_registration = tests::Register(
+const bool filter_to_range_tests_registration = tests::Register(
     L"BufferContents::FilterToRange",
     {
         {.name = L"EmptyInput",
