@@ -416,8 +416,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void set_position(const LineColumn& position);
 
   // Can return nullptr.
+  enum class RemoteURLBehavior { kIgnore, kLaunchBrowser };
   futures::ValueOrError<std::shared_ptr<OpenBuffer>>
-  OpenBufferForCurrentPosition();
+  OpenBufferForCurrentPosition(RemoteURLBehavior remote_url_behavior);
 
   // Returns the position of just after the last character of the current file.
   LineColumn end_position() const;

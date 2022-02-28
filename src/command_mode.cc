@@ -510,8 +510,10 @@ class ActivateLink : public Command {
     }
 
     buffer->MaybeAdjustPositionCol();
-    buffer->OpenBufferForCurrentPosition().Transform(
-        [editor_state](std::shared_ptr<OpenBuffer> target) {
+    buffer
+        ->OpenBufferForCurrentPosition(
+            OpenBuffer::RemoteURLBehavior::kLaunchBrowser)
+        .Transform([editor_state](std::shared_ptr<OpenBuffer> target) {
           if (target != nullptr) {
             editor_state->AddBuffer(target, BuffersList::AddBufferType::kVisit);
           }

@@ -2027,10 +2027,25 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
 
   return urls;
 }
+
+// TODO(easy): Deduplicate with version in vm/internal/string.cc.
+std::wstring ShellEscape(std::wstring input) {
+  wstring output;
+  output.push_back(L'\'');
+  for (auto c : input) {
+    if (c == L'\'') {
+      output.push_back('\\');
+    }
+    output.push_back(c);
+  }
+  output.push_back(L'\'');
+  return output;
+}
 }  // namespace
 
 futures::ValueOrError<std::shared_ptr<OpenBuffer>>
-OpenBuffer::OpenBufferForCurrentPosition() {
+OpenBuffer::OpenBufferForCurrentPosition(
+    RemoteURLBehavior remote_url_behavior) {
   // When the cursor moves quickly, there's a race between multiple executions
   // of this logic. To avoid this, each call captures the original position and
   // uses that to avoid taking any effects when the position changes in the
@@ -2045,12 +2060,34 @@ OpenBuffer::OpenBufferForCurrentPosition() {
   };
   auto data = std::make_shared<Data>();
   data->source = shared_from_this();
-  return futures::While([adjusted_position, urls, data]() {
+  return futures::While([adjusted_position, urls, data, remote_url_behavior]() {
            if (data->index >= urls.size()) {
              data->output = Success(std::shared_ptr<OpenBuffer>());
              return futures::Past(futures::IterationControlCommand::kStop);
            }
            const URL& url = urls[data->index++];
+           if (url.schema().value_or(URL::Schema::kFile) !=
+               URL::Schema::kFile) {
+             switch (remote_url_behavior) {
+               case RemoteURLBehavior::kIgnore:
+                 break;
+               case RemoteURLBehavior::kLaunchBrowser:
+                 auto editor = data->source->editor();
+                 editor->work_queue()->ScheduleAt(
+                     AddSeconds(Now(), 1.0),
+                     [status_expiration =
+                          std::shared_ptr<StatusExpirationControl>(
+                              editor->status()->SetExpiringInformationText(
+                                  L"Open: " + url.ToString()))] {});
+                 ForkCommand(
+                     data->source->editor(),
+                     ForkCommandOptions{
+                         .command = L"xdg-open " + ShellEscape(url.ToString()),
+                         .insertion_type = BuffersList::AddBufferType::kIgnore,
+                     });
+             }
+             return futures::Past(futures::IterationControlCommand::kStop);
+           }
            ValueOrError<Path> path = url.GetLocalFilePath();
            if (path.IsError())
              return futures::Past(futures::IterationControlCommand::kContinue);
@@ -2256,8 +2293,8 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 }
 
 void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
-  buffer->OpenBufferForCurrentPosition().Transform(
-      [buffer](std::shared_ptr<OpenBuffer> result) {
+  buffer->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::kIgnore)
+      .Transform([buffer](std::shared_ptr<OpenBuffer> result) {
         buffer->status()->set_context(result);
         return Success();
       });
