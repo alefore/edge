@@ -21,6 +21,8 @@ class URL {
 
   ValueOrError<Path> GetLocalFilePath() const;
 
+  std::wstring ToString() const;
+
  private:
   std::wstring value_;
 };

@@ -41,7 +41,9 @@ const bool schema_tests_registration = tests::Register(
 }
 
 ValueOrError<Path> URL::GetLocalFilePath() const {
-  if (schema() != Schema::kFile) return Error(L"Schema isn't file.");
+  std::optional<Schema> s = schema();
+  if (!s.has_value()) return Path::FromString(value_);
+  if (s != Schema::kFile) return Error(L"Schema isn't file.");
   return Path::FromString(value_.substr(sizeof("file:") - 1));
 }
 
@@ -54,19 +56,20 @@ const bool get_local_file_path_tests_registration = tests::Register(
       .callback =
           [] {
             Path input = Path::FromString(L"foo/bar/hey").value();
-            LOG(INFO)
-                << "XXXX: "
-                << URL::FromPath(input).GetLocalFilePath().value().ToString()
-                << "\n";
             CHECK(URL::FromPath(input).GetLocalFilePath().value() == input);
           }},
      {.name = L"URLRelative",
       .callback =
-          [] { CHECK(URL(L"foo/bar/hey").GetLocalFilePath().IsError()); }},
+          [] {
+            Path input = Path::FromString(L"foo/bar/hey").value();
+            CHECK(URL(input.ToString()).GetLocalFilePath().value() == input);
+          }},
      {.name = L"URLStringFile", .callback = [] {
         std::wstring input = L"foo/bar/hey";
         CHECK(URL(L"file:" + input).GetLocalFilePath().value() ==
               Path::FromString(input).value());
       }}});
 }
+
+std::wstring URL::ToString() const { return value_; }
 }  // namespace afc::editor
