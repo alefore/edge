@@ -53,6 +53,7 @@ extern "C" {
 #include "src/transformation/noop.h"
 #include "src/transformation/repetitions.h"
 #include "src/transformation/stack.h"
+#include "src/url.h"
 #include "src/viewers.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/constant_expression.h"
@@ -1928,25 +1929,28 @@ void OpenBuffer::set_position(const LineColumn& position) {
 }
 
 namespace {
-std::vector<Path> GetPathsWithExtensionsForContext(const OpenBuffer& buffer,
-                                                   const Path& original_path) {
-  std::vector<Path> output = {original_path};
+std::vector<URL> GetURLsWithExtensionsForContext(const OpenBuffer& buffer,
+                                                 const URL& original_url) {
+  std::vector<URL> output = {original_url};
+  ValueOrError<Path> path = original_url.GetLocalFilePath();
+  if (path.IsError()) return output;
   auto extensions = TokenizeBySpaces(
       *NewLazyString(buffer.Read(buffer_variables::file_context_extensions)));
   for (auto& extension_token : extensions) {
     CHECK(!extension_token.value.empty());
-    output.push_back(Path::WithExtension(original_path, extension_token.value));
+    output.push_back(URL::FromPath(
+        Path::WithExtension(path.value(), extension_token.value)));
   }
   return output;
 }
 
-ValueOrError<Path> FindLinkTarget(const OpenBuffer& buffer,
-                                  const ParseTree& tree) {
+ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
+                                 const ParseTree& tree) {
   if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
       tree.properties().end()) {
     auto contents = buffer.contents()->copy();
     contents->FilterToRange(tree.range());
-    return Path::FromString(contents->ToString());
+    return Success(URL(contents->ToString()));
   }
   for (const auto& child : tree.children()) {
     if (auto output = FindLinkTarget(buffer, child); !output.IsError())
@@ -1955,9 +1959,9 @@ ValueOrError<Path> FindLinkTarget(const OpenBuffer& buffer,
   return Error(L"Unable to find link.");
 }
 
-std::vector<Path> GetPathsForCurrentPosition(const OpenBuffer& buffer) {
+std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   auto adjusted_position = buffer.AdjustLineColumn(buffer.position());
-  std::optional<Path> initial_local_path;
+  std::optional<URL> initial_url;
 
   auto tree = buffer.parse_tree();
   CHECK(tree != nullptr);
@@ -1965,12 +1969,14 @@ std::vector<Path> GetPathsForCurrentPosition(const OpenBuffer& buffer) {
   for (const ParseTree* subtree : MapRoute(*tree, route)) {
     if (subtree->properties().find(ParseTreeProperty::Link()) !=
         subtree->properties().end()) {
-      if (auto target = FindLinkTarget(buffer, *subtree); !target.IsError())
-        initial_local_path = target.value();
+      if (auto target = FindLinkTarget(buffer, *subtree); !target.IsError()) {
+        initial_url = target.value();
+        break;
+      }
     }
   }
 
-  if (!initial_local_path.has_value()) {
+  if (!initial_url.has_value()) {
     std::wstring line = GetCurrentToken(
         {.contents = buffer.contents(),
          .line_column = adjusted_position,
@@ -1986,11 +1992,11 @@ std::vector<Path> GetPathsForCurrentPosition(const OpenBuffer& buffer) {
     if (path.IsError()) {
       return {};
     }
-    initial_local_path = path.value();
+    initial_url = URL::FromPath(std::move(path.value()));
   }
 
-  auto local_paths =
-      GetPathsWithExtensionsForContext(buffer, *initial_local_path);
+  auto urls_with_extensions =
+      GetURLsWithExtensionsForContext(buffer, *initial_url);
 
   std::vector<Path> search_paths = {};
   if (auto path = Path::FromString(buffer.Read(buffer_variables::path));
@@ -2005,17 +2011,21 @@ std::vector<Path> GetPathsForCurrentPosition(const OpenBuffer& buffer) {
 
   // Do the full expansion. This has square complexity, though luckily the
   // number of local_paths tends to be very small.
-  std::vector<Path> paths;
-  for (const auto& search_path : search_paths) {
-    for (const auto& local_path : local_paths) {
-      paths.push_back(Path::Join(search_path, local_path));
+  std::vector<URL> urls;
+  for (const Path& search_path : search_paths) {
+    for (const URL& url : urls_with_extensions) {
+      ValueOrError<Path> path = url.GetLocalFilePath();
+      if (path.IsError() ||
+          path.value().GetRootType() == Path::RootType::kAbsolute)
+        continue;
+      urls.push_back(URL::FromPath(Path::Join(search_path, path.value())));
     }
   }
-  for (auto& local_path : local_paths) {
-    paths.push_back(local_path);
+  for (URL& url : urls_with_extensions) {
+    urls.push_back(std::move(url));
   }
 
-  return paths;
+  return urls;
 }
 }  // namespace
 
@@ -2026,7 +2036,7 @@ OpenBuffer::OpenBufferForCurrentPosition() {
   // uses that to avoid taking any effects when the position changes in the
   // meantime.
   auto adjusted_position = AdjustLineColumn(position());
-  auto paths = GetPathsForCurrentPosition(*this);
+  std::vector<URL> urls = GetURLsForCurrentPosition(*this);
   struct Data {
     size_t index = 0;
     std::shared_ptr<OpenBuffer> source;
@@ -2035,15 +2045,19 @@ OpenBuffer::OpenBufferForCurrentPosition() {
   };
   auto data = std::make_shared<Data>();
   data->source = shared_from_this();
-  return futures::While([adjusted_position, paths, data]() {
-           if (data->index >= paths.size()) {
+  return futures::While([adjusted_position, urls, data]() {
+           if (data->index >= urls.size()) {
              data->output = Success(std::shared_ptr<OpenBuffer>());
              return futures::Past(futures::IterationControlCommand::kStop);
            }
+           const URL& url = urls[data->index++];
+           ValueOrError<Path> path = url.GetLocalFilePath();
+           if (path.IsError())
+             return futures::Past(futures::IterationControlCommand::kContinue);
            return OpenFile(
                       OpenFileOptions{
                           .editor_state = *data->source->editor(),
-                          .path = paths[data->index++],
+                          .path = path.value(),
                           .ignore_if_not_found = true,
                           .insertion_type = BuffersList::AddBufferType::kIgnore,
                           .use_search_paths = false})

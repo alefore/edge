@@ -1,0 +1,72 @@
+#include "src/url.h"
+
+#include <string>
+
+#include "src/dirname.h"
+#include "src/tests/tests.h"
+
+namespace afc::editor {
+
+/* static */
+URL URL::FromPath(Path path) { return URL(L"file:" + path.ToString()); }
+
+std::optional<URL::Schema> URL::schema() const {
+  auto colon = value_.find_first_of(L':');
+  if (colon == std::wstring::npos) return std::nullopt;
+  auto candidate = value_.substr(0, colon);
+  static const std::unordered_map<std::wstring, Schema> schemes = {
+      {L"file", Schema::kFile},
+      {L"http", Schema::kHttp},
+      {L"https", Schema::kHttps}};
+  auto it = schemes.find(candidate);
+  return it == schemes.end() ? std::nullopt : std::make_optional(it->second);
+}
+
+namespace {
+const bool schema_tests_registration = tests::Register(
+    L"URL::Schema",
+    {{.name = L"EmptyURL",
+      .callback = [] { CHECK(!URL(L"").schema().has_value()); }},
+     {.name = L"URLFromPath",
+      .callback =
+          [] {
+            CHECK(URL::FromPath(Path::FromString(L"foo/bar/hey").value())
+                      .schema() == URL::Schema::kFile);
+          }},
+     {.name = L"URLRelative",
+      .callback = [] { CHECK(!URL(L"foo/bar/hey").schema().has_value()); }},
+     {.name = L"URLStringFile", .callback = [] {
+        CHECK(URL(L"file:foo/bar/hey").schema() == URL::Schema::kFile);
+      }}});
+}
+
+ValueOrError<Path> URL::GetLocalFilePath() const {
+  if (schema() != Schema::kFile) return Error(L"Schema isn't file.");
+  return Path::FromString(value_.substr(sizeof("file:") - 1));
+}
+
+namespace {
+const bool get_local_file_path_tests_registration = tests::Register(
+    L"URL::GetLocalFilePath",
+    {{.name = L"EmptyURL",
+      .callback = [] { CHECK(URL(L"").GetLocalFilePath().IsError()); }},
+     {.name = L"URLFromPath",
+      .callback =
+          [] {
+            Path input = Path::FromString(L"foo/bar/hey").value();
+            LOG(INFO)
+                << "XXXX: "
+                << URL::FromPath(input).GetLocalFilePath().value().ToString()
+                << "\n";
+            CHECK(URL::FromPath(input).GetLocalFilePath().value() == input);
+          }},
+     {.name = L"URLRelative",
+      .callback =
+          [] { CHECK(URL(L"foo/bar/hey").GetLocalFilePath().IsError()); }},
+     {.name = L"URLStringFile", .callback = [] {
+        std::wstring input = L"foo/bar/hey";
+        CHECK(URL(L"file:" + input).GetLocalFilePath().value() ==
+              Path::FromString(input).value());
+      }}});
+}
+}  // namespace afc::editor
