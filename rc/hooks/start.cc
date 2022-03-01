@@ -3,6 +3,7 @@
 #include "../editor_commands/header"
 #include "../editor_commands/include.cc"
 #include "../editor_commands/indent.cc"
+#include "../editor_commands/lib/markdown.cc"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
 #include "../editor_commands/lib/zk.cc"
