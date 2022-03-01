@@ -633,6 +633,17 @@ EdgeVariable<int>* const progress =
         .DefaultValue(0)
         .Build();
 
+EdgeVariable<int>* const analyze_content_lines_limit =
+    IntStruct()
+        ->Add()
+        .Name(L"analyze_content_lines_limit")
+        .Description(
+            L"Maximum number distance we can navigate away from the current "
+            L"position before disabling the content analysis (that counts "
+            L"words, alnums, etc.) for performance reasons.")
+        .DefaultValue(50)
+        .Build();
+
 EdgeStruct<double>* DoubleStruct() {
   static EdgeStruct<double>* output = new EdgeStruct<double>();
   return output;

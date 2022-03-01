@@ -5,13 +5,17 @@
 #include "src/char_buffer.h"
 #include "src/log.h"
 #include "src/run_command_handler.h"
+#include "src/tests/tests.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/input.h"
 #include "src/transformation/switch_case.h"
 #include "src/vm_transformation.h"
+#include "src/wstring.h"
 
 namespace afc::editor {
 namespace transformation {
+using ::operator<<;
+
 namespace {
 void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
                const Value& value) {
@@ -156,6 +160,95 @@ Variant OptimizeBase(Stack stack) {
   return stack;
 }
 
+namespace {
+struct ContentStats {
+  size_t lines = 0;
+  size_t words = 0;
+  size_t alnums = 0;
+  size_t characters = 0;
+
+  bool operator==(const ContentStats& other) const {
+    return lines == other.lines && words == other.words &&
+           alnums == other.alnums && characters == other.characters;
+  }
+};
+
+std::wstring ToString(const ContentStats& stats) {
+  return L"L:" + std::to_wstring(stats.lines) + L" W:" +
+         std::to_wstring(stats.words) + L" A:" + std::to_wstring(stats.alnums) +
+         L" C:" + std::to_wstring(stats.characters);
+}
+
+ContentStats AnalyzeContent(const BufferContents& contents) {
+  ContentStats output{.lines = contents.EndLine().line + 1};
+  contents.ForEach([&output](const Line& line) {
+    ColumnNumber i;
+    output.characters += line.EndColumn().column;
+    while (i < line.EndColumn()) {
+      while (i < line.EndColumn() && !isalnum(line.get(i))) ++i;
+      if (i < line.EndColumn()) ++output.words;
+      while (i < line.EndColumn() && isalnum(line.get(i))) {
+        ++i;
+        ++output.alnums;
+      }
+    }
+  });
+  VLOG(7) << "AnalyzeContent: Output: " << ToString(output);
+  return output;
+}
+
+const bool analyze_content_tests_registration = tests::Register(
+    L"transformation::Stack::AnalyzeContent",
+    {{.name = L"Empty",
+      .callback =
+          [] {
+            CHECK(AnalyzeContent(BufferContents()) ==
+                  ContentStats(
+                      {.lines = 1, .words = 0, .alnums = 0, .characters = 0}));
+          }},
+     {.name = L"SingleWord",
+      .callback =
+          [] {
+            BufferContents contents;
+            contents.AppendToLine({}, Line(L"foo"));
+            CHECK(AnalyzeContent(contents) ==
+                  ContentStats(
+                      {.lines = 1, .words = 1, .alnums = 3, .characters = 3}));
+          }},
+     {.name = L"SingleLine",
+      .callback =
+          [] {
+            BufferContents contents;
+            contents.AppendToLine({}, Line(L"foo bar hey alejo"));
+            CHECK(AnalyzeContent(contents) ==
+                  ContentStats({.lines = 1,
+                                .words = 4,
+                                .alnums = 3 + 3 + 3 + 5,
+                                .characters = 17}));
+          }},
+     {.name = L"SpacesSingleLine",
+      .callback =
+          [] {
+            BufferContents contents;
+            contents.AppendToLine({}, Line(L"   foo    bar   hey   alejo   "));
+            CHECK(AnalyzeContent(contents) ==
+                  ContentStats({.lines = 1,
+                                .words = 4,
+                                .alnums = 3 + 3 + 3 + 5,
+                                .characters = 30}));
+          }},
+     {.name = L"VariousEmptyLines", .callback = [] {
+        BufferContents contents;
+        auto line = std::make_shared<Line>();
+        contents.append_back({std::make_shared<Line>(L"foo"), line, line, line,
+                              std::make_shared<Line>(L"bar")});
+        CHECK(AnalyzeContent(contents) == ContentStats({.lines = 6,
+                                                        .words = 2,
+                                                        .alnums = 3 + 3,
+                                                        .characters = 3 + 3}));
+      }}});
+}  // namespace
+
 futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   auto output = std::make_shared<Result>(input.position);
   auto copy = std::make_shared<Stack>(parameters);
@@ -173,17 +266,25 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                            ? Direction::kForwards
                                            : Direction::kBackwards},
             .range = range};
-        if (delete_transformation.range->IsEmpty()) {
-          return futures::Past(std::move(*output));
-        }
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone: {
-            auto contents = input.buffer->contents()->copy();
-            contents->FilterToRange(*delete_transformation.range);
+            std::shared_ptr<BufferContents> contents =
+                input.buffer->contents()->copy();
+            contents->FilterToRange(range);
+            input.buffer->status()->Reset();
+            DVLOG(5) << "Analyze contents for range: " << range;
             return PreviewCppExpression(input.buffer, *contents)
                 .ConsumeErrors(
                     [](Error) { return futures::Past(EmptyValue()); })
-                .Transform([output](EmptyValue) {
+                .Transform([input, output, contents](EmptyValue) {
+                  if (input.mode == Input::Mode::kPreview &&
+                      input.buffer->status()->text().empty() &&
+                      contents->EndLine() <
+                          LineNumber(input.buffer->Read(
+                              buffer_variables::analyze_content_lines_limit))) {
+                    input.buffer->status()->SetInformationText(
+                        L"Selection: " + ToString(AnalyzeContent(*contents)));
+                  }
                   return futures::Past(std::move(*output));
                 });
           }
