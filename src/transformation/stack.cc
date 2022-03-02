@@ -46,12 +46,19 @@ futures::Value<PossibleError> PreviewCppExpression(
 
   buffer->status()->Reset();
   switch (expression->purity()) {
-    case vm::Expression::PurityType::kPure:
+    case vm::Expression::PurityType::kPure: {
       return buffer->EvaluateExpression(expression.get(), environment)
           .Transform([buffer, expression](std::unique_ptr<Value> value) {
             ShowValue(*buffer, nullptr, *value);
             return Success();
-          });
+          })
+          .ConsumeErrors([buffer](Error error) {
+            buffer->status()->SetInformationText(L"E: " + error.description);
+            return futures::Past(EmptyValue());
+          })
+          .Transform([](EmptyValue) { return futures::Past(Success()); });
+      ;
+    }
     case vm::Expression::PurityType::kUnknown:
       break;
   }
