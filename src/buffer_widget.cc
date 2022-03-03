@@ -259,6 +259,33 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
                                                          active_index);
 }
+
+struct BufferRenderPlan {
+  // Contains one entry for each line to render.
+  std::vector<Range> lines;
+
+  // If present, an index in `lines` corresponding to the position with the main
+  // cursor.
+  std::optional<size_t> cursor_index;
+};
+
+BufferRenderPlan GetBufferRenderPlan(
+    LineScrollControl::Options line_scroll_control_options,
+    LineColumn position) {
+  BufferRenderPlan output;
+  for (auto scroll_reader =
+           LineScrollControl::New(line_scroll_control_options)->NewReader();
+       LineNumberDelta(output.lines.size()) <
+           line_scroll_control_options.lines_shown &&
+       scroll_reader->GetRange().has_value();
+       scroll_reader->RangeDone())
+    output.lines.push_back(scroll_reader->GetRange().value());
+  for (size_t i = 0;
+       i < output.lines.size() && !output.cursor_index.has_value(); ++i)
+    if (output.lines[i].end >= position) output.cursor_index = i;
+  return output;
+}
+
 }  // namespace
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
@@ -340,15 +367,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   line_scroll_control_options.initial_column = output.view_start.column;
 
   if (!buffer->Read(buffer_variables::multiple_cursors)) {
-    auto scroll_reader =
-        LineScrollControl::New(line_scroll_control_options)->NewReader();
-    std::vector<Range> positions;
-    while ((positions.empty() || positions.back().end <= buffer->position()) &&
-           scroll_reader->GetRange().has_value()) {
-      positions.push_back(scroll_reader->GetRange().value());
-      scroll_reader->RangeDone();
-    }
-
+    BufferRenderPlan plan =
+        GetBufferRenderPlan(line_scroll_control_options, buffer->position());
     LineNumber capped_line =
         std::min(buffer->position().line, LineNumber(0) + buffer->lines_size());
     LineNumberDelta lines_remaining =
@@ -356,14 +376,15 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
     LineNumberDelta effective_bottom_margin_lines =
         std::min(buffer_lines, std::min(margin_lines, lines_remaining));
-    if (LineNumber(positions.size()) + effective_bottom_margin_lines >
-        LineNumber(0) + buffer_lines) {
+    if (plan.cursor_index.has_value() &&
+        LineNumber(*plan.cursor_index) + effective_bottom_margin_lines >
+            LineNumber(0) + buffer_lines) {
       // No need to adjust line_scroll_control_options.initial_column, since
       // that controls where continuation lines begin.
       output.view_start =
-          positions[positions.size() -
-                    (buffer_lines - effective_bottom_margin_lines).line_delta -
-                    1]
+          plan.lines[plan.lines.size() -
+                     (buffer_lines - effective_bottom_margin_lines).line_delta -
+                     1]
               .begin;
       line_scroll_control_options.begin = output.view_start;
     }
