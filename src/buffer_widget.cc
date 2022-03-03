@@ -267,12 +267,17 @@ struct BufferRenderPlan {
   // If present, an index in `lines` corresponding to the position with the main
   // cursor.
   std::optional<size_t> cursor_index;
+
+  enum class StatusPosition { kTop, kBottom };
+  StatusPosition status_position = StatusPosition::kBottom;
 };
 
 BufferRenderPlan GetBufferRenderPlan(
-    LineScrollControl::Options line_scroll_control_options,
-    LineColumn position) {
+    LineScrollControl::Options line_scroll_control_options, LineColumn position,
+    LineNumberDelta status_lines) {
   BufferRenderPlan output;
+
+  // Initialize output.lines:
   for (auto scroll_reader =
            LineScrollControl::New(line_scroll_control_options)->NewReader();
        LineNumberDelta(output.lines.size()) <
@@ -280,9 +285,24 @@ BufferRenderPlan GetBufferRenderPlan(
        scroll_reader->GetRange().has_value();
        scroll_reader->RangeDone())
     output.lines.push_back(scroll_reader->GetRange().value());
+
+  // Initialize output.cursor_index:
   for (size_t i = 0;
        i < output.lines.size() && !output.cursor_index.has_value(); ++i)
     if (output.lines[i].end >= position) output.cursor_index = i;
+
+  // Initialize output.status_position:
+  if (output.cursor_index.value_or(0) > 3 * output.lines.size() / 5)
+    output.status_position = BufferRenderPlan::StatusPosition::kTop;
+  switch (output.status_position) {
+    case BufferRenderPlan::StatusPosition::kBottom:
+      output.lines.resize(std::max(
+          0,
+          (line_scroll_control_options.lines_shown - status_lines).line_delta));
+      break;
+    case BufferRenderPlan::StatusPosition::kTop:
+      break;
+  }
   return output;
 }
 
@@ -308,17 +328,17 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       buffer->status(), buffer.get(), buffer->editor()->modifiers());
   const auto status_lines =
       min(size.line / 4, status_output_producer_supplier.lines());
-  // Screen lines that are dedicated to the buffer.
-  auto buffer_lines = size.line - status_lines;
 
-  auto buffer_view_size = LineColumnDelta(buffer_lines, size.column);
+  // auto buffer_lines = size.line - status_lines;
+
+  auto buffer_view_size = LineColumnDelta(size.line, size.column);
   buffer->viewers()->set_view_size(buffer_view_size);
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
   LineScrollControl::Options line_scroll_control_options;
   line_scroll_control_options.buffer = buffer;
-  line_scroll_control_options.lines_shown = buffer_lines;
+  line_scroll_control_options.lines_shown = size.line;
   line_scroll_control_options.columns_shown =
       size.column -
       (paste_mode
@@ -334,10 +354,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   LineNumberDelta margin_lines =
       buffer->Read(buffer_variables::pts)
           ? LineNumberDelta(0)
-          : min(max(buffer_lines / 2 - LineNumberDelta(1), LineNumberDelta(0)),
+          : min(max(size.line / 2 - LineNumberDelta(1), LineNumberDelta(0)),
                 max(LineNumberDelta(ceil(
                         buffer->Read(buffer_variables::margin_lines_ratio) *
-                        buffer_lines.line_delta)),
+                        size.line.line_delta)),
                     max(LineNumberDelta(
                             buffer->Read(buffer_variables::margin_lines)),
                         LineNumberDelta(0))));
@@ -346,7 +366,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (output.view_start.line + min(margin_lines, line.ToDelta()) > line &&
       (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
     output.view_start.line = line - min(margin_lines, line.ToDelta());
-  } else if (output.view_start.line + buffer_lines <=
+  } else if (output.view_start.line + size.line <=
              min(LineNumber(0) + buffer->lines_size(), line + margin_lines)) {
     CHECK_GT(buffer->lines_size(), LineNumberDelta(0));
     auto view_end_line =
@@ -354,11 +374,11 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
             line + margin_lines);
     output.view_start.line =
         view_end_line + LineNumberDelta(1) -
-        min(buffer_lines, view_end_line.ToDelta() + LineNumberDelta(1));
-  } else if (output.view_start.line + buffer_lines >
+        min(size.line, view_end_line.ToDelta() + LineNumberDelta(1));
+  } else if (output.view_start.line + size.line >
              LineNumber(0) + buffer->lines_size()) {
-    output.view_start.line = (LineNumber(0) + buffer->lines_size())
-                                 .MinusHandlingOverflow(buffer_lines);
+    output.view_start.line =
+        (LineNumber(0) + buffer->lines_size()).MinusHandlingOverflow(size.line);
   }
 
   output.view_start.column =
@@ -366,32 +386,31 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   line_scroll_control_options.begin = output.view_start;
   line_scroll_control_options.initial_column = output.view_start.column;
 
+  BufferRenderPlan plan = GetBufferRenderPlan(line_scroll_control_options,
+                                              buffer->position(), status_lines);
   if (!buffer->Read(buffer_variables::multiple_cursors)) {
-    BufferRenderPlan plan =
-        GetBufferRenderPlan(line_scroll_control_options, buffer->position());
     LineNumber capped_line =
         std::min(buffer->position().line, LineNumber(0) + buffer->lines_size());
     LineNumberDelta lines_remaining =
         buffer->lines_size() - capped_line.ToDelta();
 
     LineNumberDelta effective_bottom_margin_lines =
-        std::min(buffer_lines, std::min(margin_lines, lines_remaining));
+        std::min(LineNumberDelta(plan.lines.size()),
+                 std::min(margin_lines, lines_remaining));
     if (plan.cursor_index.has_value() &&
         LineNumber(*plan.cursor_index) + effective_bottom_margin_lines >
-            LineNumber(0) + buffer_lines) {
+            LineNumber(0) + LineNumberDelta(plan.lines.size())) {
       // No need to adjust line_scroll_control_options.initial_column, since
       // that controls where continuation lines begin.
       output.view_start =
-          plan.lines[plan.lines.size() -
-                     (buffer_lines - effective_bottom_margin_lines).line_delta -
-                     1]
-              .begin;
+          plan.lines[effective_bottom_margin_lines.line_delta - 1].begin;
       line_scroll_control_options.begin = output.view_start;
     }
   }
 
   input.output_producer_options.size =
-      LineColumnDelta(buffer_lines, line_scroll_control_options.columns_shown);
+      LineColumnDelta(LineNumberDelta(plan.lines.size()),
+                      line_scroll_control_options.columns_shown);
 
   if (buffer->Read(buffer_variables::multiple_cursors)) {
     output.producer = ViewMultipleCursors(buffer, input.output_producer_options,
@@ -403,17 +422,36 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   }
 
   if (status_lines > LineNumberDelta(0)) {
-    std::vector<HorizontalSplitOutputProducer::Row> rows(2);
-    rows[0].producer = std::move(output.producer);
-    rows[0].lines = buffer_lines;
+    using HP = HorizontalSplitOutputProducer;
+    HP::Row buffer_row = {.producer = std::move(output.producer),
+                          .lines = LineNumberDelta(plan.lines.size())};
+    HP::Row status_row = {
+        .producer = status_output_producer_supplier.CreateOutputProducer(
+            LineColumnDelta(status_lines, size.column)),
+        .lines = status_lines,
+        .overlap_behavior = HP::Row::OverlapBehavior::kFloat};
 
-    rows[1].producer = status_output_producer_supplier.CreateOutputProducer(
-        LineColumnDelta(status_lines, size.column));
-    rows[1].lines = status_lines;
+    size_t buffer_index = 0;
+    size_t status_index = 1;
+    switch (plan.status_position) {
+      case BufferRenderPlan::StatusPosition::kTop:
+        status_index = 0;
+        buffer_index = 1;
+        break;
+      case BufferRenderPlan::StatusPosition::kBottom:
+        buffer_index = 0;
+        status_index = 1;
+        break;
+    }
 
-    output.producer = std::make_unique<HorizontalSplitOutputProducer>(
-        std::move(rows),
-        buffer->status()->GetType() == Status::Type::kPrompt ? 1 : 0);
+    std::vector<HP::Row> rows(2);
+    rows[buffer_index] = std::move(buffer_row);
+    rows[status_index] = std::move(status_row);
+
+    output.producer = std::make_unique<HP>(
+        std::move(rows), buffer->status()->GetType() == Status::Type::kPrompt
+                             ? status_index
+                             : buffer_index);
   }
   return output;
 }
