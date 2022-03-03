@@ -9,10 +9,10 @@
 namespace afc {
 namespace editor {
 OutputProducer::Generator HorizontalSplitOutputProducer::Next() {
+  CHECK_EQ(row_line_.size(), rows_.size());
   while (current_row_ < rows_.size() &&
-         current_row_line_.ToDelta() >= rows_[current_row_].lines) {
+         row_line_[current_row_].ToDelta() >= rows_[current_row_].lines) {
     current_row_++;
-    current_row_line_ = LineNumber(0);
   }
   if (current_row_ >= rows_.size()) {
     return OutputProducer::Generator::Empty();
@@ -24,7 +24,11 @@ OutputProducer::Generator HorizontalSplitOutputProducer::Next() {
   } else {
     delegate = Generator::Empty();
   }
-  current_row_line_++;
+  row_line_[current_row_]++;
+
+  if (rows_[current_row_].overlap_behavior == Row::OverlapBehavior::kFloat) {
+    ConsumeLine(current_row_ + 1);
+  }
 
   if (current_row_ != index_active_) {
     if (delegate.inputs_hash.has_value()) {
@@ -38,6 +42,18 @@ OutputProducer::Generator HorizontalSplitOutputProducer::Next() {
     };
   }
   return delegate;
+}
+
+void HorizontalSplitOutputProducer::ConsumeLine(size_t row) {
+  while (row < rows_.size()) {
+    if (row_line_[row].ToDelta() < rows_[row].lines) {
+      ++row_line_[row];
+      if (rows_[row].producer != nullptr)
+        rows_[row].producer->Next();  // Skip the line.
+      if (rows_[row].overlap_behavior == Row::OverlapBehavior::kSolid) return;
+    }
+    row++;
+  }
 }
 
 }  // namespace editor
