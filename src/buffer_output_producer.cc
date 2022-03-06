@@ -206,9 +206,20 @@ OutputProducer::Generator BufferOutputProducer::Next() {
         hash_combine(output.inputs_hash.value(), std::hash<ColumnNumber>{}(c));
   }
 
+  std::shared_ptr<EditorMode> editor_keyboard_redirect =
+      buffer_->editor()->keyboard_redirect();
+  EditorMode::CursorMode cursor_mode =
+      (editor_keyboard_redirect == nullptr ? *buffer_->mode()
+                                           : *editor_keyboard_redirect)
+          .cursor_mode();
+
+  output.inputs_hash =
+      hash_combine(output.inputs_hash.value(),
+                   std::hash<size_t>{}(static_cast<size_t>(cursor_mode)));
+
   output.generate = [output_producer_options = output_producer_options_,
                      line_contents, range, atomic_lines, multiple_cursors,
-                     position, cursors]() {
+                     position, cursors, cursor_mode]() {
     Line::OutputOptions options;
     options.initial_column = range.begin.column;
     if (range.begin.line == range.end.line) {
@@ -231,9 +242,27 @@ OutputProducer::Generator BufferOutputProducer::Next() {
       }
       if (output_producer_options.main_cursor_behavior ==
           Widget::OutputProducerOptions::MainCursorBehavior::kHighlight) {
-        options.modifiers_main_cursor = {
-            LineModifier::REVERSE,
-            multiple_cursors ? LineModifier::GREEN : LineModifier::CYAN};
+        switch (cursor_mode) {
+          case EditorMode::CursorMode::kDefault:
+            options.modifiers_main_cursor = {
+                LineModifier::REVERSE,
+                multiple_cursors ? LineModifier::GREEN : LineModifier::CYAN};
+            break;
+          case EditorMode::CursorMode::kInserting:
+            options.modifiers_main_cursor = {
+                LineModifier::YELLOW,
+                multiple_cursors ? LineModifier::GREEN : LineModifier::CYAN};
+            break;
+        }
+      } else {
+        switch (cursor_mode) {
+          case EditorMode::CursorMode::kDefault:
+            break;
+          case EditorMode::CursorMode::kInserting:
+            options.modifiers_main_cursor = {LineModifier::YELLOW,
+                                             LineModifier::UNDERLINE};
+            break;
+        }
       }
       options.modifiers_inactive_cursors = {
           LineModifier::REVERSE,

@@ -138,5 +138,9 @@ void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
   }
 }
 
+MapMode::CursorMode MapMode::cursor_mode() const {
+  return CursorMode::kDefault;
+}
+
 }  // namespace editor
 }  // namespace afc

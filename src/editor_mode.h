@@ -13,6 +13,9 @@ class EditorMode {
  public:
   virtual ~EditorMode() {}
   virtual void ProcessInput(wint_t c, EditorState* editor_state) = 0;
+
+  enum class CursorMode { kDefault, kInserting };
+  virtual CursorMode cursor_mode() const = 0;
 };
 
 }  // namespace editor

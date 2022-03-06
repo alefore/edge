@@ -16,6 +16,7 @@ class Command : public EditorMode {
   virtual std::wstring Category() const = 0;
   virtual std::wstring Description() const = 0;
   virtual void ProcessInput(wint_t c, EditorState* editor_state) = 0;
+  CursorMode cursor_mode() const override;
 };
 
 }  // namespace editor

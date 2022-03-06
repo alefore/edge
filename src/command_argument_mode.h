@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_TRANSFORMATION_ARGUMENT_MODE_H__
-#define __AFC_EDITOR_TRANSFORMATION_ARGUMENT_MODE_H__
+#ifndef __AFC_EDITOR_COMMAND_ARGUMENT_MODE_H__
+#define __AFC_EDITOR_COMMAND_ARGUMENT_MODE_H__
 
 #include <memory>
 
@@ -86,6 +86,8 @@ class CommandArgumentMode : public EditorMode {
     });
   }
 
+  CursorMode cursor_mode() const override { return CursorMode::kDefault; }
+
  private:
   Argument BuildArgument() {
     auto argument = options_.initial_value;
@@ -170,4 +172,4 @@ void SetOptionsForBufferTransformation(
 
 }  // namespace afc::editor
 
-#endif  // __AFC_EDITOR_TRANSFORMATION_ARGUMENT_MODE_H__
+#endif  // __AFC_EDITOR_COMMAND_ARGUMENT_MODE_H__

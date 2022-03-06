@@ -502,6 +502,8 @@ class TopLevelCommandMode : public EditorMode {
     editor_state->ProcessInput(c);
   }
 
+  CursorMode cursor_mode() const override { return CursorMode::kDefault; }
+
   void ShowStatus(EditorState* editor_state) {
     editor_state->status()->SetInformationText(
         std::visit([](auto& t) { return ToStatus(t); }, state_.top_command()) +

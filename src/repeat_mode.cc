@@ -24,6 +24,8 @@ class RepeatMode : public EditorMode {
     consumer_(result_);
   }
 
+  CursorMode cursor_mode() const { return CursorMode::kDefault; }
+
  private:
   std::function<void(int)> consumer_;
   int result_;

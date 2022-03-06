@@ -341,6 +341,8 @@ class InsertMode : public EditorMode {
         });
   }
 
+  CursorMode cursor_mode() const override { return CursorMode::kInserting; }
+
  private:
   // Writes `line_buffer` to every buffer with a fd, and runs `callable` in
   // every buffer without an fd.

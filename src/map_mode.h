@@ -57,6 +57,7 @@ class MapMode : public EditorMode {
   MapMode(std::shared_ptr<MapModeCommands> commands);
 
   void ProcessInput(wint_t c, EditorState* editor_state) override;
+  CursorMode cursor_mode() const override;
 
  private:
   wstring current_input_;
