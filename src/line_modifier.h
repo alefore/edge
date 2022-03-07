@@ -23,6 +23,7 @@ enum LineModifier {
   CYAN,
   YELLOW,
   MAGENTA,
+  WHITE,
   BG_RED,
 };
 

@@ -26,6 +26,7 @@ class ScreenCurses : public Screen {
     init_pair(6, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(7, COLOR_CYAN, COLOR_BLACK);
     init_pair(8, COLOR_WHITE, COLOR_RED);
+    init_pair(9, COLOR_WHITE, COLOR_BLACK);
   }
 
   ~ScreenCurses() { endwin(); }
@@ -68,6 +69,7 @@ class ScreenCurses : public Screen {
         attroff(COLOR_PAIR(6));
         attroff(COLOR_PAIR(7));
         attroff(COLOR_PAIR(8));
+        attroff(COLOR_PAIR(9));
         break;
       case LineModifier::BOLD:
         attron(A_BOLD);
@@ -107,6 +109,9 @@ class ScreenCurses : public Screen {
         break;
       case LineModifier::BG_RED:
         attron(COLOR_PAIR(8));
+        break;
+      case LineModifier::WHITE:
+        attron(COLOR_PAIR(9));
         break;
     }
   }
