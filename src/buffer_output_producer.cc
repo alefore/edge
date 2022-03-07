@@ -257,6 +257,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
       } else {
         switch (cursor_mode) {
           case EditorMode::CursorMode::kDefault:
+            options.modifiers_main_cursor = {LineModifier::WHITE};
             break;
           case EditorMode::CursorMode::kInserting:
             options.modifiers_main_cursor = {LineModifier::YELLOW,
