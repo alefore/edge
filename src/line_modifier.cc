@@ -38,21 +38,15 @@ std::string ModifierToString(LineModifier modifier) {
 }
 
 LineModifier ModifierFromString(std::string modifier) {
-  // TODO: Turn into a map.
-  if (modifier == "RESET") return RESET;
-  if (modifier == "BOLD") return BOLD;
-  if (modifier == "ITALIC") return ITALIC;
-  if (modifier == "DIM") return DIM;
-  if (modifier == "UNDERLINE") return UNDERLINE;
-  if (modifier == "REVERSE") return REVERSE;
-  if (modifier == "BLACK") return BLACK;
-  if (modifier == "RED") return RED;
-  if (modifier == "GREEN") return GREEN;
-  if (modifier == "BLUE") return BLUE;
-  if (modifier == "CYAN") return CYAN;
-  if (modifier == "YELLOW") return YELLOW;
-  if (modifier == "MAGENTA") return MAGENTA;
-  if (modifier == "BG_RED") return BG_RED;
+  static const std::unordered_map<std::string, LineModifier> values = {
+      {"RESET", RESET},         {"BOLD", BOLD},
+      {"ITALIC", ITALIC},       {"DIM", DIM},
+      {"UNDERLINE", UNDERLINE}, {"REVERSE", REVERSE},
+      {"BLACK", BLACK},         {"RED", RED},
+      {"GREEN", GREEN},         {"BLUE", BLUE},
+      {"CYAN", CYAN},           {"YELLOW", YELLOW},
+      {"MAGENTA", MAGENTA},     {"BG_RED", BG_RED}};
+  if (auto it = values.find(modifier); it != values.end()) return it->second;
   return RESET;  // Ugh.
 }
 
