@@ -341,7 +341,16 @@ class InsertMode : public EditorMode {
         });
   }
 
-  CursorMode cursor_mode() const override { return CursorMode::kInserting; }
+  CursorMode cursor_mode() const override {
+    switch (options_.editor_state->modifiers().insertion) {
+      case Modifiers::ModifyMode::kShift:
+        return CursorMode::kInserting;
+      case Modifiers::ModifyMode::kOverwrite:
+        return CursorMode::kOverwriting;
+    }
+    LOG(FATAL) << "Invalid cursor mode.";
+    return CursorMode::kInserting;
+  }
 
  private:
   // Writes `line_buffer` to every buffer with a fd, and runs `callable` in

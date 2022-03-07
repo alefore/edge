@@ -14,7 +14,7 @@ class EditorMode {
   virtual ~EditorMode() {}
   virtual void ProcessInput(wint_t c, EditorState* editor_state) = 0;
 
-  enum class CursorMode { kDefault, kInserting };
+  enum class CursorMode { kDefault, kInserting, kOverwriting };
   virtual CursorMode cursor_mode() const = 0;
 };
 

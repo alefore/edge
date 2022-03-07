@@ -253,6 +253,10 @@ OutputProducer::Generator BufferOutputProducer::Next() {
                 LineModifier::YELLOW,
                 multiple_cursors ? LineModifier::GREEN : LineModifier::CYAN};
             break;
+          case EditorMode::CursorMode::kOverwriting:
+            options.modifiers_main_cursor = {LineModifier::RED,
+                                             LineModifier::UNDERLINE};
+            break;
         }
       } else {
         switch (cursor_mode) {
@@ -261,6 +265,10 @@ OutputProducer::Generator BufferOutputProducer::Next() {
             break;
           case EditorMode::CursorMode::kInserting:
             options.modifiers_main_cursor = {LineModifier::YELLOW,
+                                             LineModifier::UNDERLINE};
+            break;
+          case EditorMode::CursorMode::kOverwriting:
+            options.modifiers_main_cursor = {LineModifier::RED,
                                              LineModifier::UNDERLINE};
             break;
         }
