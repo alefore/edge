@@ -681,12 +681,8 @@ void OpenBuffer::Visit() {
   }
 }
 
-struct timespec OpenBuffer::last_visit() const {
-  return last_visit_;
-}
-struct timespec OpenBuffer::last_action() const {
-  return last_action_;
-}
+struct timespec OpenBuffer::last_visit() const { return last_visit_; }
+struct timespec OpenBuffer::last_action() const { return last_action_; }
 
 futures::Value<PossibleError> OpenBuffer::PersistState() const {
   auto trace = log_->NewChild(L"Persist State");
