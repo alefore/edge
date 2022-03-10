@@ -2005,9 +2005,10 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
     }
   }
 
+  std::vector<URL> urls = urls_with_extensions;
+
   // Do the full expansion. This has square complexity, though luckily the
   // number of local_paths tends to be very small.
-  std::vector<URL> urls;
   for (const Path& search_path : search_paths) {
     for (const URL& url : urls_with_extensions) {
       ValueOrError<Path> path = url.GetLocalFilePath();
@@ -2017,10 +2018,6 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
       urls.push_back(URL::FromPath(Path::Join(search_path, path.value())));
     }
   }
-  for (URL& url : urls_with_extensions) {
-    urls.push_back(std::move(url));
-  }
-
   return urls;
 }
 
@@ -2062,6 +2059,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
              return futures::Past(futures::IterationControlCommand::kStop);
            }
            const URL& url = urls[data->index++];
+           VLOG(5) << "Checking URL: " << url.ToString();
            if (url.schema().value_or(URL::Schema::kFile) !=
                URL::Schema::kFile) {
              switch (remote_url_behavior) {
@@ -2087,6 +2085,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
            ValueOrError<Path> path = url.GetLocalFilePath();
            if (path.IsError())
              return futures::Past(futures::IterationControlCommand::kContinue);
+           VLOG(4) << "Calling open file: " << path.value().ToString();
            return OpenFile(
                       OpenFileOptions{
                           .editor_state = *data->source->editor(),

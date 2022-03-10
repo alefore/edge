@@ -699,70 +699,70 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
     EditorState* editor_state, std::shared_ptr<std::vector<Path>> search_paths,
     std::optional<Path> path, bool ignore_if_not_found,
     std::shared_ptr<FileSystemDriver> file_system_driver) {
-  auto resolve_path_options = ResolvePathOptions::NewWithEmptySearchPaths(
-      editor_state, file_system_driver);
-  resolve_path_options.search_paths = *search_paths;
+  ResolvePathOptions resolve_path_options =
+      ResolvePathOptions::NewWithEmptySearchPaths(editor_state,
+                                                  file_system_driver);
+  auto output = std::make_shared<OpenFileResolvePathOutput>();
+  resolve_path_options.validator = [editor_state, output](const Path& path) {
+    auto path_components = path.DirectorySplit();
+    if (path_components.IsError()) return futures::Past(false);
+    for (auto it = editor_state->buffers()->begin();
+         it != editor_state->buffers()->end(); ++it) {
+      CHECK(it->second != nullptr);
+      auto buffer_path =
+          Path::FromString(it->second->Read(buffer_variables::path));
+      if (buffer_path.IsError()) continue;
+      auto buffer_components = buffer_path.value().DirectorySplit();
+      if (buffer_components.IsError()) continue;
+      if (EndsIn(path_components.value(), buffer_components.value())) {
+        output->buffer = it;
+        return futures::Past(true);
+      }
+    }
+    return futures::Past(false);
+  };
   if (path.has_value()) {
     resolve_path_options.path = path.value().ToString();
   }
-  futures::Future<OpenFileResolvePathOutput> output;
-  ResolvePath(resolve_path_options)
-      .SetConsumer([editor_state, path, ignore_if_not_found,
-                    resolve_path_options_copy = resolve_path_options,
-                    consumer = std::move(output.consumer)](
-                       ValueOrError<ResolvePathOutput> input) {
-        if (!input.IsError()) {
-          consumer(OpenFileResolvePathOutput{
-              .path = input.value().path,
-              .position = input.value().position,
-              .pattern = input.value().pattern.value_or(L"")});
-          return;
+
+  return ResolvePath(resolve_path_options)
+      .Transform([output](ResolvePathOutput input) {
+        CHECK(output->buffer.has_value());
+        if (input.position.has_value()) {
+          output->buffer.value()->second->set_position(input.position.value());
         }
-        auto resolve_path_options = resolve_path_options_copy;
-        auto output = std::make_shared<OpenFileResolvePathOutput>();
-        resolve_path_options.validator = [editor_state,
-                                          output](const Path& path) {
-          auto path_components = path.DirectorySplit();
-          if (path_components.IsError()) return futures::Past(false);
-          for (auto it = editor_state->buffers()->begin();
-               it != editor_state->buffers()->end(); ++it) {
-            CHECK(it->second != nullptr);
-            auto buffer_path =
-                Path::FromString(it->second->Read(buffer_variables::path));
-            if (buffer_path.IsError()) continue;
-            auto buffer_components = buffer_path.value().DirectorySplit();
-            if (buffer_components.IsError()) continue;
-            if (EndsIn(path_components.value(), buffer_components.value())) {
-              output->buffer = it;
-              return futures::Past(true);
-            }
-          }
-          return futures::Past(false);
-        };
-        resolve_path_options.search_paths = {Path::LocalDirectory()};
-        ResolvePath(resolve_path_options)
-            .SetConsumer([editor_state, path, ignore_if_not_found,
-                          consumer = std::move(consumer),
-                          output](ValueOrError<ResolvePathOutput> input) {
-              if (!input.IsError()) {
-                CHECK(output->buffer.has_value());
-                if (input.value().position.has_value()) {
-                  output->buffer.value()->second->set_position(
-                      input.value().position.value());
-                }
-                // TODO: Apply pattern.
-              } else {
-                if (ignore_if_not_found) {
-                  output->buffer = editor_state->buffers()->end();
-                }
-                if (path.has_value()) {
-                  output->path = path.value();
-                }
-              }
-              consumer(*output);
-            });
+        // TODO: Apply pattern.
+        return futures::Past(Success(std::move(*output)));
+      })
+      .ConsumeErrors([editor_state, path, ignore_if_not_found, output,
+                      resolve_path_options, search_paths,
+                      file_system_driver](Error) {
+        auto resolve_path_options_copy = resolve_path_options;
+        resolve_path_options_copy.search_paths = *search_paths;
+        resolve_path_options_copy.validator =
+            [file_system_driver](const Path& path) {
+              return CanStatPath(file_system_driver, path);
+            };
+        return ResolvePath(resolve_path_options_copy)
+            .Transform([editor_state, path, ignore_if_not_found,
+                        resolve_path_options_copy =
+                            resolve_path_options](ResolvePathOutput input) {
+              return futures::Past(Success(OpenFileResolvePathOutput{
+                  .path = input.path,
+                  .position = input.position,
+                  .pattern = input.pattern.value_or(L"")}));
+            })
+            .ConsumeErrors(
+                [editor_state, path, ignore_if_not_found, output](Error) {
+                  if (ignore_if_not_found) {
+                    output->buffer = editor_state->buffers()->end();
+                  }
+                  if (path.has_value()) {
+                    output->path = path.value();
+                  }
+                  return futures::Past(std::move(*output));
+                });
       });
-  return std::move(output.value);
 }
 
 futures::Value<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>
