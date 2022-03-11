@@ -198,7 +198,7 @@ const bool const_tree_tests_registration = tests::Register(
      {.name = L"RandomWalk", .callback = [] {
         IntTree::Ptr tree;
         std::vector<int> v;
-        while (IntTree::Size(tree) < 1e4) {
+        while (IntTree::Size(tree) < 1e3) {
           size_t position = random() % (IntTree::Size(tree) + 1);
           int number = random();
           tree = IntTree::Insert(tree, position, number);
