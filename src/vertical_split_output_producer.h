@@ -16,8 +16,8 @@ class VerticalSplitOutputProducer : public OutputProducer {
   struct Column {
     std::unique_ptr<OutputProducer> producer;
 
-    // If absent, this column will be the last column produced, and it will
-    // allow to span the entire screen.
+    // If absent, this column will be the last column produced, and it will be
+    // allowed to span the entire screen.
     std::optional<ColumnNumberDelta> width = std::nullopt;
   };
 
