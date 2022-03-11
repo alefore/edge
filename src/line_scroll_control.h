@@ -12,7 +12,6 @@
 
 namespace afc {
 namespace editor {
-
 class LineScrollControl
     : public std::enable_shared_from_this<LineScrollControl> {
  private:
@@ -30,10 +29,6 @@ class LineScrollControl
 
     // Initial position in the buffer where output will begin.
     LineColumn begin;
-
-    // When we advance lines, we will start at the column given by
-    // initial_column_.
-    ColumnNumber initial_column;
   };
 
   static std::shared_ptr<LineScrollControl> New(

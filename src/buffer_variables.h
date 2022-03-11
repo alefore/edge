@@ -35,7 +35,6 @@ extern EdgeVariable<bool>* const scrollbar;
 extern EdgeVariable<bool>* const search_case_sensitive;
 extern EdgeVariable<bool>* const search_filter_buffer;
 extern EdgeVariable<bool>* const wrap_from_content;
-extern EdgeVariable<bool>* const wrap_long_lines;
 extern EdgeVariable<bool>* const extend_lines;
 extern EdgeVariable<bool>* const display_progress;
 extern EdgeVariable<bool>* const persist_state;

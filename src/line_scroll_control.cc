@@ -99,7 +99,7 @@ Range LineScrollControl::GetRange(LineColumn begin) {
 
   auto line = options_.buffer->LineAt(begin.line);
   if (options_.buffer->Read(buffer_variables::wrap_from_content) &&
-      begin.column > options_.initial_column) {
+      !begin.column.IsZero()) {
     LOG(INFO) << "Skipping spaces (from " << begin << ").";
     while (begin.column < line->EndColumn() &&
            line->get(begin.column) == L' ') {
@@ -108,8 +108,7 @@ Range LineScrollControl::GetRange(LineColumn begin) {
   }
 
   LineColumn end(begin.line, begin.column + options_.columns_shown);
-  if (end.column < options_.buffer->LineAt(end.line)->EndColumn() &&
-      options_.buffer->Read(buffer_variables::wrap_long_lines)) {
+  if (end.column < options_.buffer->LineAt(end.line)->EndColumn()) {
     if (options_.buffer->Read(buffer_variables::wrap_from_content)) {
       auto symbols = options_.buffer->Read(buffer_variables::symbol_characters);
       auto line = options_.buffer->LineAt(end.line);
@@ -130,7 +129,7 @@ Range LineScrollControl::GetRange(LineColumn begin) {
     return Range(begin, end);
   }
   end.line++;
-  end.column = options_.initial_column;
+  end.column = ColumnNumber();
   if (end.line > options_.buffer->EndLine()) {
     end = LineColumn::Max();
   }

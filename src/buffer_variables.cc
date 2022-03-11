@@ -297,17 +297,6 @@ EdgeVariable<bool>* const wrap_from_content =
             L"breaking words when feasible.")
         .Build();
 
-EdgeVariable<bool>* const wrap_long_lines =
-    BoolStruct()
-        ->Add()
-        .Name(L"wrap_long_lines")
-        .Key(L"W")
-        .Description(
-            L"If set to true, long lines will be wrapped (only for "
-            L"displaying). Otherwise, they get trimmed at the end.")
-        .DefaultValue(true)
-        .Build();
-
 EdgeVariable<bool>* const extend_lines =
     BoolStruct()
         ->Add()
@@ -583,8 +572,8 @@ EdgeVariable<int>* const line_width =
             L"Desired maximum width of a line. The syntax information, scroll "
             L"bar, and other relevant information (when available) will be "
             L"displayed after this number of characters. Lines will also be "
-            L"wrapped (see variables `wrap_from_content` and "
-            L"`wrap_long_lines`) based on this value. If set to 1, the value "
+            L"wrapped (see variable `wrap_from_content`) "
+            L"based on this value. If set to 1, the value "
             L"will be taken from the size of the screen (i.e., use as many "
             L"columns as are currently available.")
         .DefaultValue(80)

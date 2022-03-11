@@ -66,29 +66,6 @@ std::unique_ptr<OutputProducer> AddLeftFrame(
   return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
 }
 
-ColumnNumber GetCurrentColumn(OpenBuffer* buffer) {
-  if (buffer->lines_size() == LineNumberDelta(0)) {
-    return ColumnNumber(0);
-  } else if (buffer->position().line > buffer->EndLine()) {
-    return buffer->contents()->back()->EndColumn();
-  } else {
-    return min(buffer->position().column,
-               buffer->LineAt(buffer->position().line)->EndColumn());
-  }
-}
-
-ColumnNumber GetDesiredViewStartColumn(OpenBuffer* buffer,
-                                       ColumnNumberDelta effective_size) {
-  if (buffer->Read(buffer_variables::wrap_long_lines)) {
-    return ColumnNumber(0);
-  }
-  effective_size -=
-      min(effective_size,
-          /* GetInitialPrefixSize(*buffer) */ ColumnNumberDelta(3ul));
-  ColumnNumber column = GetCurrentColumn(buffer);
-  return column - min(column.ToDelta(), effective_size);
-}
-
 std::unique_ptr<OutputProducer> LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,
     std::shared_ptr<LineScrollControl> line_scroll_control,
@@ -381,10 +358,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
         (LineNumber(0) + buffer->lines_size()).MinusHandlingOverflow(size.line);
   }
 
-  output.view_start.column =
-      GetDesiredViewStartColumn(buffer.get(), size.column);
   line_scroll_control_options.begin = output.view_start;
-  line_scroll_control_options.initial_column = output.view_start.column;
 
   BufferRenderPlan plan = GetBufferRenderPlan(line_scroll_control_options,
                                               buffer->position(), status_lines);
