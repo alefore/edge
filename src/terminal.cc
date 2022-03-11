@@ -193,13 +193,13 @@ Terminal::LineDrawer Terminal::GetLineDrawer(
     // Each iteration will advance input_column and then print between start
     // and input_column.
     auto start = input_column;
-    while ((input_column < line_with_cursor.line->EndColumn() &&
-            output_column < ColumnNumber(0) + width &&
-            (!line_with_cursor.cursor.has_value() ||
-             input_column != line_with_cursor.cursor.value() ||
-             output.cursor == output_column) &&
-            (modifiers_it == line_with_cursor.line->modifiers().end() ||
-             modifiers_it->first > input_column))) {
+    while (input_column < line_with_cursor.line->EndColumn() &&
+           output_column < ColumnNumber(0) + width &&
+           (!line_with_cursor.cursor.has_value() ||
+            input_column != line_with_cursor.cursor.value() ||
+            output.cursor == output_column) &&
+           (modifiers_it == line_with_cursor.line->modifiers().end() ||
+            modifiers_it->first > input_column)) {
       output_column += ColumnNumberDelta(
           wcwidth(line_with_cursor.line->contents()->get(input_column)));
       ++input_column;
