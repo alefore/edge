@@ -363,10 +363,9 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   BufferRenderPlan plan = GetBufferRenderPlan(line_scroll_control_options,
                                               buffer->position(), status_lines);
   if (!buffer->Read(buffer_variables::multiple_cursors)) {
-    LineNumber capped_line =
-        std::min(buffer->position().line, LineNumber(0) + buffer->lines_size());
     LineNumberDelta lines_remaining =
-        buffer->lines_size() - capped_line.ToDelta();
+        buffer->EndLine() - buffer->AdjustLineColumn(buffer->position()).line;
+    CHECK_GE(lines_remaining, LineNumberDelta());
 
     LineNumberDelta effective_bottom_margin_lines =
         std::min(LineNumberDelta(plan.lines.size()),
