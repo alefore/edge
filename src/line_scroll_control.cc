@@ -185,7 +185,6 @@ const bool compute_end_of_column_tests_registration = tests::Register(
 }  // namespace
 
 Range LineScrollControl::GetRange(LineColumn begin) {
-  // TODO: This is wrong: it doesn't account for multi-width characters.
   // TODO: This is wrong: it doesn't take into account line filters.
   if (begin.line > options_.buffer->EndLine()) {
     return Range(begin, LineColumn::Max());
