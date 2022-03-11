@@ -25,6 +25,7 @@ class PathComponent {
   static PathComponent WithExtension(const PathComponent& path,
                                      const std::wstring& extension);
   const std::wstring& ToString() const;
+  size_t size() const;
 
   GHOST_TYPE_EQ(PathComponent, component_);
   GHOST_TYPE_LT(PathComponent, component_);
@@ -38,7 +39,7 @@ class PathComponent {
   friend class Path;
   explicit PathComponent(std::wstring component);
 
-  const std::wstring component_;
+  std::wstring component_;
 };
 
 class AbsolutePath;

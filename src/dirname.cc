@@ -65,6 +65,7 @@ const bool path_component_with_extension_tests_registration = tests::Register(
       }}});
 
 const std::wstring& PathComponent::ToString() const { return component_; }
+size_t PathComponent::size() const { return component_.size(); }
 
 std::optional<std::wstring> PathComponent::extension() const {
   auto index = component_.find_last_of(L".");
