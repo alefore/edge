@@ -30,6 +30,9 @@ class PathComponent {
   GHOST_TYPE_EQ(PathComponent, component_);
   GHOST_TYPE_LT(PathComponent, component_);
 
+  // Can fail for ".md".
+  ValueOrError<PathComponent> remove_extension() const;
+
   // "hey" => nullopt
   // "hey." => ""
   // "hey.xyz" => "xyz"

@@ -67,6 +67,47 @@ const bool path_component_with_extension_tests_registration = tests::Register(
 const std::wstring& PathComponent::ToString() const { return component_; }
 size_t PathComponent::size() const { return component_.size(); }
 
+ValueOrError<PathComponent> PathComponent::remove_extension() const {
+  auto index = component_.find_last_of(L".");
+  if (index == std::string::npos) {
+    return Success(*this);
+  }
+  return PathComponent::FromString(component_.substr(0, index));
+}
+
+const bool path_component_remove_extension_tests_registration = tests::Register(
+    L"PathComponentRemoveExtension",
+    {{.name = L"Absent",
+      .callback =
+          [] {
+            CHECK(PathComponent::FromString(L"foo")
+                      .value()
+                      .remove_extension()
+                      .value() == PathComponent::FromString(L"foo").value());
+          }},
+     {.name = L"hidden",
+      .callback =
+          [] {
+            CHECK(PathComponent::FromString(L".blah")
+                      .value()
+                      .remove_extension()
+                      .IsError());
+          }},
+     {.name = L"Empty",
+      .callback =
+          [] {
+            CHECK(PathComponent::FromString(L"foo.")
+                      .value()
+                      .remove_extension()
+                      .value() == PathComponent::FromString(L"foo").value());
+          }},
+     {.name = L"Present", .callback = [] {
+        CHECK(PathComponent::FromString(L"foo.md")
+                  .value()
+                  .remove_extension()
+                  .value() == PathComponent::FromString(L"foo").value());
+      }}});
+
 std::optional<std::wstring> PathComponent::extension() const {
   auto index = component_.find_last_of(L".");
   if (index == std::string::npos) {
