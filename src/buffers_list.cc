@@ -18,45 +18,230 @@
 
 namespace afc::editor {
 namespace {
-std::list<std::wstring> GetOutputComponents(
-    const std::wstring& name, ColumnNumberDelta columns_per_buffer) {
-  std::list<std::wstring> components;
-  if (!DirectorySplit(name, &components) || components.empty()) {
-    return {};
-  }
-  std::list<std::wstring> output;
-  output.push_front(components.back());
-  if (ColumnNumberDelta(output.front().size()) > columns_per_buffer) {
-    output.front() = output.front().substr(output.front().size() -
-                                           columns_per_buffer.column_delta);
-  } else {
-    size_t consumed = output.front().size();
-    components.pop_back();
+struct ProcessedPathComponent {
+  PathComponent path_component;
+  bool complete = true;
 
-    static const size_t kSizeOfSlash = 1;
-    while (!components.empty()) {
-      if (columns_per_buffer >
-          ColumnNumberDelta(components.size() * 2 + components.back().size() +
-                            consumed)) {
-        output.push_front(components.back());
-        consumed += components.back().size() + kSizeOfSlash;
-      } else if (columns_per_buffer >
-                 ColumnNumberDelta(1 + kSizeOfSlash + consumed)) {
-        output.push_front(std::wstring(1, components.back()[0]));
-        consumed += 1 + kSizeOfSlash;
-      } else {
-        break;
-      }
-      components.pop_back();
-    }
+  bool operator==(const ProcessedPathComponent& other) const {
+    return path_component == other.path_component && complete == other.complete;
   }
-  return output;
+};
+
+ValueOrError<std::list<ProcessedPathComponent>> GetOutputComponents(
+    const Path& path, ColumnNumberDelta columns_per_buffer) {
+  ASSIGN_OR_RETURN(std::list<PathComponent> components, path.DirectorySplit());
+  if (components.empty()) return Error(L"Empty components");
+
+  static const std::wstring kSlash = L"/";
+  static const ColumnNumberDelta kSlashSize(kSlash.size());
+  std::list<ProcessedPathComponent> output;
+
+  ColumnNumberDelta consumed;
+  int components_processed = 0;
+  for (auto it = components.rbegin();
+       it != components.rend() &&
+       (output.empty() || consumed + kSlashSize < columns_per_buffer);
+       ++it, ++components_processed) {
+    const size_t initial_size = it->size();
+    ColumnNumberDelta columns_allowed =
+        columns_per_buffer - consumed -
+        (output.empty() ? ColumnNumberDelta() : kSlashSize);
+    if (!output.empty() && std::next(it) != components.rend() &&
+        columns_allowed > ColumnNumberDelta(2)) {
+      columns_allowed = std::max(
+          ColumnNumberDelta(1),
+          columns_allowed - (ColumnNumberDelta(1) + kSlashSize) *
+                                (components.size() - components_processed - 1));
+    }
+    ASSIGN_OR_RETURN(
+        PathComponent next,
+        ColumnNumberDelta(it->size()) <= columns_allowed
+            ? Success(*it)
+            : PathComponent::FromString(
+                  output.empty()
+                      ? it->ToString().substr(it->size() -
+                                              columns_allowed.column_delta)
+                      : it->ToString().substr(0,
+                                              columns_allowed.column_delta)));
+    consumed +=
+        ColumnNumberDelta(next.size() + (output.empty() ? 0 : kSlash.size()));
+    CHECK_LE(consumed, columns_per_buffer);
+    bool complete = next.size() == initial_size;
+    output.push_front(
+        {.path_component = std::move(next), .complete = complete});
+  }
+
+  return Success(output);
 }
+
+const bool get_output_components_tests_registration = tests::Register(
+    L"GetOutputComponentsTests",
+    {{.name = L"SingleFits",
+      .callback =
+          [] {
+            CHECK(GetOutputComponents(Path::FromString(L"foo").value(),
+                                      ColumnNumberDelta(80))
+                      .value() ==
+                  std::list<ProcessedPathComponent>(
+                      {{.path_component =
+                            PathComponent::FromString(L"foo").value()}}));
+          }},
+     {.name = L"SingleTrim",
+      .callback =
+          [] {
+            CHECK(GetOutputComponents(Path::FromString(L"alejandro").value(),
+                                      ColumnNumberDelta(7))
+                      .value() ==
+                  std::list<ProcessedPathComponent>(
+                      {{.path_component =
+                            PathComponent::FromString(L"ejandro").value(),
+                        .complete = false}}));
+          }},
+     {.name = L"SingleFitsExactly",
+      .callback =
+          [] {
+            CHECK(GetOutputComponents(Path::FromString(L"alejandro").value(),
+                                      ColumnNumberDelta(9))
+                      .value() ==
+                  std::list<ProcessedPathComponent>(
+                      {{.path_component =
+                            PathComponent::FromString(L"alejandro").value()}}));
+          }},
+     {.name = L"MultipleFits",
+      .callback =
+          [] {
+            CHECK(GetOutputComponents(
+                      Path::FromString(L"alejandro/forero/cuervo").value(),
+                      ColumnNumberDelta(80))
+                      .value() ==
+                  std::list<ProcessedPathComponent>({
+                      {.path_component =
+                           PathComponent::FromString(L"alejandro").value()},
+                      {.path_component =
+                           PathComponent::FromString(L"forero").value()},
+                      {.path_component =
+                           PathComponent::FromString(L"cuervo").value()},
+                  }));
+          }},
+     {.name = L"MultipleFitsExactly",
+      .callback =
+          [] {
+            CHECK(GetOutputComponents(
+                      Path::FromString(L"alejandro/forero/cuervo").value(),
+                      ColumnNumberDelta(23))
+                      .value() ==
+                  std::list<ProcessedPathComponent>({
+                      {.path_component =
+                           PathComponent::FromString(L"alejandro").value()},
+                      {.path_component =
+                           PathComponent::FromString(L"forero").value()},
+                      {.path_component =
+                           PathComponent::FromString(L"cuervo").value()},
+                  }));
+          }},
+     {.name = L"MultipleTrimFirst",
+      .callback =
+          [] {
+            CHECK(GetOutputComponents(
+                      Path::FromString(L"alejandro/forero/cuervo").value(),
+                      ColumnNumberDelta(22))
+                      .value() ==
+                  std::list<ProcessedPathComponent>({
+                      {.path_component =
+                           PathComponent::FromString(L"alejandr").value(),
+                       .complete = false},
+                      {.path_component =
+                           PathComponent::FromString(L"forero").value()},
+                      {.path_component =
+                           PathComponent::FromString(L"cuervo").value()},
+                  }));
+          }},
+     {.name = L"MultipleTrimSignificant",
+      .callback =
+          [] {
+            CHECK(
+                GetOutputComponents(
+                    Path::FromString(L"alejandro/forero/cuervo").value(),
+                    ColumnNumberDelta((1 + 1) + (1 + 1) + 6))
+                    .value() ==
+                std::list<ProcessedPathComponent>({
+                    {.path_component = PathComponent::FromString(L"a").value(),
+                     .complete = false},
+                    {.path_component = PathComponent::FromString(L"f").value(),
+                     .complete = false},
+                    {.path_component =
+                         PathComponent::FromString(L"cuervo").value()},
+                }));
+          }},
+     {.name = L"MultipleTrimSpill",
+      .callback =
+          [] {
+            CHECK(
+                GetOutputComponents(
+                    Path::FromString(L"alejandro/forero/cuervo").value(),
+                    ColumnNumberDelta(2 + 1 + 6))
+                    .value() ==
+                std::list<ProcessedPathComponent>({
+                    {.path_component = PathComponent::FromString(L"fo").value(),
+                     .complete = false},
+                    {.path_component =
+                         PathComponent::FromString(L"cuervo").value()},
+                }));
+          }},
+     {.name = L"MultipleTrimToFirst",
+      .callback =
+          [] {
+            CHECK(GetOutputComponents(
+                      Path::FromString(L"alejandro/forero/cuervo").value(),
+                      ColumnNumberDelta(5))
+                      .value() ==
+                  std::list<ProcessedPathComponent>({
+                      {.path_component =
+                           PathComponent::FromString(L"uervo").value(),
+                       .complete = false},
+                  }));
+          }},
+     {.name = L"MultipleTrimExact",
+      .callback =
+          [] {
+            CHECK(GetOutputComponents(
+                      Path::FromString(L"alejandro/forero/cuervo").value(),
+                      ColumnNumberDelta(6))
+                      .value() ==
+                  std::list<ProcessedPathComponent>({
+                      {.path_component =
+                           PathComponent::FromString(L"cuervo").value()},
+                  }));
+          }},
+     {.name = L"MultipleTrimUnusedSpill",
+      .callback =
+          [] {
+            CHECK(GetOutputComponents(
+                      Path::FromString(L"alejandro/forero/cuervo").value(),
+                      ColumnNumberDelta(7))
+                      .value() ==
+                  std::list<ProcessedPathComponent>({
+                      {.path_component =
+                           PathComponent::FromString(L"cuervo").value()},
+                  }));
+          }},
+     {.name = L"MultipleTrimSmallSpill", .callback = [] {
+        CHECK(GetOutputComponents(
+                  Path::FromString(L"alejandro/forero/cuervo").value(),
+                  ColumnNumberDelta(8))
+                  .value() ==
+              std::list<ProcessedPathComponent>({
+                  {.path_component = PathComponent::FromString(L"f").value(),
+                   .complete = false},
+                  {.path_component =
+                       PathComponent::FromString(L"cuervo").value()},
+              }));
+      }}});
 
 // Converts the `std::vector` of `BuffersList::filter_` to an
 // `std::unordered_set` for faster access. For convenience, also takes care of
-// resolving the `weak_ptr` buffers to their actual addresses (skipping expired
-// buffers).
+// resolving the `weak_ptr` buffers to their actual addresses (skipping
+// expired buffers).
 std::optional<std::unordered_set<OpenBuffer*>> OptimizeFilter(
     const std::optional<std::vector<std::weak_ptr<OpenBuffer>>> input) {
   if (!input.has_value()) {
@@ -259,11 +444,13 @@ class BuffersListProducer : public OutputProducer {
         break;
     }
 
-    std::list<std::wstring> components;
+    std::list<ProcessedPathComponent> components;
     auto name = buffer.Read(buffer_variables::name);
 
     if (buffer.Read(buffer_variables::path) == name) {
-      components = GetOutputComponents(name, columns);
+      if (auto path = Path::FromString(name); !path.IsError()) {
+        components = GetOutputComponents(path.value(), columns).value_or({});
+      }
     }
     if (components.empty()) {
       std::shared_ptr<LazyString> output_name = NewLazyString(std::move(name));
@@ -279,19 +466,23 @@ class BuffersListProducer : public OutputProducer {
       return;
     }
 
+    std::wstring separator;
     for (auto it = components.begin(); it != components.end(); ++it) {
-      if (it != components.begin()) {
-        output->AppendCharacter(L'/', dim);
-      }
+      output->AppendString(separator, dim);
+      separator = it->complete ? L"/" : L"…";
       if (it != std::prev(components.end())) {
-        output->AppendString(NewLazyString(std::move(*it)), modifiers);
+        output->AppendString(
+            NewLazyString(std::move(it->path_component.ToString())), modifiers);
         continue;
       }
-      auto split = SplitExtension(*it);
-      output->AppendString(split.prefix, bold);
-      if (split.suffix.has_value()) {
-        output->AppendString(split.suffix->separator, dim);
-        output->AppendString(split.suffix->extension, bold);
+
+      PathComponent base =
+          it->path_component.remove_extension().value_or(it->path_component);
+      std::optional<std::wstring> extension = it->path_component.extension();
+      output->AppendString(base.ToString(), bold);
+      if (extension.has_value()) {
+        output->AppendString(L".", dim);
+        output->AppendString(extension.value(), bold);
       }
     }
   }
@@ -502,8 +693,8 @@ const bool buffers_per_line_tests_registration = tests::Register(
 
 std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
     Widget::OutputProducerOptions options) const {
-  auto layout = BuffersPerLine(options.size.line / 2, options.size.column,
-                               buffers_.size());
+  Layout layout = BuffersPerLine(options.size.line / 2, options.size.column,
+                                 buffers_.size());
   VLOG(1) << "Buffers list lines: " << layout.lines
           << ", size: " << buffers_.size()
           << ", size column: " << options.size.column;
