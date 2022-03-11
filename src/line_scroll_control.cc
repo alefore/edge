@@ -11,6 +11,8 @@
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
+#include "src/char_buffer.h"
+#include "src/tests/tests.h"
 #include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
@@ -90,6 +92,98 @@ void LineScrollControl::SignalReaderDone() {
   }
 }
 
+namespace {
+ColumnNumber ComputeEndOfColumn(LazyString& line,
+                                ColumnNumberDelta output_size) {
+  ColumnNumber output;
+  ColumnNumberDelta shown;
+  while (output.ToDelta() < line.size() && shown < output_size) {
+    shown += ColumnNumberDelta(std::max(1, wcwidth(line.get(output))));
+    if (shown <= output_size || output.IsZero()) ++output;
+  }
+  return output;
+}
+
+const bool compute_end_of_column_tests_registration = tests::Register(
+    L"ComputeEndOfColumn",
+    {{.name = L"EmptyAndZero",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*EmptyString(), ColumnNumberDelta())
+                      .IsZero());
+          }},
+     {.name = L"EmptyAndWants",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*EmptyString(), ColumnNumberDelta(80))
+                      .IsZero());
+          }},
+     {.name = L"NormalConsumed",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"alejandro"),
+                                     ColumnNumberDelta(80)) == ColumnNumber(9));
+          }},
+     {.name = L"NormalOverflow",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"alejandro"),
+                                     ColumnNumberDelta(6)) == ColumnNumber(6));
+          }},
+     {.name = L"SimpleWide",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"a🦋lejandro"),
+                                     ColumnNumberDelta(6)) == ColumnNumber(5));
+          }},
+     {.name = L"WideConsumed",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"a🦋o"),
+                                     ColumnNumberDelta(6)) == ColumnNumber(3));
+          }},
+     {.name = L"CharacterDoesNotFit",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"alejo🦋"),
+                                     ColumnNumberDelta(6)) == ColumnNumber(5));
+          }},
+     {.name = L"CharacterAtBorder",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"alejo🦋"),
+                                     ColumnNumberDelta(7)) == ColumnNumber(6));
+          }},
+     {.name = L"SingleWidthNormalCharacter",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"alejo🦋"),
+                                     ColumnNumberDelta(1)) == ColumnNumber(1));
+          }},
+     {.name = L"SingleWidthWide",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"🦋"),
+                                     ColumnNumberDelta(1)) == ColumnNumber(1));
+          }},
+     {.name = L"ManyWideOverflow",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"🦋🦋🦋🦋abcdef"),
+                                     ColumnNumberDelta(5)) == ColumnNumber(2));
+          }},
+     {.name = L"ManyWideOverflowAfter",
+      .callback =
+          [] {
+            CHECK(ComputeEndOfColumn(*NewLazyString(L"🦋🦋🦋🦋abcdef"),
+                                     ColumnNumberDelta(10)) == ColumnNumber(6));
+          }},
+     {.name = L"ManyWideOverflowExact", .callback = [] {
+        CHECK(ComputeEndOfColumn(*NewLazyString(L"🦋🦋🦋🦋abcdef"),
+                                 ColumnNumberDelta(4)) == ColumnNumber(2));
+      }}});
+}  // namespace
+
 Range LineScrollControl::GetRange(LineColumn begin) {
   // TODO: This is wrong: it doesn't account for multi-width characters.
   // TODO: This is wrong: it doesn't take into account line filters.
@@ -107,7 +201,15 @@ Range LineScrollControl::GetRange(LineColumn begin) {
     }
   }
 
-  LineColumn end(begin.line, begin.column + options_.columns_shown);
+  LineColumn end(
+      begin.line,
+      begin.column +
+          ComputeEndOfColumn(
+              *Substring(
+                  line->contents(),
+                  min(begin.column, ColumnNumber() + line->contents()->size())),
+              options_.columns_shown)
+              .ToDelta());
   if (end.column < options_.buffer->LineAt(end.line)->EndColumn()) {
     if (options_.buffer->Read(buffer_variables::wrap_from_content)) {
       auto symbols = options_.buffer->Read(buffer_variables::symbol_characters);

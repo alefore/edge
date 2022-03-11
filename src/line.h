@@ -165,11 +165,15 @@ class Line {
 
   struct OutputOptions {
     ColumnNumber initial_column;
+    // Total number of screen characters to consume. If the input has wide
+    // characters, they have to be taken into account (in other words, the
+    // number of characters consumed from the input may be smaller than the
+    // width).
     ColumnNumberDelta width;
-    std::optional<ColumnNumber> active_cursor_column;
-    std::set<ColumnNumber> inactive_cursor_columns;
-    LineModifierSet modifiers_main_cursor;
-    LineModifierSet modifiers_inactive_cursors;
+    std::optional<ColumnNumber> active_cursor_column = std::nullopt;
+    std::set<ColumnNumber> inactive_cursor_columns = {};
+    LineModifierSet modifiers_main_cursor = {};
+    LineModifierSet modifiers_inactive_cursors = {};
   };
   OutputProducer::LineWithCursor Output(const OutputOptions& options) const;
 

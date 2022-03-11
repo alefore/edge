@@ -43,9 +43,12 @@ OutputProducer::Generator VerticalSplitOutputProducer::Next() {
         Line::Options options;
         ColumnNumber initial_column;
         LineModifierSet current_modifiers;
+        // This takes wide characters into account (i.e., it may differ from
+        // options.EndColumn() when there are wide characters).
+        ColumnNumber columns_shown;
         for (size_t i = 0; i < delegates.size(); i++) {
           options.AppendString(ColumnNumberDelta::PaddingString(
-                                   initial_column - options.EndColumn(), L' '),
+                                   initial_column - columns_shown, L' '),
                                current_modifiers);
 
           LineWithCursor column_data = delegates[i].generate();
@@ -63,6 +66,9 @@ OutputProducer::Generator VerticalSplitOutputProducer::Next() {
           } else {
             i = delegates.size();  // Stop the iteration.
           }
+          auto str = column_data.line->ToString();
+          columns_shown +=
+              ColumnNumberDelta(std::max(0, wcswidth(str.c_str(), str.size())));
           options.Append(std::move(*column_data.line));
         }
         output.line = std::make_shared<Line>(std::move(options));
