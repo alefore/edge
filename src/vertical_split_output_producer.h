@@ -10,6 +10,7 @@
 namespace afc {
 namespace editor {
 
+// Create an OutputProducer that stitches together multiple columns.
 class VerticalSplitOutputProducer : public OutputProducer {
  public:
   struct Column {
