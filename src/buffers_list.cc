@@ -319,8 +319,7 @@ class BuffersListProducer : public OutputProducer {
             (options_.width -
              std::min(options_.width,
                       (prefix_width_ * options_.buffers_per_line))) /
-            options_.buffers_per_line),
-        buffers_iterator_(options_.buffers->cbegin()) {
+            options_.buffers_per_line) {
     VLOG(1) << "BuffersList created. Buffers per line: "
             << options_.buffers_per_line << ", prefix width: " << prefix_width_
             << ", count: " << options_.buffers->size();
@@ -339,8 +338,7 @@ class BuffersListProducer : public OutputProducer {
           for (size_t i = 0; i < options_.buffers_per_line &&
                              index + i < options_.buffers->size();
                i++) {
-            auto buffer = buffers_iterator_->get();
-            ++buffers_iterator_;
+            auto buffer = options_.buffers->at(index + i).get();
             auto number_prefix = std::to_wstring(index + i + 1);
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer_ + prefix_width_) * i;
@@ -491,7 +489,6 @@ class BuffersListProducer : public OutputProducer {
   const ColumnNumberDelta prefix_width_;
   const ColumnNumberDelta columns_per_buffer_;
 
-  std::vector<std::shared_ptr<OpenBuffer>>::const_iterator buffers_iterator_;
   size_t index_ = 0;
 };
 }  // namespace
