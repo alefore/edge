@@ -100,19 +100,8 @@ class AbsolutePath : public Path {
 std::ostream& operator<<(std::ostream& os, const PathComponent& p);
 std::ostream& operator<<(std::ostream& os, const Path& p);
 
-// TODO(easy): Remove these.
-bool DirectorySplit(std::wstring path, std::list<std::wstring>* output);
+// TODO(easy): Remove this:
 std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
-
-struct SplitExtensionOutput {
-  std::wstring prefix;  // "foo/bar.hey" => "foo/bar".
-  struct Suffix {
-    std::wstring separator;
-    std::wstring extension;
-  };
-  std::optional<Suffix> suffix;
-};
-SplitExtensionOutput SplitExtension(const std::wstring& path);
 
 // Wrapper around `opendir` that calls `closedir` in the deleter.
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);

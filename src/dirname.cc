@@ -394,22 +394,6 @@ std::ostream& operator<<(std::ostream& os, const PathComponent& p) {
   return os;
 }
 
-bool DirectorySplit(wstring path_str, list<wstring>* output) {
-  auto path = Path::FromString(path_str);
-  if (path.IsError()) {
-    return false;
-  }
-  auto components = path.value().DirectorySplit();
-  if (components.IsError()) {
-    return false;
-  }
-  output->clear();
-  for (auto& component : components.value()) {
-    output->push_back(component.ToString());
-  }
-  return true;
-}
-
 wstring PathJoin(const wstring& a, const wstring& b) {
   if (a.empty()) {
     return b;
@@ -419,16 +403,6 @@ wstring PathJoin(const wstring& a, const wstring& b) {
   }
   return Path::Join(Path::FromString(a).value(), Path::FromString(b).value())
       .ToString();
-}
-
-SplitExtensionOutput SplitExtension(const std::wstring& path) {
-  auto index = path.find_last_of(L".");
-  if (index == std::string::npos) {
-    return {path, std::nullopt};
-  }
-  return {path.substr(0, index),
-          SplitExtensionOutput::Suffix{path.substr(index, 1),
-                                       path.substr(index + 1)}};
 }
 
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path) {
