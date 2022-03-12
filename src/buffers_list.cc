@@ -28,8 +28,8 @@ struct ProcessedPathComponent {
 };
 
 ValueOrError<std::list<ProcessedPathComponent>> GetOutputComponents(
-    const Path& path, ColumnNumberDelta columns_per_buffer) {
-  ASSIGN_OR_RETURN(std::list<PathComponent> components, path.DirectorySplit());
+    const std::list<PathComponent>& components,
+    ColumnNumberDelta columns_per_buffer) {
   if (components.empty()) return Error(L"Empty components");
 
   static const std::wstring kSlash = L"/";
@@ -74,13 +74,19 @@ ValueOrError<std::list<ProcessedPathComponent>> GetOutputComponents(
   return Success(output);
 }
 
+ValueOrError<std::list<ProcessedPathComponent>> GetOutputComponentsForTesting(
+    std::wstring path, ColumnNumberDelta columns_per_buffer) {
+  ASSIGN_OR_RETURN(std::list<PathComponent> components,
+                   Path::FromString(path).value().DirectorySplit());
+  return GetOutputComponents(components, columns_per_buffer);
+}
+
 const bool get_output_components_tests_registration = tests::Register(
     L"GetOutputComponentsTests",
     {{.name = L"SingleFits",
       .callback =
           [] {
-            CHECK(GetOutputComponents(Path::FromString(L"foo").value(),
-                                      ColumnNumberDelta(80))
+            CHECK(GetOutputComponentsForTesting(L"foo", ColumnNumberDelta(80))
                       .value() ==
                   std::list<ProcessedPathComponent>(
                       {{.path_component =
@@ -89,8 +95,8 @@ const bool get_output_components_tests_registration = tests::Register(
      {.name = L"SingleTrim",
       .callback =
           [] {
-            CHECK(GetOutputComponents(Path::FromString(L"alejandro").value(),
-                                      ColumnNumberDelta(7))
+            CHECK(GetOutputComponentsForTesting(L"alejandro",
+                                                ColumnNumberDelta(7))
                       .value() ==
                   std::list<ProcessedPathComponent>(
                       {{.path_component =
@@ -100,8 +106,8 @@ const bool get_output_components_tests_registration = tests::Register(
      {.name = L"SingleFitsExactly",
       .callback =
           [] {
-            CHECK(GetOutputComponents(Path::FromString(L"alejandro").value(),
-                                      ColumnNumberDelta(9))
+            CHECK(GetOutputComponentsForTesting(L"alejandro",
+                                                ColumnNumberDelta(9))
                       .value() ==
                   std::list<ProcessedPathComponent>(
                       {{.path_component =
@@ -110,9 +116,8 @@ const bool get_output_components_tests_registration = tests::Register(
      {.name = L"MultipleFits",
       .callback =
           [] {
-            CHECK(GetOutputComponents(
-                      Path::FromString(L"alejandro/forero/cuervo").value(),
-                      ColumnNumberDelta(80))
+            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                ColumnNumberDelta(80))
                       .value() ==
                   std::list<ProcessedPathComponent>({
                       {.path_component =
@@ -126,9 +131,8 @@ const bool get_output_components_tests_registration = tests::Register(
      {.name = L"MultipleFitsExactly",
       .callback =
           [] {
-            CHECK(GetOutputComponents(
-                      Path::FromString(L"alejandro/forero/cuervo").value(),
-                      ColumnNumberDelta(23))
+            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                ColumnNumberDelta(23))
                       .value() ==
                   std::list<ProcessedPathComponent>({
                       {.path_component =
@@ -142,9 +146,8 @@ const bool get_output_components_tests_registration = tests::Register(
      {.name = L"MultipleTrimFirst",
       .callback =
           [] {
-            CHECK(GetOutputComponents(
-                      Path::FromString(L"alejandro/forero/cuervo").value(),
-                      ColumnNumberDelta(22))
+            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                ColumnNumberDelta(22))
                       .value() ==
                   std::list<ProcessedPathComponent>({
                       {.path_component =
@@ -160,8 +163,8 @@ const bool get_output_components_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(
-                GetOutputComponents(
-                    Path::FromString(L"alejandro/forero/cuervo").value(),
+                GetOutputComponentsForTesting(
+                    L"alejandro/forero/cuervo",
                     ColumnNumberDelta((1 + 1) + (1 + 1) + 6))
                     .value() ==
                 std::list<ProcessedPathComponent>({
@@ -177,9 +180,8 @@ const bool get_output_components_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(
-                GetOutputComponents(
-                    Path::FromString(L"alejandro/forero/cuervo").value(),
-                    ColumnNumberDelta(2 + 1 + 6))
+                GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                              ColumnNumberDelta(2 + 1 + 6))
                     .value() ==
                 std::list<ProcessedPathComponent>({
                     {.path_component = PathComponent::FromString(L"fo").value(),
@@ -191,9 +193,8 @@ const bool get_output_components_tests_registration = tests::Register(
      {.name = L"MultipleTrimToFirst",
       .callback =
           [] {
-            CHECK(GetOutputComponents(
-                      Path::FromString(L"alejandro/forero/cuervo").value(),
-                      ColumnNumberDelta(5))
+            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                ColumnNumberDelta(5))
                       .value() ==
                   std::list<ProcessedPathComponent>({
                       {.path_component =
@@ -204,9 +205,8 @@ const bool get_output_components_tests_registration = tests::Register(
      {.name = L"MultipleTrimExact",
       .callback =
           [] {
-            CHECK(GetOutputComponents(
-                      Path::FromString(L"alejandro/forero/cuervo").value(),
-                      ColumnNumberDelta(6))
+            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                ColumnNumberDelta(6))
                       .value() ==
                   std::list<ProcessedPathComponent>({
                       {.path_component =
@@ -216,9 +216,8 @@ const bool get_output_components_tests_registration = tests::Register(
      {.name = L"MultipleTrimUnusedSpill",
       .callback =
           [] {
-            CHECK(GetOutputComponents(
-                      Path::FromString(L"alejandro/forero/cuervo").value(),
-                      ColumnNumberDelta(7))
+            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                ColumnNumberDelta(7))
                       .value() ==
                   std::list<ProcessedPathComponent>({
                       {.path_component =
@@ -226,9 +225,8 @@ const bool get_output_components_tests_registration = tests::Register(
                   }));
           }},
      {.name = L"MultipleTrimSmallSpill", .callback = [] {
-        CHECK(GetOutputComponents(
-                  Path::FromString(L"alejandro/forero/cuervo").value(),
-                  ColumnNumberDelta(8))
+        CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                            ColumnNumberDelta(8))
                   .value() ==
               std::list<ProcessedPathComponent>({
                   {.path_component = PathComponent::FromString(L"f").value(),
@@ -309,6 +307,99 @@ LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
   return output;
 }
 
+std::vector<std::list<PathComponent>> RemoveCommonPrefixes(
+    std::vector<std::list<PathComponent>> output) {
+  std::list<PathComponent>* prefix_list = nullptr;
+  for (auto& entry : output)
+    if (!entry.empty()) prefix_list = &entry;
+  if (prefix_list == nullptr) return output;
+  while (true) {
+    // Verify that the first entry in prefix is a prefix of every entry.
+    PathComponent* prefix = &prefix_list->front();
+    for (std::list<PathComponent>& entry : output) {
+      if (entry.empty()) continue;
+      if (entry.front() != *prefix) return output;
+      if (entry.size() == 1) {
+        VLOG(5) << "RemoveCommonPrefixes giving up: Entry would become empty.";
+        return output;
+      }
+    }
+
+    // Remove the first entry from every item.
+    for (auto& entry : output)
+      if (!entry.empty()) entry.pop_front();
+  }
+  return output;
+}
+
+std::vector<std::wstring> RemoveCommonPrefixesForTesting(
+    std::vector<std::wstring> input) {
+  std::vector<std::list<PathComponent>> transformed;
+  for (auto& c : input) {
+    auto path = Path::FromString(c);
+    transformed.push_back(path.IsError()
+                              ? std::list<PathComponent>()
+                              : path.value().DirectorySplit().value());
+  }
+  std::vector<std::wstring> output;
+  for (auto& components : RemoveCommonPrefixes(transformed)) {
+    std::optional<Path> path;
+    for (auto& c : components)
+      path = path.has_value() ? Path::Join(*path, c) : c;
+    output.push_back(path.has_value() ? path->ToString() : L"");
+  }
+  return output;
+}
+
+const bool remove_common_prefixes_tests_registration =
+    tests::Register(L"RemoveCommonPrefixes", []() -> std::vector<tests::Test> {
+      const std::list<PathComponent> empty_list;
+      using Set = std::vector<std::wstring>;
+      return {
+          {.name = L"EmptyVector",
+           .callback = [] { CHECK(RemoveCommonPrefixes({}).empty()); }},
+          {.name = L"NonEmptyVectorEmptyLists",
+           .callback =
+               [&] {
+                 Set empty_paths = {L"", L"", L""};
+                 CHECK(RemoveCommonPrefixesForTesting(empty_paths) ==
+                       empty_paths);
+               }},
+          {.name = L"SingleVectorEmptyList",
+           .callback =
+               [] {
+                 Set empty_paths = {L""};
+                 CHECK(RemoveCommonPrefixesForTesting(empty_paths) ==
+                       empty_paths);
+               }},
+          {.name = L"NonEmptyVectorNoCommonPrefix",
+           .callback =
+               [&] {
+                 Set non_overlapping_paths = {L"a/b/c", L"a/b/c/d", L"z/x/y"};
+                 CHECK(RemoveCommonPrefixesForTesting(non_overlapping_paths) ==
+                       non_overlapping_paths);
+               }},
+          {.name = L"SomeOverlap",
+           .callback =
+               [&] {
+                 CHECK(RemoveCommonPrefixesForTesting(
+                           {L"a/b/c", L"", L"a/b/c/d/e", L"a/x/y"}) ==
+                       Set({L"b/c", L"", L"b/c/d/e", L"x/y"}));
+               }},
+          {.name = L"LargeOverlap",
+           .callback =
+               [&] {
+                 CHECK(RemoveCommonPrefixesForTesting(
+                           {L"a/b/c", L"", L"a/b/c/d/e", L"", L"a/b/y"}) ==
+                       Set({L"c", L"", L"c/d/e", L"", L"y"}));
+               }},
+          {.name = L"SomeOverlapButWouldLeaveEmpty", .callback = [&] {
+             CHECK(RemoveCommonPrefixesForTesting(
+                       {L"a/b/c", L"", L"a/b/c/d/e", L"a/x/y", L"a"}) ==
+                   Set({L"a/b/c", L"", L"a/b/c/d/e", L"a/x/y", L"a"}));
+           }}};
+    }());
+
 class BuffersListProducer : public OutputProducer {
  public:
   BuffersListProducer(BuffersListOptions options)
@@ -319,7 +410,37 @@ class BuffersListProducer : public OutputProducer {
             (options_.width -
              std::min(options_.width,
                       (prefix_width_ * options_.buffers_per_line))) /
-            options_.buffers_per_line) {
+            options_.buffers_per_line),
+        path_components_([&] {
+          std::vector<std::list<PathComponent>> paths;
+          for (const auto& buffer : *options_.buffers) {
+            auto path_str = buffer->Read(buffer_variables::path);
+            if (path_str != buffer->Read(buffer_variables::name)) {
+              paths.push_back({});
+              continue;
+            }
+            auto path = Path::FromString(path_str);
+            if (path.IsError()) {
+              paths.push_back({});
+              continue;
+            }
+            auto components = path.value().DirectorySplit();
+            if (components.IsError()) {
+              paths.push_back({});
+              continue;
+            }
+            paths.push_back(components.value());
+          }
+          std::vector<std::list<ProcessedPathComponent>> output;
+          for (const auto& path : RemoveCommonPrefixes(paths)) {
+            output.push_back(
+                path.empty() ? std::list<ProcessedPathComponent>({})
+                             : GetOutputComponents(path, columns_per_buffer_)
+                                   .value_or({}));
+          }
+          CHECK_EQ(output.size(), options_.buffers->size());
+          return output;
+        }()) {
     VLOG(1) << "BuffersList created. Buffers per line: "
             << options_.buffers_per_line << ", prefix width: " << prefix_width_
             << ", count: " << options_.buffers->size();
@@ -399,11 +520,11 @@ class BuffersListProducer : public OutputProducer {
                                       ? SelectionState::kReceivingInput
                                       : SelectionState::kIdle;
             }
-            AppendBufferPath(columns_per_buffer_, *buffer,
-                             buffer->dirty()
-                                 ? LineModifierSet{LineModifier::ITALIC}
-                                 : LineModifierSet{},
-                             selection_state, &output);
+            AppendBufferPath(
+                columns_per_buffer_, *buffer,
+                buffer->dirty() ? LineModifierSet{LineModifier::ITALIC}
+                                : LineModifierSet{},
+                selection_state, path_components_[index + i], &output);
           }
           return LineWithCursor{std::make_shared<Line>(std::move(output)),
                                 std::nullopt};
@@ -414,11 +535,11 @@ class BuffersListProducer : public OutputProducer {
 
  private:
   enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
-  static void AppendBufferPath(ColumnNumberDelta columns,
-                               const OpenBuffer& buffer,
-                               LineModifierSet modifiers,
-                               SelectionState selection_state,
-                               Line::Options* output) {
+  static void AppendBufferPath(
+      ColumnNumberDelta columns, const OpenBuffer& buffer,
+      LineModifierSet modifiers, SelectionState selection_state,
+      const std::list<ProcessedPathComponent>& components,
+      Line::Options* output) {
     std::optional<LineModifierSet> modifiers_override;
 
     LineModifierSet dim = modifiers;
@@ -442,14 +563,7 @@ class BuffersListProducer : public OutputProducer {
         break;
     }
 
-    std::list<ProcessedPathComponent> components;
     auto name = buffer.Read(buffer_variables::name);
-
-    if (buffer.Read(buffer_variables::path) == name) {
-      if (auto path = Path::FromString(name); !path.IsError()) {
-        components = GetOutputComponents(path.value(), columns).value_or({});
-      }
-    }
     if (components.empty()) {
       std::shared_ptr<LazyString> output_name = NewLazyString(std::move(name));
       if (output_name->size() > ColumnNumberDelta(2) &&
@@ -488,7 +602,8 @@ class BuffersListProducer : public OutputProducer {
   const BuffersListOptions options_;
   const ColumnNumberDelta prefix_width_;
   const ColumnNumberDelta columns_per_buffer_;
-
+  // Contains one element for each entry in options_.buffers.
+  const std::vector<std::list<ProcessedPathComponent>> path_components_;
   size_t index_ = 0;
 };
 }  // namespace
