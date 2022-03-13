@@ -17,10 +17,10 @@ ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
                                    LineWrapStyle line_wrap_style,
                                    std::wstring symbol_characters);
 
-std::vector<ColumnNumber> BreakLineForOutput(const Line& line,
-                                             ColumnNumberDelta screen_positions,
-                                             LineWrapStyle line_wrap_style,
-                                             std::wstring symbol_characters);
+std::list<ColumnNumber> BreakLineForOutput(const Line& line,
+                                           ColumnNumberDelta screen_positions,
+                                           LineWrapStyle line_wrap_style,
+                                           std::wstring symbol_characters);
 
 }  // namespace afc::editor
 

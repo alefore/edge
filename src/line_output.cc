@@ -161,11 +161,11 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-std::vector<ColumnNumber> BreakLineForOutput(const Line& line,
-                                             ColumnNumberDelta screen_positions,
-                                             LineWrapStyle line_wrap_style,
-                                             std::wstring symbol_characters) {
-  std::vector<ColumnNumber> output = {ColumnNumber{}};
+std::list<ColumnNumber> BreakLineForOutput(const Line& line,
+                                           ColumnNumberDelta screen_positions,
+                                           LineWrapStyle line_wrap_style,
+                                           std::wstring symbol_characters) {
+  std::list<ColumnNumber> output = {ColumnNumber{}};
   while (output.back() <= line.EndColumn()) {
     auto start = output.back();
     output.push_back(start + LineOutputLength(line, start, screen_positions,
