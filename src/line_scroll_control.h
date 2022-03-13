@@ -83,19 +83,20 @@ class LineScrollControl
   friend Reader;
   void SignalReaderDone();
 
-  std::list<ColumnRange> ComputeBreaks() const;
-
+  std::list<Range> ComputeRanges() const;
   Range range() const;
+  Range next_range() const;
+
+  bool CurrentRangeContainsPosition(LineColumn position) const;
 
   const Options options_;
   const std::map<LineNumber, std::set<ColumnNumber>> cursors_;
 
   std::vector<Reader*> readers_;
 
-  // The current range will always start and end at the line given by line_.
-  LineNumber line_;
-  // Should never be empty.
-  std::list<ColumnRange> line_breaks_;
+  // Contains one element for each (screen) line to show, with the corresponding
+  // range.
+  std::list<Range> ranges_;
 
   // Counts the number of readers that have switched to State::kDone since the
   // range was last updated.
