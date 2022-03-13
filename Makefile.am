@@ -98,6 +98,8 @@ src/lazy_string_trim.cc \
 src/lazy_string_trim.h \
 src/line.cc \
 src/line.h \
+src/line_output.cc \
+src/line_output.h \
 src/line_column.cc \
 src/line_marks.cc \
 src/line_modifier.cc \
