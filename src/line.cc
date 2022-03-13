@@ -342,10 +342,14 @@ OutputProducer::LineWithCursor Line::Output(
     line_output.modifiers[ColumnNumber()] = std::prev(modifiers_it)->second;
   }
 
+  const ColumnNumber input_end =
+      options.input_width != std::numeric_limits<ColumnNumberDelta>::max()
+          ? min(EndColumnWithLock(), input_column + options.input_width)
+          : EndColumnWithLock();
   // output_column contains the column in the screen. May not match
   // options.contents.size() if there are wide characters.
-  for (ColumnNumber output_column; input_column < EndColumnWithLock() &&
-                                   output_column.ToDelta() < options.width;
+  for (ColumnNumber output_column;
+       input_column < input_end && output_column.ToDelta() < options.width;
        ++input_column) {
     wint_t c = GetWithLock(input_column);
     CHECK(c != '\n');

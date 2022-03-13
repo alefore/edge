@@ -220,8 +220,12 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   output.generate = [output_producer_options = output_producer_options_,
                      line_contents, range, atomic_lines, multiple_cursors,
                      position, cursors, cursor_mode]() {
-    Line::OutputOptions options{.initial_column = range.begin.column,
-                                .width = output_producer_options.size.column};
+    Line::OutputOptions options{
+        .initial_column = range.begin.column,
+        .width = output_producer_options.size.column,
+        .input_width = range.begin.line == range.end.line
+                           ? range.end.column - range.begin.column
+                           : std::numeric_limits<ColumnNumberDelta>::max()};
 
     if (!atomic_lines) {
       std::set<ColumnNumber> current_cursors;

@@ -170,6 +170,10 @@ class Line {
     // number of characters consumed from the input may be smaller than the
     // width).
     ColumnNumberDelta width;
+    // Maximum number of characters in the input to consume. Even if more
+    // characters would fit in the output (per `width`), can stop outputting
+    // when this limit is reached.
+    ColumnNumberDelta input_width;
     std::optional<ColumnNumber> active_cursor_column = std::nullopt;
     std::set<ColumnNumber> inactive_cursor_columns = {};
     LineModifierSet modifiers_main_cursor = {};
