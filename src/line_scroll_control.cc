@@ -18,8 +18,7 @@
 #include "src/widget.h"
 #include "src/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 LineScrollControl::Reader::Reader(ConstructorAccessTag,
                                   std::shared_ptr<LineScrollControl> parent)
     : parent_(std::move(parent)) {
@@ -36,7 +35,8 @@ LineScrollControl::LineScrollControl(ConstructorAccessTag, Options options)
         }
         return cursors;
       }()),
-      range_(GetRange(options_.begin)) {}
+      line_(options_.begin.line),
+      line_breaks_(ComputeBreaks()) {}
 
 std::unique_ptr<LineScrollControl::Reader> LineScrollControl::NewReader() {
   auto output = std::make_unique<LineScrollControl::Reader>(
@@ -50,7 +50,7 @@ std::optional<Range> LineScrollControl::Reader::GetRange() const {
     case State::kDone:
       return std::nullopt;
     case State::kProcessing:
-      return parent_->range_;
+      return parent_->range();
   }
   LOG(FATAL) << "GetRange didn't handle all cases.";
   return std::nullopt;
@@ -58,23 +58,35 @@ std::optional<Range> LineScrollControl::Reader::GetRange() const {
 
 bool LineScrollControl::Reader::HasActiveCursor() const {
   CHECK(state_ == State::kProcessing);
-  return parent_->range_.Contains(parent_->options_.buffer->position());
+  return parent_->range().Contains(parent_->options_.buffer->position());
 }
 
 std::set<ColumnNumber> LineScrollControl::Reader::GetCurrentCursors() const {
   CHECK(state_ == State::kProcessing);
-  LineNumber line = parent_->range_.begin.line;
+  LineNumber line = parent_->range().begin.line;
   auto it = parent_->cursors_.find(line);
   if (it == parent_->cursors_.end()) {
     return {};
   }
   std::set<ColumnNumber> output;
   for (auto& column : it->second) {
-    if (parent_->range_.Contains(LineColumn(line, column))) {
+    if (parent_->range().Contains(LineColumn(line, column))) {
       output.insert(column);
     }
   }
   return output;
+}
+
+std::list<ColumnRange> LineScrollControl::ComputeBreaks() const {
+  if (line_ > options_.buffer->EndLine())
+    return std::list<ColumnRange>(
+        {{ColumnNumber(), std::numeric_limits<ColumnNumber>::max()}});
+  return BreakLineForOutput(
+      *options_.buffer->LineAt(line_), options_.columns_shown,
+      options_.buffer->Read(buffer_variables::wrap_from_content)
+          ? LineWrapStyle::kContentBased
+          : LineWrapStyle::kBreakWords,
+      options_.buffer->Read(buffer_variables::symbol_characters));
 }
 
 void LineScrollControl::SignalReaderDone() {
@@ -84,55 +96,27 @@ void LineScrollControl::SignalReaderDone() {
     return;
   }
   readers_done_ = 0;
-  VLOG(6) << "Advancing, finished range: " << range_;
-  range_ = GetRange(range_.end);
-  VLOG(7) << "Next range: " << range_;
+  VLOG(6) << "Advancing, finished range: " << range();
+  line_breaks_.pop_front();
+  if (line_breaks_.empty()) {
+    if (line_ <= options_.buffer->EndLine()) ++line_;
+    line_breaks_ = ComputeBreaks();
+    CHECK(!line_breaks_.empty());
+  }
+  VLOG(7) << "Next range: " << range();
 
   for (auto& c : readers_) {
     c->state_ = Reader::State::kProcessing;
   }
 }
 
-Range LineScrollControl::GetRange(LineColumn begin) {
-  // TODO: This is wrong: it doesn't take into account line filters.
-  if (begin.line > options_.buffer->EndLine()) {
+Range LineScrollControl::range() const {
+  CHECK(!line_breaks_.empty());
+  LineColumn begin(line_, line_breaks_.front().begin);
+  if (line_ > options_.buffer->EndLine()) {
     return Range(begin, LineColumn::Max());
   }
 
-  auto line = options_.buffer->LineAt(begin.line);
-  if (begin.column > line->EndColumn()) {
-    return Range(begin, LineColumn(begin.line,
-                                   std::numeric_limits<ColumnNumber>::max()));
-  }
-
-  if (options_.buffer->Read(buffer_variables::wrap_from_content) &&
-      !begin.column.IsZero()) {
-    LOG(INFO) << "Skipping spaces (from " << begin << ").";
-    while (begin.column < line->EndColumn() &&
-           line->get(begin.column) == L' ') {
-      begin.column++;
-    }
-  }
-
-  LineColumn end(
-      begin.line,
-      begin.column +
-          LineOutputLength(
-              *line, begin.column, options_.columns_shown,
-              options_.buffer->Read(buffer_variables::wrap_from_content)
-                  ? LineWrapStyle::kContentBased
-                  : LineWrapStyle::kBreakWords,
-              options_.buffer->Read(buffer_variables::symbol_characters)));
-  if (end.column < options_.buffer->LineAt(end.line)->EndColumn()) {
-    return Range(begin, end);
-  }
-  end.line++;
-  end.column = ColumnNumber();
-  if (end.line > options_.buffer->EndLine()) {
-    end = LineColumn::Max();
-  }
-  return Range(begin, end);
+  return Range(begin, LineColumn(line_, line_breaks_.front().end));
 }
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

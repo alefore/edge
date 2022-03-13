@@ -3,6 +3,7 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+namespace {
 ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
                                    ColumnNumberDelta screen_positions,
                                    LineWrapStyle line_wrap_style,
@@ -40,7 +41,6 @@ ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
   return output;
 }
 
-namespace {
 std::wstring symbol_characters_for_testing = L"abcdefghijklmnopqrstuvwxyz";
 
 const bool compute_column_delta_for_output_tests_registration = tests::Register(
@@ -161,21 +161,91 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-std::list<ColumnNumber> BreakLineForOutput(const Line& line,
-                                           ColumnNumberDelta screen_positions,
-                                           LineWrapStyle line_wrap_style,
-                                           std::wstring symbol_characters) {
-  std::list<ColumnNumber> output = {ColumnNumber{}};
-  while (output.back() <= line.EndColumn()) {
-    auto start = output.back();
-    output.push_back(start + LineOutputLength(line, start, screen_positions,
-                                              line_wrap_style,
-                                              symbol_characters));
-  }
-  if (output.size() > 1) {
-    CHECK_EQ(output.back(), line.EndColumn() + ColumnNumberDelta(1));
-    output.pop_back();
+std::list<ColumnRange> BreakLineForOutput(const Line& line,
+                                          ColumnNumberDelta screen_positions,
+                                          LineWrapStyle line_wrap_style,
+                                          std::wstring symbol_characters) {
+  std::list<ColumnRange> output;
+  ColumnNumber start;
+  while (output.empty() || start < line.EndColumn()) {
+    VLOG(4) << "Start at: " << start;
+    output.push_back(
+        {.begin = start,
+         .end = start + LineOutputLength(line, start, screen_positions,
+                                         line_wrap_style, symbol_characters)});
+    start = output.back().end;
+    VLOG(5) << "End: " << start;
+    switch (line_wrap_style) {
+      case LineWrapStyle::kBreakWords:
+        break;
+      case LineWrapStyle::kContentBased:
+        VLOG(5) << "Skipping spaces (from " << start << ").";
+        while (start < line.EndColumn() && line.get(start) == L' ') {
+          ++start;
+        }
+    }
   }
   return output;
+}
+
+namespace {
+const bool break_line_for_output_tests_registration = tests::Register(
+    L"BreakLineForOutput",
+    {{.name = L"Empty",
+      .callback =
+          [] {
+            CHECK(BreakLineForOutput({}, ColumnNumberDelta(10),
+                                     LineWrapStyle::kBreakWords, L"") ==
+                  std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(0)}}));
+          }},
+     {.name = L"Fits",
+      .callback =
+          [] {
+            CHECK(BreakLineForOutput(Line(L"foo"), ColumnNumberDelta(10),
+                                     LineWrapStyle::kBreakWords, L"") ==
+                  std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(3)}}));
+          }},
+     {.name = L"FitsExactly",
+      .callback =
+          [] {
+            CHECK(BreakLineForOutput(Line(L"foobar"), ColumnNumberDelta(6),
+                                     LineWrapStyle::kBreakWords, L"") ==
+                  std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(6)}}));
+          }},
+     {.name = L"Breaks",
+      .callback =
+          [] {
+            CHECK(BreakLineForOutput(Line(L"foobarheyyou"),
+                                     ColumnNumberDelta(3),
+                                     LineWrapStyle::kBreakWords, L"") ==
+                  std::list<ColumnRange>({
+                      {ColumnNumber(0), ColumnNumber(3)},
+                      {ColumnNumber(3), ColumnNumber(6)},
+                      {ColumnNumber(6), ColumnNumber(9)},
+                      {ColumnNumber(9), ColumnNumber(12)},
+                  }));
+          }},
+     {.name = L"BreaksContentBased",
+      .callback =
+          [] {
+            CHECK(BreakLineForOutput(Line(L"foo bar hey"), ColumnNumberDelta(5),
+                                     LineWrapStyle::kContentBased,
+                                     symbol_characters_for_testing) ==
+                  std::list<ColumnRange>({
+                      {ColumnNumber(0), ColumnNumber(4)},
+                      {ColumnNumber(4), ColumnNumber(8)},
+                      {ColumnNumber(8), ColumnNumber(11)},
+                  }));
+          }},
+     {.name = L"BreaksMultipleSpaces", .callback = [] {
+        CHECK(BreakLineForOutput(Line(L"foo     bar hey"), ColumnNumberDelta(5),
+                                 LineWrapStyle::kContentBased,
+                                 symbol_characters_for_testing) ==
+              std::list<ColumnRange>({
+                  {ColumnNumber(0), ColumnNumber(5)},
+                  {ColumnNumber(8), ColumnNumber(12)},
+                  {ColumnNumber(12), ColumnNumber(15)},
+              }));
+      }}});
 }
 }  // namespace afc::editor

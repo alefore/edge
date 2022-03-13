@@ -7,20 +7,21 @@
 
 namespace afc::editor {
 enum class LineWrapStyle { kBreakWords, kContentBased };
-// If the line is printed to the screen starting at its position `begin` and the
-// screen can hold up to `screen_positions` characters, how many characters
-// should be consumed from the input?
-//
-// Takes into account double-width characters.
-ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
-                                   ColumnNumberDelta screen_positions,
-                                   LineWrapStyle line_wrap_style,
-                                   std::wstring symbol_characters);
+struct ColumnRange {
+  ColumnNumber begin;
+  ColumnNumber end;
 
-std::list<ColumnNumber> BreakLineForOutput(const Line& line,
-                                           ColumnNumberDelta screen_positions,
-                                           LineWrapStyle line_wrap_style,
-                                           std::wstring symbol_characters);
+  bool operator==(const ColumnRange& other) const {
+    return begin == other.begin && end == other.end;
+  }
+};
+
+// Breaks `line` into separate ranges to be printed without overflowing a
+// desired screein width, taking into account double-width characters.
+std::list<ColumnRange> BreakLineForOutput(const Line& line,
+                                          ColumnNumberDelta screen_positions,
+                                          LineWrapStyle line_wrap_style,
+                                          std::wstring symbol_characters);
 
 }  // namespace afc::editor
 

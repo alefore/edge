@@ -7,6 +7,7 @@
 #include <optional>
 #include <set>
 
+#include "src/line_output.h"
 #include "src/output_producer.h"
 #include "src/widget.h"
 
@@ -82,14 +83,19 @@ class LineScrollControl
   friend Reader;
   void SignalReaderDone();
 
-  Range GetRange(LineColumn begin);
+  std::list<ColumnRange> ComputeBreaks() const;
+
+  Range range() const;
 
   const Options options_;
   const std::map<LineNumber, std::set<ColumnNumber>> cursors_;
 
   std::vector<Reader*> readers_;
 
-  Range range_;
+  // The current range will always start and end at the line given by line_.
+  LineNumber line_;
+  // Should never be empty.
+  std::list<ColumnRange> line_breaks_;
 
   // Counts the number of readers that have switched to State::kDone since the
   // range was last updated.
