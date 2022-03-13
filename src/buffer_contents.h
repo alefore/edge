@@ -37,6 +37,7 @@ class BufferContents : public fuzz::FuzzTestable {
 
   LineNumberDelta size() const { return LineNumberDelta(Lines::Size(lines_)); }
 
+  // The last valid line (which can be fed to `at`).
   LineNumber EndLine() const;
   Range range() const;
 
