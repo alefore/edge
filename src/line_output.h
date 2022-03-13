@@ -6,16 +6,21 @@
 #include "src/line.h"
 
 namespace afc::editor {
+enum class LineWrapStyle { kBreakWords, kContentBased };
 // If the line is printed to the screen starting at its position `begin` and the
 // screen can hold up to `screen_positions` characters, how many characters
 // should be consumed from the input?
 //
 // Takes into account double-width characters.
 ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
-                                   ColumnNumberDelta screen_positions);
+                                   ColumnNumberDelta screen_positions,
+                                   LineWrapStyle line_wrap_style,
+                                   std::wstring symbol_characters);
 
-std::vector<ColumnNumber> BreakLineForOutput(
-    const Line& line, ColumnNumberDelta screen_positions);
+std::vector<ColumnNumber> BreakLineForOutput(const Line& line,
+                                             ColumnNumberDelta screen_positions,
+                                             LineWrapStyle line_wrap_style,
+                                             std::wstring symbol_characters);
 
 }  // namespace afc::editor
 

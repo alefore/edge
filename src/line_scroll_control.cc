@@ -114,27 +114,16 @@ Range LineScrollControl::GetRange(LineColumn begin) {
     }
   }
 
-  LineColumn end(begin.line,
-                 begin.column + LineOutputLength(*line, begin.column,
-                                                 options_.columns_shown));
+  LineColumn end(
+      begin.line,
+      begin.column +
+          LineOutputLength(
+              *line, begin.column, options_.columns_shown,
+              options_.buffer->Read(buffer_variables::wrap_from_content)
+                  ? LineWrapStyle::kContentBased
+                  : LineWrapStyle::kBreakWords,
+              options_.buffer->Read(buffer_variables::symbol_characters)));
   if (end.column < options_.buffer->LineAt(end.line)->EndColumn()) {
-    if (options_.buffer->Read(buffer_variables::wrap_from_content)) {
-      auto symbols = options_.buffer->Read(buffer_variables::symbol_characters);
-      auto line = options_.buffer->LineAt(end.line);
-      auto read = [&](ColumnNumber column) { return line->get(column); };
-      bool moved = false;
-      while (end > begin && symbols.find(read(end.column)) != symbols.npos) {
-        --end.column;
-        moved = true;
-      }
-      if (moved) {
-        ++end.column;
-      }
-      if (end.column <= begin.column + ColumnNumberDelta(1)) {
-        LOG(INFO) << "Giving up, line exceeds width.";
-        end.column = begin.column + options_.columns_shown;
-      }
-    }
     return Range(begin, end);
   }
   end.line++;
