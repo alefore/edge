@@ -100,4 +100,18 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
                                ColumnNumberDelta(4)) == ColumnNumberDelta(2));
       }}});
 }  // namespace
+
+std::vector<ColumnNumber> BreakLineForOutput(
+    const Line& line, ColumnNumberDelta screen_positions) {
+  std::vector<ColumnNumber> output = {ColumnNumber{}};
+  while (output.back() <= line.EndColumn()) {
+    auto start = output.back();
+    output.push_back(start + LineOutputLength(line, start, screen_positions));
+  }
+  if (output.size() > 1) {
+    CHECK_EQ(output.back(), line.EndColumn() + ColumnNumberDelta(1));
+    output.pop_back();
+  }
+  return output;
+}
 }  // namespace afc::editor

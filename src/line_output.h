@@ -13,6 +13,10 @@ namespace afc::editor {
 // Takes into account double-width characters.
 ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
                                    ColumnNumberDelta screen_positions);
+
+std::vector<ColumnNumber> BreakLineForOutput(
+    const Line& line, ColumnNumberDelta screen_positions);
+
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_LINE_OUTPUT_H__
