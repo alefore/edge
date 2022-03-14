@@ -18,9 +18,7 @@ ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
     case LineWrapStyle::kBreakWords:
       break;
     case LineWrapStyle::kContentBased:
-      VLOG(8) << "Content based: rewinding, start at: " << output;
       if (begin + output >= line.EndColumn()) {
-        VLOG(5) << "Consumed the entire line, no need to wrap.";
         break;
       }
       const ColumnNumberDelta original_output = output;
@@ -29,15 +27,11 @@ ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
                  symbol_characters.npos)
         --output;  // Scroll back: we're in a symbol.
       if (output <= ColumnNumberDelta(1)) {
-        LOG(INFO) << "Giving up, line too short.";
         output = original_output;
       } else if (output != original_output) {
         ++output;
-        VLOG(8) << "Content based: advance to beginning of the next symbol: "
-                << output;
       }
   }
-  VLOG(10) << "Wrap at: " << output;
   return output;
 }
 
@@ -168,18 +162,15 @@ std::list<ColumnRange> BreakLineForOutput(const Line& line,
   std::list<ColumnRange> output;
   ColumnNumber start;
   while (output.empty() || start < line.EndColumn()) {
-    VLOG(4) << "Start at: " << start;
     output.push_back(
         {.begin = start,
          .end = start + LineOutputLength(line, start, screen_positions,
                                          line_wrap_style, symbol_characters)});
     start = output.back().end;
-    VLOG(5) << "End: " << start;
     switch (line_wrap_style) {
       case LineWrapStyle::kBreakWords:
         break;
       case LineWrapStyle::kContentBased:
-        VLOG(5) << "Skipping spaces (from " << start << ").";
         while (start < line.EndColumn() && line.get(start) == L' ') {
           ++start;
         }
