@@ -30,6 +30,10 @@ class LineScrollControl
 
     // Initial position in the buffer where output will begin.
     LineColumn begin;
+
+    // Number of lines above the buffer->position() that should be shown.
+    // Ignored if less than lines_shown / 2, ignored.
+    LineNumberDelta margin_lines;
   };
 
   static std::shared_ptr<LineScrollControl> New(
@@ -83,6 +87,10 @@ class LineScrollControl
   friend Reader;
   void SignalReaderDone();
 
+  std::list<ColumnRange> ComputeBreaks(LineNumber line) const;
+  std::list<Range> PrependLines(LineNumber line, LineNumberDelta lines_desired,
+                                std::list<Range> output) const;
+  std::list<Range> AdjustToHonorMargin(std::list<Range> output) const;
   std::list<Range> ComputeRanges() const;
   Range range() const;
   Range next_range() const;

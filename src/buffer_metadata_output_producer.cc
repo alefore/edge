@@ -322,7 +322,7 @@ wchar_t BufferMetadataOutputProducer::ComputeScrollBarCharacter(
   // Each line is split into two units (upper and bottom halves). All units in
   // this function are halves (of a line).
   DCHECK_GE(line, initial_line_.value());
-  DCHECK_LT(line - initial_line_.value(), lines_shown_)
+  DCHECK_LE(line - initial_line_.value(), lines_shown_)
       << "Line is " << line << " and view_start is " << initial_line_.value()
       << ", which exceeds lines_shown_ of " << lines_shown_;
   DCHECK_LT(initial_line_.value(), LineNumber(0) + lines_size);

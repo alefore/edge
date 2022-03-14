@@ -260,13 +260,11 @@ BufferRenderPlan GetBufferRenderPlan(
        LineNumberDelta(output.lines.size()) <
            line_scroll_control_options.lines_shown &&
        scroll_reader->GetRange().has_value();
-       scroll_reader->RangeDone())
+       scroll_reader->RangeDone()) {
     output.lines.push_back(scroll_reader->GetRange().value());
-
-  // Initialize output.cursor_index:
-  for (size_t i = 0;
-       i < output.lines.size() && !output.cursor_index.has_value(); ++i)
-    if (output.lines[i].end >= position) output.cursor_index = i;
+    if (scroll_reader->HasActiveCursor() && !output.cursor_index.has_value())
+      output.cursor_index = output.lines.size();
+  }
 
   // Initialize output.status_position:
   if (output.cursor_index.value_or(0) > 3 * output.lines.size() / 5)
@@ -297,7 +295,6 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   }
 
   auto size = input.output_producer_options.size;
-
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
 
@@ -327,7 +324,6 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
         min(line_scroll_control_options.columns_shown, w);
   }
 
-  LineNumber line = min(buffer->position().line, buffer->EndLine());
   LineNumberDelta margin_lines =
       buffer->Read(buffer_variables::pts)
           ? LineNumberDelta(0)
@@ -339,48 +335,15 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                             buffer->Read(buffer_variables::margin_lines)),
                         LineNumberDelta(0))));
   CHECK_GE(margin_lines, LineNumberDelta(0));
-
-  if (output.view_start.line + min(margin_lines, line.ToDelta()) > line &&
-      (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
-    output.view_start.line = line - min(margin_lines, line.ToDelta());
-  } else if (output.view_start.line + size.line <=
-             min(LineNumber(0) + buffer->lines_size(), line + margin_lines)) {
-    CHECK_GT(buffer->lines_size(), LineNumberDelta(0));
-    auto view_end_line =
-        min(LineNumber(0) + buffer->lines_size() - LineNumberDelta(1),
-            line + margin_lines);
-    output.view_start.line =
-        view_end_line + LineNumberDelta(1) -
-        min(size.line, view_end_line.ToDelta() + LineNumberDelta(1));
-  } else if (output.view_start.line + size.line >
-             LineNumber(0) + buffer->lines_size()) {
-    output.view_start.line =
-        (LineNumber(0) + buffer->lines_size()).MinusHandlingOverflow(size.line);
+  if (buffer->child_pid() != -1 || buffer->fd() == nullptr) {
+    line_scroll_control_options.margin_lines = margin_lines;
   }
 
   line_scroll_control_options.begin = output.view_start;
 
   BufferRenderPlan plan = GetBufferRenderPlan(line_scroll_control_options,
                                               buffer->position(), status_lines);
-  if (!buffer->Read(buffer_variables::multiple_cursors)) {
-    LineNumberDelta lines_remaining =
-        buffer->EndLine() - buffer->AdjustLineColumn(buffer->position()).line;
-    CHECK_GE(lines_remaining, LineNumberDelta());
-
-    LineNumberDelta effective_bottom_margin_lines =
-        std::min(LineNumberDelta(plan.lines.size()),
-                 std::min(margin_lines, lines_remaining));
-    if (plan.cursor_index.has_value() &&
-        LineNumber(*plan.cursor_index) + effective_bottom_margin_lines >
-            LineNumber(0) + LineNumberDelta(plan.lines.size())) {
-      // No need to adjust line_scroll_control_options.initial_column, since
-      // that controls where continuation lines begin.
-      output.view_start =
-          plan.lines[effective_bottom_margin_lines.line_delta - 1].begin;
-      line_scroll_control_options.begin = output.view_start;
-    }
-  }
-
+  output.view_start = plan.lines[0].begin;
   input.output_producer_options.size =
       LineColumnDelta(LineNumberDelta(plan.lines.size()),
                       line_scroll_control_options.columns_shown);
