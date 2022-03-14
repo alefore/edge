@@ -197,10 +197,10 @@ const StatusPromptExtraInformation* Status::prompt_extra_information() const {
 
 void Status::SetInformationText(std::wstring text) {
   ValidatePreconditions();
+  LOG(INFO) << "SetInformationText: " << text;
   if (data_->prompt_buffer != nullptr) {
     return;
   }
-  LOG(INFO) << "SetInformationText: " << text;
   data_ = std::make_shared<Data>(
       Data{.type = Type::kInformation, .text = std::move(text)});
   ValidatePreconditions();
