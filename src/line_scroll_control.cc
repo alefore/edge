@@ -223,12 +223,12 @@ std::list<Range> LineScrollControl::AdjustToHonorMargin(
                              : options_.begin.line;
        lines_desired() > LineNumberDelta(); --line) {
     LineNumberDelta original_length(output.size());
-    output = PrependLines(line, lines_desired(), std::move(output));
+    auto lines_to_insert = lines_desired();
+    output = PrependLines(line, lines_to_insert, std::move(output));
     CHECK_GE(LineNumberDelta(output.size()), original_length);
     position_line += LineNumberDelta(output.size()) - original_length;
     if (line.IsZero()) break;
   }
-
   return output;
 }
 
