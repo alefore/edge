@@ -250,7 +250,7 @@ struct BufferRenderPlan {
 };
 
 BufferRenderPlan GetBufferRenderPlan(
-    LineScrollControl::Options line_scroll_control_options, LineColumn position,
+    LineScrollControl::Options line_scroll_control_options,
     LineNumberDelta status_lines) {
   BufferRenderPlan output;
 
@@ -310,39 +310,45 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
-  LineScrollControl::Options line_scroll_control_options;
-  line_scroll_control_options.buffer = buffer;
-  line_scroll_control_options.lines_shown = size.line;
-  line_scroll_control_options.columns_shown =
-      size.column -
-      (paste_mode
-           ? ColumnNumberDelta(0)
-           : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
+  LineScrollControl::Options line_scroll_control_options{
+      .contents = buffer->contents()->copy(),
+      .active_position = buffer->position(),
+      .active_cursors = buffer->active_cursors(),
+      .line_wrap_style = buffer->Read(buffer_variables::wrap_from_content)
+                             ? LineWrapStyle::kContentBased
+                             : LineWrapStyle::kBreakWords,
+      .symbol_characters = buffer->Read(buffer_variables::symbol_characters),
+      .lines_shown = size.line,
+      .columns_shown =
+          size.column - (paste_mode ? ColumnNumberDelta(0)
+                                    : LineNumberOutputProducer::PrefixWidth(
+                                          buffer->lines_size())),
+      .begin = output.view_start,
+      .margin_lines =
+          (buffer->child_pid() == -1 && buffer->fd() != nullptr)
+              ? LineNumberDelta()
+              : (buffer->Read(buffer_variables::pts)
+                     ? LineNumberDelta(0)
+                     : min(max(size.line / 2 - LineNumberDelta(1),
+                               LineNumberDelta(0)),
+                           max(LineNumberDelta(ceil(
+                                   buffer->Read(
+                                       buffer_variables::margin_lines_ratio) *
+                                   size.line.line_delta)),
+                               max(LineNumberDelta(buffer->Read(
+                                       buffer_variables::margin_lines)),
+                                   LineNumberDelta(0)))))};
+
   if (auto w = ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
       !buffer->Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
     line_scroll_control_options.columns_shown =
         min(line_scroll_control_options.columns_shown, w);
   }
 
-  LineNumberDelta margin_lines =
-      buffer->Read(buffer_variables::pts)
-          ? LineNumberDelta(0)
-          : min(max(size.line / 2 - LineNumberDelta(1), LineNumberDelta(0)),
-                max(LineNumberDelta(ceil(
-                        buffer->Read(buffer_variables::margin_lines_ratio) *
-                        size.line.line_delta)),
-                    max(LineNumberDelta(
-                            buffer->Read(buffer_variables::margin_lines)),
-                        LineNumberDelta(0))));
-  CHECK_GE(margin_lines, LineNumberDelta(0));
-  if (buffer->child_pid() != -1 || buffer->fd() == nullptr) {
-    line_scroll_control_options.margin_lines = margin_lines;
-  }
+  CHECK_GE(line_scroll_control_options.margin_lines, LineNumberDelta(0));
 
-  line_scroll_control_options.begin = output.view_start;
-
-  BufferRenderPlan plan = GetBufferRenderPlan(line_scroll_control_options,
-                                              buffer->position(), status_lines);
+  BufferRenderPlan plan =
+      GetBufferRenderPlan(line_scroll_control_options, status_lines);
   output.view_start = plan.lines[0].begin;
   input.output_producer_options.size =
       LineColumnDelta(LineNumberDelta(plan.lines.size()),

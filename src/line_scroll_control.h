@@ -20,7 +20,13 @@ class LineScrollControl
 
  public:
   struct Options {
-    std::shared_ptr<OpenBuffer> buffer;
+    std::shared_ptr<BufferContents> contents;
+
+    LineColumn active_position;
+    CursorsSet* active_cursors;
+
+    LineWrapStyle line_wrap_style;
+    std::wstring symbol_characters;
 
     // Total number of lines in the output.
     LineNumberDelta lines_shown;
