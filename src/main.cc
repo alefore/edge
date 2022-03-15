@@ -453,8 +453,14 @@ int main(int argc, const char** argv) {
               EditorState::TerminationType::kIgnoringErrors, 0);
         } else {
           CHECK(screen_curses != nullptr);
+          std::vector<wint_t> input;
+          input.reserve(10);
           wint_t c;
-          while ((c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
+          while (input.size() < 1024 &&
+                 (c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
+            input.push_back(c);
+          }
+          for (auto& c : input) {
             if (remote_server_fd == -1) {
               editor_state()->ProcessInput(c);
             } else {
