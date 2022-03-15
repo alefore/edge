@@ -185,7 +185,8 @@ std::list<Range> LineScrollControl::PrependLines(
   std::list<ColumnRange> line_breaks = ComputeBreaks(line);
   if (line == output.front().begin.line) {
     line_breaks.remove_if([&](const ColumnRange& r) {
-      return r.end > output.front().begin.column;
+      return r.end > output.front().begin.column ||
+             r.begin >= output.front().begin.column;
     });
   }
   std::list<Range> ranges_to_insert;
@@ -241,8 +242,9 @@ std::list<Range> LineScrollControl::ComputeRanges() const {
     if (line == options_.begin.line) {
       while (!line_breaks.empty() &&
              line_breaks.front().end <= options_.begin.column &&
-             !line_breaks.front().end.IsZero())
+             !line_breaks.front().end.IsZero()) {
         line_breaks.pop_front();
+      }
     }
     while (LineNumberDelta(output.size()) < options_.lines_shown &&
            !line_breaks.empty()) {
@@ -265,9 +267,9 @@ std::list<Range> LineScrollControl::ComputeRanges() const {
   if (!output.empty()) output = AdjustToHonorMargin(std::move(output));
 
   while (LineNumberDelta(output.size()) < options_.lines_shown) {
-    output.push_back(
-        Range(LineColumn(options_.contents->EndLine() + LineNumberDelta(1)),
-              std::numeric_limits<LineColumn>::max()));
+    output.push_back(Range::InLine(
+        LineNumber(options_.contents->EndLine() + LineNumberDelta(1)),
+        ColumnNumber(0), ColumnNumberDelta(0)));
   }
 
   return output;
@@ -317,4 +319,243 @@ bool LineScrollControl::CurrentRangeContainsPosition(
   return Range(range().begin, next_range().begin).Contains(position);
 }
 
+namespace {
+const bool line_scroll_control_tests_registration =
+    tests::Register(L"LineScrollControl", [] {
+      auto get_ranges = [](LineScrollControl::Options options) {
+        std::vector<Range> output;
+        auto reader = LineScrollControl::New(options)->NewReader();
+        for (LineNumberDelta i; i < options.lines_shown; ++i) {
+          output.push_back(reader->GetRange().value());
+          reader->RangeDone();
+        }
+        return output;
+      };
+      auto get_active_cursors = [](LineScrollControl::Options options) {
+        std::vector<LineNumber> output;
+        auto reader = LineScrollControl::New(options)->NewReader();
+        for (LineNumber i; i.ToDelta() < options.lines_shown; ++i) {
+          if (reader->HasActiveCursor()) {
+            output.push_back(i);
+            VLOG(3) << "Found active cursor at line: " << i;
+          }
+          reader->RangeDone();
+        }
+        return output;
+      };
+      auto new_test = [](std::wstring name, auto callback) {
+        return tests::Test(
+            {.name = name, .callback = [callback] {
+               auto contents = std::make_shared<BufferContents>();
+               contents->AppendToLine(LineNumber(), Line(L"0alejandro"));
+               for (const auto& s : std::list<std::wstring>{
+                        L"1forero",
+                        L"2cuervo",
+                        L"",
+                        L"4blah",
+                        L"",
+                        L"6something or other",
+                        L"7something or other",
+                        L"8something or other",
+                        L"9something or other",
+                        L"",
+                        L"11foo",
+                        L"12bar",
+                        L"13quux",
+                        L"",
+                        L"15dog",
+                        L"16lynx",
+                    })
+                 contents->push_back(s);
+               static CursorsSet active_cursors;
+               LineScrollControl::Options options{
+                   .contents = contents,
+                   .active_position = LineColumn(),
+                   .active_cursors = new CursorsSet(),  // &active_cursors,
+                   .line_wrap_style = LineWrapStyle::kBreakWords,
+                   .symbol_characters = L"abcdefghijklmnopqrstuvwxyz",
+                   .lines_shown = LineNumberDelta(10),
+                   .columns_shown = ColumnNumberDelta(80),
+                   .begin = {},
+                   .margin_lines = LineNumberDelta(2)};
+
+               callback(options);
+             }});
+      };
+      return std::vector<tests::Test>(
+          {new_test(L"Construction",
+                    [](auto options) {
+                      LineScrollControl::New(options)->NewReader();
+                    }),
+           new_test(L"TopMargin",
+                    [&](auto options) {
+                      options.active_position =
+                          LineColumn(LineNumber(4), ColumnNumber(3));
+                      options.begin = LineColumn(LineNumber(7));
+                      CHECK_EQ(get_ranges(options)[0],
+                               Range::InLine(
+                                   LineNumber(2), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("2cuervo") - 1)));
+                      CHECK(get_active_cursors(options) ==
+                            std::vector<LineNumber>({LineNumber(2)}));
+                    }),
+           new_test(L"IgnoreLargeMargins",
+                    [&](auto options) {
+                      options.margin_lines = LineNumberDelta(6);
+                      options.active_position =
+                          LineColumn(LineNumber(4), ColumnNumber(3));
+                      options.begin = LineColumn(LineNumber(7));
+                      CHECK_EQ(get_ranges(options)[0],
+                               Range::InLine(
+                                   LineNumber(4), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("4blah") - 1)));
+                      CHECK(get_active_cursors(options) ==
+                            std::vector<LineNumber>({LineNumber(0)}));
+                    }),
+           new_test(L"TopMarginForceScrollToBegin",
+                    [&](auto options) {
+                      options.active_position =
+                          LineColumn(LineNumber(2), ColumnNumber(3));
+                      options.margin_lines = LineNumberDelta(4);
+                      options.begin = LineColumn(LineNumber(7));
+                      CHECK_EQ(get_ranges(options)[0],
+                               Range::InLine(LineNumber(0), ColumnNumber(0),
+                                             ColumnNumberDelta(
+                                                 sizeof("0alejandro") - 1)));
+                      CHECK(get_active_cursors(options) ==
+                            std::vector<LineNumber>({LineNumber(2)}));
+                    }),
+           new_test(L"BottomMarginForceScroll",
+                    [&](auto options) {
+                      options.active_position =
+                          LineColumn(LineNumber(11), ColumnNumber(3));
+                      options.begin = LineColumn(LineNumber(2));
+                      CHECK_EQ(LineNumber(11) + options.margin_lines -
+                                   (options.lines_shown - LineNumberDelta(1)),
+                               LineNumber(4));
+                      CHECK_EQ(get_ranges(options)[0],
+                               Range::InLine(
+                                   LineNumber(4), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("4blah") - 1)));
+                      CHECK_EQ(LineNumber(11) - LineNumber(4),
+                               LineNumberDelta(7));
+                      CHECK(get_active_cursors(options) ==
+                            std::vector<LineNumber>({LineNumber(7)}));
+                    }),
+           new_test(
+               L"BottomMarginForceScrollToBottom",
+               [&](auto options) {
+                 options.active_position =
+                     LineColumn(LineNumber(14), ColumnNumber(3));
+                 options.margin_lines = LineNumberDelta(5);
+                 options.begin = LineColumn(LineNumber(3));
+                 CHECK_EQ(LineNumber(16) -
+                              (options.lines_shown - LineNumberDelta(1)),
+                          LineNumber(7));
+                 CHECK_EQ(
+                     get_ranges(options)[0],
+                     Range::InLine(
+                         LineNumber(7), ColumnNumber(),
+                         ColumnNumberDelta(sizeof("7something or other") - 1)));
+                 CHECK_EQ(LineNumber(14) - LineNumber(7), LineNumberDelta(7));
+                 CHECK(get_active_cursors(options) ==
+                       std::vector<LineNumber>({LineNumber(7)}));
+               }),
+           new_test(L"TopMarginWithLineWraps",
+                    [&](auto options) {
+                      options.begin = LineColumn(LineNumber(11));
+                      options.columns_shown = ColumnNumberDelta(2);
+                      options.active_position =
+                          LineColumn(LineNumber(2), ColumnNumber(5));
+                      options.margin_lines = LineNumberDelta(4);
+                      auto ranges = get_ranges(options);
+                      // Margins:
+                      CHECK_EQ(ranges[0],
+                               Range::InLine(LineNumber(1), ColumnNumber(4),
+                                             ColumnNumberDelta(2)));
+                      CHECK_EQ(ranges[1],
+                               Range::InLine(LineNumber(1), ColumnNumber(6),
+                                             ColumnNumberDelta(1)));
+                      CHECK_EQ(ranges[2],
+                               Range::InLine(LineNumber(2), ColumnNumber(0),
+                                             ColumnNumberDelta(2)));
+                      CHECK_EQ(ranges[3],
+                               Range::InLine(LineNumber(2), ColumnNumber(2),
+                                             ColumnNumberDelta(2)));
+                      // Actual cursor:
+                      CHECK_EQ(ranges[4],
+                               Range::InLine(LineNumber(2), ColumnNumber(4),
+                                             ColumnNumberDelta(2)));
+                      // Next line:
+                      CHECK_EQ(ranges[5],
+                               Range::InLine(LineNumber(2), ColumnNumber(6),
+                                             ColumnNumberDelta(1)));
+                      CHECK(get_active_cursors(options) ==
+                            std::vector<LineNumber>({LineNumber(4)}));
+                    }),
+           new_test(L"TopMarginWithLineWrapsForceScrollToTop",
+                    [&](auto options) {
+                      options.active_position =
+                          LineColumn(LineNumber(1), ColumnNumber(5));
+                      options.margin_lines = LineNumberDelta(20);
+                      options.columns_shown = ColumnNumberDelta(2);
+                      options.lines_shown = LineNumberDelta(50);
+                      CHECK_EQ(get_ranges(options)[0],
+                               Range::InLine(LineNumber(0), ColumnNumber(0),
+                                             ColumnNumberDelta(2)));
+                      CHECK(get_active_cursors(options) ==
+                            std::vector<LineNumber>({LineNumber(7)}));
+                    }),
+           new_test(L"BottomMarginWithLineWrapsForceScrollToBottom",
+                    [&](auto options) {
+                      options.active_position =
+                          LineColumn(LineNumber(15), ColumnNumber(3));
+                      options.margin_lines = LineNumberDelta(20);
+                      options.columns_shown = ColumnNumberDelta(2);
+                      options.lines_shown = LineNumberDelta(50);
+                      auto ranges = get_ranges(options);
+                      CHECK_EQ(ranges[49],
+                               Range::InLine(LineNumber(16), ColumnNumber(4),
+                                             ColumnNumberDelta(2)));
+                      CHECK_EQ(ranges[48],
+                               Range::InLine(LineNumber(16), ColumnNumber(2),
+                                             ColumnNumberDelta(2)));
+                      CHECK_EQ(ranges[47],
+                               Range::InLine(LineNumber(16), ColumnNumber(0),
+                                             ColumnNumberDelta(2)));
+                      CHECK_EQ(ranges[46],
+                               Range::InLine(LineNumber(15), ColumnNumber(4),
+                                             ColumnNumberDelta(1)));
+                      CHECK(get_active_cursors(options) ==
+                            std::vector<LineNumber>({LineNumber(45)}));
+                    }),
+           new_test(L"EverythingFits",
+                    [&](auto options) {
+                      options.active_position =
+                          LineColumn(LineNumber(10), ColumnNumber(12));
+                      options.margin_lines = LineNumberDelta(20);
+                      options.lines_shown = LineNumberDelta(500);
+                      auto ranges = get_ranges(options);
+                      CHECK_EQ(ranges[0],
+                               Range::InLine(LineNumber(0), ColumnNumber(0),
+                                             ColumnNumberDelta(
+                                                 sizeof("0alejandro") - 1)));
+                      CHECK_EQ(ranges[16],
+                               Range::InLine(
+                                   LineNumber(16), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                      CHECK_EQ(ranges[17],
+                               Range::InLine(LineNumber(17), ColumnNumber(0),
+                                             ColumnNumberDelta(0)));
+                      CHECK_EQ(ranges[18], ranges[17]);
+                      CHECK(get_active_cursors(options) ==
+                            std::vector<LineNumber>({LineNumber(10)}));
+                    }),
+           new_test(L"Cursors", [&](auto options) {
+             CursorsSet cursors;
+             options.active_cursors = &cursors;
+             LineScrollControl::New(options)->NewReader();
+           })});
+    }());
+}  // namespace
 }  // namespace afc::editor
