@@ -237,6 +237,8 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   buffer_producer_input.output_producer_options.size =
       LineColumnDelta(context_lines, size.column);
   buffer_producer_input.buffer = status_->context();
+  buffer_producer_input.status_behavior =
+      BufferOutputProducerInput::StatusBehavior::kIgnore;
 
   context_columns[1].producer =
       CreateBufferOutputProducer(buffer_producer_input).producer;

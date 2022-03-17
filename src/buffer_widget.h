@@ -22,6 +22,8 @@ struct BufferOutputProducerInput {
   Widget::OutputProducerOptions output_producer_options;
   std::shared_ptr<OpenBuffer> buffer;
   LineColumn view_start;
+  enum class StatusBehavior { kShow, kIgnore };
+  StatusBehavior status_behavior = StatusBehavior::kShow;
 };
 
 // Handles things like `multiple_cursors`, `paste_mode`, `scrollbar`, displaying

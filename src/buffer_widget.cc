@@ -298,10 +298,20 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
 
-  StatusOutputProducerSupplier status_output_producer_supplier(
-      buffer->status(), buffer.get(), buffer->editor()->modifiers());
-  const auto status_lines =
-      min(size.line / 4, status_output_producer_supplier.lines());
+  std::unique_ptr<StatusOutputProducerSupplier> status_output_producer_supplier;
+  switch (input.status_behavior) {
+    case BufferOutputProducerInput::StatusBehavior::kShow:
+      status_output_producer_supplier =
+          std::make_unique<StatusOutputProducerSupplier>(
+              buffer->status(), buffer.get(), buffer->editor()->modifiers());
+      break;
+    case BufferOutputProducerInput::StatusBehavior::kIgnore:
+      break;
+  }
+  const LineNumberDelta status_lines =
+      status_output_producer_supplier == nullptr
+          ? LineNumberDelta()
+          : min(size.line / 4, status_output_producer_supplier->lines());
 
   // auto buffer_lines = size.line - status_lines;
 
@@ -364,11 +374,12 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   }
 
   if (status_lines > LineNumberDelta(0)) {
+    CHECK(status_output_producer_supplier != nullptr);
     using HP = HorizontalSplitOutputProducer;
     HP::Row buffer_row = {.producer = std::move(output.producer),
                           .lines = LineNumberDelta(plan.lines.size())};
     HP::Row status_row = {
-        .producer = status_output_producer_supplier.CreateOutputProducer(
+        .producer = status_output_producer_supplier->CreateOutputProducer(
             LineColumnDelta(status_lines, size.column)),
         .lines = status_lines,
         .overlap_behavior = HP::Row::OverlapBehavior::kFloat};
