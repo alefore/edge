@@ -464,7 +464,15 @@ class OperationMode : public EditorMode {
 
     switch (static_cast<int>(c)) {
       case Terminal::ESCAPE:
-        state_.Abort();
+        if (state_.top_command().post_transformation_behavior ==
+            transformation::Stack::kNone) {
+          state_.Abort();
+        } else {
+          TopCommand top_command = state_.top_command();
+          top_command.post_transformation_behavior =
+              transformation::Stack::kNone;
+          state_.set_top_command(std::move(top_command));
+        }
         return;
       case L'\n':
         state_.Commit();
