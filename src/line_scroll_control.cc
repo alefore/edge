@@ -51,38 +51,34 @@ std::unique_ptr<LineScrollControl::Reader> LineScrollControl::NewReader() {
   return output;
 }
 
-std::optional<Range> LineScrollControl::Reader::GetRange() const {
+LineScrollControl::Reader::Data LineScrollControl::Reader::Read() {
+  std::optional<Range> range;
   switch (state_) {
     case State::kDone:
-      return std::nullopt;
+      break;
     case State::kProcessing:
-      return parent_->range();
+      range = parent_->range();
   }
-  LOG(FATAL) << "GetRange didn't handle all cases.";
-  return std::nullopt;
-}
 
-bool LineScrollControl::Reader::HasActiveCursor() const {
-  CHECK(state_ == State::kProcessing);
-  return parent_->CurrentRangeContainsPosition(
-      parent_->options_.active_position);
-}
+  Data data{.range = range,
+            .has_active_cursor = parent_->CurrentRangeContainsPosition(
+                parent_->options_.active_position),
+            .current_cursors = {}};
 
-std::set<ColumnNumber> LineScrollControl::Reader::GetCurrentCursors() const {
-  CHECK(state_ == State::kProcessing);
-  Range range = parent_->range();
-
-  LineNumber line = range.begin.line;
-  auto it = parent_->cursors_.find(line);
-  if (it == parent_->cursors_.end()) {
-    return {};
+  if (state_ == State::kProcessing) {
+    LineNumber line = range->begin.line;
+    auto it = parent_->cursors_.find(line);
+    if (it != parent_->cursors_.end()) {
+      for (auto& column : it->second) {
+        if (parent_->CurrentRangeContainsPosition(LineColumn(line, column)))
+          data.current_cursors.insert(column);
+      }
+    }
   }
-  std::set<ColumnNumber> output;
-  for (auto& column : it->second) {
-    if (parent_->CurrentRangeContainsPosition(LineColumn(line, column)))
-      output.insert(column);
-  }
-  return output;
+
+  state_ = State::kDone;
+  parent_->SignalReaderDone();
+  return data;
 }
 
 std::list<ColumnRange> LineScrollControl::ComputeBreaks(LineNumber line) const {
@@ -326,8 +322,7 @@ const bool line_scroll_control_tests_registration =
         std::vector<Range> output;
         auto reader = LineScrollControl::New(options)->NewReader();
         for (LineNumberDelta i; i < options.lines_shown; ++i) {
-          output.push_back(reader->GetRange().value());
-          reader->RangeDone();
+          output.push_back(*reader->Read().range);
         }
         return output;
       };
@@ -335,11 +330,10 @@ const bool line_scroll_control_tests_registration =
         std::vector<LineNumber> output;
         auto reader = LineScrollControl::New(options)->NewReader();
         for (LineNumber i; i.ToDelta() < options.lines_shown; ++i) {
-          if (reader->HasActiveCursor()) {
+          if (reader->Read().has_active_cursor) {
             output.push_back(i);
             VLOG(3) << "Found active cursor at line: " << i;
           }
-          reader->RangeDone();
         }
         return output;
       };

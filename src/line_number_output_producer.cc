@@ -41,23 +41,23 @@ LineNumberOutputProducer::LineNumberOutputProducer(
       line_scroll_control_reader_(std::move(line_scroll_control_reader)) {}
 
 OutputProducer::Generator LineNumberOutputProducer::Next() {
-  auto range = line_scroll_control_reader_->GetRange();
-  if (range.has_value() && range.value().begin.line > buffer_->EndLine()) {
+  auto data = line_scroll_control_reader_->Read();
+  if (data.range.has_value() &&
+      data.range.value().begin.line > buffer_->EndLine()) {
     // Happens when the buffer is smaller than the screen.
     return OutputProducer::Generator::Empty();
   }
 
   OutputProducer::Generator output;
 
-  output.inputs_hash = std::hash<std::optional<Range>>()(range) +
+  output.inputs_hash = std::hash<std::optional<Range>>()(data.range) +
                        std::hash<ColumnNumberDelta>()(width_);
 
   LineModifierSet modifiers;
-  if (!range.has_value() ||
-      line_scroll_control_reader_->GetCurrentCursors().empty()) {
+  if (!data.range.has_value() || data.current_cursors.empty()) {
     modifiers.insert(LineModifier::DIM);
     output.inputs_hash.value() += std::hash<size_t>()(0);
-  } else if (line_scroll_control_reader_->HasActiveCursor() ||
+  } else if (data.has_active_cursor ||
              buffer_->Read(buffer_variables::multiple_cursors)) {
     modifiers.insert(LineModifier::CYAN);
     modifiers.insert(LineModifier::BOLD);
@@ -67,7 +67,7 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
     output.inputs_hash.value() += std::hash<size_t>()(2);
   }
 
-  output.generate = [range, width = width_,
+  output.generate = [range = data.range, width = width_,
                      modifiers = std::move(modifiers)]() {
     std::wstring number = range.has_value() && range->begin.column.IsZero()
                               ? range.value().begin.line.ToUserString()
@@ -83,9 +83,6 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
                           std::nullopt};
   };
 
-  if (range.has_value()) {
-    line_scroll_control_reader_->RangeDone();
-  }
   return output;
 }
 

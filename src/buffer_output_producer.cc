@@ -165,16 +165,15 @@ BufferOutputProducer::BufferOutputProducer(
 }
 
 OutputProducer::Generator BufferOutputProducer::Next() {
-  auto optional_range = line_scroll_control_reader_->GetRange();
-  if (!optional_range.has_value()) {
+  LineScrollControl::Reader::Data data = line_scroll_control_reader_->Read();
+  if (!data.range.has_value()) {
     return Generator::Empty();
   }
 
-  auto range = optional_range.value();
+  auto range = data.range.value();
   auto line = range.begin.line;
 
   if (line > buffer_->EndLine()) {
-    line_scroll_control_reader_->RangeDone();
     return Generator::Empty();
   }
 
@@ -186,9 +185,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   bool atomic_lines = buffer_->Read(buffer_variables::atomic_lines);
   bool multiple_cursors = buffer_->Read(buffer_variables::multiple_cursors);
   auto position = buffer_->position();
-  auto cursors = line_scroll_control_reader_->GetCurrentCursors();
-
-  line_scroll_control_reader_->RangeDone();
+  auto cursors = data.current_cursors;
 
   output.inputs_hash = hash_combine(
       std::hash<Range>{}(range), std::hash<bool>{}(atomic_lines),

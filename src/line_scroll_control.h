@@ -57,27 +57,22 @@ class LineScrollControl
    public:
     Reader(ConstructorAccessTag, std::shared_ptr<LineScrollControl> parent);
 
-    // Returns the range we're currently outputing. If `nullopt`, it means the
-    // reader has signaled that it's done with this range, but other readers are
-    // still outputing contents for it; in this case, the reader shouldn't print
-    // anything.
-    std::optional<Range> GetRange() const;
-
-    bool HasActiveCursor() const;
-
-    // Returns the set of cursors that fall in the current range.
-    //
-    // The column positions are relative to the beginning of the input line
-    // (i.e., changing the range affects only whether a given cursor is
-    // returned, but once the decision is made that a cursor will be returned,
-    // the value returned for it won't be affected by the range).
-    std::set<ColumnNumber> GetCurrentCursors() const;
-
-    void RangeDone() {
-      CHECK(state_ == State::kProcessing);
-      state_ = State::kDone;
-      parent_->SignalReaderDone();
-    }
+    struct Data {
+      // Returns the range we're currently outputing. If `nullopt`, it means the
+      // reader has signaled that it's done with this range, but other readers
+      // are still outputing contents for it; in this case, the reader shouldn't
+      // print anything.
+      std::optional<Range> range;
+      bool has_active_cursor;
+      // Returns the set of cursors that fall in the current range.
+      //
+      // The column positions are relative to the beginning of the input line
+      // (i.e., changing the range affects only whether a given cursor is
+      // returned, but once the decision is made that a cursor will be returned,
+      // the value returned for it won't be affected by the range).
+      std::set<ColumnNumber> current_cursors;
+    };
+    Data Read();
 
    private:
     friend class LineScrollControl;

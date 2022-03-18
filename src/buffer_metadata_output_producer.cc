@@ -109,27 +109,25 @@ BufferMetadataOutputProducer::BufferMetadataOutputProducer(
       zoomed_out_tree_(std::move(zoomed_out_tree)) {}
 
 OutputProducer::Generator BufferMetadataOutputProducer::Next() {
-  auto range = line_scroll_control_reader_->GetRange();
-  if (!range.has_value()) {
+  LineScrollControl::Reader::Data data = line_scroll_control_reader_->Read();
+  if (!data.range.has_value()) {
     return Generator::Empty();
   }
 
   if (!initial_line_.has_value()) {
-    initial_line_ = range.value().begin.line;
+    initial_line_ = data.range->begin.line;
   }
 
-  if (range.value().begin.line >= LineNumber(0) + buffer_->lines_size()) {
-    line_scroll_control_reader_->RangeDone();
+  if (data.range->begin.line >= LineNumber(0) + buffer_->lines_size()) {
     return Generator::Empty();
   }
 
-  Prepare(range.value());
+  Prepare(data.range.value());
   CHECK(!range_data_.empty());
 
   Generator output = std::move(range_data_.front());
   range_data_.pop_front();
 
-  line_scroll_control_reader_->RangeDone();
   return output;
 }
 

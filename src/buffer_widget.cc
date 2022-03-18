@@ -258,11 +258,11 @@ BufferRenderPlan GetBufferRenderPlan(
   for (auto scroll_reader =
            LineScrollControl::New(line_scroll_control_options)->NewReader();
        LineNumberDelta(output.lines.size()) <
-           line_scroll_control_options.lines_shown &&
-       scroll_reader->GetRange().has_value();
-       scroll_reader->RangeDone()) {
-    output.lines.push_back(scroll_reader->GetRange().value());
-    if (scroll_reader->HasActiveCursor() && !output.cursor_index.has_value())
+       line_scroll_control_options.lines_shown;) {
+    LineScrollControl::Reader::Data data = scroll_reader->Read();
+    if (!data.range.has_value()) break;
+    output.lines.push_back(data.range.value());
+    if (data.has_active_cursor && !output.cursor_index.has_value())
       output.cursor_index = output.lines.size();
   }
 
