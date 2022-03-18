@@ -28,7 +28,6 @@ class LineNumberOutputProducer : public OutputProducer {
   const ColumnNumberDelta width_;
   const std::shared_ptr<OpenBuffer> buffer_;
   const std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
-  std::optional<LineNumber> last_line_;
 };
 
 }  // namespace editor

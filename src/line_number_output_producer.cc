@@ -50,7 +50,6 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
   OutputProducer::Generator output;
 
   output.inputs_hash = std::hash<std::optional<Range>>()(range) +
-                       std::hash<std::optional<LineNumber>>()(last_line_) +
                        std::hash<ColumnNumberDelta>()(width_);
 
   LineModifierSet modifiers;
@@ -68,13 +67,11 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
     output.inputs_hash.value() += std::hash<size_t>()(2);
   }
 
-  output.generate = [range, last_line = last_line_, width = width_,
+  output.generate = [range, width = width_,
                      modifiers = std::move(modifiers)]() {
-    std::wstring number =
-        range.has_value() && (!last_line.has_value() ||
-                              range.value().begin.line > last_line.value())
-            ? range.value().begin.line.ToUserString()
-            : L"↪";
+    std::wstring number = range.has_value() && range->begin.column.IsZero()
+                              ? range.value().begin.line.ToUserString()
+                              : L"↪";
     CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
     auto padding = ColumnNumberDelta::PaddingString(
         width - ColumnNumberDelta(number.size() + 1), L' ');
@@ -87,7 +84,6 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
   };
 
   if (range.has_value()) {
-    last_line_ = range.value().begin.line;
     line_scroll_control_reader_->RangeDone();
   }
   return output;
