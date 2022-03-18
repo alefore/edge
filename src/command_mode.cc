@@ -707,7 +707,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                           L"find",
                           L"reaches the next occurrence of a specific "
                           L"character in the current line",
-                          operation::TopCommandReach(), editor_state,
+                          operation::TopCommand(), editor_state,
                           {operation::CommandReachChar{}}));
   commands->Add(
       L"F",
@@ -715,13 +715,13 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
           L"find",
           L"reaches the previous occurrence of a specific "
           L"character in the current line",
-          operation::TopCommandReach(), editor_state,
+          operation::TopCommand(), editor_state,
           {operation::CommandReachChar{
               .repetitions = operation::CommandArgumentRepetitions(-1)}}));
 
   commands->Add(L"r", operation::NewTopLevelCommand(
                           L"reach", L"starts a new reach command",
-                          operation::TopCommandReach(), editor_state, {}));
+                          operation::TopCommand(), editor_state, {}));
 
   commands->Add(L"R", std::make_unique<InsertionModifierCommand>());
 
@@ -741,7 +741,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(
       L"e", operation::NewTopLevelCommand(
                 L"delete", L"starts a new delete command",
-                operation::TopCommandReach{
+                operation::TopCommand{
                     .post_transformation_behavior = transformation::Stack::
                         PostTransformationBehavior::kDeleteRegion},
                 editor_state,
@@ -758,15 +758,14 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
 
   commands->Add(
       L"j", operation::NewTopLevelCommand(
-                L"down", L"moves down one line", operation::TopCommandReach(),
+                L"down", L"moves down one line", operation::TopCommand(),
                 editor_state,
                 {operation::CommandReachLine{
                     .repetitions = operation::CommandArgumentRepetitions(1)}}));
   commands->Add(
       L"k",
       operation::NewTopLevelCommand(
-          L"up", L"moves up one line", operation::TopCommandReach(),
-          editor_state,
+          L"up", L"moves up one line", operation::TopCommand(), editor_state,
           {operation::CommandReachLine{
               .repetitions = operation::CommandArgumentRepetitions(-1)}}));
 
@@ -776,14 +775,14 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   // commands->Add(L"h", std::make_unique<MoveForwards>(Direction::kBackwards));
   commands->Add(
       L"l", operation::NewTopLevelCommand(
-                L"right", L"moves right one position",
-                operation::TopCommandReach(), editor_state,
+                L"right", L"moves right one position", operation::TopCommand(),
+                editor_state,
                 {operation::CommandReach{
                     .repetitions = operation::CommandArgumentRepetitions(1)}}));
   commands->Add(
       L"h",
       operation::NewTopLevelCommand(
-          L"left", L"moves left one position", operation::TopCommandReach(),
+          L"left", L"moves left one position", operation::TopCommand(),
           editor_state,
           {operation::CommandReach{
               .repetitions = operation::CommandArgumentRepetitions(-1)}}));
@@ -791,14 +790,14 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(
       L"H", operation::NewTopLevelCommand(
                 L"home", L"moves to the beginning of the current line",
-                operation::TopCommandReach(), editor_state,
+                operation::TopCommand(), editor_state,
                 {operation::CommandReachBegin{
                     .structure = StructureChar(),
                     .repetitions = operation::CommandArgumentRepetitions(1)}}));
   commands->Add(L"L",
                 operation::NewTopLevelCommand(
                     L"end", L"moves to the end of the current line",
-                    operation::TopCommandReach(), editor_state,
+                    operation::TopCommand(), editor_state,
                     {operation::CommandReachBegin{
                         .structure = StructureChar(),
                         .repetitions = operation::CommandArgumentRepetitions(1),
@@ -806,14 +805,14 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(
       L"K", operation::NewTopLevelCommand(
                 L"file-home", L"moves to the beginning of the current file",
-                operation::TopCommandReach(), editor_state,
+                operation::TopCommand(), editor_state,
                 {operation::CommandReachBegin{
                     .structure = StructureLine(),
                     .repetitions = operation::CommandArgumentRepetitions(1)}}));
   commands->Add(L"J",
                 operation::NewTopLevelCommand(
                     L"file-end", L"moves to the end of the current line",
-                    operation::TopCommandReach(), editor_state,
+                    operation::TopCommand(), editor_state,
                     {operation::CommandReachBegin{
                         .structure = StructureLine(),
                         .repetitions = operation::CommandArgumentRepetitions(1),

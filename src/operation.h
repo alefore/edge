@@ -17,22 +17,10 @@ class EditorState;
 namespace operation {
 enum class ApplicationType { kPreview, kCommit };
 
-// erase line to-end reverse
-// erase backwards line 4 word 3 char 2)
-// Erase line 123 +1 +1 +5 word +5 char +5
-// scroll down 5 left 10 +1 +1
-// insert "" +5 "alejo"
-// navigate-buffer replace-all new-position /foo 5 left space left left
-// Reach next-line 5 +1 +1 by-character space 3
-// => Reach(Line, 7); ReachNextCharacter(" ", 3);
-
-// Operation that is executed if there are no arguments at all.
-struct TopCommandReach {
+struct TopCommand {
   transformation::Stack::PostTransformationBehavior
       post_transformation_behavior;
 };
-
-using TopCommand = std::variant<TopCommandReach>;
 
 class CommandArgumentRepetitions {
  public:

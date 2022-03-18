@@ -20,8 +20,6 @@ namespace afc::editor::operation {
 using futures::Past;
 namespace {
 
-Command GetDefaultCommand(TopCommandReach) { return CommandReach(); }
-
 std::wstring SerializeCall(std::wstring name,
                            std::vector<std::wstring> arguments) {
   std::wstring output = name + L"(";
@@ -164,15 +162,10 @@ transformation::Stack GetTransformation(TopCommand,
   return transformation;
 }
 
-static transformation::Stack::PostTransformationBehavior
-GetPostTransformationBehavior(TopCommandReach top_command) {
-  return top_command.post_transformation_behavior;
-}
-
 class State {
  public:
   State(EditorState* editor_state, TopCommand top_command)
-      : editor_state_(editor_state), top_command_(top_command) {}
+      : editor_state_(editor_state), top_command_(std::move(top_command)) {}
 
   Command& GetLastCommand() { return commands_.back(); }
 
@@ -181,7 +174,7 @@ class State {
   const TopCommand& top_command() const { return top_command_; }
 
   void set_top_command(TopCommand new_value) {
-    top_command_ = new_value;
+    top_command_ = std::move(new_value);
     Update();
   }
 
@@ -260,8 +253,9 @@ class State {
           },
           command));
     }
-    stack.post_transformation_behavior = std::visit(
-        [](auto t) { return GetPostTransformationBehavior(t); }, top_command_);
+    stack.post_transformation_behavior =
+        top_command_.post_transformation_behavior;
+
     return OptimizeBase(stack);
   }
 
@@ -446,17 +440,17 @@ bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
     return true;
   }
   if (c == L' ') {
-    state->Push(GetDefaultCommand(TopCommandReach()));
+    state->Push(CommandReach());
     return true;
   }
   return CheckIncrementsChar(c, &output->repetitions) ||
          CheckRepetitionsChar(c, &output->repetitions);
 }
 
-class TopLevelCommandMode : public EditorMode {
+class OperationMode : public EditorMode {
  public:
-  TopLevelCommandMode(TopCommand top_command, EditorState* editor_state)
-      : state_(editor_state, top_command) {}
+  OperationMode(TopCommand top_command, EditorState* editor_state)
+      : state_(editor_state, std::move(top_command)) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
     editor_state->status()->Reset();
@@ -484,15 +478,13 @@ class TopLevelCommandMode : public EditorMode {
     }
 
     PushDefault();
-    auto old_state = state_.top_command();
     if (std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
                    state_.GetLastCommand())) {
       state_.Update();
       ShowStatus(editor_state);
       return;
     }
-    if (std::visit([&](auto& t) { return ReceiveInputTopCommand(t, c); },
-                   state_.top_command())) {
+    if (ReceiveInputTopCommand(state_.top_command(), c)) {
       ShowStatus(editor_state);
       return;
     }
@@ -505,20 +497,16 @@ class TopLevelCommandMode : public EditorMode {
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
 
   void ShowStatus(EditorState* editor_state) {
-    editor_state->status()->SetInformationText(
-        std::visit([](auto& t) { return ToStatus(t); }, state_.top_command()) +
-        L":" + state_.GetStatusString());
+    editor_state->status()->SetInformationText(ToStatus(state_.top_command()) +
+                                               L":" + state_.GetStatusString());
   }
 
-  void PushDefault() {
-    PushCommand(std::visit([](auto& t) { return GetDefaultCommand(t); },
-                           state_.top_command()));
-  }
+  void PushDefault() { PushCommand(CommandReach()); }
 
   void PushCommand(Command command) { state_.Push(std::move(command)); }
 
  private:
-  bool ReceiveInputTopCommand(TopCommandReach top_command, wint_t t) {
+  bool ReceiveInputTopCommand(TopCommand top_command, wint_t t) {
     using PTB = transformation::Stack::PostTransformationBehavior;
     switch (t) {
       case L'd':
@@ -607,7 +595,7 @@ class TopLevelCommandMode : public EditorMode {
     return false;
   }
 
-  static std::wstring ToStatus(TopCommandReach top_command) {
+  static std::wstring ToStatus(TopCommand top_command) {
     switch (top_command.post_transformation_behavior) {
       case transformation::Stack::PostTransformationBehavior::kNone:
         return L"🦋 Move";
@@ -711,9 +699,8 @@ std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
   return NewSetModeCommand({.description = description,
                             .category = L"Edit",
                             .factory = [top_command, editor_state, commands] {
-                              auto output =
-                                  std::make_unique<TopLevelCommandMode>(
-                                      top_command, editor_state);
+                              auto output = std::make_unique<OperationMode>(
+                                  top_command, editor_state);
                               if (commands.empty()) {
                                 output->PushDefault();
                               } else {
