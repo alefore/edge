@@ -19,6 +19,7 @@
 namespace afc::editor::operation {
 using futures::Past;
 namespace {
+using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
 std::wstring SerializeCall(std::wstring name,
                            std::vector<std::wstring> arguments) {

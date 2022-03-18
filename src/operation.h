@@ -81,8 +81,6 @@ struct CommandReachChar {
 using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
                              CommandReachChar>;
 
-using UndoCallback = std::function<futures::Value<EmptyValue>()>;
-
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,
     EditorState* editor_state, std::vector<Command> commands);
