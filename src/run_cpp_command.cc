@@ -225,9 +225,10 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 
 futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
     const std::wstring& command, EditorState* editor_state) {
+  using futures::Past;
   auto buffer = editor_state->current_buffer();
   if (buffer == nullptr) {
-    return futures::Past(std::unique_ptr<vm::Value>());
+    return Past(std::unique_ptr<vm::Value>());
   }
   buffer->ResetMode();
 
@@ -238,21 +239,14 @@ futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
     if (!parsed_command.error().description.empty()) {
       buffer->status()->SetWarningText(parsed_command.error().description);
     }
-    return futures::Past(std::unique_ptr<vm::Value>());
+    return Past(std::unique_ptr<vm::Value>());
   }
 
-  futures::Future<std::unique_ptr<vm::Value>> output;
-  Execute(buffer, std::move(parsed_command.value()))
-      .SetConsumer([consumer = output.consumer,
-                    buffer](ValueOrError<std::unique_ptr<vm::Value>> value) {
-        if (value.IsError()) {
-          buffer->status()->SetWarningText(value.error().description);
-          consumer(nullptr);
-        } else {
-          consumer(std::move(value.value()));
-        }
+  return Execute(buffer, std::move(parsed_command.value()))
+      .ConsumeErrors([buffer](Error error) {
+        buffer->status()->SetWarningText(error.description);
+        return Past(std::unique_ptr<vm::Value>());
       });
-  return std::move(output.value);
 }
 
 std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode) {
