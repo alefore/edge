@@ -131,7 +131,7 @@ Buffer InitializeNewNote(string path, string title, string parent_title,
       [](TransformationInput input) -> TransformationOutput {
         return TransformationOutput()
             .push(InsertTransformationBuilder()
-                      .set_text("# " + title + "\n\n\n\n## Related\n* [" +
+                      .set_text("# " + title + "\n\n\n\n## Related\n\n* [" +
                                 parent_title + "](" + parent_path + ")\n")
                       .build())
             .push(SetPositionTransformation(LineColumn(2, 0)));
