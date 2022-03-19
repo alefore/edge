@@ -18,15 +18,12 @@
 #include "src/output_producer.h"
 #include "src/vm/public/environment.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 class EditorMode;
 class EditorState;
 class LazyString;
 class OpenBuffer;
 
-using std::hash;
 using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
@@ -200,7 +197,13 @@ class Line {
   mutable std::optional<size_t> hash_;
 };
 
-}  // namespace editor
-}  // namespace afc
-
+}  // namespace afc::editor
+namespace std {
+template <>
+struct hash<afc::editor::Line> {
+  std::size_t operator()(const afc::editor::Line& line) const {
+    return line.GetHash();
+  }
+};
+}  // namespace std
 #endif  // __AFC_EDITOR_LINE_H__
