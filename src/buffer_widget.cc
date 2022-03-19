@@ -243,32 +243,22 @@ struct BufferRenderPlan {
   // Contains one entry for each line to render.
   std::list<BufferContentsWindow::Line> lines;
 
-  // If present, an index in `lines` corresponding to the position with the main
-  // cursor.
-  std::optional<size_t> cursor_index;
-
   enum class StatusPosition { kTop, kBottom };
   StatusPosition status_position = StatusPosition::kBottom;
 };
 
 BufferRenderPlan GetBufferRenderPlan(
     const BufferContentsWindow::Input& buffer_contents_window_input) {
+  BufferContentsWindow window =
+      BufferContentsWindow::Get(buffer_contents_window_input);
   BufferRenderPlan output;
 
-  output.lines =
-      std::move(BufferContentsWindow::Get(buffer_contents_window_input).lines);
-
-  size_t i = 0;
-  for (const BufferContentsWindow::Line& screen_line : output.lines) {
-    if (screen_line.has_active_cursor && !output.cursor_index.has_value())
-      output.cursor_index = i;
-    ++i;
-  }
-
   // Initialize output.status_position:
-  if (LineNumberDelta(output.cursor_index.value_or(0)) >
+  if (LineNumberDelta(BufferContentsWindow::cursor_index(window).value_or(0)) >
       (size_t(3) * buffer_contents_window_input.lines_shown) / 5)
     output.status_position = BufferRenderPlan::StatusPosition::kTop;
+
+  output.lines = std::move(window.lines);
   return output;
 }
 }  // namespace

@@ -534,4 +534,15 @@ const bool line_scroll_control_tests_registration =
            })});
     }());
 }  // namespace
+
+/* static */ std::optional<size_t> BufferContentsWindow::cursor_index(
+    const BufferContentsWindow& window) {
+  size_t i = 0;
+  for (const BufferContentsWindow::Line& screen_line : window.lines) {
+    if (screen_line.has_active_cursor) return i;
+    ++i;
+  }
+  return std::nullopt;
+}
+
 }  // namespace afc::editor
