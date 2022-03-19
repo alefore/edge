@@ -227,6 +227,15 @@ std::list<BufferContentsWindow::Line> AdjustToHonorMargin(
   }
   return output;
 }
+
+std::optional<size_t> cursor_index(const BufferContentsWindow& window) {
+  size_t i = 0;
+  for (const BufferContentsWindow::Line& screen_line : window.lines) {
+    if (screen_line.has_active_cursor) return i;
+    ++i;
+  }
+  return std::nullopt;
+}
 }  // namespace
 
 /* static */
@@ -286,6 +295,12 @@ BufferContentsWindow BufferContentsWindow::Get(
   CHECK_LE(LineNumberDelta(output.lines.size()), options.lines_shown);
 
   output.lines = AdjustToHonorMargin(options, cursors, std::move(output.lines));
+
+  // Initialize output.status_position:
+  if (LineNumberDelta(cursor_index(output).value_or(0)) >
+      (size_t(3) * options.lines_shown) / 5)
+    output.status_position = BufferContentsWindow::StatusPosition::kTop;
+
   return output;
 }
 
@@ -534,15 +549,4 @@ const bool line_scroll_control_tests_registration =
            })});
     }());
 }  // namespace
-
-/* static */ std::optional<size_t> BufferContentsWindow::cursor_index(
-    const BufferContentsWindow& window) {
-  size_t i = 0;
-  for (const BufferContentsWindow::Line& screen_line : window.lines) {
-    if (screen_line.has_active_cursor) return i;
-    ++i;
-  }
-  return std::nullopt;
-}
-
 }  // namespace afc::editor

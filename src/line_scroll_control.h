@@ -41,12 +41,6 @@ struct BufferContentsWindow {
   };
   static BufferContentsWindow Get(Input input);
 
-  // If present, the index of the line (in `lines`) corresponding to the Line
-  // with the main cursor.
-  //
-  // TODO(easy): Should be a LineNumber, not a size_t.
-  static std::optional<size_t> cursor_index(const BufferContentsWindow& window);
-
   struct Line {
     Range range;
     bool has_active_cursor;
@@ -59,6 +53,9 @@ struct BufferContentsWindow {
     std::set<ColumnNumber> current_cursors;
   };
   std::list<Line> lines;
+
+  enum class StatusPosition { kTop, kBottom };
+  StatusPosition status_position = StatusPosition::kBottom;
 };
 
 }  // namespace afc::editor

@@ -238,29 +238,6 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
                                                          active_index);
 }
-
-struct BufferRenderPlan {
-  // Contains one entry for each line to render.
-  std::list<BufferContentsWindow::Line> lines;
-
-  enum class StatusPosition { kTop, kBottom };
-  StatusPosition status_position = StatusPosition::kBottom;
-};
-
-BufferRenderPlan GetBufferRenderPlan(
-    const BufferContentsWindow::Input& buffer_contents_window_input) {
-  BufferContentsWindow window =
-      BufferContentsWindow::Get(buffer_contents_window_input);
-  BufferRenderPlan output;
-
-  // Initialize output.status_position:
-  if (LineNumberDelta(BufferContentsWindow::cursor_index(window).value_or(0)) >
-      (size_t(3) * buffer_contents_window_input.lines_shown) / 5)
-    output.status_position = BufferRenderPlan::StatusPosition::kTop;
-
-  output.lines = std::move(window.lines);
-  return output;
-}
 }  // namespace
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
@@ -337,10 +314,12 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   CHECK_GE(buffer_contents_window_input.margin_lines, LineNumberDelta(0));
 
-  BufferRenderPlan plan = GetBufferRenderPlan(buffer_contents_window_input);
-  output.view_start = plan.lines.front().range.begin;
+  BufferContentsWindow window =
+      BufferContentsWindow::Get(buffer_contents_window_input);
+
+  output.view_start = window.lines.front().range.begin;
   input.output_producer_options.size =
-      LineColumnDelta(LineNumberDelta(plan.lines.size()),
+      LineColumnDelta(LineNumberDelta(window.lines.size()),
                       buffer_contents_window_input.columns_shown);
 
   if (buffer->Read(buffer_variables::multiple_cursors)) {
@@ -348,7 +327,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                           buffer_contents_window_input);
   } else {
     output.producer =
-        LinesSpanView(buffer, plan.lines, input.output_producer_options, 1);
+        LinesSpanView(buffer, window.lines, input.output_producer_options, 1);
   }
 
   if (status_lines > LineNumberDelta(0)) {
@@ -364,12 +343,12 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
     size_t buffer_index = 0;
     size_t status_index = 1;
-    switch (plan.status_position) {
-      case BufferRenderPlan::StatusPosition::kTop:
+    switch (window.status_position) {
+      case BufferContentsWindow::StatusPosition::kTop:
         status_index = 0;
         buffer_index = 1;
         break;
-      case BufferRenderPlan::StatusPosition::kBottom:
+      case BufferContentsWindow::StatusPosition::kBottom:
         buffer_index = 0;
         status_index = 1;
         buffer_row.lines -= status_lines;
