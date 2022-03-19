@@ -50,66 +50,34 @@ class LineScrollControl
 
   LineScrollControl(ConstructorAccessTag, Options options);
 
-  class Reader {
-   private:
-    struct ConstructorAccessTag {};
-
-   public:
-    Reader(ConstructorAccessTag, std::shared_ptr<LineScrollControl> parent);
-
-    struct Data {
-      // Returns the range we're currently outputing. If `nullopt`, it means the
-      // reader has signaled that it's done with this range, but other readers
-      // are still outputing contents for it; in this case, the reader shouldn't
-      // print anything.
-      std::optional<Range> range;
-      bool has_active_cursor;
-      // Returns the set of cursors that fall in the current range.
-      //
-      // The column positions are relative to the beginning of the input line
-      // (i.e., changing the range affects only whether a given cursor is
-      // returned, but once the decision is made that a cursor will be returned,
-      // the value returned for it won't be affected by the range).
-      std::set<ColumnNumber> current_cursors;
-    };
-    Data Read();
-
-   private:
-    friend class LineScrollControl;
-
-    std::shared_ptr<LineScrollControl> const parent_;
-    enum class State { kDone, kProcessing };
-    State state_ = State::kProcessing;
+  struct ScreenLine {
+    Range range;
+    bool has_active_cursor;
+    // Returns the set of cursors that fall in the current range.
+    //
+    // The column positions are relative to the beginning of the input line
+    // (i.e., changing the range affects only whether a given cursor is
+    // returned, but once the decision is made that a cursor will be returned,
+    // the value returned for it won't be affected by the range).
+    std::set<ColumnNumber> current_cursors;
   };
-
-  std::unique_ptr<Reader> NewReader();
+  std::list<ScreenLine> screen_lines() const;
 
  private:
-  friend Reader;
-  void SignalReaderDone();
-
+  ScreenLine GetScreenLine(LineNumber line, ColumnRange range) const;
   std::list<ColumnRange> ComputeBreaks(LineNumber line) const;
-  std::list<Range> PrependLines(LineNumber line, LineNumberDelta lines_desired,
-                                std::list<Range> output) const;
-  std::list<Range> AdjustToHonorMargin(std::list<Range> output) const;
-  std::list<Range> ComputeRanges() const;
-  Range range() const;
-  Range next_range() const;
-
-  bool CurrentRangeContainsPosition(LineColumn position) const;
+  std::list<ScreenLine> PrependLines(LineNumber line,
+                                     LineNumberDelta lines_desired,
+                                     std::list<ScreenLine> output) const;
+  std::list<ScreenLine> AdjustToHonorMargin(std::list<ScreenLine> output) const;
+  std::list<ScreenLine> ComputeScreenLines() const;
 
   const Options options_;
   const std::map<LineNumber, std::set<ColumnNumber>> cursors_;
 
-  std::vector<Reader*> readers_;
-
   // Contains one element for each (screen) line to show, with the corresponding
   // range.
-  std::list<Range> ranges_;
-
-  // Counts the number of readers that have switched to State::kDone since the
-  // range was last updated.
-  size_t readers_done_ = 0;
+  const std::list<ScreenLine> screen_lines_;
 };
 
 }  // namespace editor

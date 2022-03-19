@@ -13,10 +13,9 @@ namespace editor {
 // the contents of the buffer (with syntax highlighting).
 class BufferOutputProducer : public OutputProducer {
  public:
-  BufferOutputProducer(
-      std::shared_ptr<OpenBuffer> buffer,
-      std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-      Widget::OutputProducerOptions output_producer_options);
+  BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
+                       std::list<LineScrollControl::ScreenLine> screen_lines,
+                       Widget::OutputProducerOptions output_producer_options);
 
   Generator Next() override;
 
@@ -24,11 +23,11 @@ class BufferOutputProducer : public OutputProducer {
   Range GetRange(LineColumn begin);
 
   const std::shared_ptr<OpenBuffer> buffer_;
-  const std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
   const Widget::OutputProducerOptions output_producer_options_;
 
   const std::shared_ptr<const ParseTree> root_;
   const ParseTree* current_tree_;
+  std::list<LineScrollControl::ScreenLine> screen_lines_;
 };
 
 }  // namespace editor

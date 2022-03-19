@@ -18,7 +18,7 @@ class LineNumberOutputProducer : public OutputProducer {
 
   LineNumberOutputProducer(
       std::shared_ptr<OpenBuffer> buffer,
-      std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader);
+      std::list<LineScrollControl::ScreenLine> screen_lines);
 
   Generator Next() override;
 
@@ -27,7 +27,7 @@ class LineNumberOutputProducer : public OutputProducer {
  private:
   const ColumnNumberDelta width_;
   const std::shared_ptr<OpenBuffer> buffer_;
-  const std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
+  std::list<LineScrollControl::ScreenLine> screen_lines_;
 };
 
 }  // namespace editor

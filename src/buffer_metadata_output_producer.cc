@@ -99,30 +99,32 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
 
 BufferMetadataOutputProducer::BufferMetadataOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
-    std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader,
+    std::list<LineScrollControl::ScreenLine> screen_lines,
     LineNumberDelta lines_shown,
     std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
-      line_scroll_control_reader_(std::move(line_scroll_control_reader)),
+      screen_lines_(std::move(screen_lines)),
       lines_shown_(lines_shown),
       root_(buffer_->parse_tree()),
       zoomed_out_tree_(std::move(zoomed_out_tree)) {}
 
 OutputProducer::Generator BufferMetadataOutputProducer::Next() {
-  LineScrollControl::Reader::Data data = line_scroll_control_reader_->Read();
-  if (!data.range.has_value()) {
+  if (screen_lines_.empty()) {
     return Generator::Empty();
   }
+
+  LineScrollControl::ScreenLine data = screen_lines_.front();
+  screen_lines_.pop_front();
 
   if (!initial_line_.has_value()) {
-    initial_line_ = data.range->begin.line;
+    initial_line_ = data.range.begin.line;
   }
 
-  if (data.range->begin.line >= LineNumber(0) + buffer_->lines_size()) {
+  if (data.range.begin.line >= LineNumber(0) + buffer_->lines_size()) {
     return Generator::Empty();
   }
 
-  Prepare(data.range.value());
+  Prepare(data.range);
   CHECK(!range_data_.empty());
 
   Generator output = std::move(range_data_.front());

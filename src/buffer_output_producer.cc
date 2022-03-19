@@ -151,27 +151,25 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
 
 BufferOutputProducer::BufferOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
-    std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
+    std::list<LineScrollControl::ScreenLine> screen_lines,
     Widget::OutputProducerOptions output_producer_options)
     : buffer_(std::move(buffer)),
-      line_scroll_control_reader_(std::move(line_scroll_control_reader)),
       output_producer_options_(output_producer_options),
       root_(buffer_->parse_tree()),
-      current_tree_(buffer_->current_tree(root_.get())) {
-  CHECK(line_scroll_control_reader_ != nullptr);
+      current_tree_(buffer_->current_tree(root_.get())),
+      screen_lines_(std::move(screen_lines)) {
   if (buffer_->Read(buffer_variables::reload_on_display)) {
     buffer_->Reload();
   }
 }
 
 OutputProducer::Generator BufferOutputProducer::Next() {
-  LineScrollControl::Reader::Data data = line_scroll_control_reader_->Read();
-  if (!data.range.has_value()) {
-    return Generator::Empty();
-  }
+  if (screen_lines_.empty()) return Generator::Empty();
 
-  auto range = data.range.value();
-  auto line = range.begin.line;
+  LineScrollControl::ScreenLine screen_line = screen_lines_.front();
+  screen_lines_.pop_front();
+
+  auto line = screen_line.range.begin.line;
 
   if (line > buffer_->EndLine()) {
     return Generator::Empty();
@@ -185,10 +183,10 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   bool atomic_lines = buffer_->Read(buffer_variables::atomic_lines);
   bool multiple_cursors = buffer_->Read(buffer_variables::multiple_cursors);
   auto position = buffer_->position();
-  auto cursors = data.current_cursors;
+  auto cursors = screen_line.current_cursors;
 
   output.inputs_hash = hash_combine(
-      std::hash<Range>{}(range), std::hash<bool>{}(atomic_lines),
+      std::hash<Range>{}(screen_line.range), std::hash<bool>{}(atomic_lines),
       std::hash<bool>{}(multiple_cursors),
       std::hash<ColumnNumberDelta>{}(output_producer_options_.size.column),
       std::hash<size_t>{}(static_cast<std::size_t>(
@@ -215,8 +213,8 @@ OutputProducer::Generator BufferOutputProducer::Next() {
                    std::hash<size_t>{}(static_cast<size_t>(cursor_mode)));
 
   output.generate = [output_producer_options = output_producer_options_,
-                     line_contents, range, atomic_lines, multiple_cursors,
-                     position, cursors, cursor_mode]() {
+                     line_contents, range = screen_line.range, atomic_lines,
+                     multiple_cursors, position, cursors, cursor_mode]() {
     Line::OutputOptions options{
         .initial_column = range.begin.column,
         .width = output_producer_options.size.column,
@@ -226,6 +224,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
 
     if (!atomic_lines) {
       std::set<ColumnNumber> current_cursors;
+      // TODO(easy): Compute these things from `data`?
       for (auto& c : cursors) {
         if (LineColumn(range.begin.line, c) == position) {
           options.active_cursor_column = c;
@@ -275,17 +274,20 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   };
 
   if (current_tree_ != root_.get() &&
-      range.begin.line >= current_tree_->range().begin.line &&
-      range.begin.line <= current_tree_->range().end.line) {
-    ColumnNumber begin = range.begin.line == current_tree_->range().begin.line
-                             ? current_tree_->range().begin.column
-                             : ColumnNumber(0);
-    ColumnNumber end = range.begin.line == current_tree_->range().end.line
-                           ? current_tree_->range().end.column
-                           : line_contents->EndColumn();
+      screen_line.range.begin.line >= current_tree_->range().begin.line &&
+      screen_line.range.begin.line <= current_tree_->range().end.line) {
+    ColumnNumber begin =
+        screen_line.range.begin.line == current_tree_->range().begin.line
+            ? current_tree_->range().begin.column
+            : ColumnNumber(0);
+    ColumnNumber end =
+        screen_line.range.begin.line == current_tree_->range().end.line
+            ? current_tree_->range().end.column
+            : line_contents->EndColumn();
     output = ParseTreeHighlighter(begin, end, std::move(output));
   } else if (!buffer_->parse_tree()->children().empty()) {
-    output = ParseTreeHighlighterTokens(root_.get(), range, std::move(output));
+    output = ParseTreeHighlighterTokens(root_.get(), screen_line.range,
+                                        std::move(output));
   }
 
   CHECK(line_contents->contents() != nullptr);

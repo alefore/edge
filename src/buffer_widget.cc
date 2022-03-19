@@ -68,12 +68,12 @@ std::unique_ptr<OutputProducer> AddLeftFrame(
 
 std::unique_ptr<OutputProducer> LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,
-    std::shared_ptr<LineScrollControl> line_scroll_control,
+    std::list<LineScrollControl::ScreenLine> screen_lines,
     Widget::OutputProducerOptions output_producer_options,
     size_t sections_count) {
   std::unique_ptr<OutputProducer> main_contents =
-      std::make_unique<BufferOutputProducer>(
-          buffer, line_scroll_control->NewReader(), output_producer_options);
+      std::make_unique<BufferOutputProducer>(buffer, screen_lines,
+                                             output_producer_options);
 
   if (buffer->Read(buffer_variables::paste_mode)) {
     return main_contents;
@@ -81,8 +81,8 @@ std::unique_ptr<OutputProducer> LinesSpanView(
 
   std::vector<VerticalSplitOutputProducer::Column> columns;
 
-  auto line_numbers = std::make_unique<LineNumberOutputProducer>(
-      buffer, line_scroll_control->NewReader());
+  auto line_numbers =
+      std::make_unique<LineNumberOutputProducer>(buffer, screen_lines);
   auto width = line_numbers->width();
   if (sections_count > 1) {
     columns.push_back({std::make_unique<SectionBracketsProducer>(
@@ -93,12 +93,12 @@ std::unique_ptr<OutputProducer> LinesSpanView(
   columns.push_back({std::move(line_numbers), width});
   columns.push_back(
       {std::move(main_contents), output_producer_options.size.column});
-  columns.push_back({std::make_unique<BufferMetadataOutputProducer>(
-                         buffer, line_scroll_control->NewReader(),
-                         output_producer_options.size.line,
-                         buffer->current_zoomed_out_parse_tree(
-                             output_producer_options.size.line)),
-                     std::nullopt});
+  columns.push_back(
+      {std::make_unique<BufferMetadataOutputProducer>(
+           buffer, screen_lines, output_producer_options.size.line,
+           buffer->current_zoomed_out_parse_tree(
+               output_producer_options.size.line)),
+       std::nullopt});
   return std::make_unique<VerticalSplitOutputProducer>(
       std::move(columns), sections_count > 1 ? 2 : 1);
 }
@@ -224,7 +224,7 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
     section_output_producer_options.size = LineColumnDelta(
         options.lines_shown, output_producer_options.size.column);
     rows.push_back(
-        {LinesSpanView(buffer, LineScrollControl::New(options),
+        {LinesSpanView(buffer, LineScrollControl::New(options)->screen_lines(),
                        section_output_producer_options, sections.size()),
          options.lines_shown});
 
@@ -255,19 +255,19 @@ BufferRenderPlan GetBufferRenderPlan(
   BufferRenderPlan output;
 
   // Initialize output.lines:
-  for (auto scroll_reader =
-           LineScrollControl::New(line_scroll_control_options)->NewReader();
-       LineNumberDelta(output.lines.size()) <
-       line_scroll_control_options.lines_shown;) {
-    LineScrollControl::Reader::Data data = scroll_reader->Read();
-    if (!data.range.has_value()) break;
-    output.lines.push_back(data.range.value());
-    if (data.has_active_cursor && !output.cursor_index.has_value())
+  for (const LineScrollControl::ScreenLine& screen_line :
+       LineScrollControl::New(line_scroll_control_options)->screen_lines()) {
+    if (LineNumberDelta(output.lines.size()) >=
+        line_scroll_control_options.lines_shown)
+      break;
+    output.lines.push_back(screen_line.range);
+    if (screen_line.has_active_cursor && !output.cursor_index.has_value())
       output.cursor_index = output.lines.size();
   }
 
   // Initialize output.status_position:
-  if (output.cursor_index.value_or(0) > 3 * output.lines.size() / 5)
+  if (LineNumberDelta(output.cursor_index.value_or(0)) >
+      (size_t(3) * line_scroll_control_options.lines_shown) / 5)
     output.status_position = BufferRenderPlan::StatusPosition::kTop;
   switch (output.status_position) {
     case BufferRenderPlan::StatusPosition::kBottom:
@@ -369,7 +369,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                           line_scroll_control_options);
   } else {
     output.producer = LinesSpanView(
-        buffer, LineScrollControl::New(line_scroll_control_options),
+        buffer,
+        LineScrollControl::New(line_scroll_control_options)->screen_lines(),
         input.output_producer_options, 1);
   }
 

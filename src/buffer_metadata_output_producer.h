@@ -14,7 +14,7 @@ class BufferMetadataOutputProducer : public OutputProducer {
  public:
   BufferMetadataOutputProducer(
       std::shared_ptr<OpenBuffer> buffer,
-      std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader,
+      std::list<LineScrollControl::ScreenLine> screen_lines,
       LineNumberDelta lines_shown,
       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
@@ -29,7 +29,7 @@ class BufferMetadataOutputProducer : public OutputProducer {
   wchar_t ComputeScrollBarCharacter(LineNumber line);
 
   const std::shared_ptr<OpenBuffer> buffer_;
-  const std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
+  std::list<LineScrollControl::ScreenLine> screen_lines_;
   const LineNumberDelta lines_shown_;
 
   // Key is line number.
