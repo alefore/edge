@@ -15,8 +15,30 @@
 #include "src/parse_tree.h"
 #include "src/terminal.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+// Wrapping in order to define a hash operator.
+template <typename Container>
+struct HashableContainer {
+  HashableContainer(Container container) : container(std::move(container)) {}
+  Container container;
+};
+}  // namespace afc::editor
+namespace std {
+template <typename Container>
+struct hash<afc::editor::HashableContainer<Container>> {
+  std::size_t operator()(
+      const afc::editor::HashableContainer<Container>& container) const {
+    size_t hash = 0;
+    for (const auto& x : container.container) {
+      using Element = typename std::remove_const<
+          typename std::remove_reference<decltype(x)>::type>::type;
+      hash = afc::editor::hash_combine(hash, std::hash<Element>{}(x));
+    }
+    return hash;
+  }
+};
+}  // namespace std
+namespace afc::editor {
 namespace {
 // Use to highlight entire lines (for variable `atomic_lines`).
 OutputProducer::Generator LineHighlighter(OutputProducer::Generator generator) {
@@ -54,8 +76,8 @@ OutputProducer::Generator ParseTreeHighlighter(
 // Adds to `output` all modifiers for the tree relevant to a given range.
 //
 // If range.begin.column is non-zero, the columns in the output will have
-// already subtracted it. In other words, the columns in the output are relative
-// to range.begin.column, rather than absolute.
+// already subtracted it. In other words, the columns in the output are
+// relative to range.begin.column, rather than absolute.
 //
 // Only modifiers in the line range.begin.line will ever be outputed. Most of
 // the time, range.end is either in the same line or at the beginning of the
@@ -175,103 +197,81 @@ OutputProducer::Generator BufferOutputProducer::Next() {
 
   std::shared_ptr<const Line> line_contents = buffer_->LineAt(line);
 
-  Generator output;
-
-  bool atomic_lines = buffer_->Read(buffer_variables::atomic_lines);
-  bool multiple_cursors = buffer_->Read(buffer_variables::multiple_cursors);
-  auto position = buffer_->position();
-  auto cursors = screen_line.current_cursors;
-
-  // TODO(easy): Hash screen_line directly.
-  output.inputs_hash = hash_combine(
-      std::hash<Range>{}(screen_line.range), std::hash<bool>{}(atomic_lines),
-      std::hash<bool>{}(multiple_cursors),
-      std::hash<ColumnNumberDelta>{}(output_producer_options_.size.column),
-      std::hash<size_t>{}(static_cast<std::size_t>(
-          output_producer_options_.main_cursor_behavior)),
-      line_contents->GetHash());
-  if (position.line == line) {
-    output.inputs_hash = hash_combine(output.inputs_hash.value(),
-                                      std::hash<LineColumn>{}(position));
-  }
-  for (auto& c : cursors) {
-    output.inputs_hash =
-        hash_combine(output.inputs_hash.value(), std::hash<ColumnNumber>{}(c));
-  }
-
   std::shared_ptr<EditorMode> editor_keyboard_redirect =
       buffer_->editor()->keyboard_redirect();
-  EditorMode::CursorMode cursor_mode =
+  Generator output = Generator::New(CaptureAndHash(
+      [](ColumnNumberDelta size_columns,
+         Widget::OutputProducerOptions::MainCursorBehavior main_cursor_behavior,
+         std::shared_ptr<const Line> line_contents, Range range,
+         bool atomic_lines, bool multiple_cursors, LineColumn position,
+         HashableContainer<std::set<ColumnNumber>> cursors,
+         EditorMode::CursorMode cursor_mode) {
+        Line::OutputOptions options{
+            .initial_column = range.begin.column,
+            .width = size_columns,
+            .input_width = range.begin.line == range.end.line
+                               ? range.end.column - range.begin.column
+                               : std::numeric_limits<ColumnNumberDelta>::max()};
+        if (!atomic_lines) {
+          std::set<ColumnNumber> current_cursors;
+          // TODO(easy): Compute these things from `data`?
+          for (auto& c : cursors.container) {
+            if (LineColumn(range.begin.line, c) == position) {
+              options.active_cursor_column = c;
+            } else {
+              options.inactive_cursor_columns.insert(c);
+            }
+          }
+          if (main_cursor_behavior ==
+              Widget::OutputProducerOptions::MainCursorBehavior::kHighlight) {
+            switch (cursor_mode) {
+              case EditorMode::CursorMode::kDefault:
+                options.modifiers_main_cursor = {LineModifier::REVERSE,
+                                                 multiple_cursors
+                                                     ? LineModifier::GREEN
+                                                     : LineModifier::CYAN};
+                break;
+              case EditorMode::CursorMode::kInserting:
+                options.modifiers_main_cursor = {LineModifier::YELLOW,
+                                                 multiple_cursors
+                                                     ? LineModifier::GREEN
+                                                     : LineModifier::CYAN};
+                break;
+              case EditorMode::CursorMode::kOverwriting:
+                options.modifiers_main_cursor = {LineModifier::RED,
+                                                 LineModifier::UNDERLINE};
+                break;
+            }
+          } else {
+            switch (cursor_mode) {
+              case EditorMode::CursorMode::kDefault:
+                options.modifiers_main_cursor = {LineModifier::WHITE};
+                break;
+              case EditorMode::CursorMode::kInserting:
+                options.modifiers_main_cursor = {LineModifier::YELLOW,
+                                                 LineModifier::UNDERLINE};
+                break;
+              case EditorMode::CursorMode::kOverwriting:
+                options.modifiers_main_cursor = {LineModifier::RED,
+                                                 LineModifier::UNDERLINE};
+                break;
+            }
+          }
+          options.modifiers_inactive_cursors = {
+              LineModifier::REVERSE,
+              multiple_cursors ? LineModifier::CYAN : LineModifier::BLUE};
+        }
+
+        return line_contents->Output(std::move(options));
+      },
+      output_producer_options_.size.column,
+      output_producer_options_.main_cursor_behavior, line_contents,
+      screen_line.range, buffer_->Read(buffer_variables::atomic_lines),
+      buffer_->Read(buffer_variables::multiple_cursors), buffer_->position(),
+      HashableContainer(std::move(screen_line.current_cursors)),
       (editor_keyboard_redirect == nullptr ? *buffer_->mode()
                                            : *editor_keyboard_redirect)
-          .cursor_mode();
-
-  output.inputs_hash =
-      hash_combine(output.inputs_hash.value(),
-                   std::hash<size_t>{}(static_cast<size_t>(cursor_mode)));
-
-  // TODO(easy): Capture screen_line, rather than separately capturing range
-  // and cursors. Possibly get rid of variable cursors.
-  output.generate = [output_producer_options = output_producer_options_,
-                     line_contents, range = screen_line.range, atomic_lines,
-                     multiple_cursors, position, cursors, cursor_mode]() {
-    Line::OutputOptions options{
-        .initial_column = range.begin.column,
-        .width = output_producer_options.size.column,
-        .input_width = range.begin.line == range.end.line
-                           ? range.end.column - range.begin.column
-                           : std::numeric_limits<ColumnNumberDelta>::max()};
-
-    if (!atomic_lines) {
-      std::set<ColumnNumber> current_cursors;
-      // TODO(easy): Compute these things from `data`?
-      for (auto& c : cursors) {
-        if (LineColumn(range.begin.line, c) == position) {
-          options.active_cursor_column = c;
-        } else {
-          options.inactive_cursor_columns.insert(c);
-        }
-      }
-      if (output_producer_options.main_cursor_behavior ==
-          Widget::OutputProducerOptions::MainCursorBehavior::kHighlight) {
-        switch (cursor_mode) {
-          case EditorMode::CursorMode::kDefault:
-            options.modifiers_main_cursor = {
-                LineModifier::REVERSE,
-                multiple_cursors ? LineModifier::GREEN : LineModifier::CYAN};
-            break;
-          case EditorMode::CursorMode::kInserting:
-            options.modifiers_main_cursor = {
-                LineModifier::YELLOW,
-                multiple_cursors ? LineModifier::GREEN : LineModifier::CYAN};
-            break;
-          case EditorMode::CursorMode::kOverwriting:
-            options.modifiers_main_cursor = {LineModifier::RED,
-                                             LineModifier::UNDERLINE};
-            break;
-        }
-      } else {
-        switch (cursor_mode) {
-          case EditorMode::CursorMode::kDefault:
-            options.modifiers_main_cursor = {LineModifier::WHITE};
-            break;
-          case EditorMode::CursorMode::kInserting:
-            options.modifiers_main_cursor = {LineModifier::YELLOW,
-                                             LineModifier::UNDERLINE};
-            break;
-          case EditorMode::CursorMode::kOverwriting:
-            options.modifiers_main_cursor = {LineModifier::RED,
-                                             LineModifier::UNDERLINE};
-            break;
-        }
-      }
-      options.modifiers_inactive_cursors = {
-          LineModifier::REVERSE,
-          multiple_cursors ? LineModifier::CYAN : LineModifier::BLUE};
-    }
-
-    return line_contents->Output(std::move(options));
-  };
+          .cursor_mode()));
 
   if (current_tree_ != root_.get() &&
       screen_line.range.begin.line >= current_tree_->range().begin.line &&
@@ -298,5 +298,4 @@ OutputProducer::Generator BufferOutputProducer::Next() {
 
   return output;
 }
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
