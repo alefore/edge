@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 
+#include "src/hash.h"
 #include "src/line_column.h"
 
 namespace afc::editor {
@@ -27,6 +28,12 @@ class OutputProducer {
   struct Generator {
     static Generator Empty() {
       return Generator{std::nullopt, []() { return LineWithCursor::Empty(); }};
+    }
+
+    template <typename Callable>
+    static Generator New(CallableWithCapture<Callable> callable_with_capture) {
+      return Generator{.inputs_hash = callable_with_capture.hash,
+                       .generate = std::move(callable_with_capture.callable)};
     }
 
     // If a value is provided, this should be a hash of all the inputs from
