@@ -13,8 +13,7 @@
 
 namespace afc {
 namespace editor {
-class LineScrollControl
-    : public std::enable_shared_from_this<LineScrollControl> {
+class LineScrollControl {
  private:
   struct ConstructorAccessTag {};
 
