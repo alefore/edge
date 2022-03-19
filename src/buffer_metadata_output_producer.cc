@@ -245,16 +245,14 @@ Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
 void BufferMetadataOutputProducer::PushGenerator(wchar_t info_char,
                                                  LineModifier modifier,
                                                  Line suffix) {
-  range_data_.push_back(Generator{
-      hash_combine(
-          hash_combine(hash_combine(0, info_char), static_cast<int>(modifier)),
-          suffix.GetHash()),
-      [info_char, modifier, suffix = std::move(suffix)]() {
+  range_data_.push_back(Generator::New(CaptureAndHash(
+      [](wchar_t info_char, LineModifier modifier, Line suffix) {
         Line::Options options;
         options.AppendCharacter(info_char, {modifier});
         options.Append(suffix);
         return LineWithCursor{std::make_shared<Line>(options), std::nullopt};
-      }});
+      },
+      info_char, modifier, suffix)));
 }
 
 // Assume that the screen is currently showing the screen_position lines out of
