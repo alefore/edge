@@ -49,43 +49,36 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
     return OutputProducer::Generator::Empty();
   }
 
-  OutputProducer::Generator output;
-
-  // TODO(easy): Hash screen_line directly? Possibly there's a bug in that
-  // modifiers depend on other values in screen_line that we're not hashing.
-  output.inputs_hash = std::hash<std::optional<Range>>()(screen_line.range) +
-                       std::hash<ColumnNumberDelta>()(width_);
-
   LineModifierSet modifiers;
   if (screen_line.current_cursors.empty()) {
-    modifiers.insert(LineModifier::DIM);
-    output.inputs_hash.value() += std::hash<size_t>()(0);
+    modifiers = {LineModifier::DIM};
   } else if (screen_line.has_active_cursor ||
              buffer_->Read(buffer_variables::multiple_cursors)) {
-    modifiers.insert(LineModifier::CYAN);
-    modifiers.insert(LineModifier::BOLD);
-    output.inputs_hash.value() += std::hash<size_t>()(1);
+    modifiers = {LineModifier::CYAN, LineModifier::BOLD};
   } else {
-    modifiers.insert(LineModifier::BLUE);
-    output.inputs_hash.value() += std::hash<size_t>()(2);
+    modifiers = {LineModifier::BLUE};
   }
 
-  output.generate = [range = screen_line.range, width = width_,
-                     modifiers = std::move(modifiers)]() {
-    std::wstring number =
-        range.begin.column.IsZero() ? range.begin.line.ToUserString() : L"↪";
-    CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
-    auto padding = ColumnNumberDelta::PaddingString(
-        width - ColumnNumberDelta(number.size() + 1), L' ');
+  return OutputProducer::Generator{
+      .inputs_hash =
+          hash_combine(std::hash<std::optional<Range>>()(screen_line.range),
+                       std::hash<ColumnNumberDelta>()(width_),
+                       std::hash<LineModifierSet>()(modifiers)),
+      .generate = [range = screen_line.range, width = width_,
+                   modifiers = modifiers]() {
+        std::wstring number = range.begin.column.IsZero()
+                                  ? range.begin.line.ToUserString()
+                                  : L"↪";
+        CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
+        auto padding = ColumnNumberDelta::PaddingString(
+            width - ColumnNumberDelta(number.size() + 1), L' ');
 
-    Line::Options line_options;
-    line_options.AppendString(
-        StringAppend(padding, NewLazyString(number + L":")), modifiers);
-    return LineWithCursor{std::make_shared<Line>(std::move(line_options)),
-                          std::nullopt};
-  };
-
-  return output;
+        Line::Options line_options;
+        line_options.AppendString(
+            StringAppend(padding, NewLazyString(number + L":")), modifiers);
+        return LineWithCursor{std::make_shared<Line>(std::move(line_options)),
+                              std::nullopt};
+      }};
 }
 
 ColumnNumberDelta LineNumberOutputProducer::width() const { return width_; }
