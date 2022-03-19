@@ -238,7 +238,7 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
 
 struct BufferRenderPlan {
   // Contains one entry for each line to render.
-  std::vector<Range> lines;
+  std::list<ScreenLine> lines;
 
   // If present, an index in `lines` corresponding to the position with the main
   // cursor.
@@ -253,15 +253,13 @@ BufferRenderPlan GetBufferRenderPlan(
     LineNumberDelta status_lines) {
   BufferRenderPlan output;
 
-  // Initialize output.lines:
-  for (const ScreenLine& screen_line :
-       ComputeScreenLines(compute_screen_lines_input)) {
-    if (LineNumberDelta(output.lines.size()) >=
-        compute_screen_lines_input.lines_shown)
-      break;
-    output.lines.push_back(screen_line.range);
+  output.lines = ComputeScreenLines(compute_screen_lines_input);
+
+  size_t i = 0;
+  for (const ScreenLine& screen_line : output.lines) {
     if (screen_line.has_active_cursor && !output.cursor_index.has_value())
-      output.cursor_index = output.lines.size();
+      output.cursor_index = i;
+    ++i;
   }
 
   // Initialize output.status_position:
@@ -358,7 +356,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   BufferRenderPlan plan =
       GetBufferRenderPlan(compute_screen_lines_input, status_lines);
-  output.view_start = plan.lines[0].begin;
+  output.view_start = plan.lines.front().range.begin;
   input.output_producer_options.size =
       LineColumnDelta(LineNumberDelta(plan.lines.size()),
                       compute_screen_lines_input.columns_shown);
@@ -368,8 +366,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                           compute_screen_lines_input);
   } else {
     output.producer =
-        LinesSpanView(buffer, ComputeScreenLines(compute_screen_lines_input),
-                      input.output_producer_options, 1);
+        LinesSpanView(buffer, plan.lines, input.output_producer_options, 1);
   }
 
   if (status_lines > LineNumberDelta(0)) {
