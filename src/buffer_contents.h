@@ -127,7 +127,7 @@ class BufferContents : public fuzz::FuzzTestable {
   // case the character will just get appended (extending the line by exactly
   // one character).
   void SetCharacter(LineColumn position, int c,
-                    std::unordered_set<LineModifier, hash<int>> modifiers);
+                    std::unordered_set<LineModifier, std::hash<int>> modifiers);
 
   void InsertCharacter(LineColumn position);
   void AppendToLine(LineNumber line, Line line_to_append);
