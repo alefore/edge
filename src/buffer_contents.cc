@@ -523,7 +523,7 @@ void BufferContents::DeleteToLineEnd(LineColumn position) {
 
 void BufferContents::SetCharacter(
     LineColumn position, int c,
-    std::unordered_set<LineModifier, hash<int>> modifiers) {
+    std::unordered_set<LineModifier, std::hash<int>> modifiers) {
   VLOG(5) << "Set character: " << c << " at " << position
           << " with modifiers: " << modifiers.size();
   TransformLine(position.line, [&](Line::Options* options) {
