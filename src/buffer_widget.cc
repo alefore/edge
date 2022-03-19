@@ -266,18 +266,8 @@ BufferRenderPlan GetBufferRenderPlan(
   if (LineNumberDelta(output.cursor_index.value_or(0)) >
       (size_t(3) * compute_screen_lines_input.lines_shown) / 5)
     output.status_position = BufferRenderPlan::StatusPosition::kTop;
-  switch (output.status_position) {
-    case BufferRenderPlan::StatusPosition::kBottom:
-      output.lines.resize(std::max(
-          0,
-          (compute_screen_lines_input.lines_shown - status_lines).line_delta));
-      break;
-    case BufferRenderPlan::StatusPosition::kTop:
-      break;
-  }
   return output;
 }
-
 }  // namespace
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
@@ -309,8 +299,6 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       status_output_producer_supplier == nullptr
           ? LineNumberDelta()
           : min(size.line / 4, status_output_producer_supplier->lines());
-
-  // auto buffer_lines = size.line - status_lines;
 
   auto buffer_view_size = LineColumnDelta(size.line, size.column);
   buffer->viewers()->set_view_size(buffer_view_size);
@@ -373,7 +361,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     CHECK(status_output_producer_supplier != nullptr);
     using HP = HorizontalSplitOutputProducer;
     HP::Row buffer_row = {.producer = std::move(output.producer),
-                          .lines = LineNumberDelta(plan.lines.size())};
+                          .lines = compute_screen_lines_input.lines_shown};
     HP::Row status_row = {
         .producer = status_output_producer_supplier->CreateOutputProducer(
             LineColumnDelta(status_lines, size.column)),
@@ -390,6 +378,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       case BufferRenderPlan::StatusPosition::kBottom:
         buffer_index = 0;
         status_index = 1;
+        buffer_row.lines -= status_lines;
         break;
     }
 
