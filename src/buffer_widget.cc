@@ -67,7 +67,8 @@ std::unique_ptr<OutputProducer> AddLeftFrame(
 }
 
 std::unique_ptr<OutputProducer> LinesSpanView(
-    std::shared_ptr<OpenBuffer> buffer, std::list<ScreenLine> screen_lines,
+    std::shared_ptr<OpenBuffer> buffer,
+    std::list<BufferContentsWindow::Line> screen_lines,
     Widget::OutputProducerOptions output_producer_options,
     size_t sections_count) {
   std::unique_ptr<OutputProducer> main_contents =
@@ -192,7 +193,7 @@ std::set<Range> ExpandSections(LineNumber end_line,
 std::unique_ptr<OutputProducer> ViewMultipleCursors(
     std::shared_ptr<OpenBuffer> buffer,
     Widget::OutputProducerOptions output_producer_options,
-    const ComputeScreenLinesInput compute_screen_lines_input) {
+    const BufferContentsWindow::Input buffer_contents_window_input) {
   std::set<Range> sections;
   for (auto& cursor : *buffer->active_cursors()) {
     sections.insert(Range(
@@ -214,20 +215,20 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
   size_t active_index = 0;
   size_t index = 0;
   for (const auto& section : sections) {
-    ComputeScreenLinesInput options = compute_screen_lines_input;
-    options.lines_shown = section.end.line - section.begin.line;
+    BufferContentsWindow::Input section_input = buffer_contents_window_input;
+    section_input.lines_shown = section.end.line - section.begin.line;
     // TODO: Maybe take columns into account? Ugh.
-    options.begin = LineColumn(section.begin.line);
+    section_input.begin = LineColumn(section.begin.line);
     Widget::OutputProducerOptions section_output_producer_options =
         output_producer_options;
     section_output_producer_options.size = LineColumnDelta(
-        options.lines_shown, output_producer_options.size.column);
-    CHECK(options.active_position == std::nullopt);
-    VLOG(3) << "Multiple cursors section starting at: " << options.begin;
-    rows.push_back(
-        {LinesSpanView(buffer, ComputeScreenLines(options),
-                       section_output_producer_options, sections.size()),
-         options.lines_shown});
+        section_input.lines_shown, output_producer_options.size.column);
+    CHECK(section_input.active_position == std::nullopt);
+    VLOG(3) << "Multiple cursors section starting at: " << section_input.begin;
+    rows.push_back({.producer = LinesSpanView(
+                        buffer, BufferContentsWindow::Get(section_input).lines,
+                        section_output_producer_options, sections.size()),
+                    .lines = section_input.lines_shown});
 
     if (section.Contains(buffer->position())) {
       active_index = index;
@@ -240,7 +241,7 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
 
 struct BufferRenderPlan {
   // Contains one entry for each line to render.
-  std::list<ScreenLine> lines;
+  std::list<BufferContentsWindow::Line> lines;
 
   // If present, an index in `lines` corresponding to the position with the main
   // cursor.
@@ -251,13 +252,14 @@ struct BufferRenderPlan {
 };
 
 BufferRenderPlan GetBufferRenderPlan(
-    const ComputeScreenLinesInput& compute_screen_lines_input) {
+    const BufferContentsWindow::Input& buffer_contents_window_input) {
   BufferRenderPlan output;
 
-  output.lines = ComputeScreenLines(compute_screen_lines_input);
+  output.lines =
+      std::move(BufferContentsWindow::Get(buffer_contents_window_input).lines);
 
   size_t i = 0;
-  for (const ScreenLine& screen_line : output.lines) {
+  for (const BufferContentsWindow::Line& screen_line : output.lines) {
     if (screen_line.has_active_cursor && !output.cursor_index.has_value())
       output.cursor_index = i;
     ++i;
@@ -265,7 +267,7 @@ BufferRenderPlan GetBufferRenderPlan(
 
   // Initialize output.status_position:
   if (LineNumberDelta(output.cursor_index.value_or(0)) >
-      (size_t(3) * compute_screen_lines_input.lines_shown) / 5)
+      (size_t(3) * buffer_contents_window_input.lines_shown) / 5)
     output.status_position = BufferRenderPlan::StatusPosition::kTop;
   return output;
 }
@@ -306,7 +308,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
-  ComputeScreenLinesInput compute_screen_lines_input{
+  BufferContentsWindow::Input buffer_contents_window_input{
       .contents = buffer->contents()->copy(),
       .active_position = buffer->Read(buffer_variables::multiple_cursors)
                              ? std::optional<LineColumn>()
@@ -339,21 +341,21 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   if (auto w = ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
       !buffer->Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
-    compute_screen_lines_input.columns_shown =
-        min(compute_screen_lines_input.columns_shown, w);
+    buffer_contents_window_input.columns_shown =
+        min(buffer_contents_window_input.columns_shown, w);
   }
 
-  CHECK_GE(compute_screen_lines_input.margin_lines, LineNumberDelta(0));
+  CHECK_GE(buffer_contents_window_input.margin_lines, LineNumberDelta(0));
 
-  BufferRenderPlan plan = GetBufferRenderPlan(compute_screen_lines_input);
+  BufferRenderPlan plan = GetBufferRenderPlan(buffer_contents_window_input);
   output.view_start = plan.lines.front().range.begin;
   input.output_producer_options.size =
       LineColumnDelta(LineNumberDelta(plan.lines.size()),
-                      compute_screen_lines_input.columns_shown);
+                      buffer_contents_window_input.columns_shown);
 
   if (buffer->Read(buffer_variables::multiple_cursors)) {
     output.producer = ViewMultipleCursors(buffer, input.output_producer_options,
-                                          compute_screen_lines_input);
+                                          buffer_contents_window_input);
   } else {
     output.producer =
         LinesSpanView(buffer, plan.lines, input.output_producer_options, 1);
@@ -363,7 +365,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     CHECK(status_output_producer_supplier != nullptr);
     using HP = HorizontalSplitOutputProducer;
     HP::Row buffer_row = {.producer = std::move(output.producer),
-                          .lines = compute_screen_lines_input.lines_shown};
+                          .lines = buffer_contents_window_input.lines_shown};
     HP::Row status_row = {
         .producer = status_output_producer_supplier->CreateOutputProducer(
             LineColumnDelta(status_lines, size.column)),

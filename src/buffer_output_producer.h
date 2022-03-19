@@ -14,7 +14,7 @@ namespace editor {
 class BufferOutputProducer : public OutputProducer {
  public:
   BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
-                       std::list<ScreenLine> screen_lines,
+                       std::list<BufferContentsWindow::Line> lines,
                        Widget::OutputProducerOptions output_producer_options);
 
   Generator Next() override;
@@ -27,7 +27,7 @@ class BufferOutputProducer : public OutputProducer {
 
   const std::shared_ptr<const ParseTree> root_;
   const ParseTree* current_tree_;
-  std::list<ScreenLine> screen_lines_;
+  std::list<BufferContentsWindow::Line> lines_;
 };
 
 }  // namespace editor

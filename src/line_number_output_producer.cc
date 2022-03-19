@@ -32,7 +32,8 @@ namespace editor {
 }
 
 LineNumberOutputProducer::LineNumberOutputProducer(
-    std::shared_ptr<OpenBuffer> buffer, std::list<ScreenLine> screen_lines)
+    std::shared_ptr<OpenBuffer> buffer,
+    std::list<BufferContentsWindow::Line> screen_lines)
     : width_(max(PrefixWidth(buffer->lines_size()),
                  ColumnNumberDelta(buffer->editor()->Read(
                      editor_variables::numbers_column_padding)))),
@@ -41,7 +42,7 @@ LineNumberOutputProducer::LineNumberOutputProducer(
 
 OutputProducer::Generator LineNumberOutputProducer::Next() {
   if (screen_lines_.empty()) return OutputProducer::Generator::Empty();
-  ScreenLine screen_line = screen_lines_.front();
+  BufferContentsWindow::Line screen_line = screen_lines_.front();
   screen_lines_.pop_front();
   if (screen_line.range.begin.line > buffer_->EndLine()) {
     // Happens when the buffer is smaller than the screen.
@@ -50,6 +51,8 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
 
   OutputProducer::Generator output;
 
+  // TODO(easy): Hash screen_line directly? Possibly there's a bug in that
+  // modifiers depend on other values in screen_line that we're not hashing.
   output.inputs_hash = std::hash<std::optional<Range>>()(screen_line.range) +
                        std::hash<ColumnNumberDelta>()(width_);
 

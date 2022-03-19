@@ -150,23 +150,24 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
 }  // namespace
 
 BufferOutputProducer::BufferOutputProducer(
-    std::shared_ptr<OpenBuffer> buffer, std::list<ScreenLine> screen_lines,
+    std::shared_ptr<OpenBuffer> buffer,
+    std::list<BufferContentsWindow::Line> lines,
     Widget::OutputProducerOptions output_producer_options)
     : buffer_(std::move(buffer)),
       output_producer_options_(output_producer_options),
       root_(buffer_->parse_tree()),
       current_tree_(buffer_->current_tree(root_.get())),
-      screen_lines_(std::move(screen_lines)) {
+      lines_(std::move(lines)) {
   if (buffer_->Read(buffer_variables::reload_on_display)) {
     buffer_->Reload();
   }
 }
 
 OutputProducer::Generator BufferOutputProducer::Next() {
-  if (screen_lines_.empty()) return Generator::Empty();
+  if (lines_.empty()) return Generator::Empty();
 
-  ScreenLine screen_line = screen_lines_.front();
-  screen_lines_.pop_front();
+  BufferContentsWindow::Line screen_line = lines_.front();
+  lines_.pop_front();
 
   auto line = screen_line.range.begin.line;
 
@@ -184,6 +185,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   auto position = buffer_->position();
   auto cursors = screen_line.current_cursors;
 
+  // TODO(easy): Hash screen_line directly.
   output.inputs_hash = hash_combine(
       std::hash<Range>{}(screen_line.range), std::hash<bool>{}(atomic_lines),
       std::hash<bool>{}(multiple_cursors),
@@ -211,6 +213,8 @@ OutputProducer::Generator BufferOutputProducer::Next() {
       hash_combine(output.inputs_hash.value(),
                    std::hash<size_t>{}(static_cast<size_t>(cursor_mode)));
 
+  // TODO(easy): Capture screen_line, rather than separately capturing range
+  // and cursors. Possibly get rid of variable cursors.
   output.generate = [output_producer_options = output_producer_options_,
                      line_contents, range = screen_line.range, atomic_lines,
                      multiple_cursors, position, cursors, cursor_mode]() {
