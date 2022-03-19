@@ -59,13 +59,8 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
     modifiers = {LineModifier::BLUE};
   }
 
-  return OutputProducer::Generator{
-      .inputs_hash =
-          hash_combine(std::hash<std::optional<Range>>()(screen_line.range),
-                       std::hash<ColumnNumberDelta>()(width_),
-                       std::hash<LineModifierSet>()(modifiers)),
-      .generate = [range = screen_line.range, width = width_,
-                   modifiers = modifiers]() {
+  return OutputProducer::Generator::New(CaptureAndHash(
+      [](Range range, ColumnNumberDelta width, LineModifierSet modifiers) {
         std::wstring number = range.begin.column.IsZero()
                                   ? range.begin.line.ToUserString()
                                   : L"↪";
@@ -78,7 +73,8 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
             StringAppend(padding, NewLazyString(number + L":")), modifiers);
         return LineWithCursor{std::make_shared<Line>(std::move(line_options)),
                               std::nullopt};
-      }};
+      },
+      std::move(screen_line.range), width_, std::move(modifiers)));
 }
 
 ColumnNumberDelta LineNumberOutputProducer::width() const { return width_; }
