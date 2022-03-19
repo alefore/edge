@@ -35,7 +35,7 @@ void BufferTerminal::ProcessCommandInput(
     shared_ptr<LazyString> str,
     const std::function<void()>& new_line_callback) {
   position_.line = min(position_.line, buffer_->EndLine());
-  std::unordered_set<LineModifier, hash<int>> modifiers;
+  std::unordered_set<LineModifier, std::hash<int>> modifiers;
 
   ColumnNumber read_index;
   VLOG(5) << "Terminal input: " << str->ToString();
