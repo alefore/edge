@@ -15,7 +15,9 @@ namespace afc::editor {
 struct ComputeScreenLinesInput {
   std::shared_ptr<BufferContents> contents;
 
-  LineColumn active_position;
+  // If present, adjusts the view (`begin`) to contain this location.
+  std::optional<LineColumn> active_position;
+
   CursorsSet* active_cursors;
 
   LineWrapStyle line_wrap_style;
@@ -31,7 +33,9 @@ struct ComputeScreenLinesInput {
   LineColumn begin;
 
   // Number of lines above the buffer->position() that should be shown.
-  // Ignored if less than lines_shown / 2, ignored.
+  // Ignored if
+  // - less than lines_shown / 2, or
+  // - active_position is nullopt.
   LineNumberDelta margin_lines;
 };
 

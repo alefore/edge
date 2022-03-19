@@ -222,6 +222,8 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
         output_producer_options;
     section_output_producer_options.size = LineColumnDelta(
         options.lines_shown, output_producer_options.size.column);
+    CHECK(options.active_position == std::nullopt);
+    VLOG(3) << "Multiple cursors section starting at: " << options.begin;
     rows.push_back(
         {LinesSpanView(buffer, ComputeScreenLines(options),
                        section_output_producer_options, sections.size()),
@@ -249,8 +251,7 @@ struct BufferRenderPlan {
 };
 
 BufferRenderPlan GetBufferRenderPlan(
-    const ComputeScreenLinesInput& compute_screen_lines_input,
-    LineNumberDelta status_lines) {
+    const ComputeScreenLinesInput& compute_screen_lines_input) {
   BufferRenderPlan output;
 
   output.lines = ComputeScreenLines(compute_screen_lines_input);
@@ -307,7 +308,9 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   ComputeScreenLinesInput compute_screen_lines_input{
       .contents = buffer->contents()->copy(),
-      .active_position = buffer->position(),
+      .active_position = buffer->Read(buffer_variables::multiple_cursors)
+                             ? std::optional<LineColumn>()
+                             : buffer->position(),
       .active_cursors = buffer->active_cursors(),
       .line_wrap_style = buffer->Read(buffer_variables::wrap_from_content)
                              ? LineWrapStyle::kContentBased
@@ -342,8 +345,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   CHECK_GE(compute_screen_lines_input.margin_lines, LineNumberDelta(0));
 
-  BufferRenderPlan plan =
-      GetBufferRenderPlan(compute_screen_lines_input, status_lines);
+  BufferRenderPlan plan = GetBufferRenderPlan(compute_screen_lines_input);
   output.view_start = plan.lines.front().range.begin;
   input.output_producer_options.size =
       LineColumnDelta(LineNumberDelta(plan.lines.size()),
