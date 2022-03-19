@@ -32,8 +32,7 @@ namespace editor {
 }
 
 LineNumberOutputProducer::LineNumberOutputProducer(
-    std::shared_ptr<OpenBuffer> buffer,
-    std::list<LineScrollControl::ScreenLine> screen_lines)
+    std::shared_ptr<OpenBuffer> buffer, std::list<ScreenLine> screen_lines)
     : width_(max(PrefixWidth(buffer->lines_size()),
                  ColumnNumberDelta(buffer->editor()->Read(
                      editor_variables::numbers_column_padding)))),
@@ -42,7 +41,7 @@ LineNumberOutputProducer::LineNumberOutputProducer(
 
 OutputProducer::Generator LineNumberOutputProducer::Next() {
   if (screen_lines_.empty()) return OutputProducer::Generator::Empty();
-  LineScrollControl::ScreenLine screen_line = screen_lines_.front();
+  ScreenLine screen_line = screen_lines_.front();
   screen_lines_.pop_front();
   if (screen_line.range.begin.line > buffer_->EndLine()) {
     // Happens when the buffer is smaller than the screen.

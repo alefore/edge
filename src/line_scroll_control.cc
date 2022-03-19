@@ -19,47 +19,17 @@
 #include "src/wstring.h"
 
 namespace afc::editor {
-LineScrollControl::LineScrollControl(ConstructorAccessTag, Options options)
-    : options_([](Options options) {
-        options.begin = std::min(options.begin, options.active_position);
-        options.begin = std::max(
-            options.begin,
-            LineColumn(options.active_position.line.MinusHandlingOverflow(
-                options.lines_shown)));
-        options.active_position.line =
-            min(options.active_position.line, options.contents->EndLine());
-        options.active_position.column = min(
-            options.active_position.column,
-            options.contents->at(options.active_position.line)->EndColumn());
-        return options;
-      }(std::move(options))),
-      cursors_([=]() {
-        CHECK(options_.contents != nullptr);
-        std::map<LineNumber, std::set<ColumnNumber>> cursors;
-        for (auto& cursor : *options_.active_cursors) {
-          cursors[cursor.line].insert(cursor.column);
-        }
-        return cursors;
-      }()),
-      screen_lines_(ComputeScreenLines()) {}
-
-std::list<LineScrollControl::ScreenLine> LineScrollControl::screen_lines()
-    const {
-  return screen_lines_;
-}
-
-std::list<ColumnRange> LineScrollControl::ComputeBreaks(LineNumber line) const {
-  return BreakLineForOutput(*options_.contents->at(line),
-                            options_.columns_shown, options_.line_wrap_style,
-                            options_.symbol_characters);
-}
-
 namespace {
+std::list<ColumnRange> ComputeBreaks(const ComputeScreenLinesInput& options,
+                                     LineNumber line) {
+  return BreakLineForOutput(*options.contents->at(line), options.columns_shown,
+                            options.line_wrap_style, options.symbol_characters);
+}
+
 // If the position is before the ranges, returns 0. If the position is after
 // the ranges, returns the last line.
-LineNumber FindPositionInScreen(
-    const std::list<LineScrollControl::ScreenLine>& screen_lines,
-    LineColumn position) {
+LineNumber FindPositionInScreen(const std::list<ScreenLine>& screen_lines,
+                                LineColumn position) {
   CHECK(!screen_lines.empty());
   if (position < screen_lines.front().range.begin) {
     return LineNumber();
@@ -89,7 +59,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
           [] {
             CHECK_EQ(
                 FindPositionInScreen(
-                    std::list<LineScrollControl::ScreenLine>({
+                    std::list<ScreenLine>({
                         {.range =
                              Range::InLine(LineNumber(10), ColumnNumber(20),
                                            ColumnNumberDelta(8)),
@@ -107,7 +77,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(FindPositionInScreen(
-                         std::list<LineScrollControl::ScreenLine>(
+                         std::list<ScreenLine>(
                              {{.range = Range::InLine(LineNumber(10),
                                                       ColumnNumber(20),
                                                       ColumnNumberDelta(8)),
@@ -120,7 +90,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(FindPositionInScreen(
-                         std::list<LineScrollControl::ScreenLine>(
+                         std::list<ScreenLine>(
                              {{.range = Range::InLine(LineNumber(10),
                                                       ColumnNumber(20),
                                                       ColumnNumberDelta(8)),
@@ -139,7 +109,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
           [] {
             CHECK_EQ(
                 FindPositionInScreen(
-                    std::list<LineScrollControl::ScreenLine>({
+                    std::list<ScreenLine>({
                         {.range =
                              Range::InLine(LineNumber(10), ColumnNumber(20),
                                            ColumnNumberDelta(8)),
@@ -156,7 +126,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
      {.name = L"AfterLast", .callback = [] {
         CHECK_EQ(
             FindPositionInScreen(
-                std::list<LineScrollControl::ScreenLine>({
+                std::list<ScreenLine>({
                     {.range = Range::InLine(LineNumber(10), ColumnNumber(20),
                                             ColumnNumberDelta(8)),
                      .has_active_cursor = false,
@@ -169,77 +139,28 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
                 LineColumn(LineNumber(12))),
             LineNumber(1));
       }}});
-}  // namespace
 
-std::list<LineScrollControl::ScreenLine> LineScrollControl::PrependLines(
-    LineNumber line, LineNumberDelta lines_desired,
-    std::list<ScreenLine> output) const {
-  std::list<ColumnRange> line_breaks = ComputeBreaks(line);
-  if (line == output.front().range.begin.line) {
-    line_breaks.remove_if([&](const ColumnRange& r) {
-      return r.end > output.front().range.begin.column ||
-             r.begin >= output.front().range.begin.column;
-    });
-  }
-  std::list<ScreenLine> lines_to_insert;
-  for (auto& r : line_breaks) {
-    lines_to_insert.push_back(GetScreenLine(line, r));
-  }
-  while (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
-    lines_to_insert.pop_front();
-  }
-  output.insert(output.begin(), lines_to_insert.begin(), lines_to_insert.end());
-  return output;
-}
-
-std::list<LineScrollControl::ScreenLine> LineScrollControl::AdjustToHonorMargin(
-    std::list<ScreenLine> output) const {
-  CHECK(!output.empty());
-  if (options_.margin_lines > options_.lines_shown / 2 ||
-      options_.begin == LineColumn()) {
-    return output;
-  }
-
-  LineNumber position_line =
-      FindPositionInScreen(output, options_.active_position);
-  auto lines_desired = [&] {
-    return std::max(std::max(LineNumberDelta(0),
-                             options_.margin_lines - position_line.ToDelta()),
-                    options_.lines_shown - LineNumberDelta(output.size()));
-  };
-  for (LineNumber line = options_.begin.column.IsZero()
-                             ? options_.begin.line - LineNumberDelta(1)
-                             : options_.begin.line;
-       lines_desired() > LineNumberDelta(); --line) {
-    LineNumberDelta original_length(output.size());
-    auto lines_to_insert = lines_desired();
-    output = PrependLines(line, lines_to_insert, std::move(output));
-    CHECK_GE(LineNumberDelta(output.size()), original_length);
-    position_line += LineNumberDelta(output.size()) - original_length;
-    if (line.IsZero()) break;
-  }
-  return output;
-}
-
-LineScrollControl::ScreenLine LineScrollControl::GetScreenLine(
-    LineNumber line, ColumnRange column_range) const {
+ScreenLine GetScreenLine(
+    const ComputeScreenLinesInput& options,
+    const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
+    LineNumber line, ColumnRange column_range) {
   Range range = Range::InLine(line, column_range.begin,
                               column_range.end - column_range.begin);
 
   auto contains_cursor = [&](ColumnNumber column) {
-    CHECK_LE(line, options_.contents->EndLine());
+    CHECK_LE(line, options.contents->EndLine());
     if (column < column_range.begin) return false;
     if (column < column_range.end) return true;
-    return range.end.column == options_.contents->at(line)->EndColumn();
+    return range.end.column == options.contents->at(line)->EndColumn();
   };
 
   ScreenLine output{
       .range = range,
-      .has_active_cursor = line == options_.active_position.line &&
-                           contains_cursor(options_.active_position.column),
+      .has_active_cursor = line == options.active_position.line &&
+                           contains_cursor(options.active_position.column),
       .current_cursors = {}};
 
-  if (auto cursors_it = cursors_.find(line); cursors_it != cursors_.end()) {
+  if (auto cursors_it = cursors.find(line); cursors_it != cursors.end()) {
     for (auto& column : cursors_it->second) {
       if (contains_cursor(column)) output.current_cursors.insert(column);
     }
@@ -248,57 +169,127 @@ LineScrollControl::ScreenLine LineScrollControl::GetScreenLine(
   return output;
 }
 
-std::list<LineScrollControl::ScreenLine> LineScrollControl::ComputeScreenLines()
-    const {
+std::list<ScreenLine> PrependLines(
+    const ComputeScreenLinesInput& options,
+    const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
+    LineNumber line, LineNumberDelta lines_desired,
+    std::list<ScreenLine> output) {
+  std::list<ColumnRange> line_breaks = ComputeBreaks(options, line);
+  if (line == output.front().range.begin.line) {
+    line_breaks.remove_if([&](const ColumnRange& r) {
+      return r.end > output.front().range.begin.column ||
+             r.begin >= output.front().range.begin.column;
+    });
+  }
+  std::list<ScreenLine> lines_to_insert;
+  for (auto& r : line_breaks) {
+    lines_to_insert.push_back(GetScreenLine(options, cursors, line, r));
+  }
+  while (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
+    lines_to_insert.pop_front();
+  }
+  output.insert(output.begin(), lines_to_insert.begin(), lines_to_insert.end());
+  return output;
+}
+
+std::list<ScreenLine> AdjustToHonorMargin(
+    const ComputeScreenLinesInput& options,
+    const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
+    std::list<ScreenLine> output) {
+  if (output.empty() || options.margin_lines > options.lines_shown / 2 ||
+      options.begin == LineColumn()) {
+    return output;
+  }
+
+  LineNumber position_line =
+      FindPositionInScreen(output, options.active_position);
+  auto lines_desired = [&] {
+    return std::max(std::max(LineNumberDelta(0),
+                             options.margin_lines - position_line.ToDelta()),
+                    options.lines_shown - LineNumberDelta(output.size()));
+  };
+  for (LineNumber line = options.begin.column.IsZero()
+                             ? options.begin.line - LineNumberDelta(1)
+                             : options.begin.line;
+       lines_desired() > LineNumberDelta(); --line) {
+    LineNumberDelta original_length(output.size());
+    auto lines_to_insert = lines_desired();
+    output = PrependLines(options, cursors, line, lines_to_insert,
+                          std::move(output));
+    CHECK_GE(LineNumberDelta(output.size()), original_length);
+    position_line += LineNumberDelta(output.size()) - original_length;
+    if (line.IsZero()) break;
+  }
+  return output;
+}
+}  // namespace
+
+std::list<ScreenLine> ComputeScreenLines(ComputeScreenLinesInput options) {
+  CHECK(options.contents != nullptr);
+  options.begin =
+      std::max(std::min(options.begin, options.active_position),
+               LineColumn(options.active_position.line.MinusHandlingOverflow(
+                   options.lines_shown)));
+  options.active_position.line =
+      min(options.active_position.line, options.contents->EndLine());
+  options.active_position.column =
+      min(options.active_position.column,
+          options.contents->at(options.active_position.line)->EndColumn());
+  std::map<LineNumber, std::set<ColumnNumber>> cursors;
+  for (auto& cursor : *options.active_cursors) {
+    cursors[cursor.line].insert(cursor.column);
+  }
+
   std::list<ScreenLine> output;
-  for (LineNumber line = options_.begin.line;
-       LineNumberDelta(output.size()) < options_.lines_shown; ++line) {
-    if (line > options_.contents->EndLine()) {
+  for (LineNumber line = options.begin.line;
+       LineNumberDelta(output.size()) < options.lines_shown; ++line) {
+    if (line > options.contents->EndLine()) {
       break;
     }
 
-    std::list<ColumnRange> line_breaks = ComputeBreaks(line);
-    if (line == options_.begin.line) {
+    std::list<ColumnRange> line_breaks = ComputeBreaks(options, line);
+    if (line == options.begin.line) {
       while (!line_breaks.empty() &&
-             line_breaks.front().end <= options_.begin.column &&
+             line_breaks.front().end <= options.begin.column &&
              !line_breaks.front().end.IsZero()) {
         line_breaks.pop_front();
       }
     }
-    while (LineNumberDelta(output.size()) < options_.lines_shown &&
+    while (LineNumberDelta(output.size()) < options.lines_shown &&
            !line_breaks.empty()) {
-      output.push_back(GetScreenLine(line, line_breaks.front()));
+      output.push_back(
+          GetScreenLine(options, cursors, line, line_breaks.front()));
       line_breaks.pop_front();
 
-      if ((!line_breaks.empty() || line < options_.contents->EndLine()) &&
-          options_.margin_lines <= options_.lines_shown / 2 &&
-          LineNumberDelta(output.size()) == options_.lines_shown &&
-          FindPositionInScreen(output, options_.active_position) >=
-              LineNumber() + options_.lines_shown - options_.margin_lines) {
+      if ((!line_breaks.empty() || line < options.contents->EndLine()) &&
+          options.margin_lines <= options.lines_shown / 2 &&
+          LineNumberDelta(output.size()) == options.lines_shown &&
+          FindPositionInScreen(output, options.active_position) >=
+              LineNumber() + options.lines_shown - options.margin_lines) {
         output.pop_front();
       }
     }
   }
-  CHECK_LE(LineNumberDelta(output.size()), options_.lines_shown);
+  CHECK_LE(LineNumberDelta(output.size()), options.lines_shown);
 
-  return output.empty() ? output : AdjustToHonorMargin(std::move(output));
+  return AdjustToHonorMargin(options, cursors, std::move(output));
 }
 
 namespace {
 const bool line_scroll_control_tests_registration =
     tests::Register(L"LineScrollControl", [] {
-      auto get_ranges = [](LineScrollControl::Options options) {
+      auto get_ranges = [](ComputeScreenLinesInput options) {
         std::vector<Range> output;
-        for (const auto& l : LineScrollControl::New(options)->screen_lines()) {
+        for (const auto& l : ComputeScreenLines(options)) {
           output.push_back(l.range);
           DVLOG(5) << "Range for testing: " << output.back();
         }
         return output;
       };
-      auto get_active_cursors = [](LineScrollControl::Options options) {
+      auto get_active_cursors = [](ComputeScreenLinesInput options) {
         std::vector<LineNumber> output;
         LineNumber i;
-        for (const auto& l : LineScrollControl::New(options)->screen_lines()) {
+        for (const auto& l : ComputeScreenLines(options)) {
           if (l.has_active_cursor) {
             output.push_back(i);
           }
@@ -331,7 +322,7 @@ const bool line_scroll_control_tests_registration =
                     })
                  contents->push_back(s);
                static CursorsSet active_cursors;
-               LineScrollControl::Options options{
+               ComputeScreenLinesInput options{
                    .contents = contents,
                    .active_position = LineColumn(),
                    .active_cursors = new CursorsSet(),  // &active_cursors,
@@ -347,9 +338,7 @@ const bool line_scroll_control_tests_registration =
       };
       return std::vector<tests::Test>(
           {new_test(L"Construction",
-                    [](auto options) {
-                      LineScrollControl::New(options)->screen_lines();
-                    }),
+                    [](auto options) { ComputeScreenLines(options); }),
            new_test(L"TopMargin",
                     [&](auto options) {
                       options.active_position =
@@ -514,7 +503,7 @@ const bool line_scroll_control_tests_registration =
            new_test(L"Cursors", [&](auto options) {
              CursorsSet cursors;
              options.active_cursors = &cursors;
-             LineScrollControl::New(options)->screen_lines();
+             ComputeScreenLines(options);
            })});
     }());
 }  // namespace

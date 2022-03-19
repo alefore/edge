@@ -13,8 +13,7 @@ namespace editor {
 class BufferMetadataOutputProducer : public OutputProducer {
  public:
   BufferMetadataOutputProducer(
-      std::shared_ptr<OpenBuffer> buffer,
-      std::list<LineScrollControl::ScreenLine> screen_lines,
+      std::shared_ptr<OpenBuffer> buffer, std::list<ScreenLine> screen_lines,
       LineNumberDelta lines_shown,
       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
@@ -29,7 +28,7 @@ class BufferMetadataOutputProducer : public OutputProducer {
   wchar_t ComputeScrollBarCharacter(LineNumber line);
 
   const std::shared_ptr<OpenBuffer> buffer_;
-  std::list<LineScrollControl::ScreenLine> screen_lines_;
+  std::list<ScreenLine> screen_lines_;
   const LineNumberDelta lines_shown_;
 
   // Key is line number.

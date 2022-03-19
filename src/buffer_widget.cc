@@ -67,8 +67,7 @@ std::unique_ptr<OutputProducer> AddLeftFrame(
 }
 
 std::unique_ptr<OutputProducer> LinesSpanView(
-    std::shared_ptr<OpenBuffer> buffer,
-    std::list<LineScrollControl::ScreenLine> screen_lines,
+    std::shared_ptr<OpenBuffer> buffer, std::list<ScreenLine> screen_lines,
     Widget::OutputProducerOptions output_producer_options,
     size_t sections_count) {
   std::unique_ptr<OutputProducer> main_contents =
@@ -193,7 +192,7 @@ std::set<Range> ExpandSections(LineNumber end_line,
 std::unique_ptr<OutputProducer> ViewMultipleCursors(
     std::shared_ptr<OpenBuffer> buffer,
     Widget::OutputProducerOptions output_producer_options,
-    const LineScrollControl::Options line_scroll_control_options) {
+    const ComputeScreenLinesInput compute_screen_lines_input) {
   std::set<Range> sections;
   for (auto& cursor : *buffer->active_cursors()) {
     sections.insert(Range(
@@ -215,7 +214,7 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
   size_t active_index = 0;
   size_t index = 0;
   for (const auto& section : sections) {
-    LineScrollControl::Options options = line_scroll_control_options;
+    ComputeScreenLinesInput options = compute_screen_lines_input;
     options.lines_shown = section.end.line - section.begin.line;
     // TODO: Maybe take columns into account? Ugh.
     options.begin = LineColumn(section.begin.line);
@@ -224,7 +223,7 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
     section_output_producer_options.size = LineColumnDelta(
         options.lines_shown, output_producer_options.size.column);
     rows.push_back(
-        {LinesSpanView(buffer, LineScrollControl::New(options)->screen_lines(),
+        {LinesSpanView(buffer, ComputeScreenLines(options),
                        section_output_producer_options, sections.size()),
          options.lines_shown});
 
@@ -250,15 +249,15 @@ struct BufferRenderPlan {
 };
 
 BufferRenderPlan GetBufferRenderPlan(
-    LineScrollControl::Options line_scroll_control_options,
+    const ComputeScreenLinesInput& compute_screen_lines_input,
     LineNumberDelta status_lines) {
   BufferRenderPlan output;
 
   // Initialize output.lines:
-  for (const LineScrollControl::ScreenLine& screen_line :
-       LineScrollControl::New(line_scroll_control_options)->screen_lines()) {
+  for (const ScreenLine& screen_line :
+       ComputeScreenLines(compute_screen_lines_input)) {
     if (LineNumberDelta(output.lines.size()) >=
-        line_scroll_control_options.lines_shown)
+        compute_screen_lines_input.lines_shown)
       break;
     output.lines.push_back(screen_line.range);
     if (screen_line.has_active_cursor && !output.cursor_index.has_value())
@@ -267,13 +266,13 @@ BufferRenderPlan GetBufferRenderPlan(
 
   // Initialize output.status_position:
   if (LineNumberDelta(output.cursor_index.value_or(0)) >
-      (size_t(3) * line_scroll_control_options.lines_shown) / 5)
+      (size_t(3) * compute_screen_lines_input.lines_shown) / 5)
     output.status_position = BufferRenderPlan::StatusPosition::kTop;
   switch (output.status_position) {
     case BufferRenderPlan::StatusPosition::kBottom:
       output.lines.resize(std::max(
           0,
-          (line_scroll_control_options.lines_shown - status_lines).line_delta));
+          (compute_screen_lines_input.lines_shown - status_lines).line_delta));
       break;
     case BufferRenderPlan::StatusPosition::kTop:
       break;
@@ -320,7 +319,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
-  LineScrollControl::Options line_scroll_control_options{
+  ComputeScreenLinesInput compute_screen_lines_input{
       .contents = buffer->contents()->copy(),
       .active_position = buffer->position(),
       .active_cursors = buffer->active_cursors(),
@@ -351,27 +350,26 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   if (auto w = ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
       !buffer->Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
-    line_scroll_control_options.columns_shown =
-        min(line_scroll_control_options.columns_shown, w);
+    compute_screen_lines_input.columns_shown =
+        min(compute_screen_lines_input.columns_shown, w);
   }
 
-  CHECK_GE(line_scroll_control_options.margin_lines, LineNumberDelta(0));
+  CHECK_GE(compute_screen_lines_input.margin_lines, LineNumberDelta(0));
 
   BufferRenderPlan plan =
-      GetBufferRenderPlan(line_scroll_control_options, status_lines);
+      GetBufferRenderPlan(compute_screen_lines_input, status_lines);
   output.view_start = plan.lines[0].begin;
   input.output_producer_options.size =
       LineColumnDelta(LineNumberDelta(plan.lines.size()),
-                      line_scroll_control_options.columns_shown);
+                      compute_screen_lines_input.columns_shown);
 
   if (buffer->Read(buffer_variables::multiple_cursors)) {
     output.producer = ViewMultipleCursors(buffer, input.output_producer_options,
-                                          line_scroll_control_options);
+                                          compute_screen_lines_input);
   } else {
-    output.producer = LinesSpanView(
-        buffer,
-        LineScrollControl::New(line_scroll_control_options)->screen_lines(),
-        input.output_producer_options, 1);
+    output.producer =
+        LinesSpanView(buffer, ComputeScreenLines(compute_screen_lines_input),
+                      input.output_producer_options, 1);
   }
 
   if (status_lines > LineNumberDelta(0)) {

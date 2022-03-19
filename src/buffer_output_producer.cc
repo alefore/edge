@@ -150,8 +150,7 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
 }  // namespace
 
 BufferOutputProducer::BufferOutputProducer(
-    std::shared_ptr<OpenBuffer> buffer,
-    std::list<LineScrollControl::ScreenLine> screen_lines,
+    std::shared_ptr<OpenBuffer> buffer, std::list<ScreenLine> screen_lines,
     Widget::OutputProducerOptions output_producer_options)
     : buffer_(std::move(buffer)),
       output_producer_options_(output_producer_options),
@@ -166,7 +165,7 @@ BufferOutputProducer::BufferOutputProducer(
 OutputProducer::Generator BufferOutputProducer::Next() {
   if (screen_lines_.empty()) return Generator::Empty();
 
-  LineScrollControl::ScreenLine screen_line = screen_lines_.front();
+  ScreenLine screen_line = screen_lines_.front();
   screen_lines_.pop_front();
 
   auto line = screen_line.range.begin.line;
