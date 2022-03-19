@@ -171,11 +171,8 @@ OutputProducer::Generator BufferOutputProducer::Next() {
 
   auto line = screen_line.range.begin.line;
 
-  if (line > buffer_->EndLine()) {
-    return Generator::Empty();
-  }
+  if (line > buffer_->EndLine()) return Generator::Empty();
 
-  std::optional<ColumnNumber> active_cursor_column;
   std::shared_ptr<const Line> line_contents = buffer_->LineAt(line);
 
   Generator output;
