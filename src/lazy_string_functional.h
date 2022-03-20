@@ -9,9 +9,7 @@
 #include "src/hash.h"
 #include "src/lazy_string.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 // Finds the first column in a string where `predicate` returns true.
 //
 // If no such column is found, returns an empty optional; otherwise, returns the
@@ -39,8 +37,6 @@ void ForEachColumn(const LazyString& input, Callback callback) {
 }
 
 size_t Hash(const LazyString& input);
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_LAZY_STRING_FUNCTIONAL_H__
