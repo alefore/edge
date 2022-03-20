@@ -242,13 +242,10 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input) {
-  BufferOutputProducerOutput output;
-  output.view_start = input.view_start;
-
   auto buffer = input.buffer;
   if (buffer == nullptr) {
-    output.producer = OutputProducer::Empty();
-    return output;
+    return BufferOutputProducerOutput{.producer = OutputProducer::Empty(),
+                                      .view_start = input.view_start};
   }
 
   auto size = input.output_producer_options.size;
@@ -290,7 +287,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
           size.column - (paste_mode ? ColumnNumberDelta(0)
                                     : LineNumberOutputProducer::PrefixWidth(
                                           buffer->lines_size())),
-      .begin = output.view_start,
+      .begin = input.view_start,
       .margin_lines =
           (buffer->child_pid() == -1 && buffer->fd() != nullptr)
               ? LineNumberDelta()
@@ -317,18 +314,18 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   BufferContentsWindow window =
       BufferContentsWindow::Get(buffer_contents_window_input);
 
-  output.view_start = window.lines.front().range.begin;
   input.output_producer_options.size =
       LineColumnDelta(LineNumberDelta(window.lines.size()),
                       buffer_contents_window_input.columns_shown);
 
-  if (buffer->Read(buffer_variables::multiple_cursors)) {
-    output.producer = ViewMultipleCursors(buffer, input.output_producer_options,
-                                          buffer_contents_window_input);
-  } else {
-    output.producer =
-        LinesSpanView(buffer, window.lines, input.output_producer_options, 1);
-  }
+  BufferOutputProducerOutput output{
+      .producer =
+          buffer->Read(buffer_variables::multiple_cursors)
+              ? ViewMultipleCursors(buffer, input.output_producer_options,
+                                    buffer_contents_window_input)
+              : LinesSpanView(buffer, window.lines,
+                              input.output_producer_options, 1),
+      .view_start = window.lines.front().range.begin};
 
   if (status_lines > LineNumberDelta(0)) {
     CHECK(status_output_producer_supplier != nullptr);
