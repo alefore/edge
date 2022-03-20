@@ -178,9 +178,9 @@ class Line {
   };
   OutputProducer::LineWithCursor Output(const OutputOptions& options) const;
 
-  size_t GetHash() const;
-
  private:
+  friend class std::hash<Line>;
+
   void ValidateInvariants() const;
   ColumnNumber EndColumnWithLock() const;
   wint_t GetWithLock(ColumnNumber column) const;
@@ -201,9 +201,7 @@ class Line {
 namespace std {
 template <>
 struct hash<afc::editor::Line> {
-  std::size_t operator()(const afc::editor::Line& line) const {
-    return line.GetHash();
-  }
+  std::size_t operator()(const afc::editor::Line& line) const;
 };
 }  // namespace std
 #endif  // __AFC_EDITOR_LINE_H__

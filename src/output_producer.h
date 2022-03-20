@@ -52,5 +52,11 @@ class OutputProducer {
 };
 
 }  // namespace afc::editor
-
+namespace std {
+template <>
+struct hash<afc::editor::OutputProducer::LineWithCursor> {
+  std::size_t operator()(
+      const afc::editor::OutputProducer::LineWithCursor& line) const;
+};
+}  // namespace std
 #endif  // __AFC_EDITOR_OUTPUT_PRODUCER_H__

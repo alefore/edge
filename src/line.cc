@@ -49,9 +49,9 @@ const bool line_tests_registration = tests::Register(
       .callback =
           [] {
             Line::Options options;
-            auto initial_hash = Line(options).GetHash();
+            size_t initial_hash = std::hash<Line>{}(Line(options));
             options.end_of_line_modifiers.insert(LineModifier::RED);
-            auto final_hash = Line(options).GetHash();
+            size_t final_hash = std::hash<Line>{}(Line(options));
             CHECK(initial_hash != final_hash);
           }},
      {.name = L"MetadataBecomesAvailable", .callback = [] {
@@ -431,20 +431,6 @@ OutputProducer::LineWithCursor Line::Output(
   return line_with_cursor;
 }
 
-size_t Line::GetHash() const {
-  std::unique_lock<std::mutex> lock(mutex_);
-  if (hash_.has_value()) return *hash_;
-  size_t value = 0;
-  for (auto& modifiers : options_.modifiers) {
-    value = hash_combine(value, std::hash<ColumnNumber>{}(modifiers.first),
-                         std::hash<LineModifierSet>{}(modifiers.second));
-  }
-  value = hash_combine(
-      value, std::hash<LineModifierSet>{}(options_.end_of_line_modifiers));
-  hash_ = hash_combine(value, Hash(*options_.contents));
-  return *hash_;
-}
-
 void Line::ValidateInvariants() const {
   CHECK(options_.contents != nullptr);
   for (auto& m : options_.modifiers) {
@@ -465,3 +451,20 @@ wint_t Line::GetWithLock(ColumnNumber column) const {
 
 }  // namespace editor
 }  // namespace afc
+namespace std {
+std::size_t hash<afc::editor::Line>::operator()(
+    const afc::editor::Line& line) const {
+  using namespace afc::editor;
+  std::unique_lock<std::mutex> lock(line.mutex_);
+  if (line.hash_.has_value()) return *line.hash_;
+  size_t value = 0;
+  for (auto& modifiers : line.options_.modifiers) {
+    value = hash_combine(value, std::hash<ColumnNumber>{}(modifiers.first),
+                         std::hash<LineModifierSet>{}(modifiers.second));
+  }
+  value = hash_combine(
+      value, std::hash<LineModifierSet>{}(line.options_.end_of_line_modifiers));
+  line.hash_ = hash_combine(value, Hash(*line.options_.contents));
+  return *line.hash_;
+}
+}  // namespace std

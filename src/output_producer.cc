@@ -10,14 +10,9 @@ namespace afc::editor {
 namespace {
 class ConstantProducer : public OutputProducer {
  public:
-  // TODO: Add a hash.
   ConstantProducer(LineWithCursor line)
-      : generator_(
-            {hash_combine(line.line->GetHash(),
-                          line.cursor.has_value()
-                              ? std::hash<ColumnNumber>{}(line.cursor.value())
-                              : 0),
-             [line] { return line; }}) {}
+      : generator_(Generator::New(CaptureAndHash(
+            [](LineWithCursor line) { return line; }, std::move(line)))) {}
 
   Generator Next() override { return generator_; }
 
@@ -41,3 +36,11 @@ OutputProducer::LineWithCursor::Empty() {
 }
 
 }  // namespace afc::editor
+namespace std {
+std::size_t hash<afc::editor::OutputProducer::LineWithCursor>::operator()(
+    const afc::editor::OutputProducer::LineWithCursor& line) const {
+  return afc::editor::hash_combine(
+      std::hash<afc::editor::Line>{}(*line.line),
+      std::hash<std::optional<afc::editor::ColumnNumber>>{}(line.cursor));
+}
+}  // namespace std
