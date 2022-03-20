@@ -8,6 +8,8 @@
 
 namespace afc {
 namespace editor {
+inline size_t hash_combine(size_t seed) { return seed; }
+
 inline size_t hash_combine(size_t seed, size_t h) {
   return seed ^ (h + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
