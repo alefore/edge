@@ -6,8 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 inline size_t hash_combine(size_t seed) { return seed; }
 
 inline size_t hash_combine(size_t seed, size_t h) {
@@ -51,7 +50,27 @@ auto CaptureAndHash(Callable callable, Args... args) {
       .hash = hash, .callable = std::move(bound_callable)};
 }
 
-}  // namespace editor
-}  // namespace afc
+// Wrapping in order to define a hash operator.
+template <typename Container>
+struct HashableContainer {
+  HashableContainer(Container container) : container(std::move(container)) {}
+  Container container;
+};
+}  // namespace afc::editor
+namespace std {
+template <typename Container>
+struct hash<afc::editor::HashableContainer<Container>> {
+  std::size_t operator()(
+      const afc::editor::HashableContainer<Container>& container) const {
+    size_t hash = 0;
+    for (const auto& x : container.container) {
+      using Element = typename std::remove_const<
+          typename std::remove_reference<decltype(x)>::type>::type;
+      hash = afc::editor::hash_combine(hash, std::hash<Element>{}(x));
+    }
+    return hash;
+  }
+};
+}  // namespace std
 
 #endif  // __AFC_EDITOR_SRC_HASH_H__

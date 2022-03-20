@@ -16,29 +16,6 @@
 #include "src/terminal.h"
 
 namespace afc::editor {
-// Wrapping in order to define a hash operator.
-template <typename Container>
-struct HashableContainer {
-  HashableContainer(Container container) : container(std::move(container)) {}
-  Container container;
-};
-}  // namespace afc::editor
-namespace std {
-template <typename Container>
-struct hash<afc::editor::HashableContainer<Container>> {
-  std::size_t operator()(
-      const afc::editor::HashableContainer<Container>& container) const {
-    size_t hash = 0;
-    for (const auto& x : container.container) {
-      using Element = typename std::remove_const<
-          typename std::remove_reference<decltype(x)>::type>::type;
-      hash = afc::editor::hash_combine(hash, std::hash<Element>{}(x));
-    }
-    return hash;
-  }
-};
-}  // namespace std
-namespace afc::editor {
 namespace {
 // Use to highlight entire lines (for variable `atomic_lines`).
 OutputProducer::Generator LineHighlighter(OutputProducer::Generator generator) {
