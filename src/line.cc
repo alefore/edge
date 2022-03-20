@@ -457,15 +457,15 @@ std::size_t hash<afc::editor::Line>::operator()(
   using namespace afc::editor;
   std::unique_lock<std::mutex> lock(line.mutex_);
   if (line.hash_.has_value()) return *line.hash_;
-  size_t value = 0;
-  for (auto& modifiers : line.options_.modifiers) {
-    value = hash_combine(value, std::hash<ColumnNumber>{}(modifiers.first),
-                         std::hash<LineModifierSet>{}(modifiers.second));
-  }
-  value = hash_combine(
-      value, std::hash<LineModifierSet>{}(line.options_.end_of_line_modifiers));
-  line.hash_ =
-      hash_combine(value, std::hash<LazyString>{}(*line.options_.contents));
+  line.hash_ = compute_hash(
+      *line.options_.contents,
+      MakeHashableIteratorRange(line.options_.end_of_line_modifiers),
+      MakeHashableIteratorRange(
+          line.options_.modifiers.begin(), line.options_.modifiers.end(),
+          [](const auto& value) {
+            return compute_hash(value.first,
+                                MakeHashableIteratorRange(value.second));
+          }));
   return *line.hash_;
 }
 }  // namespace std

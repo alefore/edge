@@ -49,18 +49,19 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
     return OutputProducer::Generator::Empty();
   }
 
-  LineModifierSet modifiers;
+  HashableContainer<LineModifierSet> modifiers;
   if (screen_line.current_cursors.empty()) {
-    modifiers = {LineModifier::DIM};
+    modifiers.container = {LineModifier::DIM};
   } else if (screen_line.has_active_cursor ||
              buffer_->Read(buffer_variables::multiple_cursors)) {
-    modifiers = {LineModifier::CYAN, LineModifier::BOLD};
+    modifiers.container = {LineModifier::CYAN, LineModifier::BOLD};
   } else {
-    modifiers = {LineModifier::BLUE};
+    modifiers.container = {LineModifier::BLUE};
   }
 
   return OutputProducer::Generator::New(CaptureAndHash(
-      [](Range range, ColumnNumberDelta width, LineModifierSet modifiers) {
+      [](Range range, ColumnNumberDelta width,
+         HashableContainer<LineModifierSet> modifiers) {
         std::wstring number = range.begin.column.IsZero()
                                   ? range.begin.line.ToUserString()
                                   : L"↪";
@@ -70,7 +71,8 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
 
         Line::Options line_options;
         line_options.AppendString(
-            StringAppend(padding, NewLazyString(number + L":")), modifiers);
+            StringAppend(padding, NewLazyString(number + L":")),
+            modifiers.container);
         return LineWithCursor{std::make_shared<Line>(std::move(line_options)),
                               std::nullopt};
       },

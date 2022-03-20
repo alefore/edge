@@ -39,8 +39,6 @@ OutputProducer::LineWithCursor::Empty() {
 namespace std {
 std::size_t hash<afc::editor::OutputProducer::LineWithCursor>::operator()(
     const afc::editor::OutputProducer::LineWithCursor& line) const {
-  return afc::editor::hash_combine(
-      std::hash<afc::editor::Line>{}(*line.line),
-      std::hash<std::optional<afc::editor::ColumnNumber>>{}(line.cursor));
+  return afc::editor::compute_hash(*line.line, line.cursor);
 }
 }  // namespace std

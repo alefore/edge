@@ -384,17 +384,13 @@ struct hash<afc::editor::LineNumber> {
 template <>
 struct hash<afc::editor::LineColumn> {
   std::size_t operator()(const afc::editor::LineColumn& line_column) const {
-    return afc::editor::hash_combine(
-        std::hash<afc::editor::LineNumber>()(line_column.line),
-        std::hash<afc::editor::ColumnNumber>()(line_column.column));
+    return afc::editor::compute_hash(line_column.line, line_column.column);
   }
 };
 template <>
 struct hash<afc::editor::Range> {
   std::size_t operator()(const afc::editor::Range& range) const {
-    return afc::editor::hash_combine(
-        std::hash<afc::editor::LineColumn>{}(range.begin),
-        std::hash<afc::editor::LineColumn>{}(range.end));
+    return afc::editor::compute_hash(range.begin, range.end);
   }
 };
 }  // namespace std

@@ -58,6 +58,9 @@ void ParseTree::InsertModifier(LineModifier modifier) {
 
 const std::vector<ParseTree>& ParseTree::children() const { return children_; }
 
+// TODO(easy): Check if there's a bug here. Imagine that the deepest children is
+// modified and now it's given a smaller depth; won't we retain the old depth
+// (rather than adjust it to the smaller integer)?
 std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
 ParseTree::MutableChildren(size_t i) {
   CHECK_LT(i, children_.size());
@@ -87,15 +90,10 @@ void ParseTree::PushChild(ParseTree child) {
 }
 
 size_t ParseTree::hash() const {
-  size_t properties_hash = 0;
-  for (const auto& property : properties_) {
-    properties_hash =
-        hash_combine(properties_hash, std::hash<ParseTreeProperty>{}(property));
-  }
-
-  return hash_combine(std::hash<Range>{}(range_),
-                      std::hash<LineModifierSet>{}(modifiers_), properties_hash,
-                      children_hashes_);
+  return hash_combine(
+      compute_hash(range_, MakeHashableIteratorRange(modifiers_),
+                   MakeHashableIteratorRange(properties_)),
+      children_hashes_);
 }
 
 void ParseTree::set_properties(

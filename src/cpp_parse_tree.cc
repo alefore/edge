@@ -11,7 +11,6 @@
 namespace afc {
 namespace editor {
 namespace {
-
 enum State {
   DEFAULT_AT_START_OF_LINE,
   DEFAULT,
@@ -153,10 +152,7 @@ class CppTreeParser : public TreeParser {
                      const std::vector<size_t>& states) {
     static Tracker tracker(L"CppTreeParser::GetLineHash");
     auto call = tracker.Call();
-    size_t hash = std::hash<LazyString>{}(line);
-    for (const auto& s : states)
-      hash = hash_combine(hash, std::hash<size_t>{}(s));
-    return hash;
+    return compute_hash(line, MakeHashableIteratorRange(states));
   }
 
   void AfterSlash(State state_default, State state_default_at_start_of_line,

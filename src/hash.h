@@ -18,6 +18,51 @@ inline size_t hash_combine(size_t seed, size_t h, Args... args) {
   return hash_combine(hash_combine(seed, h), args...);
 }
 
+// Convenience function to compute the hash of an object.
+template <typename A, typename... Args>
+inline size_t compute_hash(const A& a) {
+  using Element = typename std::remove_const<
+      typename std::remove_reference<decltype(a)>::type>::type;
+  return std::hash<Element>{}(a);
+}
+
+// Convenience function to compute the hash from a sequence of objects.
+template <typename A, typename... Args>
+inline size_t compute_hash(const A& a, const Args&... args) {
+  return hash_combine(compute_hash(a), compute_hash(args)...);
+}
+
+template <typename Iterator, typename Callable>
+struct HashableIteratorRange {
+  Iterator begin;
+  Iterator end;
+
+  // Callable must be a callable that receives a const ref to the objects
+  // contained in the iterator (i.e., the result of de-referencing the iterator)
+  // and returns a value that can be fed to to std::hash.
+  Callable callable;
+};
+
+template <typename Iterator, typename Callable>
+auto MakeHashableIteratorRange(Iterator begin, Iterator end,
+                               Callable callable) {
+  return HashableIteratorRange<Iterator, Callable>{
+      .begin = std::move(begin),
+      .end = std::move(end),
+      .callable = std::move(callable)};
+}
+
+template <typename Iterator>
+auto MakeHashableIteratorRange(Iterator begin, Iterator end) {
+  return MakeHashableIteratorRange(std::move(begin), std::move(end),
+                                   [](auto value) { return value; });
+}
+
+template <typename Container>
+auto MakeHashableIteratorRange(Container container) {
+  return MakeHashableIteratorRange(std::begin(container), std::end(container));
+}
+
 // CallableWithCapture is used to bind arguments that a lambda form will need
 // but including them in a hash.
 //
@@ -53,24 +98,37 @@ auto CaptureAndHash(Callable callable, Args... args) {
 // Wrapping in order to define a hash operator.
 template <typename Container>
 struct HashableContainer {
-  HashableContainer(Container container) : container(std::move(container)) {}
+  explicit HashableContainer(Container container)
+      : container(std::move(container)) {}
+  HashableContainer() = default;
   Container container;
 };
 }  // namespace afc::editor
 namespace std {
+template <typename Iterator, typename Callable>
+struct hash<afc::editor::HashableIteratorRange<Iterator, Callable>> {
+  std::size_t operator()(
+      const afc::editor::HashableIteratorRange<Iterator, Callable>& range) {
+    size_t hash = 0;
+    for (auto it = range.begin; it != range.end; ++it) {
+      using Element = typename std::remove_const<typename std::remove_reference<
+          decltype(range.callable(*it))>::type>::type;
+      hash = afc::editor::hash_combine(
+          hash, std::hash<Element>{}(range.callable(*it)));
+    }
+    return hash;
+  };
+};
+
 template <typename Container>
 struct hash<afc::editor::HashableContainer<Container>> {
   std::size_t operator()(
       const afc::editor::HashableContainer<Container>& container) const {
-    size_t hash = 0;
-    for (const auto& x : container.container) {
-      using Element = typename std::remove_const<
-          typename std::remove_reference<decltype(x)>::type>::type;
-      hash = afc::editor::hash_combine(hash, std::hash<Element>{}(x));
-    }
-    return hash;
+    return afc::editor::compute_hash(afc::editor::MakeHashableIteratorRange(
+        container.container.begin(), container.container.end()));
   }
 };
+
 }  // namespace std
 
 #endif  // __AFC_EDITOR_SRC_HASH_H__
