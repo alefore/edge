@@ -9,11 +9,7 @@
 #include "src/output_producer.h"
 #include "src/vm/public/environment.h"
 
-namespace afc {
-namespace editor {
-
-class BufferWidget;
-
+namespace afc::editor {
 class Widget {
  public:
   ~Widget() = default;
@@ -29,10 +25,6 @@ class Widget {
   virtual LineNumberDelta MinimumLines() const = 0;
   virtual LineNumberDelta DesiredLines() const = 0;
 };
-
-// std::ostream& operator<<(std::ostream& os, const Widget& lc);
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_WIDGET_H__

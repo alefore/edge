@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/buffer_widget.h"
 #include "src/output_producer.h"
 #include "src/widget.h"
 
