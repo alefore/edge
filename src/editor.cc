@@ -646,15 +646,12 @@ void EditorState::AdjustWidgets() {
           ? BuffersList::BufferSortOrder::kLastVisit
           : BuffersList::BufferSortOrder::kAlphabetic);
   auto buffers_to_retain = Read(editor_variables::buffers_to_retain);
-  buffer_tree_.SetBuffersToRetain(
-      buffers_to_retain >= 0
-          ? std::optional<size_t>(static_cast<size_t>(buffers_to_retain))
-          : std::nullopt);
+  buffer_tree_.SetBuffersToRetain(buffers_to_retain >= 0
+                                      ? size_t(buffers_to_retain)
+                                      : std::optional<size_t>());
   auto buffers_to_show = Read(editor_variables::buffers_to_show);
-  buffer_tree_.SetBuffersToShow(
-      buffers_to_show >= 1
-          ? std::optional<size_t>(static_cast<size_t>(buffers_to_show))
-          : std::nullopt);
+  buffer_tree_.SetBuffersToShow(buffers_to_show >= 1 ? size_t(buffers_to_show)
+                                                     : std::optional<size_t>());
   buffer_tree_.Update();
 }
 
