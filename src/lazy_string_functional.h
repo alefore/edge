@@ -35,8 +35,12 @@ void ForEachColumn(const LazyString& input, Callback callback) {
     return false;
   });
 }
-
-size_t Hash(const LazyString& input);
 }  // namespace afc::editor
+namespace std {
+template <>
+struct hash<afc::editor::LazyString> {
+  std::size_t operator()(const afc::editor::LazyString& input) const;
+};
+}  // namespace std
 
 #endif  // __AFC_EDITOR_LAZY_STRING_FUNCTIONAL_H__

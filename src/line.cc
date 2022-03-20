@@ -464,7 +464,8 @@ std::size_t hash<afc::editor::Line>::operator()(
   }
   value = hash_combine(
       value, std::hash<LineModifierSet>{}(line.options_.end_of_line_modifiers));
-  line.hash_ = hash_combine(value, Hash(*line.options_.contents));
+  line.hash_ =
+      hash_combine(value, std::hash<LazyString>{}(*line.options_.contents));
   return *line.hash_;
 }
 }  // namespace std

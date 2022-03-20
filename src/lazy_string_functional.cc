@@ -1,10 +1,12 @@
 #include "src/lazy_string_functional.h"
 
-namespace afc::editor {
-size_t Hash(const LazyString& input) {
+namespace std {
+std::size_t hash<afc::editor::LazyString>::operator()(
+    const afc::editor::LazyString& input) const {
   size_t value = 0;
-  ForEachColumn(
-      input, [&](ColumnNumber, wchar_t c) { value = hash_combine(value, c); });
+  afc::editor::ForEachColumn(input, [&](afc::editor::ColumnNumber, wchar_t c) {
+    value = afc::editor::hash_combine(value, c);
+  });
   return value;
 }
-}  // namespace afc::editor
+}  // namespace std
