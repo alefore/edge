@@ -192,13 +192,10 @@ OutputProducer::Generator BufferOutputProducer::Next() {
                           screen_line.range.begin.column
                     : std::numeric_limits<ColumnNumberDelta>::max()};
         if (!atomic_lines) {
-          // TODO(easy): Compute these things from `data`?
-          for (auto& c : screen_line.current_cursors) {
-            if (LineColumn(screen_line.range.begin.line, c) == position) {
-              options.active_cursor_column = c;
-            } else {
-              options.inactive_cursor_columns.insert(c);
-            }
+          options.inactive_cursor_columns = screen_line.current_cursors;
+          if (position.line == screen_line.range.begin.line &&
+              options.inactive_cursor_columns.erase(position.column)) {
+            options.active_cursor_column = position.column;
           }
           if (main_cursor_behavior ==
               Widget::OutputProducerOptions::MainCursorBehavior::kHighlight) {
@@ -210,10 +207,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
                                                      : LineModifier::CYAN};
                 break;
               case EditorMode::CursorMode::kInserting:
-                options.modifiers_main_cursor = {LineModifier::YELLOW,
-                                                 multiple_cursors
-                                                     ? LineModifier::GREEN
-                                                     : LineModifier::CYAN};
+                options.modifiers_main_cursor = {LineModifier::YELLOW};
                 break;
               case EditorMode::CursorMode::kOverwriting:
                 options.modifiers_main_cursor = {LineModifier::RED,
