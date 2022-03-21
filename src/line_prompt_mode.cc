@@ -943,22 +943,22 @@ void Prompt(PromptOptions options) {
                           return Success();
                         });
                   }
-                } else {
-                  LOG(INFO) << "Prediction didn't advance.";
-                  auto buffers = editor_state->buffers();
-                  auto name = PredictionsBufferName();
-                  if (auto it = buffers->find(name); it != buffers->end()) {
-                    it->second->set_current_position_line(LineNumber(0));
-                    editor_state->set_current_buffer(
-                        it->second, CommandArgumentModeApplyMode::kFinal);
-                    if (editor_state->status()->prompt_buffer() == nullptr) {
-                      it->second->status()->CopyFrom(*prompt_state->status());
-                    }
-                  } else {
-                    editor_state->status()->SetWarningText(
-                        L"Error: Predict: predictions buffer not found: " +
-                        name.ToString());
+                  return;
+                }
+                LOG(INFO) << "Prediction didn't advance.";
+                auto buffers = editor_state->buffers();
+                auto name = PredictionsBufferName();
+                if (auto it = buffers->find(name); it != buffers->end()) {
+                  it->second->set_current_position_line(LineNumber(0));
+                  editor_state->set_current_buffer(
+                      it->second, CommandArgumentModeApplyMode::kFinal);
+                  if (editor_state->status()->prompt_buffer() == nullptr) {
+                    it->second->status()->CopyFrom(*prompt_state->status());
                   }
+                } else {
+                  editor_state->status()->SetWarningText(
+                      L"Error: Predict: predictions buffer not found: " +
+                      name.ToString());
                 }
               });
           return true;
