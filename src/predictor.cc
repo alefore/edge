@@ -472,12 +472,14 @@ const BufferName& PredictionsBufferName() {
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator) {
   const auto contents =
-      std::make_shared<multimap<wstring, shared_ptr<LazyString>>>();
-  for (const auto& prediction : predictions) {
+      std::make_shared<std::multimap<wstring, shared_ptr<LazyString>>>();
+  for (const auto& prediction_raw : predictions) {
     vector<wstring> variations;
-    RegisterVariations(prediction, separator, &variations);
+    RegisterVariations(prediction_raw, separator, &variations);
+    const std::shared_ptr<LazyString> prediction =
+        NewLazyString(prediction_raw);
     for (auto& variation : variations) {
-      contents->insert(make_pair(variation, NewLazyString(prediction)));
+      contents->insert(make_pair(variation, prediction));
     }
   }
   return [contents](PredictorInput input) {
@@ -504,23 +506,40 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
 namespace {
 const bool buffer_tests_registration =
     tests::Register(L"PrecomputedPredictor", [] {
-      std::vector<std::wstring> values = {L"foo", L"bar", L"foo_bar"};
+      const static Predictor test_predictor = PrecomputedPredictor(
+          {L"foo", L"bar", L"bard", L"foo_bar", L"alejo"}, L'_');
+      auto predict = [&](std::wstring input) {
+        WorkQueue work_queue([] {});
+        ProgressChannel channel(
+            &work_queue, [](ProgressInformation) {},
+            WorkQueueChannelConsumeMode::kAll);
+        std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
+        test_predictor(PredictorInput{
+            .input = input,
+            .predictions = buffer.get(),
+            .source_buffers = {},
+            .progress_channel = channel,
+            .abort_notification = std::make_shared<Notification>()});
+        buffer->SortContents(LineNumber(), buffer->EndLine(),
+                             [](const shared_ptr<const Line>& a,
+                                const shared_ptr<const Line>& b) {
+                               return a->ToString() < b->ToString();
+                             });
+        VLOG(5) << "Contents: " << buffer->contents()->ToString();
+        return buffer->contents()->ToString();
+      };
       return std::vector<tests::Test>(
-          {{.name = L"Instantiate",
-            .callback = [=] { PrecomputedPredictor(values, L'_'); }},
-           {.name = L"CallNoPredictions", .callback = [=] {
-              WorkQueue work_queue([] {});
-              ProgressChannel channel(
-                  &work_queue, [](ProgressInformation) {},
-                  WorkQueueChannelConsumeMode::kAll);
-              /* PrecomputedPredictor(values, L'_')(PredictorInput{
-                  .input = L"quux",
-                  .source_buffers = {},
-                  .progress_channel = channel,
-                  .abort_notification = std::make_shared<Notification>()}); */
+          {{.name = L"CallNoPredictions",
+            .callback = [&] { CHECK(predict(L"quux") == L""); }},
+           {.name = L"CallNoPredictionsLateOverlap",
+            .callback = [&] { CHECK(predict(L"o") == L""); }},
+           {.name = L"CallExactPrediction",
+            .callback = [&] { CHECK(predict(L"ale") == L"alejo\n"); }},
+           {.name = L"CallTokenPrediction", .callback = [&] {
+              CHECK(predict(L"bar") == L"bar\nbard\nfoo_bar\n");
             }}});
     }());
-}
+}  // namespace
 
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer* buffer) {
   auto value = buffer->environment()->Lookup(Environment::Namespace(),
