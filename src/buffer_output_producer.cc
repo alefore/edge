@@ -179,7 +179,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   Generator output = Generator::New(CaptureAndHash(
       [](ColumnNumberDelta size_columns,
          Widget::OutputProducerOptions::MainCursorBehavior main_cursor_behavior,
-         std::shared_ptr<const Line> line_contents, Range range,
+         WithHash<std::shared_ptr<const Line>> line_contents, Range range,
          bool atomic_lines, bool multiple_cursors, LineColumn position,
          HashableContainer<std::set<ColumnNumber>> cursors,
          EditorMode::CursorMode cursor_mode) {
@@ -239,10 +239,11 @@ OutputProducer::Generator BufferOutputProducer::Next() {
               multiple_cursors ? LineModifier::CYAN : LineModifier::BLUE};
         }
 
-        return line_contents->Output(std::move(options));
+        return line_contents.value->Output(std::move(options));
       },
       output_producer_options_.size.column,
-      output_producer_options_.main_cursor_behavior, line_contents,
+      output_producer_options_.main_cursor_behavior,
+      MakeWithHash(line_contents, compute_hash(*line_contents)),
       screen_line.range, buffer_->Read(buffer_variables::atomic_lines),
       buffer_->Read(buffer_variables::multiple_cursors), buffer_->position(),
       HashableContainer(std::move(screen_line.current_cursors)),

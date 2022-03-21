@@ -103,6 +103,17 @@ struct HashableContainer {
   HashableContainer() = default;
   Container container;
 };
+
+template <typename T>
+struct WithHash {
+  size_t hash;
+  const T value;
+};
+
+template <typename T>
+WithHash<T> MakeWithHash(T value, size_t hash) {
+  return WithHash<T>{.hash = hash, .value = value};
+}
 }  // namespace afc::editor
 namespace std {
 template <typename Iterator, typename Callable>
@@ -129,6 +140,12 @@ struct hash<afc::editor::HashableContainer<Container>> {
   }
 };
 
+template <typename T>
+struct hash<afc::editor::WithHash<T>> {
+  std::size_t operator()(const afc::editor::WithHash<T>& with_hash) const {
+    return with_hash.hash;
+  }
+};
 }  // namespace std
 
 #endif  // __AFC_EDITOR_SRC_HASH_H__
