@@ -389,11 +389,6 @@ std::ostream& operator<<(std::ostream& os, const Path& p) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const PathComponent& p) {
-  os << p.ToString();
-  return os;
-}
-
 wstring PathJoin(const wstring& a, const wstring& b) {
   if (a.empty()) {
     return b;

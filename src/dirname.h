@@ -39,11 +39,14 @@ class PathComponent {
   std::optional<std::wstring> extension() const;
 
  private:
+  GHOST_TYPE_OUTPUT_FRIEND(PathComponent, component_);
   friend class Path;
   explicit PathComponent(std::wstring component);
 
   std::wstring component_;
 };
+
+GHOST_TYPE_OUTPUT(PathComponent, component_);
 
 class AbsolutePath;
 class Path {
@@ -109,5 +112,4 @@ std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);
 }  // namespace afc::editor
 
 GHOST_TYPE_HASH(afc::editor::Path, path_);
-
 #endif  // __AFC_EDITOR_DIRNAME_H__
