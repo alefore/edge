@@ -54,6 +54,23 @@ const bool line_tests_registration = tests::Register(
             size_t final_hash = std::hash<Line>{}(Line(options));
             CHECK(initial_hash != final_hash);
           }},
+     {.name = L"ContentChangesHash",
+      .callback =
+          [] {
+            CHECK(std::hash<Line>{}(
+                      Line(Line::Options(NewLazyString(L"alejo")))) !=
+                  std::hash<Line>{}(
+                      Line(Line::Options(NewLazyString(L"Xlejo")))));
+          }},
+     {.name = L"ModifiersChangesHash",
+      .callback =
+          [] {
+            Line::Options options(NewLazyString(L"alejo"));
+            size_t initial_hash = std::hash<Line>{}(Line(options));
+            options.modifiers[ColumnNumber(2)].insert(LineModifier::RED);
+            size_t final_hash = std::hash<Line>{}(Line(options));
+            CHECK(initial_hash != final_hash);
+          }},
      {.name = L"MetadataBecomesAvailable", .callback = [] {
         futures::Future<std::shared_ptr<LazyString>> future;
         Line line(Line::Options().SetMetadata(
@@ -462,7 +479,7 @@ std::size_t hash<afc::editor::Line>::operator()(
       MakeHashableIteratorRange(line.options_.end_of_line_modifiers),
       MakeHashableIteratorRange(
           line.options_.modifiers.begin(), line.options_.modifiers.end(),
-          [](const auto& value) {
+          [](const std::pair<ColumnNumber, LineModifierSet>& value) {
             return compute_hash(value.first,
                                 MakeHashableIteratorRange(value.second));
           }));
