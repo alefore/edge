@@ -144,31 +144,32 @@ class NavigationBufferCommand : public Command {
     }
 
     BufferName name(L"Navigation: " + source->name().ToString());
-    auto insert_result = editor_state->buffers()->insert({name, nullptr});
-    if (insert_result.second) {
-      OpenBuffer::Options options;
-      options.editor = editor_state;
-      options.name = name;
+    auto [it, insert_result] = editor_state->buffers()->insert({name, nullptr});
+    if (insert_result) {
       std::weak_ptr<OpenBuffer> source_weak = source;
-      options.generate_contents = [editor_state,
-                                   source_weak](OpenBuffer* target) {
-        return GenerateContents(editor_state, source_weak, target);
-      };
-      auto buffer = OpenBuffer::New(std::move(options));
+      auto buffer = OpenBuffer::New(OpenBuffer::Options{
+          .editor = editor_state,
+          .name = name,
+          .generate_contents = [editor_state, source_weak](OpenBuffer* target) {
+            return GenerateContents(editor_state, source_weak, target);
+          }});
+
       buffer->Set(buffer_variables::show_in_buffers_list, false);
       buffer->Set(buffer_variables::push_positions_to_history, false);
       buffer->Set(buffer_variables::allow_dirty_delete, true);
       buffer->environment()->Define(kDepthSymbol, Value::NewInteger(3));
       buffer->Set(buffer_variables::reload_on_enter, true);
-      insert_result.first->second = buffer;
       editor_state->StartHandlingInterrupts();
+      editor_state->AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
+      buffer->ResetMode();
+      it->second = buffer;
+    } else {
+      CHECK(it->second != nullptr);
+      editor_state->set_current_buffer(it->second,
+                                       CommandArgumentModeApplyMode::kFinal);
     }
-    editor_state->set_current_buffer(insert_result.first->second,
-                                     CommandArgumentModeApplyMode::kFinal);
     editor_state->status()->Reset();
-    insert_result.first->second->Reload();
     editor_state->PushCurrentPosition();
-    insert_result.first->second->ResetMode();
     editor_state->ResetRepetitions();
   }
 };
