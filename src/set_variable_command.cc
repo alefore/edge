@@ -182,8 +182,10 @@ unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state) {
     options.progress_channel = std::move(progress_channel);
     options.abort_notification = std::move(abort_notification);
     return Predict(std::move(options))
-        .Transform([editor_state, line](std::optional<PredictResults>) {
-          return futures::Past(ColorizePromptOptions{});
+        .Transform([editor_state, line](std::optional<PredictResults> results) {
+          return ColorizePromptOptions{
+              .context =
+                  results.has_value() ? results->predictions_buffer : nullptr};
         });
   };
   return NewLinePromptCommand(L"assigns to a variable",
