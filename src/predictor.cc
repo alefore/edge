@@ -23,6 +23,7 @@ extern "C" {
 #include "src/lowercase.h"
 #include "src/notification.h"
 #include "src/predictor.h"
+#include "src/tests/tests.h"
 #include "src/wstring.h"
 
 namespace afc::editor {
@@ -498,6 +499,27 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
     input.predictions->EndOfFile();
     return futures::Past(PredictorOutput());
   };
+}
+
+namespace {
+const bool buffer_tests_registration =
+    tests::Register(L"PrecomputedPredictor", [] {
+      std::vector<std::wstring> values = {L"foo", L"bar", L"foo_bar"};
+      return std::vector<tests::Test>(
+          {{.name = L"Instantiate",
+            .callback = [=] { PrecomputedPredictor(values, L'_'); }},
+           {.name = L"CallNoPredictions", .callback = [=] {
+              WorkQueue work_queue([] {});
+              ProgressChannel channel(
+                  &work_queue, [](ProgressInformation) {},
+                  WorkQueueChannelConsumeMode::kAll);
+              /* PrecomputedPredictor(values, L'_')(PredictorInput{
+                  .input = L"quux",
+                  .source_buffers = {},
+                  .progress_channel = channel,
+                  .abort_notification = std::make_shared<Notification>()}); */
+            }}});
+    }());
 }
 
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer* buffer) {
