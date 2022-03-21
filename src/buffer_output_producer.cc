@@ -229,9 +229,13 @@ OutputProducer::Generator BufferOutputProducer::Next() {
                 break;
             }
           }
-          options.modifiers_inactive_cursors = {
-              LineModifier::REVERSE,
-              multiple_cursors ? LineModifier::CYAN : LineModifier::BLUE};
+
+          options.modifiers_inactive_cursors =
+              multiple_cursors ? options.modifiers_main_cursor
+                               : LineModifierSet({LineModifier::BLUE});
+          if (options.modifiers_inactive_cursors.erase(LineModifier::REVERSE) ==
+              0)
+            options.modifiers_inactive_cursors.insert(LineModifier::REVERSE);
         }
 
         return line_contents.value->Output(std::move(options));
