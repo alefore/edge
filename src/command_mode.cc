@@ -333,26 +333,6 @@ class LineUp : public Command {
   }
 };
 
-class PageUp : public Command {
- public:
-  std::wstring Description() const override { return L"moves up one page"; }
-  std::wstring Category() const override { return L"Navigate"; }
-  void ProcessInput(wint_t c, EditorState* editor_state) override {
-    editor_state->ResetStructure();
-    LineUp::Move(c, editor_state, StructureWord());
-  }
-};
-
-class PageDown : public Command {
- public:
-  std::wstring Description() const override { return L"moves down one page"; }
-  std::wstring Category() const override { return L"Navigate"; }
-  void ProcessInput(wint_t c, EditorState* editor_state) override {
-    editor_state->ResetStructure();
-    LineDown::Move(c, editor_state, StructureWord());
-  }
-};
-
 class EnterInsertModeCommand : public Command {
  public:
   EnterInsertModeCommand(std::optional<Modifiers> modifiers)
