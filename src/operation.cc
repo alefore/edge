@@ -123,7 +123,7 @@ futures::Value<UndoCallback> ExecuteTransformation(
       });
 }
 
-transformation::Stack GetTransformation(TopCommand, CommandReach reach) {
+transformation::Stack GetTransformation(CommandReach reach) {
   transformation::Stack transformation;
   for (int repetitions : reach.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
@@ -135,15 +135,14 @@ transformation::Stack GetTransformation(TopCommand, CommandReach reach) {
 }
 
 transformation::ModifiersAndComposite GetTransformation(
-    TopCommand, CommandReachBegin reach_begin) {
+    CommandReachBegin reach_begin) {
   return transformation::ModifiersAndComposite{
       .modifiers = GetModifiers(reach_begin.structure, reach_begin.repetitions,
                                 reach_begin.direction),
       .transformation = std::make_unique<GotoTransformation>(0)};
 }
 
-transformation::Stack GetTransformation(TopCommand,
-                                        CommandReachLine reach_line) {
+transformation::Stack GetTransformation(CommandReachLine reach_line) {
   transformation::Stack transformation;
   for (int repetitions : reach_line.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
@@ -154,8 +153,7 @@ transformation::Stack GetTransformation(TopCommand,
   return transformation;
 }
 
-transformation::Stack GetTransformation(TopCommand,
-                                        CommandReachPage reach_page) {
+transformation::Stack GetTransformation(CommandReachPage reach_page) {
   transformation::Stack transformation;
   for (int repetitions : reach_page.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
@@ -166,8 +164,7 @@ transformation::Stack GetTransformation(TopCommand,
   return transformation;
 }
 
-transformation::Stack GetTransformation(TopCommand,
-                                        CommandReachChar reach_char) {
+transformation::Stack GetTransformation(CommandReachChar reach_char) {
   transformation::Stack transformation;
   if (!reach_char.c.has_value()) return transformation;
   for (int repetitions : reach_char.repetitions.get_list()) {
@@ -267,7 +264,7 @@ class State {
           [&](auto t) -> transformation::Variant {
             static Tracker tracker(L"State::PrepareStack::GetTransformation");
             auto call = tracker.Call();
-            return GetTransformation(top_command_, t);
+            return GetTransformation(t);
           },
           command));
     }
