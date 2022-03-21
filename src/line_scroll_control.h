@@ -57,7 +57,17 @@ struct BufferContentsWindow {
   enum class StatusPosition { kTop, kBottom };
   StatusPosition status_position = StatusPosition::kBottom;
 };
-
 }  // namespace afc::editor
+namespace std {
+template <>
+struct hash<afc::editor::BufferContentsWindow::Line> {
+  std::size_t operator()(
+      const afc::editor::BufferContentsWindow::Line& line) const;
+};
 
+template <>
+struct hash<afc::editor::BufferContentsWindow> {
+  std::size_t operator()(const afc::editor::BufferContentsWindow& window) const;
+};
+}  // namespace std
 #endif  // __AFC_EDITOR_LINE_SCROLL_CONTROL_H__

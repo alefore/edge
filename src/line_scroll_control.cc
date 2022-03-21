@@ -550,3 +550,19 @@ const bool line_scroll_control_tests_registration =
     }());
 }  // namespace
 }  // namespace afc::editor
+namespace std {
+std::size_t hash<afc::editor::BufferContentsWindow::Line>::operator()(
+    const afc::editor::BufferContentsWindow::Line& line) const {
+  return compute_hash(line.range, line.has_active_cursor,
+                      MakeHashableIteratorRange(line.current_cursors.begin(),
+                                                line.current_cursors.end()));
+}
+
+std::size_t hash<afc::editor::BufferContentsWindow>::operator()(
+    const afc::editor::BufferContentsWindow& window) const {
+  using namespace afc::editor;
+  return compute_hash(
+      window.status_position,
+      MakeHashableIteratorRange(window.lines.begin(), window.lines.end()));
+}
+}  // namespace std
