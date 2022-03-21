@@ -68,6 +68,11 @@ std::wstring ToStatus(const CommandReachLine& reach_line) {
                        {reach_line.repetitions.ToString()});
 }
 
+std::wstring ToStatus(const CommandReachPage& reach_line) {
+  return SerializeCall(reach_line.repetitions.get() >= 0 ? L"PgDown" : L"PgUp",
+                       {reach_line.repetitions.ToString()});
+}
+
 std::wstring ToStatus(const CommandReachChar& c) {
   return SerializeCall(L"Char",
                        {c.c.has_value() ? std::wstring(1, c.c.value()) : L"…",
@@ -144,6 +149,18 @@ transformation::Stack GetTransformation(TopCommand,
     transformation.PushBack(transformation::ModifiersAndComposite{
         .modifiers =
             GetModifiers(StructureLine(), repetitions, Direction::kForwards),
+        .transformation = NewMoveTransformation()});
+  }
+  return transformation;
+}
+
+transformation::Stack GetTransformation(TopCommand,
+                                        CommandReachPage reach_page) {
+  transformation::Stack transformation;
+  for (int repetitions : reach_page.repetitions.get_list()) {
+    transformation.PushBack(transformation::ModifiersAndComposite{
+        .modifiers =
+            GetModifiers(StructurePage(), repetitions, Direction::kForwards),
         .transformation = NewMoveTransformation()});
   }
   return transformation;
@@ -435,6 +452,19 @@ bool ReceiveInput(CommandReachLine* output, wint_t c, State*) {
   return false;
 }
 
+bool ReceiveInput(CommandReachPage* output, wint_t c, State*) {
+  if (CheckRepetitionsChar(c, &output->repetitions)) return true;
+  switch (static_cast<int>(c)) {
+    case Terminal::PAGE_DOWN:
+      output->repetitions.sum(1);
+      return true;
+    case Terminal::PAGE_UP:
+      output->repetitions.sum(-1);
+      return true;
+  }
+  return false;
+}
+
 bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
   if (!output->c.has_value()) {
     output->c = c;
@@ -517,7 +547,7 @@ class OperationMode : public EditorMode {
  private:
   bool ReceiveInputTopCommand(TopCommand top_command, wint_t t) {
     using PTB = transformation::Stack::PostTransformationBehavior;
-    switch (t) {
+    switch (static_cast<int>(t)) {
       case L'd':
         switch (top_command.post_transformation_behavior) {
           case PTB::kDeleteRegion:
@@ -573,6 +603,19 @@ class OperationMode : public EditorMode {
       case L'F':
         state_.Push(CommandReachChar{
             .repetitions = operation::CommandArgumentRepetitions(-1)});
+        return true;
+      case Terminal::PAGE_DOWN:
+      case Terminal::PAGE_UP:
+        if (CommandReach* reach =
+                state_.empty()
+                    ? nullptr
+                    : std::get_if<CommandReach>(&state_.GetLastCommand());
+            reach != nullptr && reach->structure == nullptr) {
+          state_.UndoLast();
+        }
+        state_.Push(CommandReachPage{
+            .repetitions = operation::CommandArgumentRepetitions(
+                static_cast<int>(t) == Terminal::PAGE_UP ? -1 : 1)});
         return true;
       case L'j':
       case L'k':

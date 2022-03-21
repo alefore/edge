@@ -864,9 +864,20 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                 std::make_unique<MoveForwards>(Direction::kBackwards));
   commands->Add({Terminal::RIGHT_ARROW},
                 std::make_unique<MoveForwards>(Direction::kForwards));
-  commands->Add({Terminal::PAGE_DOWN}, std::make_unique<PageDown>());
-  commands->Add({Terminal::PAGE_UP}, std::make_unique<PageUp>());
-
+  commands->Add(
+      {Terminal::PAGE_DOWN},
+      operation::NewTopLevelCommand(
+          L"page_down", L"moves down one page", operation::TopCommand(),
+          editor_state,
+          {operation::CommandReachPage{
+              .repetitions = operation::CommandArgumentRepetitions(1)}}));
+  commands->Add(
+      {Terminal::PAGE_UP},
+      operation::NewTopLevelCommand(
+          L"page_up", L"moves up one page", operation::TopCommand(),
+          editor_state,
+          {operation::CommandReachPage{
+              .repetitions = operation::CommandArgumentRepetitions(-1)}}));
   return commands;
 }
 
