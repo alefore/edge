@@ -3,3 +3,4 @@ string FormatDay(Time time) { return time.format("%Y-%m-%d"); }
 string Yesterday() { return FormatDay(Now().AddDays(-1)); }
 string Today() { return FormatDay(Now()); }
 string Tomorrow() { return FormatDay(Now().AddDays(1)); }
+string now() { return Now().format("%Y-%m-%d %H:%M"); }

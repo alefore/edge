@@ -179,21 +179,23 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   Generator output = Generator::New(CaptureAndHash(
       [](ColumnNumberDelta size_columns,
          Widget::OutputProducerOptions::MainCursorBehavior main_cursor_behavior,
-         WithHash<std::shared_ptr<const Line>> line_contents, Range range,
-         bool atomic_lines, bool multiple_cursors, LineColumn position,
-         HashableContainer<std::set<ColumnNumber>> cursors,
+         WithHash<std::shared_ptr<const Line>> line_contents,
+         BufferContentsWindow::Line screen_line, bool atomic_lines,
+         bool multiple_cursors, LineColumn position,
          EditorMode::CursorMode cursor_mode) {
         Line::OutputOptions options{
-            .initial_column = range.begin.column,
+            .initial_column = screen_line.range.begin.column,
             .width = size_columns,
-            .input_width = range.begin.line == range.end.line
-                               ? range.end.column - range.begin.column
-                               : std::numeric_limits<ColumnNumberDelta>::max()};
+            .input_width =
+                screen_line.range.begin.line == screen_line.range.end.line
+                    ? screen_line.range.end.column -
+                          screen_line.range.begin.column
+                    : std::numeric_limits<ColumnNumberDelta>::max()};
         if (!atomic_lines) {
           std::set<ColumnNumber> current_cursors;
           // TODO(easy): Compute these things from `data`?
-          for (auto& c : cursors.container) {
-            if (LineColumn(range.begin.line, c) == position) {
+          for (auto& c : screen_line.current_cursors) {
+            if (LineColumn(screen_line.range.begin.line, c) == position) {
               options.active_cursor_column = c;
             } else {
               options.inactive_cursor_columns.insert(c);
@@ -243,10 +245,9 @@ OutputProducer::Generator BufferOutputProducer::Next() {
       },
       output_producer_options_.size.column,
       output_producer_options_.main_cursor_behavior,
-      MakeWithHash(line_contents, compute_hash(*line_contents)),
-      screen_line.range, buffer_->Read(buffer_variables::atomic_lines),
+      MakeWithHash(line_contents, compute_hash(*line_contents)), screen_line,
+      buffer_->Read(buffer_variables::atomic_lines),
       buffer_->Read(buffer_variables::multiple_cursors), buffer_->position(),
-      HashableContainer(std::move(screen_line.current_cursors)),
       (editor_keyboard_redirect == nullptr ? *buffer_->mode()
                                            : *editor_keyboard_redirect)
           .cursor_mode()));
