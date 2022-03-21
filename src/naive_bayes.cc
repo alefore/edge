@@ -318,9 +318,8 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
                history[Event(L"m1")] = {FeaturesSet({Feature(L"c")})};
                auto results = Sort(history, FeaturesSet({}));
                CHECK_EQ(results.size(), 2ul);
-               // TODO: Why can't I use CHECK_EQ below?
-               CHECK(results.front() == Event(L"m1"));
-               CHECK(results.back() == Event(L"m0"));
+               CHECK_EQ(results.front(), Event(L"m1"));
+               CHECK_EQ(results.back(), Event(L"m0"));
              }},
         {.name = L"NewFeature",
          .callback =
@@ -331,10 +330,9 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
                history[Event(L"m1")] = {FeaturesSet({Feature(L"c")})};
                auto results = Sort(history, FeaturesSet({Feature(L"d")}));
                CHECK_EQ(results.size(), 2ul);
-               // TODO: Why can't I use CHECK_EQ below?
                // TODO: Why is m0 more likely than m1?
-               CHECK(results.front() == Event(L"m1"));
-               CHECK(results.back() == Event(L"m0"));
+               CHECK_EQ(results.front(), Event(L"m1"));
+               CHECK_EQ(results.back(), Event(L"m0"));
              }},
         {.name = L"FeatureSelects",
          .callback =
@@ -345,9 +343,8 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
                history[Event(L"m1")] = {FeaturesSet({Feature(L"c")})};
                auto results = Sort(history, FeaturesSet({Feature(L"c")}));
                CHECK_EQ(results.size(), 2ul);
-               // TODO: Why can't I use CHECK_EQ below?
-               CHECK(results.front() == Event(L"m0"));
-               CHECK(results.back() == Event(L"m1"));
+               CHECK_EQ(results.front(), Event(L"m0"));
+               CHECK_EQ(results.back(), Event(L"m1"));
              }},
         {.name = L"FeatureSelectsSomeOverlap",
          .callback =
@@ -358,9 +355,8 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
                history[Event(L"m1")] = {FeaturesSet({Feature(L"a")})};
                auto results = Sort(history, FeaturesSet({Feature(L"b")}));
                CHECK_EQ(results.size(), 2ul);
-               // TODO: Why can't I use CHECK_EQ below?
-               CHECK(results.front() == Event(L"m1"));
-               CHECK(results.back() == Event(L"m0"));
+               CHECK_EQ(results.front(), Event(L"m1"));
+               CHECK_EQ(results.back(), Event(L"m0"));
              }},
         {.name = L"FeatureSelectsFive",
          .callback =
