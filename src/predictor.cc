@@ -487,7 +487,8 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
       auto result =
           mismatch(input.input.begin(), input.input.end(), (*it).first.begin());
       if (result.first == input.input.end()) {
-        input.predictions->AppendRawLine(it->second);
+        input.predictions->AppendToLastLine(it->second);
+        input.predictions->AppendRawLine(std::make_shared<Line>());
       } else {
         break;
       }
