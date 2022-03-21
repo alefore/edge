@@ -491,17 +491,6 @@ class OperationMode : public EditorMode {
     }
 
     switch (static_cast<int>(c)) {
-      case Terminal::ESCAPE:
-        if (state_.top_command().post_transformation_behavior ==
-            transformation::Stack::kNone) {
-          state_.Abort();
-        } else {
-          TopCommand top_command = state_.top_command();
-          top_command.post_transformation_behavior =
-              transformation::Stack::kNone;
-          state_.set_top_command(std::move(top_command));
-        }
-        return;
       case L'\n':
         state_.Commit();
         return;
@@ -525,6 +514,17 @@ class OperationMode : public EditorMode {
       return;
     }
     // Unhandled character.
+    if (static_cast<int>(c) == Terminal::ESCAPE) {
+      if (state_.top_command().post_transformation_behavior ==
+          transformation::Stack::kNone) {
+        state_.Abort();
+      } else {
+        TopCommand top_command = state_.top_command();
+        top_command.post_transformation_behavior = transformation::Stack::kNone;
+        state_.set_top_command(std::move(top_command));
+      }
+      return;
+    }
     state_.UndoLast();  // The one we just pushed a few lines above.
     state_.Commit();
     editor_state->ProcessInput(c);
