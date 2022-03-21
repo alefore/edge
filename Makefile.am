@@ -85,6 +85,7 @@ src/fuzz_testable.h \
 src/fuzz_testable.cc \
 src/ghost_type.h \
 src/goto_command.cc \
+src/hash.cc \
 src/hash.h \
 src/help_command.cc \
 src/horizontal_split_output_producer.cc \
