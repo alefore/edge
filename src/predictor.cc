@@ -493,6 +493,10 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
         break;
       }
     }
+    input.progress_channel->Push(ProgressInformation{
+        .values = {{StatusPromptExtraInformationKey(L"values"),
+                    std::to_wstring(input.predictions->lines_size().line_delta -
+                                    1)}}});
     input.predictions->EndOfFile();
     return futures::Past(PredictorOutput());
   };

@@ -167,6 +167,25 @@ unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state) {
   options.cancel_handler = [](EditorState*) { /* Nothing. */ };
   options.predictor = variables_predictor;
   options.status = PromptOptions::Status::kBuffer;
+  options.colorize_options_provider =
+      [editor_state, variables_predictor = variables_predictor](
+          const std::shared_ptr<LazyString>& line,
+          std::unique_ptr<ProgressChannel> progress_channel,
+          std::shared_ptr<Notification> abort_notification)
+      -> futures::Value<ColorizePromptOptions> {
+    CHECK(progress_channel != nullptr);
+    PredictOptions options;
+    options.editor_state = editor_state;
+    options.predictor = variables_predictor;
+    options.source_buffers = editor_state->active_buffers();
+    options.text = line->ToString();
+    options.progress_channel = std::move(progress_channel);
+    options.abort_notification = std::move(abort_notification);
+    return Predict(std::move(options))
+        .Transform([editor_state, line](std::optional<PredictResults>) {
+          return futures::Past(ColorizePromptOptions{});
+        });
+  };
   return NewLinePromptCommand(L"assigns to a variable",
                               [options](EditorState*) { return options; });
 }
