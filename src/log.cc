@@ -68,10 +68,8 @@ futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
       ->Open(path, O_WRONLY | O_CREAT | O_APPEND,
              S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
       .Transform([](int fd) {
-        // TODO(easy): Make `Success` able to convert the unique_ptr to its
-        // parent class? So that we can use make_unique<FileLog> here.
-        return Success(std::unique_ptr<Log>(
-            new FileLog(std::make_shared<FileLogData>(FileLogData{.fd = fd}))));
+        return Success<std::unique_ptr<Log>>(std::make_unique<FileLog>(
+            std::make_shared<FileLogData>(FileLogData{.fd = fd})));
       });
 }
 
