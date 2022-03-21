@@ -242,6 +242,7 @@ std::optional<size_t> cursor_index(const BufferContentsWindow& window) {
 BufferContentsWindow BufferContentsWindow::Get(
     BufferContentsWindow::Input options) {
   CHECK(options.contents != nullptr);
+  CHECK_GE(options.lines_shown, LineNumberDelta());
   if (options.active_position.has_value()) {
     options.begin =
         std::max(std::min(options.begin, *options.active_position),
