@@ -231,6 +231,7 @@ Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
       buffer_->lines_size() > lines_shown_) {
     CHECK_GE(line, initial_line_.value());
     options.Append(ComputeCursorsSuffix(line));
+    options.Append(ComputeTagsSuffix(line));
     options.AppendString(std::wstring(1, ComputeScrollBarCharacter(line)),
                          std::nullopt);
   }
@@ -273,6 +274,24 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
       buffer_lines_per_screen_line *
       (current_line + LineNumberDelta(1) - lines_shown.begin.line).line_delta));
   return output;
+}
+
+Line BufferMetadataOutputProducer::ComputeTagsSuffix(LineNumber line) {
+  CHECK(initial_line_.has_value());
+  CHECK_GE(line, initial_line_.value());
+  const std::multimap<size_t, LineMarks::Mark>* marks = buffer_->GetLineMarks();
+  if (marks->empty()) return Line(L"");
+  auto range = MapScreenLineToContentsRange(
+      Range(LineColumn(LineNumber(initial_line_.value())),
+            LineColumn(LineNumber(initial_line_.value() + lines_shown_))),
+      line, buffer_->lines_size());
+
+  if (marks->lower_bound(range.begin.line.line) ==
+      marks->lower_bound(range.end.line.line))
+    return Line(L" ");
+  Line::Options options;
+  options.AppendString(L"!", LineModifierSet({LineModifier::RED}));
+  return Line(options);
 }
 
 Line BufferMetadataOutputProducer::ComputeCursorsSuffix(LineNumber line) {
