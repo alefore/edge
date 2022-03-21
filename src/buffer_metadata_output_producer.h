@@ -27,7 +27,7 @@ class BufferMetadataOutputProducer : public OutputProducer {
 
   Line ComputeTagsSuffix(LineNumber line);
   Line ComputeCursorsSuffix(LineNumber line);
-  wchar_t ComputeScrollBarCharacter(LineNumber line);
+  Line ComputeScrollBarSuffix(LineNumber line);
 
   const std::shared_ptr<OpenBuffer> buffer_;
   std::list<BufferContentsWindow::Line> screen_lines_;

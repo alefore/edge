@@ -232,8 +232,7 @@ Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
     CHECK_GE(line, initial_line_.value());
     options.Append(ComputeCursorsSuffix(line));
     options.Append(ComputeTagsSuffix(line));
-    options.AppendString(std::wstring(1, ComputeScrollBarCharacter(line)),
-                         std::nullopt);
+    options.Append(ComputeScrollBarSuffix(line));
   }
   if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children().empty()) {
     options.AppendString(DrawTree(line - initial_line_.value().ToDelta(),
@@ -333,8 +332,7 @@ Line BufferMetadataOutputProducer::ComputeCursorsSuffix(LineNumber line) {
   return Line(std::move(options));
 }
 
-wchar_t BufferMetadataOutputProducer::ComputeScrollBarCharacter(
-    LineNumber line) {
+Line BufferMetadataOutputProducer::ComputeScrollBarSuffix(LineNumber line) {
   auto lines_size = buffer_->lines_size();
   // Each line is split into two units (upper and bottom halves). All units in
   // this function are halves (of a line).
@@ -358,16 +356,27 @@ wchar_t BufferMetadataOutputProducer::ComputeScrollBarCharacter(
                             lines_size.line_delta);
   size_t end = start + bar_size;
 
+  LineModifierSet modifiers =
+      MapScreenLineToContentsRange(
+          Range(LineColumn(LineNumber(initial_line_.value())),
+                LineColumn(LineNumber(initial_line_.value() + lines_shown_))),
+          line, buffer_->lines_size())
+              .Contains(buffer_->position())
+          ? LineModifierSet({LineModifier::BLUE})
+          : LineModifierSet({LineModifier::CYAN});
+
+  Line::Options options;
   size_t current = 2 * (line - initial_line_.value()).line_delta;
   if (current < start - (start % 2) || current >= end) {
-    return L' ';
+    options.AppendString(L" ", modifiers);
   } else if (start == current + 1) {
-    return L'▄';
+    options.AppendString(L"▄", modifiers);
   } else if (current + 1 == end) {
-    return L'▀';
+    options.AppendString(L"▀", modifiers);
   } else {
-    return L'█';
+    options.AppendString(L"█", modifiers);
   }
+  return Line(std::move(options));
 }
 }  // namespace editor
 }  // namespace afc
