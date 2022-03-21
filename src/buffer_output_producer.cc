@@ -192,7 +192,6 @@ OutputProducer::Generator BufferOutputProducer::Next() {
                           screen_line.range.begin.column
                     : std::numeric_limits<ColumnNumberDelta>::max()};
         if (!atomic_lines) {
-          std::set<ColumnNumber> current_cursors;
           // TODO(easy): Compute these things from `data`?
           for (auto& c : screen_line.current_cursors) {
             if (LineColumn(screen_line.range.begin.line, c) == position) {
