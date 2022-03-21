@@ -65,8 +65,7 @@ struct PredictorInput {
   // modify them.
   std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
 
-  // Will never be nullptr: Predict ensures that.
-  ProgressChannel* progress_channel;
+  ProgressChannel& progress_channel;
 
   // Will never be nullptr: Predict ensures that.
   std::shared_ptr<Notification> abort_notification;

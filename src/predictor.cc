@@ -198,7 +198,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                      .input = std::move(input),
                      .predictions = buffer,
                      .source_buffers = shared_options->source_buffers,
-                     .progress_channel = shared_options->progress_channel.get(),
+                     .progress_channel = *shared_options->progress_channel,
                      .abort_notification = shared_options->abort_notification})
         .Transform([shared_options, input, buffer, consumer](PredictorOutput) {
           buffer->set_current_cursor(LineColumn());
@@ -267,9 +267,8 @@ DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
 void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
-
                    std::wstring pattern, std::wstring prefix, int* matches,
-                   ProgressChannel* progress_channel,
+                   ProgressChannel& progress_channel,
                    Notification* abort_notification,
                    OpenBuffer::LockFunction get_buffer) {
   static Tracker tracker(L"FilePredictor::ScanDirectory");
@@ -322,7 +321,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
       FlushPredictions();
     }
     ++*matches;
-    progress_channel->Push(ProgressInformation{
+    progress_channel.Push(ProgressInformation{
         .values = {{StatusPromptExtraInformationKey(L"files"),
                     std::to_wstring(*matches)}}});
   }
@@ -343,7 +342,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   struct AsyncInput {
-    ProgressChannel* progress_channel;
+    ProgressChannel& progress_channel;
     std::shared_ptr<Notification> abort_notification;
     OpenBuffer::LockFunction get_buffer;
     std::wstring path;
@@ -413,7 +412,6 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   static AsyncProcessor<AsyncInput, int> async_processor(std::move(options));
 
   futures::Future<PredictorOutput> output;
-  CHECK(predictor_input.progress_channel != nullptr);
   auto input_path = Path::FromString(predictor_input.input);
   auto input = std::make_shared<AsyncInput>(AsyncInput{
       .progress_channel = predictor_input.progress_channel,
@@ -493,7 +491,7 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
         break;
       }
     }
-    input.progress_channel->Push(ProgressInformation{
+    input.progress_channel.Push(ProgressInformation{
         .values = {{StatusPromptExtraInformationKey(L"values"),
                     std::to_wstring(input.predictions->lines_size().line_delta -
                                     1)}}});
