@@ -36,20 +36,20 @@ namespace editor {
 namespace {
 
 std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
-GetCurrentFeatures(EditorState* editor) {
+GetCurrentFeatures(EditorState& editor) {
   std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
-  for (auto& [_, buffer] : *editor->buffers()) {
+  for (auto& [_, buffer] : *editor.buffers()) {
     // We have to deal with nullptr buffers here because this gets called after
     // the entry for the new buffer has been inserted to the editor, but before
     // the buffer has actually been created.
     if (buffer != nullptr &&
         buffer->Read(buffer_variables::show_in_buffers_list) &&
-        editor->buffer_tree()->GetBufferIndex(buffer.get()).has_value()) {
+        editor.buffer_tree()->GetBufferIndex(buffer.get()).has_value()) {
       output.insert(
           {L"name", NewLazyString(buffer->Read(buffer_variables::name))});
     }
   }
-  editor->ForEachActiveBuffer(
+  editor.ForEachActiveBuffer(
       [&output](const std::shared_ptr<OpenBuffer>& buffer) {
         output.insert(
             {L"active", NewLazyString(buffer->Read(buffer_variables::name))});
@@ -172,35 +172,35 @@ const bool get_synthetic_features_tests_registration = tests::Register(
       }}});
 
 futures::Value<std::shared_ptr<OpenBuffer>> GetHistoryBuffer(
-    EditorState* editor_state, const wstring& name) {
+    EditorState& editor_state, const wstring& name) {
   BufferName buffer_name(L"- history: " + name);
-  auto it = editor_state->buffers()->find(buffer_name);
-  if (it != editor_state->buffers()->end()) {
+  auto it = editor_state.buffers()->find(buffer_name);
+  if (it != editor_state.buffers()->end()) {
     return futures::Past(it->second);
   }
   return OpenFile(
-             {.editor_state = *editor_state,
+             {.editor_state = editor_state,
               .name = buffer_name,
-              .path = editor_state->edge_path().empty()
+              .path = editor_state.edge_path().empty()
                           ? std::nullopt
                           : std::make_optional(Path::Join(
-                                editor_state->edge_path().front(),
+                                editor_state.edge_path().front(),
                                 PathComponent::FromString(name + L"_history")
                                     .value())),
               .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform(
-          [editor_state](
+          [&editor_state](
               std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator it) {
-            CHECK(it != editor_state->buffers()->end());
+            CHECK(it != editor_state.buffers()->end());
             CHECK(it->second != nullptr);
             it->second->Set(buffer_variables::save_on_close, true);
             it->second->Set(buffer_variables::trigger_reload_on_buffer_write,
                             false);
             it->second->Set(buffer_variables::show_in_buffers_list, false);
             it->second->Set(buffer_variables::atomic_lines, true);
-            if (!editor_state->has_current_buffer()) {
+            if (!editor_state.has_current_buffer()) {
               // Seems lame, but what can we do?
-              editor_state->set_current_buffer(
+              editor_state.set_current_buffer(
                   it->second, CommandArgumentModeApplyMode::kFinal);
             }
             return it->second;
@@ -260,7 +260,7 @@ std::shared_ptr<LazyString> QuoteString(std::shared_ptr<LazyString> src) {
 }
 
 std::shared_ptr<LazyString> BuildHistoryLine(
-    EditorState* editor, std::shared_ptr<LazyString> input) {
+    EditorState& editor, std::shared_ptr<LazyString> input) {
   std::vector<std::shared_ptr<LazyString>> line_for_history;
   line_for_history.emplace_back(NewLazyString(L"prompt:"));
   line_for_history.emplace_back(QuoteString(std::move(input)));
@@ -271,7 +271,7 @@ std::shared_ptr<LazyString> BuildHistoryLine(
   return Concatenate(std::move(line_for_history));
 }
 
-void AddLineToHistory(EditorState* editor, std::wstring history_file,
+void AddLineToHistory(EditorState& editor, std::wstring history_file,
                       std::shared_ptr<LazyString> input) {
   if (input->size().IsZero()) return;
   GetHistoryBuffer(editor, history_file)
@@ -308,7 +308,7 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
 }
 
 futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
-    EditorState* editor_state, OpenBuffer* history_buffer,
+    EditorState& editor_state, OpenBuffer* history_buffer,
     AsyncEvaluator* history_evaluator,
     std::shared_ptr<Notification> abort_notification, std::wstring filter) {
   CHECK(history_buffer != nullptr);
@@ -416,10 +416,10 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
         return output;
       })
       .Transform(
-          [editor_state, abort_notification, filter_buffer](Output output) {
+          [&editor_state, abort_notification, filter_buffer](Output output) {
             LOG(INFO) << "Receiving output from history evaluator.";
             if (!output.errors.empty()) {
-              editor_state->status()->SetWarningText(output.errors.front());
+              editor_state.status()->SetWarningText(output.errors.front());
             }
             if (!abort_notification->HasBeenNotified()) {
               for (auto& line : output.lines) {
@@ -437,10 +437,9 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
 }
 
 shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
-                                       EditorState* editor_state) {
-  auto& element = *editor_state->buffers()
-                       ->insert({BufferName(L"- prompt"), nullptr})
-                       .first;
+                                       EditorState& editor_state) {
+  auto& element =
+      *editor_state.buffers()->insert({BufferName(L"- prompt"), nullptr}).first;
   if (element.second == nullptr) {
     element.second =
         OpenBuffer::New({.editor = editor_state, .name = element.first});
@@ -464,17 +463,17 @@ shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
 class PromptState {
  public:
   PromptState(PromptOptions options)
-      : editor_state_(options.editor_state),
+      : editor_state_(*options.editor_state),
         status_buffer_([&]() -> std::shared_ptr<OpenBuffer> {
           if (options.status == PromptOptions::Status::kEditor) return nullptr;
-          auto active_buffers = options.editor_state->active_buffers();
+          auto active_buffers = editor_state_.active_buffers();
           return active_buffers.size() == 1 ? active_buffers[0] : nullptr;
         }()),
-        status_(status_buffer_ == nullptr ? options.editor_state->status()
+        status_(status_buffer_ == nullptr ? editor_state_.status()
                                           : status_buffer_->status()),
-        original_modifiers_(options.editor_state->modifiers()) {
+        original_modifiers_(editor_state_.modifiers()) {
     CHECK(status_ != nullptr);
-    options.editor_state->set_modifiers(Modifiers());
+    editor_state_.set_modifiers(Modifiers());
   }
 
   // The prompt has disappeared.
@@ -484,11 +483,11 @@ class PromptState {
 
   void Reset() {
     status()->Reset();
-    editor_state_->set_modifiers(original_modifiers_);
+    editor_state_.set_modifiers(original_modifiers_);
   }
 
  private:
-  EditorState* const editor_state_;
+  EditorState& editor_state_;
   // If the status is associated with a buffer, we capture it here; that allows
   // us to ensure that the status won't be deallocated under our feet (when the
   // buffer is ephemeral).
@@ -577,7 +576,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   void ScrollHistory(OpenBuffer& buffer, LineNumberDelta delta) const {
     if (prompt_state_->IsGone()) return;
     auto buffer_to_insert = OpenBuffer::New(
-        {.editor = buffer.editor(), .name = BufferName::TextInsertion()});
+        {.editor = *buffer.editor(), .name = BufferName::TextInsertion()});
 
     if (history_ != nullptr &&
         (history_->contents()->size() > LineNumberDelta(1) ||
@@ -620,7 +619,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
  public:
   HistoryScrollBehaviorFactory(
-      EditorState* editor_state, wstring prompt,
+      EditorState& editor_state, wstring prompt,
       std::shared_ptr<OpenBuffer> history,
       std::shared_ptr<AsyncEvaluator> history_evaluator,
       std::shared_ptr<PromptState> prompt_state,
@@ -650,7 +649,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
   }
 
  private:
-  EditorState* const editor_state_;
+  EditorState& editor_state_;
   const wstring prompt_;
   const std::shared_ptr<OpenBuffer> history_;
   const std::shared_ptr<PromptState> prompt_state_;
@@ -669,13 +668,14 @@ class LinePromptCommand : public Command {
   wstring Category() const override { return L"Prompt"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
+    CHECK(editor_state != nullptr);
     auto buffer = editor_state->current_buffer();
     if (buffer == nullptr) return;
     auto options = options_supplier_(editor_state);
     if (editor_state->structure() == StructureLine()) {
       editor_state->ResetStructure();
       auto input = buffer->current_line();
-      AddLineToHistory(editor_state, options.history_file, input->contents());
+      AddLineToHistory(*editor_state, options.history_file, input->contents());
       options.handler(input->ToString(), editor_state);
     } else {
       Prompt(std::move(options));
@@ -746,12 +746,12 @@ using std::unique_ptr;
 
 void Prompt(PromptOptions options) {
   CHECK(options.handler);
-  auto editor_state = options.editor_state;
-  CHECK(editor_state != nullptr);
+  CHECK(options.editor_state != nullptr);
+  EditorState& editor_state = *options.editor_state;
   auto history_file = options.history_file;
   GetHistoryBuffer(editor_state, history_file)
       .SetConsumer([options = std::move(options),
-                    editor_state](std::shared_ptr<OpenBuffer> history) {
+                    &editor_state](std::shared_ptr<OpenBuffer> history) {
         history->set_current_position_line(LineNumber(0) +
                                            history->contents()->size());
 
@@ -770,7 +770,7 @@ void Prompt(PromptOptions options) {
         }
 
         InsertModeOptions insert_mode_options;
-        insert_mode_options.editor_state = editor_state;
+        insert_mode_options.editor_state = &editor_state;
         insert_mode_options.buffers = {buffer};
 
         auto history_evaluator = std::make_shared<AsyncEvaluator>(
@@ -785,7 +785,7 @@ void Prompt(PromptOptions options) {
             std::make_shared<std::shared_ptr<Notification>>(
                 std::make_shared<Notification>());
         insert_mode_options
-            .modify_handler = [editor_state, history_evaluator, history,
+            .modify_handler = [&editor_state, history_evaluator, history,
                                prompt_state, options, abort_notification_ptr](
                                   const std::shared_ptr<OpenBuffer>& buffer) {
           auto line = buffer->LineAt(LineNumber())->contents();
@@ -848,45 +848,45 @@ void Prompt(PromptOptions options) {
                 editor_state, options.prompt, history, history_evaluator,
                 prompt_state, buffer);
 
-        insert_mode_options.escape_handler = [editor_state, options,
+        insert_mode_options.escape_handler = [&editor_state, options,
                                               prompt_state]() {
           LOG(INFO) << "Running escape_handler from Prompt.";
           prompt_state->Reset();
 
           if (options.cancel_handler) {
             VLOG(5) << "Running cancel handler.";
-            options.cancel_handler(editor_state);
+            options.cancel_handler(&editor_state);
           } else {
             VLOG(5) << "Running handler on empty input.";
-            options.handler(L"", editor_state);
+            options.handler(L"", &editor_state);
           }
-          editor_state->set_keyboard_redirect(nullptr);
+          editor_state.set_keyboard_redirect(nullptr);
         };
 
         insert_mode_options.new_line_handler =
-            [editor_state, options,
+            [&editor_state, options,
              prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
               auto input = buffer->current_line()->contents();
-              AddLineToHistory(buffer->editor(), options.history_file, input);
+              AddLineToHistory(editor_state, options.history_file, input);
               auto ensure_survival_of_current_closure =
-                  editor_state->keyboard_redirect();
-              editor_state->set_keyboard_redirect(nullptr);
+                  editor_state.keyboard_redirect();
+              editor_state.set_keyboard_redirect(nullptr);
               prompt_state->Reset();
-              return options.handler(input->ToString(), editor_state);
+              return options.handler(input->ToString(), &editor_state);
             };
 
         insert_mode_options
-            .start_completion = [editor_state, options, prompt_state](
+            .start_completion = [&editor_state, options, prompt_state](
                                     const std::shared_ptr<OpenBuffer>& buffer) {
           auto input = buffer->current_line()->contents()->ToString();
           LOG(INFO) << "Triggering predictions from: " << input;
           CHECK(prompt_state->status()->prompt_extra_information() != nullptr);
-          Predict({.editor_state = *editor_state,
+          Predict({.editor_state = editor_state,
                    .predictor = options.predictor,
                    .input_buffer = buffer,
                    .input_selection_structure = StructureLine(),
                    .source_buffers = options.source_buffers})
-              .SetConsumer([editor_state, options, buffer, prompt_state,
+              .SetConsumer([&editor_state, options, buffer, prompt_state,
                             input](std::optional<PredictResults> results) {
                 if (!results.has_value()) return;
                 if (results.value().common_prefix.has_value() &&
@@ -940,17 +940,17 @@ void Prompt(PromptOptions options) {
                   return;
                 }
                 LOG(INFO) << "Prediction didn't advance.";
-                auto buffers = editor_state->buffers();
+                auto buffers = editor_state.buffers();
                 auto name = PredictionsBufferName();
                 if (auto it = buffers->find(name); it != buffers->end()) {
                   it->second->set_current_position_line(LineNumber(0));
-                  editor_state->set_current_buffer(
+                  editor_state.set_current_buffer(
                       it->second, CommandArgumentModeApplyMode::kFinal);
-                  if (editor_state->status()->prompt_buffer() == nullptr) {
+                  if (editor_state.status()->prompt_buffer() == nullptr) {
                     it->second->status()->CopyFrom(*prompt_state->status());
                   }
                 } else {
-                  editor_state->status()->SetWarningText(
+                  editor_state.status()->SetWarningText(
                       L"Error: Predict: predictions buffer not found: " +
                       name.ToString());
                 }

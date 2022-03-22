@@ -998,7 +998,7 @@ std::shared_ptr<OpenBuffer> EditorState::GetConsole() {
   if (it.second) {  // Inserted the entry.
     CHECK(it.first->second == nullptr);
     it.first->second =
-        OpenBuffer::New({.editor = this, .name = it.first->first});
+        OpenBuffer::New({.editor = *this, .name = it.first->first});
     it.first->second->Set(buffer_variables::allow_dirty_delete, true);
     it.first->second->Set(buffer_variables::show_in_buffers_list, false);
     it.first->second->Set(buffer_variables::persist_state, false);

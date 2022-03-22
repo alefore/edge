@@ -563,12 +563,12 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       line_column_variables_(
           buffer_variables::LineColumnStruct()->NewInstance()),
       environment_(
-          std::make_shared<Environment>(options_.editor->environment())),
+          std::make_shared<Environment>(options_.editor.environment())),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
-      default_commands_(options_.editor->default_commands()->NewChild()),
+      default_commands_(options_.editor.default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
-      status_(options_.editor->GetConsole(), options_.editor->audio_player()),
+      status_(options_.editor.GetConsole(), options_.editor.audio_player()),
       syntax_data_(L"SyntaxData", &work_queue_,
                    BackgroundCallbackRunner::Options::QueueBehavior::kFlush),
       syntax_data_view_(L"SyntaxDataView", &work_queue_),
@@ -580,12 +580,12 @@ OpenBuffer::~OpenBuffer() {
   environment_->Clear();
 }
 
-EditorState* OpenBuffer::editor() const { return options_.editor; }
+EditorState* OpenBuffer::editor() const { return &options_.editor; }
 
 Status* OpenBuffer::status() const { return &status_; }
 
 PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
-  if (options_.editor->modifiers().strength > Modifiers::Strength::kNormal) {
+  if (options_.editor.modifiers().strength > Modifiers::Strength::kNormal) {
     return Success();
   }
   if (child_pid_ != -1) {
@@ -609,7 +609,7 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
     return futures::Past(is_unable);
   }
 
-  return (options_.editor->modifiers().strength == Modifiers::Strength::kNormal
+  return (options_.editor.modifiers().strength == Modifiers::Strength::kNormal
               ? PersistState()
               : futures::IgnoreErrors(PersistState()))
       .Transform([this](EmptyValue) {
@@ -628,7 +628,7 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
                 };
             return std::move(future.value);
           }
-          CHECK(options_.editor->modifiers().strength >
+          CHECK(options_.editor.modifiers().strength >
                 Modifiers::Strength::kNormal);
         }
         if (!dirty() || !Read(buffer_variables::save_on_close)) {
@@ -757,8 +757,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 void OpenBuffer::ClearContents(
     BufferContents::CursorsBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
-  options_.editor->line_marks()->RemoveExpiredMarksFromSource(name());
-  options_.editor->line_marks()->ExpireMarksFromSource(*this, name());
+  options_.editor.line_marks()->RemoveExpiredMarksFromSource(name());
+  options_.editor.line_marks()->ExpireMarksFromSource(*this, name());
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
                        cursors_behavior);
   if (terminal_ != nullptr) {
@@ -937,7 +937,7 @@ void OpenBuffer::Initialize() {
   if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
       !buffer_path.IsError()) {
     FileSystemDriver file_system_driver(editor()->work_queue());
-    for (const auto& dir : options_.editor->edge_path()) {
+    for (const auto& dir : options_.editor.edge_path()) {
       auto state_path = Path::Join(
           Path::Join(dir, PathComponent::FromString(L"state").value()),
           Path::Join(buffer_path.value(),
@@ -1433,7 +1433,7 @@ CursorsSet* OpenBuffer::active_cursors() {
 }
 
 const CursorsSet* OpenBuffer::active_cursors() const {
-  return FindCursors(options_.editor->modifiers().active_cursors);
+  return FindCursors(options_.editor.modifiers().active_cursors);
 }
 
 void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
@@ -1512,18 +1512,18 @@ void OpenBuffer::set_current_cursor(LineColumn new_value) {
 }
 
 void OpenBuffer::CreateCursor() {
-  if (options_.editor->modifiers().structure == StructureChar()) {
+  if (options_.editor.modifiers().structure == StructureChar()) {
     CHECK_LE(position().line, LineNumber(0) + contents_.size());
     active_cursors()->insert(position());
   } else {
-    auto structure = options_.editor->modifiers().structure;
-    Modifiers tmp_modifiers = options_.editor->modifiers();
+    auto structure = options_.editor.modifiers().structure;
+    Modifiers tmp_modifiers = options_.editor.modifiers();
     tmp_modifiers.structure = StructureCursor();
     Range range = FindPartialRange(tmp_modifiers, position());
     if (range.IsEmpty()) {
       return;
     }
-    options_.editor->set_direction(Direction::kForwards);
+    options_.editor.set_direction(Direction::kForwards);
     LOG(INFO) << "Range for cursors: " << range;
     while (!range.IsEmpty()) {
       auto tmp_first = range.begin;
@@ -1578,7 +1578,7 @@ void OpenBuffer::DestroyCursor() {
   if (cursors->size() <= 1) {
     return;
   }
-  size_t repetitions = min(options_.editor->modifiers().repetitions.value_or(1),
+  size_t repetitions = min(options_.editor.modifiers().repetitions.value_or(1),
                            cursors->size() - 1);
   for (size_t i = 0; i < repetitions; i++) {
     cursors->DeleteCurrentCursor();
@@ -2357,7 +2357,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
     if (it.first->second == nullptr) {
       LOG(INFO) << "Creating paste buffer.";
       it.first->second =
-          OpenBuffer::New({.editor = editor(), .name = kFuturePasteBuffer});
+          OpenBuffer::New({.editor = *editor(), .name = kFuturePasteBuffer});
     }
     input.delete_buffer = it.first->second.get();
     CHECK(input.delete_buffer != nullptr);
@@ -2400,8 +2400,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
 }
 
 futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {
-  size_t repetitions = options_.editor->repetitions().value_or(1);
-  options_.editor->ResetRepetitions();
+  size_t repetitions = options_.editor.repetitions().value_or(1);
+  options_.editor.ResetRepetitions();
   return ApplyToCursors(transformation::Repetitions{
       repetitions,
       std::make_shared<transformation::Variant>(last_transformation_)});
@@ -2541,7 +2541,7 @@ void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>* source) {
 }
 
 namespace {
-EditorState* EditorForTests() {
+EditorState& EditorForTests() {
   static auto player = NewNullAudioPlayer();
   static EditorState editor_for_tests(
       [] {
@@ -2550,7 +2550,7 @@ EditorState* EditorForTests() {
         return output;
       }(),
       player.get());
-  return &editor_for_tests;
+  return editor_for_tests;
 }
 }  // namespace
 

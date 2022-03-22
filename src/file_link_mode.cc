@@ -798,8 +798,8 @@ OpenFile(const OpenFileOptions& options) {
           }
           return input.buffer.value();
         }
-        auto buffer_options = std::make_shared<OpenBuffer::Options>();
-        buffer_options->editor = &options.editor_state;
+        auto buffer_options = std::make_shared<OpenBuffer::Options>(
+            OpenBuffer::Options{.editor = options.editor_state});
 
         auto stat_buffer = std::make_shared<struct stat>();
         auto background_directory_reader = std::make_shared<AsyncEvaluator>(

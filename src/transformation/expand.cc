@@ -89,7 +89,7 @@ class PredictorTransformation : public CompositeTransformation {
           output.Push(DeleteLastCharacters(text.size()));
 
           auto buffer_to_insert =
-              OpenBuffer::New({.editor = buffer->editor(),
+              OpenBuffer::New({.editor = *buffer->editor(),
                                .name = BufferName::TextInsertion()});
           buffer_to_insert->AppendLazyString(
               NewLazyString(results.value().common_prefix.value()));
@@ -222,7 +222,7 @@ class Execute : public CompositeTransformation {
           Output output;
           if (value != nullptr && value->IsString()) {
             auto buffer = OpenBuffer::New(
-                {.editor = editor, .name = BufferName::TextInsertion()});
+                {.editor = *editor, .name = BufferName::TextInsertion()});
             buffer->AppendLazyString(NewLazyString(value->str));
             buffer->EraseLines(LineNumber(0), LineNumber(1));
             output.Push(

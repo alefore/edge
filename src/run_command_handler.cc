@@ -552,23 +552,24 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
 
 std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
                                         const ForkCommandOptions& options) {
+  CHECK(editor_state != nullptr);
   BufferName name = options.name.value_or(BufferName(L"$ " + options.command));
   auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
   if (it.second) {
     auto command_data = std::make_shared<CommandData>();
-    OpenBuffer::Options buffer_options;
-    buffer_options.editor = editor_state;
-    buffer_options.name = name;
-    buffer_options.generate_contents = [editor_state,
-                                        environment = options.environment,
-                                        command_data](OpenBuffer* target) {
-      return GenerateContents(editor_state, environment, command_data.get(),
-                              target);
-    };
-    buffer_options.describe_status = [command_data](const OpenBuffer& buffer) {
-      return Flags(*command_data, buffer);
-    };
-    auto buffer = OpenBuffer::New(std::move(buffer_options));
+    auto buffer = OpenBuffer::New(
+        {.editor = *editor_state,
+         .name = name,
+         .generate_contents =
+             [editor_state, environment = options.environment,
+              command_data](OpenBuffer* target) {
+               return GenerateContents(editor_state, environment,
+                                       command_data.get(), target);
+             },
+         .describe_status =
+             [command_data](const OpenBuffer& buffer) {
+               return Flags(*command_data, buffer);
+             }});
     buffer->Set(buffer_variables::children_path,
                 options.children_path.has_value()
                     ? options.children_path->ToString()

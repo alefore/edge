@@ -205,17 +205,16 @@ ValueOrError<Path> StartServer(EditorState* editor_state,
 
 shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
                                         const Path& address) {
-  OpenBuffer::Options options;
-  options.editor = editor_state;
-  options.name = editor_state->GetUnusedBufferName(L"- server");
-  options.path = address;
-  options.generate_contents =
-      [file_system_driver = std::make_shared<FileSystemDriver>(
-           editor_state->work_queue())](OpenBuffer* target) {
-        return GenerateContents(file_system_driver, target);
-      };
-
-  auto buffer = OpenBuffer::New(std::move(options));
+  CHECK(editor_state != nullptr);
+  auto buffer = OpenBuffer::New(
+      {.editor = *editor_state,
+       .name = editor_state->GetUnusedBufferName(L"- server"),
+       .path = address,
+       .generate_contents =
+           [file_system_driver = std::make_shared<FileSystemDriver>(
+                editor_state->work_queue())](OpenBuffer* target) {
+             return GenerateContents(file_system_driver, target);
+           }});
   buffer->Set(buffer_variables::clear_on_reload, false);
   buffer->Set(buffer_variables::vm_exec, true);
   buffer->Set(buffer_variables::show_in_buffers_list, false);

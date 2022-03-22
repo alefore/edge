@@ -64,7 +64,7 @@ class NewLineTransformation : public CompositeTransformation {
     Output output;
     {
       auto buffer_to_insert = OpenBuffer::New(
-          {.editor = input.editor, .name = BufferName::TextInsertion()});
+          {.editor = *input.editor, .name = BufferName::TextInsertion()});
       buffer_to_insert->AppendRawLine(std::make_shared<Line>(
           Line::Options(*line).DeleteSuffix(prefix_end)));
       transformation::Insert insert_options;
@@ -323,7 +323,7 @@ class InsertMode : public EditorMode {
           return buffer->TransformKeyboardText(std::wstring(1, c))
               .Transform([options, buffer](std::wstring value) {
                 auto buffer_to_insert =
-                    OpenBuffer::New({.editor = options.editor_state,
+                    OpenBuffer::New({.editor = *options.editor_state,
                                      .name = BufferName::TextInsertion()});
                 buffer_to_insert->AppendToLastLine(NewLazyString(value));
 
@@ -397,7 +397,7 @@ class InsertMode : public EditorMode {
                   return futures::Past(EmptyValue());
 
                 auto buffer_to_insert =
-                    OpenBuffer::New({.editor = options.editor_state,
+                    OpenBuffer::New({.editor = *options.editor_state,
                                      .name = BufferName::TextInsertion()});
                 buffer_to_insert->AppendToLastLine(NewLazyString(L" "));
                 auto insert_options = transformation::Insert{

@@ -167,16 +167,16 @@ class ListBuffersCommand : public Command {
   wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
+    CHECK(editor_state != nullptr);
     auto it =
         editor_state->buffers()->insert({BufferName::BuffersList(), nullptr});
     if (it.second) {
-      OpenBuffer::Options options;
-      options.editor = editor_state;
-      options.name = BufferName::BuffersList();
-      options.generate_contents = [editor_state](OpenBuffer* target) {
-        return GenerateContents(editor_state, target);
-      };
-      auto buffer = OpenBuffer::New(std::move(options));
+      auto buffer = OpenBuffer::New(
+          {.editor = *editor_state,
+           .name = BufferName::BuffersList(),
+           .generate_contents = [editor_state](OpenBuffer* target) {
+             return GenerateContents(editor_state, target);
+           }});
       buffer->Set(buffer_variables::reload_on_enter, true);
       buffer->Set(buffer_variables::atomic_lines, true);
       buffer->Set(buffer_variables::reload_on_display, true);

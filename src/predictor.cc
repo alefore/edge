@@ -167,9 +167,8 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
 futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   auto shared_options = std::make_shared<PredictOptions>(std::move(options));
   futures::Future<std::optional<PredictResults>> output;
-  OpenBuffer::Options buffer_options;
-  buffer_options.editor = &shared_options->editor_state;
-  buffer_options.name = PredictionsBufferName();
+  OpenBuffer::Options buffer_options{.editor = shared_options->editor_state,
+                                     .name = PredictionsBufferName()};
 
   if (shared_options->progress_channel == nullptr) {
     shared_options->progress_channel = std::make_unique<ProgressChannel>(
@@ -644,7 +643,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
                  std::istream_iterator<wstring, wchar_t>());
   }
   auto dictionary = OpenBuffer::New(
-      {.editor = &input.editor, .name = BufferName(L"Dictionary")});
+      {.editor = input.editor, .name = BufferName(L"Dictionary")});
   for (auto& word : words) {
     dictionary->AppendLine(NewLazyString(std::move(word)));
   }

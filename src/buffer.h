@@ -63,7 +63,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
                                  Environment* environment);
 
   struct Options {
-    EditorState* editor = nullptr;
+    EditorState& editor;
     BufferName name = BufferName(L"");
     std::optional<Path> path = {};
 
@@ -165,9 +165,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   bool ShouldDisplayProgress() const;
   void RegisterProgress();
-  struct timespec last_progress_update() const {
-    return last_progress_update_;
-  }
+  struct timespec last_progress_update() const { return last_progress_update_; }
 
   void ReadData();
   void ReadErrorData();

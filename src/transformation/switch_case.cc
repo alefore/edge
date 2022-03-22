@@ -19,7 +19,7 @@ std::wstring SwitchCaseTransformation::Serialize() const {
 futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
     Input input) const {
   auto buffer_to_insert = OpenBuffer::New(
-      {.editor = input.editor, .name = BufferName(L"- text inserted")});
+      {.editor = *input.editor, .name = BufferName(L"- text inserted")});
   VLOG(5) << "Switch Case Transformation at " << input.position << ": "
           << input.modifiers << ": Range: " << input.range;
   LineColumn i = input.range.begin;

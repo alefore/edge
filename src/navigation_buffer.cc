@@ -147,12 +147,13 @@ class NavigationBufferCommand : public Command {
     auto [it, insert_result] = editor_state->buffers()->insert({name, nullptr});
     if (insert_result) {
       std::weak_ptr<OpenBuffer> source_weak = source;
-      auto buffer = OpenBuffer::New(OpenBuffer::Options{
-          .editor = editor_state,
-          .name = name,
-          .generate_contents = [editor_state, source_weak](OpenBuffer* target) {
-            return GenerateContents(editor_state, source_weak, target);
-          }});
+      auto buffer = OpenBuffer::New(
+          {.editor = *editor_state,
+           .name = name,
+           .generate_contents = [editor_state,
+                                 source_weak](OpenBuffer* target) {
+             return GenerateContents(editor_state, source_weak, target);
+           }});
 
       buffer->Set(buffer_variables::show_in_buffers_list, false);
       buffer->Set(buffer_variables::push_positions_to_history, false);
