@@ -78,7 +78,7 @@ class MoveTransformation : public CompositeTransformation {
     }
 
     if (input.modifiers.repetitions > 1) {
-      input.editor->PushPosition(position.value());
+      input.editor.PushPosition(position.value());
     }
 
     LOG(INFO) << "Move from " << input.original_position << " to "

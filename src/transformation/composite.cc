@@ -62,18 +62,20 @@ namespace {
 futures::Value<Result> ApplyBase(const Modifiers& modifiers,
                                  CompositeTransformation* transformation,
                                  Input transformation_input) {
-  CompositeTransformation::Input input;
-  input.buffer = transformation_input.buffer;
-  input.original_position = transformation_input.position;
-  input.position = input.buffer->AdjustLineColumn(input.original_position);
-  input.editor = &input.buffer->editor();
-  input.mode = transformation_input.mode;
-  input.range =
-      transformation_input.buffer->FindPartialRange(modifiers, input.position);
-  input.modifiers = modifiers;
-  std::shared_ptr<Log> trace =
-      input.buffer->log()->NewChild(L"ApplyBase(CompositeTransformation)");
-  return transformation->Apply(std::move(input))
+  std::shared_ptr<Log> trace = transformation_input.buffer->log()->NewChild(
+      L"ApplyBase(CompositeTransformation)");
+  auto position = transformation_input.buffer->AdjustLineColumn(
+      transformation_input.position);
+  return transformation
+      ->Apply(CompositeTransformation::Input{
+          .editor = transformation_input.buffer->editor(),
+          .original_position = transformation_input.position,
+          .position = position,
+          .range = transformation_input.buffer->FindPartialRange(modifiers,
+                                                                 position),
+          .buffer = transformation_input.buffer,
+          .modifiers = modifiers,
+          .mode = transformation_input.mode})
       .Transform([transformation_input, trace = std::move(trace)](
                      CompositeTransformation::Output output) {
         return Apply(std::move(*output.stack), transformation_input);

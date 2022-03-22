@@ -196,7 +196,7 @@ const bool read_and_insert_tests_registration = tests::Register(
                      return futures::Past(buffer->editor().buffers()->end());
                    })
                    .Apply(CompositeTransformation::Input{
-                       .editor = &buffer->editor(), .buffer = buffer.get()})
+                       .editor = buffer->editor(), .buffer = buffer.get()})
                    .SetConsumer([&](CompositeTransformation::Output) {
                      transformation_done = true;
                    });
@@ -216,13 +216,13 @@ class Execute : public CompositeTransformation {
   std::wstring Serialize() const override { return L"Execute();"; }
 
   futures::Value<Output> Apply(Input input) const override {
-    return RunCppCommandShell(command_, input.editor)
+    return RunCppCommandShell(command_, &input.editor)
         .Transform([command_size = command_.size(),
-                    editor = input.editor](std::unique_ptr<Value> value) {
+                    &editor = input.editor](std::unique_ptr<Value> value) {
           Output output;
           if (value != nullptr && value->IsString()) {
             auto buffer = OpenBuffer::New(
-                {.editor = *editor, .name = BufferName::TextInsertion()});
+                {.editor = editor, .name = BufferName::TextInsertion()});
             buffer->AppendLazyString(NewLazyString(value->str));
             buffer->EraseLines(LineNumber(0), LineNumber(1));
             output.Push(

@@ -26,11 +26,11 @@ class CompositeTransformation {
   virtual std::wstring Serialize() const = 0;
 
   struct Input {
+    EditorState& editor;
     LineColumn original_position = LineColumn();
     // Adjusted to ensure that it is within the length of the current line.
     LineColumn position = LineColumn();
     Range range = Range();
-    EditorState* editor = nullptr;
     const OpenBuffer* buffer = nullptr;
     Modifiers modifiers = Modifiers();
     transformation::Input::Mode mode = transformation::Input::Mode::kFinal;

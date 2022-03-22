@@ -64,7 +64,7 @@ class NewLineTransformation : public CompositeTransformation {
     Output output;
     {
       auto buffer_to_insert = OpenBuffer::New(
-          {.editor = *input.editor, .name = BufferName::TextInsertion()});
+          {.editor = input.editor, .name = BufferName::TextInsertion()});
       buffer_to_insert->AppendRawLine(std::make_shared<Line>(
           Line::Options(*line).DeleteSuffix(prefix_end)));
       transformation::Insert insert_options;
