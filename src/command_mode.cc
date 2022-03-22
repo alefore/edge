@@ -247,19 +247,20 @@ class MoveForwards : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
-    Move(c, editor_state, direction_);
+    CHECK(editor_state != nullptr);
+    Move(c, *editor_state, direction_);
   }
 
-  static void Move(int, EditorState* editor_state, Direction direction) {
+  static void Move(int, EditorState& editor_state, Direction direction) {
     if (direction == Direction::kBackwards) {
-      editor_state->set_direction(ReverseDirection(editor_state->direction()));
+      editor_state.set_direction(ReverseDirection(editor_state.direction()));
     }
 
-    editor_state->ApplyToActiveBuffers(transformation::ModifiersAndComposite{
-        editor_state->modifiers(), NewMoveTransformation()});
-    editor_state->ResetRepetitions();
-    editor_state->ResetStructure();
-    editor_state->ResetDirection();
+    editor_state.ApplyToActiveBuffers(transformation::ModifiersAndComposite{
+        editor_state.modifiers(), NewMoveTransformation()});
+    editor_state.ResetRepetitions();
+    editor_state.ResetStructure();
+    editor_state.ResetDirection();
   }
 
  private:
@@ -271,22 +272,23 @@ class LineDown : public Command {
   std::wstring Description() const override { return L"moves down one line"; }
   wstring Category() const override { return L"Navigate"; }
   void ProcessInput(wint_t c, EditorState* editor_state) override {
-    Move(c, editor_state, editor_state->structure());
+    CHECK(editor_state != nullptr);
+    Move(c, *editor_state, editor_state->structure());
   }
-  static void Move(int c, EditorState* editor_state, Structure* structure) {
+  static void Move(int c, EditorState& editor_state, Structure* structure) {
     // TODO: Move to Structure.
     if (structure == StructureChar()) {
-      editor_state->set_structure(StructureLine());
+      editor_state.set_structure(StructureLine());
       MoveForwards::Move(c, editor_state, Direction::kForwards);
     } else if (structure == StructureWord() || structure == StructureSymbol()) {
-      editor_state->set_structure(StructurePage());
+      editor_state.set_structure(StructurePage());
       MoveForwards::Move(c, editor_state, Direction::kForwards);
     } else if (structure == StructureTree()) {
-      auto buffer = editor_state->current_buffer();
+      auto buffer = editor_state.current_buffer();
       if (buffer == nullptr) {
         return;
       }
-      switch (editor_state->direction()) {
+      switch (editor_state.direction()) {
         case Direction::kBackwards:
           if (buffer->tree_depth() > 0) {
             buffer->set_tree_depth(buffer->tree_depth() - 1);
@@ -303,20 +305,20 @@ class LineDown : public Command {
       }
       buffer->ResetMode();
     } else {
-      switch (editor_state->direction()) {
+      switch (editor_state.direction()) {
         case Direction::kForwards:
-          editor_state->MoveBufferForwards(
-              editor_state->repetitions().value_or(1));
+          editor_state.MoveBufferForwards(
+              editor_state.repetitions().value_or(1));
           break;
         case Direction::kBackwards:
-          editor_state->MoveBufferBackwards(
-              editor_state->repetitions().value_or(1));
+          editor_state.MoveBufferBackwards(
+              editor_state.repetitions().value_or(1));
           break;
       }
     }
-    editor_state->ResetStructure();
-    editor_state->ResetRepetitions();
-    editor_state->ResetDirection();
+    editor_state.ResetStructure();
+    editor_state.ResetRepetitions();
+    editor_state.ResetDirection();
   }
 };
 
@@ -325,10 +327,11 @@ class LineUp : public Command {
   std::wstring Description() const override { return L"moves up one line"; }
   std::wstring Category() const override { return L"Navigate"; }
   void ProcessInput(wint_t c, EditorState* editor_state) override {
-    Move(c, editor_state, editor_state->structure());
+    CHECK(editor_state != nullptr);
+    Move(c, *editor_state, editor_state->structure());
   }
-  static void Move(int c, EditorState* editor_state, Structure* structure) {
-    editor_state->set_direction(ReverseDirection(editor_state->direction()));
+  static void Move(int c, EditorState& editor_state, Structure* structure) {
+    editor_state.set_direction(ReverseDirection(editor_state.direction()));
     LineDown::Move(c, editor_state, structure);
   }
 };
@@ -553,7 +556,7 @@ class TreeNavigateCommand : public Command {
 
 enum class VariableLocation { kBuffer, kEditor };
 
-void ToggleVariable(EditorState* editor_state,
+void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<bool>* variable,
                     MapModeCommands* map_mode) {
@@ -580,14 +583,13 @@ void ToggleVariable(EditorState* editor_state,
   }
   LOG(INFO) << "Command: " << command;
   map_mode->Add(L"v" + variable->key(),
-                NewCppCommand(editor_state->environment(), command));
+                NewCppCommand(editor_state.environment(), command));
 }
 
-void ToggleVariable(EditorState* editor_state,
+void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<wstring>* variable,
                     MapModeCommands* map_mode) {
-  // TODO: Honor variable_location.
   auto name = variable->name();
   std::wstring command;
   switch (variable_location) {
@@ -596,15 +598,16 @@ void ToggleVariable(EditorState* editor_state,
                 L"\neditor.SetVariablePrompt(\"" + name + L"\");";
       break;
     case VariableLocation::kEditor:
+      // TODO: Implement.
       CHECK(false) << "Not implemented.";
       break;
   }
   LOG(INFO) << "Command: " << command;
   map_mode->Add(L"v" + variable->key(),
-                NewCppCommand(editor_state->environment(), command));
+                NewCppCommand(editor_state.environment(), command));
 }
 
-void ToggleVariable(EditorState* editor_state,
+void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<int>* variable,
                     MapModeCommands* map_mode) {
@@ -630,11 +633,11 @@ void ToggleVariable(EditorState* editor_state,
   }
   LOG(INFO) << "Command: " << command;
   map_mode->Add(L"v" + variable->key(),
-                NewCppCommand(editor_state->environment(), command));
+                NewCppCommand(editor_state.environment(), command));
 }
 
 template <typename T>
-void RegisterVariableKeys(EditorState* editor_state, EdgeStruct<T>* edge_struct,
+void RegisterVariableKeys(EditorState& editor_state, EdgeStruct<T>* edge_struct,
                           VariableLocation variable_location,
                           MapModeCommands* map_mode) {
   std::vector<std::wstring> variable_names;
@@ -812,15 +815,15 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"sr", NewRecordCommand());
   commands->Add(L"\t", NewFindCompletionCommand());
 
-  RegisterVariableKeys(editor_state, editor_variables::BoolStruct(),
+  RegisterVariableKeys(*editor_state, editor_variables::BoolStruct(),
                        VariableLocation::kEditor, commands.get());
-  RegisterVariableKeys(editor_state, editor_variables::IntStruct(),
+  RegisterVariableKeys(*editor_state, editor_variables::IntStruct(),
                        VariableLocation::kEditor, commands.get());
-  RegisterVariableKeys(editor_state, buffer_variables::BoolStruct(),
+  RegisterVariableKeys(*editor_state, buffer_variables::BoolStruct(),
                        VariableLocation::kBuffer, commands.get());
-  RegisterVariableKeys(editor_state, buffer_variables::StringStruct(),
+  RegisterVariableKeys(*editor_state, buffer_variables::StringStruct(),
                        VariableLocation::kBuffer, commands.get());
-  RegisterVariableKeys(editor_state, buffer_variables::IntStruct(),
+  RegisterVariableKeys(*editor_state, buffer_variables::IntStruct(),
                        VariableLocation::kBuffer, commands.get());
 
   commands->Add({Terminal::ESCAPE}, std::make_unique<ResetStateCommand>());
