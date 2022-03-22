@@ -231,7 +231,7 @@ Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
       buffer_->lines_size() > lines_shown_) {
     CHECK_GE(line, initial_line_.value());
     options.Append(ComputeCursorsSuffix(line));
-    options.Append(ComputeTagsSuffix(line));
+    options.Append(ComputeMarksSuffix(line));
     options.Append(ComputeScrollBarSuffix(line));
   }
   if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children().empty()) {
@@ -275,7 +275,7 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
   return output;
 }
 
-Line BufferMetadataOutputProducer::ComputeTagsSuffix(LineNumber line) {
+Line BufferMetadataOutputProducer::ComputeMarksSuffix(LineNumber line) {
   CHECK(initial_line_.has_value());
   CHECK_GE(line, initial_line_.value());
   const std::multimap<size_t, LineMarks::Mark>* marks = buffer_->GetLineMarks();
@@ -285,12 +285,15 @@ Line BufferMetadataOutputProducer::ComputeTagsSuffix(LineNumber line) {
             LineColumn(LineNumber(initial_line_.value() + lines_shown_))),
       line, buffer_->lines_size());
 
-  if (marks->lower_bound(range.begin.line.line) ==
-      marks->lower_bound(range.end.line.line))
-    return Line(L" ");
+  auto begin = marks->lower_bound(range.begin.line.line);
+  auto end = marks->lower_bound(range.end.line.line);
+  if (begin == end) return Line(L" ");
+  LineModifierSet modifiers;
+  for (auto it = begin; it != end && modifiers.empty(); ++it)
+    if (!it->second.IsExpired()) modifiers.insert(LineModifier::RED);
   Line::Options options;
-  options.AppendString(L"!", LineModifierSet({LineModifier::RED}));
-  return Line(options);
+  options.AppendString(L"!", modifiers);
+  return Line(std::move(options));
 }
 
 Line BufferMetadataOutputProducer::ComputeCursorsSuffix(LineNumber line) {

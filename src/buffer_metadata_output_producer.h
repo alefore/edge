@@ -25,7 +25,7 @@ class BufferMetadataOutputProducer : public OutputProducer {
   Line GetDefaultInformation(LineNumber line);
   void PushGenerator(wchar_t info_char, LineModifier modifier, Line suffix);
 
-  Line ComputeTagsSuffix(LineNumber line);
+  Line ComputeMarksSuffix(LineNumber line);
   Line ComputeCursorsSuffix(LineNumber line);
   Line ComputeScrollBarSuffix(LineNumber line);
 
