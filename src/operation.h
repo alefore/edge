@@ -88,7 +88,7 @@ using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
 
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,
-    EditorState* editor_state, std::vector<Command> commands);
+    EditorState& editor_state, std::vector<Command> commands);
 
 }  // namespace operation
 }  // namespace afc::editor

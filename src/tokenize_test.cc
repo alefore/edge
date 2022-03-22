@@ -1,11 +1,17 @@
 #include "src/tokenize.h"
 
+#include <glog/logging.h>
+
 #include "src/char_buffer.h"
 #include "src/tests/tests.h"
 #include "src/wstring.h"
 
 namespace afc::editor {
 namespace {
+
+inline std::ostream& operator<<(std::ostream& out, const std::wstring& str) {
+  return out;
+}
 
 const bool tokenize_by_spaces_tests_registration = tests::Register(
     L"TokenizeBySpaces",

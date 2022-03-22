@@ -80,7 +80,7 @@ std::wstring ToStatus(const CommandReachChar& c) {
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
-    EditorState* editor, ApplicationType application_type,
+    EditorState& editor, ApplicationType application_type,
     transformation::Variant transformation) {
   static Tracker tracker(L"ExecuteTransformation");
   auto call = tracker.Call();
@@ -88,9 +88,9 @@ futures::Value<UndoCallback> ExecuteTransformation(
   auto buffers_transformed =
       std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>();
   return editor
-      ->ForEachActiveBuffer([transformation = std::move(transformation),
-                             buffers_transformed, application_type](
-                                const std::shared_ptr<OpenBuffer>& buffer) {
+      .ForEachActiveBuffer([transformation = std::move(transformation),
+                            buffers_transformed, application_type](
+                               const std::shared_ptr<OpenBuffer>& buffer) {
         static Tracker tracker(L"ExecuteTransformation::ApplyTransformation");
         auto call = tracker.Call();
         buffers_transformed->push_back(buffer);
@@ -179,7 +179,7 @@ transformation::Stack GetTransformation(CommandReachChar reach_char) {
 
 class State {
  public:
-  State(EditorState* editor_state, TopCommand top_command)
+  State(EditorState& editor_state, TopCommand top_command)
       : editor_state_(editor_state), top_command_(std::move(top_command)) {}
 
   Command& GetLastCommand() { return commands_.back(); }
@@ -210,7 +210,7 @@ class State {
 
   void Abort() {
     RunUndoCallback();
-    editor_state_->set_keyboard_redirect(nullptr);
+    editor_state_.set_keyboard_redirect(nullptr);
   }
 
   void Update() { Update(ApplicationType::kPreview); }
@@ -219,9 +219,9 @@ class State {
     static Tracker tracker(L"State::Commit");
     auto call = tracker.Call();
     // We make a copy because Update may delete us.
-    auto editor_state = editor_state_;
+    EditorState& editor_state = editor_state_;
     Update(ApplicationType::kCommit);
-    editor_state->set_keyboard_redirect(nullptr);
+    editor_state.set_keyboard_redirect(nullptr);
   }
 
   void RunUndoCallback() {
@@ -282,7 +282,7 @@ class State {
       ApplicationType application_type,
       transformation::Variant transformation) {
     futures::Future<UndoCallback> output;
-    serializer_.Push([editor_state = editor_state_, application_type,
+    serializer_.Push([&editor_state = editor_state_, application_type,
                       consumer = output.consumer, transformation] {
       return ExecuteTransformation(editor_state, application_type,
                                    transformation)
@@ -294,7 +294,7 @@ class State {
     return std::move(output.value);
   }
 
-  EditorState* const editor_state_;
+  EditorState& editor_state_;
   futures::Serializer serializer_;
   TopCommand top_command_;
   std::vector<Command> commands_ = {};
@@ -477,7 +477,7 @@ bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
 
 class OperationMode : public EditorMode {
  public:
-  OperationMode(TopCommand top_command, EditorState* editor_state)
+  OperationMode(TopCommand top_command, EditorState& editor_state)
       : state_(editor_state, std::move(top_command)) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
@@ -486,7 +486,7 @@ class OperationMode : public EditorMode {
         std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
                    state_.GetLastCommand())) {
       state_.Update();
-      ShowStatus(editor_state);
+      ShowStatus(*editor_state);
       return;
     }
 
@@ -498,7 +498,7 @@ class OperationMode : public EditorMode {
         if (!state_.empty()) {
           state_.UndoLast();
         }
-        ShowStatus(editor_state);
+        ShowStatus(*editor_state);
         return;
     }
 
@@ -506,11 +506,11 @@ class OperationMode : public EditorMode {
     if (std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
                    state_.GetLastCommand())) {
       state_.Update();
-      ShowStatus(editor_state);
+      ShowStatus(*editor_state);
       return;
     }
     if (ReceiveInputTopCommand(state_.top_command(), c)) {
-      ShowStatus(editor_state);
+      ShowStatus(*editor_state);
       return;
     }
     // Unhandled character.
@@ -532,9 +532,9 @@ class OperationMode : public EditorMode {
 
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
 
-  void ShowStatus(EditorState* editor_state) {
-    editor_state->status()->SetInformationText(ToStatus(state_.top_command()) +
-                                               L":" + state_.GetStatusString());
+  void ShowStatus(EditorState& editor_state) {
+    editor_state.status()->SetInformationText(ToStatus(state_.top_command()) +
+                                              L":" + state_.GetStatusString());
   }
 
   void PushDefault() { PushCommand(CommandReach()); }
@@ -744,10 +744,10 @@ bool CommandArgumentRepetitions::PopValue() {
 
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
     std::wstring, std::wstring description, TopCommand top_command,
-    EditorState* editor_state, std::vector<Command> commands) {
+    EditorState& editor_state, std::vector<Command> commands) {
   return NewSetModeCommand({.description = description,
                             .category = L"Edit",
-                            .factory = [top_command, editor_state, commands] {
+                            .factory = [top_command, &editor_state, commands] {
                               auto output = std::make_unique<OperationMode>(
                                   top_command, editor_state);
                               if (commands.empty()) {
