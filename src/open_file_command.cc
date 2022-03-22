@@ -109,15 +109,14 @@ futures::Value<ColorizePromptOptions> AdjustPath(
     std::unique_ptr<ProgressChannel> progress_channel,
     std::shared_ptr<Notification> abort_notification) {
   CHECK(progress_channel != nullptr);
-  PredictOptions options;
-  options.editor_state = editor;
-  options.predictor = FilePredictor;
-  options.source_buffers = editor->active_buffers();
-  options.text = line->ToString();
-  options.input_selection_structure = StructureLine();
-  options.progress_channel = std::move(progress_channel);
-  options.abort_notification = std::move(abort_notification);
-  return Predict(std::move(options))
+  return Predict(PredictOptions{
+                     .editor_state = *editor,
+                     .predictor = FilePredictor,
+                     .text = line->ToString(),
+                     .input_selection_structure = StructureLine(),
+                     .source_buffers = editor->active_buffers(),
+                     .progress_channel = std::move(progress_channel),
+                     .abort_notification = std::move(abort_notification)})
       .Transform([editor, line](std::optional<PredictResults> results) {
         if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
         return DrawPath(editor, line, std::move(results.value()));

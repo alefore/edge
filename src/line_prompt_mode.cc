@@ -883,15 +883,12 @@ void Prompt(PromptOptions options) {
                                     const std::shared_ptr<OpenBuffer>& buffer) {
           auto input = buffer->current_line()->contents()->ToString();
           LOG(INFO) << "Triggering predictions from: " << input;
-          PredictOptions predict_options;
-          predict_options.editor_state = editor_state;
-          predict_options.predictor = options.predictor;
-          predict_options.source_buffers = options.source_buffers;
-          predict_options.input_buffer = buffer;
-          predict_options.input_selection_structure = StructureLine();
-
           CHECK(prompt_state->status()->prompt_extra_information() != nullptr);
-          Predict(std::move(predict_options))
+          Predict({.editor_state = *editor_state,
+                   .predictor = options.predictor,
+                   .input_buffer = buffer,
+                   .input_selection_structure = StructureLine(),
+                   .source_buffers = options.source_buffers})
               .SetConsumer([editor_state, options, buffer, prompt_state,
                             input](std::optional<PredictResults> results) {
                 if (!results.has_value()) return;

@@ -42,7 +42,7 @@ using ProgressChannel = WorkQueueChannel<ProgressInformation>;
 // A Predictor is a function that generates predictions (autocompletions) for a
 // given prompt input and writes them to a buffer.
 struct PredictorInput {
-  EditorState* editor = nullptr;
+  EditorState& editor;
   std::wstring input;
 
   // The output buffer to write predictions to.
@@ -104,16 +104,16 @@ struct PredictResults {
 std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
 
 struct PredictOptions {
-  EditorState* editor_state;
+  EditorState& editor_state;
   Predictor predictor;
 
   // The text to use for the prediction. If not set, it'll be extracted from
   // `input_buffer` based on `input_selection_structure`.
-  std::optional<std::wstring> text;
+  std::optional<std::wstring> text = {};
 
   // The buffer that contains the input to use for the prediction. Only read if
   // `text` is absent.
-  std::shared_ptr<OpenBuffer> input_buffer;
+  std::shared_ptr<OpenBuffer> input_buffer = nullptr;
   Structure* input_selection_structure = StructureLine();
 
   // Given to the predictor (see `PredictorInput::source_buffers`). The caller
@@ -124,14 +124,15 @@ struct PredictOptions {
   std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
 
   // Can be null, in which case Predict will use a dummy no-op channel.
-  std::unique_ptr<WorkQueueChannel<ProgressInformation>> progress_channel;
+  std::unique_ptr<WorkQueueChannel<ProgressInformation>> progress_channel =
+      nullptr;
 
   // Notification that the caller can use to signal that it wants to stop the
   // prediction (without waiting for it to complete).
   //
   // Can be null, in which case Predict will create a notification (that never
   // gets notified).
-  std::shared_ptr<Notification> abort_notification;
+  std::shared_ptr<Notification> abort_notification = nullptr;
 };
 
 // Create a new buffer running a given predictor on the input in a given status

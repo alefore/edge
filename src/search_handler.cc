@@ -156,11 +156,11 @@ std::wstring RegexEscape(std::shared_ptr<LazyString> str) {
 // Returns all matches starting at start. If end is not nullptr, only matches
 // in the region enclosed by start and *end will be returned.
 ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
-    EditorState* editor_state, const SearchOptions& options,
+    EditorState& editor_state, const SearchOptions& options,
     OpenBuffer* buffer) {
-  auto direction = editor_state->modifiers().direction;
+  auto direction = editor_state.modifiers().direction;
   auto dummy_progress_channel = std::make_unique<ProgressChannel>(
-      editor_state->work_queue(), [](ProgressInformation) {},
+      editor_state.work_queue(), [](ProgressInformation) {},
       WorkQueueChannelConsumeMode::kLastAvailable);
   SearchResults results =
       PerformSearch(options, GetRegexTraits(*buffer), *buffer->contents(),
@@ -210,7 +210,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
 
   if (head.empty()) {
     buffer->status()->SetInformationText(L"🔍 No results.");
-    BeepFrequencies(editor_state->audio_player(), {523.25, 261.63, 261.63});
+    BeepFrequencies(editor_state.audio_player(), {523.25, 261.63, 261.63});
   } else {
     if (head.size() == 1) {
       buffer->status()->SetInformationText(L"🔍 1 result.");
@@ -221,7 +221,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     }
     vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
     frequencies.resize(min(frequencies.size(), head.size() + 1));
-    BeepFrequencies(editor_state->audio_player(), frequencies);
+    BeepFrequencies(editor_state.audio_player(), frequencies);
     buffer->Set(buffer_variables::multiple_cursors, false);
   }
   return Success(head);
@@ -281,7 +281,7 @@ vector<LineColumn> SearchHandler(EditorState* editor_state,
     return {};
   }
 
-  auto output = PerformSearchWithDirection(editor_state, options, buffer);
+  auto output = PerformSearchWithDirection(*editor_state, options, buffer);
   if (!output.IsError() && output.value().empty() &&
       buffer->Read(buffer_variables::search_filter_buffer)) {
     buffer->editor()->CloseBuffer(buffer);

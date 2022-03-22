@@ -168,12 +168,12 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   auto shared_options = std::make_shared<PredictOptions>(std::move(options));
   futures::Future<std::optional<PredictResults>> output;
   OpenBuffer::Options buffer_options;
-  buffer_options.editor = shared_options->editor_state;
+  buffer_options.editor = &shared_options->editor_state;
   buffer_options.name = PredictionsBufferName();
 
   if (shared_options->progress_channel == nullptr) {
     shared_options->progress_channel = std::make_unique<ProgressChannel>(
-        shared_options->editor_state->work_queue(), [](ProgressInformation) {},
+        shared_options->editor_state.work_queue(), [](ProgressInformation) {},
         WorkQueueChannelConsumeMode::kLastAvailable);
   }
   if (shared_options->abort_notification == nullptr) {
@@ -420,19 +420,19 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       .get_buffer = predictor_input.predictions->GetLockFunction(),
       .path = input_path.IsError()
                   ? predictor_input.input
-                  : predictor_input.editor->expand_path(input_path.value())
+                  : predictor_input.editor.expand_path(input_path.value())
                         .ToString(),
       .search_paths = {},
       .resolve_path_options = ResolvePathOptions::New(
-          predictor_input.editor, std::make_shared<FileSystemDriver>(
-                                      predictor_input.editor->work_queue())),
+          &predictor_input.editor, std::make_shared<FileSystemDriver>(
+                                       predictor_input.editor.work_queue())),
       // TODO: Don't use sources_buffers[0], ignoring the other buffers.
       .noise_regex = predictor_input.source_buffers.empty()
                          ? std::wregex()
                          : std::wregex(predictor_input.source_buffers[0]->Read(
                                buffer_variables::directory_noise)),
       .output_consumer = std::move(output.consumer)});
-  GetSearchPaths(predictor_input.editor, &input->search_paths)
+  GetSearchPaths(&predictor_input.editor, &input->search_paths)
       .SetConsumer(
           [input](EmptyValue) { async_processor.Push(std::move(*input)); });
   return std::move(output.value);
@@ -515,6 +515,7 @@ const bool buffer_tests_registration =
             WorkQueueChannelConsumeMode::kAll);
         std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
         test_predictor(PredictorInput{
+            .editor = *buffer->editor(),
             .input = input,
             .predictions = buffer.get(),
             .source_buffers = {},
@@ -643,7 +644,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
                  std::istream_iterator<wstring, wchar_t>());
   }
   auto dictionary = OpenBuffer::New(
-      {.editor = input.editor, .name = BufferName(L"Dictionary")});
+      {.editor = &input.editor, .name = BufferName(L"Dictionary")});
   for (auto& word : words) {
     dictionary->AppendLine(NewLazyString(std::move(word)));
   }
