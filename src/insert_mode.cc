@@ -472,7 +472,7 @@ class InsertMode : public EditorMode {
                      buffer->status()->SetWarningText(
                          L"Write failed: " + FromByteString(strerror(errno)));
                    } else {
-                     buffer->editor()->StartHandlingInterrupts();
+                     buffer->editor().StartHandlingInterrupts();
                    }
                  }
                  return futures::Past(

@@ -308,13 +308,13 @@ futures::Value<PossibleError> Save(
               // TODO(easy): Move this to the caller, for symmetry with
               // kBackup case.
               buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
-              for (const auto& dir : buffer->editor()->edge_path()) {
+              for (const auto& dir : buffer->editor().edge_path()) {
                 buffer->EvaluateFile(Path::Join(
                     dir, Path::FromString(L"/hooks/buffer-save.cc").value()));
               }
               if (buffer->Read(
                       buffer_variables::trigger_reload_on_buffer_write)) {
-                for (auto& it : *buffer->editor()->buffers()) {
+                for (auto& it : *buffer->editor().buffers()) {
                   CHECK(it.second != nullptr);
                   if (it.second->Read(
                           buffer_variables::reload_on_buffer_write)) {

@@ -423,8 +423,8 @@ class ForkEditorCommand : public Command {
       PromptState* prompt_state, const std::shared_ptr<LazyString>& line) {
     CHECK(prompt_state != nullptr);
     CHECK(prompt_state->context_command_callback);
-    auto editor = prompt_state->original_buffer->editor();
-    CHECK(editor->status()->GetType() == Status::Type::kPrompt);
+    auto& editor = prompt_state->original_buffer->editor();
+    CHECK(editor.status()->GetType() == Status::Type::kPrompt);
     std::vector<std::unique_ptr<Expression>> arguments;
     arguments.push_back(
         vm::NewConstantExpression(vm::Value::NewString(line->ToString())));
@@ -441,7 +441,7 @@ class ForkEditorCommand : public Command {
     return prompt_state->original_buffer
         ->EvaluateExpression(expression.get(),
                              prompt_state->original_buffer->environment())
-        .Transform([prompt_state, editor](std::unique_ptr<Value> value) {
+        .Transform([prompt_state, &editor](std::unique_ptr<Value> value) {
           CHECK(value != nullptr);
           CHECK(value->IsString());
           auto base_command = value->str;
@@ -459,7 +459,7 @@ class ForkEditorCommand : public Command {
           options.command = base_command;
           options.name = BufferName(L"- help: " + base_command);
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
-          auto help_buffer = ForkCommand(editor, options);
+          auto help_buffer = ForkCommand(&editor, options);
           help_buffer->Set(buffer_variables::follow_end_of_file, false);
           help_buffer->Set(buffer_variables::show_in_buffers_list, false);
           help_buffer->set_position({});

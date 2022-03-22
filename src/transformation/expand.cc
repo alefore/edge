@@ -56,7 +56,7 @@ class PredictorTransformation : public CompositeTransformation {
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    return Predict({.editor_state = *input.buffer->editor(),
+    return Predict({.editor_state = input.buffer->editor(),
                     .predictor = predictor_,
                     .text = text_,
                     // TODO: Ugh, the const_cast below is fucking ugly. I have a
@@ -89,7 +89,7 @@ class PredictorTransformation : public CompositeTransformation {
           output.Push(DeleteLastCharacters(text.size()));
 
           auto buffer_to_insert =
-              OpenBuffer::New({.editor = *buffer->editor(),
+              OpenBuffer::New({.editor = buffer->editor(),
                                .name = BufferName::TextInsertion()});
           buffer_to_insert->AppendLazyString(
               NewLazyString(results.value().common_prefix.value()));
@@ -126,18 +126,18 @@ class ReadAndInsert : public CompositeTransformation {
   std::wstring Serialize() const override { return L"ReadAndInsert();"; }
 
   futures::Value<Output> Apply(Input input) const override {
-    if (input.buffer->editor()->edge_path().empty()) {
+    if (input.buffer->editor().edge_path().empty()) {
       LOG(INFO) << "Error preparing path for completion: Empty "
                    "edge_path.";
       return futures::Past(Output());
     }
-    auto edge_path_front = input.buffer->editor()->edge_path().front();
+    auto edge_path_front = input.buffer->editor().edge_path().front();
     auto full_path =
         Path::Join(edge_path_front,
                    Path::Join(Path::FromString(L"expand").value(), path_));
     futures::Future<Output> output;
     open_file_callback_(
-        OpenFileOptions{.editor_state = *input.buffer->editor(),
+        OpenFileOptions{.editor_state = input.buffer->editor(),
                         .path = full_path,
                         .ignore_if_not_found = true,
                         .insertion_type = BuffersList::AddBufferType::kIgnore,
@@ -147,7 +147,7 @@ class ReadAndInsert : public CompositeTransformation {
              input = std::move(input)](
                 std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
                     buffer_it) {
-              if (buffer_it == input.buffer->editor()->buffers()->end()) {
+              if (buffer_it == input.buffer->editor().buffers()->end()) {
                 LOG(INFO) << "Unable to open file: " << full_path;
                 consumer(Output());
                 return;
@@ -193,10 +193,10 @@ const bool read_and_insert_tests_registration = tests::Register(
                    Path::FromString(L"unexistent").value(),
                    [&](OpenFileOptions options) {
                      path_opened = options.path;
-                     return futures::Past(buffer->editor()->buffers()->end());
+                     return futures::Past(buffer->editor().buffers()->end());
                    })
                    .Apply(CompositeTransformation::Input{
-                       .editor = buffer->editor(), .buffer = buffer.get()})
+                       .editor = &buffer->editor(), .buffer = buffer.get()})
                    .SetConsumer([&](CompositeTransformation::Output) {
                      transformation_done = true;
                    });

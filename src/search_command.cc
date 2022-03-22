@@ -33,7 +33,7 @@ static void MergeInto(AsyncSearchProcessor::Output current_results,
 }
 
 static void DoSearch(OpenBuffer* buffer, SearchOptions options) {
-  buffer->set_active_cursors(SearchHandler(buffer->editor(), options, buffer));
+  buffer->set_active_cursors(SearchHandler(&buffer->editor(), options, buffer));
   buffer->ResetMode();
 }
 
@@ -288,21 +288,20 @@ class SearchCommand : public Command {
   static std::optional<SearchOptions> BuildPromptSearchOptions(
       std::wstring input, OpenBuffer* buffer,
       std::shared_ptr<Notification> abort_notification) {
-    auto editor = buffer->editor();
+    auto& editor = buffer->editor();
     SearchOptions search_options;
     search_options.search_query = input;
-    if (editor->structure()->search_range() ==
-        Structure::SearchRange::kBuffer) {
+    if (editor.structure()->search_range() == Structure::SearchRange::kBuffer) {
       search_options.starting_position = buffer->position();
     } else {
       Range range =
-          buffer->FindPartialRange(editor->modifiers(), buffer->position());
+          buffer->FindPartialRange(editor.modifiers(), buffer->position());
       if (range.begin == range.end) {
         buffer->status()->SetInformationText(L"Unable to extract region.");
         return std::nullopt;
       }
       CHECK_LE(range.begin, range.end);
-      if (editor->modifiers().direction == Direction::kBackwards) {
+      if (editor.modifiers().direction == Direction::kBackwards) {
         search_options.starting_position = range.end;
         search_options.limit_position = range.begin;
       } else {

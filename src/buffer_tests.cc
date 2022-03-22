@@ -11,7 +11,7 @@ std::wstring GetMetadata(std::wstring line) {
   buffer->AppendToLastLine(NewLazyString(line));
 
   // Gives it a chance to execute:
-  buffer->editor()->work_queue()->Execute();
+  buffer->editor().work_queue()->Execute();
 
   auto metadata = buffer->LineAt(LineNumber())->metadata();
   auto output = metadata == nullptr ? L"" : metadata->ToString();

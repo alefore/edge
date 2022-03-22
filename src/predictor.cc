@@ -514,7 +514,7 @@ const bool buffer_tests_registration =
             WorkQueueChannelConsumeMode::kAll);
         std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
         test_predictor(PredictorInput{
-            .editor = *buffer->editor(),
+            .editor = buffer->editor(),
             .input = input,
             .predictions = buffer.get(),
             .source_buffers = {},

@@ -116,7 +116,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   OpenBuffer(ConstructorAccessTag, Options options);
   ~OpenBuffer();
 
-  EditorState* editor() const;
+  EditorState& editor() const;
 
   // Set status information for this buffer. Only information specific to this
   // buffer should be set here; everything else should be set on the Editor's

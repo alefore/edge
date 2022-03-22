@@ -175,7 +175,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   std::shared_ptr<const Line> line_contents = buffer_->LineAt(line);
 
   std::shared_ptr<EditorMode> editor_keyboard_redirect =
-      buffer_->editor()->keyboard_redirect();
+      buffer_->editor().keyboard_redirect();
   Generator output = Generator::New(CaptureAndHash(
       [](ColumnNumberDelta size_columns,
          Widget::OutputProducerOptions::MainCursorBehavior main_cursor_behavior,

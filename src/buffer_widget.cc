@@ -257,7 +257,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     case BufferOutputProducerInput::StatusBehavior::kShow:
       status_output_producer_supplier =
           std::make_unique<StatusOutputProducerSupplier>(
-              buffer->status(), buffer.get(), buffer->editor()->modifiers());
+              buffer->status(), buffer.get(), buffer->editor().modifiers());
       break;
     case BufferOutputProducerInput::StatusBehavior::kIgnore:
       break;

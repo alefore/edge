@@ -371,26 +371,26 @@ using std::to_wstring;
 
   buffer->AddField(L"Reload",
                    vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     if (buffer->editor()->structure() == StructureLine()) {
+                     if (buffer->editor().structure() == StructureLine()) {
                        auto target_buffer = buffer->GetBufferFromCurrentLine();
                        if (target_buffer != nullptr) {
                          buffer = target_buffer;
                        }
                      }
                      buffer->Reload();
-                     buffer->editor()->ResetModifiers();
+                     buffer->editor().ResetModifiers();
                    }));
 
   buffer->AddField(L"SendEndOfFileToProcess",
                    vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     if (buffer->editor()->structure() == StructureLine()) {
+                     if (buffer->editor().structure() == StructureLine()) {
                        auto target_buffer = buffer->GetBufferFromCurrentLine();
                        if (target_buffer != nullptr) {
                          buffer = target_buffer;
                        }
                      }
                      buffer->SendEndOfFileToProcess();
-                     buffer->editor()->ResetModifiers();
+                     buffer->editor().ResetModifiers();
                    }));
 
   buffer->AddField(
@@ -402,7 +402,7 @@ using std::to_wstring;
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
-            if (buffer->editor()->structure() == StructureLine()) {
+            if (buffer->editor().structure() == StructureLine()) {
               auto target_buffer = buffer->GetBufferFromCurrentLine();
               if (target_buffer != nullptr) {
                 buffer = target_buffer;
@@ -416,20 +416,20 @@ using std::to_wstring;
                                ? EvaluationOutput::Abort(result.error())
                                : EvaluationOutput::Return(Value::NewVoid()));
                 });
-            buffer->editor()->ResetModifiers();
+            buffer->editor().ResetModifiers();
             return std::move(future.value);
           }));
 
   buffer->AddField(L"Close",
                    vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     if (buffer->editor()->structure() == StructureLine()) {
+                     if (buffer->editor().structure() == StructureLine()) {
                        auto target_buffer = buffer->GetBufferFromCurrentLine();
                        if (target_buffer != nullptr) {
                          buffer = target_buffer;
                        }
                      }
-                     buffer->editor()->CloseBuffer(buffer.get());
-                     buffer->editor()->ResetModifiers();
+                     buffer->editor().CloseBuffer(buffer.get());
+                     buffer->editor().ResetModifiers();
                    }));
 
   buffer->AddField(
@@ -580,7 +580,7 @@ OpenBuffer::~OpenBuffer() {
   environment_->Clear();
 }
 
-EditorState* OpenBuffer::editor() const { return &options_.editor; }
+EditorState& OpenBuffer::editor() const { return options_.editor; }
 
 Status* OpenBuffer::status() const { return &status_; }
 
@@ -798,7 +798,7 @@ void OpenBuffer::EndOfFile() {
 
   // We can remove expired marks now. We know that the set of fresh marks is now
   // complete.
-  editor()->line_marks()->RemoveExpiredMarksFromSource(name());
+  editor().line_marks()->RemoveExpiredMarksFromSource(name());
 
   vector<std::function<void()>> observers;
   observers.swap(end_of_file_observers_);
@@ -814,10 +814,10 @@ void OpenBuffer::EndOfFile() {
   if (Read(buffer_variables::close_after_clean_exit) &&
       child_exit_status_.has_value() && WIFEXITED(child_exit_status_.value()) &&
       WEXITSTATUS(child_exit_status_.value()) == 0) {
-    editor()->CloseBuffer(this);
+    editor().CloseBuffer(this);
   }
 
-  auto current_buffer = editor()->current_buffer();
+  auto current_buffer = editor().current_buffer();
   if (current_buffer != nullptr && name() == BufferName::BuffersList()) {
     current_buffer->Reload();
   }
@@ -936,7 +936,7 @@ void OpenBuffer::Initialize() {
 
   if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
       !buffer_path.IsError()) {
-    FileSystemDriver file_system_driver(editor()->work_queue());
+    FileSystemDriver file_system_driver(editor().work_queue());
     for (const auto& dir : options_.editor.edge_path()) {
       auto state_path = Path::Join(
           Path::Join(dir, PathComponent::FromString(L"state").value()),
@@ -1006,19 +1006,19 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
     auto options = ResolvePathOptions::New(
-        editor(), std::make_shared<FileSystemDriver>(editor()->work_queue()));
+        &editor(), std::make_shared<FileSystemDriver>(editor().work_queue()));
     auto buffer_name = name();
     for (LineNumberDelta i; i < lines_added; ++i) {
       auto source_line = LineNumber() + start_new_section + i;
       options.path = contents_.at(source_line)->ToString();
-      ResolvePath(options).Transform([editor = editor(), buffer_name,
+      ResolvePath(options).Transform([&editor = editor(), buffer_name,
                                       source_line](ResolvePathOutput results) {
         LineMarks::Mark mark{.source = buffer_name,
                              .source_line = source_line,
                              .target_buffer = BufferName(results.path),
                              .target = results.position.value_or(LineColumn())};
         LOG(INFO) << "Found a mark: " << mark;
-        editor->line_marks()->AddMark(std::move(mark));
+        editor.line_marks()->AddMark(std::move(mark));
         return Success();
       });
     }
@@ -1044,7 +1044,7 @@ void OpenBuffer::Reload() {
       return;
   }
 
-  auto paths = editor()->edge_path();
+  auto paths = editor().edge_path();
 
   futures::ForEach(
       paths.begin(), paths.end(),
@@ -1061,7 +1061,7 @@ void OpenBuffer::Reload() {
       })
       .Transform(
           [this](IterationControlCommand) -> futures::ValueOrError<EmptyValue> {
-            if (editor()->exit_value().has_value())
+            if (editor().exit_value().has_value())
               return futures::Past(Success());
             SetDiskState(DiskState::kCurrent);
             LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
@@ -1117,7 +1117,7 @@ futures::Value<PossibleError> OpenBuffer::Save() {
 }
 
 futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
-  auto path_vector = editor()->edge_path();
+  auto path_vector = editor().edge_path();
   if (path_vector.empty()) {
     return futures::Past(ValueOrError<Path>(Error(L"Empty edge path.")));
   }
@@ -2066,15 +2066,15 @@ OpenBuffer::OpenBufferForCurrentPosition(
                case RemoteURLBehavior::kIgnore:
                  break;
                case RemoteURLBehavior::kLaunchBrowser:
-                 auto editor = data->source->editor();
-                 editor->work_queue()->ScheduleAt(
+                 auto& editor = data->source->editor();
+                 editor.work_queue()->ScheduleAt(
                      AddSeconds(Now(), 1.0),
                      [status_expiration =
                           std::shared_ptr<StatusExpirationControl>(
-                              editor->status()->SetExpiringInformationText(
+                              editor.status()->SetExpiringInformationText(
                                   L"Open: " + url.ToString()))] {});
                  ForkCommand(
-                     data->source->editor(),
+                     &data->source->editor(),
                      ForkCommandOptions{
                          .command = L"xdg-open " + ShellEscape(url.ToString()),
                          .insertion_type = BuffersList::AddBufferType::kIgnore,
@@ -2088,7 +2088,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
            VLOG(4) << "Calling open file: " << path.value().ToString();
            return OpenFile(
                       OpenFileOptions{
-                          .editor_state = *data->source->editor(),
+                          .editor_state = data->source->editor(),
                           .path = path.value(),
                           .ignore_if_not_found = true,
                           .insertion_type = BuffersList::AddBufferType::kIgnore,
@@ -2103,7 +2103,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                    return futures::IterationControlCommand::kStop;
                  }
                  if (buffer_context_it ==
-                     data->source->editor()->buffers()->end()) {
+                     data->source->editor().buffers()->end()) {
                    return futures::IterationControlCommand::kContinue;
                  }
                  data->output = Success(buffer_context_it->second);
@@ -2231,8 +2231,8 @@ void OpenBuffer::Set(const EdgeVariable<bool>* variable, bool value) {
 }
 
 void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
-  Set(variable, editor()->modifiers().repetitions.has_value()
-                    ? editor()->modifiers().repetitions != 0
+  Set(variable, editor().modifiers().repetitions.has_value()
+                    ? editor().modifiers().repetitions != 0
                     : !Read(variable));
 }
 
@@ -2353,11 +2353,11 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   input.mode = mode;
   input.position = position;
   if (Read(buffer_variables::delete_into_paste_buffer)) {
-    auto it = editor()->buffers()->insert({kFuturePasteBuffer, nullptr});
+    auto it = editor().buffers()->insert({kFuturePasteBuffer, nullptr});
     if (it.first->second == nullptr) {
       LOG(INFO) << "Creating paste buffer.";
       it.first->second =
-          OpenBuffer::New({.editor = *editor(), .name = kFuturePasteBuffer});
+          OpenBuffer::New({.editor = editor(), .name = kFuturePasteBuffer});
     }
     input.delete_buffer = it.first->second.get();
     CHECK(input.delete_buffer != nullptr);
@@ -2373,12 +2373,12 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
         if (mode == transformation::Input::Mode::kFinal &&
             Read(buffer_variables::delete_into_paste_buffer)) {
           if (!result.added_to_paste_buffer) {
-            editor()->buffers()->erase(kFuturePasteBuffer);
+            editor().buffers()->erase(kFuturePasteBuffer);
           } else if (auto paste_buffer =
-                         editor()->buffers()->find(kFuturePasteBuffer);
-                     paste_buffer != editor()->buffers()->end()) {
+                         editor().buffers()->find(kFuturePasteBuffer);
+                     paste_buffer != editor().buffers()->end()) {
             editor()
-                ->buffers()
+                .buffers()
                 ->insert({BufferName::PasteBuffer(), nullptr})
                 .first->second = paste_buffer->second;
           }
@@ -2386,7 +2386,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
 
         if (result.modified_buffer &&
             mode == transformation::Input::Mode::kFinal) {
-          editor()->StartHandlingInterrupts();
+          editor().StartHandlingInterrupts();
           last_transformation_ = std::move(transformation);
         }
 
@@ -2431,7 +2431,7 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
     size_t repetitions = 0;
   };
   auto data = std::make_shared<Data>();
-  if (editor()->direction() == Direction::kForwards) {
+  if (editor().direction() == Direction::kForwards) {
     data->source = &undo_past_;
     data->target = &undo_future_;
   } else {
@@ -2439,7 +2439,7 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
     data->target = &undo_past_;
   }
   return futures::While([this, undo_mode, data] {
-           if (data->repetitions == editor()->repetitions().value_or(1) ||
+           if (data->repetitions == editor().repetitions().value_or(1) ||
                data->source->empty()) {
              return futures::Past(IterationControlCommand::kStop);
            }
@@ -2473,7 +2473,7 @@ void OpenBuffer::set_filter(unique_ptr<Value> filter) {
 }
 
 const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {
-  auto marks = editor()->line_marks();
+  auto marks = editor().line_marks();
   if (marks->updates > line_marks_last_updates_) {
     LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
     line_marks_.clear();
@@ -2531,7 +2531,7 @@ void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>* source) {
   if (auto next = buffer->work_queue()->NextExecution();
       next.has_value() && next != buffer->next_scheduled_execution_) {
     buffer->next_scheduled_execution_ = next;
-    buffer->editor()->work_queue()->ScheduleAt(
+    buffer->editor().work_queue()->ScheduleAt(
         next.value(), [buffer = std::move(buffer)]() mutable {
           buffer->next_scheduled_execution_ = std::nullopt;
           buffer->work_queue()->Execute();

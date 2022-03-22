@@ -576,7 +576,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   void ScrollHistory(OpenBuffer& buffer, LineNumberDelta delta) const {
     if (prompt_state_->IsGone()) return;
     auto buffer_to_insert = OpenBuffer::New(
-        {.editor = *buffer.editor(), .name = BufferName::TextInsertion()});
+        {.editor = buffer.editor(), .name = BufferName::TextInsertion()});
 
     if (history_ != nullptr &&
         (history_->contents()->size() > LineNumberDelta(1) ||

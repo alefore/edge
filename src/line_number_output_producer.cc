@@ -35,7 +35,7 @@ LineNumberOutputProducer::LineNumberOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
     std::list<BufferContentsWindow::Line> screen_lines)
     : width_(max(PrefixWidth(buffer->lines_size()),
-                 ColumnNumberDelta(buffer->editor()->Read(
+                 ColumnNumberDelta(buffer->editor().Read(
                      editor_variables::numbers_column_padding)))),
       buffer_(std::move(buffer)),
       screen_lines_(std::move(screen_lines)) {}

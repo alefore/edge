@@ -22,8 +22,8 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
   auto current_line_marks = marks->find(buffer.position().line.line);
   if (current_line_marks != marks->end()) {
     auto mark = current_line_marks->second;
-    auto source = buffer.editor()->buffers()->find(mark.source);
-    if (source != buffer.editor()->buffers()->end() &&
+    auto source = buffer.editor().buffers()->find(mark.source);
+    if (source != buffer.editor().buffers()->end() &&
         LineNumber(0) + source->second->contents()->size() > mark.source_line) {
       return source->second->contents()->at(mark.source_line)->ToString();
     }
@@ -122,7 +122,7 @@ class InfoProducer : public OutputProducer {
 
             int running = 0;
             int failed = 0;
-            for (const auto& it : *buffer_->editor()->buffers()) {
+            for (const auto& it : *buffer_->editor().buffers()) {
               CHECK(it.second != nullptr);
               if (it.second->child_pid() != -1) {
                 running++;
