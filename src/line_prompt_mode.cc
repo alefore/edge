@@ -551,36 +551,33 @@ class HistoryScrollBehavior : public ScrollBehavior {
           prompt_state_->IsGone());
   }
 
-  void Up(EditorState* editor_state, OpenBuffer* buffer) override {
-    ScrollHistory(editor_state, buffer, LineNumberDelta(-1));
+  void Up(OpenBuffer& buffer) override {
+    ScrollHistory(buffer, LineNumberDelta(-1));
   }
 
-  void Down(EditorState* editor_state, OpenBuffer* buffer) override {
-    ScrollHistory(editor_state, buffer, LineNumberDelta(+1));
+  void Down(OpenBuffer& buffer) override {
+    ScrollHistory(buffer, LineNumberDelta(+1));
   }
 
-  void Left(EditorState* editor_state, OpenBuffer* buffer) override {
-    DefaultScrollBehavior().Left(editor_state, buffer);
+  void Left(OpenBuffer& buffer) override {
+    DefaultScrollBehavior().Left(buffer);
   }
 
-  void Right(EditorState* editor_state, OpenBuffer* buffer) override {
-    DefaultScrollBehavior().Right(editor_state, buffer);
+  void Right(OpenBuffer& buffer) override {
+    DefaultScrollBehavior().Right(buffer);
   }
 
-  void Begin(EditorState* editor_state, OpenBuffer* buffer) override {
-    DefaultScrollBehavior().Begin(editor_state, buffer);
+  void Begin(OpenBuffer& buffer) override {
+    DefaultScrollBehavior().Begin(buffer);
   }
 
-  void End(EditorState* editor_state, OpenBuffer* buffer) override {
-    DefaultScrollBehavior().End(editor_state, buffer);
-  }
+  void End(OpenBuffer& buffer) override { DefaultScrollBehavior().End(buffer); }
 
  private:
-  void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer,
-                     LineNumberDelta delta) const {
+  void ScrollHistory(OpenBuffer& buffer, LineNumberDelta delta) const {
     if (prompt_state_->IsGone()) return;
     auto buffer_to_insert = OpenBuffer::New(
-        {.editor = editor_state, .name = BufferName::TextInsertion()});
+        {.editor = buffer.editor(), .name = BufferName::TextInsertion()});
 
     if (history_ != nullptr &&
         (history_->contents()->size() > LineNumberDelta(1) ||
@@ -601,7 +598,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
       }
     }
 
-    buffer->ApplyToCursors(transformation::Delete{
+    buffer.ApplyToCursors(transformation::Delete{
         .modifiers = {
             .structure = StructureLine(),
             .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
@@ -611,7 +608,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
     transformation::Insert insert_options;
     insert_options.buffer_to_insert = std::move(buffer_to_insert);
-    buffer->ApplyToCursors(std::move(insert_options));
+    buffer.ApplyToCursors(std::move(insert_options));
   }
 
   const std::shared_ptr<OpenBuffer> history_;

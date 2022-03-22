@@ -203,31 +203,28 @@ class InsertMode : public EditorMode {
         return;
 
       case Terminal::UP_ARROW:
-        ApplyScrollBehavior({27, '[', 'A'}, &ScrollBehavior::Up, editor_state);
+        ApplyScrollBehavior({27, '[', 'A'}, &ScrollBehavior::Up);
         return;
 
       case Terminal::DOWN_ARROW:
-        ApplyScrollBehavior({27, '[', 'B'}, &ScrollBehavior::Down,
-                            editor_state);
+        ApplyScrollBehavior({27, '[', 'B'}, &ScrollBehavior::Down);
         return;
 
       case Terminal::LEFT_ARROW:
-        ApplyScrollBehavior({27, '[', 'D'}, &ScrollBehavior::Left,
-                            editor_state);
+        ApplyScrollBehavior({27, '[', 'D'}, &ScrollBehavior::Left);
         return;
 
       case Terminal::RIGHT_ARROW:
-        ApplyScrollBehavior({27, '[', 'C'}, &ScrollBehavior::Right,
-                            editor_state);
+        ApplyScrollBehavior({27, '[', 'C'}, &ScrollBehavior::Right);
         return;
 
       case Terminal::CTRL_A:
-        ApplyScrollBehavior({1}, &ScrollBehavior::Begin, editor_state);
+        ApplyScrollBehavior({1}, &ScrollBehavior::Begin);
         return;
 
       case Terminal::CTRL_E:
         line_buffer_.push_back(5);
-        ApplyScrollBehavior({5}, &ScrollBehavior::End, editor_state);
+        ApplyScrollBehavior({5}, &ScrollBehavior::End);
         return;
 
       case Terminal::CTRL_L:
@@ -417,19 +414,17 @@ class InsertMode : public EditorMode {
   }
 
   void ApplyScrollBehavior(std::string line_buffer,
-                           void (ScrollBehavior::*method)(EditorState*,
-                                                          OpenBuffer*),
-                           EditorState* editor_state) {
+                           void (ScrollBehavior::*method)(OpenBuffer&)) {
     GetScrollBehavior().AddListener(
-        [this, line_buffer, editor_state,
-         notification = scroll_behavior_abort_notification_,
+        [this, line_buffer, notification = scroll_behavior_abort_notification_,
          method](std::shared_ptr<ScrollBehavior> scroll_behavior) {
           if (notification->HasBeenNotified()) return;
           ForEachActiveBuffer(
-              line_buffer, [editor_state, scroll_behavior,
+              line_buffer, [scroll_behavior,
                             method](const std::shared_ptr<OpenBuffer>& buffer) {
+                CHECK(buffer != nullptr);
                 if (buffer->fd() == nullptr) {
-                  (scroll_behavior.get()->*method)(editor_state, buffer.get());
+                  (scroll_behavior.get()->*method)(*buffer);
                 }
                 return futures::Past(EmptyValue());
               });
@@ -530,38 +525,32 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
 }
 }  // namespace
 
-void DefaultScrollBehavior::Up(EditorState*, OpenBuffer* buffer) {
-  Modifiers modifiers;
-  modifiers.direction = Direction::kBackwards;
-  modifiers.structure = StructureLine();
-  buffer->ApplyToCursors(transformation::ModifiersAndComposite{
-      modifiers, NewMoveTransformation()});
+void DefaultScrollBehavior::Up(OpenBuffer& buffer) {
+  buffer.ApplyToCursors(transformation::ModifiersAndComposite{
+      {.structure = StructureLine(), .direction = Direction::kBackwards},
+      NewMoveTransformation()});
 }
 
-void DefaultScrollBehavior::Down(EditorState*, OpenBuffer* buffer) {
-  Modifiers modifiers;
-  modifiers.structure = StructureLine();
-  buffer->ApplyToCursors(transformation::ModifiersAndComposite{
-      modifiers, NewMoveTransformation()});
+void DefaultScrollBehavior::Down(OpenBuffer& buffer) {
+  buffer.ApplyToCursors(transformation::ModifiersAndComposite{
+      {.structure = StructureLine()}, NewMoveTransformation()});
 }
 
-void DefaultScrollBehavior::Left(EditorState*, OpenBuffer* buffer) {
-  Modifiers modifiers;
-  modifiers.direction = Direction::kBackwards;
-  buffer->ApplyToCursors(transformation::ModifiersAndComposite{
-      modifiers, NewMoveTransformation()});
+void DefaultScrollBehavior::Left(OpenBuffer& buffer) {
+  buffer.ApplyToCursors(transformation::ModifiersAndComposite{
+      {.direction = Direction::kBackwards}, NewMoveTransformation()});
 }
 
-void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(NewMoveTransformation());
+void DefaultScrollBehavior::Right(OpenBuffer& buffer) {
+  buffer.ApplyToCursors(NewMoveTransformation());
 }
 
-void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(transformation::SetPosition(ColumnNumber(0)));
+void DefaultScrollBehavior::Begin(OpenBuffer& buffer) {
+  buffer.ApplyToCursors(transformation::SetPosition(ColumnNumber(0)));
 }
 
-void DefaultScrollBehavior::End(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(
+void DefaultScrollBehavior::End(OpenBuffer& buffer) {
+  buffer.ApplyToCursors(
       transformation::SetPosition(std::numeric_limits<ColumnNumber>::max()));
 }
 

@@ -14,23 +14,23 @@ std::unique_ptr<Command> NewFindCompletionCommand();
 class ScrollBehavior {
  public:
   virtual ~ScrollBehavior() = default;
-  virtual void Up(EditorState* editor_state, OpenBuffer* buffer) = 0;
-  virtual void Down(EditorState* editor_state, OpenBuffer* buffer) = 0;
-  virtual void Left(EditorState* editor_state, OpenBuffer* buffer) = 0;
-  virtual void Right(EditorState* editor_state, OpenBuffer* buffer) = 0;
-  virtual void Begin(EditorState* editor_state, OpenBuffer* buffer) = 0;
-  virtual void End(EditorState* editor_state, OpenBuffer* buffer) = 0;
+  virtual void Up(OpenBuffer& buffer) = 0;
+  virtual void Down(OpenBuffer& buffer) = 0;
+  virtual void Left(OpenBuffer& buffer) = 0;
+  virtual void Right(OpenBuffer& buffer) = 0;
+  virtual void Begin(OpenBuffer& buffer) = 0;
+  virtual void End(OpenBuffer& buffer) = 0;
 };
 
 class DefaultScrollBehavior : public ScrollBehavior {
  public:
   DefaultScrollBehavior() = default;
-  void Up(EditorState* editor_state, OpenBuffer* buffer) override;
-  void Down(EditorState* editor_state, OpenBuffer* buffer) override;
-  void Left(EditorState* editor_state, OpenBuffer* buffer) override;
-  void Right(EditorState* editor_state, OpenBuffer* buffer) override;
-  void Begin(EditorState* editor_state, OpenBuffer* buffer) override;
-  void End(EditorState* editor_state, OpenBuffer* buffer) override;
+  void Up(OpenBuffer& buffer) override;
+  void Down(OpenBuffer& buffer) override;
+  void Left(OpenBuffer& buffer) override;
+  void Right(OpenBuffer& buffer) override;
+  void Begin(OpenBuffer& buffer) override;
+  void End(OpenBuffer& buffer) override;
 };
 
 class ScrollBehaviorFactory {
