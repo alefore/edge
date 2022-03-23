@@ -32,9 +32,9 @@ static void MergeInto(AsyncSearchProcessor::Output current_results,
   }
 }
 
-static void DoSearch(OpenBuffer* buffer, SearchOptions options) {
-  buffer->set_active_cursors(SearchHandler(&buffer->editor(), options, buffer));
-  buffer->ResetMode();
+static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
+  buffer.set_active_cursors(SearchHandler(buffer.editor(), options, buffer));
+  buffer.ResetMode();
 }
 
 ColorizePromptOptions SearchResultsModifiers(
@@ -177,7 +177,7 @@ class SearchCommand : public Command {
                                 range.end.column - range.begin.column)
                     ->ToString();
             search_options.starting_position = buffer->position();
-            DoSearch(buffer.get(), search_options);
+            DoSearch(*buffer, search_options);
             return futures::Past(EmptyValue());
           })
           .Transform([&editor_state = editor_state_](EmptyValue) {
@@ -275,7 +275,7 @@ class SearchCommand : public Command {
                              input, buffer.get(),
                              std::make_shared<Notification>());
                          if (search_options.has_value()) {
-                           DoSearch(buffer.get(), search_options.value());
+                           DoSearch(*buffer, search_options.value());
                          }
                          return futures::Past(EmptyValue());
                        })

@@ -157,13 +157,13 @@ std::wstring RegexEscape(std::shared_ptr<LazyString> str) {
 // in the region enclosed by start and *end will be returned.
 ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     EditorState& editor_state, const SearchOptions& options,
-    OpenBuffer* buffer) {
+    OpenBuffer& buffer) {
   auto direction = editor_state.modifiers().direction;
   auto dummy_progress_channel = std::make_unique<ProgressChannel>(
       editor_state.work_queue(), [](ProgressInformation) {},
       WorkQueueChannelConsumeMode::kLastAvailable);
   SearchResults results =
-      PerformSearch(options, GetRegexTraits(*buffer), buffer->contents(),
+      PerformSearch(options, GetRegexTraits(buffer), buffer.contents(),
                     dummy_progress_channel.get());
   if (results.error.has_value()) {
     return Error(results.error.value());
@@ -209,20 +209,20 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
   }
 
   if (head.empty()) {
-    buffer->status()->SetInformationText(L"🔍 No results.");
+    buffer.status()->SetInformationText(L"🔍 No results.");
     BeepFrequencies(editor_state.audio_player(), {523.25, 261.63, 261.63});
   } else {
     if (head.size() == 1) {
-      buffer->status()->SetInformationText(L"🔍 1 result.");
+      buffer.status()->SetInformationText(L"🔍 1 result.");
     } else {
       wstring results_prefix(1 + static_cast<size_t>(log2(head.size())), L'🔍');
-      buffer->status()->SetInformationText(results_prefix + L" Results: " +
-                                           std::to_wstring(head.size()));
+      buffer.status()->SetInformationText(results_prefix + L" Results: " +
+                                          std::to_wstring(head.size()));
     }
     vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
     frequencies.resize(min(frequencies.size(), head.size() + 1));
     BeepFrequencies(editor_state.audio_player(), frequencies);
-    buffer->Set(buffer_variables::multiple_cursors, false);
+    buffer.Set(buffer_variables::multiple_cursors, false);
   }
   return Success(head);
 }
@@ -236,7 +236,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     options.search_query = input.input;
     options.starting_position = search_buffer->position();
     auto positions =
-        PerformSearchWithDirection(input.editor, options, search_buffer.get());
+        PerformSearchWithDirection(input.editor, options, *search_buffer);
     if (positions.IsError()) {
       search_buffer->status()->SetWarningText(positions.error().description);
       continue;
@@ -274,32 +274,31 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   return std::move(output.value);
 }
 
-vector<LineColumn> SearchHandler(EditorState* editor_state,
+vector<LineColumn> SearchHandler(EditorState& editor_state,
                                  const SearchOptions& options,
-                                 OpenBuffer* buffer) {
-  if (!editor_state->has_current_buffer() || options.search_query.empty()) {
+                                 OpenBuffer& buffer) {
+  if (!editor_state.has_current_buffer() || options.search_query.empty()) {
     return {};
   }
 
-  auto output = PerformSearchWithDirection(*editor_state, options, buffer);
+  auto output = PerformSearchWithDirection(editor_state, options, buffer);
   if (!output.IsError() && output.value().empty() &&
-      buffer->Read(buffer_variables::search_filter_buffer)) {
-    buffer->editor().CloseBuffer(buffer);
+      buffer.Read(buffer_variables::search_filter_buffer)) {
+    buffer.editor().CloseBuffer(&buffer);
     return {};
   } else {
-    return buffer->status()->ConsumeErrors(output, {});
+    return buffer.status()->ConsumeErrors(output, {});
   }
 }
 
-void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options,
-                     OpenBuffer* buffer) {
+void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
+                     OpenBuffer& buffer) {
   auto results = SearchHandler(editor_state, options, buffer);
   if (results.empty()) {
-    buffer->status()->SetInformationText(L"No matches: " +
-                                         options.search_query);
+    buffer.status()->SetInformationText(L"No matches: " + options.search_query);
   } else {
-    buffer->set_position(results[0]);
-    editor_state->PushCurrentPosition();
+    buffer.set_position(results[0]);
+    editor_state.PushCurrentPosition();
   }
 }
 

@@ -878,8 +878,8 @@ OpenFile(const OpenFileOptions& options) {
           search_options.starting_position =
               insert_result.first->second->position();
           search_options.search_query = input.pattern;
-          JumpToNextMatch(&options.editor_state, search_options,
-                          insert_result.first->second.get());
+          JumpToNextMatch(options.editor_state, search_options,
+                          *insert_result.first->second);
         }
         return insert_result.first;
       });

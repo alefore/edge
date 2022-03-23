@@ -44,12 +44,12 @@ struct SearchOptions {
       std::make_shared<Notification>();
 };
 
-std::vector<LineColumn> SearchHandler(EditorState* editor_state,
+std::vector<LineColumn> SearchHandler(EditorState& editor_state,
                                       const SearchOptions& options,
-                                      OpenBuffer* buffer);
+                                      OpenBuffer& buffer);
 
-void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options,
-                     OpenBuffer* buffer);
+void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
+                     OpenBuffer& buffer);
 
 class AsyncSearchProcessor {
  public:
