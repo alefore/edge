@@ -44,7 +44,7 @@ transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
 futures::Value<transformation::Result> ApplyBase(const Insert& options,
                                                  transformation::Input input) {
   CHECK(input.buffer != nullptr);
-  size_t length = options.buffer_to_insert->contents().CountCharacters();
+  size_t length = options.contents_to_insert->CountCharacters();
   if (length == 0) {
     return futures::Past(transformation::Result(input.position));
   }
@@ -59,7 +59,7 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
   LineColumn start_position = result->position;
   for (size_t i = 0; i < options.modifiers.repetitions.value_or(1); i++) {
     result->position = input.buffer->InsertInPosition(
-        *options.buffer_to_insert, result->position, options.modifiers_set);
+        *options.contents_to_insert, result->position, options.modifiers_set);
   }
   LineColumn final_position = result->position;
 
@@ -99,7 +99,7 @@ std::wstring ToStringBase(const Insert& options) {
   std::wstring output = L"InsertTransformationBuilder()";
   output += L".set_text(" +
             CppEscapeString(
-                options.buffer_to_insert->LineAt(LineNumber(0))->ToString()) +
+                options.contents_to_insert->at(LineNumber(0))->ToString()) +
             L")";
   output += L".set_modifiers(" + options.modifiers.Serialize() + L")";
   if (options.position.has_value()) {
@@ -121,13 +121,14 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
       L"set_text",
       vm::NewCallback([editor](std::shared_ptr<Insert> options, wstring text) {
         CHECK(options != nullptr);
+        // TODO(easy, 2022-03-24): Turn this into a BufferContents.
         auto buffer_to_insert = OpenBuffer::New(
             {.editor = *editor, .name = BufferName::TextInsertion()});
         if (!text.empty()) {
           buffer_to_insert->AppendLazyString(NewLazyString(std::move(text)));
           buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
         }
-        options->buffer_to_insert = buffer_to_insert;
+        options->contents_to_insert = buffer_to_insert->contents().copy();
         return options;
       }));
 

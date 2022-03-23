@@ -1355,7 +1355,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
 }
 
 LineColumn OpenBuffer::InsertInPosition(
-    const OpenBuffer& buffer, const LineColumn& input_position,
+    const BufferContents& contents_to_insert, const LineColumn& input_position,
     const std::optional<LineModifierSet>& modifiers) {
   VLOG(5) << "InsertInPosition: " << input_position << " "
           << (modifiers.has_value() ? modifiers.value().size() : 1);
@@ -1369,12 +1369,12 @@ LineColumn OpenBuffer::InsertInPosition(
     position.column = contents_.at(position.line)->EndColumn();
   }
   contents_.SplitLine(position);
-  contents_.insert(position.line.next(), buffer.contents_, modifiers);
+  contents_.insert(position.line.next(), contents_to_insert, modifiers);
   contents_.FoldNextLine(position.line);
   AddLineMetadata(this, &contents_, position.line);
 
   LineNumber last_line =
-      position.line + buffer.contents_.size() - LineNumberDelta(1);
+      position.line + contents_to_insert.size() - LineNumberDelta(1);
   CHECK_LE(last_line, EndLine());
   auto line = LineAt(last_line);
   CHECK(line != nullptr);

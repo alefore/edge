@@ -604,9 +604,9 @@ class HistoryScrollBehavior : public ScrollBehavior {
             .boundary_begin = Modifiers::LIMIT_CURRENT,
             .boundary_end = Modifiers::LIMIT_CURRENT}});
 
-    transformation::Insert insert_options;
-    insert_options.buffer_to_insert = std::move(buffer_to_insert);
-    buffer.ApplyToCursors(std::move(insert_options));
+    // TODO(easy, 2022-03-24): Turn this into a BufferContents.
+    buffer.ApplyToCursors(transformation::Insert{
+        .contents_to_insert = buffer_to_insert->contents().copy()});
   }
 
   const std::shared_ptr<OpenBuffer> history_;
@@ -759,12 +759,13 @@ void Prompt(PromptOptions options) {
         auto prompt_state = std::make_shared<PromptState>(options);
 
         {
+          // TODO(easy, 2022-03-24): Turn this into BufferContents.
           auto buffer_to_insert = OpenBuffer::New(
               {.editor = editor_state, .name = BufferName::TextInsertion()});
           buffer_to_insert->AppendToLastLine(
               NewLazyString(std::move(options.initial_value)));
           buffer->ApplyToCursors(transformation::Insert(
-              {.buffer_to_insert = std::move(buffer_to_insert)}));
+              {.contents_to_insert = buffer_to_insert->contents().copy()}));
         }
 
         auto history_evaluator = std::make_shared<AsyncEvaluator>(
@@ -910,13 +911,15 @@ void Prompt(PromptOptions options) {
 
                           std::shared_ptr<LazyString> line = NewLazyString(
                               results.value().common_prefix.value());
+                          // TODO(easy, 2022-03-24): Turn this into
+                          // BufferContents.
                           auto buffer_to_insert = OpenBuffer::New(
                               {.editor = editor_state,
                                .name = BufferName::TextInsertion()});
                           buffer_to_insert->AppendToLastLine(line);
                           buffer->ApplyToCursors(transformation::Insert(
-                              {.buffer_to_insert =
-                                   std::move(buffer_to_insert)}));
+                              {.contents_to_insert =
+                                   buffer_to_insert->contents().copy()}));
                           if (options.colorize_options_provider != nullptr) {
                             CHECK(prompt_state->status().GetType() ==
                                   Status::Type::kPrompt);

@@ -63,13 +63,13 @@ class NewLineTransformation : public CompositeTransformation {
 
     Output output;
     {
+      // TODO(easy, 2022-03-24): Turn this into a BufferContents.
       auto buffer_to_insert = OpenBuffer::New(
           {.editor = input.editor, .name = BufferName::TextInsertion()});
       buffer_to_insert->AppendRawLine(std::make_shared<Line>(
           Line::Options(*line).DeleteSuffix(prefix_end)));
-      transformation::Insert insert_options;
-      insert_options.buffer_to_insert = buffer_to_insert;
-      output.Push(std::move(insert_options));
+      output.Push(transformation::Insert{
+          .contents_to_insert = buffer_to_insert->contents().copy()});
     }
 
     output.Push(transformation::SetPosition(input.position));
@@ -335,7 +335,8 @@ class InsertMode : public EditorMode {
                 return CallModifyHandler(
                     options, buffer,
                     buffer->ApplyToCursors(transformation::Insert{
-                        .buffer_to_insert = std::move(buffer_to_insert),
+                        .contents_to_insert =
+                            buffer_to_insert->contents().copy(),
                         .modifiers = {
                             .insertion =
                                 options.editor_state.modifiers().insertion}}));
@@ -405,8 +406,9 @@ class InsertMode : public EditorMode {
                     OpenBuffer::New({.editor = options.editor_state,
                                      .name = BufferName::TextInsertion()});
                 buffer_to_insert->AppendToLastLine(NewLazyString(L" "));
+                // TODO(easy, 2022-03-24): Turn this into a BufferContents.
                 auto insert_options = transformation::Insert{
-                    .buffer_to_insert = std::move(buffer_to_insert)};
+                    .contents_to_insert = buffer_to_insert->contents().copy()};
                 if (direction == Direction::kBackwards) {
                   insert_options.final_position =
                       transformation::Insert::FinalPosition::kStart;

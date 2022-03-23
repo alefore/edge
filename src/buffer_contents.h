@@ -26,7 +26,7 @@ class BufferContents : public fuzz::FuzzTestable {
       std::function<void(const CursorsTracker::Transformation&)>;
 
   BufferContents();
-  BufferContents(UpdateListener update_listener);
+  explicit BufferContents(UpdateListener update_listener);
 
   void CopyContentsFrom(const BufferContents& source);
 
@@ -42,7 +42,7 @@ class BufferContents : public fuzz::FuzzTestable {
   Range range() const;
 
   // Returns a copy of the contents of the tree. No actual copying takes place.
-  // This is dirt cheap.
+  // This is dirt cheap. The updates listener isn't copied.
   std::unique_ptr<BufferContents> copy() const;
 
   // Drops all contents outside of a specific range.

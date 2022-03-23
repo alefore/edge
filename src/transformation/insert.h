@@ -13,12 +13,12 @@
 
 namespace afc::editor {
 class EditorState;
-class OpenBuffer;
+class BufferContents;
 namespace transformation {
 struct Insert {
   std::wstring Serialize() const;
 
-  std::shared_ptr<const OpenBuffer> buffer_to_insert;
+  std::shared_ptr<const BufferContents> contents_to_insert;
 
   editor::Modifiers modifiers = Modifiers();
 

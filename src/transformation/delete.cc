@@ -162,8 +162,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
       input.mode == Input::Mode::kFinal && input.delete_buffer != nullptr) {
     VLOG(5) << "Preparing delete buffer.";
     output->added_to_paste_buffer = true;
-    input.delete_buffer->ApplyToCursors(
-        transformation::Insert{.buffer_to_insert = delete_buffer});
+    input.delete_buffer->ApplyToCursors(transformation::Insert{
+        .contents_to_insert = delete_buffer->contents().copy()});
   }
 
   if (options.modifiers.delete_behavior ==
@@ -183,7 +183,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         output->MergeFrom(std::move(result));
 
         transformation::Insert insert_options{
-            .buffer_to_insert = std::move(delete_buffer),
+            .contents_to_insert = delete_buffer->contents().copy(),
             .final_position =
                 options.modifiers.direction == Direction::kForwards
                     ? Insert::FinalPosition::kEnd

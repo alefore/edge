@@ -226,7 +226,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // If modifiers is present, applies it to every character (overriding the
   // modifiers from `insertion`; that is, from the input).
-  LineColumn InsertInPosition(const OpenBuffer& insertion,
+  LineColumn InsertInPosition(const BufferContents& contents_to_insert,
                               const LineColumn& position,
                               const std::optional<LineModifierSet>& modifiers);
   // Returns a copy of position, but ensuring that it is in the expected range

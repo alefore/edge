@@ -139,12 +139,10 @@ class Paste : public Command {
           }
           buffer->CheckPosition();
           buffer->MaybeAdjustPositionCol();
-          transformation::Insert insert_options;
-          insert_options.buffer_to_insert = paste_buffer;
-          insert_options.modifiers.insertion =
-              editor_state.modifiers().insertion;
-          insert_options.modifiers.repetitions = editor_state.repetitions();
-          return buffer->ApplyToCursors(std::move(insert_options));
+          return buffer->ApplyToCursors(transformation::Insert{
+              .contents_to_insert = paste_buffer->contents().copy(),
+              .modifiers = {.insertion = editor_state.modifiers().insertion,
+                            .repetitions = editor_state.repetitions()}});
         })
         .Transform([&editor_state = editor_state_](EmptyValue) {
           editor_state.ResetInsertionModifier();

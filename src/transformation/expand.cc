@@ -94,10 +94,9 @@ class PredictorTransformation : public CompositeTransformation {
           buffer_to_insert->AppendLazyString(
               NewLazyString(results.value().common_prefix.value()));
           buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
-
-          transformation::Insert insert_options;
-          insert_options.buffer_to_insert = buffer_to_insert;
-          output.Push(std::move(insert_options));
+          // TODO(easy, 2022-03-24): Turn this into a BufferContents.
+          output.Push(transformation::Insert{
+              .contents_to_insert = buffer_to_insert->contents().copy()});
           return output;
         });
   }
@@ -157,8 +156,10 @@ class ReadAndInsert : public CompositeTransformation {
                   [consumer, buffer_to_insert = buffer_it->second,
                    input = std::move(input)] {
                     Output output;
-                    output.Push(transformation::Insert{.buffer_to_insert =
-                                                           buffer_to_insert});
+                    // TODO(easy, 2022-03-24): Turn this into a BufferContents.
+                    output.Push(transformation::Insert{
+                        .contents_to_insert =
+                            buffer_to_insert->contents().copy()});
                     LineColumn position = buffer_to_insert->position();
                     if (position.line.IsZero()) {
                       position.column += input.position.column.ToDelta();
@@ -225,8 +226,9 @@ class Execute : public CompositeTransformation {
                 {.editor = editor, .name = BufferName::TextInsertion()});
             buffer->AppendLazyString(NewLazyString(value->str));
             buffer->EraseLines(LineNumber(0), LineNumber(1));
-            output.Push(
-                transformation::Insert{.buffer_to_insert = std::move(buffer)});
+            // TODO(easy, 2022-03-24): Turn this into a BufferContents.
+            output.Push(transformation::Insert{.contents_to_insert =
+                                                   buffer->contents().copy()});
           }
           return futures::Past(std::move(output));
         });
