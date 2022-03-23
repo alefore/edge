@@ -86,7 +86,7 @@ map<wstring, wstring> LoadEnvironmentVariables(
 }
 
 futures::Value<PossibleError> GenerateContents(
-    EditorState* editor_state, std::map<wstring, wstring> environment,
+    EditorState& editor_state, std::map<wstring, wstring> environment,
     CommandData* data, OpenBuffer* target) {
   int pipefd_out[2];
   int pipefd_err[2];
@@ -176,7 +176,7 @@ futures::Value<PossibleError> GenerateContents(
     }
     environment[L"TERM"] = L"screen";
     environment = LoadEnvironmentVariables(
-        editor_state->edge_path(), target->Read(buffer_variables::command),
+        editor_state.edge_path(), target->Read(buffer_variables::command),
         environment);
 
     char** envp =
@@ -204,7 +204,7 @@ futures::Value<PossibleError> GenerateContents(
             << pipefd_err[parent_fd];
   target->SetInputFiles(pipefd_out[parent_fd], pipefd_err[parent_fd],
                         target->Read(buffer_variables::pts), child_pid);
-  target->AddEndOfFileObserver([editor_state, data, target]() {
+  target->AddEndOfFileObserver([&editor_state, data, target]() {
     LOG(INFO) << "End of file notification.";
     CHECK(target->child_exit_status().has_value());
     int success = WIFEXITED(target->child_exit_status().value()) &&
@@ -213,7 +213,7 @@ futures::Value<PossibleError> GenerateContents(
         target->Read(success ? buffer_variables::beep_frequency_success
                              : buffer_variables::beep_frequency_failure);
     if (frequency > 0.0001) {
-      GenerateBeep(editor_state->audio_player(), frequency);
+      GenerateBeep(editor_state.audio_player(), frequency);
     }
     time(&data->time_end);
   });
@@ -296,15 +296,15 @@ std::map<wstring, wstring> Flags(const CommandData& data,
 }
 
 void RunCommand(const BufferName& name, const wstring& input,
-                map<wstring, wstring> environment, EditorState* editor_state,
+                map<wstring, wstring> environment, EditorState& editor_state,
                 std::optional<Path> children_path) {
-  auto buffer = editor_state->current_buffer();
+  auto buffer = editor_state.current_buffer();
   if (input.empty()) {
     if (buffer != nullptr) {
       buffer->ResetMode();
       buffer->status()->Reset();
     }
-    editor_state->status()->Reset();
+    editor_state.status()->Reset();
     return;
   }
 
@@ -322,7 +322,7 @@ void RunCommand(const BufferName& name, const wstring& input,
 }
 
 futures::Value<EmptyValue> RunCommandHandler(
-    const wstring& input, EditorState* editor_state, size_t i, size_t n,
+    const wstring& input, EditorState& editor_state, size_t i, size_t n,
     std::optional<Path> children_path) {
   map<wstring, wstring> environment = {{L"EDGE_RUN", std::to_wstring(i)},
                                        {L"EDGE_RUNS", std::to_wstring(n)}};
@@ -333,7 +333,7 @@ futures::Value<EmptyValue> RunCommandHandler(
       name += L" " + it.first + L"=" + it.second;
     }
   }
-  auto buffer = editor_state->current_buffer();
+  auto buffer = editor_state.current_buffer();
   if (buffer != nullptr) {
     environment[L"EDGE_SOURCE_BUFFER_PATH"] =
         buffer->Read(buffer_variables::path);
@@ -395,7 +395,7 @@ class ForkEditorCommand : public Command {
                           return PromptChange(prompt_state.get(), line);
                         }),
               .handler = ([children_path](const wstring& name,
-                                          EditorState* editor_state) {
+                                          EditorState& editor_state) {
                 return RunCommandHandler(name, editor_state, 0, 1,
                                          children_path.AsOptional());
               })});
@@ -407,7 +407,7 @@ class ForkEditorCommand : public Command {
       auto children_path = GetChildrenPath(editor_state_);
       auto line = buffer->current_line()->ToString();
       for (size_t i = 0; i < editor_state_.repetitions().value_or(1); ++i) {
-        RunCommandHandler(line, &editor_state_, i,
+        RunCommandHandler(line, editor_state_, i,
                           editor_state_.repetitions().value_or(1),
                           children_path.AsOptional());
       }
@@ -460,7 +460,7 @@ class ForkEditorCommand : public Command {
           options.command = base_command;
           options.name = BufferName(L"- help: " + base_command);
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
-          auto help_buffer = ForkCommand(&editor, options);
+          auto help_buffer = ForkCommand(editor, options);
           help_buffer->Set(buffer_variables::follow_end_of_file, false);
           help_buffer->Set(buffer_variables::show_in_buffers_list, false);
           help_buffer->set_position({});
@@ -553,18 +553,17 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
                           std::move(fork_command_options));
 }
 
-std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
+std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
                                         const ForkCommandOptions& options) {
-  CHECK(editor_state != nullptr);
   BufferName name = options.name.value_or(BufferName(L"$ " + options.command));
-  auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
+  auto it = editor_state.buffers()->insert(make_pair(name, nullptr));
   if (it.second) {
     auto command_data = std::make_shared<CommandData>();
     auto buffer = OpenBuffer::New(
-        {.editor = *editor_state,
+        {.editor = editor_state,
          .name = name,
          .generate_contents =
-             [editor_state, environment = options.environment,
+             [&editor_state, environment = options.environment,
               command_data](OpenBuffer* target) {
                return GenerateContents(editor_state, environment,
                                        command_data.get(), target);
@@ -583,7 +582,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
     it.first->second->ResetMode();
   }
 
-  editor_state->AddBuffer(it.first->second, options.insertion_type);
+  editor_state.AddBuffer(it.first->second, options.insertion_type);
 
   it.first->second->Reload();
   it.first->second->set_current_position_line(LineNumber(0));
@@ -595,27 +594,27 @@ std::unique_ptr<Command> NewForkCommand(EditorState& editor_state) {
 }
 
 futures::Value<EmptyValue> RunCommandHandler(
-    const wstring& input, EditorState* editor_state,
+    const wstring& input, EditorState& editor_state,
     map<wstring, wstring> environment) {
   RunCommand(BufferName(L"$ " + input), input, environment, editor_state,
-             GetChildrenPath(*editor_state).AsOptional());
+             GetChildrenPath(editor_state).AsOptional());
   return futures::Past(EmptyValue());
 }
 
 futures::Value<EmptyValue> RunMultipleCommandsHandler(
-    const wstring& input, EditorState* editor_state) {
+    const wstring& input, EditorState& editor_state) {
   return editor_state
-      ->ForEachActiveBuffer([editor_state,
-                             input](const std::shared_ptr<OpenBuffer>& buffer) {
-        buffer->contents()->ForEach([editor_state, input](wstring arg) {
+      .ForEachActiveBuffer([&editor_state,
+                            input](const std::shared_ptr<OpenBuffer>& buffer) {
+        buffer->contents()->ForEach([&editor_state, input](wstring arg) {
           map<wstring, wstring> environment = {{L"ARG", arg}};
           RunCommand(BufferName(L"$ " + input + L" " + arg), input, environment,
-                     editor_state, GetChildrenPath(*editor_state).AsOptional());
+                     editor_state, GetChildrenPath(editor_state).AsOptional());
         });
         return futures::Past(EmptyValue());
       })
-      .Transform([editor_state](EmptyValue) {
-        editor_state->status()->Reset();
+      .Transform([&editor_state](EmptyValue) {
+        editor_state.status()->Reset();
         return EmptyValue();
       });
 }

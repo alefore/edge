@@ -45,14 +45,14 @@ using std::shared_ptr;
 using std::sort;
 using std::unique_ptr;
 
-void StartDeleteFile(EditorState* editor_state, wstring path) {
-  Prompt({.editor_state = *editor_state,
+void StartDeleteFile(EditorState& editor_state, wstring path) {
+  Prompt({.editor_state = editor_state,
           .prompt = L"unlink " + path + L"? [yes/no] ",
           .history_file = L"confirmation",
           .handler =
-              [path](const wstring input, EditorState* editor_state) {
-                auto buffer = editor_state->current_buffer();
-                auto status = buffer == nullptr ? editor_state->status()
+              [path](const wstring input, EditorState& editor_state) {
+                auto buffer = editor_state.current_buffer();
+                auto status = buffer == nullptr ? editor_state.status()
                                                 : buffer->status();
                 if (input == L"yes") {
                   int result = unlink(ToByteString(path).c_str());
@@ -74,7 +74,7 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
           .predictor = PrecomputedPredictor({L"no", L"yes"}, '/')});
 }
 
-void AddLine(EditorState* editor_state, OpenBuffer* target,
+void AddLine(EditorState& editor_state, OpenBuffer& target,
              const dirent& entry) {
   enum class SizeBehavior { kShow, kSkip };
 
@@ -108,15 +108,15 @@ void AddLine(EditorState* editor_state, OpenBuffer* target,
 
   auto line = std::make_shared<Line>(std::move(line_options));
 
-  target->AppendRawLine(line);
-  target->contents()->back()->environment()->Define(
-      L"EdgeLineDeleteHandler", vm::NewCallback([editor_state, path]() {
+  target.AppendRawLine(line);
+  target.contents()->back()->environment()->Define(
+      L"EdgeLineDeleteHandler", vm::NewCallback([&editor_state, path]() {
         StartDeleteFile(editor_state, path);
       }));
 }
 
-void ShowFiles(EditorState* editor_state, wstring name,
-               std::vector<dirent> entries, OpenBuffer* target) {
+void ShowFiles(EditorState& editor_state, wstring name,
+               std::vector<dirent> entries, OpenBuffer& target) {
   if (entries.empty()) {
     return;
   }
@@ -125,12 +125,12 @@ void ShowFiles(EditorState* editor_state, wstring name,
               return strcmp(a.d_name, b.d_name) < 0;
             });
 
-  target->AppendLine(NewLazyString(L"## " + name + L" (" +
-                                   std::to_wstring(entries.size()) + L")"));
+  target.AppendLine(NewLazyString(L"## " + name + L" (" +
+                                  std::to_wstring(entries.size()) + L")"));
   for (auto& entry : entries) {
     AddLine(editor_state, target, entry);
   }
-  target->AppendEmptyLine();
+  target.AppendEmptyLine();
 }
 
 struct BackgroundReadDirOutput {
@@ -225,12 +225,12 @@ futures::Value<PossibleError> GenerateContents(
                                                      path.value().ToString()));
               target->AppendEmptyLine();
 
-              ShowFiles(editor_state, L"🗁  Directories",
-                        std::move(results.directories), target);
-              ShowFiles(editor_state, L"🗀  Files",
-                        std::move(results.regular_files), target);
-              ShowFiles(editor_state, L"🗐  Noise", std::move(results.noise),
-                        target);
+              ShowFiles(*editor_state, L"🗁  Directories",
+                        std::move(results.directories), *target);
+              ShowFiles(*editor_state, L"🗀  Files",
+                        std::move(results.regular_files), *target);
+              ShowFiles(*editor_state, L"🗐  Noise", std::move(results.noise),
+                        *target);
               return Success();
             });
       });

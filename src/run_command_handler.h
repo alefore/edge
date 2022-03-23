@@ -42,14 +42,14 @@ unique_ptr<Command> NewForkCommand(EditorState& editor_state);
 
 class OpenBuffer;
 
-std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
+std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
                                         const ForkCommandOptions& options);
 
 futures::Value<EmptyValue> RunCommandHandler(
-    const wstring& input, EditorState* editor_state,
+    const wstring& input, EditorState& editor_state,
     std::map<wstring, wstring> environment);
 futures::Value<EmptyValue> RunMultipleCommandsHandler(
-    const wstring& input, EditorState* editor_state);
+    const wstring& input, EditorState& editor_state);
 }  // namespace editor
 namespace vm {
 template <>

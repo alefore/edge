@@ -2074,7 +2074,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                               editor.status()->SetExpiringInformationText(
                                   L"Open: " + url.ToString()))] {});
                  ForkCommand(
-                     &data->source->editor(),
+                     data->source->editor(),
                      ForkCommandOptions{
                          .command = L"xdg-open " + ShellEscape(url.ToString()),
                          .insertion_type = BuffersList::AddBufferType::kIgnore,

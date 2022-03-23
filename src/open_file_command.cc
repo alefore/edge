@@ -18,9 +18,9 @@ namespace editor {
 
 namespace {
 futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
-                                           EditorState* editor_state) {
+                                           EditorState& editor_state) {
   OpenFile(
-      OpenFileOptions{.editor_state = *editor_state,
+      OpenFileOptions{.editor_state = editor_state,
                       .path = Path::FromString(name).AsOptional(),
                       .insertion_type = BuffersList::AddBufferType::kVisit});
   return futures::Past(EmptyValue());

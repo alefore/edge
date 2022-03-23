@@ -311,7 +311,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             }
             auto contents = input.buffer->contents()->copy();
             contents->FilterToRange(*delete_transformation.range);
-            ForkCommand(&input.buffer->editor(),
+            ForkCommand(input.buffer->editor(),
                         ForkCommandOptions{
                             .command = contents->ToString(),
                             .environment = {

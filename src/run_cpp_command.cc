@@ -36,9 +36,9 @@ struct SearchNamespaces {
 };
 
 futures::Value<EmptyValue> RunCppCommandLiteralHandler(
-    const wstring& name, EditorState* editor_state) {
+    const wstring& name, EditorState& editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
-  auto buffer = editor_state->current_buffer();
+  auto buffer = editor_state.current_buffer();
   if (buffer == nullptr) {
     return futures::Past(EmptyValue());
   }
@@ -179,7 +179,7 @@ futures::ValueOrError<std::unique_ptr<Value>> Execute(
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
-    const std::wstring& command, EditorState* editor_state) {
+    const std::wstring& command, EditorState& editor_state) {
   return RunCppCommandShell(command, editor_state).Transform([](auto) {
     return EmptyValue();
   });
@@ -224,9 +224,9 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 }  // namespace
 
 futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
-    const std::wstring& command, EditorState* editor_state) {
+    const std::wstring& command, EditorState& editor_state) {
   using futures::Past;
-  auto buffer = editor_state->current_buffer();
+  auto buffer = editor_state.current_buffer();
   if (buffer == nullptr) {
     return Past(std::unique_ptr<vm::Value>());
   }
@@ -266,13 +266,9 @@ std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
       editor_state, description, [mode](EditorState* editor_state) {
         std::wstring prompt;
         std::function<futures::Value<EmptyValue>(const wstring& input,
-                                                 EditorState* editor)>
+                                                 EditorState& editor)>
             handler;
-        std::function<futures::Value<ColorizePromptOptions>(
-            const std::shared_ptr<LazyString>& line,
-            std::unique_ptr<ProgressChannel> progress_channel,
-            std::shared_ptr<Notification> abort_notification)>
-            colorize_options_provider;
+        PromptOptions::ColorizeFunction colorize_options_provider;
         switch (mode) {
           case CppCommandMode::kLiteral:
             handler = RunCppCommandLiteralHandler;

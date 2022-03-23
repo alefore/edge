@@ -31,9 +31,9 @@ class RunCppFileCommand : public Command {
          .history_file = L"editor_commands",
          .initial_value = buffer->Read(buffer_variables::editor_commands_path),
          .handler =
-             [](const wstring& input, EditorState* editor_state) {
+             [](const wstring& input, EditorState& editor_state) {
                futures::Future<EmptyValue> output;
-               RunCppFileHandler(input, editor_state)
+               RunCppFileHandler(input, &editor_state)
                    .SetConsumer([consumer = std::move(output.consumer)](
                                     ValueOrError<EmptyValue>) {
                      consumer(EmptyValue());

@@ -44,27 +44,27 @@ Predictor VariablesPredictor() {
 }  // namespace
 
 futures::Value<EmptyValue> SetVariableCommandHandler(
-    const std::wstring& input_name, EditorState* editor_state) {
+    const std::wstring& input_name, EditorState& editor_state) {
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) {
     return futures::Past(EmptyValue());
   }
 
-  auto active_buffers = editor_state->active_buffers();
+  auto active_buffers = editor_state.active_buffers();
   CHECK_GE(active_buffers.size(), 1ul);
   auto default_error_status = active_buffers.size() == 1
                                   ? active_buffers[0]->status()
-                                  : editor_state->status();
+                                  : editor_state.status();
   if (auto var = buffer_variables::StringStruct()->find_variable(name);
       var != nullptr) {
-    Prompt({.editor_state = *editor_state,
+    Prompt({.editor_state = editor_state,
             .prompt = name + L" := ",
             .history_file = L"values",
             .initial_value = active_buffers[0]->Read(var),
             .handler =
-                [var](const wstring& input, EditorState* editor) {
-                  editor->ResetRepetitions();
-                  return editor->ForEachActiveBuffer(
+                [var](const wstring& input, EditorState& editor) {
+                  editor.ResetRepetitions();
+                  return editor.ForEachActiveBuffer(
                       [var, input](const std::shared_ptr<OpenBuffer>& buffer) {
                         buffer->Set(var, input);
                         buffer->status()->SetInformationText(var->name() +
@@ -80,37 +80,37 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
 
   if (auto var = editor_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
-    editor_state->toggle_bool_variable(var);
-    editor_state->ResetRepetitions();
-    editor_state->status()->SetInformationText(
-        (editor_state->Read(var) ? L"🗸 " : L"⛶ ") + name);
+    editor_state.toggle_bool_variable(var);
+    editor_state.ResetRepetitions();
+    editor_state.status()->SetInformationText(
+        (editor_state.Read(var) ? L"🗸 " : L"⛶ ") + name);
     return futures::Past(EmptyValue());
   }
 
   if (auto var = buffer_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
     return editor_state
-        ->ForEachActiveBuffer(
+        .ForEachActiveBuffer(
             [var, name](const std::shared_ptr<OpenBuffer>& buffer) {
               buffer->toggle_bool_variable(var);
               buffer->status()->SetInformationText(
                   (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
               return futures::Past(EmptyValue());
             })
-        .Transform([editor_state](EmptyValue) {
-          editor_state->ResetRepetitions();
+        .Transform([&editor_state](EmptyValue) {
+          editor_state.ResetRepetitions();
           return EmptyValue();
         });
   }
   if (auto var = buffer_variables::IntStruct()->find_variable(name);
       var != nullptr) {
-    Prompt({.editor_state = *editor_state,
+    Prompt({.editor_state = editor_state,
             .prompt = name + L" := ",
             .history_file = L"values",
             .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
             .handler =
                 [var, default_error_status](const wstring& input,
-                                            EditorState* editor) {
+                                            EditorState& editor) {
                   int value;
                   try {
                     value = stoi(input);
@@ -120,7 +120,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                         L"”: " + FromByteString(ia.what()));
                     return futures::Past(EmptyValue());
                   }
-                  editor->ForEachActiveBuffer(
+                  editor.ForEachActiveBuffer(
                       [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
                         buffer->Set(var, value);
                         return futures::Past(EmptyValue());
@@ -135,18 +135,18 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   if (auto var = buffer_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
     Prompt(
-        {.editor_state = *editor_state,
+        {.editor_state = editor_state,
          .prompt = name + L" := ",
          .history_file = L"values",
          .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
          .handler =
              [var, default_error_status](const wstring& input,
-                                         EditorState* editor) {
+                                         EditorState& editor) {
                std::wstringstream ss(input);
                double value;
                ss >> value;
                if (ss.eof() && !ss.fail()) {
-                 editor->ForEachActiveBuffer(
+                 editor.ForEachActiveBuffer(
                      [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
                        buffer->Set(var, value);
                        return futures::Past(EmptyValue());

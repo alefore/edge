@@ -489,9 +489,12 @@ class BuffersListProducer : public OutputProducer {
 
             wstring progress;
             LineModifierSet progress_modifier;
-            if (!buffer->GetLineMarks()->empty()) {
+            if (auto marks = buffer->GetLineMarks(); !marks->empty()) {
               progress = L"!";
-              progress_modifier.insert(LineModifier::RED);
+              if (std::find_if(marks->begin(), marks->end(), [](auto p) {
+                    return !p.second.IsExpired();
+                  }) != marks->end())
+                progress_modifier.insert(LineModifier::RED);
             } else if (buffer->ShouldDisplayProgress()) {
               progress =
                   ProgressString(buffer->Read(buffer_variables::progress),

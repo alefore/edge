@@ -212,7 +212,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(
       L"SetVariablePrompt",
       vm::NewCallback([](EditorState* editor, std::wstring variable) {
-        SetVariableCommandHandler(variable, editor);
+        CHECK(editor != nullptr);
+        SetVariableCommandHandler(variable, *editor);
       }));
 
   editor_type->AddField(L"home", vm::NewCallback([](EditorState* editor) {
@@ -385,7 +386,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(
       L"ForkCommand",
       vm::NewCallback([](EditorState* editor, ForkCommandOptions* options) {
-        return ForkCommand(editor, *options);
+        CHECK(editor != nullptr);
+        return ForkCommand(*editor, *options);
       }));
 
   editor_type->AddField(

@@ -28,7 +28,7 @@ enum class CppCommandMode {
 //
 // In this case, that'd run something like: build("foo", "bar hey");
 futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
-    const std::wstring& command, EditorState* editor_state);
+    const std::wstring& command, EditorState& editor_state);
 
 std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
                                           CppCommandMode mode);

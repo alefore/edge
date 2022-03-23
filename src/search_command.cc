@@ -267,11 +267,10 @@ class SearchCommand : public Command {
                        });
              },
          .handler =
-             [](const wstring& input, EditorState* editor_state) {
+             [](const wstring& input, EditorState& editor_state) {
                return editor_state
-                   ->ForEachActiveBuffer(
-                       [editor_state,
-                        input](const std::shared_ptr<OpenBuffer>& buffer) {
+                   .ForEachActiveBuffer(
+                       [input](const std::shared_ptr<OpenBuffer>& buffer) {
                          auto search_options = BuildPromptSearchOptions(
                              input, buffer.get(),
                              std::make_shared<Notification>());
@@ -280,9 +279,9 @@ class SearchCommand : public Command {
                          }
                          return futures::Past(EmptyValue());
                        })
-                   .Transform([editor_state](EmptyValue) {
-                     editor_state->ResetDirection();
-                     editor_state->ResetStructure();
+                   .Transform([&editor_state](EmptyValue) {
+                     editor_state.ResetDirection();
+                     editor_state.ResetStructure();
                      return EmptyValue();
                    });
              },

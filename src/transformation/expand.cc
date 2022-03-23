@@ -216,7 +216,7 @@ class Execute : public CompositeTransformation {
   std::wstring Serialize() const override { return L"Execute();"; }
 
   futures::Value<Output> Apply(Input input) const override {
-    return RunCppCommandShell(command_, &input.editor)
+    return RunCppCommandShell(command_, input.editor)
         .Transform([command_size = command_.size(),
                     &editor = input.editor](std::unique_ptr<Value> value) {
           Output output;
