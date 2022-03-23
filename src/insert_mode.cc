@@ -402,13 +402,10 @@ class InsertMode : public EditorMode {
                     Modifiers::ModifyMode::kOverwrite)
                   return futures::Past(EmptyValue());
 
-                auto buffer_to_insert =
-                    OpenBuffer::New({.editor = options.editor_state,
-                                     .name = BufferName::TextInsertion()});
-                buffer_to_insert->AppendToLastLine(NewLazyString(L" "));
-                // TODO(easy, 2022-03-24): Turn this into a BufferContents.
+                auto contents_to_insert = std::make_unique<BufferContents>();
+                contents_to_insert->AppendToLine(LineNumber(), Line(L" "));
                 auto insert_options = transformation::Insert{
-                    .contents_to_insert = buffer_to_insert->contents().copy()};
+                    .contents_to_insert = std::move(contents_to_insert)};
                 if (direction == Direction::kBackwards) {
                   insert_options.final_position =
                       transformation::Insert::FinalPosition::kStart;
