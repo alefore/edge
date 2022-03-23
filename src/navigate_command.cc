@@ -231,8 +231,8 @@ class NavigateTransformation : public CompositeTransformation {
   const NavigateState state_;
 };
 
-NavigateState InitialState(EditorState* editor_state) {
-  auto structure = editor_state->modifiers().structure;
+NavigateState InitialState(EditorState& editor_state) {
+  Structure* structure = editor_state.modifiers().structure;
   // TODO: Move to Structure.
   NavigateState initial_state;
   if (structure == StructureChar()) {
@@ -290,7 +290,7 @@ NavigateState InitialState(EditorState* editor_state) {
       return position.line.line;
     };
   } else {
-    editor_state->status()->SetInformationText(
+    editor_state.status()->SetInformationText(
         L"Navigate not handled for current mode.");
   }
   return initial_state;
@@ -305,7 +305,7 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState& editor_state) {
        .factory = [&editor_state] {
          CommandArgumentMode<NavigateState>::Options options{
              .editor_state = editor_state,
-             .initial_value = InitialState(&editor_state),
+             .initial_value = InitialState(editor_state),
              .char_consumer = CharConsumer,
              .status_factory = BuildStatus};
          SetOptionsForBufferTransformation<NavigateState>(
