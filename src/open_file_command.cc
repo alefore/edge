@@ -225,41 +225,39 @@ const bool get_initial_prompt_value_tests_registration = tests::Register(
 }  // namespace
 
 std::unique_ptr<Command> NewOpenFileCommand(EditorState& editor) {
-  return NewLinePromptCommand(
-      editor, L"loads a file",
-      [options = PromptOptions{
-           .editor_state = editor,
-           .prompt = L"<",
-           .prompt_contents_type = L"path",
-           .history_file = L"files",
-           .colorize_options_provider =
-               [&editor](const std::shared_ptr<LazyString>& line,
-                         std::unique_ptr<ProgressChannel> progress_channel,
-                         std::shared_ptr<Notification> abort_notification) {
-                 return AdjustPath(&editor, line, std::move(progress_channel),
-                                   std::move(abort_notification));
-               },
-           .handler =
-               [&editor = editor](const std::wstring input) {
-                 return OpenFileHandler(input, editor);
-               },
-           .cancel_handler =
-               [&editor]() {
-                 auto buffer = editor.current_buffer();
-                 if (buffer != nullptr) {
-                   buffer->ResetMode();
-                 }
-               },
-           .predictor = FilePredictor}](EditorState* editor_state) {
-        PromptOptions options_copy = options;
-        options_copy.source_buffers = editor_state->active_buffers();
-        if (!options_copy.source_buffers.empty()) {
-          options_copy.initial_value = GetInitialPromptValue(
-              editor_state->modifiers().repetitions,
-              options_copy.source_buffers[0]->Read(buffer_variables::path));
-        }
-        return options_copy;
-      });
+  return NewLinePromptCommand(editor, L"loads a file", [&editor]() {
+    auto source_buffers = editor.active_buffers();
+    return PromptOptions{
+        .editor_state = editor,
+        .prompt = L"<",
+        .prompt_contents_type = L"path",
+        .history_file = L"files",
+        .initial_value =
+            source_buffers.empty()
+                ? L""
+                : GetInitialPromptValue(
+                      editor.modifiers().repetitions,
+                      source_buffers[0]->Read(buffer_variables::path)),
+        .colorize_options_provider =
+            [&editor](const std::shared_ptr<LazyString>& line,
+                      std::unique_ptr<ProgressChannel> progress_channel,
+                      std::shared_ptr<Notification> abort_notification) {
+              return AdjustPath(&editor, line, std::move(progress_channel),
+                                std::move(abort_notification));
+            },
+        .handler =
+            [&editor = editor](const std::wstring input) {
+              return OpenFileHandler(input, editor);
+            },
+        .cancel_handler =
+            [&editor]() {
+              if (auto buffer = editor.current_buffer(); buffer != nullptr) {
+                buffer->ResetMode();
+              }
+            },
+        .predictor = FilePredictor,
+        .source_buffers = source_buffers};
+  });
 }
 
 }  // namespace editor

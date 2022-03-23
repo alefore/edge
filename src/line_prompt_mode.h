@@ -80,7 +80,7 @@ void Prompt(PromptOptions options);
 // options_supplier will only be called if the editor has an active buffer.
 unique_ptr<Command> NewLinePromptCommand(
     EditorState& editor_state, wstring description,
-    std::function<PromptOptions(EditorState*)> options_supplier);
+    std::function<PromptOptions()> options_supplier);
 
 }  // namespace editor
 }  // namespace afc

@@ -659,10 +659,8 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
 class LinePromptCommand : public Command {
  public:
-  // TODO(easy): Don't have options_supplier receive editor_state; let it
-  // capture it.
   LinePromptCommand(EditorState& editor_state, wstring description,
-                    std::function<PromptOptions(EditorState*)> options_supplier)
+                    std::function<PromptOptions()> options_supplier)
       : editor_state_(editor_state),
         description_(std::move(description)),
         options_supplier_(std::move(options_supplier)) {}
@@ -673,7 +671,7 @@ class LinePromptCommand : public Command {
   void ProcessInput(wint_t) override {
     auto buffer = editor_state_.current_buffer();
     if (buffer == nullptr) return;
-    auto options = options_supplier_(&editor_state_);
+    auto options = options_supplier_();
     if (editor_state_.structure() == StructureLine()) {
       editor_state_.ResetStructure();
       auto input = buffer->current_line();
@@ -687,7 +685,7 @@ class LinePromptCommand : public Command {
  private:
   EditorState& editor_state_;
   const wstring description_;
-  const std::function<PromptOptions(EditorState*)> options_supplier_;
+  const std::function<PromptOptions()> options_supplier_;
 };
 
 // status_buffer is the buffer with the contents of the prompt. tokens_future is
@@ -984,7 +982,7 @@ void Prompt(PromptOptions options) {
 
 std::unique_ptr<Command> NewLinePromptCommand(
     EditorState& editor_state, wstring description,
-    std::function<PromptOptions(EditorState*)> options_supplier) {
+    std::function<PromptOptions()> options_supplier) {
   return std::make_unique<LinePromptCommand>(
       editor_state, std::move(description), std::move(options_supplier));
 }

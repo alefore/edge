@@ -187,12 +187,12 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
-    EditorState* editor, std::shared_ptr<LazyString> line,
+    EditorState& editor, std::shared_ptr<LazyString> line,
     const SearchNamespaces& search_namespaces) {
   ColorizePromptOptions output;
-  auto buffer = editor->current_buffer();
+  auto buffer = editor.current_buffer();
   auto environment =
-      (buffer == nullptr ? editor->environment() : buffer->environment()).get();
+      (buffer == nullptr ? editor.environment() : buffer->environment()).get();
   if (auto parsed_command = Parse(line, environment, search_namespaces);
       !parsed_command.IsError()) {
     output.tokens.push_back({{.value = L"",
@@ -264,27 +264,27 @@ std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
   }
   CHECK(!description.empty());
   return NewLinePromptCommand(
-      editor_state, description, [mode](EditorState* editor_state) {
+      editor_state, description, [&editor_state, mode]() {
         std::wstring prompt;
         std::function<futures::Value<EmptyValue>(const wstring& input)> handler;
         PromptOptions::ColorizeFunction colorize_options_provider;
         switch (mode) {
           case CppCommandMode::kLiteral:
             // TODO(c++20): Use std::bind_front.
-            handler = [editor_state](const std::wstring& input) {
-              return RunCppCommandLiteralHandler(input, *editor_state);
+            handler = [&editor_state](const std::wstring& input) {
+              return RunCppCommandLiteralHandler(input, editor_state);
             };
             prompt = L"cpp";
             break;
           case CppCommandMode::kShell:
-            handler = [editor_state](const std::wstring& input) {
-              return RunCppCommandShellHandler(input, *editor_state);
+            handler = [&editor_state](const std::wstring& input) {
+              return RunCppCommandShellHandler(input, editor_state);
             };
             prompt = L":";
-            auto buffer = editor_state->current_buffer();
+            auto buffer = editor_state.current_buffer();
             CHECK(buffer != nullptr);
             colorize_options_provider =
-                [editor_state, search_namespaces = SearchNamespaces(*buffer)](
+                [&editor_state, search_namespaces = SearchNamespaces(*buffer)](
                     const std::shared_ptr<LazyString>& line,
                     std::unique_ptr<ProgressChannel>,
                     std::shared_ptr<Notification>) {
@@ -293,7 +293,7 @@ std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
                 };
             break;
         }
-        return PromptOptions{.editor_state = *editor_state,
+        return PromptOptions{.editor_state = editor_state,
                              .prompt = prompt + L" ",
                              .history_file = prompt == L":" ? L"colon" : prompt,
                              .handler = std::move(handler),

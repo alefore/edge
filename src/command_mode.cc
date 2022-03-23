@@ -731,13 +731,15 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
       L"aF",
       NewLinePromptCommand(
           editor_state, L"forks a command for each line in the current buffer",
-          [options = PromptOptions{
-               .editor_state = editor_state,
-               .prompt = L"...$ ",
-               .history_file = L"commands",
-               .handler = [&editor_state](std::wstring input) {
-                 return RunMultipleCommandsHandler(input, editor_state);
-               }}](EditorState*) { return options; }));
+          [&editor_state] {
+            return PromptOptions{
+                .editor_state = editor_state,
+                .prompt = L"...$ ",
+                .history_file = L"commands",
+                .handler = [&editor_state](std::wstring input) {
+                  return RunMultipleCommandsHandler(input, editor_state);
+                }};
+          }));
 
   commands->Add(L"af", NewForkCommand(editor_state));
 

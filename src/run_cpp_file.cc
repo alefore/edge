@@ -33,7 +33,7 @@ class RunCppFileCommand : public Command {
          .handler =
              [&editor = editor_state_](const wstring& input) {
                futures::Future<EmptyValue> output;
-               RunCppFileHandler(input, &editor)
+               RunCppFileHandler(input, editor)
                    .SetConsumer([consumer = std::move(output.consumer)](
                                     ValueOrError<EmptyValue>) {
                      consumer(EmptyValue());
@@ -50,24 +50,24 @@ class RunCppFileCommand : public Command {
 }  // namespace
 
 futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
-                                                EditorState* editor_state) {
+                                                EditorState& editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
-  auto buffer = editor_state->current_buffer();
+  auto buffer = editor_state.current_buffer();
   if (buffer == nullptr) {
     return futures::Past(ValueOrError<EmptyValue>(Error(L"No current buffer")));
   }
-  if (editor_state->structure() == StructureLine()) {
+  if (editor_state.structure() == StructureLine()) {
     auto target = buffer->GetBufferFromCurrentLine();
     if (target != nullptr) {
       buffer = target;
     }
-    editor_state->ResetModifiers();
+    editor_state.ResetModifiers();
   }
 
   buffer->ResetMode();
   auto options = ResolvePathOptions::New(
-      editor_state,
-      std::make_shared<FileSystemDriver>(editor_state->work_queue()));
+      &editor_state,
+      std::make_shared<FileSystemDriver>(editor_state.work_queue()));
   options.path = input;
   return OnError(ResolvePath(std::move(options)),
                  [buffer, input](Error error) {
@@ -75,11 +75,11 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                                                     input);
                    return error;
                  })
-      .Transform([buffer, editor_state, input](ResolvePathOutput resolved_path)
+      .Transform([buffer, &editor_state, input](ResolvePathOutput resolved_path)
                      -> futures::Value<PossibleError> {
         using futures::IterationControlCommand;
         auto index = std::make_shared<size_t>(0);
-        return futures::While([buffer, total = editor_state->repetitions(),
+        return futures::While([buffer, total = editor_state.repetitions(),
                                adjusted_input = resolved_path.path, index]() {
                  if (*index >= total)
                    return futures::Past(IterationControlCommand::kStop);
@@ -92,8 +92,8 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                        return futures::Past(IterationControlCommand::kStop);
                      });
                })
-            .Transform([editor_state](IterationControlCommand) {
-              editor_state->ResetRepetitions();
+            .Transform([&editor_state](IterationControlCommand) {
+              editor_state.ResetRepetitions();
               return Success();
             });
       });
