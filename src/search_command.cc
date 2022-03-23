@@ -302,7 +302,7 @@ class SearchCommand : public Command {
       Range range =
           buffer->FindPartialRange(editor.modifiers(), buffer->position());
       if (range.begin == range.end) {
-        buffer->status()->SetInformationText(L"Unable to extract region.");
+        buffer->status().SetInformationText(L"Unable to extract region.");
         return std::nullopt;
       }
       CHECK_LE(range.begin, range.end);

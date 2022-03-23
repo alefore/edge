@@ -72,8 +72,8 @@ class MoveTransformation : public CompositeTransformation {
                                     input.range, input.modifiers);
 
     if (!position.has_value()) {
-      input.buffer->status()->SetWarningText(L"Unhandled structure: " +
-                                             structure->ToString());
+      input.buffer->status().SetWarningText(L"Unhandled structure: " +
+                                            structure->ToString());
       return futures::Past(Output());
     }
 

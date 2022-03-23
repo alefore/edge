@@ -270,10 +270,10 @@ LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
                                    OpenBuffer* buffer,
                                    FilterResult filter_result) {
   LineModifierSet output;
-  if (buffer->status()->GetType() == Status::Type::kWarning) {
+  if (buffer->status().GetType() == Status::Type::kWarning) {
     output.insert(LineModifier::RED);
     const double kSecondsWarningHighlight = 5;
-    if (GetElapsedSecondsSince(buffer->status()->last_change_time()) <
+    if (GetElapsedSecondsSince(buffer->status().last_change_time()) <
         kSecondsWarningHighlight) {
       output.insert(LineModifier::REVERSE);
     }

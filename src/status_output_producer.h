@@ -17,7 +17,7 @@ class OpenBuffer;
 
 class StatusOutputProducerSupplier {
  public:
-  StatusOutputProducerSupplier(const Status* status, const OpenBuffer* buffer,
+  StatusOutputProducerSupplier(const Status& status, const OpenBuffer* buffer,
                                Modifiers modifiers);
 
   LineNumberDelta lines() const;
@@ -27,7 +27,7 @@ class StatusOutputProducerSupplier {
  private:
   bool has_info_line() const;
 
-  const Status* const status_;
+  const Status& status_;
   // `buffer` will be null if this status isn't associated with a specific
   // buffer (i.e., if it's the editor's status).
   const OpenBuffer* const buffer_;

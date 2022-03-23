@@ -423,15 +423,15 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                         .ToString(),
       .search_paths = {},
       .resolve_path_options = ResolvePathOptions::New(
-          &predictor_input.editor, std::make_shared<FileSystemDriver>(
-                                       predictor_input.editor.work_queue())),
+          predictor_input.editor, std::make_shared<FileSystemDriver>(
+                                      predictor_input.editor.work_queue())),
       // TODO: Don't use sources_buffers[0], ignoring the other buffers.
       .noise_regex = predictor_input.source_buffers.empty()
                          ? std::wregex()
                          : std::wregex(predictor_input.source_buffers[0]->Read(
                                buffer_variables::directory_noise)),
       .output_consumer = std::move(output.consumer)});
-  GetSearchPaths(&predictor_input.editor, &input->search_paths)
+  GetSearchPaths(predictor_input.editor, &input->search_paths)
       .SetConsumer(
           [input](EmptyValue) { async_processor.Push(std::move(*input)); });
   return std::move(output.value);

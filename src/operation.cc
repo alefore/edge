@@ -482,7 +482,7 @@ class OperationMode : public EditorMode {
         state_(editor_state, std::move(top_command)) {}
 
   void ProcessInput(wint_t c) override {
-    editor_state_.status()->Reset();
+    editor_state_.status().Reset();
     if (!state_.empty() &&
         std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
                    state_.GetLastCommand())) {
@@ -535,8 +535,8 @@ class OperationMode : public EditorMode {
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
 
   void ShowStatus() {
-    editor_state_.status()->SetInformationText(ToStatus(state_.top_command()) +
-                                               L":" + state_.GetStatusString());
+    editor_state_.status().SetInformationText(ToStatus(state_.top_command()) +
+                                              L":" + state_.GetStatusString());
   }
 
   void PushDefault() { PushCommand(CommandReach()); }

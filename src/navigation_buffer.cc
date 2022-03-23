@@ -137,12 +137,12 @@ class NavigationBufferCommand : public Command {
   void ProcessInput(wint_t) override {
     auto source = editor_state_.current_buffer();
     if (source == nullptr) {
-      editor_state_.status()->SetWarningText(
+      editor_state_.status().SetWarningText(
           L"NavigationBuffer needs an existing buffer.");
       return;
     }
     if (source->simplified_parse_tree() == nullptr) {
-      source->status()->SetInformationText(L"Buffer has no tree.");
+      source->status().SetInformationText(L"Buffer has no tree.");
       return;
     }
 
@@ -172,7 +172,7 @@ class NavigationBufferCommand : public Command {
       editor_state_.set_current_buffer(it->second,
                                        CommandArgumentModeApplyMode::kFinal);
     }
-    editor_state_.status()->Reset();
+    editor_state_.status().Reset();
     editor_state_.PushCurrentPosition();
     editor_state_.ResetRepetitions();
   }

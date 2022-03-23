@@ -127,7 +127,7 @@ futures::Value<PossibleError> GenerateContents(
   if (child_pid == -1) {
     auto error = PossibleError(
         Error(L"fork failed: " + FromByteString(strerror(errno))));
-    target->status()->SetWarningText(error.error().description);
+    target->status().SetWarningText(error.error().description);
     return futures::Past(error);
   }
   if (child_pid == 0) {
@@ -302,9 +302,9 @@ void RunCommand(const BufferName& name, const wstring& input,
   if (input.empty()) {
     if (buffer != nullptr) {
       buffer->ResetMode();
-      buffer->status()->Reset();
+      buffer->status().Reset();
     }
-    editor_state.status()->Reset();
+    editor_state.status().Reset();
     return;
   }
 
@@ -414,7 +414,7 @@ class ForkEditorCommand : public Command {
     } else {
       auto buffer = editor_state_.current_buffer();
       (buffer == nullptr ? editor_state_.status() : buffer->status())
-          ->SetWarningText(L"Oops, that structure is not handled.");
+          .SetWarningText(L"Oops, that structure is not handled.");
     }
     editor_state_.ResetStructure();
   }
@@ -425,7 +425,7 @@ class ForkEditorCommand : public Command {
     CHECK(prompt_state != nullptr);
     CHECK(prompt_state->context_command_callback);
     auto& editor = prompt_state->original_buffer->editor();
-    CHECK(editor.status()->GetType() == Status::Type::kPrompt);
+    CHECK(editor.status().GetType() == Status::Type::kPrompt);
     std::vector<std::unique_ptr<Expression>> arguments;
     arguments.push_back(
         vm::NewConstantExpression(vm::Value::NewString(line->ToString())));
@@ -435,7 +435,7 @@ class ForkEditorCommand : public Command {
         std::move(arguments));
     if (expression->Types().empty()) {
       prompt_state->base_command = std::nullopt;
-      prompt_state->original_buffer->status()->SetWarningText(
+      prompt_state->original_buffer->status().SetWarningText(
           L"Unable to compile (type mismatch).");
       return futures::Past(ColorizePromptOptions{.context = nullptr});
     }
@@ -614,7 +614,7 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(
         return futures::Past(EmptyValue());
       })
       .Transform([&editor_state](EmptyValue) {
-        editor_state.status()->Reset();
+        editor_state.status().Reset();
         return EmptyValue();
       });
 }

@@ -141,7 +141,7 @@ class InsertMode : public EditorMode {
     bool old_literal = literal_;
     literal_ = false;
     if (old_literal) {
-      options_.editor_state.status()->Reset();
+      options_.editor_state.status().Reset();
     }
 
     CHECK(options_.buffers.has_value());
@@ -168,9 +168,9 @@ class InsertMode : public EditorMode {
              old_literal](const std::shared_ptr<OpenBuffer>& buffer) {
               if (buffer->fd() != nullptr) {
                 if (old_literal) {
-                  buffer->status()->SetInformationText(L"ESC");
+                  buffer->status().SetInformationText(L"ESC");
                 } else {
-                  buffer->status()->Reset();
+                  buffer->status().Reset();
                 }
                 return futures::Past(EmptyValue());
               }
@@ -190,13 +190,13 @@ class InsertMode : public EditorMode {
                   .Transform([options, buffer](EmptyValue) {
                     buffer->PopTransformationStack();
                     options.editor_state.PushCurrentPosition();
-                    buffer->status()->Reset();
+                    buffer->status().Reset();
                     return EmptyValue();
                   });
             })
             .Transform([options = options_, old_literal](EmptyValue) {
               if (old_literal) return EmptyValue();
-              options.editor_state.status()->Reset();
+              options.editor_state.status().Reset();
               CHECK(options.escape_handler != nullptr);
               options.escape_handler();  // Probably deletes us.
               options.editor_state.ResetRepetitions();
@@ -275,7 +275,7 @@ class InsertMode : public EditorMode {
               vm::NewConstantExpression(std::make_unique<vm::Value>(*callback)),
               std::move(args));
           if (expression->Types().empty()) {
-            buffer->status()->SetWarningText(
+            buffer->status().SetWarningText(
                 L"Unable to compile (type mismatch).");
             return futures::Past(EmptyValue());
           }
@@ -294,7 +294,7 @@ class InsertMode : public EditorMode {
           WriteLineBuffer({22});
         } else {
           DLOG(INFO) << "Set literal.";
-          options_.editor_state.status()->SetInformationText(L"<literal>");
+          options_.editor_state.status().SetInformationText(L"<literal>");
           literal_ = true;
         }
         break;
@@ -474,7 +474,7 @@ class InsertMode : public EditorMode {
                  if (auto fd = buffer->fd(); fd != nullptr) {
                    if (write(fd->fd(), line_buffer.c_str(),
                              line_buffer.size()) == -1) {
-                     buffer->status()->SetWarningText(
+                     buffer->status().SetWarningText(
                          L"Write failed: " + FromByteString(strerror(errno)));
                    } else {
                      buffer->editor().StartHandlingInterrupts();
@@ -512,8 +512,8 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
     }
   }
   for (auto& buffer : options.buffers.value()) {
-    buffer->status()->SetInformationText(buffer->fd() == nullptr ? L"🔡"
-                                                                 : L"🔡 (raw)");
+    buffer->status().SetInformationText(buffer->fd() == nullptr ? L"🔡"
+                                                                : L"🔡 (raw)");
   }
 
   options.editor_state.set_keyboard_redirect(
@@ -586,7 +586,7 @@ void EnterInsertMode(InsertModeOptions options) {
   auto anonymous_buffer_future = futures::Past(EmptyValue());
   if (shared_options->buffers.value().empty()) {
     anonymous_buffer_future =
-        OpenAnonymousBuffer(&shared_options->editor_state)
+        OpenAnonymousBuffer(shared_options->editor_state)
             .Transform([shared_options](std::shared_ptr<OpenBuffer> buffer) {
               shared_options->buffers.value().push_back(buffer);
               return EmptyValue();
@@ -632,9 +632,9 @@ void EnterInsertMode(InsertModeOptions options) {
           };
     }
 
-    shared_options->editor_state.status()->Reset();
+    shared_options->editor_state.status().Reset();
     for (auto& buffer : shared_options->buffers.value()) {
-      buffer->status()->Reset();
+      buffer->status().Reset();
     }
 
     if (shared_options->editor_state.structure() == StructureChar() ||

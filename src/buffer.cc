@@ -229,13 +229,13 @@ using std::to_wstring;
   buffer->AddField(
       L"SetStatus",
       vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, wstring s) {
-        buffer->status()->SetInformationText(s);
+        buffer->status().SetInformationText(s);
       }));
 
   buffer->AddField(
       L"SetWarningStatus",
       vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, std::wstring s) {
-        buffer->status()->SetWarningText(s);
+        buffer->status().SetWarningText(s);
       }));
 
   buffer->AddField(
@@ -462,8 +462,8 @@ using std::to_wstring;
             [&editor_state, buffer, path]() {
               wstring resolved_path;
               auto options = ResolvePathOptions::New(
-                  &editor_state, std::make_shared<FileSystemDriver>(
-                                     editor_state.work_queue()));
+                  editor_state, std::make_shared<FileSystemDriver>(
+                                    editor_state.work_queue()));
               options.path = path;
               futures::OnError(
                   ResolvePath(std::move(options))
@@ -472,9 +472,9 @@ using std::to_wstring;
                         return Success();
                       }),
                   [buffer, path](Error error) {
-                    buffer->status()->SetWarningText(L"Unable to resolve: " +
-                                                     path + L": " +
-                                                     error.description);
+                    buffer->status().SetWarningText(L"Unable to resolve: " +
+                                                    path + L": " +
+                                                    error.description);
                     return Success();
                   });
             },
@@ -582,7 +582,7 @@ OpenBuffer::~OpenBuffer() {
 
 EditorState& OpenBuffer::editor() const { return options_.editor; }
 
-Status* OpenBuffer::status() const { return &status_; }
+Status& OpenBuffer::status() const { return status_; }
 
 PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor.modifiers().strength > Modifiers::Strength::kNormal) {
@@ -693,8 +693,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   return OnError(
              GetEdgeStateDirectory(),
              [this](Error error) {
-               status()->SetWarningText(
-                   L"Unable to get Edge state directory: " + error.description);
+               status().SetWarningText(L"Unable to get Edge state directory: " +
+                                       error.description);
                return error;
              })
       .Transform([this](Path edge_state_directory) {
@@ -747,8 +747,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 
         return OnError(SaveContentsToFile(path, contents, work_queue()),
                        [this](Error error) {
-                         status()->SetWarningText(L"Unable to persist state: " +
-                                                  error.description);
+                         status().SetWarningText(L"Unable to persist state: " +
+                                                 error.description);
                          return error;
                        });
       });
@@ -825,24 +825,24 @@ void OpenBuffer::EndOfFile() {
 
 void OpenBuffer::SendEndOfFileToProcess() {
   if (fd() == nullptr) {
-    status()->SetInformationText(L"No active subprocess for current buffer.");
+    status().SetInformationText(L"No active subprocess for current buffer.");
     return;
   }
   if (Read(buffer_variables::pts)) {
     char str[1] = {4};
     if (write(fd()->fd(), str, sizeof(str)) == -1) {
-      status()->SetInformationText(L"Sending EOF failed: " +
-                                   FromByteString(strerror(errno)));
+      status().SetInformationText(L"Sending EOF failed: " +
+                                  FromByteString(strerror(errno)));
       return;
     }
-    status()->SetInformationText(L"EOF sent");
+    status().SetInformationText(L"EOF sent");
   } else {
     if (shutdown(fd()->fd(), SHUT_WR) == -1) {
-      status()->SetInformationText(L"shutdown(SHUT_WR) failed: " +
-                                   FromByteString(strerror(errno)));
+      status().SetInformationText(L"shutdown(SHUT_WR) failed: " +
+                                  FromByteString(strerror(errno)));
       return;
     }
-    status()->SetInformationText(L"shutdown sent");
+    status().SetInformationText(L"shutdown sent");
   }
 }
 
@@ -1006,7 +1006,7 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
     auto options = ResolvePathOptions::New(
-        &editor(), std::make_shared<FileSystemDriver>(editor().work_queue()));
+        editor(), std::make_shared<FileSystemDriver>(editor().work_queue()));
     auto buffer_name = name();
     for (LineNumberDelta i; i < lines_added; ++i) {
       auto source_line = LineNumber() + start_new_section + i;
@@ -2071,7 +2071,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                      AddSeconds(Now(), 1.0),
                      [status_expiration =
                           std::shared_ptr<StatusExpirationControl>(
-                              editor.status()->SetExpiringInformationText(
+                              editor.status().SetExpiringInformationText(
                                   L"Open: " + url.ToString()))] {});
                  ForkCommand(
                      data->source->editor(),
@@ -2290,7 +2290,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
   buffer->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::kIgnore)
       .Transform([buffer](std::shared_ptr<OpenBuffer> result) {
-        buffer->status()->set_context(result);
+        buffer->status().set_context(result);
         return Success();
       });
 }

@@ -188,8 +188,8 @@ class EditorState {
   BufferPosition ReadPositionsStack();
   bool MovePositionsStack(Direction direction);
 
-  Status* status();
-  const Status* status() const;
+  Status& status();
+  const Status& status() const;
 
   const Path& home_directory() const { return home_directory_; }
   const vector<Path>& edge_path() const { return edge_path_; }

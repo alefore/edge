@@ -357,7 +357,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     rows[status_index] = std::move(status_row);
 
     output.producer = std::make_unique<HP>(
-        std::move(rows), buffer->status()->GetType() == Status::Type::kPrompt
+        std::move(rows), buffer->status().GetType() == Status::Type::kPrompt
                              ? status_index
                              : buffer_index);
   }

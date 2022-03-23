@@ -35,18 +35,16 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
 // all valid types of statuses (i.e., all values returned by status->GetType()).
 class InfoProducer : public OutputProducer {
  public:
-  InfoProducer(const Status* status, const OpenBuffer* buffer,
+  InfoProducer(const Status& status, const OpenBuffer* buffer,
                Modifiers modifiers)
-      : status_(status), buffer_(buffer), modifiers_(modifiers) {
-    CHECK(status_ != nullptr);
-  }
+      : status_(status), buffer_(buffer), modifiers_(modifiers) {}
 
   OutputProducer::Generator Next() {
     return Generator{
         std::nullopt, [this]() {
           wstring output;
           if (buffer_ != nullptr &&
-              status_->GetType() != Status::Type::kWarning) {
+              status_.GetType() != Status::Type::kWarning) {
             output.push_back('[');
             if (buffer_->current_position_line() >
                 buffer_->contents().EndLine()) {
@@ -116,7 +114,7 @@ class InfoProducer : public OutputProducer {
               output += L"  " + OpenBuffer::FlagsToString(std::move(flags));
             }
 
-            if (status_->text().empty()) {
+            if (status_.text().empty()) {
               output += L"  “" + GetBufferContext(*buffer_) + L"” ";
             }
 
@@ -149,20 +147,20 @@ class InfoProducer : public OutputProducer {
             status_columns += ColumnNumberDelta(wcwidth(c));
           }
           LineModifierSet modifiers =
-              status_->GetType() == Status::Type::kWarning
+              status_.GetType() == Status::Type::kWarning
                   ? LineModifierSet({LineModifier::RED, LineModifier::BOLD})
                   : LineModifierSet();
 
           options.AppendString(output, modifiers);
 
-          auto text = status_->text();
-          if (status_->prompt_buffer() != nullptr) {
-            auto contents = status_->prompt_buffer()->current_line();
+          auto text = status_.text();
+          if (status_.prompt_buffer() != nullptr) {
+            auto contents = status_.prompt_buffer()->current_line();
             auto column = min(contents->EndColumn(),
-                              status_->prompt_buffer()->current_position_col());
+                              status_.prompt_buffer()->current_position_col());
             VLOG(5) << "Setting status cursor: " << column;
 
-            options.AppendString(status_->text(), LineModifierSet());
+            options.AppendString(status_.text(), LineModifierSet());
             Line::Options prefix(*contents);
             prefix.DeleteSuffix(column);
             options.Append(Line(std::move(prefix)));
@@ -171,10 +169,10 @@ class InfoProducer : public OutputProducer {
             Line::Options suffix(*contents);
             suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
             options.Append(Line(std::move(suffix)));
-            options.Append(*status_->prompt_extra_information()->GetLine());
+            options.Append(*status_.prompt_extra_information()->GetLine());
           } else {
             VLOG(6) << "Not setting status cursor.";
-            options.AppendString(status_->text(), modifiers);
+            options.AppendString(status_.text(), modifiers);
           }
           // options.AddString(ColumnNumberDelta::PaddingString(
           //    options.receiver->width() -
@@ -185,22 +183,20 @@ class InfoProducer : public OutputProducer {
   }
 
  private:
-  const Status* const status_;
-  const OpenBuffer* const buffer_;
+  const Status& status_;
+  const OpenBuffer* buffer_;
   const Modifiers modifiers_;
 };
 }  // namespace
 
 StatusOutputProducerSupplier::StatusOutputProducerSupplier(
-    const Status* status, const OpenBuffer* buffer, Modifiers modifiers)
-    : status_(status), buffer_(buffer), modifiers_(modifiers) {
-  CHECK(status_ != nullptr);
-}
+    const Status& status, const OpenBuffer* buffer, Modifiers modifiers)
+    : status_(status), buffer_(buffer), modifiers_(modifiers) {}
 
 LineNumberDelta StatusOutputProducerSupplier::lines() const {
   LineNumberDelta output =
       has_info_line() ? LineNumberDelta(1) : LineNumberDelta(0);
-  auto context = status_->context();
+  auto context = status_.context();
   if (context != nullptr) {
     static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
     output += std::min(context->lines_size() + kLinesForStatusContextStatus,
@@ -210,8 +206,8 @@ LineNumberDelta StatusOutputProducerSupplier::lines() const {
 }
 
 bool StatusOutputProducerSupplier::has_info_line() const {
-  return status_->GetType() == Status::Type::kPrompt ||
-         !status_->text().empty() || buffer_ != nullptr;
+  return status_.GetType() == Status::Type::kPrompt ||
+         !status_.text().empty() || buffer_ != nullptr;
 }
 
 std::unique_ptr<OutputProducer>
@@ -236,7 +232,7 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
       LineColumnDelta(context_lines, size.column);
-  buffer_producer_input.buffer = status_->context();
+  buffer_producer_input.buffer = status_.context();
   buffer_producer_input.status_behavior =
       BufferOutputProducerInput::StatusBehavior::kIgnore;
 

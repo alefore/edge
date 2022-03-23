@@ -50,7 +50,7 @@ void BufferTerminal::ProcessCommandInput(
       }
     } else if (c == '\a') {
       VLOG(8) << "Received \\a";
-      buffer_->status()->Bell();
+      buffer_->status().Bell();
       BeepFrequencies(buffer_->editor().audio_player(),
                       {783.99, 523.25, 659.25});
     } else if (c == '\r') {
@@ -258,7 +258,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
               delta.line = LineNumberDelta(stoul(sequence));
             }
           } catch (const std::invalid_argument& ia) {
-            buffer_->status()->SetWarningText(
+            buffer_->status().SetWarningText(
                 L"Unable to parse sequence from terminal in 'home' command: "
                 L"\"" +
                 FromByteString(sequence) + L"\"");
@@ -373,8 +373,8 @@ void BufferTerminal::UpdateSize() {
     LOG(INFO) << "Buffer fd is nullptr!";
   } else if (ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
     LOG(INFO) << "Buffer ioctl TICSWINSZ failed.";
-    buffer_->status()->SetWarningText(L"ioctl TIOCSWINSZ failed: " +
-                                      FromByteString(strerror(errno)));
+    buffer_->status().SetWarningText(L"ioctl TIOCSWINSZ failed: " +
+                                     FromByteString(strerror(errno)));
   }
 }
 

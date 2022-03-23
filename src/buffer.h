@@ -121,7 +121,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Set status information for this buffer. Only information specific to this
   // buffer should be set here; everything else should be set on the Editor's
   // status.
-  Status* status() const;
+  Status& status() const;
 
   // If it is closeable, returns std::nullopt. Otherwise, returns reasons why
   // we can predict that PrepareToClose will fail.

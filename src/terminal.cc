@@ -58,9 +58,9 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
   rows[0].producer = editor_state.buffer_tree()->CreateOutputProducer(
       {.size = LineColumnDelta(rows[0].lines, screen->columns()),
        .main_cursor_behavior =
-           (editor_state.status()->GetType() == Status::Type::kPrompt ||
+           (editor_state.status().GetType() == Status::Type::kPrompt ||
             (buffer != nullptr &&
-             buffer->status()->GetType() == Status::Type::kPrompt))
+             buffer->status().GetType() == Status::Type::kPrompt))
                ? Widget::OutputProducerOptions::MainCursorBehavior::kHighlight
                : Widget::OutputProducerOptions::MainCursorBehavior::kIgnore});
 
@@ -69,15 +69,15 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
 
   HorizontalSplitOutputProducer producer(
       std::move(rows),
-      editor_state.status()->GetType() == Status::Type::kPrompt ? 1 : 0);
+      editor_state.status().GetType() == Status::Type::kPrompt ? 1 : 0);
 
   for (auto line = LineNumber(); line.ToDelta() < screen->lines(); ++line) {
     WriteLine(screen, line, producer.Next());
   }
 
-  if (editor_state.status()->GetType() == Status::Type::kPrompt ||
+  if (editor_state.status().GetType() == Status::Type::kPrompt ||
       (buffer != nullptr &&
-       buffer->status()->GetType() == Status::Type::kPrompt) ||
+       buffer->status().GetType() == Status::Type::kPrompt) ||
       (buffer != nullptr && !buffer->Read(buffer_variables::atomic_lines) &&
        cursor_position_.has_value())) {
     screen->SetCursorVisibility(Screen::NORMAL);

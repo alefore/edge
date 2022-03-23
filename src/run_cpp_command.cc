@@ -51,7 +51,7 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
         std::ostringstream oss;
         CHECK(value != nullptr);
         oss << "Evaluation result: " << *value;
-        buffer->status()->SetInformationText(FromByteString(oss.str()));
+        buffer->status().SetInformationText(FromByteString(oss.str()));
         return Success();
       })
       .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });
@@ -238,14 +238,14 @@ futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
                               buffer->environment().get(), search_namespaces);
   if (parsed_command.IsError()) {
     if (!parsed_command.error().description.empty()) {
-      buffer->status()->SetWarningText(parsed_command.error().description);
+      buffer->status().SetWarningText(parsed_command.error().description);
     }
     return Past(std::unique_ptr<vm::Value>());
   }
 
   return Execute(buffer, std::move(parsed_command.value()))
       .ConsumeErrors([buffer](Error error) {
-        buffer->status()->SetWarningText(error.description);
+        buffer->status().SetWarningText(error.description);
         return Past(std::unique_ptr<vm::Value>());
       });
 }

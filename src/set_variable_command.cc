@@ -52,9 +52,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
 
   auto active_buffers = editor_state.active_buffers();
   CHECK_GE(active_buffers.size(), 1ul);
-  auto default_error_status = active_buffers.size() == 1
-                                  ? active_buffers[0]->status()
-                                  : editor_state.status();
+  Status& default_error_status = active_buffers.size() == 1
+                                     ? active_buffers[0]->status()
+                                     : editor_state.status();
   if (auto var = buffer_variables::StringStruct()->find_variable(name);
       var != nullptr) {
     Prompt({.editor_state = editor_state,
@@ -67,8 +67,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                   return editor_state.ForEachActiveBuffer(
                       [var, input](const std::shared_ptr<OpenBuffer>& buffer) {
                         buffer->Set(var, input);
-                        buffer->status()->SetInformationText(var->name() +
-                                                             L" := " + input);
+                        buffer->status().SetInformationText(var->name() +
+                                                            L" := " + input);
                         return futures::Past(EmptyValue());
                       });
                 },
@@ -82,7 +82,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
       var != nullptr) {
     editor_state.toggle_bool_variable(var);
     editor_state.ResetRepetitions();
-    editor_state.status()->SetInformationText(
+    editor_state.status().SetInformationText(
         (editor_state.Read(var) ? L"🗸 " : L"⛶ ") + name);
     return futures::Past(EmptyValue());
   }
@@ -93,7 +93,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
         .ForEachActiveBuffer(
             [var, name](const std::shared_ptr<OpenBuffer>& buffer) {
               buffer->toggle_bool_variable(var);
-              buffer->status()->SetInformationText(
+              buffer->status().SetInformationText(
                   (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
               return futures::Past(EmptyValue());
             })
@@ -110,12 +110,12 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
          .history_file = L"values",
          .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
          .handler =
-             [&editor_state, var, default_error_status](const wstring& input) {
+             [&editor_state, var, &default_error_status](const wstring& input) {
                int value;
                try {
                  value = stoi(input);
                } catch (const std::invalid_argument& ia) {
-                 default_error_status->SetWarningText(
+                 default_error_status.SetWarningText(
                      L"Invalid value for integer value “" + var->name() +
                      L"”: " + FromByteString(ia.what()));
                  return futures::Past(EmptyValue());
@@ -140,7 +140,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
          .history_file = L"values",
          .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
          .handler =
-             [&editor_state, var, default_error_status](const wstring& input) {
+             [&editor_state, var, &default_error_status](const wstring& input) {
                std::wstringstream ss(input);
                double value;
                ss >> value;
@@ -151,7 +151,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                        return futures::Past(EmptyValue());
                      });
                } else {
-                 default_error_status->SetWarningText(
+                 default_error_status.SetWarningText(
                      L"Invalid value for double value “" + var->name() +
                      L"”: " + input);
                }
@@ -162,7 +162,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
     return futures::Past(EmptyValue());
   }
 
-  default_error_status->SetWarningText(L"Unknown variable: " + name);
+  default_error_status.SetWarningText(L"Unknown variable: " + name);
   return futures::Past(EmptyValue());
 }
 

@@ -75,6 +75,7 @@ class StatusPromptExtraInformation {
 class Status {
  public:
   Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player);
+  Status(const Status&) = delete;
   void CopyFrom(const Status& status);
 
   enum class Type { kWarning, kInformation, kPrompt };

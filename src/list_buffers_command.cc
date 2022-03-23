@@ -190,7 +190,7 @@ class ListBuffersCommand : public Command {
     }
     editor_state_.set_current_buffer(it.first->second,
                                      CommandArgumentModeApplyMode::kFinal);
-    editor_state_.status()->Reset();
+    editor_state_.status().Reset();
     it.first->second->Reload();
     editor_state_.PushCurrentPosition();
     it.first->second->ResetMode();

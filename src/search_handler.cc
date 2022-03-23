@@ -209,15 +209,15 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
   }
 
   if (head.empty()) {
-    buffer.status()->SetInformationText(L"🔍 No results.");
+    buffer.status().SetInformationText(L"🔍 No results.");
     BeepFrequencies(editor_state.audio_player(), {523.25, 261.63, 261.63});
   } else {
     if (head.size() == 1) {
-      buffer.status()->SetInformationText(L"🔍 1 result.");
+      buffer.status().SetInformationText(L"🔍 1 result.");
     } else {
       wstring results_prefix(1 + static_cast<size_t>(log2(head.size())), L'🔍');
-      buffer.status()->SetInformationText(results_prefix + L" Results: " +
-                                          std::to_wstring(head.size()));
+      buffer.status().SetInformationText(results_prefix + L" Results: " +
+                                         std::to_wstring(head.size()));
     }
     vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
     frequencies.resize(min(frequencies.size(), head.size() + 1));
@@ -238,7 +238,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     auto positions =
         PerformSearchWithDirection(input.editor, options, *search_buffer);
     if (positions.IsError()) {
-      search_buffer->status()->SetWarningText(positions.error().description);
+      search_buffer->status().SetWarningText(positions.error().description);
       continue;
     }
 
@@ -287,7 +287,7 @@ vector<LineColumn> SearchHandler(EditorState& editor_state,
     buffer.editor().CloseBuffer(&buffer);
     return {};
   } else {
-    return buffer.status()->ConsumeErrors(output, {});
+    return buffer.status().ConsumeErrors(output, {});
   }
 }
 
@@ -295,7 +295,7 @@ void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
                      OpenBuffer& buffer) {
   auto results = SearchHandler(editor_state, options, buffer);
   if (results.empty()) {
-    buffer.status()->SetInformationText(L"No matches: " + options.search_query);
+    buffer.status().SetInformationText(L"No matches: " + options.search_query);
   } else {
     buffer.set_position(results[0]);
     editor_state.PushCurrentPosition();

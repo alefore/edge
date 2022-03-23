@@ -302,8 +302,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             CHECK(editor != nullptr);
             auto target_path = Path::FromString(args[1]->str);
             if (target_path.IsError()) {
-              editor->status()->SetWarningText(L"ConnectTo error: " +
-                                               target_path.error().description);
+              editor->status().SetWarningText(L"ConnectTo error: " +
+                                              target_path.error().description);
               return futures::Past(
                   EvaluationOutput::Abort(target_path.error()));
             }
@@ -598,7 +598,7 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
   CHECK(buffer != nullptr);
   buffer->PrepareToClose().SetConsumer([this, buffer](PossibleError error) {
     if (error.IsError()) {
-      buffer->status()->SetWarningText(
+      buffer->status().SetWarningText(
           L"🖝  Unable to close (“*ad” to ignore): " +
           error.error().description + L": " +
           buffer->Read(buffer_variables::name));
@@ -671,13 +671,13 @@ const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
 
 std::vector<std::shared_ptr<OpenBuffer>> EditorState::active_buffers() const {
   std::vector<std::shared_ptr<OpenBuffer>> output;
-  if (status()->GetType() == Status::Type::kPrompt) {
-    output.push_back(status()->prompt_buffer());
+  if (status().GetType() == Status::Type::kPrompt) {
+    output.push_back(status().prompt_buffer());
   } else if (Read(editor_variables::multiple_buffers)) {
     output = buffer_tree_.GetAllBuffers();
   } else if (auto buffer = current_buffer(); buffer != nullptr) {
-    if (buffer->status()->GetType() == Status::Type::kPrompt) {
-      buffer = buffer->status()->prompt_buffer();
+    if (buffer->status().GetType() == Status::Type::kPrompt) {
+      buffer = buffer->status().prompt_buffer();
     }
     output.push_back(buffer);
   }
@@ -761,7 +761,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           result.IsError()) {
         buffers_with_problems.push_back(
             it.second->Read(buffer_variables::name));
-        it.second->status()->SetWarningText(
+        it.second->status().SetWarningText(
             Error::Augment(L"Unable to close", result.error()).description);
       }
     }
@@ -838,7 +838,7 @@ futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
     return futures::Past(EmptyValue());
   }
 
-  return OpenAnonymousBuffer(this).Transform(
+  return OpenAnonymousBuffer(*this).Transform(
       [this, c](std::shared_ptr<OpenBuffer> buffer) {
         if (!has_current_buffer()) {
           buffer_tree_.AddBuffer(buffer, BuffersList::AddBufferType::kOnlyList);
@@ -1045,8 +1045,8 @@ bool EditorState::MovePositionsStack(Direction direction) {
   return true;
 }
 
-Status* EditorState::status() { return &status_; }
-const Status* EditorState::status() const { return &status_; }
+Status& EditorState::status() { return status_; }
+const Status& EditorState::status() const { return status_; }
 
 Path EditorState::expand_path(Path path) const {
   return Path::ExpandHomeDirectory(home_directory(), path);

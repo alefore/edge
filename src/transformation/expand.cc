@@ -78,7 +78,7 @@ class PredictorTransformation : public CompositeTransformation {
             CHECK_LE(results->longest_prefix, ColumnNumberDelta(text.size()));
             auto prefix = text.substr(0, results->longest_prefix.column_delta);
             if (!prefix.empty()) {
-              buffer->status()->SetInformationText(
+              buffer->status().SetInformationText(
                   L"No matches found. Longest prefix with matches: \"" +
                   prefix + L"\"");
             }

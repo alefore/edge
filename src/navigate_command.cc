@@ -290,7 +290,7 @@ NavigateState InitialState(EditorState& editor_state) {
       return position.line.line;
     };
   } else {
-    editor_state.status()->SetInformationText(
+    editor_state.status().SetInformationText(
         L"Navigate not handled for current mode.");
   }
   return initial_state;

@@ -22,7 +22,7 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
   if (value.IsVoid()) return;
   std::ostringstream oss;
   oss << value;
-  buffer.status()->SetInformationText(L"Value: " + FromByteString(oss.str()));
+  buffer.status().SetInformationText(L"Value: " + FromByteString(oss.str()));
   if (delete_buffer != nullptr) {
     std::istringstream iss(oss.str());
     for (std::string line_str; std::getline(iss, line_str);) {
@@ -44,7 +44,7 @@ futures::Value<PossibleError> PreviewCppExpression(
     return futures::Past(PossibleError(Error(errors)));
   }
 
-  buffer->status()->Reset();
+  buffer->status().Reset();
   switch (expression->purity()) {
     case vm::Expression::PurityType::kPure: {
       return buffer->EvaluateExpression(expression.get(), environment)
@@ -53,7 +53,7 @@ futures::Value<PossibleError> PreviewCppExpression(
             return Success();
           })
           .ConsumeErrors([buffer](Error error) {
-            buffer->status()->SetInformationText(L"E: " + error.description);
+            buffer->status().SetInformationText(L"E: " + error.description);
             return futures::Past(EmptyValue());
           })
           .Transform([](EmptyValue) { return futures::Past(Success()); });
@@ -79,7 +79,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
             [buffer = input.buffer, delete_transformation](Error error) {
               delete_transformation->preview_modifiers = {
                   LineModifier::RED, LineModifier::UNDERLINE};
-              buffer->status()->SetInformationText(error.description);
+              buffer->status().SetInformationText(error.description);
               return futures::Past(EmptyValue());
             })
         .Transform([delete_transformation, input](EmptyValue) {
@@ -97,7 +97,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
       })
       .ConsumeErrors([input](Error error) {
         Result output(input.position);
-        input.buffer->status()->SetWarningText(L"Error: " + error.description);
+        input.buffer->status().SetWarningText(L"Error: " + error.description);
         if (input.delete_buffer != nullptr) {
           input.delete_buffer->AppendToLastLine(Line(
               Line::Options(NewLazyString(L"Error: " + error.description))));
@@ -278,18 +278,18 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             std::shared_ptr<BufferContents> contents =
                 input.buffer->contents().copy();
             contents->FilterToRange(range);
-            input.buffer->status()->Reset();
+            input.buffer->status().Reset();
             DVLOG(5) << "Analyze contents for range: " << range;
             return PreviewCppExpression(input.buffer, *contents)
                 .ConsumeErrors(
                     [](Error) { return futures::Past(EmptyValue()); })
                 .Transform([input, output, contents](EmptyValue) {
                   if (input.mode == Input::Mode::kPreview &&
-                      input.buffer->status()->text().empty() &&
+                      input.buffer->status().text().empty() &&
                       contents->EndLine() <
                           LineNumber(input.buffer->Read(
                               buffer_variables::analyze_content_lines_limit))) {
-                    input.buffer->status()->SetInformationText(
+                    input.buffer->status().SetInformationText(
                         L"Selection: " + ToString(AnalyzeContent(*contents)));
                   }
                   return futures::Past(std::move(*output));

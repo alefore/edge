@@ -419,7 +419,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
           [&editor_state, abort_notification, filter_buffer](Output output) {
             LOG(INFO) << "Receiving output from history evaluator.";
             if (!output.errors.empty()) {
-              editor_state.status()->SetWarningText(output.errors.front());
+              editor_state.status().SetWarningText(output.errors.front());
             }
             if (!abort_notification->HasBeenNotified()) {
               for (auto& line : output.lines) {
@@ -472,17 +472,16 @@ class PromptState {
         status_(status_buffer_ == nullptr ? editor_state_.status()
                                           : status_buffer_->status()),
         original_modifiers_(editor_state_.modifiers()) {
-    CHECK(status_ != nullptr);
     editor_state_.set_modifiers(Modifiers());
   }
 
   // The prompt has disappeared.
-  bool IsGone() const { return status()->GetType() != Status::Type::kPrompt; }
+  bool IsGone() const { return status().GetType() != Status::Type::kPrompt; }
 
-  Status* status() const { return status_; }
+  Status& status() const { return status_; }
 
   void Reset() {
-    status()->Reset();
+    status().Reset();
     editor_state_.set_modifiers(original_modifiers_);
   }
 
@@ -492,7 +491,7 @@ class PromptState {
   // us to ensure that the status won't be deallocated under our feet (when the
   // buffer is ephemeral).
   const std::shared_ptr<OpenBuffer> status_buffer_;
-  Status* const status_;
+  Status& status_;
   const Modifiers original_modifiers_;
 };
 
@@ -503,11 +502,11 @@ class PromptRenderState {
   PromptRenderState(std::shared_ptr<PromptState> prompt_state)
       : prompt_state_(std::move(prompt_state)),
         status_version_(prompt_state_->status()
-                            ->prompt_extra_information()
+                            .prompt_extra_information()
                             ->StartNewVersion()) {}
 
   ~PromptRenderState() {
-    auto consumer = prompt_state_->status()->prompt_extra_information();
+    auto consumer = prompt_state_->status().prompt_extra_information();
     if (consumer != nullptr) consumer->MarkVersionDone(status_version_);
   }
 
@@ -516,8 +515,8 @@ class PromptRenderState {
 
   template <typename T>
   void SetStatusValue(StatusPromptExtraInformationKey key, T value) {
-    CHECK(prompt_state_->status()->GetType() == Status::Type::kPrompt);
-    prompt_state_->status()->prompt_extra_information()->SetValue(
+    CHECK(prompt_state_->status().GetType() == Status::Type::kPrompt);
+    prompt_state_->status().prompt_extra_information()->SetValue(
         key, status_version_, value);
   }
 
@@ -543,10 +542,10 @@ class HistoryScrollBehavior : public ScrollBehavior {
       : history_(std::move(history)),
         original_input_(std::move(original_input)),
         prompt_state_(std::move(prompt_state)),
-        previous_context_(prompt_state_->status()->context()) {
+        previous_context_(prompt_state_->status().context()) {
     CHECK(original_input_ != nullptr);
     CHECK(prompt_state_ != nullptr);
-    CHECK(prompt_state_->status()->GetType() == Status::Type::kPrompt ||
+    CHECK(prompt_state_->status().GetType() == Status::Type::kPrompt ||
           prompt_state_->IsGone());
   }
 
@@ -586,13 +585,13 @@ class HistoryScrollBehavior : public ScrollBehavior {
                           LineNumber() + history_->contents().size());
       history_->set_position(position);
       if (position.line < LineNumber(0) + history_->contents().size()) {
-        prompt_state_->status()->set_context(history_);
+        prompt_state_->status().set_context(history_);
         if (history_->current_line() != nullptr) {
           buffer_to_insert->AppendToLastLine(
               history_->current_line()->contents());
         }
       } else {
-        prompt_state_->status()->set_context(previous_context_);
+        prompt_state_->status().set_context(previous_context_);
         buffer_to_insert->AppendToLastLine(original_input_);
       }
     }
@@ -699,14 +698,13 @@ void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
                     ColorizePromptOptions options) {
   CHECK(status_buffer != nullptr);
   CHECK(prompt_state != nullptr);
-  CHECK(prompt_state->status());
   CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
   if (prompt_state->IsGone()) {
     LOG(INFO) << "Status is no longer a prompt, aborting colorize prompt.";
     return;
   }
 
-  if (prompt_state->status()->prompt_buffer() != status_buffer) {
+  if (prompt_state->status().prompt_buffer() != status_buffer) {
     LOG(INFO) << "Prompt buffer has changed, aborting colorize prompt.";
     return;
   }
@@ -726,7 +724,7 @@ void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
       ColorizeLine(line->contents(), std::move(options.tokens)));
   status_buffer->EraseLines(LineNumber(0), LineNumber(1));
   if (options.context.has_value()) {
-    prompt_state->status()->set_context(options.context.value());
+    prompt_state->status().set_context(options.context.value());
   }
 }
 
@@ -789,7 +787,7 @@ void Prompt(PromptOptions options) {
                     const std::shared_ptr<OpenBuffer>& buffer) {
                   auto line = buffer->LineAt(LineNumber())->contents();
                   if (options.colorize_options_provider == nullptr ||
-                      prompt_state->status()->GetType() !=
+                      prompt_state->status().GetType() !=
                           Status::Type::kPrompt) {
                     return futures::Past(EmptyValue());
                   }
@@ -884,7 +882,7 @@ void Prompt(PromptOptions options) {
                  prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
                   auto input = buffer->current_line()->contents()->ToString();
                   LOG(INFO) << "Triggering predictions from: " << input;
-                  CHECK(prompt_state->status()->prompt_extra_information() !=
+                  CHECK(prompt_state->status().prompt_extra_information() !=
                         nullptr);
                   Predict({.editor_state = editor_state,
                            .predictor = options.predictor,
@@ -921,7 +919,7 @@ void Prompt(PromptOptions options) {
                               {.buffer_to_insert =
                                    std::move(buffer_to_insert)}));
                           if (options.colorize_options_provider != nullptr) {
-                            CHECK(prompt_state->status()->GetType() ==
+                            CHECK(prompt_state->status().GetType() ==
                                   Status::Type::kPrompt);
                             auto prompt_render_state =
                                 std::make_shared<PromptRenderState>(
@@ -957,13 +955,13 @@ void Prompt(PromptOptions options) {
                           it->second->set_current_position_line(LineNumber(0));
                           editor_state.set_current_buffer(
                               it->second, CommandArgumentModeApplyMode::kFinal);
-                          if (editor_state.status()->prompt_buffer() ==
+                          if (editor_state.status().prompt_buffer() ==
                               nullptr) {
-                            it->second->status()->CopyFrom(
-                                *prompt_state->status());
+                            it->second->status().CopyFrom(
+                                prompt_state->status());
                           }
                         } else {
-                          editor_state.status()->SetWarningText(
+                          editor_state.status().SetWarningText(
                               L"Error: Predict: predictions buffer not "
                               L"found: " +
                               name.ToString());
@@ -975,7 +973,7 @@ void Prompt(PromptOptions options) {
 
         // We do this after `EnterInsertMode` because `EnterInsertMode` resets
         // the status.
-        prompt_state->status()->set_prompt(options.prompt, buffer);
+        prompt_state->status().set_prompt(options.prompt, buffer);
         insert_mode_options.modify_handler(buffer);
       });
 }

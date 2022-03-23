@@ -96,7 +96,7 @@ class Paste : public Command {
           L"",
       };
       static int current_message = 0;
-      editor_state_.status()->SetWarningText(errors[current_message++]);
+      editor_state_.status().SetWarningText(errors[current_message++]);
       if (errors[current_message].empty()) {
         current_message = 0;
       }
@@ -121,7 +121,7 @@ class Paste : public Command {
                 L"",
             };
             static int current_message = 0;
-            buffer->status()->SetWarningText(errors[current_message++]);
+            buffer->status().SetWarningText(errors[current_message++]);
             if (errors[current_message].empty()) {
               current_message = 0;
             }
@@ -131,7 +131,7 @@ class Paste : public Command {
             string text = ToByteString(paste_buffer->ToString());
             for (size_t i = 0; i < editor_state.repetitions(); i++) {
               if (write(buffer->fd()->fd(), text.c_str(), text.size()) == -1) {
-                buffer->status()->SetWarningText(L"Unable to paste.");
+                buffer->status().SetWarningText(L"Unable to paste.");
                 break;
               }
             }
@@ -515,8 +515,8 @@ class ActivateLink : public Command {
     auto target = buffer->GetBufferFromCurrentLine();
     if (target != nullptr && target != buffer) {
       LOG(INFO) << "Visiting buffer: " << target->Read(buffer_variables::name);
-      editor_state_.status()->Reset();
-      buffer->status()->Reset();
+      editor_state_.status().Reset();
+      buffer->status().Reset();
       editor_state_.set_current_buffer(target,
                                        CommandArgumentModeApplyMode::kFinal);
       auto target_position = buffer->current_line()->environment()->Lookup(
@@ -559,7 +559,7 @@ class ResetStateCommand : public Command {
   wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(wint_t) {
-    editor_state_.status()->Reset();
+    editor_state_.status().Reset();
     editor_state_.ForEachActiveBuffer(
         [](const std::shared_ptr<OpenBuffer>& buffer) {
           auto when = Now();
@@ -567,7 +567,7 @@ class ResetStateCommand : public Command {
           buffer->work_queue()->ScheduleAt(
               when,
               [status_expiration = std::shared_ptr<StatusExpirationControl>(
-                   buffer->status()->SetExpiringInformationText(L"ESC"))] {});
+                   buffer->status().SetExpiringInformationText(L"ESC"))] {});
           return futures::Past(EmptyValue());
         });
     editor_state_.set_modifiers(Modifiers());

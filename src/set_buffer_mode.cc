@@ -188,7 +188,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
     Indices new_indices;
     for (auto& index : initial_indices) {
       if (auto buffer = buffers_list->GetBuffer(index).get();
-          buffer->status()->GetType() == Status::Type::kWarning) {
+          buffer->status().GetType() == Status::Type::kWarning) {
         new_indices.push_back(index);
       }
     }
@@ -370,8 +370,8 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
   return state.Transform([&editor, mode, buffers_list](State state) {
     if (state.pattern_error.has_value()) {
       // TODO: Find a better way to show it without hiding the input, ugh.
-      editor.status()->SetWarningText(L"Pattern error: " +
-                                      state.pattern_error.value());
+      editor.status().SetWarningText(L"Pattern error: " +
+                                     state.pattern_error.value());
       return EmptyValue();
     }
     if (state.indices.empty()) {

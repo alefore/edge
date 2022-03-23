@@ -66,13 +66,13 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
 
   buffer->ResetMode();
   auto options = ResolvePathOptions::New(
-      &editor_state,
+      editor_state,
       std::make_shared<FileSystemDriver>(editor_state.work_queue()));
   options.path = input;
   return OnError(ResolvePath(std::move(options)),
                  [buffer, input](Error error) {
-                   buffer->status()->SetWarningText(L"🗱  File not found: " +
-                                                    input);
+                   buffer->status().SetWarningText(L"🗱  File not found: " +
+                                                   input);
                    return error;
                  })
       .Transform([buffer, &editor_state, input](ResolvePathOutput resolved_path)

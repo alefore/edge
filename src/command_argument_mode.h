@@ -74,7 +74,7 @@ class CommandArgumentMode : public EditorMode {
                                   argument))
               .Transform(
                   [&editor_state = options_.editor_state, c](EmptyValue) {
-                    editor_state.status()->Reset();
+                    editor_state.status().Reset();
                     auto& editor_state_copy = editor_state;
                     editor_state.set_keyboard_redirect(nullptr);
                     if (c != L'\n') {
@@ -103,7 +103,7 @@ class CommandArgumentMode : public EditorMode {
 
   futures::Value<EmptyValue> Transform(CommandArgumentModeApplyMode apply_mode,
                                        Argument argument) {
-    options_.editor_state.status()->SetInformationText(
+    options_.editor_state.status().SetInformationText(
         options_.status_factory(argument));
     return options_.apply(apply_mode, std::move(argument));
   }

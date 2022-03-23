@@ -43,8 +43,8 @@ struct OpenFileOptions {
 };
 
 futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
-    EditorState* editor_state);
-futures::Value<EmptyValue> GetSearchPaths(EditorState* editor_state,
+    EditorState& editor_state);
+futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
                                           vector<Path>* output);
 
 // Takes a specification of a path (which can be absolute or relative) and, if
@@ -53,10 +53,10 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState* editor_state,
 struct ResolvePathOptions {
  public:
   static ResolvePathOptions New(
-      EditorState* editor_state,
+      EditorState& editor_state,
       std::shared_ptr<FileSystemDriver> file_system_driver);
   static ResolvePathOptions NewWithEmptySearchPaths(
-      EditorState* editor_state,
+      EditorState& editor_state,
       std::shared_ptr<FileSystemDriver> file_system_driver);
 
   // This is not a Path because it may contain various embedded tokens such as
@@ -90,7 +90,7 @@ futures::Value<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>
 OpenFile(const OpenFileOptions& options);
 
 futures::Value<shared_ptr<OpenBuffer>> OpenAnonymousBuffer(
-    EditorState* editor_state);
+    EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc
