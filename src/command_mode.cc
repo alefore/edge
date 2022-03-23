@@ -733,7 +733,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
       L"aF",
       NewLinePromptCommand(
           *editor_state, L"forks a command for each line in the current buffer",
-          [options = PromptOptions{.editor_state = editor_state,
+          [options = PromptOptions{.editor_state = *editor_state,
                                    .prompt = L"...$ ",
                                    .history_file = L"commands",
                                    .handler = RunMultipleCommandsHandler}](

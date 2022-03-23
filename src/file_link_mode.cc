@@ -46,31 +46,32 @@ using std::sort;
 using std::unique_ptr;
 
 void StartDeleteFile(EditorState* editor_state, wstring path) {
-  PromptOptions options;
-  options.editor_state = editor_state;
-  options.prompt = L"unlink " + path + L"? [yes/no] ",
-  options.history_file = L"confirmation";
-  options.handler = [path](const wstring input, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer();
-    auto status = buffer == nullptr ? editor_state->status() : buffer->status();
-    if (input == L"yes") {
-      int result = unlink(ToByteString(path).c_str());
-      status->SetInformationText(
-          path + L": unlink: " +
-          (result == 0 ? L"done"
-                       : L"ERROR: " + FromByteString(strerror(errno))));
-    } else {
-      // TODO: insert it again?  Actually, only let it be erased
-      // in the other case.
-      status->SetInformationText(L"Ignored.");
-    }
-    if (buffer != nullptr) {
-      buffer->ResetMode();
-    }
-    return futures::Past(EmptyValue());
-  };
-  options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
-  Prompt(std::move(options));
+  Prompt({.editor_state = *editor_state,
+          .prompt = L"unlink " + path + L"? [yes/no] ",
+          .history_file = L"confirmation",
+          .handler =
+              [path](const wstring input, EditorState* editor_state) {
+                auto buffer = editor_state->current_buffer();
+                auto status = buffer == nullptr ? editor_state->status()
+                                                : buffer->status();
+                if (input == L"yes") {
+                  int result = unlink(ToByteString(path).c_str());
+                  status->SetInformationText(
+                      path + L": unlink: " +
+                      (result == 0
+                           ? L"done"
+                           : L"ERROR: " + FromByteString(strerror(errno))));
+                } else {
+                  // TODO: insert it again?  Actually, only let it be erased
+                  // in the other case.
+                  status->SetInformationText(L"Ignored.");
+                }
+                if (buffer != nullptr) {
+                  buffer->ResetMode();
+                }
+                return futures::Past(EmptyValue());
+              },
+          .predictor = PrecomputedPredictor({L"no", L"yes"}, '/')});
 }
 
 void AddLine(EditorState* editor_state, OpenBuffer* target,

@@ -24,23 +24,24 @@ class RunCppFileCommand : public Command {
       return;
     }
     auto buffer = editor_state_.current_buffer();
-    PromptOptions options;
-    options.editor_state = &editor_state_;
-    options.prompt = L"cmd ";
-    options.history_file = L"editor_commands";
-    options.initial_value =
-        buffer->Read(buffer_variables::editor_commands_path);
-    options.handler = [](const wstring& input, EditorState* editor_state) {
-      futures::Future<EmptyValue> output;
-      RunCppFileHandler(input, editor_state)
-          .SetConsumer(
-              [consumer = std::move(output.consumer)](
-                  ValueOrError<EmptyValue>) { consumer(EmptyValue()); });
-      return std::move(output.value);
-    };
-    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-    options.predictor = FilePredictor;
-    Prompt(std::move(options));
+    CHECK(buffer != nullptr);
+    Prompt(
+        {.editor_state = editor_state_,
+         .prompt = L"cmd ",
+         .history_file = L"editor_commands",
+         .initial_value = buffer->Read(buffer_variables::editor_commands_path),
+         .handler =
+             [](const wstring& input, EditorState* editor_state) {
+               futures::Future<EmptyValue> output;
+               RunCppFileHandler(input, editor_state)
+                   .SetConsumer([consumer = std::move(output.consumer)](
+                                    ValueOrError<EmptyValue>) {
+                     consumer(EmptyValue());
+                   });
+               return std::move(output.value);
+             },
+         .cancel_handler = [](EditorState*) { /* Nothing. */ },
+         .predictor = FilePredictor});
   }
 
  private:

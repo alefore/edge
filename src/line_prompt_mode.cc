@@ -463,7 +463,7 @@ shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
 class PromptState {
  public:
   PromptState(PromptOptions options)
-      : editor_state_(*options.editor_state),
+      : editor_state_(options.editor_state),
         status_buffer_([&]() -> std::shared_ptr<OpenBuffer> {
           if (options.status == PromptOptions::Status::kEditor) return nullptr;
           auto active_buffers = editor_state_.active_buffers();
@@ -748,9 +748,8 @@ using std::shared_ptr;
 using std::unique_ptr;
 
 void Prompt(PromptOptions options) {
-  CHECK(options.handler);
-  CHECK(options.editor_state != nullptr);
-  EditorState& editor_state = *options.editor_state;
+  CHECK(options.handler != nullptr);
+  EditorState& editor_state = options.editor_state;
   auto history_file = options.history_file;
   GetHistoryBuffer(editor_state, history_file)
       .SetConsumer([options = std::move(options),

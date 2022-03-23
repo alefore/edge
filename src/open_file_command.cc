@@ -225,29 +225,30 @@ const bool get_initial_prompt_value_tests_registration = tests::Register(
 }  // namespace
 
 std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
-  PromptOptions options;
-  options.prompt = L"<";
-  options.prompt_contents_type = L"path";
-  options.history_file = L"files";
-  options.handler = OpenFileHandler;
-  options.cancel_handler = [](EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer != nullptr) {
-      buffer->ResetMode();
-    }
-  };
-  options.predictor = FilePredictor;
-  options.colorize_options_provider =
-      [editor](const std::shared_ptr<LazyString>& line,
-               std::unique_ptr<ProgressChannel> progress_channel,
-               std::shared_ptr<Notification> abort_notification) {
-        return AdjustPath(editor, line, std::move(progress_channel),
-                          std::move(abort_notification));
-      };
   return NewLinePromptCommand(
-      *editor, L"loads a file", [options](EditorState* editor_state) {
+      *editor, L"loads a file",
+      [options = PromptOptions{
+           .editor_state = *editor,
+           .prompt = L"<",
+           .prompt_contents_type = L"path",
+           .history_file = L"files",
+           .colorize_options_provider =
+               [editor](const std::shared_ptr<LazyString>& line,
+                        std::unique_ptr<ProgressChannel> progress_channel,
+                        std::shared_ptr<Notification> abort_notification) {
+                 return AdjustPath(editor, line, std::move(progress_channel),
+                                   std::move(abort_notification));
+               },
+           .handler = OpenFileHandler,
+           .cancel_handler =
+               [](EditorState* editor_state) {
+                 auto buffer = editor_state->current_buffer();
+                 if (buffer != nullptr) {
+                   buffer->ResetMode();
+                 }
+               },
+           .predictor = FilePredictor}](EditorState* editor_state) {
         PromptOptions options_copy = options;
-        options_copy.editor_state = editor_state;
         options_copy.source_buffers = editor_state->active_buffers();
         if (!options_copy.source_buffers.empty()) {
           options_copy.initial_value = GetInitialPromptValue(

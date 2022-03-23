@@ -30,8 +30,7 @@ struct ColorizePromptOptions {
 };
 
 struct PromptOptions {
-  // TODO(easy): Make this a reference.
-  EditorState* editor_state = nullptr;
+  EditorState& editor_state;
 
   // Text to show in the prompt.
   wstring prompt;
@@ -47,13 +46,14 @@ struct PromptOptions {
   // Optional. Initial value for the prompt. Defaults to empty.
   wstring initial_value = L"";
 
-  // Run whenever the text in the promot changes; should return a future with
-  // options to colorize it.
-  std::function<futures::Value<ColorizePromptOptions>(
+  using ColorizeFunction = std::function<futures::Value<ColorizePromptOptions>(
       const std::shared_ptr<LazyString>& line,
       std::unique_ptr<ProgressChannel> progress_channel,
-      std::shared_ptr<Notification> abort_notification)>
-      colorize_options_provider = nullptr;
+      std::shared_ptr<Notification> abort_notification)>;
+
+  // Run whenever the text in the promot changes; should return a future with
+  // options to colorize it.
+  ColorizeFunction colorize_options_provider = nullptr;
 
   // Function to run when the prompt receives the final input.
   std::function<futures::Value<EmptyValue>(const wstring& input,

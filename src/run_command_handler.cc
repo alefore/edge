@@ -379,27 +379,26 @@ class ForkEditorCommand : public Command {
               Environment::Namespace(), L"GetShellPromptContextProgram",
               VMType::Function({VMType::String(), VMType::String()}))});
 
-      PromptOptions options;
-      options.editor_state = &editor_state_;
       auto children_path = GetChildrenPath(editor_state_);
-      options.prompt =
-          (children_path.IsError() ? L"" : children_path.value().ToString()) +
-          L"$ ";
-      options.history_file = L"commands";
-      if (prompt_state->context_command_callback != nullptr) {
-        options.colorize_options_provider =
-            [prompt_state](const std::shared_ptr<LazyString>& line,
-                           std::unique_ptr<ProgressChannel>,
-                           std::shared_ptr<Notification>) {
-              return PromptChange(prompt_state.get(), line);
-            };
-      }
-      options.handler = [children_path](const wstring& name,
-                                        EditorState* editor_state) {
-        return RunCommandHandler(name, editor_state, 0, 1,
-                                 children_path.AsOptional());
-      };
-      Prompt(options);
+      Prompt({.editor_state = editor_state_,
+              .prompt =
+                  (children_path.IsError() ? L""
+                                           : children_path.value().ToString()) +
+                  L"$ ",
+              .history_file = L"commands",
+              .colorize_options_provider =
+                  prompt_state->context_command_callback == nullptr
+                      ? PromptOptions::ColorizeFunction(nullptr)
+                      : ([prompt_state](const std::shared_ptr<LazyString>& line,
+                                        std::unique_ptr<ProgressChannel>,
+                                        std::shared_ptr<Notification>) {
+                          return PromptChange(prompt_state.get(), line);
+                        }),
+              .handler = ([children_path](const wstring& name,
+                                          EditorState* editor_state) {
+                return RunCommandHandler(name, editor_state, 0, 1,
+                                         children_path.AsOptional());
+              })});
     } else if (editor_state_.structure() == StructureLine()) {
       auto buffer = editor_state_.current_buffer();
       if (buffer == nullptr || buffer->current_line() == nullptr) {

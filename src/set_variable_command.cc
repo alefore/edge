@@ -50,12 +50,6 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
     return futures::Past(EmptyValue());
   }
 
-  PromptOptions options;
-  options.editor_state = editor_state;
-  options.prompt = name + L" := ";
-  options.history_file = L"values",
-  options.status = PromptOptions::Status::kBuffer;
-
   auto active_buffers = editor_state->active_buffers();
   CHECK_GE(active_buffers.size(), 1ul);
   auto default_error_status = active_buffers.size() == 1
@@ -63,19 +57,24 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                                   : editor_state->status();
   if (auto var = buffer_variables::StringStruct()->find_variable(name);
       var != nullptr) {
-    options.initial_value = active_buffers[0]->Read(var);
-    options.handler = [var](const wstring& input, EditorState* editor) {
-      editor->ResetRepetitions();
-      return editor->ForEachActiveBuffer(
-          [var, input](const std::shared_ptr<OpenBuffer>& buffer) {
-            buffer->Set(var, input);
-            buffer->status()->SetInformationText(var->name() + L" := " + input);
-            return futures::Past(EmptyValue());
-          });
-    };
-    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-    options.predictor = var->predictor();
-    Prompt(std::move(options));
+    Prompt({.editor_state = *editor_state,
+            .prompt = name + L" := ",
+            .history_file = L"values",
+            .initial_value = active_buffers[0]->Read(var),
+            .handler =
+                [var](const wstring& input, EditorState* editor) {
+                  editor->ResetRepetitions();
+                  return editor->ForEachActiveBuffer(
+                      [var, input](const std::shared_ptr<OpenBuffer>& buffer) {
+                        buffer->Set(var, input);
+                        buffer->status()->SetInformationText(var->name() +
+                                                             L" := " + input);
+                        return futures::Past(EmptyValue());
+                      });
+                },
+            .cancel_handler = [](EditorState*) { /* Nothing. */ },
+            .predictor = var->predictor(),
+            .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
 
@@ -105,51 +104,62 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   }
   if (auto var = buffer_variables::IntStruct()->find_variable(name);
       var != nullptr) {
-    options.initial_value = std::to_wstring(active_buffers[0]->Read(var));
-    options.handler = [var, default_error_status](const wstring& input,
-                                                  EditorState* editor) {
-      int value;
-      try {
-        value = stoi(input);
-      } catch (const std::invalid_argument& ia) {
-        default_error_status->SetWarningText(
-            L"Invalid value for integer value “" + var->name() + L"”: " +
-            FromByteString(ia.what()));
-        return futures::Past(EmptyValue());
-      }
-      editor->ForEachActiveBuffer(
-          [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
-            buffer->Set(var, value);
-            return futures::Past(EmptyValue());
-          });
-      return futures::Past(EmptyValue());
-    };
-    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-    Prompt(std::move(options));
+    Prompt({.editor_state = *editor_state,
+            .prompt = name + L" := ",
+            .history_file = L"values",
+            .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
+            .handler =
+                [var, default_error_status](const wstring& input,
+                                            EditorState* editor) {
+                  int value;
+                  try {
+                    value = stoi(input);
+                  } catch (const std::invalid_argument& ia) {
+                    default_error_status->SetWarningText(
+                        L"Invalid value for integer value “" + var->name() +
+                        L"”: " + FromByteString(ia.what()));
+                    return futures::Past(EmptyValue());
+                  }
+                  editor->ForEachActiveBuffer(
+                      [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
+                        buffer->Set(var, value);
+                        return futures::Past(EmptyValue());
+                      });
+                  return futures::Past(EmptyValue());
+                },
+            .cancel_handler = [](EditorState*) { /* Nothing. */ },
+            .predictor = var->predictor(),
+            .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
   if (auto var = buffer_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
-    options.initial_value = std::to_wstring(active_buffers[0]->Read(var));
-    options.handler = [var, default_error_status](const wstring& input,
-                                                  EditorState* editor) {
-      std::wstringstream ss(input);
-      double value;
-      ss >> value;
-      if (ss.eof() && !ss.fail()) {
-        editor->ForEachActiveBuffer(
-            [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
-              buffer->Set(var, value);
-              return futures::Past(EmptyValue());
-            });
-      } else {
-        default_error_status->SetWarningText(
-            L"Invalid value for double value “" + var->name() + L"”: " + input);
-      }
-      return futures::Past(EmptyValue());
-    };
-    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-    Prompt(std::move(options));
+    Prompt(
+        {.editor_state = *editor_state,
+         .prompt = name + L" := ",
+         .history_file = L"values",
+         .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
+         .handler =
+             [var, default_error_status](const wstring& input,
+                                         EditorState* editor) {
+               std::wstringstream ss(input);
+               double value;
+               ss >> value;
+               if (ss.eof() && !ss.fail()) {
+                 editor->ForEachActiveBuffer(
+                     [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
+                       buffer->Set(var, value);
+                       return futures::Past(EmptyValue());
+                     });
+               } else {
+                 default_error_status->SetWarningText(
+                     L"Invalid value for double value “" + var->name() +
+                     L"”: " + input);
+               }
+               return futures::Past(EmptyValue());
+             },
+         .cancel_handler = [](EditorState*) { /* Nothing. */ },
+         .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
 
@@ -159,35 +169,40 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
 
 unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state) {
   static Predictor variables_predictor = VariablesPredictor();
-  PromptOptions options;
-  options.editor_state = editor_state;
-  options.prompt = L"🔧 ";
-  options.history_file = L"variables";
-  options.handler = SetVariableCommandHandler;
-  options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-  options.predictor = variables_predictor;
-  options.status = PromptOptions::Status::kBuffer;
-  options.colorize_options_provider =
-      [editor_state, variables_predictor = variables_predictor](
-          const std::shared_ptr<LazyString>& line,
-          std::unique_ptr<ProgressChannel> progress_channel,
-          std::shared_ptr<Notification> abort_notification)
-      -> futures::Value<ColorizePromptOptions> {
-    CHECK(progress_channel != nullptr);
-    return Predict({.editor_state = *editor_state,
-                    .predictor = variables_predictor,
-                    .text = line->ToString(),
-                    .source_buffers = editor_state->active_buffers(),
-                    .progress_channel = std::move(progress_channel),
-                    .abort_notification = std::move(abort_notification)})
-        .Transform([editor_state, line](std::optional<PredictResults> results) {
-          return ColorizePromptOptions{
-              .context =
-                  results.has_value() ? results->predictions_buffer : nullptr};
-        });
-  };
-  return NewLinePromptCommand(*editor_state, L"assigns to a variable",
-                              [options](EditorState*) { return options; });
+  return NewLinePromptCommand(
+      *editor_state, L"assigns to a variable",
+      [options = PromptOptions{
+           .editor_state = *editor_state,
+           .prompt = L"🔧 ",
+           .history_file = L"variables",
+           .colorize_options_provider =
+               [editor_state, variables_predictor = variables_predictor](
+                   const std::shared_ptr<LazyString>& line,
+                   std::unique_ptr<ProgressChannel> progress_channel,
+                   std::shared_ptr<Notification> abort_notification)
+               -> futures::Value<ColorizePromptOptions> {
+             CHECK(progress_channel != nullptr);
+             return Predict(
+                        {.editor_state = *editor_state,
+                         .predictor = variables_predictor,
+                         .text = line->ToString(),
+                         .source_buffers = editor_state->active_buffers(),
+                         .progress_channel = std::move(progress_channel),
+                         .abort_notification = std::move(abort_notification)})
+                 .Transform([editor_state,
+                             line](std::optional<PredictResults> results) {
+                   return ColorizePromptOptions{
+                       .context = results.has_value()
+                                      ? results->predictions_buffer
+                                      : nullptr};
+                 });
+           },
+           .handler = SetVariableCommandHandler,
+           .cancel_handler = [](EditorState*) { /* Nothing. */ },
+           .predictor = variables_predictor,
+           .status = PromptOptions::Status::kBuffer}](EditorState*) {
+        return options;
+      });
 }
 
 }  // namespace editor
