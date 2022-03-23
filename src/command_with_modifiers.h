@@ -17,7 +17,7 @@ using CommandWithModifiersHandler =
 std::unique_ptr<Command> NewCommandWithModifiers(
     std::function<std::wstring(const Modifiers&)> name_function,
     wstring description, Modifiers initial_modifiers,
-    CommandWithModifiersHandler handler, EditorState* editor_state);
+    CommandWithModifiersHandler handler, EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc

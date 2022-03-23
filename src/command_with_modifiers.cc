@@ -193,23 +193,23 @@ std::wstring BuildStatus(
 std::unique_ptr<Command> NewCommandWithModifiers(
     std::function<std::wstring(const Modifiers&)> name_function,
     wstring description, Modifiers modifiers,
-    CommandWithModifiersHandler handler, EditorState* editor_state) {
+    CommandWithModifiersHandler handler, EditorState& editor_state) {
   return NewSetModeCommand(
-      {.editor_state = *editor_state,
+      {.editor_state = editor_state,
        .description = description,
        .category = L"Edit",
-       .factory = [editor_state, name_function, modifiers,
+       .factory = [&editor_state, name_function, modifiers,
                    handler = std::move(handler)] {
          Modifiers mutable_modifiers = modifiers;
          // TODO: Find a way to have this honor `multiple_cursors`. Perhaps the
          // best way is to get rid of that? Or somehow merge that with
          // Modifiers.cursors_affected.
-         if (editor_state->modifiers().cursors_affected.has_value()) {
+         if (editor_state.modifiers().cursors_affected.has_value()) {
            mutable_modifiers.cursors_affected =
-               editor_state->modifiers().cursors_affected;
+               editor_state.modifiers().cursors_affected;
          }
          CommandArgumentMode<Modifiers>::Options options{
-             .editor_state = *editor_state,
+             .editor_state = editor_state,
              .initial_value = std::move(mutable_modifiers),
              .char_consumer = &CharConsumer,
              .status_factory = [name_function](const Modifiers& modifiers) {

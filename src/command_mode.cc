@@ -884,7 +884,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                   return transformation::ModifiersAndComposite{
                       std::move(modifiers), transformation};
                 },
-                &editor_state));
+                editor_state));
 
   commands->Add(L"%", std::make_unique<TreeNavigateCommand>(editor_state));
   commands->Add(L"sr", NewRecordCommand(editor_state));
