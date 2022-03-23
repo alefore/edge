@@ -6,6 +6,7 @@
 #include <string>
 
 #include "src/buffer_name.h"
+#include "src/buffers_list.h"
 #include "src/command.h"
 #include "src/futures/futures.h"
 #include "src/widget_list.h"

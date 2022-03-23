@@ -4,23 +4,16 @@
 #include <list>
 #include <memory>
 
-#include "src/buffers_list.h"
 #include "src/output_producer.h"
-#include "src/vm/public/environment.h"
 #include "src/widget.h"
 
 namespace afc {
 namespace editor {
 
-class EditorState;
-
 class WidgetList : public Widget {
  protected:
-  WidgetList(const EditorState* editor, std::unique_ptr<Widget> children);
-  WidgetList(const EditorState* editor,
-             std::vector<std::unique_ptr<Widget>> children, size_t active);
-
-  const EditorState* const editor_;
+  WidgetList(std::unique_ptr<Widget> children);
+  WidgetList(std::vector<std::unique_ptr<Widget>> children, size_t active);
 
   std::vector<std::unique_ptr<Widget>> children_;
   size_t active_;
@@ -28,11 +21,9 @@ class WidgetList : public Widget {
 
 class WidgetListHorizontal : public WidgetList {
  public:
-  WidgetListHorizontal(const EditorState* editor,
-                       std::unique_ptr<Widget> children);
+  WidgetListHorizontal(std::unique_ptr<Widget> children);
 
-  WidgetListHorizontal(const EditorState* editor,
-                       std::vector<std::unique_ptr<Widget>> children,
+  WidgetListHorizontal(std::vector<std::unique_ptr<Widget>> children,
                        size_t active);
 
   std::unique_ptr<OutputProducer> CreateOutputProducer(
@@ -49,11 +40,9 @@ class WidgetListHorizontal : public WidgetList {
 
 class WidgetListVertical : public WidgetList {
  public:
-  WidgetListVertical(const EditorState* editor,
-                     std::unique_ptr<Widget> children);
+  WidgetListVertical(std::unique_ptr<Widget> children);
 
-  WidgetListVertical(const EditorState* editor,
-                     std::vector<std::unique_ptr<Widget>> children,
+  WidgetListVertical(std::vector<std::unique_ptr<Widget>> children,
                      size_t active);
 
   std::unique_ptr<OutputProducer> CreateOutputProducer(

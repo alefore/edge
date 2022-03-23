@@ -25,15 +25,12 @@
 namespace afc {
 namespace editor {
 
-WidgetList::WidgetList(const EditorState* editor,
-                       std::vector<std::unique_ptr<Widget>> children,
+WidgetList::WidgetList(std::vector<std::unique_ptr<Widget>> children,
                        size_t active)
-    : editor_(editor), children_(std::move(children)), active_(active) {}
+    : children_(std::move(children)), active_(active) {}
 
-WidgetList::WidgetList(const EditorState* editor,
-                       std::unique_ptr<Widget> children)
+WidgetList::WidgetList(std::unique_ptr<Widget> children)
     : WidgetList(
-          editor,
           [&]() {
             std::vector<std::unique_ptr<Widget>> output;
             output.push_back(std::move(children));
@@ -41,10 +38,8 @@ WidgetList::WidgetList(const EditorState* editor,
           }(),
           0) {}
 
-WidgetListHorizontal::WidgetListHorizontal(const EditorState* editor,
-                                           std::unique_ptr<Widget> children)
+WidgetListHorizontal::WidgetListHorizontal(std::unique_ptr<Widget> children)
     : WidgetList(
-          editor,
           [&]() {
             std::vector<std::unique_ptr<Widget>> output;
             output.push_back(std::move(children));
@@ -53,9 +48,8 @@ WidgetListHorizontal::WidgetListHorizontal(const EditorState* editor,
           0) {}
 
 WidgetListHorizontal::WidgetListHorizontal(
-    const EditorState* editor, std::vector<std::unique_ptr<Widget>> children,
-    size_t active)
-    : WidgetList(editor, std::move(children), active) {}
+    std::vector<std::unique_ptr<Widget>> children, size_t active)
+    : WidgetList(std::move(children), active) {}
 
 std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
     OutputProducerOptions options) const {
@@ -193,14 +187,12 @@ LineNumberDelta WidgetListHorizontal::DesiredLines() const {
   return count;
 }
 
-WidgetListVertical::WidgetListVertical(const EditorState* editor,
-                                       std::unique_ptr<Widget> children)
-    : WidgetList(editor, std::move(children)) {}
+WidgetListVertical::WidgetListVertical(std::unique_ptr<Widget> children)
+    : WidgetList(std::move(children)) {}
 
 WidgetListVertical::WidgetListVertical(
-    const EditorState* editor, std::vector<std::unique_ptr<Widget>> children,
-    size_t active)
-    : WidgetList(editor, std::move(children), active) {}
+    std::vector<std::unique_ptr<Widget>> children, size_t active)
+    : WidgetList(std::move(children), active) {}
 
 std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer(
     OutputProducerOptions options) const {

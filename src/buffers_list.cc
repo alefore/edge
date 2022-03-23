@@ -945,8 +945,8 @@ void BuffersList::Update() {
   if (widgets.size() == 1) {
     widget_ = std::move(widgets[index_active]);
   } else {
-    widget_ = std::make_unique<WidgetListHorizontal>(
-        &editor_state_, std::move(widgets), index_active);
+    widget_ = std::make_unique<WidgetListHorizontal>(std::move(widgets),
+                                                     index_active);
   }
 }
 }  // namespace afc::editor
