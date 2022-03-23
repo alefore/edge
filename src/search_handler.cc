@@ -121,7 +121,7 @@ futures::Value<AsyncSearchProcessor::Output> AsyncSearchProcessor::Search(
   return evaluator_.Run([search_options, query = search_options.search_query,
                          traits,
                          buffer_contents = std::shared_ptr<BufferContents>(
-                             buffer.contents()->copy()),
+                             buffer.contents().copy()),
                          progress_channel] {
     auto search_results = PerformSearch(
         search_options, traits, *buffer_contents, progress_channel.get());
@@ -163,7 +163,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
       editor_state.work_queue(), [](ProgressInformation) {},
       WorkQueueChannelConsumeMode::kLastAvailable);
   SearchResults results =
-      PerformSearch(options, GetRegexTraits(*buffer), *buffer->contents(),
+      PerformSearch(options, GetRegexTraits(*buffer), buffer->contents(),
                     dummy_progress_channel.get());
   if (results.error.has_value()) {
     return Error(results.error.value());

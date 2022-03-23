@@ -279,7 +279,7 @@ NavigateState InitialState(EditorState* editor_state) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer* buffer,
                                                       LineColumn) {
       return SearchRange{
-          0, static_cast<size_t>(buffer->contents()->size().line_delta)};
+          0, static_cast<size_t>(buffer->contents().size().line_delta)};
     };
     initial_state.navigate_options.write_index = [](LineColumn position,
                                                     size_t target) {

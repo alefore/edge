@@ -187,7 +187,7 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
 void AddLineMetadata(OpenBuffer* buffer, BufferContents* contents,
                      LineNumber position) {
   contents->set_line(position,
-                     AddLineMetadata(buffer, buffer->contents()->at(position)));
+                     AddLineMetadata(buffer, buffer->contents().at(position)));
 }
 
 }  // namespace
@@ -240,7 +240,7 @@ using std::to_wstring;
 
   buffer->AddField(
       L"line_count", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-        return static_cast<int>(buffer->contents()->size().line_delta);
+        return static_cast<int>(buffer->contents().size().line_delta);
       }));
 
   buffer->AddField(L"set_position",
@@ -260,7 +260,7 @@ using std::to_wstring;
         LineNumber line =
             min(LineNumber(max(line_input, 0)),
                 LineNumber(0) + buffer->lines_size() - LineNumberDelta(1));
-        return buffer->contents()->at(line)->ToString();
+        return buffer->contents().at(line)->ToString();
       }));
 
   buffer->AddField(
@@ -1944,7 +1944,7 @@ ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
                                  const ParseTree& tree) {
   if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
       tree.properties().end()) {
-    auto contents = buffer.contents()->copy();
+    auto contents = buffer.contents().copy();
     contents->FilterToRange(tree.range());
     return Success(URL(contents->ToString()));
   }
@@ -2132,7 +2132,7 @@ OpenBuffer::FreezeDiskState() {
 bool OpenBuffer::dirty() const {
   return (disk_state_ == DiskState::kStale &&
           (!Read(buffer_variables::path).empty() ||
-           !contents()->EveryLine(
+           !contents().EveryLine(
                [](LineNumber, const Line& l) { return l.empty(); }))) ||
          child_pid_ != -1 ||
          (child_exit_status_.has_value() &&

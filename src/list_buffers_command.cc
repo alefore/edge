@@ -20,7 +20,7 @@ namespace {
 
 pair<LineNumber, LineNumber> LinesToShow(const OpenBuffer& buffer,
                                          LineNumberDelta lines) {
-  lines = min(lines, buffer.contents()->size());
+  lines = min(lines, buffer.contents().size());
   VLOG(5) << buffer.Read(buffer_variables::name)
           << ": Context lines to show: " << lines;
   if (lines == LineNumberDelta(0)) {
@@ -28,9 +28,9 @@ pair<LineNumber, LineNumber> LinesToShow(const OpenBuffer& buffer,
     return make_pair(last, last);
   }
   LineNumber start = min(buffer.current_position_line(),
-                         LineNumber(0) + buffer.contents()->size());
+                         LineNumber(0) + buffer.contents().size());
   start -= min(start.ToDelta(),
-               max(lines / 2, lines - min(lines, buffer.contents()->size() -
+               max(lines / 2, lines - min(lines, buffer.contents().size() -
                                                      start.ToDelta())));
   LineNumber stop = min(LineNumber(0) + buffer.lines_size(), start + lines);
   CHECK_LE(start, stop);
@@ -46,7 +46,7 @@ pair<LineNumber, LineNumber> LinesToShow(const OpenBuffer& buffer,
 }
 
 void AdjustLastLine(OpenBuffer* target, std::shared_ptr<OpenBuffer> buffer) {
-  target->contents()->back()->environment()->Define(
+  target->contents().back()->environment()->Define(
       L"buffer", Value::NewObject(L"Buffer", buffer));
 }
 
@@ -135,8 +135,8 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
                          NewLazyString(L"╮"));
       }
     }
-    if (target->contents()->size() == LineNumberDelta(1) &&
-        target->contents()->at(LineNumber(0))->EndColumn().IsZero()) {
+    if (target->contents().size() == LineNumberDelta(1) &&
+        target->contents().at(LineNumber(0))->EndColumn().IsZero()) {
       target->AppendToLastLine(std::move(name));
     } else {
       target->AppendLine(std::move(name));

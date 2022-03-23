@@ -977,10 +977,10 @@ void EditorState::PushPosition(LineColumn position) {
         CHECK(buffer != nullptr);
         buffer->CheckPosition();
         CHECK_LE(buffer->position().line,
-                 LineNumber(0) + buffer->contents()->size());
+                 LineNumber(0) + buffer->contents().size());
         buffer->InsertLine(buffer->current_position_line(), line_to_insert);
         CHECK_LE(buffer->position().line,
-                 LineNumber(0) + buffer->contents()->size());
+                 LineNumber(0) + buffer->contents().size());
       });
 }
 
@@ -1011,7 +1011,7 @@ std::shared_ptr<OpenBuffer> EditorState::GetConsole() {
 bool EditorState::HasPositionsInStack() {
   auto it = buffers_.find(PositionsBufferName());
   return it != buffers_.end() &&
-         it->second->contents()->size() > LineNumberDelta(1);
+         it->second->contents().size() > LineNumberDelta(1);
 }
 
 BufferPosition EditorState::ReadPositionsStack() {

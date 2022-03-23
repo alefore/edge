@@ -45,7 +45,7 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
   CHECK(predictions_buffer != nullptr);
 
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
-            << predictions_buffer->contents()->size();
+            << predictions_buffer->contents().size();
   predictions_buffer->SortContents(
       LineNumber(0), predictions_buffer->EndLine(),
       [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
@@ -54,7 +54,7 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
 
   LOG(INFO) << "Removing duplicates.";
   for (auto line = LineNumber(0);
-       line.ToDelta() < predictions_buffer->contents()->size();) {
+       line.ToDelta() < predictions_buffer->contents().size();) {
     if (line == LineNumber(0) ||
         predictions_buffer->LineAt(line.previous())->ToString() !=
             predictions_buffer->LineAt(line)->ToString()) {
@@ -65,9 +65,9 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
   }
 
   wstring common_prefix =
-      predictions_buffer->contents()->front()->contents()->ToString();
+      predictions_buffer->contents().front()->contents()->ToString();
   PredictResults predict_results;
-  if (predictions_buffer->contents()->EveryLine(
+  if (predictions_buffer->contents().EveryLine(
           [&common_prefix](LineNumber, const Line& line) {
             if (line.empty()) {
               return true;
@@ -525,8 +525,8 @@ const bool buffer_tests_registration =
                                 const shared_ptr<const Line>& b) {
                                return a->ToString() < b->ToString();
                              });
-        VLOG(5) << "Contents: " << buffer->contents()->ToString();
-        return buffer->contents()->ToString();
+        VLOG(5) << "Contents: " << buffer->contents().ToString();
+        return buffer->contents().ToString();
       };
       return std::vector<tests::Test>(
           {{.name = L"CallNoPredictions",
@@ -574,11 +574,11 @@ void RegisterPredictorExactMatch(OpenBuffer* buffer) {
 
 Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
   return [dictionary](PredictorInput input) {
-    auto contents = dictionary->contents();
+    const BufferContents& contents = dictionary->contents();
     auto input_line =
         std::make_shared<const Line>(Line::Options(NewLazyString(input.input)));
 
-    LineNumber line = contents->upper_bound(
+    LineNumber line = contents.upper_bound(
         input_line,
         [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
           return a->ToString() < b->ToString();
@@ -587,8 +587,8 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
     // TODO: This has complexity N log N. We could instead extend BufferContents
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
     // (just take the suffix once, and then walk it, with `ConstTree::Every`).
-    while (line < contents->EndLine()) {
-      auto line_contents = contents->at(line);
+    while (line < contents.EndLine()) {
+      auto line_contents = contents.at(line);
       auto line_str = line_contents->ToString();
       auto result =
           mismatch(input.input.begin(), input.input.end(), line_str.begin());

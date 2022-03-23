@@ -9,7 +9,7 @@
 
 namespace afc::editor {
 struct CurrentTokenOptions {
-  const BufferContents* contents;
+  const BufferContents& contents;
   LineColumn line_column;
   std::wstring token_characters;
 };

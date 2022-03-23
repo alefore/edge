@@ -329,7 +329,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
   return history_evaluator
       ->Run([abort_notification, filter = std::move(filter),
              history_contents = std::shared_ptr<BufferContents>(
-                 history_buffer->contents()->copy()),
+                 history_buffer->contents().copy()),
              features = GetCurrentFeatures(editor_state)]() mutable -> Output {
         Output output;
         // Sets of features for each unique `prompt` value in the history.
@@ -451,7 +451,7 @@ shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
   } else {
     element.second->ClearContents(BufferContents::CursorsBehavior::kAdjust);
     CHECK_EQ(element.second->EndLine(), LineNumber(0));
-    CHECK(element.second->contents()->back()->empty());
+    CHECK(element.second->contents().back()->empty());
   }
   element.second->Set(buffer_variables::contents_type,
                       options.prompt_contents_type);
@@ -579,13 +579,13 @@ class HistoryScrollBehavior : public ScrollBehavior {
         {.editor = buffer.editor(), .name = BufferName::TextInsertion()});
 
     if (history_ != nullptr &&
-        (history_->contents()->size() > LineNumberDelta(1) ||
+        (history_->contents().size() > LineNumberDelta(1) ||
          !history_->LineAt(LineNumber())->empty())) {
       LineColumn position = history_->position();
       position.line = min(position.line.PlusHandlingOverflow(delta),
-                          LineNumber() + history_->contents()->size());
+                          LineNumber() + history_->contents().size());
       history_->set_position(position);
-      if (position.line < LineNumber(0) + history_->contents()->size()) {
+      if (position.line < LineNumber(0) + history_->contents().size()) {
         prompt_state_->status()->set_context(history_);
         if (history_->current_line() != nullptr) {
           buffer_to_insert->AppendToLastLine(
@@ -642,7 +642,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
                        std::shared_ptr<OpenBuffer> history)
                        -> std::unique_ptr<ScrollBehavior> {
           history->set_current_position_line(LineNumber(0) +
-                                             history->contents()->size());
+                                             history->contents().size());
           return std::make_unique<HistoryScrollBehavior>(std::move(history),
                                                          input, prompt_state);
         });
@@ -755,7 +755,7 @@ void Prompt(PromptOptions options) {
       .SetConsumer([options = std::move(options),
                     &editor_state](std::shared_ptr<OpenBuffer> history) {
         history->set_current_position_line(LineNumber(0) +
-                                           history->contents()->size());
+                                           history->contents().size());
 
         auto buffer = GetPromptBuffer(options, editor_state);
         CHECK(buffer != nullptr);

@@ -185,8 +185,8 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
         range_data_.empty() ? L'!' : L' ',
         range_data_.empty() ? LineModifier::RED : LineModifier::DIM,
         (source != buffer_->editor().buffers()->end() &&
-         mark.source_line < LineNumber(0) + source->second->contents()->size())
-            ? *source->second->contents()->at(mark.source_line)
+         mark.source_line < LineNumber(0) + source->second->contents().size())
+            ? *source->second->contents().at(mark.source_line)
             : Line(L"(dead mark)"));
   }
 
@@ -196,9 +196,9 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
   for (const auto& mark : marks) {
     if (auto source = buffer_->editor().buffers()->find(mark.source);
         source != buffer_->editor().buffers()->end() &&
-        mark.source_line < LineNumber(0) + source->second->contents()->size()) {
+        mark.source_line < LineNumber(0) + source->second->contents().size()) {
       marks_strings.insert(
-          source->second->contents()->at(mark.source_line)->ToString());
+          source->second->contents().at(mark.source_line)->ToString());
     }
   }
 

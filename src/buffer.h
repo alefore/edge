@@ -375,7 +375,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   //
   // One exception to this is the BufferTerminal class (to which we pass a
   // reference).
-  const BufferContents* contents() const { return &contents_; }
+  const BufferContents& contents() const { return contents_; }
 
   BufferName name() const;
 

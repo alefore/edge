@@ -203,7 +203,7 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
   bool first_run = true;
   while (first_run ||
          SumSectionsLines(sections) < min(output_producer_options.size.line,
-                                          buffer->contents()->size())) {
+                                          buffer->contents().size())) {
     VLOG(4) << "Expanding " << sections.size()
             << " with size: " << SumSectionsLines(sections);
     sections =
@@ -273,7 +273,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
   BufferContentsWindow::Input buffer_contents_window_input{
-      .contents = buffer->contents()->copy(),
+      .contents = buffer->contents().copy(),
       .active_position = buffer->Read(buffer_variables::multiple_cursors)
                              ? std::optional<LineColumn>()
                              : buffer->position(),

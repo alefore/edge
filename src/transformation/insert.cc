@@ -44,7 +44,7 @@ transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
 futures::Value<transformation::Result> ApplyBase(const Insert& options,
                                                  transformation::Input input) {
   CHECK(input.buffer != nullptr);
-  size_t length = options.buffer_to_insert->contents()->CountCharacters();
+  size_t length = options.buffer_to_insert->contents().CountCharacters();
   if (length == 0) {
     return futures::Past(transformation::Result(input.position));
   }

@@ -43,7 +43,7 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
 
   output.Push(transformation::Delete{
       .modifiers = {.repetitions =
-                        buffer_to_insert->contents()->CountCharacters(),
+                        buffer_to_insert->contents().CountCharacters(),
                     .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::kDoNothing},

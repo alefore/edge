@@ -24,8 +24,8 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
     auto mark = current_line_marks->second;
     auto source = buffer.editor().buffers()->find(mark.source);
     if (source != buffer.editor().buffers()->end() &&
-        LineNumber(0) + source->second->contents()->size() > mark.source_line) {
-      return source->second->contents()->at(mark.source_line)->ToString();
+        LineNumber(0) + source->second->contents().size() > mark.source_line) {
+      return source->second->contents().at(mark.source_line)->ToString();
     }
   }
   return buffer.Read(buffer_variables::name);
@@ -49,12 +49,12 @@ class InfoProducer : public OutputProducer {
               status_->GetType() != Status::Type::kWarning) {
             output.push_back('[');
             if (buffer_->current_position_line() >
-                buffer_->contents()->EndLine()) {
+                buffer_->contents().EndLine()) {
               output += L"<EOF>";
             } else {
               output += buffer_->current_position_line().ToUserString();
             }
-            output += L" of " + buffer_->contents()->EndLine().ToUserString() +
+            output += L" of " + buffer_->contents().EndLine().ToUserString() +
                       L", " + buffer_->current_position_col().ToUserString();
             output += L"] ";
 

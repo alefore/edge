@@ -77,10 +77,10 @@ std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
 void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
   CHECK(buffer != nullptr);
   position = buffer->AdjustLineColumn(position);
-  CHECK_GE(buffer->contents()->size(), position.line.ToDelta());
+  CHECK_GE(buffer->contents().size(), position.line.ToDelta());
 
   LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
-            << buffer->contents()->size();
+            << buffer->contents().size();
 
   const auto contents = buffer->LineAt(position.line);
   DVLOG(5) << "Erasing line: " << contents->ToString();
@@ -125,10 +125,10 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     if (range.IsEmpty()) {
       switch (options.modifiers.direction) {
         case Direction::kForwards:
-          range.end = input.buffer->contents()->PositionAfter(range.end);
+          range.end = input.buffer->contents().PositionAfter(range.end);
           break;
         case Direction::kBackwards:
-          range.begin = input.buffer->contents()->PositionBefore(range.begin);
+          range.begin = input.buffer->contents().PositionBefore(range.begin);
           break;
       }
     }

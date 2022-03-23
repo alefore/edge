@@ -22,7 +22,7 @@ const wstring kDepthSymbol = L"navigation_buffer_depth";
 
 void AdjustLastLine(OpenBuffer* buffer, std::shared_ptr<OpenBuffer> link_to,
                     LineColumn position) {
-  auto line_environment = buffer->contents()->back()->environment();
+  auto line_environment = buffer->contents().back()->environment();
   line_environment->Define(L"buffer", Value::NewObject(L"Buffer", link_to));
   line_environment->Define(
       L"buffer_position",

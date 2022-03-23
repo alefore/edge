@@ -67,7 +67,7 @@ futures::Value<PossibleError> PreviewCppExpression(
 
 futures::Value<Result> HandleCommandCpp(Input input,
                                         Delete original_delete_transformation) {
-  auto contents = input.buffer->contents()->copy();
+  std::unique_ptr<BufferContents> contents = input.buffer->contents().copy();
   contents->FilterToRange(*original_delete_transformation.range);
   if (input.mode == Input::Mode::kPreview) {
     auto delete_transformation =
@@ -276,7 +276,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone: {
             std::shared_ptr<BufferContents> contents =
-                input.buffer->contents()->copy();
+                input.buffer->contents().copy();
             contents->FilterToRange(range);
             input.buffer->status()->Reset();
             DVLOG(5) << "Analyze contents for range: " << range;
@@ -309,7 +309,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                   LineModifier::GREEN, LineModifier::UNDERLINE};
               return Apply(delete_transformation, input.NewChild(range.begin));
             }
-            auto contents = input.buffer->contents()->copy();
+            std::unique_ptr<BufferContents> contents =
+                input.buffer->contents().copy();
             contents->FilterToRange(*delete_transformation.range);
             ForkCommand(input.buffer->editor(),
                         ForkCommandOptions{

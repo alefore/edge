@@ -109,7 +109,7 @@ void AddLine(EditorState& editor_state, OpenBuffer& target,
   auto line = std::make_shared<Line>(std::move(line_options));
 
   target.AppendRawLine(line);
-  target.contents()->back()->environment()->Define(
+  target.contents().back()->environment()->Define(
       L"EdgeLineDeleteHandler", vm::NewCallback([&editor_state, path]() {
         StartDeleteFile(editor_state, path);
       }));
@@ -299,7 +299,7 @@ futures::Value<PossibleError> Save(
   }
 
   return path.Transform([stat_buffer, options, buffer](Path path) {
-    return SaveContentsToFile(path, *buffer->contents(), buffer->work_queue())
+    return SaveContentsToFile(path, buffer->contents(), buffer->work_queue())
         .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
         .Transform([stat_buffer, options, buffer, path](EmptyValue) {
           switch (options.save_type) {
@@ -478,8 +478,8 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState* editor_state,
                        LOG(INFO) << edge_path << ": No search paths buffer.";
                        return futures::IterationControlCommand::kContinue;
                      }
-                     buffer->contents()->ForEach([editor_state,
-                                                  output](wstring line) {
+                     buffer->contents().ForEach([editor_state,
+                                                 output](wstring line) {
                        auto path = Path::FromString(line);
                        if (path.IsError()) return;
                        output->push_back(
