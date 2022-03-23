@@ -880,7 +880,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 [](const Modifiers&) { return L"🔠🔡"; },
                 L"Switches the case of the current character.", Modifiers(),
                 [transformation = std::make_shared<SwitchCaseTransformation>()](
-                    EditorState*, Modifiers modifiers) {
+                    Modifiers modifiers) {
                   return transformation::ModifiersAndComposite{
                       std::move(modifiers), transformation};
                 },

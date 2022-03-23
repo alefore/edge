@@ -117,8 +117,7 @@ class CommandArgumentMode : public EditorMode {
 // been set.
 template <typename Argument>
 void SetOptionsForBufferTransformation(
-    std::function<transformation::Variant(EditorState*, Argument)>
-        transformation_factory,
+    std::function<transformation::Variant(Argument)> transformation_factory,
     std::function<std::optional<Modifiers::CursorsAffected>(const Argument&)>
         cursors_affected_factory,
     typename CommandArgumentMode<Argument>::Options* options) {
@@ -136,7 +135,7 @@ void SetOptionsForBufferTransformation(
             });
       };
 
-  options->undo = [editor_state = options->editor_state, for_each_buffer] {
+  options->undo = [for_each_buffer] {
     return for_each_buffer([](const std::shared_ptr<OpenBuffer>& buffer) {
       return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
           .Transform([](EmptyValue) {
@@ -144,29 +143,25 @@ void SetOptionsForBufferTransformation(
           });
     });
   };
-  options->apply = [editor_state = options->editor_state,
-                    transformation_factory, cursors_affected_factory,
+  options->apply = [transformation_factory, cursors_affected_factory,
                     for_each_buffer](CommandArgumentModeApplyMode mode,
                                      Argument argument) {
-    return for_each_buffer(
-        [editor_state, transformation_factory, cursors_affected_factory, mode,
-         argument =
-             std::move(argument)](const std::shared_ptr<OpenBuffer>& buffer) {
-          auto cursors_affected = cursors_affected_factory(argument).value_or(
-              buffer->Read(buffer_variables::multiple_cursors)
-                  ? Modifiers::CursorsAffected::kAll
-                  : Modifiers::CursorsAffected::kOnlyCurrent);
-          return buffer
-              ->ApplyToCursors(
-                  transformation_factory(editor_state, std::move(argument)),
-                  cursors_affected,
-                  mode == CommandArgumentModeApplyMode::kPreview
-                      ? transformation::Input::Mode::kPreview
-                      : transformation::Input::Mode::kFinal)
-              .Transform([](auto) {
-                return futures::IterationControlCommand::kContinue;
-              });
-        });
+    return for_each_buffer([transformation_factory, cursors_affected_factory,
+                            mode, argument = std::move(argument)](
+                               const std::shared_ptr<OpenBuffer>& buffer) {
+      auto cursors_affected = cursors_affected_factory(argument).value_or(
+          buffer->Read(buffer_variables::multiple_cursors)
+              ? Modifiers::CursorsAffected::kAll
+              : Modifiers::CursorsAffected::kOnlyCurrent);
+      return buffer
+          ->ApplyToCursors(transformation_factory(std::move(argument)),
+                           cursors_affected,
+                           mode == CommandArgumentModeApplyMode::kPreview
+                               ? transformation::Input::Mode::kPreview
+                               : transformation::Input::Mode::kFinal)
+          .Transform(
+              [](auto) { return futures::IterationControlCommand::kContinue; });
+    });
   };
 }
 

@@ -310,7 +310,7 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
              .char_consumer = CharConsumer,
              .status_factory = BuildStatus};
          SetOptionsForBufferTransformation<NavigateState>(
-             [](EditorState*, NavigateState state) -> transformation::Variant {
+             [](NavigateState state) -> transformation::Variant {
                return std::make_unique<NavigateTransformation>(
                    std::move(state));
              },
