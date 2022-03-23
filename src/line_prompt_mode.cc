@@ -574,8 +574,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
  private:
   void ScrollHistory(OpenBuffer& buffer, LineNumberDelta delta) const {
     if (prompt_state_->IsGone()) return;
-    auto buffer_to_insert = OpenBuffer::New(
-        {.editor = buffer.editor(), .name = BufferName::TextInsertion()});
+    auto contents_to_insert = std::make_unique<BufferContents>();
 
     if (history_ != nullptr &&
         (history_->contents().size() > LineNumberDelta(1) ||
@@ -587,12 +586,12 @@ class HistoryScrollBehavior : public ScrollBehavior {
       if (position.line < LineNumber(0) + history_->contents().size()) {
         prompt_state_->status().set_context(history_);
         if (history_->current_line() != nullptr) {
-          buffer_to_insert->AppendToLastLine(
-              history_->current_line()->contents());
+          contents_to_insert->AppendToLine(LineNumber(),
+                                           *history_->current_line());
         }
       } else {
         prompt_state_->status().set_context(previous_context_);
-        buffer_to_insert->AppendToLastLine(original_input_);
+        contents_to_insert->AppendToLine(LineNumber(), Line(original_input_));
       }
     }
 
@@ -604,9 +603,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
             .boundary_begin = Modifiers::LIMIT_CURRENT,
             .boundary_end = Modifiers::LIMIT_CURRENT}});
 
-    // TODO(easy, 2022-03-24): Turn this into a BufferContents.
     buffer.ApplyToCursors(transformation::Insert{
-        .contents_to_insert = buffer_to_insert->contents().copy()});
+        .contents_to_insert = std::move(contents_to_insert)});
   }
 
   const std::shared_ptr<OpenBuffer> history_;
@@ -758,15 +756,9 @@ void Prompt(PromptOptions options) {
 
         auto prompt_state = std::make_shared<PromptState>(options);
 
-        {
-          // TODO(easy, 2022-03-24): Turn this into BufferContents.
-          auto buffer_to_insert = OpenBuffer::New(
-              {.editor = editor_state, .name = BufferName::TextInsertion()});
-          buffer_to_insert->AppendToLastLine(
-              NewLazyString(std::move(options.initial_value)));
-          buffer->ApplyToCursors(transformation::Insert(
-              {.contents_to_insert = buffer_to_insert->contents().copy()}));
-        }
+        buffer->ApplyToCursors(transformation::Insert(
+            {.contents_to_insert = std::make_unique<BufferContents>(
+                 std::make_shared<Line>(options.initial_value))}));
 
         auto history_evaluator = std::make_shared<AsyncEvaluator>(
             L"HistoryScrollBehaviorFactory", buffer->work_queue());
@@ -911,15 +903,11 @@ void Prompt(PromptOptions options) {
 
                           std::shared_ptr<LazyString> line = NewLazyString(
                               results.value().common_prefix.value());
-                          // TODO(easy, 2022-03-24): Turn this into
-                          // BufferContents.
-                          auto buffer_to_insert = OpenBuffer::New(
-                              {.editor = editor_state,
-                               .name = BufferName::TextInsertion()});
-                          buffer_to_insert->AppendToLastLine(line);
+
                           buffer->ApplyToCursors(transformation::Insert(
                               {.contents_to_insert =
-                                   buffer_to_insert->contents().copy()}));
+                                   std::make_unique<BufferContents>(
+                                       std::make_shared<Line>(line))}));
                           if (options.colorize_options_provider != nullptr) {
                             CHECK(prompt_state->status().GetType() ==
                                   Status::Type::kPrompt);

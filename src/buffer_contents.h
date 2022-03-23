@@ -26,6 +26,7 @@ class BufferContents : public fuzz::FuzzTestable {
       std::function<void(const CursorsTracker::Transformation&)>;
 
   BufferContents();
+  explicit BufferContents(std::shared_ptr<const Line> line);
   explicit BufferContents(UpdateListener update_listener);
 
   void CopyContentsFrom(const BufferContents& source);

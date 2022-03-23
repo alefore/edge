@@ -400,15 +400,13 @@ class InsertMode : public EditorMode {
                     Modifiers::ModifyMode::kOverwrite)
                   return futures::Past(EmptyValue());
 
-                auto contents_to_insert = std::make_unique<BufferContents>();
-                contents_to_insert->AppendToLine(LineNumber(), Line(L" "));
-                auto insert_options = transformation::Insert{
-                    .contents_to_insert = std::move(contents_to_insert)};
-                if (direction == Direction::kBackwards) {
-                  insert_options.final_position =
-                      transformation::Insert::FinalPosition::kStart;
-                }
-                return buffer->ApplyToCursors(std::move(insert_options));
+                return buffer->ApplyToCursors(transformation::Insert{
+                    .contents_to_insert = std::make_unique<BufferContents>(
+                        std::make_shared<Line>(L" ")),
+                    .final_position =
+                        direction == Direction::kBackwards
+                            ? transformation::Insert::FinalPosition::kStart
+                            : transformation::Insert::FinalPosition::kEnd});
               })
               .Transform([handler = options.modify_handler,
                           buffer](EmptyValue) { return handler(buffer); });

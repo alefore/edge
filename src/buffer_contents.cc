@@ -15,7 +15,11 @@
 
 namespace afc::editor {
 
-BufferContents::BufferContents() : BufferContents(nullptr) {}
+BufferContents::BufferContents() : BufferContents(UpdateListener()) {}
+
+BufferContents::BufferContents(std::shared_ptr<const Line> line)
+    : lines_(Lines::PushBack(nullptr, std::move(line))),
+      update_listener_([](const CursorsTracker::Transformation&) {}) {}
 
 BufferContents::BufferContents(UpdateListener update_listener)
     : update_listener_(update_listener != nullptr
