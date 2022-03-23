@@ -307,7 +307,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
               return futures::Past(
                   EvaluationOutput::Abort(target_path.error()));
             }
-            OpenServerBuffer(editor, target_path.value());
+            OpenServerBuffer(*editor, target_path.value());
             return futures::Past(EvaluationOutput::Return(Value::NewVoid()));
           }));
 

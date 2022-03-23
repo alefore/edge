@@ -26,10 +26,10 @@ class EditorState;
 
 // address can be empty, in which case it'll use a temporary file in /tmp. The
 // actual address used is returned.
-ValueOrError<Path> StartServer(EditorState* editor_state,
+ValueOrError<Path> StartServer(EditorState& editor_state,
                                std::optional<Path> address);
 
-shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
+shared_ptr<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
                                         const Path& address);
 
 }  // namespace editor

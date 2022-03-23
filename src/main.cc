@@ -43,14 +43,14 @@ using namespace afc::editor;
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
 static std::unique_ptr<EditorState> global_editor_state;
 
-EditorState* editor_state() { return global_editor_state.get(); }
+EditorState& editor_state() { return *global_editor_state; }
 
 void (*default_interrupt_handler)(int sig);
 void (*default_stop_handler)(int sig);
 
 void SignalHandler(int sig) {
   if (sig == SIGINT) {
-    if (!editor_state()->handling_interrupts()) {
+    if (!editor_state().handling_interrupts()) {
       signal(SIGINT, default_interrupt_handler);
       raise(SIGINT);
       return;
@@ -59,10 +59,10 @@ void SignalHandler(int sig) {
     // Normally, when the buffer consumes the signal, it'll overwrite the
     // status right away. So we just put a default message in case the signal is
     // not consumed.
-    editor_state()->status().SetWarningText(
+    editor_state().status().SetWarningText(
         L"'*aq' to quit -- pending changes won't be saved.");
   } else if (sig == SIGTSTP) {
-    if (!editor_state()->handling_stop_signals()) {
+    if (!editor_state().handling_stop_signals()) {
       signal(SIGINT, default_stop_handler);
       raise(SIGINT);
       signal(SIGINT, &SignalHandler);
@@ -70,7 +70,7 @@ void SignalHandler(int sig) {
     }
   }
 
-  editor_state()->PushSignal(sig);
+  editor_state().PushSignal(sig);
 }
 
 static const wchar_t* kDefaultCommandsToRun =
@@ -218,11 +218,11 @@ std::wstring GetGreetingMessage() {
 void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
                    std::optional<LineColumnDelta>* last_screen_size,
                    Terminal* terminal, Screen* screen_curses) {
-  auto screen_state = editor_state()->FlushScreenState();
+  auto screen_state = editor_state().FlushScreenState();
   if (!screen_state.has_value()) return;
   if (screen_curses != nullptr) {
     if (!args.client.has_value()) {
-      terminal->Display(*editor_state(), screen_curses, screen_state.value());
+      terminal->Display(editor_state(), screen_curses, screen_state.value());
     } else {
       screen_curses->Refresh();  // Don't want this to be buffered!
       auto screen_size =
@@ -241,7 +241,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
     }
   }
   VLOG(5) << "Updating remote screens.";
-  for (auto& buffer : *editor_state()->buffers()) {
+  for (auto& buffer : *editor_state().buffers()) {
     auto value = buffer.second->environment()->Lookup(
         Environment::Namespace(), L"screen", GetScreenVmType());
     if (value->type.type != VMType::OBJECT_TYPE ||
@@ -256,7 +256,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
       continue;
     }
     LOG(INFO) << "Remote screen for buffer: " << buffer.first;
-    terminal->Display(*editor_state(), buffer_screen, screen_state.value());
+    terminal->Display(editor_state(), buffer_screen, screen_state.value());
   }
 }
 }  // namespace
@@ -324,15 +324,15 @@ int main(int argc, const char** argv) {
     LOG(INFO) << "Creating curses screen.";
     screen_curses = NewScreenCurses();
   }
-  RegisterScreenType(editor_state()->environment().get());
-  editor_state()->environment()->Define(
+  RegisterScreenType(editor_state().environment().get());
+  editor_state().environment()->Define(
       L"screen", afc::vm::Value::NewObject(L"Screen", screen_curses));
 
   LOG(INFO) << "Starting server.";
   auto server_path = StartServer(args, connected_to_parent);
-  while (editor_state()->WorkQueueNextExecution().has_value() &&
-         editor_state()->WorkQueueNextExecution().value() < Now()) {
-    editor_state()->ExecutePendingWork();
+  while (editor_state().WorkQueueNextExecution().has_value() &&
+         editor_state().WorkQueueNextExecution().value() < Now()) {
+    editor_state().ExecutePendingWork();
   }
 
   auto commands_to_run = CommandsToRun(args);
@@ -374,14 +374,14 @@ int main(int argc, const char** argv) {
   std::optional<LineColumnDelta> last_screen_size;
 
   BeepFrequencies(audio_player.get(), {783.99, 723.25, 783.99});
-  editor_state()->status().SetInformationText(GetGreetingMessage());
+  editor_state().status().SetInformationText(GetGreetingMessage());
 
   LOG(INFO) << "Main loop starting.";
-  while (!editor_state()->exit_value().has_value()) {
+  while (!editor_state().exit_value().has_value()) {
     // We execute pending work before updating screens, since we expect that the
     // pending work updates may have visible effects.
     VLOG(5) << "Executing pending work.";
-    editor_state()->ExecutePendingWork();
+    editor_state().ExecutePendingWork();
 
     VLOG(5) << "Updating screens.";
     RedrawScreens(args, remote_server_fd, &last_screen_size, &terminal,
@@ -391,10 +391,10 @@ int main(int argc, const char** argv) {
 
     // The file descriptor at position i will be either fd or fd_error of
     // buffers[i]. The exception to this is fd 0 (at the end).
-    struct pollfd fds[editor_state()->buffers()->size() * 2 + 3];
+    struct pollfd fds[editor_state().buffers()->size() * 2 + 3];
     buffers.reserve(sizeof(fds) / sizeof(fds[0]));
 
-    for (auto& buffer : *editor_state()->buffers()) {
+    for (auto& buffer : *editor_state().buffers()) {
       auto register_reader = [&](const FileDescriptorReader* reader) {
         auto pollfd = reader == nullptr ? std::nullopt : reader->GetPollFd();
         if (pollfd.has_value()) {
@@ -412,12 +412,12 @@ int main(int argc, const char** argv) {
       buffers.push_back(nullptr);
     }
 
-    fds[buffers.size()].fd = editor_state()->fd_to_detect_internal_events();
+    fds[buffers.size()].fd = editor_state().fd_to_detect_internal_events();
     fds[buffers.size()].events = POLLIN | POLLPRI;
     buffers.push_back(nullptr);
 
     auto now = Now();
-    auto next_execution = editor_state()->WorkQueueNextExecution();
+    auto next_execution = editor_state().WorkQueueNextExecution();
     int timeout_ms =
         next_execution.has_value()
             ? static_cast<int>(ceil(min(
@@ -434,9 +434,9 @@ int main(int argc, const char** argv) {
         // We schedule a redraw in case the signal was SIGWINCH (the screen
         // size has changed). Ideally we'd only do that for that signal, to
         // avoid spurious refreshes, but... who cares.
-        editor_state()->set_screen_needs_hard_redraw(true);
+        editor_state().set_screen_needs_hard_redraw(true);
 
-        editor_state()->ProcessSignals();
+        editor_state().ProcessSignals();
       }
 
       continue;
@@ -449,7 +449,7 @@ int main(int argc, const char** argv) {
       if (fds[i].fd == 0) {
         if (fds[i].revents & POLLHUP) {
           LOG(INFO) << "POLLHUP enabled in fd 0. AttemptTermination(0).";
-          editor_state()->Terminate(
+          editor_state().Terminate(
               EditorState::TerminationType::kIgnoringErrors, 0);
         } else {
           CHECK(screen_curses != nullptr);
@@ -462,7 +462,7 @@ int main(int argc, const char** argv) {
           }
           for (auto& c : input) {
             if (remote_server_fd == -1) {
-              editor_state()->ProcessInput(c);
+              editor_state().ProcessInput(c);
             } else {
               SendCommandsToParent(
                   remote_server_fd,
@@ -473,8 +473,8 @@ int main(int argc, const char** argv) {
         continue;
       }
 
-      if (fds[i].fd == editor_state()->fd_to_detect_internal_events()) {
-        editor_state()->ResetInternalEventNotifications();
+      if (fds[i].fd == editor_state().fd_to_detect_internal_events()) {
+        editor_state().ResetInternalEventNotifications();
         continue;
       }
 
@@ -498,5 +498,5 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Removing server file: " << server_path;
   unlink(ToByteString(server_path.ToString()).c_str());
-  return editor_state()->exit_value().value();
+  return editor_state().exit_value().value();
 }

@@ -187,7 +187,7 @@ futures::Value<PossibleError> GenerateContents(
       });
 }
 
-ValueOrError<Path> StartServer(EditorState* editor_state,
+ValueOrError<Path> StartServer(EditorState& editor_state,
                                std::optional<Path> address) {
   auto output = CreateFifo(address);
   if (output.IsError()) {
@@ -203,16 +203,15 @@ ValueOrError<Path> StartServer(EditorState* editor_state,
   return output;
 }
 
-shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
+shared_ptr<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
                                         const Path& address) {
-  CHECK(editor_state != nullptr);
   auto buffer = OpenBuffer::New(
-      {.editor = *editor_state,
-       .name = editor_state->GetUnusedBufferName(L"- server"),
+      {.editor = editor_state,
+       .name = editor_state.GetUnusedBufferName(L"- server"),
        .path = address,
        .generate_contents =
            [file_system_driver = std::make_shared<FileSystemDriver>(
-                editor_state->work_queue())](OpenBuffer* target) {
+                editor_state.work_queue())](OpenBuffer* target) {
              return GenerateContents(file_system_driver, target);
            }});
   buffer->Set(buffer_variables::clear_on_reload, false);
@@ -221,7 +220,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
   buffer->Set(buffer_variables::allow_dirty_delete, true);
   buffer->Set(buffer_variables::display_progress, false);
 
-  editor_state->buffers()->insert({buffer->name(), buffer});
+  editor_state.buffers()->insert({buffer->name(), buffer});
   buffer->Reload();
   return buffer;
 }
