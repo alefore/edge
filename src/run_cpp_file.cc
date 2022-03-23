@@ -31,16 +31,16 @@ class RunCppFileCommand : public Command {
          .history_file = L"editor_commands",
          .initial_value = buffer->Read(buffer_variables::editor_commands_path),
          .handler =
-             [](const wstring& input, EditorState& editor_state) {
+             [&editor = editor_state_](const wstring& input) {
                futures::Future<EmptyValue> output;
-               RunCppFileHandler(input, &editor_state)
+               RunCppFileHandler(input, &editor)
                    .SetConsumer([consumer = std::move(output.consumer)](
                                     ValueOrError<EmptyValue>) {
                      consumer(EmptyValue());
                    });
                return std::move(output.value);
              },
-         .cancel_handler = [](EditorState*) { /* Nothing. */ },
+         .cancel_handler = []() { /* Nothing. */ },
          .predictor = FilePredictor});
   }
 

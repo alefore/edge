@@ -678,7 +678,7 @@ class LinePromptCommand : public Command {
       editor_state_.ResetStructure();
       auto input = buffer->current_line();
       AddLineToHistory(editor_state_, options.history_file, input->contents());
-      options.handler(input->ToString(), editor_state_);
+      options.handler(input->ToString());
     } else {
       Prompt(std::move(options));
     }
@@ -863,10 +863,10 @@ void Prompt(PromptOptions options) {
 
                   if (options.cancel_handler) {
                     VLOG(5) << "Running cancel handler.";
-                    options.cancel_handler(&editor_state);
+                    options.cancel_handler();
                   } else {
                     VLOG(5) << "Running handler on empty input.";
-                    options.handler(L"", editor_state);
+                    options.handler(L"");
                   }
                   editor_state.set_keyboard_redirect(nullptr);
                 },
@@ -879,7 +879,7 @@ void Prompt(PromptOptions options) {
                       editor_state.keyboard_redirect();
                   editor_state.set_keyboard_redirect(nullptr);
                   prompt_state->Reset();
-                  return options.handler(input->ToString(), editor_state);
+                  return options.handler(input->ToString());
                 },
             .start_completion =
                 [&editor_state, options,

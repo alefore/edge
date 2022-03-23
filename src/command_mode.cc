@@ -726,16 +726,18 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L":", NewRunCppCommand(*editor_state, CppCommandMode::kShell));
   commands->Add(L"a.", NewOpenDirectoryCommand(*editor_state));
   commands->Add(L"aL", NewListBuffersCommand(*editor_state));
-  commands->Add(L"ao", NewOpenFileCommand(editor_state));
+  commands->Add(L"ao", NewOpenFileCommand(*editor_state));
   commands->Add(
       L"aF",
       NewLinePromptCommand(
           *editor_state, L"forks a command for each line in the current buffer",
-          [options = PromptOptions{.editor_state = *editor_state,
-                                   .prompt = L"...$ ",
-                                   .history_file = L"commands",
-                                   .handler = RunMultipleCommandsHandler}](
-              EditorState*) { return options; }));
+          [options = PromptOptions{
+               .editor_state = *editor_state,
+               .prompt = L"...$ ",
+               .history_file = L"commands",
+               .handler = [&editor_state = *editor_state](std::wstring input) {
+                 return RunMultipleCommandsHandler(input, editor_state);
+               }}](EditorState*) { return options; }));
 
   commands->Add(L"af", NewForkCommand(*editor_state));
 

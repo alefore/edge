@@ -267,7 +267,7 @@ class SearchCommand : public Command {
                        });
              },
          .handler =
-             [](const wstring& input, EditorState& editor_state) {
+             [&editor_state = editor_state_](const wstring& input) {
                return editor_state
                    .ForEachActiveBuffer(
                        [input](const std::shared_ptr<OpenBuffer>& buffer) {

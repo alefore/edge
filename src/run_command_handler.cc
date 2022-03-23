@@ -394,8 +394,8 @@ class ForkEditorCommand : public Command {
                                         std::shared_ptr<Notification>) {
                           return PromptChange(prompt_state.get(), line);
                         }),
-              .handler = ([children_path](const wstring& name,
-                                          EditorState& editor_state) {
+              .handler = ([&editor_state = editor_state_,
+                           children_path](const wstring& name) {
                 return RunCommandHandler(name, editor_state, 0, 1,
                                          children_path.AsOptional());
               })});

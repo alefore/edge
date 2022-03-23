@@ -58,13 +58,11 @@ struct PromptOptions {
   // Function to run when the prompt receives the final input.
   // TODO(easy): Feels more fitting to pass editor as the first parameter... or
   // not pass it at all.
-  std::function<futures::Value<EmptyValue>(const wstring& input,
-                                           EditorState& editor)>
-      handler;
+  std::function<futures::Value<EmptyValue>(const wstring& input)> handler;
 
   // Optional. Function to run when the prompt is cancelled (because ESCAPE was
   // pressed). If empty, handler will be run with an empty input.
-  std::function<void(EditorState* editor)> cancel_handler = nullptr;
+  std::function<void()> cancel_handler = nullptr;
 
   // Optional. Useful for automatic completion.
   Predictor predictor = EmptyPredictor;

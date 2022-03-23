@@ -7,7 +7,7 @@
 
 namespace afc::editor {
 class EditorState;
-std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor);
+std::unique_ptr<Command> NewOpenFileCommand(EditorState& editor);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_OPEN_FILE_COMMAND_H__

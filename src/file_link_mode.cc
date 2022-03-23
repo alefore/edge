@@ -50,7 +50,7 @@ void StartDeleteFile(EditorState& editor_state, wstring path) {
           .prompt = L"unlink " + path + L"? [yes/no] ",
           .history_file = L"confirmation",
           .handler =
-              [path](const wstring input, EditorState& editor_state) {
+              [&editor_state, path](const wstring input) {
                 auto buffer = editor_state.current_buffer();
                 auto status = buffer == nullptr ? editor_state.status()
                                                 : buffer->status();

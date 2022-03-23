@@ -62,9 +62,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
             .history_file = L"values",
             .initial_value = active_buffers[0]->Read(var),
             .handler =
-                [var](const wstring& input, EditorState& editor) {
-                  editor.ResetRepetitions();
-                  return editor.ForEachActiveBuffer(
+                [&editor_state, var](const wstring& input) {
+                  editor_state.ResetRepetitions();
+                  return editor_state.ForEachActiveBuffer(
                       [var, input](const std::shared_ptr<OpenBuffer>& buffer) {
                         buffer->Set(var, input);
                         buffer->status()->SetInformationText(var->name() +
@@ -72,7 +72,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                         return futures::Past(EmptyValue());
                       });
                 },
-            .cancel_handler = [](EditorState*) { /* Nothing. */ },
+            .cancel_handler = []() { /* Nothing. */ },
             .predictor = var->predictor(),
             .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
@@ -104,32 +104,32 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   }
   if (auto var = buffer_variables::IntStruct()->find_variable(name);
       var != nullptr) {
-    Prompt({.editor_state = editor_state,
-            .prompt = name + L" := ",
-            .history_file = L"values",
-            .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
-            .handler =
-                [var, default_error_status](const wstring& input,
-                                            EditorState& editor) {
-                  int value;
-                  try {
-                    value = stoi(input);
-                  } catch (const std::invalid_argument& ia) {
-                    default_error_status->SetWarningText(
-                        L"Invalid value for integer value “" + var->name() +
-                        L"”: " + FromByteString(ia.what()));
-                    return futures::Past(EmptyValue());
-                  }
-                  editor.ForEachActiveBuffer(
-                      [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
-                        buffer->Set(var, value);
-                        return futures::Past(EmptyValue());
-                      });
-                  return futures::Past(EmptyValue());
-                },
-            .cancel_handler = [](EditorState*) { /* Nothing. */ },
-            .predictor = var->predictor(),
-            .status = PromptOptions::Status::kBuffer});
+    Prompt(
+        {.editor_state = editor_state,
+         .prompt = name + L" := ",
+         .history_file = L"values",
+         .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
+         .handler =
+             [&editor_state, var, default_error_status](const wstring& input) {
+               int value;
+               try {
+                 value = stoi(input);
+               } catch (const std::invalid_argument& ia) {
+                 default_error_status->SetWarningText(
+                     L"Invalid value for integer value “" + var->name() +
+                     L"”: " + FromByteString(ia.what()));
+                 return futures::Past(EmptyValue());
+               }
+               editor_state.ForEachActiveBuffer(
+                   [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
+                     buffer->Set(var, value);
+                     return futures::Past(EmptyValue());
+                   });
+               return futures::Past(EmptyValue());
+             },
+         .cancel_handler = []() { /* Nothing. */ },
+         .predictor = var->predictor(),
+         .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
   if (auto var = buffer_variables::DoubleStruct()->find_variable(name);
@@ -140,13 +140,12 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
          .history_file = L"values",
          .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
          .handler =
-             [var, default_error_status](const wstring& input,
-                                         EditorState& editor) {
+             [&editor_state, var, default_error_status](const wstring& input) {
                std::wstringstream ss(input);
                double value;
                ss >> value;
                if (ss.eof() && !ss.fail()) {
-                 editor.ForEachActiveBuffer(
+                 editor_state.ForEachActiveBuffer(
                      [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
                        buffer->Set(var, value);
                        return futures::Past(EmptyValue());
@@ -158,7 +157,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                }
                return futures::Past(EmptyValue());
              },
-         .cancel_handler = [](EditorState*) { /* Nothing. */ },
+         .cancel_handler = []() { /* Nothing. */ },
          .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
@@ -197,8 +196,11 @@ unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state) {
                                       : nullptr};
                  });
            },
-           .handler = SetVariableCommandHandler,
-           .cancel_handler = [](EditorState*) { /* Nothing. */ },
+           .handler =
+               [editor_state](const std::wstring input) {
+                 return SetVariableCommandHandler(input, *editor_state);
+               },
+           .cancel_handler = []() { /* Nothing. */ },
            .predictor = variables_predictor,
            .status = PromptOptions::Status::kBuffer}](EditorState*) {
         return options;

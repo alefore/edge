@@ -369,7 +369,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
   editor_type->AddField(L"PromptAndOpenFile",
                         vm::NewCallback([](EditorState* editor) {
-                          NewOpenFileCommand(editor)->ProcessInput(0);
+                          CHECK(editor != nullptr);
+                          NewOpenFileCommand(*editor)->ProcessInput(0);
                         }));
 
   editor_type->AddField(L"set_screen_needs_hard_redraw",

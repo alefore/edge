@@ -1,5 +1,6 @@
 #include "src/run_cpp_command.h"
 
+#include <functional>
 #include <memory>
 #include <sstream>
 
@@ -265,17 +266,20 @@ std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
   return NewLinePromptCommand(
       editor_state, description, [mode](EditorState* editor_state) {
         std::wstring prompt;
-        std::function<futures::Value<EmptyValue>(const wstring& input,
-                                                 EditorState& editor)>
-            handler;
+        std::function<futures::Value<EmptyValue>(const wstring& input)> handler;
         PromptOptions::ColorizeFunction colorize_options_provider;
         switch (mode) {
           case CppCommandMode::kLiteral:
-            handler = RunCppCommandLiteralHandler;
+            // TODO(c++20): Use std::bind_front.
+            handler = [editor_state](const std::wstring& input) {
+              return RunCppCommandLiteralHandler(input, *editor_state);
+            };
             prompt = L"cpp";
             break;
           case CppCommandMode::kShell:
-            handler = RunCppCommandShellHandler;
+            handler = [editor_state](const std::wstring& input) {
+              return RunCppCommandShellHandler(input, *editor_state);
+            };
             prompt = L":";
             auto buffer = editor_state->current_buffer();
             CHECK(buffer != nullptr);
@@ -289,13 +293,12 @@ std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
                 };
             break;
         }
-        return PromptOptions{
-            .editor_state = *editor_state,
-            .prompt = prompt + L" ",
-            .history_file = prompt == L":" ? L"colon" : prompt,
-            .handler = std::move(handler),
-            .cancel_handler = [](EditorState*) { /* Nothing. */ },
-            .status = PromptOptions::Status::kBuffer};
+        return PromptOptions{.editor_state = *editor_state,
+                             .prompt = prompt + L" ",
+                             .history_file = prompt == L":" ? L"colon" : prompt,
+                             .handler = std::move(handler),
+                             .cancel_handler = []() { /* Nothing. */ },
+                             .status = PromptOptions::Status::kBuffer};
       });
 }
 }  // namespace afc::editor
