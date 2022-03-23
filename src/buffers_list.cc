@@ -608,7 +608,7 @@ class BuffersListProducer : public OutputProducer {
 };
 }  // namespace
 
-BuffersList::BuffersList(const EditorState* editor_state)
+BuffersList::BuffersList(const EditorState& editor_state)
     : editor_state_(editor_state),
       widget_(std::make_unique<BufferWidget>(BufferWidget::Options{})),
       active_buffer_widget_(static_cast<BufferWidget*>(widget_.get())) {}
@@ -825,7 +825,7 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
             << " buffers with lines: " << layout.lines;
 
     std::set<OpenBuffer*> active_buffers;
-    for (auto& b : editor_state_->active_buffers()) {
+    for (auto& b : editor_state_.active_buffers()) {
       active_buffers.insert(b.get());
     }
     rows.push_back({std::make_unique<BuffersListProducer>(BuffersListOptions{
@@ -930,7 +930,7 @@ void BuffersList::Update() {
     widgets.push_back(std::make_unique<BufferWidget>(BufferWidget::Options{
         .buffer = buffer,
         .is_active = widgets.size() == index_active ||
-                     editor_state_->Read(editor_variables::multiple_buffers),
+                     editor_state_.Read(editor_variables::multiple_buffers),
         .position_in_parent =
             (buffers.size() > 1 ? widgets.size() : std::optional<size_t>())}));
   }
@@ -943,7 +943,7 @@ void BuffersList::Update() {
     widget_ = std::move(widgets[index_active]);
   } else {
     widget_ = std::make_unique<WidgetListHorizontal>(
-        editor_state_, std::move(widgets), index_active);
+        &editor_state_, std::move(widgets), index_active);
   }
 }
 }  // namespace afc::editor

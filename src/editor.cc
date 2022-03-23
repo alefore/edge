@@ -504,7 +504,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
                    : std::make_pair(output[0], output[1]);
       }()),
       audio_player_(audio_player),
-      buffer_tree_(this),
+      buffer_tree_(*this),
       status_(GetConsole(), audio_player_),
       work_queue_([this] { NotifyInternalEvent(); }) {
   auto paths = edge_path();
