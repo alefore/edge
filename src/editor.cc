@@ -499,7 +499,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       }(args.config_paths)),
       frames_per_second_(args.frames_per_second),
       environment_(BuildEditorEnvironment()),
-      default_commands_(NewCommandMode(this)),
+      default_commands_(NewCommandMode(*this)),
       pipe_to_communicate_internal_events_([] {
         int output[2];
         return pipe2(output, O_NONBLOCK) == -1

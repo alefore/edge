@@ -166,30 +166,29 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   return futures::Past(EmptyValue());
 }
 
-unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state) {
+unique_ptr<Command> NewSetVariableCommand(EditorState& editor_state) {
   static Predictor variables_predictor = VariablesPredictor();
   return NewLinePromptCommand(
-      *editor_state, L"assigns to a variable",
+      editor_state, L"assigns to a variable",
       [options = PromptOptions{
-           .editor_state = *editor_state,
+           .editor_state = editor_state,
            .prompt = L"🔧 ",
            .history_file = L"variables",
            .colorize_options_provider =
-               [editor_state, variables_predictor = variables_predictor](
+               [&editor_state, variables_predictor = variables_predictor](
                    const std::shared_ptr<LazyString>& line,
                    std::unique_ptr<ProgressChannel> progress_channel,
                    std::shared_ptr<Notification> abort_notification)
                -> futures::Value<ColorizePromptOptions> {
              CHECK(progress_channel != nullptr);
              return Predict(
-                        {.editor_state = *editor_state,
+                        {.editor_state = editor_state,
                          .predictor = variables_predictor,
                          .text = line->ToString(),
-                         .source_buffers = editor_state->active_buffers(),
+                         .source_buffers = editor_state.active_buffers(),
                          .progress_channel = std::move(progress_channel),
                          .abort_notification = std::move(abort_notification)})
-                 .Transform([editor_state,
-                             line](std::optional<PredictResults> results) {
+                 .Transform([line](std::optional<PredictResults> results) {
                    return ColorizePromptOptions{
                        .context = results.has_value()
                                       ? results->predictions_buffer
@@ -197,8 +196,8 @@ unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state) {
                  });
            },
            .handler =
-               [editor_state](const std::wstring input) {
-                 return SetVariableCommandHandler(input, *editor_state);
+               [&editor_state](const std::wstring input) {
+                 return SetVariableCommandHandler(input, editor_state);
                },
            .cancel_handler = []() { /* Nothing. */ },
            .predictor = variables_predictor,
