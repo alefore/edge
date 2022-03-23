@@ -53,49 +53,51 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
 
 class GotoCommand : public Command {
  public:
-  GotoCommand(size_t calls) : calls_(calls % 4) {}
+  GotoCommand(EditorState& editor_state, size_t calls)
+      : editor_state_(editor_state), calls_(calls % 4) {}
 
   wstring Description() const override {
     return L"goes to Rth structure from the beginning";
   }
   wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t c, EditorState* editor_state) {
+  void ProcessInput(wint_t c) {
     if (c != 'g') {
-      editor_state->set_keyboard_redirect(nullptr);
-      editor_state->ProcessInput(c);
+      editor_state_.set_keyboard_redirect(nullptr);
+      editor_state_.ProcessInput(c);
       return;
     }
-    auto structure = editor_state->structure();
+    auto structure = editor_state_.structure();
     if (structure == StructureChar() || structure == StructureSymbol() ||
         structure == StructureLine() || structure == StructureMark() ||
         structure == StructurePage() || structure == StructureSearch() ||
         structure == StructureCursor()) {
-      editor_state->ApplyToActiveBuffers(
+      editor_state_.ApplyToActiveBuffers(
           std::make_unique<GotoTransformation>(calls_));
     } else if (structure == StructureBuffer()) {
-      size_t buffers = editor_state->buffers()->size();
+      size_t buffers = editor_state_.buffers()->size();
       size_t position =
-          ComputePosition(0, buffers, buffers, editor_state->direction(),
-                          editor_state->repetitions().value_or(1), calls_);
-      CHECK_LT(position, editor_state->buffers()->size());
-      auto it = editor_state->buffers()->begin();
+          ComputePosition(0, buffers, buffers, editor_state_.direction(),
+                          editor_state_.repetitions().value_or(1), calls_);
+      CHECK_LT(position, editor_state_.buffers()->size());
+      auto it = editor_state_.buffers()->begin();
       advance(it, position);
-      if (it->second != editor_state->current_buffer()) {
-        editor_state->set_current_buffer(it->second,
+      if (it->second != editor_state_.current_buffer()) {
+        editor_state_.set_current_buffer(it->second,
                                          CommandArgumentModeApplyMode::kFinal);
       }
     }
 
-    editor_state->PushCurrentPosition();
-    editor_state->ResetStructure();
-    editor_state->ResetDirection();
-    editor_state->ResetRepetitions();
-    editor_state->set_keyboard_redirect(
-        std::make_unique<GotoCommand>(calls_ + 1));
+    editor_state_.PushCurrentPosition();
+    editor_state_.ResetStructure();
+    editor_state_.ResetDirection();
+    editor_state_.ResetRepetitions();
+    editor_state_.set_keyboard_redirect(
+        std::make_unique<GotoCommand>(editor_state_, calls_ + 1));
   }
 
  private:
+  EditorState& editor_state_;
   const size_t calls_;
 };
 
@@ -121,8 +123,8 @@ std::unique_ptr<CompositeTransformation> GotoTransformation::Clone() const {
   return std::make_unique<GotoTransformation>(calls_);
 }
 
-std::unique_ptr<Command> NewGotoCommand() {
-  return std::make_unique<GotoCommand>(0);
+std::unique_ptr<Command> NewGotoCommand(EditorState& editor_state) {
+  return std::make_unique<GotoCommand>(editor_state, 0);
 }
 
 }  // namespace editor

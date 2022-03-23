@@ -11,6 +11,7 @@ namespace afc {
 namespace editor {
 
 std::unique_ptr<Command> NewCppCommand(
+    EditorState& editor_state,
     std::shared_ptr<afc::vm::Environment> environment, const std::wstring code);
 
 }  // namespace editor

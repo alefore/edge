@@ -8,7 +8,7 @@
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Command> NewRecordCommand();
+std::unique_ptr<Command> NewRecordCommand(EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc

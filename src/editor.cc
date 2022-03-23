@@ -368,7 +368,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
   editor_type->AddField(L"PromptAndOpenFile",
                         vm::NewCallback([](EditorState* editor) {
-                          NewOpenFileCommand(editor)->ProcessInput(0, editor);
+                          NewOpenFileCommand(editor)->ProcessInput(0);
                         }));
 
   editor_type->AddField(L"set_screen_needs_hard_redraw",
@@ -469,7 +469,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       L"editor",
       Value::NewObject(L"Editor", shared_ptr<void>(this, [](void*) {})));
 
-  OpenBuffer::RegisterBufferType(this, environment.get());
+  OpenBuffer::RegisterBufferType(*this, environment.get());
 
   InitShapes(environment.get());
   RegisterTransformations(this, environment.get());
@@ -825,12 +825,12 @@ futures::Value<EmptyValue> EditorState::ProcessInputString(
 
 futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
   if (auto handler = keyboard_redirect().get(); handler != nullptr) {
-    handler->ProcessInput(c, this);
+    handler->ProcessInput(c);
     return futures::Past(EmptyValue());
   }
 
   if (has_current_buffer()) {
-    current_buffer()->mode()->ProcessInput(c, this);
+    current_buffer()->mode()->ProcessInput(c);
     return futures::Past(EmptyValue());
   }
 
@@ -842,7 +842,7 @@ futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
           CHECK(has_current_buffer());
           CHECK(current_buffer() == buffer);
         }
-        buffer->mode()->ProcessInput(c, this);
+        buffer->mode()->ProcessInput(c);
         return EmptyValue();
       });
 }

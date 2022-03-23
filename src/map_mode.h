@@ -25,7 +25,7 @@ class MapMode;
 
 class MapModeCommands {
  public:
-  MapModeCommands();
+  MapModeCommands(EditorState& editor_state);
   std::unique_ptr<MapModeCommands> NewChild();
 
   // Flattens the set of commands (in the entire list), grouped by category (as
@@ -36,8 +36,7 @@ class MapModeCommands {
   void Add(wstring name, std::unique_ptr<Command> value);
   void Add(wstring name, wstring description, std::unique_ptr<vm::Value> value,
            std::shared_ptr<vm::Environment> environment);
-  void Add(wstring name, std::function<void(EditorState*)> value,
-           wstring description);
+  void Add(wstring name, std::function<void()> value, wstring description);
 
  private:
   friend class MapMode;
@@ -49,6 +48,7 @@ class MapModeCommands {
     std::unordered_map<wstring, std::unordered_set<wstring>> variable_commands;
   };
 
+  EditorState& editor_state_;
   std::list<std::shared_ptr<Frame>> frames_;
 };
 
@@ -56,7 +56,7 @@ class MapMode : public EditorMode {
  public:
   MapMode(std::shared_ptr<MapModeCommands> commands);
 
-  void ProcessInput(wint_t c, EditorState* editor_state) override;
+  void ProcessInput(wint_t c) override;
   CursorMode cursor_mode() const override;
 
  private:

@@ -8,7 +8,7 @@
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Command> NewSearchCommand();
+std::unique_ptr<Command> NewSearchCommand(EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc

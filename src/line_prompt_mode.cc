@@ -659,30 +659,33 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
 class LinePromptCommand : public Command {
  public:
-  LinePromptCommand(wstring description,
+  // TODO(easy): Don't have options_supplier receive editor_state; let it
+  // capture it.
+  LinePromptCommand(EditorState& editor_state, wstring description,
                     std::function<PromptOptions(EditorState*)> options_supplier)
-      : description_(std::move(description)),
+      : editor_state_(editor_state),
+        description_(std::move(description)),
         options_supplier_(std::move(options_supplier)) {}
 
   wstring Description() const override { return description_; }
   wstring Category() const override { return L"Prompt"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) override {
-    CHECK(editor_state != nullptr);
-    auto buffer = editor_state->current_buffer();
+  void ProcessInput(wint_t) override {
+    auto buffer = editor_state_.current_buffer();
     if (buffer == nullptr) return;
-    auto options = options_supplier_(editor_state);
-    if (editor_state->structure() == StructureLine()) {
-      editor_state->ResetStructure();
+    auto options = options_supplier_(&editor_state_);
+    if (editor_state_.structure() == StructureLine()) {
+      editor_state_.ResetStructure();
       auto input = buffer->current_line();
-      AddLineToHistory(*editor_state, options.history_file, input->contents());
-      options.handler(input->ToString(), editor_state);
+      AddLineToHistory(editor_state_, options.history_file, input->contents());
+      options.handler(input->ToString(), &editor_state_);
     } else {
       Prompt(std::move(options));
     }
   }
 
  private:
+  EditorState& editor_state_;
   const wstring description_;
   const std::function<PromptOptions(EditorState*)> options_supplier_;
 };
@@ -967,10 +970,10 @@ void Prompt(PromptOptions options) {
 }
 
 std::unique_ptr<Command> NewLinePromptCommand(
-    wstring description,
+    EditorState& editor_state, wstring description,
     std::function<PromptOptions(EditorState*)> options_supplier) {
-  return std::make_unique<LinePromptCommand>(std::move(description),
-                                             std::move(options_supplier));
+  return std::make_unique<LinePromptCommand>(
+      editor_state, std::move(description), std::move(options_supplier));
 }
 
 }  // namespace editor

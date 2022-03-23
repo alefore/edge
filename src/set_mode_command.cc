@@ -17,8 +17,8 @@ class SetModeCommand : public Command {
 
   std::wstring Category() const override { return options_.category; }
   std::wstring Description() const override { return options_.description; }
-  void ProcessInput(wint_t, EditorState* editor) override {
-    editor->set_keyboard_redirect(options_.factory());
+  void ProcessInput(wint_t) override {
+    options_.editor_state.set_keyboard_redirect(options_.factory());
   }
 
  private:

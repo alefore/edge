@@ -22,7 +22,7 @@ class GotoTransformation : public CompositeTransformation {
   const int calls_;
 };
 
-std::unique_ptr<Command> NewGotoCommand();
+std::unique_ptr<Command> NewGotoCommand(EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc

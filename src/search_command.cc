@@ -134,61 +134,62 @@ class ProgressAggregator {
 
 class SearchCommand : public Command {
  public:
+  SearchCommand(EditorState& editor_state) : editor_state_(editor_state) {}
   wstring Description() const override { return L"Searches for a string."; }
   wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    if (editor_state->structure()->search_query() ==
+  void ProcessInput(wint_t) {
+    if (editor_state_.structure()->search_query() ==
         Structure::SearchQuery::kRegion) {
-      editor_state
-          ->ForEachActiveBuffer(
-              [editor_state](const std::shared_ptr<OpenBuffer>& buffer) {
-                SearchOptions search_options;
-                Range range = buffer->FindPartialRange(
-                    editor_state->modifiers(), buffer->position());
-                if (range.begin == range.end) {
-                  return futures::Past(EmptyValue());
-                }
-                VLOG(5) << "FindPartialRange: [position:" << buffer->position()
-                        << "][range:" << range
-                        << "][modifiers:" << editor_state->modifiers() << "]";
-                CHECK_LT(range.begin, range.end);
-                if (range.end.line > range.begin.line) {
-                  // This can happen when repetitions are used (to find multiple
-                  // words). We just cap it at the start/end of the line.
-                  if (editor_state->direction() == Direction::kBackwards) {
-                    range.begin = LineColumn(range.end.line);
-                  } else {
-                    range.end = LineColumn(
-                        range.begin.line,
-                        buffer->LineAt(range.begin.line)->EndColumn());
-                  }
-                }
-                CHECK_EQ(range.begin.line, range.end.line);
-                if (range.begin == range.end) {
-                  return futures::Past(EmptyValue());
-                }
-                CHECK_LT(range.begin.column, range.end.column);
-                buffer->set_position(range.begin);
-                search_options.search_query =
-                    buffer->LineAt(range.begin.line)
-                        ->Substring(range.begin.column,
-                                    range.end.column - range.begin.column)
-                        ->ToString();
-                search_options.starting_position = buffer->position();
-                DoSearch(buffer.get(), search_options);
-                return futures::Past(EmptyValue());
-              })
-          .Transform([editor_state](EmptyValue) {
-            editor_state->ResetStructure();
-            editor_state->ResetDirection();
+      editor_state_
+          .ForEachActiveBuffer([&editor_state = editor_state_](
+                                   const std::shared_ptr<OpenBuffer>& buffer) {
+            SearchOptions search_options;
+            Range range = buffer->FindPartialRange(editor_state.modifiers(),
+                                                   buffer->position());
+            if (range.begin == range.end) {
+              return futures::Past(EmptyValue());
+            }
+            VLOG(5) << "FindPartialRange: [position:" << buffer->position()
+                    << "][range:" << range
+                    << "][modifiers:" << editor_state.modifiers() << "]";
+            CHECK_LT(range.begin, range.end);
+            if (range.end.line > range.begin.line) {
+              // This can happen when repetitions are used (to find multiple
+              // words). We just cap it at the start/end of the line.
+              if (editor_state.direction() == Direction::kBackwards) {
+                range.begin = LineColumn(range.end.line);
+              } else {
+                range.end =
+                    LineColumn(range.begin.line,
+                               buffer->LineAt(range.begin.line)->EndColumn());
+              }
+            }
+            CHECK_EQ(range.begin.line, range.end.line);
+            if (range.begin == range.end) {
+              return futures::Past(EmptyValue());
+            }
+            CHECK_LT(range.begin.column, range.end.column);
+            buffer->set_position(range.begin);
+            search_options.search_query =
+                buffer->LineAt(range.begin.line)
+                    ->Substring(range.begin.column,
+                                range.end.column - range.begin.column)
+                    ->ToString();
+            search_options.starting_position = buffer->position();
+            DoSearch(buffer.get(), search_options);
+            return futures::Past(EmptyValue());
+          })
+          .Transform([&editor_state = editor_state_](EmptyValue) {
+            editor_state.ResetStructure();
+            editor_state.ResetDirection();
             return EmptyValue();
           });
       return;
     }
 
     PromptOptions options;
-    options.editor_state = editor_state;
+    options.editor_state = &editor_state_;
     options.prompt = L"🔎 ";
     options.history_file = L"search";
     options.handler = [](const wstring& input, EditorState* editor_state) {
@@ -208,13 +209,12 @@ class SearchCommand : public Command {
             return EmptyValue();
           });
     };
-    auto async_search_processor =
-        std::make_shared<AsyncSearchProcessor>(editor_state->work_queue());
 
     options.colorize_options_provider =
-        [editor_state, async_search_processor,
+        [async_search_processor =
+             std::make_shared<AsyncSearchProcessor>(editor_state_.work_queue()),
          buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
-             editor_state->active_buffers())](
+             editor_state_.active_buffers())](
             const std::shared_ptr<LazyString>& line,
             std::unique_ptr<ProgressChannel> progress_channel,
             std::shared_ptr<Notification> abort_notification) {
@@ -224,8 +224,8 @@ class SearchCommand : public Command {
               std::make_shared<ProgressAggregator>(std::move(progress_channel));
           return futures::ForEach(
                      buffers->begin(), buffers->end(),
-                     [editor_state, async_search_processor, line,
-                      progress_aggregator, abort_notification,
+                     [async_search_processor, line, progress_aggregator,
+                      abort_notification,
                       results](const std::shared_ptr<OpenBuffer>& buffer) {
                        auto progress_channel = progress_aggregator->NewChild();
                        if (buffer->Read(
@@ -314,11 +314,13 @@ class SearchCommand : public Command {
     search_options.abort_notification = abort_notification;
     return search_options;
   }
+
+  EditorState& editor_state_;
 };
 }  // namespace
 
-std::unique_ptr<Command> NewSearchCommand() {
-  return std::make_unique<SearchCommand>();
+std::unique_ptr<Command> NewSearchCommand(EditorState& editor_state) {
+  return std::make_unique<SearchCommand>(editor_state);
 }
 
 }  // namespace afc::editor

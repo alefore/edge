@@ -24,8 +24,7 @@ using vm::VMType;
 namespace {
 class CommandFromFunction : public Command {
  public:
-  CommandFromFunction(std::function<void(EditorState*)> callback,
-                      wstring description)
+  CommandFromFunction(std::function<void()> callback, wstring description)
       : callback_(std::move(callback)), description_(std::move(description)) {
     CHECK(callback_ != nullptr);
   }
@@ -35,30 +34,30 @@ class CommandFromFunction : public Command {
     return L"C++ Functions (Extensions)";
   }
 
-  void ProcessInput(wint_t, EditorState* editor_state) override {
-    callback_(editor_state);
-  }
+  void ProcessInput(wint_t) override { callback_(); }
 
  private:
-  const std::function<void(EditorState*)> callback_;
+  const std::function<void()> callback_;
   const wstring description_;
 };
 
 }  // namespace
 
 class EditorState;
-MapModeCommands::MapModeCommands() : frames_({std::make_shared<Frame>()}) {
-  Add(L"?", NewHelpCommand(this, L"command mode"));
+MapModeCommands::MapModeCommands(EditorState& editor_state)
+    : editor_state_(editor_state), frames_({std::make_shared<Frame>()}) {
+  Add(L"?", NewHelpCommand(editor_state_, this, L"command mode"));
 }
 
 std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
-  auto output = std::make_unique<MapModeCommands>();
+  auto output = std::make_unique<MapModeCommands>(editor_state_);
   output->frames_ = frames_;
   output->frames_.push_front(std::make_shared<Frame>());
 
   // Override the parent's help command, so that bindings added to the child are
   // visible.
-  output->Add(L"?", NewHelpCommand(output.get(), L"command mode"));
+  output->Add(L"?",
+              NewHelpCommand(editor_state_, output.get(), L"command mode"));
   return output;
 }
 
@@ -92,11 +91,11 @@ void MapModeCommands::Add(wstring name, wstring description,
   std::shared_ptr<vm::Expression> expression =
       NewFunctionCall(NewConstantExpression(std::move(value)), {});
   Add(name, std::make_unique<CommandFromFunction>(
-                [expression, environment](EditorState* editor_state) {
+                [&editor_state = editor_state_, expression, environment]() {
                   LOG(INFO) << "Evaluating expression from Value::Ptr...";
                   Evaluate(expression.get(), environment,
-                           [editor_state](std::function<void()> callback) {
-                             auto buffer = editor_state->current_buffer();
+                           [&editor_state](std::function<void()> callback) {
+                             auto buffer = editor_state.current_buffer();
                              CHECK(buffer != nullptr);
                              buffer->work_queue()->Schedule(callback);
                            });
@@ -104,8 +103,7 @@ void MapModeCommands::Add(wstring name, wstring description,
                 description));
 }
 
-void MapModeCommands::Add(wstring name,
-                          std::function<void(EditorState*)> callback,
+void MapModeCommands::Add(wstring name, std::function<void()> callback,
                           wstring description) {
   Add(name, std::make_unique<CommandFromFunction>(std::move(callback),
                                                   std::move(description)));
@@ -114,7 +112,7 @@ void MapModeCommands::Add(wstring name,
 MapMode::MapMode(std::shared_ptr<MapModeCommands> commands)
     : commands_(std::move(commands)) {}
 
-void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
+void MapMode::ProcessInput(wint_t c) {
   current_input_.push_back(c);
 
   bool reset_input = true;
@@ -126,7 +124,7 @@ void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
       if (current_input_ == it->first) {
         CHECK(it->second);
         current_input_ = L"";
-        it->second->ProcessInput(c, editor_state);
+        it->second->ProcessInput(c);
         return;
       }
       reset_input = false;

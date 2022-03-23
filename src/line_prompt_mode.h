@@ -30,6 +30,7 @@ struct ColorizePromptOptions {
 };
 
 struct PromptOptions {
+  // TODO(easy): Make this a reference.
   EditorState* editor_state = nullptr;
 
   // Text to show in the prompt.
@@ -37,14 +38,14 @@ struct PromptOptions {
 
   // Used to set buffer_variables::contents_type on the buffer for the prompt.
   // The extensions code inspects this and can adjust behaviors.
-  std::wstring prompt_contents_type;
+  std::wstring prompt_contents_type = L"";
 
   // Optional. Name of the file with the history for this type of prompt.
   // Defaults to no history.
-  wstring history_file;
+  wstring history_file = L"";
 
   // Optional. Initial value for the prompt. Defaults to empty.
-  wstring initial_value;
+  wstring initial_value = L"";
 
   // Run whenever the text in the promot changes; should return a future with
   // options to colorize it.
@@ -52,7 +53,7 @@ struct PromptOptions {
       const std::shared_ptr<LazyString>& line,
       std::unique_ptr<ProgressChannel> progress_channel,
       std::shared_ptr<Notification> abort_notification)>
-      colorize_options_provider;
+      colorize_options_provider = nullptr;
 
   // Function to run when the prompt receives the final input.
   std::function<futures::Value<EmptyValue>(const wstring& input,
@@ -61,14 +62,14 @@ struct PromptOptions {
 
   // Optional. Function to run when the prompt is cancelled (because ESCAPE was
   // pressed). If empty, handler will be run with an empty input.
-  std::function<void(EditorState* editor)> cancel_handler;
+  std::function<void(EditorState* editor)> cancel_handler = nullptr;
 
   // Optional. Useful for automatic completion.
   Predictor predictor = EmptyPredictor;
 
   // Source buffers to give to the predictor. See
   // `PredictorInput::source_buffers`.
-  std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
+  std::vector<std::shared_ptr<OpenBuffer>> source_buffers = {};
 
   enum class Status { kEditor, kBuffer };
   Status status = Status::kEditor;
@@ -78,7 +79,7 @@ void Prompt(PromptOptions options);
 
 // options_supplier will only be called if the editor has an active buffer.
 unique_ptr<Command> NewLinePromptCommand(
-    wstring description,
+    EditorState& editor_state, wstring description,
     std::function<PromptOptions(EditorState*)> options_supplier);
 
 }  // namespace editor

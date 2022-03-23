@@ -17,14 +17,18 @@ namespace editor {
 namespace {
 
 class OpenDirectoryCommand : public Command {
+ public:
+  OpenDirectoryCommand(EditorState& editor_state)
+      : editor_state_(editor_state) {}
+
   wstring Description() const override {
     return L"opens a view of the current directory";
   }
   wstring Category() const override { return L"Buffers"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) override {
-    OpenFile({.editor_state = *editor_state,
-              .path = GetPath(editor_state->current_buffer().get())});
+  void ProcessInput(wint_t) override {
+    OpenFile({.editor_state = editor_state_,
+              .path = GetPath(editor_state_.current_buffer().get())});
   }
 
  private:
@@ -36,12 +40,14 @@ class OpenDirectoryCommand : public Command {
     if (dir.IsError()) return std::nullopt;
     return dir.value();
   }
+
+  EditorState& editor_state_;
 };
 
 }  // namespace
 
-std::unique_ptr<Command> NewOpenDirectoryCommand() {
-  return std::make_unique<OpenDirectoryCommand>();
+std::unique_ptr<Command> NewOpenDirectoryCommand(EditorState& editor_state) {
+  return std::make_unique<OpenDirectoryCommand>(editor_state);
 }
 
 }  // namespace editor

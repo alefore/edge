@@ -38,7 +38,7 @@ struct ForkCommandOptions {
   std::optional<Path> children_path = std::nullopt;
 };
 
-unique_ptr<Command> NewForkCommand();
+unique_ptr<Command> NewForkCommand(EditorState& editor_state);
 
 class OpenBuffer;
 

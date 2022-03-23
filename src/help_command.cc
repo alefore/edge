@@ -87,17 +87,20 @@ wstring DescribeSequence(wstring input) {
 
 class HelpCommand : public Command {
  public:
-  HelpCommand(const MapModeCommands* commands, const wstring& mode_description)
-      : commands_(commands), mode_description_(mode_description) {}
+  HelpCommand(EditorState& editor_state, const MapModeCommands* commands,
+              const wstring& mode_description)
+      : editor_state_(editor_state),
+        commands_(commands),
+        mode_description_(mode_description) {}
 
   wstring Description() const override { return L"Shows documentation."; }
   wstring Category() const override { return L"Editor"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    auto original_buffer = editor_state->current_buffer();
+  void ProcessInput(wint_t) {
+    auto original_buffer = editor_state_.current_buffer();
     const BufferName name(L"- help: " + mode_description_);
 
-    auto buffer = OpenBuffer::New({.editor = *editor_state, .name = name});
+    auto buffer = OpenBuffer::New({.editor = editor_state_, .name = name});
     buffer->Set(buffer_variables::tree_parser, L"md");
     buffer->Set(buffer_variables::wrap_from_content, true);
     buffer->Set(buffer_variables::allow_dirty_delete, true);
@@ -129,9 +132,9 @@ class HelpCommand : public Command {
     buffer->set_current_position_line(LineNumber(0));
     buffer->ResetMode();
 
-    (*editor_state->buffers())[name] = buffer;
-    editor_state->AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
-    editor_state->ResetRepetitions();
+    (*editor_state_.buffers())[name] = buffer;
+    editor_state_.AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
+    editor_state_.ResetRepetitions();
   }
 
  private:
@@ -277,14 +280,18 @@ class HelpCommand : public Command {
       buffer->AppendEmptyLine();
     }
   }
+
+  EditorState& editor_state_;
   const MapModeCommands* const commands_;
   const wstring mode_description_;
 };
 }  // namespace
 
-unique_ptr<Command> NewHelpCommand(const MapModeCommands* commands,
+unique_ptr<Command> NewHelpCommand(EditorState& editor_state,
+                                   const MapModeCommands* commands,
                                    const wstring& mode_description) {
-  return std::make_unique<HelpCommand>(commands, mode_description);
+  return std::make_unique<HelpCommand>(editor_state, commands,
+                                       mode_description);
 }
 
 }  // namespace editor

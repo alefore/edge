@@ -207,7 +207,7 @@ using std::to_wstring;
     BufferName(L"- future paste buffer");
 
 /* static */ void OpenBuffer::RegisterBufferType(
-    EditorState* editor_state, afc::vm::Environment* environment) {
+    EditorState& editor_state, afc::vm::Environment* environment) {
   auto buffer = std::make_unique<ObjectType>(L"Buffer");
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(buffer_variables::BoolStruct(),
@@ -437,7 +437,7 @@ using std::to_wstring;
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()), VMType::String(),
            VMType::String(), VMType::Function({VMType::Void()})},
-          [editor_state](vector<unique_ptr<Value>> args) {
+          [](vector<unique_ptr<Value>> args) {
             CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
@@ -454,16 +454,16 @@ using std::to_wstring;
 
   buffer->AddField(
       L"AddBindingToFile",
-      vm::NewCallback([editor_state](std::shared_ptr<OpenBuffer> buffer,
-                                     wstring keys, wstring path) {
+      vm::NewCallback([&editor_state](std::shared_ptr<OpenBuffer> buffer,
+                                      wstring keys, wstring path) {
         LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
         buffer->default_commands_->Add(
             keys,
-            [buffer, path](EditorState* editor_state) {
+            [&editor_state, buffer, path]() {
               wstring resolved_path;
               auto options = ResolvePathOptions::New(
-                  editor_state, std::make_shared<FileSystemDriver>(
-                                    editor_state->work_queue()));
+                  &editor_state, std::make_shared<FileSystemDriver>(
+                                     editor_state.work_queue()));
               options.path = path;
               futures::OnError(
                   ResolvePath(std::move(options))

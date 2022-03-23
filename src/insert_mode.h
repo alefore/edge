@@ -9,7 +9,7 @@
 
 namespace afc::editor {
 
-std::unique_ptr<Command> NewFindCompletionCommand();
+std::unique_ptr<Command> NewFindCompletionCommand(EditorState& editor_state);
 
 class ScrollBehavior {
  public:
@@ -42,6 +42,7 @@ class ScrollBehaviorFactory {
 };
 
 struct InsertModeOptions {
+  // TODO(easy): Turn into ref.
   EditorState* editor_state = nullptr;
 
   // The buffers to insert into. If absent, defaults to the active buffers.

@@ -97,10 +97,10 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
 }
 
 futures::Value<PossibleError> GenerateContents(
-    EditorState* editor_state, std::weak_ptr<OpenBuffer> source_weak,
+    EditorState& editor_state, std::weak_ptr<OpenBuffer> source_weak,
     OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
-  for (const auto& dir : editor_state->edge_path()) {
+  for (const auto& dir : editor_state.edge_path()) {
     target->EvaluateFile(Path::Join(
         dir, Path::FromString(L"hooks/navigation-buffer-reload.cc").value()));
   }
@@ -126,15 +126,18 @@ futures::Value<PossibleError> GenerateContents(
 
 class NavigationBufferCommand : public Command {
  public:
+  NavigationBufferCommand(EditorState& editor_state)
+      : editor_state_(editor_state) {}
+
   wstring Description() const override {
     return L"displays a navigation view of the current buffer";
   }
   wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) override {
-    auto source = editor_state->current_buffer();
+  void ProcessInput(wint_t) override {
+    auto source = editor_state_.current_buffer();
     if (source == nullptr) {
-      editor_state->status()->SetWarningText(
+      editor_state_.status()->SetWarningText(
           L"NavigationBuffer needs an existing buffer.");
       return;
     }
@@ -144,13 +147,13 @@ class NavigationBufferCommand : public Command {
     }
 
     BufferName name(L"Navigation: " + source->name().ToString());
-    auto [it, insert_result] = editor_state->buffers()->insert({name, nullptr});
+    auto [it, insert_result] = editor_state_.buffers()->insert({name, nullptr});
     if (insert_result) {
       std::weak_ptr<OpenBuffer> source_weak = source;
       auto buffer = OpenBuffer::New(
-          {.editor = *editor_state,
+          {.editor = editor_state_,
            .name = name,
-           .generate_contents = [editor_state,
+           .generate_contents = [&editor_state = editor_state_,
                                  source_weak](OpenBuffer* target) {
              return GenerateContents(editor_state, source_weak, target);
            }});
@@ -160,24 +163,27 @@ class NavigationBufferCommand : public Command {
       buffer->Set(buffer_variables::allow_dirty_delete, true);
       buffer->environment()->Define(kDepthSymbol, Value::NewInteger(3));
       buffer->Set(buffer_variables::reload_on_enter, true);
-      editor_state->StartHandlingInterrupts();
-      editor_state->AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
+      editor_state_.StartHandlingInterrupts();
+      editor_state_.AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
       buffer->ResetMode();
       it->second = buffer;
     } else {
       CHECK(it->second != nullptr);
-      editor_state->set_current_buffer(it->second,
+      editor_state_.set_current_buffer(it->second,
                                        CommandArgumentModeApplyMode::kFinal);
     }
-    editor_state->status()->Reset();
-    editor_state->PushCurrentPosition();
-    editor_state->ResetRepetitions();
+    editor_state_.status()->Reset();
+    editor_state_.PushCurrentPosition();
+    editor_state_.ResetRepetitions();
   }
+
+ private:
+  EditorState& editor_state_;
 };
 }  // namespace
 
-std::unique_ptr<Command> NewNavigationBufferCommand() {
-  return std::make_unique<NavigationBufferCommand>();
+std::unique_ptr<Command> NewNavigationBufferCommand(EditorState& editor_state) {
+  return std::make_unique<NavigationBufferCommand>(editor_state);
 }
 
 }  // namespace editor

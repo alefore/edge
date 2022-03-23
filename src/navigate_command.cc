@@ -298,8 +298,10 @@ NavigateState InitialState(EditorState* editor_state) {
 }  // namespace
 
 std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
+  CHECK(editor_state != nullptr);
   return NewSetModeCommand(
-      {.description = L"activates navigate mode.",
+      {.editor_state = *editor_state,
+       .description = L"activates navigate mode.",
        .category = L"Navigate",
        .factory = [editor_state] {
          CommandArgumentMode<NavigateState>::Options options{

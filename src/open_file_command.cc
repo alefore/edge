@@ -245,7 +245,7 @@ std::unique_ptr<Command> NewOpenFileCommand(EditorState* editor) {
                           std::move(abort_notification));
       };
   return NewLinePromptCommand(
-      L"loads a file", [options](EditorState* editor_state) {
+      *editor, L"loads a file", [options](EditorState* editor_state) {
         PromptOptions options_copy = options;
         options_copy.editor_state = editor_state;
         options_copy.source_buffers = editor_state->active_buffers();

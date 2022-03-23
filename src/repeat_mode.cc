@@ -5,19 +5,19 @@
 #include "src/command_mode.h"
 #include "src/editor.h"
 
+namespace afc::editor {
 namespace {
-using namespace afc::editor;
 
 class RepeatMode : public EditorMode {
  public:
-  RepeatMode(std::function<void(int)> consumer)
-      : consumer_(consumer), result_(0) {}
+  RepeatMode(EditorState& editor_state, std::function<void(int)> consumer)
+      : editor_state_(editor_state), consumer_(consumer), result_(0) {}
 
-  void ProcessInput(wint_t c, EditorState* editor_state) {
+  void ProcessInput(wint_t c) {
     if (c < '0' || c > '9') {
       consumer_(result_);
-      editor_state->set_keyboard_redirect(nullptr);
-      editor_state->ProcessInput(c);
+      editor_state_.set_keyboard_redirect(nullptr);
+      editor_state_.ProcessInput(c);
       return;
     }
     result_ = 10 * result_ + c - '0';
@@ -27,17 +27,14 @@ class RepeatMode : public EditorMode {
   CursorMode cursor_mode() const { return CursorMode::kDefault; }
 
  private:
+  EditorState& editor_state_;
   std::function<void(int)> consumer_;
   int result_;
 };
 }  // namespace
 
-namespace afc {
-namespace editor {
-
-std::unique_ptr<EditorMode> NewRepeatMode(std::function<void(int)> consumer) {
-  return std::make_unique<RepeatMode>(std::move(consumer));
+std::unique_ptr<EditorMode> NewRepeatMode(EditorState& editor_state,
+                                          std::function<void(int)> consumer) {
+  return std::make_unique<RepeatMode>(editor_state, std::move(consumer));
 }
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

@@ -11,6 +11,7 @@
 namespace afc::editor {
 
 struct SetModeCommandOptions {
+  EditorState& editor_state;
   std::wstring description;
   std::wstring category;
   std::function<std::unique_ptr<EditorMode>()> factory;

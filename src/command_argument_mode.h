@@ -53,8 +53,8 @@ class CommandArgumentMode : public EditorMode {
     Transform(CommandArgumentModeApplyMode::kPreview, BuildArgument());
   }
 
-  void ProcessInput(wint_t c, EditorState* editor_state) override {
-    options_.undo().Transform([this, c, editor_state](EmptyValue) {
+  void ProcessInput(wint_t c) override {
+    options_.undo().Transform([this, c](EmptyValue) {
       // TODO: Get rid of this cast, ugh.
       switch (static_cast<int>(c)) {
         case Terminal::BACKSPACE:
@@ -73,7 +73,7 @@ class CommandArgumentMode : public EditorMode {
                       ? futures::Past(EmptyValue())
                       : Transform(CommandArgumentModeApplyMode::kFinal,
                                   argument))
-              .Transform([editor_state, c](EmptyValue) {
+              .Transform([editor_state = options_.editor_state, c](EmptyValue) {
                 editor_state->status()->Reset();
                 auto editor_state_copy = editor_state;
                 editor_state->set_keyboard_redirect(nullptr);

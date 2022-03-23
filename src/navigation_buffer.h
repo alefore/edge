@@ -8,7 +8,7 @@
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Command> NewNavigationBufferCommand();
+std::unique_ptr<Command> NewNavigationBufferCommand(EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc

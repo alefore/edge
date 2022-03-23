@@ -8,7 +8,7 @@
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Command> NewListBuffersCommand();
+std::unique_ptr<Command> NewListBuffersCommand(EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc

@@ -195,7 +195,8 @@ std::unique_ptr<Command> NewCommandWithModifiers(
     wstring description, Modifiers modifiers,
     CommandWithModifiersHandler handler, EditorState* editor_state) {
   return NewSetModeCommand(
-      {.description = description,
+      {.editor_state = *editor_state,
+       .description = description,
        .category = L"Edit",
        .factory = [editor_state, name_function, modifiers,
                    handler = std::move(handler)] {

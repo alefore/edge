@@ -8,7 +8,7 @@
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Command> NewOpenDirectoryCommand();
+std::unique_ptr<Command> NewOpenDirectoryCommand(EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc

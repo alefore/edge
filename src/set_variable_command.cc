@@ -186,7 +186,7 @@ unique_ptr<Command> NewSetVariableCommand(EditorState* editor_state) {
                   results.has_value() ? results->predictions_buffer : nullptr};
         });
   };
-  return NewLinePromptCommand(L"assigns to a variable",
+  return NewLinePromptCommand(*editor_state, L"assigns to a variable",
                               [options](EditorState*) { return options; });
 }
 

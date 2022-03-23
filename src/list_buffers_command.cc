@@ -50,7 +50,7 @@ void AdjustLastLine(OpenBuffer* target, std::shared_ptr<OpenBuffer> buffer) {
       L"buffer", Value::NewObject(L"Buffer", buffer));
 }
 
-futures::Value<PossibleError> GenerateContents(EditorState* editor_state,
+futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
                                                OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   bool show_in_buffers_list =
@@ -67,7 +67,7 @@ futures::Value<PossibleError> GenerateContents(EditorState* editor_state,
   }
 
   vector<std::shared_ptr<OpenBuffer>> buffers_to_show;
-  for (const auto& it : *editor_state->buffers()) {
+  for (const auto& it : *editor_state.buffers()) {
     if (!show_in_buffers_list &&
         !it.second->Read(buffer_variables::show_in_buffers_list)) {
       LOG(INFO) << "Skipping buffer (!show_in_buffers_list).";
@@ -163,20 +163,22 @@ futures::Value<PossibleError> GenerateContents(EditorState* editor_state,
 
 class ListBuffersCommand : public Command {
  public:
+  ListBuffersCommand(EditorState& editor_state) : editor_state_(editor_state) {}
+
   wstring Description() const override { return L"lists all open buffers"; }
   wstring Category() const override { return L"Buffers"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) override {
-    CHECK(editor_state != nullptr);
+  void ProcessInput(wint_t) override {
     auto it =
-        editor_state->buffers()->insert({BufferName::BuffersList(), nullptr});
+        editor_state_.buffers()->insert({BufferName::BuffersList(), nullptr});
     if (it.second) {
-      auto buffer = OpenBuffer::New(
-          {.editor = *editor_state,
-           .name = BufferName::BuffersList(),
-           .generate_contents = [editor_state](OpenBuffer* target) {
-             return GenerateContents(editor_state, target);
-           }});
+      auto buffer =
+          OpenBuffer::New({.editor = editor_state_,
+                           .name = BufferName::BuffersList(),
+                           .generate_contents = [&editor_state = editor_state_](
+                                                    OpenBuffer* target) {
+                             return GenerateContents(editor_state, target);
+                           }});
       buffer->Set(buffer_variables::reload_on_enter, true);
       buffer->Set(buffer_variables::atomic_lines, true);
       buffer->Set(buffer_variables::reload_on_display, true);
@@ -184,22 +186,25 @@ class ListBuffersCommand : public Command {
       buffer->Set(buffer_variables::push_positions_to_history, false);
       buffer->Set(buffer_variables::allow_dirty_delete, true);
       it.first->second = std::move(buffer);
-      editor_state->StartHandlingInterrupts();
+      editor_state_.StartHandlingInterrupts();
     }
-    editor_state->set_current_buffer(it.first->second,
+    editor_state_.set_current_buffer(it.first->second,
                                      CommandArgumentModeApplyMode::kFinal);
-    editor_state->status()->Reset();
+    editor_state_.status()->Reset();
     it.first->second->Reload();
-    editor_state->PushCurrentPosition();
+    editor_state_.PushCurrentPosition();
     it.first->second->ResetMode();
-    editor_state->ResetRepetitions();
+    editor_state_.ResetRepetitions();
   }
+
+ private:
+  EditorState& editor_state_;
 };
 
 }  // namespace
 
-std::unique_ptr<Command> NewListBuffersCommand() {
-  return std::make_unique<ListBuffersCommand>();
+std::unique_ptr<Command> NewListBuffersCommand(EditorState& editor_state) {
+  return std::make_unique<ListBuffersCommand>(editor_state);
 }
 
 }  // namespace editor

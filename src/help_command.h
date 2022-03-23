@@ -17,7 +17,8 @@ using std::unique_ptr;
 using std::vector;
 using std::wstring;
 
-std::unique_ptr<Command> NewHelpCommand(const MapModeCommands* commands,
+std::unique_ptr<Command> NewHelpCommand(EditorState& editor_state,
+                                        const MapModeCommands* commands,
                                         const std::wstring& mode_description);
 
 }  // namespace editor

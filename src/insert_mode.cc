@@ -109,19 +109,24 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
 
 class FindCompletionCommand : public Command {
  public:
+  FindCompletionCommand(EditorState& editor_state)
+      : editor_state_(editor_state) {}
   wstring Description() const override {
     return L"Autocompletes the current word.";
   }
   wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t) {
     // TODO(multiple_buffers): Honor.
-    auto buffer = editor_state->current_buffer();
+    auto buffer = editor_state_.current_buffer();
     if (buffer == nullptr) {
       return;
     }
     buffer->ApplyToCursors(NewExpandTransformation());
   }
+
+ private:
+  EditorState& editor_state_;
 };
 
 class InsertMode : public EditorMode {
@@ -132,7 +137,7 @@ class InsertMode : public EditorMode {
     CHECK(!options_.buffers.value().empty());
   }
 
-  void ProcessInput(wint_t c, EditorState* editor_state) {
+  void ProcessInput(wint_t c) {
     bool old_literal = literal_;
     literal_ = false;
     if (old_literal) {
@@ -189,17 +194,16 @@ class InsertMode : public EditorMode {
                     return EmptyValue();
                   });
             })
-            .Transform(
-                [editor_state, options = options_, old_literal](EmptyValue) {
-                  if (old_literal) return EmptyValue();
-                  editor_state->status()->Reset();
-                  CHECK(options.escape_handler != nullptr);
-                  options.escape_handler();  // Probably deletes us.
-                  editor_state->ResetRepetitions();
-                  editor_state->ResetInsertionModifier();
-                  editor_state->set_keyboard_redirect(nullptr);
-                  return EmptyValue();
-                });
+            .Transform([options = options_, old_literal](EmptyValue) {
+              if (old_literal) return EmptyValue();
+              options.editor_state->status()->Reset();
+              CHECK(options.escape_handler != nullptr);
+              options.escape_handler();  // Probably deletes us.
+              options.editor_state->ResetRepetitions();
+              options.editor_state->ResetInsertionModifier();
+              options.editor_state->set_keyboard_redirect(nullptr);
+              return EmptyValue();
+            });
         return;
 
       case Terminal::UP_ARROW:
@@ -251,11 +255,12 @@ class InsertMode : public EditorMode {
       case Terminal::CTRL_U: {
         ResetScrollBehavior();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
-        std::shared_ptr<Value> callback = editor_state->environment()->Lookup(
-            Environment::Namespace(), L"HandleKeyboardControlU",
-            VMType::Function(
-                {VMType::Void(),
-                 VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype}));
+        std::shared_ptr<Value> callback =
+            options_.editor_state->environment()->Lookup(
+                Environment::Namespace(), L"HandleKeyboardControlU",
+                VMType::Function(
+                    {VMType::Void(),
+                     VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype}));
         if (callback == nullptr) {
           LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
           return;
@@ -511,8 +516,8 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
                                                                  : L"🔡 (raw)");
   }
 
-  auto handler = std::make_unique<InsertMode>(options);
-  options.editor_state->set_keyboard_redirect(std::move(handler));
+  options.editor_state->set_keyboard_redirect(
+      std::make_unique<InsertMode>(options));
 
   bool beep = false;
   for (auto& buffer : options.buffers.value()) {
@@ -554,8 +559,8 @@ void DefaultScrollBehavior::End(OpenBuffer& buffer) {
       transformation::SetPosition(std::numeric_limits<ColumnNumber>::max()));
 }
 
-std::unique_ptr<Command> NewFindCompletionCommand() {
-  return std::make_unique<FindCompletionCommand>();
+std::unique_ptr<Command> NewFindCompletionCommand(EditorState& editor_state) {
+  return std::make_unique<FindCompletionCommand>(editor_state);
 }
 
 /* static */ std::unique_ptr<ScrollBehaviorFactory>

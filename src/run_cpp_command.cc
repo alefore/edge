@@ -249,7 +249,8 @@ futures::Value<std::unique_ptr<vm::Value>> RunCppCommandShell(
       });
 }
 
-std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode) {
+std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
+                                          CppCommandMode mode) {
   std::wstring description;
   switch (mode) {
     case CppCommandMode::kLiteral:
@@ -261,37 +262,38 @@ std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode) {
       break;
   }
   CHECK(!description.empty());
-  return NewLinePromptCommand(description, [mode](EditorState* editor_state) {
-    PromptOptions options;
-    auto buffer = editor_state->current_buffer();
-    CHECK(buffer != nullptr);
-    options.editor_state = editor_state;
-    std::wstring prompt;
-    switch (mode) {
-      case CppCommandMode::kLiteral:
-        options.handler = RunCppCommandLiteralHandler;
-        prompt = L"cpp";
-        break;
-      case CppCommandMode::kShell:
-        options.handler = RunCppCommandShellHandler;
-        SearchNamespaces search_namespaces(*buffer);
-        options.colorize_options_provider =
-            [editor_state, search_namespaces](
-                const std::shared_ptr<LazyString>& line,
-                std::unique_ptr<ProgressChannel>,
-                std::shared_ptr<Notification>) {
-              return ColorizeOptionsProvider(editor_state, line,
-                                             search_namespaces);
-            };
-        prompt = L":";
-        break;
-    }
+  return NewLinePromptCommand(
+      editor_state, description, [mode](EditorState* editor_state) {
+        PromptOptions options;
+        auto buffer = editor_state->current_buffer();
+        CHECK(buffer != nullptr);
+        options.editor_state = editor_state;
+        std::wstring prompt;
+        switch (mode) {
+          case CppCommandMode::kLiteral:
+            options.handler = RunCppCommandLiteralHandler;
+            prompt = L"cpp";
+            break;
+          case CppCommandMode::kShell:
+            options.handler = RunCppCommandShellHandler;
+            SearchNamespaces search_namespaces(*buffer);
+            options.colorize_options_provider =
+                [editor_state, search_namespaces](
+                    const std::shared_ptr<LazyString>& line,
+                    std::unique_ptr<ProgressChannel>,
+                    std::shared_ptr<Notification>) {
+                  return ColorizeOptionsProvider(editor_state, line,
+                                                 search_namespaces);
+                };
+            prompt = L":";
+            break;
+        }
 
-    options.prompt = prompt + L" ";
-    options.history_file = prompt == L":" ? L"colon" : prompt;
-    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-    options.status = PromptOptions::Status::kBuffer;
-    return options;
-  });
+        options.prompt = prompt + L" ";
+        options.history_file = prompt == L":" ? L"colon" : prompt;
+        options.cancel_handler = [](EditorState*) { /* Nothing. */ };
+        options.status = PromptOptions::Status::kBuffer;
+        return options;
+      });
 }
 }  // namespace afc::editor

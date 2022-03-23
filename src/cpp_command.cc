@@ -44,8 +44,10 @@ wstring GetCategoryString(wstring code) {
 
 class CppCommand : public Command {
  public:
-  CppCommand(std::unique_ptr<afc::vm::Expression> expression, wstring code)
-      : expression_(std::move(expression)),
+  CppCommand(EditorState& editor_state,
+             std::unique_ptr<afc::vm::Expression> expression, wstring code)
+      : editor_state_(editor_state),
+        expression_(std::move(expression)),
         code_(std::move(code)),
         description_(GetDescriptionString(code_)),
         category_(GetCategoryString(code_)) {
@@ -55,17 +57,18 @@ class CppCommand : public Command {
   std::wstring Description() const override { return description_; }
   std::wstring Category() const override { return category_; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) override {
+  void ProcessInput(wint_t) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
     auto expression = expression_;
-    Evaluate(expression_.get(), editor_state->environment(),
+    Evaluate(expression_.get(), editor_state_.environment(),
              [work_queue =
-                  editor_state->work_queue()](std::function<void()> callback) {
+                  editor_state_.work_queue()](std::function<void()> callback) {
                work_queue->Schedule(std::move(callback));
              });
   }
 
  private:
+  EditorState& editor_state_;
   const std::shared_ptr<afc::vm::Expression> expression_;
   const wstring code_;
   const wstring description_;
@@ -75,6 +78,7 @@ class CppCommand : public Command {
 }  // namespace
 
 std::unique_ptr<Command> NewCppCommand(
+    EditorState& editor_state,
     std::shared_ptr<afc::vm::Environment> environment, wstring code) {
   wstring error_description;
   auto expr =
@@ -85,7 +89,8 @@ std::unique_ptr<Command> NewCppCommand(
     return nullptr;
   }
 
-  return std::make_unique<CppCommand>(std::move(expr), std::move(code));
+  return std::make_unique<CppCommand>(editor_state, std::move(expr),
+                                      std::move(code));
 }
 
 }  // namespace editor

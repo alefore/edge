@@ -478,15 +478,16 @@ bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
 class OperationMode : public EditorMode {
  public:
   OperationMode(TopCommand top_command, EditorState& editor_state)
-      : state_(editor_state, std::move(top_command)) {}
+      : editor_state_(editor_state),
+        state_(editor_state, std::move(top_command)) {}
 
-  void ProcessInput(wint_t c, EditorState* editor_state) override {
-    editor_state->status()->Reset();
+  void ProcessInput(wint_t c) override {
+    editor_state_.status()->Reset();
     if (!state_.empty() &&
         std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
                    state_.GetLastCommand())) {
       state_.Update();
-      ShowStatus(*editor_state);
+      ShowStatus();
       return;
     }
 
@@ -498,7 +499,7 @@ class OperationMode : public EditorMode {
         if (!state_.empty()) {
           state_.UndoLast();
         }
-        ShowStatus(*editor_state);
+        ShowStatus();
         return;
     }
 
@@ -506,11 +507,11 @@ class OperationMode : public EditorMode {
     if (std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
                    state_.GetLastCommand())) {
       state_.Update();
-      ShowStatus(*editor_state);
+      ShowStatus();
       return;
     }
     if (ReceiveInputTopCommand(state_.top_command(), c)) {
-      ShowStatus(*editor_state);
+      ShowStatus();
       return;
     }
     // Unhandled character.
@@ -526,15 +527,16 @@ class OperationMode : public EditorMode {
       return;
     }
     state_.UndoLast();  // The one we just pushed a few lines above.
+    EditorState& editor_state = editor_state_;
     state_.Commit();
-    editor_state->ProcessInput(c);
+    editor_state.ProcessInput(c);
   }
 
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
 
-  void ShowStatus(EditorState& editor_state) {
-    editor_state.status()->SetInformationText(ToStatus(state_.top_command()) +
-                                              L":" + state_.GetStatusString());
+  void ShowStatus() {
+    editor_state_.status()->SetInformationText(ToStatus(state_.top_command()) +
+                                               L":" + state_.GetStatusString());
   }
 
   void PushDefault() { PushCommand(CommandReach()); }
@@ -665,6 +667,7 @@ class OperationMode : public EditorMode {
     return L"Move";
   }
 
+  EditorState& editor_state_;
   State state_;
 };
 }  // namespace
@@ -745,7 +748,8 @@ bool CommandArgumentRepetitions::PopValue() {
 std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
     std::wstring, std::wstring description, TopCommand top_command,
     EditorState& editor_state, std::vector<Command> commands) {
-  return NewSetModeCommand({.description = description,
+  return NewSetModeCommand({.editor_state = editor_state,
+                            .description = description,
                             .category = L"Edit",
                             .factory = [top_command, &editor_state, commands] {
                               auto output = std::make_unique<OperationMode>(
@@ -757,7 +761,7 @@ std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
                                   output->PushCommand(c);
                                 }
                               }
-                              output->ShowStatus(editor_state);
+                              output->ShowStatus();
                               return output;
                             }});
 }
