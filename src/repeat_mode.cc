@@ -16,7 +16,8 @@ class RepeatMode : public EditorMode {
   void ProcessInput(wint_t c) {
     if (c < '0' || c > '9') {
       consumer_(result_);
-      editor_state_.set_keyboard_redirect(nullptr);
+      auto old_mode_to_keep_this_alive =
+          editor_state_.set_keyboard_redirect(nullptr);
       editor_state_.ProcessInput(c);
       return;
     }

@@ -63,13 +63,11 @@ class NewLineTransformation : public CompositeTransformation {
 
     Output output;
     {
-      // TODO(easy, 2022-03-24): Turn this into a BufferContents.
-      auto buffer_to_insert = OpenBuffer::New(
-          {.editor = input.editor, .name = BufferName::TextInsertion()});
-      buffer_to_insert->AppendRawLine(std::make_shared<Line>(
+      auto contents_to_insert = std::make_unique<BufferContents>();
+      contents_to_insert->push_back(std::make_shared<Line>(
           Line::Options(*line).DeleteSuffix(prefix_end)));
-      output.Push(transformation::Insert{
-          .contents_to_insert = buffer_to_insert->contents().copy()});
+      output.Push(transformation::Insert{.contents_to_insert =
+                                             std::move(contents_to_insert)});
     }
 
     output.Push(transformation::SetPosition(input.position));
