@@ -297,16 +297,15 @@ NavigateState InitialState(EditorState* editor_state) {
 }
 }  // namespace
 
-std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
-  CHECK(editor_state != nullptr);
+std::unique_ptr<Command> NewNavigateCommand(EditorState& editor_state) {
   return NewSetModeCommand(
-      {.editor_state = *editor_state,
+      {.editor_state = editor_state,
        .description = L"activates navigate mode.",
        .category = L"Navigate",
-       .factory = [editor_state] {
+       .factory = [&editor_state] {
          CommandArgumentMode<NavigateState>::Options options{
-             .editor_state = *editor_state,
-             .initial_value = InitialState(editor_state),
+             .editor_state = editor_state,
+             .initial_value = InitialState(&editor_state),
              .char_consumer = CharConsumer,
              .status_factory = BuildStatus};
          SetOptionsForBufferTransformation<NavigateState>(

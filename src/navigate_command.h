@@ -7,7 +7,7 @@
 
 namespace afc::editor {
 class EditorState;
-std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state);
+std::unique_ptr<Command> NewNavigateCommand(EditorState& editor_state);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_NAVIGATE_COMMAND_H__

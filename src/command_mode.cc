@@ -812,7 +812,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
 
   commands->Add(L"b",
                 std::make_unique<GotoPreviousPositionCommand>(editor_state));
-  commands->Add(L"n", NewNavigateCommand(&editor_state));
+  commands->Add(L"n", NewNavigateCommand(editor_state));
 
   commands->Add(
       L"j", operation::NewTopLevelCommand(
