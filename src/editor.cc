@@ -194,7 +194,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
   editor_type->AddField(
       L"EnterSetBufferMode", vm::NewCallback([](EditorState* editor) {
-        editor->set_keyboard_redirect(NewSetBufferMode(editor));
+        CHECK(editor != nullptr);
+        editor->set_keyboard_redirect(NewSetBufferMode(*editor));
       }));
 
   editor_type->AddField(L"SetActiveBuffer",

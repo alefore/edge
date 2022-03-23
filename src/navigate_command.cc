@@ -305,7 +305,7 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState* editor_state) {
        .category = L"Navigate",
        .factory = [editor_state] {
          CommandArgumentMode<NavigateState>::Options options{
-             .editor_state = editor_state,
+             .editor_state = *editor_state,
              .initial_value = InitialState(editor_state),
              .char_consumer = CharConsumer,
              .status_factory = BuildStatus};

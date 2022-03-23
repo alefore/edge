@@ -29,7 +29,7 @@ template <typename Argument>
 class CommandArgumentMode : public EditorMode {
  public:
   struct Options {
-    EditorState* editor_state;
+    EditorState& editor_state;
     Argument initial_value = Argument();
 
     std::function<bool(wint_t, Argument*)> char_consumer;
@@ -44,8 +44,7 @@ class CommandArgumentMode : public EditorMode {
   };
 
   CommandArgumentMode(Options options)
-      : options_(options), buffers_(options_.editor_state->active_buffers()) {
-    CHECK(options_.editor_state != nullptr);
+      : options_(options), buffers_(options_.editor_state.active_buffers()) {
     CHECK(options_.char_consumer != nullptr);
     CHECK(options_.status_factory != nullptr);
     CHECK(options_.undo != nullptr);
@@ -73,15 +72,16 @@ class CommandArgumentMode : public EditorMode {
                       ? futures::Past(EmptyValue())
                       : Transform(CommandArgumentModeApplyMode::kFinal,
                                   argument))
-              .Transform([editor_state = options_.editor_state, c](EmptyValue) {
-                editor_state->status()->Reset();
-                auto editor_state_copy = editor_state;
-                editor_state->set_keyboard_redirect(nullptr);
-                if (c != L'\n') {
-                  editor_state_copy->ProcessInput(c);
-                }
-                return EmptyValue();
-              });
+              .Transform(
+                  [&editor_state = options_.editor_state, c](EmptyValue) {
+                    editor_state.status()->Reset();
+                    auto& editor_state_copy = editor_state;
+                    editor_state.set_keyboard_redirect(nullptr);
+                    if (c != L'\n') {
+                      editor_state_copy.ProcessInput(c);
+                    }
+                    return EmptyValue();
+                  });
       }
     });
   }
@@ -103,7 +103,7 @@ class CommandArgumentMode : public EditorMode {
 
   futures::Value<EmptyValue> Transform(CommandArgumentModeApplyMode apply_mode,
                                        Argument argument) {
-    options_.editor_state->status()->SetInformationText(
+    options_.editor_state.status()->SetInformationText(
         options_.status_factory(argument));
     return options_.apply(apply_mode, std::move(argument));
   }
@@ -122,9 +122,8 @@ void SetOptionsForBufferTransformation(
         cursors_affected_factory,
     typename CommandArgumentMode<Argument>::Options* options) {
   CHECK(options != nullptr);
-  CHECK(options->editor_state != nullptr);
   auto buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
-      options->editor_state->active_buffers());
+      options->editor_state.active_buffers());
   auto for_each_buffer =
       [buffers](
           const std::function<futures::Value<futures::IterationControlCommand>(

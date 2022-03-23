@@ -209,7 +209,7 @@ std::unique_ptr<Command> NewCommandWithModifiers(
                editor_state->modifiers().cursors_affected;
          }
          CommandArgumentMode<Modifiers>::Options options{
-             .editor_state = editor_state,
+             .editor_state = *editor_state,
              .initial_value = std::move(mutable_modifiers),
              .char_consumer = &CharConsumer,
              .status_factory = [name_function](const Modifiers& modifiers) {
@@ -217,7 +217,7 @@ std::unique_ptr<Command> NewCommandWithModifiers(
              }};
          SetOptionsForBufferTransformation<Modifiers>(
              std::move(handler),
-             [editor_state](const Modifiers& modifiers) {
+             [](const Modifiers& modifiers) {
                return modifiers.cursors_affected;
              },
              &options);

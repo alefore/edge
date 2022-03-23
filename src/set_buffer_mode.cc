@@ -165,12 +165,12 @@ std::wstring BuildStatus(const Data& data) {
   return output;
 }
 
-futures::Value<EmptyValue> Apply(EditorState* editor,
+futures::Value<EmptyValue> Apply(EditorState& editor,
                                  CommandArgumentModeApplyMode mode, Data data) {
   // Each entry is an index (e.g., for BuffersList::GetBuffer) for an
   // available buffer.
   using Indices = std::vector<size_t>;
-  auto buffers_list = editor->buffer_tree();
+  auto buffers_list = editor.buffer_tree();
 
   Indices initial_indices(buffers_list->BuffersCount());
   for (size_t i = 0; i < initial_indices.size(); ++i) {
@@ -311,17 +311,17 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
         break;  // Already handled.
 
       case Operation::Type::kSearch: {
-        state = state.Transform([editor, buffers_list,
+        state = state.Transform([&editor, buffers_list,
                                  text_input =
                                      operation.text_input](State state) {
           // TODO: Maybe tweak the parameters to allow more than just one to
           // run at a given time? Would require changes to async_processor.h
           // (I think).
           auto evaluator = std::make_shared<AsyncSearchProcessor>(
-              editor->work_queue(),
+              editor.work_queue(),
               BackgroundCallbackRunner::Options::QueueBehavior::kWait);
           auto progress_channel = std::make_shared<ProgressChannel>(
-              editor->work_queue(), [](ProgressInformation) {},
+              editor.work_queue(), [](ProgressInformation) {},
               WorkQueueChannelConsumeMode::kLastAvailable);
           auto new_state = std::make_shared<State>(
               State{.index = state.index, .indices = {}});
@@ -367,11 +367,11 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
     }
   }
 
-  return state.Transform([editor, mode, buffers_list](State state) {
+  return state.Transform([&editor, mode, buffers_list](State state) {
     if (state.pattern_error.has_value()) {
       // TODO: Find a better way to show it without hiding the input, ugh.
-      editor->status()->SetWarningText(L"Pattern error: " +
-                                       state.pattern_error.value());
+      editor.status()->SetWarningText(L"Pattern error: " +
+                                      state.pattern_error.value());
       return EmptyValue();
     }
     if (state.indices.empty()) {
@@ -379,10 +379,10 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
     }
     state.index %= state.indices.size();
     auto buffer = buffers_list->GetBuffer(state.indices[state.index]);
-    editor->set_current_buffer(buffer, mode);
+    editor.set_current_buffer(buffer, mode);
     switch (mode) {
       case CommandArgumentModeApplyMode::kFinal:
-        editor->buffer_tree()->set_filter(std::nullopt);
+        editor.buffer_tree()->set_filter(std::nullopt);
         break;
 
       case CommandArgumentModeApplyMode::kPreview:
@@ -392,7 +392,7 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
           for (const auto& i : state.indices) {
             filter.push_back(buffers_list->GetBuffer(i));
           }
-          editor->buffer_tree()->set_filter(std::move(filter));
+          editor.buffer_tree()->set_filter(std::move(filter));
         }
         break;
     }
@@ -402,16 +402,16 @@ futures::Value<EmptyValue> Apply(EditorState* editor,
 
 }  // namespace
 
-std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
-  auto buffers_list = editor->buffer_tree();
+std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
+  auto buffers_list = editor.buffer_tree();
   Data initial_value;
-  if (editor->modifiers().repetitions.has_value()) {
-    editor->set_current_buffer(
+  if (editor.modifiers().repetitions.has_value()) {
+    editor.set_current_buffer(
         buffers_list->GetBuffer(
-            (max(editor->modifiers().repetitions.value(), 1ul) - 1) %
+            (max(editor.modifiers().repetitions.value(), 1ul) - 1) %
             buffers_list->BuffersCount()),
         CommandArgumentModeApplyMode::kFinal);
-    editor->ResetRepetitions();
+    editor.ResetRepetitions();
     return nullptr;
   }
   CommandArgumentMode<Data>::Options options{
@@ -420,14 +420,14 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState* editor) {
       .char_consumer = &CharConsumer,
       .status_factory = &BuildStatus,
       .undo =
-          [editor, initial_buffer = editor->buffer_tree()->active_buffer()]() {
-            editor->set_current_buffer(initial_buffer,
-                                       CommandArgumentModeApplyMode::kFinal);
-            editor->buffer_tree()->set_filter(std::nullopt);
+          [&editor, initial_buffer = editor.buffer_tree()->active_buffer()]() {
+            editor.set_current_buffer(initial_buffer,
+                                      CommandArgumentModeApplyMode::kFinal);
+            editor.buffer_tree()->set_filter(std::nullopt);
             return futures::Past(EmptyValue());
           },
-      .apply = [editor](CommandArgumentModeApplyMode mode,
-                        Data data) { return Apply(editor, mode, data); }};
+      .apply = [&editor](CommandArgumentModeApplyMode mode,
+                         Data data) { return Apply(editor, mode, data); }};
 
   return std::make_unique<CommandArgumentMode<Data>>(std::move(options));
 }
