@@ -771,10 +771,6 @@ void Prompt(PromptOptions options) {
               {.buffer_to_insert = std::move(buffer_to_insert)}));
         }
 
-        InsertModeOptions insert_mode_options;
-        insert_mode_options.editor_state = &editor_state;
-        insert_mode_options.buffers = {buffer};
-
         auto history_evaluator = std::make_shared<AsyncEvaluator>(
             L"HistoryScrollBehaviorFactory", buffer->work_queue());
 
@@ -786,181 +782,199 @@ void Prompt(PromptOptions options) {
         auto abort_notification_ptr =
             std::make_shared<std::shared_ptr<Notification>>(
                 std::make_shared<Notification>());
-        insert_mode_options
-            .modify_handler = [&editor_state, history_evaluator, history,
-                               prompt_state, options, abort_notification_ptr](
-                                  const std::shared_ptr<OpenBuffer>& buffer) {
-          auto line = buffer->LineAt(LineNumber())->contents();
-          if (options.colorize_options_provider == nullptr ||
-              prompt_state->status()->GetType() != Status::Type::kPrompt) {
-            return futures::Past(EmptyValue());
-          }
-          auto prompt_render_state =
-              std::make_shared<PromptRenderState>(prompt_state);
-          auto progress_channel = std::make_unique<ProgressChannel>(
-              buffer->work_queue(),
-              [prompt_render_state](ProgressInformation extra_information) {
-                prompt_render_state->SetStatusValues(extra_information.values);
-                prompt_render_state->SetStatusValues(
-                    extra_information.counters);
-              },
-              WorkQueueChannelConsumeMode::kAll);
-          (*abort_notification_ptr)->Notify();
-          *abort_notification_ptr = std::make_shared<Notification>();
-          return JoinValues(
-                     FilterHistory(editor_state, history.get(),
-                                   history_evaluator.get(),
-                                   *abort_notification_ptr, line->ToString())
-                         .Transform([prompt_render_state](
-                                        std::shared_ptr<OpenBuffer>
-                                            filtered_history) {
-                           LOG(INFO)
-                               << "Propagating history information to status.";
-                           if (!prompt_render_state->IsGone()) {
-                             bool last_line_empty =
-                                 filtered_history
-                                     ->LineAt(filtered_history->EndLine())
-                                     ->empty();
-                             prompt_render_state->SetStatusValue(
-                                 StatusPromptExtraInformationKey(L"history"),
-                                 filtered_history->lines_size().line_delta -
-                                     (last_line_empty ? 1 : 0));
-                           }
-                           return EmptyValue();
-                         }),
-                     options
-                         .colorize_options_provider(line,
-                                                    std::move(progress_channel),
-                                                    *abort_notification_ptr)
-                         .Transform([buffer, prompt_state,
-                                     abort_notification_ptr,
+        InsertModeOptions insert_mode_options{
+            .editor_state = editor_state,
+            .buffers = {{buffer}},
+            .modify_handler =
+                [&editor_state, history_evaluator, history, prompt_state,
+                 options, abort_notification_ptr](
+                    const std::shared_ptr<OpenBuffer>& buffer) {
+                  auto line = buffer->LineAt(LineNumber())->contents();
+                  if (options.colorize_options_provider == nullptr ||
+                      prompt_state->status()->GetType() !=
+                          Status::Type::kPrompt) {
+                    return futures::Past(EmptyValue());
+                  }
+                  auto prompt_render_state =
+                      std::make_shared<PromptRenderState>(prompt_state);
+                  auto progress_channel = std::make_unique<ProgressChannel>(
+                      buffer->work_queue(),
+                      [prompt_render_state](
+                          ProgressInformation extra_information) {
+                        prompt_render_state->SetStatusValues(
+                            extra_information.values);
+                        prompt_render_state->SetStatusValues(
+                            extra_information.counters);
+                      },
+                      WorkQueueChannelConsumeMode::kAll);
+                  (*abort_notification_ptr)->Notify();
+                  *abort_notification_ptr = std::make_shared<Notification>();
+                  return JoinValues(
+                             FilterHistory(editor_state, history.get(),
+                                           history_evaluator.get(),
+                                           *abort_notification_ptr,
+                                           line->ToString())
+                                 .Transform([prompt_render_state](
+                                                std::shared_ptr<OpenBuffer>
+                                                    filtered_history) {
+                                   LOG(INFO)
+                                       << "Propagating history information "
+                                          "to status.";
+                                   if (!prompt_render_state->IsGone()) {
+                                     bool last_line_empty =
+                                         filtered_history
+                                             ->LineAt(
+                                                 filtered_history->EndLine())
+                                             ->empty();
+                                     prompt_render_state->SetStatusValue(
+                                         StatusPromptExtraInformationKey(
+                                             L"history"),
+                                         filtered_history->lines_size()
+                                                 .line_delta -
+                                             (last_line_empty ? 1 : 0));
+                                   }
+                                   return EmptyValue();
+                                 }),
+                             options
+                                 .colorize_options_provider(
+                                     line, std::move(progress_channel),
+                                     *abort_notification_ptr)
+                                 .Transform([buffer, prompt_state,
+                                             abort_notification_ptr,
+                                             original_line =
+                                                 buffer->LineAt(LineNumber(0))](
+                                                ColorizePromptOptions options) {
+                                   LOG(INFO) << "Calling ColorizePrompt "
+                                                "with results.";
+                                   ColorizePrompt(buffer, prompt_state,
+                                                  *abort_notification_ptr,
+                                                  original_line, options);
+                                   return EmptyValue();
+                                 }))
+                      .Transform([](auto) { return EmptyValue(); });
+                },
+            .scroll_behavior = std::make_unique<HistoryScrollBehaviorFactory>(
+                editor_state, options.prompt, history, history_evaluator,
+                prompt_state, buffer),
+            .escape_handler =
+                [&editor_state, options, prompt_state]() {
+                  LOG(INFO) << "Running escape_handler from Prompt.";
+                  prompt_state->Reset();
+
+                  if (options.cancel_handler) {
+                    VLOG(5) << "Running cancel handler.";
+                    options.cancel_handler(&editor_state);
+                  } else {
+                    VLOG(5) << "Running handler on empty input.";
+                    options.handler(L"", &editor_state);
+                  }
+                  editor_state.set_keyboard_redirect(nullptr);
+                },
+            .new_line_handler =
+                [&editor_state, options,
+                 prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
+                  auto input = buffer->current_line()->contents();
+                  AddLineToHistory(editor_state, options.history_file, input);
+                  auto ensure_survival_of_current_closure =
+                      editor_state.keyboard_redirect();
+                  editor_state.set_keyboard_redirect(nullptr);
+                  prompt_state->Reset();
+                  return options.handler(input->ToString(), &editor_state);
+                },
+            .start_completion =
+                [&editor_state, options,
+                 prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
+                  auto input = buffer->current_line()->contents()->ToString();
+                  LOG(INFO) << "Triggering predictions from: " << input;
+                  CHECK(prompt_state->status()->prompt_extra_information() !=
+                        nullptr);
+                  Predict({.editor_state = editor_state,
+                           .predictor = options.predictor,
+                           .input_buffer = buffer,
+                           .input_selection_structure = StructureLine(),
+                           .source_buffers = options.source_buffers})
+                      .SetConsumer([&editor_state, options, buffer,
+                                    prompt_state, input](
+                                       std::optional<PredictResults> results) {
+                        if (!results.has_value()) return;
+                        if (results.value().common_prefix.has_value() &&
+                            !results.value().common_prefix.value().empty() &&
+                            input != results.value().common_prefix.value()) {
+                          LOG(INFO) << "Prediction advanced from " << input
+                                    << " to " << results.value();
+
+                          buffer->ApplyToCursors(transformation::Delete{
+                              .modifiers = {
+                                  .structure = StructureLine(),
+                                  .delete_behavior =
+                                      Modifiers::DeleteBehavior::kDeleteText,
+                                  .paste_buffer_behavior = Modifiers::
+                                      PasteBufferBehavior::kDoNothing,
+                                  .boundary_begin = Modifiers::LIMIT_CURRENT,
+                                  .boundary_end = Modifiers::LIMIT_CURRENT}});
+
+                          std::shared_ptr<LazyString> line = NewLazyString(
+                              results.value().common_prefix.value());
+                          auto buffer_to_insert = OpenBuffer::New(
+                              {.editor = editor_state,
+                               .name = BufferName::TextInsertion()});
+                          buffer_to_insert->AppendToLastLine(line);
+                          buffer->ApplyToCursors(transformation::Insert(
+                              {.buffer_to_insert =
+                                   std::move(buffer_to_insert)}));
+                          if (options.colorize_options_provider != nullptr) {
+                            CHECK(prompt_state->status()->GetType() ==
+                                  Status::Type::kPrompt);
+                            auto prompt_render_state =
+                                std::make_shared<PromptRenderState>(
+                                    prompt_state);
+                            options
+                                .colorize_options_provider(
+                                    line,
+                                    std::make_unique<ProgressChannel>(
+                                        buffer->work_queue(),
+                                        [](ProgressInformation) {
+                                          /* Nothing for now. */
+                                        },
+                                        WorkQueueChannelConsumeMode::kAll),
+                                    std::make_shared<Notification>())
+                                .Transform(
+                                    [buffer, prompt_state, prompt_render_state,
                                      original_line = buffer->LineAt(LineNumber(
                                          0))](ColorizePromptOptions options) {
-                           LOG(INFO) << "Calling ColorizePrompt with results.";
-                           ColorizePrompt(buffer, prompt_state,
-                                          *abort_notification_ptr,
+                                      ColorizePrompt(
+                                          buffer, prompt_state,
+                                          std::make_shared<Notification>(),
                                           original_line, options);
-                           return EmptyValue();
-                         }))
-              .Transform([](auto) { return EmptyValue(); });
-        };
-
-        insert_mode_options.scroll_behavior =
-            std::make_unique<HistoryScrollBehaviorFactory>(
-                editor_state, options.prompt, history, history_evaluator,
-                prompt_state, buffer);
-
-        insert_mode_options.escape_handler = [&editor_state, options,
-                                              prompt_state]() {
-          LOG(INFO) << "Running escape_handler from Prompt.";
-          prompt_state->Reset();
-
-          if (options.cancel_handler) {
-            VLOG(5) << "Running cancel handler.";
-            options.cancel_handler(&editor_state);
-          } else {
-            VLOG(5) << "Running handler on empty input.";
-            options.handler(L"", &editor_state);
-          }
-          editor_state.set_keyboard_redirect(nullptr);
-        };
-
-        insert_mode_options.new_line_handler =
-            [&editor_state, options,
-             prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
-              auto input = buffer->current_line()->contents();
-              AddLineToHistory(editor_state, options.history_file, input);
-              auto ensure_survival_of_current_closure =
-                  editor_state.keyboard_redirect();
-              editor_state.set_keyboard_redirect(nullptr);
-              prompt_state->Reset();
-              return options.handler(input->ToString(), &editor_state);
-            };
-
-        insert_mode_options
-            .start_completion = [&editor_state, options, prompt_state](
-                                    const std::shared_ptr<OpenBuffer>& buffer) {
-          auto input = buffer->current_line()->contents()->ToString();
-          LOG(INFO) << "Triggering predictions from: " << input;
-          CHECK(prompt_state->status()->prompt_extra_information() != nullptr);
-          Predict({.editor_state = editor_state,
-                   .predictor = options.predictor,
-                   .input_buffer = buffer,
-                   .input_selection_structure = StructureLine(),
-                   .source_buffers = options.source_buffers})
-              .SetConsumer([&editor_state, options, buffer, prompt_state,
-                            input](std::optional<PredictResults> results) {
-                if (!results.has_value()) return;
-                if (results.value().common_prefix.has_value() &&
-                    !results.value().common_prefix.value().empty() &&
-                    input != results.value().common_prefix.value()) {
-                  LOG(INFO) << "Prediction advanced from " << input << " to "
-                            << results.value();
-
-                  buffer->ApplyToCursors(transformation::Delete{
-                      .modifiers = {
-                          .structure = StructureLine(),
-                          .delete_behavior =
-                              Modifiers::DeleteBehavior::kDeleteText,
-                          .paste_buffer_behavior =
-                              Modifiers::PasteBufferBehavior::kDoNothing,
-                          .boundary_begin = Modifiers::LIMIT_CURRENT,
-                          .boundary_end = Modifiers::LIMIT_CURRENT}});
-
-                  std::shared_ptr<LazyString> line =
-                      NewLazyString(results.value().common_prefix.value());
-                  auto buffer_to_insert =
-                      OpenBuffer::New({.editor = editor_state,
-                                       .name = BufferName::TextInsertion()});
-                  buffer_to_insert->AppendToLastLine(line);
-                  buffer->ApplyToCursors(transformation::Insert(
-                      {.buffer_to_insert = std::move(buffer_to_insert)}));
-                  if (options.colorize_options_provider != nullptr) {
-                    CHECK(prompt_state->status()->GetType() ==
-                          Status::Type::kPrompt);
-                    auto prompt_render_state =
-                        std::make_shared<PromptRenderState>(prompt_state);
-                    options
-                        .colorize_options_provider(
-                            line,
-                            std::make_unique<ProgressChannel>(
-                                buffer->work_queue(),
-                                [](ProgressInformation) {
-                                  /* Nothing for now. */
-                                },
-                                WorkQueueChannelConsumeMode::kAll),
-                            std::make_shared<Notification>())
-                        .Transform([buffer, prompt_state, prompt_render_state,
-                                    original_line = buffer->LineAt(LineNumber(
-                                        0))](ColorizePromptOptions options) {
-                          ColorizePrompt(buffer, prompt_state,
-                                         std::make_shared<Notification>(),
-                                         original_line, options);
-                          return Success();
-                        });
-                  }
-                  return;
-                }
-                LOG(INFO) << "Prediction didn't advance.";
-                auto buffers = editor_state.buffers();
-                auto name = PredictionsBufferName();
-                if (auto it = buffers->find(name); it != buffers->end()) {
-                  it->second->set_current_position_line(LineNumber(0));
-                  editor_state.set_current_buffer(
-                      it->second, CommandArgumentModeApplyMode::kFinal);
-                  if (editor_state.status()->prompt_buffer() == nullptr) {
-                    it->second->status()->CopyFrom(*prompt_state->status());
-                  }
-                } else {
-                  editor_state.status()->SetWarningText(
-                      L"Error: Predict: predictions buffer not found: " +
-                      name.ToString());
-                }
-              });
-          return true;
-        };
-
+                                      return Success();
+                                    });
+                          }
+                          return;
+                        }
+                        LOG(INFO) << "Prediction didn't advance.";
+                        auto buffers = editor_state.buffers();
+                        auto name = PredictionsBufferName();
+                        if (auto it = buffers->find(name);
+                            it != buffers->end()) {
+                          it->second->set_current_position_line(LineNumber(0));
+                          editor_state.set_current_buffer(
+                              it->second, CommandArgumentModeApplyMode::kFinal);
+                          if (editor_state.status()->prompt_buffer() ==
+                              nullptr) {
+                            it->second->status()->CopyFrom(
+                                *prompt_state->status());
+                          }
+                        } else {
+                          editor_state.status()->SetWarningText(
+                              L"Error: Predict: predictions buffer not "
+                              L"found: " +
+                              name.ToString());
+                        }
+                      });
+                  return true;
+                }};
         EnterInsertMode(insert_mode_options);
+
         // We do this after `EnterInsertMode` because `EnterInsertMode` resets
         // the status.
         prompt_state->status()->set_prompt(options.prompt, buffer);

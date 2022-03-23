@@ -42,32 +42,33 @@ class ScrollBehaviorFactory {
 };
 
 struct InsertModeOptions {
-  // TODO(easy): Turn into ref.
-  EditorState* editor_state = nullptr;
+  EditorState& editor_state;
 
   // The buffers to insert into. If absent, defaults to the active buffers.
-  std::optional<std::vector<std::shared_ptr<OpenBuffer>>> buffers;
+  std::optional<std::vector<std::shared_ptr<OpenBuffer>>> buffers =
+      std::nullopt;
 
   // Optional function to run whenever the contents of the buffer are modified.
   std::function<futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
-      modify_handler;
+      modify_handler = nullptr;
 
   std::shared_ptr<ScrollBehaviorFactory> scroll_behavior =
       ScrollBehaviorFactory::Default();
 
   // Optional function to run when escape is pressed (and thus insert mode is
   // exited). Defaults to resetting the mode back to the default.
-  std::function<void()> escape_handler;
+  std::function<void()> escape_handler = nullptr;
 
   // Optional function to run when a new line is received. Defaults to inserting
   // a new line and moving to it.
   std::function<futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
-      new_line_handler;
+      new_line_handler = nullptr;
 
   // Optional function to run when the user presses Tab for completions. Returns
   // true if completions are being attempted; false if autocompletion is not
   // enabled.
-  std::function<bool(const std::shared_ptr<OpenBuffer>&)> start_completion;
+  std::function<bool(const std::shared_ptr<OpenBuffer>&)> start_completion =
+      nullptr;
 };
 
 void EnterInsertMode(InsertModeOptions options);

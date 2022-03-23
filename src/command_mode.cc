@@ -367,9 +367,7 @@ class EnterInsertModeCommand : public Command {
     if (modifiers_.has_value()) {
       editor_state_.set_modifiers(modifiers_.value());
     }
-    InsertModeOptions options;
-    options.editor_state = &editor_state_;
-    EnterInsertMode(options);
+    EnterInsertMode({.editor_state = editor_state_});
   }
 
  private:

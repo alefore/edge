@@ -141,7 +141,7 @@ class InsertMode : public EditorMode {
     bool old_literal = literal_;
     literal_ = false;
     if (old_literal) {
-      options_.editor_state->status()->Reset();
+      options_.editor_state.status()->Reset();
     }
 
     CHECK(options_.buffers.has_value());
@@ -181,27 +181,27 @@ class InsertMode : public EditorMode {
                   .Transform([options, buffer](EmptyValue) {
                     buffer->PopTransformationStack();
                     auto repetitions =
-                        options.editor_state->repetitions().value_or(1);
+                        options.editor_state.repetitions().value_or(1);
                     if (repetitions > 0) {
-                      options.editor_state->set_repetitions(repetitions - 1);
+                      options.editor_state.set_repetitions(repetitions - 1);
                     }
                     return buffer->RepeatLastTransformation();
                   })
                   .Transform([options, buffer](EmptyValue) {
                     buffer->PopTransformationStack();
-                    options.editor_state->PushCurrentPosition();
+                    options.editor_state.PushCurrentPosition();
                     buffer->status()->Reset();
                     return EmptyValue();
                   });
             })
             .Transform([options = options_, old_literal](EmptyValue) {
               if (old_literal) return EmptyValue();
-              options.editor_state->status()->Reset();
+              options.editor_state.status()->Reset();
               CHECK(options.escape_handler != nullptr);
               options.escape_handler();  // Probably deletes us.
-              options.editor_state->ResetRepetitions();
-              options.editor_state->ResetInsertionModifier();
-              options.editor_state->set_keyboard_redirect(nullptr);
+              options.editor_state.ResetRepetitions();
+              options.editor_state.ResetInsertionModifier();
+              options.editor_state.set_keyboard_redirect(nullptr);
               return EmptyValue();
             });
         return;
@@ -256,7 +256,7 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
         std::shared_ptr<Value> callback =
-            options_.editor_state->environment()->Lookup(
+            options_.editor_state.environment()->Lookup(
                 Environment::Namespace(), L"HandleKeyboardControlU",
                 VMType::Function(
                     {VMType::Void(),
@@ -294,7 +294,7 @@ class InsertMode : public EditorMode {
           WriteLineBuffer({22});
         } else {
           DLOG(INFO) << "Set literal.";
-          options_.editor_state->status()->SetInformationText(L"<literal>");
+          options_.editor_state.status()->SetInformationText(L"<literal>");
           literal_ = true;
         }
         break;
@@ -328,7 +328,7 @@ class InsertMode : public EditorMode {
           return buffer->TransformKeyboardText(std::wstring(1, c))
               .Transform([options, buffer](std::wstring value) {
                 auto buffer_to_insert =
-                    OpenBuffer::New({.editor = *options.editor_state,
+                    OpenBuffer::New({.editor = options.editor_state,
                                      .name = BufferName::TextInsertion()});
                 buffer_to_insert->AppendToLastLine(NewLazyString(value));
 
@@ -338,13 +338,13 @@ class InsertMode : public EditorMode {
                         .buffer_to_insert = std::move(buffer_to_insert),
                         .modifiers = {
                             .insertion =
-                                options.editor_state->modifiers().insertion}}));
+                                options.editor_state.modifiers().insertion}}));
               });
         });
   }
 
   CursorMode cursor_mode() const override {
-    switch (options_.editor_state->modifiers().insertion) {
+    switch (options_.editor_state.modifiers().insertion) {
       case Modifiers::ModifyMode::kShift:
         return CursorMode::kInserting;
       case Modifiers::ModifyMode::kOverwrite:
@@ -397,12 +397,12 @@ class InsertMode : public EditorMode {
                      options, buffer,
                      buffer->ApplyToCursors(std::move(delete_options)))
               .Transform([options, direction, buffer](EmptyValue) {
-                if (options.editor_state->modifiers().insertion !=
+                if (options.editor_state.modifiers().insertion !=
                     Modifiers::ModifyMode::kOverwrite)
                   return futures::Past(EmptyValue());
 
                 auto buffer_to_insert =
-                    OpenBuffer::New({.editor = *options.editor_state,
+                    OpenBuffer::New({.editor = options.editor_state,
                                      .name = BufferName::TextInsertion()});
                 buffer_to_insert->AppendToLastLine(NewLazyString(L" "));
                 auto insert_options = transformation::Insert{
@@ -516,7 +516,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
                                                                  : L"🔡 (raw)");
   }
 
-  options.editor_state->set_keyboard_redirect(
+  options.editor_state.set_keyboard_redirect(
       std::make_unique<InsertMode>(options));
 
   bool beep = false;
@@ -525,7 +525,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
            buffer->Read(buffer_variables::multiple_cursors);
   }
   if (beep) {
-    BeepFrequencies(options.editor_state->audio_player(), {659.25, 1046.50});
+    BeepFrequencies(options.editor_state.audio_player(), {659.25, 1046.50});
   }
 }
 }  // namespace
@@ -579,24 +579,21 @@ ScrollBehaviorFactory::Default() {
 void EnterInsertMode(InsertModeOptions options) {
   auto shared_options = std::make_shared<InsertModeOptions>(std::move(options));
 
-  EditorState* editor_state = shared_options->editor_state;
-  CHECK(editor_state != nullptr);
-
   if (!shared_options->buffers.has_value()) {
-    shared_options->buffers = editor_state->active_buffers();
+    shared_options->buffers = shared_options->editor_state.active_buffers();
   }
 
   auto anonymous_buffer_future = futures::Past(EmptyValue());
   if (shared_options->buffers.value().empty()) {
     anonymous_buffer_future =
-        OpenAnonymousBuffer(editor_state)
+        OpenAnonymousBuffer(&shared_options->editor_state)
             .Transform([shared_options](std::shared_ptr<OpenBuffer> buffer) {
               shared_options->buffers.value().push_back(buffer);
               return EmptyValue();
             });
   }
 
-  anonymous_buffer_future.Transform([editor_state, shared_options](EmptyValue) {
+  anonymous_buffer_future.Transform([shared_options](EmptyValue) {
     for (auto& buffer : shared_options->buffers.value()) {
       auto target_buffer = buffer->GetBufferFromCurrentLine();
       if (target_buffer != nullptr) {
@@ -635,29 +632,29 @@ void EnterInsertMode(InsertModeOptions options) {
           };
     }
 
-    shared_options->editor_state->status()->Reset();
+    shared_options->editor_state.status()->Reset();
     for (auto& buffer : shared_options->buffers.value()) {
       buffer->status()->Reset();
     }
 
-    if (editor_state->structure() == StructureChar() ||
-        editor_state->structure() == StructureLine()) {
+    if (shared_options->editor_state.structure() == StructureChar() ||
+        shared_options->editor_state.structure() == StructureLine()) {
       for (auto& buffer : shared_options->buffers.value()) {
         buffer->CheckPosition();
         buffer->PushTransformationStack();
         buffer->PushTransformationStack();
       }
-      if (editor_state->structure() == StructureLine()) {
+      if (shared_options->editor_state.structure() == StructureLine()) {
         for (auto& buffer : shared_options->buffers.value()) {
           buffer->ApplyToCursors(
               std::make_unique<InsertEmptyLineTransformation>(
-                  editor_state->direction()));
+                  shared_options->editor_state.direction()));
         }
       }
       EnterInsertCharactersMode(*shared_options);
     }
-    editor_state->ResetDirection();
-    editor_state->ResetStructure();
+    shared_options->editor_state.ResetDirection();
+    shared_options->editor_state.ResetStructure();
     return EmptyValue();
   });
 }
