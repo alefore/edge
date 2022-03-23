@@ -63,7 +63,7 @@ class GotoCommand : public Command {
 
   void ProcessInput(wint_t c) {
     if (c != 'g') {
-      editor_state_.set_keyboard_redirect(nullptr);
+      auto old_mode = editor_state_.set_keyboard_redirect(nullptr);
       editor_state_.ProcessInput(c);
       return;
     }

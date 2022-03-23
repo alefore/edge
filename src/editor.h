@@ -214,8 +214,11 @@ class EditorState {
   std::shared_ptr<EditorMode> keyboard_redirect() const {
     return keyboard_redirect_;
   }
-  void set_keyboard_redirect(std::shared_ptr<EditorMode> keyboard_redirect) {
-    keyboard_redirect_ = std::move(keyboard_redirect);
+  // Returns the old value.
+  std::shared_ptr<EditorMode> set_keyboard_redirect(
+      std::shared_ptr<EditorMode> keyboard_redirect) {
+    keyboard_redirect_.swap(keyboard_redirect);
+    return keyboard_redirect;
   }
 
   // Executes pending work from all buffers.

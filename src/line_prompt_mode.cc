@@ -872,8 +872,7 @@ void Prompt(PromptOptions options) {
                   auto input = buffer->current_line()->contents();
                   AddLineToHistory(editor_state, options.history_file, input);
                   auto ensure_survival_of_current_closure =
-                      editor_state.keyboard_redirect();
-                  editor_state.set_keyboard_redirect(nullptr);
+                      editor_state.set_keyboard_redirect(nullptr);
                   prompt_state->Reset();
                   return options.handler(input->ToString());
                 },
