@@ -130,6 +130,18 @@ futures::Value<EmptyValue> ApplyStackDirectly(Iterator begin, Iterator end,
       .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
 }
 
+void FlattenInto(std::list<Variant>& output, Variant& input) {
+  if (Stack* input_stack = std::get_if<Stack>(&input);
+      input_stack != nullptr && (input_stack->post_transformation_behavior ==
+                                     Stack::PostTransformationBehavior::kNone ||
+                                 input_stack->stack.empty())) {
+    for (auto& sub_input : input_stack->stack) {
+      FlattenInto(output, sub_input);
+    }
+  } else {
+    output.push_back(std::move(input));
+  }
+}
 }  // namespace
 
 Variant OptimizeBase(Stack stack) {
@@ -140,10 +152,11 @@ Variant OptimizeBase(Stack stack) {
     t = Optimize(std::move(t));
   }
 
-  stack.stack.remove_if([](auto& t) {
-    Stack* sub_stack = std::get_if<Stack>(&t);
-    return sub_stack != nullptr && sub_stack->stack.empty();
-  });
+  std::list<Variant> new_stack;
+  for (auto& element : stack.stack) {
+    FlattenInto(new_stack, element);
+  }
+  stack.stack = std::move(new_stack);
 
   VLOG(5) << "Removing consecutive calls to SetPosition or Cursors.";
   for (auto it = stack.stack.begin();
