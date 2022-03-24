@@ -39,8 +39,8 @@ class InfoProducer : public OutputProducer {
                Modifiers modifiers)
       : status_(status), buffer_(buffer), modifiers_(modifiers) {}
 
-  OutputProducer::Generator Next() {
-    return Generator{
+  std::vector<Generator> Generate(LineNumberDelta) {
+    return {Generator{
         std::nullopt, [this]() {
           wstring output;
           if (buffer_ != nullptr &&
@@ -179,7 +179,7 @@ class InfoProducer : public OutputProducer {
           //    options.receiver->column().ToDelta(), L' '));
           line_with_cursor.line = std::make_shared<Line>(std::move(options));
           return line_with_cursor;
-        }};
+        }}};
   }
 
  private:
@@ -226,8 +226,7 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
 
   std::vector<VerticalSplitOutputProducer::Column> context_columns(2);
   context_columns[0].width = ColumnNumberDelta(1);
-  context_columns[0].producer =
-      std::make_unique<SectionBracketsProducer>(context_lines);
+  context_columns[0].producer = std::make_unique<SectionBracketsProducer>();
 
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =

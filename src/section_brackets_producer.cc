@@ -12,23 +12,20 @@
 #include "src/line.h"
 
 namespace afc::editor {
-SectionBracketsProducer::SectionBracketsProducer(LineNumberDelta lines)
-    : lines_(lines) {}
-
-SectionBracketsProducer::Generator SectionBracketsProducer::Next() {
-  wstring c;
-  if (current_line_ == LineNumber(0)) {
-    c = L"╭";
-  } else if ((current_line_ + LineNumberDelta(1)).ToDelta() == lines_) {
-    c = L"╰";
-  } else {
-    c = L"│";
-  }
-  ++current_line_;
-  return Generator{std::hash<wstring>{}(c), [c]() {
-                     return LineWithCursor{std::make_shared<Line>(
-                                               Line::Options(NewLazyString(c))),
-                                           std::nullopt};
-                   }};
+std::vector<OutputProducer::Generator> SectionBracketsProducer::Generate(
+    LineNumberDelta lines) {
+  std::vector<OutputProducer::Generator> output;
+  auto push = [&output](wstring c) {
+    output.push_back(
+        Generator{std::hash<wstring>{}(c), [c]() {
+                    return LineWithCursor{
+                        std::make_shared<Line>(Line::Options(NewLazyString(c))),
+                        std::nullopt};
+                  }});
+  };
+  push(L"╭");
+  for (LineNumberDelta i(1); i + LineNumberDelta(1) < lines; ++i) push(L"│");
+  push(L"╰");
+  return output;
 }
 }  // namespace afc::editor

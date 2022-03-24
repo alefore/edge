@@ -14,7 +14,9 @@ class ConstantProducer : public OutputProducer {
       : generator_(Generator::New(CaptureAndHash(
             [](LineWithCursor line) { return line; }, std::move(line)))) {}
 
-  Generator Next() override { return generator_; }
+  std::vector<Generator> Generate(LineNumberDelta lines) override {
+    return std::vector<Generator>(lines.line_delta, generator_);
+  }
 
  private:
   const Generator generator_;

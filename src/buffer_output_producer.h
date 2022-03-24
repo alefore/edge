@@ -17,7 +17,7 @@ class BufferOutputProducer : public OutputProducer {
                        std::list<BufferContentsWindow::Line> lines,
                        Widget::OutputProducerOptions output_producer_options);
 
-  Generator Next() override;
+  std::vector<Generator> Generate(LineNumberDelta lines) override;
 
  private:
   Range GetRange(LineColumn begin);
@@ -27,7 +27,7 @@ class BufferOutputProducer : public OutputProducer {
 
   const std::shared_ptr<const ParseTree> root_;
   const ParseTree* current_tree_;
-  std::list<BufferContentsWindow::Line> lines_;
+  std::vector<BufferContentsWindow::Line> lines_;
 };
 
 }  // namespace editor

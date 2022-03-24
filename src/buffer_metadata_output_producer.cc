@@ -103,39 +103,41 @@ BufferMetadataOutputProducer::BufferMetadataOutputProducer(
     LineNumberDelta lines_shown,
     std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
-      screen_lines_(std::move(screen_lines)),
+      screen_lines_(screen_lines.begin(), screen_lines.end()),
       lines_shown_(lines_shown),
       root_(buffer_->parse_tree()),
       zoomed_out_tree_(std::move(zoomed_out_tree)) {}
 
-OutputProducer::Generator BufferMetadataOutputProducer::Next() {
-  if (screen_lines_.empty()) {
-    return Generator::Empty();
+std::vector<OutputProducer::Generator> BufferMetadataOutputProducer::Generate(
+    LineNumberDelta lines) {
+  if (screen_lines_.empty() || lines < LineNumberDelta()) return {};
+  std::vector<OutputProducer::Generator> output;
+  std::list<OutputProducer::Generator> range_data;
+  for (LineNumberDelta i; i < min(lines, LineNumberDelta(screen_lines_.size()));
+       ++i) {
+    Range range = screen_lines_[i.line_delta].range;
+    if (range.begin.line >= LineNumber(0) + buffer_->lines_size()) {
+      continue;
+    }
+
+    Prepare(range, &range_data);
+    CHECK(!range_data.empty());
+
+    output.push_back(std::move(range_data.front()));
+    range_data.pop_front();
   }
-
-  Range range = screen_lines_.front().range;
-  screen_lines_.pop_front();
-
-  if (!initial_line_.has_value()) {
-    initial_line_ = range.begin.line;
-  }
-
-  if (range.begin.line >= LineNumber(0) + buffer_->lines_size()) {
-    return Generator::Empty();
-  }
-
-  Prepare(range);
-  CHECK(!range_data_.empty());
-
-  Generator output = std::move(range_data_.front());
-  range_data_.pop_front();
-
   return output;
 }
 
-void BufferMetadataOutputProducer::Prepare(Range range) {
-  std::list<Generator> previous_range_data;
-  range_data_.swap(previous_range_data);
+LineNumber BufferMetadataOutputProducer::initial_line() const {
+  CHECK(!screen_lines_.empty());
+  return screen_lines_.front().range.begin.line;
+}
+
+void BufferMetadataOutputProducer::Prepare(
+    Range range, std::list<OutputProducer::Generator>* output) {
+  std::list<Generator> previous_data;
+  output->swap(previous_data);
 
   auto contents = *buffer_->LineAt(range.begin.line);
   auto target_buffer_value = contents.environment()->Lookup(
@@ -151,10 +153,9 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
   auto info_char_modifier = LineModifier::DIM;
 
   if (target_buffer != buffer_.get()) {
-    if (buffers_shown_.insert(target_buffer).second) {
-      PushGenerator(info_char, info_char_modifier,
-                    Line(OpenBuffer::FlagsToString(target_buffer->Flags())));
-    }
+    output->push_back(
+        NewGenerator(info_char, info_char_modifier,
+                     Line(OpenBuffer::FlagsToString(target_buffer->Flags()))));
   } else if (contents.modified()) {
     info_char_modifier = LineModifier::GREEN;
     info_char = L'•';
@@ -163,7 +164,7 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
   }
 
   if (auto metadata = contents.metadata(); metadata != nullptr) {
-    PushGenerator(L'>', LineModifier::GREEN, Line(metadata));
+    output->push_back(NewGenerator(L'>', LineModifier::GREEN, Line(metadata)));
   }
 
   std::list<LineMarks::Mark> marks;
@@ -181,13 +182,13 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
 
   for (const auto& mark : marks) {
     auto source = buffer_->editor().buffers()->find(mark.source);
-    PushGenerator(
-        range_data_.empty() ? L'!' : L' ',
-        range_data_.empty() ? LineModifier::RED : LineModifier::DIM,
+    output->push_back(NewGenerator(
+        output->empty() ? L'!' : L' ',
+        output->empty() ? LineModifier::RED : LineModifier::DIM,
         (source != buffer_->editor().buffers()->end() &&
          mark.source_line < LineNumber(0) + source->second->contents().size())
             ? *source->second->contents().at(mark.source_line)
-            : Line(L"(dead mark)"));
+            : Line(L"(dead mark)")));
   }
 
   // When an expired mark appears again, no need to show it redundantly (as
@@ -205,19 +206,20 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
   for (const auto& mark : marks_expired) {
     if (auto contents = mark.source_line_content->ToString();
         marks_strings.find(contents) == marks_strings.end()) {
-      PushGenerator('!', LineModifier::RED, Line(L"👻 " + contents));
+      output->push_back(
+          NewGenerator('!', LineModifier::RED, Line(L"👻 " + contents)));
     }
   }
 
-  if (range_data_.empty()) {
-    if (previous_range_data.empty()) {
-      PushGenerator(info_char, info_char_modifier,
-                    GetDefaultInformation(range.begin.line));
+  if (output->empty()) {
+    if (previous_data.empty()) {
+      output->push_back(NewGenerator(info_char, info_char_modifier,
+                                     GetDefaultInformation(range.begin.line)));
     } else {
-      range_data_ = std::move(previous_range_data);  // Carry over.
+      output->swap(previous_data);  // Carry over.
     }
   }
-  CHECK(!range_data_.empty());
+  CHECK(!output->empty());
 }
 
 Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
@@ -229,36 +231,35 @@ Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
   }
   if (buffer_->Read(buffer_variables::scrollbar) &&
       buffer_->lines_size() > lines_shown_) {
-    CHECK_GE(line, initial_line_.value());
+    CHECK_GE(line, initial_line());
     options.Append(ComputeCursorsSuffix(line));
     options.Append(ComputeMarksSuffix(line));
     options.Append(ComputeScrollBarSuffix(line));
   }
   if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children().empty()) {
-    options.AppendString(DrawTree(line - initial_line_.value().ToDelta(),
-                                  lines_shown_, *zoomed_out_tree_),
+    options.AppendString(DrawTree(line - initial_line().ToDelta(), lines_shown_,
+                                  *zoomed_out_tree_),
                          std::nullopt);
   }
   return Line(std::move(options));
 }
 
-void BufferMetadataOutputProducer::PushGenerator(wchar_t info_char,
-                                                 LineModifier modifier,
-                                                 Line suffix) {
-  range_data_.push_back(Generator::New(CaptureAndHash(
+OutputProducer::Generator BufferMetadataOutputProducer::NewGenerator(
+    wchar_t info_char, LineModifier modifier, Line suffix) {
+  return Generator::New(CaptureAndHash(
       [](wchar_t info_char, LineModifier modifier, Line suffix) {
         Line::Options options;
         options.AppendCharacter(info_char, {modifier});
         options.Append(suffix);
         return LineWithCursor{std::make_shared<Line>(options), std::nullopt};
       },
-      info_char, modifier, suffix)));
+      info_char, modifier, suffix));
 }
 
-// Assume that the screen is currently showing the screen_position lines out of
-// a buffer of size total_size. Map current_line to its associated range of
-// lines (for the purposes of the scroll bar). The columns are entirely ignored
-// by this function.
+// Assume that the screen is currently showing the screen_position lines out
+// of a buffer of size total_size. Map current_line to its associated range of
+// lines (for the purposes of the scroll bar). The columns are entirely
+// ignored by this function.
 Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
                                    LineNumberDelta total_size) {
   CHECK_GE(current_line, lines_shown.begin.line);
@@ -276,13 +277,12 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
 }
 
 Line BufferMetadataOutputProducer::ComputeMarksSuffix(LineNumber line) {
-  CHECK(initial_line_.has_value());
-  CHECK_GE(line, initial_line_.value());
+  CHECK_GE(line, initial_line());
   const std::multimap<size_t, LineMarks::Mark>* marks = buffer_->GetLineMarks();
   if (marks->empty()) return Line(L"");
   auto range = MapScreenLineToContentsRange(
-      Range(LineColumn(LineNumber(initial_line_.value())),
-            LineColumn(LineNumber(initial_line_.value() + lines_shown_))),
+      Range(LineColumn(LineNumber(initial_line())),
+            LineColumn(LineNumber(initial_line() + lines_shown_))),
       line, buffer_->lines_size());
 
   auto begin = marks->lower_bound(range.begin.line.line);
@@ -301,11 +301,10 @@ Line BufferMetadataOutputProducer::ComputeCursorsSuffix(LineNumber line) {
   if (cursors->size() <= 1) {
     return Line(L"");
   }
-  CHECK(initial_line_.has_value());
-  CHECK_GE(line, initial_line_.value());
+  CHECK_GE(line, initial_line());
   auto range = MapScreenLineToContentsRange(
-      Range(LineColumn(LineNumber(initial_line_.value())),
-            LineColumn(LineNumber(initial_line_.value() + lines_shown_))),
+      Range(LineColumn(LineNumber(initial_line())),
+            LineColumn(LineNumber(initial_line() + lines_shown_))),
       line, buffer_->lines_size());
   int count = 0;
   auto cursors_end = cursors->lower_bound(range.end);
@@ -339,11 +338,11 @@ Line BufferMetadataOutputProducer::ComputeScrollBarSuffix(LineNumber line) {
   auto lines_size = buffer_->lines_size();
   // Each line is split into two units (upper and bottom halves). All units in
   // this function are halves (of a line).
-  DCHECK_GE(line, initial_line_.value());
-  DCHECK_LE(line - initial_line_.value(), lines_shown_)
-      << "Line is " << line << " and view_start is " << initial_line_.value()
+  DCHECK_GE(line, initial_line());
+  DCHECK_LE(line - initial_line(), lines_shown_)
+      << "Line is " << line << " and view_start is " << initial_line()
       << ", which exceeds lines_shown_ of " << lines_shown_;
-  DCHECK_LT(initial_line_.value(), LineNumber(0) + lines_size);
+  DCHECK_LT(initial_line(), LineNumber(0) + lines_size);
   size_t halves_to_show = lines_shown_.line_delta * 2;
 
   // Number of halves the bar should take.
@@ -354,22 +353,22 @@ Line BufferMetadataOutputProducer::ComputeScrollBarSuffix(LineNumber line) {
                             lines_size.line_delta)));
 
   // Bar will be shown in lines in interval [bar, end] (units are halves).
-  size_t start = std::round(halves_to_show *
-                            static_cast<double>(initial_line_.value().line) /
-                            lines_size.line_delta);
+  size_t start =
+      std::round(halves_to_show * static_cast<double>(initial_line().line) /
+                 lines_size.line_delta);
   size_t end = start + bar_size;
 
   LineModifierSet modifiers =
       MapScreenLineToContentsRange(
-          Range(LineColumn(LineNumber(initial_line_.value())),
-                LineColumn(LineNumber(initial_line_.value() + lines_shown_))),
+          Range(LineColumn(LineNumber(initial_line())),
+                LineColumn(LineNumber(initial_line() + lines_shown_))),
           line, buffer_->lines_size())
               .Contains(buffer_->position())
           ? LineModifierSet({LineModifier::BLUE})
           : LineModifierSet({LineModifier::CYAN});
 
   Line::Options options;
-  size_t current = 2 * (line - initial_line_.value()).line_delta;
+  size_t current = 2 * (line - initial_line()).line_delta;
   if (current < start - (start % 2) || current >= end) {
     options.AppendString(L" ", modifiers);
   } else if (start == current + 1) {

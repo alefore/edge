@@ -446,93 +446,97 @@ class BuffersListProducer : public OutputProducer {
             << ", count: " << options_.buffers->size();
   }
 
-  Generator Next() override {
-    VLOG(2) << "BuffersListProducer::WriteLine start, index: " << index_
-            << ", buffers_per_line: " << options_.buffers_per_line
-            << ", size: " << options_.buffers->size();
+  std::vector<Generator> Generate(LineNumberDelta lines) override {
+    std::vector<Generator> output;
+    size_t index = 0;
+    for (LineNumberDelta i; i < lines; ++i) {
+      VLOG(2) << "BuffersListProducer::WriteLine start, index: " << index
+              << ", buffers_per_line: " << options_.buffers_per_line
+              << ", size: " << options_.buffers->size();
 
-    Generator output{
-        std::nullopt, [this, index = index_]() {
-          CHECK_LT(index, options_.buffers->size())
-              << "Buffers per line: " << options_.buffers_per_line;
-          Line::Options output;
-          for (size_t i = 0; i < options_.buffers_per_line &&
-                             index + i < options_.buffers->size();
-               i++) {
-            auto buffer = options_.buffers->at(index + i).get();
-            auto number_prefix = std::to_wstring(index + i + 1);
-            ColumnNumber start =
-                ColumnNumber(0) + (columns_per_buffer_ + prefix_width_) * i;
-            output.AppendString(
-                ColumnNumberDelta::PaddingString(
-                    start.ToDelta() - output.contents->size(), L' '),
-                LineModifierSet());
+      output.push_back(Generator{
+          std::nullopt, [this, index]() {
+            CHECK_LT(index, options_.buffers->size())
+                << "Buffers per line: " << options_.buffers_per_line;
+            Line::Options output;
+            for (size_t i = 0; i < options_.buffers_per_line &&
+                               index + i < options_.buffers->size();
+                 i++) {
+              auto buffer = options_.buffers->at(index + i).get();
+              auto number_prefix = std::to_wstring(index + i + 1);
+              ColumnNumber start =
+                  ColumnNumber(0) + (columns_per_buffer_ + prefix_width_) * i;
+              output.AppendString(
+                  ColumnNumberDelta::PaddingString(
+                      start.ToDelta() - output.contents->size(), L' '),
+                  LineModifierSet());
 
-            FilterResult filter_result =
-                (!options_.filter.has_value() ||
-                 options_.filter.value().find(buffer) !=
-                     options_.filter.value().end())
-                    ? FilterResult::kIncluded
-                    : FilterResult::kExcluded;
+              FilterResult filter_result =
+                  (!options_.filter.has_value() ||
+                   options_.filter.value().find(buffer) !=
+                       options_.filter.value().end())
+                      ? FilterResult::kIncluded
+                      : FilterResult::kExcluded;
 
-            LineModifierSet number_modifiers =
-                GetNumberModifiers(options_, buffer, filter_result);
+              LineModifierSet number_modifiers =
+                  GetNumberModifiers(options_, buffer, filter_result);
 
-            start +=
-                prefix_width_ - ColumnNumberDelta(number_prefix.size() + 2);
-            output.AppendString(
-                StringAppend(
-                    ColumnNumberDelta::PaddingString(
-                        start.ToDelta() - output.contents->size(), L' '),
-                    NewLazyString(number_prefix)),
-                number_modifiers);
+              start +=
+                  prefix_width_ - ColumnNumberDelta(number_prefix.size() + 2);
+              output.AppendString(
+                  StringAppend(
+                      ColumnNumberDelta::PaddingString(
+                          start.ToDelta() - output.contents->size(), L' '),
+                      NewLazyString(number_prefix)),
+                  number_modifiers);
 
-            wstring progress;
-            LineModifierSet progress_modifier;
-            if (auto marks = buffer->GetLineMarks(); !marks->empty()) {
-              progress = L"!";
-              if (std::find_if(marks->begin(), marks->end(), [](auto p) {
-                    return !p.second.IsExpired();
-                  }) != marks->end())
-                progress_modifier.insert(LineModifier::RED);
-            } else if (buffer->ShouldDisplayProgress()) {
-              progress =
-                  ProgressString(buffer->Read(buffer_variables::progress),
-                                 OverflowBehavior::kModulo);
-            } else {
-              progress = ProgressStringFillUp(buffer->lines_size().line_delta,
-                                              OverflowBehavior::kModulo);
-              progress_modifier.insert(LineModifier::DIM);
+              wstring progress;
+              LineModifierSet progress_modifier;
+              if (auto marks = buffer->GetLineMarks(); !marks->empty()) {
+                progress = L"!";
+                if (std::find_if(marks->begin(), marks->end(), [](auto p) {
+                      return !p.second.IsExpired();
+                    }) != marks->end())
+                  progress_modifier.insert(LineModifier::RED);
+              } else if (buffer->ShouldDisplayProgress()) {
+                progress =
+                    ProgressString(buffer->Read(buffer_variables::progress),
+                                   OverflowBehavior::kModulo);
+              } else {
+                progress = ProgressStringFillUp(buffer->lines_size().line_delta,
+                                                OverflowBehavior::kModulo);
+                progress_modifier.insert(LineModifier::DIM);
+              }
+              // If we ever make ProgressString return more than a single
+              // character, we'll have to adjust this.
+              CHECK_LE(progress.size(), 1ul);
+
+              output.AppendString(NewLazyString(progress),
+                                  filter_result == FilterResult::kExcluded
+                                      ? LineModifierSet{LineModifier::DIM}
+                                      : progress_modifier);
+              SelectionState selection_state;
+              switch (filter_result) {
+                case FilterResult::kExcluded:
+                  selection_state = SelectionState::kExcludedByFilter;
+                  break;
+                case FilterResult::kIncluded:
+                  selection_state = options_.active_buffers.find(buffer) !=
+                                            options_.active_buffers.end()
+                                        ? SelectionState::kReceivingInput
+                                        : SelectionState::kIdle;
+              }
+              AppendBufferPath(
+                  columns_per_buffer_, *buffer,
+                  buffer->dirty() ? LineModifierSet{LineModifier::ITALIC}
+                                  : LineModifierSet{},
+                  selection_state, path_components_[index + i], &output);
             }
-            // If we ever make ProgressString return more than a single
-            // character, we'll have to adjust this.
-            CHECK_LE(progress.size(), 1ul);
-
-            output.AppendString(NewLazyString(progress),
-                                filter_result == FilterResult::kExcluded
-                                    ? LineModifierSet{LineModifier::DIM}
-                                    : progress_modifier);
-            SelectionState selection_state;
-            switch (filter_result) {
-              case FilterResult::kExcluded:
-                selection_state = SelectionState::kExcludedByFilter;
-                break;
-              case FilterResult::kIncluded:
-                selection_state = options_.active_buffers.find(buffer) !=
-                                          options_.active_buffers.end()
-                                      ? SelectionState::kReceivingInput
-                                      : SelectionState::kIdle;
-            }
-            AppendBufferPath(
-                columns_per_buffer_, *buffer,
-                buffer->dirty() ? LineModifierSet{LineModifier::ITALIC}
-                                : LineModifierSet{},
-                selection_state, path_components_[index + i], &output);
-          }
-          return LineWithCursor{std::make_shared<Line>(std::move(output)),
-                                std::nullopt};
-        }};
-    index_ += options_.buffers_per_line;
+            return LineWithCursor{std::make_shared<Line>(std::move(output)),
+                                  std::nullopt};
+          }});
+      index += options_.buffers_per_line;
+    }
     return output;
   }
 
@@ -607,7 +611,6 @@ class BuffersListProducer : public OutputProducer {
   const ColumnNumberDelta columns_per_buffer_;
   // Contains one element for each entry in options_.buffers.
   const std::vector<std::list<ProcessedPathComponent>> path_components_;
-  size_t index_ = 0;
 };
 }  // namespace
 

@@ -9,50 +9,52 @@
 namespace afc {
 namespace editor {
 FrameOutputProducer::FrameOutputProducer(Options options)
-    : options_(std::move(options)),
-      line_modifiers_(
-          options_.active_state == Options::ActiveState::kInactive
-              ? LineModifierSet({LineModifier::DIM})
-              : LineModifierSet({LineModifier::BOLD, LineModifier::CYAN})),
-      title_modifiers_(
-          options_.active_state == Options::ActiveState::kActive
-              ? LineModifierSet({LineModifier::BOLD, LineModifier::CYAN,
-                                 LineModifier::REVERSE})
-              : LineModifierSet()) {}
+    : generator_(Generator{
+          std::nullopt,
+          [options,
+           line_modifiers =
+               options.active_state == Options::ActiveState::kInactive
+                   ? LineModifierSet({LineModifier::DIM})
+                   : LineModifierSet({LineModifier::BOLD, LineModifier::CYAN}),
+           title_modifiers =
+               options.active_state == Options::ActiveState::kActive
+                   ? LineModifierSet({LineModifier::BOLD, LineModifier::CYAN,
+                                      LineModifier::REVERSE})
+                   : LineModifierSet()] {
+            Line::Options output;
+            output.AppendString(options.prefix, line_modifiers);
+            output.AppendString(L"──", line_modifiers);
+            if (!options.title.empty()) {
+              output.AppendString(L" " + options.title + L" ", title_modifiers);
+            }
+            if (options.position_in_parent.has_value()) {
+              output.AppendString(L"─(", line_modifiers);
+              // Add 1 because that matches what the repetitions do. Humans
+              // typically start counting from 1.
+              output.AppendString(
+                  std::to_wstring(1 + options.position_in_parent.value()),
+                  LineModifierSet{LineModifier::BOLD, LineModifier::CYAN});
+              output.AppendString(L")", line_modifiers);
+            }
 
-OutputProducer::Generator FrameOutputProducer::Next() {
-  return Generator{
-      std::nullopt, [this]() {
-        Line::Options output;
-        output.AppendString(options_.prefix, line_modifiers_);
-        output.AppendString(L"──", line_modifiers_);
-        if (!options_.title.empty()) {
-          output.AppendString(L" " + options_.title + L" ", title_modifiers_);
-        }
-        if (options_.position_in_parent.has_value()) {
-          output.AppendString(L"─(", line_modifiers_);
-          // Add 1 because that matches what the repetitions do. Humans
-          // typically start counting from 1.
-          output.AppendString(
-              std::to_wstring(1 + options_.position_in_parent.value()),
-              LineModifierSet{LineModifier::BOLD, LineModifier::CYAN});
-          output.AppendString(L")", line_modifiers_);
-        }
+            if (!options.extra_information.empty()) {
+              output.AppendString(L"─<", line_modifiers);
+              output.AppendString(options.extra_information, line_modifiers);
+              output.AppendString(L">", line_modifiers);
+            }
 
-        if (!options_.extra_information.empty()) {
-          output.AppendString(L"─<", line_modifiers_);
-          output.AppendString(options_.extra_information, line_modifiers_);
-          output.AppendString(L">", line_modifiers_);
-        }
+            output.AppendString(
+                ColumnNumberDelta::PaddingString(
+                    options.width - ColumnNumberDelta(output.modifiers.size()),
+                    L'─'),
+                line_modifiers);
+            return OutputProducer::LineWithCursor{
+                std::make_shared<Line>(std::move(output)), std::nullopt};
+          }}) {}
 
-        output.AppendString(
-            ColumnNumberDelta::PaddingString(
-                options_.width - ColumnNumberDelta(output.modifiers.size()),
-                L'─'),
-            line_modifiers_);
-        return OutputProducer::LineWithCursor{
-            std::make_shared<Line>(std::move(output)), std::nullopt};
-      }};
+std::vector<OutputProducer::Generator> FrameOutputProducer::Generate(
+    LineNumberDelta lines) {
+  return std::vector(lines.line_delta, generator_);
 }
 
 }  // namespace editor

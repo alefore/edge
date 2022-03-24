@@ -25,20 +25,13 @@ class HorizontalSplitOutputProducer : public OutputProducer {
   };
 
   HorizontalSplitOutputProducer(std::vector<Row> rows, size_t index_active)
-      : rows_(std::move(rows)),
-        index_active_(index_active),
-        row_line_(rows_.size()) {}
+      : rows_(std::move(rows)), index_active_(index_active) {}
 
-  Generator Next() override;
+  std::vector<Generator> Generate(LineNumberDelta lines) override;
 
  private:
-  void ConsumeLine(size_t row);
-
   const std::vector<Row> rows_;
   const size_t index_active_;
-
-  size_t current_row_ = 0;
-  std::vector<LineNumber> row_line_;
 };
 
 }  // namespace editor

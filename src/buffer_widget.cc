@@ -85,9 +85,8 @@ std::unique_ptr<OutputProducer> LinesSpanView(
       std::make_unique<LineNumberOutputProducer>(buffer, screen_lines);
   auto width = line_numbers->width();
   if (sections_count > 1) {
-    columns.push_back({std::make_unique<SectionBracketsProducer>(
-                           output_producer_options.size.line),
-                       ColumnNumberDelta(1)});
+    columns.push_back(
+        {std::make_unique<SectionBracketsProducer>(), ColumnNumberDelta(1)});
   }
 
   columns.push_back({std::move(line_numbers), width});

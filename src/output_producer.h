@@ -48,7 +48,7 @@ class OutputProducer {
   static std::unique_ptr<OutputProducer> Empty();
   static std::unique_ptr<OutputProducer> Constant(LineWithCursor output);
 
-  virtual Generator Next() = 0;
+  virtual std::vector<Generator> Generate(LineNumberDelta lines) = 0;
 };
 
 }  // namespace afc::editor

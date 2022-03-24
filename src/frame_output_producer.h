@@ -23,12 +23,10 @@ class FrameOutputProducer : public OutputProducer {
 
   FrameOutputProducer(Options options);
 
-  Generator Next() override;
+  std::vector<Generator> Generate(LineNumberDelta lines) override;
 
  private:
-  const Options options_;
-  const LineModifierSet line_modifiers_;
-  const LineModifierSet title_modifiers_;
+  const Generator generator_;
 };
 
 }  // namespace afc::editor

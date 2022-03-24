@@ -23,7 +23,7 @@ class VerticalSplitOutputProducer : public OutputProducer {
 
   VerticalSplitOutputProducer(std::vector<Column> columns, size_t index_active);
 
-  Generator Next() override;
+  std::vector<Generator> Generate(LineNumberDelta lines) override;
 
  private:
   const std::vector<Column> columns_;

@@ -19,14 +19,14 @@ class LineNumberOutputProducer : public OutputProducer {
   LineNumberOutputProducer(std::shared_ptr<OpenBuffer> buffer,
                            std::list<BufferContentsWindow::Line> screen_lines);
 
-  Generator Next() override;
+  std::vector<Generator> Generate(LineNumberDelta lines) override;
 
   ColumnNumberDelta width() const;
 
  private:
   const ColumnNumberDelta width_;
   const std::shared_ptr<OpenBuffer> buffer_;
-  std::list<BufferContentsWindow::Line> screen_lines_;
+  const std::list<BufferContentsWindow::Line> screen_lines_;
 };
 
 }  // namespace editor

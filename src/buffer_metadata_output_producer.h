@@ -18,35 +18,27 @@ class BufferMetadataOutputProducer : public OutputProducer {
       LineNumberDelta lines_shown,
       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
-  Generator Next() override;
+  std::vector<Generator> Generate(LineNumberDelta lines) override;
 
  private:
-  void Prepare(Range range);
+  LineNumber initial_line() const;
+  void Prepare(Range range, std::list<OutputProducer::Generator>* output);
   Line GetDefaultInformation(LineNumber line);
-  void PushGenerator(wchar_t info_char, LineModifier modifier, Line suffix);
+  OutputProducer::Generator NewGenerator(wchar_t info_char,
+                                         LineModifier modifier, Line suffix);
 
   Line ComputeMarksSuffix(LineNumber line);
   Line ComputeCursorsSuffix(LineNumber line);
   Line ComputeScrollBarSuffix(LineNumber line);
 
   const std::shared_ptr<OpenBuffer> buffer_;
-  std::list<BufferContentsWindow::Line> screen_lines_;
+  std::vector<BufferContentsWindow::Line> screen_lines_;
   const LineNumberDelta lines_shown_;
 
   // Key is line number.
   const std::shared_ptr<const ParseTree> root_;
   const ParseTree* current_tree_;
   const std::shared_ptr<const ParseTree> zoomed_out_tree_;
-
-  // Set the first time we get a range from `line_scroll_control_reader_`.
-  std::optional<LineNumber> initial_line_;
-
-  // When we're outputing information about other buffers (mostly useful just
-  // for the list of open buffers), keeps track of those we've already shown, to
-  // only output their flags in their first line.
-  std::unordered_set<const OpenBuffer*> buffers_shown_;
-
-  std::list<Generator> range_data_;
 };
 
 }  // namespace editor
