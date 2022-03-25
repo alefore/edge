@@ -7,8 +7,7 @@
 #include "src/buffer.h"
 #include "src/output_producer.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 // Create an OutputProducer that stitches together multiple columns.
 class VerticalSplitOutputProducer : public OutputProducer {
@@ -30,7 +29,5 @@ class VerticalSplitOutputProducer : public OutputProducer {
   const size_t index_active_;
 };
 
-}  // namespace editor
-}  // namespace afc
-
+}  // namespace afc::editor
 #endif  // __AFC_EDITOR_VERTICAL_SPLIT_OUTPUT_PRODUCER_H__
