@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR HORIZONTAL_CENTER_OUTPUT_PRODUCER_H__
-#define __AFC_EDITOR HORIZONTAL_CENTER_OUTPUT_PRODUCER_H__
+#ifndef __AFC_EDITOR_HORIZONTAL_CENTER_OUTPUT_PRODUCER_H__
+#define __AFC_EDITOR_HORIZONTAL_CENTER_OUTPUT_PRODUCER_H__
 
 #include <memory>
 #include <vector>
@@ -23,4 +23,4 @@ class HorizontalCenterOutputProducer : public OutputProducer {
 
 }  // namespace afc::editor
 
-#endif  // __AFC_EDITOR HORIZONTAL_CENTER_OUTPUT_PRODUCER_H__
+#endif  // __AFC_EDITOR_HORIZONTAL_CENTER_OUTPUT_PRODUCER_H__
