@@ -446,15 +446,15 @@ class BuffersListProducer : public OutputProducer {
             << ", count: " << options_.buffers->size();
   }
 
-  std::vector<Generator> Generate(LineNumberDelta lines) override {
-    std::vector<Generator> output;
+  Output Produce(LineNumberDelta lines) override {
+    Output output{.lines = {}, .width = options_.width};
     size_t index = 0;
     for (LineNumberDelta i; i < lines; ++i) {
       VLOG(2) << "BuffersListProducer::WriteLine start, index: " << index
               << ", buffers_per_line: " << options_.buffers_per_line
               << ", size: " << options_.buffers->size();
 
-      output.push_back(Generator{
+      output.lines.push_back(Generator{
           std::nullopt, [this, index]() {
             CHECK_LT(index, options_.buffers->size())
                 << "Buffers per line: " << options_.buffers_per_line;

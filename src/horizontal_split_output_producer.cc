@@ -9,42 +9,46 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
-std::vector<OutputProducer::Generator> HorizontalSplitOutputProducer::Generate(
+OutputProducer::Output HorizontalSplitOutputProducer::Produce(
     LineNumberDelta lines) {
-  std::vector<Generator> output;
-  auto output_size = [&output] { return LineNumberDelta(output.size()); };
+  Output output;
   LineNumberDelta lines_to_skip;
   for (size_t row_index = 0; row_index < rows_.size(); row_index++) {
-    if (output_size() == lines) break;
+    if (output.size() == lines) break;
     const auto& row = rows_[row_index];
-    CHECK_LT(output_size(), lines);
+    CHECK_LT(output.size(), lines);
     LineNumberDelta lines_from_row =
         min(row.lines, lines +
                            (row.overlap_behavior == Row::OverlapBehavior::kSolid
                                 ? lines_to_skip
                                 : LineNumberDelta()) -
-                           output_size());
-    std::vector<Generator> row_generators =
+                           output.size());
+    Output row_output =
         row.producer == nullptr
-            ? std::vector<Generator>(lines_from_row.line_delta,
-                                     Generator::Empty())
-            : row.producer->Generate(lines_from_row);
+            ? Output{.lines = std::vector<Generator>(lines_from_row.line_delta,
+                                                     Generator::Empty()),
+                     .width = ColumnNumberDelta()}
+            : row.producer->Produce(lines_from_row);
+
     switch (row.overlap_behavior) {
       case Row::OverlapBehavior::kFloat:
-        lines_to_skip += LineNumberDelta(row_generators.size());
+        lines_to_skip += row_output.size();
         break;
       case Row::OverlapBehavior::kSolid:
-        if (lines_to_skip >= LineNumberDelta(row_generators.size())) {
-          lines_to_skip -= LineNumberDelta(row_generators.size());
-          row_generators = {};
+        if (lines_to_skip >= row_output.size()) {
+          lines_to_skip -= row_output.size();
+          row_output.lines = {};
         } else {
-          row_generators.erase(
-              row_generators.begin(),
-              row_generators.begin() + lines_to_skip.line_delta);
+          row_output.lines.erase(
+              row_output.lines.begin(),
+              row_output.lines.begin() + lines_to_skip.line_delta);
           lines_to_skip = LineNumberDelta();
         }
     }
-    for (auto& generator : row_generators) {
+
+    output.width = max(output.width, row_output.width);
+
+    for (auto& generator : row_output.lines) {
       if (row_index != index_active_) {
         if (generator.inputs_hash.has_value()) {
           generator.inputs_hash =
@@ -57,14 +61,14 @@ std::vector<OutputProducer::Generator> HorizontalSplitOutputProducer::Generate(
           return output;
         };
       }
-      output.push_back(std::move(generator));
-      if (output_size() == lines) break;
+      output.lines.push_back(std::move(generator));
+      if (output.size() == lines) break;
     }
   }
 
-  std::vector<Generator> tail((lines - output_size()).line_delta,
+  std::vector<Generator> tail((lines - output.size()).line_delta,
                               Generator::Empty());
-  output.insert(output.end(), tail.begin(), tail.end());
+  output.lines.insert(output.lines.end(), tail.begin(), tail.end());
   return output;
 }
 
@@ -74,7 +78,7 @@ const bool tests_registration =
     tests::Register(L"HorizontalSplitOutputProducer", [] {
       auto Build = [](H producer, LineNumberDelta lines) {
         std::vector<std::wstring> output;
-        for (auto& g : producer.Generate(lines))
+        for (auto& g : producer.Produce(lines).lines)
           output.push_back(g.generate().line->ToString());
         return output;
       };

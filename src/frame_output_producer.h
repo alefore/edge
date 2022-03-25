@@ -23,10 +23,10 @@ class FrameOutputProducer : public OutputProducer {
 
   FrameOutputProducer(Options options);
 
-  std::vector<Generator> Generate(LineNumberDelta lines) override;
+  Output Produce(LineNumberDelta lines) override;
 
  private:
-  const Generator generator_;
+  const std::shared_ptr<Line> line_;
 };
 
 }  // namespace afc::editor

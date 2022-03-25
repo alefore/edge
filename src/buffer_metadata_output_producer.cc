@@ -108,11 +108,16 @@ BufferMetadataOutputProducer::BufferMetadataOutputProducer(
       root_(buffer_->parse_tree()),
       zoomed_out_tree_(std::move(zoomed_out_tree)) {}
 
-std::vector<OutputProducer::Generator> BufferMetadataOutputProducer::Generate(
+struct MetadataLine {
+  OutputProducer::Generator generator;
+  ColumnNumberDelta width;
+};
+
+OutputProducer::Output BufferMetadataOutputProducer::Produce(
     LineNumberDelta lines) {
   if (screen_lines_.empty() || lines < LineNumberDelta()) return {};
-  std::vector<OutputProducer::Generator> output;
-  std::list<OutputProducer::Generator> range_data;
+  Output output;
+  std::list<MetadataLine> range_data;
   for (LineNumberDelta i; i < min(lines, LineNumberDelta(screen_lines_.size()));
        ++i) {
     Range range = screen_lines_[i.line_delta].range;
@@ -123,7 +128,8 @@ std::vector<OutputProducer::Generator> BufferMetadataOutputProducer::Generate(
     Prepare(range, &range_data);
     CHECK(!range_data.empty());
 
-    output.push_back(std::move(range_data.front()));
+    output.width = std::max(output.width, range_data.front().width);
+    output.lines.push_back(std::move(range_data.front().generator));
     range_data.pop_front();
   }
   return output;
@@ -134,9 +140,9 @@ LineNumber BufferMetadataOutputProducer::initial_line() const {
   return screen_lines_.front().range.begin.line;
 }
 
-void BufferMetadataOutputProducer::Prepare(
-    Range range, std::list<OutputProducer::Generator>* output) {
-  std::list<Generator> previous_data;
+void BufferMetadataOutputProducer::Prepare(Range range,
+                                           std::list<MetadataLine>* output) {
+  std::list<MetadataLine> previous_data;
   output->swap(previous_data);
 
   auto contents = *buffer_->LineAt(range.begin.line);
@@ -153,9 +159,9 @@ void BufferMetadataOutputProducer::Prepare(
   auto info_char_modifier = LineModifier::DIM;
 
   if (target_buffer != buffer_.get()) {
-    output->push_back(
-        NewGenerator(info_char, info_char_modifier,
-                     Line(OpenBuffer::FlagsToString(target_buffer->Flags()))));
+    output->push_back(NewMetadataLine(
+        info_char, info_char_modifier,
+        Line(OpenBuffer::FlagsToString(target_buffer->Flags()))));
   } else if (contents.modified()) {
     info_char_modifier = LineModifier::GREEN;
     info_char = L'•';
@@ -164,7 +170,8 @@ void BufferMetadataOutputProducer::Prepare(
   }
 
   if (auto metadata = contents.metadata(); metadata != nullptr) {
-    output->push_back(NewGenerator(L'>', LineModifier::GREEN, Line(metadata)));
+    output->push_back(
+        NewMetadataLine(L'>', LineModifier::GREEN, Line(metadata)));
   }
 
   std::list<LineMarks::Mark> marks;
@@ -182,7 +189,7 @@ void BufferMetadataOutputProducer::Prepare(
 
   for (const auto& mark : marks) {
     auto source = buffer_->editor().buffers()->find(mark.source);
-    output->push_back(NewGenerator(
+    output->push_back(NewMetadataLine(
         output->empty() ? L'!' : L' ',
         output->empty() ? LineModifier::RED : LineModifier::DIM,
         (source != buffer_->editor().buffers()->end() &&
@@ -207,14 +214,15 @@ void BufferMetadataOutputProducer::Prepare(
     if (auto contents = mark.source_line_content->ToString();
         marks_strings.find(contents) == marks_strings.end()) {
       output->push_back(
-          NewGenerator('!', LineModifier::RED, Line(L"👻 " + contents)));
+          NewMetadataLine('!', LineModifier::RED, Line(L"👻 " + contents)));
     }
   }
 
   if (output->empty()) {
     if (previous_data.empty()) {
-      output->push_back(NewGenerator(info_char, info_char_modifier,
-                                     GetDefaultInformation(range.begin.line)));
+      output->push_back(
+          NewMetadataLine(info_char, info_char_modifier,
+                          GetDefaultInformation(range.begin.line)));
     } else {
       output->swap(previous_data);  // Carry over.
     }
@@ -244,16 +252,19 @@ Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
   return Line(std::move(options));
 }
 
-OutputProducer::Generator BufferMetadataOutputProducer::NewGenerator(
+MetadataLine BufferMetadataOutputProducer::NewMetadataLine(
     wchar_t info_char, LineModifier modifier, Line suffix) {
-  return Generator::New(CaptureAndHash(
-      [](wchar_t info_char, LineModifier modifier, Line suffix) {
-        Line::Options options;
-        options.AppendCharacter(info_char, {modifier});
-        options.Append(suffix);
-        return LineWithCursor{std::make_shared<Line>(options), std::nullopt};
-      },
-      info_char, modifier, suffix));
+  ColumnNumberDelta width = ColumnNumberDelta(1) + suffix.contents()->size();
+  return {.generator = Generator::New(CaptureAndHash(
+              [](wchar_t info_char, LineModifier modifier, Line suffix) {
+                Line::Options options;
+                options.AppendCharacter(info_char, {modifier});
+                options.Append(suffix);
+                return LineWithCursor{std::make_shared<Line>(options),
+                                      std::nullopt};
+              },
+              info_char, modifier, std::move(suffix))),
+          .width = width};
 }
 
 // Assume that the screen is currently showing the screen_position lines out

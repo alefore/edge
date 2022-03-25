@@ -40,9 +40,9 @@ LineNumberOutputProducer::LineNumberOutputProducer(
       buffer_(std::move(buffer)),
       screen_lines_(screen_lines) {}
 
-std::vector<OutputProducer::Generator> LineNumberOutputProducer::Generate(
+OutputProducer::Output LineNumberOutputProducer::Produce(
     LineNumberDelta lines) {
-  std::vector<Generator> output;
+  Output output{.lines = {}, .width = width_};
   for (const BufferContentsWindow::Line& screen_line : screen_lines_) {
     if (screen_line.range.begin.line > buffer_->EndLine()) {
       return output;  // The buffer is smaller than the screen.
@@ -58,7 +58,7 @@ std::vector<OutputProducer::Generator> LineNumberOutputProducer::Generate(
       modifiers.container = {LineModifier::BLUE};
     }
 
-    output.push_back(OutputProducer::Generator::New(CaptureAndHash(
+    output.lines.push_back(OutputProducer::Generator::New(CaptureAndHash(
         [](Range range, ColumnNumberDelta width,
            HashableContainer<LineModifierSet> modifiers) {
           std::wstring number = range.begin.column.IsZero()

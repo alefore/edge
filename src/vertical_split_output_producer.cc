@@ -29,21 +29,38 @@ VerticalSplitOutputProducer::VerticalSplitOutputProducer(
   }
 }
 
-std::vector<OutputProducer::Generator> VerticalSplitOutputProducer::Generate(
+OutputProducer::Output VerticalSplitOutputProducer::Produce(
     LineNumberDelta lines) {
-  // Outer index is the line being produced; inner index is the column.
-  std::vector<std::vector<Generator>> inputs(lines.line_delta);
+  std::vector<Output> inputs_by_column;
   for (auto& c : columns_) {
-    std::vector<Generator> column_lines = c.producer->Generate(lines);
-    column_lines.resize(lines.line_delta, Generator::Empty());
-    for (LineNumberDelta i; i < lines; ++i) {
-      inputs[i.line_delta].push_back(column_lines[i.line_delta]);
+    Output input = c.producer->Produce(lines);
+    input.lines.resize(lines.line_delta, Generator::Empty());
+    inputs_by_column.push_back(std::move(input));
+  }
+
+  Output output;
+  for (size_t i = 0; i < columns_.size(); i++) {
+    const Column& column = columns_[i];
+    if (column.width.has_value()) {
+      output.width += *column.width;
+    } else {
+      output.width += inputs_by_column[i].width;
+      break;  // This is the last column.
     }
   }
 
-  std::vector<OutputProducer::Generator> output;
-  for (auto& line_input : inputs) {
-    output.push_back(Generator{
+  // Outer index is the line being produced; inner index is the column.
+  std::vector<std::vector<Generator>> generator_by_line_column(
+      lines.line_delta);
+  for (Output& input : inputs_by_column) {
+    for (LineNumberDelta i; i < input.size(); ++i) {
+      generator_by_line_column[i.line_delta].push_back(
+          std::move(input.lines[i.line_delta]));
+    }
+  }
+
+  for (auto& line_input : generator_by_line_column) {
+    output.lines.push_back(Generator{
         .inputs_hash = CombineHashes(line_input),
         .generate = [line_input = std::move(line_input), this]() {
           LineWithCursor output;

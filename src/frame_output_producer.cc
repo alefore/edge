@@ -9,8 +9,7 @@
 namespace afc {
 namespace editor {
 FrameOutputProducer::FrameOutputProducer(Options options)
-    : generator_(Generator{
-          std::nullopt,
+    : line_(
           [options,
            line_modifiers =
                options.active_state == Options::ActiveState::kInactive
@@ -48,13 +47,19 @@ FrameOutputProducer::FrameOutputProducer(Options options)
                     options.width - ColumnNumberDelta(output.modifiers.size()),
                     L'─'),
                 line_modifiers);
-            return OutputProducer::LineWithCursor{
-                std::make_shared<Line>(std::move(output)), std::nullopt};
-          }}) {}
+            return std::make_shared<Line>(std::move(output));
+          }()) {}
 
-std::vector<OutputProducer::Generator> FrameOutputProducer::Generate(
-    LineNumberDelta lines) {
-  return std::vector(lines.line_delta, generator_);
+OutputProducer::Output FrameOutputProducer::Produce(LineNumberDelta lines) {
+  return Output{
+      .lines = std::vector(
+          lines.line_delta,
+          Generator{.inputs_hash = {},
+                    .generate =
+                        [line = OutputProducer::LineWithCursor{.line = line_}] {
+                          return line;
+                        }}),
+      .width = line_->contents()->size()};
 }
 
 }  // namespace editor

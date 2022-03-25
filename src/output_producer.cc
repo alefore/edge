@@ -11,14 +11,17 @@ namespace {
 class ConstantProducer : public OutputProducer {
  public:
   ConstantProducer(LineWithCursor line)
-      : generator_(Generator::New(CaptureAndHash(
+      : width_(line.line->contents()->size()),
+        generator_(Generator::New(CaptureAndHash(
             [](LineWithCursor line) { return line; }, std::move(line)))) {}
 
-  std::vector<Generator> Generate(LineNumberDelta lines) override {
-    return std::vector<Generator>(lines.line_delta, generator_);
+  Output Produce(LineNumberDelta lines) override {
+    return Output{.lines = std::vector<Generator>(lines.line_delta, generator_),
+                  .width = width_};
   }
 
  private:
+  const ColumnNumberDelta width_;
   const Generator generator_;
 };
 }  // namespace

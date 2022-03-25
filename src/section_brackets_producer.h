@@ -7,7 +7,7 @@
 namespace afc::editor {
 class SectionBracketsProducer : public OutputProducer {
  public:
-  std::vector<Generator> Generate(LineNumberDelta lines) override;
+  Output Produce(LineNumberDelta lines) override;
 };
 }  // namespace afc::editor
 

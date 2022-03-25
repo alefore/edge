@@ -27,7 +27,7 @@ class HorizontalSplitOutputProducer : public OutputProducer {
   HorizontalSplitOutputProducer(std::vector<Row> rows, size_t index_active)
       : rows_(std::move(rows)), index_active_(index_active) {}
 
-  std::vector<Generator> Generate(LineNumberDelta lines) override;
+  Output Produce(LineNumberDelta lines) override;
 
  private:
   const std::vector<Row> rows_;

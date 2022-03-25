@@ -8,6 +8,7 @@
 namespace afc {
 namespace editor {
 
+class MetadataLine;
 // OutputProducer that prints the metadata that is usually shown right after the
 // contents of the buffer (at the right side).
 class BufferMetadataOutputProducer : public OutputProducer {
@@ -18,21 +19,21 @@ class BufferMetadataOutputProducer : public OutputProducer {
       LineNumberDelta lines_shown,
       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
-  std::vector<Generator> Generate(LineNumberDelta lines) override;
+  Output Produce(LineNumberDelta lines) override;
 
  private:
   LineNumber initial_line() const;
-  void Prepare(Range range, std::list<OutputProducer::Generator>* output);
+  void Prepare(Range range, std::list<MetadataLine>* output);
   Line GetDefaultInformation(LineNumber line);
-  OutputProducer::Generator NewGenerator(wchar_t info_char,
-                                         LineModifier modifier, Line suffix);
+  MetadataLine NewMetadataLine(wchar_t info_char, LineModifier modifier,
+                               Line suffix);
 
   Line ComputeMarksSuffix(LineNumber line);
   Line ComputeCursorsSuffix(LineNumber line);
   Line ComputeScrollBarSuffix(LineNumber line);
 
   const std::shared_ptr<OpenBuffer> buffer_;
-  std::vector<BufferContentsWindow::Line> screen_lines_;
+  const std::vector<BufferContentsWindow::Line> screen_lines_;
   const LineNumberDelta lines_shown_;
 
   // Key is line number.

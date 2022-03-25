@@ -162,16 +162,16 @@ BufferOutputProducer::BufferOutputProducer(
   }
 }
 
-std::vector<OutputProducer::Generator> BufferOutputProducer::Generate(
-    LineNumberDelta lines) {
-  std::vector<OutputProducer::Generator> output;
+OutputProducer::Output BufferOutputProducer::Produce(LineNumberDelta lines) {
+  Output output{.lines = {}, .width = output_producer_options_.size.column};
+
   CHECK_GE(lines, LineNumberDelta());
   for (size_t i = 0; i < min(size_t(lines.line_delta), lines_.size()); ++i) {
     BufferContentsWindow::Line screen_line = lines_[i];
     auto line = screen_line.range.begin.line;
 
     if (line > buffer_->EndLine()) {
-      output.push_back(Generator::Empty());
+      output.lines.push_back(Generator::Empty());
       continue;
     }
 
@@ -275,12 +275,13 @@ std::vector<OutputProducer::Generator> BufferOutputProducer::Generate(
       generator = LineHighlighter(std::move(generator));
     }
 
-    output.push_back(generator);
+    output.lines.push_back(generator);
   }
 
   std::vector<Generator> tail(
-      (lines - LineNumberDelta(output.size())).line_delta, Generator::Empty());
-  output.insert(output.end(), tail.begin(), tail.end());
+      (lines - LineNumberDelta(output.lines.size())).line_delta,
+      Generator::Empty());
+  output.lines.insert(output.lines.end(), tail.begin(), tail.end());
   return output;
 }
 }  // namespace afc::editor

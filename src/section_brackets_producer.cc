@@ -12,11 +12,10 @@
 #include "src/line.h"
 
 namespace afc::editor {
-std::vector<OutputProducer::Generator> SectionBracketsProducer::Generate(
-    LineNumberDelta lines) {
-  std::vector<OutputProducer::Generator> output;
+OutputProducer::Output SectionBracketsProducer::Produce(LineNumberDelta lines) {
+  Output output{.lines = {}, .width = ColumnNumberDelta(1)};
   auto push = [&output](wstring c) {
-    output.push_back(
+    output.lines.push_back(
         Generator{std::hash<wstring>{}(c), [c]() {
                     return LineWithCursor{
                         std::make_shared<Line>(Line::Options(NewLazyString(c))),

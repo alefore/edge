@@ -71,12 +71,11 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
       std::move(rows),
       editor_state.status().GetType() == Status::Type::kPrompt ? 1 : 0);
 
-  std::vector<OutputProducer::Generator> generators =
-      producer.Generate(screen->lines());
+  OutputProducer::Output generators = producer.Produce(screen->lines());
   for (LineNumber line; line.ToDelta() < screen->lines(); ++line) {
     WriteLine(screen, line,
-              line.ToDelta() < LineNumberDelta(generators.size())
-                  ? generators[line.line]
+              line.ToDelta() < generators.size()
+                  ? generators.lines[line.line]
                   : OutputProducer::Generator::Empty());
   }
 

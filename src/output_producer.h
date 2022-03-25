@@ -48,7 +48,12 @@ class OutputProducer {
   static std::unique_ptr<OutputProducer> Empty();
   static std::unique_ptr<OutputProducer> Constant(LineWithCursor output);
 
-  virtual std::vector<Generator> Generate(LineNumberDelta lines) = 0;
+  struct Output {
+    LineNumberDelta size() const { return LineNumberDelta(lines.size()); }
+    std::vector<Generator> lines;
+    ColumnNumberDelta width;
+  };
+  virtual Output Produce(LineNumberDelta lines) = 0;
 };
 
 }  // namespace afc::editor
