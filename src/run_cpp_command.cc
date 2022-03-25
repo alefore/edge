@@ -293,12 +293,14 @@ std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
                 };
             break;
         }
-        return PromptOptions{.editor_state = editor_state,
-                             .prompt = prompt + L" ",
-                             .history_file = prompt == L":" ? L"colon" : prompt,
-                             .handler = std::move(handler),
-                             .cancel_handler = []() { /* Nothing. */ },
-                             .status = PromptOptions::Status::kBuffer};
+        return PromptOptions{
+            .editor_state = editor_state,
+            .prompt = prompt + L" ",
+            .history_file = prompt == L":" ? L"colon" : prompt,
+            .colorize_options_provider = std::move(colorize_options_provider),
+            .handler = std::move(handler),
+            .cancel_handler = []() { /* Nothing. */ },
+            .status = PromptOptions::Status::kBuffer};
       });
 }
 }  // namespace afc::editor
