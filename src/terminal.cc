@@ -55,17 +55,21 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
   rows[0].lines = screen->lines() - rows[1].lines;
 
   auto buffer = editor_state.current_buffer();
-  rows[0].producer = editor_state.buffer_tree()->CreateOutputProducer(
-      {.size = LineColumnDelta(rows[0].lines, screen->columns()),
-       .main_cursor_behavior =
-           (editor_state.status().GetType() == Status::Type::kPrompt ||
-            (buffer != nullptr &&
-             buffer->status().GetType() == Status::Type::kPrompt))
-               ? Widget::OutputProducerOptions::MainCursorBehavior::kHighlight
-               : Widget::OutputProducerOptions::MainCursorBehavior::kIgnore});
+  rows[0].callback = OutputProducer::ToCallback(
+      editor_state.buffer_tree()->CreateOutputProducer(
+          {.size = LineColumnDelta(rows[0].lines, screen->columns()),
+           .main_cursor_behavior =
+               (editor_state.status().GetType() == Status::Type::kPrompt ||
+                (buffer != nullptr &&
+                 buffer->status().GetType() == Status::Type::kPrompt))
+                   ? Widget::OutputProducerOptions::MainCursorBehavior::
+                         kHighlight
+                   : Widget::OutputProducerOptions::MainCursorBehavior::
+                         kIgnore}));
 
-  rows[1].producer = status_supplier.CreateOutputProducer(
-      LineColumnDelta(rows[1].lines, screen->columns()));
+  rows[1].callback =
+      OutputProducer::ToCallback(status_supplier.CreateOutputProducer(
+          LineColumnDelta(rows[1].lines, screen->columns())));
 
   HorizontalSplitOutputProducer producer(
       std::move(rows),

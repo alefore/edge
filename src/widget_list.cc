@@ -140,19 +140,27 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
   std::vector<HorizontalSplitOutputProducer::Row> rows;
   CHECK_EQ(children_.size(), lines_per_child.size());
   for (size_t index = 0; index < children_.size(); index++) {
-    auto child_producer =
+    std::shared_ptr<OutputProducer> child_producer =
         NewChildProducer(options, index, lines_per_child[index]);
     if (child_producer != nullptr) {
-      rows.push_back({std::move(child_producer), lines_per_child[index]});
+      rows.push_back({[child_producer](LineNumberDelta lines) {
+                        return child_producer->Produce(lines);
+                      },
+                      lines_per_child[index]});
     }
   }
 
   if (children_skipped > 0) {
     rows.push_back(
-        {std::make_unique<FrameOutputProducer>(FrameOutputProducer::Options{
-             .title = L"Additional files: " + std::to_wstring(children_skipped),
-             .active_state =
-                 FrameOutputProducer::Options::ActiveState::kActive}),
+        {[options =
+              FrameOutputProducer::Options{
+                  .title =
+                      L"Additional files: " + std::to_wstring(children_skipped),
+                  .active_state =
+                      FrameOutputProducer::Options::ActiveState::kActive}](
+             LineNumberDelta lines) {
+           return FrameOutputProducer(options).Produce(lines);
+         },
          LineNumberDelta(1)});
   }
 

@@ -30,12 +30,12 @@ namespace {
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
-std::unique_ptr<OutputProducer> ProducerForString(std::wstring src,
-                                                  LineModifierSet modifiers) {
+std::function<OutputProducer::Output(LineNumberDelta)> ProducerForString(
+    std::wstring src, LineModifierSet modifiers) {
   Line::Options options;
   options.AppendString(std::move(src), std::move(modifiers));
-  return OutputProducer::Constant(
-      {.line = std::make_shared<Line>(std::move(options))});
+  return OutputProducer::ToCallback(OutputProducer::Constant(
+      {.line = std::make_shared<Line>(std::move(options))}));
 }
 
 std::unique_ptr<OutputProducer> AddLeftFrame(
@@ -50,11 +50,11 @@ std::unique_ptr<OutputProducer> AddLeftFrame(
   std::vector<HorizontalSplitOutputProducer::Row> rows;
   if (lines > LineNumberDelta(1)) {
     rows.push_back({
-        .producer = ProducerForString(L"│", modifiers),
+        .callback = ProducerForString(L"│", modifiers),
         .lines = lines - LineNumberDelta(1),
     });
   }
-  rows.push_back({.producer = ProducerForString(L"╰", modifiers),
+  rows.push_back({.callback = ProducerForString(L"╰", modifiers),
                   .lines = LineNumberDelta(1)});
 
   columns.push_back(
@@ -225,9 +225,9 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
         section_input.lines_shown, output_producer_options.size.column);
     CHECK(section_input.active_position == std::nullopt);
     VLOG(3) << "Multiple cursors section starting at: " << section_input.begin;
-    rows.push_back({.producer = LinesSpanView(
+    rows.push_back({.callback = OutputProducer::ToCallback(LinesSpanView(
                         buffer, BufferContentsWindow::Get(section_input).lines,
-                        section_output_producer_options, sections.size()),
+                        section_output_producer_options, sections.size())),
                     .lines = section_input.lines_shown});
 
     if (section.Contains(buffer->position())) {
@@ -328,13 +328,14 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (status_lines > LineNumberDelta(0)) {
     CHECK(status_output_producer_supplier != nullptr);
     using HP = HorizontalSplitOutputProducer;
-    HP::Row buffer_row = {
-        .producer = std::make_unique<HorizontalCenterOutputProducer>(
-            std::move(output.producer), size.column),
-        .lines = buffer_contents_window_input.lines_shown};
+    HP::Row buffer_row = {.callback = OutputProducer::ToCallback(
+                              std::make_unique<HorizontalCenterOutputProducer>(
+                                  std::move(output.producer), size.column)),
+                          .lines = buffer_contents_window_input.lines_shown};
     HP::Row status_row = {
-        .producer = status_output_producer_supplier->CreateOutputProducer(
-            LineColumnDelta(status_lines, size.column)),
+        .callback = OutputProducer::ToCallback(
+            status_output_producer_supplier->CreateOutputProducer(
+                LineColumnDelta(status_lines, size.column))),
         .lines = status_lines,
         .overlap_behavior = HP::Row::OverlapBehavior::kFloat};
 
@@ -414,7 +415,8 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
         (options.size.line > kTopFrameLines && add_left_frame) ? L"╭" : L"─";
 
     nested_rows.push_back(
-        {std::make_unique<FrameOutputProducer>(std::move(frame_options)),
+        {OutputProducer::ToCallback(
+             std::make_unique<FrameOutputProducer>(std::move(frame_options))),
          LineNumberDelta(1)});
 
     options.size.line -= nested_rows.back().lines;
@@ -431,7 +433,8 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
               : LineModifierSet{LineModifier::DIM});
     }
     nested_rows.push_back(
-        {.producer = std::move(output.producer), .lines = options.size.line});
+        {.callback = OutputProducer::ToCallback(std::move(output.producer)),
+         .lines = options.size.line});
     output.producer = std::make_unique<HorizontalSplitOutputProducer>(
         std::move(nested_rows), 1);
   }

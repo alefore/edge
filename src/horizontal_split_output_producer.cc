@@ -24,11 +24,11 @@ OutputProducer::Output HorizontalSplitOutputProducer::Produce(
                                 : LineNumberDelta()) -
                            output.size());
     Output row_output =
-        row.producer == nullptr
+        row.callback == nullptr
             ? Output{.lines = std::vector<Generator>(lines_from_row.line_delta,
                                                      Generator::Empty()),
                      .width = ColumnNumberDelta()}
-            : row.producer->Produce(lines_from_row);
+            : row.callback(lines_from_row);
 
     switch (row.overlap_behavior) {
       case Row::OverlapBehavior::kFloat:
@@ -86,12 +86,23 @@ const bool tests_registration =
           {.name = L"TwoRowsShort", .callback = [&] {
              std::vector<H::Row> rows;
              rows.push_back(
-                 {.producer = OutputProducer::Constant(H::LineWithCursor{
-                      .line = std::make_shared<Line>(L"top")}),
+                 {.callback =
+                      [](LineNumberDelta lines) {
+                        return OutputProducer::Constant(
+                                   H::LineWithCursor{
+                                       .line = std::make_shared<Line>(L"top")})
+                            ->Produce(lines);
+                      },
                   .lines = LineNumberDelta(2)});
              rows.push_back(
-                 {.producer = OutputProducer::Constant(H::LineWithCursor{
-                      .line = std::make_shared<Line>(L"bottom")}),
+                 {.callback =
+                      [](LineNumberDelta lines) {
+                        return OutputProducer::Constant(
+                                   H::LineWithCursor{
+                                       .line =
+                                           std::make_shared<Line>(L"bottom")})
+                            ->Produce(lines);
+                      },
                   .lines = LineNumberDelta(2)});
              auto output = Build(H(std::move(rows), 0), LineNumberDelta(10));
              CHECK_EQ(output.size(), 10ul);

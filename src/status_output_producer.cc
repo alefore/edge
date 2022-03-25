@@ -232,9 +232,10 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   CHECK_GT(context_lines, LineNumberDelta(0));
   std::vector<HorizontalSplitOutputProducer::Row> rows;
 
-  std::vector<VerticalSplitOutputProducer::Column> context_columns(2);
-  context_columns[0].width = ColumnNumberDelta(1);
-  context_columns[0].producer = std::make_unique<SectionBracketsProducer>();
+  auto context_columns =
+      std::make_shared<std::vector<VerticalSplitOutputProducer::Column>>(2);
+  context_columns->at(0).width = ColumnNumberDelta(1);
+  context_columns->at(0).producer = std::make_unique<SectionBracketsProducer>();
 
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
@@ -243,16 +244,19 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   buffer_producer_input.status_behavior =
       BufferOutputProducerInput::StatusBehavior::kIgnore;
 
-  context_columns[1].producer =
+  context_columns->at(1).producer =
       CreateBufferOutputProducer(buffer_producer_input).producer;
-  rows.push_back({
-      .producer = std::make_unique<VerticalSplitOutputProducer>(
-          std::move(context_columns), 1),
-      .lines = total_lines - info_lines,
-  });
+  rows.push_back(
+      {.callback =
+           [context_columns](LineNumberDelta lines) -> OutputProducer::Output {
+         return VerticalSplitOutputProducer(std::move(*context_columns), 1)
+             .Produce(lines);
+       },
+       .lines = total_lines - info_lines});
 
   if (has_info_line()) {
-    rows.push_back({.producer = std::move(base), .lines = info_lines});
+    rows.push_back({.callback = OutputProducer::ToCallback(std::move(base)),
+                    .lines = info_lines});
   }
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 1);
 }

@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_OUTPUT_PRODUCER_H__
 #define __AFC_EDITOR_OUTPUT_PRODUCER_H__
 
+#include <functional>
 #include <optional>
 #include <vector>
 
@@ -54,6 +55,9 @@ class OutputProducer {
     ColumnNumberDelta width;
   };
   virtual Output Produce(LineNumberDelta lines) = 0;
+
+  static std::function<Output(LineNumberDelta)> ToCallback(
+      std::shared_ptr<OutputProducer> producer);
 };
 
 }  // namespace afc::editor

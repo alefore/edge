@@ -13,7 +13,7 @@ namespace editor {
 class HorizontalSplitOutputProducer : public OutputProducer {
  public:
   struct Row {
-    std::unique_ptr<OutputProducer> producer;
+    std::function<Output(LineNumberDelta)> callback;
     LineNumberDelta lines;
     enum class OverlapBehavior {
       // Rows after this one are pushed down in the output, unmodified.

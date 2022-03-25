@@ -40,6 +40,11 @@ OutputProducer::LineWithCursor::Empty() {
   return std::make_unique<ConstantProducer>(output);
 }
 
+/* static */ std::function<OutputProducer::Output(LineNumberDelta)>
+OutputProducer::ToCallback(std::shared_ptr<OutputProducer> producer) {
+  return [producer](LineNumberDelta lines) { return producer->Produce(lines); };
+}
+
 }  // namespace afc::editor
 namespace std {
 std::size_t hash<afc::editor::OutputProducer::LineWithCursor>::operator()(

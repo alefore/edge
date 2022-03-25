@@ -823,7 +823,8 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
   if (layout.lines.IsZero()) return output;
 
   std::vector<HorizontalSplitOutputProducer::Row> rows;
-  rows.push_back({std::move(output), options.size.line});
+  rows.push_back({.callback = OutputProducer::ToCallback(std::move(output)),
+                  .lines = options.size.line});
 
   if (layout.lines > LineNumberDelta(0)) {
     VLOG(2) << "Buffers per line: " << layout.buffers_per_line
@@ -834,14 +835,17 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
     for (auto& b : editor_state_.active_buffers()) {
       active_buffers.insert(b.get());
     }
-    rows.push_back({std::make_unique<BuffersListProducer>(BuffersListOptions{
-                        .buffers = &buffers_,
-                        .active_buffer = active_buffer(),
-                        .active_buffers = std::move(active_buffers),
-                        .buffers_per_line = layout.buffers_per_line,
-                        .width = options.size.column,
-                        .filter = OptimizeFilter(filter_)}),
-                    layout.lines});
+    rows.push_back(
+        {[producer = std::make_shared<BuffersListProducer>(BuffersListOptions{
+              .buffers = &buffers_,
+              .active_buffer = active_buffer(),
+              .active_buffers = std::move(active_buffers),
+              .buffers_per_line = layout.buffers_per_line,
+              .width = options.size.column,
+              .filter = OptimizeFilter(filter_)})](LineNumberDelta lines) {
+           return producer->Produce(lines);
+         },
+         layout.lines});
   }
 
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);
