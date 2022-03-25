@@ -109,9 +109,58 @@ BufferMetadataOutputProducer::BufferMetadataOutputProducer(
       zoomed_out_tree_(std::move(zoomed_out_tree)) {}
 
 struct MetadataLine {
-  OutputProducer::Generator generator;
-  ColumnNumberDelta width;
+  wchar_t info_char;
+  LineModifier modifier;
+  Line suffix;
+  enum class Type {
+    kDefault,
+    kMark,
+    kFlags,
+    kLineContents,
+  };
+  Type type;
 };
+
+namespace {
+ColumnNumberDelta width(MetadataLine& line, bool has_previous, bool has_next) {
+  return ColumnNumberDelta(1) +
+         (has_previous || has_next ? ColumnNumberDelta(1)
+                                   : ColumnNumberDelta(0)) +
+         line.suffix.contents()->size();
+}
+
+OutputProducer::Generator NewGenerator(MetadataLine line, bool has_previous,
+                                       bool has_next, bool is_start) {
+  return OutputProducer::Generator::New(CaptureAndHash(
+      [](wchar_t info_char, LineModifier modifier, Line suffix,
+         bool has_previous, bool has_next, bool is_start) {
+        Line::Options options;
+        options.AppendCharacter(info_char, {modifier});
+        if (is_start) {
+          if (has_previous && has_next) {
+            options.AppendCharacter(L'╈', {});
+          } else if (has_previous) {
+            // Pass.
+          } else if (has_next) {
+            options.AppendCharacter(L'┳', {});
+          }
+        } else {
+          if (has_previous && has_next) {
+            options.AppendCharacter(L'┃', {});
+          } else if (has_previous) {
+            options.AppendCharacter(L'┗', {});
+          } else if (has_next) {
+            options.AppendCharacter(L'┳', {});
+          }
+        }
+        options.Append(suffix);
+        return OutputProducer::LineWithCursor{std::make_shared<Line>(options),
+                                              std::nullopt};
+      },
+      line.info_char, line.modifier, std::move(line.suffix), has_previous,
+      has_next, is_start));
+}
+}  // namespace
 
 OutputProducer::Output BufferMetadataOutputProducer::Produce(
     LineNumberDelta lines) {
@@ -125,11 +174,20 @@ OutputProducer::Output BufferMetadataOutputProducer::Produce(
       continue;
     }
 
-    Prepare(range, &range_data);
+    bool has_previous = !range_data.empty();
+    bool is_start = false;
+    if (std::list<MetadataLine> new_range = Prepare(range, !range_data.empty());
+        !new_range.empty()) {
+      range_data.swap(new_range);
+      is_start = true;
+    }
     CHECK(!range_data.empty());
 
-    output.width = std::max(output.width, range_data.front().width);
-    output.lines.push_back(std::move(range_data.front().generator));
+    bool has_next = range_data.size() > 1;
+    output.width = std::max(output.width,
+                            width(range_data.front(), has_previous, has_next));
+    output.lines.push_back(NewGenerator(std::move(range_data.front()),
+                                        has_previous, has_next, is_start));
     range_data.pop_front();
   }
   return output;
@@ -140,10 +198,9 @@ LineNumber BufferMetadataOutputProducer::initial_line() const {
   return screen_lines_.front().range.begin.line;
 }
 
-void BufferMetadataOutputProducer::Prepare(Range range,
-                                           std::list<MetadataLine>* output) {
-  std::list<MetadataLine> previous_data;
-  output->swap(previous_data);
+std::list<MetadataLine> BufferMetadataOutputProducer::Prepare(
+    Range range, bool has_previous) {
+  std::list<MetadataLine> output;
 
   auto contents = *buffer_->LineAt(range.begin.line);
   auto target_buffer_value = contents.environment()->Lookup(
@@ -159,9 +216,10 @@ void BufferMetadataOutputProducer::Prepare(Range range,
   auto info_char_modifier = LineModifier::DIM;
 
   if (target_buffer != buffer_.get()) {
-    output->push_back(NewMetadataLine(
-        info_char, info_char_modifier,
-        Line(OpenBuffer::FlagsToString(target_buffer->Flags()))));
+    output.push_back(
+        MetadataLine{info_char, info_char_modifier,
+                     Line(OpenBuffer::FlagsToString(target_buffer->Flags())),
+                     MetadataLine::Type::kFlags});
   } else if (contents.modified()) {
     info_char_modifier = LineModifier::GREEN;
     info_char = L'•';
@@ -170,8 +228,8 @@ void BufferMetadataOutputProducer::Prepare(Range range,
   }
 
   if (auto metadata = contents.metadata(); metadata != nullptr) {
-    output->push_back(
-        NewMetadataLine(L'>', LineModifier::GREEN, Line(metadata)));
+    output.push_back(MetadataLine{L'>', LineModifier::GREEN, Line(metadata),
+                                  MetadataLine::Type::kLineContents});
   }
 
   std::list<LineMarks::Mark> marks;
@@ -189,13 +247,14 @@ void BufferMetadataOutputProducer::Prepare(Range range,
 
   for (const auto& mark : marks) {
     auto source = buffer_->editor().buffers()->find(mark.source);
-    output->push_back(NewMetadataLine(
-        output->empty() ? L'!' : L' ',
-        output->empty() ? LineModifier::RED : LineModifier::DIM,
+    output.push_back(MetadataLine{
+        output.empty() ? L'!' : L' ',
+        output.empty() ? LineModifier::RED : LineModifier::DIM,
         (source != buffer_->editor().buffers()->end() &&
          mark.source_line < LineNumber(0) + source->second->contents().size())
             ? *source->second->contents().at(mark.source_line)
-            : Line(L"(dead mark)")));
+            : Line(L"(dead mark)"),
+        MetadataLine::Type::kMark});
   }
 
   // When an expired mark appears again, no need to show it redundantly (as
@@ -213,21 +272,19 @@ void BufferMetadataOutputProducer::Prepare(Range range,
   for (const auto& mark : marks_expired) {
     if (auto contents = mark.source_line_content->ToString();
         marks_strings.find(contents) == marks_strings.end()) {
-      output->push_back(
-          NewMetadataLine('!', LineModifier::RED, Line(L"👻 " + contents)));
+      output.push_back(MetadataLine{'!', LineModifier::RED,
+                                    Line(L"👻 " + contents),
+                                    MetadataLine::Type::kMark});
     }
   }
 
-  if (output->empty()) {
-    if (previous_data.empty()) {
-      output->push_back(
-          NewMetadataLine(info_char, info_char_modifier,
-                          GetDefaultInformation(range.begin.line)));
-    } else {
-      output->swap(previous_data);  // Carry over.
-    }
+  if (output.empty() && !has_previous) {
+    output.push_back(MetadataLine{info_char, info_char_modifier,
+                                  GetDefaultInformation(range.begin.line),
+                                  MetadataLine::Type::kDefault});
   }
-  CHECK(!output->empty());
+  CHECK(!output.empty() || has_previous);
+  return output;
 }
 
 Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
@@ -250,21 +307,6 @@ Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
                          std::nullopt);
   }
   return Line(std::move(options));
-}
-
-MetadataLine BufferMetadataOutputProducer::NewMetadataLine(
-    wchar_t info_char, LineModifier modifier, Line suffix) {
-  ColumnNumberDelta width = ColumnNumberDelta(1) + suffix.contents()->size();
-  return {.generator = Generator::New(CaptureAndHash(
-              [](wchar_t info_char, LineModifier modifier, Line suffix) {
-                Line::Options options;
-                options.AppendCharacter(info_char, {modifier});
-                options.Append(suffix);
-                return LineWithCursor{std::make_shared<Line>(options),
-                                      std::nullopt};
-              },
-              info_char, modifier, std::move(suffix))),
-          .width = width};
 }
 
 // Assume that the screen is currently showing the screen_position lines out

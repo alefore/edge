@@ -23,7 +23,7 @@ class BufferMetadataOutputProducer : public OutputProducer {
 
  private:
   LineNumber initial_line() const;
-  void Prepare(Range range, std::list<MetadataLine>* output);
+  std::list<MetadataLine> Prepare(Range range, bool has_previous);
   Line GetDefaultInformation(LineNumber line);
   MetadataLine NewMetadataLine(wchar_t info_char, LineModifier modifier,
                                Line suffix);
