@@ -88,6 +88,8 @@ src/goto_command.cc \
 src/hash.cc \
 src/hash.h \
 src/help_command.cc \
+src/horizontal_center_output_producer.cc \
+src/horizontal_center_output_producer.h \
 src/horizontal_split_output_producer.cc \
 src/horizontal_split_output_producer.h \
 src/insert_mode.cc \

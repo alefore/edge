@@ -23,8 +23,9 @@ std::optional<size_t> CombineHashes(
 
 VerticalSplitOutputProducer::VerticalSplitOutputProducer(
     std::vector<Column> columns, size_t index_active)
-    : columns_(std::move(columns)), index_active_(index_active) {
-  for (const auto& c : columns_) {
+    : columns_(std::make_shared<std::vector<Column>>(std::move(columns))),
+      index_active_(index_active) {
+  for (const auto& c : *columns_) {
     CHECK(c.producer != nullptr);
   }
 }
@@ -32,15 +33,15 @@ VerticalSplitOutputProducer::VerticalSplitOutputProducer(
 OutputProducer::Output VerticalSplitOutputProducer::Produce(
     LineNumberDelta lines) {
   std::vector<Output> inputs_by_column;
-  for (auto& c : columns_) {
+  for (auto& c : *columns_) {
     Output input = c.producer->Produce(lines);
     input.lines.resize(lines.line_delta, Generator::Empty());
     inputs_by_column.push_back(std::move(input));
   }
 
   Output output;
-  for (size_t i = 0; i < columns_.size(); i++) {
-    const Column& column = columns_[i];
+  for (size_t i = 0; i < columns_->size(); i++) {
+    const Column& column = columns_->at(i);
     if (column.width.has_value()) {
       output.width += *column.width;
     } else {
@@ -62,7 +63,8 @@ OutputProducer::Output VerticalSplitOutputProducer::Produce(
   for (auto& line_input : generator_by_line_column) {
     output.lines.push_back(Generator{
         .inputs_hash = CombineHashes(line_input),
-        .generate = [line_input = std::move(line_input), this]() {
+        .generate = [line_input = std::move(line_input),
+                     index_active = index_active_, columns = columns_]() {
           LineWithCursor output;
           Line::Options options;
           ColumnNumber initial_column;
@@ -76,7 +78,7 @@ OutputProducer::Output VerticalSplitOutputProducer::Produce(
                                  current_modifiers);
 
             LineWithCursor column_data = line_input[i].generate();
-            if (column_data.cursor.has_value() && i == index_active_) {
+            if (column_data.cursor.has_value() && i == index_active) {
               output.cursor =
                   initial_column + column_data.cursor.value().ToDelta();
             }
@@ -84,9 +86,9 @@ OutputProducer::Output VerticalSplitOutputProducer::Produce(
             current_modifiers = column_data.line->end_of_line_modifiers();
 
             CHECK(column_data.line != nullptr);
-            if (columns_[i].width.has_value()) {
+            if (columns->at(i).width.has_value()) {
               // TODO: respect columns_[i].width.
-              initial_column += columns_[i].width.value();
+              initial_column += columns->at(i).width.value();
             } else {
               i = line_input.size();  // Stop the iteration.
             }

@@ -26,7 +26,7 @@ class VerticalSplitOutputProducer : public OutputProducer {
   Output Produce(LineNumberDelta lines) override;
 
  private:
-  const std::vector<Column> columns_;
+  const std::shared_ptr<const std::vector<Column>> columns_;
   const size_t index_active_;
 };
 

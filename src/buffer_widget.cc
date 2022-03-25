@@ -14,6 +14,7 @@
 #include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/frame_output_producer.h"
+#include "src/horizontal_center_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/line_number_output_producer.h"
 #include "src/line_scroll_control.h"
@@ -247,10 +248,9 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                       .view_start = input.view_start};
   }
 
-  auto size = input.output_producer_options.size;
+  LineColumnDelta size = input.output_producer_options.size;
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
-
   std::unique_ptr<StatusOutputProducerSupplier> status_output_producer_supplier;
   switch (input.status_behavior) {
     case BufferOutputProducerInput::StatusBehavior::kShow:
@@ -266,8 +266,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
           ? LineNumberDelta()
           : min(size.line / 4, status_output_producer_supplier->lines());
 
-  auto buffer_view_size = LineColumnDelta(size.line, size.column);
-  buffer->viewers()->set_view_size(buffer_view_size);
+  buffer->viewers()->set_view_size(size);
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
@@ -329,8 +328,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (status_lines > LineNumberDelta(0)) {
     CHECK(status_output_producer_supplier != nullptr);
     using HP = HorizontalSplitOutputProducer;
-    HP::Row buffer_row = {.producer = std::move(output.producer),
-                          .lines = buffer_contents_window_input.lines_shown};
+    HP::Row buffer_row = {
+        .producer = std::make_unique<HorizontalCenterOutputProducer>(
+            std::move(output.producer), size.column),
+        .lines = buffer_contents_window_input.lines_shown};
     HP::Row status_row = {
         .producer = status_output_producer_supplier->CreateOutputProducer(
             LineColumnDelta(status_lines, size.column)),
