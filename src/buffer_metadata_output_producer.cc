@@ -54,7 +54,6 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
     CHECK(!route_end.empty() && *route_end.begin() == &root);
     route_end.erase(route_end.begin());
   }
-
   wstring output(root.depth(), L' ');
   size_t index_begin = 0;
   size_t index_end = 0;

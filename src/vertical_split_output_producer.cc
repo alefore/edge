@@ -9,15 +9,24 @@
 namespace afc::editor {
 namespace {
 std::optional<size_t> CombineHashes(
-    const std::vector<OutputProducer::Generator>& delegates) {
-  size_t value = std::hash<size_t>{}(4);
-  for (auto& delegate : delegates) {
-    if (!delegate.inputs_hash.has_value()) {
-      return std::nullopt;
-    }
-    value = std::hash<size_t>{}(value ^ delegate.inputs_hash.value());
-  }
-  return value;
+    const std::vector<OutputProducer::Generator>& delegates,
+    const std::vector<VerticalSplitOutputProducer::Column>& columns) {
+  return std::find_if(delegates.begin(), delegates.end(),
+                      [](const OutputProducer::Generator& g) {
+                        return !g.inputs_hash.has_value();
+                      }) != delegates.end()
+             ? std::optional<size_t>()
+             : compute_hash(
+                   MakeHashableIteratorRange(
+                       delegates.begin(), delegates.end(),
+                       [](const OutputProducer::Generator& g) {
+                         return *g.inputs_hash;
+                       }),
+                   MakeHashableIteratorRange(
+                       columns.begin(), columns.end(),
+                       [](const VerticalSplitOutputProducer::Column& column) {
+                         return compute_hash(column.width);
+                       }));
 }
 }  // namespace
 
@@ -62,7 +71,7 @@ OutputProducer::Output VerticalSplitOutputProducer::Produce(
 
   for (auto& line_input : generator_by_line_column) {
     output.lines.push_back(Generator{
-        .inputs_hash = CombineHashes(line_input),
+        .inputs_hash = CombineHashes(line_input, *columns_),
         .generate = [line_input = std::move(line_input),
                      index_active = index_active_, columns = columns_]() {
           LineWithCursor output;
