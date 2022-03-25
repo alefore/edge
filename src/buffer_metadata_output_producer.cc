@@ -293,17 +293,19 @@ Line BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
     options.AppendString(DrawTree(line, buffer_->lines_size(), *parse_tree),
                          std::nullopt);
   }
-  if (buffer_->Read(buffer_variables::scrollbar) &&
-      buffer_->lines_size() > lines_shown_) {
-    CHECK_GE(line, initial_line());
-    options.Append(ComputeCursorsSuffix(line));
-    options.Append(ComputeMarksSuffix(line));
-    options.Append(ComputeScrollBarSuffix(line));
-  }
-  if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children().empty()) {
-    options.AppendString(DrawTree(line - initial_line().ToDelta(), lines_shown_,
-                                  *zoomed_out_tree_),
-                         std::nullopt);
+
+  if (buffer_->lines_size() > lines_shown_) {
+    if (buffer_->Read(buffer_variables::scrollbar)) {
+      CHECK_GE(line, initial_line());
+      options.Append(ComputeCursorsSuffix(line));
+      options.Append(ComputeMarksSuffix(line));
+      options.Append(ComputeScrollBarSuffix(line));
+    }
+    if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children().empty()) {
+      options.AppendString(DrawTree(line - initial_line().ToDelta(),
+                                    lines_shown_, *zoomed_out_tree_),
+                           std::nullopt);
+    }
   }
   return Line(std::move(options));
 }
