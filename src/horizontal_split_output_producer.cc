@@ -88,18 +88,17 @@ const bool tests_registration =
              rows.push_back({.callback =
                                  [](LineNumberDelta lines) {
                                    return OutputProducer::Constant(
-                                              H::LineWithCursor(Line(L"top")))
+                                              LineWithCursor(Line(L"top")))
                                        ->Produce(lines);
                                  },
                              .lines = LineNumberDelta(2)});
-             rows.push_back(
-                 {.callback =
-                      [](LineNumberDelta lines) {
-                        return OutputProducer::Constant(
-                                   H::LineWithCursor(Line(L"bottom")))
-                            ->Produce(lines);
-                      },
-                  .lines = LineNumberDelta(2)});
+             rows.push_back({.callback =
+                                 [](LineNumberDelta lines) {
+                                   return OutputProducer::Constant(
+                                              LineWithCursor(Line(L"bottom")))
+                                       ->Produce(lines);
+                                 },
+                             .lines = LineNumberDelta(2)});
              auto output = Build(H(std::move(rows), 0), LineNumberDelta(10));
              CHECK_EQ(output.size(), 10ul);
              CHECK(output[0] == L"top");
