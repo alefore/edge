@@ -176,7 +176,7 @@ class Line {
     LineModifierSet modifiers_main_cursor = {};
     LineModifierSet modifiers_inactive_cursors = {};
   };
-  OutputProducer::LineWithCursor Output(const OutputOptions& options) const;
+  LineWithCursor Output(const OutputOptions& options) const;
 
  private:
   friend class std::hash<Line>;
