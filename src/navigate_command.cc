@@ -93,7 +93,7 @@ bool CharConsumer(wint_t c, NavigateState* state) {
     case L'8':
     case L'9':
       state->operations.push_back(
-          {NavigateOperation::Type::kNumber, .number = c - L'1'});
+          {.type = NavigateOperation::Type::kNumber, .number = c - L'1'});
       return true;
 
     default:
