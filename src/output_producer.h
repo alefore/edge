@@ -61,13 +61,14 @@ class OutputProducer {
   static std::unique_ptr<OutputProducer> Empty();
   static std::unique_ptr<OutputProducer> Constant(LineWithCursor output);
 
-  virtual Output Produce(LineNumberDelta lines) = 0;
+  virtual LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) = 0;
 
-  static std::function<Output(LineNumberDelta)> ToCallback(
-      std::shared_ptr<OutputProducer> producer);
+  static std::function<LineWithCursor::Generator::Vector(LineNumberDelta)>
+  ToCallback(std::shared_ptr<OutputProducer> producer);
 };
 
-OutputProducer::Output RepeatLine(LineWithCursor line, LineNumberDelta times);
+LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
+                                             LineNumberDelta times);
 
 }  // namespace afc::editor
 namespace std {
