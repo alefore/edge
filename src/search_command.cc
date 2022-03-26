@@ -64,9 +64,9 @@ ColorizePromptOptions SearchResultsModifiers(
       break;
   }
 
-  return {.tokens = {{{.value = L"",
-                       .begin = ColumnNumber(0),
-                       .end = ColumnNumber(0) + line->size()},
+  return {.tokens = {{.token = {.value = L"",
+                                .begin = ColumnNumber(0),
+                                .end = ColumnNumber(0) + line->size()},
                       .modifiers = std::move(modifiers)}}};
 }
 
