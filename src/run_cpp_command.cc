@@ -195,9 +195,9 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
       (buffer == nullptr ? editor.environment() : buffer->environment()).get();
   if (auto parsed_command = Parse(line, environment, search_namespaces);
       !parsed_command.IsError()) {
-    output.tokens.push_back({{.value = L"",
-                              .begin = ColumnNumber(0),
-                              .end = ColumnNumber() + line->size()},
+    output.tokens.push_back({.token = {.value = L"",
+                                       .begin = ColumnNumber(0),
+                                       .end = ColumnNumber() + line->size()},
                              .modifiers = {LineModifier::CYAN}});
   }
 
