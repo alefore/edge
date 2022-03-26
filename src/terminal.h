@@ -52,8 +52,8 @@ class Terminal {
                  OutputProducer::Generator line_with_cursor);
 
   // Returns a DrawLine that can be used to draw a given line.
-  static LineDrawer GetLineDrawer(
-      OutputProducer::LineWithCursor line_with_cursor, ColumnNumberDelta width);
+  static LineDrawer GetLineDrawer(LineWithCursor line_with_cursor,
+                                  ColumnNumberDelta width);
 
   void AdjustPosition(Screen* screen);
 
