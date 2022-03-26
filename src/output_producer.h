@@ -55,7 +55,6 @@ struct LineWithCursor {
 // Can be used to render a view of something once, line by line.
 class OutputProducer {
  public:
-  using LineWithCursor = afc::editor::LineWithCursor;
   using Generator = LineWithCursor::Generator;
   using Output = LineWithCursor::Generator::Vector;
 
@@ -73,9 +72,8 @@ OutputProducer::Output RepeatLine(LineWithCursor line, LineNumberDelta times);
 }  // namespace afc::editor
 namespace std {
 template <>
-struct hash<afc::editor::OutputProducer::LineWithCursor> {
-  std::size_t operator()(
-      const afc::editor::OutputProducer::LineWithCursor& line) const;
+struct hash<afc::editor::LineWithCursor> {
+  std::size_t operator()(const afc::editor::LineWithCursor& line) const;
 };
 }  // namespace std
 #endif  // __AFC_EDITOR_OUTPUT_PRODUCER_H__
