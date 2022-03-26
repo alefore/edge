@@ -174,8 +174,8 @@ void Terminal::WriteLine(Screen* screen, LineNumber line,
   }
 }
 
-Terminal::LineDrawer Terminal::GetLineDrawer(
-    OutputProducer::LineWithCursor line_with_cursor, ColumnNumberDelta width) {
+Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
+                                             ColumnNumberDelta width) {
   Terminal::LineDrawer output;
   std::vector<decltype(LineDrawer::draw_callback)> functions;
 
