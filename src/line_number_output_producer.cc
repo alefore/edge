@@ -72,8 +72,7 @@ OutputProducer::Output LineNumberOutputProducer::Produce(
           line_options.AppendString(
               StringAppend(padding, NewLazyString(number + L":")),
               modifiers.container);
-          return LineWithCursor{std::make_shared<Line>(std::move(line_options)),
-                                std::nullopt};
+          return LineWithCursor(Line(std::move(line_options)));
         },
         std::move(screen_line.range), width_, std::move(modifiers))));
     if (LineNumberDelta(output.size()) == lines) return output;

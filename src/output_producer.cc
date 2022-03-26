@@ -26,9 +26,12 @@ class ConstantProducer : public OutputProducer {
 };
 }  // namespace
 
+LineWithCursor::LineWithCursor(Line line)
+    : line(std::make_shared<Line>(std::move(line))){};
+
 /* static */ OutputProducer::LineWithCursor
 OutputProducer::LineWithCursor::Empty() {
-  return OutputProducer::LineWithCursor{std::make_shared<Line>(), std::nullopt};
+  return LineWithCursor(Line());
 }
 
 /* static */ std::unique_ptr<OutputProducer> OutputProducer::Empty() {
@@ -43,6 +46,18 @@ OutputProducer::LineWithCursor::Empty() {
 /* static */ std::function<OutputProducer::Output(LineNumberDelta)>
 OutputProducer::ToCallback(std::shared_ptr<OutputProducer> producer) {
   return [producer](LineNumberDelta lines) { return producer->Produce(lines); };
+}
+
+std::function<OutputProducer::Output(LineNumberDelta)> NewLineRepeater(
+    LineWithCursor line) {
+  return [line](LineNumberDelta times) {
+    return OutputProducer::Output{
+        .lines = std::vector(
+            times.line_delta,
+            OutputProducer::Generator{.inputs_hash = {},
+                                      .generate = [line] { return line; }}),
+        .width = line.line->contents()->size()};
+  };
 }
 
 }  // namespace afc::editor

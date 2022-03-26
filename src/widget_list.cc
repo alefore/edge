@@ -152,15 +152,11 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
 
   if (children_skipped > 0) {
     rows.push_back(
-        {[options =
-              FrameOutputProducer::Options{
-                  .title =
-                      L"Additional files: " + std::to_wstring(children_skipped),
-                  .active_state =
-                      FrameOutputProducer::Options::ActiveState::kActive}](
-             LineNumberDelta lines) {
-           return FrameOutputProducer(options).Produce(lines);
-         },
+        {NewLineRepeater(LineWithCursor(FrameLine(
+             {.title =
+                  L"Additional files: " + std::to_wstring(children_skipped),
+              .active_state =
+                  FrameOutputProducerOptions::ActiveState::kActive}))),
          LineNumberDelta(1)});
   }
 

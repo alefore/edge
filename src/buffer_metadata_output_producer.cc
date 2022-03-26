@@ -153,8 +153,7 @@ OutputProducer::Generator NewGenerator(MetadataLine line, bool has_previous,
           }
         }
         options.Append(suffix);
-        return OutputProducer::LineWithCursor{std::make_shared<Line>(options),
-                                              std::nullopt};
+        return LineWithCursor{Line(options)};
       },
       line.info_char, line.modifier, std::move(line.suffix), has_previous,
       has_next, is_start));
@@ -164,7 +163,7 @@ OutputProducer::Generator NewGenerator(MetadataLine line, bool has_previous,
 OutputProducer::Output BufferMetadataOutputProducer::Produce(
     LineNumberDelta lines) {
   if (screen_lines_.empty() || lines < LineNumberDelta()) return {};
-  Output output;
+  OutputProducer::Output output;
   std::list<MetadataLine> range_data;
   for (LineNumberDelta i; i < min(lines, LineNumberDelta(screen_lines_.size()));
        ++i) {

@@ -532,8 +532,7 @@ class BuffersListProducer : public OutputProducer {
                                   : LineModifierSet{},
                   selection_state, path_components_[index + i], &output);
             }
-            return LineWithCursor{std::make_shared<Line>(std::move(output)),
-                                  std::nullopt};
+            return LineWithCursor(Line(std::move(output)));
           }});
       index += options_.buffers_per_line;
     }

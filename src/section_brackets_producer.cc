@@ -15,12 +15,10 @@ namespace afc::editor {
 OutputProducer::Output SectionBracketsProducer::Produce(LineNumberDelta lines) {
   Output output{.lines = {}, .width = ColumnNumberDelta(1)};
   auto push = [&output](wstring c) {
-    output.lines.push_back(
-        Generator{std::hash<wstring>{}(c), [c]() {
-                    return LineWithCursor{
-                        std::make_shared<Line>(Line::Options(NewLazyString(c))),
-                        std::nullopt};
-                  }});
+    output.lines.push_back(Generator{
+        std::hash<wstring>{}(c), [c]() {
+          return LineWithCursor(Line(Line::Options(NewLazyString(c))));
+        }});
   };
   push(L"╭");
   for (LineNumberDelta i(1); i + LineNumberDelta(1) < lines; ++i) push(L"│");

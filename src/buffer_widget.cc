@@ -34,8 +34,8 @@ std::function<OutputProducer::Output(LineNumberDelta)> ProducerForString(
     std::wstring src, LineModifierSet modifiers) {
   Line::Options options;
   options.AppendString(std::move(src), std::move(modifiers));
-  return OutputProducer::ToCallback(OutputProducer::Constant(
-      {.line = std::make_shared<Line>(std::move(options))}));
+  return OutputProducer::ToCallback(
+      OutputProducer::Constant(LineWithCursor(Line(std::move(options)))));
 }
 
 std::unique_ptr<OutputProducer> AddLeftFrame(
@@ -390,7 +390,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
 
   if (options_.position_in_parent.has_value()) {
     std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
-    FrameOutputProducer::Options frame_options;
+    FrameOutputProducerOptions frame_options;
     frame_options.title =
         buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
 
@@ -399,7 +399,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
         options.main_cursor_behavior ==
             OutputProducerOptions::MainCursorBehavior::kIgnore) {
       frame_options.active_state =
-          FrameOutputProducer::Options::ActiveState::kActive;
+          FrameOutputProducerOptions::ActiveState::kActive;
     }
 
     bool add_left_frame = true;
@@ -415,8 +415,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
         (options.size.line > kTopFrameLines && add_left_frame) ? L"╭" : L"─";
 
     nested_rows.push_back(
-        {OutputProducer::ToCallback(
-             std::make_unique<FrameOutputProducer>(std::move(frame_options))),
+        {NewLineRepeater(LineWithCursor(FrameLine(std::move(frame_options)))),
          LineNumberDelta(1)});
 
     options.size.line -= nested_rows.back().lines;

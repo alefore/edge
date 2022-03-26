@@ -85,22 +85,18 @@ const bool tests_registration =
       return std::vector<tests::Test>{
           {.name = L"TwoRowsShort", .callback = [&] {
              std::vector<H::Row> rows;
+             rows.push_back({.callback =
+                                 [](LineNumberDelta lines) {
+                                   return OutputProducer::Constant(
+                                              H::LineWithCursor(Line(L"top")))
+                                       ->Produce(lines);
+                                 },
+                             .lines = LineNumberDelta(2)});
              rows.push_back(
                  {.callback =
                       [](LineNumberDelta lines) {
                         return OutputProducer::Constant(
-                                   H::LineWithCursor{
-                                       .line = std::make_shared<Line>(L"top")})
-                            ->Produce(lines);
-                      },
-                  .lines = LineNumberDelta(2)});
-             rows.push_back(
-                 {.callback =
-                      [](LineNumberDelta lines) {
-                        return OutputProducer::Constant(
-                                   H::LineWithCursor{
-                                       .line =
-                                           std::make_shared<Line>(L"bottom")})
+                                   H::LineWithCursor(Line(L"bottom")))
                             ->Produce(lines);
                       },
                   .lines = LineNumberDelta(2)});

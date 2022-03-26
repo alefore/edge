@@ -12,18 +12,23 @@ namespace afc::editor {
 
 class Line;
 
+struct LineWithCursor {
+  explicit LineWithCursor(Line line);
+  LineWithCursor() = default;
+
+  static LineWithCursor Empty();
+
+  std::shared_ptr<Line> line;
+
+  // Output parameter. If the active cursor is found in the line, stores here
+  // the column in which it was output here. May be nullptr.
+  std::optional<ColumnNumber> cursor = std::nullopt;
+};
+
 // Can be used to render a view of something once, line by line.
 class OutputProducer {
  public:
-  struct LineWithCursor {
-    static LineWithCursor Empty();
-
-    std::shared_ptr<Line> line;
-
-    // Output parameter. If the active cursor is found in the line, stores here
-    // the column in which it was output here. May be nullptr.
-    std::optional<ColumnNumber> cursor = std::nullopt;
-  };
+  using LineWithCursor = afc::editor::LineWithCursor;
 
   // Callback that can generate a single line of output.
   struct Generator {
@@ -59,6 +64,9 @@ class OutputProducer {
   static std::function<Output(LineNumberDelta)> ToCallback(
       std::shared_ptr<OutputProducer> producer);
 };
+
+std::function<OutputProducer::Output(LineNumberDelta)> NewLineRepeater(
+    LineWithCursor line);
 
 }  // namespace afc::editor
 namespace std {
