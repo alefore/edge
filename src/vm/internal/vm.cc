@@ -151,7 +151,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
   size_t pos = 0;
   int token;
   while (compilation->errors.empty() && pos < str.size()) {
-    VLOG(5) << "Compiling from character: " << str.at(pos);
+    VLOG(5) << L"Compiling from character: " << std::wstring(1, str.at(pos));
     std::unique_ptr<Value> input;
     switch (str.at(pos)) {
       case '/':

@@ -135,7 +135,8 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
     CHECK(mbstate != nullptr);
     switch (static_cast<int>(mbrtowc(&output, input, 1, mbstate))) {
       case 1:
-        VLOG(4) << "Finished reading wide character: " << output;
+        VLOG(4) << "Finished reading wide character: "
+                << std::wstring(1, output);
         break;
       case -1:
         LOG(WARNING) << "Encoding error occurred, ignoring input: " << c;
