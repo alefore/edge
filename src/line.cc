@@ -341,8 +341,7 @@ std::shared_ptr<vm::Environment> Line::environment() const {
   return environment_;
 }
 
-OutputProducer::LineWithCursor Line::Output(
-    const OutputOptions& options) const {
+LineWithCursor Line::Output(const OutputOptions& options) const {
   static Tracker tracker(L"Line::Output");
   auto tracker_call = tracker.Call();
 
@@ -352,7 +351,7 @@ OutputProducer::LineWithCursor Line::Output(
   CHECK(environment_ != nullptr);
   Line::Options line_output;
   ColumnNumber input_column = options.initial_column;
-  OutputProducer::LineWithCursor line_with_cursor;
+  LineWithCursor line_with_cursor;
   auto modifiers_it = options_.modifiers.lower_bound(input_column);
   if (!options_.modifiers.empty() &&
       modifiers_it != options_.modifiers.begin()) {
