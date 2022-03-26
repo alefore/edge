@@ -13,25 +13,14 @@ namespace afc::editor {
 class Line;
 
 struct LineWithCursor {
-  explicit LineWithCursor(Line line);
-  LineWithCursor() = default;
-
-  static LineWithCursor Empty();
-
-  std::shared_ptr<Line> line;
-
-  // Output parameter. If the active cursor is found in the line, stores here
-  // the column in which it was output here. May be nullptr.
-  std::optional<ColumnNumber> cursor = std::nullopt;
-};
-
-// Can be used to render a view of something once, line by line.
-class OutputProducer {
- public:
-  using LineWithCursor = afc::editor::LineWithCursor;
-
   // Callback that can generate a single line of output.
   struct Generator {
+    struct Vector {
+      LineNumberDelta size() const { return LineNumberDelta(lines.size()); }
+      std::vector<Generator> lines;
+      ColumnNumberDelta width;
+    };
+
     static Generator Empty() {
       return Generator{std::nullopt, []() { return LineWithCursor::Empty(); }};
     }
@@ -51,22 +40,35 @@ class OutputProducer {
     std::function<LineWithCursor()> generate;
   };
 
+  explicit LineWithCursor(Line line);
+  LineWithCursor() = default;
+
+  static LineWithCursor Empty();
+
+  std::shared_ptr<Line> line;
+
+  // Output parameter. If the active cursor is found in the line, stores here
+  // the column in which it was output here. May be nullptr.
+  std::optional<ColumnNumber> cursor = std::nullopt;
+};
+
+// Can be used to render a view of something once, line by line.
+class OutputProducer {
+ public:
+  using LineWithCursor = afc::editor::LineWithCursor;
+  using Generator = LineWithCursor::Generator;
+  using Output = LineWithCursor::Generator::Vector;
+
   static std::unique_ptr<OutputProducer> Empty();
   static std::unique_ptr<OutputProducer> Constant(LineWithCursor output);
 
-  struct Output {
-    LineNumberDelta size() const { return LineNumberDelta(lines.size()); }
-    std::vector<Generator> lines;
-    ColumnNumberDelta width;
-  };
   virtual Output Produce(LineNumberDelta lines) = 0;
 
   static std::function<Output(LineNumberDelta)> ToCallback(
       std::shared_ptr<OutputProducer> producer);
 };
 
-std::function<OutputProducer::Output(LineNumberDelta)> NewLineRepeater(
-    LineWithCursor line);
+OutputProducer::Output RepeatLine(LineWithCursor line, LineNumberDelta times);
 
 }  // namespace afc::editor
 namespace std {

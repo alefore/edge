@@ -58,7 +58,7 @@ OutputProducer::Output LineNumberOutputProducer::Produce(
       modifiers.container = {LineModifier::BLUE};
     }
 
-    output.lines.push_back(OutputProducer::Generator::New(CaptureAndHash(
+    output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
         [](Range range, ColumnNumberDelta width,
            HashableContainer<LineModifierSet> modifiers) {
           std::wstring number = range.begin.column.IsZero()

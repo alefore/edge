@@ -22,7 +22,7 @@ class ConstantProducer : public OutputProducer {
 
  private:
   const ColumnNumberDelta width_;
-  const Generator generator_;
+  const LineWithCursor::Generator generator_;
 };
 }  // namespace
 
@@ -48,18 +48,14 @@ OutputProducer::ToCallback(std::shared_ptr<OutputProducer> producer) {
   return [producer](LineNumberDelta lines) { return producer->Produce(lines); };
 }
 
-std::function<OutputProducer::Output(LineNumberDelta)> NewLineRepeater(
-    LineWithCursor line) {
-  return [line](LineNumberDelta times) {
-    return OutputProducer::Output{
-        .lines = std::vector(
-            times.line_delta,
-            OutputProducer::Generator{.inputs_hash = {},
-                                      .generate = [line] { return line; }}),
-        .width = line.line->contents()->size()};
-  };
+OutputProducer::Output RepeatLine(LineWithCursor line, LineNumberDelta times) {
+  return OutputProducer::Output{
+      .lines = std::vector(
+          times.line_delta,
+          OutputProducer::Generator{.inputs_hash = {},
+                                    .generate = [line] { return line; }}),
+      .width = line.line->contents()->size()};
 }
-
 }  // namespace afc::editor
 namespace std {
 std::size_t hash<afc::editor::OutputProducer::LineWithCursor>::operator()(

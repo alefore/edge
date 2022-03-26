@@ -415,7 +415,8 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
         (options.size.line > kTopFrameLines && add_left_frame) ? L"╭" : L"─";
 
     nested_rows.push_back(
-        {NewLineRepeater(LineWithCursor(FrameLine(std::move(frame_options)))),
+        {std::bind_front(RepeatLine,
+                         LineWithCursor(FrameLine(std::move(frame_options)))),
          LineNumberDelta(1)});
 
     options.size.line -= nested_rows.back().lines;
