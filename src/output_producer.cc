@@ -29,8 +29,7 @@ class ConstantProducer : public OutputProducer {
 LineWithCursor::LineWithCursor(Line line)
     : line(std::make_shared<Line>(std::move(line))){};
 
-/* static */ OutputProducer::LineWithCursor
-OutputProducer::LineWithCursor::Empty() {
+/* static */ LineWithCursor LineWithCursor::Empty() {
   return LineWithCursor(Line());
 }
 
@@ -58,8 +57,8 @@ OutputProducer::Output RepeatLine(LineWithCursor line, LineNumberDelta times) {
 }
 }  // namespace afc::editor
 namespace std {
-std::size_t hash<afc::editor::OutputProducer::LineWithCursor>::operator()(
-    const afc::editor::OutputProducer::LineWithCursor& line) const {
+std::size_t hash<afc::editor::LineWithCursor>::operator()(
+    const afc::editor::LineWithCursor& line) const {
   return afc::editor::compute_hash(*line.line, line.cursor);
 }
 }  // namespace std
