@@ -65,9 +65,11 @@ struct ResolvePathOptions {
   std::vector<Path> search_paths = {};
   Path home_directory;
 
-  std::function<futures::Value<bool>(const Path&)> validator = nullptr;
+  using Validator = std::function<futures::Value<bool>(const Path&)>;
+  Validator validator = nullptr;
 
  private:
+  ResolvePathOptions(Path home_directory, Validator validator);
   ResolvePathOptions() = default;
 };
 

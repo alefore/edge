@@ -505,12 +505,15 @@ ResolvePathOptions ResolvePathOptions::New(
 /* static */ ResolvePathOptions ResolvePathOptions::NewWithEmptySearchPaths(
     EditorState& editor_state,
     std::shared_ptr<FileSystemDriver> file_system_driver) {
-  return ResolvePathOptions{
-      .home_directory = editor_state.home_directory(),
-      .validator = [file_system_driver](const Path& path) {
-        return CanStatPath(file_system_driver, path);
-      }};
+  return ResolvePathOptions(editor_state.home_directory(),
+                            [file_system_driver](const Path& path) {
+                              return CanStatPath(file_system_driver, path);
+                            });
 }
+
+ResolvePathOptions::ResolvePathOptions(Path home_directory, Validator validator)
+    : home_directory(std::move(home_directory)),
+      validator(std::move(validator)) {}
 
 futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (find(input.search_paths.begin(), input.search_paths.end(),
