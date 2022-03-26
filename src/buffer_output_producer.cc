@@ -39,7 +39,7 @@ OutputProducer::Generator ParseTreeHighlighter(
     ColumnNumber begin, ColumnNumber end, OutputProducer::Generator generator) {
   return OutputProducer::Generator{
       std::nullopt, [=]() {
-        OutputProducer::LineWithCursor output = generator.generate();
+        LineWithCursor output = generator.generate();
         Line::Options line_options(std::move(*output.line));
         LineModifierSet modifiers = {LineModifier::BLUE};
         line_options.modifiers.erase(line_options.modifiers.lower_bound(begin),
@@ -96,7 +96,7 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
       hash_combine(hash_combine(generator.inputs_hash.value(), root->hash()),
                    std::hash<Range>{}(range));
   generator.generate = [root, range, generator = std::move(generator)]() {
-    OutputProducer::LineWithCursor input = generator.generate();
+    LineWithCursor input = generator.generate();
     Line::Options options(std::move(*input.line));
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
