@@ -48,10 +48,12 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
   }
   screen->Move(LineNumber(0), ColumnNumber(0));
 
-  StatusOutputProducerSupplier status_supplier(editor_state.status(), nullptr,
-                                               editor_state.modifiers());
+  const LineWithCursor::Generator::Vector status_lines =
+      StatusOutputProducerSupplier(editor_state.status(), nullptr,
+                                   editor_state.modifiers())
+          .Produce(screen->columns());
   std::vector<HorizontalSplitOutputProducer::Row> rows(2);
-  rows[1].lines = status_supplier.lines();
+  rows[1].lines = status_lines.size();
   rows[0].lines = screen->lines() - rows[1].lines;
 
   auto buffer = editor_state.current_buffer();
@@ -67,9 +69,7 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
                    : Widget::OutputProducerOptions::MainCursorBehavior::
                          kIgnore}));
 
-  rows[1].callback =
-      OutputProducer::ToCallback(status_supplier.CreateOutputProducer(
-          LineColumnDelta(rows[1].lines, screen->columns())));
+  rows[1].callback = [status_lines](LineNumberDelta) { return status_lines; };
 
   HorizontalSplitOutputProducer producer(
       std::move(rows),
