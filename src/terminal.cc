@@ -58,17 +58,17 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
   rows[0].lines = screen->lines() - rows[1].lines;
 
   auto buffer = editor_state.current_buffer();
-  rows[0].callback = OutputProducer::ToCallback(
-      editor_state.buffer_tree()->CreateOutputProducer(
-          {.size = LineColumnDelta(rows[0].lines, screen->columns()),
-           .main_cursor_behavior =
-               (editor_state.status().GetType() == Status::Type::kPrompt ||
-                (buffer != nullptr &&
-                 buffer->status().GetType() == Status::Type::kPrompt))
-                   ? Widget::OutputProducerOptions::MainCursorBehavior::
-                         kHighlight
-                   : Widget::OutputProducerOptions::MainCursorBehavior::
-                         kIgnore}));
+  rows[0].callback =
+      [lines = editor_state.buffer_tree()->GetLines(
+           {.size = LineColumnDelta(rows[0].lines, screen->columns()),
+            .main_cursor_behavior =
+                (editor_state.status().GetType() == Status::Type::kPrompt ||
+                 (buffer != nullptr &&
+                  buffer->status().GetType() == Status::Type::kPrompt))
+                    ? Widget::OutputProducerOptions::MainCursorBehavior::
+                          kHighlight
+                    : Widget::OutputProducerOptions::MainCursorBehavior::
+                          kIgnore})](LineNumberDelta) { return lines; };
 
   rows[1].callback = [status_lines](LineNumberDelta) { return status_lines; };
 

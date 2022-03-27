@@ -34,7 +34,7 @@ class BuffersList {
   BufferWidget* GetActiveLeaf();
   const BufferWidget* GetActiveLeaf() const;
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer(
+  LineWithCursor::Generator::Vector GetLines(
       Widget::OutputProducerOptions options) const;
 
   enum class BufferSortOrder { kAlphabetic, kLastVisit };
