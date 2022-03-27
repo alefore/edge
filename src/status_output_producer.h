@@ -27,8 +27,6 @@ class StatusOutputProducerSupplier {
  private:
   LineNumberDelta lines() const;
 
-  bool has_info_line() const;
-
   const Status& status_;
   // `buffer` will be null if this status isn't associated with a specific
   // buffer (i.e., if it's the editor's status).

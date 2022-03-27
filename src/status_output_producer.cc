@@ -205,6 +205,11 @@ class InfoProducer : public OutputProducer {
  private:
   const std::shared_ptr<Data> data_;
 };
+
+bool has_info_line(const Status& status, const OpenBuffer* buffer) {
+  return status.GetType() == Status::Type::kPrompt || !status.text().empty() ||
+         buffer != nullptr;
+}
 }  // namespace
 
 StatusOutputProducerSupplier::StatusOutputProducerSupplier(
@@ -213,7 +218,7 @@ StatusOutputProducerSupplier::StatusOutputProducerSupplier(
 
 LineNumberDelta StatusOutputProducerSupplier::lines() const {
   LineNumberDelta output =
-      has_info_line() ? LineNumberDelta(1) : LineNumberDelta(0);
+      has_info_line(status_, buffer_) ? LineNumberDelta(1) : LineNumberDelta(0);
   auto context = status_.context();
   if (context != nullptr) {
     static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
@@ -223,18 +228,13 @@ LineNumberDelta StatusOutputProducerSupplier::lines() const {
   return output;
 }
 
-bool StatusOutputProducerSupplier::has_info_line() const {
-  return status_.GetType() == Status::Type::kPrompt ||
-         !status_.text().empty() || buffer_ != nullptr;
-}
-
 LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
     LineColumnDelta size) const {
   size.line = min(size.line, lines());
   if (size.line.IsZero()) return LineWithCursor::Generator::Vector{};
 
   const auto info_lines =
-      has_info_line() ? LineNumberDelta(1) : LineNumberDelta();
+      has_info_line(status_, buffer_) ? LineNumberDelta(1) : LineNumberDelta();
   auto base = std::make_unique<InfoProducer>(status_, buffer_, modifiers_);
   if (size.line <= info_lines) {
     return base->Produce(size.line);
@@ -266,7 +266,7 @@ LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
                   },
                   .lines = context_lines});
 
-  if (has_info_line()) {
+  if (has_info_line(status_, buffer_)) {
     rows.push_back({.callback = OutputProducer::ToCallback(std::move(base)),
                     .lines = info_lines});
   }
