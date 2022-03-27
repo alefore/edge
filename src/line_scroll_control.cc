@@ -29,7 +29,7 @@ std::list<ColumnRange> ComputeBreaks(const BufferContentsWindow::Input& input,
 // If the position is before the ranges, returns 0. If the position is after
 // the ranges, returns the last line.
 LineNumber FindPositionInScreen(
-    const std::list<BufferContentsWindow::Line>& screen_lines,
+    const std::vector<BufferContentsWindow::Line>& screen_lines,
     LineColumn position) {
   CHECK(!screen_lines.empty());
   if (position < screen_lines.front().range.begin) {
@@ -60,7 +60,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
           [] {
             CHECK_EQ(
                 FindPositionInScreen(
-                    std::list<BufferContentsWindow::Line>({
+                    std::vector<BufferContentsWindow::Line>({
                         {.range =
                              Range::InLine(LineNumber(10), ColumnNumber(20),
                                            ColumnNumberDelta(8)),
@@ -78,7 +78,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(FindPositionInScreen(
-                         std::list<BufferContentsWindow::Line>(
+                         std::vector<BufferContentsWindow::Line>(
                              {{.range = Range::InLine(LineNumber(10),
                                                       ColumnNumber(20),
                                                       ColumnNumberDelta(8)),
@@ -91,7 +91,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(FindPositionInScreen(
-                         std::list<BufferContentsWindow::Line>(
+                         std::vector<BufferContentsWindow::Line>(
                              {{.range = Range::InLine(LineNumber(10),
                                                       ColumnNumber(20),
                                                       ColumnNumberDelta(8)),
@@ -110,7 +110,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
           [] {
             CHECK_EQ(
                 FindPositionInScreen(
-                    std::list<BufferContentsWindow::Line>({
+                    std::vector<BufferContentsWindow::Line>({
                         {.range =
                              Range::InLine(LineNumber(10), ColumnNumber(20),
                                            ColumnNumberDelta(8)),
@@ -127,7 +127,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
      {.name = L"AfterLast", .callback = [] {
         CHECK_EQ(
             FindPositionInScreen(
-                std::list<BufferContentsWindow::Line>({
+                std::vector<BufferContentsWindow::Line>({
                     {.range = Range::InLine(LineNumber(10), ColumnNumber(20),
                                             ColumnNumberDelta(8)),
                      .has_active_cursor = false,
@@ -171,11 +171,11 @@ BufferContentsWindow::Line GetScreenLine(
   return output;
 }
 
-std::list<BufferContentsWindow::Line> PrependLines(
+std::vector<BufferContentsWindow::Line> PrependLines(
     const BufferContentsWindow::Input& options,
     const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
     LineNumber line, LineNumberDelta lines_desired,
-    std::list<BufferContentsWindow::Line> output) {
+    std::vector<BufferContentsWindow::Line> output) {
   std::list<ColumnRange> line_breaks = ComputeBreaks(options, line);
   if (line == output.front().range.begin.line) {
     line_breaks.remove_if([&](const ColumnRange& r) {
@@ -183,21 +183,22 @@ std::list<BufferContentsWindow::Line> PrependLines(
              r.begin >= output.front().range.begin.column;
     });
   }
-  std::list<BufferContentsWindow::Line> lines_to_insert;
+  std::vector<BufferContentsWindow::Line> lines_to_insert;
   for (auto& r : line_breaks) {
     lines_to_insert.push_back(GetScreenLine(options, cursors, line, r));
   }
-  while (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
-    lines_to_insert.pop_front();
+  auto insert_start = lines_to_insert.begin();
+  if (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
+    insert_start += lines_to_insert.size() - lines_desired.line_delta;
   }
-  output.insert(output.begin(), lines_to_insert.begin(), lines_to_insert.end());
+  output.insert(output.begin(), insert_start, lines_to_insert.end());
   return output;
 }
 
-std::list<BufferContentsWindow::Line> AdjustToHonorMargin(
+std::vector<BufferContentsWindow::Line> AdjustToHonorMargin(
     const BufferContentsWindow::Input& options,
     const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
-    std::list<BufferContentsWindow::Line> output) {
+    std::vector<BufferContentsWindow::Line> output) {
   if (output.empty() || options.margin_lines > options.lines_shown / 2 ||
       options.begin == LineColumn()) {
     return output;
@@ -289,7 +290,11 @@ BufferContentsWindow BufferContentsWindow::Get(
           (options.active_position.has_value() &&
            FindPositionInScreen(output.lines, *options.active_position) >=
                LineNumber() + options.lines_shown - options.margin_lines)) {
-        output.lines.pop_front();
+        // TODO: This is slow? Maybe we can do all deletions at once, outside of
+        // the loop? Didn't really look into the code to see if this is
+        // feasible.
+        CHECK(!output.lines.empty());
+        output.lines.erase(output.lines.begin());
       }
     }
   }

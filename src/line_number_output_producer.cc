@@ -33,7 +33,7 @@ namespace editor {
 
 LineNumberOutputProducer::LineNumberOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
-    std::list<BufferContentsWindow::Line> screen_lines)
+    std::vector<BufferContentsWindow::Line> screen_lines)
     : width_(max(PrefixWidth(buffer->lines_size()),
                  ColumnNumberDelta(buffer->editor().Read(
                      editor_variables::numbers_column_padding)))),

@@ -52,7 +52,7 @@ struct BufferContentsWindow {
     // the value returned for it won't be affected by the range).
     std::set<ColumnNumber> current_cursors;
   };
-  std::list<Line> lines;
+  std::vector<Line> lines;
 
   enum class StatusPosition { kTop, kBottom };
   StatusPosition status_position = StatusPosition::kBottom;

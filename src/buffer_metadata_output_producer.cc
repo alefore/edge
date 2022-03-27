@@ -98,11 +98,11 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
 
 BufferMetadataOutputProducer::BufferMetadataOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
-    std::list<BufferContentsWindow::Line> screen_lines,
+    std::vector<BufferContentsWindow::Line> screen_lines,
     LineNumberDelta lines_shown,
     std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
-      screen_lines_(screen_lines.begin(), screen_lines.end()),
+      screen_lines_(std::move(screen_lines)),
       lines_shown_(lines_shown),
       root_(buffer_->parse_tree()),
       zoomed_out_tree_(std::move(zoomed_out_tree)) {}

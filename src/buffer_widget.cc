@@ -68,7 +68,7 @@ LineWithCursor::Generator::Vector AddLeftFrame(
 
 LineWithCursor::Generator::Vector LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,
-    std::list<BufferContentsWindow::Line> screen_lines,
+    std::vector<BufferContentsWindow::Line> screen_lines,
     Widget::OutputProducerOptions output_producer_options,
     size_t sections_count) {
   output_producer_options.size.line = std::min(
@@ -314,6 +314,9 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   BufferContentsWindow window =
       BufferContentsWindow::Get(buffer_contents_window_input);
+  if (window.lines.empty())
+    return BufferOutputProducerOutput{
+        .lines = LineWithCursor::Generator::Vector{}, .view_start = {}};
 
   input.output_producer_options.size =
       LineColumnDelta(LineNumberDelta(window.lines.size()),

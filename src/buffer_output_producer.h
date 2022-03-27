@@ -13,7 +13,7 @@ namespace editor {
 // the contents of the buffer (with syntax highlighting).
 LineWithCursor::Generator::Vector ProduceBufferView(
     std::shared_ptr<OpenBuffer> buffer,
-    std::list<BufferContentsWindow::Line> lines,
+    std::vector<BufferContentsWindow::Line> lines,
     Widget::OutputProducerOptions output_producer_options);
 
 }  // namespace editor

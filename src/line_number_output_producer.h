@@ -16,8 +16,9 @@ class LineNumberOutputProducer : public OutputProducer {
  public:
   static ColumnNumberDelta PrefixWidth(LineNumberDelta lines_size);
 
-  LineNumberOutputProducer(std::shared_ptr<OpenBuffer> buffer,
-                           std::list<BufferContentsWindow::Line> screen_lines);
+  LineNumberOutputProducer(
+      std::shared_ptr<OpenBuffer> buffer,
+      std::vector<BufferContentsWindow::Line> screen_lines);
 
   LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
 
@@ -26,7 +27,7 @@ class LineNumberOutputProducer : public OutputProducer {
  private:
   const ColumnNumberDelta width_;
   const std::shared_ptr<OpenBuffer> buffer_;
-  const std::list<BufferContentsWindow::Line> screen_lines_;
+  const std::vector<BufferContentsWindow::Line> screen_lines_;
 };
 
 }  // namespace editor

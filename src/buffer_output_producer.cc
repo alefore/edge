@@ -150,7 +150,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
 
 LineWithCursor::Generator::Vector ProduceBufferView(
     std::shared_ptr<OpenBuffer> buffer,
-    std::list<BufferContentsWindow::Line> lines_list,
+    std::vector<BufferContentsWindow::Line> lines,
     Widget::OutputProducerOptions output_producer_options) {
   CHECK_GE(output_producer_options.size.line, LineNumberDelta());
 
@@ -160,8 +160,6 @@ LineWithCursor::Generator::Vector ProduceBufferView(
 
   const std::shared_ptr<const ParseTree> root = buffer->parse_tree();
   const ParseTree* current_tree = buffer->current_tree(root.get());
-  std::vector<BufferContentsWindow::Line> lines(lines_list.begin(),
-                                                lines_list.end());
 
   LineWithCursor::Generator::Vector output{
       .lines = {}, .width = output_producer_options.size.column};
