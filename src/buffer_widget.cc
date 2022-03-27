@@ -71,13 +71,13 @@ LineWithCursor::Generator::Vector LinesSpanView(
     std::list<BufferContentsWindow::Line> screen_lines,
     Widget::OutputProducerOptions output_producer_options,
     size_t sections_count) {
-  std::unique_ptr<OutputProducer> main_contents =
-      std::make_unique<BufferOutputProducer>(buffer, screen_lines,
-                                             output_producer_options);
+  output_producer_options.size.line = std::min(
+      output_producer_options.size.line, LineNumberDelta(screen_lines.size()));
+  LineWithCursor::Generator::Vector buffer_output =
+      BufferOutputProducer(buffer, screen_lines, output_producer_options)
+          .Produce();
 
-  if (buffer->Read(buffer_variables::paste_mode)) {
-    return main_contents->Produce(output_producer_options.size.line);
-  }
+  if (buffer->Read(buffer_variables::paste_mode)) return buffer_output;
 
   LineNumberDelta output_lines(screen_lines.size());
   std::vector<VerticalSplitOutputProducer::Column> columns;
@@ -90,8 +90,8 @@ LineWithCursor::Generator::Vector LinesSpanView(
   }
 
   columns.push_back({line_numbers->Produce(output_lines), width});
-  columns.push_back({std::move(main_contents)->Produce(output_lines),
-                     output_producer_options.size.column});
+  columns.push_back(
+      {std::move(buffer_output), output_producer_options.size.column});
   columns.push_back(VerticalSplitOutputProducer::Column{
       std::make_unique<BufferMetadataOutputProducer>(
           buffer, screen_lines, output_producer_options.size.line,

@@ -11,13 +11,13 @@ namespace editor {
 
 // Unlike `CreateBufferOutputProducer`, doesn't do much beyond just displaying
 // the contents of the buffer (with syntax highlighting).
-class BufferOutputProducer : public OutputProducer {
+class BufferOutputProducer {
  public:
   BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
                        std::list<BufferContentsWindow::Line> lines,
                        Widget::OutputProducerOptions output_producer_options);
 
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
+  LineWithCursor::Generator::Vector Produce();
 
  private:
   Range GetRange(LineColumn begin);

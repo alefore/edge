@@ -157,18 +157,21 @@ BufferOutputProducer::BufferOutputProducer(
       root_(buffer_->parse_tree()),
       current_tree_(buffer_->current_tree(root_.get())),
       lines_(lines.begin(), lines.end()) {
+  CHECK_GE(output_producer_options.size.line, LineNumberDelta());
   if (buffer_->Read(buffer_variables::reload_on_display)) {
     buffer_->Reload();
   }
 }
 
-LineWithCursor::Generator::Vector BufferOutputProducer::Produce(
-    LineNumberDelta lines) {
+LineWithCursor::Generator::Vector BufferOutputProducer::Produce() {
+  // LineNumberDelta lines = output_producer_options_.size.line;
   LineWithCursor::Generator::Vector output{
       .lines = {}, .width = output_producer_options_.size.column};
 
-  CHECK_GE(lines, LineNumberDelta());
-  for (size_t i = 0; i < min(size_t(lines.line_delta), lines_.size()); ++i) {
+  for (size_t i = 0;
+       i < min(size_t(output_producer_options_.size.line.line_delta),
+               lines_.size());
+       ++i) {
     BufferContentsWindow::Line screen_line = lines_[i];
     auto line = screen_line.range.begin.line;
 
@@ -285,7 +288,9 @@ LineWithCursor::Generator::Vector BufferOutputProducer::Produce(
   }
 
   std::vector<LineWithCursor::Generator> tail(
-      (lines - LineNumberDelta(output.lines.size())).line_delta,
+      (output_producer_options_.size.line -
+       LineNumberDelta(output.lines.size()))
+          .line_delta,
       LineWithCursor::Generator::Empty());
   output.lines.insert(output.lines.end(), tail.begin(), tail.end());
   return output;
