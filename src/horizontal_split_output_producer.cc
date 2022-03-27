@@ -31,6 +31,8 @@ LineWithCursor::Generator::Vector HorizontalSplitOutputProducer::Produce(
                              LineWithCursor::Generator::Empty()),
                          .width = ColumnNumberDelta()}
             : row.callback(lines_from_row);
+    row_output.lines.resize(lines_from_row.line_delta,
+                            LineWithCursor::Generator::Empty());
 
     switch (row.overlap_behavior) {
       case Row::OverlapBehavior::kFloat:
@@ -85,34 +87,63 @@ const bool tests_registration =
         return output;
       };
       return std::vector<tests::Test>{
-          {.name = L"TwoRowsShort", .callback = [&] {
+          {.name = L"TwoRowsShort",
+           .callback =
+               [&] {
+                 std::vector<H::Row> rows;
+                 rows.push_back({.callback =
+                                     [](LineNumberDelta lines) {
+                                       return OutputProducer::Constant(
+                                                  LineWithCursor(Line(L"top")))
+                                           ->Produce(lines);
+                                     },
+                                 .lines = LineNumberDelta(2)});
+                 rows.push_back(
+                     {.callback =
+                          [](LineNumberDelta lines) {
+                            return OutputProducer::Constant(
+                                       LineWithCursor(Line(L"bottom")))
+                                ->Produce(lines);
+                          },
+                      .lines = LineNumberDelta(2)});
+                 auto output =
+                     Build(H(std::move(rows), 0), LineNumberDelta(10));
+                 CHECK_EQ(output.size(), 10ul);
+                 CHECK(output[0] == L"top");
+                 CHECK(output[1] == L"top");
+                 CHECK(output[2] == L"bottom");
+                 CHECK(output[3] == L"bottom");
+                 CHECK(output[4] == L"");
+                 CHECK(output[5] == L"");
+                 CHECK(output[6] == L"");
+                 CHECK(output[7] == L"");
+                 CHECK(output[8] == L"");
+                 CHECK(output[9] == L"");
+               }},
+          {.name = L"FirstRowIsTooLong", .callback = [&] {
              std::vector<H::Row> rows;
+             rows.push_back(
+                 {.callback =
+                      [](LineNumberDelta lines_requested) {
+                        CHECK_EQ(lines_requested, LineNumberDelta(2));
+                        return RepeatLine(LineWithCursor(Line(L"top")),
+                                          LineNumberDelta(10));
+                      },
+                  .lines = LineNumberDelta(2)});
              rows.push_back({.callback =
-                                 [](LineNumberDelta lines) {
-                                   return OutputProducer::Constant(
-                                              LineWithCursor(Line(L"top")))
-                                       ->Produce(lines);
+                                 [](LineNumberDelta) {
+                                   return RepeatLine(
+                                       LineWithCursor(Line(L"bottom")),
+                                       LineNumberDelta(10));
                                  },
-                             .lines = LineNumberDelta(2)});
-             rows.push_back({.callback =
-                                 [](LineNumberDelta lines) {
-                                   return OutputProducer::Constant(
-                                              LineWithCursor(Line(L"bottom")))
-                                       ->Produce(lines);
-                                 },
-                             .lines = LineNumberDelta(2)});
-             auto output = Build(H(std::move(rows), 0), LineNumberDelta(10));
-             CHECK_EQ(output.size(), 10ul);
+                             .lines = LineNumberDelta(10)});
+             auto output = Build(H(std::move(rows), 0), LineNumberDelta(5));
+             CHECK_EQ(output.size(), 5ul);
              CHECK(output[0] == L"top");
              CHECK(output[1] == L"top");
              CHECK(output[2] == L"bottom");
              CHECK(output[3] == L"bottom");
-             CHECK(output[4] == L"");
-             CHECK(output[5] == L"");
-             CHECK(output[6] == L"");
-             CHECK(output[7] == L"");
-             CHECK(output[8] == L"");
-             CHECK(output[9] == L"");
+             CHECK(output[4] == L"bottom");
            }}};
     }());
 
