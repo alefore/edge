@@ -229,7 +229,7 @@ bool StatusOutputProducerSupplier::has_info_line() const {
 }
 
 std::unique_ptr<OutputProducer>
-StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
+StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) const {
   const auto total_lines = min(lines(), size.line);
   const auto info_lines =
       has_info_line() ? LineNumberDelta(1) : LineNumberDelta();
@@ -269,6 +269,11 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
                     .lines = info_lines});
   }
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 1);
+}
+
+LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
+    LineColumnDelta size) const {
+  return CreateOutputProducer(size)->Produce(size.line);
 }
 
 }  // namespace afc::editor
