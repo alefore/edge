@@ -33,209 +33,164 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
 
 // This produces the main view of the status, ignoring the context. It handles
 // all valid types of statuses (i.e., all values returned by status->GetType()).
-class InfoProducer : public OutputProducer {
- public:
-  struct Data {
-    const Status& status;
-    const OpenBuffer* buffer;
-    Modifiers modifiers;
-  };
-  InfoProducer(const Status& status, const OpenBuffer* buffer,
-               Modifiers modifiers)
-      : data_(std::make_shared<Data>(
-            Data{status, buffer, std::move(modifiers)})) {}
+LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
+  wstring output;
+  if (options.buffer != nullptr &&
+      options.status.GetType() != Status::Type::kWarning) {
+    output.push_back('[');
+    if (options.buffer->current_position_line() >
+        options.buffer->contents().EndLine()) {
+      output += L"<EOF>";
+    } else {
+      output += options.buffer->current_position_line().ToUserString();
+    }
+    output += L" of " + options.buffer->contents().EndLine().ToUserString() +
+              L", " + options.buffer->current_position_col().ToUserString();
+    output += L"] ";
 
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta) {
-    return LineWithCursor::Generator::Vector{
-        .lines = {LineWithCursor::Generator{
-            std::nullopt,
-            [data = data_]() {
-              wstring output;
-              if (data->buffer != nullptr &&
-                  data->status.GetType() != Status::Type::kWarning) {
-                output.push_back('[');
-                if (data->buffer->current_position_line() >
-                    data->buffer->contents().EndLine()) {
-                  output += L"<EOF>";
-                } else {
-                  output +=
-                      data->buffer->current_position_line().ToUserString();
-                }
-                output += L" of " +
-                          data->buffer->contents().EndLine().ToUserString() +
-                          L", " +
-                          data->buffer->current_position_col().ToUserString();
-                output += L"] ";
+    auto marks_text = options.buffer->GetLineMarksText();
+    if (!marks_text.empty()) {
+      output += marks_text + L" ";
+    }
 
-                auto marks_text = data->buffer->GetLineMarksText();
-                if (!marks_text.empty()) {
-                  output += marks_text + L" ";
-                }
+    auto active_cursors = options.buffer->active_cursors();
+    if (active_cursors->size() != 1) {
+      output += L" " +
+                (options.buffer->Read(buffer_variables::multiple_cursors)
+                     ? std::wstring(L"CURSORS")
+                     : std::wstring(L"cursors")) +
+                L":" + std::to_wstring(active_cursors->current_index() + 1) +
+                L"/" + std::to_wstring(active_cursors->size()) + L" ";
+    }
 
-                auto active_cursors = data->buffer->active_cursors();
-                if (active_cursors->size() != 1) {
-                  output +=
-                      L" " +
-                      (data->buffer->Read(buffer_variables::multiple_cursors)
-                           ? std::wstring(L"CURSORS")
-                           : std::wstring(L"cursors")) +
-                      L":" +
-                      std::to_wstring(active_cursors->current_index() + 1) +
-                      L"/" + std::to_wstring(active_cursors->size()) + L" ";
-                }
+    auto flags = options.buffer->Flags();
+    if (options.modifiers.repetitions.has_value()) {
+      flags.insert(
+          {std::to_wstring(options.modifiers.repetitions.value()), L""});
+    }
+    if (options.modifiers.default_direction == Direction::kBackwards) {
+      flags.insert({L"REVERSE", L""});
+    } else if (options.modifiers.direction == Direction::kBackwards) {
+      flags.insert({L"reverse", L""});
+    }
 
-                auto flags = data->buffer->Flags();
-                if (data->modifiers.repetitions.has_value()) {
-                  flags.insert(
-                      {std::to_wstring(data->modifiers.repetitions.value()),
-                       L""});
-                }
-                if (data->modifiers.default_direction ==
-                    Direction::kBackwards) {
-                  flags.insert({L"REVERSE", L""});
-                } else if (data->modifiers.direction == Direction::kBackwards) {
-                  flags.insert({L"reverse", L""});
-                }
+    if (options.modifiers.default_insertion ==
+        Modifiers::ModifyMode::kOverwrite) {
+      flags.insert({L"OVERWRITE", L""});
+    } else if (options.modifiers.insertion ==
+               Modifiers::ModifyMode::kOverwrite) {
+      flags.insert({L"overwrite", L""});
+    }
 
-                if (data->modifiers.default_insertion ==
-                    Modifiers::ModifyMode::kOverwrite) {
-                  flags.insert({L"OVERWRITE", L""});
-                } else if (data->modifiers.insertion ==
-                           Modifiers::ModifyMode::kOverwrite) {
-                  flags.insert({L"overwrite", L""});
-                }
+    if (options.modifiers.strength == Modifiers::Strength::kStrong) {
+      flags.insert({L"💪", L""});
+    }
 
-                if (data->modifiers.strength == Modifiers::Strength::kStrong) {
-                  flags.insert({L"💪", L""});
-                }
+    wstring structure;
+    if (options.modifiers.structure == StructureTree()) {
+      structure =
+          L"tree<" + std::to_wstring(options.buffer->tree_depth()) + L">";
+    } else if (options.modifiers.structure != StructureChar()) {
+      structure = options.modifiers.structure->ToString();
+    }
+    if (!structure.empty()) {
+      if (options.modifiers.sticky_structure) {
+        transform(structure.begin(), structure.end(), structure.begin(),
+                  ::toupper);
+      }
+      flags[L"St:"] = structure;
+    }
 
-                wstring structure;
-                if (data->modifiers.structure == StructureTree()) {
-                  structure = L"tree<" +
-                              std::to_wstring(data->buffer->tree_depth()) +
-                              L">";
-                } else if (data->modifiers.structure != StructureChar()) {
-                  structure = data->modifiers.structure->ToString();
-                }
-                if (!structure.empty()) {
-                  if (data->modifiers.sticky_structure) {
-                    transform(structure.begin(), structure.end(),
-                              structure.begin(), ::toupper);
-                  }
-                  flags[L"St:"] = structure;
-                }
+    if (!flags.empty()) {
+      output += L"  " + OpenBuffer::FlagsToString(std::move(flags));
+    }
 
-                if (!flags.empty()) {
-                  output += L"  " + OpenBuffer::FlagsToString(std::move(flags));
-                }
+    if (options.status.text().empty()) {
+      output += L"  “" + GetBufferContext(*options.buffer) + L"” ";
+    }
 
-                if (data->status.text().empty()) {
-                  output += L"  “" + GetBufferContext(*data->buffer) + L"” ";
-                }
-
-                int running = 0;
-                int failed = 0;
-                for (const auto& it : *data->buffer->editor().buffers()) {
-                  CHECK(it.second != nullptr);
-                  if (it.second->child_pid() != -1) {
-                    running++;
-                  } else if (it.second->child_exit_status().has_value()) {
-                    int status = it.second->child_exit_status().value();
-                    if (WIFEXITED(status) && WEXITSTATUS(status)) {
-                      failed++;
-                    }
-                  }
-                }
-                if (running > 0) {
-                  output += L"  🏃" + std::to_wstring(running) + L"  ";
-                }
-                if (failed > 0) {
-                  output += L"  💥" + std::to_wstring(failed) + L"  ";
-                }
-              }
-
-              LineWithCursor line_with_cursor;
-              Line::Options options;
-
-              ColumnNumberDelta status_columns;
-              for (auto& c : output) {
-                status_columns += ColumnNumberDelta(wcwidth(c));
-              }
-              LineModifierSet modifiers =
-                  data->status.GetType() == Status::Type::kWarning
-                      ? LineModifierSet({LineModifier::RED, LineModifier::BOLD})
-                      : LineModifierSet();
-
-              options.AppendString(output, modifiers);
-
-              auto text = data->status.text();
-              if (data->status.prompt_buffer() != nullptr) {
-                auto contents = data->status.prompt_buffer()->current_line();
-                auto column =
-                    min(contents->EndColumn(),
-                        data->status.prompt_buffer()->current_position_col());
-                VLOG(5) << "Setting status cursor: " << column;
-
-                options.AppendString(data->status.text(), LineModifierSet());
-                Line::Options prefix(*contents);
-                prefix.DeleteSuffix(column);
-                options.Append(Line(std::move(prefix)));
-                line_with_cursor.cursor =
-                    ColumnNumber(0) + options.contents->size();
-                Line::Options suffix(*contents);
-                suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
-                options.Append(Line(std::move(suffix)));
-                options.Append(
-                    *data->status.prompt_extra_information()->GetLine());
-              } else {
-                VLOG(6) << "Not setting status cursor.";
-                options.AppendString(text, modifiers);
-              }
-              // options.AddString(ColumnNumberDelta::PaddingString(
-              //    options.receiver->width() -
-              //    options.receiver->column().ToDelta(), L' '));
-              line_with_cursor.line =
-                  std::make_shared<Line>(std::move(options));
-              return line_with_cursor;
-            }}},
-        // TODO: This is not correct?
-        .width = ColumnNumberDelta(data_->status.text().size())};
+    int running = 0;
+    int failed = 0;
+    for (const auto& it : *options.buffer->editor().buffers()) {
+      CHECK(it.second != nullptr);
+      if (it.second->child_pid() != -1) {
+        running++;
+      } else if (it.second->child_exit_status().has_value()) {
+        int status = it.second->child_exit_status().value();
+        if (WIFEXITED(status) && WEXITSTATUS(status)) {
+          failed++;
+        }
+      }
+    }
+    if (running > 0) {
+      output += L"  🏃" + std::to_wstring(running) + L"  ";
+    }
+    if (failed > 0) {
+      output += L"  💥" + std::to_wstring(failed) + L"  ";
+    }
   }
 
- private:
-  const std::shared_ptr<Data> data_;
-};
+  LineWithCursor line_with_cursor;
+  Line::Options line_options;
 
-bool has_info_line(const Status& status, const OpenBuffer* buffer) {
-  return status.GetType() == Status::Type::kPrompt || !status.text().empty() ||
-         buffer != nullptr;
+  ColumnNumberDelta status_columns;
+  for (auto& c : output) {
+    status_columns += ColumnNumberDelta(wcwidth(c));
+  }
+  LineModifierSet modifiers =
+      options.status.GetType() == Status::Type::kWarning
+          ? LineModifierSet({LineModifier::RED, LineModifier::BOLD})
+          : LineModifierSet();
+
+  line_options.AppendString(output, modifiers);
+
+  auto text = options.status.text();
+  if (options.status.prompt_buffer() != nullptr) {
+    auto contents = options.status.prompt_buffer()->current_line();
+    auto column = min(contents->EndColumn(),
+                      options.status.prompt_buffer()->current_position_col());
+    VLOG(5) << "Setting status cursor: " << column;
+
+    line_options.AppendString(options.status.text(), LineModifierSet());
+    Line::Options prefix(*contents);
+    prefix.DeleteSuffix(column);
+    line_options.Append(Line(std::move(prefix)));
+    line_with_cursor.cursor = ColumnNumber(0) + line_options.contents->size();
+    Line::Options suffix(*contents);
+    suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
+    line_options.Append(Line(std::move(suffix)));
+    line_options.Append(*options.status.prompt_extra_information()->GetLine());
+  } else {
+    VLOG(6) << "Not setting status cursor.";
+    line_options.AppendString(text, modifiers);
+  }
+  line_with_cursor.line = std::make_shared<Line>(std::move(line_options));
+  return line_with_cursor;
 }
 
-LineNumberDelta lines(const StatusOutputOptions& options) {
-  LineNumberDelta output = has_info_line(options.status, options.buffer)
-                               ? LineNumberDelta(1)
-                               : LineNumberDelta(0);
+LineNumberDelta context_lines(const StatusOutputOptions& options) {
+  static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
   auto context = options.status.context();
-  if (context != nullptr) {
-    static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
-    output += std::min(context->lines_size() + kLinesForStatusContextStatus,
-                       LineNumberDelta(10));
-  }
-  return output;
+  return context == nullptr
+             ? LineNumberDelta()
+             : std::min(context->lines_size() + kLinesForStatusContextStatus,
+                        LineNumberDelta(10));
 }
 }  // namespace
 
 LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
-  options.size.line = min(options.size.line, lines(options));
-  if (options.size.line.IsZero()) return LineWithCursor::Generator::Vector{};
-
-  const auto info_lines = has_info_line(options.status, options.buffer)
+  const auto info_lines = options.status.GetType() == Status::Type::kPrompt ||
+                                  !options.status.text().empty() ||
+                                  options.buffer != nullptr
                               ? LineNumberDelta(1)
                               : LineNumberDelta();
-  auto base = std::make_unique<InfoProducer>(options.status, options.buffer,
-                                             options.modifiers);
+
+  options.size.line =
+      min(options.size.line, info_lines + context_lines(options));
+  if (options.size.line.IsZero()) return LineWithCursor::Generator::Vector{};
+
   if (options.size.line <= info_lines) {
-    return base->Produce(options.size.line);
+    return RepeatLine(StatusBasicInfo(options), options.size.line);
   }
 
   const auto context_lines = options.size.line - info_lines;
@@ -264,9 +219,10 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
                   },
                   .lines = context_lines});
 
-  if (has_info_line(options.status, options.buffer)) {
-    rows.push_back({.callback = OutputProducer::ToCallback(std::move(base)),
-                    .lines = info_lines});
+  if (!info_lines.IsZero()) {
+    rows.push_back(
+        {.callback = std::bind_front(RepeatLine, StatusBasicInfo(options)),
+         .lines = info_lines});
   }
   return HorizontalSplitOutputProducer(std::move(rows), 1)
       .Produce(options.size.line);
