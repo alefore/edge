@@ -213,13 +213,14 @@ bool has_info_line(const Status& status, const OpenBuffer* buffer) {
 }  // namespace
 
 StatusOutputProducerSupplier::StatusOutputProducerSupplier(
-    const Status& status, const OpenBuffer* buffer, Modifiers modifiers)
-    : status_(status), buffer_(buffer), modifiers_(modifiers) {}
+    StatusOutputOptions options)
+    : options_(std::move(options)) {}
 
 LineNumberDelta StatusOutputProducerSupplier::lines() const {
-  LineNumberDelta output =
-      has_info_line(status_, buffer_) ? LineNumberDelta(1) : LineNumberDelta(0);
-  auto context = status_.context();
+  LineNumberDelta output = has_info_line(options_.status, options_.buffer)
+                               ? LineNumberDelta(1)
+                               : LineNumberDelta(0);
+  auto context = options_.status.context();
   if (context != nullptr) {
     static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
     output += std::min(context->lines_size() + kLinesForStatusContextStatus,
@@ -233,9 +234,11 @@ LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
   size.line = min(size.line, lines());
   if (size.line.IsZero()) return LineWithCursor::Generator::Vector{};
 
-  const auto info_lines =
-      has_info_line(status_, buffer_) ? LineNumberDelta(1) : LineNumberDelta();
-  auto base = std::make_unique<InfoProducer>(status_, buffer_, modifiers_);
+  const auto info_lines = has_info_line(options_.status, options_.buffer)
+                              ? LineNumberDelta(1)
+                              : LineNumberDelta();
+  auto base = std::make_unique<InfoProducer>(options_.status, options_.buffer,
+                                             options_.modifiers);
   if (size.line <= info_lines) {
     return base->Produce(size.line);
   }
@@ -252,7 +255,7 @@ LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
       LineColumnDelta(context_lines, size.column);
-  buffer_producer_input.buffer = status_.context();
+  buffer_producer_input.buffer = options_.status.context();
   buffer_producer_input.status_behavior =
       BufferOutputProducerInput::StatusBehavior::kIgnore;
 
@@ -266,7 +269,7 @@ LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
                   },
                   .lines = context_lines});
 
-  if (has_info_line(status_, buffer_)) {
+  if (has_info_line(options_.status, options_.buffer)) {
     rows.push_back({.callback = OutputProducer::ToCallback(std::move(base)),
                     .lines = info_lines});
   }

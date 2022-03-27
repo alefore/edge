@@ -15,10 +15,18 @@ namespace editor {
 class Status;
 class OpenBuffer;
 
+struct StatusOutputOptions {
+  const Status& status;
+
+  // `buffer` will be null if this status isn't associated with a specific
+  // buffer (i.e., if it's the editor's status).
+  const OpenBuffer* buffer;
+  Modifiers modifiers;
+};
+
 class StatusOutputProducerSupplier {
  public:
-  StatusOutputProducerSupplier(const Status& status, const OpenBuffer* buffer,
-                               Modifiers modifiers);
+  StatusOutputProducerSupplier(StatusOutputOptions options);
 
   // Size is the maximum size to generate; we may generate fewer lines (e.g., if
   // the status is empty).
@@ -26,12 +34,7 @@ class StatusOutputProducerSupplier {
 
  private:
   LineNumberDelta lines() const;
-
-  const Status& status_;
-  // `buffer` will be null if this status isn't associated with a specific
-  // buffer (i.e., if it's the editor's status).
-  const OpenBuffer* const buffer_;
-  const Modifiers modifiers_;
+  const StatusOutputOptions options_;
 };
 
 }  // namespace editor
