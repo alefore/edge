@@ -57,11 +57,11 @@ std::unique_ptr<OutputProducer> AddLeftFrame(
                   .lines = LineNumberDelta(1)});
 
   columns.push_back(
-      {.producer =
-           std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0),
+      {.lines =
+           HorizontalSplitOutputProducer(std::move(rows), 0).Produce(lines),
        .width = ColumnNumberDelta(1)});
 
-  columns.push_back({.producer = std::move(producer)});
+  columns.push_back({.lines = producer->Produce(lines)});
 
   return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
 }
@@ -79,24 +79,25 @@ std::unique_ptr<OutputProducer> LinesSpanView(
     return main_contents;
   }
 
+  LineNumberDelta output_lines(screen_lines.size());
   std::vector<VerticalSplitOutputProducer::Column> columns;
 
   auto line_numbers =
       std::make_unique<LineNumberOutputProducer>(buffer, screen_lines);
   auto width = line_numbers->width();
   if (sections_count > 1) {
-    columns.push_back(
-        {std::make_unique<SectionBracketsProducer>(), ColumnNumberDelta(1)});
+    columns.push_back({SectionBrackets(output_lines), ColumnNumberDelta(1)});
   }
 
-  columns.push_back({std::move(line_numbers), width});
-  columns.push_back(
-      {std::move(main_contents), output_producer_options.size.column});
+  columns.push_back({line_numbers->Produce(output_lines), width});
+  columns.push_back({std::move(main_contents)->Produce(output_lines),
+                     output_producer_options.size.column});
   columns.push_back(VerticalSplitOutputProducer::Column{
       std::make_unique<BufferMetadataOutputProducer>(
           buffer, screen_lines, output_producer_options.size.line,
           buffer->current_zoomed_out_parse_tree(
-              output_producer_options.size.line)),
+              output_producer_options.size.line))
+          ->Produce(output_lines),
       std::nullopt});
   return std::make_unique<VerticalSplitOutputProducer>(
       std::move(columns), sections_count > 1 ? 2 : 1);

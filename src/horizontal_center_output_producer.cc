@@ -11,19 +11,10 @@
 namespace afc::editor {
 using V = VerticalSplitOutputProducer;
 namespace {
-V::Column GetPadding(ColumnNumberDelta width) {
-  return V::Column{.producer = OutputProducer::Empty(), .width = width};
+V::Column GetPadding(LineNumberDelta lines, ColumnNumberDelta width) {
+  return V::Column{.lines = RepeatLine(LineWithCursor(Line()), lines),
+                   .width = width};
 }
-
-class LiteralProducer : public OutputProducer {
- public:
-  LiteralProducer(LineWithCursor::Generator::Vector output)
-      : output_(std::move(output)) {}
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta) { return output_; }
-
- private:
-  const LineWithCursor::Generator::Vector output_;
-};
 }  // namespace
 
 HorizontalCenterOutputProducer::HorizontalCenterOutputProducer(
@@ -38,13 +29,12 @@ LineWithCursor::Generator::Vector HorizontalCenterOutputProducer::Produce(
 
   std::vector<V::Column> columns(3);
 
-  columns[0] = GetPadding((width_ - delegate_output.width) / 2);
-  columns[2] = GetPadding(width_ - delegate_output.width - *columns[0].width);
+  columns[0] = GetPadding(lines, (width_ - delegate_output.width) / 2);
+  columns[2] =
+      GetPadding(lines, width_ - delegate_output.width - *columns[0].width);
 
   auto width = delegate_output.width;
-  columns[1] = {
-      .producer = std::make_unique<LiteralProducer>(std::move(delegate_output)),
-      .width = width};
+  columns[1] = {.lines = delegate_output, .width = width};
   return V(std::move(columns), 1).Produce(lines);
 }
 

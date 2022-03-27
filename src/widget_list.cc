@@ -226,9 +226,9 @@ std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer(
         index == active_
             ? options.main_cursor_behavior
             : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
-    column.producer =
-        children_[index]->CreateOutputProducer(std::move(child_options));
-    CHECK(column.producer != nullptr);
+    column.lines = children_[index]
+                       ->CreateOutputProducer(std::move(child_options))
+                       ->Produce(options.size.line);
   }
 
   return std::make_unique<VerticalSplitOutputProducer>(std::move(columns),

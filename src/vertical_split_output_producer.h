@@ -13,7 +13,7 @@ namespace afc::editor {
 class VerticalSplitOutputProducer : public OutputProducer {
  public:
   struct Column {
-    std::unique_ptr<OutputProducer> producer;
+    LineWithCursor::Generator::Vector lines;
 
     // If absent, this column will be the last column produced, and it will be
     // allowed to span the entire screen.

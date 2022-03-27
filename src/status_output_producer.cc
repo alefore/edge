@@ -235,7 +235,7 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   auto context_columns =
       std::make_shared<std::vector<VerticalSplitOutputProducer::Column>>(2);
   context_columns->at(0).width = ColumnNumberDelta(1);
-  context_columns->at(0).producer = std::make_unique<SectionBracketsProducer>();
+  context_columns->at(0).lines = SectionBrackets(context_lines);
 
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
@@ -244,15 +244,16 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
   buffer_producer_input.status_behavior =
       BufferOutputProducerInput::StatusBehavior::kIgnore;
 
-  context_columns->at(1).producer =
-      CreateBufferOutputProducer(buffer_producer_input).producer;
+  context_columns->at(1).lines =
+      CreateBufferOutputProducer(buffer_producer_input)
+          .producer->Produce(context_lines);
   rows.push_back({.callback = [context_columns](LineNumberDelta lines)
                       -> LineWithCursor::Generator::Vector {
                     return VerticalSplitOutputProducer(
                                std::move(*context_columns), 1)
                         .Produce(lines);
                   },
-                  .lines = total_lines - info_lines});
+                  .lines = context_lines});
 
   if (has_info_line()) {
     rows.push_back({.callback = OutputProducer::ToCallback(std::move(base)),

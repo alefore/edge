@@ -12,8 +12,7 @@
 #include "src/line.h"
 
 namespace afc::editor {
-LineWithCursor::Generator::Vector SectionBracketsProducer::Produce(
-    LineNumberDelta lines) {
+LineWithCursor::Generator::Vector SectionBrackets(LineNumberDelta lines) {
   LineWithCursor::Generator::Vector output{.lines = {},
                                            .width = ColumnNumberDelta(1)};
   auto push = [&output](wstring c) {

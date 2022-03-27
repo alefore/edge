@@ -5,10 +5,7 @@
 #include "src/output_producer.h"
 
 namespace afc::editor {
-class SectionBracketsProducer : public OutputProducer {
- public:
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
-};
+LineWithCursor::Generator::Vector SectionBrackets(LineNumberDelta lines);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_SECTION_BRACKETS_PRODUCER_H__

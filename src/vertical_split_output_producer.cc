@@ -33,17 +33,13 @@ std::optional<size_t> CombineHashes(
 VerticalSplitOutputProducer::VerticalSplitOutputProducer(
     std::vector<Column> columns, size_t index_active)
     : columns_(std::make_shared<std::vector<Column>>(std::move(columns))),
-      index_active_(index_active) {
-  for (const auto& c : *columns_) {
-    CHECK(c.producer != nullptr);
-  }
-}
+      index_active_(index_active) {}
 
 LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
     LineNumberDelta lines) {
   std::vector<LineWithCursor::Generator::Vector> inputs_by_column;
   for (auto& c : *columns_) {
-    LineWithCursor::Generator::Vector input = c.producer->Produce(lines);
+    LineWithCursor::Generator::Vector input = c.lines;
     input.lines.resize(lines.line_delta, LineWithCursor::Generator::Empty());
     inputs_by_column.push_back(std::move(input));
   }
