@@ -128,9 +128,9 @@ ColumnNumberDelta width(MetadataLine& line, bool has_previous, bool has_next) {
          line.suffix.contents()->size();
 }
 
-OutputProducer::Generator NewGenerator(MetadataLine line, bool has_previous,
+LineWithCursor::Generator NewGenerator(MetadataLine line, bool has_previous,
                                        bool has_next, bool is_start) {
-  return OutputProducer::Generator::New(CaptureAndHash(
+  return LineWithCursor::Generator::New(CaptureAndHash(
       [](wchar_t info_char, LineModifier modifier, Line suffix,
          bool has_previous, bool has_next, bool is_start) {
         Line::Options options;

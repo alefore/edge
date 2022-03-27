@@ -12,12 +12,13 @@ class ConstantProducer : public OutputProducer {
  public:
   ConstantProducer(LineWithCursor line)
       : width_(line.line->contents()->size()),
-        generator_(Generator::New(CaptureAndHash(
+        generator_(LineWithCursor::Generator::New(CaptureAndHash(
             [](LineWithCursor line) { return line; }, std::move(line)))) {}
 
   LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override {
     return LineWithCursor::Generator::Vector{
-        .lines = std::vector<Generator>(lines.line_delta, generator_),
+        .lines = std::vector<LineWithCursor::Generator>(lines.line_delta,
+                                                        generator_),
         .width = width_};
   }
 
@@ -53,7 +54,7 @@ LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
   return LineWithCursor::Generator::Vector{
       .lines = std::vector(
           times.line_delta,
-          OutputProducer::Generator{.inputs_hash = {},
+          LineWithCursor::Generator{.inputs_hash = {},
                                     .generate = [line] { return line; }}),
       .width = line.line->contents()->size()};
 }

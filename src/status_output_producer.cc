@@ -41,7 +41,7 @@ class InfoProducer : public OutputProducer {
 
   LineWithCursor::Generator::Vector Produce(LineNumberDelta) {
     return LineWithCursor::Generator::Vector{
-        .lines = {Generator{
+        .lines = {LineWithCursor::Generator{
             std::nullopt,
             [this]() {
               wstring output;

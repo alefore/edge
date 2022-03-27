@@ -81,7 +81,7 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
     WriteLine(screen, line,
               line.ToDelta() < generators.size()
                   ? generators.lines[line.line]
-                  : OutputProducer::Generator::Empty());
+                  : LineWithCursor::Generator::Empty());
   }
 
   if (editor_state.status().GetType() == Status::Type::kPrompt ||
@@ -144,7 +144,7 @@ void FlushModifiers(Screen* screen, const LineModifierSet& modifiers) {
 }
 
 void Terminal::WriteLine(Screen* screen, LineNumber line,
-                         OutputProducer::Generator generator) {
+                         LineWithCursor::Generator generator) {
   if (hashes_current_lines_.size() <= line.line) {
     CHECK_LT(line.ToDelta(), screen->lines());
     hashes_current_lines_.resize(screen->lines().line_delta * 2 + 50);

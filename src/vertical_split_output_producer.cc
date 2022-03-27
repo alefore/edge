@@ -9,17 +9,17 @@
 namespace afc::editor {
 namespace {
 std::optional<size_t> CombineHashes(
-    const std::vector<OutputProducer::Generator>& delegates,
+    const std::vector<LineWithCursor::Generator>& delegates,
     const std::vector<VerticalSplitOutputProducer::Column>& columns) {
   return std::find_if(delegates.begin(), delegates.end(),
-                      [](const OutputProducer::Generator& g) {
+                      [](const LineWithCursor::Generator& g) {
                         return !g.inputs_hash.has_value();
                       }) != delegates.end()
              ? std::optional<size_t>()
              : compute_hash(
                    MakeHashableIteratorRange(
                        delegates.begin(), delegates.end(),
-                       [](const OutputProducer::Generator& g) {
+                       [](const LineWithCursor::Generator& g) {
                          return *g.inputs_hash;
                        }),
                    MakeHashableIteratorRange(
@@ -44,7 +44,7 @@ LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
   std::vector<LineWithCursor::Generator::Vector> inputs_by_column;
   for (auto& c : *columns_) {
     LineWithCursor::Generator::Vector input = c.producer->Produce(lines);
-    input.lines.resize(lines.line_delta, Generator::Empty());
+    input.lines.resize(lines.line_delta, LineWithCursor::Generator::Empty());
     inputs_by_column.push_back(std::move(input));
   }
 
@@ -60,7 +60,7 @@ LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
   }
 
   // Outer index is the line being produced; inner index is the column.
-  std::vector<std::vector<Generator>> generator_by_line_column(
+  std::vector<std::vector<LineWithCursor::Generator>> generator_by_line_column(
       lines.line_delta);
   for (LineWithCursor::Generator::Vector& input : inputs_by_column) {
     for (LineNumberDelta i; i < input.size(); ++i) {
@@ -70,7 +70,7 @@ LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
   }
 
   for (auto& line_input : generator_by_line_column) {
-    output.lines.push_back(Generator{
+    output.lines.push_back(LineWithCursor::Generator{
         .inputs_hash = CombineHashes(line_input, *columns_),
         .generate = [line_input = std::move(line_input),
                      index_active = index_active_, columns = columns_]() {

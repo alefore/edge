@@ -25,10 +25,11 @@ LineWithCursor::Generator::Vector HorizontalSplitOutputProducer::Produce(
                            output.size());
     LineWithCursor::Generator::Vector row_output =
         row.callback == nullptr
-            ? LineWithCursor::Generator::Vector{.lines = std::vector<Generator>(
-                                                    lines_from_row.line_delta,
-                                                    Generator::Empty()),
-                                                .width = ColumnNumberDelta()}
+            ? LineWithCursor::Generator::
+                  Vector{.lines = std::vector<LineWithCursor::Generator>(
+                             lines_from_row.line_delta,
+                             LineWithCursor::Generator::Empty()),
+                         .width = ColumnNumberDelta()}
             : row.callback(lines_from_row);
 
     switch (row.overlap_behavior) {
@@ -67,8 +68,8 @@ LineWithCursor::Generator::Vector HorizontalSplitOutputProducer::Produce(
     }
   }
 
-  std::vector<Generator> tail((lines - output.size()).line_delta,
-                              Generator::Empty());
+  std::vector<LineWithCursor::Generator> tail(
+      (lines - output.size()).line_delta, LineWithCursor::Generator::Empty());
   output.lines.insert(output.lines.end(), tail.begin(), tail.end());
   return output;
 }

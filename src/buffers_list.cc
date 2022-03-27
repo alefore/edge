@@ -455,7 +455,7 @@ class BuffersListProducer : public OutputProducer {
               << ", buffers_per_line: " << options_.buffers_per_line
               << ", size: " << options_.buffers->size();
 
-      output.lines.push_back(Generator{
+      output.lines.push_back(LineWithCursor::Generator{
           std::nullopt, [this, index]() {
             CHECK_LT(index, options_.buffers->size())
                 << "Buffers per line: " << options_.buffers_per_line;

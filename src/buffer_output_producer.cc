@@ -18,8 +18,8 @@
 namespace afc::editor {
 namespace {
 // Use to highlight entire lines (for variable `atomic_lines`).
-OutputProducer::Generator LineHighlighter(OutputProducer::Generator generator) {
-  return OutputProducer::Generator{
+LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
+  return LineWithCursor::Generator{
       std::nullopt, [generator]() {
         auto output = generator.generate();
         Line::Options line_options(*output.line);
@@ -35,9 +35,9 @@ OutputProducer::Generator LineHighlighter(OutputProducer::Generator generator) {
       }};
 }
 
-OutputProducer::Generator ParseTreeHighlighter(
-    ColumnNumber begin, ColumnNumber end, OutputProducer::Generator generator) {
-  return OutputProducer::Generator{
+LineWithCursor::Generator ParseTreeHighlighter(
+    ColumnNumber begin, ColumnNumber end, LineWithCursor::Generator generator) {
+  return LineWithCursor::Generator{
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
         Line::Options line_options(std::move(*output.line));
@@ -89,8 +89,8 @@ void GetSyntaxModifiersForLine(
   }
 }
 
-OutputProducer::Generator ParseTreeHighlighterTokens(
-    const ParseTree* root, Range range, OutputProducer::Generator generator) {
+LineWithCursor::Generator ParseTreeHighlighterTokens(
+    const ParseTree* root, Range range, LineWithCursor::Generator generator) {
   CHECK(root != nullptr);
   generator.inputs_hash =
       hash_combine(hash_combine(generator.inputs_hash.value(), root->hash()),
@@ -173,86 +173,90 @@ LineWithCursor::Generator::Vector BufferOutputProducer::Produce(
     auto line = screen_line.range.begin.line;
 
     if (line > buffer_->EndLine()) {
-      output.lines.push_back(Generator::Empty());
+      output.lines.push_back(LineWithCursor::Generator::Empty());
       continue;
     }
 
     std::shared_ptr<const Line> line_contents = buffer_->LineAt(line);
     std::shared_ptr<EditorMode> editor_keyboard_redirect =
         buffer_->editor().keyboard_redirect();
-    Generator generator = Generator::New(CaptureAndHash(
-        [](ColumnNumberDelta size_columns,
-           Widget::OutputProducerOptions::MainCursorBehavior
-               main_cursor_behavior,
-           WithHash<std::shared_ptr<const Line>> line_contents,
-           BufferContentsWindow::Line screen_line, bool atomic_lines,
-           bool multiple_cursors, LineColumn position,
-           EditorMode::CursorMode cursor_mode) {
-          Line::OutputOptions options{
-              .initial_column = screen_line.range.begin.column,
-              .width = size_columns,
-              .input_width =
-                  screen_line.range.begin.line == screen_line.range.end.line
-                      ? screen_line.range.end.column -
-                            screen_line.range.begin.column
-                      : std::numeric_limits<ColumnNumberDelta>::max()};
-          if (!atomic_lines) {
-            options.inactive_cursor_columns = screen_line.current_cursors;
-            if (position.line == screen_line.range.begin.line &&
-                options.inactive_cursor_columns.erase(position.column)) {
-              options.active_cursor_column = position.column;
-            }
-            if (main_cursor_behavior ==
-                Widget::OutputProducerOptions::MainCursorBehavior::kHighlight) {
-              switch (cursor_mode) {
-                case EditorMode::CursorMode::kDefault:
-                  options.modifiers_main_cursor = {LineModifier::REVERSE,
-                                                   multiple_cursors
-                                                       ? LineModifier::GREEN
-                                                       : LineModifier::CYAN};
-                  break;
-                case EditorMode::CursorMode::kInserting:
-                  options.modifiers_main_cursor = {LineModifier::YELLOW};
-                  break;
-                case EditorMode::CursorMode::kOverwriting:
-                  options.modifiers_main_cursor = {LineModifier::RED,
-                                                   LineModifier::UNDERLINE};
-                  break;
-              }
-            } else {
-              switch (cursor_mode) {
-                case EditorMode::CursorMode::kDefault:
-                  options.modifiers_main_cursor = {LineModifier::WHITE};
-                  break;
-                case EditorMode::CursorMode::kInserting:
-                  options.modifiers_main_cursor = {LineModifier::YELLOW,
-                                                   LineModifier::UNDERLINE};
-                  break;
-                case EditorMode::CursorMode::kOverwriting:
-                  options.modifiers_main_cursor = {LineModifier::RED,
-                                                   LineModifier::UNDERLINE};
-                  break;
-              }
-            }
+    LineWithCursor::Generator generator =
+        LineWithCursor::Generator::New(CaptureAndHash(
+            [](ColumnNumberDelta size_columns,
+               Widget::OutputProducerOptions::MainCursorBehavior
+                   main_cursor_behavior,
+               WithHash<std::shared_ptr<const Line>> line_contents,
+               BufferContentsWindow::Line screen_line, bool atomic_lines,
+               bool multiple_cursors, LineColumn position,
+               EditorMode::CursorMode cursor_mode) {
+              Line::OutputOptions options{
+                  .initial_column = screen_line.range.begin.column,
+                  .width = size_columns,
+                  .input_width =
+                      screen_line.range.begin.line == screen_line.range.end.line
+                          ? screen_line.range.end.column -
+                                screen_line.range.begin.column
+                          : std::numeric_limits<ColumnNumberDelta>::max()};
+              if (!atomic_lines) {
+                options.inactive_cursor_columns = screen_line.current_cursors;
+                if (position.line == screen_line.range.begin.line &&
+                    options.inactive_cursor_columns.erase(position.column)) {
+                  options.active_cursor_column = position.column;
+                }
+                if (main_cursor_behavior ==
+                    Widget::OutputProducerOptions::MainCursorBehavior::
+                        kHighlight) {
+                  switch (cursor_mode) {
+                    case EditorMode::CursorMode::kDefault:
+                      options.modifiers_main_cursor = {
+                          LineModifier::REVERSE, multiple_cursors
+                                                     ? LineModifier::GREEN
+                                                     : LineModifier::CYAN};
+                      break;
+                    case EditorMode::CursorMode::kInserting:
+                      options.modifiers_main_cursor = {LineModifier::YELLOW};
+                      break;
+                    case EditorMode::CursorMode::kOverwriting:
+                      options.modifiers_main_cursor = {LineModifier::RED,
+                                                       LineModifier::UNDERLINE};
+                      break;
+                  }
+                } else {
+                  switch (cursor_mode) {
+                    case EditorMode::CursorMode::kDefault:
+                      options.modifiers_main_cursor = {LineModifier::WHITE};
+                      break;
+                    case EditorMode::CursorMode::kInserting:
+                      options.modifiers_main_cursor = {LineModifier::YELLOW,
+                                                       LineModifier::UNDERLINE};
+                      break;
+                    case EditorMode::CursorMode::kOverwriting:
+                      options.modifiers_main_cursor = {LineModifier::RED,
+                                                       LineModifier::UNDERLINE};
+                      break;
+                  }
+                }
 
-            options.modifiers_inactive_cursors =
-                multiple_cursors ? options.modifiers_main_cursor
-                                 : LineModifierSet({LineModifier::BLUE});
-            if (options.modifiers_inactive_cursors.erase(
-                    LineModifier::REVERSE) == 0)
-              options.modifiers_inactive_cursors.insert(LineModifier::REVERSE);
-          }
+                options.modifiers_inactive_cursors =
+                    multiple_cursors ? options.modifiers_main_cursor
+                                     : LineModifierSet({LineModifier::BLUE});
+                if (options.modifiers_inactive_cursors.erase(
+                        LineModifier::REVERSE) == 0)
+                  options.modifiers_inactive_cursors.insert(
+                      LineModifier::REVERSE);
+              }
 
-          return line_contents.value->Output(std::move(options));
-        },
-        output_producer_options_.size.column,
-        output_producer_options_.main_cursor_behavior,
-        MakeWithHash(line_contents, compute_hash(*line_contents)), screen_line,
-        buffer_->Read(buffer_variables::atomic_lines),
-        buffer_->Read(buffer_variables::multiple_cursors), buffer_->position(),
-        (editor_keyboard_redirect == nullptr ? *buffer_->mode()
-                                             : *editor_keyboard_redirect)
-            .cursor_mode()));
+              return line_contents.value->Output(std::move(options));
+            },
+            output_producer_options_.size.column,
+            output_producer_options_.main_cursor_behavior,
+            MakeWithHash(line_contents, compute_hash(*line_contents)),
+            screen_line, buffer_->Read(buffer_variables::atomic_lines),
+            buffer_->Read(buffer_variables::multiple_cursors),
+            buffer_->position(),
+            (editor_keyboard_redirect == nullptr ? *buffer_->mode()
+                                                 : *editor_keyboard_redirect)
+                .cursor_mode()));
 
     if (current_tree_ != root_.get() &&
         screen_line.range.begin.line >= current_tree_->range().begin.line &&
@@ -280,9 +284,9 @@ LineWithCursor::Generator::Vector BufferOutputProducer::Produce(
     output.lines.push_back(generator);
   }
 
-  std::vector<Generator> tail(
+  std::vector<LineWithCursor::Generator> tail(
       (lines - LineNumberDelta(output.lines.size())).line_delta,
-      Generator::Empty());
+      LineWithCursor::Generator::Empty());
   output.lines.insert(output.lines.end(), tail.begin(), tail.end());
   return output;
 }

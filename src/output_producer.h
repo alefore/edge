@@ -55,9 +55,6 @@ struct LineWithCursor {
 // Can be used to render a view of something once, line by line.
 class OutputProducer {
  public:
-  using Generator = LineWithCursor::Generator;
-  // using Output = LineWithCursor::Generator::Vector;
-
   static std::unique_ptr<OutputProducer> Empty();
   static std::unique_ptr<OutputProducer> Constant(LineWithCursor output);
 

@@ -49,7 +49,7 @@ class Terminal {
   };
 
   void WriteLine(Screen* screen, LineNumber line,
-                 OutputProducer::Generator line_with_cursor);
+                 LineWithCursor::Generator line_with_cursor);
 
   // Returns a DrawLine that can be used to draw a given line.
   static LineDrawer GetLineDrawer(LineWithCursor line_with_cursor,

@@ -17,7 +17,7 @@ LineWithCursor::Generator::Vector SectionBracketsProducer::Produce(
   LineWithCursor::Generator::Vector output{.lines = {},
                                            .width = ColumnNumberDelta(1)};
   auto push = [&output](wstring c) {
-    output.lines.push_back(Generator{
+    output.lines.push_back(LineWithCursor::Generator{
         std::hash<wstring>{}(c), [c]() {
           return LineWithCursor(Line(Line::Options(NewLazyString(c))));
         }});
