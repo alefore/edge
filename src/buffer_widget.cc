@@ -66,7 +66,7 @@ LineWithCursor::Generator::Vector AddLeftFrame(
   return VerticalSplitOutputProducer(std::move(columns), 1).Produce(times);
 }
 
-std::unique_ptr<OutputProducer> LinesSpanView(
+LineWithCursor::Generator::Vector LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,
     std::list<BufferContentsWindow::Line> screen_lines,
     Widget::OutputProducerOptions output_producer_options,
@@ -76,7 +76,7 @@ std::unique_ptr<OutputProducer> LinesSpanView(
                                              output_producer_options);
 
   if (buffer->Read(buffer_variables::paste_mode)) {
-    return main_contents;
+    return main_contents->Produce(output_producer_options.size.line);
   }
 
   LineNumberDelta output_lines(screen_lines.size());
@@ -99,8 +99,9 @@ std::unique_ptr<OutputProducer> LinesSpanView(
               output_producer_options.size.line))
           ->Produce(output_lines),
       std::nullopt});
-  return std::make_unique<VerticalSplitOutputProducer>(
-      std::move(columns), sections_count > 1 ? 2 : 1);
+  return VerticalSplitOutputProducer(std::move(columns),
+                                     sections_count > 1 ? 2 : 1)
+      .Produce(output_producer_options.size.line);
 }
 
 std::set<Range> MergeSections(std::set<Range> input) {
@@ -226,10 +227,13 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
         section_input.lines_shown, output_producer_options.size.column);
     CHECK(section_input.active_position == std::nullopt);
     VLOG(3) << "Multiple cursors section starting at: " << section_input.begin;
-    rows.push_back({.callback = OutputProducer::ToCallback(LinesSpanView(
-                        buffer, BufferContentsWindow::Get(section_input).lines,
-                        section_output_producer_options, sections.size())),
-                    .lines = section_input.lines_shown});
+    rows.push_back(
+        {.callback = [lines = LinesSpanView(
+                          buffer,
+                          BufferContentsWindow::Get(section_input).lines,
+                          section_output_producer_options,
+                          sections.size())](LineNumberDelta) { return lines; },
+         .lines = section_input.lines_shown});
 
     if (section.Contains(buffer->position())) {
       active_index = index;
@@ -323,8 +327,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                     buffer_contents_window_input, size.line)
 
               : LinesSpanView(buffer, window.lines,
-                              input.output_producer_options, 1)
-                    ->Produce(size.line),
+                              input.output_producer_options, 1),
       .view_start = window.lines.front().range.begin};
 
   if (!status_lines.size().IsZero()) {
