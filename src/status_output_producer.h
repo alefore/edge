@@ -22,14 +22,14 @@ class StatusOutputProducerSupplier {
 
   LineNumberDelta lines() const;
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer(
-      LineColumnDelta size) const;
-
   // Size is the maximum size to generate; we may generate fewer lines (e.g., if
   // the status is empty).
   LineWithCursor::Generator::Vector Produce(LineColumnDelta size) const;
 
  private:
+  std::unique_ptr<OutputProducer> CreateOutputProducer(
+      LineColumnDelta size) const;
+
   bool has_info_line() const;
 
   const Status& status_;
