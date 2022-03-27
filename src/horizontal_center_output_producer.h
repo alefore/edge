@@ -11,13 +11,13 @@ namespace afc::editor {
 
 class HorizontalCenterOutputProducer : public OutputProducer {
  public:
-  HorizontalCenterOutputProducer(std::unique_ptr<OutputProducer> delegate,
+  HorizontalCenterOutputProducer(LineWithCursor::Generator::Vector lines,
                                  ColumnNumberDelta width);
 
   LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
 
  private:
-  const std::unique_ptr<OutputProducer> delegate_;
+  const LineWithCursor::Generator::Vector lines_;
   const ColumnNumberDelta width_;
 };
 

@@ -245,8 +245,7 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
       BufferOutputProducerInput::StatusBehavior::kIgnore;
 
   context_columns->at(1).lines =
-      CreateBufferOutputProducer(buffer_producer_input)
-          .producer->Produce(context_lines);
+      CreateBufferOutputProducer(buffer_producer_input).lines;
   rows.push_back({.callback = [context_columns](LineNumberDelta lines)
                       -> LineWithCursor::Generator::Vector {
                     return VerticalSplitOutputProducer(

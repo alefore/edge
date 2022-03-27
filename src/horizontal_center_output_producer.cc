@@ -18,23 +18,20 @@ V::Column GetPadding(LineNumberDelta lines, ColumnNumberDelta width) {
 }  // namespace
 
 HorizontalCenterOutputProducer::HorizontalCenterOutputProducer(
-    std::unique_ptr<OutputProducer> delegate, ColumnNumberDelta width)
-    : delegate_(std::move(delegate)), width_(width) {}
+    LineWithCursor::Generator::Vector lines, ColumnNumberDelta width)
+    : lines_(std::move(lines)), width_(width) {}
 
 LineWithCursor::Generator::Vector HorizontalCenterOutputProducer::Produce(
     LineNumberDelta lines) {
-  CHECK(delegate_ != nullptr);
-  auto delegate_output = delegate_->Produce(lines);
-  if (delegate_output.width >= width_) return delegate_output;
+  if (lines_.width >= width_) return lines_;
 
   std::vector<V::Column> columns(3);
 
-  columns[0] = GetPadding(lines, (width_ - delegate_output.width) / 2);
-  columns[2] =
-      GetPadding(lines, width_ - delegate_output.width - *columns[0].width);
+  columns[0] = GetPadding(lines, (width_ - lines_.width) / 2);
+  columns[2] = GetPadding(lines, width_ - lines_.width - *columns[0].width);
 
-  auto width = delegate_output.width;
-  columns[1] = {.lines = delegate_output, .width = width};
+  auto width = lines_.width;
+  columns[1] = {.lines = lines_, .width = width};
   return V(std::move(columns), 1).Produce(lines);
 }
 

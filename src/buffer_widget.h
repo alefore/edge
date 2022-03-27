@@ -12,7 +12,7 @@
 namespace afc::editor {
 
 struct BufferOutputProducerOutput {
-  std::unique_ptr<OutputProducer> producer;
+  LineWithCursor::Generator::Vector lines;
   // Typically a copy of `BufferOutputProducerInput::view_start`, but may have
   // been adjusted.
   LineColumn view_start;

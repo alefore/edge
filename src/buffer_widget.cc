@@ -37,20 +37,20 @@ ProducerForString(std::wstring src, LineModifierSet modifiers) {
   return std::bind_front(RepeatLine, LineWithCursor(Line(std::move(options))));
 }
 
-std::unique_ptr<OutputProducer> AddLeftFrame(
-    std::unique_ptr<OutputProducer> producer, LineNumberDelta lines,
+LineWithCursor::Generator::Vector AddLeftFrame(
+    LineWithCursor::Generator::Vector lines, LineNumberDelta times,
     LineModifierSet modifiers) {
-  if (lines.IsZero()) {
-    return OutputProducer::Empty();
+  if (times.IsZero()) {
+    return RepeatLine(LineWithCursor(Line()), times);
   }
 
   std::vector<VerticalSplitOutputProducer::Column> columns;
 
   std::vector<HorizontalSplitOutputProducer::Row> rows;
-  if (lines > LineNumberDelta(1)) {
+  if (times > LineNumberDelta(1)) {
     rows.push_back({
         .callback = ProducerForString(L"│", modifiers),
-        .lines = lines - LineNumberDelta(1),
+        .lines = times - LineNumberDelta(1),
     });
   }
   rows.push_back({.callback = ProducerForString(L"╰", modifiers),
@@ -58,12 +58,12 @@ std::unique_ptr<OutputProducer> AddLeftFrame(
 
   columns.push_back(
       {.lines =
-           HorizontalSplitOutputProducer(std::move(rows), 0).Produce(lines),
+           HorizontalSplitOutputProducer(std::move(rows), 0).Produce(times),
        .width = ColumnNumberDelta(1)});
 
-  columns.push_back({.lines = producer->Produce(lines)});
+  columns.push_back({.lines = lines});
 
-  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
+  return VerticalSplitOutputProducer(std::move(columns), 1).Produce(times);
 }
 
 std::unique_ptr<OutputProducer> LinesSpanView(
@@ -242,13 +242,14 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input) {
+  LineColumnDelta size = input.output_producer_options.size;
   auto buffer = input.buffer;
   if (buffer == nullptr) {
-    return BufferOutputProducerOutput{.producer = OutputProducer::Empty(),
-                                      .view_start = input.view_start};
+    return BufferOutputProducerOutput{
+        .lines = RepeatLine(LineWithCursor(Line()), size.line),
+        .view_start = input.view_start};
   }
 
-  LineColumnDelta size = input.output_producer_options.size;
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
   std::unique_ptr<StatusOutputProducerSupplier> status_output_producer_supplier;
@@ -317,12 +318,13 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                       buffer_contents_window_input.columns_shown);
 
   BufferOutputProducerOutput output{
-      .producer =
-          buffer->Read(buffer_variables::multiple_cursors)
-              ? ViewMultipleCursors(buffer, input.output_producer_options,
-                                    buffer_contents_window_input)
-              : LinesSpanView(buffer, window.lines,
-                              input.output_producer_options, 1),
+      .lines = buffer->Read(buffer_variables::multiple_cursors)
+                   ? ViewMultipleCursors(buffer, input.output_producer_options,
+                                         buffer_contents_window_input)
+                         ->Produce(size.line)
+                   : LinesSpanView(buffer, window.lines,
+                                   input.output_producer_options, 1)
+                         ->Produce(size.line),
       .view_start = window.lines.front().range.begin};
 
   if (status_lines > LineNumberDelta(0)) {
@@ -330,7 +332,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     using HP = HorizontalSplitOutputProducer;
     HP::Row buffer_row = {.callback = OutputProducer::ToCallback(
                               std::make_unique<HorizontalCenterOutputProducer>(
-                                  std::move(output.producer), size.column)),
+                                  std::move(output.lines), size.column)),
                           .lines = buffer_contents_window_input.lines_shown};
     HP::Row status_row = {
         .callback = OutputProducer::ToCallback(
@@ -357,10 +359,11 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     rows[buffer_index] = std::move(buffer_row);
     rows[status_index] = std::move(status_row);
 
-    output.producer = std::make_unique<HP>(
-        std::move(rows), buffer->status().GetType() == Status::Type::kPrompt
-                             ? status_index
-                             : buffer_index);
+    output.lines =
+        HP(std::move(rows), buffer->status().GetType() == Status::Type::kPrompt
+                                ? status_index
+                                : buffer_index)
+            .Produce(size.line);
   }
   return output;
 }
@@ -379,7 +382,8 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
         max(LineNumberDelta(),
             input.output_producer_options.size.line - kTopFrameLines);
   }
-  auto output = CreateBufferOutputProducer(std::move(input));
+  BufferOutputProducerOutput output =
+      CreateBufferOutputProducer(std::move(input));
   // We avoid updating the desired view_start while the buffer is still being
   // read.
   if (buffer != nullptr &&
@@ -426,19 +430,33 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
             : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
 
     if (add_left_frame) {
-      output.producer = AddLeftFrame(
-          std::move(output.producer), options.size.line,
+      output.lines = AddLeftFrame(
+          std::move(output.lines), options.size.line,
           options_.is_active
               ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
               : LineModifierSet{LineModifier::DIM});
     }
-    nested_rows.push_back(
-        {.callback = OutputProducer::ToCallback(std::move(output.producer)),
-         .lines = options.size.line});
-    output.producer = std::make_unique<HorizontalSplitOutputProducer>(
-        std::move(nested_rows), 1);
+    nested_rows.push_back({.callback = [lines = std::move(output.lines)](
+                                           LineNumberDelta) { return lines; },
+                           .lines = options.size.line});
+    output.lines = HorizontalSplitOutputProducer(std::move(nested_rows), 1)
+                       .Produce(options.size.line);
   }
-  return std::move(output.producer);
+
+  class LiteralProducer : public OutputProducer {
+   public:
+    LiteralProducer(LineWithCursor::Generator::Vector output)
+        : output_(std::move(output)) {}
+
+    LineWithCursor::Generator::Vector Produce(LineNumberDelta) override {
+      return output_;
+    }
+
+   private:
+    const LineWithCursor::Generator::Vector output_;
+  };
+
+  return std::make_unique<LiteralProducer>(std::move(output.lines));
 }
 
 LineNumberDelta BufferWidget::MinimumLines() const {
