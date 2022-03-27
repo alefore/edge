@@ -190,10 +190,11 @@ std::set<Range> ExpandSections(LineNumber end_line,
   return output;
 }
 
-std::unique_ptr<OutputProducer> ViewMultipleCursors(
+LineWithCursor::Generator::Vector ViewMultipleCursors(
     std::shared_ptr<OpenBuffer> buffer,
     Widget::OutputProducerOptions output_producer_options,
-    const BufferContentsWindow::Input buffer_contents_window_input) {
+    const BufferContentsWindow::Input buffer_contents_window_input,
+    LineNumberDelta size_line) {
   std::set<Range> sections;
   for (auto& cursor : *buffer->active_cursors()) {
     sections.insert(Range(
@@ -235,8 +236,8 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
     }
     index++;
   }
-  return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
-                                                         active_index);
+  return HorizontalSplitOutputProducer(std::move(rows), active_index)
+      .Produce(size_line);
 }
 }  // namespace
 
@@ -316,13 +317,14 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                       buffer_contents_window_input.columns_shown);
 
   BufferOutputProducerOutput output{
-      .lines = buffer->Read(buffer_variables::multiple_cursors)
-                   ? ViewMultipleCursors(buffer, input.output_producer_options,
-                                         buffer_contents_window_input)
-                         ->Produce(size.line)
-                   : LinesSpanView(buffer, window.lines,
-                                   input.output_producer_options, 1)
-                         ->Produce(size.line),
+      .lines =
+          buffer->Read(buffer_variables::multiple_cursors)
+              ? ViewMultipleCursors(buffer, input.output_producer_options,
+                                    buffer_contents_window_input, size.line)
+
+              : LinesSpanView(buffer, window.lines,
+                              input.output_producer_options, 1)
+                    ->Produce(size.line),
       .view_start = window.lines.front().range.begin};
 
   if (!status_lines.size().IsZero()) {
