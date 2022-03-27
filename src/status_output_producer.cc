@@ -228,17 +228,19 @@ bool StatusOutputProducerSupplier::has_info_line() const {
          !status_.text().empty() || buffer_ != nullptr;
 }
 
-std::unique_ptr<OutputProducer>
-StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) const {
-  const auto total_lines = min(lines(), size.line);
+LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
+    LineColumnDelta size) const {
+  size.line = min(size.line, lines());
+  if (size.line.IsZero()) return LineWithCursor::Generator::Vector{};
+
   const auto info_lines =
       has_info_line() ? LineNumberDelta(1) : LineNumberDelta();
   auto base = std::make_unique<InfoProducer>(status_, buffer_, modifiers_);
-  if (total_lines <= info_lines) {
-    return base;
+  if (size.line <= info_lines) {
+    return base->Produce(size.line);
   }
 
-  const auto context_lines = total_lines - info_lines;
+  const auto context_lines = size.line - info_lines;
   CHECK_GT(context_lines, LineNumberDelta(0));
   std::vector<HorizontalSplitOutputProducer::Row> rows;
 
@@ -268,14 +270,7 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) const {
     rows.push_back({.callback = OutputProducer::ToCallback(std::move(base)),
                     .lines = info_lines});
   }
-  return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 1);
-}
-
-LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
-    LineColumnDelta size) const {
-  size.line = min(size.line, lines());
-  if (size.line.IsZero()) return LineWithCursor::Generator::Vector{};
-  return CreateOutputProducer(size)->Produce(size.line);
+  return HorizontalSplitOutputProducer(std::move(rows), 1).Produce(size.line);
 }
 
 }  // namespace afc::editor
