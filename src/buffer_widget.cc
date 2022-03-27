@@ -256,9 +256,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   switch (input.status_behavior) {
     case BufferOutputProducerInput::StatusBehavior::kShow:
       status_lines =
-          StatusOutputProducerSupplier(
-              {buffer->status(), buffer.get(), buffer->editor().modifiers()})
-              .Produce(LineColumnDelta(size.line / 4, size.column));
+          StatusOutput({.status = buffer->status(),
+                        .buffer = buffer.get(),
+                        .modifiers = buffer->editor().modifiers(),
+                        .size = LineColumnDelta(size.line / 4, size.column)});
       break;
     case BufferOutputProducerInput::StatusBehavior::kIgnore:
       break;

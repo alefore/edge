@@ -22,21 +22,13 @@ struct StatusOutputOptions {
   // buffer (i.e., if it's the editor's status).
   const OpenBuffer* buffer;
   Modifiers modifiers;
-};
-
-class StatusOutputProducerSupplier {
- public:
-  StatusOutputProducerSupplier(StatusOutputOptions options);
 
   // Size is the maximum size to generate; we may generate fewer lines (e.g., if
   // the status is empty).
-  LineWithCursor::Generator::Vector Produce(LineColumnDelta size) const;
-
- private:
-  LineNumberDelta lines() const;
-  const StatusOutputOptions options_;
+  LineColumnDelta size;
 };
 
+LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options);
 }  // namespace editor
 }  // namespace afc
 
