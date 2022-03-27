@@ -370,7 +370,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
 BufferWidget::BufferWidget(Options options) : options_(std::move(options)) {}
 
-std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
+LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
     OutputProducerOptions options) const {
   auto buffer = options_.buffer.lock();
   BufferOutputProducerInput input;
@@ -443,20 +443,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
                        .Produce(options.size.line);
   }
 
-  class LiteralProducer : public OutputProducer {
-   public:
-    LiteralProducer(LineWithCursor::Generator::Vector output)
-        : output_(std::move(output)) {}
-
-    LineWithCursor::Generator::Vector Produce(LineNumberDelta) override {
-      return output_;
-    }
-
-   private:
-    const LineWithCursor::Generator::Vector output_;
-  };
-
-  return std::make_unique<LiteralProducer>(std::move(output.lines));
+  return output.lines;
 }
 
 LineNumberDelta BufferWidget::MinimumLines() const {

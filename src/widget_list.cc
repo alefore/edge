@@ -51,9 +51,9 @@ WidgetListHorizontal::WidgetListHorizontal(
     std::vector<std::unique_ptr<Widget>> children, size_t active)
     : WidgetList(std::move(children), active) {}
 
-std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
+LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
     OutputProducerOptions options) const {
-  if (options.size.line.IsZero()) return OutputProducer::Empty();
+  if (options.size.line.IsZero()) return LineWithCursor::Generator::Vector{};
 
   std::vector<LineNumberDelta> lines_per_child;
   for (auto& child : children_) {
@@ -99,7 +99,7 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
            std::accumulate(lines_per_child.begin(), lines_per_child.end(),
                            LineNumberDelta(0)));
 
-  if (lines_given.IsZero()) return OutputProducer::Empty();
+  if (lines_given.IsZero()) return LineWithCursor::Generator::Vector{};
 
   size_t children_skipped = std::count(
       lines_per_child.begin(), lines_per_child.end(), LineNumberDelta());
@@ -140,12 +140,10 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
   std::vector<HorizontalSplitOutputProducer::Row> rows;
   CHECK_EQ(children_.size(), lines_per_child.size());
   for (size_t index = 0; index < children_.size(); index++) {
-    std::shared_ptr<OutputProducer> child_producer =
-        NewChildProducer(options, index, lines_per_child[index]);
-    if (child_producer != nullptr) {
-      rows.push_back({[child_producer](LineNumberDelta lines) {
-                        return child_producer->Produce(lines);
-                      },
+    LineWithCursor::Generator::Vector child_lines =
+        GetChildOutput(options, index, lines_per_child[index]);
+    if (!child_lines.size().IsZero()) {
+      rows.push_back({[child_lines](LineNumberDelta) { return child_lines; },
                       lines_per_child[index]});
     }
   }
@@ -165,16 +163,17 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
   size_t children_skipped_before_active =
       std::count(lines_per_child.cbegin(), lines_per_child.cbegin() + active_,
                  LineNumberDelta());
-  return std::make_unique<HorizontalSplitOutputProducer>(
-      std::move(rows), active_ - children_skipped_before_active);
+  return HorizontalSplitOutputProducer(std::move(rows),
+                                       active_ - children_skipped_before_active)
+      .Produce(options.size.line);
 }
 
-std::unique_ptr<OutputProducer> WidgetListHorizontal::NewChildProducer(
+LineWithCursor::Generator::Vector WidgetListHorizontal::GetChildOutput(
     OutputProducerOptions options, size_t index, LineNumberDelta lines) const {
   options.size.line = lines;
   return options.size.line.IsZero()
-             ? nullptr
-             : children_[index].get()->CreateOutputProducer(options);
+             ? LineWithCursor::Generator::Vector{}
+             : children_[index].get()->CreateOutput(options);
 }
 
 LineNumberDelta WidgetListHorizontal::MinimumLines() const {
@@ -200,7 +199,7 @@ WidgetListVertical::WidgetListVertical(
     std::vector<std::unique_ptr<Widget>> children, size_t active)
     : WidgetList(std::move(children), active) {}
 
-std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer(
+LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
     OutputProducerOptions options) const {
   std::vector<VerticalSplitOutputProducer::Column> columns(children_.size());
 
@@ -226,13 +225,11 @@ std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer(
         index == active_
             ? options.main_cursor_behavior
             : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
-    column.lines = children_[index]
-                       ->CreateOutputProducer(std::move(child_options))
-                       ->Produce(options.size.line);
+    column.lines = children_[index]->CreateOutput(std::move(child_options));
   }
 
-  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns),
-                                                       active_);
+  return VerticalSplitOutputProducer(std::move(columns), active_)
+      .Produce(options.size.line);
 }
 
 LineNumberDelta WidgetListVertical::MinimumLines() const {

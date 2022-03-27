@@ -26,15 +26,14 @@ class WidgetListHorizontal : public WidgetList {
   WidgetListHorizontal(std::vector<std::unique_ptr<Widget>> children,
                        size_t active);
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer(
+  LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;
   LineNumberDelta DesiredLines() const override;
 
  private:
-  // Will return nullptr when the child should be skipped.
-  std::unique_ptr<OutputProducer> NewChildProducer(
+  LineWithCursor::Generator::Vector GetChildOutput(
       OutputProducerOptions options, size_t index, LineNumberDelta lines) const;
 };
 
@@ -45,7 +44,7 @@ class WidgetListVertical : public WidgetList {
   WidgetListVertical(std::vector<std::unique_ptr<Widget>> children,
                      size_t active);
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer(
+  LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;

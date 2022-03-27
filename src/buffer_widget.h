@@ -44,7 +44,7 @@ class BufferWidget : public Widget {
   BufferWidget(Options options);
 
   // Overrides from Widget.
-  std::unique_ptr<OutputProducer> CreateOutputProducer(
+  LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const override;
 
   LineNumberDelta MinimumLines() const override;

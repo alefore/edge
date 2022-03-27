@@ -19,7 +19,7 @@ class Widget {
     enum class MainCursorBehavior { kHighlight, kIgnore };
     MainCursorBehavior main_cursor_behavior;
   };
-  virtual std::unique_ptr<OutputProducer> CreateOutputProducer(
+  virtual LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const = 0;
 
   virtual LineNumberDelta MinimumLines() const = 0;

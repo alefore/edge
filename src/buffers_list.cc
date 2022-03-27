@@ -813,11 +813,12 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
 
   options.size.line -= layout.lines;
   CHECK(widget_ != nullptr);
-  auto output = widget_->CreateOutputProducer(options);
-  if (layout.lines.IsZero()) return output->Produce(options.size.line);
+  LineWithCursor::Generator::Vector output = widget_->CreateOutput(options);
+  if (layout.lines.IsZero()) return output;
 
   std::vector<HorizontalSplitOutputProducer::Row> rows;
-  rows.push_back({.callback = OutputProducer::ToCallback(std::move(output)),
+  rows.push_back({.callback = [lines = std::move(output)](
+                                  LineNumberDelta) { return lines; },
                   .lines = options.size.line});
 
   if (!layout.lines.IsZero()) {
