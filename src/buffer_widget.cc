@@ -74,8 +74,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
   output_producer_options.size.line = std::min(
       output_producer_options.size.line, LineNumberDelta(screen_lines.size()));
   LineWithCursor::Generator::Vector buffer_output =
-      BufferOutputProducer(buffer, screen_lines, output_producer_options)
-          .Produce();
+      ProduceBufferView(buffer, screen_lines, output_producer_options);
 
   if (buffer->Read(buffer_variables::paste_mode)) return buffer_output;
 

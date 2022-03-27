@@ -11,24 +11,10 @@ namespace editor {
 
 // Unlike `CreateBufferOutputProducer`, doesn't do much beyond just displaying
 // the contents of the buffer (with syntax highlighting).
-class BufferOutputProducer {
- public:
-  BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
-                       std::list<BufferContentsWindow::Line> lines,
-                       Widget::OutputProducerOptions output_producer_options);
-
-  LineWithCursor::Generator::Vector Produce();
-
- private:
-  Range GetRange(LineColumn begin);
-
-  const std::shared_ptr<OpenBuffer> buffer_;
-  const Widget::OutputProducerOptions output_producer_options_;
-
-  const std::shared_ptr<const ParseTree> root_;
-  const ParseTree* current_tree_;
-  std::vector<BufferContentsWindow::Line> lines_;
-};
+LineWithCursor::Generator::Vector ProduceBufferView(
+    std::shared_ptr<OpenBuffer> buffer,
+    std::list<BufferContentsWindow::Line> lines,
+    Widget::OutputProducerOptions output_producer_options);
 
 }  // namespace editor
 }  // namespace afc
