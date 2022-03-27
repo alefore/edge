@@ -195,7 +195,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
 
   const auto context_lines = options.size.line - info_lines;
   CHECK_GT(context_lines, LineNumberDelta(0));
-  std::vector<HorizontalSplitOutputProducer::Row> rows;
+  RowsVector rows_vector{.index_active = 1, .lines = options.size.line};
 
   auto context_columns =
       std::make_shared<std::vector<VerticalSplitOutputProducer::Column>>(2);
@@ -211,21 +211,20 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
 
   context_columns->at(1).lines =
       CreateBufferOutputProducer(buffer_producer_input).lines;
-  rows.push_back({.callback = [context_columns](LineNumberDelta lines)
-                      -> LineWithCursor::Generator::Vector {
-                    return VerticalSplitOutputProducer(
-                               std::move(*context_columns), 1)
-                        .Produce(lines);
-                  },
-                  .lines = context_lines});
+  rows_vector.push_back({.callback = [context_columns](LineNumberDelta lines)
+                             -> LineWithCursor::Generator::Vector {
+                           return VerticalSplitOutputProducer(
+                                      std::move(*context_columns), 1)
+                               .Produce(lines);
+                         },
+                         .lines = context_lines});
 
   if (!info_lines.IsZero()) {
-    rows.push_back(
+    rows_vector.push_back(
         {.callback = std::bind_front(RepeatLine, StatusBasicInfo(options)),
          .lines = info_lines});
   }
-  return HorizontalSplitOutputProducer(std::move(rows), 1)
-      .Produce(options.size.line);
+  return OutputFromRowsVector(std::move(rows_vector));
 }
 
 }  // namespace afc::editor

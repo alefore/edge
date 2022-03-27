@@ -53,14 +53,21 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
        .buffer = nullptr,
        .modifiers = editor_state.modifiers(),
        .size = LineColumnDelta(screen->lines(), screen->columns())});
-  std::vector<HorizontalSplitOutputProducer::Row> rows(2);
-  rows[1].lines = status_lines.size();
-  rows[0].lines = screen->lines() - rows[1].lines;
+
+  RowsVector rows_vector{
+      .index_active =
+          editor_state.status().GetType() == Status::Type::kPrompt ? 1ul : 0ul,
+      .lines = screen->lines()};
+
+  rows_vector.rows.resize(2);
+  rows_vector.rows[1].lines = status_lines.size();
+  rows_vector.rows[0].lines = screen->lines() - rows_vector.rows[1].lines;
 
   auto buffer = editor_state.current_buffer();
-  rows[0].callback =
+  rows_vector.rows[0].callback =
       [lines = editor_state.buffer_tree()->GetLines(
-           {.size = LineColumnDelta(rows[0].lines, screen->columns()),
+           {.size =
+                LineColumnDelta(rows_vector.rows[0].lines, screen->columns()),
             .main_cursor_behavior =
                 (editor_state.status().GetType() == Status::Type::kPrompt ||
                  (buffer != nullptr &&
@@ -70,13 +77,12 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
                     : Widget::OutputProducerOptions::MainCursorBehavior::
                           kIgnore})](LineNumberDelta) { return lines; };
 
-  rows[1].callback = [status_lines](LineNumberDelta) { return status_lines; };
+  rows_vector.rows[1].callback = [status_lines](LineNumberDelta) {
+    return status_lines;
+  };
 
   LineWithCursor::Generator::Vector generators =
-      HorizontalSplitOutputProducer(
-          std::move(rows),
-          editor_state.status().GetType() == Status::Type::kPrompt ? 1 : 0)
-          .Produce(screen->lines());
+      OutputFromRowsVector(std::move(rows_vector));
   for (LineNumber line; line.ToDelta() < screen->lines(); ++line) {
     WriteLine(screen, line,
               line.ToDelta() < generators.size()

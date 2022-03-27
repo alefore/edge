@@ -46,20 +46,18 @@ LineWithCursor::Generator::Vector AddLeftFrame(
 
   std::vector<VerticalSplitOutputProducer::Column> columns;
 
-  std::vector<HorizontalSplitOutputProducer::Row> rows;
+  RowsVector rows_vector{.lines = times};
   if (times > LineNumberDelta(1)) {
-    rows.push_back({
+    rows_vector.push_back({
         .callback = ProducerForString(L"│", modifiers),
         .lines = times - LineNumberDelta(1),
     });
   }
-  rows.push_back({.callback = ProducerForString(L"╰", modifiers),
-                  .lines = LineNumberDelta(1)});
+  rows_vector.push_back({.callback = ProducerForString(L"╰", modifiers),
+                         .lines = LineNumberDelta(1)});
 
-  columns.push_back(
-      {.lines =
-           HorizontalSplitOutputProducer(std::move(rows), 0).Produce(times),
-       .width = ColumnNumberDelta(1)});
+  columns.push_back({.lines = OutputFromRowsVector(std::move(rows_vector)),
+                     .width = ColumnNumberDelta(1)});
 
   columns.push_back({.lines = lines});
 
@@ -212,8 +210,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
     first_run = false;
   }
 
-  std::vector<HorizontalSplitOutputProducer::Row> rows;
-  size_t active_index = 0;
+  RowsVector rows_vector{.lines = size_line};
   size_t index = 0;
   for (const auto& section : sections) {
     BufferContentsWindow::Input section_input = buffer_contents_window_input;
@@ -226,7 +223,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
         section_input.lines_shown, output_producer_options.size.column);
     CHECK(section_input.active_position == std::nullopt);
     VLOG(3) << "Multiple cursors section starting at: " << section_input.begin;
-    rows.push_back(
+    rows_vector.push_back(
         {.callback = [lines = LinesSpanView(
                           buffer,
                           BufferContentsWindow::Get(section_input).lines,
@@ -235,12 +232,11 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
          .lines = section_input.lines_shown});
 
     if (section.Contains(buffer->position())) {
-      active_index = index;
+      rows_vector.index_active = index;
     }
     index++;
   }
-  return HorizontalSplitOutputProducer(std::move(rows), active_index)
-      .Produce(size_line);
+  return OutputFromRowsVector(std::move(rows_vector));
 }
 }  // namespace
 
@@ -333,16 +329,15 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       .view_start = window.lines.front().range.begin};
 
   if (!status_lines.size().IsZero()) {
-    using HP = HorizontalSplitOutputProducer;
-    HP::Row buffer_row = {
+    RowsVector::Row buffer_row = {
         .callback = [lines =
                          CenterOutput(std::move(output.lines), size.column)](
                         LineNumberDelta) { return lines; },
         .lines = buffer_contents_window_input.lines_shown};
-    HP::Row status_row = {
+    RowsVector::Row status_row = {
         .callback = [status_lines](LineNumberDelta) { return status_lines; },
         .lines = status_lines.size(),
-        .overlap_behavior = HP::Row::OverlapBehavior::kFloat};
+        .overlap_behavior = RowsVector::Row::OverlapBehavior::kFloat};
 
     size_t buffer_index = 0;
     size_t status_index = 1;
@@ -358,15 +353,16 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
         break;
     }
 
-    std::vector<HP::Row> rows(2);
-    rows[buffer_index] = std::move(buffer_row);
-    rows[status_index] = std::move(status_row);
+    RowsVector rows_vector{
+        .index_active = buffer->status().GetType() == Status::Type::kPrompt
+                            ? status_index
+                            : buffer_index,
+        .lines = size.line};
+    rows_vector.rows.resize(2);
+    rows_vector.rows[buffer_index] = std::move(buffer_row);
+    rows_vector.rows[status_index] = std::move(status_row);
 
-    output.lines =
-        HP(std::move(rows), buffer->status().GetType() == Status::Type::kPrompt
-                                ? status_index
-                                : buffer_index)
-            .Produce(size.line);
+    output.lines = OutputFromRowsVector(std::move(rows_vector));
   }
   return output;
 }
@@ -396,7 +392,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
   }
 
   if (options_.position_in_parent.has_value()) {
-    std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
+    RowsVector nested_rows{.index_active = 1, .lines = options.size.line};
     FrameOutputProducerOptions frame_options;
     frame_options.title =
         buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
@@ -442,8 +438,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
     nested_rows.push_back({.callback = [lines = std::move(output.lines)](
                                            LineNumberDelta) { return lines; },
                            .lines = options.size.line});
-    output.lines = HorizontalSplitOutputProducer(std::move(nested_rows), 1)
-                       .Produce(options.size.line);
+    output.lines = OutputFromRowsVector(std::move(nested_rows));
   }
 
   return output.lines;

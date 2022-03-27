@@ -137,19 +137,26 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
            std::accumulate(lines_per_child.begin(), lines_per_child.end(),
                            LineNumberDelta(0)));
 
-  std::vector<HorizontalSplitOutputProducer::Row> rows;
+  const size_t children_skipped_before_active =
+      std::count(lines_per_child.cbegin(), lines_per_child.cbegin() + active_,
+                 LineNumberDelta());
+  RowsVector rows_vector{
+      .index_active = active_ - children_skipped_before_active,
+      .lines = options.size.line};
+
   CHECK_EQ(children_.size(), lines_per_child.size());
   for (size_t index = 0; index < children_.size(); index++) {
     LineWithCursor::Generator::Vector child_lines =
         GetChildOutput(options, index, lines_per_child[index]);
     if (!child_lines.size().IsZero()) {
-      rows.push_back({[child_lines](LineNumberDelta) { return child_lines; },
-                      lines_per_child[index]});
+      rows_vector.push_back(
+          {[child_lines](LineNumberDelta) { return child_lines; },
+           lines_per_child[index]});
     }
   }
 
   if (children_skipped > 0) {
-    rows.push_back(
+    rows_vector.push_back(
         {std::bind_front(
              RepeatLine,
              LineWithCursor(FrameLine(
@@ -160,12 +167,7 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
          LineNumberDelta(1)});
   }
 
-  size_t children_skipped_before_active =
-      std::count(lines_per_child.cbegin(), lines_per_child.cbegin() + active_,
-                 LineNumberDelta());
-  return HorizontalSplitOutputProducer(std::move(rows),
-                                       active_ - children_skipped_before_active)
-      .Produce(options.size.line);
+  return OutputFromRowsVector(std::move(rows_vector));
 }
 
 LineWithCursor::Generator::Vector WidgetListHorizontal::GetChildOutput(

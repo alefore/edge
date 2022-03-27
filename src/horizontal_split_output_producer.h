@@ -10,7 +10,7 @@
 namespace afc {
 namespace editor {
 
-class HorizontalSplitOutputProducer {
+struct RowsVector {
  public:
   struct Row {
     std::function<LineWithCursor::Generator::Vector(LineNumberDelta)> callback;
@@ -24,15 +24,18 @@ class HorizontalSplitOutputProducer {
     OverlapBehavior overlap_behavior = OverlapBehavior::kSolid;
   };
 
-  HorizontalSplitOutputProducer(std::vector<Row> rows, size_t index_active)
-      : rows_(std::move(rows)), index_active_(index_active) {}
+  Row& back() {
+    CHECK(!rows.empty());
+    return rows.back();
+  }
+  void push_back(Row row) { rows.push_back(std::move(row)); }
 
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines);
-
- private:
-  const std::vector<Row> rows_;
-  const size_t index_active_;
+  std::vector<Row> rows = {};
+  size_t index_active = 0;
+  LineNumberDelta lines;
 };
+
+LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector table);
 
 }  // namespace editor
 }  // namespace afc

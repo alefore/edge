@@ -811,12 +811,12 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
           << ", size: " << buffers_.size()
           << ", size column: " << options.size.column;
 
+  RowsVector rows{.lines = options.size.line};
   options.size.line -= layout.lines;
   CHECK(widget_ != nullptr);
   LineWithCursor::Generator::Vector output = widget_->CreateOutput(options);
   if (layout.lines.IsZero()) return output;
 
-  std::vector<HorizontalSplitOutputProducer::Row> rows;
   rows.push_back({.callback = [lines = std::move(output)](
                                   LineNumberDelta) { return lines; },
                   .lines = options.size.line});
@@ -844,8 +844,7 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
          layout.lines});
   }
 
-  return HorizontalSplitOutputProducer(std::move(rows), 0)
-      .Produce(options.size.line + layout.lines);
+  return OutputFromRowsVector(std::move(rows));
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::active_buffer() const {
