@@ -52,7 +52,7 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
       {.status = editor_state.status(),
        .buffer = nullptr,
        .modifiers = editor_state.modifiers(),
-       .size = LineColumnDelta(LineNumberDelta(1), screen->columns())});
+       .size = LineColumnDelta(screen->lines(), screen->columns())});
   std::vector<HorizontalSplitOutputProducer::Row> rows(2);
   rows[1].lines = status_lines.size();
   rows[0].lines = screen->lines() - rows[1].lines;
