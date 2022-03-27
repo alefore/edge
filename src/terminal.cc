@@ -51,7 +51,7 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
   const LineWithCursor::Generator::Vector status_lines =
       StatusOutputProducerSupplier(editor_state.status(), nullptr,
                                    editor_state.modifiers())
-          .Produce(screen->columns());
+          .Produce(LineColumnDelta(LineNumberDelta(1), screen->columns()));
   std::vector<HorizontalSplitOutputProducer::Row> rows(2);
   rows[1].lines = status_lines.size();
   rows[0].lines = screen->lines() - rows[1].lines;

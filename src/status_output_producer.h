@@ -25,7 +25,9 @@ class StatusOutputProducerSupplier {
   std::unique_ptr<OutputProducer> CreateOutputProducer(
       LineColumnDelta size) const;
 
-  LineWithCursor::Generator::Vector Produce(ColumnNumberDelta columns) const;
+  // Size is the maximum size to generate; we may generate fewer lines (e.g., if
+  // the status is empty).
+  LineWithCursor::Generator::Vector Produce(LineColumnDelta size) const;
 
  private:
   bool has_info_line() const;

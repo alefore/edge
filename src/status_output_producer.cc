@@ -272,11 +272,10 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) const {
 }
 
 LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
-    ColumnNumberDelta columns) const {
-  auto size_lines = lines();
-  if (size_lines.IsZero()) return LineWithCursor::Generator::Vector{};
-  return CreateOutputProducer(LineColumnDelta(size_lines, columns))
-      ->Produce(size_lines);
+    LineColumnDelta size) const {
+  size.line = min(size.line, lines());
+  if (size.line.IsZero()) return LineWithCursor::Generator::Vector{};
+  return CreateOutputProducer(size)->Produce(size.line);
 }
 
 }  // namespace afc::editor

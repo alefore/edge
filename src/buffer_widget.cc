@@ -252,20 +252,17 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
-  std::unique_ptr<StatusOutputProducerSupplier> status_output_producer_supplier;
+  LineWithCursor::Generator::Vector status_lines;
   switch (input.status_behavior) {
     case BufferOutputProducerInput::StatusBehavior::kShow:
-      status_output_producer_supplier =
-          std::make_unique<StatusOutputProducerSupplier>(
-              buffer->status(), buffer.get(), buffer->editor().modifiers());
+      status_lines =
+          StatusOutputProducerSupplier(buffer->status(), buffer.get(),
+                                       buffer->editor().modifiers())
+              .Produce(LineColumnDelta(size.line / 4, size.column));
       break;
     case BufferOutputProducerInput::StatusBehavior::kIgnore:
       break;
   }
-  const LineNumberDelta status_lines =
-      status_output_producer_supplier == nullptr
-          ? LineNumberDelta()
-          : min(size.line / 4, status_output_producer_supplier->lines());
 
   buffer->viewers()->set_view_size(size);
 
@@ -327,18 +324,15 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                          ->Produce(size.line),
       .view_start = window.lines.front().range.begin};
 
-  if (status_lines > LineNumberDelta(0)) {
-    CHECK(status_output_producer_supplier != nullptr);
+  if (!status_lines.size().IsZero()) {
     using HP = HorizontalSplitOutputProducer;
     HP::Row buffer_row = {.callback = OutputProducer::ToCallback(
                               std::make_unique<HorizontalCenterOutputProducer>(
                                   std::move(output.lines), size.column)),
                           .lines = buffer_contents_window_input.lines_shown};
     HP::Row status_row = {
-        .callback = OutputProducer::ToCallback(
-            status_output_producer_supplier->CreateOutputProducer(
-                LineColumnDelta(status_lines, size.column))),
-        .lines = status_lines,
+        .callback = [status_lines](LineNumberDelta) { return status_lines; },
+        .lines = status_lines.size(),
         .overlap_behavior = HP::Row::OverlapBehavior::kFloat};
 
     size_t buffer_index = 0;
@@ -351,7 +345,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       case BufferContentsWindow::StatusPosition::kBottom:
         buffer_index = 0;
         status_index = 1;
-        buffer_row.lines -= status_lines;
+        buffer_row.lines -= status_row.lines;
         break;
     }
 
