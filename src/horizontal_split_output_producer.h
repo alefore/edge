@@ -10,7 +10,7 @@
 namespace afc {
 namespace editor {
 
-class HorizontalSplitOutputProducer : public OutputProducer {
+class HorizontalSplitOutputProducer {
  public:
   struct Row {
     std::function<LineWithCursor::Generator::Vector(LineNumberDelta)> callback;
@@ -27,7 +27,7 @@ class HorizontalSplitOutputProducer : public OutputProducer {
   HorizontalSplitOutputProducer(std::vector<Row> rows, size_t index_active)
       : rows_(std::move(rows)), index_active_(index_active) {}
 
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines);
 
  private:
   const std::vector<Row> rows_;

@@ -17,22 +17,18 @@ V::Column GetPadding(LineNumberDelta lines, ColumnNumberDelta width) {
 }
 }  // namespace
 
-HorizontalCenterOutputProducer::HorizontalCenterOutputProducer(
-    LineWithCursor::Generator::Vector lines, ColumnNumberDelta width)
-    : lines_(std::move(lines)), width_(width) {}
-
-LineWithCursor::Generator::Vector HorizontalCenterOutputProducer::Produce(
-    LineNumberDelta lines) {
-  if (lines_.width >= width_) return lines_;
+LineWithCursor::Generator::Vector CenterOutput(
+    LineWithCursor::Generator::Vector lines, ColumnNumberDelta width) {
+  if (lines.width >= width) return lines;
 
   std::vector<V::Column> columns(3);
 
-  columns[0] = GetPadding(lines, (width_ - lines_.width) / 2);
-  columns[2] = GetPadding(lines, width_ - lines_.width - *columns[0].width);
+  columns[0] = GetPadding(lines.size(), (width - lines.width) / 2);
+  columns[2] =
+      GetPadding(lines.size(), width - lines.width - *columns[0].width);
 
-  auto width = lines_.width;
-  columns[1] = {.lines = lines_, .width = width};
-  return V(std::move(columns), 1).Produce(lines);
+  columns[1] = {.lines = lines, .width = lines.width};
+  return V(std::move(columns), 1).Produce(lines.size());
 }
 
 }  // namespace afc::editor

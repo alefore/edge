@@ -8,19 +8,8 @@
 #include "src/output_producer.h"
 
 namespace afc::editor {
-
-class HorizontalCenterOutputProducer : public OutputProducer {
- public:
-  HorizontalCenterOutputProducer(LineWithCursor::Generator::Vector lines,
-                                 ColumnNumberDelta width);
-
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
-
- private:
-  const LineWithCursor::Generator::Vector lines_;
-  const ColumnNumberDelta width_;
-};
-
+LineWithCursor::Generator::Vector CenterOutput(
+    LineWithCursor::Generator::Vector lines, ColumnNumberDelta width);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_HORIZONTAL_CENTER_OUTPUT_PRODUCER_H__

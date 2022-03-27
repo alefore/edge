@@ -334,10 +334,11 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   if (!status_lines.size().IsZero()) {
     using HP = HorizontalSplitOutputProducer;
-    HP::Row buffer_row = {.callback = OutputProducer::ToCallback(
-                              std::make_unique<HorizontalCenterOutputProducer>(
-                                  std::move(output.lines), size.column)),
-                          .lines = buffer_contents_window_input.lines_shown};
+    HP::Row buffer_row = {
+        .callback = [lines =
+                         CenterOutput(std::move(output.lines), size.column)](
+                        LineNumberDelta) { return lines; },
+        .lines = buffer_contents_window_input.lines_shown};
     HP::Row status_row = {
         .callback = [status_lines](LineNumberDelta) { return status_lines; },
         .lines = status_lines.size(),
