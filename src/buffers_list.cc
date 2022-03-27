@@ -400,6 +400,71 @@ const bool remove_common_prefixes_tests_registration =
            }}};
     }());
 
+enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
+
+void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
+                      LineModifierSet modifiers, SelectionState selection_state,
+                      const std::list<ProcessedPathComponent>& components,
+                      Line::Options* output) {
+  std::optional<LineModifierSet> modifiers_override;
+
+  LineModifierSet dim = modifiers;
+  dim.insert(LineModifier::DIM);
+
+  LineModifierSet bold = modifiers;
+
+  switch (selection_state) {
+    case SelectionState::kExcludedByFilter:
+      modifiers.insert(LineModifier::DIM);
+      bold.insert(LineModifier::DIM);
+      break;
+    case SelectionState::kReceivingInput:
+      modifiers.insert(LineModifier::REVERSE);
+      modifiers.insert(LineModifier::CYAN);
+      bold = dim = modifiers;
+      bold.insert(LineModifier::BOLD);
+      break;
+    case SelectionState::kIdle:
+      bold.insert(LineModifier::BOLD);
+      break;
+  }
+
+  auto name = buffer.Read(buffer_variables::name);
+  if (components.empty()) {
+    std::shared_ptr<LazyString> output_name = NewLazyString(std::move(name));
+    if (output_name->size() > ColumnNumberDelta(2) &&
+        output_name->get(ColumnNumber(0)) == L'$' &&
+        output_name->get(ColumnNumber(1)) == L' ') {
+      output_name = StringTrimLeft(
+          Substring(std::move(output_name), ColumnNumber(1)), L" ");
+    }
+    output->AppendString(SubstringWithRangeChecks(std::move(output_name),
+                                                  ColumnNumber(0), columns),
+                         modifiers);
+    return;
+  }
+
+  std::wstring separator;
+  for (auto it = components.begin(); it != components.end(); ++it) {
+    output->AppendString(separator, dim);
+    separator = it->complete ? L"/" : L"…";
+    if (it != std::prev(components.end())) {
+      output->AppendString(
+          NewLazyString(std::move(it->path_component.ToString())), modifiers);
+      continue;
+    }
+
+    PathComponent base =
+        it->path_component.remove_extension().value_or(it->path_component);
+    std::optional<std::wstring> extension = it->path_component.extension();
+    output->AppendString(base.ToString(), bold);
+    if (extension.has_value()) {
+      output->AppendString(L".", dim);
+      output->AppendString(extension.value(), bold);
+    }
+  }
+}
+
 class BuffersListProducer : public OutputProducer {
  public:
   BuffersListProducer(BuffersListOptions options)
@@ -543,71 +608,6 @@ class BuffersListProducer : public OutputProducer {
   }
 
  private:
-  enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
-  static void AppendBufferPath(
-      ColumnNumberDelta columns, const OpenBuffer& buffer,
-      LineModifierSet modifiers, SelectionState selection_state,
-      const std::list<ProcessedPathComponent>& components,
-      Line::Options* output) {
-    std::optional<LineModifierSet> modifiers_override;
-
-    LineModifierSet dim = modifiers;
-    dim.insert(LineModifier::DIM);
-
-    LineModifierSet bold = modifiers;
-
-    switch (selection_state) {
-      case SelectionState::kExcludedByFilter:
-        modifiers.insert(LineModifier::DIM);
-        bold.insert(LineModifier::DIM);
-        break;
-      case SelectionState::kReceivingInput:
-        modifiers.insert(LineModifier::REVERSE);
-        modifiers.insert(LineModifier::CYAN);
-        bold = dim = modifiers;
-        bold.insert(LineModifier::BOLD);
-        break;
-      case SelectionState::kIdle:
-        bold.insert(LineModifier::BOLD);
-        break;
-    }
-
-    auto name = buffer.Read(buffer_variables::name);
-    if (components.empty()) {
-      std::shared_ptr<LazyString> output_name = NewLazyString(std::move(name));
-      if (output_name->size() > ColumnNumberDelta(2) &&
-          output_name->get(ColumnNumber(0)) == L'$' &&
-          output_name->get(ColumnNumber(1)) == L' ') {
-        output_name = StringTrimLeft(
-            Substring(std::move(output_name), ColumnNumber(1)), L" ");
-      }
-      output->AppendString(SubstringWithRangeChecks(std::move(output_name),
-                                                    ColumnNumber(0), columns),
-                           modifiers);
-      return;
-    }
-
-    std::wstring separator;
-    for (auto it = components.begin(); it != components.end(); ++it) {
-      output->AppendString(separator, dim);
-      separator = it->complete ? L"/" : L"…";
-      if (it != std::prev(components.end())) {
-        output->AppendString(
-            NewLazyString(std::move(it->path_component.ToString())), modifiers);
-        continue;
-      }
-
-      PathComponent base =
-          it->path_component.remove_extension().value_or(it->path_component);
-      std::optional<std::wstring> extension = it->path_component.extension();
-      output->AppendString(base.ToString(), bold);
-      if (extension.has_value()) {
-        output->AppendString(L".", dim);
-        output->AppendString(extension.value(), bold);
-      }
-    }
-  }
-
   const std::shared_ptr<BuffersListOptions> options_;
   const ColumnNumberDelta prefix_width_;
   const ColumnNumberDelta columns_per_buffer_;
