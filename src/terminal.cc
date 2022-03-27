@@ -72,12 +72,11 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
 
   rows[1].callback = [status_lines](LineNumberDelta) { return status_lines; };
 
-  HorizontalSplitOutputProducer producer(
-      std::move(rows),
-      editor_state.status().GetType() == Status::Type::kPrompt ? 1 : 0);
-
   LineWithCursor::Generator::Vector generators =
-      producer.Produce(screen->lines());
+      HorizontalSplitOutputProducer(
+          std::move(rows),
+          editor_state.status().GetType() == Status::Type::kPrompt ? 1 : 0)
+          .Produce(screen->lines());
   for (LineNumber line; line.ToDelta() < screen->lines(); ++line) {
     WriteLine(screen, line,
               line.ToDelta() < generators.size()
