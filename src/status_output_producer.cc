@@ -274,6 +274,7 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) const {
 LineWithCursor::Generator::Vector StatusOutputProducerSupplier::Produce(
     ColumnNumberDelta columns) const {
   auto size_lines = lines();
+  if (size_lines.IsZero()) return LineWithCursor::Generator::Vector{};
   return CreateOutputProducer(LineColumnDelta(size_lines, columns))
       ->Produce(size_lines);
 }
