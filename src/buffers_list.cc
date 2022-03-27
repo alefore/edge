@@ -260,7 +260,7 @@ struct BuffersListOptions {
   std::shared_ptr<OpenBuffer> active_buffer;
   std::set<OpenBuffer*> active_buffers;
   size_t buffers_per_line;
-  ColumnNumberDelta width;
+  LineColumnDelta size;
   std::optional<std::unordered_set<OpenBuffer*>> filter;
 };
 
@@ -465,155 +465,147 @@ void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
   }
 }
 
-class BuffersListProducer : public OutputProducer {
- public:
-  BuffersListProducer(BuffersListOptions options)
-      : options_(std::make_shared<BuffersListOptions>(std::move(options))),
-        prefix_width_(
-            max(2ul, std::to_wstring(options_->buffers->size()).size()) + 2),
-        columns_per_buffer_(
-            (options_->width -
-             std::min(options_->width,
-                      (prefix_width_ * options_->buffers_per_line))) /
-            options_->buffers_per_line),
-        path_components_([&] {
-          std::vector<std::list<PathComponent>> paths;
-          for (const auto& buffer : *options_->buffers) {
-            auto path_str = buffer->Read(buffer_variables::path);
-            if (path_str != buffer->Read(buffer_variables::name)) {
-              paths.push_back({});
-              continue;
-            }
-            auto path = Path::FromString(path_str);
-            if (path.IsError()) {
-              paths.push_back({});
-              continue;
-            }
-            auto components = path.value().DirectorySplit();
-            if (components.IsError()) {
-              paths.push_back({});
-              continue;
-            }
-            paths.push_back(components.value());
-          }
-          std::vector<std::list<ProcessedPathComponent>> output;
-          for (const auto& path : RemoveCommonPrefixes(paths)) {
-            output.push_back(
-                path.empty() ? std::list<ProcessedPathComponent>({})
-                             : GetOutputComponents(path, columns_per_buffer_)
-                                   .value_or({}));
-          }
-          CHECK_EQ(output.size(), options_->buffers->size());
-          return output;
-        }()) {
-    VLOG(1) << "BuffersList created. Buffers per line: "
-            << options_->buffers_per_line << ", prefix width: " << prefix_width_
-            << ", count: " << options_->buffers->size();
-  }
+//     .Produce(layout.lines)
 
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override {
-    LineWithCursor::Generator::Vector output{.lines = {},
-                                             .width = options_->width};
-    size_t index = 0;
-    for (LineNumberDelta i; i < lines; ++i) {
-      VLOG(2) << "BuffersListProducer::WriteLine start, index: " << index
-              << ", buffers_per_line: " << options_->buffers_per_line
-              << ", size: " << options_->buffers->size();
+LineWithCursor::Generator::Vector ProduceBuffersList(
+    std::shared_ptr<BuffersListOptions> options) {
+  const ColumnNumberDelta prefix_width = ColumnNumberDelta(
+      max(2ul, std::to_wstring(options->buffers->size()).size()) + 2);
 
-      CHECK_LT(index, options_->buffers->size())
-          << "Buffers per line: " << options_->buffers_per_line;
-      output.lines.push_back(LineWithCursor::Generator{
-          std::nullopt, [options = options_, prefix_width = prefix_width_,
-                         path_components = path_components_,
-                         columns_per_buffer = columns_per_buffer_, index]() {
-            Line::Options output;
-            for (size_t i = 0; i < options->buffers_per_line &&
-                               index + i < options->buffers->size();
-                 i++) {
-              auto buffer = options->buffers->at(index + i).get();
-              auto number_prefix = std::to_wstring(index + i + 1);
-              ColumnNumber start =
-                  ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
-              output.AppendString(
-                  ColumnNumberDelta::PaddingString(
-                      start.ToDelta() - output.contents->size(), L' '),
-                  LineModifierSet());
+  const ColumnNumberDelta columns_per_buffer =
+      (options->size.column -
+       std::min(options->size.column,
+                (prefix_width * options->buffers_per_line))) /
+      options->buffers_per_line;
 
-              FilterResult filter_result =
-                  (!options->filter.has_value() ||
-                   options->filter.value().find(buffer) !=
-                       options->filter.value().end())
-                      ? FilterResult::kIncluded
-                      : FilterResult::kExcluded;
-
-              LineModifierSet number_modifiers =
-                  GetNumberModifiers(*options, buffer, filter_result);
-
-              start +=
-                  prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
-              output.AppendString(
-                  StringAppend(
-                      ColumnNumberDelta::PaddingString(
-                          start.ToDelta() - output.contents->size(), L' '),
-                      NewLazyString(number_prefix)),
-                  number_modifiers);
-
-              wstring progress;
-              LineModifierSet progress_modifier;
-              if (auto marks = buffer->GetLineMarks(); !marks->empty()) {
-                progress = L"!";
-                if (std::find_if(marks->begin(), marks->end(), [](auto p) {
-                      return !p.second.IsExpired();
-                    }) != marks->end())
-                  progress_modifier.insert(LineModifier::RED);
-              } else if (buffer->ShouldDisplayProgress()) {
-                progress =
-                    ProgressString(buffer->Read(buffer_variables::progress),
-                                   OverflowBehavior::kModulo);
-              } else {
-                progress = ProgressStringFillUp(buffer->lines_size().line_delta,
-                                                OverflowBehavior::kModulo);
-                progress_modifier.insert(LineModifier::DIM);
-              }
-              // If we ever make ProgressString return more than a single
-              // character, we'll have to adjust this.
-              CHECK_LE(progress.size(), 1ul);
-
-              output.AppendString(NewLazyString(progress),
-                                  filter_result == FilterResult::kExcluded
-                                      ? LineModifierSet{LineModifier::DIM}
-                                      : progress_modifier);
-              SelectionState selection_state;
-              switch (filter_result) {
-                case FilterResult::kExcluded:
-                  selection_state = SelectionState::kExcludedByFilter;
-                  break;
-                case FilterResult::kIncluded:
-                  selection_state = options->active_buffers.find(buffer) !=
-                                            options->active_buffers.end()
-                                        ? SelectionState::kReceivingInput
-                                        : SelectionState::kIdle;
-              }
-              AppendBufferPath(
-                  columns_per_buffer, *buffer,
-                  buffer->dirty() ? LineModifierSet{LineModifier::ITALIC}
-                                  : LineModifierSet{},
-                  selection_state, path_components[index + i], &output);
-            }
-            return LineWithCursor(Line(std::move(output)));
-          }});
-      index += options_->buffers_per_line;
+  // Contains one element for each entry in options.buffers.
+  const std::vector<std::list<ProcessedPathComponent>> path_components = [&] {
+    std::vector<std::list<PathComponent>> paths;
+    for (const auto& buffer : *options->buffers) {
+      auto path_str = buffer->Read(buffer_variables::path);
+      if (path_str != buffer->Read(buffer_variables::name)) {
+        paths.push_back({});
+        continue;
+      }
+      auto path = Path::FromString(path_str);
+      if (path.IsError()) {
+        paths.push_back({});
+        continue;
+      }
+      auto components = path.value().DirectorySplit();
+      if (components.IsError()) {
+        paths.push_back({});
+        continue;
+      }
+      paths.push_back(components.value());
     }
+    std::vector<std::list<ProcessedPathComponent>> output;
+    for (const auto& path : RemoveCommonPrefixes(paths)) {
+      output.push_back(
+          path.empty()
+              ? std::list<ProcessedPathComponent>({})
+              : GetOutputComponents(path, columns_per_buffer).value_or({}));
+    }
+    CHECK_EQ(output.size(), options->buffers->size());
     return output;
-  }
+  }();
 
- private:
-  const std::shared_ptr<BuffersListOptions> options_;
-  const ColumnNumberDelta prefix_width_;
-  const ColumnNumberDelta columns_per_buffer_;
-  // Contains one element for each entry in options_.buffers.
-  const std::vector<std::list<ProcessedPathComponent>> path_components_;
-};
+  VLOG(1) << "BuffersList created. Buffers per line: "
+          << options->buffers_per_line << ", prefix width: " << prefix_width
+          << ", count: " << options->buffers->size();
+
+  LineWithCursor::Generator::Vector output{.lines = {},
+                                           .width = options->size.column};
+  size_t index = 0;
+  for (LineNumberDelta i; i < options->size.line; ++i) {
+    VLOG(2) << "BuffersListProducer::WriteLine start, index: " << index
+            << ", buffers_per_line: " << options->buffers_per_line
+            << ", size: " << options->buffers->size();
+
+    CHECK_LT(index, options->buffers->size())
+        << "Buffers per line: " << options->buffers_per_line;
+    output.lines.push_back(LineWithCursor::Generator{
+        std::nullopt,
+        [options, prefix_width, path_components, columns_per_buffer, index]() {
+          Line::Options output;
+          for (size_t i = 0; i < options->buffers_per_line &&
+                             index + i < options->buffers->size();
+               i++) {
+            auto buffer = options->buffers->at(index + i).get();
+            auto number_prefix = std::to_wstring(index + i + 1);
+            ColumnNumber start =
+                ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
+            output.AppendString(
+                ColumnNumberDelta::PaddingString(
+                    start.ToDelta() - output.contents->size(), L' '),
+                LineModifierSet());
+
+            FilterResult filter_result =
+                (!options->filter.has_value() ||
+                 options->filter.value().find(buffer) !=
+                     options->filter.value().end())
+                    ? FilterResult::kIncluded
+                    : FilterResult::kExcluded;
+
+            LineModifierSet number_modifiers =
+                GetNumberModifiers(*options, buffer, filter_result);
+
+            start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
+            output.AppendString(
+                StringAppend(
+                    ColumnNumberDelta::PaddingString(
+                        start.ToDelta() - output.contents->size(), L' '),
+                    NewLazyString(number_prefix)),
+                number_modifiers);
+
+            wstring progress;
+            LineModifierSet progress_modifier;
+            if (auto marks = buffer->GetLineMarks(); !marks->empty()) {
+              progress = L"!";
+              if (std::find_if(marks->begin(), marks->end(), [](auto p) {
+                    return !p.second.IsExpired();
+                  }) != marks->end())
+                progress_modifier.insert(LineModifier::RED);
+            } else if (buffer->ShouldDisplayProgress()) {
+              progress =
+                  ProgressString(buffer->Read(buffer_variables::progress),
+                                 OverflowBehavior::kModulo);
+            } else {
+              progress = ProgressStringFillUp(buffer->lines_size().line_delta,
+                                              OverflowBehavior::kModulo);
+              progress_modifier.insert(LineModifier::DIM);
+            }
+            // If we ever make ProgressString return more than a single
+            // character, we'll have to adjust this.
+            CHECK_LE(progress.size(), 1ul);
+
+            output.AppendString(NewLazyString(progress),
+                                filter_result == FilterResult::kExcluded
+                                    ? LineModifierSet{LineModifier::DIM}
+                                    : progress_modifier);
+            SelectionState selection_state;
+            switch (filter_result) {
+              case FilterResult::kExcluded:
+                selection_state = SelectionState::kExcludedByFilter;
+                break;
+              case FilterResult::kIncluded:
+                selection_state = options->active_buffers.find(buffer) !=
+                                          options->active_buffers.end()
+                                      ? SelectionState::kReceivingInput
+                                      : SelectionState::kIdle;
+            }
+            AppendBufferPath(
+                columns_per_buffer, *buffer,
+                buffer->dirty() ? LineModifierSet{LineModifier::ITALIC}
+                                : LineModifierSet{},
+                selection_state, path_components[index + i], &output);
+          }
+          return LineWithCursor(Line(std::move(output)));
+        }});
+    index += options->buffers_per_line;
+  }
+  return output;
+}
 }  // namespace
 
 BuffersList::BuffersList(const EditorState& editor_state)
@@ -838,14 +830,16 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
       active_buffers.insert(b.get());
     }
     rows.push_back(
-        {[lines =
-              BuffersListProducer({.buffers = &buffers_,
-                                   .active_buffer = active_buffer(),
-                                   .active_buffers = std::move(active_buffers),
-                                   .buffers_per_line = layout.buffers_per_line,
-                                   .width = options.size.column,
-                                   .filter = OptimizeFilter(filter_)})
-                  .Produce(layout.lines)](LineNumberDelta) { return lines; },
+        {[lines = ProduceBuffersList(
+              std::make_shared<BuffersListOptions>(BuffersListOptions{
+                  .buffers = &buffers_,
+                  .active_buffer = active_buffer(),
+                  .active_buffers = std::move(active_buffers),
+                  .buffers_per_line = layout.buffers_per_line,
+                  .size = LineColumnDelta(layout.lines, options.size.column),
+                  .filter = OptimizeFilter(filter_)}))](LineNumberDelta) {
+           return lines;
+         },
          layout.lines});
   }
 
