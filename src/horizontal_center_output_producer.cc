@@ -17,11 +17,12 @@ V::Column GetPadding(ColumnNumberDelta width) {
 
 class LiteralProducer : public OutputProducer {
  public:
-  LiteralProducer(Output output) : output_(std::move(output)) {}
-  Output Produce(LineNumberDelta) { return output_; }
+  LiteralProducer(LineWithCursor::Generator::Vector output)
+      : output_(std::move(output)) {}
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta) { return output_; }
 
  private:
-  const Output output_;
+  const LineWithCursor::Generator::Vector output_;
 };
 }  // namespace
 
@@ -29,7 +30,7 @@ HorizontalCenterOutputProducer::HorizontalCenterOutputProducer(
     std::unique_ptr<OutputProducer> delegate, ColumnNumberDelta width)
     : delegate_(std::move(delegate)), width_(width) {}
 
-OutputProducer::Output HorizontalCenterOutputProducer::Produce(
+LineWithCursor::Generator::Vector HorizontalCenterOutputProducer::Produce(
     LineNumberDelta lines) {
   CHECK(delegate_ != nullptr);
   auto delegate_output = delegate_->Produce(lines);

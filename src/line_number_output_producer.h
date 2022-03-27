@@ -19,7 +19,7 @@ class LineNumberOutputProducer : public OutputProducer {
   LineNumberOutputProducer(std::shared_ptr<OpenBuffer> buffer,
                            std::list<BufferContentsWindow::Line> screen_lines);
 
-  Output Produce(LineNumberDelta lines) override;
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
 
   ColumnNumberDelta width() const;
 

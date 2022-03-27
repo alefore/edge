@@ -19,7 +19,7 @@ class BufferMetadataOutputProducer : public OutputProducer {
       LineNumberDelta lines_shown,
       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
-  Output Produce(LineNumberDelta lines) override;
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines);
 
  private:
   LineNumber initial_line() const;

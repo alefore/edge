@@ -9,9 +9,9 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
-OutputProducer::Output HorizontalSplitOutputProducer::Produce(
+LineWithCursor::Generator::Vector HorizontalSplitOutputProducer::Produce(
     LineNumberDelta lines) {
-  Output output;
+  LineWithCursor::Generator::Vector output;
   LineNumberDelta lines_to_skip;
   for (size_t row_index = 0; row_index < rows_.size(); row_index++) {
     if (output.size() == lines) break;
@@ -23,11 +23,12 @@ OutputProducer::Output HorizontalSplitOutputProducer::Produce(
                                 ? lines_to_skip
                                 : LineNumberDelta()) -
                            output.size());
-    Output row_output =
+    LineWithCursor::Generator::Vector row_output =
         row.callback == nullptr
-            ? Output{.lines = std::vector<Generator>(lines_from_row.line_delta,
-                                                     Generator::Empty()),
-                     .width = ColumnNumberDelta()}
+            ? LineWithCursor::Generator::Vector{.lines = std::vector<Generator>(
+                                                    lines_from_row.line_delta,
+                                                    Generator::Empty()),
+                                                .width = ColumnNumberDelta()}
             : row.callback(lines_from_row);
 
     switch (row.overlap_behavior) {

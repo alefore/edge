@@ -39,16 +39,16 @@ VerticalSplitOutputProducer::VerticalSplitOutputProducer(
   }
 }
 
-OutputProducer::Output VerticalSplitOutputProducer::Produce(
+LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
     LineNumberDelta lines) {
-  std::vector<Output> inputs_by_column;
+  std::vector<LineWithCursor::Generator::Vector> inputs_by_column;
   for (auto& c : *columns_) {
-    Output input = c.producer->Produce(lines);
+    LineWithCursor::Generator::Vector input = c.producer->Produce(lines);
     input.lines.resize(lines.line_delta, Generator::Empty());
     inputs_by_column.push_back(std::move(input));
   }
 
-  Output output;
+  LineWithCursor::Generator::Vector output;
   for (size_t i = 0; i < columns_->size(); i++) {
     const Column& column = columns_->at(i);
     if (column.width.has_value()) {
@@ -62,7 +62,7 @@ OutputProducer::Output VerticalSplitOutputProducer::Produce(
   // Outer index is the line being produced; inner index is the column.
   std::vector<std::vector<Generator>> generator_by_line_column(
       lines.line_delta);
-  for (Output& input : inputs_by_column) {
+  for (LineWithCursor::Generator::Vector& input : inputs_by_column) {
     for (LineNumberDelta i; i < input.size(); ++i) {
       generator_by_line_column[i.line_delta].push_back(
           std::move(input.lines[i.line_delta]));

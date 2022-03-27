@@ -162,8 +162,10 @@ BufferOutputProducer::BufferOutputProducer(
   }
 }
 
-OutputProducer::Output BufferOutputProducer::Produce(LineNumberDelta lines) {
-  Output output{.lines = {}, .width = output_producer_options_.size.column};
+LineWithCursor::Generator::Vector BufferOutputProducer::Produce(
+    LineNumberDelta lines) {
+  LineWithCursor::Generator::Vector output{
+      .lines = {}, .width = output_producer_options_.size.column};
 
   CHECK_GE(lines, LineNumberDelta());
   for (size_t i = 0; i < min(size_t(lines.line_delta), lines_.size()); ++i) {

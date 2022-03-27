@@ -39,8 +39,8 @@ class InfoProducer : public OutputProducer {
                Modifiers modifiers)
       : status_(status), buffer_(buffer), modifiers_(modifiers) {}
 
-  Output Produce(LineNumberDelta) {
-    return Output{
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta) {
+    return LineWithCursor::Generator::Vector{
         .lines = {Generator{
             std::nullopt,
             [this]() {
@@ -246,13 +246,13 @@ StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
 
   context_columns->at(1).producer =
       CreateBufferOutputProducer(buffer_producer_input).producer;
-  rows.push_back(
-      {.callback =
-           [context_columns](LineNumberDelta lines) -> OutputProducer::Output {
-         return VerticalSplitOutputProducer(std::move(*context_columns), 1)
-             .Produce(lines);
-       },
-       .lines = total_lines - info_lines});
+  rows.push_back({.callback = [context_columns](LineNumberDelta lines)
+                      -> LineWithCursor::Generator::Vector {
+                    return VerticalSplitOutputProducer(
+                               std::move(*context_columns), 1)
+                        .Produce(lines);
+                  },
+                  .lines = total_lines - info_lines});
 
   if (has_info_line()) {
     rows.push_back({.callback = OutputProducer::ToCallback(std::move(base)),

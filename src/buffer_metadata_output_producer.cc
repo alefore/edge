@@ -160,10 +160,10 @@ OutputProducer::Generator NewGenerator(MetadataLine line, bool has_previous,
 }
 }  // namespace
 
-OutputProducer::Output BufferMetadataOutputProducer::Produce(
+LineWithCursor::Generator::Vector BufferMetadataOutputProducer::Produce(
     LineNumberDelta lines) {
   if (screen_lines_.empty() || lines < LineNumberDelta()) return {};
-  OutputProducer::Output output;
+  LineWithCursor::Generator::Vector output;
   std::list<MetadataLine> range_data;
   for (LineNumberDelta i; i < min(lines, LineNumberDelta(screen_lines_.size()));
        ++i) {

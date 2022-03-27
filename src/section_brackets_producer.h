@@ -7,7 +7,7 @@
 namespace afc::editor {
 class SectionBracketsProducer : public OutputProducer {
  public:
-  Output Produce(LineNumberDelta lines) override;
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
 };
 }  // namespace afc::editor
 

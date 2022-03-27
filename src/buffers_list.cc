@@ -446,8 +446,9 @@ class BuffersListProducer : public OutputProducer {
             << ", count: " << options_.buffers->size();
   }
 
-  Output Produce(LineNumberDelta lines) override {
-    Output output{.lines = {}, .width = options_.width};
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override {
+    LineWithCursor::Generator::Vector output{.lines = {},
+                                             .width = options_.width};
     size_t index = 0;
     for (LineNumberDelta i; i < lines; ++i) {
       VLOG(2) << "BuffersListProducer::WriteLine start, index: " << index

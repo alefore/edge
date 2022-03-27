@@ -40,9 +40,9 @@ LineNumberOutputProducer::LineNumberOutputProducer(
       buffer_(std::move(buffer)),
       screen_lines_(screen_lines) {}
 
-OutputProducer::Output LineNumberOutputProducer::Produce(
+LineWithCursor::Generator::Vector LineNumberOutputProducer::Produce(
     LineNumberDelta lines) {
-  Output output{.lines = {}, .width = width_};
+  LineWithCursor::Generator::Vector output{.lines = {}, .width = width_};
   for (const BufferContentsWindow::Line& screen_line : screen_lines_) {
     if (screen_line.range.begin.line > buffer_->EndLine()) {
       return output;  // The buffer is smaller than the screen.

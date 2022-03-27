@@ -30,12 +30,11 @@ namespace {
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
-std::function<OutputProducer::Output(LineNumberDelta)> ProducerForString(
-    std::wstring src, LineModifierSet modifiers) {
+std::function<LineWithCursor::Generator::Vector(LineNumberDelta)>
+ProducerForString(std::wstring src, LineModifierSet modifiers) {
   Line::Options options;
   options.AppendString(std::move(src), std::move(modifiers));
-  return OutputProducer::ToCallback(
-      OutputProducer::Constant(LineWithCursor(Line(std::move(options)))));
+  return std::bind_front(RepeatLine, LineWithCursor(Line(std::move(options))));
 }
 
 std::unique_ptr<OutputProducer> AddLeftFrame(
@@ -93,12 +92,12 @@ std::unique_ptr<OutputProducer> LinesSpanView(
   columns.push_back({std::move(line_numbers), width});
   columns.push_back(
       {std::move(main_contents), output_producer_options.size.column});
-  columns.push_back(
-      {std::make_unique<BufferMetadataOutputProducer>(
-           buffer, screen_lines, output_producer_options.size.line,
-           buffer->current_zoomed_out_parse_tree(
-               output_producer_options.size.line)),
-       std::nullopt});
+  columns.push_back(VerticalSplitOutputProducer::Column{
+      std::make_unique<BufferMetadataOutputProducer>(
+          buffer, screen_lines, output_producer_options.size.line,
+          buffer->current_zoomed_out_parse_tree(
+              output_producer_options.size.line)),
+      std::nullopt});
   return std::make_unique<VerticalSplitOutputProducer>(
       std::move(columns), sections_count > 1 ? 2 : 1);
 }

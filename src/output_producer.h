@@ -56,7 +56,7 @@ struct LineWithCursor {
 class OutputProducer {
  public:
   using Generator = LineWithCursor::Generator;
-  using Output = LineWithCursor::Generator::Vector;
+  // using Output = LineWithCursor::Generator::Vector;
 
   static std::unique_ptr<OutputProducer> Empty();
   static std::unique_ptr<OutputProducer> Constant(LineWithCursor output);

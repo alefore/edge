@@ -17,7 +17,7 @@ class BufferOutputProducer : public OutputProducer {
                        std::list<BufferContentsWindow::Line> lines,
                        Widget::OutputProducerOptions output_producer_options);
 
-  Output Produce(LineNumberDelta lines) override;
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
 
  private:
   Range GetRange(LineColumn begin);

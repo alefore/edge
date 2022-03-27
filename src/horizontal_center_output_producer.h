@@ -14,7 +14,7 @@ class HorizontalCenterOutputProducer : public OutputProducer {
   HorizontalCenterOutputProducer(std::unique_ptr<OutputProducer> delegate,
                                  ColumnNumberDelta width);
 
-  Output Produce(LineNumberDelta lines) override;
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
 
  private:
   const std::unique_ptr<OutputProducer> delegate_;

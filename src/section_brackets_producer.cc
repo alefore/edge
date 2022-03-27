@@ -12,8 +12,10 @@
 #include "src/line.h"
 
 namespace afc::editor {
-OutputProducer::Output SectionBracketsProducer::Produce(LineNumberDelta lines) {
-  Output output{.lines = {}, .width = ColumnNumberDelta(1)};
+LineWithCursor::Generator::Vector SectionBracketsProducer::Produce(
+    LineNumberDelta lines) {
+  LineWithCursor::Generator::Vector output{.lines = {},
+                                           .width = ColumnNumberDelta(1)};
   auto push = [&output](wstring c) {
     output.lines.push_back(Generator{
         std::hash<wstring>{}(c), [c]() {

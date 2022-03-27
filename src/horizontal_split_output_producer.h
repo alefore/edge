@@ -13,7 +13,7 @@ namespace editor {
 class HorizontalSplitOutputProducer : public OutputProducer {
  public:
   struct Row {
-    std::function<Output(LineNumberDelta)> callback;
+    std::function<LineWithCursor::Generator::Vector(LineNumberDelta)> callback;
     LineNumberDelta lines;
     enum class OverlapBehavior {
       // Rows after this one are pushed down in the output, unmodified.
@@ -27,7 +27,7 @@ class HorizontalSplitOutputProducer : public OutputProducer {
   HorizontalSplitOutputProducer(std::vector<Row> rows, size_t index_active)
       : rows_(std::move(rows)), index_active_(index_active) {}
 
-  Output Produce(LineNumberDelta lines) override;
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
 
  private:
   const std::vector<Row> rows_;
