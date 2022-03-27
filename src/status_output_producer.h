@@ -20,13 +20,13 @@ class StatusOutputProducerSupplier {
   StatusOutputProducerSupplier(const Status& status, const OpenBuffer* buffer,
                                Modifiers modifiers);
 
-  LineNumberDelta lines() const;
-
   // Size is the maximum size to generate; we may generate fewer lines (e.g., if
   // the status is empty).
   LineWithCursor::Generator::Vector Produce(LineColumnDelta size) const;
 
  private:
+  LineNumberDelta lines() const;
+
   bool has_info_line() const;
 
   const Status& status_;
