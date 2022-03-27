@@ -35,40 +35,48 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
 // all valid types of statuses (i.e., all values returned by status->GetType()).
 class InfoProducer : public OutputProducer {
  public:
+  struct Data {
+    const Status& status;
+    const OpenBuffer* buffer;
+    Modifiers modifiers;
+  };
   InfoProducer(const Status& status, const OpenBuffer* buffer,
                Modifiers modifiers)
-      : status_(status), buffer_(buffer), modifiers_(modifiers) {}
+      : data_(std::make_shared<Data>(
+            Data{status, buffer, std::move(modifiers)})) {}
 
   LineWithCursor::Generator::Vector Produce(LineNumberDelta) {
     return LineWithCursor::Generator::Vector{
         .lines = {LineWithCursor::Generator{
             std::nullopt,
-            [this]() {
+            [data = data_]() {
               wstring output;
-              if (buffer_ != nullptr &&
-                  status_.GetType() != Status::Type::kWarning) {
+              if (data->buffer != nullptr &&
+                  data->status.GetType() != Status::Type::kWarning) {
                 output.push_back('[');
-                if (buffer_->current_position_line() >
-                    buffer_->contents().EndLine()) {
+                if (data->buffer->current_position_line() >
+                    data->buffer->contents().EndLine()) {
                   output += L"<EOF>";
                 } else {
-                  output += buffer_->current_position_line().ToUserString();
+                  output +=
+                      data->buffer->current_position_line().ToUserString();
                 }
                 output += L" of " +
-                          buffer_->contents().EndLine().ToUserString() + L", " +
-                          buffer_->current_position_col().ToUserString();
+                          data->buffer->contents().EndLine().ToUserString() +
+                          L", " +
+                          data->buffer->current_position_col().ToUserString();
                 output += L"] ";
 
-                auto marks_text = buffer_->GetLineMarksText();
+                auto marks_text = data->buffer->GetLineMarksText();
                 if (!marks_text.empty()) {
                   output += marks_text + L" ";
                 }
 
-                auto active_cursors = buffer_->active_cursors();
+                auto active_cursors = data->buffer->active_cursors();
                 if (active_cursors->size() != 1) {
                   output +=
                       L" " +
-                      (buffer_->Read(buffer_variables::multiple_cursors)
+                      (data->buffer->Read(buffer_variables::multiple_cursors)
                            ? std::wstring(L"CURSORS")
                            : std::wstring(L"cursors")) +
                       L":" +
@@ -76,38 +84,41 @@ class InfoProducer : public OutputProducer {
                       L"/" + std::to_wstring(active_cursors->size()) + L" ";
                 }
 
-                auto flags = buffer_->Flags();
-                if (modifiers_.repetitions.has_value()) {
+                auto flags = data->buffer->Flags();
+                if (data->modifiers.repetitions.has_value()) {
                   flags.insert(
-                      {std::to_wstring(modifiers_.repetitions.value()), L""});
+                      {std::to_wstring(data->modifiers.repetitions.value()),
+                       L""});
                 }
-                if (modifiers_.default_direction == Direction::kBackwards) {
+                if (data->modifiers.default_direction ==
+                    Direction::kBackwards) {
                   flags.insert({L"REVERSE", L""});
-                } else if (modifiers_.direction == Direction::kBackwards) {
+                } else if (data->modifiers.direction == Direction::kBackwards) {
                   flags.insert({L"reverse", L""});
                 }
 
-                if (modifiers_.default_insertion ==
+                if (data->modifiers.default_insertion ==
                     Modifiers::ModifyMode::kOverwrite) {
                   flags.insert({L"OVERWRITE", L""});
-                } else if (modifiers_.insertion ==
+                } else if (data->modifiers.insertion ==
                            Modifiers::ModifyMode::kOverwrite) {
                   flags.insert({L"overwrite", L""});
                 }
 
-                if (modifiers_.strength == Modifiers::Strength::kStrong) {
+                if (data->modifiers.strength == Modifiers::Strength::kStrong) {
                   flags.insert({L"💪", L""});
                 }
 
                 wstring structure;
-                if (modifiers_.structure == StructureTree()) {
-                  structure =
-                      L"tree<" + std::to_wstring(buffer_->tree_depth()) + L">";
-                } else if (modifiers_.structure != StructureChar()) {
-                  structure = modifiers_.structure->ToString();
+                if (data->modifiers.structure == StructureTree()) {
+                  structure = L"tree<" +
+                              std::to_wstring(data->buffer->tree_depth()) +
+                              L">";
+                } else if (data->modifiers.structure != StructureChar()) {
+                  structure = data->modifiers.structure->ToString();
                 }
                 if (!structure.empty()) {
-                  if (modifiers_.sticky_structure) {
+                  if (data->modifiers.sticky_structure) {
                     transform(structure.begin(), structure.end(),
                               structure.begin(), ::toupper);
                   }
@@ -118,13 +129,13 @@ class InfoProducer : public OutputProducer {
                   output += L"  " + OpenBuffer::FlagsToString(std::move(flags));
                 }
 
-                if (status_.text().empty()) {
-                  output += L"  “" + GetBufferContext(*buffer_) + L"” ";
+                if (data->status.text().empty()) {
+                  output += L"  “" + GetBufferContext(*data->buffer) + L"” ";
                 }
 
                 int running = 0;
                 int failed = 0;
-                for (const auto& it : *buffer_->editor().buffers()) {
+                for (const auto& it : *data->buffer->editor().buffers()) {
                   CHECK(it.second != nullptr);
                   if (it.second->child_pid() != -1) {
                     running++;
@@ -151,21 +162,21 @@ class InfoProducer : public OutputProducer {
                 status_columns += ColumnNumberDelta(wcwidth(c));
               }
               LineModifierSet modifiers =
-                  status_.GetType() == Status::Type::kWarning
+                  data->status.GetType() == Status::Type::kWarning
                       ? LineModifierSet({LineModifier::RED, LineModifier::BOLD})
                       : LineModifierSet();
 
               options.AppendString(output, modifiers);
 
-              auto text = status_.text();
-              if (status_.prompt_buffer() != nullptr) {
-                auto contents = status_.prompt_buffer()->current_line();
+              auto text = data->status.text();
+              if (data->status.prompt_buffer() != nullptr) {
+                auto contents = data->status.prompt_buffer()->current_line();
                 auto column =
                     min(contents->EndColumn(),
-                        status_.prompt_buffer()->current_position_col());
+                        data->status.prompt_buffer()->current_position_col());
                 VLOG(5) << "Setting status cursor: " << column;
 
-                options.AppendString(status_.text(), LineModifierSet());
+                options.AppendString(data->status.text(), LineModifierSet());
                 Line::Options prefix(*contents);
                 prefix.DeleteSuffix(column);
                 options.Append(Line(std::move(prefix)));
@@ -174,10 +185,11 @@ class InfoProducer : public OutputProducer {
                 Line::Options suffix(*contents);
                 suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
                 options.Append(Line(std::move(suffix)));
-                options.Append(*status_.prompt_extra_information()->GetLine());
+                options.Append(
+                    *data->status.prompt_extra_information()->GetLine());
               } else {
                 VLOG(6) << "Not setting status cursor.";
-                options.AppendString(status_.text(), modifiers);
+                options.AppendString(text, modifiers);
               }
               // options.AddString(ColumnNumberDelta::PaddingString(
               //    options.receiver->width() -
@@ -187,13 +199,11 @@ class InfoProducer : public OutputProducer {
               return line_with_cursor;
             }}},
         // TODO: This is not correct?
-        .width = ColumnNumberDelta(status_.text().size())};
+        .width = ColumnNumberDelta(data_->status.text().size())};
   }
 
  private:
-  const Status& status_;
-  const OpenBuffer* buffer_;
-  const Modifiers modifiers_;
+  const std::shared_ptr<Data> data_;
 };
 }  // namespace
 
