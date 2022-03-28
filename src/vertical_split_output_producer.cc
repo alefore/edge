@@ -135,6 +135,26 @@ const bool buffer_tests_registration = tests::Register(
                      L"foo bar   "
                      L"foo bar");
              }},
+        {.name = L"ShortColumns",
+         .callback =
+             [] {
+               ColumnsVector columns_vector{.lines = LineNumberDelta(15)};
+               columns_vector.push_back(
+                   {.lines = RepeatLine(LineWithCursor(Line(L"foo")),
+                                        LineNumberDelta(1)),
+                    .width = ColumnNumberDelta(3)});
+               columns_vector.push_back(
+                   {.lines = RepeatLine(LineWithCursor(Line(L"bar")),
+                                        LineNumberDelta(10)),
+                    .width = ColumnNumberDelta(10)});
+               LineWithCursor::Generator::Vector output =
+                   OutputFromColumnsVector(std::move(columns_vector));
+               CHECK_EQ(output.size(), LineNumberDelta(15));
+               CHECK(output.lines[0].generate().line->ToString() == L"foobar");
+               CHECK(output.lines[1].generate().line->ToString() == L"   bar");
+               CHECK(output.lines[9].generate().line->ToString() == L"   bar");
+               CHECK(output.lines[10].generate().line->ToString() == L"   ");
+             }},
     });
 
 }
