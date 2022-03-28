@@ -460,8 +460,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
               ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
               : LineModifierSet{LineModifier::DIM});
     }
-    nested_rows.push_back(
-        {.lines_vector = std::move(output.lines), .lines = options.size.line});
+    CHECK_EQ(output.lines.size(), options.size.line);
+    nested_rows.push_back({.lines_vector = std::move(output.lines)});
     output.lines = OutputFromRowsVector(std::move(nested_rows));
   }
 
