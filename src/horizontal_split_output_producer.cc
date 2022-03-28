@@ -19,34 +19,21 @@ LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector rows_vector) {
     if (output.size() == rows_vector.lines) break;
     const RowsVector::Row& row = rows_vector.rows[row_index];
     CHECK_LT(output.size(), rows_vector.lines);
-    LineNumberDelta lines_desired = min(
-        rows_vector.lines +
-            (row.overlap_behavior == RowsVector::Row::OverlapBehavior::kSolid
-                 ? lines_to_skip
-                 : LineNumberDelta()) -
-            output.size(),
-        row.lines_vector.size());
-    if (row.lines.has_value()) {
-      lines_desired = min(lines_desired, *row.lines);
-    }
+    LineNumberDelta lines_desired =
+        min(rows_vector.lines + lines_to_skip - output.size(),
+            row.lines_vector.size());
     LineWithCursor::Generator::Vector row_output = row.lines_vector;
     row_output.lines.resize(lines_desired.line_delta,
                             LineWithCursor::Generator::Empty());
 
-    switch (row.overlap_behavior) {
-      case RowsVector::Row::OverlapBehavior::kFloat:
-        lines_to_skip += row_output.size();
-        break;
-      case RowsVector::Row::OverlapBehavior::kSolid:
-        if (lines_to_skip >= row_output.size()) {
-          lines_to_skip -= row_output.size();
-          row_output.lines = {};
-        } else {
-          row_output.lines.erase(
-              row_output.lines.begin(),
-              row_output.lines.begin() + lines_to_skip.line_delta);
-          lines_to_skip = LineNumberDelta();
-        }
+    if (lines_to_skip >= row_output.size()) {
+      lines_to_skip -= row_output.size();
+      row_output.lines = {};
+    } else {
+      row_output.lines.erase(
+          row_output.lines.begin(),
+          row_output.lines.begin() + lines_to_skip.line_delta);
+      lines_to_skip = LineNumberDelta();
     }
 
     output.width = max(output.width, row_output.width);

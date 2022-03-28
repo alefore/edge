@@ -14,14 +14,6 @@ struct RowsVector {
  public:
   struct Row {
     LineWithCursor::Generator::Vector lines_vector;
-    std::optional<LineNumberDelta> lines = {};
-    enum class OverlapBehavior {
-      // Rows after this one are pushed down in the output, unmodified.
-      kSolid,
-      // Each line from this row consumes entries from subsequent rows.
-      kFloat
-    };
-    OverlapBehavior overlap_behavior = OverlapBehavior::kSolid;
   };
 
   Row& back() {
