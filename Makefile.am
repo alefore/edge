@@ -41,6 +41,8 @@ src/buffer_widget.cc \
 src/buffer_widget.h \
 src/buffers_list.cc \
 src/buffers_list.h \
+src/columns_vector.cc \
+src/columns_vector.h \
 src/command_argument_mode.h \
 src/command_line.h \
 src/cpp_command.cc \
@@ -218,8 +220,6 @@ src/url.cc \
 src/url.h \
 src/value_or_error.cc \
 src/value_or_error.h \
-src/vertical_split_output_producer.cc \
-src/vertical_split_output_producer.h \
 src/viewers.cc \
 src/viewers.h \
 src/vm_transformation.cc \

@@ -6,7 +6,7 @@
 #include <cctype>
 #include <iostream>
 
-#include "src/vertical_split_output_producer.h"
+#include "src/columns_vector.h"
 
 namespace afc::editor {
 using V = ColumnsVector;

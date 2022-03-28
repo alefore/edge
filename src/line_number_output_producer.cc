@@ -12,12 +12,12 @@
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
 #include "src/char_buffer.h"
+#include "src/columns_vector.h"
 #include "src/editor.h"
 #include "src/editor_variables.h"
 #include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
 #include "src/line_scroll_control.h"
-#include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
 

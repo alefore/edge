@@ -14,11 +14,11 @@
 #include "src/buffer_widget.h"
 #include "src/buffers_list.h"
 #include "src/char_buffer.h"
+#include "src/columns_vector.h"
 #include "src/editor.h"
 #include "src/editor_variables.h"
 #include "src/frame_output_producer.h"
 #include "src/rows_vector.h"
-#include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
 

@@ -12,9 +12,9 @@
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
 #include "src/char_buffer.h"
+#include "src/columns_vector.h"
 #include "src/line_output.h"
 #include "src/tests/tests.h"
-#include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
 

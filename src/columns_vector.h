@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_VERTICAL_SPLIT_OUTPUT_PRODUCER_H__
-#define __AFC_EDITOR_VERTICAL_SPLIT_OUTPUT_PRODUCER_H__
+#ifndef __AFC_EDITOR_COLUMNS_VECTOR_H__
+#define __AFC_EDITOR_COLUMNS_VECTOR_H__
 
 #include <memory>
 #include <vector>
@@ -33,4 +33,4 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
     ColumnsVector columns_vector);
 
 }  // namespace afc::editor
-#endif  // __AFC_EDITOR_VERTICAL_SPLIT_OUTPUT_PRODUCER_H__
+#endif  // __AFC_EDITOR_COLUMNS_VECTOR_H__

@@ -12,6 +12,7 @@
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
+#include "src/columns_vector.h"
 #include "src/editor.h"
 #include "src/frame_output_producer.h"
 #include "src/horizontal_center_output_producer.h"
@@ -21,7 +22,6 @@
 #include "src/section_brackets_producer.h"
 #include "src/status_output_producer.h"
 #include "src/tests/tests.h"
-#include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
 
