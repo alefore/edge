@@ -90,14 +90,12 @@ LineWithCursor::Generator::Vector LinesSpanView(
   columns_vector.push_back(
       {std::move(buffer_output), output_producer_options.size.column});
   columns_vector.push_back(
-      {std::make_unique<BufferMetadataOutputProducer>(
-           buffer, screen_lines,
-           min(output_producer_options.size.line,
-               LineNumberDelta(screen_lines.size())),
-           buffer->current_zoomed_out_parse_tree(
-               output_producer_options.size.line))
-           ->Produce(min(output_producer_options.size.line,
-                         LineNumberDelta(screen_lines.size()))),
+      {BufferMetadataOutput(
+           {.buffer = buffer,
+            .screen_lines = screen_lines,
+            .zoomed_out_tree = buffer->current_zoomed_out_parse_tree(
+                min(output_producer_options.size.line,
+                    LineNumberDelta(screen_lines.size())))}),
        std::nullopt});
   return OutputFromColumnsVector(std::move(columns_vector));
 }
@@ -320,6 +318,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                             input.output_producer_options.size.line),
         .view_start = {}};
 
+  LineColumnDelta total_size = input.output_producer_options.size;
   input.output_producer_options.size = LineColumnDelta(
       max(LineNumberDelta(),
           input.output_producer_options.size.line - status_lines.size()),
@@ -338,8 +337,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   CHECK_EQ(output.lines.size(), input.output_producer_options.size.line);
   if (!status_lines.size().IsZero()) {
     RowsVector::Row buffer_row = {
-        .lines_vector = CenterOutput(std::move(output.lines),
-                                     input.output_producer_options.size.column),
+        .lines_vector =
+            CenterOutput(std::move(output.lines), total_size.column),
         .lines =
             buffer_contents_window_input.lines_shown - status_lines.size()};
     RowsVector::Row status_row = {.lines_vector = status_lines};
