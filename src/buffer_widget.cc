@@ -76,14 +76,14 @@ LineWithCursor::Generator::Vector CenterVertically(
 }
 
 LineWithCursor::Generator::Vector LinesSpanView(
-    std::shared_ptr<OpenBuffer> buffer,
+    const OpenBuffer& buffer,
     const std::vector<BufferContentsWindow::Line>& screen_lines,
     const Widget::OutputProducerOptions& output_producer_options,
     const size_t sections_count) {
   LineWithCursor::Generator::Vector buffer_output =
-      ProduceBufferView(*buffer, screen_lines, output_producer_options);
+      ProduceBufferView(buffer, screen_lines, output_producer_options);
 
-  if (buffer->Read(buffer_variables::paste_mode))
+  if (buffer.Read(buffer_variables::paste_mode))
     return CenterVertically(buffer_output, output_producer_options.size.line);
 
   ColumnsVector columns_vector{.index_active = sections_count > 1 ? 2ul : 1ul,
@@ -97,7 +97,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
   }
 
   LineWithCursor::Generator::Vector line_numbers =
-      LineNumberOutput(*buffer, screen_lines);
+      LineNumberOutput(buffer, screen_lines);
   columns_vector.push_back({line_numbers, line_numbers.width});
 
   if (sections_count > 1 && !buffer_output.empty() &&
@@ -125,10 +125,10 @@ LineWithCursor::Generator::Vector LinesSpanView(
 
   columns_vector.push_back(
       {BufferMetadataOutput(
-           {.buffer = *buffer,
+           {.buffer = buffer,
             .screen_lines = screen_lines,
             .zoomed_out_tree = buffer
-                                   ->current_zoomed_out_parse_tree(min(
+                                   .current_zoomed_out_parse_tree(min(
                                        output_producer_options.size.line,
                                        LineNumberDelta(screen_lines.size())))
                                    .get()}),
@@ -225,23 +225,23 @@ std::set<Range> ExpandSections(LineNumber end_line,
 }
 
 LineWithCursor::Generator::Vector ViewMultipleCursors(
-    std::shared_ptr<OpenBuffer> buffer,
-    Widget::OutputProducerOptions output_producer_options,
-    const BufferContentsWindow::Input buffer_contents_window_input) {
+    const OpenBuffer& buffer,
+    const Widget::OutputProducerOptions& output_producer_options,
+    const BufferContentsWindow::Input& buffer_contents_window_input) {
   std::set<Range> sections;
-  for (auto& cursor : *buffer->active_cursors()) {
+  for (auto& cursor : *buffer.active_cursors()) {
     sections.insert(Range(
         LineColumn(cursor.line),
-        LineColumn(min(buffer->EndLine(), cursor.line + LineNumberDelta(1)))));
+        LineColumn(min(buffer.EndLine(), cursor.line + LineNumberDelta(1)))));
   }
   bool first_run = true;
   while (first_run ||
-         SumSectionsLines(sections) < min(output_producer_options.size.line,
-                                          buffer->contents().size())) {
+         SumSectionsLines(sections) <
+             min(output_producer_options.size.line, buffer.contents().size())) {
     VLOG(4) << "Expanding " << sections.size()
             << " with size: " << SumSectionsLines(sections);
     sections =
-        MergeSections(ExpandSections(buffer->EndLine(), std::move(sections)));
+        MergeSections(ExpandSections(buffer.EndLine(), std::move(sections)));
     first_run = false;
   }
 
@@ -265,7 +265,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
     section_lines.lines.resize(section_input.lines_shown.line_delta,
                                LineWithCursor::Generator::Empty());
     rows_vector.push_back({.lines_vector = section_lines});
-    if (section.Contains(buffer->position())) {
+    if (section.Contains(buffer.position())) {
       rows_vector.index_active = index;
     }
     index++;
@@ -362,15 +362,13 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       buffer_contents_window_input.columns_shown);
   input.view_start = window.view_start;
 
-  if (buffer->Read(buffer_variables::reload_on_display)) {
-    buffer->Reload();
-  }
+  if (buffer->Read(buffer_variables::reload_on_display)) buffer->Reload();
 
   BufferOutputProducerOutput output{
       .lines = buffer->Read(buffer_variables::multiple_cursors)
-                   ? ViewMultipleCursors(buffer, input.output_producer_options,
+                   ? ViewMultipleCursors(*buffer, input.output_producer_options,
                                          buffer_contents_window_input)
-                   : LinesSpanView(buffer, window.lines,
+                   : LinesSpanView(*buffer, window.lines,
                                    input.output_producer_options, 1),
       .view_start = window.view_start};
 
