@@ -7,8 +7,6 @@
 
 namespace afc::editor {
 
-class MetadataLine;
-
 struct BufferMetadataOutputOptions {
   std::shared_ptr<OpenBuffer> buffer;
   std::vector<BufferContentsWindow::Line> screen_lines;
@@ -23,5 +21,4 @@ LineWithCursor::Generator::Vector BufferMetadataOutput(
     BufferMetadataOutputOptions options);
 
 }  // namespace afc::editor
-
 #endif  // __AFC_EDITOR_BUFFER_METADATA_OUTPUT_PRODUCER_H__
