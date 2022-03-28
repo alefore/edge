@@ -96,10 +96,9 @@ LineWithCursor::Generator::Vector LinesSpanView(
          ColumnNumberDelta(1)});
   }
 
-  LineNumberOutputProducer line_numbers(buffer, screen_lines);
-  columns_vector.push_back(
-      {line_numbers.Produce(LineNumberDelta(screen_lines.size())),
-       line_numbers.width()});
+  LineWithCursor::Generator::Vector line_numbers =
+      LineNumberOutput(*buffer, screen_lines);
+  columns_vector.push_back({line_numbers, line_numbers.width});
 
   if (sections_count > 1 && !buffer_output.empty() &&
       buffer_output.size() > LineNumberDelta(3)) {
@@ -317,10 +316,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       .symbol_characters = buffer->Read(buffer_variables::symbol_characters),
       .lines_shown = input.output_producer_options.size.line,
       .status_lines = status_lines.size(),
-      .columns_shown = input.output_producer_options.size.column -
-                       (paste_mode ? ColumnNumberDelta(0)
-                                   : LineNumberOutputProducer::PrefixWidth(
-                                         buffer->lines_size())),
+      .columns_shown =
+          input.output_producer_options.size.column -
+          (paste_mode ? ColumnNumberDelta(0)
+                      : LineNumberOutputWidth(buffer->lines_size())),
       .begin = input.view_start,
       .margin_lines =
           ((buffer->child_pid() == -1 && buffer->fd() != nullptr) ||

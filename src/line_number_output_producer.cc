@@ -24,27 +24,22 @@
 namespace afc {
 namespace editor {
 
-/* static */ ColumnNumberDelta LineNumberOutputProducer::PrefixWidth(
+/* static */ ColumnNumberDelta LineNumberOutputWidth(
     LineNumberDelta lines_size) {
   return ColumnNumberDelta(
       1 +
       (LineNumber() + lines_size - LineNumberDelta(1)).ToUserString().size());
 }
 
-LineNumberOutputProducer::LineNumberOutputProducer(
-    std::shared_ptr<OpenBuffer> buffer,
-    std::vector<BufferContentsWindow::Line> screen_lines)
-    : width_(max(PrefixWidth(buffer->lines_size()),
-                 ColumnNumberDelta(buffer->editor().Read(
-                     editor_variables::numbers_column_padding)))),
-      buffer_(std::move(buffer)),
-      screen_lines_(screen_lines) {}
-
-LineWithCursor::Generator::Vector LineNumberOutputProducer::Produce(
-    LineNumberDelta lines) {
-  LineWithCursor::Generator::Vector output{.lines = {}, .width = width_};
-  for (const BufferContentsWindow::Line& screen_line : screen_lines_) {
-    if (screen_line.range.begin.line > buffer_->EndLine()) {
+LineWithCursor::Generator::Vector LineNumberOutput(
+    const OpenBuffer& buffer,
+    const std::vector<BufferContentsWindow::Line>& screen_lines) {
+  ColumnNumberDelta width = max(LineNumberOutputWidth(buffer.lines_size()),
+                                ColumnNumberDelta(buffer.editor().Read(
+                                    editor_variables::numbers_column_padding)));
+  LineWithCursor::Generator::Vector output{.lines = {}, .width = width};
+  for (const BufferContentsWindow::Line& screen_line : screen_lines) {
+    if (screen_line.range.begin.line > buffer.EndLine()) {
       return output;  // The buffer is smaller than the screen.
     }
 
@@ -52,7 +47,7 @@ LineWithCursor::Generator::Vector LineNumberOutputProducer::Produce(
     if (screen_line.current_cursors.empty()) {
       modifiers.container = {LineModifier::DIM};
     } else if (screen_line.has_active_cursor ||
-               buffer_->Read(buffer_variables::multiple_cursors)) {
+               buffer.Read(buffer_variables::multiple_cursors)) {
       modifiers.container = {LineModifier::CYAN, LineModifier::BOLD};
     } else {
       modifiers.container = {LineModifier::BLUE};
@@ -74,13 +69,10 @@ LineWithCursor::Generator::Vector LineNumberOutputProducer::Produce(
               modifiers.container);
           return LineWithCursor(Line(std::move(line_options)));
         },
-        std::move(screen_line.range), width_, std::move(modifiers))));
-    if (LineNumberDelta(output.size()) == lines) return output;
+        std::move(screen_line.range), width, std::move(modifiers))));
   }
   return output;
 }
-
-ColumnNumberDelta LineNumberOutputProducer::width() const { return width_; }
 
 }  // namespace editor
 }  // namespace afc

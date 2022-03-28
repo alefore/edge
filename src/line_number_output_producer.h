@@ -9,28 +9,14 @@
 #include "src/output_producer.h"
 #include "src/widget.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
-class LineNumberOutputProducer {
- public:
-  static ColumnNumberDelta PrefixWidth(LineNumberDelta lines_size);
+ColumnNumberDelta LineNumberOutputWidth(LineNumberDelta lines_size);
 
-  LineNumberOutputProducer(
-      std::shared_ptr<OpenBuffer> buffer,
-      std::vector<BufferContentsWindow::Line> screen_lines);
+LineWithCursor::Generator::Vector LineNumberOutput(
+    const OpenBuffer& buffer,
+    const std::vector<BufferContentsWindow::Line>& screen_lines);
 
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines);
-
-  ColumnNumberDelta width() const;
-
- private:
-  const ColumnNumberDelta width_;
-  const std::shared_ptr<OpenBuffer> buffer_;
-  const std::vector<BufferContentsWindow::Line> screen_lines_;
-};
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_LINE_NUMBER_OUTPUT_PRODUCER_H__
