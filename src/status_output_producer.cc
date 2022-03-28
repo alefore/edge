@@ -217,8 +217,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
 
   if (!info_lines.IsZero()) {
     rows_vector.push_back(
-        {.lines_vector = RepeatLine(StatusBasicInfo(options), info_lines),
-         .lines = info_lines});
+        {.lines_vector = RepeatLine(StatusBasicInfo(options), info_lines)});
   }
   return OutputFromRowsVector(std::move(rows_vector));
 }
