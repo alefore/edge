@@ -47,16 +47,13 @@ LineWithCursor::Generator::Vector AddLeftFrame(
 
   RowsVector rows_vector{.lines = times};
   if (times > LineNumberDelta(1)) {
-    rows_vector.push_back({
-        .lines_vector = RepeatLine(ProducerForString(L"│", modifiers),
-                                   times - LineNumberDelta(1)),
-        .lines = times - LineNumberDelta(1),
-    });
+    rows_vector.push_back(
+        {.lines_vector = RepeatLine(ProducerForString(L"│", modifiers),
+                                    times - LineNumberDelta(1))});
   }
   rows_vector.push_back(
       {.lines_vector =
-           RepeatLine(ProducerForString(L"╰", modifiers), LineNumberDelta(1)),
-       .lines = LineNumberDelta(1)});
+           RepeatLine(ProducerForString(L"╰", modifiers), LineNumberDelta(1))});
 
   columns_vector.push_back(
       {.lines = OutputFromRowsVector(std::move(rows_vector)),
@@ -226,12 +223,12 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
         section_input.lines_shown, output_producer_options.size.column);
     CHECK(section_input.active_position == std::nullopt);
     VLOG(3) << "Multiple cursors section starting at: " << section_input.begin;
-    rows_vector.push_back(
-        {.lines_vector = LinesSpanView(
-             buffer, BufferContentsWindow::Get(section_input).lines,
-             section_output_producer_options, sections.size()),
-         .lines = section_input.lines_shown});
-
+    LineWithCursor::Generator::Vector section_lines =
+        LinesSpanView(buffer, BufferContentsWindow::Get(section_input).lines,
+                      section_output_producer_options, sections.size());
+    section_lines.lines.resize(section_input.lines_shown.line_delta,
+                               LineWithCursor::Generator::Empty());
+    rows_vector.push_back({.lines_vector = section_lines});
     if (section.Contains(buffer->position())) {
       rows_vector.index_active = index;
     }
@@ -324,7 +321,6 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
           buffer->Read(buffer_variables::multiple_cursors)
               ? ViewMultipleCursors(buffer, input.output_producer_options,
                                     buffer_contents_window_input, size.line)
-
               : LinesSpanView(buffer, window.lines,
                               input.output_producer_options, 1),
       .view_start = window.lines.front().range.begin};
