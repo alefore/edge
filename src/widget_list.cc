@@ -150,8 +150,7 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
         GetChildOutput(options, index, lines_per_child[index]);
     if (!child_lines.size().IsZero()) {
       CHECK_EQ(child_lines.size(), lines_per_child[index]);
-      rows_vector.push_back(
-          {.lines_vector = child_lines, .lines = lines_per_child[index]});
+      rows_vector.push_back({.lines_vector = child_lines});
     }
   }
 
@@ -163,8 +162,7 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
                       L"Additional files: " + std::to_wstring(children_skipped),
                   .active_state =
                       FrameOutputProducerOptions::ActiveState::kActive})),
-             LineNumberDelta(1)),
-         .lines = LineNumberDelta(1)});
+             LineNumberDelta(1))});
   }
 
   return OutputFromRowsVector(std::move(rows_vector));
