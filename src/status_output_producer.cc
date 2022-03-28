@@ -212,8 +212,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   context_columns_vector.push_back(
       {.lines = CreateBufferOutputProducer(buffer_producer_input).lines});
   rows_vector.push_back(
-      {.lines_vector = OutputFromColumnsVector(context_columns_vector),
-       .lines = context_lines});
+      {.lines_vector = OutputFromColumnsVector(context_columns_vector)});
 
   if (!info_lines.IsZero()) {
     rows_vector.push_back(
