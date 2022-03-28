@@ -64,6 +64,17 @@ LineWithCursor::Generator::Vector AddLeftFrame(
   return OutputFromColumnsVector(std::move(columns_vector));
 }
 
+LineWithCursor::Generator::Vector CenterVertically(
+    LineWithCursor::Generator::Vector input, LineNumberDelta lines) {
+  if (input.size() >= lines) return input;
+  std::vector<LineWithCursor::Generator> prefix(
+      ((lines - input.size()) / 2).line_delta,
+      LineWithCursor::Generator::Empty());
+  input.lines.insert(input.lines.begin(), prefix.begin(), prefix.end());
+  input.lines.resize(lines.line_delta, LineWithCursor::Generator::Empty());
+  return input;
+}
+
 LineWithCursor::Generator::Vector LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,
     std::vector<BufferContentsWindow::Line> screen_lines,
@@ -72,10 +83,11 @@ LineWithCursor::Generator::Vector LinesSpanView(
   LineWithCursor::Generator::Vector buffer_output =
       ProduceBufferView(buffer, screen_lines, output_producer_options);
 
-  if (buffer->Read(buffer_variables::paste_mode)) return buffer_output;
+  if (buffer->Read(buffer_variables::paste_mode))
+    return CenterVertically(buffer_output, output_producer_options.size.line);
 
   ColumnsVector columns_vector{.index_active = sections_count > 1 ? 2ul : 1ul,
-                               .lines = output_producer_options.size.line};
+                               .lines = buffer_output.size()};
 
   if (sections_count > 1) {
     columns_vector.push_back(
@@ -120,7 +132,8 @@ LineWithCursor::Generator::Vector LinesSpanView(
                 min(output_producer_options.size.line,
                     LineNumberDelta(screen_lines.size())))}),
        std::nullopt});
-  return OutputFromColumnsVector(std::move(columns_vector));
+  return CenterVertically(OutputFromColumnsVector(std::move(columns_vector)),
+                          output_producer_options.size.line);
 }
 
 std::set<Range> MergeSections(std::set<Range> input) {

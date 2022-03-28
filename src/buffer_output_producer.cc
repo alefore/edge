@@ -165,11 +165,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
   LineWithCursor::Generator::Vector output{
       .lines = {}, .width = output_producer_options.size.column};
 
-  for (size_t i = 0;
-       i <
-       min(size_t(output_producer_options.size.line.line_delta), lines.size());
-       ++i) {
-    BufferContentsWindow::Line screen_line = lines[i];
+  for (BufferContentsWindow::Line screen_line : lines) {
     auto line = screen_line.range.begin.line;
 
     if (line > buffer->EndLine()) {
@@ -284,8 +280,6 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     output.lines.push_back(generator);
   }
 
-  output.lines.resize(output_producer_options.size.line.line_delta,
-                      LineWithCursor::Generator::Empty());
   return output;
 }
 
@@ -306,7 +300,7 @@ const bool tests_registration = tests::Register(L"BufferOutputProducer", [] {
                                          ColumnNumberDelta(80)),
                  .main_cursor_behavior = Widget::OutputProducerOptions::
                      MainCursorBehavior::kIgnore});
-         CHECK_EQ(lines.size(), LineNumberDelta(50));
+         CHECK_EQ(lines.size(), LineNumberDelta(1));
        }}};
 }());
 }

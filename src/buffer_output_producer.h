@@ -12,8 +12,8 @@ namespace editor {
 // Unlike `CreateBufferOutputProducer`, doesn't do much beyond just displaying
 // the contents of the buffer (with syntax highlighting).
 //
-// The output produced will be exactly output_producer_options.size.line lines
-// long.
+// The output produced can be shorter than output_producer_options.size.line
+// lines long.
 LineWithCursor::Generator::Vector ProduceBufferView(
     std::shared_ptr<OpenBuffer> buffer,
     std::vector<BufferContentsWindow::Line> lines,
