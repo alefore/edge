@@ -190,8 +190,7 @@ std::set<Range> ExpandSections(LineNumber end_line,
 LineWithCursor::Generator::Vector ViewMultipleCursors(
     std::shared_ptr<OpenBuffer> buffer,
     Widget::OutputProducerOptions output_producer_options,
-    const BufferContentsWindow::Input buffer_contents_window_input,
-    LineNumberDelta size_line) {
+    const BufferContentsWindow::Input buffer_contents_window_input) {
   std::set<Range> sections;
   for (auto& cursor : *buffer->active_cursors()) {
     sections.insert(Range(
@@ -209,11 +208,12 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
     first_run = false;
   }
 
-  RowsVector rows_vector{.lines = size_line};
+  RowsVector rows_vector{.lines = output_producer_options.size.line};
   size_t index = 0;
   for (const auto& section : sections) {
     BufferContentsWindow::Input section_input = buffer_contents_window_input;
     section_input.lines_shown = section.end.line - section.begin.line;
+    section_input.status_lines = LineNumberDelta();
     // TODO: Maybe take columns into account? Ugh.
     section_input.begin = LineColumn(section.begin.line);
     Widget::OutputProducerOptions section_output_producer_options =
@@ -239,11 +239,11 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input) {
-  const LineColumnDelta size = input.output_producer_options.size;
   auto buffer = input.buffer;
   if (buffer == nullptr) {
     return BufferOutputProducerOutput{
-        .lines = RepeatLine(LineWithCursor(Line()), size.line),
+        .lines = RepeatLine(LineWithCursor(Line()),
+                            input.output_producer_options.size.line),
         .view_start = input.view_start};
   }
 
@@ -265,7 +265,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   buffer->viewers()->set_view_size(LineColumnDelta(
       input.output_producer_options.size.line - status_lines.size(),
-      size.column));
+      input.output_producer_options.size.column));
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
@@ -326,21 +326,18 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   input.view_start = window.view_start;
 
   BufferOutputProducerOutput output{
-      .lines =
-          buffer->Read(buffer_variables::multiple_cursors)
-              ? ViewMultipleCursors(buffer, input.output_producer_options,
-                                    buffer_contents_window_input, size.line)
-              : LinesSpanView(buffer, window.lines,
-                              input.output_producer_options, 1),
+      .lines = buffer->Read(buffer_variables::multiple_cursors)
+                   ? ViewMultipleCursors(buffer, input.output_producer_options,
+                                         buffer_contents_window_input)
+                   : LinesSpanView(buffer, window.lines,
+                                   input.output_producer_options, 1),
       .view_start = window.view_start};
 
   CHECK_EQ(output.lines.size(), input.output_producer_options.size.line);
   if (!status_lines.size().IsZero()) {
     RowsVector::Row buffer_row = {
         .lines_vector =
-            CenterOutput(std::move(output.lines), total_size.column),
-        .lines =
-            buffer_contents_window_input.lines_shown - status_lines.size()};
+            CenterOutput(std::move(output.lines), total_size.column)};
     RowsVector::Row status_row = {.lines_vector = status_lines};
 
     size_t buffer_index = 0;
@@ -360,7 +357,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
         .index_active = buffer->status().GetType() == Status::Type::kPrompt
                             ? status_index
                             : buffer_index,
-        .lines = input.output_producer_options.size.line + status_lines.size()};
+        .lines = total_size.line};
     rows_vector.rows.resize(2);
     rows_vector.rows[buffer_index] = std::move(buffer_row);
     rows_vector.rows[status_index] = std::move(status_row);
