@@ -817,8 +817,8 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
   LineWithCursor::Generator::Vector output = widget_->CreateOutput(options);
   if (layout.lines.IsZero()) return output;
 
-  rows.push_back(
-      {.lines_vector = std::move(output), .lines = options.size.line});
+  CHECK_EQ(output.size(), options.size.line);
+  rows.push_back({.lines_vector = std::move(output)});
 
   if (!layout.lines.IsZero()) {
     VLOG(2) << "Buffers per line: " << layout.buffers_per_line
@@ -837,8 +837,8 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
                  .active_buffers = std::move(active_buffers),
                  .buffers_per_line = layout.buffers_per_line,
                  .size = LineColumnDelta(layout.lines, options.size.column),
-                 .filter = OptimizeFilter(filter_)})),
-         .lines = layout.lines});
+                 .filter = OptimizeFilter(filter_)}))});
+    CHECK_EQ(rows.back().lines_vector.size(), layout.lines);
   }
 
   return OutputFromRowsVector(std::move(rows));
