@@ -24,7 +24,8 @@ struct BufferContentsWindow {
     LineWrapStyle line_wrap_style;
     std::wstring symbol_characters;
 
-    // Total number of lines in the output.
+    // Maximum number of lines in the output. May return fewer lines (e.g., if
+    // the contents are shorter).
     LineNumberDelta lines_shown;
 
     // Total number of columns in the output for buffer contents.
