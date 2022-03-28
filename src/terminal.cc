@@ -54,26 +54,29 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
        .modifiers = editor_state.modifiers(),
        .size = LineColumnDelta(screen->lines(), screen->columns())});
 
+  auto buffer = editor_state.current_buffer();
   RowsVector rows_vector{
       .index_active =
           editor_state.status().GetType() == Status::Type::kPrompt ? 1ul : 0ul,
       .lines = screen->lines()};
 
-  rows_vector.rows.resize(2);
-  rows_vector.rows[1].lines = status_lines.size();
-  rows_vector.rows[0].lines = screen->lines() - *rows_vector.rows[1].lines;
+  rows_vector.push_back(
+      {.lines_vector = editor_state.buffer_tree()->GetLines(
+           {.size = LineColumnDelta(screen->lines() - status_lines.size(),
+                                    screen->columns()),
+            .main_cursor_behavior =
+                (editor_state.status().GetType() == Status::Type::kPrompt ||
+                 (buffer != nullptr &&
+                  buffer->status().GetType() == Status::Type::kPrompt))
+                    ? Widget::OutputProducerOptions::MainCursorBehavior::
+                          kHighlight
+                    : Widget::OutputProducerOptions::MainCursorBehavior::
+                          kIgnore})});
 
-  auto buffer = editor_state.current_buffer();
-  rows_vector.rows[0].lines_vector = editor_state.buffer_tree()->GetLines(
-      {.size = LineColumnDelta(*rows_vector.rows[0].lines, screen->columns()),
-       .main_cursor_behavior =
-           (editor_state.status().GetType() == Status::Type::kPrompt ||
-            (buffer != nullptr &&
-             buffer->status().GetType() == Status::Type::kPrompt))
-               ? Widget::OutputProducerOptions::MainCursorBehavior::kHighlight
-               : Widget::OutputProducerOptions::MainCursorBehavior::kIgnore});
+  CHECK_EQ(rows_vector.rows[0].lines_vector.size(),
+           screen->lines() - status_lines.size());
 
-  rows_vector.rows[1].lines_vector = status_lines;
+  rows_vector.push_back({.lines_vector = status_lines});
 
   LineWithCursor::Generator::Vector generators =
       OutputFromRowsVector(std::move(rows_vector));
