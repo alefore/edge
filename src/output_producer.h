@@ -53,12 +53,6 @@ struct LineWithCursor {
   std::optional<ColumnNumber> cursor = std::nullopt;
 };
 
-// Can be used to render a view of something once, line by line.
-class OutputProducer {
- public:
-  virtual LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) = 0;
-};
-
 LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
                                              LineNumberDelta times);
 
