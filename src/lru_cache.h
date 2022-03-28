@@ -6,12 +6,7 @@
 #include <memory>
 #include <string>
 
-#include "editor.h"
-#include "output_producer.h"
-#include "screen.h"
-
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 template <typename Key, typename Value>
 class LRUCache {
@@ -84,8 +79,6 @@ class LRUCache {
   std::list<Entry> access_order_;
   std::unordered_map<Key, decltype(access_order_.begin())> map_;
 };
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_LRU_CACHE_H__
