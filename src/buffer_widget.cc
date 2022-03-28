@@ -74,26 +74,30 @@ LineWithCursor::Generator::Vector LinesSpanView(
 
   if (buffer->Read(buffer_variables::paste_mode)) return buffer_output;
 
-  LineNumberDelta output_lines(screen_lines.size());
   ColumnsVector columns_vector{.index_active = sections_count > 1 ? 2ul : 1ul,
                                .lines = output_producer_options.size.line};
 
   if (sections_count > 1) {
     columns_vector.push_back(
-        {SectionBrackets(output_lines), ColumnNumberDelta(1)});
+        {SectionBrackets(LineNumberDelta(screen_lines.size())),
+         ColumnNumberDelta(1)});
   }
 
   LineNumberOutputProducer line_numbers(buffer, screen_lines);
   columns_vector.push_back(
-      {line_numbers.Produce(output_lines), line_numbers.width()});
+      {line_numbers.Produce(LineNumberDelta(screen_lines.size())),
+       line_numbers.width()});
   columns_vector.push_back(
       {std::move(buffer_output), output_producer_options.size.column});
   columns_vector.push_back(
       {std::make_unique<BufferMetadataOutputProducer>(
-           buffer, screen_lines, output_producer_options.size.line,
+           buffer, screen_lines,
+           min(output_producer_options.size.line,
+               LineNumberDelta(screen_lines.size())),
            buffer->current_zoomed_out_parse_tree(
                output_producer_options.size.line))
-           ->Produce(output_lines),
+           ->Produce(min(output_producer_options.size.line,
+                         LineNumberDelta(screen_lines.size()))),
        std::nullopt});
   return OutputFromColumnsVector(std::move(columns_vector));
 }
@@ -237,7 +241,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input) {
-  LineColumnDelta size = input.output_producer_options.size;
+  const LineColumnDelta size = input.output_producer_options.size;
   auto buffer = input.buffer;
   if (buffer == nullptr) {
     return BufferOutputProducerOutput{
@@ -250,17 +254,20 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   LineWithCursor::Generator::Vector status_lines;
   switch (input.status_behavior) {
     case BufferOutputProducerInput::StatusBehavior::kShow:
-      status_lines =
-          StatusOutput({.status = buffer->status(),
-                        .buffer = buffer.get(),
-                        .modifiers = buffer->editor().modifiers(),
-                        .size = LineColumnDelta(size.line / 4, size.column)});
+      status_lines = StatusOutput(
+          {.status = buffer->status(),
+           .buffer = buffer.get(),
+           .modifiers = buffer->editor().modifiers(),
+           .size = LineColumnDelta(input.output_producer_options.size.line / 4,
+                                   input.output_producer_options.size.column)});
       break;
     case BufferOutputProducerInput::StatusBehavior::kIgnore:
       break;
   }
 
-  buffer->viewers()->set_view_size(size);
+  buffer->viewers()->set_view_size(LineColumnDelta(
+      input.output_producer_options.size.line - status_lines.size(),
+      size.column));
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
@@ -274,26 +281,28 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                              ? LineWrapStyle::kContentBased
                              : LineWrapStyle::kBreakWords,
       .symbol_characters = buffer->Read(buffer_variables::symbol_characters),
-      .lines_shown = size.line,
-      .columns_shown =
-          size.column - (paste_mode ? ColumnNumberDelta(0)
-                                    : LineNumberOutputProducer::PrefixWidth(
-                                          buffer->lines_size())),
+      .lines_shown = input.output_producer_options.size.line,
+      .status_lines = status_lines.size(),
+      .columns_shown = input.output_producer_options.size.column -
+                       (paste_mode ? ColumnNumberDelta(0)
+                                   : LineNumberOutputProducer::PrefixWidth(
+                                         buffer->lines_size())),
       .begin = input.view_start,
       .margin_lines =
-          (buffer->child_pid() == -1 && buffer->fd() != nullptr)
-              ? LineNumberDelta()
-              : (buffer->Read(buffer_variables::pts)
-                     ? LineNumberDelta(0)
-                     : min(max(size.line / 2 - LineNumberDelta(1),
-                               LineNumberDelta(0)),
-                           max(LineNumberDelta(ceil(
-                                   buffer->Read(
-                                       buffer_variables::margin_lines_ratio) *
-                                   size.line.line_delta)),
-                               max(LineNumberDelta(buffer->Read(
-                                       buffer_variables::margin_lines)),
-                                   LineNumberDelta(0)))))};
+          ((buffer->child_pid() == -1 && buffer->fd() != nullptr) ||
+                   buffer->Read(buffer_variables::pts)
+               ? LineNumberDelta()
+               : min(max(input.output_producer_options.size.line / 2 -
+                             LineNumberDelta(1),
+                         LineNumberDelta(0)),
+                     max(LineNumberDelta(
+                             ceil(buffer->Read(
+                                      buffer_variables::margin_lines_ratio) *
+                                  input.output_producer_options.size.line
+                                      .line_delta)),
+                         max(LineNumberDelta(
+                                 buffer->Read(buffer_variables::margin_lines)),
+                             LineNumberDelta(0)))))};
 
   if (auto w = ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
       !buffer->Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
@@ -307,10 +316,15 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       BufferContentsWindow::Get(buffer_contents_window_input);
   if (window.lines.empty())
     return BufferOutputProducerOutput{
-        .lines = LineWithCursor::Generator::Vector{}, .view_start = {}};
+        .lines = RepeatLine(LineWithCursor(Line()),
+                            input.output_producer_options.size.line),
+        .view_start = {}};
 
-  input.output_producer_options.size.column =
-      buffer_contents_window_input.columns_shown;
+  input.output_producer_options.size = LineColumnDelta(
+      max(LineNumberDelta(),
+          input.output_producer_options.size.line - status_lines.size()),
+      buffer_contents_window_input.columns_shown);
+  input.view_start = window.view_start;
 
   BufferOutputProducerOutput output{
       .lines =
@@ -319,16 +333,16 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                     buffer_contents_window_input, size.line)
               : LinesSpanView(buffer, window.lines,
                               input.output_producer_options, 1),
-      .view_start = window.lines.front().range.begin};
+      .view_start = window.view_start};
 
+  CHECK_EQ(output.lines.size(), input.output_producer_options.size.line);
   if (!status_lines.size().IsZero()) {
     RowsVector::Row buffer_row = {
-        .lines_vector = CenterOutput(std::move(output.lines), size.column),
-        .lines = buffer_contents_window_input.lines_shown};
-    RowsVector::Row status_row = {
-        .lines_vector = status_lines,
-        .lines = status_lines.size(),
-        .overlap_behavior = RowsVector::Row::OverlapBehavior::kFloat};
+        .lines_vector = CenterOutput(std::move(output.lines),
+                                     input.output_producer_options.size.column),
+        .lines =
+            buffer_contents_window_input.lines_shown - status_lines.size()};
+    RowsVector::Row status_row = {.lines_vector = status_lines};
 
     size_t buffer_index = 0;
     size_t status_index = 1;
@@ -340,7 +354,6 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       case BufferContentsWindow::StatusPosition::kBottom:
         buffer_index = 0;
         status_index = 1;
-        buffer_row.lines = *buffer_row.lines - *status_row.lines;
         break;
     }
 
@@ -348,7 +361,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
         .index_active = buffer->status().GetType() == Status::Type::kPrompt
                             ? status_index
                             : buffer_index,
-        .lines = size.line};
+        .lines = input.output_producer_options.size.line + status_lines.size()};
     rows_vector.rows.resize(2);
     rows_vector.rows[buffer_index] = std::move(buffer_row);
     rows_vector.rows[status_index] = std::move(status_row);

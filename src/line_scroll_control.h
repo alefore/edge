@@ -28,6 +28,8 @@ struct BufferContentsWindow {
     // the contents are shorter).
     LineNumberDelta lines_shown;
 
+    LineNumberDelta status_lines;
+
     // Total number of columns in the output for buffer contents.
     ColumnNumberDelta columns_shown;
 
@@ -54,6 +56,11 @@ struct BufferContentsWindow {
     std::set<ColumnNumber> current_cursors;
   };
   std::vector<Line> lines;
+
+  // Update information on the buffer: set the requested start at this position.
+  // This may not match the beginning of `lines` because the status may have
+  // obstructed part of the view.
+  LineColumn view_start;
 
   enum class StatusPosition { kTop, kBottom };
   StatusPosition status_position = StatusPosition::kBottom;

@@ -244,6 +244,8 @@ BufferContentsWindow BufferContentsWindow::Get(
     BufferContentsWindow::Input options) {
   CHECK(options.contents != nullptr);
   CHECK_GE(options.lines_shown, LineNumberDelta());
+  CHECK_GE(options.status_lines, LineNumberDelta());
+  CHECK_LE(options.status_lines, options.lines_shown);
   if (options.active_position.has_value()) {
     options.begin =
         std::max(std::min(options.begin, *options.active_position),
@@ -302,11 +304,24 @@ BufferContentsWindow BufferContentsWindow::Get(
 
   output.lines = AdjustToHonorMargin(options, cursors, std::move(output.lines));
 
-  // Initialize output.status_position:
-  if (LineNumberDelta(cursor_index(output).value_or(0)) >
-      (size_t(3) * options.lines_shown) / 5)
-    output.status_position = BufferContentsWindow::StatusPosition::kTop;
+  output.view_start =
+      output.lines.empty() ? options.begin : output.lines.front().range.begin;
 
+  // Initialize output.status_position:
+  LineNumberDelta lines_to_drop =
+      max(LineNumberDelta(), LineNumberDelta(output.lines.size()) +
+                                 options.status_lines - options.lines_shown);
+
+  if (LineNumberDelta(cursor_index(output).value_or(0)) >
+      (size_t(3) * options.lines_shown) / 5) {
+    output.status_position = BufferContentsWindow::StatusPosition::kTop;
+    output.lines.erase(output.lines.begin(),
+                       output.lines.begin() + lines_to_drop.line_delta);
+  } else if (LineNumberDelta(output.lines.size()) <= lines_to_drop) {
+    output.lines.clear();
+  } else {
+    output.lines.resize(output.lines.size() - lines_to_drop.line_delta);
+  }
   return output;
 }
 
@@ -364,6 +379,7 @@ const bool line_scroll_control_tests_registration =
                    .line_wrap_style = LineWrapStyle::kBreakWords,
                    .symbol_characters = L"abcdefghijklmnopqrstuvwxyz",
                    .lines_shown = LineNumberDelta(10),
+                   .status_lines = LineNumberDelta(),
                    .columns_shown = ColumnNumberDelta(80),
                    .begin = {},
                    .margin_lines = LineNumberDelta(2)};
@@ -523,6 +539,7 @@ const bool line_scroll_control_tests_registration =
                       options.margin_lines = LineNumberDelta(20);
                       options.lines_shown = LineNumberDelta(500);
                       auto ranges = get_ranges(options);
+                      CHECK_EQ(ranges.size(), size_t(17));
                       CHECK_EQ(ranges[0],
                                Range::InLine(LineNumber(0), ColumnNumber(0),
                                              ColumnNumberDelta(
@@ -531,7 +548,6 @@ const bool line_scroll_control_tests_registration =
                                Range::InLine(
                                    LineNumber(16), ColumnNumber(0),
                                    ColumnNumberDelta(sizeof("16lynx") - 1)));
-                      CHECK_EQ(ranges.size(), size_t(17));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(10)}));
                     }),
@@ -541,12 +557,43 @@ const bool line_scroll_control_tests_registration =
                       options.begin = LineColumn(LineNumber(3));
                       options.lines_shown = LineNumberDelta(5);
                       auto ranges = get_ranges(options);
+                      CHECK_EQ(ranges.size(), size_t(5));
                       CHECK_EQ(ranges[0],
                                Range::InLine(LineNumber(3), ColumnNumber(0),
                                              ColumnNumberDelta()));
-                      CHECK_EQ(ranges.size(), size_t(5));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>());
+                    }),
+           new_test(L"StatusEatsFromEmpty",
+                    [&](auto options) {
+                      options.lines_shown = LineNumberDelta(20);
+                      options.status_lines = LineNumberDelta(5);
+                      auto ranges = get_ranges(options);
+                      CHECK_EQ(ranges.size(), size_t(15));
+                      CHECK_EQ(ranges[0],
+                               Range::InLine(LineNumber(0), ColumnNumber(0),
+                                             ColumnNumberDelta(
+                                                 sizeof("0alejandro") - 1)));
+                      CHECK_EQ(ranges[14],
+                               Range::InLine(LineNumber(14), ColumnNumber(0),
+                                             ColumnNumberDelta()));
+                    }),
+           new_test(L"StatusEatsFromEmptyAtBottom",
+                    [&](auto options) {
+                      options.active_position =
+                          LineColumn(LineNumber(15), ColumnNumber(12));
+                      options.lines_shown = LineNumberDelta(20);
+                      options.status_lines = LineNumberDelta(5);
+                      auto ranges = get_ranges(options);
+                      CHECK_EQ(ranges.size(), size_t(15));
+                      CHECK_EQ(ranges[0],
+                               Range::InLine(
+                                   LineNumber(2), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("2cuervo") - 1)));
+                      CHECK_EQ(ranges[14],
+                               Range::InLine(
+                                   LineNumber(16), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
                     }),
            new_test(L"Cursors", [&](auto options) {
              CursorsSet cursors;
