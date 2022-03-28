@@ -149,6 +149,7 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
     LineWithCursor::Generator::Vector child_lines =
         GetChildOutput(options, index, lines_per_child[index]);
     if (!child_lines.size().IsZero()) {
+      CHECK_EQ(child_lines.size(), lines_per_child[index]);
       rows_vector.push_back(
           {.lines_vector = child_lines, .lines = lines_per_child[index]});
     }
