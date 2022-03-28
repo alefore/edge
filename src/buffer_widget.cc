@@ -77,12 +77,9 @@ LineWithCursor::Generator::Vector CenterVertically(
 
 LineWithCursor::Generator::Vector LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,
-    std::vector<BufferContentsWindow::Line> screen_lines,
-    Widget::OutputProducerOptions output_producer_options,
+    const std::vector<BufferContentsWindow::Line>& screen_lines,
+    const Widget::OutputProducerOptions& output_producer_options,
     const size_t sections_count) {
-  if (buffer->Read(buffer_variables::reload_on_display)) {
-    buffer->Reload();
-  }
   LineWithCursor::Generator::Vector buffer_output =
       ProduceBufferView(*buffer, screen_lines, output_producer_options);
 
@@ -362,6 +359,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
           input.output_producer_options.size.line - status_lines.size()),
       buffer_contents_window_input.columns_shown);
   input.view_start = window.view_start;
+
+  if (buffer->Read(buffer_variables::reload_on_display)) {
+    buffer->Reload();
+  }
 
   BufferOutputProducerOutput output{
       .lines = buffer->Read(buffer_variables::multiple_cursors)
