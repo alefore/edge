@@ -8,7 +8,7 @@
 namespace afc::editor {
 
 struct BufferMetadataOutputOptions {
-  std::shared_ptr<OpenBuffer> buffer;
+  const OpenBuffer& buffer;
   std::vector<BufferContentsWindow::Line> screen_lines;
   std::shared_ptr<const ParseTree> zoomed_out_tree;
 };

@@ -125,7 +125,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
 
   columns_vector.push_back(
       {BufferMetadataOutput(
-           {.buffer = buffer,
+           {.buffer = *buffer,
             .screen_lines = screen_lines,
             .zoomed_out_tree = buffer->current_zoomed_out_parse_tree(
                 min(output_producer_options.size.line,
