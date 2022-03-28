@@ -817,9 +817,8 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
   LineWithCursor::Generator::Vector output = widget_->CreateOutput(options);
   if (layout.lines.IsZero()) return output;
 
-  rows.push_back({.callback = [lines = std::move(output)](
-                                  LineNumberDelta) { return lines; },
-                  .lines = options.size.line});
+  rows.push_back(
+      {.lines_vector = std::move(output), .lines = options.size.line});
 
   if (!layout.lines.IsZero()) {
     VLOG(2) << "Buffers per line: " << layout.buffers_per_line
@@ -831,17 +830,15 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
       active_buffers.insert(b.get());
     }
     rows.push_back(
-        {[lines = ProduceBuffersList(
-              std::make_shared<BuffersListOptions>(BuffersListOptions{
-                  .buffers = &buffers_,
-                  .active_buffer = active_buffer(),
-                  .active_buffers = std::move(active_buffers),
-                  .buffers_per_line = layout.buffers_per_line,
-                  .size = LineColumnDelta(layout.lines, options.size.column),
-                  .filter = OptimizeFilter(filter_)}))](LineNumberDelta) {
-           return lines;
-         },
-         layout.lines});
+        {.lines_vector = ProduceBuffersList(
+             std::make_shared<BuffersListOptions>(BuffersListOptions{
+                 .buffers = &buffers_,
+                 .active_buffer = active_buffer(),
+                 .active_buffers = std::move(active_buffers),
+                 .buffers_per_line = layout.buffers_per_line,
+                 .size = LineColumnDelta(layout.lines, options.size.column),
+                 .filter = OptimizeFilter(filter_)})),
+         .lines = layout.lines});
   }
 
   return OutputFromRowsVector(std::move(rows));

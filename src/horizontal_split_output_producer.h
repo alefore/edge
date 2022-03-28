@@ -13,7 +13,7 @@ namespace editor {
 struct RowsVector {
  public:
   struct Row {
-    std::function<LineWithCursor::Generator::Vector(LineNumberDelta)> callback;
+    LineWithCursor::Generator::Vector lines_vector;
     LineNumberDelta lines;
     enum class OverlapBehavior {
       // Rows after this one are pushed down in the output, unmodified.

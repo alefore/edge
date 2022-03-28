@@ -30,11 +30,12 @@ namespace {
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
-std::function<LineWithCursor::Generator::Vector(LineNumberDelta)>
-ProducerForString(std::wstring src, LineModifierSet modifiers) {
+LineWithCursor::Generator::Vector ProducerForString(std::wstring src,
+                                                    LineModifierSet modifiers,
+                                                    LineNumberDelta lines) {
   Line::Options options;
   options.AppendString(std::move(src), std::move(modifiers));
-  return std::bind_front(RepeatLine, LineWithCursor(Line(std::move(options))));
+  return RepeatLine(LineWithCursor(Line(std::move(options))), lines);
 }
 
 LineWithCursor::Generator::Vector AddLeftFrame(
@@ -49,12 +50,14 @@ LineWithCursor::Generator::Vector AddLeftFrame(
   RowsVector rows_vector{.lines = times};
   if (times > LineNumberDelta(1)) {
     rows_vector.push_back({
-        .callback = ProducerForString(L"│", modifiers),
+        .lines_vector =
+            ProducerForString(L"│", modifiers, times - LineNumberDelta(1)),
         .lines = times - LineNumberDelta(1),
     });
   }
-  rows_vector.push_back({.callback = ProducerForString(L"╰", modifiers),
-                         .lines = LineNumberDelta(1)});
+  rows_vector.push_back(
+      {.lines_vector = ProducerForString(L"╰", modifiers, LineNumberDelta(1)),
+       .lines = LineNumberDelta(1)});
 
   columns_vector.push_back(
       {.lines = OutputFromRowsVector(std::move(rows_vector)),
@@ -225,11 +228,9 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
     CHECK(section_input.active_position == std::nullopt);
     VLOG(3) << "Multiple cursors section starting at: " << section_input.begin;
     rows_vector.push_back(
-        {.callback = [lines = LinesSpanView(
-                          buffer,
-                          BufferContentsWindow::Get(section_input).lines,
-                          section_output_producer_options,
-                          sections.size())](LineNumberDelta) { return lines; },
+        {.lines_vector = LinesSpanView(
+             buffer, BufferContentsWindow::Get(section_input).lines,
+             section_output_producer_options, sections.size()),
          .lines = section_input.lines_shown});
 
     if (section.Contains(buffer->position())) {
@@ -331,12 +332,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   if (!status_lines.size().IsZero()) {
     RowsVector::Row buffer_row = {
-        .callback = [lines =
-                         CenterOutput(std::move(output.lines), size.column)](
-                        LineNumberDelta) { return lines; },
+        .lines_vector = CenterOutput(std::move(output.lines), size.column),
         .lines = buffer_contents_window_input.lines_shown};
     RowsVector::Row status_row = {
-        .callback = [status_lines](LineNumberDelta) { return status_lines; },
+        .lines_vector = status_lines,
         .lines = status_lines.size(),
         .overlap_behavior = RowsVector::Row::OverlapBehavior::kFloat};
 
@@ -419,9 +418,10 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
         (options.size.line > kTopFrameLines && add_left_frame) ? L"╭" : L"─";
 
     nested_rows.push_back(
-        {std::bind_front(RepeatLine,
-                         LineWithCursor(FrameLine(std::move(frame_options)))),
-         LineNumberDelta(1)});
+        {.lines_vector =
+             RepeatLine(LineWithCursor(FrameLine(std::move(frame_options))),
+                        LineNumberDelta(1)),
+         .lines = LineNumberDelta(1)});
 
     options.size.line -= nested_rows.back().lines;
     options.main_cursor_behavior =
@@ -436,9 +436,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
               ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
               : LineModifierSet{LineModifier::DIM});
     }
-    nested_rows.push_back({.callback = [lines = std::move(output.lines)](
-                                           LineNumberDelta) { return lines; },
-                           .lines = options.size.line});
+    nested_rows.push_back(
+        {.lines_vector = std::move(output.lines), .lines = options.size.line});
     output.lines = OutputFromRowsVector(std::move(nested_rows));
   }
 

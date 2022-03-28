@@ -150,21 +150,20 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
         GetChildOutput(options, index, lines_per_child[index]);
     if (!child_lines.size().IsZero()) {
       rows_vector.push_back(
-          {[child_lines](LineNumberDelta) { return child_lines; },
-           lines_per_child[index]});
+          {.lines_vector = child_lines, .lines = lines_per_child[index]});
     }
   }
 
   if (children_skipped > 0) {
     rows_vector.push_back(
-        {std::bind_front(
-             RepeatLine,
+        {.lines_vector = RepeatLine(
              LineWithCursor(FrameLine(
                  {.title =
                       L"Additional files: " + std::to_wstring(children_skipped),
                   .active_state =
-                      FrameOutputProducerOptions::ActiveState::kActive}))),
-         LineNumberDelta(1)});
+                      FrameOutputProducerOptions::ActiveState::kActive})),
+             LineNumberDelta(1)),
+         .lines = LineNumberDelta(1)});
   }
 
   return OutputFromRowsVector(std::move(rows_vector));

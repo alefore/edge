@@ -212,13 +212,12 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   context_columns_vector.push_back(
       {.lines = CreateBufferOutputProducer(buffer_producer_input).lines});
   rows_vector.push_back(
-      {.callback = [lines = OutputFromColumnsVector(context_columns_vector)](
-                       LineNumberDelta) { return lines; },
+      {.lines_vector = OutputFromColumnsVector(context_columns_vector),
        .lines = context_lines});
 
   if (!info_lines.IsZero()) {
     rows_vector.push_back(
-        {.callback = std::bind_front(RepeatLine, StatusBasicInfo(options)),
+        {.lines_vector = RepeatLine(StatusBasicInfo(options), info_lines),
          .lines = info_lines});
   }
   return OutputFromRowsVector(std::move(rows_vector));

@@ -23,14 +23,7 @@ LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector rows_vector) {
                  ? lines_to_skip
                  : LineNumberDelta()) -
             output.size());
-    LineWithCursor::Generator::Vector row_output =
-        row.callback == nullptr
-            ? LineWithCursor::Generator::
-                  Vector{.lines = std::vector<LineWithCursor::Generator>(
-                             lines_from_row.line_delta,
-                             LineWithCursor::Generator::Empty()),
-                         .width = ColumnNumberDelta()}
-            : row.callback(lines_from_row);
+    LineWithCursor::Generator::Vector row_output = row.lines_vector;
     row_output.lines.resize(lines_from_row.line_delta,
                             LineWithCursor::Generator::Empty());
 
@@ -91,20 +84,14 @@ const bool tests_registration = tests::Register(L"OutputFromRowsVector", [] {
            [&] {
              RowsVector rows_vector;
              rows_vector.rows.push_back(
-                 {.callback =
-                      [](LineNumberDelta lines) {
-                        return OutputProducer::Constant(
-                                   LineWithCursor(Line(L"top")))
-                            ->Produce(lines);
-                      },
+                 {.lines_vector =
+                      OutputProducer::Constant(LineWithCursor(Line(L"top")))
+                          ->Produce(LineNumberDelta(2)),
                   .lines = LineNumberDelta(2)});
              rows_vector.rows.push_back(
-                 {.callback =
-                      [](LineNumberDelta lines) {
-                        return OutputProducer::Constant(
-                                   LineWithCursor(Line(L"bottom")))
-                            ->Produce(lines);
-                      },
+                 {.lines_vector =
+                      OutputProducer::Constant(LineWithCursor(Line(L"bottom")))
+                          ->Produce(LineNumberDelta(2)),
                   .lines = LineNumberDelta(2)});
              rows_vector.index_active = 0;
              rows_vector.lines = LineNumberDelta(20);
@@ -124,20 +111,13 @@ const bool tests_registration = tests::Register(L"OutputFromRowsVector", [] {
       {.name = L"FirstRowIsTooLong", .callback = [&] {
          RowsVector rows_vector;
          rows_vector.rows.push_back(
-             {.callback =
-                  [](LineNumberDelta lines_requested) {
-                    CHECK_EQ(lines_requested, LineNumberDelta(2));
-                    return RepeatLine(LineWithCursor(Line(L"top")),
-                                      LineNumberDelta(10));
-                  },
+             {.lines_vector =
+                  RepeatLine(LineWithCursor(Line(L"top")), LineNumberDelta(10)),
               .lines = LineNumberDelta(2)});
-         rows_vector.rows.push_back({.callback =
-                                         [](LineNumberDelta) {
-                                           return RepeatLine(
-                                               LineWithCursor(Line(L"bottom")),
-                                               LineNumberDelta(10));
-                                         },
-                                     .lines = LineNumberDelta(10)});
+         rows_vector.rows.push_back(
+             {.lines_vector = RepeatLine(LineWithCursor(Line(L"bottom")),
+                                         LineNumberDelta(10)),
+              .lines = LineNumberDelta(10)});
          rows_vector.index_active = 0;
          rows_vector.lines = LineNumberDelta(5);
          auto output = Build(rows_vector);

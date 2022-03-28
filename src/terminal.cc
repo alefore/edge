@@ -64,22 +64,16 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
   rows_vector.rows[0].lines = screen->lines() - rows_vector.rows[1].lines;
 
   auto buffer = editor_state.current_buffer();
-  rows_vector.rows[0].callback =
-      [lines = editor_state.buffer_tree()->GetLines(
-           {.size =
-                LineColumnDelta(rows_vector.rows[0].lines, screen->columns()),
-            .main_cursor_behavior =
-                (editor_state.status().GetType() == Status::Type::kPrompt ||
-                 (buffer != nullptr &&
-                  buffer->status().GetType() == Status::Type::kPrompt))
-                    ? Widget::OutputProducerOptions::MainCursorBehavior::
-                          kHighlight
-                    : Widget::OutputProducerOptions::MainCursorBehavior::
-                          kIgnore})](LineNumberDelta) { return lines; };
+  rows_vector.rows[0].lines_vector = editor_state.buffer_tree()->GetLines(
+      {.size = LineColumnDelta(rows_vector.rows[0].lines, screen->columns()),
+       .main_cursor_behavior =
+           (editor_state.status().GetType() == Status::Type::kPrompt ||
+            (buffer != nullptr &&
+             buffer->status().GetType() == Status::Type::kPrompt))
+               ? Widget::OutputProducerOptions::MainCursorBehavior::kHighlight
+               : Widget::OutputProducerOptions::MainCursorBehavior::kIgnore});
 
-  rows_vector.rows[1].callback = [status_lines](LineNumberDelta) {
-    return status_lines;
-  };
+  rows_vector.rows[1].lines_vector = status_lines;
 
   LineWithCursor::Generator::Vector generators =
       OutputFromRowsVector(std::move(rows_vector));
