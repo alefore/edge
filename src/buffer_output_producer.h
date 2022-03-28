@@ -17,7 +17,7 @@ namespace editor {
 LineWithCursor::Generator::Vector ProduceBufferView(
     const OpenBuffer& buffer,
     const std::vector<BufferContentsWindow::Line>& lines,
-    Widget::OutputProducerOptions output_producer_options);
+    const Widget::OutputProducerOptions& output_producer_options);
 
 }  // namespace editor
 }  // namespace afc
