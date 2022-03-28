@@ -13,20 +13,24 @@ LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector rows_vector) {
   LineWithCursor::Generator::Vector output;
   LineNumberDelta lines_to_skip;
   for (size_t row_index = 0; row_index < rows_vector.rows.size(); row_index++) {
+    VLOG(5) << "Starting render of row " << row_index << " with output size of "
+            << output.size() << " (and desired lines " << rows_vector.lines
+            << ").";
     if (output.size() == rows_vector.lines) break;
-    const auto& row = rows_vector.rows[row_index];
+    const RowsVector::Row& row = rows_vector.rows[row_index];
     CHECK_LT(output.size(), rows_vector.lines);
-    LineNumberDelta lines_from_row =
+    LineNumberDelta lines_desired = min(
         rows_vector.lines +
-        (row.overlap_behavior == RowsVector::Row::OverlapBehavior::kSolid
-             ? lines_to_skip
-             : LineNumberDelta()) -
-        output.size();
+            (row.overlap_behavior == RowsVector::Row::OverlapBehavior::kSolid
+                 ? lines_to_skip
+                 : LineNumberDelta()) -
+            output.size(),
+        row.lines_vector.size());
     if (row.lines.has_value()) {
-      lines_from_row = min(lines_from_row, *row.lines);
+      lines_desired = min(lines_desired, *row.lines);
     }
     LineWithCursor::Generator::Vector row_output = row.lines_vector;
-    row_output.lines.resize(lines_from_row.line_delta,
+    row_output.lines.resize(lines_desired.line_delta,
                             LineWithCursor::Generator::Empty());
 
     switch (row.overlap_behavior) {
@@ -88,13 +92,11 @@ const bool tests_registration = tests::Register(L"OutputFromRowsVector", [] {
              rows_vector.rows.push_back(
                  {.lines_vector =
                       OutputProducer::Constant(LineWithCursor(Line(L"top")))
-                          ->Produce(LineNumberDelta(2)),
-                  .lines = LineNumberDelta(2)});
+                          ->Produce(LineNumberDelta(2))});
              rows_vector.rows.push_back(
                  {.lines_vector =
                       OutputProducer::Constant(LineWithCursor(Line(L"bottom")))
-                          ->Produce(LineNumberDelta(2)),
-                  .lines = LineNumberDelta(2)});
+                          ->Produce(LineNumberDelta(2))});
              rows_vector.index_active = 0;
              rows_vector.lines = LineNumberDelta(20);
              auto output = Build(rows_vector);
@@ -112,14 +114,13 @@ const bool tests_registration = tests::Register(L"OutputFromRowsVector", [] {
            }},
       {.name = L"FirstRowIsTooLong", .callback = [&] {
          RowsVector rows_vector;
-         rows_vector.rows.push_back(
-             {.lines_vector =
-                  RepeatLine(LineWithCursor(Line(L"top")), LineNumberDelta(10)),
-              .lines = LineNumberDelta(2)});
+         rows_vector.rows.push_back({
+             .lines_vector =
+                 RepeatLine(LineWithCursor(Line(L"top")), LineNumberDelta(2)),
+         });
          rows_vector.rows.push_back(
              {.lines_vector = RepeatLine(LineWithCursor(Line(L"bottom")),
-                                         LineNumberDelta(10)),
-              .lines = LineNumberDelta(10)});
+                                         LineNumberDelta(10))});
          rows_vector.index_active = 0;
          rows_vector.lines = LineNumberDelta(5);
          auto output = Build(rows_vector);
