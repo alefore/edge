@@ -16,13 +16,15 @@ LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector rows_vector) {
     if (output.size() == rows_vector.lines) break;
     const auto& row = rows_vector.rows[row_index];
     CHECK_LT(output.size(), rows_vector.lines);
-    LineNumberDelta lines_from_row = min(
-        row.lines,
+    LineNumberDelta lines_from_row =
         rows_vector.lines +
-            (row.overlap_behavior == RowsVector::Row::OverlapBehavior::kSolid
-                 ? lines_to_skip
-                 : LineNumberDelta()) -
-            output.size());
+        (row.overlap_behavior == RowsVector::Row::OverlapBehavior::kSolid
+             ? lines_to_skip
+             : LineNumberDelta()) -
+        output.size();
+    if (row.lines.has_value()) {
+      lines_from_row = min(lines_from_row, *row.lines);
+    }
     LineWithCursor::Generator::Vector row_output = row.lines_vector;
     row_output.lines.resize(lines_from_row.line_delta,
                             LineWithCursor::Generator::Empty());

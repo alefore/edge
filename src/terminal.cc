@@ -61,11 +61,11 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
 
   rows_vector.rows.resize(2);
   rows_vector.rows[1].lines = status_lines.size();
-  rows_vector.rows[0].lines = screen->lines() - rows_vector.rows[1].lines;
+  rows_vector.rows[0].lines = screen->lines() - *rows_vector.rows[1].lines;
 
   auto buffer = editor_state.current_buffer();
   rows_vector.rows[0].lines_vector = editor_state.buffer_tree()->GetLines(
-      {.size = LineColumnDelta(rows_vector.rows[0].lines, screen->columns()),
+      {.size = LineColumnDelta(*rows_vector.rows[0].lines, screen->columns()),
        .main_cursor_behavior =
            (editor_state.status().GetType() == Status::Type::kPrompt ||
             (buffer != nullptr &&

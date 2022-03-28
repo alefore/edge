@@ -349,7 +349,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       case BufferContentsWindow::StatusPosition::kBottom:
         buffer_index = 0;
         status_index = 1;
-        buffer_row.lines -= status_row.lines;
+        buffer_row.lines = *buffer_row.lines - *status_row.lines;
         break;
     }
 
@@ -423,7 +423,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
                         LineNumberDelta(1)),
          .lines = LineNumberDelta(1)});
 
-    options.size.line -= nested_rows.back().lines;
+    options.size.line -= LineNumberDelta(1);
     options.main_cursor_behavior =
         options_.is_active
             ? options.main_cursor_behavior

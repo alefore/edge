@@ -14,7 +14,7 @@ struct RowsVector {
  public:
   struct Row {
     LineWithCursor::Generator::Vector lines_vector;
-    LineNumberDelta lines;
+    std::optional<LineNumberDelta> lines;
     enum class OverlapBehavior {
       // Rows after this one are pushed down in the output, unmodified.
       kSolid,
