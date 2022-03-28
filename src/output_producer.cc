@@ -7,46 +7,11 @@
 #include "src/line_column.h"
 
 namespace afc::editor {
-namespace {
-class ConstantProducer : public OutputProducer {
- public:
-  ConstantProducer(LineWithCursor line)
-      : width_(line.line->contents()->size()),
-        generator_(LineWithCursor::Generator::New(CaptureAndHash(
-            [](LineWithCursor line) { return line; }, std::move(line)))) {}
-
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override {
-    return LineWithCursor::Generator::Vector{
-        .lines = std::vector<LineWithCursor::Generator>(lines.line_delta,
-                                                        generator_),
-        .width = width_};
-  }
-
- private:
-  const ColumnNumberDelta width_;
-  const LineWithCursor::Generator generator_;
-};
-}  // namespace
-
 LineWithCursor::LineWithCursor(Line line)
     : line(std::make_shared<Line>(std::move(line))){};
 
 /* static */ LineWithCursor LineWithCursor::Empty() {
   return LineWithCursor(Line());
-}
-
-/* static */ std::unique_ptr<OutputProducer> OutputProducer::Empty() {
-  return OutputProducer::Constant(LineWithCursor::Empty());
-}
-
-/* static */ std::unique_ptr<OutputProducer> OutputProducer::Constant(
-    LineWithCursor output) {
-  return std::make_unique<ConstantProducer>(output);
-}
-
-/* static */ std::function<LineWithCursor::Generator::Vector(LineNumberDelta)>
-OutputProducer::ToCallback(std::shared_ptr<OutputProducer> producer) {
-  return [producer](LineNumberDelta lines) { return producer->Produce(lines); };
 }
 
 LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,

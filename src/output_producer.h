@@ -56,13 +56,7 @@ struct LineWithCursor {
 // Can be used to render a view of something once, line by line.
 class OutputProducer {
  public:
-  static std::unique_ptr<OutputProducer> Empty();
-  static std::unique_ptr<OutputProducer> Constant(LineWithCursor output);
-
   virtual LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) = 0;
-
-  static std::function<LineWithCursor::Generator::Vector(LineNumberDelta)>
-  ToCallback(std::shared_ptr<OutputProducer> producer);
 };
 
 LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
