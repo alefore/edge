@@ -10,9 +10,9 @@
 #include "src/buffer_variables.h"
 #include "src/dirname.h"
 #include "src/frame_output_producer.h"
-#include "src/horizontal_split_output_producer.h"
 #include "src/line_marks.h"
 #include "src/parse_tree.h"
+#include "src/rows_vector.h"
 #include "src/status_output_producer.h"
 
 namespace afc {

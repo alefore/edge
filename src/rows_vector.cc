@@ -1,4 +1,4 @@
-#include "src/horizontal_split_output_producer.h"
+#include "src/rows_vector.h"
 
 #include <glog/logging.h>
 

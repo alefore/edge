@@ -10,8 +10,8 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
-#include "src/horizontal_split_output_producer.h"
 #include "src/line_marks.h"
+#include "src/rows_vector.h"
 #include "src/section_brackets_producer.h"
 #include "src/vertical_split_output_producer.h"
 

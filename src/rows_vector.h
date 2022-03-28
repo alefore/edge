@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_HORIZONTAL_SPLIT_OUTPUT_PRODUCER_H__
-#define __AFC_EDITOR_HORIZONTAL_SPLIT_OUTPUT_PRODUCER_H__
+#ifndef __AFC_EDITOR_ROWS_VECTOR_H__
+#define __AFC_EDITOR_ROWS_VECTOR_H__
 
 #include <memory>
 #include <vector>
@@ -32,4 +32,4 @@ LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector table);
 }  // namespace editor
 }  // namespace afc
 
-#endif  // __AFC_EDITOR_HORIZONTAL_SPLIT_OUTPUT_PRODUCER_H__
+#endif  // __AFC_EDITOR_ROWS_VECTOR_H__

@@ -90,8 +90,6 @@ src/hash.h \
 src/help_command.cc \
 src/horizontal_center_output_producer.cc \
 src/horizontal_center_output_producer.h \
-src/horizontal_split_output_producer.cc \
-src/horizontal_split_output_producer.h \
 src/insert_mode.cc \
 src/lazy_string.cc \
 src/lazy_string_append.cc \
@@ -143,6 +141,8 @@ src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \
 src/repeat_mode.cc \
+src/rows_vector.cc \
+src/rows_vector.h \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \
 src/run_cpp_command.h \
