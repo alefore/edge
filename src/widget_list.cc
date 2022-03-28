@@ -201,8 +201,7 @@ WidgetListVertical::WidgetListVertical(
 
 LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
     OutputProducerOptions options) const {
-  ColumnsVector columns_vector{.index_active = active_,
-                               .lines = options.size.line};
+  ColumnsVector columns_vector{.index_active = active_};
   columns_vector.columns.resize(children_.size());
 
   ColumnNumberDelta base_columns = options.size.column / children_.size();
@@ -229,8 +228,9 @@ LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
             : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
     column.lines = children_[index]->CreateOutput(std::move(child_options));
   }
-
-  return OutputFromColumnsVector(std::move(columns_vector));
+  return columns_vector.columns.empty()
+             ? RepeatLine(LineWithCursor(Line()), options.size.line)
+             : OutputFromColumnsVector(std::move(columns_vector));
 }
 
 LineNumberDelta WidgetListVertical::MinimumLines() const {

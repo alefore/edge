@@ -21,7 +21,7 @@ LineWithCursor::Generator::Vector CenterOutput(
     LineWithCursor::Generator::Vector lines, ColumnNumberDelta width) {
   if (lines.width >= width) return lines;
 
-  ColumnsVector columns_vector{.index_active = 1, .lines = lines.size()};
+  ColumnsVector columns_vector{.index_active = 1};
 
   columns_vector.push_back(GetPadding(lines.size(), (width - lines.width) / 2));
   columns_vector.push_back({.lines = lines, .width = lines.width});

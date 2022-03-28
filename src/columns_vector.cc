@@ -39,10 +39,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
       std::make_shared<ColumnsVector>(std::move(columns_vector_raw));
   std::vector<LineWithCursor::Generator::Vector> inputs_by_column;
   for (auto& c : columns_vector->columns) {
-    LineWithCursor::Generator::Vector input = c.lines;
-    input.lines.resize(columns_vector->lines.line_delta,
-                       LineWithCursor::Generator::Empty());
-    inputs_by_column.push_back(std::move(input));
+    inputs_by_column.push_back(std::move(c.lines));
   }
 
   LineWithCursor::Generator::Vector output;
@@ -56,13 +53,22 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
     }
   }
 
+  LineNumberDelta lines_longest_column;
+  for (LineWithCursor::Generator::Vector& input : inputs_by_column)
+    lines_longest_column = max(lines_longest_column, input.size());
+
   // Outer index is the line being produced; inner index is the column.
   std::vector<std::vector<LineWithCursor::Generator>> generator_by_line_column(
-      columns_vector->lines.line_delta);
-  for (LineWithCursor::Generator::Vector& input : inputs_by_column) {
+      lines_longest_column.line_delta,
+      std::vector<LineWithCursor::Generator>(
+          inputs_by_column.size(), LineWithCursor::Generator::Empty()));
+
+  for (size_t column_index = 0; column_index < inputs_by_column.size();
+       ++column_index) {
+    LineWithCursor::Generator::Vector& input = inputs_by_column[column_index];
     for (LineNumberDelta i; i < input.size(); ++i) {
-      generator_by_line_column[i.line_delta].push_back(
-          std::move(input.lines[i.line_delta]));
+      generator_by_line_column[i.line_delta][column_index] =
+          std::move(input.lines[i.line_delta]);
     }
   }
 
@@ -118,16 +124,16 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"UseAfterDelete",
          .callback =
              [] {
-               ColumnsVector columns_vector{.lines = LineNumberDelta(15)};
+               ColumnsVector columns_vector;
                for (int i = 0; i < 5; i++)
                  columns_vector.push_back(
                      {.lines = RepeatLine(LineWithCursor(Line(L"foo bar")),
-                                          LineNumberDelta(15)),
+                                          LineNumberDelta(5)),
                       .width = ColumnNumberDelta(10)});
                LineWithCursor::Generator::Vector produce =
                    OutputFromColumnsVector(std::move(columns_vector));
                columns_vector.columns = {};
-               CHECK_EQ(produce.size(), LineNumberDelta(15));
+               CHECK_EQ(produce.size(), LineNumberDelta(5));
                CHECK(produce.lines[0].generate().line->ToString() ==
                      L"foo bar   "
                      L"foo bar   "
@@ -138,7 +144,7 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"ShortColumns",
          .callback =
              [] {
-               ColumnsVector columns_vector{.lines = LineNumberDelta(15)};
+               ColumnsVector columns_vector;
                columns_vector.push_back(
                    {.lines = RepeatLine(LineWithCursor(Line(L"foo")),
                                         LineNumberDelta(1)),
@@ -149,11 +155,10 @@ const bool buffer_tests_registration = tests::Register(
                     .width = ColumnNumberDelta(10)});
                LineWithCursor::Generator::Vector output =
                    OutputFromColumnsVector(std::move(columns_vector));
-               CHECK_EQ(output.size(), LineNumberDelta(15));
+               CHECK_EQ(output.size(), LineNumberDelta(10));
                CHECK(output.lines[0].generate().line->ToString() == L"foobar");
                CHECK(output.lines[1].generate().line->ToString() == L"   bar");
                CHECK(output.lines[9].generate().line->ToString() == L"   bar");
-               CHECK(output.lines[10].generate().line->ToString() == L"   ");
              }},
     });
 

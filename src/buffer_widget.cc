@@ -37,19 +37,16 @@ LineWithCursor ProducerForString(std::wstring src, LineModifierSet modifiers) {
 }
 
 LineWithCursor::Generator::Vector AddLeftFrame(
-    LineWithCursor::Generator::Vector lines, LineNumberDelta times,
-    LineModifierSet modifiers) {
-  if (times.IsZero()) {
-    return RepeatLine(LineWithCursor(Line()), times);
-  }
+    LineWithCursor::Generator::Vector lines, LineModifierSet modifiers) {
+  if (lines.size().IsZero()) return {};
 
-  ColumnsVector columns_vector{.index_active = 1, .lines = times};
+  ColumnsVector columns_vector{.index_active = 1};
 
-  RowsVector rows_vector{.lines = times};
-  if (times > LineNumberDelta(1)) {
+  RowsVector rows_vector{.lines = lines.size()};
+  if (lines.size() > LineNumberDelta(1)) {
     rows_vector.push_back(
         {.lines_vector = RepeatLine(ProducerForString(L"│", modifiers),
-                                    times - LineNumberDelta(1))});
+                                    lines.size() - LineNumberDelta(1))});
   }
   rows_vector.push_back(
       {.lines_vector =
@@ -86,8 +83,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
   if (buffer.Read(buffer_variables::paste_mode))
     return CenterVertically(buffer_output, output_producer_options.size.line);
 
-  ColumnsVector columns_vector{.index_active = sections_count > 1 ? 2ul : 1ul,
-                               .lines = buffer_output.size()};
+  ColumnsVector columns_vector{.index_active = sections_count > 1 ? 2ul : 1ul};
 
   if (sections_count > 1) {
     columns_vector.push_back(
@@ -471,7 +467,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
 
     if (add_left_frame) {
       output.lines = AddLeftFrame(
-          std::move(output.lines), options.size.line,
+          std::move(output.lines),
           options_.is_active
               ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
               : LineModifierSet{LineModifier::DIM});

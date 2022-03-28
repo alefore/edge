@@ -26,7 +26,6 @@ struct ColumnsVector {
 
   std::vector<Column> columns = {};
   size_t index_active = 0;
-  LineNumberDelta lines;
 };
 
 LineWithCursor::Generator::Vector OutputFromColumnsVector(

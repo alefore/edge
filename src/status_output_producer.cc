@@ -197,11 +197,11 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   CHECK_GT(context_lines, LineNumberDelta(0));
   RowsVector rows_vector{.index_active = 1, .lines = options.size.line};
 
-  ColumnsVector context_columns_vector{.index_active = 1,
-                                       .lines = context_lines};
+  ColumnsVector context_columns_vector{.index_active = 1};
   context_columns_vector.push_back(
       {.lines = SectionBrackets(context_lines, SectionBracketsSide::kLeft),
        .width = ColumnNumberDelta(1)});
+  CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);
 
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
@@ -212,8 +212,11 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
 
   context_columns_vector.push_back(
       {.lines = CreateBufferOutputProducer(buffer_producer_input).lines});
+  CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);
+
   rows_vector.push_back(
       {.lines_vector = OutputFromColumnsVector(context_columns_vector)});
+  CHECK_EQ(rows_vector.back().lines_vector.size(), context_lines);
 
   if (!info_lines.IsZero()) {
     rows_vector.push_back(
