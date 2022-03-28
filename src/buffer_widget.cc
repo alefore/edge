@@ -420,8 +420,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
     nested_rows.push_back(
         {.lines_vector =
              RepeatLine(LineWithCursor(FrameLine(std::move(frame_options))),
-                        LineNumberDelta(1)),
-         .lines = LineNumberDelta(1)});
+                        LineNumberDelta(1))});
 
     options.size.line -= LineNumberDelta(1);
     options.main_cursor_behavior =
