@@ -127,9 +127,11 @@ LineWithCursor::Generator::Vector LinesSpanView(
       {BufferMetadataOutput(
            {.buffer = *buffer,
             .screen_lines = screen_lines,
-            .zoomed_out_tree = buffer->current_zoomed_out_parse_tree(
-                min(output_producer_options.size.line,
-                    LineNumberDelta(screen_lines.size())))}),
+            .zoomed_out_tree = buffer
+                                   ->current_zoomed_out_parse_tree(min(
+                                       output_producer_options.size.line,
+                                       LineNumberDelta(screen_lines.size())))
+                                   .get()}),
        std::nullopt});
   return CenterVertically(OutputFromColumnsVector(std::move(columns_vector)),
                           output_producer_options.size.line);

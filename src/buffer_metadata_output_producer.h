@@ -9,8 +9,8 @@ namespace afc::editor {
 
 struct BufferMetadataOutputOptions {
   const OpenBuffer& buffer;
-  std::vector<BufferContentsWindow::Line> screen_lines;
-  std::shared_ptr<const ParseTree> zoomed_out_tree;
+  const std::vector<BufferContentsWindow::Line>& screen_lines;
+  const ParseTree* zoomed_out_tree;
 };
 
 // OutputProducer that prints the metadata that is usually shown right after the
