@@ -197,10 +197,10 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   CHECK_GT(context_lines, LineNumberDelta(0));
   RowsVector rows_vector{.index_active = 1, .lines = options.size.line};
 
-  auto context_columns =
-      std::make_shared<std::vector<VerticalSplitOutputProducer::Column>>(2);
-  context_columns->at(0).width = ColumnNumberDelta(1);
-  context_columns->at(0).lines = SectionBrackets(context_lines);
+  ColumnsVector context_columns_vector{.index_active = 1,
+                                       .lines = context_lines};
+  context_columns_vector.push_back(
+      {.lines = SectionBrackets(context_lines), .width = ColumnNumberDelta(1)});
 
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
@@ -209,15 +209,12 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   buffer_producer_input.status_behavior =
       BufferOutputProducerInput::StatusBehavior::kIgnore;
 
-  context_columns->at(1).lines =
-      CreateBufferOutputProducer(buffer_producer_input).lines;
-  rows_vector.push_back({.callback = [context_columns](LineNumberDelta lines)
-                             -> LineWithCursor::Generator::Vector {
-                           return VerticalSplitOutputProducer(
-                                      std::move(*context_columns), 1)
-                               .Produce(lines);
-                         },
-                         .lines = context_lines});
+  context_columns_vector.push_back(
+      {.lines = CreateBufferOutputProducer(buffer_producer_input).lines});
+  rows_vector.push_back(
+      {.callback = [lines = OutputFromColumnsVector(context_columns_vector)](
+                       LineNumberDelta) { return lines; },
+       .lines = context_lines});
 
   if (!info_lines.IsZero()) {
     rows_vector.push_back(

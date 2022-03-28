@@ -203,13 +203,15 @@ WidgetListVertical::WidgetListVertical(
 
 LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
     OutputProducerOptions options) const {
-  std::vector<VerticalSplitOutputProducer::Column> columns(children_.size());
+  ColumnsVector columns_vector{.index_active = active_,
+                               .lines = options.size.line};
+  columns_vector.columns.resize(children_.size());
 
   ColumnNumberDelta base_columns = options.size.column / children_.size();
   ColumnNumberDelta columns_left =
       options.size.column - base_columns * children_.size();
   CHECK_LT(columns_left, ColumnNumberDelta(children_.size()));
-  for (auto& column : columns) {
+  for (auto& column : columns_vector.columns) {
     column.width = base_columns;
     if (columns_left > ColumnNumberDelta(0)) {
       ++*column.width;
@@ -219,7 +221,7 @@ LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
   CHECK_EQ(columns_left, ColumnNumberDelta(0));
 
   for (size_t index = 0; index < children_.size(); index++) {
-    auto& column = columns[index];
+    auto& column = columns_vector.columns[index];
     OutputProducerOptions child_options = options;
     CHECK(column.width.has_value());
     child_options.size.column = column.width.value();
@@ -230,8 +232,7 @@ LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
     column.lines = children_[index]->CreateOutput(std::move(child_options));
   }
 
-  return VerticalSplitOutputProducer(std::move(columns), active_)
-      .Produce(options.size.line);
+  return OutputFromColumnsVector(std::move(columns_vector));
 }
 
 LineNumberDelta WidgetListVertical::MinimumLines() const {

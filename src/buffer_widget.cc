@@ -44,7 +44,7 @@ LineWithCursor::Generator::Vector AddLeftFrame(
     return RepeatLine(LineWithCursor(Line()), times);
   }
 
-  std::vector<VerticalSplitOutputProducer::Column> columns;
+  ColumnsVector columns_vector{.index_active = 1, .lines = times};
 
   RowsVector rows_vector{.lines = times};
   if (times > LineNumberDelta(1)) {
@@ -56,19 +56,20 @@ LineWithCursor::Generator::Vector AddLeftFrame(
   rows_vector.push_back({.callback = ProducerForString(L"╰", modifiers),
                          .lines = LineNumberDelta(1)});
 
-  columns.push_back({.lines = OutputFromRowsVector(std::move(rows_vector)),
-                     .width = ColumnNumberDelta(1)});
+  columns_vector.push_back(
+      {.lines = OutputFromRowsVector(std::move(rows_vector)),
+       .width = ColumnNumberDelta(1)});
 
-  columns.push_back({.lines = lines});
+  columns_vector.push_back({.lines = lines});
 
-  return VerticalSplitOutputProducer(std::move(columns), 1).Produce(times);
+  return OutputFromColumnsVector(std::move(columns_vector));
 }
 
 LineWithCursor::Generator::Vector LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,
     std::vector<BufferContentsWindow::Line> screen_lines,
     Widget::OutputProducerOptions output_producer_options,
-    size_t sections_count) {
+    const size_t sections_count) {
   output_producer_options.size.line = std::min(
       output_producer_options.size.line, LineNumberDelta(screen_lines.size()));
   LineWithCursor::Generator::Vector buffer_output =
@@ -77,28 +78,28 @@ LineWithCursor::Generator::Vector LinesSpanView(
   if (buffer->Read(buffer_variables::paste_mode)) return buffer_output;
 
   LineNumberDelta output_lines(screen_lines.size());
-  std::vector<VerticalSplitOutputProducer::Column> columns;
+  ColumnsVector columns_vector{.index_active = sections_count > 1 ? 2ul : 1ul,
+                               .lines = output_producer_options.size.line};
 
   auto line_numbers =
       std::make_unique<LineNumberOutputProducer>(buffer, screen_lines);
   auto width = line_numbers->width();
   if (sections_count > 1) {
-    columns.push_back({SectionBrackets(output_lines), ColumnNumberDelta(1)});
+    columns_vector.push_back(
+        {SectionBrackets(output_lines), ColumnNumberDelta(1)});
   }
 
-  columns.push_back({line_numbers->Produce(output_lines), width});
-  columns.push_back(
+  columns_vector.push_back({line_numbers->Produce(output_lines), width});
+  columns_vector.push_back(
       {std::move(buffer_output), output_producer_options.size.column});
-  columns.push_back(VerticalSplitOutputProducer::Column{
-      std::make_unique<BufferMetadataOutputProducer>(
-          buffer, screen_lines, output_producer_options.size.line,
-          buffer->current_zoomed_out_parse_tree(
-              output_producer_options.size.line))
-          ->Produce(output_lines),
-      std::nullopt});
-  return VerticalSplitOutputProducer(std::move(columns),
-                                     sections_count > 1 ? 2 : 1)
-      .Produce(output_producer_options.size.line);
+  columns_vector.push_back(
+      {std::make_unique<BufferMetadataOutputProducer>(
+           buffer, screen_lines, output_producer_options.size.line,
+           buffer->current_zoomed_out_parse_tree(
+               output_producer_options.size.line))
+           ->Produce(output_lines),
+       std::nullopt});
+  return OutputFromColumnsVector(std::move(columns_vector));
 }
 
 std::set<Range> MergeSections(std::set<Range> input) {

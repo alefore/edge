@@ -9,7 +9,7 @@
 #include "src/vertical_split_output_producer.h"
 
 namespace afc::editor {
-using V = VerticalSplitOutputProducer;
+using V = ColumnsVector;
 namespace {
 V::Column GetPadding(LineNumberDelta lines, ColumnNumberDelta width) {
   return V::Column{.lines = RepeatLine(LineWithCursor(Line()), lines),
@@ -21,14 +21,14 @@ LineWithCursor::Generator::Vector CenterOutput(
     LineWithCursor::Generator::Vector lines, ColumnNumberDelta width) {
   if (lines.width >= width) return lines;
 
-  std::vector<V::Column> columns(3);
+  ColumnsVector columns_vector{.index_active = 1, .lines = lines.size()};
 
-  columns[0] = GetPadding(lines.size(), (width - lines.width) / 2);
-  columns[2] =
-      GetPadding(lines.size(), width - lines.width - *columns[0].width);
+  columns_vector.push_back(GetPadding(lines.size(), (width - lines.width) / 2));
+  columns_vector.push_back({.lines = lines, .width = lines.width});
+  columns_vector.push_back(GetPadding(
+      lines.size(), width - lines.width - *columns_vector.columns[0].width));
 
-  columns[1] = {.lines = lines, .width = lines.width};
-  return V(std::move(columns), 1).Produce(lines.size());
+  return OutputFromColumnsVector(std::move(columns_vector));
 }
 
 }  // namespace afc::editor

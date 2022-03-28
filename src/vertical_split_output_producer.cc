@@ -6,47 +6,48 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/tests/tests.h"
+#include "src/wstring.h"
+
 namespace afc::editor {
 namespace {
 std::optional<size_t> CombineHashes(
     const std::vector<LineWithCursor::Generator>& delegates,
-    const std::vector<VerticalSplitOutputProducer::Column>& columns) {
+    const ColumnsVector& columns_vector) {
   return std::find_if(delegates.begin(), delegates.end(),
                       [](const LineWithCursor::Generator& g) {
                         return !g.inputs_hash.has_value();
                       }) != delegates.end()
              ? std::optional<size_t>()
-             : compute_hash(
-                   MakeHashableIteratorRange(
-                       delegates.begin(), delegates.end(),
-                       [](const LineWithCursor::Generator& g) {
-                         return *g.inputs_hash;
-                       }),
-                   MakeHashableIteratorRange(
-                       columns.begin(), columns.end(),
-                       [](const VerticalSplitOutputProducer::Column& column) {
-                         return compute_hash(column.width);
-                       }));
+             : compute_hash(MakeHashableIteratorRange(
+                                delegates.begin(), delegates.end(),
+                                [](const LineWithCursor::Generator& g) {
+                                  return *g.inputs_hash;
+                                }),
+                            MakeHashableIteratorRange(
+                                columns_vector.columns.begin(),
+                                columns_vector.columns.end(),
+                                [](const ColumnsVector::Column& column) {
+                                  return compute_hash(column.width);
+                                }));
 }
 }  // namespace
 
-VerticalSplitOutputProducer::VerticalSplitOutputProducer(
-    std::vector<Column> columns, size_t index_active)
-    : columns_(std::make_shared<std::vector<Column>>(std::move(columns))),
-      index_active_(index_active) {}
-
-LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
-    LineNumberDelta lines) {
+LineWithCursor::Generator::Vector OutputFromColumnsVector(
+    ColumnsVector columns_vector_raw) {
+  auto columns_vector =
+      std::make_shared<ColumnsVector>(std::move(columns_vector_raw));
   std::vector<LineWithCursor::Generator::Vector> inputs_by_column;
-  for (auto& c : *columns_) {
+  for (auto& c : columns_vector->columns) {
     LineWithCursor::Generator::Vector input = c.lines;
-    input.lines.resize(lines.line_delta, LineWithCursor::Generator::Empty());
+    input.lines.resize(columns_vector->lines.line_delta,
+                       LineWithCursor::Generator::Empty());
     inputs_by_column.push_back(std::move(input));
   }
 
   LineWithCursor::Generator::Vector output;
-  for (size_t i = 0; i < columns_->size(); i++) {
-    const Column& column = columns_->at(i);
+  for (size_t i = 0; i < columns_vector->columns.size(); i++) {
+    const ColumnsVector::Column& column = columns_vector->columns.at(i);
     if (column.width.has_value()) {
       output.width += *column.width;
     } else {
@@ -57,7 +58,7 @@ LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
 
   // Outer index is the line being produced; inner index is the column.
   std::vector<std::vector<LineWithCursor::Generator>> generator_by_line_column(
-      lines.line_delta);
+      columns_vector->lines.line_delta);
   for (LineWithCursor::Generator::Vector& input : inputs_by_column) {
     for (LineNumberDelta i; i < input.size(); ++i) {
       generator_by_line_column[i.line_delta].push_back(
@@ -65,11 +66,11 @@ LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
     }
   }
 
+  // TODO(urgent): Copy columns.
   for (auto& line_input : generator_by_line_column) {
     output.lines.push_back(LineWithCursor::Generator{
-        .inputs_hash = CombineHashes(line_input, *columns_),
-        .generate = [line_input = std::move(line_input),
-                     index_active = index_active_, columns = columns_]() {
+        .inputs_hash = CombineHashes(line_input, *columns_vector),
+        .generate = [line_input = std::move(line_input), columns_vector]() {
           LineWithCursor output;
           Line::Options options;
           ColumnNumber initial_column;
@@ -81,9 +82,11 @@ LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
             options.AppendString(ColumnNumberDelta::PaddingString(
                                      initial_column - columns_shown, L' '),
                                  current_modifiers);
+            columns_shown = initial_column;
 
             LineWithCursor column_data = line_input[i].generate();
-            if (column_data.cursor.has_value() && i == index_active) {
+            if (column_data.cursor.has_value() &&
+                i == columns_vector->index_active) {
               output.cursor =
                   initial_column + column_data.cursor.value().ToDelta();
             }
@@ -91,9 +94,9 @@ LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
             current_modifiers = column_data.line->end_of_line_modifiers();
 
             CHECK(column_data.line != nullptr);
-            if (columns->at(i).width.has_value()) {
+            if (columns_vector->columns.at(i).width.has_value()) {
               // TODO: respect columns_[i].width.
-              initial_column += columns->at(i).width.value();
+              initial_column += columns_vector->columns.at(i).width.value();
             } else {
               i = line_input.size();  // Stop the iteration.
             }
@@ -109,4 +112,31 @@ LineWithCursor::Generator::Vector VerticalSplitOutputProducer::Produce(
   return output;
 }
 
+namespace {
+const bool buffer_tests_registration = tests::Register(
+    L"OutputFromColumnsVector",
+    {
+        {.name = L"UseAfterDelete",
+         .callback =
+             [] {
+               ColumnsVector columns_vector{.lines = LineNumberDelta(15)};
+               for (int i = 0; i < 5; i++)
+                 columns_vector.push_back(
+                     {.lines = RepeatLine(LineWithCursor(Line(L"foo bar")),
+                                          LineNumberDelta(15)),
+                      .width = ColumnNumberDelta(10)});
+               LineWithCursor::Generator::Vector produce =
+                   OutputFromColumnsVector(std::move(columns_vector));
+               columns_vector.columns = {};
+               CHECK_EQ(produce.size(), LineNumberDelta(15));
+               CHECK(produce.lines[0].generate().line->ToString() ==
+                     L"foo bar   "
+                     L"foo bar   "
+                     L"foo bar   "
+                     L"foo bar   "
+                     L"foo bar");
+             }},
+    });
+
+}
 }  // namespace afc::editor

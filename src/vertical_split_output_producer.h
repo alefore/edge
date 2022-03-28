@@ -9,9 +9,7 @@
 
 namespace afc::editor {
 
-// Create an OutputProducer that stitches together multiple columns.
-class VerticalSplitOutputProducer : public OutputProducer {
- public:
+struct ColumnsVector {
   struct Column {
     LineWithCursor::Generator::Vector lines;
 
@@ -20,14 +18,19 @@ class VerticalSplitOutputProducer : public OutputProducer {
     std::optional<ColumnNumberDelta> width = std::nullopt;
   };
 
-  VerticalSplitOutputProducer(std::vector<Column> columns, size_t index_active);
+  Column& back() {
+    CHECK(!columns.empty());
+    return columns.back();
+  }
+  void push_back(Column column) { columns.push_back(std::move(column)); }
 
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
-
- private:
-  const std::shared_ptr<const std::vector<Column>> columns_;
-  const size_t index_active_;
+  std::vector<Column> columns = {};
+  size_t index_active = 0;
+  LineNumberDelta lines;
 };
+
+LineWithCursor::Generator::Vector OutputFromColumnsVector(
+    ColumnsVector columns_vector);
 
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_VERTICAL_SPLIT_OUTPUT_PRODUCER_H__

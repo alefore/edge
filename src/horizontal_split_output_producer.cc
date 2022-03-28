@@ -109,7 +109,7 @@ const bool tests_registration = tests::Register(L"OutputFromRowsVector", [] {
              rows_vector.index_active = 0;
              rows_vector.lines = LineNumberDelta(20);
              auto output = Build(rows_vector);
-             CHECK_EQ(output.size(), 10ul);
+             CHECK_EQ(output.size(), 20ul);
              CHECK(output[0] == L"top");
              CHECK(output[1] == L"top");
              CHECK(output[2] == L"bottom");
