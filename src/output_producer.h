@@ -17,6 +17,7 @@ struct LineWithCursor {
   struct Generator {
     struct Vector {
       LineNumberDelta size() const { return LineNumberDelta(lines.size()); }
+      bool empty() const { return lines.empty(); }
       std::vector<Generator> lines;
       ColumnNumberDelta width;
     };

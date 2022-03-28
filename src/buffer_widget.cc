@@ -79,7 +79,8 @@ LineWithCursor::Generator::Vector LinesSpanView(
 
   if (sections_count > 1) {
     columns_vector.push_back(
-        {SectionBrackets(LineNumberDelta(screen_lines.size())),
+        {SectionBrackets(LineNumberDelta(screen_lines.size()),
+                         SectionBracketsSide::kLeft),
          ColumnNumberDelta(1)});
   }
 
@@ -87,8 +88,30 @@ LineWithCursor::Generator::Vector LinesSpanView(
   columns_vector.push_back(
       {line_numbers.Produce(LineNumberDelta(screen_lines.size())),
        line_numbers.width()});
+
+  if (sections_count > 1 && !buffer_output.empty() &&
+      buffer_output.size() > LineNumberDelta(3)) {
+    buffer_output.lines.back() = {
+        .inputs_hash = {},
+        .generate = [original_generator = buffer_output.lines.back().generate] {
+          LineWithCursor output = original_generator();
+          Line::Options line_options;
+          line_options.AppendString(output.line->contents(),
+                                    LineModifierSet{LineModifier::DIM});
+          output.line = std::make_shared<Line>(std::move(line_options));
+          return output;
+        }};
+  }
   columns_vector.push_back(
       {std::move(buffer_output), output_producer_options.size.column});
+
+  if (sections_count > 1) {
+    columns_vector.push_back(
+        {SectionBrackets(LineNumberDelta(screen_lines.size()),
+                         SectionBracketsSide::kRight),
+         ColumnNumberDelta(1)});
+  }
+
   columns_vector.push_back(
       {BufferMetadataOutput(
            {.buffer = buffer,

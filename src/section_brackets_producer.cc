@@ -12,7 +12,8 @@
 #include "src/line.h"
 
 namespace afc::editor {
-LineWithCursor::Generator::Vector SectionBrackets(LineNumberDelta lines) {
+LineWithCursor::Generator::Vector SectionBrackets(
+    LineNumberDelta lines, SectionBracketsSide section_brackets_side) {
   LineWithCursor::Generator::Vector output{.lines = {},
                                            .width = ColumnNumberDelta(1)};
   auto push = [&output](wstring c) {
@@ -21,9 +22,10 @@ LineWithCursor::Generator::Vector SectionBrackets(LineNumberDelta lines) {
           return LineWithCursor(Line(Line::Options(NewLazyString(c))));
         }});
   };
-  push(L"╭");
+  push(section_brackets_side == SectionBracketsSide::kLeft ? L"╭" : L"╮");
   for (LineNumberDelta i(1); i + LineNumberDelta(1) < lines; ++i) push(L"│");
-  push(L"╰");
+  push(section_brackets_side == SectionBracketsSide::kLeft ? L"╰" : L"╯");
+  push(L"");
   return output;
 }
 }  // namespace afc::editor

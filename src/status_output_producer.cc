@@ -200,7 +200,8 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   ColumnsVector context_columns_vector{.index_active = 1,
                                        .lines = context_lines};
   context_columns_vector.push_back(
-      {.lines = SectionBrackets(context_lines), .width = ColumnNumberDelta(1)});
+      {.lines = SectionBrackets(context_lines, SectionBracketsSide::kLeft),
+       .width = ColumnNumberDelta(1)});
 
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
