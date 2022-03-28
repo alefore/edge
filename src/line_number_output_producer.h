@@ -12,7 +12,7 @@
 namespace afc {
 namespace editor {
 
-class LineNumberOutputProducer : public OutputProducer {
+class LineNumberOutputProducer {
  public:
   static ColumnNumberDelta PrefixWidth(LineNumberDelta lines_size);
 
@@ -20,7 +20,7 @@ class LineNumberOutputProducer : public OutputProducer {
       std::shared_ptr<OpenBuffer> buffer,
       std::vector<BufferContentsWindow::Line> screen_lines);
 
-  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines) override;
+  LineWithCursor::Generator::Vector Produce(LineNumberDelta lines);
 
   ColumnNumberDelta width() const;
 
