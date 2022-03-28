@@ -80,8 +80,11 @@ LineWithCursor::Generator::Vector LinesSpanView(
     std::vector<BufferContentsWindow::Line> screen_lines,
     Widget::OutputProducerOptions output_producer_options,
     const size_t sections_count) {
+  if (buffer->Read(buffer_variables::reload_on_display)) {
+    buffer->Reload();
+  }
   LineWithCursor::Generator::Vector buffer_output =
-      ProduceBufferView(buffer, screen_lines, output_producer_options);
+      ProduceBufferView(*buffer, screen_lines, output_producer_options);
 
   if (buffer->Read(buffer_variables::paste_mode))
     return CenterVertically(buffer_output, output_producer_options.size.line);

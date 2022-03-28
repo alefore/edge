@@ -15,8 +15,8 @@ namespace editor {
 // The output produced can be shorter than output_producer_options.size.line
 // lines long.
 LineWithCursor::Generator::Vector ProduceBufferView(
-    std::shared_ptr<OpenBuffer> buffer,
-    std::vector<BufferContentsWindow::Line> lines,
+    const OpenBuffer& buffer,
+    const std::vector<BufferContentsWindow::Line>& lines,
     Widget::OutputProducerOptions output_producer_options);
 
 }  // namespace editor
