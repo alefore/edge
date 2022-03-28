@@ -77,13 +77,11 @@ const bool tests_registration = tests::Register(L"OutputFromRowsVector", [] {
            [&] {
              RowsVector rows_vector;
              rows_vector.rows.push_back(
-                 {.lines_vector =
-                      OutputProducer::Constant(LineWithCursor(Line(L"top")))
-                          ->Produce(LineNumberDelta(2))});
+                 {.lines_vector = RepeatLine(LineWithCursor(Line(L"top")),
+                                             LineNumberDelta(2))});
              rows_vector.rows.push_back(
-                 {.lines_vector =
-                      OutputProducer::Constant(LineWithCursor(Line(L"bottom")))
-                          ->Produce(LineNumberDelta(2))});
+                 {.lines_vector = RepeatLine(LineWithCursor(Line(L"bottom")),
+                                             LineNumberDelta(2))});
              rows_vector.index_active = 0;
              rows_vector.lines = LineNumberDelta(20);
              auto output = Build(rows_vector);
