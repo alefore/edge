@@ -30,12 +30,10 @@ namespace {
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
-LineWithCursor::Generator::Vector ProducerForString(std::wstring src,
-                                                    LineModifierSet modifiers,
-                                                    LineNumberDelta lines) {
+LineWithCursor ProducerForString(std::wstring src, LineModifierSet modifiers) {
   Line::Options options;
   options.AppendString(std::move(src), std::move(modifiers));
-  return RepeatLine(LineWithCursor(Line(std::move(options))), lines);
+  return LineWithCursor(Line(std::move(options)));
 }
 
 LineWithCursor::Generator::Vector AddLeftFrame(
@@ -50,13 +48,14 @@ LineWithCursor::Generator::Vector AddLeftFrame(
   RowsVector rows_vector{.lines = times};
   if (times > LineNumberDelta(1)) {
     rows_vector.push_back({
-        .lines_vector =
-            ProducerForString(L"│", modifiers, times - LineNumberDelta(1)),
+        .lines_vector = RepeatLine(ProducerForString(L"│", modifiers),
+                                   times - LineNumberDelta(1)),
         .lines = times - LineNumberDelta(1),
     });
   }
   rows_vector.push_back(
-      {.lines_vector = ProducerForString(L"╰", modifiers, LineNumberDelta(1)),
+      {.lines_vector =
+           RepeatLine(ProducerForString(L"╰", modifiers), LineNumberDelta(1)),
        .lines = LineNumberDelta(1)});
 
   columns_vector.push_back(
