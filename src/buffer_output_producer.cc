@@ -14,6 +14,7 @@
 #include "src/line_column.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"
+#include "src/tests/tests.h"
 
 namespace afc::editor {
 namespace {
@@ -283,11 +284,30 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     output.lines.push_back(generator);
   }
 
-  std::vector<LineWithCursor::Generator> tail(
-      (output_producer_options.size.line - LineNumberDelta(output.lines.size()))
-          .line_delta,
-      LineWithCursor::Generator::Empty());
-  output.lines.insert(output.lines.end(), tail.begin(), tail.end());
+  output.lines.resize(output_producer_options.size.line.line_delta,
+                      LineWithCursor::Generator::Empty());
   return output;
+}
+
+namespace {
+const bool tests_registration = tests::Register(L"BufferOutputProducer", [] {
+  return std::vector<tests::Test>{
+      {.name = L"ViewBiggerThanBuffer", .callback = [&] {
+         auto buffer = NewBufferForTests();
+         std::vector<BufferContentsWindow::Line> screen_lines;
+         screen_lines.push_back(
+             {.range = Range(LineColumn(), LineColumn(LineNumber(1))),
+              .has_active_cursor = false,
+              .current_cursors = {}});
+         auto lines = ProduceBufferView(
+             buffer, screen_lines,
+             Widget::OutputProducerOptions{
+                 .size = LineColumnDelta(LineNumberDelta(50),
+                                         ColumnNumberDelta(80)),
+                 .main_cursor_behavior = Widget::OutputProducerOptions::
+                     MainCursorBehavior::kIgnore});
+         CHECK_EQ(lines.size(), LineNumberDelta(50));
+       }}};
+}());
 }
 }  // namespace afc::editor
