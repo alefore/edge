@@ -7,8 +7,8 @@
 #include <string>
 
 #include "src/editor.h"
+#include "src/line_with_cursor.h"
 #include "src/lru_cache.h"
-#include "src/output_producer.h"
 #include "src/screen.h"
 
 namespace afc {

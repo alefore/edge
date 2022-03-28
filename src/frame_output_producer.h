@@ -2,10 +2,13 @@
 #define __AFC_EDITOR_FRAME_OUTPUT_PRODUCER_H__
 
 #include <memory>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "src/buffer.h"
-#include "src/output_producer.h"
+#include "src/line.h"
+#include "src/line_column.h"
 
 namespace afc::editor {
 

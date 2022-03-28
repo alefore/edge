@@ -12,7 +12,7 @@
 #include "src/dirname.h"
 #include "src/hash.h"
 #include "src/line_marks.h"
-#include "src/output_producer.h"
+#include "src/line_with_cursor.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"
 

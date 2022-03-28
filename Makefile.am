@@ -103,6 +103,8 @@ src/line.cc \
 src/line.h \
 src/line_output.cc \
 src/line_output.h \
+src/line_with_cursor.cc \
+src/line_with_cursor.h \
 src/line_column.cc \
 src/line_marks.cc \
 src/line_modifier.cc \
@@ -129,8 +131,6 @@ src/open_directory_command.cc \
 src/open_file_command.cc \
 src/operation.cc \
 src/operation.h \
-src/output_producer.cc \
-src/output_producer.h \
 src/parse_tools.cc \
 src/parse_tools.h \
 src/parse_tree.cc \

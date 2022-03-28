@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "src/line_column.h"
-#include "src/output_producer.h"
+#include "src/line_with_cursor.h"
 
 namespace afc::editor {
 LineWithCursor::Generator::Vector CenterOutput(

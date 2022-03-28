@@ -1,4 +1,4 @@
-#include "src/output_producer.h"
+#include "src/line_with_cursor.h"
 
 #include <glog/logging.h>
 

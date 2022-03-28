@@ -6,7 +6,7 @@
 
 #include "src/buffer.h"
 #include "src/lazy_string.h"
-#include "src/output_producer.h"
+#include "src/line_with_cursor.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {

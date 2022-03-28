@@ -4,7 +4,7 @@
 #include <list>
 #include <memory>
 
-#include "src/output_producer.h"
+#include "src/line_with_cursor.h"
 #include "src/widget.h"
 
 namespace afc {

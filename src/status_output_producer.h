@@ -6,8 +6,8 @@
 #include <memory>
 #include <string>
 
+#include "src/line_with_cursor.h"
 #include "src/modifiers.h"
-#include "src/output_producer.h"
 
 namespace afc {
 namespace editor {

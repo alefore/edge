@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_OUTPUT_PRODUCER_H__
-#define __AFC_EDITOR_OUTPUT_PRODUCER_H__
+#ifndef __AFC_EDITOR_LINE_WITH_CURSOR_H__
+#define __AFC_EDITOR_LINE_WITH_CURSOR_H__
 
 #include <functional>
 #include <optional>
@@ -63,4 +63,4 @@ struct hash<afc::editor::LineWithCursor> {
   std::size_t operator()(const afc::editor::LineWithCursor& line) const;
 };
 }  // namespace std
-#endif  // __AFC_EDITOR_OUTPUT_PRODUCER_H__
+#endif  // __AFC_EDITOR_LINE_WITH_CURSOR_H__
