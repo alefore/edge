@@ -66,7 +66,6 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
     }
   }
 
-  // TODO(urgent): Copy columns.
   for (auto& line_input : generator_by_line_column) {
     output.lines.push_back(LineWithCursor::Generator{
         .inputs_hash = CombineHashes(line_input, *columns_vector),
