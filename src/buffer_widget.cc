@@ -361,7 +361,9 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     RowsVector::Row buffer_row = {
         .lines_vector =
             CenterOutput(std::move(output.lines), total_size.column)};
-    RowsVector::Row status_row = {.lines_vector = status_lines};
+    RowsVector::Row status_row = {
+        .lines_vector =
+            CenterOutput(std::move(status_lines), total_size.column)};
 
     size_t buffer_index = 0;
     size_t status_index = 1;
