@@ -69,8 +69,6 @@ LineWithCursor::Generator::Vector LinesSpanView(
     std::vector<BufferContentsWindow::Line> screen_lines,
     Widget::OutputProducerOptions output_producer_options,
     const size_t sections_count) {
-  output_producer_options.size.line = std::min(
-      output_producer_options.size.line, LineNumberDelta(screen_lines.size()));
   LineWithCursor::Generator::Vector buffer_output =
       ProduceBufferView(buffer, screen_lines, output_producer_options);
 
@@ -80,15 +78,14 @@ LineWithCursor::Generator::Vector LinesSpanView(
   ColumnsVector columns_vector{.index_active = sections_count > 1 ? 2ul : 1ul,
                                .lines = output_producer_options.size.line};
 
-  auto line_numbers =
-      std::make_unique<LineNumberOutputProducer>(buffer, screen_lines);
-  auto width = line_numbers->width();
   if (sections_count > 1) {
     columns_vector.push_back(
         {SectionBrackets(output_lines), ColumnNumberDelta(1)});
   }
 
-  columns_vector.push_back({line_numbers->Produce(output_lines), width});
+  LineNumberOutputProducer line_numbers(buffer, screen_lines);
+  columns_vector.push_back(
+      {line_numbers.Produce(output_lines), line_numbers.width()});
   columns_vector.push_back(
       {std::move(buffer_output), output_producer_options.size.column});
   columns_vector.push_back(
@@ -312,9 +309,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     return BufferOutputProducerOutput{
         .lines = LineWithCursor::Generator::Vector{}, .view_start = {}};
 
-  input.output_producer_options.size =
-      LineColumnDelta(LineNumberDelta(window.lines.size()),
-                      buffer_contents_window_input.columns_shown);
+  input.output_producer_options.size.column =
+      buffer_contents_window_input.columns_shown;
 
   BufferOutputProducerOutput output{
       .lines =
