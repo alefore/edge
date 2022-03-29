@@ -22,7 +22,7 @@ namespace afc::editor {
 namespace {
 std::list<ColumnRange> ComputeBreaks(const BufferContentsWindow::Input& input,
                                      LineNumber line) {
-  return BreakLineForOutput(*input.contents->at(line), input.columns_shown,
+  return BreakLineForOutput(*input.contents.at(line), input.columns_shown,
                             input.line_wrap_style, input.symbol_characters);
 }
 
@@ -149,10 +149,10 @@ BufferContentsWindow::Line GetScreenLine(
                               column_range.end - column_range.begin);
 
   auto contains_cursor = [&](ColumnNumber column) {
-    CHECK_LE(line, options.contents->EndLine());
+    CHECK_LE(line, options.contents.EndLine());
     if (column < column_range.begin) return false;
     if (column < column_range.end) return true;
-    return range.end.column == options.contents->at(line)->EndColumn();
+    return range.end.column == options.contents.at(line)->EndColumn();
   };
 
   BufferContentsWindow::Line output{
@@ -242,7 +242,6 @@ std::optional<size_t> cursor_index(const BufferContentsWindow& window) {
 /* static */
 BufferContentsWindow BufferContentsWindow::Get(
     BufferContentsWindow::Input options) {
-  CHECK(options.contents != nullptr);
   CHECK_GE(options.lines_shown, LineNumberDelta());
   CHECK_GE(options.status_lines, LineNumberDelta());
   CHECK_LE(options.status_lines, options.lines_shown);
@@ -252,10 +251,10 @@ BufferContentsWindow BufferContentsWindow::Get(
                  LineColumn(options.active_position->line.MinusHandlingOverflow(
                      options.lines_shown)));
     options.active_position->line =
-        min(options.active_position->line, options.contents->EndLine());
+        min(options.active_position->line, options.contents.EndLine());
     options.active_position->column =
         min(options.active_position->column,
-            options.contents->at(options.active_position->line)->EndColumn());
+            options.contents.at(options.active_position->line)->EndColumn());
   }
   std::map<LineNumber, std::set<ColumnNumber>> cursors;
   for (auto& cursor : *options.active_cursors) {
@@ -266,7 +265,7 @@ BufferContentsWindow BufferContentsWindow::Get(
   BufferContentsWindow output;
   for (LineNumber line = options.begin.line;
        LineNumberDelta(output.lines.size()) < options.lines_shown; ++line) {
-    if (line > options.contents->EndLine()) {
+    if (line > options.contents.EndLine()) {
       break;
     }
 
@@ -286,7 +285,7 @@ BufferContentsWindow BufferContentsWindow::Get(
       DVLOG(5) << "Added screen line for line: " << line
                << ", range: " << output.lines.back().range;
 
-      if ((!line_breaks.empty() || line < options.contents->EndLine()) &&
+      if ((!line_breaks.empty() || line < options.contents.EndLine()) &&
           options.margin_lines <= options.lines_shown / 2 &&
           LineNumberDelta(output.lines.size()) == options.lines_shown &&
           (options.active_position.has_value() &&
@@ -373,7 +372,7 @@ const bool line_scroll_control_tests_registration =
                  contents->push_back(s);
                static CursorsSet active_cursors;
                BufferContentsWindow::Input options{
-                   .contents = contents,
+                   .contents = *contents,
                    .active_position = LineColumn(),
                    .active_cursors = new CursorsSet(),  // &active_cursors,
                    .line_wrap_style = LineWrapStyle::kBreakWords,

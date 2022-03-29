@@ -14,7 +14,7 @@
 namespace afc::editor {
 struct BufferContentsWindow {
   struct Input {
-    std::shared_ptr<BufferContents> contents;
+    const BufferContents& contents;
 
     // If present, adjusts the view (`begin`) to contain this location.
     std::optional<LineColumn> active_position;

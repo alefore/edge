@@ -303,7 +303,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
   BufferContentsWindow::Input buffer_contents_window_input{
-      .contents = buffer->contents().copy(),
+      .contents = buffer->contents(),
       .active_position = buffer->Read(buffer_variables::multiple_cursors)
                              ? std::optional<LineColumn>()
                              : buffer->position(),
