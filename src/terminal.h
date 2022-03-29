@@ -37,25 +37,25 @@ class Terminal {
   Terminal();
 
   // Reads the widgets' state from editor_state and writes it to screen.
-  void Display(const EditorState& editor_state, Screen* screen,
+  void Display(const EditorState& editor_state, Screen& screen,
                const EditorState::ScreenState& screen_state);
 
  private:
   // Function that will draw a given line of output at the current position. It
   // also contains knowledge about where the cursor will be at the end.
   struct LineDrawer {
-    std::function<void(Screen*)> draw_callback;
+    std::function<void(Screen&)> draw_callback;
     std::optional<ColumnNumber> cursor;
   };
 
-  void WriteLine(Screen* screen, LineNumber line,
+  void WriteLine(Screen& screen, LineNumber line,
                  LineWithCursor::Generator line_with_cursor);
 
   // Returns a DrawLine that can be used to draw a given line.
   static LineDrawer GetLineDrawer(LineWithCursor line_with_cursor,
                                   ColumnNumberDelta width);
 
-  void AdjustPosition(Screen* screen);
+  void AdjustPosition(Screen& screen);
 
   // Position at which the cursor should be placed in the screen, if known.
   std::optional<LineColumn> cursor_position_;

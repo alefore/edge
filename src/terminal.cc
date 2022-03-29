@@ -39,31 +39,31 @@ constexpr int Terminal::CTRL_K;
 
 Terminal::Terminal() : lines_cache_(1024) {}
 
-void Terminal::Display(const EditorState& editor_state, Screen* screen,
+void Terminal::Display(const EditorState& editor_state, Screen& screen,
                        const EditorState::ScreenState& screen_state) {
   if (screen_state.needs_hard_redraw) {
-    screen->HardRefresh();
+    screen.HardRefresh();
     hashes_current_lines_.clear();
     lines_cache_.Clear();
   }
-  screen->Move(LineNumber(0), ColumnNumber(0));
+  screen.Move(LineNumber(0), ColumnNumber(0));
 
-  const LineWithCursor::Generator::Vector status_lines = StatusOutput(
-      {.status = editor_state.status(),
-       .buffer = nullptr,
-       .modifiers = editor_state.modifiers(),
-       .size = LineColumnDelta(screen->lines(), screen->columns())});
+  const LineWithCursor::Generator::Vector status_lines =
+      StatusOutput({.status = editor_state.status(),
+                    .buffer = nullptr,
+                    .modifiers = editor_state.modifiers(),
+                    .size = LineColumnDelta(screen.lines(), screen.columns())});
 
   auto buffer = editor_state.current_buffer();
   RowsVector rows_vector{
       .index_active =
           editor_state.status().GetType() == Status::Type::kPrompt ? 1ul : 0ul,
-      .lines = screen->lines()};
+      .lines = screen.lines()};
 
   rows_vector.push_back(
       {.lines_vector = editor_state.buffer_tree().GetLines(
-           {.size = LineColumnDelta(screen->lines() - status_lines.size(),
-                                    screen->columns()),
+           {.size = LineColumnDelta(screen.lines() - status_lines.size(),
+                                    screen.columns()),
             .main_cursor_behavior =
                 (editor_state.status().GetType() == Status::Type::kPrompt ||
                  (buffer != nullptr &&
@@ -74,13 +74,13 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
                           kIgnore})});
 
   CHECK_EQ(rows_vector.rows[0].lines_vector.size(),
-           screen->lines() - status_lines.size());
+           screen.lines() - status_lines.size());
 
   rows_vector.push_back({.lines_vector = status_lines});
 
   LineWithCursor::Generator::Vector generators =
       OutputFromRowsVector(std::move(rows_vector));
-  for (LineNumber line; line.ToDelta() < screen->lines(); ++line) {
+  for (LineNumber line; line.ToDelta() < screen.lines(); ++line) {
     WriteLine(screen, line,
               line.ToDelta() < generators.size()
                   ? generators.lines[line.line]
@@ -92,13 +92,13 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
        buffer->status().GetType() == Status::Type::kPrompt) ||
       (buffer != nullptr && !buffer->Read(buffer_variables::atomic_lines) &&
        cursor_position_.has_value())) {
-    screen->SetCursorVisibility(Screen::NORMAL);
+    screen.SetCursorVisibility(Screen::NORMAL);
     AdjustPosition(screen);
   } else {
-    screen->SetCursorVisibility(Screen::INVISIBLE);
+    screen.SetCursorVisibility(Screen::INVISIBLE);
   }
-  screen->Refresh();
-  screen->Flush();
+  screen.Refresh();
+  screen.Flush();
 }
 
 // Adjust the name of a buffer to a string suitable to be shown in the Status
@@ -139,22 +139,22 @@ wstring TransformCommandNameForStatus(wstring name) {
   return output;
 }
 
-void FlushModifiers(Screen* screen, const LineModifierSet& modifiers) {
-  screen->SetModifier(LineModifier::RESET);
+void FlushModifiers(Screen& screen, const LineModifierSet& modifiers) {
+  screen.SetModifier(LineModifier::RESET);
   for (const auto& m : modifiers) {
-    screen->SetModifier(m);
+    screen.SetModifier(m);
   }
 }
 
-void Terminal::WriteLine(Screen* screen, LineNumber line,
+void Terminal::WriteLine(Screen& screen, LineNumber line,
                          LineWithCursor::Generator generator) {
   if (hashes_current_lines_.size() <= line.line) {
-    CHECK_LT(line.ToDelta(), screen->lines());
-    hashes_current_lines_.resize(screen->lines().line_delta * 2 + 50);
+    CHECK_LT(line.ToDelta(), screen.lines());
+    hashes_current_lines_.resize(screen.lines().line_delta * 2 + 50);
   }
 
   auto factory = [&] {
-    return GetLineDrawer(generator.generate(), screen->columns());
+    return GetLineDrawer(generator.generate(), screen.columns());
   };
 
   LineDrawer no_hash_drawer;
@@ -170,7 +170,7 @@ void Terminal::WriteLine(Screen* screen, LineNumber line,
   }
 
   VLOG(8) << "Generating line for screen: " << line;
-  screen->Move(line, ColumnNumber(0));
+  screen.Move(line, ColumnNumber(0));
   drawer->draw_callback(screen);
   hashes_current_lines_[line.line] = generator.inputs_hash;
   if (drawer->cursor.has_value()) {
@@ -190,7 +190,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   ColumnNumber output_column;
 
   functions.push_back(
-      [](Screen* screen) { screen->SetModifier(LineModifier::RESET); });
+      [](Screen& screen) { screen.SetModifier(LineModifier::RESET); });
 
   auto modifiers_it =
       line_with_cursor.line->modifiers().lower_bound(input_column);
@@ -222,13 +222,13 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
       auto str = Substring(line_with_cursor.line->contents(), start,
                            input_column - start)
                      ->ToString();
-      functions.push_back([str](Screen* screen) { screen->WriteString(str); });
+      functions.push_back([str](Screen& screen) { screen.WriteString(str); });
     }
 
     if (modifiers_it != line_with_cursor.line->modifiers().end()) {
       CHECK_GE(modifiers_it->first, input_column);
       if (modifiers_it->first == input_column) {
-        functions.push_back([modifiers = modifiers_it->second](Screen* screen) {
+        functions.push_back([modifiers = modifiers_it->second](Screen& screen) {
           FlushModifiers(screen, modifiers);
         });
         ++modifiers_it;
@@ -241,9 +241,9 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   }
 
   if (output_column < ColumnNumber(0) + width) {
-    functions.push_back([](Screen* screen) { screen->WriteString(L"\n"); });
+    functions.push_back([](Screen& screen) { screen.WriteString(L"\n"); });
   }
-  output.draw_callback = [functions = std::move(functions)](Screen* screen) {
+  output.draw_callback = [functions = std::move(functions)](Screen& screen) {
     for (auto& f : functions) {
       f(screen);
     }
@@ -251,10 +251,10 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   return output;
 }
 
-void Terminal::AdjustPosition(Screen* screen) {
+void Terminal::AdjustPosition(Screen& screen) {
   CHECK(cursor_position_.has_value());
   VLOG(5) << "Setting cursor position: " << cursor_position_.value();
-  screen->Move(cursor_position_.value().line, cursor_position_.value().column);
+  screen.Move(cursor_position_.value().line, cursor_position_.value().column);
 }
 
 }  // namespace editor
