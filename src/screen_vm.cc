@@ -59,9 +59,9 @@ class ScreenVm : public Screen {
                CursorVisibilityToString(cursor_visibility) + "\");";
   }
 
-  void Move(LineNumber y, ColumnNumber x) override {
-    buffer_ += "screen.Move(" + std::to_string(y.line) + ", " +
-               std::to_string(x.column) + ");";
+  void Move(LineColumn position) override {
+    buffer_ += "screen.Move(LineColumn(" + std::to_string(position.line.line) +
+               ", " + std::to_string(position.column.column) + "));";
   }
 
   void WriteString(const wstring& str) override {
@@ -152,11 +152,11 @@ void RegisterScreenType(Environment* environment) {
             ToByteString(cursor_visibility)));
       }));
 
-  screen_type->AddField(L"Move",
-                        vm::NewCallback([](Screen* screen, int y, int x) {
-                          CHECK(screen != nullptr);
-                          screen->Move(LineNumber(y), ColumnNumber(x));
-                        }));
+  screen_type->AddField(
+      L"Move", vm::NewCallback([](Screen* screen, LineColumn position) {
+        CHECK(screen != nullptr);
+        screen->Move(position);
+      }));
 
   screen_type->AddField(L"WriteString",
                         vm::NewCallback([](Screen* screen, wstring str) {

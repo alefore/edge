@@ -50,7 +50,9 @@ class ScreenCurses : public Screen {
     }
   }
 
-  void Move(LineNumber y, ColumnNumber x) override { move(y.line, x.column); }
+  void Move(LineColumn position) override {
+    move(position.line.line, position.column.column);
+  }
   void WriteString(const wstring& s) override { addwstr(s.c_str()); }
 
   void SetModifier(LineModifier modifier) override {

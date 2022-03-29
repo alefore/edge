@@ -46,7 +46,7 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
     hashes_current_lines_.clear();
     lines_cache_.Clear();
   }
-  screen.Move(LineNumber(0), ColumnNumber(0));
+  screen.Move(LineColumn());
 
   LineColumnDelta screen_size = screen.size();
   const LineWithCursor::Generator::Vector status_lines =
@@ -171,7 +171,7 @@ void Terminal::WriteLine(Screen& screen, LineNumber line,
   }
 
   VLOG(8) << "Generating line for screen: " << line;
-  screen.Move(line, ColumnNumber(0));
+  screen.Move(LineColumn(line));
   drawer->draw_callback(screen);
   hashes_current_lines_[line.line] = generator.inputs_hash;
   if (drawer->cursor.has_value()) {
@@ -255,7 +255,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
 void Terminal::AdjustPosition(Screen& screen) {
   CHECK(cursor_position_.has_value());
   VLOG(5) << "Setting cursor position: " << cursor_position_.value();
-  screen.Move(cursor_position_.value().line, cursor_position_.value().column);
+  screen.Move(LineColumn(cursor_position_.value()));
 }
 
 }  // namespace editor

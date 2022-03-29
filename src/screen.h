@@ -49,7 +49,7 @@ class Screen {
   }
 
   virtual void SetCursorVisibility(CursorVisibility cursor_visibility) = 0;
-  virtual void Move(LineNumber y, ColumnNumber x) = 0;
+  virtual void Move(LineColumn position) = 0;
   virtual void WriteString(const wstring& str) = 0;
 
   virtual void SetModifier(LineModifier modifier) = 0;
