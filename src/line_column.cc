@@ -692,6 +692,28 @@ const VMType VMTypeMapper<editor::LineColumn>::vmtype =
     VMType::ObjectType(L"LineColumn");
 
 /* static */
+editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
+    Value* value) {
+  CHECK(value != nullptr);
+  CHECK_EQ(value->type, vmtype);
+  CHECK(value->user_value != nullptr);
+  return *static_cast<editor::LineColumnDelta*>(value->user_value.get());
+}
+
+/* static */
+Value::Ptr VMTypeMapper<editor::LineColumnDelta>::New(
+    editor::LineColumnDelta value) {
+  return Value::NewObject(
+      vmtype.object_type,
+      shared_ptr<void>(new editor::LineColumnDelta(value), [](void* v) {
+        delete static_cast<editor::LineColumnDelta*>(v);
+      }));
+}
+
+const VMType VMTypeMapper<editor::LineColumnDelta>::vmtype =
+    VMType::ObjectType(L"LineColumnDelta");
+
+/* static */
 editor::Range VMTypeMapper<editor::Range>::get(Value* value) {
   CHECK(value != nullptr);
   CHECK_EQ(value->type, VMTypeMapper<editor::Range>::vmtype);
