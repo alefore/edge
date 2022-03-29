@@ -116,8 +116,9 @@ class ScreenCurses : public Screen {
     }
   }
 
-  LineNumberDelta lines() const override { return LineNumberDelta(LINES); }
-  ColumnNumberDelta columns() const override { return ColumnNumberDelta(COLS); }
+  LineColumnDelta size() const override {
+    return LineColumnDelta(LineNumberDelta(LINES), ColumnNumberDelta(COLS));
+  }
 };
 }  // namespace
 

@@ -225,8 +225,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
       terminal->Display(editor_state(), *screen_curses, screen_state.value());
     } else {
       screen_curses->Refresh();  // Don't want this to be buffered!
-      auto screen_size =
-          LineColumnDelta{screen_curses->lines(), screen_curses->columns()};
+      LineColumnDelta screen_size = screen_curses->size();
       if (last_screen_size->has_value() &&
           screen_size != last_screen_size->value()) {
         LOG(INFO) << "Sending screen size update to server.";

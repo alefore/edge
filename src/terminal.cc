@@ -48,22 +48,23 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
   }
   screen.Move(LineNumber(0), ColumnNumber(0));
 
+  LineColumnDelta screen_size = screen.size();
   const LineWithCursor::Generator::Vector status_lines =
       StatusOutput({.status = editor_state.status(),
                     .buffer = nullptr,
                     .modifiers = editor_state.modifiers(),
-                    .size = LineColumnDelta(screen.lines(), screen.columns())});
+                    .size = screen_size});
 
   auto buffer = editor_state.current_buffer();
   RowsVector rows_vector{
       .index_active =
           editor_state.status().GetType() == Status::Type::kPrompt ? 1ul : 0ul,
-      .lines = screen.lines()};
+      .lines = screen_size.line};
 
   rows_vector.push_back(
       {.lines_vector = editor_state.buffer_tree().GetLines(
-           {.size = LineColumnDelta(screen.lines() - status_lines.size(),
-                                    screen.columns()),
+           {.size = LineColumnDelta(screen_size.line - status_lines.size(),
+                                    screen_size.column),
             .main_cursor_behavior =
                 (editor_state.status().GetType() == Status::Type::kPrompt ||
                  (buffer != nullptr &&
@@ -74,13 +75,13 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
                           kIgnore})});
 
   CHECK_EQ(rows_vector.rows[0].lines_vector.size(),
-           screen.lines() - status_lines.size());
+           screen_size.line - status_lines.size());
 
   rows_vector.push_back({.lines_vector = status_lines});
 
   LineWithCursor::Generator::Vector generators =
       OutputFromRowsVector(std::move(rows_vector));
-  for (LineNumber line; line.ToDelta() < screen.lines(); ++line) {
+  for (LineNumber line; line.ToDelta() < screen_size.line; ++line) {
     WriteLine(screen, line,
               line.ToDelta() < generators.size()
                   ? generators.lines[line.line]
@@ -149,12 +150,12 @@ void FlushModifiers(Screen& screen, const LineModifierSet& modifiers) {
 void Terminal::WriteLine(Screen& screen, LineNumber line,
                          LineWithCursor::Generator generator) {
   if (hashes_current_lines_.size() <= line.line) {
-    CHECK_LT(line.ToDelta(), screen.lines());
-    hashes_current_lines_.resize(screen.lines().line_delta * 2 + 50);
+    CHECK_LT(line.ToDelta(), screen.size().line);
+    hashes_current_lines_.resize(screen.size().line.line_delta * 2 + 50);
   }
 
   auto factory = [&] {
-    return GetLineDrawer(generator.generate(), screen.columns());
+    return GetLineDrawer(generator.generate(), screen.size().column);
   };
 
   LineDrawer no_hash_drawer;

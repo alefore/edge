@@ -54,8 +54,7 @@ class Screen {
 
   virtual void SetModifier(LineModifier modifier) = 0;
 
-  virtual LineNumberDelta lines() const = 0;
-  virtual ColumnNumberDelta columns() const = 0;
+  virtual LineColumnDelta size() const = 0;
 };
 
 }  // namespace editor

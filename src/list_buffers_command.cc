@@ -63,7 +63,8 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
       screen_value->user_value != nullptr) {
     auto screen = static_cast<Screen*>(screen_value->user_value.get());
     const LineNumberDelta reserved_lines(1);  // For the status.
-    screen_lines = max(LineNumberDelta(0), screen->lines() - reserved_lines);
+    screen_lines =
+        max(LineNumberDelta(0), screen->size().line - reserved_lines);
   }
 
   vector<std::shared_ptr<OpenBuffer>> buffers_to_show;

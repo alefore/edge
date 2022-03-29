@@ -73,12 +73,10 @@ class ScreenVm : public Screen {
     buffer_ += "screen.SetModifier(\"" + ModifierToString(modifier) + "\");";
   }
 
-  LineNumberDelta lines() const { return lines_; }
-  ColumnNumberDelta columns() const { return columns_; }
-  void set_size(ColumnNumberDelta columns, LineNumberDelta lines) {
-    DVLOG(5) << "Received new size: " << columns << " x " << lines;
-    columns_ = columns;
-    lines_ = lines;
+  LineColumnDelta size() const override { return size_; }
+  void set_size(LineColumnDelta size) {
+    DVLOG(5) << "Received new size: " << size;
+    size_ = size;
   }
 
  private:
@@ -94,8 +92,8 @@ class ScreenVm : public Screen {
 
   string buffer_;
   const int fd_;
-  ColumnNumberDelta columns_ = ColumnNumberDelta(80);
-  LineNumberDelta lines_ = LineNumberDelta(25);
+  LineColumnDelta size_ =
+      LineColumnDelta(LineNumberDelta(25), ColumnNumberDelta(80));
 };
 }  // namespace
 
@@ -174,20 +172,15 @@ void RegisterScreenType(Environment* environment) {
       }));
 
   screen_type->AddField(
-      L"set_size", vm::NewCallback([](Screen* screen, int columns, int lines) {
+      L"set_size", vm::NewCallback([](Screen* screen, LineColumnDelta size) {
         ScreenVm* screen_vm = dynamic_cast<ScreenVm*>(screen);
         CHECK(screen != nullptr);
-        screen_vm->set_size(ColumnNumberDelta(columns), LineNumberDelta(lines));
+        screen_vm->set_size(size);
       }));
 
-  screen_type->AddField(L"columns", vm::NewCallback([](Screen* screen) {
+  screen_type->AddField(L"size", vm::NewCallback([](Screen* screen) {
                           CHECK(screen != nullptr);
-                          return screen->columns().column_delta;
-                        }));
-
-  screen_type->AddField(L"lines", vm::NewCallback([](Screen* screen) {
-                          CHECK(screen != nullptr);
-                          return screen->lines().line_delta;
+                          return screen->size();
                         }));
 
   environment->DefineType(L"Screen", std::move(screen_type));
