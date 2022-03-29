@@ -419,7 +419,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
           [&editor_state, abort_notification, filter_buffer](Output output) {
             LOG(INFO) << "Receiving output from history evaluator.";
             if (!output.errors.empty()) {
-              editor_state.status().SetWarningText(output.errors.front());
+              editor_state.status().SetExpiringInformationText(
+                  output.errors.front());
             }
             if (!abort_notification->HasBeenNotified()) {
               for (auto& line : output.lines) {
