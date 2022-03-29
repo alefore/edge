@@ -34,26 +34,26 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 }
 
 futures::Value<PossibleError> PreviewCppExpression(
-    OpenBuffer* buffer, const BufferContents& expression_str) {
+    OpenBuffer& buffer, const BufferContents& expression_str) {
   std::wstring errors;
   std::shared_ptr<Expression> expression;
   std::shared_ptr<Environment> environment;
   std::tie(expression, environment) =
-      buffer->CompileString(expression_str.ToString(), &errors);
+      buffer.CompileString(expression_str.ToString(), &errors);
   if (expression == nullptr) {
     return futures::Past(PossibleError(Error(errors)));
   }
 
-  buffer->status().Reset();
+  buffer.status().Reset();
   switch (expression->purity()) {
     case vm::Expression::PurityType::kPure: {
-      return buffer->EvaluateExpression(expression.get(), environment)
-          .Transform([buffer, expression](std::unique_ptr<Value> value) {
-            ShowValue(*buffer, nullptr, *value);
+      return buffer.EvaluateExpression(expression.get(), environment)
+          .Transform([&buffer, expression](std::unique_ptr<Value> value) {
+            ShowValue(buffer, nullptr, *value);
             return Success();
           })
-          .ConsumeErrors([buffer](Error error) {
-            buffer->status().SetInformationText(L"E: " + error.description);
+          .ConsumeErrors([&buffer](Error error) {
+            buffer.status().SetInformationText(L"E: " + error.description);
             return futures::Past(EmptyValue());
           })
           .Transform([](EmptyValue) { return futures::Past(Success()); });
@@ -67,7 +67,7 @@ futures::Value<PossibleError> PreviewCppExpression(
 
 futures::Value<Result> HandleCommandCpp(Input input,
                                         Delete original_delete_transformation) {
-  std::unique_ptr<BufferContents> contents = input.buffer->contents().copy();
+  std::unique_ptr<BufferContents> contents = input.buffer.contents().copy();
   contents->FilterToRange(*original_delete_transformation.range);
   if (input.mode == Input::Mode::kPreview) {
     auto delete_transformation =
@@ -76,10 +76,10 @@ futures::Value<Result> HandleCommandCpp(Input input,
                                                 LineModifier::UNDERLINE};
     return PreviewCppExpression(input.buffer, *contents)
         .ConsumeErrors(
-            [buffer = input.buffer, delete_transformation](Error error) {
+            [&buffer = input.buffer, delete_transformation](Error error) {
               delete_transformation->preview_modifiers = {
                   LineModifier::RED, LineModifier::UNDERLINE};
-              buffer->status().SetInformationText(error.description);
+              buffer.status().SetInformationText(error.description);
               return futures::Past(EmptyValue());
             })
         .Transform([delete_transformation, input](EmptyValue) {
@@ -87,17 +87,17 @@ futures::Value<Result> HandleCommandCpp(Input input,
                        input.NewChild(delete_transformation->range->begin));
         });
   }
-  return input.buffer->EvaluateString(contents->ToString())
+  return input.buffer.EvaluateString(contents->ToString())
       .Transform([input](std::unique_ptr<Value> value) {
         CHECK(value != nullptr);
-        ShowValue(*input.buffer, input.delete_buffer, *value);
+        ShowValue(input.buffer, input.delete_buffer, *value);
         Result output(input.position);
         output.added_to_paste_buffer = true;
         return Success(std::move(output));
       })
       .ConsumeErrors([input](Error error) {
         Result output(input.position);
-        input.buffer->status().SetWarningText(L"Error: " + error.description);
+        input.buffer.status().SetWarningText(L"Error: " + error.description);
         if (input.delete_buffer != nullptr) {
           input.delete_buffer->AppendToLastLine(Line(
               Line::Options(NewLazyString(L"Error: " + error.description))));
@@ -273,14 +273,14 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   auto output = std::make_shared<Result>(input.position);
   auto copy = std::make_shared<Stack>(parameters);
   std::shared_ptr<Log> trace =
-      input.buffer->log()->NewChild(L"ApplyBase(Stack)");
+      input.buffer.log()->NewChild(L"ApplyBase(Stack)");
   return ApplyStackDirectly(copy->stack.begin(), copy->stack.end(), input,
                             trace, output)
       .Transform([output, input, copy, trace](EmptyValue) {
         Range range{min(min(input.position, output->position),
-                        input.buffer->end_position()),
+                        input.buffer.end_position()),
                     min(max(input.position, output->position),
-                        input.buffer->end_position())};
+                        input.buffer.end_position())};
         Delete delete_transformation{
             .modifiers = {.direction = input.position < output->position
                                            ? Direction::kForwards
@@ -289,20 +289,20 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone: {
             std::shared_ptr<BufferContents> contents =
-                input.buffer->contents().copy();
+                input.buffer.contents().copy();
             contents->FilterToRange(range);
-            input.buffer->status().Reset();
+            input.buffer.status().Reset();
             DVLOG(5) << "Analyze contents for range: " << range;
             return PreviewCppExpression(input.buffer, *contents)
                 .ConsumeErrors(
                     [](Error) { return futures::Past(EmptyValue()); })
                 .Transform([input, output, contents](EmptyValue) {
                   if (input.mode == Input::Mode::kPreview &&
-                      input.buffer->status().text().empty() &&
+                      input.buffer.status().text().empty() &&
                       contents->EndLine() <
-                          LineNumber(input.buffer->Read(
+                          LineNumber(input.buffer.Read(
                               buffer_variables::analyze_content_lines_limit))) {
-                    input.buffer->status().SetInformationText(
+                    input.buffer.status().SetInformationText(
                         L"Selection: " + ToString(AnalyzeContent(*contents)));
                   }
                   return futures::Past(std::move(*output));
@@ -323,14 +323,14 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
               return Apply(delete_transformation, input.NewChild(range.begin));
             }
             std::unique_ptr<BufferContents> contents =
-                input.buffer->contents().copy();
+                input.buffer.contents().copy();
             contents->FilterToRange(*delete_transformation.range);
-            ForkCommand(input.buffer->editor(),
+            ForkCommand(input.buffer.editor(),
                         ForkCommandOptions{
                             .command = contents->ToString(),
                             .environment = {
                                 {L"EDGE_PARENT_BUFFER_PATH",
-                                 input.buffer->Read(buffer_variables::path)}}});
+                                 input.buffer.Read(buffer_variables::path)}}});
             return futures::Past(std::move(*output));
           }
           case Stack::PostTransformationBehavior::kCommandCpp:

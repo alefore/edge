@@ -74,19 +74,18 @@ std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
 }
 
 // Calls the callbacks in the line (EdgeLineDeleteHandler).
-void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
-  CHECK(buffer != nullptr);
-  position = buffer->AdjustLineColumn(position);
-  CHECK_GE(buffer->contents().size(), position.line.ToDelta());
+void HandleLineDeletion(LineColumn position, OpenBuffer& buffer) {
+  position = buffer.AdjustLineColumn(position);
+  CHECK_GE(buffer.contents().size(), position.line.ToDelta());
 
   LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
-            << buffer->contents().size();
+            << buffer.contents().size();
 
-  const auto contents = buffer->LineAt(position.line);
+  const auto contents = buffer.LineAt(position.line);
   DVLOG(5) << "Erasing line: " << contents->ToString();
   if (!position.column.IsZero()) return;
-  auto target_buffer = buffer->GetBufferFromCurrentLine();
-  if (target_buffer.get() != buffer && target_buffer != nullptr) {
+  auto target_buffer = buffer.GetBufferFromCurrentLine();
+  if (target_buffer.get() != &buffer && target_buffer != nullptr) {
     target_buffer->editor().CloseBuffer(*target_buffer);
   }
 
@@ -100,7 +99,7 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
       vm::NewFunctionCall(vm::NewConstantExpression(std::move(callback)), {});
   // TODO(easy): I think we don't need to keep expr alive?
   Evaluate(
-      expr.get(), buffer->environment(),
+      expr.get(), buffer.environment(),
       [work_queue = target_buffer->work_queue()](
           std::function<void()> callback) { work_queue->Schedule(callback); })
       .SetConsumer([expr](auto) { /* Keep expr alive. */ });
@@ -109,32 +108,31 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
 namespace transformation {
 futures::Value<transformation::Result> ApplyBase(const Delete& options,
                                                  Input input) {
-  CHECK(input.buffer != nullptr);
   input.mode = options.mode.value_or(input.mode);
 
   auto output = std::make_shared<transformation::Result>(
-      input.buffer->AdjustLineColumn(input.position));
+      input.buffer.AdjustLineColumn(input.position));
   Range range;
 
   if (options.range.has_value()) {
     range = *options.range;
   } else {
-    range = input.buffer->FindPartialRange(options.modifiers, output->position);
+    range = input.buffer.FindPartialRange(options.modifiers, output->position);
     range.begin = min(range.begin, output->position);
     range.end = max(range.end, output->position);
     if (range.IsEmpty()) {
       switch (options.modifiers.direction) {
         case Direction::kForwards:
-          range.end = input.buffer->contents().PositionAfter(range.end);
+          range.end = input.buffer.contents().PositionAfter(range.end);
           break;
         case Direction::kBackwards:
-          range.begin = input.buffer->contents().PositionBefore(range.begin);
+          range.begin = input.buffer.contents().PositionBefore(range.begin);
           break;
       }
     }
   }
-  range.begin = input.buffer->AdjustLineColumn(range.begin);
-  range.end = input.buffer->AdjustLineColumn(range.end);
+  range.begin = input.buffer.AdjustLineColumn(range.begin);
+  range.end = input.buffer.AdjustLineColumn(range.end);
 
   CHECK_LE(range.begin, range.end);
   if (range.IsEmpty()) {
@@ -156,7 +154,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   output->success = true;
   output->made_progress = true;
 
-  auto delete_buffer = GetDeletedTextBuffer(*input.buffer, range);
+  auto delete_buffer = GetDeletedTextBuffer(input.buffer, range);
   if (options.modifiers.paste_buffer_behavior ==
           Modifiers::PasteBufferBehavior::kDeleteInto &&
       input.mode == Input::Mode::kFinal && input.delete_buffer != nullptr) {
@@ -174,7 +172,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     return futures::Past(std::move(*output));
   }
 
-  input.buffer->DeleteRange(range);
+  input.buffer.DeleteRange(range);
   output->modified_buffer = true;
 
   return Apply(transformation::SetPosition(range.begin), input)

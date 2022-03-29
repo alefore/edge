@@ -36,7 +36,6 @@ const VMType
 }  // namespace vm
 namespace editor::transformation {
 futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
-  CHECK(input.buffer != nullptr);
   struct Data {
     size_t index = 0;
     std::unique_ptr<Result> output;

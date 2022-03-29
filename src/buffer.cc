@@ -2349,7 +2349,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 futures::Value<typename transformation::Result> OpenBuffer::Apply(
     transformation::Variant transformation, LineColumn position,
     transformation::Input::Mode mode) {
-  transformation::Input input(this);
+  transformation::Input input(*this);
   input.mode = mode;
   input.position = position;
   if (Read(buffer_variables::delete_into_paste_buffer)) {
@@ -2443,7 +2443,7 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
                data->source->empty()) {
              return futures::Past(IterationControlCommand::kStop);
            }
-           transformation::Input input(this);
+           transformation::Input input(*this);
            input.position = position();
            // We've undone the entire changes, so...
            last_transformation_stack_.clear();

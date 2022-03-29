@@ -17,7 +17,7 @@ std::wstring ToString(const Variant& transformation) {
       transformation);
 }
 
-Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
+Input::Input(OpenBuffer& buffer) : buffer(buffer) {}
 
 Input Input::NewChild(LineColumn new_position) const {
   Input child(buffer);

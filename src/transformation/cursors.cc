@@ -10,7 +10,6 @@
 
 namespace afc::editor::transformation {
 futures::Value<Result> ApplyBase(const Cursors& parameters, Input input) {
-  CHECK(input.buffer != nullptr);
   vector<LineColumn> positions = {parameters.active};
   bool skipped = false;
   for (const auto& cursor : parameters.cursors) {
@@ -20,7 +19,7 @@ futures::Value<Result> ApplyBase(const Cursors& parameters, Input input) {
       positions.push_back(cursor);
     }
   }
-  input.buffer->set_active_cursors(positions);
+  input.buffer.set_active_cursors(positions);
   return futures::Past(Result(parameters.active));
 }
 

@@ -8,7 +8,7 @@ class OpenBuffer;
 class CompositeTransformation;
 namespace transformation {
 struct Input {
-  explicit Input(editor::OpenBuffer* buffer);
+  explicit Input(editor::OpenBuffer& buffer);
   Input NewChild(LineColumn position) const;
 
   // Input parameter.
@@ -23,7 +23,7 @@ struct Input {
   Mode mode = Mode::kFinal;
 
   // The buffer that the transformation should modify.
-  editor::OpenBuffer* const buffer;
+  editor::OpenBuffer& buffer;
 
   // If non-null, if the transformation deletes text, it should append it to
   // this buffer (for pasting it later).

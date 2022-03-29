@@ -43,22 +43,20 @@ transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
 
 futures::Value<transformation::Result> ApplyBase(const Insert& options,
                                                  transformation::Input input) {
-  CHECK(input.buffer != nullptr);
   size_t length = options.contents_to_insert->CountCharacters();
   if (length == 0) {
     return futures::Past(transformation::Result(input.position));
   }
 
-  auto result =
-      std::make_shared<transformation::Result>(input.buffer->AdjustLineColumn(
-          options.position.value_or(input.position)));
+  auto result = std::make_shared<transformation::Result>(
+      input.buffer.AdjustLineColumn(options.position.value_or(input.position)));
 
   result->modified_buffer = true;
   result->made_progress = true;
 
   LineColumn start_position = result->position;
   for (size_t i = 0; i < options.modifiers.repetitions.value_or(1); i++) {
-    result->position = input.buffer->InsertInPosition(
+    result->position = input.buffer.InsertInPosition(
         *options.contents_to_insert, result->position, options.modifiers_set);
   }
   LineColumn final_position = result->position;
