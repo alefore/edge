@@ -51,7 +51,7 @@ class EditorState {
     bool needs_hard_redraw = false;
   };
 
-  EditorState(CommandLineValues args, AudioPlayer* audio_player);
+  EditorState(CommandLineValues args, AudioPlayer& audio_player);
   ~EditorState();
 
   const bool& Read(const EdgeVariable<bool>* variable) const;
@@ -208,7 +208,7 @@ class EditorState {
     return pipe_to_communicate_internal_events_.first;
   }
 
-  AudioPlayer* audio_player() const { return audio_player_; }
+  AudioPlayer& audio_player() const { return audio_player_; }
 
   // Can return null.
   std::shared_ptr<EditorMode> keyboard_redirect() const {
@@ -278,7 +278,7 @@ class EditorState {
   std::mutex has_internal_events_mutex_;
   bool has_internal_events_ = false;
 
-  AudioPlayer* const audio_player_;
+  AudioPlayer& audio_player_;
 
   BuffersList buffer_tree_;
   Status status_;

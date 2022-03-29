@@ -484,7 +484,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   return environment;
 }
 
-EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
+EditorState::EditorState(CommandLineValues args, AudioPlayer& audio_player)
     : string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),

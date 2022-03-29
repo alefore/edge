@@ -279,10 +279,11 @@ int main(int argc, const char** argv) {
                                                  argc, argv);
 
   LOG(INFO) << "Setting up audio_player.";
-  auto audio_player = args.mute ? NewNullAudioPlayer() : NewAudioPlayer();
+  const std::unique_ptr<AudioPlayer> audio_player =
+      args.mute ? NewNullAudioPlayer() : NewAudioPlayer();
 
   LOG(INFO) << "Creating editor.";
-  global_editor_state = std::make_unique<EditorState>(args, audio_player.get());
+  global_editor_state = std::make_unique<EditorState>(args, *audio_player);
 
   switch (args.tests_behavior) {
     case CommandLineValues::TestsBehavior::kRunAndExit:
@@ -373,7 +374,7 @@ int main(int argc, const char** argv) {
   // changes to the server).
   std::optional<LineColumnDelta> last_screen_size;
 
-  BeepFrequencies(audio_player.get(), {783.99, 723.25, 783.99});
+  BeepFrequencies(*audio_player, {783.99, 723.25, 783.99});
   editor_state().status().SetInformationText(GetGreetingMessage());
 
   LOG(INFO) << "Main loop starting.";

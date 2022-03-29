@@ -203,18 +203,18 @@ AudioPlayer::Generator Smooth(double weight, int end_interval_samples,
   };
 }
 
-void GenerateBeep(AudioPlayer* audio_player, double frequency) {
+void GenerateBeep(AudioPlayer& audio_player, double frequency) {
   VLOG(5) << "Generating Beep";
-  auto lock = audio_player->lock();
+  auto lock = audio_player.lock();
   double start = lock->time();
   double duration = 0.1;
   lock->Add(Volume(SmoothVolume(0.3, start, start + duration, 0.01),
                    Expiration(start + duration, Frequency(frequency))));
 }
 
-void BeepFrequencies(AudioPlayer* audio_player,
+void BeepFrequencies(AudioPlayer& audio_player,
                      const std::vector<double>& frequencies) {
-  auto lock = audio_player->lock();
+  auto lock = audio_player.lock();
   for (size_t i = 0; i < frequencies.size(); i++) {
     double start = lock->time() + i * 0.1;
     lock->Add(Volume(SmoothVolume(0.3, start, start + 0.03, 0.01),
@@ -222,7 +222,7 @@ void BeepFrequencies(AudioPlayer* audio_player,
   }
 }
 
-void GenerateAlert(AudioPlayer* audio_player) {
+void GenerateAlert(AudioPlayer& audio_player) {
   VLOG(5) << "Generating Beep";
   BeepFrequencies(audio_player, {523.25, 659.25, 783.99});
 }

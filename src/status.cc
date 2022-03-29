@@ -148,7 +148,7 @@ void StatusPromptExtraInformation::MarkVersionDone(int version) {
   }
 }
 
-Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player)
+Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer& audio_player)
     : console_(std::move(console)), audio_player_(audio_player) {
   ValidatePreconditions();
 }

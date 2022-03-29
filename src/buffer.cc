@@ -2542,14 +2542,14 @@ void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>* source) {
 
 namespace {
 EditorState& EditorForTests() {
-  static auto player = NewNullAudioPlayer();
+  static AudioPlayer* player = NewNullAudioPlayer().release();
   static EditorState editor_for_tests(
       [] {
         CommandLineValues output;
         output.config_paths = {L"/home/edge-test-user/.edge/"};
         return output;
       }(),
-      player.get());
+      *player);
   return editor_for_tests;
 }
 }  // namespace

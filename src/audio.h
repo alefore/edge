@@ -41,9 +41,9 @@ class AudioPlayer {
 std::unique_ptr<AudioPlayer> NewAudioPlayer();
 std::unique_ptr<AudioPlayer> NewNullAudioPlayer();
 
-void GenerateBeep(AudioPlayer* audio_player, double frequency);
-void GenerateAlert(AudioPlayer* audio_player);
-void BeepFrequencies(AudioPlayer* audio_player,
+void GenerateBeep(AudioPlayer& audio_player, double frequency);
+void GenerateAlert(AudioPlayer& audio_player);
+void BeepFrequencies(AudioPlayer& audio_player,
                      const std::vector<double>& frequencies);
 
 AudioPlayer::Generator Frequency(double freq);
