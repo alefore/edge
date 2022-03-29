@@ -606,7 +606,7 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
     }
 
     buffer->Close();
-    buffer_tree_.RemoveBuffer(buffer);
+    buffer_tree_.RemoveBuffer(*buffer);
     buffers_.erase(buffer->name());
     AdjustWidgets();
   });

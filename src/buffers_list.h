@@ -19,9 +19,9 @@ class BuffersList {
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
   void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                  AddBufferType add_buffer_type);
-  void RemoveBuffer(OpenBuffer* buffer);
+  void RemoveBuffer(const OpenBuffer& buffer);
   std::vector<std::shared_ptr<OpenBuffer>> GetAllBuffers() const;
-  std::shared_ptr<OpenBuffer> GetBuffer(size_t index);
+  const std::shared_ptr<OpenBuffer>& GetBuffer(size_t index) const;
   std::optional<size_t> GetBufferIndex(const OpenBuffer* buffer) const;
   size_t GetCurrentIndex();
   size_t BuffersCount() const;

@@ -465,8 +465,6 @@ void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
   }
 }
 
-//     .Produce(layout.lines)
-
 LineWithCursor::Generator::Vector ProduceBuffersList(
     std::shared_ptr<BuffersListOptions> options) {
   const ColumnNumberDelta prefix_width = ColumnNumberDelta(
@@ -644,11 +642,10 @@ std::vector<std::shared_ptr<OpenBuffer>> BuffersList::GetAllBuffers() const {
   return buffers_;
 }
 
-void BuffersList::RemoveBuffer(OpenBuffer* buffer) {
-  CHECK(buffer != nullptr);
+void BuffersList::RemoveBuffer(const OpenBuffer& buffer) {
   if (auto it = std::find_if(buffers_.begin(), buffers_.end(),
-                             [buffer](std::shared_ptr<OpenBuffer>& candidate) {
-                               return candidate.get() == buffer;
+                             [&buffer](std::shared_ptr<OpenBuffer>& candidate) {
+                               return candidate.get() == &buffer;
                              });
       it != buffers_.end()) {
     buffers_.erase(it);
@@ -656,7 +653,7 @@ void BuffersList::RemoveBuffer(OpenBuffer* buffer) {
   Update();
 }
 
-std::shared_ptr<OpenBuffer> BuffersList::GetBuffer(size_t index) {
+const std::shared_ptr<OpenBuffer>& BuffersList::GetBuffer(size_t index) const {
   CHECK_LT(index, buffers_.size());
   return buffers_[index];
 }
