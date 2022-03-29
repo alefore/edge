@@ -206,14 +206,16 @@ futures::Value<PossibleError> GenerateContents(
                         target->Read(buffer_variables::pts), child_pid);
   target->AddEndOfFileObserver([&editor_state, data, target]() {
     LOG(INFO) << "End of file notification.";
-    CHECK(target->child_exit_status().has_value());
-    int success = WIFEXITED(target->child_exit_status().value()) &&
-                  WEXITSTATUS(target->child_exit_status().value()) == 0;
-    double frequency =
-        target->Read(success ? buffer_variables::beep_frequency_success
-                             : buffer_variables::beep_frequency_failure);
-    if (frequency > 0.0001) {
-      GenerateBeep(editor_state.audio_player(), frequency);
+    if (editor_state.buffer_tree().GetBufferIndex(target).has_value()) {
+      CHECK(target->child_exit_status().has_value());
+      int success = WIFEXITED(target->child_exit_status().value()) &&
+                    WEXITSTATUS(target->child_exit_status().value()) == 0;
+      double frequency =
+          target->Read(success ? buffer_variables::beep_frequency_success
+                               : buffer_variables::beep_frequency_failure);
+      if (frequency > 0.0001) {
+        GenerateBeep(editor_state.audio_player(), frequency);
+      }
     }
     time(&data->time_end);
   });
