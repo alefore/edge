@@ -594,20 +594,19 @@ void EditorState::CheckPosition() {
   }
 }
 
-void EditorState::CloseBuffer(OpenBuffer* buffer) {
-  CHECK(buffer != nullptr);
-  buffer->PrepareToClose().SetConsumer([this, buffer](PossibleError error) {
+void EditorState::CloseBuffer(OpenBuffer& buffer) {
+  buffer.PrepareToClose().SetConsumer([this, &buffer](PossibleError error) {
     if (error.IsError()) {
-      buffer->status().SetWarningText(
+      buffer.status().SetWarningText(
           L"🖝  Unable to close (“*ad” to ignore): " +
           error.error().description + L": " +
-          buffer->Read(buffer_variables::name));
+          buffer.Read(buffer_variables::name));
       return;
     }
 
-    buffer->Close();
-    buffer_tree_.RemoveBuffer(*buffer);
-    buffers_.erase(buffer->name());
+    buffer.Close();
+    buffer_tree_.RemoveBuffer(buffer);
+    buffers_.erase(buffer.name());
     AdjustWidgets();
   });
 }
@@ -687,7 +686,7 @@ std::vector<std::shared_ptr<OpenBuffer>> EditorState::active_buffers() const {
 void EditorState::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                             BuffersList::AddBufferType insertion_type) {
   auto initial_active_buffers = active_buffers();
-  buffer_tree()->AddBuffer(buffer, insertion_type);
+  buffer_tree().AddBuffer(buffer, insertion_type);
   AdjustWidgets();
   if (initial_active_buffers != active_buffers()) {
     // The set of buffers changed; if some mode was active, ... cancel it.
@@ -720,9 +719,9 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
   auto value = futures::Past(EmptyValue());
   if (!modifiers().repetitions.has_value()) {
     value = ForEachActiveBuffer(callback);
-  } else if (auto buffer = buffer_tree()->GetBuffer(
+  } else if (auto buffer = buffer_tree().GetBuffer(
                  (max(modifiers().repetitions.value(), 1ul) - 1) %
-                 buffer_tree()->BuffersCount());
+                 buffer_tree().BuffersCount());
              buffer != nullptr) {
     value = callback(buffer);
   }

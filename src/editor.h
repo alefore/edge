@@ -64,7 +64,7 @@ class EditorState {
 
   void CheckPosition();
 
-  void CloseBuffer(OpenBuffer* buffer);
+  void CloseBuffer(OpenBuffer& buffer);
 
   const std::map<BufferName, std::shared_ptr<OpenBuffer>>* buffers() const {
     return &buffers_;
@@ -73,8 +73,8 @@ class EditorState {
   std::map<BufferName, std::shared_ptr<OpenBuffer>>* buffers() {
     return &buffers_;
   }
-  BuffersList* buffer_tree() { return &buffer_tree_; }
-  const BuffersList* buffer_tree() const { return &buffer_tree_; }
+  BuffersList& buffer_tree() { return buffer_tree_; }
+  const BuffersList& buffer_tree() const { return buffer_tree_; }
 
   void set_current_buffer(shared_ptr<OpenBuffer> buffer,
                           CommandArgumentModeApplyMode apply_mode);

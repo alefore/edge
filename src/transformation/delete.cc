@@ -87,7 +87,7 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
   if (!position.column.IsZero()) return;
   auto target_buffer = buffer->GetBufferFromCurrentLine();
   if (target_buffer.get() != buffer && target_buffer != nullptr) {
-    target_buffer->editor().CloseBuffer(target_buffer.get());
+    target_buffer->editor().CloseBuffer(*target_buffer);
   }
 
   if (contents == nullptr) return;

@@ -428,7 +428,7 @@ using std::to_wstring;
                          buffer = target_buffer;
                        }
                      }
-                     buffer->editor().CloseBuffer(buffer.get());
+                     buffer->editor().CloseBuffer(*buffer);
                      buffer->editor().ResetModifiers();
                    }));
 
@@ -814,7 +814,7 @@ void OpenBuffer::EndOfFile() {
   if (Read(buffer_variables::close_after_clean_exit) &&
       child_exit_status_.has_value() && WIFEXITED(child_exit_status_.value()) &&
       WEXITSTATUS(child_exit_status_.value()) == 0) {
-    editor().CloseBuffer(this);
+    editor().CloseBuffer(*this);
   }
 
   auto current_buffer = editor().current_buffer();

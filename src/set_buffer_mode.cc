@@ -170,9 +170,9 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
   // Each entry is an index (e.g., for BuffersList::GetBuffer) for an
   // available buffer.
   using Indices = std::vector<size_t>;
-  auto buffers_list = editor.buffer_tree();
+  BuffersList& buffers_list = editor.buffer_tree();
 
-  Indices initial_indices(buffers_list->BuffersCount());
+  Indices initial_indices(buffers_list.BuffersCount());
   for (size_t i = 0; i < initial_indices.size(); ++i) {
     initial_indices[i] = i;
   }
@@ -187,7 +187,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
   if (warning_filter_enabled) {
     Indices new_indices;
     for (auto& index : initial_indices) {
-      if (auto buffer = buffers_list->GetBuffer(index).get();
+      if (auto buffer = buffers_list.GetBuffer(index).get();
           buffer->status().GetType() == Status::Type::kWarning) {
         new_indices.push_back(index);
       }
@@ -202,7 +202,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
     std::optional<std::wstring> pattern_error = std::nullopt;
   };
   futures::Value<State> state = futures::Past(State{
-      .index = data.initial_number.value_or(buffers_list->GetCurrentIndex()) %
+      .index = data.initial_number.value_or(buffers_list.GetCurrentIndex()) %
                initial_indices.size(),
 
       .indices = std::move(initial_indices)});
@@ -234,7 +234,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
 
       case Operation::Type::kPrevious:
       case Operation::Type::kNext:
-        state = state.Transform([buffers_list,
+        state = state.Transform([&buffers_list,
                                  op_type = operation.type](State state) {
           if (state.indices.empty()) {
             state.index = 0;
@@ -242,14 +242,14 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
           }
           CHECK_LT(state.index, state.indices.size());
           auto last_visit_current_buffer =
-              buffers_list->GetBuffer(state.indices[state.index])->last_visit();
+              buffers_list.GetBuffer(state.indices[state.index])->last_visit();
           std::optional<size_t> new_index;
           for (size_t i = 0; i < state.indices.size(); i++) {
-            auto candidate = buffers_list->GetBuffer(state.indices[i]);
+            auto candidate = buffers_list.GetBuffer(state.indices[i]);
             std::optional<struct timespec> last_visit_new_index;
             if (new_index.has_value()) {
               last_visit_new_index =
-                  buffers_list->GetBuffer(new_index.value())->last_visit();
+                  buffers_list.GetBuffer(new_index.value())->last_visit();
             }
             if (op_type == Operation::Type::kPrevious
                     ? (candidate->last_visit() < last_visit_current_buffer &&
@@ -272,7 +272,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
         CHECK_GT(operation.number, 0ul);
         state = state.Transform(
             [number_requested = (operation.number - 1) %
-                                buffers_list->BuffersCount()](State state) {
+                                buffers_list.BuffersCount()](State state) {
               auto it = std::find_if(state.indices.begin(), state.indices.end(),
                                      [number_requested](size_t index) {
                                        return index >= number_requested;
@@ -287,10 +287,10 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
       case Operation::Type::kFilter:
         state = state.Transform(
             [filter = TokenizeBySpaces(*NewLazyString(operation.text_input)),
-             buffers_list](State state) {
+             &buffers_list](State state) {
               Indices new_indices;
               for (auto& index : state.indices) {
-                if (auto buffer = buffers_list->GetBuffer(index).get();
+                if (auto buffer = buffers_list.GetBuffer(index).get();
                     buffer != nullptr) {
                   if (std::shared_ptr<LazyString> str =
                           NewLazyString(buffer->Read(buffer_variables::name));
@@ -311,7 +311,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
         break;  // Already handled.
 
       case Operation::Type::kSearch: {
-        state = state.Transform([&editor, buffers_list,
+        state = state.Transform([&editor, &buffers_list,
                                  text_input =
                                      operation.text_input](State state) {
           // TODO: Maybe tweak the parameters to allow more than just one to
@@ -328,7 +328,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
           std::vector<futures::Value<futures::IterationControlCommand>>
               search_futures;
           for (auto& index : state.indices) {
-            if (auto buffer = buffers_list->GetBuffer(index).get();
+            if (auto buffer = buffers_list.GetBuffer(index).get();
                 buffer != nullptr) {
               // TODO: Pass SearchOptions::abort_notification to allow
               // aborting as the user continues to type?
@@ -367,7 +367,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
     }
   }
 
-  return state.Transform([&editor, mode, buffers_list](State state) {
+  return state.Transform([&editor, mode, &buffers_list](State state) {
     if (state.pattern_error.has_value()) {
       // TODO: Find a better way to show it without hiding the input, ugh.
       editor.status().SetWarningText(L"Pattern error: " +
@@ -378,21 +378,21 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
       return EmptyValue();
     }
     state.index %= state.indices.size();
-    auto buffer = buffers_list->GetBuffer(state.indices[state.index]);
+    auto buffer = buffers_list.GetBuffer(state.indices[state.index]);
     editor.set_current_buffer(buffer, mode);
     switch (mode) {
       case CommandArgumentModeApplyMode::kFinal:
-        editor.buffer_tree()->set_filter(std::nullopt);
+        editor.buffer_tree().set_filter(std::nullopt);
         break;
 
       case CommandArgumentModeApplyMode::kPreview:
-        if (state.indices.size() != buffers_list->BuffersCount()) {
+        if (state.indices.size() != buffers_list.BuffersCount()) {
           std::vector<std::weak_ptr<OpenBuffer>> filter;
           filter.reserve(state.indices.size());
           for (const auto& i : state.indices) {
-            filter.push_back(buffers_list->GetBuffer(i));
+            filter.push_back(buffers_list.GetBuffer(i));
           }
-          editor.buffer_tree()->set_filter(std::move(filter));
+          editor.buffer_tree().set_filter(std::move(filter));
         }
         break;
     }
@@ -403,13 +403,13 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
 }  // namespace
 
 std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
-  auto buffers_list = editor.buffer_tree();
+  BuffersList& buffers_list = editor.buffer_tree();
   Data initial_value;
   if (editor.modifiers().repetitions.has_value()) {
     editor.set_current_buffer(
-        buffers_list->GetBuffer(
+        buffers_list.GetBuffer(
             (max(editor.modifiers().repetitions.value(), 1ul) - 1) %
-            buffers_list->BuffersCount()),
+            buffers_list.BuffersCount()),
         CommandArgumentModeApplyMode::kFinal);
     editor.ResetRepetitions();
     return nullptr;
@@ -420,10 +420,10 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
       .char_consumer = &CharConsumer,
       .status_factory = &BuildStatus,
       .undo =
-          [&editor, initial_buffer = editor.buffer_tree()->active_buffer()]() {
+          [&editor, initial_buffer = editor.buffer_tree().active_buffer()]() {
             editor.set_current_buffer(initial_buffer,
                                       CommandArgumentModeApplyMode::kFinal);
-            editor.buffer_tree()->set_filter(std::nullopt);
+            editor.buffer_tree().set_filter(std::nullopt);
             return futures::Past(EmptyValue());
           },
       .apply = [&editor](CommandArgumentModeApplyMode mode,

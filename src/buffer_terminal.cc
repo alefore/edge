@@ -266,7 +266,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
           DLOG(INFO) << "Move cursor home: line: " << delta.line
                      << ", column: " << delta.column;
           position_ =
-              buffer_->editor().buffer_tree()->GetActiveLeaf()->view_start() +
+              buffer_->editor().buffer_tree().GetActiveLeaf()->view_start() +
               delta;
           auto follower = buffer_->GetEndPositionFollower();
           while (position_.line > buffer_->EndLine()) {

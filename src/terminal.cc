@@ -61,7 +61,7 @@ void Terminal::Display(const EditorState& editor_state, Screen* screen,
       .lines = screen->lines()};
 
   rows_vector.push_back(
-      {.lines_vector = editor_state.buffer_tree()->GetLines(
+      {.lines_vector = editor_state.buffer_tree().GetLines(
            {.size = LineColumnDelta(screen->lines() - status_lines.size(),
                                     screen->columns()),
             .main_cursor_behavior =
