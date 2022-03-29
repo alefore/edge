@@ -62,7 +62,7 @@ namespace {
 futures::Value<Result> ApplyBase(const Modifiers& modifiers,
                                  CompositeTransformation* transformation,
                                  Input transformation_input) {
-  std::shared_ptr<Log> trace = transformation_input.buffer.log()->NewChild(
+  std::shared_ptr<Log> trace = transformation_input.buffer.log().NewChild(
       L"ApplyBase(CompositeTransformation)");
   auto position = transformation_input.buffer.AdjustLineColumn(
       transformation_input.position);

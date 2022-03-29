@@ -403,7 +403,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // current buffer. If the directory doesn't exist, creates it.
   futures::ValueOrError<Path> GetEdgeStateDirectory() const;
 
-  Log* log() const;
+  Log& log() const;
 
   void UpdateBackup();
 

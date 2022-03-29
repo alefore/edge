@@ -1179,7 +1179,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
       });
 }
 
-Log* OpenBuffer::log() const { return log_.get(); }
+Log& OpenBuffer::log() const { return *log_; }
 
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
