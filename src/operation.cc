@@ -237,6 +237,7 @@ class State {
     static Tracker tracker(L"State::UndoLast");
     auto call = tracker.Call();
     commands_.pop_back();
+    if (commands_.empty()) Push(CommandReach());
     RunUndoCallback();
     Update();
   }
@@ -486,6 +487,7 @@ class OperationMode : public EditorMode {
     if (!state_.empty() &&
         std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
                    state_.GetLastCommand())) {
+      if (state_.empty()) PushDefault();
       state_.Update();
       ShowStatus();
       return;
@@ -496,9 +498,7 @@ class OperationMode : public EditorMode {
         state_.Commit();
         return;
       case Terminal::BACKSPACE:
-        if (!state_.empty()) {
-          state_.UndoLast();
-        }
+        state_.UndoLast();
         ShowStatus();
         return;
     }
