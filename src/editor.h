@@ -164,8 +164,8 @@ class EditorState {
   futures::Value<EmptyValue> ProcessInputString(const string& input);
   futures::Value<EmptyValue> ProcessInput(int c);
 
-  const LineMarks* line_marks() const { return &line_marks_; }
-  LineMarks* line_marks() { return &line_marks_; }
+  const LineMarks& line_marks() const { return line_marks_; }
+  LineMarks& line_marks() { return line_marks_; }
 
   std::shared_ptr<MapModeCommands> default_commands() const {
     return default_commands_;

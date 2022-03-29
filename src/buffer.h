@@ -333,7 +333,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
-  const multimap<size_t, LineMarks::Mark>* GetLineMarks() const;
+  const multimap<size_t, LineMarks::Mark>& GetLineMarks() const;
   wstring GetLineMarksText() const;
 
   /////////////////////////////////////////////////////////////////////////////

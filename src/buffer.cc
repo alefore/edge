@@ -757,8 +757,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 void OpenBuffer::ClearContents(
     BufferContents::CursorsBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
-  options_.editor.line_marks()->RemoveExpiredMarksFromSource(name());
-  options_.editor.line_marks()->ExpireMarksFromSource(*this, name());
+  options_.editor.line_marks().RemoveExpiredMarksFromSource(name());
+  options_.editor.line_marks().ExpireMarksFromSource(*this, name());
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
                        cursors_behavior);
   if (terminal_ != nullptr) {
@@ -798,7 +798,7 @@ void OpenBuffer::EndOfFile() {
 
   // We can remove expired marks now. We know that the set of fresh marks is now
   // complete.
-  editor().line_marks()->RemoveExpiredMarksFromSource(name());
+  editor().line_marks().RemoveExpiredMarksFromSource(name());
 
   vector<std::function<void()>> observers;
   observers.swap(end_of_file_observers_);
@@ -1018,7 +1018,7 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
                              .target_buffer = BufferName(results.path),
                              .target = results.position.value_or(LineColumn())};
         LOG(INFO) << "Found a mark: " << mark;
-        editor.line_marks()->AddMark(std::move(mark));
+        editor.line_marks().AddMark(std::move(mark));
         return Success();
       });
     }
@@ -1489,7 +1489,7 @@ void OpenBuffer::PopActiveCursors() {
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
-  const auto& marks = *GetLineMarks();
+  const multimap<size_t, LineMarks::Mark>& marks = GetLineMarks();
   if (marks.empty()) {
     status_.SetWarningText(L"Buffer has no marks!");
     return;
@@ -2472,32 +2472,31 @@ void OpenBuffer::set_filter(unique_ptr<Value> filter) {
   filter_version_++;
 }
 
-const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {
+const multimap<size_t, LineMarks::Mark>& OpenBuffer::GetLineMarks() const {
   auto marks = editor().line_marks();
-  if (marks->updates > line_marks_last_updates_) {
+  if (marks.updates > line_marks_last_updates_) {
     LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
     line_marks_.clear();
-    auto relevant_marks = marks->GetMarksForTargetBuffer(name());
+    auto relevant_marks = marks.GetMarksForTargetBuffer(name());
     for (auto& mark : relevant_marks) {
       line_marks_.insert(make_pair(mark.target.line.line, mark));
     }
-    line_marks_last_updates_ = marks->updates;
+    line_marks_last_updates_ = marks.updates;
   }
-  return &line_marks_;
+  return line_marks_;
 }
 
 wstring OpenBuffer::GetLineMarksText() const {
-  const auto* marks = GetLineMarks();
+  const multimap<size_t, LineMarks::Mark>& marks = GetLineMarks();
   wstring output;
-  if (!marks->empty()) {
-    size_t expired_marks = 0;
-    for (const auto& mark : *marks) {
-      if (mark.second.IsExpired()) {
-        expired_marks++;
-      }
-    }
-    CHECK_LE(expired_marks, marks->size());
-    output = L"marks:" + to_wstring(marks->size() - expired_marks);
+  if (!marks.empty()) {
+    size_t expired_marks =
+        std::count_if(marks.begin(), marks.end(),
+                      [](const std::pair<size_t, LineMarks::Mark>& mark) {
+                        return mark.second.IsExpired();
+                      });
+    CHECK_LE(expired_marks, marks.size());
+    output = L"marks:" + to_wstring(marks.size() - expired_marks);
     if (expired_marks > 0) {
       output += L"(" + to_wstring(expired_marks) + L")";
     }

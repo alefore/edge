@@ -19,8 +19,8 @@ namespace afc::editor {
 namespace {
 wstring GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
-  auto current_line_marks = marks->find(buffer.position().line.line);
-  if (current_line_marks != marks->end()) {
+  if (auto current_line_marks = marks.find(buffer.position().line.line);
+      current_line_marks != marks.end()) {
     auto mark = current_line_marks->second;
     auto source = buffer.editor().buffers()->find(mark.source);
     if (source != buffer.editor().buffers()->end() &&

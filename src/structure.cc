@@ -386,10 +386,10 @@ Structure* StructureMark() {
                                                   LineColumn position,
                                                   int calls) override {
       // Navigates marks in the current buffer.
-      const std::multimap<size_t, LineMarks::Mark>* marks =
+      const std::multimap<size_t, LineMarks::Mark>& marks =
           buffer->GetLineMarks();
       std::vector<pair<size_t, LineMarks::Mark>> lines;
-      std::unique_copy(marks->begin(), marks->end(), std::back_inserter(lines),
+      std::unique_copy(marks.begin(), marks.end(), std::back_inserter(lines),
                        [](const pair<size_t, LineMarks::Mark>& entry1,
                           const pair<size_t, LineMarks::Mark>& entry2) {
                          return (entry1.first == entry2.first);
@@ -405,14 +405,14 @@ Structure* StructureMark() {
     std::optional<LineColumn> Move(const OpenBuffer& buffer,
                                    LineColumn position, Range,
                                    const Modifiers& modifiers) override {
-      const multimap<size_t, LineMarks::Mark>* marks = buffer.GetLineMarks();
+      const multimap<size_t, LineMarks::Mark>& marks = buffer.GetLineMarks();
       switch (modifiers.direction) {
         case Direction::kForwards:
-          return GetMarkPosition(marks->begin(), marks->end(), position,
+          return GetMarkPosition(marks.begin(), marks.end(), position,
                                  modifiers);
           break;
         case Direction::kBackwards:
-          return GetMarkPosition(marks->rbegin(), marks->rend(), position,
+          return GetMarkPosition(marks.rbegin(), marks.rend(), position,
                                  modifiers);
       }
       CHECK(false);

@@ -177,16 +177,16 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
 Line ComputeMarksSuffix(const BufferMetadataOutputOptions& options,
                         LineNumber line) {
   CHECK_GE(line, initial_line(options));
-  const std::multimap<size_t, LineMarks::Mark>* marks =
+  const std::multimap<size_t, LineMarks::Mark>& marks =
       options.buffer.GetLineMarks();
-  if (marks->empty()) return Line(L"");
+  if (marks.empty()) return Line(L"");
   auto range = MapScreenLineToContentsRange(
       Range(LineColumn(LineNumber(initial_line(options))),
             options.screen_lines.back().range.begin),
       line, options.buffer.lines_size());
 
-  auto begin = marks->lower_bound(range.begin.line.line);
-  auto end = marks->lower_bound(range.end.line.line);
+  auto begin = marks.lower_bound(range.begin.line.line);
+  auto end = marks.lower_bound(range.end.line.line);
   if (begin == end) return Line(L" ");
   LineModifierSet modifiers;
   for (auto it = begin; it != end && modifiers.empty(); ++it)
@@ -350,7 +350,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   std::list<LineMarks::Mark> marks_expired;
 
   auto marks_range =
-      options.buffer.GetLineMarks()->equal_range(range.begin.line.line);
+      options.buffer.GetLineMarks().equal_range(range.begin.line.line);
   while (marks_range.first != marks_range.second) {
     if (range.Contains(marks_range.first->second.target)) {
       (marks_range.first->second.IsExpired() ? marks_expired : marks)
