@@ -12,17 +12,15 @@ namespace editor {
 
 struct RowsVector {
  public:
-  struct Row {
-    LineWithCursor::Generator::Vector lines_vector;
-  };
-
-  Row& back() {
+  LineWithCursor::Generator::Vector& back() {
     CHECK(!rows.empty());
     return rows.back();
   }
-  void push_back(Row row) { rows.push_back(std::move(row)); }
+  void push_back(LineWithCursor::Generator::Vector row) {
+    rows.push_back(std::move(row));
+  }
 
-  std::vector<Row> rows = {};
+  std::vector<LineWithCursor::Generator::Vector> rows = {};
   size_t index_active = 0;
   LineNumberDelta lines;
 };

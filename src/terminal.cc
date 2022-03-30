@@ -74,8 +74,7 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
                     : Widget::OutputProducerOptions::MainCursorBehavior::
                           kIgnore})});
 
-  CHECK_EQ(rows_vector.rows[0].lines_vector.size(),
-           screen_size.line - status_lines.size());
+  CHECK_EQ(rows_vector.rows[0].size(), screen_size.line - status_lines.size());
 
   rows_vector.push_back({.lines_vector = status_lines});
 

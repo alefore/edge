@@ -216,7 +216,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
 
   rows_vector.push_back(
       {.lines_vector = OutputFromColumnsVector(context_columns_vector)});
-  CHECK_EQ(rows_vector.back().lines_vector.size(), context_lines);
+  CHECK_EQ(rows_vector.back().size(), context_lines);
 
   if (!info_lines.IsZero()) {
     rows_vector.push_back(

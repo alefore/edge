@@ -835,7 +835,7 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
                  .buffers_per_line = layout.buffers_per_line,
                  .size = LineColumnDelta(layout.lines, options.size.column),
                  .filter = OptimizeFilter(filter_)}))});
-    CHECK_EQ(rows.back().lines_vector.size(), layout.lines);
+    CHECK_EQ(rows.back().size(), layout.lines);
   }
 
   return OutputFromRowsVector(std::move(rows));
