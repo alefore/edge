@@ -62,13 +62,23 @@ LineWithCursor::Generator::Vector AddLeftFrame(
 }
 
 LineWithCursor::Generator::Vector CenterVertically(
-    LineWithCursor::Generator::Vector input, LineNumberDelta lines) {
-  if (input.size() >= lines) return input;
-  std::vector<LineWithCursor::Generator> prefix(
-      ((lines - input.size()) / 2).line_delta,
-      LineWithCursor::Generator::Empty());
-  input.lines.insert(input.lines.begin(), prefix.begin(), prefix.end());
-  input.lines.resize(lines.line_delta, LineWithCursor::Generator::Empty());
+    LineWithCursor::Generator::Vector input, LineNumberDelta status_lines,
+    LineNumberDelta total_lines,
+    BufferContentsWindow::StatusPosition status_position) {
+  if (input.size() + status_lines >= total_lines) return input;
+  LineNumberDelta prefix_size;
+  switch (status_position) {
+    case BufferContentsWindow::StatusPosition::kTop:
+      prefix_size = max(LineNumberDelta(),
+                        (total_lines - input.size()) / 2 - status_lines);
+      break;
+    case BufferContentsWindow::StatusPosition::kBottom:
+      prefix_size = min((total_lines - input.size()) / 2,
+                        total_lines - status_lines - input.size());
+      break;
+  }
+  input.PrependEmptyLines(prefix_size);
+  input.resize(total_lines - status_lines);
   return input;
 }
 
@@ -80,8 +90,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
   LineWithCursor::Generator::Vector buffer_output =
       ProduceBufferView(buffer, screen_lines, output_producer_options);
 
-  if (buffer.Read(buffer_variables::paste_mode))
-    return CenterVertically(buffer_output, output_producer_options.size.line);
+  if (buffer.Read(buffer_variables::paste_mode)) return buffer_output;
 
   ColumnsVector columns_vector{.index_active = sections_count > 1 ? 2ul : 1ul};
 
@@ -129,8 +138,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
                                        LineNumberDelta(screen_lines.size())))
                                    .get()}),
        std::nullopt});
-  return CenterVertically(OutputFromColumnsVector(std::move(columns_vector)),
-                          output_producer_options.size.line);
+  return OutputFromColumnsVector(std::move(columns_vector));
 }
 
 std::set<Range> MergeSections(std::set<Range> input) {
@@ -285,12 +293,14 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   LineWithCursor::Generator::Vector status_lines;
   switch (input.status_behavior) {
     case BufferOutputProducerInput::StatusBehavior::kShow:
-      status_lines = StatusOutput(
-          {.status = buffer->status(),
-           .buffer = buffer.get(),
-           .modifiers = buffer->editor().modifiers(),
-           .size = LineColumnDelta(input.output_producer_options.size.line / 4,
-                                   input.output_producer_options.size.column)});
+      status_lines = CenterOutput(
+          StatusOutput({.status = buffer->status(),
+                        .buffer = buffer.get(),
+                        .modifiers = buffer->editor().modifiers(),
+                        .size = LineColumnDelta(
+                            input.output_producer_options.size.line / 4,
+                            input.output_producer_options.size.column)}),
+          input.output_producer_options.size.column);
       break;
     case BufferOutputProducerInput::StatusBehavior::kIgnore:
       break;
@@ -361,22 +371,17 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (buffer->Read(buffer_variables::reload_on_display)) buffer->Reload();
 
   BufferOutputProducerOutput output{
-      .lines = buffer->Read(buffer_variables::multiple_cursors)
-                   ? ViewMultipleCursors(*buffer, input.output_producer_options,
-                                         buffer_contents_window_input)
-                   : LinesSpanView(*buffer, window.lines,
-                                   input.output_producer_options, 1),
+      .lines = CenterVertically(
+          buffer->Read(buffer_variables::multiple_cursors)
+              ? ViewMultipleCursors(*buffer, input.output_producer_options,
+                                    buffer_contents_window_input)
+              : LinesSpanView(*buffer, window.lines,
+                              input.output_producer_options, 1),
+          status_lines.size(), total_size.line, window.status_position),
       .view_start = window.view_start};
 
   CHECK_EQ(output.lines.size(), input.output_producer_options.size.line);
   if (!status_lines.size().IsZero()) {
-    RowsVector::Row buffer_row = {
-        .lines_vector =
-            CenterOutput(std::move(output.lines), total_size.column)};
-    RowsVector::Row status_row = {
-        .lines_vector =
-            CenterOutput(std::move(status_lines), total_size.column)};
-
     size_t buffer_index = 0;
     size_t status_index = 1;
     switch (window.status_position) {
@@ -396,9 +401,12 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                             : buffer_index,
         .lines = total_size.line};
     rows_vector.rows.resize(2);
-    rows_vector.rows[buffer_index] = std::move(buffer_row);
-    rows_vector.rows[status_index] = std::move(status_row);
-
+    rows_vector.rows[buffer_index] = {
+        .lines_vector =
+            CenterOutput(std::move(output.lines), total_size.column)};
+    rows_vector.rows[status_index] = {
+        .lines_vector =
+            CenterOutput(std::move(status_lines), total_size.column)};
     output.lines = OutputFromRowsVector(std::move(rows_vector));
   }
   return output;
