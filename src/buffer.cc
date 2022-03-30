@@ -888,11 +888,14 @@ void OpenBuffer::UpdateTreeParser() {
                            NewNullTreeParser()));
   } else if (parser == L"cpp") {
     std::wistringstream keywords(Read(buffer_variables::language_keywords));
-    tree_parser_ =
-        NewCppTreeParser(std::unordered_set<wstring>(
-                             std::istream_iterator<wstring, wchar_t>(keywords),
-                             std::istream_iterator<wstring, wchar_t>()),
-                         std::move(typos_set));
+    tree_parser_ = NewCppTreeParser(
+        std::unordered_set<wstring>(
+            std::istream_iterator<wstring, wchar_t>(keywords),
+            std::istream_iterator<wstring, wchar_t>()),
+        std::move(typos_set),
+        Read(buffer_variables::identifier_behavior) == L"color-by-hash"
+            ? IdentifierBehavior::kColorByHash
+            : IdentifierBehavior::kNone);
   } else if (parser == L"diff") {
     tree_parser_ = parsers::NewDiffTreeParser();
   } else if (parser == L"md") {
@@ -2247,8 +2250,10 @@ void OpenBuffer::Set(const EdgeVariable<wstring>* variable, wstring value) {
   if (variable == buffer_variables::symbol_characters ||
       variable == buffer_variables::tree_parser ||
       variable == buffer_variables::language_keywords ||
-      variable == buffer_variables::typos) {
+      variable == buffer_variables::typos ||
+      variable == buffer_variables::identifier_behavior) {
     UpdateTreeParser();
+    MaybeStartUpdatingSyntaxTrees();
   }
 }
 

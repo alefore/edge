@@ -9,9 +9,12 @@
 namespace afc {
 namespace editor {
 
+enum class IdentifierBehavior { kNone, kColorByHash };
+
 std::unique_ptr<TreeParser> NewCppTreeParser(
     std::unordered_set<std::wstring> keywords,
-    std::unordered_set<std::wstring> typos);
+    std::unordered_set<std::wstring> typos,
+    IdentifierBehavior identifier_behavior);
 
 }  // namespace editor
 }  // namespace afc

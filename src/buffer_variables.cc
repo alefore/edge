@@ -558,6 +558,17 @@ EdgeVariable<wstring>* const file_context_extensions =
             L"the identifier under the cursor.")
         .Build();
 
+EdgeVariable<wstring>* const identifier_behavior =
+    StringStruct()
+        ->Add()
+        .Name(L"identifier_behavior")
+        .Key(L"I")
+        .Description(
+            L"What behavior should we use to colorize identifiers? This is "
+            L"currently only used by cpp mode. Valid values are "
+            L"\"color-by-hash\" and empty string.")
+        .Build();
+
 EdgeStruct<int>* IntStruct() {
   static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;

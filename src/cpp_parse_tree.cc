@@ -35,12 +35,14 @@ static const LineModifierSet BAD_PARSE_MODIFIERS =
 class CppTreeParser : public TreeParser {
  public:
   CppTreeParser(std::unordered_set<wstring> keywords,
-                std::unordered_set<wstring> typos)
+                std::unordered_set<wstring> typos,
+                IdentifierBehavior identifier_behavior)
       : words_parser_(NewWordsTreeParser(
             L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", typos,
             NewNullTreeParser())),
         keywords_(std::move(keywords)),
         typos_(std::move(typos)),
+        identifier_behavior_(identifier_behavior),
         cache_(1) {}
 
   ParseTree FindChildren(const BufferContents& buffer, Range range) override {
@@ -268,8 +270,7 @@ class CppTreeParser : public TreeParser {
       modifiers.insert(LineModifier::CYAN);
     } else if (typos_.find(str->ToString()) != typos_.end()) {
       modifiers.insert(LineModifier::RED);
-    } else if (false) {
-      // TODO: Make it possible to enable this mode.
+    } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
       modifiers = HashToModifiers(std::hash<wstring>{}(str->ToString()),
                                   HashToModifiersBold::kNever);
     }
@@ -366,7 +367,8 @@ class CppTreeParser : public TreeParser {
     LineModifierSet output;
     static std::vector<LineModifier> modifiers = {
         LineModifier::CYAN, LineModifier::YELLOW, LineModifier::RED,
-        LineModifier::BLUE, LineModifier::GREEN,  LineModifier::MAGENTA};
+        LineModifier::BLUE, LineModifier::GREEN,  LineModifier::MAGENTA,
+        LineModifier::WHITE};
     output.insert(modifiers[nesting % modifiers.size()]);
     if (bold_behavior == HashToModifiersBold::kSometimes &&
         ((nesting / modifiers.size()) % 2) == 0) {
@@ -378,6 +380,7 @@ class CppTreeParser : public TreeParser {
   const std::unique_ptr<TreeParser> words_parser_;
   const std::unordered_set<wstring> keywords_;
   const std::unordered_set<wstring> typos_;
+  const IdentifierBehavior identifier_behavior_;
 
   // Allows us to avoid reparsing previously parsed lines. The key is the hash
   // of:
@@ -392,8 +395,10 @@ class CppTreeParser : public TreeParser {
 }  // namespace
 
 std::unique_ptr<TreeParser> NewCppTreeParser(
-    std::unordered_set<wstring> keywords, std::unordered_set<wstring> typos) {
-  return std::make_unique<CppTreeParser>(std::move(keywords), std::move(typos));
+    std::unordered_set<wstring> keywords, std::unordered_set<wstring> typos,
+    IdentifierBehavior identifier_behavior) {
+  return std::make_unique<CppTreeParser>(std::move(keywords), std::move(typos),
+                                         identifier_behavior);
 }
 
 }  // namespace editor
