@@ -56,11 +56,6 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
                     .size = screen_size});
 
   auto buffer = editor_state.current_buffer();
-  RowsVector rows_vector{
-      .index_active =
-          editor_state.status().GetType() == Status::Type::kPrompt ? 1ul : 0ul,
-      .lines = screen_size.line};
-
   auto editor_widget_lines = editor_state.buffer_tree().GetLines(
       {.size = LineColumnDelta(screen_size.line - status_lines.size(),
                                screen_size.column),
