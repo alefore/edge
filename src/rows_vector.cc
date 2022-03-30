@@ -11,7 +11,6 @@
 namespace afc::editor {
 LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector rows_vector) {
   LineWithCursor::Generator::Vector output;
-  LineNumberDelta lines_to_skip;
   for (size_t row_index = 0; row_index < rows_vector.rows.size(); row_index++) {
     VLOG(5) << "Starting render of row " << row_index << " with output size of "
             << output.size() << " (and desired lines " << rows_vector.lines
@@ -20,21 +19,11 @@ LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector rows_vector) {
     LineWithCursor::Generator::Vector& row = rows_vector.rows[row_index];
     CHECK_LT(output.size(), rows_vector.lines);
     LineNumberDelta lines_desired =
-        min(rows_vector.lines + lines_to_skip - output.size(), row.size());
+        min(rows_vector.lines - output.size(), row.size());
     row.lines.resize(lines_desired.line_delta,
                      LineWithCursor::Generator::Empty());
 
-    if (lines_to_skip >= row.size()) {
-      lines_to_skip -= row.size();
-      row.lines = {};
-    } else {
-      row.lines.erase(row.lines.begin(),
-                      row.lines.begin() + lines_to_skip.line_delta);
-      lines_to_skip = LineNumberDelta();
-    }
-
     output.width = max(output.width, row.width);
-
     for (auto& generator : row.lines) {
       if (row_index != rows_vector.index_active) {
         if (generator.inputs_hash.has_value()) {
