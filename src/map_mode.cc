@@ -22,12 +22,11 @@ using vm::Value;
 using vm::VMType;
 
 namespace {
+template <typename Callback>
 class CommandFromFunction : public Command {
  public:
-  CommandFromFunction(std::function<void()> callback, wstring description)
-      : callback_(std::move(callback)), description_(std::move(description)) {
-    CHECK(callback_ != nullptr);
-  }
+  CommandFromFunction(Callback callback, wstring description)
+      : callback_(std::move(callback)), description_(std::move(description)) {}
 
   std::wstring Description() const override { return description_; }
   std::wstring Category() const override {
@@ -37,10 +36,16 @@ class CommandFromFunction : public Command {
   void ProcessInput(wint_t) override { callback_(); }
 
  private:
-  const std::function<void()> callback_;
+  Callback callback_;
   const wstring description_;
 };
 
+template <typename Callback>
+std::unique_ptr<Command> MakeCommandFromFunction(Callback callback,
+                                                 wstring description) {
+  return std::make_unique<CommandFromFunction<Callback>>(
+      std::move(callback), std::move(description));
+}
 }  // namespace
 
 class EditorState;
@@ -87,26 +92,28 @@ void MapModeCommands::Add(wstring name, wstring description,
   CHECK(value != nullptr);
   CHECK_EQ(value->type.type, VMType::FUNCTION);
   CHECK(value->type.type_arguments == std::vector<VMType>({VMType::Void()}));
-  // TODO: Make a unique_ptr (once capture of unique_ptr is feasible).
-  std::shared_ptr<vm::Expression> expression =
-      NewFunctionCall(NewConstantExpression(std::move(value)), {});
-  Add(name, std::make_unique<CommandFromFunction>(
-                [&editor_state = editor_state_, expression, environment]() {
-                  LOG(INFO) << "Evaluating expression from Value::Ptr...";
-                  Evaluate(expression.get(), environment,
-                           [&editor_state](std::function<void()> callback) {
-                             auto buffer = editor_state.current_buffer();
-                             CHECK(buffer != nullptr);
-                             buffer->work_queue()->Schedule(callback);
-                           });
-                },
-                description));
+
+  Add(name,
+      MakeCommandFromFunction(
+          std::bind_front(
+              [&editor_state = editor_state_,
+               environment](std::unique_ptr<vm::Expression>& expression) {
+                LOG(INFO) << "Evaluating expression from Value::Ptr...";
+                Evaluate(expression.get(), environment,
+                         [&editor_state](std::function<void()> callback) {
+                           auto buffer = editor_state.current_buffer();
+                           CHECK(buffer != nullptr);
+                           buffer->work_queue()->Schedule(callback);
+                         });
+              },
+              NewFunctionCall(NewConstantExpression(std::move(value)), {})),
+          description));
 }
 
 void MapModeCommands::Add(wstring name, std::function<void()> callback,
                           wstring description) {
-  Add(name, std::make_unique<CommandFromFunction>(std::move(callback),
-                                                  std::move(description)));
+  Add(name,
+      MakeCommandFromFunction(std::move(callback), std::move(description)));
 }
 
 MapMode::MapMode(std::shared_ptr<MapModeCommands> commands)
