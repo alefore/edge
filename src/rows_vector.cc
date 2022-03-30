@@ -9,6 +9,26 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+LineWithCursor::Generator::Vector AppendRows(
+    LineWithCursor::Generator::Vector head,
+    LineWithCursor::Generator::Vector tail, size_t index_active) {
+  CHECK(index_active == 0 || index_active == 1);
+  for (auto& generator : (index_active == 0 ? tail : head).lines) {
+    if (generator.inputs_hash.has_value()) {
+      generator.inputs_hash =
+          std::hash<size_t>{}(generator.inputs_hash.value()) +
+          std::hash<size_t>{}(329ul);
+    }
+    generator.generate = [generate = std::move(generator.generate)] {
+      auto output = generate();
+      output.cursor = std::nullopt;
+      return output;
+    };
+  }
+  tail.lines.insert(tail.lines.begin(), head.lines.begin(), head.lines.end());
+  return tail;
+}
+
 LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector rows_vector) {
   LineWithCursor::Generator::Vector output;
   for (size_t row_index = 0; row_index < rows_vector.rows.size(); row_index++) {

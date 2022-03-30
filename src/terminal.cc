@@ -61,31 +61,23 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
           editor_state.status().GetType() == Status::Type::kPrompt ? 1ul : 0ul,
       .lines = screen_size.line};
 
-  rows_vector.push_back(
-      {.lines_vector = editor_state.buffer_tree().GetLines(
-           {.size = LineColumnDelta(screen_size.line - status_lines.size(),
-                                    screen_size.column),
-            .main_cursor_behavior =
-                (editor_state.status().GetType() == Status::Type::kPrompt ||
-                 (buffer != nullptr &&
-                  buffer->status().GetType() == Status::Type::kPrompt))
-                    ? Widget::OutputProducerOptions::MainCursorBehavior::
-                          kHighlight
-                    : Widget::OutputProducerOptions::MainCursorBehavior::
-                          kIgnore})});
+  auto editor_widget_lines = editor_state.buffer_tree().GetLines(
+      {.size = LineColumnDelta(screen_size.line - status_lines.size(),
+                               screen_size.column),
+       .main_cursor_behavior =
+           (editor_state.status().GetType() == Status::Type::kPrompt ||
+            (buffer != nullptr &&
+             buffer->status().GetType() == Status::Type::kPrompt))
+               ? Widget::OutputProducerOptions::MainCursorBehavior::kHighlight
+               : Widget::OutputProducerOptions::MainCursorBehavior::kIgnore});
+  CHECK_EQ(editor_widget_lines.size(), screen_size.line - status_lines.size());
 
-  CHECK_EQ(rows_vector.rows[0].size(), screen_size.line - status_lines.size());
-
-  rows_vector.push_back({.lines_vector = status_lines});
-
-  LineWithCursor::Generator::Vector generators =
-      OutputFromRowsVector(std::move(rows_vector));
-  for (LineNumber line; line.ToDelta() < screen_size.line; ++line) {
-    WriteLine(screen, line,
-              line.ToDelta() < generators.size()
-                  ? generators.lines[line.line]
-                  : LineWithCursor::Generator::Empty());
-  }
+  LineWithCursor::Generator::Vector generators = AppendRows(
+      std::move(editor_widget_lines), std::move(status_lines),
+      editor_state.status().GetType() == Status::Type::kPrompt ? 1ul : 0ul);
+  CHECK_EQ(generators.size(), screen_size.line);
+  for (LineNumber line; line.ToDelta() < screen_size.line; ++line)
+    WriteLine(screen, line, generators.lines[line.line]);
 
   if (editor_state.status().GetType() == Status::Type::kPrompt ||
       (buffer != nullptr &&

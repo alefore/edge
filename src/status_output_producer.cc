@@ -195,7 +195,6 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
 
   const auto context_lines = options.size.line - info_lines;
   CHECK_GT(context_lines, LineNumberDelta(0));
-  RowsVector rows_vector{.index_active = 1, .lines = options.size.line};
 
   ColumnsVector context_columns_vector{.index_active = 1};
   context_columns_vector.push_back(
@@ -214,15 +213,13 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
       {.lines = CreateBufferOutputProducer(buffer_producer_input).lines});
   CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);
 
-  rows_vector.push_back(
-      {.lines_vector = OutputFromColumnsVector(context_columns_vector)});
-  CHECK_EQ(rows_vector.back().size(), context_lines);
+  auto context_rows = OutputFromColumnsVector(context_columns_vector);
+  CHECK_EQ(context_rows.size(), context_lines);
 
-  if (!info_lines.IsZero()) {
-    rows_vector.push_back(
-        {.lines_vector = RepeatLine(StatusBasicInfo(options), info_lines)});
-  }
-  return OutputFromRowsVector(std::move(rows_vector));
+  if (info_lines.IsZero()) return context_rows;
+
+  return AppendRows(context_rows,
+                    RepeatLine(StatusBasicInfo(options), info_lines), 1);
 }
 
 }  // namespace afc::editor

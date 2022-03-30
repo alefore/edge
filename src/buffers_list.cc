@@ -808,14 +808,11 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
           << ", size: " << buffers_.size()
           << ", size column: " << options.size.column;
 
-  RowsVector rows{.lines = options.size.line};
   options.size.line -= layout.lines;
   CHECK(widget_ != nullptr);
   LineWithCursor::Generator::Vector output = widget_->CreateOutput(options);
-  if (layout.lines.IsZero()) return output;
-
   CHECK_EQ(output.size(), options.size.line);
-  rows.push_back({.lines_vector = std::move(output)});
+  if (layout.lines.IsZero()) return output;
 
   if (!layout.lines.IsZero()) {
     VLOG(2) << "Buffers per line: " << layout.buffers_per_line
@@ -826,19 +823,19 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
     for (auto& b : editor_state_.active_buffers()) {
       active_buffers.insert(b.get());
     }
-    rows.push_back(
-        {.lines_vector = ProduceBuffersList(
-             std::make_shared<BuffersListOptions>(BuffersListOptions{
-                 .buffers = &buffers_,
-                 .active_buffer = active_buffer(),
-                 .active_buffers = std::move(active_buffers),
-                 .buffers_per_line = layout.buffers_per_line,
-                 .size = LineColumnDelta(layout.lines, options.size.column),
-                 .filter = OptimizeFilter(filter_)}))});
-    CHECK_EQ(rows.back().size(), layout.lines);
+    auto buffers_list_lines = ProduceBuffersList(
+        std::make_shared<BuffersListOptions>(BuffersListOptions{
+            .buffers = &buffers_,
+            .active_buffer = active_buffer(),
+            .active_buffers = std::move(active_buffers),
+            .buffers_per_line = layout.buffers_per_line,
+            .size = LineColumnDelta(layout.lines, options.size.column),
+            .filter = OptimizeFilter(filter_)}));
+    CHECK_EQ(buffers_list_lines.size(), layout.lines);
+    output = AppendRows(std::move(output), std::move(buffers_list_lines), 0);
   }
 
-  return OutputFromRowsVector(std::move(rows));
+  return output;
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::active_buffer() const {

@@ -27,6 +27,9 @@ struct RowsVector {
 
 LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector table);
 
+LineWithCursor::Generator::Vector AppendRows(
+    LineWithCursor::Generator::Vector head,
+    LineWithCursor::Generator::Vector tail, size_t index_active);
 }  // namespace editor
 }  // namespace afc
 
