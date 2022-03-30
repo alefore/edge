@@ -25,8 +25,8 @@ LineWithCursor::Generator::Vector AppendRows(
       return output;
     };
   }
-  tail.lines.insert(tail.lines.begin(), head.lines.begin(), head.lines.end());
-  return tail;
+  head.lines.insert(head.lines.end(), tail.lines.begin(), tail.lines.end());
+  return head;
 }
 
 LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector rows_vector) {

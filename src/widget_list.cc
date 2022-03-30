@@ -137,35 +137,28 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
            std::accumulate(lines_per_child.begin(), lines_per_child.end(),
                            LineNumberDelta(0)));
 
-  const size_t children_skipped_before_active =
-      std::count(lines_per_child.cbegin(), lines_per_child.cbegin() + active_,
-                 LineNumberDelta());
-  RowsVector rows_vector{
-      .index_active = active_ - children_skipped_before_active,
-      .lines = options.size.line};
-
+  LineWithCursor::Generator::Vector output;
   CHECK_EQ(children_.size(), lines_per_child.size());
   for (size_t index = 0; index < children_.size(); index++) {
     LineWithCursor::Generator::Vector child_lines =
         GetChildOutput(options, index, lines_per_child[index]);
-    if (!child_lines.size().IsZero()) {
-      CHECK_EQ(child_lines.size(), lines_per_child[index]);
-      rows_vector.push_back({.lines_vector = child_lines});
-    }
+    CHECK_EQ(child_lines.size(), lines_per_child[index]);
+    output = AppendRows(std::move(output), std::move(child_lines),
+                        index == active_ ? 1 : 0);
   }
 
   if (children_skipped > 0) {
-    rows_vector.push_back(
-        {.lines_vector = RepeatLine(
-             LineWithCursor(FrameLine(
-                 {.title =
-                      L"Additional files: " + std::to_wstring(children_skipped),
-                  .active_state =
-                      FrameOutputProducerOptions::ActiveState::kActive})),
-             LineNumberDelta(1))});
+    output.lines.push_back(
+        {.inputs_hash = {}, .generate = [children_skipped] {
+           return LineWithCursor(FrameLine(
+               {.title =
+                    L"Additional files: " + std::to_wstring(children_skipped),
+                .active_state =
+                    FrameOutputProducerOptions::ActiveState::kActive}));
+         }});
   }
 
-  return OutputFromRowsVector(std::move(rows_vector));
+  return output;
 }
 
 LineWithCursor::Generator::Vector WidgetListHorizontal::GetChildOutput(

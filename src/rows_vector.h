@@ -27,6 +27,7 @@ struct RowsVector {
 
 LineWithCursor::Generator::Vector OutputFromRowsVector(RowsVector table);
 
+// Complexity is linear to the length of `tail`.
 LineWithCursor::Generator::Vector AppendRows(
     LineWithCursor::Generator::Vector head,
     LineWithCursor::Generator::Vector tail, size_t index_active);
