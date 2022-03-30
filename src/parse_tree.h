@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "src/buffer_contents.h"
 #include "src/ghost_type.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
@@ -106,8 +107,6 @@ const ParseTree* FollowRoute(const ParseTree& root,
                              const ParseTree::Route& route);
 
 std::ostream& operator<<(std::ostream& os, const ParseTree& lc);
-
-class OpenBuffer;
 
 class TreeParser {
  public:
