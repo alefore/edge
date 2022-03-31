@@ -308,11 +308,10 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
 }
 
 futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
-    EditorState& editor_state, OpenBuffer* history_buffer,
+    EditorState& editor_state, const OpenBuffer& history_buffer,
     AsyncEvaluator* history_evaluator,
     std::shared_ptr<Notification> abort_notification, std::wstring filter) {
-  CHECK(history_buffer != nullptr);
-  BufferName name(L"- history filter: " + history_buffer->name().ToString() +
+  BufferName name(L"- history filter: " + history_buffer.name().ToString() +
                   L": " + filter);
   auto filter_buffer = OpenBuffer::New({.editor = editor_state, .name = name});
   filter_buffer->Set(buffer_variables::allow_dirty_delete, true);
@@ -329,7 +328,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
   return history_evaluator
       ->Run([abort_notification, filter = std::move(filter),
              history_contents = std::shared_ptr<BufferContents>(
-                 history_buffer->contents().copy()),
+                 history_buffer.contents().copy()),
              features = GetCurrentFeatures(editor_state)]() mutable -> Output {
         Output output;
         // Sets of features for each unique `prompt` value in the history.
@@ -633,9 +632,8 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
       std::shared_ptr<Notification> abort_notification) override {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     auto input = buffer_->LineAt(LineNumber(0))->contents();
-    return FilterHistory(editor_state_, history_.get(),
-                         history_evaluator_.get(), abort_notification,
-                         input->ToString())
+    return FilterHistory(editor_state_, *history_, history_evaluator_.get(),
+                         abort_notification, input->ToString())
         .Transform([input, prompt_state = prompt_state_](
                        std::shared_ptr<OpenBuffer> history)
                        -> std::unique_ptr<ScrollBehavior> {
@@ -800,7 +798,7 @@ void Prompt(PromptOptions options) {
                   (*abort_notification_ptr)->Notify();
                   *abort_notification_ptr = std::make_shared<Notification>();
                   return JoinValues(
-                             FilterHistory(editor_state, history.get(),
+                             FilterHistory(editor_state, *history,
                                            history_evaluator.get(),
                                            *abort_notification_ptr,
                                            line->ToString())
