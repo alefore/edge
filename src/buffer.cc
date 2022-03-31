@@ -1880,12 +1880,12 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
     if (fd == -1) {
       return nullptr;
     }
-    return std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
-        .buffer = *this,
-        .fd = fd,
-        .modifiers = std::move(modifiers),
-        .terminal = terminal_.get(),
-        .read_evaluator = &async_read_evaluator_});
+    return std::make_unique<FileDescriptorReader>(
+        FileDescriptorReader::Options{.buffer = *this,
+                                      .fd = fd,
+                                      .modifiers = std::move(modifiers),
+                                      .terminal = terminal_.get(),
+                                      .read_evaluator = async_read_evaluator_});
   };
 
   fd_ = new_reader(input_fd, {});

@@ -38,7 +38,7 @@ class FileDescriptorReader {
     // We want to avoid potentially expensive/slow parsing operations in the
     // main thread. To achieve that, we receive an async_processor owned by the
     // buffer and we delegate as much work as feasible to that processor.
-    AsyncEvaluator* read_evaluator = nullptr;
+    AsyncEvaluator& read_evaluator;
   };
 
   FileDescriptorReader(Options options);

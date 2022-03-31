@@ -17,7 +17,6 @@ namespace afc::editor {
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::make_shared<Options>(std::move(options))) {
   CHECK(options_->fd != -1);
-  CHECK(options_->read_evaluator != nullptr);
 }
 
 FileDescriptorReader::~FileDescriptorReader() { close(options_->fd); }
@@ -182,7 +181,7 @@ void InsertLines(const FileDescriptorReader::Options& options,
 futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
     std::shared_ptr<LazyString> contents) {
   return options_->read_evaluator
-      ->Run(
+      .Run(
           // TODO: Find a way to remove the `std::function`, letting the read
           // evaluator somehow detect the return type. Not sure why it doesn't
           // work.
