@@ -42,19 +42,17 @@ LineWithCursor::Generator::Vector AddLeftFrame(
 
   ColumnsVector columns_vector{.index_active = 1};
 
-  RowsVector rows_vector{.lines = lines.size()};
+  LineWithCursor::Generator::Vector rows;
   if (lines.size() > LineNumberDelta(1)) {
-    rows_vector.push_back(
-        {.lines_vector = RepeatLine(ProducerForString(L"│", modifiers),
-                                    lines.size() - LineNumberDelta(1))});
+    rows = RepeatLine(ProducerForString(L"│", modifiers),
+                      lines.size() - LineNumberDelta(1));
   }
-  rows_vector.push_back(
-      {.lines_vector =
-           RepeatLine(ProducerForString(L"╰", modifiers), LineNumberDelta(1))});
+  rows = AppendRows(
+      std::move(rows),
+      RepeatLine(ProducerForString(L"╰", modifiers), LineNumberDelta(1)), 1);
 
   columns_vector.push_back(
-      {.lines = OutputFromRowsVector(std::move(rows_vector)),
-       .width = ColumnNumberDelta(1)});
+      {.lines = std::move(rows), .width = ColumnNumberDelta(1)});
 
   columns_vector.push_back({.lines = lines});
 
@@ -65,19 +63,20 @@ LineWithCursor::Generator::Vector CenterVertically(
     LineWithCursor::Generator::Vector input, LineNumberDelta status_lines,
     LineNumberDelta total_lines,
     BufferContentsWindow::StatusPosition status_position) {
-  if (input.size() + status_lines >= total_lines) return input;
-  LineNumberDelta prefix_size;
-  switch (status_position) {
-    case BufferContentsWindow::StatusPosition::kTop:
-      prefix_size = max(LineNumberDelta(),
-                        (total_lines - input.size()) / 2 - status_lines);
-      break;
-    case BufferContentsWindow::StatusPosition::kBottom:
-      prefix_size = min((total_lines - input.size()) / 2,
-                        total_lines - status_lines - input.size());
-      break;
+  if (input.size() + status_lines < total_lines) {
+    LineNumberDelta prefix_size;
+    switch (status_position) {
+      case BufferContentsWindow::StatusPosition::kTop:
+        prefix_size = max(LineNumberDelta(),
+                          (total_lines - input.size()) / 2 - status_lines);
+        break;
+      case BufferContentsWindow::StatusPosition::kBottom:
+        prefix_size = min((total_lines - input.size()) / 2,
+                          total_lines - status_lines - input.size());
+        break;
+    }
+    input.PrependEmptyLines(prefix_size);
   }
-  input.PrependEmptyLines(prefix_size);
   input.resize(total_lines - status_lines);
   return input;
 }
@@ -249,8 +248,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
     first_run = false;
   }
 
-  RowsVector rows_vector{.lines = output_producer_options.size.line};
-  size_t index = 0;
+  LineWithCursor::Generator::Vector output;
   for (const auto& section : sections) {
     BufferContentsWindow::Input section_input = buffer_contents_window_input;
     section_input.lines_shown = section.end.line - section.begin.line;
@@ -268,13 +266,10 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
                       section_output_producer_options, sections.size());
     section_lines.lines.resize(section_input.lines_shown.line_delta,
                                LineWithCursor::Generator::Empty());
-    rows_vector.push_back({.lines_vector = section_lines});
-    if (section.Contains(buffer.position())) {
-      rows_vector.index_active = index;
-    }
-    index++;
+    output = AppendRows(std::move(output), section_lines,
+                        section.Contains(buffer.position()) ? 1 : 0);
   }
-  return OutputFromRowsVector(std::move(rows_vector));
+  return output;
 }
 }  // namespace
 
@@ -379,35 +374,26 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                               input.output_producer_options, 1),
           status_lines.size(), total_size.line, window.status_position),
       .view_start = window.view_start};
+  CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
-  CHECK_EQ(output.lines.size(), input.output_producer_options.size.line);
   if (!status_lines.size().IsZero()) {
-    size_t buffer_index = 0;
-    size_t status_index = 1;
+    output.lines = CenterOutput(std::move(output.lines), total_size.column);
+    status_lines = CenterOutput(std::move(status_lines), total_size.column);
+
     switch (window.status_position) {
       case BufferContentsWindow::StatusPosition::kTop:
-        status_index = 0;
-        buffer_index = 1;
+        output.lines = AppendRows(
+            std::move(status_lines), std::move(output.lines),
+            buffer->status().GetType() == Status::Type::kPrompt ? 0 : 1);
         break;
       case BufferContentsWindow::StatusPosition::kBottom:
-        buffer_index = 0;
-        status_index = 1;
+        output.lines = AppendRows(
+            std::move(output.lines), std::move(status_lines),
+            buffer->status().GetType() == Status::Type::kPrompt ? 1 : 0);
         break;
     }
 
-    RowsVector rows_vector{
-        .index_active = buffer->status().GetType() == Status::Type::kPrompt
-                            ? status_index
-                            : buffer_index,
-        .lines = total_size.line};
-    rows_vector.rows.resize(2);
-    rows_vector.rows[buffer_index] = {
-        .lines_vector =
-            CenterOutput(std::move(output.lines), total_size.column)};
-    rows_vector.rows[status_index] = {
-        .lines_vector =
-            CenterOutput(std::move(status_lines), total_size.column)};
-    output.lines = OutputFromRowsVector(std::move(rows_vector));
+    CHECK_EQ(output.lines.size(), total_size.line);
   }
   return output;
 }
@@ -418,7 +404,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
     OutputProducerOptions options) const {
   auto buffer = options_.buffer.lock();
   BufferOutputProducerInput input;
-  input.output_producer_options = std::move(options);
+  input.output_producer_options = options;
   input.buffer = buffer;
   input.view_start = view_start();
   if (options_.position_in_parent.has_value()) {
@@ -437,7 +423,6 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
   }
 
   if (options_.position_in_parent.has_value()) {
-    RowsVector nested_rows{.index_active = 1, .lines = options.size.line};
     FrameOutputProducerOptions frame_options;
     frame_options.title =
         buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
@@ -462,16 +447,9 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
     frame_options.prefix =
         (options.size.line > kTopFrameLines && add_left_frame) ? L"╭" : L"─";
 
-    nested_rows.push_back(
-        {.lines_vector =
-             RepeatLine(LineWithCursor(FrameLine(std::move(frame_options))),
-                        LineNumberDelta(1))});
-
-    options.size.line -= LineNumberDelta(1);
-    options.main_cursor_behavior =
-        options_.is_active
-            ? options.main_cursor_behavior
-            : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
+    auto frame_lines =
+        RepeatLine(LineWithCursor(FrameLine(std::move(frame_options))),
+                   LineNumberDelta(1));
 
     if (add_left_frame) {
       output.lines = AddLeftFrame(
@@ -480,9 +458,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
               ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
               : LineModifierSet{LineModifier::DIM});
     }
-    CHECK_EQ(output.lines.size(), options.size.line);
-    nested_rows.push_back({.lines_vector = std::move(output.lines)});
-    output.lines = OutputFromRowsVector(std::move(nested_rows));
+    output.lines = AppendRows(frame_lines, std::move(output.lines), 1);
   }
 
   return output.lines;
