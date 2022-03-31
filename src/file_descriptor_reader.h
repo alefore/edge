@@ -25,7 +25,7 @@ class BufferTerminal;
 class FileDescriptorReader {
  public:
   struct Options {
-    OpenBuffer* buffer = nullptr;
+    OpenBuffer& buffer;
 
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.

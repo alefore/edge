@@ -16,7 +16,6 @@ namespace afc::editor {
 
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::make_shared<Options>(std::move(options))) {
-  CHECK(options_->buffer != nullptr);
   CHECK(options_->fd != -1);
   CHECK(options_->read_evaluator != nullptr);
 }
@@ -45,7 +44,7 @@ std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
 futures::Value<FileDescriptorReader::ReadResult>
 FileDescriptorReader::ReadData() {
   LOG(INFO) << "Reading input from " << options_->fd << " for buffer "
-            << options_->buffer->Read(buffer_variables::name);
+            << options_->buffer.Read(buffer_variables::name);
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer_ == nullptr) {
     CHECK_EQ(low_buffer_length_, 0ul);
@@ -94,7 +93,7 @@ FileDescriptorReader::ReadData() {
   size_t processed = low_buffer_tmp == nullptr
                          ? low_buffer_length_
                          : low_buffer_tmp - low_buffer_.get();
-  VLOG(5) << options_->buffer->Read(buffer_variables::name)
+  VLOG(5) << options_->buffer.Read(buffer_variables::name)
           << ": Characters consumed: " << processed
           << ", produced: " << buffer_wrapper->size();
   CHECK_LE(processed, low_buffer_length_);
@@ -105,14 +104,14 @@ FileDescriptorReader::ReadData() {
     low_buffer_ = nullptr;
   }
 
-  if (options_->buffer->Read(buffer_variables::vm_exec)) {
-    LOG(INFO) << options_->buffer->Read(buffer_variables::name)
+  if (options_->buffer.Read(buffer_variables::vm_exec)) {
+    LOG(INFO) << options_->buffer.Read(buffer_variables::name)
               << ": Evaluating VM code: " << buffer_wrapper->ToString();
-    options_->buffer->EvaluateString(buffer_wrapper->ToString());
+    options_->buffer.EvaluateString(buffer_wrapper->ToString());
   }
 
   clock_gettime(0, &last_input_received_);
-  options_->buffer->RegisterProgress();
+  options_->buffer.RegisterProgress();
   if (options_->terminal == nullptr) {
     state_ = State::kParsing;
     return ParseAndInsertLines(buffer_wrapper).Transform([this](bool) {
@@ -166,10 +165,10 @@ void InsertLines(const FileDescriptorReader::Options& options,
   if (lines_to_insert.empty()) return;
 
   // These changes don't count: they come from disk.
-  auto disk_state_freezer = options.buffer->FreezeDiskState();
+  auto disk_state_freezer = options.buffer.FreezeDiskState();
 
-  auto follower = options.buffer->GetEndPositionFollower();
-  options.buffer->AppendToLastLine(**lines_to_insert.begin());
+  auto follower = options.buffer.GetEndPositionFollower();
+  options.buffer.AppendToLastLine(**lines_to_insert.begin());
   // TODO: Avoid the linear complexity operation in the next line. However,
   // according to `tracker_erase`, it doesn't seem to matter much.
   static Tracker tracker_erase(L"FileDescriptorReader::InsertLines::Erase");
@@ -177,7 +176,7 @@ void InsertLines(const FileDescriptorReader::Options& options,
   lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
   tracker_erase_call = nullptr;
 
-  options.buffer->AppendLines(std::move(lines_to_insert));
+  options.buffer.AppendLines(std::move(lines_to_insert));
 }
 
 futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(

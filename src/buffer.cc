@@ -873,8 +873,8 @@ void OpenBuffer::RegisterProgress() {
   }
 }
 
-void OpenBuffer::ReadData() { ReadData(&fd_); }
-void OpenBuffer::ReadErrorData() { ReadData(&fd_error_); }
+void OpenBuffer::ReadData() { ReadData(fd_); }
+void OpenBuffer::ReadErrorData() { ReadData(fd_error_); }
 
 void OpenBuffer::UpdateTreeParser() {
   auto parser = Read(buffer_variables::tree_parser);
@@ -1880,13 +1880,12 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
     if (fd == -1) {
       return nullptr;
     }
-    FileDescriptorReader::Options options;
-    options.buffer = this;
-    options.terminal = terminal_.get();
-    options.fd = fd;
-    options.modifiers = std::move(modifiers);
-    options.read_evaluator = &async_read_evaluator_;
-    return std::make_unique<FileDescriptorReader>(std::move(options));
+    return std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
+        .buffer = *this,
+        .fd = fd,
+        .modifiers = std::move(modifiers),
+        .terminal = terminal_.get(),
+        .read_evaluator = &async_read_evaluator_});
   };
 
   fd_ = new_reader(input_fd, {});
@@ -2516,14 +2515,13 @@ bool OpenBuffer::IsPastPosition(LineColumn position) const {
            position.column <= LineAt(position.line)->EndColumn()));
 }
 
-void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>* source) {
+void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>& source) {
   CHECK(source != nullptr);
-  CHECK(*source != nullptr);
-  (*source)->ReadData().SetConsumer(
-      [this, source](FileDescriptorReader::ReadResult value) {
+  source->ReadData().SetConsumer(
+      [this, &source](FileDescriptorReader::ReadResult value) {
         if (value != FileDescriptorReader::ReadResult::kDone) return;
         RegisterProgress();
-        (*source) = nullptr;
+        source = nullptr;
         if (fd_ == nullptr && fd_error_ == nullptr) {
           EndOfFile();
         }

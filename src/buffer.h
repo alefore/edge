@@ -488,7 +488,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // Reads from one of the two FileDescriptorReader instances in the buffer
   // (i.e., `fd_` or `fd_error_`).
-  void ReadData(std::unique_ptr<FileDescriptorReader>* source);
+  void ReadData(std::unique_ptr<FileDescriptorReader>& source);
 
   static void MaybeScheduleNextWorkQueueExecution(
       std::shared_ptr<OpenBuffer> buffer);
