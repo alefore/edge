@@ -89,14 +89,14 @@ futures::Value<UndoCallback> ExecuteTransformation(
       std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>();
   return editor
       .ForEachActiveBuffer([transformation = std::move(transformation),
-                            buffers_transformed, application_type](
-                               const std::shared_ptr<OpenBuffer>& buffer) {
+                            buffers_transformed,
+                            application_type](OpenBuffer& buffer) {
         static Tracker tracker(L"ExecuteTransformation::ApplyTransformation");
         auto call = tracker.Call();
-        buffers_transformed->push_back(buffer);
-        return buffer->ApplyToCursors(
+        buffers_transformed->push_back(buffer.shared_from_this());
+        return buffer.ApplyToCursors(
             transformation,
-            buffer->Read(buffer_variables::multiple_cursors)
+            buffer.Read(buffer_variables::multiple_cursors)
                 ? Modifiers::CursorsAffected::kAll
                 : Modifiers::CursorsAffected::kOnlyCurrent,
             application_type == ApplicationType::kPreview

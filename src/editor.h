@@ -92,16 +92,12 @@ class EditorState {
   void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                  BuffersList::AddBufferType insertion_type);
   futures::Value<EmptyValue> ForEachActiveBuffer(
-      std::function<
-          futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
-          callback);
+      std::function<futures::Value<EmptyValue>(OpenBuffer&)> callback);
   // Similar to ForEachActiveBuffer, but if repetions are set, only runs the
   // callback for the buffer referenced by repetitions (in the list of buffers,
   // buffer_tree_).
   futures::Value<EmptyValue> ForEachActiveBufferWithRepetitions(
-      std::function<
-          futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
-          callback);
+      std::function<futures::Value<EmptyValue>(OpenBuffer&)> callback);
 
   // Convenience wrapper of `ForEachActiveBuffer` that applies `transformation`.
   futures::Value<EmptyValue> ApplyToActiveBuffers(

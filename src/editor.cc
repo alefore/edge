@@ -80,12 +80,10 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
     auto editor = static_cast<EditorState*>(args[0]->user_value.get());
     CHECK(editor != nullptr);
     return editor
-        ->ForEachActiveBuffer(
-            [method](const std::shared_ptr<OpenBuffer>& buffer) {
-              CHECK(buffer != nullptr);
-              (*buffer.*method)();
-              return futures::Past(EmptyValue());
-            })
+        ->ForEachActiveBuffer([method](OpenBuffer& buffer) {
+          (buffer.*method)();
+          return futures::Past(EmptyValue());
+        })
         .Transform([editor](EmptyValue) {
           editor->ResetModifiers();
           return EvaluationOutput::New(Value::NewVoid());
@@ -241,12 +239,11 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 VMTypeMapper<EditorState*>::get(input[0].get());
             return editor
                 ->ForEachActiveBuffer([callback = std::move(input[1]->callback),
-                                       trampoline](
-                                          std::shared_ptr<OpenBuffer> buffer) {
+                                       trampoline](OpenBuffer& buffer) {
                   std::vector<std::unique_ptr<Value>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
-                          std::move(buffer)));
+                          buffer.shared_from_this()));
                   return callback(std::move(args), trampoline)
                       .Transform([](EvaluationOutput) { return EmptyValue(); });
                 })
@@ -267,17 +264,17 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
             return editor
-                ->ForEachActiveBufferWithRepetitions(
-                    [callback = std::move(input[1]->callback),
-                     trampoline](std::shared_ptr<OpenBuffer> buffer) {
-                      std::vector<std::unique_ptr<Value>> args;
-                      args.push_back(
-                          VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::
-                              New(std::move(buffer)));
-                      return callback(std::move(args), trampoline)
-                          .Transform(
-                              [](EvaluationOutput) { return EmptyValue(); });
-                    })
+                ->ForEachActiveBufferWithRepetitions([callback = std::move(
+                                                          input[1]->callback),
+                                                      trampoline](
+                                                         OpenBuffer& buffer) {
+                  std::vector<std::unique_ptr<Value>> args;
+                  args.push_back(
+                      VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
+                          buffer.shared_from_this()));
+                  return callback(std::move(args), trampoline)
+                      .Transform([](EvaluationOutput) { return EmptyValue(); });
+                })
                 .Transform([](EmptyValue) {
                   return EvaluationOutput::Return(Value::NewVoid());
                 });
@@ -698,14 +695,12 @@ void EditorState::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
 }
 
 futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
-    std::function<
-        futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
-        callback) {
+    std::function<futures::Value<EmptyValue>(OpenBuffer&)> callback) {
   auto buffers = active_buffers();
   return futures::ForEachWithCopy(
              buffers.begin(), buffers.end(),
              [callback](const std::shared_ptr<OpenBuffer>& buffer) {
-               return callback(buffer).Transform([](EmptyValue) {
+               return callback(*buffer).Transform([](EmptyValue) {
                  return futures::IterationControlCommand::kContinue;
                });
              })
@@ -713,9 +708,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
 }
 
 futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
-    std::function<
-        futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
-        callback) {
+    std::function<futures::Value<EmptyValue>(OpenBuffer&)> callback) {
   auto value = futures::Past(EmptyValue());
   if (!modifiers().repetitions.has_value()) {
     value = ForEachActiveBuffer(callback);
@@ -723,7 +716,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
                  (max(modifiers().repetitions.value(), 1ul) - 1) %
                  buffer_tree().BuffersCount());
              buffer != nullptr) {
-    value = callback(buffer);
+    value = callback(*buffer);
   }
   return value.Transform([this](EmptyValue) {
     ResetModifiers();
@@ -733,10 +726,10 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
 
 futures::Value<EmptyValue> EditorState::ApplyToActiveBuffers(
     transformation::Variant transformation) {
-  return ForEachActiveBuffer([transformation = std::move(transformation)](
-                                 const std::shared_ptr<OpenBuffer>& buffer) {
-    return buffer->ApplyToCursors(transformation);
-  });
+  return ForEachActiveBuffer(
+      [transformation = std::move(transformation)](OpenBuffer& buffer) {
+        return buffer.ApplyToCursors(transformation);
+      });
 }
 
 BufferName GetBufferName(const wstring& prefix, size_t count) {
@@ -1061,11 +1054,10 @@ void EditorState::ProcessSignals() {
     switch (signal) {
       case SIGINT:
       case SIGTSTP:
-        ForEachActiveBuffer(
-            [signal](const std::shared_ptr<OpenBuffer>& buffer) {
-              buffer->PushSignal(signal);
-              return futures::Past(EmptyValue());
-            });
+        ForEachActiveBuffer([signal](OpenBuffer& buffer) {
+          buffer.PushSignal(signal);
+          return futures::Past(EmptyValue());
+        });
     }
   }
 }

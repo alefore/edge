@@ -104,9 +104,9 @@ class Paste : public Command {
     }
     std::shared_ptr<OpenBuffer> paste_buffer = it->second;
     editor_state_
-        .ForEachActiveBuffer([&editor_state = editor_state_, paste_buffer](
-                                 const std::shared_ptr<OpenBuffer>& buffer) {
-          if (paste_buffer == buffer) {
+        .ForEachActiveBuffer([&editor_state = editor_state_,
+                              paste_buffer](OpenBuffer& buffer) {
+          if (paste_buffer.get() == &buffer) {
             const static wstring errors[] = {
                 L"You shall not paste into the paste buffer.",
                 L"Nope.",
@@ -121,25 +121,25 @@ class Paste : public Command {
                 L"",
             };
             static int current_message = 0;
-            buffer->status().SetWarningText(errors[current_message++]);
+            buffer.status().SetWarningText(errors[current_message++]);
             if (errors[current_message].empty()) {
               current_message = 0;
             }
             return futures::Past(EmptyValue());
           }
-          if (buffer->fd() != nullptr) {
+          if (buffer.fd() != nullptr) {
             string text = ToByteString(paste_buffer->ToString());
             for (size_t i = 0; i < editor_state.repetitions(); i++) {
-              if (write(buffer->fd()->fd(), text.c_str(), text.size()) == -1) {
-                buffer->status().SetWarningText(L"Unable to paste.");
+              if (write(buffer.fd()->fd(), text.c_str(), text.size()) == -1) {
+                buffer.status().SetWarningText(L"Unable to paste.");
                 break;
               }
             }
             return futures::Past(EmptyValue());
           }
-          buffer->CheckPosition();
-          buffer->MaybeAdjustPositionCol();
-          return buffer->ApplyToCursors(transformation::Insert{
+          buffer.CheckPosition();
+          buffer.MaybeAdjustPositionCol();
+          return buffer.ApplyToCursors(transformation::Insert{
               .contents_to_insert = paste_buffer->contents().copy(),
               .modifiers = {.insertion = editor_state.modifiers().insertion,
                             .repetitions = editor_state.repetitions()}});
@@ -174,8 +174,8 @@ class UndoCommand : public Command {
       editor_state_.set_direction(direction_.value());
     }
     editor_state_
-        .ForEachActiveBuffer([](const std::shared_ptr<OpenBuffer>& buffer) {
-          return buffer->Undo(OpenBuffer::UndoMode::kLoop);
+        .ForEachActiveBuffer([](OpenBuffer& buffer) {
+          return buffer.Undo(OpenBuffer::UndoMode::kLoop);
         })
         .SetConsumer([&editor_state = editor_state_](EmptyValue) {
           editor_state.ResetRepetitions();
@@ -558,16 +558,14 @@ class ResetStateCommand : public Command {
 
   void ProcessInput(wint_t) {
     editor_state_.status().Reset();
-    editor_state_.ForEachActiveBuffer(
-        [](const std::shared_ptr<OpenBuffer>& buffer) {
-          auto when = Now();
-          when.tv_sec += 1;
-          buffer->work_queue()->ScheduleAt(
-              when,
-              [status_expiration = std::shared_ptr<StatusExpirationControl>(
-                   buffer->status().SetExpiringInformationText(L"ESC"))] {});
-          return futures::Past(EmptyValue());
-        });
+    editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
+      auto when = Now();
+      when.tv_sec += 1;
+      buffer.work_queue()->ScheduleAt(
+          when, [status_expiration = std::shared_ptr<StatusExpirationControl>(
+                     buffer.status().SetExpiringInformationText(L"ESC"))] {});
+      return futures::Past(EmptyValue());
+    });
     editor_state_.set_modifiers(Modifiers());
   }
 

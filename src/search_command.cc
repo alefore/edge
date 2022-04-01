@@ -142,15 +142,15 @@ class SearchCommand : public Command {
     if (editor_state_.structure()->search_query() ==
         Structure::SearchQuery::kRegion) {
       editor_state_
-          .ForEachActiveBuffer([&editor_state = editor_state_](
-                                   const std::shared_ptr<OpenBuffer>& buffer) {
+          .ForEachActiveBuffer([&editor_state =
+                                    editor_state_](OpenBuffer& buffer) {
             SearchOptions search_options;
-            Range range = buffer->FindPartialRange(editor_state.modifiers(),
-                                                   buffer->position());
+            Range range = buffer.FindPartialRange(editor_state.modifiers(),
+                                                  buffer.position());
             if (range.begin == range.end) {
               return futures::Past(EmptyValue());
             }
-            VLOG(5) << "FindPartialRange: [position:" << buffer->position()
+            VLOG(5) << "FindPartialRange: [position:" << buffer.position()
                     << "][range:" << range
                     << "][modifiers:" << editor_state.modifiers() << "]";
             CHECK_LT(range.begin, range.end);
@@ -162,7 +162,7 @@ class SearchCommand : public Command {
               } else {
                 range.end =
                     LineColumn(range.begin.line,
-                               buffer->LineAt(range.begin.line)->EndColumn());
+                               buffer.LineAt(range.begin.line)->EndColumn());
               }
             }
             CHECK_EQ(range.begin.line, range.end.line);
@@ -170,14 +170,14 @@ class SearchCommand : public Command {
               return futures::Past(EmptyValue());
             }
             CHECK_LT(range.begin.column, range.end.column);
-            buffer->set_position(range.begin);
+            buffer.set_position(range.begin);
             search_options.search_query =
-                buffer->LineAt(range.begin.line)
+                buffer.LineAt(range.begin.line)
                     ->Substring(range.begin.column,
                                 range.end.column - range.begin.column)
                     ->ToString();
-            search_options.starting_position = buffer->position();
-            DoSearch(*buffer, search_options);
+            search_options.starting_position = buffer.position();
+            DoSearch(buffer, search_options);
             return futures::Past(EmptyValue());
           })
           .Transform([&editor_state = editor_state_](EmptyValue) {
@@ -269,16 +269,14 @@ class SearchCommand : public Command {
          .handler =
              [&editor_state = editor_state_](const wstring& input) {
                return editor_state
-                   .ForEachActiveBuffer(
-                       [input](const std::shared_ptr<OpenBuffer>& buffer) {
-                         auto search_options = BuildPromptSearchOptions(
-                             input, buffer.get(),
-                             std::make_shared<Notification>());
-                         if (search_options.has_value()) {
-                           DoSearch(*buffer, search_options.value());
-                         }
-                         return futures::Past(EmptyValue());
-                       })
+                   .ForEachActiveBuffer([input](OpenBuffer& buffer) {
+                     if (auto search_options = BuildPromptSearchOptions(
+                             input, &buffer, std::make_shared<Notification>());
+                         search_options.has_value()) {
+                       DoSearch(buffer, *search_options);
+                     }
+                     return futures::Past(EmptyValue());
+                   })
                    .Transform([&editor_state](EmptyValue) {
                      editor_state.ResetDirection();
                      editor_state.ResetStructure();

@@ -65,10 +65,10 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                 [&editor_state, var](const wstring& input) {
                   editor_state.ResetRepetitions();
                   return editor_state.ForEachActiveBuffer(
-                      [var, input](const std::shared_ptr<OpenBuffer>& buffer) {
-                        buffer->Set(var, input);
-                        buffer->status().SetInformationText(var->name() +
-                                                            L" := " + input);
+                      [var, input](OpenBuffer& buffer) {
+                        buffer.Set(var, input);
+                        buffer.status().SetInformationText(var->name() +
+                                                           L" := " + input);
                         return futures::Past(EmptyValue());
                       });
                 },
@@ -90,13 +90,12 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   if (auto var = buffer_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
     return editor_state
-        .ForEachActiveBuffer(
-            [var, name](const std::shared_ptr<OpenBuffer>& buffer) {
-              buffer->toggle_bool_variable(var);
-              buffer->status().SetInformationText(
-                  (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
-              return futures::Past(EmptyValue());
-            })
+        .ForEachActiveBuffer([var, name](OpenBuffer& buffer) {
+          buffer.toggle_bool_variable(var);
+          buffer.status().SetInformationText(
+              (buffer.Read(var) ? L"🗸 " : L"⛶ ") + name);
+          return futures::Past(EmptyValue());
+        })
         .Transform([&editor_state](EmptyValue) {
           editor_state.ResetRepetitions();
           return EmptyValue();
@@ -121,8 +120,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                  return futures::Past(EmptyValue());
                }
                editor_state.ForEachActiveBuffer(
-                   [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
-                     buffer->Set(var, value);
+                   [var, value](OpenBuffer& buffer) {
+                     buffer.Set(var, value);
                      return futures::Past(EmptyValue());
                    });
                return futures::Past(EmptyValue());
@@ -146,8 +145,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                ss >> value;
                if (ss.eof() && !ss.fail()) {
                  editor_state.ForEachActiveBuffer(
-                     [var, value](const std::shared_ptr<OpenBuffer>& buffer) {
-                       buffer->Set(var, value);
+                     [var, value](OpenBuffer& buffer) {
+                       buffer.Set(var, value);
                        return futures::Past(EmptyValue());
                      });
                } else {
