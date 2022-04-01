@@ -18,7 +18,6 @@
 #include "src/horizontal_center_output_producer.h"
 #include "src/line_number_output_producer.h"
 #include "src/line_scroll_control.h"
-#include "src/rows_vector.h"
 #include "src/section_brackets_producer.h"
 #include "src/status_output_producer.h"
 #include "src/tests/tests.h"
@@ -47,9 +46,8 @@ LineWithCursor::Generator::Vector AddLeftFrame(
     rows = RepeatLine(ProducerForString(L"│", modifiers),
                       lines.size() - LineNumberDelta(1));
   }
-  rows = AppendRows(
-      std::move(rows),
-      RepeatLine(ProducerForString(L"╰", modifiers), LineNumberDelta(1)), 1);
+  rows.Append(
+      RepeatLine(ProducerForString(L"╰", modifiers), LineNumberDelta(1)));
 
   columns_vector.push_back(
       {.lines = std::move(rows), .width = ColumnNumberDelta(1)});
@@ -266,8 +264,8 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
                       section_output_producer_options, sections.size());
     section_lines.lines.resize(section_input.lines_shown.line_delta,
                                LineWithCursor::Generator::Empty());
-    output = AppendRows(std::move(output), section_lines,
-                        section.Contains(buffer.position()) ? 1 : 0);
+    if (!section.Contains(buffer.position())) section_lines.RemoveCursor();
+    output.Append(section_lines);
   }
   return output;
 }
@@ -379,17 +377,17 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (!status_lines.size().IsZero()) {
     output.lines = CenterOutput(std::move(output.lines), total_size.column);
     status_lines = CenterOutput(std::move(status_lines), total_size.column);
+    (buffer->status().GetType() == Status::Type::kPrompt ? output.lines
+                                                         : status_lines)
+        .RemoveCursor();
 
     switch (window.status_position) {
       case BufferContentsWindow::StatusPosition::kTop:
-        output.lines = AppendRows(
-            std::move(status_lines), std::move(output.lines),
-            buffer->status().GetType() == Status::Type::kPrompt ? 0 : 1);
+        status_lines.Append(std::move(output.lines));
+        output.lines = std::move(status_lines);
         break;
       case BufferContentsWindow::StatusPosition::kBottom:
-        output.lines = AppendRows(
-            std::move(output.lines), std::move(status_lines),
-            buffer->status().GetType() == Status::Type::kPrompt ? 1 : 0);
+        output.lines.Append(std::move(status_lines));
         break;
     }
 
@@ -458,7 +456,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
               ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
               : LineModifierSet{LineModifier::DIM});
     }
-    output.lines = AppendRows(frame_lines, std::move(output.lines), 1);
+    frame_lines.Append(std::move(output.lines));
+    output.lines = std::move(frame_lines);
   }
 
   return output.lines;

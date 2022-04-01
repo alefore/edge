@@ -18,14 +18,14 @@ struct LineWithCursor {
     struct Vector {
       LineNumberDelta size() const { return LineNumberDelta(lines.size()); }
       bool empty() const { return lines.empty(); }
-      void resize(LineNumberDelta size) {
-        lines.resize(size.line_delta, Generator::Empty());
-      }
-      void PrependEmptyLines(LineNumberDelta size) {
-        std::vector<LineWithCursor::Generator> prefix(
-            size.line_delta, LineWithCursor::Generator::Empty());
-        lines.insert(lines.begin(), prefix.begin(), prefix.end());
-      }
+      Vector& resize(LineNumberDelta size);
+
+      Vector& PrependEmptyLines(LineNumberDelta size);
+
+      // Complexity is linear to the length of `tail`.
+      Vector& Append(LineWithCursor::Generator::Vector tail);
+
+      Vector& RemoveCursor();
 
       std::vector<Generator> lines;
       ColumnNumberDelta width;

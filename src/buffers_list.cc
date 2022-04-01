@@ -11,7 +11,6 @@
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_trim.h"
-#include "src/rows_vector.h"
 #include "src/tests/tests.h"
 #include "src/time.h"
 #include "src/widget.h"
@@ -832,7 +831,8 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
             .size = LineColumnDelta(layout.lines, options.size.column),
             .filter = OptimizeFilter(filter_)}));
     CHECK_EQ(buffers_list_lines.size(), layout.lines);
-    output = AppendRows(std::move(output), std::move(buffers_list_lines), 0);
+    buffers_list_lines.RemoveCursor();
+    output.Append(std::move(buffers_list_lines));
   }
 
   return output;

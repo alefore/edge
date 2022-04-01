@@ -18,7 +18,6 @@
 #include "src/editor.h"
 #include "src/editor_variables.h"
 #include "src/frame_output_producer.h"
-#include "src/rows_vector.h"
 #include "src/widget.h"
 #include "src/wstring.h"
 
@@ -143,8 +142,8 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
     LineWithCursor::Generator::Vector child_lines =
         GetChildOutput(options, index, lines_per_child[index]);
     CHECK_EQ(child_lines.size(), lines_per_child[index]);
-    output = AppendRows(std::move(output), std::move(child_lines),
-                        index == active_ ? 1 : 0);
+    if (index != active_) child_lines.RemoveCursor();
+    output.Append(std::move(child_lines));
   }
 
   if (children_skipped > 0) {

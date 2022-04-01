@@ -12,7 +12,6 @@
 #include "src/columns_vector.h"
 #include "src/editor.h"
 #include "src/line_marks.h"
-#include "src/rows_vector.h"
 #include "src/section_brackets_producer.h"
 
 namespace afc::editor {
@@ -214,12 +213,13 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);
 
   auto context_rows = OutputFromColumnsVector(context_columns_vector);
+  context_rows.RemoveCursor();
   CHECK_EQ(context_rows.size(), context_lines);
 
   if (info_lines.IsZero()) return context_rows;
 
-  return AppendRows(context_rows,
-                    RepeatLine(StatusBasicInfo(options), info_lines), 1);
+  context_rows.Append(RepeatLine(StatusBasicInfo(options), info_lines));
+  return context_rows;
 }
 
 }  // namespace afc::editor

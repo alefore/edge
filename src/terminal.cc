@@ -12,7 +12,6 @@
 #include "src/frame_output_producer.h"
 #include "src/line_marks.h"
 #include "src/parse_tree.h"
-#include "src/rows_vector.h"
 #include "src/status_output_producer.h"
 
 namespace afc {
@@ -39,6 +38,39 @@ constexpr int Terminal::CTRL_K;
 
 Terminal::Terminal() : lines_cache_(1024) {}
 
+namespace {
+LineWithCursor::Generator::Vector GetLines(const EditorState& editor_state,
+                                           const Screen& screen) {
+  LineColumnDelta screen_size = screen.size();
+  LineWithCursor::Generator::Vector status_lines =
+      StatusOutput({.status = editor_state.status(),
+                    .buffer = nullptr,
+                    .modifiers = editor_state.modifiers(),
+                    .size = screen_size});
+
+  auto buffer = editor_state.current_buffer();
+  LineWithCursor::Generator::Vector output =
+      editor_state.buffer_tree().GetLines(
+          {.size = LineColumnDelta(screen_size.line - status_lines.size(),
+                                   screen_size.column),
+           .main_cursor_behavior =
+               (editor_state.status().GetType() == Status::Type::kPrompt ||
+                (buffer != nullptr &&
+                 buffer->status().GetType() == Status::Type::kPrompt))
+                   ? Widget::OutputProducerOptions::MainCursorBehavior::
+                         kHighlight
+                   : Widget::OutputProducerOptions::MainCursorBehavior::
+                         kIgnore});
+  CHECK_EQ(output.size(), screen_size.line - status_lines.size());
+
+  (editor_state.status().GetType() == Status::Type::kPrompt ? output
+                                                            : status_lines)
+      .RemoveCursor();
+  output.Append(std::move(status_lines));
+  return output;
+}
+}  // namespace
+
 void Terminal::Display(const EditorState& editor_state, Screen& screen,
                        const EditorState::ScreenState& screen_state) {
   if (screen_state.needs_hard_redraw) {
@@ -49,30 +81,11 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
   screen.Move(LineColumn());
 
   LineColumnDelta screen_size = screen.size();
-  const LineWithCursor::Generator::Vector status_lines =
-      StatusOutput({.status = editor_state.status(),
-                    .buffer = nullptr,
-                    .modifiers = editor_state.modifiers(),
-                    .size = screen_size});
-
   auto buffer = editor_state.current_buffer();
-  auto editor_widget_lines = editor_state.buffer_tree().GetLines(
-      {.size = LineColumnDelta(screen_size.line - status_lines.size(),
-                               screen_size.column),
-       .main_cursor_behavior =
-           (editor_state.status().GetType() == Status::Type::kPrompt ||
-            (buffer != nullptr &&
-             buffer->status().GetType() == Status::Type::kPrompt))
-               ? Widget::OutputProducerOptions::MainCursorBehavior::kHighlight
-               : Widget::OutputProducerOptions::MainCursorBehavior::kIgnore});
-  CHECK_EQ(editor_widget_lines.size(), screen_size.line - status_lines.size());
-
-  LineWithCursor::Generator::Vector generators = AppendRows(
-      std::move(editor_widget_lines), std::move(status_lines),
-      editor_state.status().GetType() == Status::Type::kPrompt ? 1ul : 0ul);
-  CHECK_EQ(generators.size(), screen_size.line);
+  LineWithCursor::Generator::Vector lines = GetLines(editor_state, screen);
+  CHECK_EQ(lines.size(), screen_size.line);
   for (LineNumber line; line.ToDelta() < screen_size.line; ++line)
-    WriteLine(screen, line, generators.lines[line.line]);
+    WriteLine(screen, line, lines.lines[line.line]);
 
   if (editor_state.status().GetType() == Status::Type::kPrompt ||
       (buffer != nullptr &&

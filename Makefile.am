@@ -143,8 +143,6 @@ src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \
 src/repeat_mode.cc \
-src/rows_vector.cc \
-src/rows_vector.h \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \
 src/run_cpp_command.h \
