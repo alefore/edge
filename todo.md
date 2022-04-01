@@ -2,19 +2,12 @@
 
 Consider using unicode watches to display duration, using exponential/logarithmic growth.
 
-Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
-
 Make the widgets work closer to nethack or similar command-line games.
 
 * `wrap_long_lines`:
   * Make `j` and `k` scroll within the line.
-  * Adjust handing of margins to take into account lines that wrap.
 
 Display the state of bool variables set different than their default values?
-
-If a file is smaller than the screen (or available lines for its widget), show it centered (vertically) in the widget.
-
-Change the cursor when we're in `type` mode.
 
 Highlight the token under the cursor:
 * If we're in a syntax tree, highlight other occurrences of the same token.
@@ -22,10 +15,6 @@ Highlight the token under the cursor:
 ### Markdown
 
 Handle links better:
-
-* Underline link text.
-
-* Allow enter to be pressed inside the link text (rather than just in the file).
 
 * Have a "render" view (probably with a better name) that aims to display the
   "final" view of a file (rather than its source code). For links, this would
@@ -49,9 +38,7 @@ Have an auto-save mode? Perhaps don't save to the file but to a log that can the
 Add structures for English editing:
 - Sentence clause. Initially probably just based on punctuation, ideally would be smart enough to parse the sentence, lol.
 
-Implement delete of page.
-
-For 'd': Add '?' (show modifiers available).
+For operation: Add '?' (show modifiers available).
 
 Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
 
@@ -100,14 +87,13 @@ Improve the bindings used to navigate the widgets.
 
 When autocompletion of files fails, have a fail back:
   A second TAB that doesn't advance should do a deeper search: search in every path on which we have an open file.
+  Or perhaps do a case insensitive search.
 
 When the prompt doesn't fit the screen, be smarter about what part to show? If it has a cursor, whatever is closest?
 
 Standardize the colorization of prompts (based on prediction), rather than having each prompt implement its own coloring?
 
 For `:` (vm command), improve the highlighter: enable autocompletion with a predictor that looks up available commands (similarish to `/`).
-
-Bug: Often shows `history:1` when there's no matches. [p:5]
 
 Fix problem with first read of prompt history (at start); doesn't refresh list of matches. [p:20]
 
