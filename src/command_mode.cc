@@ -559,8 +559,7 @@ class ResetStateCommand : public Command {
   void ProcessInput(wint_t) {
     editor_state_.status().Reset();
     editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
-      auto when = Now();
-      when.tv_sec += 1;
+      auto when = AddSeconds(Now(), 0.2);
       buffer.work_queue()->ScheduleAt(
           when, [status_expiration = std::shared_ptr<StatusExpirationControl>(
                      buffer.status().SetExpiringInformationText(L"ESC"))] {});
