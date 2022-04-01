@@ -51,6 +51,7 @@ GetCurrentFeatures(EditorState& editor) {
   }
   editor.ForEachActiveBuffer(
       [&output](const std::shared_ptr<OpenBuffer>& buffer) {
+        CHECK(buffer != nullptr);
         output.insert(
             {L"active", NewLazyString(buffer->Read(buffer_variables::name))});
         return futures::Past(EmptyValue());
