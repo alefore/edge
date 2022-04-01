@@ -633,14 +633,35 @@ const bool line_scroll_control_tests_registration =
                       options.lines_shown = LineNumberDelta(3);
                       options.margin_lines = LineNumberDelta(2);
                       auto output = BufferContentsWindow::Get(options);
+                      CHECK_EQ(output.lines.size(), 2ul);
                       CHECK(output.status_position ==
                             BufferContentsWindow::StatusPosition::kTop);
-                      CHECK_EQ(output.lines.size(), 2ul);
                       CHECK_EQ(output.lines.front().range,
                                Range::InLine(
                                    LineNumber(15), ColumnNumber(),
                                    ColumnNumberDelta(sizeof("15dog") - 1)));
                       CHECK_EQ(output.view_start, LineColumn(LineNumber(14)));
+                    }),
+           new_test(L"ViewStartWithPositionAtEndShortColumns",
+                    [&](auto options) {
+                      options.active_position = LineColumn(
+                          LineNumber(16), ColumnNumber(sizeof("16lynx") - 1));
+                      options.status_lines = LineNumberDelta(1);
+                      options.lines_shown = LineNumberDelta(3);
+                      options.columns_shown = ColumnNumberDelta(3);
+                      options.margin_lines = LineNumberDelta(2);
+                      auto output = BufferContentsWindow::Get(options);
+                      CHECK_EQ(output.lines.size(), 2ul);
+    // TODO: This test fails. Fix the code and make it pass.
+#if 0
+                      CHECK(output.status_position ==
+                            BufferContentsWindow::StatusPosition::kTop);
+                      CHECK_EQ(output.lines.front().range,
+                               Range::InLine(LineNumber(16), ColumnNumber(),
+                                             ColumnNumberDelta(2)));
+                      CHECK_EQ(output.view_start,
+                               LineColumn(LineNumber(15), ColumnNumber(4)));
+#endif
                     }),
            new_test(L"Cursors", [&](auto options) {
              CursorsSet cursors;
