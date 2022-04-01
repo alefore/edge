@@ -434,33 +434,42 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
     EditorState& editor_state, const Path& edge_path) {
   BufferName buffer_name(L"- search paths");
   auto it = editor_state.buffers()->find(buffer_name);
-  if (it != editor_state.buffers()->end()) {
-    LOG(INFO) << "search paths buffer already existed.";
-    return futures::Past(it->second);
-  }
-  return OpenFile(
-             OpenFileOptions{
-                 .editor_state = editor_state,
-                 .name = buffer_name,
-                 .path = Path::Join(edge_path,
-                                    Path::FromString(L"/search_paths").value()),
-                 .insertion_type = BuffersList::AddBufferType::kIgnore,
-                 .use_search_paths = false})
-      .Transform(
-          [&editor_state](
-              std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator it) {
-            CHECK(it != editor_state.buffers()->end());
-            CHECK(it->second != nullptr);
-            it->second->Set(buffer_variables::save_on_close, true);
-            it->second->Set(buffer_variables::trigger_reload_on_buffer_write,
-                            false);
-            it->second->Set(buffer_variables::show_in_buffers_list, false);
-            if (!editor_state.has_current_buffer()) {
-              editor_state.set_current_buffer(
-                  it->second, CommandArgumentModeApplyMode::kFinal);
-            }
-            return it->second;
-          });
+  futures::Value<std::shared_ptr<OpenBuffer>> output =
+      it != editor_state.buffers()->end()
+          ? futures::Past(it->second)
+          : OpenFile(
+                OpenFileOptions{
+                    .editor_state = editor_state,
+                    .name = buffer_name,
+                    .path = Path::Join(
+                        edge_path, Path::FromString(L"/search_paths").value()),
+                    .insertion_type = BuffersList::AddBufferType::kIgnore,
+                    .use_search_paths = false})
+                .Transform(
+                    [&editor_state](
+                        std::map<BufferName,
+                                 std::shared_ptr<OpenBuffer>>::iterator it) {
+                      CHECK(it != editor_state.buffers()->end());
+                      CHECK(it->second != nullptr);
+                      it->second->Set(buffer_variables::save_on_close, true);
+                      it->second->Set(
+                          buffer_variables::trigger_reload_on_buffer_write,
+                          false);
+                      it->second->Set(buffer_variables::show_in_buffers_list,
+                                      false);
+                      if (!editor_state.has_current_buffer()) {
+                        editor_state.set_current_buffer(
+                            it->second, CommandArgumentModeApplyMode::kFinal);
+                      }
+                      return it->second;
+                    });
+
+  return output.Transform([](std::shared_ptr<OpenBuffer> buffer) {
+    futures::Future<std::shared_ptr<OpenBuffer>> output;
+    buffer->AddEndOfFileObserver(
+        [buffer, consumer = std::move(output.consumer)] { consumer(buffer); });
+    return std::move(output.value);
+  });
 }
 
 futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,

@@ -90,9 +90,16 @@ wstring CommandsToRun(CommandLineValues args) {
       full_path = path;
     } else {
       LOG(INFO) << L"Will open a relative path: " << path;
-      char* dir = get_current_dir_name();
-      full_path = FromByteString(dir) + L"/" + path;
-      free(dir);
+      switch (args.initial_path_resolution_behavior) {
+        case CommandLineValues::LocalPathResolutionBehavior::kSimple: {
+          char* dir = get_current_dir_name();
+          full_path = FromByteString(dir) + L"/" + path;
+          free(dir);
+          break;
+        }
+        case CommandLineValues::LocalPathResolutionBehavior::kAdvanced:
+          full_path = path;
+      }
     }
     commands_to_run +=
         L"editor.OpenFile(\"" + CppEscapeString(full_path) + L"\", true);\n";
@@ -135,6 +142,7 @@ wstring CommandsToRun(CommandLineValues args) {
   if (commands_to_run.empty()) {
     commands_to_run = kDefaultCommandsToRun;
   }
+  LOG(INFO) << "XXXX: Commands: " << commands_to_run;
   return commands_to_run;
 }
 

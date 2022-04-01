@@ -62,6 +62,18 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   ViewMode view_mode = ViewMode::kDefault;
 
   double frames_per_second = 30.0;
+
+  enum class LocalPathResolutionBehavior {
+    // A local path is interpreted as relative to the current directory of the
+    // Edge client instance.
+    kSimple,
+    // A local path is given to the Edge server, allowing it to do a full
+    // resolution (e.g., including looking it up in the configured search
+    // paths).
+    kAdvanced
+  };
+  LocalPathResolutionBehavior initial_path_resolution_behavior =
+      LocalPathResolutionBehavior::kSimple;
 };
 
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&
