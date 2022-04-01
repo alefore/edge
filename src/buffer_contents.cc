@@ -69,6 +69,7 @@ BufferContents BufferContentsForTests() {
   output.AppendToLine(LineNumber(), Line(L"alejandro"));
   output.push_back(L"forero");
   output.push_back(L"cuervo");
+  LOG(INFO) << "Contents: " << output.ToString();
   return output;
 }
 
@@ -605,7 +606,48 @@ void BufferContents::FoldNextLine(LineNumber position) {
 }
 
 void BufferContents::push_back(wstring str) {
-  return push_back(std::make_shared<Line>(std::move(str)));
+  ColumnNumber start;
+  for (ColumnNumber i; i < ColumnNumber(str.size()); ++i) {
+    wchar_t c = str[i.column];
+    CHECK_GE(i, start);
+    if (c == '\n') {
+      push_back(std::make_shared<Line>(
+          str.substr(start.column, (i - start).column_delta)));
+      start = i + ColumnNumberDelta(1);
+    }
+  }
+  push_back(std::make_shared<Line>(str.substr(start.column)));
+}
+
+namespace {
+const bool push_back_wstring_tests_registration = tests::Register(
+    L"BufferContents::push_back(wstring)",
+    {
+        {.name = L"EmptyInput",
+         .callback =
+             [] {
+               BufferContents contents;
+               contents.push_back(L"");
+               CHECK(contents.ToString() == L"\n");
+               CHECK_EQ(contents.EndLine(), LineNumber(1));
+             }},
+        {.name = L"SingleLine",
+         .callback =
+             [] {
+               BufferContents contents;
+               contents.push_back(L"foo");
+               CHECK(contents.ToString() == L"\nfoo");
+               CHECK_EQ(contents.EndLine(), LineNumber(1));
+             }},
+        {.name = L"MultiLine",
+         .callback =
+             [] {
+               BufferContents contents;
+               contents.push_back(L"foo\nbar\nhey\n\n\nquux");
+               CHECK(contents.ToString() == L"\nfoo\nbar\nhey\n\n\nquux");
+               CHECK_EQ(contents.EndLine(), LineNumber(6));
+             }},
+    });
 }
 
 void BufferContents::push_back(shared_ptr<const Line> line) {
