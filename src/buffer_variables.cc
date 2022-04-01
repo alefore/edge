@@ -61,7 +61,6 @@ EdgeVariable<bool>* const reload_after_exit =
             L"to the value of `default_reload_after_exit`.")
         .Build();
 
-// xXxxxx
 EdgeVariable<bool>* const default_reload_after_exit =
     BoolStruct()
         ->Add()
