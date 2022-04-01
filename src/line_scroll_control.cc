@@ -246,15 +246,15 @@ BufferContentsWindow BufferContentsWindow::Get(
   CHECK_GE(options.status_lines, LineNumberDelta());
   CHECK_LE(options.status_lines, options.lines_shown);
   if (options.active_position.has_value()) {
-    options.begin =
-        std::max(std::min(options.begin, *options.active_position),
-                 LineColumn(options.active_position->line.MinusHandlingOverflow(
-                     options.lines_shown)));
     options.active_position->line =
         min(options.active_position->line, options.contents.EndLine());
     options.active_position->column =
         min(options.active_position->column,
             options.contents.at(options.active_position->line)->EndColumn());
+    options.begin =
+        std::max(std::min(options.begin, *options.active_position),
+                 LineColumn(options.active_position->line.MinusHandlingOverflow(
+                     options.lines_shown - options.status_lines)));
   }
   std::map<LineNumber, std::set<ColumnNumber>> cursors;
   for (auto& cursor : *options.active_cursors) {
@@ -303,9 +303,6 @@ BufferContentsWindow BufferContentsWindow::Get(
 
   output.lines = AdjustToHonorMargin(options, cursors, std::move(output.lines));
 
-  output.view_start =
-      output.lines.empty() ? options.begin : output.lines.front().range.begin;
-
   // Initialize output.status_position:
   LineNumberDelta lines_to_drop =
       max(LineNumberDelta(), LineNumberDelta(output.lines.size()) +
@@ -313,6 +310,8 @@ BufferContentsWindow BufferContentsWindow::Get(
 
   if (LineNumberDelta(cursor_index(output).value_or(0)) >
       (size_t(3) * options.lines_shown) / 5) {
+    output.view_start =
+        output.lines.empty() ? options.begin : output.lines.front().range.begin;
     output.status_position = BufferContentsWindow::StatusPosition::kTop;
     output.lines.erase(output.lines.begin(),
                        output.lines.begin() + lines_to_drop.line_delta);
@@ -320,6 +319,8 @@ BufferContentsWindow BufferContentsWindow::Get(
     output.lines.clear();
   } else {
     output.lines.resize(output.lines.size() - lines_to_drop.line_delta);
+    output.view_start =
+        output.lines.empty() ? options.begin : output.lines.front().range.begin;
   }
   return output;
 }
@@ -593,6 +594,53 @@ const bool line_scroll_control_tests_registration =
                                Range::InLine(
                                    LineNumber(16), ColumnNumber(0),
                                    ColumnNumberDelta(sizeof("16lynx") - 1)));
+                    }),
+           new_test(L"CursorWhenPositionAtEnd",
+                    [&](auto options) {
+                      options.status_lines = LineNumberDelta();
+                      options.lines_shown = LineNumberDelta(10);
+                      options.active_position = options.contents.range().end;
+                      auto output = BufferContentsWindow::Get(options);
+                      CHECK_EQ(output.lines.size(), 10ul);
+                      CHECK(output.status_position ==
+                            BufferContentsWindow::StatusPosition::kTop);
+                      CHECK_EQ(output.lines.back().range,
+                               Range::InLine(
+                                   LineNumber(16), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                      CHECK(output.lines.back().has_active_cursor);
+                    }),
+           new_test(L"CursorWhenPositionPastEnd",
+                    [&](auto options) {
+                      options.status_lines = LineNumberDelta();
+                      options.lines_shown = LineNumberDelta(10);
+                      options.active_position = LineColumn(LineNumber(9999));
+                      auto output = BufferContentsWindow::Get(options);
+                      CHECK_EQ(output.lines.size(), 10ul);
+                      CHECK(output.status_position ==
+                            BufferContentsWindow::StatusPosition::kTop);
+                      CHECK_EQ(output.lines.back().range,
+                               Range::InLine(
+                                   LineNumber(16), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                      CHECK(output.lines.back().has_active_cursor);
+                    }),
+           new_test(L"ViewStartWithPositionAtEnd",
+                    [&](auto options) {
+                      options.active_position = LineColumn(
+                          LineNumber(16), ColumnNumber(sizeof("16lynx") - 1));
+                      options.status_lines = LineNumberDelta(1);
+                      options.lines_shown = LineNumberDelta(3);
+                      options.margin_lines = LineNumberDelta(2);
+                      auto output = BufferContentsWindow::Get(options);
+                      CHECK(output.status_position ==
+                            BufferContentsWindow::StatusPosition::kTop);
+                      CHECK_EQ(output.lines.size(), 2ul);
+                      CHECK_EQ(output.lines.front().range,
+                               Range::InLine(
+                                   LineNumber(15), ColumnNumber(),
+                                   ColumnNumberDelta(sizeof("15dog") - 1)));
+                      CHECK_EQ(output.view_start, LineColumn(LineNumber(14)));
                     }),
            new_test(L"Cursors", [&](auto options) {
              CursorsSet cursors;
