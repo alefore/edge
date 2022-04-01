@@ -11,6 +11,7 @@
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
 #include "src/terminal.h"
+#include "src/tests/tests.h"
 
 namespace afc {
 namespace editor {
@@ -105,30 +106,8 @@ class HelpCommand : public Command {
     buffer->Set(buffer_variables::wrap_from_content, true);
     buffer->Set(buffer_variables::allow_dirty_delete, true);
 
-    buffer->AppendToLastLine(NewLazyString(L"# Edge - Help"));
-    buffer->AppendEmptyLine();
-
-    ShowCommands(buffer.get());
-    ShowEnvironment(original_buffer.get(), buffer.get());
-
-    StartSection(L"## Buffer Variables", buffer.get());
-    buffer->AppendLine(
-        NewLazyString(L"The following are all the buffer variables defined for "
-                      L"your buffer."));
-    buffer->AppendEmptyLine();
-
-    DescribeVariables(
-        L"bool", *original_buffer, buffer.get(), buffer_variables::BoolStruct(),
-        [](const bool& value) { return value ? L"true" : L"false"; });
-    DescribeVariables(
-        L"string", *original_buffer, buffer.get(),
-        buffer_variables::StringStruct(),
-        [](const std::wstring& value) { return L"`" + value + L"`"; });
-    DescribeVariables(L"int", *original_buffer, buffer.get(),
-                      buffer_variables::IntStruct(),
-                      [](const int& value) { return std::to_wstring(value); });
-
-    CommandLineVariables(buffer.get());
+    buffer->InsertInPosition(GenerateContents(*commands_, *original_buffer),
+                             LineColumn(), {});
     buffer->set_current_position_line(LineNumber(0));
     buffer->ResetMode();
 
@@ -137,44 +116,74 @@ class HelpCommand : public Command {
     editor_state_.ResetRepetitions();
   }
 
- private:
-  void StartSection(wstring section, OpenBuffer* buffer) {
-    buffer->AppendLine(NewLazyString(std::move(section)));
-    buffer->AppendEmptyLine();
+  static BufferContents GenerateContents(const MapModeCommands& commands,
+                                         const OpenBuffer& buffer) {
+    BufferContents output;
+    output.AppendToLine(LineNumber(), Line(L"# Edge - Help"));
+    output.push_back(L"");
+
+    ShowCommands(commands, output);
+    ShowEnvironment(buffer, output);
+
+    StartSection(L"## Buffer Variables", output);
+    output.push_back(
+        L"The following are all the buffer variables defined for your buffer.");
+    output.push_back(L"");
+
+    DescribeVariables(
+        L"bool", buffer, output, buffer_variables::BoolStruct(),
+        [](const bool& value) { return value ? L"true" : L"false"; });
+    DescribeVariables(
+        L"string", buffer, output, buffer_variables::StringStruct(),
+        [](const std::wstring& value) { return L"`" + value + L"`"; });
+    DescribeVariables(L"int", buffer, output, buffer_variables::IntStruct(),
+                      [](const int& value) { return std::to_wstring(value); });
+
+    CommandLineVariables(output);
+    return output;
   }
 
-  void ShowCommands(OpenBuffer* output_buffer) {
-    StartSection(L"## Commands", output_buffer);
+ private:
+  static void StartSection(wstring section, BufferContents& buffer) {
+    buffer.push_back(std::move(section));
+    buffer.push_back(L"");
+  }
 
-    output_buffer->AppendLine(
-        NewLazyString(L"The following is a list of all commands available in "
-                      L"your buffer, grouped by category."));
-    output_buffer->AppendEmptyLine();
+  static void ShowCommands(const MapModeCommands& commands,
+                           BufferContents& output) {
+    StartSection(L"## Commands", output);
 
-    for (const auto& category : commands_->Coallesce()) {
-      StartSection(L"### " + category.first, output_buffer);
+    output.push_back(
+        L"The following is a list of all commands available in "
+        L"your buffer, grouped by category.");
+    output.push_back(L"");
+
+    for (const auto& category : commands.Coallesce()) {
+      StartSection(L"### " + category.first, output);
       for (const auto& it : category.second) {
-        output_buffer->AppendLine(
-            NewLazyString(L"* " + DescribeSequence(it.first) + L" - " +
-                          it.second->Description()));
+        output.push_back(L"* " + DescribeSequence(it.first) + L" - " +
+                         it.second->Description());
       }
-      output_buffer->AppendEmptyLine();
+      output.push_back(L"");
     }
   }
 
-  void ShowEnvironment(OpenBuffer* original_buffer, OpenBuffer* output) {
+  // This is public for testability.
+  static void ShowEnvironment(const OpenBuffer& original_buffer,
+                              BufferContents& output) {
     StartSection(L"## Environment", output);
 
-    auto environment = original_buffer->environment();
+    const std::shared_ptr<Environment>& environment =
+        original_buffer.environment();
     CHECK(environment != nullptr);
 
     StartSection(L"### Types & methods", output);
 
-    output->AppendLine(NewLazyString(
+    output.push_back(
         L"This section contains a list of all types available to Edge "
         L"extensions running in your buffer. For each, a list of all their "
-        L"available methods is given."));
-    output->AppendEmptyLine();
+        L"available methods is given.");
+    output.push_back(L"");
 
     environment->ForEachType([&](const wstring& name, ObjectType* type) {
       CHECK(type != nullptr);
@@ -188,24 +197,23 @@ class HelpCommand : public Command {
                             ? 0
                             : kPaddingSize - field_name.size(),
                         L' ');
-        output->AppendLine(StringAppend(
+        output.push_back(std::make_shared<Line>(StringAppend(
             NewLazyString(L"* `"), NewLazyString(field_name),
             NewLazyString(L"`" + std::move(padding) + L"`"),
-            NewLazyString(FromByteString(value_stream.str()) + L"`")));
+            NewLazyString(FromByteString(value_stream.str()) + L"`"))));
       });
-      output->AppendEmptyLine();
+      output.push_back(L"");
     });
-    output->AppendEmptyLine();
+    output.push_back(L"");
 
     StartSection(L"### Variables", output);
 
-    output->AppendLine(NewLazyString(
+    output.push_back(
         L"The following are all variables defined in the environment "
-        L"associated with your buffer, and thus available to "
-        L"extensions."));
-    output->AppendEmptyLine();
+        L"associated with your buffer, and thus available to extensions.");
+    output.push_back(L"");
 
-    environment->ForEach([output](const wstring& name, Value* value) {
+    environment->ForEach([&output](const wstring& name, Value* value) {
       const static int kPaddingSize = 40;
       wstring padding(
           name.size() >= kPaddingSize ? 1 : kPaddingSize - name.size(), L' ');
@@ -217,67 +225,66 @@ class HelpCommand : public Command {
         value_stream << *value;
       }
 
-      output->AppendLine(StringAppend(
+      output.push_back(std::make_shared<Line>(StringAppend(
           NewLazyString(L"* `"), NewLazyString(name),
           NewLazyString(L"`" + std::move(padding) + L"`"),
-          NewLazyString(FromByteString(value_stream.str()) + L"`")));
+          NewLazyString(FromByteString(value_stream.str()) + L"`"))));
     });
-    output->AppendEmptyLine();
+    output.push_back(L"");
   }
 
   template <typename T, typename C>
-  void DescribeVariables(wstring type_name, const OpenBuffer& source,
-                         OpenBuffer* buffer, EdgeStruct<T>* variables,
-                         /*std::function<std::wstring(const T&)>*/ C print) {
-    StartSection(L"### " + type_name, buffer);
+  static void DescribeVariables(
+      wstring type_name, const OpenBuffer& source, BufferContents& output,
+      EdgeStruct<T>* variables,
+      /*std::function<std::wstring(const T&)>*/ C print) {
+    StartSection(L"### " + type_name, output);
     for (const auto& variable : variables->variables()) {
-      buffer->AppendLine(StringAppend(NewLazyString(L"#### "),
-                                      NewLazyString(variable.second->name())));
-      buffer->AppendEmptyLine();
-      buffer->AppendLazyString(NewLazyString(variable.second->description()));
-      buffer->AppendEmptyLine();
-      buffer->AppendLazyString(StringAppend(
+      output.push_back(std::make_shared<Line>(StringAppend(
+          NewLazyString(L"#### "), NewLazyString(variable.second->name()))));
+      output.push_back(L"");
+      output.push_back(variable.second->description());
+      output.push_back(L"");
+      output.push_back(std::make_shared<Line>(StringAppend(
           NewLazyString(L"* Value: "),
-          NewLazyString(print(source.Read(variable.second.get())))));
-      buffer->AppendLazyString(
-          StringAppend(NewLazyString(L"* Default: "),
-                       NewLazyString(print(variable.second->default_value()))));
+          NewLazyString(print(source.Read(variable.second.get()))))));
+      output.push_back(std::make_shared<Line>(StringAppend(
+          NewLazyString(L"* Default: "),
+          NewLazyString(print(variable.second->default_value())))));
 
       if (!variable.second->key().empty()) {
-        buffer->AppendLazyString(NewLazyString(L"* Related commands: `v" +
-                                               variable.second->key() + L"`"));
+        output.push_back(L"* Related commands: `v" + variable.second->key() +
+                         L"`");
       }
-      buffer->AppendEmptyLine();
+      output.push_back(L"");
     }
-    buffer->AppendEmptyLine();
+    output.push_back(L"");
   }
 
-  void CommandLineVariables(OpenBuffer* buffer) {
-    StartSection(L"## Command line arguments", buffer);
+  static void CommandLineVariables(BufferContents& output) {
+    StartSection(L"## Command line arguments", output);
     using command_line_arguments::Handler;
     auto handlers = CommandLineArgs();
     for (auto& h : handlers) {
-      StartSection(L"### " + h.aliases()[0], buffer);
+      StartSection(L"### " + h.aliases()[0], output);
       switch (h.argument_type()) {
         case Handler<CommandLineValues>::VariableType::kRequired:
-          buffer->AppendLine(NewLazyString(L"Required argument: " +
-                                           h.argument() + L": " +
-                                           h.argument_description()));
-          buffer->AppendEmptyLine();
+          output.push_back(L"Required argument: " + h.argument() + L": " +
+                           h.argument_description());
+          output.push_back(L"");
           break;
 
         case Handler<CommandLineValues>::VariableType::kOptional:
-          buffer->AppendLine(NewLazyString(L"Optional argument: " +
-                                           h.argument() + L": " +
-                                           h.argument_description()));
-          buffer->AppendEmptyLine();
+          output.push_back(L"Optional argument: " + h.argument() + L": " +
+                           h.argument_description());
+          output.push_back(L"");
           break;
 
         case Handler<CommandLineValues>::VariableType::kNone:
           break;
       }
-      buffer->AppendLazyString(NewLazyString(h.help()));
-      buffer->AppendEmptyLine();
+      output.push_back(h.help());
+      output.push_back(L"");
     }
   }
 
@@ -285,6 +292,18 @@ class HelpCommand : public Command {
   const MapModeCommands* const commands_;
   const wstring mode_description_;
 };
+
+const bool buffer_registration =
+    tests::Register(L"HelpCommand::GenerateContents",
+                    {
+                        {.name = L"GenerateContents",
+                         .callback =
+                             [] {
+                               auto buffer = NewBufferForTests();
+                               MapModeCommands commands(buffer->editor());
+                               HelpCommand::GenerateContents(commands, *buffer);
+                             }},
+                    });
 }  // namespace
 
 unique_ptr<Command> NewHelpCommand(EditorState& editor_state,
