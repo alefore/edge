@@ -74,9 +74,8 @@ std::wstring ToStatus(const CommandReachPage& reach_line) {
 }
 
 std::wstring ToStatus(const CommandReachChar& c) {
-  return SerializeCall(L"Char",
-                       {c.c.has_value() ? std::wstring(1, c.c.value()) : L"…",
-                        c.repetitions.ToString()});
+  return SerializeCall(L"Char", {c.c.has_value() ? std::wstring(1, *c.c) : L"…",
+                                 c.repetitions.ToString()});
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -464,6 +463,7 @@ bool ReceiveInput(CommandReachPage* output, wint_t c, State*) {
 }
 
 bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
+  if (c == '\n') return false;
   if (!output->c.has_value()) {
     output->c = c;
     return true;
