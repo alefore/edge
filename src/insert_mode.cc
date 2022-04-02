@@ -152,7 +152,7 @@ class InsertMode : public EditorMode {
       case '\t':
         ResetScrollBehavior();
         ForEachActiveBuffer(
-            {'\t'},
+            buffers_, {'\t'},
             [options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
               // TODO: Don't ignore the return value. If it's false for all
               // buffers, insert the \t.
@@ -165,7 +165,7 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
 
         ForEachActiveBuffer(
-            old_literal ? std::string{27} : "",
+            buffers_, old_literal ? std::string{27} : "",
             [options = options_,
              old_literal](const std::shared_ptr<OpenBuffer>& buffer) {
               if (buffer->fd() != nullptr) {
@@ -234,7 +234,7 @@ class InsertMode : public EditorMode {
         return;
 
       case Terminal::CTRL_L:
-        WriteLineBuffer({0x0c});
+        WriteLineBuffer(buffers_, {0x0c});
         return;
 
       case Terminal::CTRL_D:
@@ -251,7 +251,7 @@ class InsertMode : public EditorMode {
 
       case '\n':
         ResetScrollBehavior();
-        ForEachActiveBuffer({'\n'}, options_.new_line_handler);
+        ForEachActiveBuffer(buffers_, {'\n'}, options_.new_line_handler);
         return;
 
       case Terminal::CTRL_U: {
@@ -267,33 +267,37 @@ class InsertMode : public EditorMode {
           LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
           return;
         }
-        ForEachActiveBuffer({21}, [options = options_,
-                                   callback](const std::shared_ptr<OpenBuffer>&
-                                                 buffer) {
-          std::vector<std::unique_ptr<vm::Expression>> args;
-          args.push_back(vm::NewConstantExpression(
-              {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(buffer)}));
-          std::shared_ptr<Expression> expression = vm::NewFunctionCall(
-              vm::NewConstantExpression(std::make_unique<vm::Value>(*callback)),
-              std::move(args));
-          if (expression->Types().empty()) {
-            buffer->status().SetWarningText(
-                L"Unable to compile (type mismatch).");
-            return futures::Past(EmptyValue());
-          }
-          return CallModifyHandler(
-              options, *buffer,
-              buffer
-                  ->EvaluateExpression(expression.get(), buffer->environment())
-                  .ConsumeErrors([](Error) { return futures::Past(nullptr); }));
-        });
+        ForEachActiveBuffer(
+            buffers_, {21},
+            [options = options_,
+             callback](const std::shared_ptr<OpenBuffer>& buffer) {
+              std::vector<std::unique_ptr<vm::Expression>> args;
+              args.push_back(vm::NewConstantExpression(
+                  {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(buffer)}));
+              std::shared_ptr<Expression> expression = vm::NewFunctionCall(
+                  vm::NewConstantExpression(
+                      std::make_unique<vm::Value>(*callback)),
+                  std::move(args));
+              if (expression->Types().empty()) {
+                buffer->status().SetWarningText(
+                    L"Unable to compile (type mismatch).");
+                return futures::Past(EmptyValue());
+              }
+              return CallModifyHandler(
+                  options, *buffer,
+                  buffer
+                      ->EvaluateExpression(expression.get(),
+                                           buffer->environment())
+                      .ConsumeErrors(
+                          [](Error) { return futures::Past(nullptr); }));
+            });
         return;
       }
 
       case Terminal::CTRL_V:
         if (old_literal) {
           DLOG(INFO) << "Inserting literal CTRL_V";
-          WriteLineBuffer({22});
+          WriteLineBuffer(buffers_, {22});
         } else {
           DLOG(INFO) << "Set literal.";
           options_.editor_state.status().SetInformationText(L"<literal>");
@@ -304,7 +308,7 @@ class InsertMode : public EditorMode {
       case Terminal::CTRL_K: {
         ResetScrollBehavior();
         ForEachActiveBuffer(
-            {0x0b},
+            buffers_, {0x0b},
             [options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
               return CallModifyHandler(
                   options, *buffer,
@@ -325,7 +329,7 @@ class InsertMode : public EditorMode {
 
     // TODO: Apply TransformKeyboardText for buffers with fd?
     ForEachActiveBuffer(
-        {static_cast<char>(c)},
+        buffers_, {static_cast<char>(c)},
         [c, options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
           return buffer->TransformKeyboardText(std::wstring(1, c))
               .Transform([options, buffer](std::wstring value) {
@@ -360,12 +364,14 @@ class InsertMode : public EditorMode {
  private:
   // Writes `line_buffer` to every buffer with a fd, and runs `callable` in
   // every buffer without an fd.
-  futures::Value<EmptyValue> ForEachActiveBuffer(
-      std::string line_buffer, std::function<futures::Value<EmptyValue>(
-                                   const std::shared_ptr<OpenBuffer>&)>
-                                   callable) {
-    return WriteLineBuffer(line_buffer)
-        .Transform([buffers = buffers_, callable](EmptyValue) {
+  static futures::Value<EmptyValue> ForEachActiveBuffer(
+      std::shared_ptr<std::vector<std::shared_ptr<OpenBuffer>>> buffers,
+      std::string line_buffer,
+      std::function<
+          futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
+          callable) {
+    return WriteLineBuffer(buffers, line_buffer)
+        .Transform([buffers, callable](EmptyValue) {
           return futures::ForEach(buffers, [callable](const std::shared_ptr<
                                                       OpenBuffer>& buffer) {
             return buffer->fd() == nullptr
@@ -383,8 +389,9 @@ class InsertMode : public EditorMode {
   void HandleDelete(std::string line_buffer, Direction direction) {
     ResetScrollBehavior();
     ForEachActiveBuffer(
-        line_buffer, [direction, options = options_](
-                         const std::shared_ptr<OpenBuffer>& buffer) {
+        buffers_, line_buffer,
+        [direction,
+         options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
           buffer->MaybeAdjustPositionCol();
           transformation::Delete delete_options;
           if (direction == Direction::kBackwards) {
@@ -420,18 +427,19 @@ class InsertMode : public EditorMode {
   void ApplyScrollBehavior(std::string line_buffer,
                            void (ScrollBehavior::*method)(OpenBuffer&)) {
     GetScrollBehavior().AddListener(
-        [this, line_buffer, notification = scroll_behavior_abort_notification_,
+        [buffers = buffers_, line_buffer,
+         notification = scroll_behavior_abort_notification_,
          method](std::shared_ptr<ScrollBehavior> scroll_behavior) {
           if (notification->HasBeenNotified()) return;
-          ForEachActiveBuffer(
-              line_buffer, [scroll_behavior,
-                            method](const std::shared_ptr<OpenBuffer>& buffer) {
-                CHECK(buffer != nullptr);
-                if (buffer->fd() == nullptr) {
-                  (scroll_behavior.get()->*method)(*buffer);
-                }
-                return futures::Past(EmptyValue());
-              });
+          ForEachActiveBuffer(buffers, line_buffer,
+                              [scroll_behavior, method](
+                                  const std::shared_ptr<OpenBuffer>& buffer) {
+                                CHECK(buffer != nullptr);
+                                if (buffer->fd() == nullptr) {
+                                  (scroll_behavior.get()->*method)(*buffer);
+                                }
+                                return futures::Past(EmptyValue());
+                              });
         });
   }
 
@@ -466,10 +474,12 @@ class InsertMode : public EditorMode {
     scroll_behavior_ = std::nullopt;
   }
 
-  futures::Value<EmptyValue> WriteLineBuffer(std::string line_buffer) {
+  static futures::Value<EmptyValue> WriteLineBuffer(
+      std::shared_ptr<std::vector<std::shared_ptr<OpenBuffer>>> buffers,
+      std::string line_buffer) {
     if (line_buffer.empty()) return futures::Past(EmptyValue());
     return futures::ForEach(
-               buffers_,
+               buffers,
                [line_buffer = std::move(line_buffer)](
                    const std::shared_ptr<OpenBuffer>& buffer) {
                  if (auto fd = buffer->fd(); fd != nullptr) {
