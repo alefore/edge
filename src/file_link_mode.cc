@@ -359,11 +359,10 @@ using std::unique_ptr;
 
 // Always returns an actual value.
 futures::Value<PossibleError> SaveContentsToOpenFile(
-    WorkQueue* work_queue, Path path, int fd, const BufferContents& contents) {
-  auto contents_writer =
-      std::make_shared<AsyncEvaluator>(L"SaveContentsToOpenFile", work_queue);
-  return contents_writer
-      ->Run([contents, path, fd]() {
+    std::shared_ptr<WorkQueue> work_queue, Path path, int fd,
+    const BufferContents& contents) {
+  return AsyncEvaluator(L"SaveContentsToOpenFile", work_queue)
+      .Run([contents, path, fd]() {
         // TODO: It'd be significant more efficient to do fewer (bigger)
         // writes.
         std::optional<PossibleError> error;
@@ -379,18 +378,12 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
           return true;
         });
         return error.value_or(Success());
-      })
-      .Transform(
-          // Ensure that `contents_writer` survives the future.
-          //
-          // TODO: Improve AsyncEvaluator functionality to survive being deleted
-          // while executing?
-          [contents_writer](EmptyValue) { return Success(); });
+      });
 }
 
-futures::Value<PossibleError> SaveContentsToFile(const Path& path,
-                                                 const BufferContents& contents,
-                                                 WorkQueue* work_queue) {
+futures::Value<PossibleError> SaveContentsToFile(
+    const Path& path, const BufferContents& contents,
+    std::shared_ptr<WorkQueue> work_queue) {
   auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
   Path tmp_path = Path::Join(
       path.Dirname().value(),
@@ -407,7 +400,7 @@ futures::Value<PossibleError> SaveContentsToFile(const Path& path,
                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
                return Success(value);
              })
-      .Transform([path, contents, work_queue, file_system_driver,
+      .Transform([path, contents, file_system_driver,
                   tmp_path](struct stat stat_value) {
         return file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
                                         stat_value.st_mode);
@@ -843,15 +836,15 @@ OpenFile(const OpenFileOptions& options) {
         if (input.path.has_value()) {
           buffer_options->path = input.path.value();
         }
-        buffer_options->log_supplier = [path = input.path](
-                                           WorkQueue* work_queue,
-                                           Path edge_state_directory) {
-          FileSystemDriver driver(work_queue);
-          return NewFileLog(
-              &driver,
-              Path::Join(edge_state_directory,
-                         PathComponent::FromString(L".edge_log").value()));
-        };
+        buffer_options->log_supplier =
+            [path = input.path](std::shared_ptr<WorkQueue> work_queue,
+                                Path edge_state_directory) {
+              FileSystemDriver driver(work_queue);
+              return NewFileLog(
+                  &driver,
+                  Path::Join(edge_state_directory,
+                             PathComponent::FromString(L".edge_log").value()));
+            };
 
         std::shared_ptr<OpenBuffer> buffer;
 

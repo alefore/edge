@@ -106,8 +106,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
     // Optional log to use. Must never return nullptr.
     std::function<futures::ValueOrError<std::unique_ptr<Log>>(
-        WorkQueue* work_queue, Path edge_state_directory)>
-        log_supplier = [](WorkQueue*, Path) {
+        std::shared_ptr<WorkQueue> work_queue, Path edge_state_directory)>
+        log_supplier = [](std::shared_ptr<WorkQueue>, Path) {
           return futures::Past(Success(NewNullLog()));
         };
   };
@@ -351,7 +351,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
       const wstring& str);
   futures::ValueOrError<std::unique_ptr<Value>> EvaluateFile(const Path& path);
 
-  WorkQueue* work_queue() const;
+  const std::shared_ptr<WorkQueue>& work_queue() const;
 
   // Asynchronous threads that need to interact with the buffer shouldn't be
   // given a direct reference to the buffer, since OpenBuffer isn't thread safe.
@@ -492,9 +492,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // (i.e., `fd_` or `fd_error_`).
   void ReadData(std::unique_ptr<FileDescriptorReader>& source);
 
-  static void MaybeScheduleNextWorkQueueExecution(
-      std::shared_ptr<OpenBuffer> buffer);
-
   const Options options_;
 
   std::unique_ptr<Log> log_ = NewNullLog();
@@ -536,7 +533,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Holds the smallest time at which we know we have scheduled an execution of
   // work_queue_ in the editor's work queue.
   std::optional<struct timespec> next_scheduled_execution_;
-  mutable WorkQueue work_queue_;
+  std::shared_ptr<WorkQueue> work_queue_;
 
   BufferContents contents_;
 

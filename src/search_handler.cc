@@ -102,7 +102,7 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
 }  // namespace
 
 AsyncSearchProcessor::AsyncSearchProcessor(
-    WorkQueue* work_queue,
+    std::shared_ptr<WorkQueue> work_queue,
     BackgroundCallbackRunner::Options::QueueBehavior queue_behavior)
     : evaluator_(L"search", work_queue, queue_behavior) {}
 

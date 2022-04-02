@@ -94,7 +94,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
 }  // namespace
 
 // Executes pending work from all buffers.
-void EditorState::ExecutePendingWork() { work_queue_.Execute(); }
+void EditorState::ExecutePendingWork() { work_queue_->Execute(); }
 
 std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
   std::optional<struct timespec> output;
@@ -108,7 +108,9 @@ std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
   return output;
 }
 
-WorkQueue* EditorState::work_queue() const { return &work_queue_; }
+const std::shared_ptr<WorkQueue>& EditorState::work_queue() const {
+  return work_queue_;
+}
 
 void EditorState::ResetInternalEventNotifications() {
   char buffer[4096];
@@ -485,6 +487,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer& audio_player)
     : string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
+      work_queue_(WorkQueue::New([this] { NotifyInternalEvent(); })),
       home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
         std::vector<Path> output;
@@ -506,8 +509,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer& audio_player)
       }()),
       audio_player_(audio_player),
       buffer_tree_(*this),
-      status_(GetConsole(), audio_player_),
-      work_queue_([this] { NotifyInternalEvent(); }) {
+      status_(GetConsole(), audio_player_) {
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
@@ -900,7 +902,7 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
     // This is enough to cause the main loop to wake up; it'll attempt to do a
     // redraw then. Multiple attempts may be scheduled, but that's fine (just
     // a bit wasteful of memory).
-    work_queue_.ScheduleAt(next_screen_update_, [] {});
+    work_queue_->ScheduleAt(next_screen_update_, [] {});
     return {};
   }
   std::unique_lock<std::mutex> lock(mutex_);

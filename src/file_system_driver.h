@@ -30,7 +30,7 @@ namespace afc::editor {
 // main thread).
 class FileSystemDriver {
  public:
-  FileSystemDriver(WorkQueue* work_queue);
+  FileSystemDriver(std::shared_ptr<WorkQueue> work_queue);
 
   futures::Value<ValueOrError<int>> Open(Path path, int flags,
                                          mode_t mode) const;

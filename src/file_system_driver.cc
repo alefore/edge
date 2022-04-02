@@ -12,8 +12,10 @@ PossibleError SyscallReturnValue(std::wstring description, int return_value) {
 }
 }  // namespace
 
-FileSystemDriver::FileSystemDriver(WorkQueue* work_queue)
-    : evaluator_(L"FilesystemDriver", work_queue) {}
+FileSystemDriver::FileSystemDriver(std::shared_ptr<WorkQueue> work_queue)
+    : evaluator_(L"FilesystemDriver", work_queue) {
+  CHECK(work_queue != nullptr);
+}
 
 futures::Value<ValueOrError<int>> FileSystemDriver::Open(Path path, int flags,
                                                          mode_t mode) const {

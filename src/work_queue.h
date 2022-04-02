@@ -28,7 +28,16 @@ namespace afc::editor {
 // input is being gradually read from a file).
 class WorkQueue {
  public:
-  WorkQueue(std::function<void()> schedule_listener);
+  struct ConstructorAccessTag {
+   private:
+    ConstructorAccessTag() = default;
+    friend WorkQueue;
+  };
+
+  static std::shared_ptr<WorkQueue> New(
+      std::function<void()> schedule_listener);
+
+  WorkQueue(ConstructorAccessTag, std::function<void()> schedule_listener);
 
   void Schedule(std::function<void()> callback);
   void ScheduleAt(struct timespec when, std::function<void()> callback);
@@ -46,8 +55,10 @@ class WorkQueue {
   // WorkQueue is spending running callbacks, recently.
   double RecentUtilization() const;
 
+  void SetScheduleListener(std::function<void()> schedule_listener);
+
  private:
-  const std::function<void()> schedule_listener_;
+  std::function<void()> schedule_listener_;
 
   struct Callback {
     struct timespec time;
@@ -84,10 +95,10 @@ enum class WorkQueueChannelConsumeMode {
 template <typename T>
 class WorkQueueChannel {
  public:
-  WorkQueueChannel(WorkQueue* work_queue,
+  WorkQueueChannel(std::shared_ptr<WorkQueue> work_queue,
                    std::function<void(T t)> consume_callback,
                    WorkQueueChannelConsumeMode consume_mode)
-      : work_queue_(work_queue),
+      : work_queue_(std::move(work_queue)),
         consume_mode_(consume_mode),
         data_(std::make_shared<Data>(std::move(consume_callback))) {
     CHECK(work_queue_ != nullptr);
@@ -95,7 +106,7 @@ class WorkQueueChannel {
     CHECK(data_->consume_callback != nullptr);
   }
 
-  WorkQueue* work_queue() const { return work_queue_; }
+  const std::shared_ptr<WorkQueue>& work_queue() const { return work_queue_; }
   WorkQueueChannelConsumeMode consume_mode() const { return consume_mode_; }
 
   void Push(T value) {
@@ -132,7 +143,7 @@ class WorkQueueChannel {
   }
 
  private:
-  WorkQueue* const work_queue_;
+  std::shared_ptr<WorkQueue> const work_queue_;
   const WorkQueueChannelConsumeMode consume_mode_;
 
   // To enable deletion of the channel before the callbacks it schedules in

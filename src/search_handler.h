@@ -54,7 +54,7 @@ void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
 class AsyncSearchProcessor {
  public:
   AsyncSearchProcessor(
-      WorkQueue* work_queue,
+      std::shared_ptr<WorkQueue> work_queue,
       BackgroundCallbackRunner::Options::QueueBehavior queue_behavior =
           BackgroundCallbackRunner::Options::QueueBehavior::kFlush);
 

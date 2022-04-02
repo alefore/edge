@@ -220,7 +220,7 @@ class EditorState {
   // Executes pending work from all buffers.
   void ExecutePendingWork();
   std::optional<struct timespec> WorkQueueNextExecution() const;
-  WorkQueue* work_queue() const;
+  const std::shared_ptr<WorkQueue>& work_queue() const;
 
   void ResetInternalEventNotifications();
 
@@ -232,6 +232,8 @@ class EditorState {
   EdgeStructInstance<wstring> string_variables_;
   EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<int> int_variables_;
+
+  const std::shared_ptr<WorkQueue> work_queue_;
 
   std::map<BufferName, std::shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
@@ -278,7 +280,6 @@ class EditorState {
 
   BuffersList buffer_tree_;
   Status status_;
-  mutable WorkQueue work_queue_;
 };
 
 }  // namespace afc::editor

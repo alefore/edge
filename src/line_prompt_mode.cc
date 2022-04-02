@@ -325,10 +325,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
     std::deque<std::shared_ptr<Line>> lines;
   };
 
-  // We capture history_buffer in order to prevent the work queue from being
-  // deleted (since history_evaluator depends on it).
   return history_evaluator
-      ->Run([abort_notification, filter = std::move(filter), history_buffer,
+      ->Run([abort_notification, filter = std::move(filter),
              history_contents = std::shared_ptr<BufferContents>(
                  history_buffer->contents().copy()),
              features = GetCurrentFeatures(editor_state)]() mutable -> Output {

@@ -190,6 +190,26 @@ void AddLineMetadata(OpenBuffer* buffer, BufferContents* contents,
                      AddLineMetadata(buffer, buffer->contents().at(position)));
 }
 
+void MaybeScheduleNextWorkQueueExecution(
+    std::weak_ptr<WorkQueue> work_queue_weak,
+    std::shared_ptr<WorkQueue> parent_work_queue,
+    std::shared_ptr<std::optional<struct timespec>> next_scheduled_execution) {
+  auto work_queue = work_queue_weak.lock();
+  if (work_queue == nullptr) return;
+  if (auto next = work_queue->NextExecution();
+      next.has_value() && next != *next_scheduled_execution) {
+    *next_scheduled_execution = next;
+    parent_work_queue->ScheduleAt(
+        next.value(),
+        [work_queue, parent_work_queue, next_scheduled_execution]() mutable {
+          *next_scheduled_execution = std::nullopt;
+          work_queue->Execute();
+          MaybeScheduleNextWorkQueueExecution(work_queue, parent_work_queue,
+                                              next_scheduled_execution);
+        });
+  }
+}
+
 }  // namespace
 
 using namespace afc::vm;
@@ -532,10 +552,13 @@ using std::to_wstring;
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
-      work_queue_(
-          [this] { MaybeScheduleNextWorkQueueExecution(shared_from_this()); }),
+      work_queue_(WorkQueue::New([] {})),
       contents_([this](const CursorsTracker::Transformation& transformation) {
-        work_queue_.Schedule([this] { MaybeStartUpdatingSyntaxTrees(); });
+        work_queue_->Schedule([weak_this = std::weak_ptr(shared_from_this())] {
+          auto shared_this = weak_this.lock();
+          if (shared_this != nullptr)
+            shared_this->MaybeStartUpdatingSyntaxTrees();
+        });
         SetDiskState(DiskState::kStale);
         if (Read(buffer_variables::persist_state)) {
           switch (backup_state_) {
@@ -543,10 +566,10 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
               backup_state_ = DiskState::kStale;
               auto flush_backup_time = Now();
               flush_backup_time.tv_sec += 30;
-              work_queue_.ScheduleAt(flush_backup_time,
-                                     [shared_this = shared_from_this()] {
-                                       shared_this->UpdateBackup();
-                                     });
+              work_queue_->ScheduleAt(flush_backup_time,
+                                      [shared_this = shared_from_this()] {
+                                        shared_this->UpdateBackup();
+                                      });
             } break;
 
             case DiskState::kStale:
@@ -569,11 +592,20 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       default_commands_(options_.editor.default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor.GetConsole(), options_.editor.audio_player()),
-      syntax_data_(L"SyntaxData", &work_queue_,
+      syntax_data_(L"SyntaxData", work_queue_,
                    BackgroundCallbackRunner::Options::QueueBehavior::kFlush),
-      syntax_data_view_(L"SyntaxDataView", &work_queue_),
-      async_read_evaluator_(L"ReadEvaluator", &work_queue_),
-      file_system_driver_(&work_queue_) {}
+      syntax_data_view_(L"SyntaxDataView", work_queue_),
+      async_read_evaluator_(L"ReadEvaluator", work_queue_),
+      file_system_driver_(work_queue_) {
+  work_queue_->SetScheduleListener(
+      [work_queue = std::weak_ptr<WorkQueue>(work_queue_),
+       parent_work_queue = editor().work_queue(),
+       next_scheduled_execution =
+           std::make_shared<std::optional<struct timespec>>(std::nullopt)] {
+        MaybeScheduleNextWorkQueueExecution(work_queue, parent_work_queue,
+                                            next_scheduled_execution);
+      });
+}
 
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Start destructor.";
@@ -1075,7 +1107,7 @@ void OpenBuffer::Reload() {
       .Transform([this](EmptyValue) {
         return futures::OnError(
             GetEdgeStateDirectory().Transform([this](Path dir) {
-              return options_.log_supplier(&work_queue_, dir);
+              return options_.log_supplier(work_queue_, dir);
             }),
             [](Error error) {
               LOG(INFO) << "Error opening log: " << error.description;
@@ -1332,7 +1364,9 @@ futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateFile(
       });
 }
 
-WorkQueue* OpenBuffer::work_queue() const { return &work_queue_; }
+const std::shared_ptr<WorkQueue>& OpenBuffer::work_queue() const {
+  return work_queue_;
+}
 
 OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
   return [this](std::function<void(OpenBuffer*)> callback) {
@@ -2526,20 +2560,6 @@ void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>& source) {
           EndOfFile();
         }
       });
-}
-
-/* static */ void OpenBuffer::MaybeScheduleNextWorkQueueExecution(
-    std::shared_ptr<OpenBuffer> buffer) {
-  if (auto next = buffer->work_queue()->NextExecution();
-      next.has_value() && next != buffer->next_scheduled_execution_) {
-    buffer->next_scheduled_execution_ = next;
-    buffer->editor().work_queue()->ScheduleAt(
-        next.value(), [buffer = std::move(buffer)]() mutable {
-          buffer->next_scheduled_execution_ = std::nullopt;
-          buffer->work_queue()->Execute();
-          MaybeScheduleNextWorkQueueExecution(std::move(buffer));
-        });
-  }
 }
 
 namespace {

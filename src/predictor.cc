@@ -508,9 +508,8 @@ const bool buffer_tests_registration =
       const static Predictor test_predictor = PrecomputedPredictor(
           {L"foo", L"bar", L"bard", L"foo_bar", L"alejo"}, L'_');
       auto predict = [&](std::wstring input) {
-        WorkQueue work_queue([] {});
         ProgressChannel channel(
-            &work_queue, [](ProgressInformation) {},
+            WorkQueue::New([] {}), [](ProgressInformation) {},
             WorkQueueChannelConsumeMode::kAll);
         std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
         test_predictor(PredictorInput{

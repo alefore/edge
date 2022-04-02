@@ -19,9 +19,9 @@ using std::string;
 using std::unique_ptr;
 
 // Saves the contents of the buffer to the path given.
-futures::Value<PossibleError> SaveContentsToFile(const Path& path,
-                                                 const BufferContents& contents,
-                                                 WorkQueue* work_queue);
+futures::Value<PossibleError> SaveContentsToFile(
+    const Path& path, const BufferContents& contents,
+    std::shared_ptr<WorkQueue> work_queue);
 
 struct OpenFileOptions {
   EditorState& editor_state;

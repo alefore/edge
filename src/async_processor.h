@@ -185,13 +185,12 @@ class AsyncEvaluator {
   // work_queue is optional. It will be required if AsyncEvaluator::Run is used.
   // Otherwise, it may be null.
   AsyncEvaluator(
-      std::wstring name, WorkQueue* work_queue,
+      std::wstring name, std::shared_ptr<WorkQueue> work_queue,
       BackgroundCallbackRunner::Options::QueueBehavior push_behavior =
           BackgroundCallbackRunner::Options::QueueBehavior::kWait);
 
-  // Callers must ensure that the underlying `work_queue` doesn't get destroyed
-  // until the future is notified. It is OK for the AsyncEvaluator itself to
-  // be destroyed before the future is notified.
+  // It is OK for the AsyncEvaluator itself to be destroyed before the future is
+  // notified.
   template <typename Callable>
   auto Run(Callable callable) {
     CHECK(work_queue_ != nullptr);
@@ -215,7 +214,7 @@ class AsyncEvaluator {
 
  private:
   std::unique_ptr<BackgroundCallbackRunner> background_callback_runner_;
-  WorkQueue* work_queue_;
+  std::shared_ptr<WorkQueue> work_queue_;
 };
 
 }  // namespace afc::editor

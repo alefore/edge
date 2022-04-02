@@ -26,19 +26,19 @@ const bool async_evaluator_tests_registration = tests::Register(
     {{.name = L"Empty",
       .callback =
           [] {
-            WorkQueue queue([] {});
-            AsyncEvaluator(L"Test", &queue);
+            auto queue = WorkQueue::New([] {});
+            AsyncEvaluator(L"Test", queue);
           }},
      {.name = L"EvaluatorDeleteWhileBusy",
       .callback =
           [] {
             std::optional<int> future_result;
-            WorkQueue queue([] {});
+            auto queue = WorkQueue::New([] {});
 
             Notification started_running;
             Notification proceed;
 
-            auto evaluator = std::make_unique<AsyncEvaluator>(L"Test", &queue);
+            auto evaluator = std::make_unique<AsyncEvaluator>(L"Test", queue);
             evaluator
                 ->Run([&] {
                   started_running.Notify();
@@ -56,23 +56,22 @@ const bool async_evaluator_tests_registration = tests::Register(
             proceed.Notify();
             evaluator = nullptr;
 
-            CHECK(queue.NextExecution().has_value());
+            CHECK(queue->NextExecution().has_value());
             CHECK(!future_result.has_value());
-            queue.Execute();
-            CHECK(!queue.NextExecution().has_value());
+            queue->Execute();
+            CHECK(!queue->NextExecution().has_value());
             CHECK(future_result.has_value());
             CHECK_EQ(future_result.value(), 948);
           }},
      // Tests that the WorkQueue instance can be deleted while calls to
      // `RunIgnoringResults` are ongoing.
      {.name = L"EvaluatorDeleteWhileBusyIgnoringResults", .callback = [] {
-        auto queue = std::make_unique<WorkQueue>([] {});
-
         Notification started_running;
         Notification proceed;
         Notification completed;
 
-        auto evaluator = std::make_unique<AsyncEvaluator>(L"Test", queue.get());
+        auto evaluator =
+            std::make_unique<AsyncEvaluator>(L"Test", WorkQueue::New([] {}));
         evaluator->RunIgnoringResults([&] {
           started_running.Notify();
           proceed.WaitForNotification();
@@ -81,8 +80,6 @@ const bool async_evaluator_tests_registration = tests::Register(
         });
 
         started_running.WaitForNotification();
-        LOG(INFO) << "Deleting.";
-        queue = nullptr;
         proceed.Notify();
         evaluator = nullptr;
         CHECK(completed.HasBeenNotified());
@@ -90,9 +87,9 @@ const bool async_evaluator_tests_registration = tests::Register(
 }  // namespace
 
 AsyncEvaluator::AsyncEvaluator(
-    std::wstring name, WorkQueue* work_queue,
+    std::wstring name, std::shared_ptr<WorkQueue> work_queue,
     BackgroundCallbackRunner::Options::QueueBehavior push_behavior)
     : background_callback_runner_(
           NewBackgroundCallbackRunner(name, push_behavior)),
-      work_queue_(work_queue) {}
+      work_queue_(std::move(work_queue)) {}
 }  // namespace afc::editor
