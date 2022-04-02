@@ -278,7 +278,7 @@ class InsertMode : public EditorMode {
             return futures::Past(EmptyValue());
           }
           return CallModifyHandler(
-              options, buffer,
+              options, *buffer,
               buffer
                   ->EvaluateExpression(expression.get(), buffer->environment())
                   .ConsumeErrors([](Error) { return futures::Past(nullptr); }));
@@ -303,7 +303,7 @@ class InsertMode : public EditorMode {
             {0x0b},
             [options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
               return CallModifyHandler(
-                  options, buffer,
+                  options, *buffer,
                   buffer->ApplyToCursors(transformation::Delete{
                       .modifiers = {
                           .structure = StructureLine(),
@@ -331,7 +331,7 @@ class InsertMode : public EditorMode {
                 buffer_to_insert->AppendToLastLine(NewLazyString(value));
 
                 return CallModifyHandler(
-                    options, buffer,
+                    options, *buffer,
                     buffer->ApplyToCursors(transformation::Insert{
                         .contents_to_insert =
                             buffer_to_insert->contents().copy(),
@@ -393,7 +393,7 @@ class InsertMode : public EditorMode {
           delete_options.modifiers.delete_behavior =
               Modifiers::DeleteBehavior::kDeleteText;
           return CallModifyHandler(
-                     options, buffer,
+                     options, *buffer,
                      buffer->ApplyToCursors(std::move(delete_options)))
               .Transform([options, direction, buffer](EmptyValue) {
                 if (options.editor_state.modifiers().insertion !=
@@ -434,12 +434,13 @@ class InsertMode : public EditorMode {
   }
 
   template <typename T>
-  static futures::Value<EmptyValue> CallModifyHandler(
-      InsertModeOptions options, const std::shared_ptr<OpenBuffer>& buffer,
-      futures::Value<T> value) {
-    return value.Transform([options, buffer](const T&) {
-      return options.modify_handler(*buffer);
-    });
+  static futures::Value<EmptyValue> CallModifyHandler(InsertModeOptions options,
+                                                      OpenBuffer& buffer,
+                                                      futures::Value<T> value) {
+    return value.Transform(
+        [options, buffer = buffer.shared_from_this()](const T&) {
+          return options.modify_handler(*buffer);
+        });
   }
 
   futures::ListenableValue<std::shared_ptr<ScrollBehavior>>
