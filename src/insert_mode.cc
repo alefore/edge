@@ -129,7 +129,11 @@ class FindCompletionCommand : public Command {
 
 class InsertMode : public EditorMode {
  public:
-  InsertMode(InsertModeOptions options) : options_(std::move(options)) {
+  InsertMode(InsertModeOptions options)
+      : options_(std::move(options)),
+        buffers_(std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
+            std::vector<std::shared_ptr<OpenBuffer>>(
+                options_.buffers->begin(), options_.buffers->end()))) {
     CHECK(options_.escape_handler);
     CHECK(options_.buffers.has_value());
     CHECK(!options_.buffers.value().empty());
@@ -361,10 +365,10 @@ class InsertMode : public EditorMode {
                                    const std::shared_ptr<OpenBuffer>&)>
                                    callable) {
     return WriteLineBuffer(line_buffer)
-        .Transform([this, callable](EmptyValue) {
-          return futures::ForEachWithCopy(
-              options_.buffers.value().begin(), options_.buffers.value().end(),
-              [callable](const std::shared_ptr<OpenBuffer>& buffer) {
+        .Transform([buffers = buffers_, callable](EmptyValue) {
+          return futures::ForEach(
+              buffers->begin(), buffers->end(),
+              [buffers, callable](const std::shared_ptr<OpenBuffer>& buffer) {
                 return buffer->fd() == nullptr
                            ? callable(buffer).Transform([](EmptyValue) {
                                return futures::IterationControlCommand::
@@ -487,6 +491,9 @@ class InsertMode : public EditorMode {
   }
 
   const InsertModeOptions options_;
+  // Copy of the contents of options_.buffers. Never null. shared_ptr to make it
+  // easy for it to be captured efficiently.
+  std::shared_ptr<std::vector<std::shared_ptr<OpenBuffer>>> buffers_;
   std::optional<futures::ListenableValue<std::shared_ptr<ScrollBehavior>>>
       scroll_behavior_;
 
