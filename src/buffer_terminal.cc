@@ -51,7 +51,7 @@ void BufferTerminal::ProcessCommandInput(
     } else if (c == '\a') {
       VLOG(8) << "Received \\a";
       buffer_->status().Bell();
-      BeepFrequencies(buffer_->editor().audio_player(),
+      BeepFrequencies(buffer_->editor().audio_player(), 0.1,
                       {783.99, 523.25, 659.25});
     } else if (c == '\r') {
       VLOG(8) << "Received \\r";

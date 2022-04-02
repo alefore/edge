@@ -43,7 +43,7 @@ std::unique_ptr<AudioPlayer> NewNullAudioPlayer();
 
 void GenerateBeep(AudioPlayer& audio_player, double frequency);
 void GenerateAlert(AudioPlayer& audio_player);
-void BeepFrequencies(AudioPlayer& audio_player,
+void BeepFrequencies(AudioPlayer& audio_player, double duration,
                      const std::vector<double>& frequencies);
 
 AudioPlayer::Generator Frequency(double freq);

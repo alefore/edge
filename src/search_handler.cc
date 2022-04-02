@@ -210,7 +210,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
 
   if (head.empty()) {
     buffer.status().SetInformationText(L"🔍 No results.");
-    BeepFrequencies(editor_state.audio_player(), {523.25, 261.63, 261.63});
+    BeepFrequencies(editor_state.audio_player(), 0.1, {261.63, 261.63, 261.63});
   } else {
     if (head.size() == 1) {
       buffer.status().SetInformationText(L"🔍 1 result.");
@@ -221,7 +221,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     }
     vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
     frequencies.resize(min(frequencies.size(), head.size() + 1));
-    BeepFrequencies(editor_state.audio_player(), frequencies);
+    BeepFrequencies(editor_state.audio_player(), 0.1, frequencies);
     buffer.Set(buffer_variables::multiple_cursors, false);
   }
   return Success(head);

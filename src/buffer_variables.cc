@@ -666,7 +666,7 @@ EdgeVariable<double>* const beep_frequency_success =
         .Description(
             L"Frequency of the beep to play when a command buffer exits "
             L"successfully. If 0, disables the beep.")
-        .DefaultValue(880.0)
+        .DefaultValue(440.0)
         .Build();
 
 EdgeVariable<double>* const beep_frequency_failure =
@@ -676,7 +676,7 @@ EdgeVariable<double>* const beep_frequency_failure =
         .Description(
             L"Frequency of the beep to play when a command buffer exits with "
             L"an error. If 0, disables the beep.")
-        .DefaultValue(440.0)
+        .DefaultValue(880.0)
         .Build();
 
 EdgeStruct<LineColumn>* LineColumnStruct() {

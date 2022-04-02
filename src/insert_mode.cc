@@ -539,7 +539,8 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
            buffer->Read(buffer_variables::multiple_cursors);
   }
   if (beep) {
-    BeepFrequencies(options.editor_state.audio_player(), {659.25, 1046.50});
+    BeepFrequencies(options.editor_state.audio_player(), 0.1,
+                    {659.25, 1046.50});
   }
 }
 }  // namespace
