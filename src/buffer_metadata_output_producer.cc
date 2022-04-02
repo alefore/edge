@@ -316,7 +316,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                                 Range range, bool has_previous) {
   std::list<MetadataLine> output;
 
-  auto contents = *options.buffer.LineAt(range.begin.line);
+  const Line& contents = *options.buffer.contents().at(range.begin.line);
   auto target_buffer_value = contents.environment()->Lookup(
       Environment::Namespace(), L"buffer",
       vm::VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype);
