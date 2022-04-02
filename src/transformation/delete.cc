@@ -173,6 +173,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   }
 
   input.buffer.DeleteRange(range);
+
   output->modified_buffer = true;
 
   return Apply(transformation::SetPosition(range.begin), input)

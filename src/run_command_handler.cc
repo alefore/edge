@@ -214,7 +214,8 @@ futures::Value<PossibleError> GenerateContents(
           target->Read(success ? buffer_variables::beep_frequency_success
                                : buffer_variables::beep_frequency_failure);
       if (frequency > 0.0001) {
-        GenerateBeep(editor_state.audio_player(), frequency);
+        BeepFrequencies(editor_state.audio_player(), 0.1,
+                        std::vector<double>(success ? 1 : 2, frequency));
       }
     }
     time(&data->time_end);
