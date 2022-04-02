@@ -256,9 +256,9 @@ static Value<Type> Past(Type value) {
 // The returned value can be used to check whether the entire evaluation
 // succeeded and/or to detect when it's finished.
 //
-// Must ensure that the iterators won't expire before the iteration is done. If
-// that's a problem, `ForEachWithCopy` is provided below (which will make a copy
-// of the entire container).
+// Must ensure that the iterators won't expire before the iteration is done.
+// Customers are encouraged to use the `ForEach(std::shared_ptr<Container>,
+// ...)` version provided below, when feasible.
 template <typename Iterator, typename Callable>
 Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
                                        Callable callable) {
@@ -280,6 +280,18 @@ Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
   };
   resume(begin, resume);
   return std::move(output.value);
+}
+
+// Version of ForEach optimized for the case where the customer has a shared_ptr
+// to the container; this will take care of capturing the reference to the
+// container.
+//
+// Unlike ForEachWithCopy, avoids having to copy the container.
+template <typename Container, typename Callable>
+Value<IterationControlCommand> ForEach(std::shared_ptr<Container> container,
+                                       Callable callable) {
+  return ForEach(container->begin(), container->end(),
+                 [container, callable](auto T) { return callable(T); });
 }
 
 template <typename Callable>
