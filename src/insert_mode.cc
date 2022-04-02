@@ -366,17 +366,15 @@ class InsertMode : public EditorMode {
                                    callable) {
     return WriteLineBuffer(line_buffer)
         .Transform([buffers = buffers_, callable](EmptyValue) {
-          return futures::ForEach(
-              buffers->begin(), buffers->end(),
-              [buffers, callable](const std::shared_ptr<OpenBuffer>& buffer) {
-                return buffer->fd() == nullptr
-                           ? callable(buffer).Transform([](EmptyValue) {
-                               return futures::IterationControlCommand::
-                                   kContinue;
-                             })
-                           : futures::Past(
-                                 futures::IterationControlCommand::kContinue);
-              });
+          return futures::ForEach(buffers, [callable](const std::shared_ptr<
+                                                      OpenBuffer>& buffer) {
+            return buffer->fd() == nullptr
+                       ? callable(buffer).Transform([](EmptyValue) {
+                           return futures::IterationControlCommand::kContinue;
+                         })
+                       : futures::Past(
+                             futures::IterationControlCommand::kContinue);
+          });
         })
         .Transform(
             [](futures::IterationControlCommand) { return EmptyValue(); });
@@ -470,8 +468,8 @@ class InsertMode : public EditorMode {
 
   futures::Value<EmptyValue> WriteLineBuffer(std::string line_buffer) {
     if (line_buffer.empty()) return futures::Past(EmptyValue());
-    return futures::ForEachWithCopy(
-               options_.buffers.value().begin(), options_.buffers.value().end(),
+    return futures::ForEach(
+               buffers_,
                [line_buffer = std::move(line_buffer)](
                    const std::shared_ptr<OpenBuffer>& buffer) {
                  if (auto fd = buffer->fd(); fd != nullptr) {
