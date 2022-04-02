@@ -408,8 +408,10 @@ class InsertMode : public EditorMode {
                             ? transformation::Insert::FinalPosition::kStart
                             : transformation::Insert::FinalPosition::kEnd});
               })
+              // TODO:Why call modify_handler here? Isn't it redundant with
+              // CallModifyHandler above?
               .Transform([handler = options.modify_handler,
-                          buffer](EmptyValue) { return handler(buffer); });
+                          buffer](EmptyValue) { return handler(*buffer); });
         });
   }
 
@@ -435,8 +437,9 @@ class InsertMode : public EditorMode {
   static futures::Value<EmptyValue> CallModifyHandler(
       InsertModeOptions options, const std::shared_ptr<OpenBuffer>& buffer,
       futures::Value<T> value) {
-    return value.Transform(
-        [options, buffer](const T&) { return options.modify_handler(buffer); });
+    return value.Transform([options, buffer](const T&) {
+      return options.modify_handler(*buffer);
+    });
   }
 
   futures::ListenableValue<std::shared_ptr<ScrollBehavior>>
@@ -596,8 +599,8 @@ void EnterInsertMode(InsertModeOptions options) {
       }
     }
 
-    if (!shared_options->modify_handler) {
-      shared_options->modify_handler = [](const std::shared_ptr<OpenBuffer>&) {
+    if (shared_options->modify_handler == nullptr) {
+      shared_options->modify_handler = [](OpenBuffer&) {
         return futures::Past(EmptyValue()); /* Nothing. */
       };
     }

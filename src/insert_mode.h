@@ -49,8 +49,8 @@ struct InsertModeOptions {
       std::nullopt;
 
   // Optional function to run whenever the contents of the buffer are modified.
-  std::function<futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
-      modify_handler = nullptr;
+  std::function<futures::Value<EmptyValue>(OpenBuffer&)> modify_handler =
+      nullptr;
 
   std::shared_ptr<ScrollBehaviorFactory> scroll_behavior =
       ScrollBehaviorFactory::Default();

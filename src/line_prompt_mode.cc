@@ -774,9 +774,8 @@ void Prompt(PromptOptions options) {
             .buffers = {{buffer}},
             .modify_handler =
                 [&editor_state, history_evaluator, history, prompt_state,
-                 options, abort_notification_ptr](
-                    const std::shared_ptr<OpenBuffer>& buffer) {
-                  auto line = buffer->LineAt(LineNumber())->contents();
+                 options, abort_notification_ptr](OpenBuffer& buffer) {
+                  auto line = buffer.LineAt(LineNumber())->contents();
                   if (options.colorize_options_provider == nullptr ||
                       prompt_state->status().GetType() !=
                           Status::Type::kPrompt) {
@@ -785,7 +784,7 @@ void Prompt(PromptOptions options) {
                   auto prompt_render_state =
                       std::make_shared<PromptRenderState>(prompt_state);
                   auto progress_channel = std::make_unique<ProgressChannel>(
-                      buffer->work_queue(),
+                      buffer.work_queue(),
                       [prompt_render_state](
                           ProgressInformation extra_information) {
                         prompt_render_state->SetStatusValues(
@@ -826,18 +825,19 @@ void Prompt(PromptOptions options) {
                                  .colorize_options_provider(
                                      line, std::move(progress_channel),
                                      *abort_notification_ptr)
-                                 .Transform([buffer, prompt_state,
-                                             abort_notification_ptr,
-                                             original_line =
-                                                 buffer->LineAt(LineNumber(0))](
-                                                ColorizePromptOptions options) {
-                                   LOG(INFO) << "Calling ColorizePrompt "
-                                                "with results.";
-                                   ColorizePrompt(buffer, prompt_state,
-                                                  *abort_notification_ptr,
-                                                  original_line, options);
-                                   return EmptyValue();
-                                 }))
+                                 .Transform(
+                                     [buffer = buffer.shared_from_this(),
+                                      prompt_state, abort_notification_ptr,
+                                      original_line =
+                                          buffer.contents().at(LineNumber(0))](
+                                         ColorizePromptOptions options) {
+                                       LOG(INFO) << "Calling ColorizePrompt "
+                                                    "with results.";
+                                       ColorizePrompt(buffer, prompt_state,
+                                                      *abort_notification_ptr,
+                                                      original_line, options);
+                                       return EmptyValue();
+                                     }))
                       .Transform([](auto) { return EmptyValue(); });
                 },
             .scroll_behavior = std::make_unique<HistoryScrollBehaviorFactory>(
@@ -962,7 +962,7 @@ void Prompt(PromptOptions options) {
         // We do this after `EnterInsertMode` because `EnterInsertMode` resets
         // the status.
         prompt_state->status().set_prompt(options.prompt, buffer);
-        insert_mode_options.modify_handler(buffer);
+        insert_mode_options.modify_handler(*buffer);
       });
 }
 
