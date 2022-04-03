@@ -155,24 +155,25 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
           Line::Options(*line).SetMetadata(std::nullopt));
     }
     futures::Future<std::shared_ptr<LazyString>> metadata_future;
-    buffer->work_queue()->Schedule(
-        [buffer, expr, sub_environment, consumer = metadata_future.consumer] {
-          buffer->EvaluateExpression(expr.get(), sub_environment)
-              .Transform([](std::unique_ptr<Value> value) {
-                CHECK(value != nullptr);
-                std::ostringstream oss;
-                oss << *value;
-                return Success(NewLazyString(FromByteString(oss.str())));
-              })
-              .ConsumeErrors([](Error error) {
-                return futures::Past(
-                    NewLazyString(L"E: " + std::move(error.description)));
-              })
-              .Transform([consumer](std::shared_ptr<LazyString> output) {
-                consumer(output);
-                return Success();
-              });
-        });
+    buffer->work_queue()->Schedule([buffer = buffer->shared_from_this(), expr,
+                                    sub_environment,
+                                    consumer = metadata_future.consumer] {
+      buffer->EvaluateExpression(expr.get(), sub_environment)
+          .Transform([](std::unique_ptr<Value> value) {
+            CHECK(value != nullptr);
+            std::ostringstream oss;
+            oss << *value;
+            return Success(NewLazyString(FromByteString(oss.str())));
+          })
+          .ConsumeErrors([](Error error) {
+            return futures::Past(
+                NewLazyString(L"E: " + std::move(error.description)));
+          })
+          .Transform([consumer](std::shared_ptr<LazyString> output) {
+            consumer(output);
+            return Success();
+          });
+    });
     metadata_value = std::move(metadata_future.value);
   }
 
@@ -555,32 +556,6 @@ using std::to_wstring;
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       work_queue_(WorkQueue::New([] {})),
-      contents_([this](const CursorsTracker::Transformation& transformation) {
-        work_queue_->Schedule([weak_this = std::weak_ptr(shared_from_this())] {
-          auto shared_this = weak_this.lock();
-          if (shared_this != nullptr)
-            shared_this->MaybeStartUpdatingSyntaxTrees();
-        });
-        SetDiskState(DiskState::kStale);
-        if (Read(buffer_variables::persist_state)) {
-          switch (backup_state_) {
-            case DiskState::kCurrent: {
-              backup_state_ = DiskState::kStale;
-              auto flush_backup_time = Now();
-              flush_backup_time.tv_sec += 30;
-              work_queue_->ScheduleAt(flush_backup_time,
-                                      [shared_this = shared_from_this()] {
-                                        shared_this->UpdateBackup();
-                                      });
-            } break;
-
-            case DiskState::kStale:
-              break;  // Nothing.
-          }
-        }
-        last_action_ = Now();
-        cursors_tracker_.AdjustCursors(transformation);
-      }),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
@@ -610,7 +585,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
 }
 
 OpenBuffer::~OpenBuffer() {
-  LOG(INFO) << "Start destructor.";
+  LOG(INFO) << "Start destructor: " << name();
   environment_->Clear();
 }
 
@@ -971,6 +946,7 @@ void OpenBuffer::Initialize() {
   }
   ClearContents(BufferContents::CursorsBehavior::kUnmodified);
 
+  std::weak_ptr<OpenBuffer> weak_this(shared_from_this());
   if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
       !buffer_path.IsError()) {
     FileSystemDriver file_system_driver(editor().work_queue());
@@ -979,14 +955,45 @@ void OpenBuffer::Initialize() {
           Path::Join(dir, PathComponent::FromString(L"state").value()),
           Path::Join(buffer_path.value(),
                      PathComponent::FromString(L".edge_state").value()));
-      // TODO: Ensure that the buffer won't be deleted before the calls to
-      // EvaluateFile are done?
       file_system_driver.Stat(state_path)
-          .Transform([state_path, this](struct stat) {
-            return EvaluateFile(state_path);
+          .Transform([state_path, weak_this](struct stat) {
+            auto shared_this = weak_this.lock();
+            if (shared_this == nullptr)
+              return futures::Past(ValueOrError<std::unique_ptr<Value>>(
+                  Error(L"Buffer has been deleted.")));
+            return shared_this->EvaluateFile(state_path);
           });
     }
   }
+
+  contents_.SetUpdateListener(
+      [weak_this](const CursorsTracker::Transformation& transformation) {
+        auto shared_this = weak_this.lock();
+        if (shared_this == nullptr) return;
+        shared_this->work_queue_->Schedule([weak_this] {
+          auto shared_this = weak_this.lock();
+          if (shared_this != nullptr)
+            shared_this->MaybeStartUpdatingSyntaxTrees();
+        });
+        shared_this->SetDiskState(DiskState::kStale);
+        if (shared_this->Read(buffer_variables::persist_state)) {
+          switch (shared_this->backup_state_) {
+            case DiskState::kCurrent: {
+              shared_this->backup_state_ = DiskState::kStale;
+              auto flush_backup_time = Now();
+              flush_backup_time.tv_sec += 30;
+              shared_this->work_queue_->ScheduleAt(
+                  flush_backup_time,
+                  [shared_this] { shared_this->UpdateBackup(); });
+            } break;
+
+            case DiskState::kStale:
+              break;  // Nothing.
+          }
+        }
+        shared_this->last_action_ = Now();
+        shared_this->cursors_tracker_.AdjustCursors(transformation);
+      });
 }
 
 void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
@@ -1010,10 +1017,14 @@ void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
                       .simplified_parse_tree = std::make_shared<ParseTree>(
                           SimplifyTree(parse_tree))};
       })
-      .SetConsumer([this](Output output) {
+      .SetConsumer([weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
+                       Output output) {
+        auto shared_this = weak_this.lock();
+        if (shared_this == nullptr) return;
         LOG(INFO) << "Installing new parse trees.";
-        parse_tree_ = std::move(output.parse_tree);
-        simplified_parse_tree_ = std::move(output.simplified_parse_tree);
+        shared_this->parse_tree_ = std::move(output.parse_tree);
+        shared_this->simplified_parse_tree_ =
+            std::move(output.simplified_parse_tree);
       });
 }
 
@@ -1139,6 +1150,7 @@ void OpenBuffer::Reload() {
             }
             Reload();
         }
+        LOG(INFO) << "Reload finished evaluation: " << name();
         return Success();
       });
 }
@@ -1327,7 +1339,8 @@ OpenBuffer::CompileString(const std::wstring& code,
 futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
     Expression* expr, std::shared_ptr<Environment> environment) {
   return Evaluate(expr, environment,
-                  [work_queue = work_queue()](std::function<void()> callback) {
+                  [work_queue = work_queue(), shared_this = shared_from_this()](
+                      std::function<void()> callback) {
                     work_queue->Schedule(std::move(callback));
                   });
 }

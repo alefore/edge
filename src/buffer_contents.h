@@ -150,6 +150,8 @@ class BufferContents : public fuzz::FuzzTestable {
   void push_back(shared_ptr<const Line> line);
   void append_back(std::vector<std::shared_ptr<const Line>> lines);
 
+  void SetUpdateListener(UpdateListener update_listener);
+
   std::vector<fuzz::Handler> FuzzHandlers() override;
 
  private:
@@ -176,7 +178,7 @@ class BufferContents : public fuzz::FuzzTestable {
 
   Lines::Ptr lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
 
-  const UpdateListener update_listener_;
+  UpdateListener update_listener_;
 };
 
 }  // namespace editor

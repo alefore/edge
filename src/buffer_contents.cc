@@ -669,6 +669,10 @@ void BufferContents::append_back(
   update_listener_({});
 }
 
+void BufferContents::SetUpdateListener(UpdateListener update_listener) {
+  update_listener_ = std::move(update_listener);
+}
+
 std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
   using namespace fuzz;
   std::vector<Handler> output;
