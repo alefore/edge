@@ -87,16 +87,10 @@ class PredictorTransformation : public CompositeTransformation {
 
           Output output;
           output.Push(DeleteLastCharacters(text.size()));
-
-          auto buffer_to_insert =
-              OpenBuffer::New({.editor = buffer->editor(),
-                               .name = BufferName::TextInsertion()});
-          buffer_to_insert->AppendLazyString(
-              NewLazyString(results.value().common_prefix.value()));
-          buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
-          // TODO(easy, 2022-03-24): Turn this into a BufferContents.
           output.Push(transformation::Insert{
-              .contents_to_insert = buffer_to_insert->contents().copy()});
+              .contents_to_insert =
+                  std::make_shared<BufferContents>(std::make_shared<Line>(
+                      results.value().common_prefix.value()))});
           return output;
         });
   }
@@ -156,7 +150,6 @@ class ReadAndInsert : public CompositeTransformation {
                   [consumer, buffer_to_insert = buffer_it->second,
                    input = std::move(input)] {
                     Output output;
-                    // TODO(easy, 2022-03-24): Turn this into a BufferContents.
                     output.Push(transformation::Insert{
                         .contents_to_insert =
                             buffer_to_insert->contents().copy()});
