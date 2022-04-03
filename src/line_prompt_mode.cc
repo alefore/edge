@@ -329,7 +329,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
       ->Run([abort_notification, filter = std::move(filter),
              history_contents = std::shared_ptr<BufferContents>(
                  history_buffer->contents().copy()),
-             features = GetCurrentFeatures(editor_state)]() mutable -> Output {
+             features = GetCurrentFeatures(editor_state)]() -> Output {
         Output output;
         // Sets of features for each unique `prompt` value in the history.
         naive_bayes::History history_data;
@@ -393,11 +393,12 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
         VLOG(4) << "Matches found: " << history_data.size();
 
         // For sorting.
-        auto synthetic_features = GetSyntheticFeatures(features);
-        features.insert(synthetic_features.begin(), synthetic_features.end());
-
         std::unordered_set<naive_bayes::Feature> current_features;
         for (const auto& [name, value] : features) {
+          current_features.insert(naive_bayes::Feature(
+              name + L":" + QuoteString(value)->ToString()));
+        }
+        for (const auto& [name, value] : GetSyntheticFeatures(features)) {
           current_features.insert(naive_bayes::Feature(
               name + L":" + QuoteString(value)->ToString()));
         }
