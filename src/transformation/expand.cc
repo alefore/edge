@@ -222,13 +222,9 @@ class Execute : public CompositeTransformation {
                     &editor = input.editor](std::unique_ptr<Value> value) {
           Output output;
           if (value != nullptr && value->IsString()) {
-            auto buffer = OpenBuffer::New(
-                {.editor = editor, .name = BufferName::TextInsertion()});
-            buffer->AppendLazyString(NewLazyString(value->str));
-            buffer->EraseLines(LineNumber(0), LineNumber(1));
-            // TODO(easy, 2022-03-24): Turn this into a BufferContents.
-            output.Push(transformation::Insert{.contents_to_insert =
-                                                   buffer->contents().copy()});
+            output.Push(transformation::Insert{
+                .contents_to_insert = std::make_shared<BufferContents>(
+                    std::make_shared<Line>(value->str))});
           }
           return futures::Past(std::move(output));
         });
