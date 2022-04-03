@@ -171,22 +171,22 @@ BackgroundReadDirOutput ReadDir(Path path, std::wregex noise_regex) {
 }
 
 futures::Value<PossibleError> GenerateContents(
-    EditorState* editor_state, std::shared_ptr<struct stat> stat_buffer,
+    EditorState& editor_state, std::shared_ptr<struct stat> stat_buffer,
     std::shared_ptr<FileSystemDriver> file_system_driver,
     std::shared_ptr<AsyncEvaluator> background_directory_reader,
-    OpenBuffer* target) {
-  CHECK(target->disk_state() == OpenBuffer::DiskState::kCurrent);
-  auto path = Path::FromString(target->Read(buffer_variables::path));
+    OpenBuffer& target) {
+  CHECK(target.disk_state() == OpenBuffer::DiskState::kCurrent);
+  auto path = Path::FromString(target.Read(buffer_variables::path));
   if (path.IsError()) return futures::Past(PossibleError(path.error()));
   LOG(INFO) << "GenerateContents: " << path.value();
   return file_system_driver->Stat(path.value())
-      .Transform([editor_state, stat_buffer, file_system_driver,
-                  background_directory_reader, target,
+      .Transform([&editor_state, stat_buffer, file_system_driver,
+                  background_directory_reader, &target,
                   path](std::optional<struct stat> stat_results) {
         if (stat_results.has_value() &&
-            target->Read(buffer_variables::clear_on_reload)) {
-          target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
-          target->SetDiskState(OpenBuffer::DiskState::kCurrent);
+            target.Read(buffer_variables::clear_on_reload)) {
+          target.ClearContents(BufferContents::CursorsBehavior::kUnmodified);
+          target.SetDiskState(OpenBuffer::DiskState::kCurrent);
         }
         if (!stat_results.has_value()) {
           return futures::Past(Success());
@@ -196,41 +196,41 @@ futures::Value<PossibleError> GenerateContents(
         if (!S_ISDIR(stat_buffer->st_mode)) {
           return file_system_driver
               ->Open(path.value(), O_RDONLY | O_NONBLOCK, 0)
-              .Transform([target](int fd) {
-                target->SetInputFiles(fd, -1, false, -1);
+              .Transform([&target](int fd) {
+                target.SetInputFiles(fd, -1, false, -1);
                 return Success();
               });
         }
 
-        target->Set(buffer_variables::atomic_lines, true);
-        target->Set(buffer_variables::allow_dirty_delete, true);
-        target->Set(buffer_variables::tree_parser, L"md");
+        target.Set(buffer_variables::atomic_lines, true);
+        target.Set(buffer_variables::allow_dirty_delete, true);
+        target.Set(buffer_variables::tree_parser, L"md");
         return background_directory_reader
-            ->Run([path, noise_regexp = target->Read(
-                             buffer_variables::directory_noise)]() {
+            ->Run([path, noise_regexp =
+                             target.Read(buffer_variables::directory_noise)]() {
               return ReadDir(path.value(), std::wregex(noise_regexp));
             })
-            .Transform([editor_state, target,
+            .Transform([&editor_state, &target,
                         path](BackgroundReadDirOutput results) {
-              auto disk_state_freezer = target->FreezeDiskState();
+              auto disk_state_freezer = target.FreezeDiskState();
               if (results.error_description.has_value()) {
-                target->status().SetInformationText(
+                target.status().SetInformationText(
                     results.error_description.value());
-                target->AppendLine(NewLazyString(
+                target.AppendLine(NewLazyString(
                     std::move(results.error_description.value())));
                 return Success();
               }
 
-              target->AppendToLastLine(NewLazyString(L"# 🗁  File listing: " +
-                                                     path.value().ToString()));
-              target->AppendEmptyLine();
+              target.AppendToLastLine(NewLazyString(L"# 🗁  File listing: " +
+                                                    path.value().ToString()));
+              target.AppendEmptyLine();
 
-              ShowFiles(*editor_state, L"🗁  Directories",
-                        std::move(results.directories), *target);
-              ShowFiles(*editor_state, L"🗀  Files",
-                        std::move(results.regular_files), *target);
-              ShowFiles(*editor_state, L"🗐  Noise", std::move(results.noise),
-                        *target);
+              ShowFiles(editor_state, L"🗁  Directories",
+                        std::move(results.directories), target);
+              ShowFiles(editor_state, L"🗀  Files",
+                        std::move(results.regular_files), target);
+              ShowFiles(editor_state, L"🗐  Noise", std::move(results.noise),
+                        target);
               return Success();
             });
       });
@@ -811,9 +811,9 @@ OpenFile(const OpenFileOptions& options) {
         auto background_directory_reader = std::make_shared<AsyncEvaluator>(
             L"ReadDir", options.editor_state.work_queue());
         buffer_options->generate_contents =
-            [editor_state = &options.editor_state, stat_buffer,
+            [&editor_state = options.editor_state, stat_buffer,
              file_system_driver,
-             background_directory_reader](OpenBuffer* target) {
+             background_directory_reader](OpenBuffer& target) {
               return GenerateContents(editor_state, stat_buffer,
                                       file_system_driver,
                                       background_directory_reader, target);

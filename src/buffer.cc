@@ -1114,7 +1114,7 @@ void OpenBuffer::Reload() {
             SetDiskState(DiskState::kCurrent);
             LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
             return options_.generate_contents != nullptr
-                       ? IgnoreErrors(options_.generate_contents(this))
+                       ? IgnoreErrors(options_.generate_contents(*this))
                        : futures::Past(Success());
           })
       .Transform([this](EmptyValue) {

@@ -165,8 +165,8 @@ void Daemonize(const std::unordered_set<int>& surviving_fds) {
 }
 
 futures::Value<PossibleError> GenerateContents(
-    std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer* target) {
-  wstring address_str = target->Read(buffer_variables::path);
+    std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer& target) {
+  wstring address_str = target.Read(buffer_variables::path);
   auto path = Path::FromString(address_str);
   if (path.IsError()) {
     return futures::Past(PossibleError(path.error()));
@@ -180,9 +180,9 @@ futures::Value<PossibleError> GenerateContents(
                               << error.description;
                    return error;
                  })
-      .Transform([target](int fd) {
+      .Transform([&target](int fd) {
         LOG(INFO) << "Server received connection: " << fd;
-        target->SetInputFiles(fd, -1, false, -1);
+        target.SetInputFiles(fd, -1, false, -1);
         return Success();
       });
 }
@@ -211,7 +211,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
        .path = address,
        .generate_contents =
            [file_system_driver = std::make_shared<FileSystemDriver>(
-                editor_state.work_queue())](OpenBuffer* target) {
+                editor_state.work_queue())](OpenBuffer& target) {
              return GenerateContents(file_system_driver, target);
            }});
   buffer->Set(buffer_variables::clear_on_reload, false);

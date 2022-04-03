@@ -87,13 +87,13 @@ map<wstring, wstring> LoadEnvironmentVariables(
 
 futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, std::map<wstring, wstring> environment,
-    CommandData* data, OpenBuffer* target) {
+    CommandData* data, OpenBuffer& target) {
   int pipefd_out[2];
   int pipefd_err[2];
   static const int parent_fd = 0;
   static const int child_fd = 1;
   time(&data->time_start);
-  if (target->Read(buffer_variables::pts)) {
+  if (target.Read(buffer_variables::pts)) {
     int master_fd = posix_openpt(O_RDWR);
     if (master_fd == -1) {
       cerr << "posix_openpt failed: " << string(strerror(errno));
@@ -109,7 +109,7 @@ futures::Value<PossibleError> GenerateContents(
     }
     pipefd_out[parent_fd] = master_fd;
     char* pts_path = ptsname(master_fd);
-    target->Set(buffer_variables::pts_path, FromByteString(pts_path));
+    target.Set(buffer_variables::pts_path, FromByteString(pts_path));
     pipefd_out[child_fd] = open(pts_path, O_RDWR);
     if (pipefd_out[child_fd] == -1) {
       cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
@@ -127,7 +127,7 @@ futures::Value<PossibleError> GenerateContents(
   if (child_pid == -1) {
     auto error = PossibleError(
         Error(L"fork failed: " + FromByteString(strerror(errno))));
-    target->status().SetWarningText(error.error().description);
+    target.status().SetWarningText(error.error().description);
     return futures::Past(error);
   }
   if (child_pid == 0) {
@@ -157,7 +157,7 @@ futures::Value<PossibleError> GenerateContents(
       close(pipefd_err[child_fd]);
     }
 
-    auto children_path = target->Read(buffer_variables::children_path);
+    auto children_path = target.Read(buffer_variables::children_path);
     if (!children_path.empty() &&
         chdir(ToByteString(children_path).c_str()) == -1) {
       LOG(FATAL) << children_path
@@ -176,7 +176,7 @@ futures::Value<PossibleError> GenerateContents(
     }
     environment[L"TERM"] = L"screen";
     environment = LoadEnvironmentVariables(
-        editor_state.edge_path(), target->Read(buffer_variables::command),
+        editor_state.edge_path(), target.Read(buffer_variables::command),
         environment);
 
     char** envp =
@@ -192,7 +192,7 @@ futures::Value<PossibleError> GenerateContents(
 
     char* argv[] = {
         strdup("sh"), strdup("-c"),
-        strdup(ToByteString(target->Read(buffer_variables::command)).c_str()),
+        strdup(ToByteString(target.Read(buffer_variables::command)).c_str()),
         nullptr};
     int status = execve("/bin/sh", argv, envp);
     exit(WIFEXITED(status) ? WEXITSTATUS(status) : EX_OSERR);
@@ -202,17 +202,17 @@ futures::Value<PossibleError> GenerateContents(
 
   LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
             << pipefd_err[parent_fd];
-  target->SetInputFiles(pipefd_out[parent_fd], pipefd_err[parent_fd],
-                        target->Read(buffer_variables::pts), child_pid);
-  target->AddEndOfFileObserver([&editor_state, data, target]() {
+  target.SetInputFiles(pipefd_out[parent_fd], pipefd_err[parent_fd],
+                       target.Read(buffer_variables::pts), child_pid);
+  target.AddEndOfFileObserver([&editor_state, data, &target]() {
     LOG(INFO) << "End of file notification.";
-    if (editor_state.buffer_tree().GetBufferIndex(target).has_value()) {
-      CHECK(target->child_exit_status().has_value());
-      int success = WIFEXITED(target->child_exit_status().value()) &&
-                    WEXITSTATUS(target->child_exit_status().value()) == 0;
+    if (editor_state.buffer_tree().GetBufferIndex(&target).has_value()) {
+      CHECK(target.child_exit_status().has_value());
+      int success = WIFEXITED(target.child_exit_status().value()) &&
+                    WEXITSTATUS(target.child_exit_status().value()) == 0;
       double frequency =
-          target->Read(success ? buffer_variables::beep_frequency_success
-                               : buffer_variables::beep_frequency_failure);
+          target.Read(success ? buffer_variables::beep_frequency_success
+                              : buffer_variables::beep_frequency_failure);
       if (frequency > 0.0001) {
         BeepFrequencies(editor_state.audio_player(), 0.1,
                         std::vector<double>(success ? 1 : 2, frequency));
@@ -567,7 +567,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
          .name = name,
          .generate_contents =
              [&editor_state, environment = options.environment,
-              command_data](OpenBuffer* target) {
+              command_data](OpenBuffer& target) {
                return GenerateContents(editor_state, environment,
                                        command_data.get(), target);
              },

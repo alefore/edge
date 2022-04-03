@@ -20,9 +20,9 @@ namespace editor {
 namespace {
 const wstring kDepthSymbol = L"navigation_buffer_depth";
 
-void AdjustLastLine(OpenBuffer* buffer, std::shared_ptr<OpenBuffer> link_to,
+void AdjustLastLine(OpenBuffer& buffer, std::shared_ptr<OpenBuffer> link_to,
                     LineColumn position) {
-  auto line_environment = buffer->contents().back()->environment();
+  auto line_environment = buffer.contents().back()->environment();
   line_environment->Define(L"buffer", Value::NewObject(L"Buffer", link_to));
   line_environment->Define(
       L"buffer_position",
@@ -49,17 +49,17 @@ void AddContents(const OpenBuffer& source, const Line& input,
 
 void AppendLine(const std::shared_ptr<OpenBuffer>& source,
                 std::shared_ptr<LazyString> padding, LineColumn position,
-                OpenBuffer* target) {
+                OpenBuffer& target) {
   Line::Options options;
   options.contents = padding;
   AddContents(*source, *source->LineAt(position.line), &options);
-  target->AppendRawLine(std::make_shared<Line>(options));
+  target.AppendRawLine(std::make_shared<Line>(options));
   AdjustLastLine(target, source, position);
 }
 
 void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
                  const ParseTree& tree, std::shared_ptr<LazyString> padding,
-                 OpenBuffer* target) {
+                 OpenBuffer& target) {
   for (size_t i = 0; i < tree.children().size(); i++) {
     auto& child = tree.children()[i];
     if (child.range().begin.line + LineNumberDelta(1) ==
@@ -79,7 +79,7 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
           child.range().end.line != tree.children()[i + 1].range().begin.line) {
         AddContents(*source, *source->LineAt(child.range().end.line), &options);
       }
-      target->AppendRawLine(std::make_shared<Line>(options));
+      target.AppendRawLine(std::make_shared<Line>(options));
       AdjustLastLine(target, source, child.range().begin);
       continue;
     }
@@ -98,26 +98,26 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
 
 futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, std::weak_ptr<OpenBuffer> source_weak,
-    OpenBuffer* target) {
-  target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
+    OpenBuffer& target) {
+  target.ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   for (const auto& dir : editor_state.edge_path()) {
-    target->EvaluateFile(Path::Join(
+    target.EvaluateFile(Path::Join(
         dir, Path::FromString(L"hooks/navigation-buffer-reload.cc").value()));
   }
   auto source = source_weak.lock();
   if (source == nullptr) {
-    target->AppendToLastLine(NewLazyString(L"Source buffer no longer loaded."));
+    target.AppendToLastLine(NewLazyString(L"Source buffer no longer loaded."));
     return futures::Past(Success());
   }
 
   auto tree = source->simplified_parse_tree();
   if (tree == nullptr) {
-    target->AppendToLastLine(NewLazyString(L"Target has no tree."));
+    target.AppendToLastLine(NewLazyString(L"Target has no tree."));
     return futures::Past(Success());
   }
 
-  target->AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
-  auto depth_value = target->environment()->Lookup(
+  target.AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
+  auto depth_value = target.environment()->Lookup(
       Environment::Namespace(), kDepthSymbol, VMType::Integer());
   int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
   DisplayTree(source, depth, *tree, EmptyString(), target);
@@ -154,7 +154,7 @@ class NavigationBufferCommand : public Command {
           {.editor = editor_state_,
            .name = name,
            .generate_contents = [&editor_state = editor_state_,
-                                 source_weak](OpenBuffer* target) {
+                                 source_weak](OpenBuffer& target) {
              return GenerateContents(editor_state, source_weak, target);
            }});
 

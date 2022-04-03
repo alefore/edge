@@ -183,24 +183,24 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                                           std::move(shared_options),
                                       input,
                                       consumer = std::move(output.consumer)](
-                                         OpenBuffer* buffer) {
-    buffer->environment()->Define(kLongestPrefixEnvironmentVariable,
-                                  vm::Value::NewInteger(0));
-    buffer->environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
-                                  vm::Value::NewInteger(0));
-    buffer->environment()->Define(kExactMatchEnvironmentVariable,
-                                  vm::Value::NewBool(false));
+                                         OpenBuffer& buffer) {
+    buffer.environment()->Define(kLongestPrefixEnvironmentVariable,
+                                 vm::Value::NewInteger(0));
+    buffer.environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
+                                 vm::Value::NewInteger(0));
+    buffer.environment()->Define(kExactMatchEnvironmentVariable,
+                                 vm::Value::NewBool(false));
 
     return shared_options
         ->predictor({.editor = shared_options->editor_state,
                      .input = std::move(input),
-                     .predictions = buffer,
+                     .predictions = &buffer,
                      .source_buffers = shared_options->source_buffers,
                      .progress_channel = *shared_options->progress_channel,
                      .abort_notification = shared_options->abort_notification})
-        .Transform([shared_options, input, buffer, consumer](PredictorOutput) {
-          buffer->set_current_cursor(LineColumn());
-          auto results = BuildResults(*buffer);
+        .Transform([shared_options, input, &buffer, consumer](PredictorOutput) {
+          buffer.set_current_cursor(LineColumn());
+          auto results = BuildResults(buffer);
           consumer(
               GetPredictInput(*shared_options) == input &&
                       !shared_options->abort_notification->HasBeenNotified()

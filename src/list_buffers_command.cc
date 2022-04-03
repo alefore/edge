@@ -45,19 +45,19 @@ pair<LineNumber, LineNumber> LinesToShow(const OpenBuffer& buffer,
   return {start, stop};
 }
 
-void AdjustLastLine(OpenBuffer* target, std::shared_ptr<OpenBuffer> buffer) {
-  target->contents().back()->environment()->Define(
+void AdjustLastLine(OpenBuffer& target, std::shared_ptr<OpenBuffer> buffer) {
+  target.contents().back()->environment()->Define(
       L"buffer", Value::NewObject(L"Buffer", buffer));
 }
 
 futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
-                                               OpenBuffer* target) {
-  target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
+                                               OpenBuffer& target) {
+  target.ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   bool show_in_buffers_list =
-      target->Read(buffer_variables::show_in_buffers_list);
+      target.Read(buffer_variables::show_in_buffers_list);
 
   LineNumberDelta screen_lines;
-  auto screen_value = target->environment()->Lookup(
+  auto screen_value = target.environment()->Lookup(
       Environment::Namespace(), L"screen", GetScreenVmType());
   if (screen_value != nullptr && screen_value->type == VMType::OBJECT_TYPE &&
       screen_value->user_value != nullptr) {
@@ -74,7 +74,7 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
       LOG(INFO) << "Skipping buffer (!show_in_buffers_list).";
       continue;
     }
-    if (it.second.get() == target) {
+    if (it.second.get() == &target) {
       LOG(INFO) << "Skipping current buffer.";
       continue;
     }
@@ -126,8 +126,7 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
         NewLazyString(buffer->Read(buffer_variables::name));
     if (context.first != context.second) {
       name = StringAppend(NewLazyString(L"╭──"), name);
-      auto width =
-          ColumnNumberDelta(target->Read(buffer_variables::line_width));
+      auto width = ColumnNumberDelta(target.Read(buffer_variables::line_width));
       if (width > name->size()) {
         name =
             StringAppend(name,
@@ -136,11 +135,11 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
                          NewLazyString(L"╮"));
       }
     }
-    if (target->contents().size() == LineNumberDelta(1) &&
-        target->contents().at(LineNumber(0))->EndColumn().IsZero()) {
-      target->AppendToLastLine(std::move(name));
+    if (target.contents().size() == LineNumberDelta(1) &&
+        target.contents().at(LineNumber(0))->EndColumn().IsZero()) {
+      target.AppendToLastLine(std::move(name));
     } else {
-      target->AppendLine(std::move(name));
+      target.AppendLine(std::move(name));
     }
     AdjustLastLine(target, buffer);
 
@@ -154,7 +153,7 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
         options.Append(*buffer->LineAt(context.first));
         context.first++;
       }
-      target->AppendRawLine(std::make_shared<Line>(options));
+      target.AppendRawLine(std::make_shared<Line>(options));
       AdjustLastLine(target, buffer);
       ++index;
     }
@@ -177,7 +176,7 @@ class ListBuffersCommand : public Command {
           OpenBuffer::New({.editor = editor_state_,
                            .name = BufferName::BuffersList(),
                            .generate_contents = [&editor_state = editor_state_](
-                                                    OpenBuffer* target) {
+                                                    OpenBuffer& target) {
                              return GenerateContents(editor_state, target);
                            }});
       buffer->Set(buffer_variables::reload_on_enter, true);
