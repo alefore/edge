@@ -361,7 +361,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   //
   // Typically a call to a `LockFunction` will return before the callback given
   // is executed.
-  using LockFunction = std::function<void(std::function<void(OpenBuffer*)>)>;
+  //
+  // Retaining the LockFunction ensures that the underlying buffer is retained.
+  using LockFunction = std::function<void(std::function<void(OpenBuffer&)>)>;
   LockFunction GetLockFunction();
 
   /////////////////////////////////////////////////////////////////////////////

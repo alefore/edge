@@ -155,12 +155,6 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary);
 // Based on the parse tree of the source_buffer.
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input);
 
-// Buffer must be a buffer given to a predictor by `Predict`. Registers a new
-// size of a prefix that has a match.
-void RegisterPredictorPrefixMatch(size_t longest_prefix, OpenBuffer* buffer);
-void RegisterPredictorDirectoryMatch(size_t prefix, OpenBuffer* buffer);
-void RegisterPredictorExactMatch(OpenBuffer* buffer);
-
 }  // namespace editor
 }  // namespace afc
 

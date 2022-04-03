@@ -1369,9 +1369,13 @@ const std::shared_ptr<WorkQueue>& OpenBuffer::work_queue() const {
 }
 
 OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
-  return [this](std::function<void(OpenBuffer*)> callback) {
-    work_queue()->Schedule(
-        [this, callback = std::move(callback)]() { callback(this); });
+  return [shared_this =
+              shared_from_this()](std::function<void(OpenBuffer&)> callback) {
+    shared_this->work_queue()->Schedule(
+        [shared_this, callback = std::move(callback)]() {
+          CHECK(shared_this != nullptr);
+          callback(*shared_this);
+        });
   };
 }
 

@@ -227,6 +227,39 @@ struct DescendDirectoryTreeOutput {
   size_t valid_proper_prefix_length = 0;
 };
 
+// Buffer must be a buffer given to a predictor by `Predict`. Registers a new
+// size of a prefix that has a match.
+void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
+  auto value = buffer.environment()->Lookup(Environment::Namespace(),
+                                            kLongestPrefixEnvironmentVariable,
+                                            VMType::VM_INTEGER);
+  if (value == nullptr) return;
+  buffer.environment()->Assign(
+      kLongestPrefixEnvironmentVariable,
+      vm::Value::NewInteger(
+          std::max(value->integer, static_cast<int>(new_value))));
+}
+
+void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
+  auto value = buffer.environment()->Lookup(
+      Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
+      VMType::VM_INTEGER);
+  if (value == nullptr) return;
+  buffer.environment()->Assign(
+      kLongestDirectoryMatchEnvironmentVariable,
+      vm::Value::NewInteger(
+          std::max(value->integer, static_cast<int>(new_value))));
+}
+
+void RegisterPredictorExactMatch(OpenBuffer& buffer) {
+  auto value = buffer.environment()->Lookup(Environment::Namespace(),
+                                            kExactMatchEnvironmentVariable,
+                                            VMType::VM_BOOLEAN);
+  if (value == nullptr) return;
+  buffer.environment()->Assign(kExactMatchEnvironmentVariable,
+                               vm::Value::NewBool(true));
+}
+
 // TODO(easy): Receive Paths rather than wstrings.
 DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
                                                 wstring path) {
@@ -282,11 +315,11 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   std::vector<std::shared_ptr<Line>> predictions;
 
   auto FlushPredictions = [&predictions, get_buffer] {
-    get_buffer([batch = std::move(predictions)](OpenBuffer* buffer) mutable {
+    get_buffer([batch = std::move(predictions)](OpenBuffer& buffer) mutable {
       static Tracker tracker(L"FilePredictor::ScanDirectory::FlushPredictions");
       auto call = tracker.Call();
       for (auto& prediction : batch) {
-        buffer->StartNewLine(std::move(prediction));
+        buffer.StartNewLine(std::move(prediction));
       }
     });
     predictions.clear();
@@ -327,10 +360,10 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   }
   FlushPredictions();
   get_buffer([prefix_match = prefix.size() + longest_pattern_match,
-              pattern](OpenBuffer* buffer) {
-    if (buffer->lines_size() > LineNumberDelta() &&
-        buffer->LineAt(LineNumber())->empty()) {
-      buffer->EraseLines(LineNumber(), LineNumber().next());
+              pattern](OpenBuffer& buffer) {
+    if (buffer.lines_size() > LineNumberDelta() &&
+        buffer.LineAt(LineNumber())->empty()) {
+      buffer.EraseLines(LineNumber(), LineNumber().next());
     }
     if (pattern.empty()) {
       RegisterPredictorExactMatch(buffer);
@@ -389,7 +422,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
         continue;
       }
       input.get_buffer([length = descend_results.valid_proper_prefix_length](
-                           OpenBuffer* buffer) {
+                           OpenBuffer& buffer) {
         RegisterPredictorDirectoryMatch(length, buffer);
       });
       CHECK_LE(descend_results.valid_prefix_length, input.path.size());
@@ -402,9 +435,9 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       if (input.abort_notification->HasBeenNotified()) return 0;
     }
     input.get_buffer([output_consumer = std::move(input.output_consumer)](
-                         OpenBuffer* buffer) {
+                         OpenBuffer& buffer) {
       LOG(INFO) << "Signaling end of file.";
-      buffer->EndOfFile();
+      buffer.EndOfFile();
       output_consumer(PredictorOutput());
     });
     return 0;
@@ -539,37 +572,6 @@ const bool buffer_tests_registration =
             }}});
     }());
 }  // namespace
-
-void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer* buffer) {
-  auto value = buffer->environment()->Lookup(Environment::Namespace(),
-                                             kLongestPrefixEnvironmentVariable,
-                                             VMType::VM_INTEGER);
-  if (value == nullptr) return;
-  buffer->environment()->Assign(
-      kLongestPrefixEnvironmentVariable,
-      vm::Value::NewInteger(
-          std::max(value->integer, static_cast<int>(new_value))));
-}
-
-void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer* buffer) {
-  auto value = buffer->environment()->Lookup(
-      Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
-      VMType::VM_INTEGER);
-  if (value == nullptr) return;
-  buffer->environment()->Assign(
-      kLongestDirectoryMatchEnvironmentVariable,
-      vm::Value::NewInteger(
-          std::max(value->integer, static_cast<int>(new_value))));
-}
-
-void RegisterPredictorExactMatch(OpenBuffer* buffer) {
-  auto value = buffer->environment()->Lookup(Environment::Namespace(),
-                                             kExactMatchEnvironmentVariable,
-                                             VMType::VM_BOOLEAN);
-  if (value == nullptr) return;
-  buffer->environment()->Assign(kExactMatchEnvironmentVariable,
-                                vm::Value::NewBool(true));
-}
 
 Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
   return [dictionary](PredictorInput input) {
