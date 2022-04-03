@@ -20,7 +20,7 @@ bool IsEmpty(EditorState* editor_state) {
   return editor_state->current_buffer()->EndLine() == LineNumber(0) &&
          editor_state->current_buffer()
              ->contents()
-             ->back()
+             .back()
              ->EndColumn()
              .IsZero();
 }
@@ -123,7 +123,7 @@ void TreeTestsBasic() {
 
 void TestCases() {
   auto audio_player = NewNullAudioPlayer();
-  EditorState editor_state(CommandLineValues(), audio_player.get());
+  EditorState editor_state(CommandLineValues(), *audio_player);
   CHECK(!editor_state.has_current_buffer());
 
   editor_state.ProcessInputString("i\n");
@@ -166,7 +166,7 @@ void TestCases() {
 
   editor_state.ProcessInputString("ialejandro\nforero\ncuervo");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  CHECK_EQ(editor_state.current_buffer()->contents()->size(),
+  CHECK_EQ(editor_state.current_buffer()->contents().size(),
            LineNumberDelta(3));
   CHECK_EQ(editor_state.current_buffer()->current_position_line(),
            LineNumber(2));
@@ -213,7 +213,7 @@ void TestCases() {
       "cuervo");
 
   editor_state.ProcessInputString("pp");
-  CHECK_EQ(editor_state.current_buffer()->contents()->size(),
+  CHECK_EQ(editor_state.current_buffer()->contents().size(),
            LineNumberDelta(5));
 
   editor_state.ProcessInputString("erg");
