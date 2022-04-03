@@ -194,6 +194,8 @@ void MaybeScheduleNextWorkQueueExecution(
     std::weak_ptr<WorkQueue> work_queue_weak,
     std::shared_ptr<WorkQueue> parent_work_queue,
     std::shared_ptr<std::optional<struct timespec>> next_scheduled_execution) {
+  CHECK(parent_work_queue != nullptr);
+  CHECK(next_scheduled_execution != nullptr);
   auto work_queue = work_queue_weak.lock();
   if (work_queue == nullptr) return;
   if (auto next = work_queue->NextExecution();
