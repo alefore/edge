@@ -41,33 +41,31 @@ const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
     L"predictor_longest_directory_match";
 const wchar_t* kExactMatchEnvironmentVariable = L"predictor_exact_match";
 
-PredictResults BuildResults(OpenBuffer* predictions_buffer) {
-  CHECK(predictions_buffer != nullptr);
-
+PredictResults BuildResults(OpenBuffer& predictions_buffer) {
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
-            << predictions_buffer->contents().size();
-  predictions_buffer->SortContents(
-      LineNumber(0), predictions_buffer->EndLine(),
+            << predictions_buffer.contents().size();
+  predictions_buffer.SortContents(
+      LineNumber(0), predictions_buffer.EndLine(),
       [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
         return *LowerCase(a->contents()) < *LowerCase(b->contents());
       });
 
   LOG(INFO) << "Removing duplicates.";
   for (auto line = LineNumber(0);
-       line.ToDelta() < predictions_buffer->contents().size();) {
+       line.ToDelta() < predictions_buffer.contents().size();) {
     if (line == LineNumber(0) ||
-        predictions_buffer->LineAt(line.previous())->ToString() !=
-            predictions_buffer->LineAt(line)->ToString()) {
+        predictions_buffer.contents().at(line.previous())->ToString() !=
+            predictions_buffer.contents().at(line)->ToString()) {
       line++;
     } else {
-      predictions_buffer->EraseLines(line, line.next());
+      predictions_buffer.EraseLines(line, line.next());
     }
   }
 
   wstring common_prefix =
-      predictions_buffer->contents().front()->contents()->ToString();
+      predictions_buffer.contents().front()->contents()->ToString();
   PredictResults predict_results;
-  if (predictions_buffer->contents().EveryLine(
+  if (predictions_buffer.contents().EveryLine(
           [&common_prefix](LineNumber, const Line& line) {
             if (line.empty()) {
               return true;
@@ -97,7 +95,7 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
     predict_results.common_prefix = common_prefix;
   }
 
-  if (auto value = predictions_buffer->environment()->Lookup(
+  if (auto value = predictions_buffer.environment()->Lookup(
           Environment::Namespace(), kLongestPrefixEnvironmentVariable,
           VMType::VM_INTEGER);
       value != nullptr) {
@@ -105,7 +103,7 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
     predict_results.longest_prefix = ColumnNumberDelta(value->integer);
   }
 
-  if (auto value = predictions_buffer->environment()->Lookup(
+  if (auto value = predictions_buffer.environment()->Lookup(
           Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
           VMType::VM_INTEGER);
       value != nullptr) {
@@ -113,7 +111,7 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
     predict_results.longest_directory_match = ColumnNumberDelta(value->integer);
   }
 
-  if (auto value = predictions_buffer->environment()->Lookup(
+  if (auto value = predictions_buffer.environment()->Lookup(
           Environment::Namespace(), kExactMatchEnvironmentVariable,
           VMType::VM_BOOLEAN);
       value != nullptr) {
@@ -121,8 +119,8 @@ PredictResults BuildResults(OpenBuffer* predictions_buffer) {
     predict_results.found_exact_match = value->boolean;
   }
 
-  predict_results.matches = predictions_buffer->lines_size().line_delta - 1;
-  predict_results.predictions_buffer = predictions_buffer->shared_from_this();
+  predict_results.matches = predictions_buffer.lines_size().line_delta - 1;
+  predict_results.predictions_buffer = predictions_buffer.shared_from_this();
   return predict_results;
 }
 
@@ -202,7 +200,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                      .abort_notification = shared_options->abort_notification})
         .Transform([shared_options, input, buffer, consumer](PredictorOutput) {
           buffer->set_current_cursor(LineColumn());
-          auto results = BuildResults(buffer);
+          auto results = BuildResults(*buffer);
           consumer(
               GetPredictInput(*shared_options) == input &&
                       !shared_options->abort_notification->HasBeenNotified()
