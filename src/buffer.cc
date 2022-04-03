@@ -2018,9 +2018,9 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
          .line_column = adjusted_position,
          .token_characters = buffer.Read(buffer_variables::path_characters)});
 
-    if (line.find_first_not_of(L"/.") == wstring::npos) {
-      // If there are only slashes or dots, it's probably not very useful to
-      // show the contents of this path.
+    if (line.find_first_not_of(L"/.:") == wstring::npos) {
+      // If there are only slashes, colons or dots, it's probably not very
+      // useful to show the contents of this path.
       return {};
     }
 
