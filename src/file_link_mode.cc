@@ -270,8 +270,8 @@ auto HandleError(ValueOrError<T> expr, ErrorCallable error_callable,
 futures::Value<PossibleError> Save(
     EditorState*, struct stat* stat_buffer,
     OpenBuffer::Options::HandleSaveOptions options) {
-  auto buffer = options.buffer;
-  auto path_or_error = Path::FromString(buffer->Read(buffer_variables::path));
+  auto& buffer = options.buffer;
+  auto path_or_error = Path::FromString(buffer.Read(buffer_variables::path));
   if (path_or_error.IsError()) {
     return futures::Past(PossibleError(
         Error(L"Buffer can't be saved: Invalid “path” variable: " +
@@ -290,7 +290,7 @@ futures::Value<PossibleError> Save(
     case OpenBuffer::Options::SaveType::kMainFile:
       break;
     case OpenBuffer::Options::SaveType::kBackup:
-      path = OnError(buffer->GetEdgeStateDirectory(), [](Error error) {
+      path = OnError(buffer.GetEdgeStateDirectory(), [](Error error) {
                return Error::Augment(L"Unable to backup buffer: ", error);
              }).Transform([](Path state_directory) {
         return Success(Path::Join(
@@ -298,24 +298,24 @@ futures::Value<PossibleError> Save(
       });
   }
 
-  return path.Transform([stat_buffer, options, buffer](Path path) {
-    return SaveContentsToFile(path, buffer->contents(), buffer->work_queue())
-        .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
-        .Transform([stat_buffer, options, buffer, path](EmptyValue) {
+  return path.Transform([stat_buffer, options, &buffer](Path path) {
+    return SaveContentsToFile(path, buffer.contents(), buffer.work_queue())
+        .Transform([&buffer](EmptyValue) { return buffer.PersistState(); })
+        .Transform([stat_buffer, options, &buffer, path](EmptyValue) {
           switch (options.save_type) {
             case OpenBuffer::Options::SaveType::kMainFile:
-              buffer->status().SetInformationText(L"🖫 Saved: " +
-                                                  path.ToString());
+              buffer.status().SetInformationText(L"🖫 Saved: " +
+                                                 path.ToString());
               // TODO(easy): Move this to the caller, for symmetry with
               // kBackup case.
-              buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
-              for (const auto& dir : buffer->editor().edge_path()) {
-                buffer->EvaluateFile(Path::Join(
+              buffer.SetDiskState(OpenBuffer::DiskState::kCurrent);
+              for (const auto& dir : buffer.editor().edge_path()) {
+                buffer.EvaluateFile(Path::Join(
                     dir, Path::FromString(L"/hooks/buffer-save.cc").value()));
               }
-              if (buffer->Read(
+              if (buffer.Read(
                       buffer_variables::trigger_reload_on_buffer_write)) {
-                for (auto& it : *buffer->editor().buffers()) {
+                for (auto& it : *buffer.editor().buffers()) {
                   CHECK(it.second != nullptr);
                   if (it.second->Read(
                           buffer_variables::reload_on_buffer_write)) {
@@ -824,12 +824,12 @@ OpenFile(const OpenFileOptions& options) {
         buffer_options->handle_save =
             [&editor_state = options.editor_state,
              stat_buffer](OpenBuffer::Options::HandleSaveOptions options) {
-              auto buffer = options.buffer;
+              auto& buffer = options.buffer;
               return futures::OnError(
                   Save(&editor_state, stat_buffer.get(), std::move(options)),
-                  [buffer](Error error) {
-                    buffer->status().SetWarningText(L"🖫 Save failed: " +
-                                                    error.description);
+                  [&buffer](Error error) {
+                    buffer.status().SetWarningText(L"🖫 Save failed: " +
+                                                   error.description);
                     return error;
                   });
             };

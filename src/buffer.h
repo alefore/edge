@@ -98,7 +98,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     // Optional function that saves the buffer. If not provided, attempts to
     // save the buffer will fail.
     struct HandleSaveOptions {
-      OpenBuffer* buffer;
+      OpenBuffer& buffer;
       SaveType save_type = SaveType::kMainFile;
     };
     std::function<futures::Value<PossibleError>(HandleSaveOptions)>

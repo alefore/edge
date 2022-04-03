@@ -1162,7 +1162,7 @@ futures::Value<PossibleError> OpenBuffer::Save() {
     return futures::Past(PossibleError(Error(L"Buffer can't be saved.")));
   }
   return options_.handle_save(
-      {.buffer = this, .save_type = Options::SaveType::kMainFile});
+      {.buffer = *this, .save_type = Options::SaveType::kMainFile});
 }
 
 futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
@@ -1235,7 +1235,7 @@ void OpenBuffer::UpdateBackup() {
   log_->Append(L"UpdateBackup starts.");
   if (options_.handle_save != nullptr) {
     options_.handle_save(
-        {.buffer = this, .save_type = Options::SaveType::kBackup});
+        {.buffer = *this, .save_type = Options::SaveType::kBackup});
   }
   backup_state_ = DiskState::kCurrent;
 }
