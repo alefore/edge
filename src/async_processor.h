@@ -197,11 +197,13 @@ class AsyncEvaluator {
     futures::Future<decltype(callable())> output;
     background_callback_runner_->Push(
         [work_queue = work_queue_, callable = std::move(callable),
-         consumer = std::move(output.consumer)]() mutable {
-          work_queue->Schedule(
-              [consumer = std::move(consumer), value = callable()]() mutable {
-                consumer(std::move(value));
-              });
+         consumer = std::move(output.consumer),
+         background_callback_runner = background_callback_runner_]() mutable {
+          work_queue->Schedule([consumer = std::move(consumer),
+                                value = callable(),
+                                background_callback_runner]() mutable {
+            consumer(std::move(value));
+          });
         });
     return std::move(output.value);
   }
@@ -213,7 +215,7 @@ class AsyncEvaluator {
   }
 
  private:
-  std::unique_ptr<BackgroundCallbackRunner> background_callback_runner_;
+  std::shared_ptr<BackgroundCallbackRunner> background_callback_runner_;
   std::shared_ptr<WorkQueue> work_queue_;
 };
 
