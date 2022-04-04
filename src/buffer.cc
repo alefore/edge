@@ -708,7 +708,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                                        error.description);
                return error;
              })
-      .Transform([this](Path edge_state_directory) {
+      .Transform([this,
+                  shared_this = shared_from_this()](Path edge_state_directory) {
         auto path =
             Path::Join(edge_state_directory,
                        PathComponent::FromString(L".edge_state").value());
@@ -757,9 +758,9 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         contents.push_back(L"");
 
         return OnError(SaveContentsToFile(path, contents, work_queue()),
-                       [this](Error error) {
-                         status().SetWarningText(L"Unable to persist state: " +
-                                                 error.description);
+                       [shared_this](Error error) {
+                         shared_this->status().SetWarningText(
+                             L"Unable to persist state: " + error.description);
                          return error;
                        });
       });
@@ -2588,7 +2589,9 @@ void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>& source) {
 }
 
 void OpenBuffer::UpdateLastAction() {
-  last_action_ = Now();
+  auto now = Now();
+  if (now < last_action_) return;
+  last_action_ = now;
   if (double idle_seconds = Read(buffer_variables::close_after_idle_seconds);
       idle_seconds >= 0.0) {
     work_queue_->ScheduleAt(AddSeconds(Now(), idle_seconds),
