@@ -5,8 +5,10 @@
 #include <cmath>
 #include <memory>
 
+#include "src/buffer.h"
 #include "src/line.h"
 #include "src/line_modifier.h"
+#include "src/tests/tests.h"
 
 namespace afc {
 namespace editor {
@@ -216,6 +218,10 @@ Status::SetExpiringInformationText(std::wstring text) {
   ValidatePreconditions();
   SetInformationText(text);
   ValidatePreconditions();
+  if (data_->prompt_buffer != nullptr) {
+    return nullptr;
+  }
+
   return std::unique_ptr<StatusExpirationControl,
                          std::function<void(StatusExpirationControl*)>>(
       new StatusExpirationControl{data_},
@@ -274,5 +280,30 @@ void Status::ValidatePreconditions() const {
   CHECK((data_->prompt_buffer != nullptr) == (data_->type == Type::kPrompt));
 }
 
+namespace {
+const bool prompt_tests_registration = tests::Register(
+    L"StatusPrompt",
+    {{.name = L"SetWarningText",
+      .callback =
+          [] {
+            std::unique_ptr<AudioPlayer> audio_player = NewNullAudioPlayer();
+            Status status(NewBufferForTests(), *audio_player);
+            std::shared_ptr<OpenBuffer> prompt = NewBufferForTests();
+            status.set_prompt(L">", prompt);
+            status.SetWarningText(L"Foobar");
+            CHECK(status.text() == L">");
+            CHECK(status.prompt_buffer() == prompt);
+          }},
+     {.name = L"SetExpiringInformationText", .callback = [] {
+        std::unique_ptr<AudioPlayer> audio_player = NewNullAudioPlayer();
+        Status status(NewBufferForTests(), *audio_player);
+        std::shared_ptr<OpenBuffer> prompt = NewBufferForTests();
+        status.set_prompt(L">", prompt);
+        status.SetExpiringInformationText(L"Foobar");
+        CHECK(status.text() == L">");
+        CHECK(status.prompt_buffer() == prompt);
+      }}});
+
+}
 }  // namespace editor
 }  // namespace afc
