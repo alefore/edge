@@ -449,8 +449,10 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
 
 void Line::ValidateInvariants() const {
   CHECK(options_.contents != nullptr);
-  ForEachColumn(*options_.contents,
-                [](ColumnNumber, wchar_t c) { CHECK(c != L'\n'); });
+  ForEachColumn(*options_.contents, [&contents = options_.contents](
+                                        ColumnNumber, wchar_t c) {
+    CHECK(c != L'\n') << "Line has newline character: " << contents->ToString();
+  });
   for (auto& m : options_.modifiers) {
     CHECK_LE(m.first, EndColumnWithLock())
         << "Modifiers found past end of line.";
