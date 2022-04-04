@@ -594,20 +594,21 @@ void EditorState::CheckPosition() {
 }
 
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
-  buffer.PrepareToClose().SetConsumer([this, &buffer](PossibleError error) {
-    if (error.IsError()) {
-      buffer.status().SetWarningText(
-          L"🖝  Unable to close (“*ad” to ignore): " +
-          error.error().description + L": " +
-          buffer.Read(buffer_variables::name));
-      return;
-    }
+  buffer.PrepareToClose().SetConsumer(
+      [this, buffer = buffer.shared_from_this()](PossibleError error) {
+        if (error.IsError()) {
+          buffer->status().SetWarningText(
+              L"🖝  Unable to close (“*ad” to ignore): " +
+              error.error().description + L": " +
+              buffer->Read(buffer_variables::name));
+          return;
+        }
 
-    buffer.Close();
-    buffer_tree_.RemoveBuffer(buffer);
-    buffers_.erase(buffer.name());
-    AdjustWidgets();
-  });
+        buffer->Close();
+        buffer_tree_.RemoveBuffer(*buffer);
+        buffers_.erase(buffer->name());
+        AdjustWidgets();
+      });
 }
 
 void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
