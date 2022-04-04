@@ -714,50 +714,52 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
             Path::Join(edge_state_directory,
                        PathComponent::FromString(L".edge_state").value());
         LOG(INFO) << "PersistState: Preparing state file: " << path;
-        BufferContents contents;
-        contents.push_back(L"// State of file: " + path.ToString());
-        contents.push_back(L"");
+        auto contents = std::make_unique<BufferContents>();
+        contents->push_back(L"// State of file: " + path.ToString());
+        contents->push_back(L"");
 
-        contents.push_back(L"buffer.set_position(" + position().ToCppString() +
-                           L");");
-        contents.push_back(L"");
+        contents->push_back(L"buffer.set_position(" + position().ToCppString() +
+                            L");");
+        contents->push_back(L"");
 
-        contents.push_back(L"// String variables");
+        contents->push_back(L"// String variables");
         for (const auto& variable :
              buffer_variables::StringStruct()->variables()) {
-          contents.push_back(L"buffer.set_" + variable.first + L"(\"" +
-                             CppEscapeString(Read(variable.second.get())) +
-                             L"\");");
+          contents->push_back(L"buffer.set_" + variable.first + L"(\"" +
+                              CppEscapeString(Read(variable.second.get())) +
+                              L"\");");
         }
-        contents.push_back(L"");
+        contents->push_back(L"");
 
-        contents.push_back(L"// Int variables");
+        contents->push_back(L"// Int variables");
         for (const auto& variable :
              buffer_variables::IntStruct()->variables()) {
-          contents.push_back(L"buffer.set_" + variable.first + L"(" +
-                             std::to_wstring(Read(variable.second.get())) +
-                             L");");
+          contents->push_back(L"buffer.set_" + variable.first + L"(" +
+                              std::to_wstring(Read(variable.second.get())) +
+                              L");");
         }
-        contents.push_back(L"");
+        contents->push_back(L"");
 
-        contents.push_back(L"// Bool variables");
+        contents->push_back(L"// Bool variables");
         for (const auto& variable :
              buffer_variables::BoolStruct()->variables()) {
-          contents.push_back(
+          contents->push_back(
               L"buffer.set_" + variable.first + L"(" +
               (Read(variable.second.get()) ? L"true" : L"false") + L");");
         }
-        contents.push_back(L"");
+        contents->push_back(L"");
 
-        contents.push_back(L"// LineColumn variables");
+        contents->push_back(L"// LineColumn variables");
         for (const auto& variable :
              buffer_variables::LineColumnStruct()->variables()) {
-          contents.push_back(L"buffer.set_" + variable.first + L"(" +
-                             Read(variable.second.get()).ToCppString() + L");");
+          contents->push_back(L"buffer.set_" + variable.first + L"(" +
+                              Read(variable.second.get()).ToCppString() +
+                              L");");
         }
-        contents.push_back(L"");
+        contents->push_back(L"");
 
-        return OnError(SaveContentsToFile(path, contents, work_queue()),
+        return OnError(SaveContentsToFile(path, std::move(contents),
+                                          work_queue(), file_system_driver()),
                        [shared_this](Error error) {
                          shared_this->status().SetWarningText(
                              L"Unable to persist state: " + error.description);
@@ -1866,7 +1868,7 @@ void OpenBuffer::PushSignal(int sig) {
 Viewers* OpenBuffer::viewers() { return &viewers_; }
 const Viewers* OpenBuffer::viewers() const { return &viewers_; }
 
-FileSystemDriver* OpenBuffer::file_system_driver() {
+FileSystemDriver* OpenBuffer::file_system_driver() const {
   return &file_system_driver_;
 }
 

@@ -298,24 +298,30 @@ futures::Value<PossibleError> Save(
       });
   }
 
-  return path.Transform([stat_buffer, options, &buffer](Path path) {
-    return SaveContentsToFile(path, buffer.contents(), buffer.work_queue())
-        .Transform([&buffer](EmptyValue) { return buffer.PersistState(); })
-        .Transform([stat_buffer, options, &buffer, path](EmptyValue) {
+  return path.Transform([stat_buffer, options,
+                         buffer = buffer.shared_from_this()](Path path) {
+    return SaveContentsToFile(path, buffer->contents().copy(),
+                              buffer->work_queue(),
+                              buffer->file_system_driver())
+        .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
+        .Transform([stat_buffer, options, buffer, path](EmptyValue) {
+          CHECK(buffer != nullptr);
           switch (options.save_type) {
             case OpenBuffer::Options::SaveType::kMainFile:
-              buffer.status().SetInformationText(L"🖫 Saved: " +
-                                                 path.ToString());
+              buffer->status().SetInformationText(L"🖫 Saved: " +
+                                                  path.ToString());
               // TODO(easy): Move this to the caller, for symmetry with
               // kBackup case.
-              buffer.SetDiskState(OpenBuffer::DiskState::kCurrent);
-              for (const auto& dir : buffer.editor().edge_path()) {
-                buffer.EvaluateFile(Path::Join(
+              // TODO: Synce the save is async, what if the contents have
+              // changed in the meantime?
+              buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
+              for (const auto& dir : buffer->editor().edge_path()) {
+                buffer->EvaluateFile(Path::Join(
                     dir, Path::FromString(L"/hooks/buffer-save.cc").value()));
               }
-              if (buffer.Read(
+              if (buffer->Read(
                       buffer_variables::trigger_reload_on_buffer_write)) {
-                for (auto& it : *buffer.editor().buffers()) {
+                for (auto& it : *buffer->editor().buffers()) {
                   CHECK(it.second != nullptr);
                   if (it.second->Read(
                           buffer_variables::reload_on_buffer_write)) {
@@ -360,13 +366,13 @@ using std::unique_ptr;
 // Always returns an actual value.
 futures::Value<PossibleError> SaveContentsToOpenFile(
     std::shared_ptr<WorkQueue> work_queue, Path path, int fd,
-    const BufferContents& contents) {
+    std::shared_ptr<const BufferContents> contents) {
   return AsyncEvaluator(L"SaveContentsToOpenFile", work_queue)
       .Run([contents, path, fd]() {
         // TODO: It'd be significant more efficient to do fewer (bigger)
         // writes.
         std::optional<PossibleError> error;
-        contents.EveryLine([&](LineNumber position, const Line& line) {
+        contents->EveryLine([&](LineNumber position, const Line& line) {
           string str = (position == LineNumber(0) ? "" : "\n") +
                        ToByteString(line.ToString());
           if (write(fd, str.c_str(), str.size()) == -1) {
@@ -382,9 +388,9 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 }
 
 futures::Value<PossibleError> SaveContentsToFile(
-    const Path& path, const BufferContents& contents,
-    std::shared_ptr<WorkQueue> work_queue) {
-  auto file_system_driver = std::make_shared<FileSystemDriver>(work_queue);
+    const Path& path, std::shared_ptr<const BufferContents> contents,
+    std::shared_ptr<WorkQueue> work_queue,
+    FileSystemDriver* file_system_driver) {
   Path tmp_path = Path::Join(
       path.Dirname().value(),
       PathComponent::FromString(path.Basename().value().ToString() + L".tmp")
@@ -400,8 +406,7 @@ futures::Value<PossibleError> SaveContentsToFile(
                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
                return Success(value);
              })
-      .Transform([path, contents, file_system_driver,
-                  tmp_path](struct stat stat_value) {
+      .Transform([path, file_system_driver, tmp_path](struct stat stat_value) {
         return file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
                                         stat_value.st_mode);
       })

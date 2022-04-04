@@ -206,7 +206,7 @@ class SearchCommand : public Command {
                auto progress_aggregator = std::make_shared<ProgressAggregator>(
                    std::move(progress_channel));
                return futures::ForEach(
-                          buffers->begin(), buffers->end(),
+                          buffers,
                           [async_search_processor, line, progress_aggregator,
                            abort_notification,
                            results](const std::shared_ptr<OpenBuffer>& buffer) {
@@ -236,9 +236,9 @@ class SearchCommand : public Command {
                             return async_search_processor
                                 ->Search(search_options.value(), *buffer,
                                          std::move(progress_channel))
-                                .Transform([results, abort_notification,
-                                            line](AsyncSearchProcessor::Output
-                                                      current_results) {
+                                .Transform([results, abort_notification, line,
+                                            buffer](AsyncSearchProcessor::Output
+                                                        current_results) {
                                   MergeInto(current_results, results.get());
                                   return abort_notification->HasBeenNotified()
                                              ? futures::
