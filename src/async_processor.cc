@@ -43,7 +43,6 @@ const bool async_evaluator_tests_registration = tests::Register(
                 ->Run([&] {
                   started_running.Notify();
                   proceed.WaitForNotification();
-                  sleep(1);
                   return 948;
                 })
                 .Transform([&](int result) {
@@ -53,11 +52,11 @@ const bool async_evaluator_tests_registration = tests::Register(
 
             started_running.WaitForNotification();
             LOG(INFO) << "Deleting.";
-            proceed.Notify();
             evaluator = nullptr;
+            proceed.Notify();
 
-            CHECK(queue->NextExecution().has_value());
             CHECK(!future_result.has_value());
+            while (!queue->NextExecution().has_value()) sleep(0.1);
             queue->Execute();
             CHECK(!queue->NextExecution().has_value());
             CHECK(future_result.has_value());
@@ -75,7 +74,7 @@ const bool async_evaluator_tests_registration = tests::Register(
         evaluator->RunIgnoringResults([&] {
           started_running.Notify();
           proceed.WaitForNotification();
-          sleep(1);
+          sleep(0.1);
           completed.Notify();
         });
 
