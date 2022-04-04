@@ -92,7 +92,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
     // Optional function that listens on visits to the buffer (i.e., the user
     // entering the buffer from other buffers).
-    std::function<void(OpenBuffer*)> handle_visit = nullptr;
+    std::function<void(OpenBuffer&)> handle_visit = nullptr;
 
     enum class SaveType { kMainFile, kBackup };
     // Optional function that saves the buffer. If not provided, attempts to

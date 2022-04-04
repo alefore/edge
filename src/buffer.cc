@@ -686,7 +686,7 @@ void OpenBuffer::Visit() {
   Enter();
   last_visit_ = last_action_ = Now();
   if (options_.handle_visit != nullptr) {
-    options_.handle_visit(this);
+    options_.handle_visit(*this);
   }
 }
 

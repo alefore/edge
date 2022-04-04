@@ -818,8 +818,8 @@ OpenFile(const OpenFileOptions& options) {
                                       file_system_driver,
                                       background_directory_reader, target);
             };
-        buffer_options->handle_visit = [stat_buffer](OpenBuffer* buffer) {
-          HandleVisit(*stat_buffer, *buffer);
+        buffer_options->handle_visit = [stat_buffer](OpenBuffer& buffer) {
+          HandleVisit(*stat_buffer, buffer);
         };
         buffer_options->handle_save =
             [&editor_state = options.editor_state,
