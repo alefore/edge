@@ -11,6 +11,7 @@
 #include "src/char_buffer.h"
 #include "src/dirname.h"
 #include "src/hash.h"
+#include "src/lazy_string_functional.h"
 #include "src/line_marks.h"
 #include "src/line_with_cursor.h"
 #include "src/parse_tree.h"
@@ -342,6 +343,9 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   }
 
   if (auto metadata = contents.metadata(); metadata != nullptr) {
+    ForEachColumn(*metadata, [](ColumnNumber, wchar_t c) {
+      CHECK(c != L'\n') << "Metadata has invalid newline character.";
+    });
     output.push_back(MetadataLine{L'>', LineModifier::GREEN, Line(metadata),
                                   MetadataLine::Type::kLineContents});
   }
