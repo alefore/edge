@@ -474,11 +474,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void Initialize();
   void MaybeStartUpdatingSyntaxTrees();
 
-  static void EvaluateMap(OpenBuffer* buffer, LineNumber line,
-                          Value::Callback map_callback,
-                          transformation::Stack* transformation,
-                          Trampoline* trampoline);
-
   futures::Value<transformation::Result> Apply(
       transformation::Variant transformation, LineColumn position,
       transformation::Input::Mode mode);
