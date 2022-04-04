@@ -75,6 +75,7 @@ EdgeStruct<double>* DoubleStruct();
 extern EdgeVariable<double>* const margin_lines_ratio;
 extern EdgeVariable<double>* const beep_frequency_success;
 extern EdgeVariable<double>* const beep_frequency_failure;
+extern EdgeVariable<double>* const close_after_idle_seconds;
 
 EdgeStruct<LineColumn>* LineColumnStruct();
 extern EdgeVariable<LineColumn>* const view_start;

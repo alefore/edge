@@ -489,6 +489,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // (i.e., `fd_` or `fd_error_`).
   void ReadData(std::unique_ptr<FileDescriptorReader>& source);
 
+  void UpdateLastAction();
+
   const Options options_;
 
   std::unique_ptr<Log> log_ = NewNullLog();

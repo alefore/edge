@@ -685,7 +685,8 @@ void OpenBuffer::Enter() {
 
 void OpenBuffer::Visit() {
   Enter();
-  last_visit_ = last_action_ = Now();
+  UpdateLastAction();
+  last_visit_ = last_action_;
   if (options_.handle_visit != nullptr) {
     options_.handle_visit(*this);
   }
@@ -786,7 +787,7 @@ void OpenBuffer::AppendEmptyLine() {
 }
 
 void OpenBuffer::EndOfFile() {
-  last_action_ = Now();
+  UpdateLastAction();
   CHECK(fd_ == nullptr);
   CHECK(fd_error_ == nullptr);
   if (child_pid_ != -1) {
@@ -992,7 +993,7 @@ void OpenBuffer::Initialize() {
               break;  // Nothing.
           }
         }
-        shared_this->last_action_ = Now();
+        shared_this->UpdateLastAction();
         shared_this->cursors_tracker_.AdjustCursors(transformation);
       });
 }
@@ -2378,10 +2379,12 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
     transformation_result = cursors_tracker_.ApplyTransformationToCursors(
-        cursors, [this, transformation = std::move(transformation),
+        cursors, [shared_this = shared_from_this(),
+                  transformation = std::move(transformation),
                   mode](LineColumn position) {
-          return Apply(transformation, position, mode)
-              .Transform([](transformation::Result result) {
+          return shared_this->Apply(transformation, position, mode)
+              .Transform([shared_this](transformation::Result result) {
+                shared_this->UpdateLastAction();
                 return result.position;
               });
         });
@@ -2389,8 +2392,10 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     transformation_result =
         Apply(std::move(transformation), position(), mode)
-            .Transform([this](const transformation::Result& result) {
-              active_cursors()->MoveCurrentCursor(result.position);
+            .Transform([shared_this = shared_from_this()](
+                           const transformation::Result& result) {
+              shared_this->active_cursors()->MoveCurrentCursor(result.position);
+              shared_this->UpdateLastAction();
               return EmptyValue();
             });
   }
@@ -2580,6 +2585,24 @@ void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>& source) {
           EndOfFile();
         }
       });
+}
+
+void OpenBuffer::UpdateLastAction() {
+  last_action_ = Now();
+  if (double idle_seconds = Read(buffer_variables::close_after_idle_seconds);
+      idle_seconds >= 0.0) {
+    work_queue_->ScheduleAt(AddSeconds(Now(), idle_seconds),
+                            [weak_this = std::weak_ptr(shared_from_this()),
+                             last_action = last_action_] {
+                              auto shared_this = weak_this.lock();
+                              if (shared_this == nullptr ||
+                                  shared_this->last_action_ != last_action)
+                                return;
+                              shared_this->last_action_ = Now();
+                              LOG(INFO) << "close_after_idle_seconds: Closing.";
+                              shared_this->editor().CloseBuffer(*shared_this);
+                            });
+  }
 }
 
 namespace {

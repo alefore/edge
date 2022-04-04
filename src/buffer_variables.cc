@@ -679,6 +679,16 @@ EdgeVariable<double>* const beep_frequency_failure =
         .DefaultValue(880.0)
         .Build();
 
+EdgeVariable<double>* const close_after_idle_seconds =
+    DoubleStruct()
+        ->Add()
+        .Name(L"close_after_idle_seconds")
+        .Description(
+            L"If non-negative, close the buffer after it has been idle for "
+            L"this number of seconds.")
+        .DefaultValue(-1.0)
+        .Build();
+
 EdgeStruct<LineColumn>* LineColumnStruct() {
   static EdgeStruct<LineColumn>* output = new EdgeStruct<LineColumn>();
   return output;
