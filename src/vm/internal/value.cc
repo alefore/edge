@@ -6,6 +6,27 @@
 namespace afc {
 namespace vm {
 
+std::wstring CppEscapeString(std::wstring input) {
+  std::wstring output;
+  output.reserve(input.size() * 2);
+  for (wchar_t c : input) {
+    switch (c) {
+      case '\n':
+        output += L"\\n";
+        break;
+      case '"':
+        output += L"\\\"";
+        break;
+      case '\\':
+        output += L"\\\\";
+        break;
+      default:
+        output += c;
+    }
+  }
+  return output;
+}
+
 /* static */ std::unique_ptr<Value> Value::NewVoid() {
   return std::make_unique<Value>(VMType::VM_VOID);
 }
@@ -61,7 +82,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
   if (value.IsInteger()) {
     os << value.integer;
   } else if (value.IsString()) {
-    os << '"' << value.str << '"';
+    os << '"' << CppEscapeString(value.str) << '"';
   } else if (value.IsBool()) {
     os << (value.boolean ? "true" : "false");
   } else if (value.IsDouble()) {

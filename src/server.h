@@ -15,8 +15,6 @@ namespace editor {
 using std::shared_ptr;
 using std::string;
 
-wstring CppEscapeString(wstring input);
-
 void Daemonize(const std::unordered_set<int>& surviving_fd);
 
 ValueOrError<int> MaybeConnectToServer(const Path& address);
