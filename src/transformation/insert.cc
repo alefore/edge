@@ -119,14 +119,8 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
       L"set_text",
       vm::NewCallback([editor](std::shared_ptr<Insert> options, wstring text) {
         CHECK(options != nullptr);
-        // TODO(easy, 2022-03-24): Turn this into a BufferContents.
-        auto buffer_to_insert = OpenBuffer::New(
-            {.editor = *editor, .name = BufferName::TextInsertion()});
-        if (!text.empty()) {
-          buffer_to_insert->AppendLazyString(NewLazyString(std::move(text)));
-          buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
-        }
-        options->contents_to_insert = buffer_to_insert->contents().copy();
+        options->contents_to_insert = std::make_shared<BufferContents>(
+            std::make_shared<Line>(std::move(text)));
         return options;
       }));
 
