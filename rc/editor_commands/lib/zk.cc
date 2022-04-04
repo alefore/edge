@@ -14,6 +14,10 @@
 
 namespace zettelkasten {
 namespace internal {
+bool IsStartOfRelatedSection(string line) {
+  return line == "Related:" || line == "## Related" || line == "## Related:";
+}
+
 string GetNoteTitle(Buffer buffer) {
   auto line = buffer.line(0);
   if (line.substr(0, 1) == "#") {
@@ -137,6 +141,46 @@ Buffer InitializeNewNote(string path, string title, string parent_title,
             .push(SetPositionTransformation(LineColumn(2, 0)));
       }));
   return new_note;
+}
+
+int FindStartOfRelatedSection(Buffer buffer) {
+  for (int line = 0; line < buffer.line_count(); line++) {
+    if (IsStartOfRelatedSection(buffer.line(line))) return line;
+  }
+  return buffer.line_count();
+}
+
+string ExtractLink(string contents) {
+  int link_start = contents.find_first_of("(", 0);
+  if (link_start == -1) return "";
+  link_start++;
+  int link_end = contents.find_first_of(")", link_start);
+  if (link_end == -1) return "";
+  return contents.substr(link_start, link_end - link_start);
+}
+
+string FindLink(Buffer buffer, string link_type) {
+  int line = FindStartOfRelatedSection(buffer);
+  while (line < buffer.line_count()) {
+    line++;
+    string contents = buffer.line(line);
+    string prefix = "* " + link_type.tolower() + ": [";
+    if (contents.tolower().starts_with(prefix)) {
+      return ExtractLink(
+          contents.substr(prefix.size(), contents.size() - prefix.size()));
+    }
+  }
+  buffer.SetStatus("Link not found: " + link_type);
+  return "";
+}
+
+void FindLink(string link_type) {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    string link = internal::FindLink(buffer, link_type);
+    if (link != "") {
+      editor.OpenFile(link, true);
+    }
+  });
 }
 
 TransformationOutput NewLink(Buffer buffer, TransformationInput input) {
@@ -280,9 +324,7 @@ void Expand(Buffer buffer, string path, SetString titles, int depth,
   bool first_line = true;
   string title = "";
   while (line < sub_buffer.line_count()) {
-    if (sub_buffer.line(line) == "Related:" ||
-        sub_buffer.line(line) == "## Related" ||
-        sub_buffer.line(line) == "## Related:") {
+    if (IsStartOfRelatedSection(sub_buffer.line(line))) {
       copy_contents = false;
     }
     auto line_contents = sub_buffer.line(line);
@@ -564,6 +606,9 @@ void N() {  // Short for New.
     buffer.Save();
   });
 }
+
+void LinkNext() { return internal::FindLink("Next"); }
+void LinkPrev() { return internal::FindLink("Prev"); }
 
 auto Expand = internal::ExpandIntoPath;
 }  // namespace zettelkasten
