@@ -191,6 +191,8 @@ void AddLineMetadata(OpenBuffer* buffer, BufferContents* contents,
                      AddLineMetadata(buffer, buffer->contents().at(position)));
 }
 
+// next_scheduled_execution holds the smallest time at which we know we have
+// scheduled an execution of work_queue_ in the editor's work queue.
 void MaybeScheduleNextWorkQueueExecution(
     std::weak_ptr<WorkQueue> work_queue_weak,
     std::shared_ptr<WorkQueue> parent_work_queue,
@@ -212,7 +214,6 @@ void MaybeScheduleNextWorkQueueExecution(
         });
   }
 }
-
 }  // namespace
 
 using namespace afc::vm;
