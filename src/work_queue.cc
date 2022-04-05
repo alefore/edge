@@ -47,7 +47,9 @@ void WorkQueue::Execute() {
   for (auto& callback : callbacks_ready) {
     mutex_.unlock();
     callback();
-    callback = nullptr;  // Allow it to be deleted now.
+    // We could assign nullptr to `callback` in order to allow it to be deleted.
+    // However, we prefer to only let them be deleted at the end, before we
+    // return, in case they are the only thing keeping the work queue alive.
     mutex_.lock();
     auto end = Now();
     execution_seconds_.IncrementAndGetEventsPerSecond(
