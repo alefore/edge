@@ -72,6 +72,7 @@ class AudioPlayerImpl : public AudioPlayer {
         : lock_(*mutex), clock_(clock), generators_(generators) {}
 
     void Add(AudioGenerator generator) override {
+      LOG(INFO) << "Adding generator: " << generators_->size();
       generators_->push_back(std::move(generator));
     }
 
@@ -107,6 +108,7 @@ class AudioPlayerImpl : public AudioPlayer {
       if (shutting_down_) {
         return false;
       }
+      CHECK_LT(generators_.size(), 100ul);
       std::vector<AudioGenerator*> enabled_generators;
       for (auto& generator : generators_)
         if (generator.start_time <= time_)
@@ -129,6 +131,7 @@ class AudioPlayerImpl : public AudioPlayer {
           next_generators.push_back(std::move(generator));
 
       generators_.swap(next_generators);
+      if (generators_.empty()) time_ = 0.0;
     }
 
     auto& frame = new_frame == nullptr ? *empty_frame_ : *new_frame;
@@ -145,7 +148,7 @@ class AudioPlayerImpl : public AudioPlayer {
   // We gradually adjust the volume depending on the number of enabled
   // generators. This roughly assumes that a generator's volume is constant as
   // long as it's enabled.
-  AudioPlayer::Volume volume_ = 0;
+  AudioPlayer::Volume volume_ = 1.0;
   AudioPlayer::Time time_ = 0.0;
   mutable std::mutex mutex_;
 
