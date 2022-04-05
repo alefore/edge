@@ -267,6 +267,12 @@ auto HandleError(ValueOrError<T> expr, ErrorCallable error_callable,
                         : callable(expr.value.value());
 }
 
+template <typename T, typename Callable>
+void IfObj(std::weak_ptr<T> p, Callable callable) {
+  auto value = p.lock();
+  if (value != nullptr) callable(*value);
+}
+
 futures::Value<PossibleError> Save(
     EditorState*, struct stat* stat_buffer,
     OpenBuffer::Options::HandleSaveOptions options) {
@@ -828,9 +834,10 @@ OpenFile(const OpenFileOptions& options) {
                   Save(&editor_state, stat_buffer.get(), std::move(options)),
                   [buffer_weak = std::weak_ptr<OpenBuffer>(
                        buffer.shared_from_this())](Error error) {
-                    if (auto buffer = buffer_weak.lock(); buffer != nullptr)
-                      buffer->status().SetWarningText(L"🖫 Save failed: " +
-                                                      error.description);
+                    IfObj(buffer_weak, [&error](OpenBuffer& buffer) {
+                      buffer.status().SetWarningText(L"🖫 Save failed: " +
+                                                     error.description);
+                    });
                     return error;
                   });
             };
