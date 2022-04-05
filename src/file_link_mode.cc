@@ -459,10 +459,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
                     });
 
   return output.Transform([](std::shared_ptr<OpenBuffer> buffer) {
-    futures::Future<std::shared_ptr<OpenBuffer>> output;
-    buffer->AddEndOfFileObserver(
-        [buffer, consumer = std::move(output.consumer)] { consumer(buffer); });
-    return std::move(output.value);
+    return buffer->WaitForEndOfFile().Transform(
+        [buffer](EmptyValue) { return buffer; });
   });
 }
 

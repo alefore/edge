@@ -128,27 +128,25 @@ class ReadAndInsert : public CompositeTransformation {
     auto full_path =
         Path::Join(edge_path_front,
                    Path::Join(Path::FromString(L"expand").value(), path_));
-    futures::Future<Output> output;
-    open_file_callback_(
-        OpenFileOptions{.editor_state = input.buffer->editor(),
-                        .path = full_path,
-                        .ignore_if_not_found = true,
-                        .insertion_type = BuffersList::AddBufferType::kIgnore,
-                        .use_search_paths = false})
-        .SetConsumer(
-            [consumer = std::move(output.consumer), full_path,
-             input = std::move(input)](
+
+    return open_file_callback_(
+               OpenFileOptions{
+                   .editor_state = input.buffer->editor(),
+                   .path = full_path,
+                   .ignore_if_not_found = true,
+                   .insertion_type = BuffersList::AddBufferType::kIgnore,
+                   .use_search_paths = false})
+        .Transform(
+            [full_path, input = std::move(input)](
                 std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
                     buffer_it) {
               if (buffer_it == input.buffer->editor().buffers()->end()) {
                 LOG(INFO) << "Unable to open file: " << full_path;
-                consumer(Output());
-                return;
+                return futures::Past(Output());
               }
-
-              buffer_it->second->AddEndOfFileObserver(
-                  [consumer, buffer_to_insert = buffer_it->second,
-                   input = std::move(input)] {
+              return buffer_it->second->WaitForEndOfFile().Transform(
+                  [buffer_to_insert = buffer_it->second,
+                   input = std::move(input)](EmptyValue) {
                     Output output;
                     output.Push(transformation::Insert{
                         .contents_to_insert =
@@ -159,10 +157,9 @@ class ReadAndInsert : public CompositeTransformation {
                     }
                     position.line += input.position.line.ToDelta();
                     output.Push(transformation::SetPosition(position));
-                    consumer(std::move(output));
+                    return output;
                   });
             });
-    return std::move(output.value);
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

@@ -204,22 +204,24 @@ futures::Value<PossibleError> GenerateContents(
             << pipefd_err[parent_fd];
   target.SetInputFiles(pipefd_out[parent_fd], pipefd_err[parent_fd],
                        target.Read(buffer_variables::pts), child_pid);
-  target.AddEndOfFileObserver([&editor_state, data, &target]() {
-    LOG(INFO) << "End of file notification.";
-    if (editor_state.buffer_tree().GetBufferIndex(&target).has_value()) {
-      CHECK(target.child_exit_status().has_value());
-      int success = WIFEXITED(target.child_exit_status().value()) &&
-                    WEXITSTATUS(target.child_exit_status().value()) == 0;
-      double frequency =
-          target.Read(success ? buffer_variables::beep_frequency_success
-                              : buffer_variables::beep_frequency_failure);
-      if (frequency > 0.0001) {
-        BeepFrequencies(editor_state.audio_player(), 0.1,
-                        std::vector<double>(success ? 1 : 2, frequency));
-      }
-    }
-    time(&data->time_end);
-  });
+  target.WaitForEndOfFile().Transform(
+      [&editor_state, data, &target](EmptyValue) {
+        LOG(INFO) << "End of file notification.";
+        if (editor_state.buffer_tree().GetBufferIndex(&target).has_value()) {
+          CHECK(target.child_exit_status().has_value());
+          int success = WIFEXITED(target.child_exit_status().value()) &&
+                        WEXITSTATUS(target.child_exit_status().value()) == 0;
+          double frequency =
+              target.Read(success ? buffer_variables::beep_frequency_success
+                                  : buffer_variables::beep_frequency_failure);
+          if (frequency > 0.0001) {
+            BeepFrequencies(editor_state.audio_player(), 0.1,
+                            std::vector<double>(success ? 1 : 2, frequency));
+          }
+        }
+        time(&data->time_end);
+        return Success();
+      });
   return futures::Past(Success());
 }
 

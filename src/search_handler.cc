@@ -255,23 +255,16 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
       matches.insert(RegexEscape(line->Substring(position.column)));
     }
   }
-  if (matches.empty()) {
-    futures::Future<PredictorOutput> output;
-    input.predictions->EndOfFile();
-    input.predictions->AddEndOfFileObserver(
-        [consumer = output.consumer] { consumer(PredictorOutput()); });
-    return std::move(output.value);
+  if (!matches.empty()) {
+    // Add the matches to the predictions buffer.
+    for (auto& match : matches) {
+      input.predictions->AppendToLastLine(NewLazyString(std::move(match)));
+      input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
+    }
   }
-  // Add the matches to the predictions buffer.
-  for (auto& match : matches) {
-    input.predictions->AppendToLastLine(NewLazyString(std::move(match)));
-    input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
-  }
-  futures::Future<PredictorOutput> output;
   input.predictions->EndOfFile();
-  input.predictions->AddEndOfFileObserver(
-      [consumer = output.consumer] { consumer(PredictorOutput()); });
-  return std::move(output.value);
+  return input.predictions->WaitForEndOfFile().Transform(
+      [](EmptyValue) { return PredictorOutput(); });
 }
 
 vector<LineColumn> SearchHandler(EditorState& editor_state,

@@ -536,12 +536,9 @@ using std::to_wstring;
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
-            futures::Future<EvaluationOutput> future;
-            buffer->AddEndOfFileObserver(
-                [consumer = std::move(future.consumer)] {
-                  consumer(EvaluationOutput::Return(Value::NewVoid()));
-                });
-            return std::move(future.value);
+            return buffer->WaitForEndOfFile().Transform([](EmptyValue) {
+              return EvaluationOutput::Return(Value::NewVoid());
+            });
           }));
 
   environment->DefineType(L"Buffer", std::move(buffer));
@@ -659,13 +656,14 @@ void OpenBuffer::Close() {
   }
 }
 
-void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
+futures::Value<EmptyValue> OpenBuffer::WaitForEndOfFile() {
   if (fd_ == nullptr && fd_error_ == nullptr &&
       reload_state_ == ReloadState::kDone) {
-    observer();
-    return;
+    return futures::Past(EmptyValue());
   }
-  end_of_file_observers_.push_back(std::move(observer));
+  futures::Future<EmptyValue> output;
+  end_of_file_observers_.push_back(std::move(output.consumer));
+  return std::move(output.value);
 }
 
 void OpenBuffer::AddCloseObserver(std::function<void()> observer) {
@@ -810,10 +808,10 @@ void OpenBuffer::EndOfFile() {
   // complete.
   editor().line_marks().RemoveExpiredMarksFromSource(name());
 
-  vector<std::function<void()>> observers;
+  vector<std::function<void(EmptyValue)>> observers;
   observers.swap(end_of_file_observers_);
   for (auto& observer : observers) {
-    observer();
+    observer(EmptyValue());
   }
 
   if (Read(buffer_variables::reload_after_exit)) {

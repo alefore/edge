@@ -326,16 +326,16 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
     std::deque<std::shared_ptr<Line>> lines;
   };
 
-  futures::Future<std::shared_ptr<OpenBuffer>> output;
-  history_buffer->AddEndOfFileObserver([&editor_state, filter_buffer,
-                                        history_buffer, history_evaluator,
-                                        abort_notification, filter,
-                                        consumer = output.consumer] {
-    history_evaluator
-        ->Run([abort_notification, filter,
-               history_contents = std::shared_ptr<BufferContents>(
-                   history_buffer->contents().copy()),
-               features = GetCurrentFeatures(editor_state)]() -> Output {
+  return history_buffer->WaitForEndOfFile()
+      .Transform([&editor_state, filter_buffer, history_buffer,
+                  history_evaluator, abort_notification, filter](EmptyValue) {
+        return history_evaluator->Run([abort_notification, filter,
+                                       history_contents =
+                                           std::shared_ptr<BufferContents>(
+                                               history_buffer->contents()
+                                                   .copy()),
+                                       features = GetCurrentFeatures(
+                                           editor_state)]() -> Output {
           Output output;
           // Sets of features for each unique `prompt` value in the history.
           naive_bayes::History history_data;
@@ -424,30 +424,28 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
                 ColorizeLine(NewLazyString(key.ToString()), std::move(tokens)));
           }
           return output;
-        })
-        .Transform([&editor_state, abort_notification, filter_buffer,
-                    consumer](Output output) {
-          LOG(INFO) << "Receiving output from history evaluator.";
-          if (!output.errors.empty()) {
-            editor_state.status().SetExpiringInformationText(
-                output.errors.front());
-          }
-          if (!abort_notification->HasBeenNotified()) {
-            for (auto& line : output.lines) {
-              filter_buffer->AppendRawLine(line);
-            }
-
-            if (filter_buffer->lines_size() > LineNumberDelta(1)) {
-              VLOG(5) << "Erasing the first (empty) line.";
-              CHECK(filter_buffer->LineAt(LineNumber())->empty());
-              filter_buffer->EraseLines(LineNumber(), LineNumber().next());
-            }
-          }
-          consumer(filter_buffer);
-          return Success();
         });
-  });
-  return std::move(output.value);
+      })
+      .Transform(
+          [&editor_state, abort_notification, filter_buffer](Output output) {
+            LOG(INFO) << "Receiving output from history evaluator.";
+            if (!output.errors.empty()) {
+              editor_state.status().SetExpiringInformationText(
+                  output.errors.front());
+            }
+            if (!abort_notification->HasBeenNotified()) {
+              for (auto& line : output.lines) {
+                filter_buffer->AppendRawLine(line);
+              }
+
+              if (filter_buffer->lines_size() > LineNumberDelta(1)) {
+                VLOG(5) << "Erasing the first (empty) line.";
+                CHECK(filter_buffer->LineAt(LineNumber())->empty());
+                filter_buffer->EraseLines(LineNumber(), LineNumber().next());
+              }
+            }
+            return filter_buffer;
+          });
 }
 
 shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
