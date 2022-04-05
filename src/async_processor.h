@@ -199,10 +199,11 @@ class AsyncEvaluator {
         [work_queue = work_queue_, callable = std::move(callable),
          consumer = std::move(output.consumer),
          background_callback_runner = background_callback_runner_]() mutable {
-          work_queue->Schedule(
-              [consumer = std::move(consumer), value = callable(),
-               background_callback_runner,
-               work_queue]() mutable { consumer(std::move(value)); });
+          work_queue->Schedule([consumer = std::move(consumer),
+                                value = callable(),
+                                background_callback_runner]() mutable {
+            consumer(std::move(value));
+          });
         });
     return std::move(output.value);
   }
