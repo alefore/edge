@@ -74,8 +74,8 @@ std::wstring ToStatus(const CommandReachPage& reach_line) {
 }
 
 std::wstring ToStatus(const CommandReachChar& c) {
-  return SerializeCall(L"Char", {c.c.has_value() ? std::wstring(1, *c.c) : L"…",
-                                 c.repetitions.ToString()});
+  return SerializeCall(
+      L"Char", {std::wstring(1, c.c.value_or(L'…')), c.repetitions.ToString()});
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
