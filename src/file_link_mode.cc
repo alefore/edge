@@ -826,9 +826,11 @@ OpenFile(const OpenFileOptions& options) {
               auto& buffer = options.buffer;
               return futures::OnError(
                   Save(&editor_state, stat_buffer.get(), std::move(options)),
-                  [&buffer](Error error) {
-                    buffer.status().SetWarningText(L"🖫 Save failed: " +
-                                                   error.description);
+                  [buffer_weak = std::weak_ptr<OpenBuffer>(
+                       buffer.shared_from_this())](Error error) {
+                    if (auto buffer = buffer_weak.lock(); buffer != nullptr)
+                      buffer->status().SetWarningText(L"🖫 Save failed: " +
+                                                      error.description);
                     return error;
                   });
             };
