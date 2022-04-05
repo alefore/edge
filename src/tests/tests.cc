@@ -15,6 +15,9 @@ bool Register(std::wstring name, std::vector<Test> tests) {
     CHECK(test_names.insert(test.name).second)
         << "Repeated test name: " << name << ": " << test.name;
   }
+  for (const auto& test : tests) {
+    CHECK_LT(test.runs, 1000000);
+  }
   auto [_, result] = tests_map()->insert({name, std::move(tests)});
   CHECK(result) << "Unable to insert tests (repeated name for group?): "
                 << name;
@@ -27,7 +30,9 @@ void Run() {
     std::cerr << "## Group: " << name << std::endl << std::endl;
     for (const auto& test : tests) {
       std::cerr << "* " << test.name << std::endl;
-      test.callback();
+      for (size_t i = 0; i < test.runs; ++i) {
+        test.callback();
+      }
     }
     std::cerr << std::endl;
   }

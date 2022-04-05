@@ -13,6 +13,7 @@
 namespace afc::tests {
 struct Test {
   std::wstring name;
+  size_t runs = 1;
   std::function<void()> callback;
 };
 
