@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   auto parser = NewCppTreeParser(
       {L"auto", L"int", L"char", L"if", L"while", L"const", L"for"},
-      {L"optoins"});
+      {L"optoins"}, IdentifierBehavior::kNone);
 
   std::wifstream input(argv[1]);
 
