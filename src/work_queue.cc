@@ -1,5 +1,6 @@
 #include "src/work_queue.h"
 
+#include "src/notification.h"
 #include "src/tests/tests.h"
 #include "src/time.h"
 
@@ -76,8 +77,27 @@ void WorkQueue::SetScheduleListener(std::function<void()> schedule_listener) {
 }
 
 namespace {
+const bool work_queue_tests_registration = tests::Register(
+    L"WorkQueue",
+    {{.name = L"CallbackKeepsWorkQueueAlive", .runs = 100, .callback = [] {
+        std::shared_ptr<WorkQueue> work_queue = WorkQueue::New([] {});
+        auto notification = std::make_shared<Notification>();
+        work_queue->Schedule(
+            [work_queue] { LOG(INFO) << "First callback starts"; });
+        work_queue->Schedule([notification] {
+          LOG(INFO) << "Second callback starts";
+          notification->Notify();
+        });
+        LOG(INFO) << "Execute.";
+        WorkQueue* work_queue_raw = work_queue.get();
+        work_queue = nullptr;
+        work_queue_raw->Execute();
+        CHECK(work_queue == nullptr);
+        notification->WaitForNotification();
+      }}});
+
 const bool work_queue_channel_tests_registration = tests::Register(
-    L"WorkQueueChannelTests",
+    L"WorkQueueChannel",
     {{.name = L"CreateAndDestroy",
       .callback =
           [] {
