@@ -31,8 +31,7 @@ int main(int argc, char** argv) {
   std::string class_name(argv[1]);
   auto audio_player = NewNullAudioPlayer();
   EditorState editor(CommandLineValues(), *audio_player);
-  OpenBuffer::Options options;
-  options.editor = &editor;
+  OpenBuffer::Options options{.editor = editor};
   auto buffer = OpenBuffer::New(options);
   if (class_name == "BufferContents") {
     fuzz_testable = std::make_unique<BufferContents>();
