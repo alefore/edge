@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
   std::unique_ptr<fuzz::FuzzTestable> fuzz_testable;
   std::string class_name(argv[1]);
   auto audio_player = NewNullAudioPlayer();
-  EditorState editor(CommandLineValues(), audio_player.get());
+  EditorState editor(CommandLineValues(), *audio_player);
   OpenBuffer::Options options;
   options.editor = &editor;
   auto buffer = OpenBuffer::New(options);
