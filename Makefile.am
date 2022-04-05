@@ -140,6 +140,7 @@ src/parsers/diff.h \
 src/parsers/markdown.cc \
 src/parsers/markdown.h \
 src/predictor.cc \
+src/protected.h \
 src/quit_command.cc \
 src/record_command.cc \
 src/repeat_mode.cc \

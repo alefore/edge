@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include "src/protected.h"
+
 namespace afc::editor {
 struct AudioGenerator {
   using Callback = std::function<AudioPlayer::SpeakerValue(AudioPlayer::Time)>;
@@ -49,6 +51,16 @@ class Frame {
 };
 
 class AudioPlayerImpl : public AudioPlayer {
+  struct MutableData {
+    std::vector<AudioGenerator> generators;
+    // We gradually adjust the volume depending on the number of enabled
+    // generators. This roughly assumes that a generator's volume is constant as
+    // long as it's enabled.
+    AudioPlayer::Volume volume = 1.0;
+    AudioPlayer::Time time = 0.0;
+    bool shutting_down = false;
+  };
+
  public:
   AudioPlayerImpl(ao_device* device, ao_sample_format format)
       : device_(device),
@@ -57,9 +69,8 @@ class AudioPlayerImpl : public AudioPlayer {
         background_thread_([this]() { PlayAudio(); }) {}
 
   ~AudioPlayerImpl() override {
-    std::unique_lock<std::mutex> lock(mutex_);
-    shutting_down_ = true;
-    lock.unlock();
+    data_.lock([](MutableData& data) { data.shutting_down = true; });
+
     background_thread_.join();
     ao_close(device_);
     ao_shutdown();
@@ -67,25 +78,22 @@ class AudioPlayerImpl : public AudioPlayer {
 
   class AudioPlayerImplLock : public AudioPlayer::Lock {
    public:
-    AudioPlayerImplLock(std::mutex* mutex, double* clock,
-                        std::vector<AudioGenerator>* generators)
-        : lock_(*mutex), clock_(clock), generators_(generators) {}
+    AudioPlayerImplLock(Protected<MutableData>::Lock data)
+        : data_(std::move(data)) {}
 
     void Add(AudioGenerator generator) override {
-      LOG(INFO) << "Adding generator: " << generators_->size();
-      generators_->push_back(std::move(generator));
+      LOG(INFO) << "Adding generator: " << data_->generators.size();
+      data_->generators.push_back(std::move(generator));
     }
 
-    double time() const override { return *clock_; }
+    double time() const override { return data_->time; }
 
    private:
-    std::unique_lock<std::mutex> lock_;
-    double* clock_;
-    std::vector<AudioGenerator>* generators_;
+    Protected<MutableData>::Lock data_;
   };
 
   std::unique_ptr<AudioPlayer::Lock> lock() override {
-    return std::make_unique<AudioPlayerImplLock>(&mutex_, &time_, &generators_);
+    return std::make_unique<AudioPlayerImplLock>(data_.lock());
   }
 
  private:
@@ -104,36 +112,34 @@ class AudioPlayerImpl : public AudioPlayer {
     int iterations = frame_length_ * format_.rate;
     double delta = 1.0 / format_.rate;
     {
-      std::unique_lock<std::mutex> lock(mutex_);
-      if (shutting_down_) {
-        return false;
-      }
-      CHECK_LT(generators_.size(), 100ul);
+      Protected<MutableData>::Lock data = data_.lock();
+      if (data->shutting_down) return false;
+      CHECK_LT(data->generators.size(), 100ul);
       std::vector<AudioGenerator*> enabled_generators;
-      for (auto& generator : generators_)
-        if (generator.start_time <= time_)
+      for (auto& generator : data->generators)
+        if (generator.start_time <= data->time)
           enabled_generators.push_back(&generator);
 
       if (!enabled_generators.empty()) {  // Optimization.
         new_frame = NewFrame();
-        for (int i = 0; i < iterations; i++, time_ += delta) {
-          volume_ = 0.8 * volume_ + 0.2 * (1.0 / enabled_generators.size());
+        for (int i = 0; i < iterations; i++, data->time += delta) {
+          data->volume =
+              0.8 * data->volume + 0.2 * (1.0 / enabled_generators.size());
           for (auto& generator : enabled_generators)
-            new_frame->Add(i, generator->callback(time_) * volume_);
+            new_frame->Add(i, generator->callback(data->time) * data->volume);
         }
-      } else if (!generators_.empty()) {
-        time_ += iterations * delta;
+      } else if (!data->generators.empty()) {
+        data->time += iterations * delta;
       }
 
       std::vector<AudioGenerator> next_generators;
-      for (auto& generator : generators_)
-        if (generator.end_time > time_)
+      for (auto& generator : data->generators)
+        if (generator.end_time > data->time)
           next_generators.push_back(std::move(generator));
 
-      generators_.swap(next_generators);
-      if (generators_.empty()) time_ = 0.0;
+      data->generators.swap(next_generators);
+      if (data->generators.empty()) data->time = 0.0;
     }
-
     auto& frame = new_frame == nullptr ? *empty_frame_ : *new_frame;
     ao_play(device_, const_cast<char*>(frame.buffer()), frame.size());
     return true;
@@ -144,15 +150,8 @@ class AudioPlayerImpl : public AudioPlayer {
   const ao_sample_format format_;
   const std::unique_ptr<Frame> empty_frame_;
 
-  std::vector<AudioGenerator> generators_;
-  // We gradually adjust the volume depending on the number of enabled
-  // generators. This roughly assumes that a generator's volume is constant as
-  // long as it's enabled.
-  AudioPlayer::Volume volume_ = 1.0;
-  AudioPlayer::Time time_ = 0.0;
-  mutable std::mutex mutex_;
+  Protected<MutableData> data_;
 
-  bool shutting_down_ = false;
   std::thread background_thread_;
 };
 #endif
