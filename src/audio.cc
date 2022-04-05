@@ -114,10 +114,11 @@ class AudioPlayerImpl : public AudioPlayer {
 
       if (!enabled_generators.empty()) {  // Optimization.
         new_frame = NewFrame();
-
-        for (int i = 0; i < iterations; i++, time_ += delta)
+        for (int i = 0; i < iterations; i++, time_ += delta) {
+          volume_ = 0.8 * volume_ + 0.2 * (1.0 / enabled_generators.size());
           for (auto& generator : enabled_generators)
-            new_frame->Add(i, generator->callback(time_));
+            new_frame->Add(i, generator->callback(time_) * volume_);
+        }
       } else if (!generators_.empty()) {
         time_ += iterations * delta;
       }
@@ -141,7 +142,11 @@ class AudioPlayerImpl : public AudioPlayer {
   const std::unique_ptr<Frame> empty_frame_;
 
   std::vector<AudioGenerator> generators_;
-  double time_ = 0.0;
+  // We gradually adjust the volume depending on the number of enabled
+  // generators. This roughly assumes that a generator's volume is constant as
+  // long as it's enabled.
+  AudioPlayer::Volume volume_ = 0;
+  AudioPlayer::Time time_ = 0.0;
   mutable std::mutex mutex_;
 
   bool shutting_down_ = false;
