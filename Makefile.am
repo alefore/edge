@@ -148,6 +148,7 @@ src/run_cpp_command.cc \
 src/run_cpp_command.h \
 src/run_cpp_file.cc \
 src/run_cpp_file.h \
+src/safe_types.h \
 src/screen.h \
 src/screen_curses.cc \
 src/screen_curses.h \

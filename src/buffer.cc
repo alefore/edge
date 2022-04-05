@@ -37,6 +37,7 @@ extern "C" {
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
 #include "src/run_command_handler.h"
+#include "src/safe_types.h"
 #include "src/screen.h"
 #include "src/screen_vm.h"
 #include "src/seek.h"
@@ -125,22 +126,22 @@ void RegisterBufferFields(
   }
 }
 
-std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
-                                            std::shared_ptr<const Line> line) {
+std::shared_ptr<const Line> AddLineMetadata(
+    OpenBuffer* buffer, std::shared_ptr<const Line> line_ptr) {
   CHECK(buffer != nullptr);
-  CHECK(line != nullptr);
+  const Line& line = Pointer(line_ptr).Reference();
   std::wstring error_description;
   std::shared_ptr<Expression> expr;
   std::shared_ptr<Environment> sub_environment;
-  if (!line->empty()) {
+  if (!line.empty()) {
     std::tie(expr, sub_environment) =
-        buffer->CompileString(line->contents()->ToString(), &error_description);
+        buffer->CompileString(line.contents()->ToString(), &error_description);
   }
   if (expr == nullptr)
-    return line->metadata() == nullptr
-               ? line
+    return line.metadata() == nullptr
+               ? line_ptr
                : std::make_shared<Line>(
-                     Line::Options(*line).SetMetadata(std::nullopt));
+                     Line::Options(line).SetMetadata(std::nullopt));
   std::wstring description = L"C++: " + TypesToString(expr->Types());
   if (expr->purity() == Expression::PurityType::kPure) {
     description += L" ...";
@@ -152,7 +153,7 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
   if (expr->purity() == Expression::PurityType::kPure) {
     if (expr->Types() == std::vector<VMType>({VMType::Void()})) {
       return std::make_shared<Line>(
-          Line::Options(*line).SetMetadata(std::nullopt));
+          Line::Options(line).SetMetadata(std::nullopt));
     }
     futures::Future<std::shared_ptr<LazyString>> metadata_future;
     buffer->work_queue()->Schedule([buffer = buffer->shared_from_this(), expr,
@@ -177,11 +178,9 @@ std::shared_ptr<const Line> AddLineMetadata(OpenBuffer* buffer,
     metadata_value = std::move(metadata_future.value);
   }
 
-  auto output = std::make_shared<Line>(Line::Options(*line).SetMetadata(
+  return std::make_shared<Line>(Line::Options(line).SetMetadata(
       Line::MetadataEntry{.initial_value = NewLazyString(description),
                           .value = std::move(metadata_value)}));
-
-  return output;
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
@@ -1226,7 +1225,10 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
       });
 }
 
-Log& OpenBuffer::log() const { return *log_; }
+Log& OpenBuffer::log() const {
+  CHECK(log_ != nullptr);
+  return *log_;
+}
 
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
@@ -2367,7 +2369,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   }
 
   undo_past_.back()->PushFront(transformation::Cursors{
-      .cursors = *active_cursors(), .active = position()});
+      .cursors = Pointer(active_cursors()).Reference(), .active = position()});
 
   std::optional<futures::Value<EmptyValue>> transformation_result;
   if (cursors_affected == Modifiers::CursorsAffected::kAll) {
@@ -2589,17 +2591,17 @@ void OpenBuffer::UpdateLastAction() {
   last_action_ = now;
   if (double idle_seconds = Read(buffer_variables::close_after_idle_seconds);
       idle_seconds >= 0.0) {
-    work_queue_->ScheduleAt(AddSeconds(Now(), idle_seconds),
-                            [weak_this = std::weak_ptr(shared_from_this()),
-                             last_action = last_action_] {
-                              auto shared_this = weak_this.lock();
-                              if (shared_this == nullptr ||
-                                  shared_this->last_action_ != last_action)
-                                return;
-                              shared_this->last_action_ = Now();
-                              LOG(INFO) << "close_after_idle_seconds: Closing.";
-                              shared_this->editor().CloseBuffer(*shared_this);
-                            });
+    work_queue_->ScheduleAt(
+        AddSeconds(Now(), idle_seconds),
+        [weak_this = std::weak_ptr(shared_from_this()),
+         last_action = last_action_] {
+          Pointer(weak_this).IfNotNull([last_action](OpenBuffer& buffer) {
+            if (buffer.last_action_ != last_action) return;
+            buffer.last_action_ = Now();
+            LOG(INFO) << "close_after_idle_seconds: Closing.";
+            buffer.editor().CloseBuffer(buffer);
+          });
+        });
   }
 }
 

@@ -30,6 +30,7 @@ extern "C" {
 #include "src/lazy_string_append.h"
 #include "src/line_prompt_mode.h"
 #include "src/run_command_handler.h"
+#include "src/safe_types.h"
 #include "src/search_handler.h"
 #include "src/server.h"
 #include "src/tests/tests.h"
@@ -265,12 +266,6 @@ auto HandleError(ValueOrError<T> expr, ErrorCallable error_callable,
                  Callable callable) {
   return expr.IsError() ? error_callable(expr.error.value())
                         : callable(expr.value.value());
-}
-
-template <typename T, typename Callable>
-void IfObj(std::weak_ptr<T> p, Callable callable) {
-  auto value = p.lock();
-  if (value != nullptr) callable(*value);
 }
 
 futures::Value<PossibleError> Save(
