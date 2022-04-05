@@ -25,8 +25,6 @@ struct AudioGenerator;
 
 class AudioPlayer {
  public:
-  enum GeneratorContinuation { STOP, CONTINUE };
-
   using Time = double;
   using Duration = double;
   using Frequency = double;
@@ -52,7 +50,6 @@ void GenerateAlert(AudioPlayer& audio_player);
 void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
                      const std::vector<double>& frequencies);
 
-AudioGenerator Oscillate(AudioPlayer::Frequency freq);
 AudioGenerator ApplyVolume(
     std::function<AudioPlayer::Volume(AudioPlayer::Time)> volume,
     AudioGenerator generator);
@@ -60,8 +57,6 @@ std::function<AudioPlayer::Volume(AudioPlayer::Time)> SmoothVolume(
     AudioPlayer::Volume baseline, AudioPlayer::Time start,
     AudioPlayer::Time end, double smooth_interval);
 AudioGenerator Volume(AudioPlayer::Volume volume, AudioGenerator generator);
-AudioGenerator Expiration(AudioPlayer::Time expiration,
-                          AudioGenerator delegate);
 
 }  // namespace afc::editor
 
