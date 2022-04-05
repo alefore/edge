@@ -428,7 +428,8 @@ void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
       break;
   }
 
-  auto name = buffer.Read(buffer_variables::name);
+  std::wstring name = buffer.Read(buffer_variables::name);
+  std::replace(name.begin(), name.end(), L'\n', L' ');
   if (components.empty()) {
     std::shared_ptr<LazyString> output_name = NewLazyString(std::move(name));
     if (output_name->size() > ColumnNumberDelta(2) &&

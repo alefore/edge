@@ -13,6 +13,7 @@
 #include "src/editor.h"
 #include "src/line_marks.h"
 #include "src/section_brackets_producer.h"
+#include "src/tests/tests.h"
 
 namespace afc::editor {
 namespace {
@@ -27,7 +28,9 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
       return source->second->contents().at(mark.source_line)->ToString();
     }
   }
-  return buffer.Read(buffer_variables::name);
+  std::wstring name = buffer.Read(buffer_variables::name);
+  std::replace(name.begin(), name.end(), L'\n', L' ');
+  return name;
 }
 
 // This produces the main view of the status, ignoring the context. It handles
@@ -175,6 +178,20 @@ LineNumberDelta context_lines(const StatusOutputOptions& options) {
              : std::min(context->lines_size() + kLinesForStatusContextStatus,
                         LineNumberDelta(10));
 }
+
+auto status_basic_info_tests_registration = tests::Register(
+    L"StatusBasicInfo",
+    {{.name = L"BufferNameHasEnter", .callback = [] {
+        std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
+        buffer->Set(buffer_variables::name, L"foo\nbar\nhey");
+        buffer->Set(buffer_variables::path, L"");
+        StatusBasicInfo(StatusOutputOptions{
+            .status = buffer->status(),
+            .buffer = buffer.get(),
+            .modifiers = {},
+            .size =
+                LineColumnDelta(LineNumberDelta(1), ColumnNumberDelta(80))});
+      }}});
 }  // namespace
 
 LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
