@@ -25,6 +25,7 @@ LineWithCursor::Generator::Vector::PrependEmptyLines(LineNumberDelta size) {
 // Complexity is linear to the length of `tail`.
 LineWithCursor::Generator::Vector& LineWithCursor::Generator::Vector::Append(
     LineWithCursor::Generator::Vector tail) {
+  width = std::max(width, tail.width);
   lines.insert(lines.end(), std::make_move_iterator(tail.lines.begin()),
                std::make_move_iterator(tail.lines.end()));
   return *this;
