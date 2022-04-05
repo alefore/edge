@@ -359,11 +359,6 @@ static futures::Value<bool> CanStatPath(
   return std::move(output.value);
 }
 
-}  // namespace
-
-using std::unique_ptr;
-
-// Always returns an actual value.
 futures::Value<PossibleError> SaveContentsToOpenFile(
     std::shared_ptr<WorkQueue> work_queue, Path path, int fd,
     std::shared_ptr<const BufferContents> contents) {
@@ -386,6 +381,7 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
         return error.value_or(Success());
       });
 }
+}  // namespace
 
 futures::Value<PossibleError> SaveContentsToFile(
     const Path& path, std::shared_ptr<const BufferContents> contents,
