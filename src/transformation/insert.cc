@@ -119,8 +119,23 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
       L"set_text",
       vm::NewCallback([editor](std::shared_ptr<Insert> options, wstring text) {
         CHECK(options != nullptr);
-        options->contents_to_insert = std::make_shared<BufferContents>(
-            std::make_shared<Line>(std::move(text)));
+        auto buffer = std::make_shared<BufferContents>();
+        ColumnNumber line_start;
+        for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(text.size());
+             ++i) {
+          if (text[i.column] == L'\n') {
+            VLOG(8) << "Adding line from " << line_start << " to " << i;
+            buffer->push_back(std::make_shared<Line>(
+                text.substr(line_start.column,
+                            (ColumnNumber(i) - line_start).column_delta)));
+            line_start = ColumnNumber(i) + ColumnNumberDelta(1);
+          }
+        }
+        buffer->push_back(
+            std::make_shared<Line>(text.substr(line_start.column)));
+        buffer->EraseLines(LineNumber(), LineNumber(1),
+                           BufferContents::CursorsBehavior::kUnmodified);
+        options->contents_to_insert = std::move(buffer);
         return options;
       }));
 
