@@ -20,6 +20,9 @@ std::wstring CppEscapeString(std::wstring input) {
       case '\\':
         output += L"\\\\";
         break;
+      case '\'':
+        output += L"\\'";
+        break;
       default:
         output += c;
     }
