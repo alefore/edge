@@ -3,6 +3,11 @@
 #include <glog/logging.h>
 
 namespace afc::editor {
+struct AudioGenerator {
+  std::function<AudioPlayer::GeneratorContinuation(AudioPlayer::Time,
+                                                   AudioPlayer::SpeakerValue*)>
+      callback;
+};
 
 namespace {
 #if HAVE_LIBAO
@@ -56,10 +61,10 @@ class AudioPlayerImpl : public AudioPlayer {
   class AudioPlayerImplLock : public AudioPlayer::Lock {
    public:
     AudioPlayerImplLock(std::mutex* mutex, double* clock,
-                        std::vector<Generator>* generators)
+                        std::vector<AudioGenerator>* generators)
         : lock_(*mutex), clock_(clock), generators_(generators) {}
 
-    void Add(Generator generator) override {
+    void Add(AudioGenerator generator) override {
       generators_->push_back(std::move(generator));
     }
 
@@ -68,7 +73,7 @@ class AudioPlayerImpl : public AudioPlayer {
    private:
     std::unique_lock<std::mutex> lock_;
     double* clock_;
-    std::vector<Generator>* generators_;
+    std::vector<AudioGenerator>* generators_;
   };
 
   std::unique_ptr<AudioPlayer::Lock> lock() override {
@@ -100,10 +105,10 @@ class AudioPlayerImpl : public AudioPlayer {
         new_frame = NewFrame();
         for (int i = 0; i < iterations; i++, time_ += delta) {
           for (auto& generator : generators_) {
-            if (generator != nullptr) {
+            if (generator.callback != nullptr) {
               SpeakerValue output = 0;
-              if (generator(time_, &output) == STOP) {
-                generator = nullptr;
+              if (generator.callback(time_, &output) == STOP) {
+                generator.callback = nullptr;
                 clean_up_needed = true;
               }
               new_frame->Add(i, output);
@@ -111,9 +116,9 @@ class AudioPlayerImpl : public AudioPlayer {
           }
         }
         if (clean_up_needed) {
-          std::vector<Generator> next_generators;
+          std::vector<AudioGenerator> next_generators;
           for (auto& generator : generators_) {
-            if (generator != nullptr) {
+            if (generator.callback != nullptr) {
               next_generators.push_back(std::move(generator));
             }
           }
@@ -131,7 +136,7 @@ class AudioPlayerImpl : public AudioPlayer {
   const ao_sample_format format_;
   const std::unique_ptr<Frame> empty_frame_;
 
-  std::vector<Generator> generators_;
+  std::vector<AudioGenerator> generators_;
   double time_ = 0.0;
   mutable std::mutex mutex_;
 
@@ -143,7 +148,7 @@ class AudioPlayerImpl : public AudioPlayer {
 class NullAudioPlayer : public AudioPlayer {
   class NullLock : public AudioPlayer::Lock {
     double time() const override { return 0; }
-    void Add(Generator) override {}
+    void Add(AudioGenerator) override {}
   };
 
   std::unique_ptr<AudioPlayer::Lock> lock() override {
@@ -177,31 +182,32 @@ std::unique_ptr<AudioPlayer> NewAudioPlayer() {
 #endif
 }
 
-AudioPlayer::Generator Smooth(double weight, int end_interval_samples,
-                              AudioPlayer::Generator generator) {
+AudioGenerator Smooth(double weight, int end_interval_samples,
+                      AudioGenerator generator) {
   struct Data {
     double mean = 0;
     AudioPlayer::GeneratorContinuation generator_continuation =
         AudioPlayer::CONTINUE;
     int done_cycles = 0;
-    AudioPlayer::Generator generator;
+    AudioGenerator generator;
   };
 
   auto data = std::make_shared<Data>();
   data->generator = std::move(generator);
-  return [weight, end_interval_samples, data](
-             AudioPlayer::Time time, AudioPlayer::SpeakerValue* output) {
+  return {.callback = [weight, end_interval_samples, data](
+                          AudioPlayer::Time time,
+                          AudioPlayer::SpeakerValue* output) {
     AudioPlayer::SpeakerValue tmp = 0;
     if (data->generator_continuation == AudioPlayer::STOP) {
       data->done_cycles++;
     } else {
-      data->generator_continuation = data->generator(time, &tmp);
+      data->generator_continuation = data->generator.callback(time, &tmp);
     }
     data->mean = data->mean * (1.0 - weight) + tmp * weight;
     *output = static_cast<int>(data->mean);
     return data->done_cycles > end_interval_samples ? AudioPlayer::STOP
                                                     : AudioPlayer::CONTINUE;
-  };
+  }};
 }
 
 void GenerateBeep(AudioPlayer& audio_player, AudioPlayer::Frequency frequency) {
@@ -230,23 +236,24 @@ void GenerateAlert(AudioPlayer& audio_player) {
   BeepFrequencies(audio_player, 0.1, {523.25, 659.25, 783.99});
 }
 
-AudioPlayer::Generator Oscillate(AudioPlayer::Frequency freq) {
-  return [freq](AudioPlayer::Time time, AudioPlayer::SpeakerValue* output) {
+AudioGenerator Oscillate(AudioPlayer::Frequency freq) {
+  return {.callback = [freq](AudioPlayer::Time time,
+                             AudioPlayer::SpeakerValue* output) {
     *output = (int)(32768.0 * sin(2 * M_PI * freq * time));
     return AudioPlayer::CONTINUE;
-  };
+  }};
 }
 
-AudioPlayer::Generator ApplyVolume(
+AudioGenerator ApplyVolume(
     std::function<AudioPlayer::Volume(AudioPlayer::Time)> volume,
-    AudioPlayer::Generator generator) {
-  return [volume, generator](AudioPlayer::Time time,
-                             AudioPlayer::SpeakerValue* output) {
+    AudioGenerator generator) {
+  return {.callback = [volume, generator](AudioPlayer::Time time,
+                                          AudioPlayer::SpeakerValue* output) {
     AudioPlayer::SpeakerValue tmp;
-    auto result = generator(time, &tmp);
+    auto result = generator.callback(time, &tmp);
     *output = tmp * volume(time);
     return result;
-  };
+  }};
 }
 
 std::function<double(double)> SmoothVolume(double volume, double start,
@@ -263,20 +270,21 @@ std::function<double(double)> SmoothVolume(double volume, double start,
   };
 }
 
-AudioPlayer::Generator ApplyVolume(AudioPlayer::Volume volume,
-                                   AudioPlayer::Generator generator) {
+AudioGenerator ApplyVolume(AudioPlayer::Volume volume,
+                           AudioGenerator generator) {
   return ApplyVolume([volume](AudioPlayer::Time) { return volume; },
                      std::move(generator));
 }
 
-AudioPlayer::Generator Expiration(double expiration,
-                                  AudioPlayer::Generator delegate) {
-  return [expiration, delegate](AudioPlayer::Time time,
-                                AudioPlayer::SpeakerValue* output) {
-    return delegate(time, output) == AudioPlayer::CONTINUE && time < expiration
-               ? AudioPlayer::CONTINUE
-               : AudioPlayer::STOP;
-  };
+AudioGenerator Expiration(double expiration, AudioGenerator delegate) {
+  return {
+      .callback = [expiration, delegate](AudioPlayer::Time time,
+                                         AudioPlayer::SpeakerValue* output) {
+        return delegate.callback(time, output) == AudioPlayer::CONTINUE &&
+                       time < expiration
+                   ? AudioPlayer::CONTINUE
+                   : AudioPlayer::STOP;
+      }};
 }
 
 }  // namespace afc::editor

@@ -21,6 +21,7 @@
 #include <vector>
 
 namespace afc::editor {
+struct AudioGenerator;
 
 class AudioPlayer {
  public:
@@ -31,13 +32,12 @@ class AudioPlayer {
   using Frequency = double;
   using Volume = double;
   using SpeakerValue = double;
-  using Generator = std::function<GeneratorContinuation(Time, SpeakerValue*)>;
 
   class Lock {
    public:
     virtual ~Lock() {}
     virtual Time time() const = 0;
-    virtual void Add(Generator) = 0;
+    virtual void Add(AudioGenerator) = 0;
   };
 
   virtual ~AudioPlayer() {}
@@ -52,17 +52,16 @@ void GenerateAlert(AudioPlayer& audio_player);
 void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
                      const std::vector<double>& frequencies);
 
-AudioPlayer::Generator Oscillate(AudioPlayer::Frequency freq);
-AudioPlayer::Generator ApplyVolume(
+AudioGenerator Oscillate(AudioPlayer::Frequency freq);
+AudioGenerator ApplyVolume(
     std::function<AudioPlayer::Volume(AudioPlayer::Time)> volume,
-    AudioPlayer::Generator generator);
+    AudioGenerator generator);
 std::function<AudioPlayer::Volume(AudioPlayer::Time)> SmoothVolume(
     AudioPlayer::Volume baseline, AudioPlayer::Time start,
     AudioPlayer::Time end, double smooth_interval);
-AudioPlayer::Generator Volume(AudioPlayer::Volume volume,
-                              AudioPlayer::Generator generator);
-AudioPlayer::Generator Expiration(AudioPlayer::Time expiration,
-                                  AudioPlayer::Generator delegate);
+AudioGenerator Volume(AudioPlayer::Volume volume, AudioGenerator generator);
+AudioGenerator Expiration(AudioPlayer::Time expiration,
+                          AudioGenerator delegate);
 
 }  // namespace afc::editor
 
