@@ -402,7 +402,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   Viewers* viewers();
   const Viewers* viewers() const;
 
-  FileSystemDriver* file_system_driver() const;
+  FileSystemDriver& file_system_driver() const;
 
   // Returns the path to the directory that should be used to keep state for the
   // current buffer. If the directory doesn't exist, creates it.

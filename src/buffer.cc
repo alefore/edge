@@ -948,6 +948,7 @@ void OpenBuffer::Initialize() {
   std::weak_ptr<OpenBuffer> weak_this(shared_from_this());
   if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
       !buffer_path.IsError()) {
+    // TODO(2022-04-05): Use file_system_driver_?
     FileSystemDriver file_system_driver(editor().work_queue());
     for (const auto& dir : options_.editor.edge_path()) {
       auto state_path = Path::Join(
@@ -1862,8 +1863,8 @@ void OpenBuffer::PushSignal(int sig) {
 Viewers* OpenBuffer::viewers() { return &viewers_; }
 const Viewers* OpenBuffer::viewers() const { return &viewers_; }
 
-FileSystemDriver* OpenBuffer::file_system_driver() const {
-  return &file_system_driver_;
+FileSystemDriver& OpenBuffer::file_system_driver() const {
+  return file_system_driver_;
 }
 
 futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(

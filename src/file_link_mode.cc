@@ -389,16 +389,18 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 }
 }  // namespace
 
+// Caller must ensure that file_system_driver survives until the future is
+// notified.
 futures::Value<PossibleError> SaveContentsToFile(
     const Path& path, std::shared_ptr<const BufferContents> contents,
     std::shared_ptr<WorkQueue> work_queue,
-    FileSystemDriver* file_system_driver) {
+    FileSystemDriver& file_system_driver) {
   Path tmp_path = Path::Join(
       path.Dirname().value(),
       PathComponent::FromString(path.Basename().value().ToString() + L".tmp")
           .value());
   return futures::OnError(
-             file_system_driver->Stat(path),
+             file_system_driver.Stat(path),
              [](Error error) {
                LOG(INFO)
                    << "Ignoring stat error; maybe a new file is being created: "
@@ -408,24 +410,24 @@ futures::Value<PossibleError> SaveContentsToFile(
                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
                return Success(value);
              })
-      .Transform([path, file_system_driver, tmp_path](struct stat stat_value) {
-        return file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
-                                        stat_value.st_mode);
+      .Transform([path, &file_system_driver, tmp_path](struct stat stat_value) {
+        return file_system_driver.Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
+                                       stat_value.st_mode);
       })
       .Transform([path, contents, work_queue, tmp_path,
-                  file_system_driver](int fd) {
+                  &file_system_driver](int fd) {
         CHECK_NE(fd, -1);
         return OnError(
                    SaveContentsToOpenFile(work_queue, tmp_path, fd, contents),
-                   [file_system_driver, fd](Error error) {
-                     file_system_driver->Close(fd);
+                   [&file_system_driver, fd](Error error) {
+                     file_system_driver.Close(fd);
                      return error;
                    })
-            .Transform([file_system_driver, fd](EmptyValue) {
-              return file_system_driver->Close(fd);
+            .Transform([&file_system_driver, fd](EmptyValue) {
+              return file_system_driver.Close(fd);
             })
-            .Transform([path, file_system_driver, tmp_path](EmptyValue) {
-              return file_system_driver->Rename(tmp_path, path);
+            .Transform([path, &file_system_driver, tmp_path](EmptyValue) {
+              return file_system_driver.Rename(tmp_path, path);
             });
       });
 }
