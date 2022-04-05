@@ -101,7 +101,7 @@ class AudioPlayerImpl : public AudioPlayer {
         for (int i = 0; i < iterations; i++, time_ += delta) {
           for (auto& generator : generators_) {
             if (generator != nullptr) {
-              int output = 0;
+              SpeakerValue output = 0;
               if (generator(time_, &output) == STOP) {
                 generator = nullptr;
                 clean_up_needed = true;
@@ -189,8 +189,9 @@ AudioPlayer::Generator Smooth(double weight, int end_interval_samples,
 
   auto data = std::make_shared<Data>();
   data->generator = std::move(generator);
-  return [weight, end_interval_samples, data](double time, int* output) {
-    int tmp = 0;
+  return [weight, end_interval_samples, data](
+             AudioPlayer::Time time, AudioPlayer::SpeakerValue* output) {
+    AudioPlayer::SpeakerValue tmp = 0;
     if (data->generator_continuation == AudioPlayer::STOP) {
       data->done_cycles++;
     } else {
@@ -203,22 +204,24 @@ AudioPlayer::Generator Smooth(double weight, int end_interval_samples,
   };
 }
 
-void GenerateBeep(AudioPlayer& audio_player, double frequency) {
+void GenerateBeep(AudioPlayer& audio_player, AudioPlayer::Frequency frequency) {
   VLOG(5) << "Generating Beep";
   auto lock = audio_player.lock();
-  double start = lock->time();
-  double duration = 0.1;
-  lock->Add(Volume(SmoothVolume(0.3, start, start + duration, duration / 4),
-                   Expiration(start + duration, Frequency(frequency))));
+  AudioPlayer::Time start = lock->time();
+  AudioPlayer::Duration duration = 0.1;
+  lock->Add(
+      ApplyVolume(SmoothVolume(0.3, start, start + duration, duration / 4),
+                  Expiration(start + duration, Oscillate(frequency))));
 }
 
-void BeepFrequencies(AudioPlayer& audio_player, double duration,
-                     const std::vector<double>& frequencies) {
+void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
+                     const std::vector<AudioPlayer::Frequency>& frequencies) {
   auto lock = audio_player.lock();
   for (size_t i = 0; i < frequencies.size(); i++) {
-    double start = lock->time() + i * duration;
-    lock->Add(Volume(SmoothVolume(0.3, start, start + duration, duration / 4),
-                     Expiration(start + duration, Frequency(frequencies[i]))));
+    AudioPlayer::Time start = lock->time() + i * duration;
+    lock->Add(
+        ApplyVolume(SmoothVolume(0.3, start, start + duration, duration / 4),
+                    Expiration(start + duration, Oscillate(frequencies[i]))));
   }
 }
 
@@ -227,17 +230,19 @@ void GenerateAlert(AudioPlayer& audio_player) {
   BeepFrequencies(audio_player, 0.1, {523.25, 659.25, 783.99});
 }
 
-AudioPlayer::Generator Frequency(double freq) {
-  return [freq](double time, int* output) {
+AudioPlayer::Generator Oscillate(AudioPlayer::Frequency freq) {
+  return [freq](AudioPlayer::Time time, AudioPlayer::SpeakerValue* output) {
     *output = (int)(32768.0 * sin(2 * M_PI * freq * time));
     return AudioPlayer::CONTINUE;
   };
 }
 
-AudioPlayer::Generator Volume(std::function<double(double)> volume,
-                              AudioPlayer::Generator generator) {
-  return [volume, generator](double time, int* output) {
-    int tmp;
+AudioPlayer::Generator ApplyVolume(
+    std::function<AudioPlayer::Volume(AudioPlayer::Time)> volume,
+    AudioPlayer::Generator generator) {
+  return [volume, generator](AudioPlayer::Time time,
+                             AudioPlayer::SpeakerValue* output) {
+    AudioPlayer::SpeakerValue tmp;
     auto result = generator(time, &tmp);
     *output = tmp * volume(time);
     return result;
@@ -258,13 +263,16 @@ std::function<double(double)> SmoothVolume(double volume, double start,
   };
 }
 
-AudioPlayer::Generator Volume(double volume, AudioPlayer::Generator generator) {
-  return Volume([volume](double) { return volume; }, std::move(generator));
+AudioPlayer::Generator ApplyVolume(AudioPlayer::Volume volume,
+                                   AudioPlayer::Generator generator) {
+  return ApplyVolume([volume](AudioPlayer::Time) { return volume; },
+                     std::move(generator));
 }
 
 AudioPlayer::Generator Expiration(double expiration,
                                   AudioPlayer::Generator delegate) {
-  return [expiration, delegate](double time, int* output) {
+  return [expiration, delegate](AudioPlayer::Time time,
+                                AudioPlayer::SpeakerValue* output) {
     return delegate(time, output) == AudioPlayer::CONTINUE && time < expiration
                ? AudioPlayer::CONTINUE
                : AudioPlayer::STOP;
