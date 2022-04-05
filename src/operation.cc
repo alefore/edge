@@ -8,6 +8,7 @@
 #include "src/futures/futures.h"
 #include "src/futures/serializer.h"
 #include "src/goto_command.h"
+#include "src/safe_types.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
 #include "src/transformation/composite.h"
@@ -226,8 +227,9 @@ class State {
   void RunUndoCallback() {
     static Tracker tracker(L"State::RunUndoCallback");
     auto call = tracker.Call();
-    serializer_.Push(
-        [callback = std::move(undo_callback_)]() { return (*callback)(); });
+    serializer_.Push([callback = std::move(undo_callback_)]() {
+      return Pointer(callback).Reference()();
+    });
     undo_callback_ = std::make_shared<UndoCallback>(
         []() -> futures::Value<EmptyValue> { return Past(EmptyValue()); });
   }
