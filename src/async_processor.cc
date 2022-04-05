@@ -29,6 +29,41 @@ const bool async_evaluator_tests_registration = tests::Register(
             auto queue = WorkQueue::New([] {});
             AsyncEvaluator(L"Test", queue);
           }},
+     {.name = L"EvaluatorDeleteWithMultipleRequests",
+      .callback =
+          [] {
+            auto queue = WorkQueue::New([] {});
+            auto evaluator = std::make_unique<AsyncEvaluator>(L"Test", queue);
+
+            auto started_running = std::make_shared<Notification>();
+            auto proceed = std::make_shared<Notification>();
+
+            for (int i = 0; i < 10; i++)
+              evaluator->Run([i, started_running, proceed] {
+                LOG(INFO) << "Starting: " << i;
+                started_running->Notify();
+                proceed->WaitForNotification();
+                return i;
+              });
+
+            std::optional<int> future_result;
+            evaluator->Run([] { return 900; }).Transform([&](int result) {
+              LOG(INFO) << "Received final result.";
+              future_result = result;
+              return EmptyValue();
+            });
+
+            started_running->WaitForNotification();
+            evaluator = nullptr;
+            LOG(INFO) << "Deleted.";
+            proceed->Notify();
+
+            CHECK(!future_result.has_value());
+            while (!queue->NextExecution().has_value()) sleep(0.1);
+            queue->Execute();
+            CHECK(!queue->NextExecution().has_value());
+            CHECK_EQ(future_result.value(), 900);
+          }},
      {.name = L"EvaluatorDeleteWhileBusy",
       .callback =
           [] {
@@ -38,9 +73,8 @@ const bool async_evaluator_tests_registration = tests::Register(
             Notification started_running;
             Notification proceed;
 
-            auto evaluator = std::make_unique<AsyncEvaluator>(L"Test", queue);
-            evaluator
-                ->Run([&] {
+            AsyncEvaluator(L"Test", queue)
+                .Run([&] {
                   started_running.Notify();
                   proceed.WaitForNotification();
                   return 948;
@@ -52,7 +86,6 @@ const bool async_evaluator_tests_registration = tests::Register(
 
             started_running.WaitForNotification();
             LOG(INFO) << "Deleting.";
-            evaluator = nullptr;
             proceed.Notify();
 
             CHECK(!future_result.has_value());
