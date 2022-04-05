@@ -4,8 +4,7 @@
 
 namespace afc::editor {
 struct AudioGenerator {
-  using Callback =
-      std::function<void(AudioPlayer::Time, AudioPlayer::SpeakerValue*)>;
+  using Callback = std::function<AudioPlayer::SpeakerValue(AudioPlayer::Time)>;
   Callback callback;
   AudioPlayer::Time start_time;
   AudioPlayer::Time end_time;
@@ -14,8 +13,8 @@ struct AudioGenerator {
 namespace {
 #if HAVE_LIBAO
 AudioGenerator::Callback Oscillate(AudioPlayer::Frequency freq) {
-  return [freq](AudioPlayer::Time time, AudioPlayer::SpeakerValue* output) {
-    *output = (int)(32768.0 * sin(2 * M_PI * freq * time));
+  return [freq](AudioPlayer::Time time) {
+    return (int)(32768.0 * sin(2 * M_PI * freq * time));
   };
 }
 
@@ -116,13 +115,9 @@ class AudioPlayerImpl : public AudioPlayer {
       if (!enabled_generators.empty()) {  // Optimization.
         new_frame = NewFrame();
 
-        for (int i = 0; i < iterations; i++, time_ += delta) {
-          for (auto& generator : enabled_generators) {
-            SpeakerValue output = 0;
-            generator->callback(time_, &output);
-            new_frame->Add(i, output);
-          }
-        }
+        for (int i = 0; i < iterations; i++, time_ += delta)
+          for (auto& generator : enabled_generators)
+            new_frame->Add(i, generator->callback(time_));
       } else if (!generators_.empty()) {
         time_ += iterations * delta;
       }
@@ -224,12 +219,9 @@ void GenerateAlert(AudioPlayer& audio_player) {
 AudioGenerator ApplyVolume(
     std::function<AudioPlayer::Volume(AudioPlayer::Time)> volume,
     AudioGenerator generator) {
-  generator.callback = [volume, callback = generator.callback](
-                           AudioPlayer::Time time,
-                           AudioPlayer::SpeakerValue* output) {
-    AudioPlayer::SpeakerValue tmp;
-    callback(time, &tmp);
-    *output = tmp * volume(time);
+  generator.callback = [volume,
+                        callback = generator.callback](AudioPlayer::Time time) {
+    return callback(time) * volume(time);
   };
   return generator;
 }
@@ -239,7 +231,7 @@ std::function<AudioPlayer::Volume(AudioPlayer::Time)> SmoothVolume(
     double smooth_interval) {
   return [volume, start, end, smooth_interval](AudioPlayer::Time time) {
     if (time < start || time > end) {
-      return 0.1;
+      return 0.0;
     } else if (time < start + smooth_interval) {
       return volume * (time - start) / smooth_interval;
     } else if (time >= end - smooth_interval) {
