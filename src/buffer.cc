@@ -575,14 +575,10 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       syntax_data_view_(L"SyntaxDataView", work_queue_),
       async_read_evaluator_(L"ReadEvaluator", work_queue_),
       file_system_driver_(work_queue_) {
-  work_queue_->SetScheduleListener(
-      [work_queue = std::weak_ptr<WorkQueue>(work_queue_),
-       parent_work_queue = editor().work_queue(),
-       next_scheduled_execution =
-           std::make_shared<std::optional<struct timespec>>(std::nullopt)] {
-        MaybeScheduleNextWorkQueueExecution(work_queue, parent_work_queue,
-                                            next_scheduled_execution);
-      });
+  work_queue_->SetScheduleListener(std::bind_front(
+      MaybeScheduleNextWorkQueueExecution,
+      std::weak_ptr<WorkQueue>(work_queue_), editor().work_queue(),
+      std::make_shared<std::optional<struct timespec>>(std::nullopt)));
 }
 
 OpenBuffer::~OpenBuffer() {
