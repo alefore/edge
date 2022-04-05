@@ -59,10 +59,11 @@ const bool async_evaluator_tests_registration = tests::Register(
             proceed->Notify();
 
             CHECK(!future_result.has_value());
-            while (!queue->NextExecution().has_value()) sleep(0.1);
-            queue->Execute();
+            while (future_result != 900) {
+              queue->Execute();
+              sleep(0.01);
+            }
             CHECK(!queue->NextExecution().has_value());
-            CHECK_EQ(future_result.value(), 900);
           }},
      {.name = L"EvaluatorDeleteWhileBusy",
       .callback =
