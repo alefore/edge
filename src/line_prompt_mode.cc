@@ -29,6 +29,7 @@
 #include "src/transformation/insert.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
+#include "src/vm/public/value.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -238,27 +239,8 @@ ParseHistoryLine(const std::shared_ptr<LazyString>& line) {
 }
 
 std::shared_ptr<LazyString> QuoteString(std::shared_ptr<LazyString> src) {
-  std::vector<std::shared_ptr<LazyString>> output;
-  ColumnNumber begin;
-  while (begin.ToDelta() < src->size()) {
-    auto end = begin;
-    while (end.ToDelta() < src->size() && src->get(end) != L'\"' &&
-           src->get(end) != L'\\' && src->get(end) != L'\n') {
-      ++end;
-    }
-    if (begin < end) {
-      output.emplace_back(Substring(src, begin, end - begin));
-    }
-    begin = end;
-    if (begin.ToDelta() < src->size()) {
-      wchar_t c = src->get(begin);
-      CHECK(c == L'\\' || c == L'\"' || c == L'\n');
-      output.emplace_back(
-          NewLazyString(std::wstring{L'\\', c == '\n' ? 'n' : c}));
-      ++begin;
-    }
-  }
-  return StringAppend(NewLazyString(L"\""), Concatenate(output),
+  return StringAppend(NewLazyString(L"\""),
+                      NewLazyString(CppEscapeString(src->ToString())),
                       NewLazyString(L"\""));
 }
 
