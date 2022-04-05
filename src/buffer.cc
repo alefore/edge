@@ -2603,7 +2603,6 @@ void OpenBuffer::UpdateLastAction() {
   }
 }
 
-namespace {
 EditorState& EditorForTests() {
   static AudioPlayer* player = NewNullAudioPlayer().release();
   static EditorState editor_for_tests(
@@ -2615,7 +2614,6 @@ EditorState& EditorForTests() {
       *player);
   return editor_for_tests;
 }
-}  // namespace
 
 std::shared_ptr<OpenBuffer> NewBufferForTests() {
   return OpenBuffer::New({.editor = EditorForTests()});
