@@ -127,15 +127,14 @@ void RegisterBufferFields(
 }
 
 std::shared_ptr<const Line> AddLineMetadata(
-    OpenBuffer* buffer, std::shared_ptr<const Line> line_ptr) {
-  CHECK(buffer != nullptr);
+    OpenBuffer& buffer, std::shared_ptr<const Line> line_ptr) {
   const Line& line = Pointer(line_ptr).Reference();
   std::wstring error_description;
   std::shared_ptr<Expression> expr;
   std::shared_ptr<Environment> sub_environment;
   if (!line.empty()) {
     std::tie(expr, sub_environment) =
-        buffer->CompileString(line.contents()->ToString(), &error_description);
+        buffer.CompileString(line.contents()->ToString(), &error_description);
   }
   if (expr == nullptr)
     return line.metadata() == nullptr
@@ -156,9 +155,9 @@ std::shared_ptr<const Line> AddLineMetadata(
           Line::Options(line).SetMetadata(std::nullopt));
     }
     futures::Future<std::shared_ptr<LazyString>> metadata_future;
-    buffer->work_queue()->Schedule([buffer = buffer->shared_from_this(), expr,
-                                    sub_environment,
-                                    consumer = metadata_future.consumer] {
+    buffer.work_queue()->Schedule([buffer = buffer.shared_from_this(), expr,
+                                   sub_environment,
+                                   consumer = metadata_future.consumer] {
       buffer->EvaluateExpression(expr.get(), sub_environment)
           .Transform([](std::unique_ptr<Value> value) {
             CHECK(value != nullptr);
@@ -184,10 +183,10 @@ std::shared_ptr<const Line> AddLineMetadata(
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
-void AddLineMetadata(OpenBuffer* buffer, BufferContents* contents,
+void AddLineMetadata(OpenBuffer& buffer, BufferContents& contents,
                      LineNumber position) {
-  contents->set_line(position,
-                     AddLineMetadata(buffer, buffer->contents().at(position)));
+  contents.set_line(position,
+                    AddLineMetadata(buffer, buffer.contents().at(position)));
 }
 
 // next_scheduled_execution holds the smallest time at which we know we have
@@ -298,7 +297,7 @@ using std::to_wstring;
                     args[0].get());
             auto transformation = static_cast<editor::transformation::Variant*>(
                 args[1]->user_value.get());
-            return buffer->ApplyToCursors(*transformation)
+            return buffer->ApplyToCursors(Pointer(transformation).Reference())
                 .Transform([](EmptyValue) {
                   return EvaluationOutput::Return(Value::NewVoid());
                 });
@@ -445,6 +444,7 @@ using std::to_wstring;
 
   buffer->AddField(L"Close",
                    vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+                     CHECK(buffer != nullptr);
                      if (buffer->editor().structure() == StructureLine()) {
                        auto target_buffer = buffer->GetBufferFromCurrentLine();
                        if (target_buffer != nullptr) {
@@ -1044,7 +1044,7 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
 
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
   for (auto& line : lines) {
-    line = AddLineMetadata(this, std::move(line));
+    line = AddLineMetadata(*this, std::move(line));
   }
   contents_.append_back(std::move(lines));
   if (Read(buffer_variables::contains_line_marks)) {
@@ -1225,10 +1225,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
       });
 }
 
-Log& OpenBuffer::log() const {
-  CHECK(log_ != nullptr);
-  return *log_;
-}
+Log& OpenBuffer::log() const { return Pointer(log_.get()).Reference(); }
 
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
@@ -1242,7 +1239,7 @@ void OpenBuffer::UpdateBackup() {
 
 void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
   ColumnNumber start;
-  ForEachColumn(*input, [&](ColumnNumber i, wchar_t c) {
+  ForEachColumn(Pointer(input).Reference(), [&](ColumnNumber i, wchar_t c) {
     CHECK_GE(i, start);
     if (c == '\n') {
       AppendLine(Substring(input, start, i - start));
@@ -1275,7 +1272,7 @@ void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
 }
 
 void OpenBuffer::InsertLine(LineNumber line_position, shared_ptr<Line> line) {
-  contents_.insert_line(line_position, AddLineMetadata(this, line));
+  contents_.insert_line(line_position, AddLineMetadata(*this, line));
 }
 
 void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
@@ -1309,7 +1306,7 @@ void OpenBuffer::AppendRawLine(std::shared_ptr<LazyString> str) {
 
 void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(AddLineMetadata(this, std::move(line)));
+  contents_.push_back(AddLineMetadata(*this, std::move(line)));
 }
 
 void OpenBuffer::AppendToLastLine(std::shared_ptr<LazyString> str) {
@@ -1320,7 +1317,7 @@ void OpenBuffer::AppendToLastLine(Line line) {
   static Tracker tracker(L"OpenBuffer::AppendToLastLine");
   auto tracker_call = tracker.Call();
   auto follower = GetEndPositionFollower();
-  Line::Options options(*contents_.back());
+  Line::Options options(Pointer(contents_.back()).Reference());
   options.Append(line);
   AppendRawLine(std::make_shared<Line>(std::move(options)));
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
@@ -1388,8 +1385,7 @@ OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
               shared_from_this()](std::function<void(OpenBuffer&)> callback) {
     shared_this->work_queue()->Schedule(
         [shared_this, callback = std::move(callback)]() {
-          CHECK(shared_this != nullptr);
-          callback(*shared_this);
+          callback(Pointer(shared_this).Reference());
         });
   };
 }
@@ -1398,7 +1394,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
   if (range.begin.line == range.end.line) {
     contents_.DeleteCharactersFromLine(range.begin,
                                        range.end.column - range.begin.column);
-    AddLineMetadata(this, &contents_, range.begin.line);
+    AddLineMetadata(*this, contents_, range.begin.line);
   } else {
     contents_.DeleteToLineEnd(range.begin);
     contents_.DeleteCharactersFromLine(LineColumn(range.end.line),
@@ -1406,7 +1402,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
     // Lines in the middle.
     EraseLines(range.begin.line + LineNumberDelta(1), range.end.line);
     contents_.FoldNextLine(range.begin.line);
-    AddLineMetadata(this, &contents_, range.begin.line);
+    AddLineMetadata(*this, contents_, range.begin.line);
   }
 }
 
@@ -1427,7 +1423,7 @@ LineColumn OpenBuffer::InsertInPosition(
   contents_.SplitLine(position);
   contents_.insert(position.line.next(), contents_to_insert, modifiers);
   contents_.FoldNextLine(position.line);
-  AddLineMetadata(this, &contents_, position.line);
+  AddLineMetadata(*this, contents_, position.line);
 
   LineNumber last_line =
       position.line + contents_to_insert.size() - LineNumberDelta(1);
@@ -1437,7 +1433,7 @@ LineColumn OpenBuffer::InsertInPosition(
   ColumnNumber column = line->EndColumn();
 
   contents_.FoldNextLine(last_line);
-  AddLineMetadata(this, &contents_, last_line);
+  AddLineMetadata(*this, contents_, last_line);
   return LineColumn(last_line, column);
 }
 
@@ -1459,7 +1455,8 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
   CHECK_LE(position.line, contents_.EndLine());
-  auto line = std::make_shared<Line>(*LineAt(position.line));
+  auto line =
+      std::make_shared<Line>(Pointer(contents_.at(position.line)).Reference());
   if (line->EndColumn() > position.column + ColumnNumberDelta(1)) {
     return;
   }
@@ -1775,8 +1772,8 @@ std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
           static Tracker tracker(
               L"OpenBuffer::current_zoomed_out_parse_tree::produce");
           auto tracker_call = tracker.Call();
-          return std::make_shared<ParseTree>(
-              ZoomOutTree(*simplified_tree, lines_size, view_size));
+          return std::make_shared<ParseTree>(ZoomOutTree(
+              Pointer(simplified_tree).Reference(), lines_size, view_size));
         })
         .SetConsumer([this, view_size, simplified_tree](
                          std::shared_ptr<ParseTree> zoomed_parse_tree) mutable {
@@ -2016,7 +2013,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
 
   auto tree = buffer.parse_tree();
   CHECK(tree != nullptr);
-  ParseTree::Route route = FindRouteToPosition(*tree, adjusted_position);
+  ParseTree::Route route =
+      FindRouteToPosition(Pointer(tree).Reference(), adjusted_position);
   for (const ParseTree* subtree : MapRoute(*tree, route)) {
     if (subtree->properties().find(ParseTreeProperty::Link()) !=
         subtree->properties().end()) {
@@ -2179,7 +2177,7 @@ OpenBuffer::FreezeDiskState() {
   return std::unique_ptr<DiskState,
                          std::function<void(OpenBuffer::DiskState*)>>(
       new DiskState(disk_state_), [this](DiskState* old_state) {
-        SetDiskState(*old_state);
+        SetDiskState(Pointer(old_state).Reference());
         delete old_state;
       });
 }
