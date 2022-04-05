@@ -243,7 +243,7 @@ std::shared_ptr<LazyString> QuoteString(std::shared_ptr<LazyString> src) {
   while (begin.ToDelta() < src->size()) {
     auto end = begin;
     while (end.ToDelta() < src->size() && src->get(end) != L'\"' &&
-           src->get(end) != L'\\') {
+           src->get(end) != L'\\' && src->get(end) != L'\n') {
       ++end;
     }
     if (begin < end) {
@@ -251,14 +251,33 @@ std::shared_ptr<LazyString> QuoteString(std::shared_ptr<LazyString> src) {
     }
     begin = end;
     if (begin.ToDelta() < src->size()) {
-      CHECK(src->get(begin) == L'\\' || src->get(begin) == L'\"');
-      output.emplace_back(NewLazyString(std::wstring{L'\\', src->get(begin)}));
+      wchar_t c = src->get(begin);
+      CHECK(c == L'\\' || c == L'\"' || c == L'\n');
+      output.emplace_back(
+          NewLazyString(std::wstring{L'\\', c == '\n' ? 'n' : c}));
       ++begin;
     }
   }
   return StringAppend(NewLazyString(L"\""), Concatenate(output),
                       NewLazyString(L"\""));
 }
+
+auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
+  auto test = [](std::wstring name, std::wstring input,
+                 std::wstring expected_output) {
+    return tests::Test({.name = name, .callback = [=] {
+                          CHECK(QuoteString(NewLazyString(input))->ToString() ==
+                                expected_output);
+                        }});
+  };
+  return std::vector<tests::Test>(
+      {test(L"Simple", L"alejo", L"\"alejo\""),
+       test(L"DoubleQuotes", L"alejo \"is\" here",
+            L"\"alejo \\\"is\\\" here\""),
+       test(L"QuoteAtStart", L"\"foo bar", L"\"\\\"foo bar\""),
+       test(L"QuoteAtEnd", L"foo\"", L"\"foo\\\"\""),
+       test(L"MultiLine", L"foo\nbar\nhey", L"\"foo\\nbar\\nhey\"")});
+}());
 
 std::shared_ptr<LazyString> BuildHistoryLine(
     EditorState& editor, std::shared_ptr<LazyString> input) {
