@@ -948,14 +948,12 @@ void OpenBuffer::Initialize() {
   std::weak_ptr<OpenBuffer> weak_this(shared_from_this());
   if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
       !buffer_path.IsError()) {
-    // TODO(2022-04-05): Use file_system_driver_?
-    FileSystemDriver file_system_driver(editor().work_queue());
     for (const auto& dir : options_.editor.edge_path()) {
       auto state_path = Path::Join(
           Path::Join(dir, PathComponent::FromString(L"state").value()),
           Path::Join(buffer_path.value(),
                      PathComponent::FromString(L".edge_state").value()));
-      file_system_driver.Stat(state_path)
+      file_system_driver_.Stat(state_path)
           .Transform([state_path, weak_this](struct stat) {
             auto shared_this = weak_this.lock();
             if (shared_this == nullptr)
