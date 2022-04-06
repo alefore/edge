@@ -665,7 +665,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
   const std::shared_ptr<OpenBuffer> history_;
   const std::shared_ptr<PromptState> prompt_state_;
   const std::shared_ptr<OpenBuffer> buffer_;
-  std::shared_ptr<AsyncEvaluator> history_evaluator_;
+  const std::shared_ptr<AsyncEvaluator> history_evaluator_;
 };
 
 class LinePromptCommand : public Command {
