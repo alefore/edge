@@ -11,6 +11,7 @@
 #include "src/hash.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_functional.h"
+#include "src/safe_types.h"
 #include "src/substring.h"
 #include "src/tests/tests.h"
 #include "src/tracker.h"
@@ -82,11 +83,13 @@ const bool line_tests_registration = tests::Register(
       }}});
 }
 
+// TODO(2022-04-06, easy): Provide a constructor that takes the lock and other
+// fields, to avoid redundant locking here.
 Line::Options::Options(Line line)
     : contents(std::move(line.contents())),
       modifiers(std::move(line.modifiers())),
       end_of_line_modifiers(line.end_of_line_modifiers()),
-      metadata(line.options_.metadata),
+      metadata(line.data_.lock()->options.metadata),
       environment(line.environment()) {}
 
 ColumnNumber Line::Options::EndColumn() const {
@@ -260,25 +263,26 @@ Line::Line(Options options)
     : environment_(options.environment == nullptr
                        ? std::make_shared<Environment>()
                        : std::move(options.environment)),
-      options_(std::move(options)) {
-  ValidateInvariants();
+      data_(Data{.options = std::move(options)}) {
+  ValidateInvariants(*data_.lock());
 }
 
 Line::Line(const Line& line) {
-  std::unique_lock<std::mutex> lock(line.mutex_);
   environment_ = line.environment_;
-  options_ = line.options_;
-  hash_ = line.hash_;
+  data_.lock([&line](Data& data) {
+    line.data_.lock([&data](const Data& line_data) {
+      data.options = line_data.options;
+      data.hash = line_data.hash;
+    });
+  });
 }
 
 std::shared_ptr<LazyString> Line::contents() const {
-  std::unique_lock<std::mutex> lock(mutex_);
-  return options_.contents;
+  return data_.lock([](const Data& data) { return data.options.contents; });
 }
 
 ColumnNumber Line::EndColumn() const {
-  std::unique_lock<std::mutex> lock(mutex_);
-  return EndColumnWithLock();
+  return data_.lock([](const Data& data) { return EndColumn(data); });
 }
 
 bool Line::empty() const {
@@ -287,8 +291,7 @@ bool Line::empty() const {
 }
 
 wint_t Line::get(ColumnNumber column) const {
-  std::unique_lock<std::mutex> lock(mutex_);
-  return GetWithLock(column);
+  return data_.lock([column](const Data& data) { return Get(data, column); });
 }
 
 shared_ptr<LazyString> Line::Substring(ColumnNumber column,
@@ -301,42 +304,49 @@ shared_ptr<LazyString> Line::Substring(ColumnNumber column) const {
 }
 
 std::shared_ptr<LazyString> Line::metadata() const {
-  std::unique_lock<std::mutex> lock(mutex_);
-  ValidateInvariants();
-  const auto& metadata = options_.metadata;
-  if (metadata == std::nullopt) return nullptr;
-  return metadata->value.get().value_or(metadata->initial_value);
+  return data_.lock([](const Data& data) -> std::shared_ptr<LazyString> {
+    ValidateInvariants(data);
+    if (const auto& metadata = data.options.metadata; metadata.has_value())
+      return metadata->value.get().value_or(metadata->initial_value);
+    return nullptr;
+  });
 }
 
 void Line::SetAllModifiers(const LineModifierSet& modifiers) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  ValidateInvariants();
-  options_.modifiers.clear();
-  options_.modifiers[ColumnNumber(0)] = modifiers;
-  options_.end_of_line_modifiers = std::move(modifiers);
-  hash_ = std::nullopt;
-  ValidateInvariants();
+  data_.lock([&modifiers](Data& data) {
+    ValidateInvariants(data);
+    data.options.modifiers.clear();
+    data.options.modifiers[ColumnNumber(0)] = modifiers;
+    data.options.end_of_line_modifiers = modifiers;
+    data.hash = std::nullopt;
+    ValidateInvariants(data);
+  });
 }
 
 void Line::Append(const Line& line) {
-  if (line.empty()) return;
-  std::unique_lock<std::mutex> lock(mutex_);
-  ValidateInvariants();
-  line.ValidateInvariants();
   CHECK(this != &line);
-  hash_ = std::nullopt;
-  auto original_length = EndColumnWithLock().ToDelta();
-  options_.contents = StringAppend(options_.contents, line.options_.contents);
-  options_.modifiers[ColumnNumber() + original_length] = LineModifierSet{};
-  for (auto& [position, modifiers] : line.options_.modifiers) {
-    options_.modifiers[position + original_length] = modifiers;
-  }
-  options_.end_of_line_modifiers = line.options_.end_of_line_modifiers;
-  ValidateInvariants();
+  if (line.empty()) return;
+  data_.lock([&line](Data& data) {
+    ValidateInvariants(data);
+    data.hash = std::nullopt;
+    line.data_.lock([&data](const Data& line_data) {
+      ValidateInvariants(line_data);
+      auto original_length = EndColumn(data).ToDelta();
+      data.options.contents =
+          StringAppend(data.options.contents, line_data.options.contents);
+      data.options.modifiers[ColumnNumber() + original_length] =
+          LineModifierSet{};
+      for (auto& [position, modifiers] : line_data.options.modifiers) {
+        data.options.modifiers[position + original_length] = modifiers;
+      }
+      data.options.end_of_line_modifiers =
+          line_data.options.end_of_line_modifiers;
+      ValidateInvariants(data);
+    });
+  });
 }
 
 std::shared_ptr<vm::Environment> Line::environment() const {
-  std::unique_lock<std::mutex> lock(mutex_);
   CHECK(environment_ != nullptr);
   return environment_;
 }
@@ -346,127 +356,127 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
   auto tracker_call = tracker.Call();
 
   VLOG(5) << "Producing output of line: " << ToString();
-  std::unique_lock<std::mutex> lock(mutex_);
-
   CHECK(environment_ != nullptr);
-  Line::Options line_output;
-  ColumnNumber input_column = options.initial_column;
-  LineWithCursor line_with_cursor;
-  auto modifiers_it = options_.modifiers.lower_bound(input_column);
-  if (!options_.modifiers.empty() &&
-      modifiers_it != options_.modifiers.begin()) {
-    line_output.modifiers[ColumnNumber()] = std::prev(modifiers_it)->second;
-  }
-
-  const ColumnNumber input_end =
-      options.input_width != std::numeric_limits<ColumnNumberDelta>::max()
-          ? min(EndColumnWithLock(), input_column + options.input_width)
-          : EndColumnWithLock();
-  // output_column contains the column in the screen. May not match
-  // options.contents.size() if there are wide characters.
-  for (ColumnNumber output_column;
-       input_column < input_end && output_column.ToDelta() < options.width;
-       ++input_column) {
-    wint_t c = GetWithLock(input_column);
-    CHECK(c != '\n');
-
-    ColumnNumber current_position =
-        ColumnNumber() + line_output.contents->size();
-    if (modifiers_it != options_.modifiers.end()) {
-      CHECK_GE(modifiers_it->first, input_column);
-      if (modifiers_it->first == input_column) {
-        line_output.modifiers[current_position] = modifiers_it->second;
-        ++modifiers_it;
-      }
+  return data_.lock([&options](const Data& data) {
+    Line::Options line_output;
+    ColumnNumber input_column = options.initial_column;
+    LineWithCursor line_with_cursor;
+    auto modifiers_it = data.options.modifiers.lower_bound(input_column);
+    if (!data.options.modifiers.empty() &&
+        modifiers_it != data.options.modifiers.begin()) {
+      line_output.modifiers[ColumnNumber()] = std::prev(modifiers_it)->second;
     }
 
-    if (options.active_cursor_column.has_value() &&
-        options.active_cursor_column.value() == input_column) {
-      // We use current_position rather than output_column because terminals
-      // compensate for wide characters (so we don't need to).
-      line_with_cursor.cursor = current_position;
-      if (!options.modifiers_main_cursor.empty()) {
+    const ColumnNumber input_end =
+        options.input_width != std::numeric_limits<ColumnNumberDelta>::max()
+            ? min(EndColumn(data), input_column + options.input_width)
+            : EndColumn(data);
+    // output_column contains the column in the screen. May not match
+    // options.contents.size() if there are wide characters.
+    for (ColumnNumber output_column;
+         input_column < input_end && output_column.ToDelta() < options.width;
+         ++input_column) {
+      wint_t c = Get(data, input_column);
+      CHECK(c != '\n');
+
+      ColumnNumber current_position =
+          ColumnNumber() + line_output.contents->size();
+      if (modifiers_it != data.options.modifiers.end()) {
+        CHECK_GE(modifiers_it->first, input_column);
+        if (modifiers_it->first == input_column) {
+          line_output.modifiers[current_position] = modifiers_it->second;
+          ++modifiers_it;
+        }
+      }
+
+      if (options.active_cursor_column.has_value() &&
+          options.active_cursor_column.value() == input_column) {
+        // We use current_position rather than output_column because terminals
+        // compensate for wide characters (so we don't need to).
+        line_with_cursor.cursor = current_position;
+        if (!options.modifiers_main_cursor.empty()) {
+          line_output.modifiers[current_position + ColumnNumberDelta(1)] =
+              line_output.modifiers.empty()
+                  ? LineModifierSet()
+                  : line_output.modifiers.rbegin()->second;
+          line_output.modifiers[current_position].insert(
+              options.modifiers_main_cursor.begin(),
+              options.modifiers_main_cursor.end());
+        }
+      } else if (options.inactive_cursor_columns.find(input_column) !=
+                 options.inactive_cursor_columns.end()) {
         line_output.modifiers[current_position + ColumnNumberDelta(1)] =
             line_output.modifiers.empty()
                 ? LineModifierSet()
                 : line_output.modifiers.rbegin()->second;
         line_output.modifiers[current_position].insert(
-            options.modifiers_main_cursor.begin(),
-            options.modifiers_main_cursor.end());
-      }
-    } else if (options.inactive_cursor_columns.find(input_column) !=
-               options.inactive_cursor_columns.end()) {
-      line_output.modifiers[current_position + ColumnNumberDelta(1)] =
-          line_output.modifiers.empty()
-              ? LineModifierSet()
-              : line_output.modifiers.rbegin()->second;
-      line_output.modifiers[current_position].insert(
-          options.modifiers_inactive_cursors.begin(),
-          options.modifiers_inactive_cursors.end());
-    }
-
-    switch (c) {
-      case L'\r':
-        break;
-
-      case L'\t': {
-        ColumnNumber target = std::min(
-            output_column,
-            ColumnNumber(0) +
-                ((output_column.ToDelta() / 8) + ColumnNumberDelta(1)) * 8);
-        line_output.AppendString(
-            ColumnNumberDelta::PaddingString(target - output_column, L' '),
-            std::nullopt);
-        output_column = target;
-        break;
+            options.modifiers_inactive_cursors.begin(),
+            options.modifiers_inactive_cursors.end());
       }
 
-      default:
-        VLOG(8) << "Print character: " << c;
-        output_column += ColumnNumberDelta(wcwidth(c));
-        if (output_column.ToDelta() <= options.width)
-          line_output.contents = StringAppend(std::move(line_output.contents),
-                                              NewLazyString(wstring(1, c)));
+      switch (c) {
+        case L'\r':
+          break;
+
+        case L'\t': {
+          ColumnNumber target = std::min(
+              output_column,
+              ColumnNumber(0) +
+                  ((output_column.ToDelta() / 8) + ColumnNumberDelta(1)) * 8);
+          line_output.AppendString(
+              ColumnNumberDelta::PaddingString(target - output_column, L' '),
+              std::nullopt);
+          output_column = target;
+          break;
+        }
+
+        default:
+          VLOG(8) << "Print character: " << c;
+          output_column += ColumnNumberDelta(wcwidth(c));
+          if (output_column.ToDelta() <= options.width)
+            line_output.contents = StringAppend(std::move(line_output.contents),
+                                                NewLazyString(wstring(1, c)));
+      }
     }
-  }
 
-  line_output.end_of_line_modifiers =
-      input_column == EndColumnWithLock()
-          ? options_.end_of_line_modifiers
-          : (line_output.modifiers.empty()
-                 ? LineModifierSet()
-                 : line_output.modifiers.rbegin()->second);
-  if (!line_with_cursor.cursor.has_value() &&
-      options.active_cursor_column.has_value()) {
-    // Same as above: we use the current position (rather than output_column)
-    // since terminals compensate for wide characters.
-    line_with_cursor.cursor = ColumnNumber() + line_output.contents->size();
-  }
+    line_output.end_of_line_modifiers =
+        input_column == EndColumn(data)
+            ? data.options.end_of_line_modifiers
+            : (line_output.modifiers.empty()
+                   ? LineModifierSet()
+                   : line_output.modifiers.rbegin()->second);
+    if (!line_with_cursor.cursor.has_value() &&
+        options.active_cursor_column.has_value()) {
+      // Same as above: we use the current position (rather than output_column)
+      // since terminals compensate for wide characters.
+      line_with_cursor.cursor = ColumnNumber() + line_output.contents->size();
+    }
 
-  line_with_cursor.line = std::make_shared<Line>(std::move(line_output));
-  return line_with_cursor;
+    line_with_cursor.line = std::make_shared<Line>(std::move(line_output));
+    return line_with_cursor;
+  });
 }
 
-void Line::ValidateInvariants() const {
-  CHECK(options_.contents != nullptr);
-  ForEachColumn(*options_.contents, [&contents = options_.contents](
-                                        ColumnNumber, wchar_t c) {
-    CHECK(c != L'\n') << "Line has newline character: " << contents->ToString();
-  });
-  for (auto& m : options_.modifiers) {
-    CHECK_LE(m.first, EndColumnWithLock())
-        << "Modifiers found past end of line.";
+/* static */ void Line::ValidateInvariants(const Data& data) {
+  CHECK(data.options.contents != nullptr);
+  ForEachColumn(Pointer(data.options.contents).Reference(),
+                [&contents = data.options.contents](ColumnNumber, wchar_t c) {
+                  CHECK(c != L'\n')
+                      << "Line has newline character: " << contents->ToString();
+                });
+  for (auto& m : data.options.modifiers) {
+    CHECK_LE(m.first, EndColumn(data)) << "Modifiers found past end of line.";
     CHECK(m.second.find(LineModifier::RESET) == m.second.end());
   }
 }
 
-ColumnNumber Line::EndColumnWithLock() const {
-  return ColumnNumber(0) + options_.contents->size();
+/* static */ ColumnNumber Line::EndColumn(const Data& data) {
+  return ColumnNumber(0) + data.options.contents->size();
 }
 
-wint_t Line::GetWithLock(ColumnNumber column) const {
-  CHECK_LT(column, EndColumnWithLock());
-  return options_.contents->get(column);
+wint_t Line::Get(const Data& data, ColumnNumber column) {
+  CHECK_LT(column, EndColumn(data));
+  return data.options.contents->get(column);
 }
 
 }  // namespace editor
@@ -475,17 +485,18 @@ namespace std {
 std::size_t hash<afc::editor::Line>::operator()(
     const afc::editor::Line& line) const {
   using namespace afc::editor;
-  std::unique_lock<std::mutex> lock(line.mutex_);
-  if (line.hash_.has_value()) return *line.hash_;
-  line.hash_ = compute_hash(
-      *line.options_.contents,
-      MakeHashableIteratorRange(line.options_.end_of_line_modifiers),
-      MakeHashableIteratorRange(
-          line.options_.modifiers.begin(), line.options_.modifiers.end(),
-          [](const std::pair<ColumnNumber, LineModifierSet>& value) {
-            return compute_hash(value.first,
-                                MakeHashableIteratorRange(value.second));
-          }));
-  return *line.hash_;
+  return line.data_.lock([](const Line::Data& data) {
+    if (data.hash.has_value()) return *data.hash;
+    data.hash = compute_hash(
+        *data.options.contents,
+        MakeHashableIteratorRange(data.options.end_of_line_modifiers),
+        MakeHashableIteratorRange(
+            data.options.modifiers.begin(), data.options.modifiers.end(),
+            [](const std::pair<ColumnNumber, LineModifierSet>& value) {
+              return compute_hash(value.first,
+                                  MakeHashableIteratorRange(value.second));
+            }));
+    return *data.hash;
+  });
 }
 }  // namespace std

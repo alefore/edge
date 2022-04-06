@@ -15,6 +15,7 @@
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
+#include "src/protected.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {
@@ -120,26 +121,22 @@ class Line {
   std::shared_ptr<LazyString> metadata() const;
 
   void SetAllModifiers(const LineModifierSet& modifiers);
-  const std::map<ColumnNumber, LineModifierSet>& modifiers() const {
-    std::unique_lock<std::mutex> lock(mutex_);
-    return options_.modifiers;
+  std::map<ColumnNumber, LineModifierSet> modifiers() const {
+    return data_.lock([](const Data& data) { return data.options.modifiers; });
   }
-  std::map<ColumnNumber, LineModifierSet>& modifiers() {
-    std::unique_lock<std::mutex> lock(mutex_);
-    return options_.modifiers;
+  std::map<ColumnNumber, LineModifierSet> modifiers() {
+    return data_.lock([](const Data& data) { return data.options.modifiers; });
   }
-  const LineModifierSet& end_of_line_modifiers() const {
-    std::unique_lock<std::mutex> lock(mutex_);
-    return options_.end_of_line_modifiers;
+  LineModifierSet end_of_line_modifiers() const {
+    return data_.lock(
+        [](const Data& data) { return data.options.end_of_line_modifiers; });
   }
 
   bool modified() const {
-    std::unique_lock<std::mutex> lock(mutex_);
-    return modified_;
+    return data_.lock([=](const Data& data) { return data.modified; });
   }
   void set_modified(bool modified) {
-    std::unique_lock<std::mutex> lock(mutex_);
-    modified_ = modified;
+    data_.lock([=](Data& data) { data.modified = modified; });
   }
 
   void Append(const Line& line);
@@ -147,17 +144,16 @@ class Line {
   std::shared_ptr<vm::Environment> environment() const;
 
   bool filtered() const {
-    std::unique_lock<std::mutex> lock(mutex_);
-    return filtered_;
+    return data_.lock([](const Data& data) { return data.filtered; });
   }
   bool filter_version() const {
-    std::unique_lock<std::mutex> lock(mutex_);
-    return filter_version_;
+    return data_.lock([](const Data& data) { return data.filter_version; });
   }
   void set_filtered(bool filtered, size_t filter_version) {
-    std::unique_lock<std::mutex> lock(mutex_);
-    filtered_ = filtered;
-    filter_version_ = filter_version;
+    data_.lock([=](Data& data) {
+      data.filtered = filtered;
+      data.filter_version = filter_version;
+    });
   }
 
   struct OutputOptions {
@@ -181,20 +177,23 @@ class Line {
  private:
   friend class std::hash<Line>;
 
-  void ValidateInvariants() const;
-  ColumnNumber EndColumnWithLock() const;
-  wint_t GetWithLock(ColumnNumber column) const;
+  struct Data {
+    Options options;
+    bool filtered = true;
+    size_t filter_version = 0;
+    bool modified = false;
+    // TODO(2022-04-06): Attempt to remove `mutable`.
+    mutable std::optional<size_t> hash = std::nullopt;
+  };
+
+  static void ValidateInvariants(const Data& data);
+  static ColumnNumber EndColumn(const Data& data);
+  static wint_t Get(const Data& data, ColumnNumber column);
 
   friend class Options;
 
-  mutable std::mutex mutex_;
   std::shared_ptr<vm::Environment> environment_;
-  Options options_;
-  bool modified_ = false;
-  bool filtered_ = true;
-  size_t filter_version_ = 0;
-
-  mutable std::optional<size_t> hash_;
+  Protected<Data> data_;
 };
 
 }  // namespace afc::editor

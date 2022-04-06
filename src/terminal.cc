@@ -192,8 +192,9 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   functions.push_back(
       [](Screen& screen) { screen.SetModifier(LineModifier::RESET); });
 
-  auto modifiers_it =
-      line_with_cursor.line->modifiers().lower_bound(input_column);
+  std::map<ColumnNumber, LineModifierSet> modifiers =
+      line_with_cursor.line->modifiers();
+  auto modifiers_it = modifiers.lower_bound(input_column);
 
   while (input_column < line_with_cursor.line->EndColumn() &&
          output_column < ColumnNumber(0) + width) {
@@ -210,7 +211,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
            (!line_with_cursor.cursor.has_value() ||
             input_column != line_with_cursor.cursor.value() ||
             output.cursor == output_column) &&
-           (modifiers_it == line_with_cursor.line->modifiers().end() ||
+           (modifiers_it == modifiers.end() ||
             modifiers_it->first > input_column)) {
       output_column += ColumnNumberDelta(
           wcwidth(line_with_cursor.line->contents()->get(input_column)));
@@ -225,11 +226,12 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
       functions.push_back([str](Screen& screen) { screen.WriteString(str); });
     }
 
-    if (modifiers_it != line_with_cursor.line->modifiers().end()) {
+    if (modifiers_it != modifiers.end()) {
       CHECK_GE(modifiers_it->first, input_column);
       if (modifiers_it->first == input_column) {
-        functions.push_back([modifiers = modifiers_it->second](Screen& screen) {
-          FlushModifiers(screen, modifiers);
+        LineModifierSet modifiers_set = modifiers_it->second;
+        functions.push_back([modifiers_set](Screen& screen) {
+          FlushModifiers(screen, modifiers_set);
         });
         ++modifiers_it;
       }
