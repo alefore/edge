@@ -311,7 +311,7 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
 
 futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
     EditorState& editor_state, std::shared_ptr<OpenBuffer> history_buffer,
-    AsyncEvaluator* history_evaluator,
+    std::shared_ptr<AsyncEvaluator> history_evaluator,
     std::shared_ptr<Notification> abort_notification, std::wstring filter) {
   BufferName name(L"- history filter: " + history_buffer->name().ToString() +
                   L": " + filter);
@@ -427,26 +427,26 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
           return output;
         });
       })
-      .Transform(
-          [&editor_state, abort_notification, filter_buffer](Output output) {
-            LOG(INFO) << "Receiving output from history evaluator.";
-            if (!output.errors.empty()) {
-              editor_state.status().SetExpiringInformationText(
-                  output.errors.front());
-            }
-            if (!abort_notification->HasBeenNotified()) {
-              for (auto& line : output.lines) {
-                filter_buffer->AppendRawLine(line);
-              }
+      .Transform([&editor_state, history_evaluator, abort_notification,
+                  filter_buffer](Output output) {
+        LOG(INFO) << "Receiving output from history evaluator.";
+        if (!output.errors.empty()) {
+          editor_state.status().SetExpiringInformationText(
+              output.errors.front());
+        }
+        if (!abort_notification->HasBeenNotified()) {
+          for (auto& line : output.lines) {
+            filter_buffer->AppendRawLine(line);
+          }
 
-              if (filter_buffer->lines_size() > LineNumberDelta(1)) {
-                VLOG(5) << "Erasing the first (empty) line.";
-                CHECK(filter_buffer->LineAt(LineNumber())->empty());
-                filter_buffer->EraseLines(LineNumber(), LineNumber().next());
-              }
-            }
-            return filter_buffer;
-          });
+          if (filter_buffer->lines_size() > LineNumberDelta(1)) {
+            VLOG(5) << "Erasing the first (empty) line.";
+            CHECK(filter_buffer->LineAt(LineNumber())->empty());
+            filter_buffer->EraseLines(LineNumber(), LineNumber().next());
+          }
+        }
+        return filter_buffer;
+      });
 }
 
 shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
@@ -646,11 +646,10 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     std::shared_ptr<LazyString> input =
         buffer_->contents().at(LineNumber(0))->contents();
-    return FilterHistory(editor_state_, history_, history_evaluator_.get(),
+    return FilterHistory(editor_state_, history_, history_evaluator_,
                          abort_notification, input->ToString())
-        .Transform([input, prompt_state = prompt_state_,
-                    history_evaluator =
-                        history_evaluator_](std::shared_ptr<OpenBuffer> history)
+        .Transform([input, prompt_state = prompt_state_](
+                       std::shared_ptr<OpenBuffer> history)
                        -> std::unique_ptr<ScrollBehavior> {
           history->set_current_position_line(LineNumber(0) +
                                              history->contents().size());
@@ -814,10 +813,9 @@ void Prompt(PromptOptions options) {
                   *abort_notification_ptr = std::make_shared<Notification>();
                   return JoinValues(
                              FilterHistory(
-                                 editor_state, history, history_evaluator.get(),
+                                 editor_state, history, history_evaluator,
                                  *abort_notification_ptr, line->ToString())
-                                 .Transform([prompt_render_state,
-                                             history_evaluator](
+                                 .Transform([prompt_render_state](
                                                 std::shared_ptr<OpenBuffer>
                                                     filtered_history) {
                                    LOG(INFO)
