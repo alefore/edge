@@ -60,16 +60,17 @@ class WorkQueue {
   void SetScheduleListener(std::function<void()> schedule_listener);
 
  private:
-  struct Callback {
-    struct timespec time;
-    std::function<void()> callback;
-  };
-
-  using Queue = std::priority_queue<
-      Callback, std::vector<Callback>,
-      std::function<bool(const Callback&, const Callback&)>>;
   struct MutableData {
     std::function<void()> schedule_listener;
+
+    struct Callback {
+      struct timespec time;
+      std::function<void()> callback;
+    };
+
+    using Queue = std::priority_queue<
+        Callback, std::vector<Callback>,
+        std::function<bool(const Callback&, const Callback&)>>;
 
     Queue callbacks = Queue([](const Callback& a, const Callback& b) {
       return !(a.time < b.time);
@@ -126,31 +127,24 @@ class WorkQueueChannel {
         break;
 
       case WorkQueueChannelConsumeMode::kLastAvailable:
-        CHECK(data_ != nullptr);
-
-        data_->mutex.lock();
-        bool already_scheduled = data_->value.has_value();
-        data_->value = std::move(value);
-        data_->mutex.unlock();
-
+        auto value_lock = data_->value.lock();
+        bool already_scheduled = value_lock->has_value();
+        *value_lock = std::move(value);
+        value_lock = nullptr;
         if (already_scheduled) return;
 
         work_queue_->Schedule([data = data_] {
           std::optional<T> value;
-
-          data->mutex.lock();
-          value.swap(data->value);
-          data->mutex.unlock();
-
+          data->value.lock()->swap(value);
           CHECK(value.has_value());
-          data->consume_callback(value.value());
+          data->consume_callback(*value);
         });
         break;
     }
   }
 
  private:
-  std::shared_ptr<WorkQueue> const work_queue_;
+  const std::shared_ptr<WorkQueue> work_queue_;
   const WorkQueueChannelConsumeMode consume_mode_;
 
   // To enable deletion of the channel before the callbacks it schedules in
@@ -163,8 +157,7 @@ class WorkQueueChannel {
     const std::function<void(T t)> consume_callback;
 
     // Only used when consume_mode_ is kLastAvailable.
-    std::mutex mutex;
-    std::optional<T> value;
+    Protected<std::optional<T>> value;
   };
   const std::shared_ptr<Data> data_;
 };

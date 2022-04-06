@@ -27,7 +27,7 @@ void WorkQueue::Schedule(std::function<void()> callback) {
 void WorkQueue::ScheduleAt(struct timespec time,
                            std::function<void()> callback) {
   Protected<MutableData>::Lock data = data_.lock();
-  data->callbacks.push(Callback{std::move(time), std::move(callback)});
+  data->callbacks.push({std::move(time), std::move(callback)});
   auto listener = data->schedule_listener;
   data = nullptr;
 
