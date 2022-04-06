@@ -450,12 +450,16 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
 }
 
 /* static */ void Line::ValidateInvariants(const Data& data) {
+  static Tracker tracker(L"Line::ValidateInvariants");
+  auto call = tracker.Call();
   CHECK(data.options.contents != nullptr);
+#if 0
   ForEachColumn(Pointer(data.options.contents).Reference(),
                 [&contents = data.options.contents](ColumnNumber, wchar_t c) {
                   CHECK(c != L'\n')
                       << "Line has newline character: " << contents->ToString();
                 });
+#endif
   for (auto& m : data.options.modifiers) {
     CHECK_LE(m.first, EndColumn(data)) << "Modifiers found past end of line.";
     CHECK(m.second.find(LineModifier::RESET) == m.second.end());
