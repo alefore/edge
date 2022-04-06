@@ -18,6 +18,10 @@ Protected<Trackers>::Lock lock_trackers() {
   for (const auto* tracker : *trackers) {
     output.push_back(*tracker->data_.lock());
   }
+  trackers = nullptr;
+  output.sort([](const Tracker::Data& a, const Tracker::Data& b) {
+    return a.seconds < b.seconds;
+  });
   return output;
 }
 
