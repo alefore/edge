@@ -263,11 +263,9 @@ Line::Line(Options options)
     : environment_(options.environment == nullptr
                        ? std::make_shared<Environment>()
                        : std::move(options.environment)),
-      data_(Data{.options = std::move(options)}) {
-  ValidateInvariants(*data_.lock());
-}
+      data_(Data{.options = std::move(options)}, Line::ValidateInvariants) {}
 
-Line::Line(const Line& line) {
+Line::Line(const Line& line) : data_(Data{}, Line::ValidateInvariants) {
   environment_ = line.environment_;
   data_.lock([&line](Data& data) {
     line.data_.lock([&data](const Data& line_data) {
@@ -305,7 +303,6 @@ shared_ptr<LazyString> Line::Substring(ColumnNumber column) const {
 
 std::shared_ptr<LazyString> Line::metadata() const {
   return data_.lock([](const Data& data) -> std::shared_ptr<LazyString> {
-    ValidateInvariants(data);
     if (const auto& metadata = data.options.metadata; metadata.has_value())
       return metadata->value.get().value_or(metadata->initial_value);
     return nullptr;
@@ -314,12 +311,10 @@ std::shared_ptr<LazyString> Line::metadata() const {
 
 void Line::SetAllModifiers(const LineModifierSet& modifiers) {
   data_.lock([&modifiers](Data& data) {
-    ValidateInvariants(data);
     data.options.modifiers.clear();
     data.options.modifiers[ColumnNumber(0)] = modifiers;
     data.options.end_of_line_modifiers = modifiers;
     data.hash = std::nullopt;
-    ValidateInvariants(data);
   });
 }
 
@@ -327,10 +322,8 @@ void Line::Append(const Line& line) {
   CHECK(this != &line);
   if (line.empty()) return;
   data_.lock([&line](Data& data) {
-    ValidateInvariants(data);
     data.hash = std::nullopt;
     line.data_.lock([&data](const Data& line_data) {
-      ValidateInvariants(line_data);
       auto original_length = EndColumn(data).ToDelta();
       data.options.contents =
           StringAppend(data.options.contents, line_data.options.contents);
@@ -341,7 +334,6 @@ void Line::Append(const Line& line) {
       }
       data.options.end_of_line_modifiers =
           line_data.options.end_of_line_modifiers;
-      ValidateInvariants(data);
     });
   });
 }

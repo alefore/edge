@@ -193,7 +193,7 @@ class Line {
   friend class Options;
 
   std::shared_ptr<vm::Environment> environment_;
-  Protected<Data> data_;
+  Protected<Data, decltype(&Line::ValidateInvariants)> data_;
 };
 
 }  // namespace afc::editor
