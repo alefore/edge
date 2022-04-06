@@ -117,16 +117,17 @@ void EditorState::ResetInternalEventNotifications() {
   VLOG(5) << "Internal events detected.";
   while (read(fd_to_detect_internal_events(), buffer, sizeof(buffer)) > 0)
     continue;
-  std::unique_lock lock(has_internal_events_mutex_);
-  has_internal_events_ = false;
+  has_internal_events_.lock([](bool& value) { value = false; });
 }
 
 void EditorState::NotifyInternalEvent() {
   VLOG(5) << "Internal event notification!";
-  std::unique_lock lock(has_internal_events_mutex_);
-  if (has_internal_events_) return;  // Redundant notification.
-  has_internal_events_ = true;
-  if (write(pipe_to_communicate_internal_events_.second, " ", 1) == -1) {
+  if (!has_internal_events_.lock([](bool& value) {
+        bool old_value = value;
+        value = true;
+        return old_value;
+      }) &&
+      write(pipe_to_communicate_internal_events_.second, " ", 1) == -1) {
     status_.SetWarningText(L"Write to internal pipe failed: " +
                            FromByteString(strerror(errno)));
   }

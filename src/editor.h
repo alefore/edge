@@ -273,8 +273,7 @@ class EditorState {
   // customer must call ResetInternalEventsNotifications to reset it just before
   // starting to process events.
   const std::pair<int, int> pipe_to_communicate_internal_events_;
-  std::mutex has_internal_events_mutex_;
-  bool has_internal_events_ = false;
+  Protected<bool> has_internal_events_ = Protected<bool>(false);
 
   AudioPlayer& audio_player_;
 
