@@ -6,8 +6,9 @@
 #include <memory>
 #include <string>
 
-namespace afc {
-namespace editor {
+#include "src/protected.h"
+
+namespace afc::editor {
 
 // Tracks number of times an operation happens (globally), as well as total time
 // spent executing it.
@@ -43,12 +44,11 @@ class Tracker {
   std::unique_ptr<bool, std::function<void(bool*)>> Call();
 
  private:
-  std::list<Tracker*>::iterator trackers_it_;
+  const std::list<Tracker*>::iterator trackers_it_;
 
-  Data data_;
+  Protected<Data> data_;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_SRC_TRACKERS_H__
