@@ -30,7 +30,7 @@ namespace afc::editor {
 class Tracker {
  public:
   struct Data {
-    std::wstring name;
+    const std::wstring name;
 
     size_t executions = 0;
     double seconds = 0;
