@@ -173,7 +173,6 @@ class EditorState {
   // Returns nullptr if the redraw should be skipped.
   std::optional<ScreenState> FlushScreenState();
   void set_screen_needs_hard_redraw(bool value) {
-    std::unique_lock<std::mutex> lock(mutex_);
     screen_state_.needs_hard_redraw = value;
   }
 
@@ -249,7 +248,6 @@ class EditorState {
   std::shared_ptr<MapModeCommands> default_commands_;
   std::shared_ptr<EditorMode> keyboard_redirect_;
 
-  std::mutex mutex_;
   // Used to honor command line argument frames_per_second. Holds the earliest
   // time when a redraw should be allowed.
   struct timespec next_screen_update_ = {0, 0};

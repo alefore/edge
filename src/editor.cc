@@ -907,7 +907,6 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
     work_queue_->ScheduleAt(next_screen_update_, [] {});
     return {};
   }
-  std::unique_lock<std::mutex> lock(mutex_);
   next_screen_update_ = AddSeconds(now, 1.0 / frames_per_second_);
   ScreenState output = screen_state_;
   screen_state_ = ScreenState();
