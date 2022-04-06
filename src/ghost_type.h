@@ -1,4 +1,32 @@
-// Macros for easily defining ghost types.
+// Macros for easily defining ghost types:
+//
+//   namespace xxx {
+//   class FirstName {
+//    public:
+//     GHOST_TYPE_CONSTRUCTOR(FirstName, value);
+//     GHOST_TYPE_EQ(FirstName, value);
+//     GHOST_TYPE_LT(FirstName, value);
+//
+//    private:
+//     GHOST_TYPE_OUTPUT_FRIEND(FirstName, value);
+//     GHOST_TYPE_HASH_FRIEND(FirstName, value);
+//     std::string value;
+//   };
+//
+//   GHOST_TYPE_OUTPUT(FirstName, value);
+//   }  // namespace xxx
+//   GHOST_TYPE_HASH(xxx::FirstName, value);
+//
+// This is enough to make the following expressions valid:
+//
+//   LastName last_name_foo("Forero Cuervo");
+//
+//   if (last_name_a == last_name_b) return;
+//
+//   std::vector<LastName> names;
+//   sort(names.begin(), names.end());
+//
+//   std::out << "Found name: " << last_name_foo;
 //
 // This is based on the principle that code is more readable if the types it
 // operates on convey more semantics than just what their underlying
@@ -67,36 +95,6 @@
 //
 // However, the methods provided here may be enough that you won't even need to
 // expose the internal type in some cases.
-//
-// For example:
-//
-//   namespace xxx {
-//   class FirstName {
-//    public:
-//     GHOST_TYPE_CONSTRUCTOR(FirstName, value);
-//     GHOST_TYPE_EQ(FirstName, value);
-//     GHOST_TYPE_LT(FirstName, value);
-//
-//    private:
-//     GHOST_TYPE_OUTPUT_FRIEND(FirstName, value);
-//     GHOST_TYPE_HASH_FRIEND(FirstName, value);
-//     std::string value;
-//   };
-//
-//   GHOST_TYPE_OUTPUT(FirstName, value);
-//   }  // namespace xxx
-//   GHOST_TYPE_HASH(xxx::FirstName, value);
-//
-// This is enough to make the following expressions valid:
-//
-//   LastName last_name_foo("Forero Cuervo");
-//
-//   if (last_name_a == last_name_b) return;
-//
-//   std::vector<LastName> names;
-//   sort(names.begin(), names.end());
-//
-//   std::out << "Found name: " << last_name_foo;
 #ifndef __AFC_EDITOR_GHOST_TYPE_H__
 #define __AFC_EDITOR_GHOST_TYPE_H__
 
@@ -144,12 +142,12 @@ namespace afc::editor {
   friend class std::hash<ClassName>;
 
 // Can't be inside of a namespace; must be at the top-level.
-#define GHOST_TYPE_HASH(ClassName, variable)              \
-  template <>                                             \
-  struct std::hash<ClassName> {                           \
-    std::size_t operator()(const ClassName& self) const { \
-      return std::hash<std::wstring>{}(self.variable);    \
-    }                                                     \
+#define GHOST_TYPE_HASH(ClassName, variable)                      \
+  template <>                                                     \
+  struct std::hash<ClassName> {                                   \
+    std::size_t operator()(const ClassName& self) const {         \
+      return std::hash<decltype(self.variable)>{}(self.variable); \
+    }                                                             \
   };
 
 #define GHOST_TYPE_INDEX(ClassName, variable)       \
