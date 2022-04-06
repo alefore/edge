@@ -10,6 +10,8 @@
 #include <vector>
 
 #include "src/decaying_counter.h"
+#include "src/protected.h"
+#include "src/time.h"
 
 namespace afc::editor {
 // Contains a list of callbacks that will be executed later, at some point
@@ -58,21 +60,26 @@ class WorkQueue {
   void SetScheduleListener(std::function<void()> schedule_listener);
 
  private:
-  std::function<void()> schedule_listener_;
-
   struct Callback {
     struct timespec time;
     std::function<void()> callback;
   };
 
-  mutable std::mutex mutex_;
-  std::priority_queue<Callback, std::vector<Callback>,
-                      std::function<bool(const Callback&, const Callback&)>>
-      callbacks_;
+  using Queue = std::priority_queue<
+      Callback, std::vector<Callback>,
+      std::function<bool(const Callback&, const Callback&)>>;
+  struct MutableData {
+    std::function<void()> schedule_listener;
 
-  // This is used to track the percentage of time spent executing (seconds per
-  // second).
-  DecayingCounter execution_seconds_ = DecayingCounter(1.0);
+    Queue callbacks = Queue([](const Callback& a, const Callback& b) {
+      return !(a.time < b.time);
+    });
+
+    // This is used to track the percentage of time spent executing (seconds per
+    // second).
+    DecayingCounter execution_seconds = DecayingCounter(1.0);
+  };
+  Protected<MutableData> data_;
 };
 
 enum class WorkQueueChannelConsumeMode {

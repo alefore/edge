@@ -13,11 +13,9 @@ namespace afc::editor {
 
 WorkQueue::WorkQueue(ConstructorAccessTag,
                      std::function<void()> schedule_listener)
-    : schedule_listener_(std::move(schedule_listener)),
-      callbacks_([](const Callback& a, const Callback& b) {
-        return !(a.time < b.time);
-      }) {
-  CHECK(schedule_listener_ != nullptr);
+    : data_({.schedule_listener = std::move(schedule_listener)}) {
+  data_.lock(
+      [](MutableData& data) { CHECK(data.schedule_listener != nullptr); });
 }
 
 void WorkQueue::Schedule(std::function<void()> callback) {
@@ -28,52 +26,56 @@ void WorkQueue::Schedule(std::function<void()> callback) {
 
 void WorkQueue::ScheduleAt(struct timespec time,
                            std::function<void()> callback) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  callbacks_.push(Callback{std::move(time), std::move(callback)});
-  auto listener = schedule_listener_;
-  lock.unlock();
+  Protected<MutableData>::Lock data = data_.lock();
+  data->callbacks.push(Callback{std::move(time), std::move(callback)});
+  auto listener = data->schedule_listener;
+  data = nullptr;
+
   listener();
 }
 
 void WorkQueue::Execute() {
-  mutex_.lock();
-  auto start = Now();
-  VLOG(5) << "Executing work queue: callbacks: " << callbacks_.size();
   std::vector<std::function<void()>> callbacks_ready;
-  while (!callbacks_.empty() && callbacks_.top().time < Now()) {
-    callbacks_ready.push_back(std::move(callbacks_.top().callback));
-    callbacks_.pop();
+  Protected<MutableData>::Lock data = data_.lock();
+  auto start = Now();
+  VLOG(5) << "Executing work queue: callbacks: " << data->callbacks.size();
+  while (!data->callbacks.empty() && data->callbacks.top().time < Now()) {
+    callbacks_ready.push_back(std::move(data->callbacks.top().callback));
+    data->callbacks.pop();
   }
 
   for (auto& callback : callbacks_ready) {
-    mutex_.unlock();
+    data = nullptr;
     callback();
     // We could assign nullptr to `callback` in order to allow it to be deleted.
     // However, we prefer to only let them be deleted at the end, before we
     // return, in case they are the only thing keeping the work queue alive.
-    mutex_.lock();
+    data = data_.lock();
     auto end = Now();
-    execution_seconds_.IncrementAndGetEventsPerSecond(
+    data->execution_seconds.IncrementAndGetEventsPerSecond(
         SecondsBetween(start, end));
     start = end;
   }
-  mutex_.unlock();
 }
 
 std::optional<struct timespec> WorkQueue::NextExecution() {
-  return callbacks_.empty()
-             ? std::nullopt
-             : std::optional<struct timespec>(callbacks_.top().time);
+  return data_.lock([](MutableData& data) {
+    return data.callbacks.empty()
+               ? std::nullopt
+               : std::optional<struct timespec>(data.callbacks.top().time);
+  });
 }
 
 double WorkQueue::RecentUtilization() const {
-  std::unique_lock<std::mutex> lock(mutex_);
-  return execution_seconds_.GetEventsPerSecond();
+  return data_.lock([](const MutableData& data) {
+    return data.execution_seconds.GetEventsPerSecond();
+  });
 }
 
 void WorkQueue::SetScheduleListener(std::function<void()> schedule_listener) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  schedule_listener_ = std::move(schedule_listener);
+  data_.lock([&](MutableData& data) {
+    data.schedule_listener = std::move(schedule_listener);
+  });
 }
 
 namespace {
