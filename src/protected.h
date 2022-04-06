@@ -1,6 +1,9 @@
 #ifndef __AFC_EDITOR_PROTECTED_H__
 #define __AFC_EDITOR_PROTECTED_H__
 
+#include <memory>
+#include <mutex>
+
 namespace afc::editor {
 template <typename T>
 class Protected {
