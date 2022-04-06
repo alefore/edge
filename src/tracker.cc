@@ -1,7 +1,5 @@
 #include "src/tracker.h"
 
-#include <mutex>
-
 #include "src/time.h"
 
 namespace afc::editor {
