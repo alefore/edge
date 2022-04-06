@@ -67,7 +67,10 @@ class AsyncProcessor {
 
   // As we return, we guarantee that there's no ongoing execution of
   // `options_.factory` and none will happen in the future.
-  ~AsyncProcessor() { PauseThread(); }
+  ~AsyncProcessor() {
+    LOG(INFO) << options_.name << ": Start destruction.";
+    PauseThread();
+  }
 
   void Push(Input input) {
     thread_creation_mutex_.lock();
@@ -104,7 +107,7 @@ class AsyncProcessor {
   }
 
   void PauseThread() {
-    LOG(INFO) << "Starting Pause Thread.";
+    LOG(INFO) << options_.name << "Starting Pause Thread";
     std::unique_lock<std::mutex> thread_creation_lock(thread_creation_mutex_);
     std::unique_lock<std::mutex> lock(mutex_);
     if (state_ == State::kNotRunning) {
@@ -199,11 +202,12 @@ class AsyncEvaluator {
         [work_queue = work_queue_, callable = std::move(callable),
          consumer = std::move(output.consumer),
          background_callback_runner = background_callback_runner_]() mutable {
-          work_queue->Schedule([consumer = std::move(consumer),
-                                value = callable(),
-                                background_callback_runner]() mutable {
-            consumer(std::move(value));
-          });
+          work_queue->Schedule(
+              [consumer = std::move(consumer), value = callable(),
+               background_callback_runner =
+                   std::move(background_callback_runner)]() mutable {
+                consumer(std::move(value));
+              });
         });
     return std::move(output.value);
   }

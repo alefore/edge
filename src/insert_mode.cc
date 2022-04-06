@@ -333,16 +333,11 @@ class InsertMode : public EditorMode {
         [c, options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
           return buffer->TransformKeyboardText(std::wstring(1, c))
               .Transform([options, buffer](std::wstring value) {
-                auto buffer_to_insert =
-                    OpenBuffer::New({.editor = options.editor_state,
-                                     .name = BufferName::TextInsertion()});
-                buffer_to_insert->AppendToLastLine(NewLazyString(value));
-
                 return CallModifyHandler(
                     options, *buffer,
                     buffer->ApplyToCursors(transformation::Insert{
-                        .contents_to_insert =
-                            buffer_to_insert->contents().copy(),
+                        .contents_to_insert = std::make_shared<BufferContents>(
+                            std::make_shared<Line>(value)),
                         .modifiers = {
                             .insertion =
                                 options.editor_state.modifiers().insertion}}));
