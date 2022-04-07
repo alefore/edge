@@ -215,7 +215,7 @@ futures::Value<PossibleError> GenerateContents(
               target.Read(success ? buffer_variables::beep_frequency_success
                                   : buffer_variables::beep_frequency_failure));
           if (audio::Frequency(0.0001) < frequency) {
-            BeepFrequencies(
+            audio::BeepFrequencies(
                 editor_state.audio_player(), 0.1,
                 std::vector<audio::Frequency>(success ? 1 : 2, frequency));
           }

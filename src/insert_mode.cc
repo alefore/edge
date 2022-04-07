@@ -534,8 +534,9 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
            buffer->Read(buffer_variables::multiple_cursors);
   }
   if (beep) {
-    BeepFrequencies(options.editor_state.audio_player(), 0.1,
-                    {audio::Frequency(659.25), audio::Frequency(1046.50)});
+    audio::BeepFrequencies(
+        options.editor_state.audio_player(), 0.1,
+        {audio::Frequency(659.25), audio::Frequency(1046.50)});
   }
 }
 }  // namespace

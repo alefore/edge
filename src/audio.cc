@@ -198,13 +198,12 @@ std::unique_ptr<AudioPlayer> NewPlayer() {
   return NewNullPlayer();
 #endif
 }
-}  // namespace audio
 
-void GenerateBeep(AudioPlayer& audio_player, audio::Frequency frequency) {
+void GenerateBeep(Player& player, Frequency frequency) {
   VLOG(5) << "Generating Beep";
-  auto lock = audio_player.lock();
-  AudioPlayer::Time start = lock->time();
-  AudioPlayer::Duration duration = 0.1;
+  auto lock = player.lock();
+  Player::Time start = lock->time();
+  Player::Duration duration = 0.1;
   lock->Add(
       ApplyVolume(SmoothVolume(0.3, start, start + duration, duration / 4),
                   {.callback = Oscillate(frequency),
@@ -212,11 +211,11 @@ void GenerateBeep(AudioPlayer& audio_player, audio::Frequency frequency) {
                    .end_time = start + duration}));
 }
 
-void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
-                     const std::vector<audio::Frequency>& frequencies) {
-  auto lock = audio_player.lock();
+void BeepFrequencies(Player& player, Player::Duration duration,
+                     const std::vector<Frequency>& frequencies) {
+  auto lock = player.lock();
   for (size_t i = 0; i < frequencies.size(); i++) {
-    AudioPlayer::Time start = lock->time() + i * duration;
+    Player::Time start = lock->time() + i * duration;
     lock->Add(
         ApplyVolume(SmoothVolume(0.3, start, start + duration, duration / 4),
                     {.callback = Oscillate(frequencies[i]),
@@ -225,11 +224,13 @@ void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
   }
 }
 
+}  // namespace audio
+
 void GenerateAlert(AudioPlayer& audio_player) {
   VLOG(5) << "Generating Beep";
-  BeepFrequencies(audio_player, 0.1,
-                  {audio::Frequency(523.25), audio::Frequency(659.25),
-                   audio::Frequency(783.99)});
+  audio::BeepFrequencies(audio_player, 0.1,
+                         {audio::Frequency(523.25), audio::Frequency(659.25),
+                          audio::Frequency(783.99)});
 }
 
 AudioGenerator ApplyVolume(

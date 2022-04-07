@@ -381,9 +381,9 @@ int main(int argc, const char** argv) {
   // changes to the server).
   std::optional<LineColumnDelta> last_screen_size;
 
-  BeepFrequencies(*audio_player, 0.1,
-                  {audio::Frequency(783.99), audio::Frequency(723.25),
-                   audio::Frequency(783.99)});
+  audio::BeepFrequencies(*audio_player, 0.1,
+                         {audio::Frequency(783.99), audio::Frequency(723.25),
+                          audio::Frequency(783.99)});
   editor_state().status().SetInformationText(GetGreetingMessage());
 
   LOG(INFO) << "Main loop starting.";

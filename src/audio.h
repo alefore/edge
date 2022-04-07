@@ -47,14 +47,15 @@ class Player {
 
 std::unique_ptr<Player> NewPlayer();
 std::unique_ptr<Player> NewNullPlayer();
+
+void GenerateBeep(Player& player, Frequency frequency);
+void BeepFrequencies(Player& player, Player::Duration duration,
+                     const std::vector<Frequency>& frequencies);
 }  // namespace audio
 
 using AudioPlayer = audio::Player;
 
-void GenerateBeep(AudioPlayer& audio_player, audio::Frequency frequency);
 void GenerateAlert(AudioPlayer& audio_player);
-void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
-                     const std::vector<audio::Frequency>& frequencies);
 
 AudioGenerator ApplyVolume(
     std::function<AudioPlayer::Volume(AudioPlayer::Time)> volume,
