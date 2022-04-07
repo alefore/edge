@@ -3,7 +3,7 @@
 //   namespace xxx {
 //   class FirstName {
 //    public:
-//     GHOST_TYPE_CONSTRUCTOR(FirstName, value);
+//     GHOST_TYPE_CONSTRUCTOR(FirstName, std::string, value);
 //     GHOST_TYPE_EQ(FirstName, value);
 //     GHOST_TYPE_LT(FirstName, value);
 //
@@ -100,9 +100,38 @@
 
 #include <functional>
 
-namespace afc::editor {
-#define GHOST_TYPE_CONSTRUCTOR(ClassName, variable) \
-  template <typename VariableType>                  \
+#define GHOST_TYPE(ClassName, VariableType, variable)          \
+  class ClassName {                                            \
+   public:                                                     \
+    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, variable); \
+    GHOST_TYPE_EQ(ClassName, variable);                        \
+    GHOST_TYPE_LT(ClassName, variable);                        \
+    const VariableType& read() const { return variable; }      \
+                                                               \
+   private:                                                    \
+    GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable);             \
+    GHOST_TYPE_HASH_FRIEND(ClassName, variable);               \
+    VariableType variable;                                     \
+  };                                                           \
+                                                               \
+  GHOST_TYPE_OUTPUT(ClassName, variable);
+
+#define GHOST_TYPE_CONTAINER(ClassName, VariableType, variable) \
+  class ClassName {                                             \
+   public:                                                      \
+    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, variable);  \
+    GHOST_TYPE_EQ(ClassName, variable);                         \
+    GHOST_TYPE_BEGIN_END(ClassName, variable);                  \
+    GHOST_TYPE_INDEX(ClassName, variable);                      \
+    const VariableType& read() const { return variable; }       \
+                                                                \
+   private:                                                     \
+    VariableType variable;                                      \
+  };
+
+// Implementation:
+
+#define GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, variable) \
   explicit ClassName(VariableType variable) : variable(std::move(variable)) {}
 
 #define GHOST_TYPE_CONSTRUCTOR_EMPTY(ClassName) ClassName() = default;
@@ -164,7 +193,5 @@ namespace afc::editor {
     os << "[" #ClassName ":" << obj.variable << "]";                        \
     return os;                                                              \
   }
-
-}  // namespace afc::editor
 
 #endif  //__AFC_EDITOR_GHOST_TYPE_H__

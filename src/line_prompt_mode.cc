@@ -339,7 +339,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
                                            editor_state)]() -> Output {
           Output output;
           // Sets of features for each unique `prompt` value in the history.
-          naive_bayes::History history_data;
+          naive_bayes::History history_data({});
           // Tokens by parsing the `prompt` value in the history.
           std::unordered_map<naive_bayes::Event, std::vector<Token>>
               history_prompt_tokens;
@@ -401,7 +401,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             return !abort_notification->HasBeenNotified();
           });
 
-          VLOG(4) << "Matches found: " << history_data.size();
+          VLOG(4) << "Matches found: " << history_data.read().size();
 
           // For sorting.
           std::unordered_set<naive_bayes::Feature> current_features;
@@ -422,7 +422,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
               tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
             }
             output.lines.push_back(
-                ColorizeLine(NewLazyString(key.ToString()), std::move(tokens)));
+                ColorizeLine(NewLazyString(key.read()), std::move(tokens)));
           }
           return output;
         });

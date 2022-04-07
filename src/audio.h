@@ -24,21 +24,7 @@
 namespace afc::editor {
 struct AudioGenerator;
 
-class AudioFrequency {
- public:
-  GHOST_TYPE_CONSTRUCTOR(AudioFrequency, value);
-  GHOST_TYPE_EQ(AudioFrequency, value);
-  GHOST_TYPE_LT(AudioFrequency, value);
-
-  double read() const { return value; }
-
- private:
-  GHOST_TYPE_OUTPUT_FRIEND(AudioFrequency, value);
-  GHOST_TYPE_HASH_FRIEND(AudioFrequency, value);
-  double value;
-};
-
-GHOST_TYPE_OUTPUT(AudioFrequency, value);
+GHOST_TYPE(AudioFrequency, double, value);
 
 class AudioPlayer {
  public:

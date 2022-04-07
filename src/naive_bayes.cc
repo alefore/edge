@@ -34,7 +34,7 @@ const bool get_event_probability_tests_registration = tests::Register(
      {.name = L"SingleEventSingleInstance",
       .callback =
           [] {
-            History history;
+            History history({});
             history[Event(L"m0")].push_back(
                 FeaturesSet({Feature(L"foo"), Feature(L"bar")}));
             auto result = GetEventProbability(history);
@@ -45,7 +45,7 @@ const bool get_event_probability_tests_registration = tests::Register(
      {.name = L"SingleEventMultipleInstance",
       .callback =
           [] {
-            History history;
+            History history({});
             history[Event(L"m0")] = {
                 FeaturesSet({Feature(L"foo"), Feature(L"bar")}),
                 FeaturesSet({Feature(L"foo")}), FeaturesSet({Feature(L"bar")})};
@@ -55,7 +55,7 @@ const bool get_event_probability_tests_registration = tests::Register(
             CHECK_EQ(result.find(Event(L"m0"))->second, 1.0);
           }},
      {.name = L"MultipleEvents", .callback = [] {
-        History history;
+        History history({});
         history[Event(L"m0")] = {
             FeaturesSet({Feature(L"1")}), FeaturesSet({Feature(L"2")}),
             FeaturesSet({Feature(L"3")}), FeaturesSet({Feature(L"4")}),
@@ -103,11 +103,14 @@ const bool get_per_event_feature_probability_tests_registration =
         L"GetPerEventFeatureProbabilityTests",
         {{.name = L"Empty",
           .callback =
-              [] { CHECK_EQ(GetPerEventFeatureProbability({}).size(), 0ul); }},
+              [] {
+                CHECK_EQ(GetPerEventFeatureProbability(History({})).size(),
+                         0ul);
+              }},
          {.name = L"SingleEventSingleInstance",
           .callback =
               [] {
-                History history;
+                History history({});
                 history[Event(L"m0")].push_back(
                     FeaturesSet({Feature(L"a"), Feature(L"b")}));
                 auto result = GetPerEventFeatureProbability(history);
@@ -124,7 +127,7 @@ const bool get_per_event_feature_probability_tests_registration =
          {.name = L"SingleEventMultipleInstances",
           .callback =
               [] {
-                History history;
+                History history({});
                 history[Event(L"m0")] = {
                     FeaturesSet({Feature(L"a"), Feature(L"b"), Feature(L"c")}),
                     FeaturesSet({Feature(L"a"), Feature(L"b")}),
@@ -145,7 +148,7 @@ const bool get_per_event_feature_probability_tests_registration =
                 CHECK_EQ(result[Event(L"m0")][Feature(L"c")], 0.2);
               }},
          {.name = L"MultipleEventMultipleInstance", .callback = [] {
-            History history;
+            History history({});
             history[Event(L"m0")] = {
                 FeaturesSet({Feature(L"a"), Feature(L"b"), Feature(L"c")}),
                 FeaturesSet({Feature(L"a"), Feature(L"b")}),
@@ -301,18 +304,20 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
     L"BayesSortTests",
     {
         {.name = L"EmptyHistoryAndFeatures",
-         .callback = [] { CHECK_EQ(Sort({}, FeaturesSet({})).size(), 0ul); }},
+         .callback =
+             [] { CHECK_EQ(Sort(History({}), FeaturesSet({})).size(), 0ul); }},
         {.name = L"EmptyHistory",
          .callback =
              [] {
-               CHECK_EQ(
-                   Sort({}, FeaturesSet({Feature(L"a"), Feature(L"b")})).size(),
-                   0ul);
+               CHECK_EQ(Sort(History({}),
+                             FeaturesSet({Feature(L"a"), Feature(L"b")}))
+                            .size(),
+                        0ul);
              }},
         {.name = L"EmptyFeatures",
          .callback =
              [] {
-               History history;
+               History history({});
                history[Event(L"m0")] = {FeaturesSet({Feature(L"a")}),
                                         FeaturesSet({Feature(L"b")})};
                history[Event(L"m1")] = {FeaturesSet({Feature(L"c")})};
@@ -324,7 +329,7 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
         {.name = L"NewFeature",
          .callback =
              [] {
-               History history;
+               History history({});
                history[Event(L"m0")] = {FeaturesSet({Feature(L"a")}),
                                         FeaturesSet({Feature(L"b")})};
                history[Event(L"m1")] = {FeaturesSet({Feature(L"c")})};
@@ -337,7 +342,7 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
         {.name = L"FeatureSelects",
          .callback =
              [] {
-               History history;
+               History history({});
                history[Event(L"m0")] = {FeaturesSet({Feature(L"a")}),
                                         FeaturesSet({Feature(L"b")})};
                history[Event(L"m1")] = {FeaturesSet({Feature(L"c")})};
@@ -349,7 +354,7 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
         {.name = L"FeatureSelectsSomeOverlap",
          .callback =
              [] {
-               History history;
+               History history({});
                history[Event(L"m0")] = {FeaturesSet({Feature(L"a")}),
                                         FeaturesSet({Feature(L"b")})};
                history[Event(L"m1")] = {FeaturesSet({Feature(L"a")})};
@@ -361,7 +366,7 @@ const bool bayes_sort_tests_probability_tests_registration = tests::Register(
         {.name = L"FeatureSelectsFive",
          .callback =
              [] {
-               History history;
+               History history({});
                history[Event(L"m0")] = {
                    FeaturesSet({Feature(L"1")}),
                    FeaturesSet({Feature(L"a"), Feature(L"red")}),

@@ -9,7 +9,7 @@ namespace afc::editor {
 
 class URL {
  public:
-  GHOST_TYPE_CONSTRUCTOR(URL, value_);
+  GHOST_TYPE_CONSTRUCTOR(URL, std::wstring, value_);
 
   static URL FromPath(Path path);
 
