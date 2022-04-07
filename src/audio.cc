@@ -14,7 +14,7 @@ struct AudioGenerator {
 
 namespace {
 #if HAVE_LIBAO
-AudioGenerator::Callback Oscillate(AudioPlayer::Frequency freq) {
+AudioGenerator::Callback Oscillate(audio::Frequency freq) {
   return [freq](AudioPlayer::Time time) {
     return (int)(32768.0 * sin(2 * M_PI * freq.read() * time));
   };
@@ -193,7 +193,7 @@ std::unique_ptr<AudioPlayer> NewAudioPlayer() {
 #endif
 }
 
-void GenerateBeep(AudioPlayer& audio_player, AudioPlayer::Frequency frequency) {
+void GenerateBeep(AudioPlayer& audio_player, audio::Frequency frequency) {
   VLOG(5) << "Generating Beep";
   auto lock = audio_player.lock();
   AudioPlayer::Time start = lock->time();
@@ -206,7 +206,7 @@ void GenerateBeep(AudioPlayer& audio_player, AudioPlayer::Frequency frequency) {
 }
 
 void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
-                     const std::vector<AudioPlayer::Frequency>& frequencies) {
+                     const std::vector<audio::Frequency>& frequencies) {
   auto lock = audio_player.lock();
   for (size_t i = 0; i < frequencies.size(); i++) {
     AudioPlayer::Time start = lock->time() + i * duration;
@@ -220,9 +220,9 @@ void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
 
 void GenerateAlert(AudioPlayer& audio_player) {
   VLOG(5) << "Generating Beep";
-  BeepFrequencies(
-      audio_player, 0.1,
-      {AudioFrequency(523.25), AudioFrequency(659.25), AudioFrequency(783.99)});
+  BeepFrequencies(audio_player, 0.1,
+                  {audio::Frequency(523.25), audio::Frequency(659.25),
+                   audio::Frequency(783.99)});
 }
 
 AudioGenerator ApplyVolume(

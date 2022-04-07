@@ -24,7 +24,9 @@
 namespace afc::editor {
 struct AudioGenerator;
 
-GHOST_TYPE(AudioFrequency, double, value);
+namespace audio {
+GHOST_TYPE(Frequency, double, value);
+}
 
 class AudioPlayer {
  public:
@@ -32,7 +34,6 @@ class AudioPlayer {
   using Duration = double;
   using Volume = double;
   using SpeakerValue = double;
-  using Frequency = AudioFrequency;
 
   class Lock {
    public:
@@ -48,10 +49,10 @@ class AudioPlayer {
 std::unique_ptr<AudioPlayer> NewAudioPlayer();
 std::unique_ptr<AudioPlayer> NewNullAudioPlayer();
 
-void GenerateBeep(AudioPlayer& audio_player, AudioPlayer::Frequency frequency);
+void GenerateBeep(AudioPlayer& audio_player, audio::Frequency frequency);
 void GenerateAlert(AudioPlayer& audio_player);
 void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
-                     const std::vector<AudioFrequency>& frequencies);
+                     const std::vector<audio::Frequency>& frequencies);
 
 AudioGenerator ApplyVolume(
     std::function<AudioPlayer::Volume(AudioPlayer::Time)> volume,
@@ -63,6 +64,6 @@ AudioGenerator Volume(AudioPlayer::Volume volume, AudioGenerator generator);
 
 }  // namespace afc::editor
 
-GHOST_TYPE_HASH(afc::editor::AudioFrequency, value);
+GHOST_TYPE_HASH(afc::editor::audio::Frequency, value);
 
 #endif  // __AFC_EDITOR_AUDIO_H__

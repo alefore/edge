@@ -211,13 +211,13 @@ futures::Value<PossibleError> GenerateContents(
           CHECK(target.child_exit_status().has_value());
           int success = WIFEXITED(target.child_exit_status().value()) &&
                         WEXITSTATUS(target.child_exit_status().value()) == 0;
-          const AudioFrequency frequency(
+          const audio::Frequency frequency(
               target.Read(success ? buffer_variables::beep_frequency_success
                                   : buffer_variables::beep_frequency_failure));
-          if (AudioFrequency(0.0001) < frequency) {
+          if (audio::Frequency(0.0001) < frequency) {
             BeepFrequencies(
                 editor_state.audio_player(), 0.1,
-                std::vector<AudioFrequency>(success ? 1 : 2, frequency));
+                std::vector<audio::Frequency>(success ? 1 : 2, frequency));
           }
         }
         time(&data->time_end);
