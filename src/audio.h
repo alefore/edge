@@ -26,9 +26,8 @@ struct AudioGenerator;
 
 namespace audio {
 GHOST_TYPE(Frequency, double, value);
-}
 
-class AudioPlayer {
+class Player {
  public:
   using Time = double;
   using Duration = double;
@@ -42,12 +41,15 @@ class AudioPlayer {
     virtual void Add(AudioGenerator) = 0;
   };
 
-  virtual ~AudioPlayer() {}
+  virtual ~Player() {}
   virtual std::unique_ptr<Lock> lock() = 0;
 };
 
-std::unique_ptr<AudioPlayer> NewAudioPlayer();
-std::unique_ptr<AudioPlayer> NewNullAudioPlayer();
+std::unique_ptr<Player> NewPlayer();
+std::unique_ptr<Player> NewNullPlayer();
+}  // namespace audio
+
+using AudioPlayer = audio::Player;
 
 void GenerateBeep(AudioPlayer& audio_player, audio::Frequency frequency);
 void GenerateAlert(AudioPlayer& audio_player);

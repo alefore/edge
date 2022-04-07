@@ -5,6 +5,7 @@
 #include "src/protected.h"
 
 namespace afc::editor {
+
 struct AudioGenerator {
   using Callback = std::function<AudioPlayer::SpeakerValue(AudioPlayer::Time)>;
   Callback callback;
@@ -12,14 +13,16 @@ struct AudioGenerator {
   AudioPlayer::Time end_time;
 };
 
-namespace {
 #if HAVE_LIBAO
+namespace {
 AudioGenerator::Callback Oscillate(audio::Frequency freq) {
   return [freq](AudioPlayer::Time time) {
     return (int)(32768.0 * sin(2 * M_PI * freq.read() * time));
   };
 }
+}  // namespace
 
+namespace audio {
 class Frame {
  public:
   Frame(int size)
@@ -154,25 +157,28 @@ class AudioPlayerImpl : public AudioPlayer {
 
   std::thread background_thread_;
 };
+}  // namespace audio
 #endif
 
-class NullAudioPlayer : public AudioPlayer {
-  class NullLock : public AudioPlayer::Lock {
+namespace audio {
+namespace {
+class NullPlayer : public Player {
+  class NullLock : public Player::Lock {
     double time() const override { return 0; }
     void Add(AudioGenerator) override {}
   };
 
-  std::unique_ptr<AudioPlayer::Lock> lock() override {
+  std::unique_ptr<Player::Lock> lock() override {
     return std::make_unique<NullLock>();
   }
 };
 }  // namespace
 
-std::unique_ptr<AudioPlayer> NewNullAudioPlayer() {
-  return std::make_unique<NullAudioPlayer>();
+std::unique_ptr<AudioPlayer> NewNullPlayer() {
+  return std::make_unique<NullPlayer>();
 }
 
-std::unique_ptr<AudioPlayer> NewAudioPlayer() {
+std::unique_ptr<AudioPlayer> NewPlayer() {
 #if HAVE_LIBAO
   ao_initialize();
   ao_sample_format format;
@@ -185,13 +191,14 @@ std::unique_ptr<AudioPlayer> NewAudioPlayer() {
   ao_device* device = ao_open_live(ao_default_driver_id(), &format, nullptr);
   if (device == NULL) {
     fprintf(stderr, "Error opening device.\n");
-    return NewNullAudioPlayer();
+    return NewNullPlayer();
   }
   return std::make_unique<AudioPlayerImpl>(device, format);
 #else
-  return NewNullAudioPlayer();
+  return NewNullPlayer();
 #endif
 }
+}  // namespace audio
 
 void GenerateBeep(AudioPlayer& audio_player, audio::Frequency frequency) {
   VLOG(5) << "Generating Beep";

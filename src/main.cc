@@ -286,8 +286,8 @@ int main(int argc, const char** argv) {
                                                  argc, argv);
 
   LOG(INFO) << "Setting up audio_player.";
-  const std::unique_ptr<AudioPlayer> audio_player =
-      args.mute ? NewNullAudioPlayer() : NewAudioPlayer();
+  const std::unique_ptr<audio::Player> audio_player =
+      args.mute ? audio::NewNullPlayer() : audio::NewPlayer();
 
   LOG(INFO) << "Creating editor.";
   global_editor_state = std::make_unique<EditorState>(args, *audio_player);
