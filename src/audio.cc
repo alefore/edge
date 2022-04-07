@@ -16,7 +16,7 @@ namespace {
 #if HAVE_LIBAO
 AudioGenerator::Callback Oscillate(AudioPlayer::Frequency freq) {
   return [freq](AudioPlayer::Time time) {
-    return (int)(32768.0 * sin(2 * M_PI * freq * time));
+    return (int)(32768.0 * sin(2 * M_PI * freq.read() * time));
   };
 }
 
@@ -220,7 +220,9 @@ void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
 
 void GenerateAlert(AudioPlayer& audio_player) {
   VLOG(5) << "Generating Beep";
-  BeepFrequencies(audio_player, 0.1, {523.25, 659.25, 783.99});
+  BeepFrequencies(
+      audio_player, 0.1,
+      {AudioFrequency(523.25), AudioFrequency(659.25), AudioFrequency(783.99)});
 }
 
 AudioGenerator ApplyVolume(

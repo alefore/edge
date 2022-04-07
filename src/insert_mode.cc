@@ -535,7 +535,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   }
   if (beep) {
     BeepFrequencies(options.editor_state.audio_player(), 0.1,
-                    {659.25, 1046.50});
+                    {AudioFrequency(659.25), AudioFrequency(1046.50)});
   }
 }
 }  // namespace

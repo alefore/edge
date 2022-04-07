@@ -19,16 +19,34 @@
 #include <thread>
 #include <vector>
 
+#include "src/ghost_type.h"
+
 namespace afc::editor {
 struct AudioGenerator;
+
+class AudioFrequency {
+ public:
+  GHOST_TYPE_CONSTRUCTOR(AudioFrequency, value);
+  GHOST_TYPE_EQ(AudioFrequency, value);
+  GHOST_TYPE_LT(AudioFrequency, value);
+
+  double read() const { return value; }
+
+ private:
+  GHOST_TYPE_OUTPUT_FRIEND(AudioFrequency, value);
+  GHOST_TYPE_HASH_FRIEND(AudioFrequency, value);
+  double value;
+};
+
+GHOST_TYPE_OUTPUT(AudioFrequency, value);
 
 class AudioPlayer {
  public:
   using Time = double;
   using Duration = double;
-  using Frequency = double;
   using Volume = double;
   using SpeakerValue = double;
+  using Frequency = AudioFrequency;
 
   class Lock {
    public:
@@ -47,7 +65,7 @@ std::unique_ptr<AudioPlayer> NewNullAudioPlayer();
 void GenerateBeep(AudioPlayer& audio_player, AudioPlayer::Frequency frequency);
 void GenerateAlert(AudioPlayer& audio_player);
 void BeepFrequencies(AudioPlayer& audio_player, AudioPlayer::Duration duration,
-                     const std::vector<double>& frequencies);
+                     const std::vector<AudioFrequency>& frequencies);
 
 AudioGenerator ApplyVolume(
     std::function<AudioPlayer::Volume(AudioPlayer::Time)> volume,
@@ -58,5 +76,7 @@ std::function<AudioPlayer::Volume(AudioPlayer::Time)> SmoothVolume(
 AudioGenerator Volume(AudioPlayer::Volume volume, AudioGenerator generator);
 
 }  // namespace afc::editor
+
+GHOST_TYPE_HASH(afc::editor::AudioFrequency, value);
 
 #endif  // __AFC_EDITOR_AUDIO_H__
