@@ -582,6 +582,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     string_variables_.AddObserver(v, [this] {
       UpdateTreeParser();
       MaybeStartUpdatingSyntaxTrees();
+      return ObserverState::kAlive;
     });
 }
 

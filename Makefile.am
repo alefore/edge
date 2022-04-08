@@ -220,6 +220,8 @@ src/url.cc \
 src/url.h \
 src/value_or_error.cc \
 src/value_or_error.h \
+src/variables.cc \
+src/variables.h \
 src/viewers.cc \
 src/viewers.h \
 src/vm_transformation.cc \
