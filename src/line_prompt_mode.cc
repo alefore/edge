@@ -311,7 +311,6 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
 
 futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
     EditorState& editor_state, std::shared_ptr<OpenBuffer> history_buffer,
-    std::shared_ptr<AsyncEvaluator> history_evaluator,
     std::shared_ptr<Notification> abort_notification, std::wstring filter) {
   BufferName name(L"- history filter: " + history_buffer->name().ToString() +
                   L": " + filter);
@@ -329,14 +328,17 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
 
   return history_buffer->WaitForEndOfFile()
       .Transform([&editor_state, filter_buffer, history_buffer,
-                  history_evaluator, abort_notification, filter](EmptyValue) {
-        return history_evaluator->Run([abort_notification, filter,
-                                       history_contents =
-                                           std::shared_ptr<BufferContents>(
-                                               history_buffer->contents()
-                                                   .copy()),
-                                       features = GetCurrentFeatures(
-                                           editor_state)]() -> Output {
+                  abort_notification, filter](EmptyValue) {
+        return editor_state.thread_pool().Run([abort_notification, filter,
+                                               history_contents =
+                                                   std::shared_ptr<
+                                                       BufferContents>(
+                                                       history_buffer
+                                                           ->contents()
+                                                           .copy()),
+                                               features = GetCurrentFeatures(
+                                                   editor_state)]() -> Output {
+          if (abort_notification->HasBeenNotified()) return Output{};
           Output output;
           // Sets of features for each unique `prompt` value in the history.
           naive_bayes::History history_data({});
@@ -427,26 +429,26 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
           return output;
         });
       })
-      .Transform([&editor_state, history_evaluator, abort_notification,
-                  filter_buffer](Output output) {
-        LOG(INFO) << "Receiving output from history evaluator.";
-        if (!output.errors.empty()) {
-          editor_state.status().SetExpiringInformationText(
-              output.errors.front());
-        }
-        if (!abort_notification->HasBeenNotified()) {
-          for (auto& line : output.lines) {
-            filter_buffer->AppendRawLine(line);
-          }
+      .Transform(
+          [&editor_state, abort_notification, filter_buffer](Output output) {
+            LOG(INFO) << "Receiving output from history evaluator.";
+            if (!output.errors.empty()) {
+              editor_state.status().SetExpiringInformationText(
+                  output.errors.front());
+            }
+            if (!abort_notification->HasBeenNotified()) {
+              for (auto& line : output.lines) {
+                filter_buffer->AppendRawLine(line);
+              }
 
-          if (filter_buffer->lines_size() > LineNumberDelta(1)) {
-            VLOG(5) << "Erasing the first (empty) line.";
-            CHECK(filter_buffer->LineAt(LineNumber())->empty());
-            filter_buffer->EraseLines(LineNumber(), LineNumber().next());
-          }
-        }
-        return filter_buffer;
-      });
+              if (filter_buffer->lines_size() > LineNumberDelta(1)) {
+                VLOG(5) << "Erasing the first (empty) line.";
+                CHECK(filter_buffer->LineAt(LineNumber())->empty());
+                filter_buffer->EraseLines(LineNumber(), LineNumber().next());
+              }
+            }
+            return filter_buffer;
+          });
 }
 
 shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
@@ -628,26 +630,23 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
  public:
-  HistoryScrollBehaviorFactory(
-      EditorState& editor_state, wstring prompt,
-      std::shared_ptr<OpenBuffer> history,
-      std::shared_ptr<AsyncEvaluator> history_evaluator,
-      std::shared_ptr<PromptState> prompt_state,
-      std::shared_ptr<OpenBuffer> buffer)
+  HistoryScrollBehaviorFactory(EditorState& editor_state, wstring prompt,
+                               std::shared_ptr<OpenBuffer> history,
+                               std::shared_ptr<PromptState> prompt_state,
+                               std::shared_ptr<OpenBuffer> buffer)
       : editor_state_(editor_state),
         prompt_(std::move(prompt)),
         history_(std::move(history)),
         prompt_state_(std::move(prompt_state)),
-        buffer_(std::move(buffer)),
-        history_evaluator_(std::move(history_evaluator)) {}
+        buffer_(std::move(buffer)) {}
 
   futures::Value<std::unique_ptr<ScrollBehavior>> Build(
       std::shared_ptr<Notification> abort_notification) override {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     std::shared_ptr<LazyString> input =
         buffer_->contents().at(LineNumber(0))->contents();
-    return FilterHistory(editor_state_, history_, history_evaluator_,
-                         abort_notification, input->ToString())
+    return FilterHistory(editor_state_, history_, abort_notification,
+                         input->ToString())
         .Transform([input, prompt_state = prompt_state_](
                        std::shared_ptr<OpenBuffer> history)
                        -> std::unique_ptr<ScrollBehavior> {
@@ -664,7 +663,6 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
   const std::shared_ptr<OpenBuffer> history_;
   const std::shared_ptr<PromptState> prompt_state_;
   const std::shared_ptr<OpenBuffer> buffer_;
-  const std::shared_ptr<AsyncEvaluator> history_evaluator_;
 };
 
 class LinePromptCommand : public Command {
@@ -773,9 +771,6 @@ void Prompt(PromptOptions options) {
             {.contents_to_insert = std::make_unique<BufferContents>(
                  std::make_shared<Line>(options.initial_value))}));
 
-        auto history_evaluator = std::make_shared<AsyncEvaluator>(
-            L"HistoryScrollBehaviorFactory", buffer->work_queue());
-
         // Notification that can be used to abort an ongoing execution of
         // `colorize_options_provider`. Every time we call
         // `colorize_options_provider` from modify_handler, we notify the
@@ -788,8 +783,8 @@ void Prompt(PromptOptions options) {
             .editor_state = editor_state,
             .buffers = {{buffer}},
             .modify_handler =
-                [&editor_state, history_evaluator, history, prompt_state,
-                 options, abort_notification_ptr](OpenBuffer& buffer) {
+                [&editor_state, history, prompt_state, options,
+                 abort_notification_ptr](OpenBuffer& buffer) {
                   std::shared_ptr<LazyString> line =
                       buffer.contents().at(LineNumber())->contents();
                   if (options.colorize_options_provider == nullptr ||
@@ -812,9 +807,9 @@ void Prompt(PromptOptions options) {
                   (*abort_notification_ptr)->Notify();
                   *abort_notification_ptr = std::make_shared<Notification>();
                   return JoinValues(
-                             FilterHistory(
-                                 editor_state, history, history_evaluator,
-                                 *abort_notification_ptr, line->ToString())
+                             FilterHistory(editor_state, history,
+                                           *abort_notification_ptr,
+                                           line->ToString())
                                  .Transform([prompt_render_state](
                                                 std::shared_ptr<OpenBuffer>
                                                     filtered_history) {
@@ -856,8 +851,7 @@ void Prompt(PromptOptions options) {
                       .Transform([](auto) { return EmptyValue(); });
                 },
             .scroll_behavior = std::make_unique<HistoryScrollBehaviorFactory>(
-                editor_state, options.prompt, history, history_evaluator,
-                prompt_state, buffer),
+                editor_state, options.prompt, history, prompt_state, buffer),
             .escape_handler =
                 [&editor_state, options, prompt_state]() {
                   LOG(INFO) << "Running escape_handler from Prompt.";

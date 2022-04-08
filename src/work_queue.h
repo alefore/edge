@@ -28,6 +28,8 @@ namespace afc::editor {
 // tree) only happens in "batches", after a set of operations has been applied
 // to the buffer (rather than having to schedule many redundant runs, e.g., when
 // input is being gradually read from a file).
+//
+// This class is thread-safe.
 class WorkQueue {
  public:
   struct ConstructorAccessTag {

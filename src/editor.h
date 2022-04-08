@@ -23,6 +23,7 @@
 #include "src/line_marks.h"
 #include "src/modifiers.h"
 #include "src/status.h"
+#include "src/thread_pool.h"
 #include "src/transformation.h"
 #include "src/transformation/type.h"
 #include "src/widget.h"
@@ -220,6 +221,7 @@ class EditorState {
   void ExecutePendingWork();
   std::optional<struct timespec> WorkQueueNextExecution() const;
   const std::shared_ptr<WorkQueue>& work_queue() const;
+  ThreadPool& thread_pool();
 
   void ResetInternalEventNotifications();
 
@@ -233,6 +235,7 @@ class EditorState {
   EdgeStructInstance<int> int_variables_;
 
   const std::shared_ptr<WorkQueue> work_queue_;
+  ThreadPool thread_pool_;
 
   std::map<BufferName, std::shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;

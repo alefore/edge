@@ -181,6 +181,8 @@ src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
 src/tests/tests.cc \
 src/tests/tests.h \
+src/thread_pool.cc \
+src/thread_pool.h \
 src/time.cc \
 src/time.h \
 src/tokenize.cc \

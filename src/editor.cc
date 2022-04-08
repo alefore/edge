@@ -112,6 +112,8 @@ const std::shared_ptr<WorkQueue>& EditorState::work_queue() const {
   return work_queue_;
 }
 
+ThreadPool& EditorState::thread_pool() { return thread_pool_; }
+
 void EditorState::ResetInternalEventNotifications() {
   char buffer[4096];
   VLOG(5) << "Internal events detected.";
@@ -489,6 +491,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer& audio_player)
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       work_queue_(WorkQueue::New([this] { NotifyInternalEvent(); })),
+      thread_pool_(2, work_queue_),
       home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
         std::vector<Path> output;

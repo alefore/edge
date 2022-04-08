@@ -222,7 +222,6 @@ class AsyncEvaluator {
   std::shared_ptr<BackgroundCallbackRunner> background_callback_runner_;
   std::shared_ptr<WorkQueue> work_queue_;
 };
-
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_ASYNC_PROCESSOR_H__
