@@ -4,9 +4,8 @@
 
 #include "src/protected.h"
 
-namespace afc::editor {
-
-struct AudioGenerator {
+namespace afc::editor::audio {
+struct Generator {
   using Callback =
       std::function<audio::Player::SpeakerValue(audio::Player::Time)>;
   Callback callback;
@@ -15,9 +14,9 @@ struct AudioGenerator {
 };
 
 namespace {
-AudioGenerator ApplyVolume(
+Generator ApplyVolume(
     std::function<audio::Player::Volume(audio::Player::Time)> volume,
-    AudioGenerator generator) {
+    Generator generator) {
   generator.callback =
       [volume, callback = generator.callback](audio::Player::Time time) {
         return callback(time) * volume(time);
@@ -39,18 +38,14 @@ std::function<audio::Player::Volume(audio::Player::Time)> SmoothVolume(
     return volume;
   };
 }
-}  // namespace
 
 #if HAVE_LIBAO
-namespace {
-AudioGenerator::Callback Oscillate(audio::Frequency freq) {
+Generator::Callback Oscillate(audio::Frequency freq) {
   return [freq](audio::Player::Time time) {
     return (int)(32768.0 * sin(2 * M_PI * freq.read() * time));
   };
 }
-}  // namespace
 
-namespace audio {
 class Frame {
  public:
   Frame(int size)
@@ -83,7 +78,7 @@ class Frame {
 
 class PlayerImpl : public Player {
   struct MutableData {
-    std::vector<AudioGenerator> generators;
+    std::vector<Generator> generators;
     // We gradually adjust the volume depending on the number of enabled
     // generators. This roughly assumes that a generator's volume is constant as
     // long as it's enabled.
@@ -112,7 +107,7 @@ class PlayerImpl : public Player {
     PlayerImplLock(Protected<MutableData>::Lock data)
         : data_(std::move(data)) {}
 
-    void Add(AudioGenerator generator) override {
+    void Add(Generator generator) override {
       LOG(INFO) << "Adding generator: " << data_->generators.size();
       data_->generators.push_back(std::move(generator));
     }
@@ -146,7 +141,7 @@ class PlayerImpl : public Player {
       Protected<MutableData>::Lock data = data_.lock();
       if (data->shutting_down) return false;
       CHECK_LT(data->generators.size(), 100ul);
-      std::vector<AudioGenerator*> enabled_generators;
+      std::vector<Generator*> enabled_generators;
       for (auto& generator : data->generators)
         if (generator.start_time <= data->time)
           enabled_generators.push_back(&generator);
@@ -163,7 +158,7 @@ class PlayerImpl : public Player {
         data->time += iterations * delta;
       }
 
-      std::vector<AudioGenerator> next_generators;
+      std::vector<Generator> next_generators;
       for (auto& generator : data->generators)
         if (generator.end_time > data->time)
           next_generators.push_back(std::move(generator));
@@ -185,15 +180,12 @@ class PlayerImpl : public Player {
 
   std::thread background_thread_;
 };
-}  // namespace audio
 #endif
 
-namespace audio {
-namespace {
 class NullPlayer : public Player {
   class NullLock : public Player::Lock {
     double time() const override { return 0; }
-    void Add(AudioGenerator) override {}
+    void Add(Generator) override {}
   };
 
   std::unique_ptr<Player::Lock> lock() override {
@@ -258,6 +250,4 @@ void GenerateAlert(Player& player) {
                   {Frequency(523.25), Frequency(659.25), Frequency(783.99)});
 }
 
-}  // namespace audio
-
-}  // namespace afc::editor
+}  // namespace afc::editor::audio

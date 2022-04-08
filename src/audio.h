@@ -21,11 +21,10 @@
 
 #include "src/ghost_type.h"
 
-namespace afc::editor {
-struct AudioGenerator;
-
-namespace audio {
+namespace afc::editor::audio {
 GHOST_TYPE(Frequency, double, value);
+
+struct Generator;
 
 class Player {
  public:
@@ -38,7 +37,7 @@ class Player {
    public:
     virtual ~Lock() {}
     virtual Time time() const = 0;
-    virtual void Add(AudioGenerator) = 0;
+    virtual void Add(Generator) = 0;
   };
 
   virtual ~Player() {}
@@ -52,8 +51,7 @@ void GenerateBeep(Player& player, Frequency frequency);
 void BeepFrequencies(Player& player, Player::Duration duration,
                      const std::vector<Frequency>& frequencies);
 void GenerateAlert(Player& player);
-}  // namespace audio
-}  // namespace afc::editor
+}  // namespace afc::editor::audio
 
 GHOST_TYPE_HASH(afc::editor::audio::Frequency, value);
 
