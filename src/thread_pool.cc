@@ -18,11 +18,15 @@ ThreadPool::ThreadPool(size_t size,
 }
 
 ThreadPool::~ThreadPool() {
-  data_.lock([](Data& data, std::condition_variable& condition) {
+  std::vector<std::thread> threads;
+  data_.lock([&threads](Data& data, std::condition_variable& condition) {
     CHECK(!data.shutting_down);
     data.shutting_down = true;
     condition.notify_all();
+    threads.swap(data.threads);
   });
+  LOG(INFO) << "Joining threads.";
+  for (auto& t : threads) t.join();
 }
 
 void ThreadPool::Schedule(std::function<void()> work) {
