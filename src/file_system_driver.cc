@@ -12,14 +12,12 @@ PossibleError SyscallReturnValue(std::wstring description, int return_value) {
 }
 }  // namespace
 
-FileSystemDriver::FileSystemDriver(std::shared_ptr<WorkQueue> work_queue)
-    : evaluator_(L"FilesystemDriver", work_queue) {
-  CHECK(work_queue != nullptr);
-}
+FileSystemDriver::FileSystemDriver(ThreadPool& thread_pool)
+    : thread_pool_(thread_pool) {}
 
 futures::Value<ValueOrError<int>> FileSystemDriver::Open(Path path, int flags,
                                                          mode_t mode) const {
-  return evaluator_.Run([path = std::move(path), flags, mode]() {
+  return thread_pool_.Run([path = std::move(path), flags, mode]() {
     LOG(INFO) << "Opening file:" << path;
     int fd = open(ToByteString(path.ToString()).c_str(), flags, mode);
     PossibleError output = SyscallReturnValue(L"Open: " + path.ToString(), fd);
@@ -28,13 +26,13 @@ futures::Value<ValueOrError<int>> FileSystemDriver::Open(Path path, int flags,
 }
 
 futures::Value<PossibleError> FileSystemDriver::Close(int fd) const {
-  return evaluator_.Run(
+  return thread_pool_.Run(
       [fd] { return SyscallReturnValue(L"Close", close(fd)); });
 }
 
 futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
-  return evaluator_.Run([path =
-                             std::move(path)]() -> ValueOrError<struct stat> {
+  return thread_pool_.Run([path =
+                               std::move(path)]() -> ValueOrError<struct stat> {
     struct stat output;
     if (stat(ToByteString(path.ToString()).c_str(), &output) == -1) {
       return Error(L"Stat failed: `" + path.ToString() + L"`: " +
@@ -46,7 +44,7 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
 
 futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
                                                        Path newpath) const {
-  return evaluator_.Run([oldpath, newpath] {
+  return thread_pool_.Run([oldpath, newpath] {
     return SyscallReturnValue(L"Rename",
                               rename(ToByteString(oldpath.ToString()).c_str(),
                                      ToByteString(newpath.ToString()).c_str()));
@@ -55,7 +53,7 @@ futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
 
 futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
                                                       mode_t mode) const {
-  return evaluator_.Run([path, mode] {
+  return thread_pool_.Run([path, mode] {
     return AugmentErrors(
         path.ToString(),
         SyscallReturnValue(L"Mkdir",

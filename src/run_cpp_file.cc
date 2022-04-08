@@ -67,7 +67,7 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
   buffer->ResetMode();
   auto options = ResolvePathOptions::New(
       editor_state,
-      std::make_shared<FileSystemDriver>(editor_state.work_queue()));
+      std::make_shared<FileSystemDriver>(editor_state.thread_pool()));
   options.path = input;
   return OnError(ResolvePath(std::move(options)),
                  [buffer, input](Error error) {

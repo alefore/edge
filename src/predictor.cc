@@ -455,7 +455,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       .search_paths = {},
       .resolve_path_options = ResolvePathOptions::New(
           predictor_input.editor, std::make_shared<FileSystemDriver>(
-                                      predictor_input.editor.work_queue())),
+                                      predictor_input.editor.thread_pool())),
       // TODO: Don't use sources_buffers[0], ignoring the other buffers.
       .noise_regex = predictor_input.source_buffers.empty()
                          ? std::wregex()

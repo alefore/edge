@@ -190,7 +190,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
        .path = address,
        .generate_contents =
            [file_system_driver = std::make_shared<FileSystemDriver>(
-                editor_state.work_queue())](OpenBuffer& target) {
+                editor_state.thread_pool())](OpenBuffer& target) {
              return GenerateContents(file_system_driver, target);
            }});
   buffer->Set(buffer_variables::clear_on_reload, false);

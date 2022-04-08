@@ -20,7 +20,7 @@ extern "C" {
 #include "src/async_processor.h"
 #include "src/dirname.h"
 #include "src/futures/futures.h"
-#include "src/work_queue.h"
+#include "src/thread_pool.h"
 
 namespace afc::editor {
 
@@ -30,7 +30,7 @@ namespace afc::editor {
 // main thread).
 class FileSystemDriver {
  public:
-  FileSystemDriver(std::shared_ptr<WorkQueue> work_queue);
+  FileSystemDriver(ThreadPool& thread_pool);
 
   futures::Value<ValueOrError<int>> Open(Path path, int flags,
                                          mode_t mode) const;
@@ -40,7 +40,7 @@ class FileSystemDriver {
   futures::Value<PossibleError> Mkdir(Path path, mode_t mode) const;
 
  private:
-  mutable AsyncEvaluator evaluator_;
+  ThreadPool& thread_pool_;
 };
 
 }  // namespace afc::editor

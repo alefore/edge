@@ -486,7 +486,7 @@ using std::to_wstring;
               wstring resolved_path;
               auto options = ResolvePathOptions::New(
                   editor_state, std::make_shared<FileSystemDriver>(
-                                    editor_state.work_queue()));
+                                    editor_state.thread_pool()));
               options.path = path;
               futures::OnError(
                   ResolvePath(std::move(options))
@@ -570,7 +570,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
                    BackgroundCallbackRunner::Options::QueueBehavior::kFlush),
       syntax_data_view_(L"SyntaxDataView", work_queue_),
       async_read_evaluator_(L"ReadEvaluator", work_queue_),
-      file_system_driver_(work_queue_) {
+      file_system_driver_(editor().thread_pool()) {
   work_queue_->SetScheduleListener(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
       std::weak_ptr<WorkQueue>(work_queue_), editor().work_queue(),
@@ -1060,7 +1060,7 @@ void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
     auto options = ResolvePathOptions::New(
-        editor(), std::make_shared<FileSystemDriver>(editor().work_queue()));
+        editor(), std::make_shared<FileSystemDriver>(editor().thread_pool()));
     auto buffer_name = name();
     for (LineNumberDelta i; i < lines_added; ++i) {
       auto source_line = LineNumber() + start_new_section + i;

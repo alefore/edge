@@ -785,7 +785,7 @@ OpenFile(const OpenFileOptions& options) {
   }
 
   auto file_system_driver =
-      std::make_shared<FileSystemDriver>(editor_state.work_queue());
+      std::make_shared<FileSystemDriver>(editor_state.thread_pool());
 
   return search_paths_future
       .Transform([&editor_state, options, search_paths,
@@ -842,9 +842,9 @@ OpenFile(const OpenFileOptions& options) {
           buffer_options->path = input.path.value();
         }
         buffer_options->log_supplier =
-            [path = input.path](std::shared_ptr<WorkQueue> work_queue,
-                                Path edge_state_directory) {
-              FileSystemDriver driver(work_queue);
+            [path = input.path, &editor_state = options.editor_state](
+                std::shared_ptr<WorkQueue>, Path edge_state_directory) {
+              FileSystemDriver driver(editor_state.thread_pool());
               return NewFileLog(
                   &driver,
                   Path::Join(edge_state_directory,
