@@ -53,8 +53,6 @@ void BeepFrequencies(Player& player, Player::Duration duration,
                      const std::vector<Frequency>& frequencies);
 void GenerateAlert(Player& player);
 }  // namespace audio
-
-using AudioPlayer = audio::Player;
 }  // namespace afc::editor
 
 GHOST_TYPE_HASH(afc::editor::audio::Frequency, value);

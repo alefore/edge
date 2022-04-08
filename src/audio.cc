@@ -7,27 +7,28 @@
 namespace afc::editor {
 
 struct AudioGenerator {
-  using Callback = std::function<AudioPlayer::SpeakerValue(AudioPlayer::Time)>;
+  using Callback =
+      std::function<audio::Player::SpeakerValue(audio::Player::Time)>;
   Callback callback;
-  AudioPlayer::Time start_time;
-  AudioPlayer::Time end_time;
+  audio::Player::Time start_time;
+  audio::Player::Time end_time;
 };
 
 namespace {
 AudioGenerator ApplyVolume(
-    std::function<AudioPlayer::Volume(AudioPlayer::Time)> volume,
+    std::function<audio::Player::Volume(audio::Player::Time)> volume,
     AudioGenerator generator) {
-  generator.callback = [volume,
-                        callback = generator.callback](AudioPlayer::Time time) {
-    return callback(time) * volume(time);
-  };
+  generator.callback =
+      [volume, callback = generator.callback](audio::Player::Time time) {
+        return callback(time) * volume(time);
+      };
   return generator;
 }
 
-std::function<AudioPlayer::Volume(AudioPlayer::Time)> SmoothVolume(
-    AudioPlayer::Volume volume, AudioPlayer::Time start, AudioPlayer::Time end,
-    double smooth_interval) {
-  return [volume, start, end, smooth_interval](AudioPlayer::Time time) {
+std::function<audio::Player::Volume(audio::Player::Time)> SmoothVolume(
+    audio::Player::Volume volume, audio::Player::Time start,
+    audio::Player::Time end, double smooth_interval) {
+  return [volume, start, end, smooth_interval](audio::Player::Time time) {
     if (time < start || time > end) {
       return 0.0;
     } else if (time < start + smooth_interval) {
@@ -43,7 +44,7 @@ std::function<AudioPlayer::Volume(AudioPlayer::Time)> SmoothVolume(
 #if HAVE_LIBAO
 namespace {
 AudioGenerator::Callback Oscillate(audio::Frequency freq) {
-  return [freq](AudioPlayer::Time time) {
+  return [freq](audio::Player::Time time) {
     return (int)(32768.0 * sin(2 * M_PI * freq.read() * time));
   };
 }
@@ -80,25 +81,25 @@ class Frame {
   char* const buffer_;
 };
 
-class AudioPlayerImpl : public AudioPlayer {
+class PlayerImpl : public Player {
   struct MutableData {
     std::vector<AudioGenerator> generators;
     // We gradually adjust the volume depending on the number of enabled
     // generators. This roughly assumes that a generator's volume is constant as
     // long as it's enabled.
-    AudioPlayer::Volume volume = 1.0;
-    AudioPlayer::Time time = 0.0;
+    audio::Player::Volume volume = 1.0;
+    audio::Player::Time time = 0.0;
     bool shutting_down = false;
   };
 
  public:
-  AudioPlayerImpl(ao_device* device, ao_sample_format format)
+  PlayerImpl(ao_device* device, ao_sample_format format)
       : device_(device),
         format_(std::move(format)),
         empty_frame_(NewFrame()),
         background_thread_([this]() { PlayAudio(); }) {}
 
-  ~AudioPlayerImpl() override {
+  ~PlayerImpl() override {
     data_.lock([](MutableData& data) { data.shutting_down = true; });
 
     background_thread_.join();
@@ -106,9 +107,9 @@ class AudioPlayerImpl : public AudioPlayer {
     ao_shutdown();
   }
 
-  class AudioPlayerImplLock : public AudioPlayer::Lock {
+  class PlayerImplLock : public audio::Player::Lock {
    public:
-    AudioPlayerImplLock(Protected<MutableData>::Lock data)
+    PlayerImplLock(Protected<MutableData>::Lock data)
         : data_(std::move(data)) {}
 
     void Add(AudioGenerator generator) override {
@@ -122,8 +123,8 @@ class AudioPlayerImpl : public AudioPlayer {
     Protected<MutableData>::Lock data_;
   };
 
-  std::unique_ptr<AudioPlayer::Lock> lock() override {
-    return std::make_unique<AudioPlayerImplLock>(data_.lock());
+  std::unique_ptr<Player::Lock> lock() override {
+    return std::make_unique<PlayerImplLock>(data_.lock());
   }
 
  private:
@@ -201,11 +202,11 @@ class NullPlayer : public Player {
 };
 }  // namespace
 
-std::unique_ptr<AudioPlayer> NewNullPlayer() {
+std::unique_ptr<Player> NewNullPlayer() {
   return std::make_unique<NullPlayer>();
 }
 
-std::unique_ptr<AudioPlayer> NewPlayer() {
+std::unique_ptr<Player> NewPlayer() {
 #if HAVE_LIBAO
   ao_initialize();
   ao_sample_format format;
@@ -220,7 +221,7 @@ std::unique_ptr<AudioPlayer> NewPlayer() {
     fprintf(stderr, "Error opening device.\n");
     return NewNullPlayer();
   }
-  return std::make_unique<AudioPlayerImpl>(device, format);
+  return std::make_unique<PlayerImpl>(device, format);
 #else
   return NewNullPlayer();
 #endif

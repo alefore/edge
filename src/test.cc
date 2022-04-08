@@ -122,7 +122,7 @@ void TreeTestsBasic() {
 }
 
 void TestCases() {
-  auto audio_player = NewNullAudioPlayer();
+  auto audio_player = audio::NewNullPlayer();
   EditorState editor_state(CommandLineValues(), *audio_player);
   CHECK(!editor_state.has_current_buffer());
 

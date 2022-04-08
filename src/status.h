@@ -74,7 +74,7 @@ class StatusPromptExtraInformation {
 
 class Status {
  public:
-  Status(std::shared_ptr<OpenBuffer> console, AudioPlayer& audio_player);
+  Status(std::shared_ptr<OpenBuffer> console, audio::Player& audio_player);
   Status(const Status&) = delete;
   void CopyFrom(const Status& status);
 
@@ -126,7 +126,7 @@ class Status {
   void ValidatePreconditions() const;
 
   const std::shared_ptr<OpenBuffer> console_;
-  AudioPlayer& audio_player_;
+  audio::Player& audio_player_;
 
   // We nest our mutable fields in `struct Data`. This allows us to implement
   // `SetExpiringInformationText`, where we can detect if the status hasn't

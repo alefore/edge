@@ -150,7 +150,7 @@ void StatusPromptExtraInformation::MarkVersionDone(int version) {
   }
 }
 
-Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer& audio_player)
+Status::Status(std::shared_ptr<OpenBuffer> console, audio::Player& audio_player)
     : console_(std::move(console)), audio_player_(audio_player) {
   ValidatePreconditions();
 }
@@ -286,7 +286,8 @@ const bool prompt_tests_registration = tests::Register(
     {{.name = L"SetWarningText",
       .callback =
           [] {
-            std::unique_ptr<AudioPlayer> audio_player = audio::NewNullPlayer();
+            std::unique_ptr<audio::Player> audio_player =
+                audio::NewNullPlayer();
             Status status(NewBufferForTests(), *audio_player);
             std::shared_ptr<OpenBuffer> prompt = NewBufferForTests();
             status.set_prompt(L">", prompt);
@@ -295,7 +296,7 @@ const bool prompt_tests_registration = tests::Register(
             CHECK(status.prompt_buffer() == prompt);
           }},
      {.name = L"SetExpiringInformationText", .callback = [] {
-        std::unique_ptr<AudioPlayer> audio_player = audio::NewNullPlayer();
+        std::unique_ptr<audio::Player> audio_player = audio::NewNullPlayer();
         Status status(NewBufferForTests(), *audio_player);
         std::shared_ptr<OpenBuffer> prompt = NewBufferForTests();
         status.set_prompt(L">", prompt);
