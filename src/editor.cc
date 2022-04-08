@@ -491,7 +491,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer& audio_player)
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       work_queue_(WorkQueue::New([this] { NotifyInternalEvent(); })),
-      thread_pool_(2, work_queue_),
+      thread_pool_(32, work_queue_),
       home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
         std::vector<Path> output;
