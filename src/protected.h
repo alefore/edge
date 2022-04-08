@@ -1,6 +1,8 @@
 #ifndef __AFC_EDITOR_PROTECTED_H__
 #define __AFC_EDITOR_PROTECTED_H__
 
+#include <condition_variable>
+#include <functional>
 #include <memory>
 #include <mutex>
 
@@ -30,7 +32,6 @@ class Protected {
 
   Lock lock() {
     mutex_.lock();
-    validator_(data_);
     return Lock(&data_, [this](T*) {
       validator_(data_);
       mutex_.unlock();
@@ -39,7 +40,6 @@ class Protected {
 
   ConstLock lock() const {
     mutex_.lock();
-    validator_(data_);
     return ConstLock(&data_, [this](const T*) {
       // No need to validate; we only gave constant access.
       mutex_.unlock();
@@ -56,10 +56,48 @@ class Protected {
     return callable(*lock());
   }
 
- private:
+ protected:
   mutable std::mutex mutex_;
   T data_;
   const Validator validator_ = Validator{};
+};
+
+template <typename T, typename Validator = EmptyValidator<T>>
+class ProtectedWithCondition : public Protected<T, Validator> {
+ public:
+  ProtectedWithCondition(T t, Validator validator = Validator{})
+      : Protected<T, Validator>(std::move(t), std::move(validator)) {}
+
+  template <typename Callable>
+  auto lock(Callable callable) {
+    return Protected<T>::lock([&](T& t) { return callable(t, condition_); });
+  }
+
+  template <typename Callable>
+  auto lock(Callable callable) const {
+    return Protected<T>::lock(
+        [&](const T& t) { return callable(t, condition_); });
+  }
+
+  template <typename Callable>
+  void wait(Callable callable) {
+    std::unique_lock<std::mutex> mutex_lock(Protected<T, Validator>::mutex_);
+    condition_.wait(mutex_lock, [this, &callable] {
+      return callable(Protected<T, Validator>::data_);
+    });
+    Protected<T, Validator>::validator_(Protected<T, Validator>::data_);
+  }
+
+  template <typename Callable>
+  void wait(Callable callable) const {
+    std::unique_lock<std::mutex> mutex_lock(Protected<T, Validator>::mutex_);
+    condition_.wait(mutex_lock, [this, &callable] {
+      return callable(Protected<T, Validator>::data_);
+    });
+  }
+
+ private:
+  mutable std::condition_variable condition_;
 };
 }  // namespace afc::editor
 #endif  //__AFC_EDITOR_PROTECTED_H__
