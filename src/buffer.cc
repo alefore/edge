@@ -575,6 +575,14 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       MaybeScheduleNextWorkQueueExecution,
       std::weak_ptr<WorkQueue>(work_queue_), editor().work_queue(),
       std::make_shared<std::optional<struct timespec>>(std::nullopt)));
+  for (auto* v :
+       {buffer_variables::symbol_characters, buffer_variables::tree_parser,
+        buffer_variables::language_keywords, buffer_variables::typos,
+        buffer_variables::identifier_behavior})
+    string_variables_.AddObserver(v, [this] {
+      UpdateTreeParser();
+      MaybeStartUpdatingSyntaxTrees();
+    });
 }
 
 OpenBuffer::~OpenBuffer() {
@@ -2295,16 +2303,6 @@ const wstring& OpenBuffer::Read(const EdgeVariable<wstring>* variable) const {
 
 void OpenBuffer::Set(const EdgeVariable<wstring>* variable, wstring value) {
   string_variables_.Set(variable, value);
-
-  // TODO: This should be in the variable definition, not here. Ugh.
-  if (variable == buffer_variables::symbol_characters ||
-      variable == buffer_variables::tree_parser ||
-      variable == buffer_variables::language_keywords ||
-      variable == buffer_variables::typos ||
-      variable == buffer_variables::identifier_behavior) {
-    UpdateTreeParser();
-    MaybeStartUpdatingSyntaxTrees();
-  }
 }
 
 const int& OpenBuffer::Read(const EdgeVariable<int>* variable) const {
