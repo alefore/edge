@@ -112,6 +112,8 @@ void Line::Options::SetCharacter(ColumnNumber column, int c,
         afc::editor::Substring(contents, column + ColumnNumberDelta(1)));
   }
 
+  metadata = std::nullopt;
+
   LineModifierSet previous_modifiers;
   if (!modifiers.empty() && modifiers.begin()->first <= column) {
     auto it = modifiers.lower_bound(column);
@@ -143,6 +145,7 @@ void Line::Options::InsertCharacterAtPosition(ColumnNumber column) {
   }
   modifiers = std::move(new_modifiers);
 
+  metadata = std::nullopt;
   ValidateInvariants();
 }
 
@@ -151,6 +154,7 @@ void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   CHECK(modifier.find(LineModifier::RESET) == modifier.end());
   modifiers[ColumnNumber(0) + contents->size()] = modifier;
   contents = StringAppend(std::move(contents), NewLazyString(wstring(1, c)));
+  metadata = std::nullopt;
   ValidateInvariants();
 }
 
@@ -182,6 +186,7 @@ void Line::Options::Append(Line line) {
   if (line.empty()) return;
   auto original_length = EndColumn().ToDelta();
   contents = StringAppend(std::move(contents), std::move(line.contents()));
+  metadata = std::nullopt;
 
   auto initial_modifier =
       line.modifiers().empty() ||
@@ -242,6 +247,7 @@ Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
     new_modifiers[column] = modifiers_continuation.value();
   }
   modifiers = std::move(new_modifiers);
+  metadata = std::nullopt;
 
   ValidateInvariants();
   return *this;
@@ -334,6 +340,7 @@ void Line::Append(const Line& line) {
       }
       data.options.end_of_line_modifiers =
           line_data.options.end_of_line_modifiers;
+      data.options.metadata = std::nullopt;
     });
   });
 }
