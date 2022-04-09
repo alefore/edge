@@ -80,6 +80,13 @@ string HelpCommandFor(string command) { return command + " --help"; }
 
 string GetShellPromptContextProgram(string input) {
   string base_command = BaseCommand(input);
+  if (base_command == "man") {
+    string sub_command = GetSubCommand(input);
+    if (!sub_command.empty()) {
+      return "apropos " + sub_command;
+    }
+  }
+
   if (shell_prompt_help_programs_man.contains(base_command)) {
     return "man " + base_command;
   }
