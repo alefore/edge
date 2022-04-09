@@ -64,6 +64,8 @@ src/decaying_counter.h \
 src/dirname.cc \
 src/dirname.h \
 src/direction.cc \
+src/directory_listing.h \
+src/directory_listing.cc \
 src/editor.cc \
 src/editor.h \
 src/editor_variables.cc \
