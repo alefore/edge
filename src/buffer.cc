@@ -780,8 +780,6 @@ void OpenBuffer::ClearContents(
   if (terminal_ != nullptr) {
     terminal_->SetPosition(LineColumn());
   }
-  last_transformation_ = NewNoopTransformation();
-  last_transformation_stack_.clear();
   undo_past_.clear();
   undo_future_.clear();
 }
@@ -2384,7 +2382,14 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation);
-    CHECK(!undo_past_.empty());
+    if (undo_past_.empty()) {
+      VLOG(5) << "last_transformation_stack_ has values but undo_past_ is "
+                 "empty. This is expected to be very rare. Most likely this "
+                 "means that contents were cleared while the stack wasn't "
+                 "empty (perhaps because the buffer was reloaded while some "
+                 "active transformation/mode was being executed.";
+      undo_past_.push_back(std::make_unique<transformation::Stack>());
+    }
   } else {
     undo_past_.push_back(std::make_unique<transformation::Stack>());
   }
