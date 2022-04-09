@@ -369,7 +369,16 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
                         L"Line has multiple `prompt` sections")) {
               return !abort_notification->HasBeenNotified();
             }
-            auto prompt_value = range.first->second;
+
+            auto prompt_value_optional =
+                CppUnescapeString(range.first->second->ToString());
+            if (!prompt_value_optional.has_value()) {
+              LOG(INFO) << "Unable to unescape string: "
+                        << range.first->second->ToString();
+              return !abort_notification->HasBeenNotified();
+            }
+            std::shared_ptr<LazyString> prompt_value =
+                NewLazyString(*prompt_value_optional);
             VLOG(8) << "Considering history value: "
                     << prompt_value->ToString();
             std::vector<Token> line_tokens = ExtendTokensToEndOfString(
