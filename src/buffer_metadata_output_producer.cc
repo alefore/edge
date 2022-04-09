@@ -343,7 +343,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   }
 
   if (auto metadata = contents.metadata();
-      metadata != nullptr && metadata->size().IsZero()) {
+      metadata != nullptr && !metadata->size().IsZero()) {
     ForEachColumn(*metadata, [](ColumnNumber, wchar_t c) {
       CHECK(c != L'\n') << "Metadata has invalid newline character.";
     });
