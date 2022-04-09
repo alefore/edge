@@ -939,6 +939,30 @@ void OpenBuffer::Initialize() {
       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
           std::shared_ptr<OpenBuffer>(std::shared_ptr<OpenBuffer>(), this)));
 
+  environment_->Define(
+      L"sleep", Value::NewFunction(
+                    {VMType::Void(), VMType::Double()},
+                    [weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
+                        std::vector<Value::Ptr> args, Trampoline*) {
+                      CHECK_EQ(args.size(), 1ul);
+                      CHECK(args[0]->IsDouble());
+                      double delay_seconds = args[0]->double_value;
+                      auto shared_this = weak_this.lock();
+                      if (shared_this == nullptr)
+                        return futures::Past(
+                            vm::EvaluationOutput::Return(vm::Value::NewVoid()));
+                      futures::Future<vm::EvaluationOutput> future;
+                      shared_this->work_queue()->ScheduleAt(
+                          AddSeconds(Now(), delay_seconds),
+                          [weak_this, consumer = std::move(future.consumer)] {
+                            auto shared_this = weak_this.lock();
+                            if (shared_this != nullptr)
+                              consumer(vm::EvaluationOutput::Return(
+                                  vm::Value::NewVoid()));
+                          });
+                      return std::move(future.value);
+                    }));
+
   Set(buffer_variables::name, options_.name.read());
   if (options_.path.has_value()) {
     Set(buffer_variables::path, options_.path.value().ToString());
@@ -2428,6 +2452,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   return transformation::Apply(transformation, std::move(input))
       .Transform([this, transformation = std::move(transformation),
                   mode](transformation::Result result) {
+        VLOG(6) << "Got results of transformation: "
+                << transformation::ToString(transformation);
         if (mode == transformation::Input::Mode::kFinal &&
             Read(buffer_variables::delete_into_paste_buffer)) {
           if (!result.added_to_paste_buffer) {
