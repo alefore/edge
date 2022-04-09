@@ -2506,7 +2506,12 @@ void OpenBuffer::PushTransformationStack() {
 }
 
 void OpenBuffer::PopTransformationStack() {
-  CHECK(!last_transformation_stack_.empty());
+  if (last_transformation_stack_.empty()) {
+    // This can happen if the transformation stack was reset during the
+    // evaluation of a transformation. For example, during an insertion, if the
+    // buffer is reloaded ... that will discard the transformation stack.
+    return;
+  }
   last_transformation_ = std::move(*last_transformation_stack_.back());
   last_transformation_stack_.pop_back();
   if (!last_transformation_stack_.empty()) {
