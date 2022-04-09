@@ -2431,6 +2431,10 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 futures::Value<typename transformation::Result> OpenBuffer::Apply(
     transformation::Variant transformation, LineColumn position,
     transformation::Input::Mode mode) {
+  CHECK(!undo_past_.empty());
+  const std::weak_ptr<transformation::Stack> undo_stack_weak =
+      undo_past_.back();
+
   transformation::Input input(*this);
   input.mode = mode;
   input.position = position;
@@ -2449,9 +2453,10 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
 
   VLOG(5) << "Apply transformation: "
           << transformation::ToString(transformation);
+
   return transformation::Apply(transformation, std::move(input))
-      .Transform([this, transformation = std::move(transformation),
-                  mode](transformation::Result result) {
+      .Transform([this, transformation = std::move(transformation), mode,
+                  undo_stack_weak](transformation::Result result) {
         VLOG(6) << "Got results of transformation: "
                 << transformation::ToString(transformation);
         if (mode == transformation::Input::Mode::kFinal &&
@@ -2474,11 +2479,12 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
           last_transformation_ = std::move(transformation);
         }
 
-        CHECK(!undo_past_.empty());
-        undo_past_.back()->PushFront(
-            transformation::Stack{.stack = result.undo_stack->stack});
-        *undo_past_.back() = transformation::Stack{
-            .stack = {OptimizeBase(std::move(*undo_past_.back()))}};
+        if (auto undo_stack = undo_stack_weak.lock(); undo_stack != nullptr) {
+          undo_stack->PushFront(
+              transformation::Stack{.stack = result.undo_stack->stack});
+          *undo_stack = transformation::Stack{
+              .stack = {OptimizeBase(std::move(*undo_stack))}};
+        }
         return result;
       });
 }
@@ -2510,8 +2516,8 @@ void OpenBuffer::PopTransformationStack() {
 
 futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
   struct Data {
-    std::list<std::unique_ptr<transformation::Stack>>* source;
-    std::list<std::unique_ptr<transformation::Stack>>* target;
+    std::list<std::shared_ptr<transformation::Stack>>* source;
+    std::list<std::shared_ptr<transformation::Stack>>* target;
     size_t repetitions = 0;
   };
   auto data = std::make_shared<Data>();
