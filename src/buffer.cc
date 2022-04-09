@@ -129,6 +129,7 @@ void RegisterBufferFields(
 std::shared_ptr<const Line> AddLineMetadata(
     OpenBuffer& buffer, std::shared_ptr<const Line> line_ptr) {
   const Line& line = Pointer(line_ptr).Reference();
+  if (line.metadata() != nullptr) return line_ptr;
   std::wstring error_description;
   std::shared_ptr<Expression> expr;
   std::shared_ptr<Environment> sub_environment;
