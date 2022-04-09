@@ -17,6 +17,9 @@ extern EdgeVariable<int>* const buffers_to_retain;
 extern EdgeVariable<int>* const buffers_to_show;
 extern EdgeVariable<int>* const numbers_column_padding;
 
+EdgeStruct<double>* DoubleStruct();
+extern EdgeVariable<double>* const volume;
+
 }  // namespace afc::editor::editor_variables
 
 #endif  // __AFC_EDITOR_EDITOR_VARIABLES_H__

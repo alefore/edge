@@ -65,4 +65,19 @@ EdgeVariable<int>* const numbers_column_padding =
         .DefaultValue(0)
         .Build();
 
+EdgeStruct<double>* DoubleStruct() {
+  static EdgeStruct<double>* output = new EdgeStruct<double>();
+  return output;
+}
+
+EdgeVariable<double>* const volume =
+    DoubleStruct()
+        ->Add()
+        .Name(L"volume")
+        .Key(L"v")
+        .Description(
+            L"Desired level of volume; should be a value in range [0, 1].")
+        .DefaultValue(1.0)
+        .Build();
+
 }  // namespace afc::editor::editor_variables
