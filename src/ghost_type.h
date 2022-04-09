@@ -100,33 +100,34 @@
 
 #include <functional>
 
-#define GHOST_TYPE(ClassName, VariableType, variable)          \
-  class ClassName {                                            \
-   public:                                                     \
-    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, variable); \
-    GHOST_TYPE_EQ(ClassName, variable);                        \
-    GHOST_TYPE_LT(ClassName, variable);                        \
-    const VariableType& read() const { return variable; }      \
-                                                               \
-   private:                                                    \
-    GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable);             \
-    GHOST_TYPE_HASH_FRIEND(ClassName, variable);               \
-    VariableType variable;                                     \
-  };                                                           \
-                                                               \
-  GHOST_TYPE_OUTPUT(ClassName, variable);
+#define GHOST_TYPE(ClassName, VariableType)                 \
+  class ClassName {                                         \
+   public:                                                  \
+    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
+    GHOST_TYPE_EQ(ClassName, value);                        \
+    GHOST_TYPE_LT(ClassName, value);                        \
+                                                            \
+    const VariableType& read() const { return value; }      \
+                                                            \
+   private:                                                 \
+    GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);             \
+    GHOST_TYPE_HASH_FRIEND(ClassName, value);               \
+    VariableType value;                                     \
+  };                                                        \
+                                                            \
+  GHOST_TYPE_OUTPUT(ClassName, value);
 
-#define GHOST_TYPE_CONTAINER(ClassName, VariableType, variable) \
-  class ClassName {                                             \
-   public:                                                      \
-    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, variable);  \
-    GHOST_TYPE_EQ(ClassName, variable);                         \
-    GHOST_TYPE_BEGIN_END(ClassName, variable);                  \
-    GHOST_TYPE_INDEX(ClassName, variable);                      \
-    const VariableType& read() const { return variable; }       \
-                                                                \
-   private:                                                     \
-    VariableType variable;                                      \
+#define GHOST_TYPE_CONTAINER(ClassName, VariableType)       \
+  class ClassName {                                         \
+   public:                                                  \
+    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
+    GHOST_TYPE_EQ(ClassName, value);                        \
+    GHOST_TYPE_BEGIN_END(ClassName, value);                 \
+    GHOST_TYPE_INDEX(ClassName, value);                     \
+    const VariableType& read() const { return value; }      \
+                                                            \
+   private:                                                 \
+    VariableType value;                                     \
   };
 
 // Implementation:
@@ -171,12 +172,14 @@
   friend class std::hash<ClassName>;
 
 // Can't be inside of a namespace; must be at the top-level.
-#define GHOST_TYPE_HASH(ClassName, variable)                      \
-  template <>                                                     \
-  struct std::hash<ClassName> {                                   \
-    std::size_t operator()(const ClassName& self) const {         \
-      return std::hash<decltype(self.variable)>{}(self.variable); \
-    }                                                             \
+#define GHOST_TYPE_HASH(ClassName)                                      \
+  template <>                                                           \
+  struct std::hash<ClassName> {                                         \
+    std::size_t operator()(const ClassName& self) const {               \
+      return std::hash<std::remove_const<                               \
+          std::remove_reference<decltype(self.read())>::type>::type>()( \
+          self.read());                                                 \
+    }                                                                   \
   };
 
 #define GHOST_TYPE_INDEX(ClassName, variable)       \

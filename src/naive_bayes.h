@@ -11,7 +11,7 @@ namespace afc::naive_bayes {
 using ::operator<<;
 
 // An Event represents an arbitrary action, such as opening a specific file.
-GHOST_TYPE(Event, std::wstring, name);
+GHOST_TYPE(Event, std::wstring);
 
 // A Feature represents some arbitrary characteristic of the environment where
 // events take place.
@@ -20,22 +20,22 @@ GHOST_TYPE(Event, std::wstring, name);
 // - A given file is currently open.
 // - Today is Wednesday.
 // - A given process is currently executing.
-GHOST_TYPE(Feature, std::wstring, name);
+GHOST_TYPE(Feature, std::wstring);
 }  // namespace afc::naive_bayes
 
-GHOST_TYPE_HASH(afc::naive_bayes::Event, name);
-GHOST_TYPE_HASH(afc::naive_bayes::Feature, name);
+GHOST_TYPE_HASH(afc::naive_bayes::Event);
+GHOST_TYPE_HASH(afc::naive_bayes::Feature);
 
 namespace afc::naive_bayes {
 
 // FeaturesSet represents a set of features. Typically this is used to capture
 // the state of an instance when an event was executed.
-GHOST_TYPE_CONTAINER(FeaturesSet, std::unordered_set<Feature>, features);
+GHOST_TYPE_CONTAINER(FeaturesSet, std::unordered_set<Feature>);
 
 // The history represents all the past executions of all events. For each
 // execution, we store the set of features that were present.
 using InternalHistoryType = std::unordered_map<Event, std::vector<FeaturesSet>>;
-GHOST_TYPE_CONTAINER(History, InternalHistoryType, history);
+GHOST_TYPE_CONTAINER(History, InternalHistoryType);
 
 // Given the history of all past executions of all events, apply Naive Bayes and
 // return the list of all keys, sorted by their predicted proportional

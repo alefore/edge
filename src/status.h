@@ -31,13 +31,14 @@ class StatusPromptExtraInformationKey {
 
  private:
   friend class StatusPromptExtraInformation;
+  const std::wstring& read() const { return value; }
   std::wstring value;
 };
 
 GHOST_TYPE_OUTPUT(StatusPromptExtraInformationKey, value);
 }  // namespace afc::editor
 
-GHOST_TYPE_HASH(afc::editor::StatusPromptExtraInformationKey, value);
+GHOST_TYPE_HASH(afc::editor::StatusPromptExtraInformationKey);
 
 namespace afc::editor {
 class StatusPromptExtraInformation {

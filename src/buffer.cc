@@ -939,7 +939,7 @@ void OpenBuffer::Initialize() {
       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
           std::shared_ptr<OpenBuffer>(std::shared_ptr<OpenBuffer>(), this)));
 
-  Set(buffer_variables::name, options_.name.ToString());
+  Set(buffer_variables::name, options_.name.read());
   if (options_.path.has_value()) {
     Set(buffer_variables::path, options_.path.value().ToString());
   }

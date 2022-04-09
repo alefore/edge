@@ -22,7 +22,7 @@
 #include "src/ghost_type.h"
 
 namespace afc::editor::audio {
-GHOST_TYPE(Frequency, double, value);
+GHOST_TYPE(Frequency, double);
 
 struct Generator;
 
@@ -53,6 +53,6 @@ void BeepFrequencies(Player& player, Player::Duration duration,
 void GenerateAlert(Player& player);
 }  // namespace afc::editor::audio
 
-GHOST_TYPE_HASH(afc::editor::audio::Frequency, value);
+GHOST_TYPE_HASH(afc::editor::audio::Frequency);
 
 #endif  // __AFC_EDITOR_AUDIO_H__

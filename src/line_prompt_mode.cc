@@ -312,7 +312,7 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
 futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
     EditorState& editor_state, std::shared_ptr<OpenBuffer> history_buffer,
     std::shared_ptr<Notification> abort_notification, std::wstring filter) {
-  BufferName name(L"- history filter: " + history_buffer->name().ToString() +
+  BufferName name(L"- history filter: " + history_buffer->name().read() +
                   L": " + filter);
   auto filter_buffer = OpenBuffer::New({.editor = editor_state, .name = name});
   filter_buffer->Set(buffer_variables::allow_dirty_delete, true);
@@ -961,7 +961,7 @@ void Prompt(PromptOptions options) {
                           editor_state.status().SetWarningText(
                               L"Error: Predict: predictions buffer not "
                               L"found: " +
-                              name.ToString());
+                              name.read());
                         }
                       });
                   return true;

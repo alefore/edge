@@ -27,7 +27,7 @@ class BufferName {
   GHOST_TYPE_OUTPUT_FRIEND(BufferName, value);
   GHOST_TYPE_HASH_FRIEND(BufferName, value);
 
-  std::wstring ToString() const;
+  const std::wstring& read() const;
 
  private:
   std::wstring value;
@@ -35,6 +35,6 @@ class BufferName {
 GHOST_TYPE_OUTPUT(BufferName, value);
 }  // namespace afc::editor
 
-GHOST_TYPE_HASH(afc::editor::BufferName, value)
+GHOST_TYPE_HASH(afc::editor::BufferName)
 
 #endif  // __AFC_EDITOR_BUFFER_NAME_H__

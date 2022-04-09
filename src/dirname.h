@@ -88,6 +88,8 @@ class Path {
   explicit Path(std::wstring path);
 
  private:
+  // TODO(easy): Get rid of this; it's only needed for GHOST_TYPE_HASH.
+  std::wstring read() const { return path_; }
   std::wstring path_;
 };
 
@@ -111,5 +113,5 @@ std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);
 
 }  // namespace afc::editor
 
-GHOST_TYPE_HASH(afc::editor::Path, path_);
+GHOST_TYPE_HASH(afc::editor::Path);
 #endif  // __AFC_EDITOR_DIRNAME_H__

@@ -24,11 +24,13 @@ class ParseTreeProperty {
  private:
   GHOST_TYPE_CONSTRUCTOR(ParseTreeProperty, std::wstring, value);
   GHOST_TYPE_HASH_FRIEND(afc::editor::ParseTreeProperty, value);
+  const std::wstring& read() const { return value; }
+
   std::wstring value;
 };
 }  // namespace afc::editor
 
-GHOST_TYPE_HASH(afc::editor::ParseTreeProperty, value);
+GHOST_TYPE_HASH(afc::editor::ParseTreeProperty);
 
 namespace afc::editor {
 class ParseTree {

@@ -19,6 +19,6 @@ namespace afc::editor {
 
 BufferName::BufferName(Path path) : value(path.ToString()) {}
 
-std::wstring BufferName::ToString() const { return value; }
+const std::wstring& BufferName::read() const { return value; }
 
 }  // namespace afc::editor

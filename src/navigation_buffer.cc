@@ -146,7 +146,7 @@ class NavigationBufferCommand : public Command {
       return;
     }
 
-    BufferName name(L"Navigation: " + source->name().ToString());
+    BufferName name(L"Navigation: " + source->name().read());
     auto [it, insert_result] = editor_state_.buffers()->insert({name, nullptr});
     if (insert_result) {
       std::weak_ptr<OpenBuffer> source_weak = source;
