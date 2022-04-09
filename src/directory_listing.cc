@@ -7,6 +7,9 @@
 #include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/line_prompt_mode.h"
+#include "src/safe_types.h"
+#include "src/vm/public/constant_expression.h"
+#include "src/vm/public/function_call.h"
 
 namespace afc::editor {
 namespace {
@@ -76,6 +79,39 @@ void StartDeleteFile(EditorState& editor_state, wstring path) {
           .predictor = PrecomputedPredictor({L"no", L"yes"}, '/')});
 }
 
+Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
+  VLOG(6) << "Get metadata for: " << path;
+  std::shared_ptr<Value> callback = target.environment()->Lookup(
+      Environment::Namespace(), L"GetPathMetadata",
+      VMType::Function({VMType::String(), VMType::String()}));
+  if (callback == nullptr) {
+    VLOG(5) << "Unable to find suitable GetPathMetadata definition";
+    return {.initial_value = EmptyString(),
+            .value = futures::Future<std::shared_ptr<LazyString>>().value};
+  }
+
+  std::vector<std::unique_ptr<vm::Expression>> args;
+  args.push_back(vm::NewConstantExpression({vm::Value::NewString(path)}));
+  std::shared_ptr<Expression> expression = vm::NewFunctionCall(
+      vm::NewConstantExpression(std::make_unique<vm::Value>(*callback)),
+      std::move(args));
+
+  return {
+      .initial_value = NewLazyString(L"…"),
+      .value = target.EvaluateExpression(expression.get(), target.environment())
+                   .Transform([expression](std::unique_ptr<Value> value) {
+                     CHECK(Pointer(value).Reference().IsString());
+                     VLOG(7) << "Evaluated result: " << value->str;
+                     return futures::Past(Success(std::shared_ptr<LazyString>(
+                         NewLazyString(std::move(value->str)))));
+                   })
+                   .ConsumeErrors([](Error error) {
+                     VLOG(7) << "Evaluation error: " << error.description;
+                     return futures::Past(std::shared_ptr<LazyString>(
+                         NewLazyString(L"E: " + std::move(error.description))));
+                   })};
+}
+
 void AddLine(OpenBuffer& target, const dirent& entry) {
   enum class SizeBehavior { kShow, kSkip };
 
@@ -107,8 +143,9 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
     line_options.modifiers[ColumnNumber(0)] = (type_it->second.modifiers);
   }
 
-  auto line = std::make_shared<Line>(std::move(line_options));
+  line_options.SetMetadata(GetMetadata(target, path));
 
+  auto line = std::make_shared<Line>(std::move(line_options));
   target.AppendRawLine(line);
   target.contents().back()->environment()->Define(
       L"EdgeLineDeleteHandler",
@@ -137,6 +174,7 @@ void ShowFiles(wstring name, std::vector<dirent> entries, OpenBuffer& target) {
 
 futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
                                                     OpenBuffer& output) {
+  LOG(INFO) << "GenerateDirectoryListing: " << path;
   output.Set(buffer_variables::atomic_lines, true);
   output.Set(buffer_variables::allow_dirty_delete, true);
   output.Set(buffer_variables::tree_parser, L"md");
