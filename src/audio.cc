@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/protected.h"
+#include "src/tracker.h"
 
 namespace afc::editor::audio {
 struct Generator {
@@ -13,22 +14,21 @@ struct Generator {
 };
 
 namespace {
-Generator ApplyVolume(
-    std::function<audio::Player::Volume(audio::Player::Time)> volume,
-    Generator generator) {
+Generator ApplyVolume(std::function<Volume(audio::Player::Time)> volume,
+                      Generator generator) {
   generator.callback =
       [volume, callback = generator.callback](audio::Player::Time time) {
-        return SpeakerValue(callback(time).read() * volume(time));
+        return SpeakerValue(callback(time).read() * volume(time).read());
       };
   return generator;
 }
 
-std::function<audio::Player::Volume(audio::Player::Time)> SmoothVolume(
-    audio::Player::Volume volume, audio::Player::Time start,
-    audio::Player::Time end, double smooth_interval) {
+std::function<Volume(audio::Player::Time)> SmoothVolume(
+    Volume volume, audio::Player::Time start, audio::Player::Time end,
+    double smooth_interval) {
   return [volume, start, end, smooth_interval](audio::Player::Time time) {
     if (time < start || time > end) {
-      return 0.0;
+      return Volume(0.0);
     } else if (time < start + smooth_interval) {
       return volume * (time - start) / smooth_interval;
     } else if (time >= end - smooth_interval) {
@@ -81,10 +81,10 @@ class PlayerImpl : public Player {
     // We gradually adjust the volume depending on the number of enabled
     // generators. This roughly assumes that a generator's volume is constant as
     // long as it's enabled.
-    Player::Volume volume = 1.0;
+    Volume volume = Volume(1.0);
 
     // The volume received through Player::SetVolume.
-    Player::Volume external_volume = 1.0;
+    Volume external_volume = Volume(1.0);
     Player::Time time = 0.0;
     bool shutting_down = false;
   };
@@ -140,6 +140,9 @@ class PlayerImpl : public Player {
   }
 
   bool PlayNextFrame() {
+    static Tracker tracker(L"audio::Player::PlayNextFrame");
+    auto call = tracker.Call();
+
     std::unique_ptr<Frame> new_frame;
     int iterations = frame_length_ * format_.rate;
     double delta = 1.0 / format_.rate;
@@ -159,7 +162,8 @@ class PlayerImpl : public Player {
               0.8 * data->volume + 0.2 * (1.0 / enabled_generators.size());
           Volume volume = data->volume * data->external_volume;
           for (auto& generator : enabled_generators)
-            new_frame->Add(i, generator->callback(data->time).read() * volume);
+            new_frame->Add(
+                i, generator->callback(data->time).read() * volume.read());
         }
       } else if (!data->generators.empty()) {
         data->time += iterations * delta;
@@ -232,11 +236,11 @@ void GenerateBeep(Player& player, Frequency frequency) {
   auto lock = player.lock();
   Player::Time start = lock->time();
   Player::Duration duration = 0.1;
-  lock->Add(
-      ApplyVolume(SmoothVolume(0.3, start, start + duration, duration / 4),
-                  {.callback = Oscillate(frequency),
-                   .start_time = start,
-                   .end_time = start + duration}));
+  lock->Add(ApplyVolume(
+      SmoothVolume(Volume(0.3), start, start + duration, duration / 4),
+      {.callback = Oscillate(frequency),
+       .start_time = start,
+       .end_time = start + duration}));
 }
 
 void BeepFrequencies(Player& player, Player::Duration duration,
@@ -244,11 +248,11 @@ void BeepFrequencies(Player& player, Player::Duration duration,
   auto lock = player.lock();
   for (size_t i = 0; i < frequencies.size(); i++) {
     Player::Time start = lock->time() + i * duration;
-    lock->Add(
-        ApplyVolume(SmoothVolume(0.3, start, start + duration, duration / 4),
-                    {.callback = Oscillate(frequencies[i]),
-                     .start_time = start,
-                     .end_time = start + duration}));
+    lock->Add(ApplyVolume(
+        SmoothVolume(Volume(0.3), start, start + duration, duration / 4),
+        {.callback = Oscillate(frequencies[i]),
+         .start_time = start,
+         .end_time = start + duration}));
   }
 }
 
