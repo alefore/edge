@@ -173,16 +173,13 @@ BackgroundReadDirOutput ReadDir(Path path, std::wregex noise_regex) {
 
 futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, std::shared_ptr<struct stat> stat_buffer,
-    std::shared_ptr<FileSystemDriver> file_system_driver,
-    std::shared_ptr<AsyncEvaluator> background_directory_reader,
-    OpenBuffer& target) {
+    std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer& target) {
   CHECK(target.disk_state() == OpenBuffer::DiskState::kCurrent);
   auto path = Path::FromString(target.Read(buffer_variables::path));
   if (path.IsError()) return futures::Past(PossibleError(path.error()));
   LOG(INFO) << "GenerateContents: " << path.value();
   return file_system_driver->Stat(path.value())
-      .Transform([&editor_state, stat_buffer, file_system_driver,
-                  background_directory_reader, &target,
+      .Transform([&editor_state, stat_buffer, file_system_driver, &target,
                   path](std::optional<struct stat> stat_results) {
         if (stat_results.has_value() &&
             target.Read(buffer_variables::clear_on_reload)) {
@@ -206,9 +203,9 @@ futures::Value<PossibleError> GenerateContents(
         target.Set(buffer_variables::atomic_lines, true);
         target.Set(buffer_variables::allow_dirty_delete, true);
         target.Set(buffer_variables::tree_parser, L"md");
-        return background_directory_reader
-            ->Run([path, noise_regexp =
-                             target.Read(buffer_variables::directory_noise)]() {
+        return editor_state.thread_pool()
+            .Run([path, noise_regexp =
+                            target.Read(buffer_variables::directory_noise)]() {
               return ReadDir(path.value(), std::wregex(noise_regexp));
             })
             .Transform([&editor_state, &target,
@@ -313,7 +310,7 @@ futures::Value<PossibleError> Save(
                                                   path.ToString());
               // TODO(easy): Move this to the caller, for symmetry with
               // kBackup case.
-              // TODO: Synce the save is async, what if the contents have
+              // TODO: Since the save is async, what if the contents have
               // changed in the meantime?
               buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
               for (const auto& dir : buffer->editor().edge_path()) {
@@ -810,15 +807,11 @@ OpenFile(const OpenFileOptions& options) {
             OpenBuffer::Options{.editor = options.editor_state});
 
         auto stat_buffer = std::make_shared<struct stat>();
-        auto background_directory_reader = std::make_shared<AsyncEvaluator>(
-            L"ReadDir", options.editor_state.work_queue());
         buffer_options->generate_contents =
             [&editor_state = options.editor_state, stat_buffer,
-             file_system_driver,
-             background_directory_reader](OpenBuffer& target) {
+             file_system_driver](OpenBuffer& target) {
               return GenerateContents(editor_state, stat_buffer,
-                                      file_system_driver,
-                                      background_directory_reader, target);
+                                      file_system_driver, target);
             };
         buffer_options->handle_visit = [stat_buffer](OpenBuffer& buffer) {
           HandleVisit(*stat_buffer, buffer);
