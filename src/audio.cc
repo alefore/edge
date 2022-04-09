@@ -6,8 +6,7 @@
 
 namespace afc::editor::audio {
 struct Generator {
-  using Callback =
-      std::function<audio::Player::SpeakerValue(audio::Player::Time)>;
+  using Callback = std::function<SpeakerValue(audio::Player::Time)>;
   Callback callback;
   audio::Player::Time start_time;
   audio::Player::Time end_time;
@@ -19,7 +18,7 @@ Generator ApplyVolume(
     Generator generator) {
   generator.callback =
       [volume, callback = generator.callback](audio::Player::Time time) {
-        return callback(time) * volume(time);
+        return SpeakerValue(callback(time).read() * volume(time));
       };
   return generator;
 }
@@ -42,7 +41,7 @@ std::function<audio::Player::Volume(audio::Player::Time)> SmoothVolume(
 #if HAVE_LIBAO
 Generator::Callback Oscillate(audio::Frequency freq) {
   return [freq](audio::Player::Time time) {
-    return (int)(32768.0 * sin(2 * M_PI * freq.read() * time));
+    return SpeakerValue(32768.0 * sin(2 * M_PI * freq.read() * time));
   };
 }
 
@@ -152,7 +151,8 @@ class PlayerImpl : public Player {
           data->volume =
               0.8 * data->volume + 0.2 * (1.0 / enabled_generators.size());
           for (auto& generator : enabled_generators)
-            new_frame->Add(i, generator->callback(data->time) * data->volume);
+            new_frame->Add(
+                i, generator->callback(data->time).read() * data->volume);
         }
       } else if (!data->generators.empty()) {
         data->time += iterations * delta;

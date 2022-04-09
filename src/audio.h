@@ -23,6 +23,7 @@
 
 namespace afc::editor::audio {
 GHOST_TYPE(Frequency, double);
+GHOST_TYPE(SpeakerValue, int);
 
 struct Generator;
 
@@ -31,7 +32,6 @@ class Player {
   using Time = double;
   using Duration = double;
   using Volume = double;
-  using SpeakerValue = double;
 
   class Lock {
    public:
