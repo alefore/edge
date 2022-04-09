@@ -81,8 +81,11 @@ class PlayerImpl : public Player {
     // We gradually adjust the volume depending on the number of enabled
     // generators. This roughly assumes that a generator's volume is constant as
     // long as it's enabled.
-    audio::Player::Volume volume = 1.0;
-    audio::Player::Time time = 0.0;
+    Player::Volume volume = 1.0;
+
+    // The volume received through Player::SetVolume.
+    Player::Volume external_volume = 1.0;
+    Player::Time time = 0.0;
     bool shutting_down = false;
   };
 
@@ -121,6 +124,10 @@ class PlayerImpl : public Player {
     return std::make_unique<PlayerImplLock>(data_.lock());
   }
 
+  virtual void SetVolume(Volume volume) {
+    data_.lock([volume](MutableData& data) { data.external_volume = volume; });
+  }
+
  private:
   std::unique_ptr<Frame> NewFrame() {
     return std::make_unique<Frame>(frame_length_ * format_.bits / 8 *
@@ -150,9 +157,9 @@ class PlayerImpl : public Player {
         for (int i = 0; i < iterations; i++, data->time += delta) {
           data->volume =
               0.8 * data->volume + 0.2 * (1.0 / enabled_generators.size());
+          Volume volume = data->volume * data->external_volume;
           for (auto& generator : enabled_generators)
-            new_frame->Add(
-                i, generator->callback(data->time).read() * data->volume);
+            new_frame->Add(i, generator->callback(data->time).read() * volume);
         }
       } else if (!data->generators.empty()) {
         data->time += iterations * delta;
@@ -191,6 +198,7 @@ class NullPlayer : public Player {
   std::unique_ptr<Player::Lock> lock() override {
     return std::make_unique<NullLock>();
   }
+  virtual void SetVolume(Volume) {}
 };
 }  // namespace
 

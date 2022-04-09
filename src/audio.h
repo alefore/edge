@@ -42,6 +42,7 @@ class Player {
 
   virtual ~Player() {}
   virtual std::unique_ptr<Lock> lock() = 0;
+  virtual void SetVolume(Volume) = 0;
 };
 
 std::unique_ptr<Player> NewPlayer();
