@@ -86,7 +86,31 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
         (editor_state.Read(var) ? L"🗸 " : L"⛶ ") + name);
     return futures::Past(EmptyValue());
   }
-
+  if (auto var = editor_variables::DoubleStruct()->find_variable(name);
+      var != nullptr) {
+    Prompt(
+        {.editor_state = editor_state,
+         .prompt = name + L" := ",
+         .history_file = L"values",
+         .initial_value = std::to_wstring(editor_state.Read(var)),
+         .handler =
+             [&editor_state, var, &default_error_status](const wstring& input) {
+               std::wstringstream ss(input);
+               double value;
+               ss >> value;
+               if (ss.eof() && !ss.fail()) {
+                 editor_state.Set(var, value);
+               } else {
+                 default_error_status.SetWarningText(
+                     L"Invalid value for double value “" + var->name() +
+                     L"”: " + input);
+               }
+               return futures::Past(EmptyValue());
+             },
+         .cancel_handler = []() { /* Nothing. */ },
+         .status = PromptOptions::Status::kEditor});
+    return futures::Past(EmptyValue());
+  }
   if (auto var = buffer_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
     return editor_state
