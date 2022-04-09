@@ -22,6 +22,7 @@ class Trampoline;
 struct EvaluationOutput;
 
 std::wstring CppEscapeString(std::wstring input);
+std::optional<std::wstring> CppUnescapeString(std::wstring input);
 
 struct Value {
   using Ptr = std::unique_ptr<Value>;
