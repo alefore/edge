@@ -287,7 +287,9 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Setting up audio_player.";
   const std::unique_ptr<audio::Player> audio_player =
-      args.mute ? audio::NewNullPlayer() : audio::NewPlayer();
+      getenv(kEdgeParentAddress) != nullptr || args.mute
+          ? audio::NewNullPlayer()
+          : audio::NewPlayer();
 
   LOG(INFO) << "Creating editor.";
   global_editor_state = std::make_unique<EditorState>(args, *audio_player);
