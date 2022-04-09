@@ -62,6 +62,8 @@ class EditorState {
   void Set(const EdgeVariable<wstring>* variable, wstring value);
   const int& Read(const EdgeVariable<int>* variable) const;
   void Set(const EdgeVariable<int>* variable, int value);
+  const double& Read(const EdgeVariable<double>* variable) const;
+  void Set(const EdgeVariable<double>* variable, double value);
 
   void CheckPosition();
 
@@ -233,6 +235,7 @@ class EditorState {
   EdgeStructInstance<wstring> string_variables_;
   EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<int> int_variables_;
+  EdgeStructInstance<double> double_variables_;
 
   const std::shared_ptr<WorkQueue> work_queue_;
   ThreadPool thread_pool_;

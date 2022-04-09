@@ -490,6 +490,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
     : string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
+      double_variables_(editor_variables::DoubleStruct()->NewInstance()),
       work_queue_(WorkQueue::New([this] { NotifyInternalEvent(); })),
       thread_pool_(32, work_queue_),
       home_directory_(args.home_directory),
@@ -541,6 +542,12 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
           return futures::Past(futures::IterationControlCommand::kContinue);
         });
   });
+
+  double_variables_.AddObserver(editor_variables::volume, [this] {
+    audio_player_.SetVolume(audio::Player::Volume(
+        max(0.0, min(1.0, Read(editor_variables::volume)))));
+    return ObserverState::kAlive;
+  });
 }
 
 EditorState::~EditorState() {
@@ -589,6 +596,14 @@ void EditorState::Set(const EdgeVariable<int>* variable, int value) {
       variable == editor_variables::buffers_to_show) {
     AdjustWidgets();
   }
+}
+
+const double& EditorState::Read(const EdgeVariable<double>* variable) const {
+  return double_variables_.Get(variable);
+}
+
+void EditorState::Set(const EdgeVariable<double>* variable, double value) {
+  double_variables_.Set(variable, value);
 }
 
 void EditorState::CheckPosition() {
