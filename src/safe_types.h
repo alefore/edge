@@ -38,6 +38,11 @@ auto Pointer(T* p) {
   return BoundPointer([p] { return p; });
 }
 
+template <typename T>
+auto Pointer(std::unique_ptr<T>& p) {
+  return Pointer(p.get());
+}
+
 template <typename T, typename Callable>
 void IfObj(std::weak_ptr<T> p, Callable callable) {
   auto value = p.lock();
