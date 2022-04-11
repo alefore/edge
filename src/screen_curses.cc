@@ -141,6 +141,8 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
         VLOG(4) << "Finished reading wide character: "
                 << std::wstring(1, output);
         break;
+      case 0:
+        return -1;
       case -1:
         LOG(WARNING) << "Encoding error occurred, ignoring input: " << c;
         return -1;
