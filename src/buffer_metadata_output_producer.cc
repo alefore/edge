@@ -16,6 +16,7 @@
 #include "src/line_with_cursor.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"
+#include "src/tests/tests.h"
 
 namespace afc {
 namespace editor {
@@ -100,7 +101,7 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
 struct MetadataLine {
   wchar_t info_char;
   LineModifier modifier;
-  Line suffix;
+  std::shared_ptr<const Line> suffix;
   enum class Type {
     kDefault,
     kMark,
@@ -115,38 +116,24 @@ ColumnNumberDelta width(MetadataLine& line, bool has_previous, bool has_next) {
   return ColumnNumberDelta(1) +
          (has_previous || has_next ? ColumnNumberDelta(1)
                                    : ColumnNumberDelta(0)) +
-         line.suffix.contents()->size();
+         line.suffix->contents()->size();
 }
 
-LineWithCursor::Generator NewGenerator(MetadataLine line, bool has_previous,
-                                       bool has_next, bool is_start) {
+LineWithCursor::Generator NewGenerator(MetadataLine line, std::wstring prefix) {
+  CHECK(line.suffix != nullptr);
   return LineWithCursor::Generator::New(CaptureAndHash(
       [](wchar_t info_char, LineModifier modifier, Line suffix,
-         bool has_previous, bool has_next, bool is_start) {
+         std::wstring prefix) {
         Line::Options options;
-        options.AppendCharacter(info_char, {modifier});
-        if (is_start) {
-          if (has_previous && has_next) {
-            options.AppendCharacter(L'╈', {});
-          } else if (has_previous) {
-            // Pass.
-          } else if (has_next) {
-            options.AppendCharacter(L'┳', {});
-          }
+        if (prefix.empty()) {
+          options.AppendCharacter(info_char, {modifier});
         } else {
-          if (has_previous && has_next) {
-            options.AppendCharacter(L'┃', {});
-          } else if (has_previous) {
-            options.AppendCharacter(L'┗', {});
-          } else if (has_next) {
-            options.AppendCharacter(L'┳', {});
-          }
+          options.Append(Line(prefix));
         }
         options.Append(suffix);
         return LineWithCursor{Line(options)};
       },
-      line.info_char, line.modifier, std::move(line.suffix), has_previous,
-      has_next, is_start));
+      line.info_char, line.modifier, std::move(*line.suffix), prefix));
 }
 }  // namespace
 
@@ -284,8 +271,8 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   return Line(std::move(line_options));
 }
 
-Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
-                           LineNumber line) {
+std::shared_ptr<Line> GetDefaultInformation(
+    const BufferMetadataOutputOptions& options, LineNumber line) {
   Line::Options line_options;
   auto parse_tree = options.buffer.simplified_parse_tree();
   if (parse_tree != nullptr) {
@@ -310,13 +297,12 @@ Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
           std::nullopt);
     }
   }
-  return Line(std::move(line_options));
+  return std::make_shared<Line>(std::move(line_options));
 }
 
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
-                                Range range, bool has_previous) {
+                                Range range) {
   std::list<MetadataLine> output;
-
   const Line& contents = *options.buffer.contents().at(range.begin.line);
   auto target_buffer_value = contents.environment()->Lookup(
       Environment::Namespace(), L"buffer",
@@ -333,7 +319,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   if (target_buffer != &options.buffer) {
     output.push_back(
         MetadataLine{info_char, info_char_modifier,
-                     Line(OpenBuffer::FlagsToString(target_buffer->Flags())),
+                     std::make_shared<Line>(
+                         OpenBuffer::FlagsToString(target_buffer->Flags())),
                      MetadataLine::Type::kFlags});
   } else if (contents.modified()) {
     info_char_modifier = LineModifier::GREEN;
@@ -347,7 +334,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     ForEachColumn(*metadata, [](ColumnNumber, wchar_t c) {
       CHECK(c != L'\n') << "Metadata has invalid newline character.";
     });
-    output.push_back(MetadataLine{L'>', LineModifier::GREEN, Line(metadata),
+    output.push_back(MetadataLine{L'>', LineModifier::GREEN,
+                                  std::make_shared<Line>(metadata),
                                   MetadataLine::Type::kLineContents});
   }
 
@@ -371,8 +359,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         output.empty() ? LineModifier::RED : LineModifier::DIM,
         (source != options.buffer.editor().buffers()->end() &&
          mark.source_line < LineNumber(0) + source->second->contents().size())
-            ? *source->second->contents().at(mark.source_line)
-            : Line(L"(dead mark)"),
+            ? source->second->contents().at(mark.source_line)
+            : std::make_shared<Line>(L"(dead mark)"),
         MetadataLine::Type::kMark});
   }
 
@@ -392,49 +380,341 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     if (auto contents = mark.source_line_content->ToString();
         marks_strings.find(contents) == marks_strings.end()) {
       output.push_back(MetadataLine{'!', LineModifier::RED,
-                                    Line(L"👻 " + contents),
+                                    std::make_shared<Line>(L"👻 " + contents),
                                     MetadataLine::Type::kMark});
     }
   }
 
-  if (output.empty() && !has_previous) {
+  if (output.empty()) {
     output.push_back(
         MetadataLine{info_char, info_char_modifier,
                      GetDefaultInformation(options, range.begin.line),
                      MetadataLine::Type::kDefault});
   }
-  CHECK(!output.empty() || has_previous);
+  CHECK(!output.empty());
   return output;
 }
 
+struct Box {
+  const LineNumber reference;
+  LineNumberDelta size;
+
+  bool operator==(const Box& other) const {
+    return reference == other.reference && size == other.size;
+  }
+};
+
+std::ostream& operator<<(std::ostream& os, const Box& b) {
+  os << "[box: reference:" << b.reference << ", size:" << b.size << "]";
+  return os;
+}
+
+struct BoxWithPosition {
+  Box box;
+  LineNumber position;
+
+  bool operator==(const BoxWithPosition& other) const {
+    return box == other.box && position == other.position;
+  }
+};
+
+std::ostream& operator<<(std::ostream& os, const BoxWithPosition& b) {
+  os << "[box-with-position: box:" << b.box << ", position:" << b.position
+     << "]";
+  return os;
+}
+
+template <typename Container>
+LineNumberDelta SumSizes(const Container& container) {
+  LineNumberDelta sum_sizes;
+  for (const auto& b : container) sum_sizes += b.size;
+  return sum_sizes;
+}
+
+std::list<Box> Squash(std::list<Box> inputs, LineNumberDelta screen_size) {
+  LineNumberDelta sum_sizes = SumSizes(inputs);
+  if (sum_sizes <= screen_size) return inputs;
+  std::vector<Box> boxes(inputs.begin(), inputs.end());
+  std::vector<size_t> indices;
+  for (size_t i = 0; i < boxes.size(); i++) indices.push_back(i);
+  std::sort(indices.begin(), indices.end(), [&](size_t a, size_t b) {
+    return boxes[a].size > boxes[b].size ||
+           (boxes[a].size == boxes[b].size && b > a);
+  });
+  CHECK_EQ(indices.size(), boxes.size());
+  while (sum_sizes > screen_size) {
+    LineNumberDelta current_size = boxes[indices[0]].size;
+    for (size_t i = 0;
+         i < indices.size() && boxes[indices[i]].size == current_size &&
+         sum_sizes > screen_size;
+         i++) {
+      --boxes[indices[i]].size;
+      sum_sizes--;
+    }
+  }
+  return std::list<Box>(boxes.begin(), boxes.end());
+}
+
+namespace {
+// TODO(easy): Turn this into an iterative algorithm.
+std::list<BoxWithPosition> RecursiveLayout(std::list<Box> boxes,
+                                           LineNumberDelta screen_size,
+                                           LineNumberDelta sum_sizes) {
+  if (boxes.empty()) return {};
+  Box back = std::move(boxes.back());
+  boxes.pop_back();
+  sum_sizes -= back.size;
+  LineNumber position =
+      max(LineNumber() + sum_sizes,
+          min(back.reference, LineNumber() + screen_size - back.size));
+  auto output =
+      RecursiveLayout(std::move(boxes), position.ToDelta(), sum_sizes);
+  output.push_back({.box = back, .position = position});
+  return output;
+}
+
+std::list<BoxWithPosition> FindLayout(std::list<Box> boxes,
+                                      LineNumberDelta screen_size) {
+  boxes = Squash(std::move(boxes), screen_size);
+  CHECK_LE(SumSizes(boxes), screen_size);
+  return RecursiveLayout(std::move(boxes), screen_size, SumSizes(boxes));
+}
+
+bool find_layout_tests_registration =
+    tests::Register(L"BufferMetadataOutput::FindLayout", [] {
+      auto SimpleTest = [](std::wstring name, std::list<Box> input,
+                           LineNumberDelta size,
+                           std::list<BoxWithPosition> expected_output) {
+        return tests::Test{.name = name, .callback = [=] {
+                             auto output = FindLayout(input, size);
+                             CHECK_EQ(output.size(), expected_output.size());
+                             auto it_output = output.begin();
+                             auto it_expected_output = expected_output.begin();
+                             while (it_output != output.end()) {
+                               CHECK_EQ(*it_output, *it_expected_output);
+                               ++it_output;
+                               ++it_expected_output;
+                             }
+                           }};
+      };
+      return std::vector<tests::Test>({
+          SimpleTest(L"Empty", {}, LineNumberDelta(10), {}),
+          SimpleTest(L"SingleSmallBox",
+                     {{.reference = LineNumber(3), .size = LineNumberDelta(2)}},
+                     LineNumberDelta(10),
+                     {BoxWithPosition{.box = {.reference = LineNumber(3),
+                                              .size = LineNumberDelta(2)},
+                                      .position = LineNumber(3)}}),
+          SimpleTest(L"BoxPushedUp",
+                     {{.reference = LineNumber(8), .size = LineNumberDelta(6)}},
+                     LineNumberDelta(10),
+                     {BoxWithPosition{.box = {.reference = LineNumber(8),
+                                              .size = LineNumberDelta(6)},
+                                      .position = LineNumber(4)}}),
+          SimpleTest(
+              L"SingleLargeBox",
+              {{.reference = LineNumber(8), .size = LineNumberDelta(120)}},
+              LineNumberDelta(10),
+              {BoxWithPosition{.box = {.reference = LineNumber(8),
+                                       .size = LineNumberDelta(10)},
+                               .position = LineNumber(0)}}),
+          SimpleTest(
+              L"Squash",
+              {{.reference = LineNumber(3), .size = LineNumberDelta(100)},
+               {.reference = LineNumber(4), .size = LineNumberDelta(2)},
+               {.reference = LineNumber(7), .size = LineNumberDelta(8)}},
+              LineNumberDelta(10),
+              {BoxWithPosition{.box = {.reference = LineNumber(3),
+                                       .size = LineNumberDelta(4)},
+                               .position = LineNumber(0)},
+               BoxWithPosition{.box = {.reference = LineNumber(4),
+                                       .size = LineNumberDelta(2)},
+                               .position = LineNumber(4)},
+               BoxWithPosition{.box = {.reference = LineNumber(7),
+                                       .size = LineNumberDelta(4)},
+                               .position = LineNumber(6)}}),
+          SimpleTest(L"CascadingUpwards",
+                     {{.reference = LineNumber(2), .size = LineNumberDelta(2)},
+                      {.reference = LineNumber(4), .size = LineNumberDelta(2)},
+                      {.reference = LineNumber(6), .size = LineNumberDelta(2)},
+                      {.reference = LineNumber(8), .size = LineNumberDelta(3)}},
+                     LineNumberDelta(10),
+                     {BoxWithPosition{.box = {.reference = LineNumber(2),
+                                              .size = LineNumberDelta(2)},
+                                      .position = LineNumber(1)},
+                      BoxWithPosition{.box = {.reference = LineNumber(4),
+                                              .size = LineNumberDelta(2)},
+                                      .position = LineNumber(3)},
+                      BoxWithPosition{.box = {.reference = LineNumber(6),
+                                              .size = LineNumberDelta(2)},
+                                      .position = LineNumber(5)},
+                      BoxWithPosition{.box = {.reference = LineNumber(8),
+                                              .size = LineNumberDelta(3)},
+                                      .position = LineNumber(7)}}),
+      });
+    }());
+
+std::vector<std::wstring> ComputePrefixLines(
+    LineNumberDelta screen_size, const std::vector<BoxWithPosition>& boxes) {
+  using BoxIndex = size_t;
+  auto downwards = [&](BoxIndex i) {
+    const BoxWithPosition& box = boxes[i];
+    return box.box.reference >= boxes[i].position + boxes[i].box.size;
+  };
+  auto upwards = [&](BoxIndex i) {
+    const BoxWithPosition& box = boxes[i];
+    return box.box.reference < boxes[i].position;
+  };
+
+  std::vector<std::wstring> output(screen_size.line_delta, L"");
+  auto get = [&](LineNumber l) -> std::wstring& {
+    CHECK_LT(l.line, output.size());
+    return output[l.line];
+  };
+  auto push = [&](LineNumber l, wchar_t c, size_t* indents) {
+    std::wstring& target = get(l);
+    size_t padding = target.size() < *indents ? *indents - target.size() : 0;
+    switch (c) {
+      case L'╭':
+        target += std::wstring(padding, L' ');
+        break;
+      case L'╮':
+        target += std::wstring(padding, L'─');
+        break;
+      case L'│':
+        target += std::wstring(padding, L' ');
+        break;
+      case L'╯':
+        target += std::wstring(padding, L'─');
+        break;
+      case L'╰':
+        target += std::wstring(padding, L' ');
+        break;
+    }
+    *indents = target.size();
+    target.push_back(c);
+  };
+  for (BoxIndex i = 0; i < boxes.size(); ++i) {
+    if (downwards(i)) {
+      LineNumber l = boxes[i].position + boxes[i].box.size - LineNumberDelta(1);
+      size_t indents = 0;
+      push(l, L'╭', &indents);
+      ++l;
+      while (l < boxes[i].box.reference) {
+        push(l, L'│', &indents);
+        ++l;
+      }
+      push(l, L'╯', &indents);
+    } else if (upwards(i)) {
+      LineNumber l = boxes[i].box.reference;
+      size_t indents = 0;
+      push(l, L'╮', &indents);
+      ++l;
+      while (l < boxes[i].position) {
+        push(l, L'│', &indents);
+        ++l;
+      }
+      push(l, L'╰', &indents);
+    } else {
+      size_t indents = 0;
+      push(boxes[i].box.reference, L'─', &indents);
+    }
+  }
+  for (const auto& b : boxes) {
+    if (b.box.size == LineNumberDelta(1)) continue;
+    size_t indents = 0;
+    // Figure out the maximum indent.
+    for (LineNumberDelta l; l < b.box.size; ++l) {
+      indents = max(indents, get(b.position + l).size());
+    }
+    // Add indents for all lines overlapping with the current box.
+    for (LineNumberDelta l; l < b.box.size; ++l) {
+      std::wstring& target = output[(b.position + l).line];
+      CHECK_LE(target.size(), indents);
+      target.resize(indents, target.empty() || target.back() == L'╮' ||
+                                     target.back() == L'│' ||
+                                     target.back() == L'╯'
+                                 ? L' '
+                                 : L'─');
+    }
+    // Add the wrappings around the box.
+    get(b.position).push_back(b.position >= b.box.reference ? L'┬' : L'╭');
+    for (LineNumberDelta l(1); l + LineNumberDelta(1) < b.box.size; ++l) {
+      get(b.position + l)
+          .push_back(b.position + l == b.box.reference ? L'┤' : L'│');
+    }
+    get(b.position + b.box.size - LineNumberDelta(1))
+        .push_back(b.position + b.box.size - LineNumberDelta(1) <=
+                           b.box.reference
+                       ? L'┴'
+                       : L'╰');
+  }
+  return output;
+}
+}  // namespace
+
 LineWithCursor::Generator::Vector BufferMetadataOutput(
     BufferMetadataOutputOptions options) {
-  if (options.screen_lines.empty()) return {};
+  const LineNumberDelta screen_size(options.screen_lines.size());
+  if (screen_size.IsZero()) return {};
+
+  std::vector<std::list<MetadataLine>> metadata_by_line(
+      options.screen_lines.size());
+  for (LineNumber i; i.ToDelta() < screen_size; ++i) {
+    if (Range range = options.screen_lines[i.ToDelta().line_delta].range;
+        range.begin.line < LineNumber(0) + options.buffer.lines_size()) {
+      metadata_by_line[i.line] = Prepare(options, range);
+    }
+  }
+
+  std::list<Box> boxes_input;
+  for (LineNumber i; i.ToDelta() < screen_size; ++i) {
+    const std::list<MetadataLine>& v = metadata_by_line[i.line];
+    if (!v.empty() &&
+        (v.size() != 1 || v.front().type != MetadataLine::Type::kDefault)) {
+      boxes_input.push_back(
+          {.reference = i, .size = LineNumberDelta(v.size())});
+      VLOG(6) << "Pushed input box: " << boxes_input.back();
+    }
+  }
+
+  const std::list<BoxWithPosition> boxes_list =
+      FindLayout(std::move(boxes_input), screen_size);
+  const std::vector<BoxWithPosition> boxes(boxes_list.begin(),
+                                           boxes_list.end());
+
+  for (auto& b : boxes) {
+    VLOG(5) << "Received output box: " << b;
+    CHECK_GE(LineNumberDelta(metadata_by_line[b.box.reference.line].size()),
+             b.box.size);
+  }
+
+  const std::vector<std::wstring> prefix_lines =
+      ComputePrefixLines(screen_size, boxes);
   LineWithCursor::Generator::Vector output;
-  std::list<MetadataLine> range_data;
-  for (LineNumberDelta i; i < LineNumberDelta(options.screen_lines.size());
-       ++i) {
-    Range range = options.screen_lines[i.line_delta].range;
-    if (range.begin.line >= LineNumber(0) + options.buffer.lines_size()) {
-      continue;
+  size_t box_index = 0;
+  for (LineNumber i; i.ToDelta() < screen_size; ++i) {
+    CHECK_LT(i.line, metadata_by_line.size());
+    size_t source;
+    if (box_index == boxes.size() || boxes[box_index].position > i) {
+      if (metadata_by_line[i.line].empty()) continue;
+      CHECK(!metadata_by_line[i.line].empty());
+      source = i.line;
+    } else {
+      source = boxes[box_index].box.reference.line;
+      if (metadata_by_line[source].size() == 1) ++box_index;
     }
+    CHECK_LT(source, metadata_by_line.size());
+    CHECK(!metadata_by_line[source].empty());
+    MetadataLine& metadata_line = metadata_by_line[source].front();
 
-    bool has_previous = !range_data.empty();
-    bool is_start = false;
-    if (std::list<MetadataLine> new_range =
-            Prepare(options, range, !range_data.empty());
-        !new_range.empty()) {
-      range_data.swap(new_range);
-      is_start = true;
-    }
-    CHECK(!range_data.empty());
+    std::wstring prefix = prefix_lines[i.line];
+    output.width =
+        std::max(output.width, ColumnNumberDelta(prefix.size()) +
+                                   width(metadata_line, false, false));
+    output.lines.push_back(NewGenerator(std::move(metadata_line), prefix));
 
-    bool has_next = range_data.size() > 1;
-    output.width = std::max(output.width,
-                            width(range_data.front(), has_previous, has_next));
-    output.lines.push_back(NewGenerator(std::move(range_data.front()),
-                                        has_previous, has_next, is_start));
-    range_data.pop_front();
+    metadata_by_line[source].pop_front();
   }
   return output;
 }
