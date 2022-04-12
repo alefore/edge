@@ -49,5 +49,10 @@ void IfObj(std::weak_ptr<T> p, Callable callable) {
   if (value != nullptr) callable(*value);
 }
 
+template <typename T, typename Callable>
+void IfObj(std::optional<T> p, Callable callable) {
+  if (p.has_value()) callable(*p);
+}
+
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_SAFE_TYPES_H__
