@@ -181,7 +181,7 @@ void InsertLines(const FileDescriptorReader::Options& options,
 
 futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
     std::shared_ptr<LazyString> contents) {
-  return options_->read_evaluator
+  return options_->thread_pool
       .Run(
           // TODO: Find a way to remove the `std::function`, letting the read
           // evaluator somehow detect the return type. Not sure why it doesn't

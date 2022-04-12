@@ -15,6 +15,7 @@
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
+#include "src/thread_pool.h"
 
 namespace afc {
 namespace editor {
@@ -41,7 +42,7 @@ class FileDescriptorReader {
     // We want to avoid potentially expensive/slow parsing operations in the
     // main thread. To achieve that, we receive an async_processor owned by the
     // buffer and we delegate as much work as feasible to that processor.
-    AsyncEvaluator& read_evaluator;
+    ThreadPool& thread_pool;
   };
 
   FileDescriptorReader(Options options);

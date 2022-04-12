@@ -1969,7 +1969,7 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
                                       .fd = fd,
                                       .modifiers = std::move(modifiers),
                                       .terminal = terminal_.get(),
-                                      .read_evaluator = async_read_evaluator_});
+                                      .thread_pool = editor().thread_pool()});
   };
 
   fd_ = new_reader(input_fd, {});
