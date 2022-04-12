@@ -21,8 +21,7 @@ using std::unique_ptr;
 // Saves the contents of the buffer to the path given.
 futures::Value<PossibleError> SaveContentsToFile(
     const Path& path, std::shared_ptr<const BufferContents> contents,
-    std::shared_ptr<WorkQueue> work_queue,
-    FileSystemDriver& file_system_driver);
+    ThreadPool& thread_pool, FileSystemDriver& file_system_driver);
 
 struct OpenFileOptions {
   EditorState& editor_state;

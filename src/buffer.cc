@@ -761,13 +761,14 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         }
         contents->push_back(L"");
 
-        return OnError(SaveContentsToFile(path, std::move(contents),
-                                          work_queue(), file_system_driver()),
-                       [shared_this](Error error) {
-                         shared_this->status().SetWarningText(
-                             L"Unable to persist state: " + error.description);
-                         return error;
-                       });
+        return OnError(
+            SaveContentsToFile(path, std::move(contents),
+                               editor().thread_pool(), file_system_driver()),
+            [shared_this](Error error) {
+              shared_this->status().SetWarningText(
+                  L"Unable to persist state: " + error.description);
+              return error;
+            });
       });
 }
 

@@ -143,7 +143,7 @@ futures::Value<PossibleError> Save(
   return path.Transform([stat_buffer, options,
                          buffer = buffer.shared_from_this()](Path path) {
     return SaveContentsToFile(path, buffer->contents().copy(),
-                              buffer->work_queue(),
+                              buffer->editor().thread_pool(),
                               buffer->file_system_driver())
         .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
         .Transform([stat_buffer, options, buffer, path](EmptyValue) {
@@ -202,26 +202,25 @@ static futures::Value<bool> CanStatPath(
 }
 
 futures::Value<PossibleError> SaveContentsToOpenFile(
-    std::shared_ptr<WorkQueue> work_queue, Path path, int fd,
+    ThreadPool& thread_pool, Path path, int fd,
     std::shared_ptr<const BufferContents> contents) {
-  return AsyncEvaluator(L"SaveContentsToOpenFile", work_queue)
-      .Run([contents, path, fd]() {
-        // TODO: It'd be significant more efficient to do fewer (bigger)
-        // writes.
-        std::optional<PossibleError> error;
-        contents->EveryLine([&](LineNumber position, const Line& line) {
-          string str = (position == LineNumber(0) ? "" : "\n") +
-                       ToByteString(line.ToString());
-          if (write(fd, str.c_str(), str.size()) == -1) {
-            error = Error(path.ToString() + L": write failed: " +
-                          std::to_wstring(fd) + L": " +
-                          FromByteString(strerror(errno)));
-            return false;
-          }
-          return true;
-        });
-        return error.value_or(Success());
-      });
+  return thread_pool.Run([contents, path, fd]() {
+    // TODO: It'd be significant more efficient to do fewer (bigger)
+    // writes.
+    std::optional<PossibleError> error;
+    contents->EveryLine([&](LineNumber position, const Line& line) {
+      string str = (position == LineNumber(0) ? "" : "\n") +
+                   ToByteString(line.ToString());
+      if (write(fd, str.c_str(), str.size()) == -1) {
+        error =
+            Error(path.ToString() + L": write failed: " + std::to_wstring(fd) +
+                  L": " + FromByteString(strerror(errno)));
+        return false;
+      }
+      return true;
+    });
+    return error.value_or(Success());
+  });
 }
 }  // namespace
 
@@ -229,8 +228,7 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 // notified.
 futures::Value<PossibleError> SaveContentsToFile(
     const Path& path, std::shared_ptr<const BufferContents> contents,
-    std::shared_ptr<WorkQueue> work_queue,
-    FileSystemDriver& file_system_driver) {
+    ThreadPool& thread_pool, FileSystemDriver& file_system_driver) {
   Path tmp_path = Path::Join(
       path.Dirname().value(),
       PathComponent::FromString(path.Basename().value().ToString() + L".tmp")
@@ -250,11 +248,11 @@ futures::Value<PossibleError> SaveContentsToFile(
         return file_system_driver.Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
                                        stat_value.st_mode);
       })
-      .Transform([path, contents, work_queue, tmp_path,
+      .Transform([&thread_pool, path, contents, tmp_path,
                   &file_system_driver](int fd) {
         CHECK_NE(fd, -1);
         return OnError(
-                   SaveContentsToOpenFile(work_queue, tmp_path, fd, contents),
+                   SaveContentsToOpenFile(thread_pool, tmp_path, fd, contents),
                    [&file_system_driver, fd](Error error) {
                      file_system_driver.Close(fd);
                      return error;
