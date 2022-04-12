@@ -3,6 +3,7 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
+#include "src/line_prompt_mode.h"
 #include "src/log.h"
 #include "src/run_command_handler.h"
 #include "src/tests/tests.h"
@@ -324,6 +325,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             std::unique_ptr<BufferContents> contents =
                 input.buffer.contents().copy();
             contents->FilterToRange(*delete_transformation.range);
+            AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),
+                             NewLazyString(contents->ToString()));
             ForkCommand(input.buffer.editor(),
                         ForkCommandOptions{
                             .command = contents->ToString(),
