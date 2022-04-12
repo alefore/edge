@@ -1,32 +1,6 @@
 // Macros for easily defining ghost types:
 //
-//   namespace xxx {
-//   class FirstName {
-//    public:
-//     GHOST_TYPE_CONSTRUCTOR(FirstName, std::string, value);
-//     GHOST_TYPE_EQ(FirstName, value);
-//     GHOST_TYPE_LT(FirstName, value);
-//
-//    private:
-//     GHOST_TYPE_OUTPUT_FRIEND(FirstName, value);
-//     GHOST_TYPE_HASH_FRIEND(FirstName, value);
-//     std::string value;
-//   };
-//
-//   GHOST_TYPE_OUTPUT(FirstName, value);
-//   }  // namespace xxx
-//   GHOST_TYPE_HASH(xxx::FirstName, value);
-//
-// This is enough to make the following expressions valid:
-//
-//   LastName last_name_foo("Forero Cuervo");
-//
-//   if (last_name_a == last_name_b) return;
-//
-//   std::vector<LastName> names;
-//   sort(names.begin(), names.end());
-//
-//   std::out << "Found name: " << last_name_foo;
+//   GHOST_TYPE(HistoryFile, std::wstring)
 //
 // This is based on the principle that code is more readable if the types it
 // operates on convey more semantics than just what their underlying
