@@ -202,7 +202,8 @@ futures::Value<PossibleError> GenerateContents(
 
   LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
             << pipefd_err[parent_fd];
-  target.SetInputFiles(pipefd_out[parent_fd], pipefd_err[parent_fd],
+  target.SetInputFiles(FileDescriptor(pipefd_out[parent_fd]),
+                       FileDescriptor(pipefd_err[parent_fd]),
                        target.Read(buffer_variables::pts), child_pid);
   target.WaitForEndOfFile().Transform(
       [&editor_state, data, &target](EmptyValue) {

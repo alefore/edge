@@ -387,8 +387,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   /////////////////////////////////////////////////////////////////////////////
   // Interaction with the operating system
 
-  void SetInputFiles(int input_fd, int input_fd_error, bool fd_is_terminal,
-                     pid_t child_pid);
+  void SetInputFiles(FileDescriptor input_fd, FileDescriptor input_fd_error,
+                     bool fd_is_terminal, pid_t child_pid);
 
   const FileDescriptorReader* fd() const;
   const FileDescriptorReader* fd_error() const;

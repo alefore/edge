@@ -67,7 +67,8 @@ futures::Value<PossibleError> GenerateContents(
           return file_system_driver
               ->Open(path.value(), O_RDONLY | O_NONBLOCK, 0)
               .Transform([&target](int fd) {
-                target.SetInputFiles(fd, -1, false, -1);
+                target.SetInputFiles(FileDescriptor(fd), FileDescriptor(-1),
+                                     false, -1);
                 return Success();
               });
         }

@@ -1947,7 +1947,8 @@ BufferName OpenBuffer::name() const {
   return BufferName(Read(buffer_variables::name));
 }
 
-void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
+void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
+                               FileDescriptor input_error_fd,
                                bool fd_is_terminal, pid_t child_pid) {
   if (Read(buffer_variables::clear_on_reload)) {
     ClearContents(BufferContents::CursorsBehavior::kUnmodified);
@@ -1957,14 +1958,14 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
   CHECK_EQ(child_pid_, -1);
   terminal_ = fd_is_terminal ? NewTerminal() : nullptr;
 
-  auto new_reader = [this](int fd, LineModifierSet modifiers)
+  auto new_reader = [this](FileDescriptor fd, LineModifierSet modifiers)
       -> std::unique_ptr<FileDescriptorReader> {
-    if (fd == -1) {
+    if (fd == FileDescriptor(-1)) {
       return nullptr;
     }
     return std::make_unique<FileDescriptorReader>(
         FileDescriptorReader::Options{.buffer = *this,
-                                      .fd = FileDescriptor(fd),
+                                      .fd = fd,
                                       .modifiers = std::move(modifiers),
                                       .terminal = terminal_.get(),
                                       .read_evaluator = async_read_evaluator_});
