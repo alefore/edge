@@ -130,7 +130,8 @@ class Paste : public Command {
           if (buffer.fd() != nullptr) {
             string text = ToByteString(paste_buffer->ToString());
             for (size_t i = 0; i < editor_state.repetitions(); i++) {
-              if (write(buffer.fd()->fd(), text.c_str(), text.size()) == -1) {
+              if (write(buffer.fd()->fd().read(), text.c_str(), text.size()) ==
+                  -1) {
                 buffer.status().SetWarningText(L"Unable to paste.");
                 break;
               }

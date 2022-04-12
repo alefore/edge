@@ -845,14 +845,14 @@ void OpenBuffer::SendEndOfFileToProcess() {
   }
   if (Read(buffer_variables::pts)) {
     char str[1] = {4};
-    if (write(fd()->fd(), str, sizeof(str)) == -1) {
+    if (write(fd()->fd().read(), str, sizeof(str)) == -1) {
       status().SetInformationText(L"Sending EOF failed: " +
                                   FromByteString(strerror(errno)));
       return;
     }
     status().SetInformationText(L"EOF sent");
   } else {
-    if (shutdown(fd()->fd(), SHUT_WR) == -1) {
+    if (shutdown(fd()->fd().read(), SHUT_WR) == -1) {
       status().SetInformationText(L"shutdown(SHUT_WR) failed: " +
                                   FromByteString(strerror(errno)));
       return;
@@ -1872,7 +1872,7 @@ void OpenBuffer::PushSignal(int sig) {
         kill(child_pid_, sig);
       } else {
         string sequence(1, 0x03);
-        (void)write(fd_->fd(), sequence.c_str(), sequence.size());
+        (void)write(fd_->fd().read(), sequence.c_str(), sequence.size());
         status_.SetInformationText(L"SIGINT");
       }
       break;
@@ -1880,7 +1880,7 @@ void OpenBuffer::PushSignal(int sig) {
     case SIGTSTP:
       static const string sequence(1, 0x1a);
       if (terminal_ != nullptr && fd_ != nullptr) {
-        (void)write(fd_->fd(), sequence.c_str(), sequence.size());
+        (void)write(fd_->fd().read(), sequence.c_str(), sequence.size());
       }
       break;
 

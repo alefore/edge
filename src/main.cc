@@ -493,12 +493,12 @@ int main(int argc, const char** argv) {
       CHECK_LE(i, buffers.size());
       CHECK(buffers[i] != nullptr);
       if (buffers[i] && buffers[i]->fd() != nullptr &&
-          fds[i].fd == buffers[i]->fd()->fd()) {
+          FileDescriptor(fds[i].fd) == buffers[i]->fd()->fd()) {
         LOG(INFO) << "Reading (normal): "
                   << buffers[i]->Read(buffer_variables::name);
         buffers[i]->ReadData();
       } else if (buffers[i] && buffers[i]->fd_error() != nullptr &&
-                 fds[i].fd == buffers[i]->fd_error()->fd()) {
+                 FileDescriptor(fds[i].fd) == buffers[i]->fd_error()->fd()) {
         LOG(INFO) << "Reading (error): "
                   << buffers[i]->Read(buffer_variables::name);
         buffers[i]->ReadErrorData();

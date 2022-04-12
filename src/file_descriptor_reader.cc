@@ -16,12 +16,12 @@ namespace afc::editor {
 
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::make_shared<Options>(std::move(options))) {
-  CHECK(fd() != -1);
+  CHECK(fd() != FileDescriptor(-1));
 }
 
-FileDescriptorReader::~FileDescriptorReader() { close(fd()); }
+FileDescriptorReader::~FileDescriptorReader() { close(fd().read()); }
 
-int FileDescriptorReader::fd() const { return options_->fd.read(); }
+FileDescriptor FileDescriptorReader::fd() const { return options_->fd; }
 
 struct timespec FileDescriptorReader::last_input_received() const {
   return last_input_received_;
@@ -34,7 +34,7 @@ double FileDescriptorReader::lines_read_rate() const {
 std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
   if (state_ == State::kParsing) return std::nullopt;
   struct pollfd output;
-  output.fd = fd();
+  output.fd = fd().read();
   output.events = POLLIN | POLLPRI;
   output.revents = 0;
   return output;
@@ -49,8 +49,9 @@ FileDescriptorReader::ReadData() {
     CHECK_EQ(low_buffer_length_, 0ul);
     low_buffer_.reset(new char[kLowBufferSize]);
   }
-  ssize_t characters_read = read(fd(), low_buffer_.get() + low_buffer_length_,
-                                 kLowBufferSize - low_buffer_length_);
+  ssize_t characters_read =
+      read(fd().read(), low_buffer_.get() + low_buffer_length_,
+           kLowBufferSize - low_buffer_length_);
   LOG(INFO) << "Read returns: " << characters_read;
   if (characters_read == -1) {
     return futures::Past(errno == EAGAIN ? ReadResult::kContinue

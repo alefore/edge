@@ -478,7 +478,7 @@ class InsertMode : public EditorMode {
                [line_buffer = std::move(line_buffer)](
                    const std::shared_ptr<OpenBuffer>& buffer) {
                  if (auto fd = buffer->fd(); fd != nullptr) {
-                   if (write(fd->fd(), line_buffer.c_str(),
+                   if (write(fd->fd().read(), line_buffer.c_str(),
                              line_buffer.size()) == -1) {
                      buffer->status().SetWarningText(
                          L"Write failed: " + FromByteString(strerror(errno)));

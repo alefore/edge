@@ -373,7 +373,8 @@ void BufferTerminal::UpdateSize() {
   screen_size.ws_ypixel = 0;
   if (buffer_->fd() == nullptr) {
     LOG(INFO) << "Buffer fd is nullptr!";
-  } else if (ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
+  } else if (ioctl(buffer_->fd()->fd().read(), TIOCSWINSZ, &screen_size) ==
+             -1) {
     LOG(INFO) << "Buffer ioctl TICSWINSZ failed.";
     buffer_->status().SetWarningText(L"ioctl TIOCSWINSZ failed: " +
                                      FromByteString(strerror(errno)));

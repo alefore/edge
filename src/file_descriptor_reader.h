@@ -47,7 +47,7 @@ class FileDescriptorReader {
   FileDescriptorReader(Options options);
   ~FileDescriptorReader();
 
-  int fd() const;
+  FileDescriptor fd() const;
   struct timespec last_input_received() const;
   double lines_read_rate() const;
 
