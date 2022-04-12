@@ -538,6 +538,9 @@ class ActivateLink : public Command {
         .Transform([&editor_state =
                         editor_state_](std::shared_ptr<OpenBuffer> target) {
           if (target != nullptr) {
+            if (std::wstring path = target->Read(buffer_variables::path);
+                !path.empty())
+              AddLineToHistory(editor_state, L"files", NewLazyString(path));
             editor_state.AddBuffer(target, BuffersList::AddBufferType::kVisit);
           }
           return Success();
