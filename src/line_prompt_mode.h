@@ -8,8 +8,7 @@
 #include "src/predictor.h"
 #include "src/tokenize.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 using std::unique_ptr;
 
@@ -83,7 +82,6 @@ unique_ptr<Command> NewLinePromptCommand(
     EditorState& editor_state, wstring description,
     std::function<PromptOptions()> options_supplier);
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif
