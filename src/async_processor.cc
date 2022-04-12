@@ -65,57 +65,34 @@ const bool async_evaluator_tests_registration = tests::Register(
             }
             CHECK(!queue->NextExecution().has_value());
           }},
-     {.name = L"EvaluatorDeleteWhileBusy",
-      .callback =
-          [] {
-            std::optional<int> future_result;
-            auto queue = WorkQueue::New([] {});
+     {.name = L"EvaluatorDeleteWhileBusy", .callback = [] {
+        std::optional<int> future_result;
+        auto queue = WorkQueue::New([] {});
 
-            Notification started_running;
-            Notification proceed;
-
-            AsyncEvaluator(L"Test", queue)
-                .Run([&] {
-                  started_running.Notify();
-                  proceed.WaitForNotification();
-                  return 948;
-                })
-                .Transform([&](int result) {
-                  future_result = result;
-                  return EmptyValue();
-                });
-
-            started_running.WaitForNotification();
-            LOG(INFO) << "Deleting.";
-            proceed.Notify();
-
-            CHECK(!future_result.has_value());
-            while (!queue->NextExecution().has_value()) sleep(0.1);
-            queue->Execute();
-            CHECK(!queue->NextExecution().has_value());
-            CHECK(future_result.has_value());
-            CHECK_EQ(future_result.value(), 948);
-          }},
-     // Tests that the WorkQueue instance can be deleted while calls to
-     // `RunIgnoringResults` are ongoing.
-     {.name = L"EvaluatorDeleteWhileBusyIgnoringResults", .callback = [] {
         Notification started_running;
         Notification proceed;
-        Notification completed;
 
-        auto evaluator =
-            std::make_unique<AsyncEvaluator>(L"Test", WorkQueue::New([] {}));
-        evaluator->RunIgnoringResults([&] {
-          started_running.Notify();
-          proceed.WaitForNotification();
-          sleep(0.1);
-          completed.Notify();
-        });
+        AsyncEvaluator(L"Test", queue)
+            .Run([&] {
+              started_running.Notify();
+              proceed.WaitForNotification();
+              return 948;
+            })
+            .Transform([&](int result) {
+              future_result = result;
+              return EmptyValue();
+            });
 
         started_running.WaitForNotification();
+        LOG(INFO) << "Deleting.";
         proceed.Notify();
-        evaluator = nullptr;
-        CHECK(completed.HasBeenNotified());
+
+        CHECK(!future_result.has_value());
+        while (!queue->NextExecution().has_value()) sleep(0.1);
+        queue->Execute();
+        CHECK(!queue->NextExecution().has_value());
+        CHECK(future_result.has_value());
+        CHECK_EQ(future_result.value(), 948);
       }}});
 }  // namespace
 

@@ -16,14 +16,22 @@ class ThreadPool {
   // receive the value. The future will be notified through
   // completion_work_queue, which can be used to ensure that only certain
   // threads receive the produced values.
+  //
+  // Should only be called if completion_work_queue is non-nullptr.
   template <typename Callable>
   auto Run(Callable producer) {
     futures::Future<decltype(producer())> output;
     Schedule([producer = std::move(producer), consumer = output.consumer,
               work_queue = completion_work_queue_] {
+      CHECK(work_queue != nullptr);
       work_queue->Schedule([consumer, value = producer()] { consumer(value); });
     });
     return std::move(output.value);
+  }
+
+  template <typename Callable>
+  void RunIgnoringResult(Callable callable) {
+    Schedule([callable = std::move(callable)] { callable(); });
   }
 
  private:

@@ -1,13 +1,14 @@
 #include "src/log.h"
 
+#include "src/thread_pool.h"
 #include "src/time.h"
 #include "src/wstring.h"
 
 namespace afc::editor {
 namespace {
-AsyncEvaluator* LoggingEvaluator() {
-  static AsyncEvaluator* output = new AsyncEvaluator(L"LogEvaluator", nullptr);
-  return output;
+ThreadPool& LoggingThreadPool() {
+  static ThreadPool* output = new ThreadPool(1, nullptr);
+  return *output;
 }
 
 class NullLog : public Log {
@@ -47,7 +48,7 @@ class FileLog : public Log {
                     std::wstring statement) {
     CHECK(data != nullptr);
     auto time = HumanReadableTime(Now());
-    LoggingEvaluator()->RunIgnoringResults(
+    LoggingThreadPool().RunIgnoringResult(
         [data = std::move(data),
          statement = ToByteString(
              (time.IsError() ? L"[error:" + time.error().description + L"]"

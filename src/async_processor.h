@@ -212,12 +212,6 @@ class AsyncEvaluator {
     return std::move(output.value);
   }
 
-  template <typename Callable>
-  void RunIgnoringResults(Callable callable) {
-    background_callback_runner_->Push(
-        [callable = std::move(callable)]() { callable(); });
-  }
-
  private:
   std::shared_ptr<BackgroundCallbackRunner> background_callback_runner_;
   std::shared_ptr<WorkQueue> work_queue_;
