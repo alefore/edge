@@ -2129,73 +2129,78 @@ OpenBuffer::OpenBufferForCurrentPosition(
   // uses that to avoid taking any effects when the position changes in the
   // meantime.
   auto adjusted_position = AdjustLineColumn(position());
-  std::vector<URL> urls = GetURLsForCurrentPosition(*this);
   struct Data {
-    size_t index = 0;
     std::shared_ptr<OpenBuffer> source;
     ValueOrError<std::shared_ptr<OpenBuffer>> output =
-        Error(L"Unexpected Error.");
+        Success(std::shared_ptr<OpenBuffer>());
   };
   auto data = std::make_shared<Data>();
   data->source = shared_from_this();
-  return futures::While([adjusted_position, urls, data, remote_url_behavior]() {
-           if (data->index >= urls.size()) {
-             data->output = Success(std::shared_ptr<OpenBuffer>());
-             return futures::Past(futures::IterationControlCommand::kStop);
-           }
-           const URL& url = urls[data->index++];
-           VLOG(5) << "Checking URL: " << url.ToString();
-           if (url.schema().value_or(URL::Schema::kFile) !=
-               URL::Schema::kFile) {
-             switch (remote_url_behavior) {
-               case RemoteURLBehavior::kIgnore:
-                 break;
-               case RemoteURLBehavior::kLaunchBrowser:
-                 auto& editor = data->source->editor();
-                 editor.work_queue()->ScheduleAt(
-                     AddSeconds(Now(), 1.0),
-                     [status_expiration =
-                          std::shared_ptr<StatusExpirationControl>(
-                              editor.status().SetExpiringInformationText(
-                                  L"Open: " + url.ToString()))] {});
-                 ForkCommand(
-                     data->source->editor(),
-                     ForkCommandOptions{
-                         .command = L"xdg-open " + ShellEscape(url.ToString()),
-                         .insertion_type = BuffersList::AddBufferType::kIgnore,
-                     });
-             }
-             return futures::Past(futures::IterationControlCommand::kStop);
-           }
-           ValueOrError<Path> path = url.GetLocalFilePath();
-           if (path.IsError())
-             return futures::Past(futures::IterationControlCommand::kContinue);
-           VLOG(4) << "Calling open file: " << path.value().ToString();
-           return OpenFile(
-                      OpenFileOptions{
-                          .editor_state = data->source->editor(),
-                          .path = path.value(),
-                          .ignore_if_not_found = true,
-                          .insertion_type = BuffersList::AddBufferType::kIgnore,
-                          .use_search_paths = false})
-               .Transform([data, adjusted_position](
-                              std::map<BufferName,
-                                       std::shared_ptr<OpenBuffer>>::iterator
-                                  buffer_context_it) {
-                 if (adjusted_position !=
-                     data->source->AdjustLineColumn(data->source->position())) {
-                   data->output = Error(L"Computation was cancelled.");
-                   return futures::IterationControlCommand::kStop;
+
+  return futures::ForEach(
+             std::make_shared<std::vector<URL>>(
+                 GetURLsForCurrentPosition(*this)),
+             [adjusted_position, data, remote_url_behavior](const URL& url) {
+               auto& editor = data->source->editor();
+               VLOG(5) << "Checking URL: " << url.ToString();
+               if (url.schema().value_or(URL::Schema::kFile) !=
+                   URL::Schema::kFile) {
+                 switch (remote_url_behavior) {
+                   case RemoteURLBehavior::kIgnore:
+                     break;
+                   case RemoteURLBehavior::kLaunchBrowser:
+                     editor.work_queue()->ScheduleAt(
+                         AddSeconds(Now(), 1.0),
+                         [status_expiration =
+                              std::shared_ptr<StatusExpirationControl>(
+                                  editor.status().SetExpiringInformationText(
+                                      L"Open: " + url.ToString()))] {});
+                     ForkCommand(editor,
+                                 ForkCommandOptions{
+                                     .command = L"xdg-open " +
+                                                ShellEscape(url.ToString()),
+                                     .insertion_type =
+                                         BuffersList::AddBufferType::kIgnore,
+                                 });
                  }
-                 if (buffer_context_it ==
-                     data->source->editor().buffers()->end()) {
-                   return futures::IterationControlCommand::kContinue;
-                 }
-                 data->output = Success(buffer_context_it->second);
-                 return futures::IterationControlCommand::kStop;
-               });
-         })
-      .Transform([data](auto) { return std::move(data->output); });
+                 return futures::Past(futures::IterationControlCommand::kStop);
+               }
+               ValueOrError<Path> path = url.GetLocalFilePath();
+               if (path.IsError())
+                 return futures::Past(
+                     futures::IterationControlCommand::kContinue);
+               VLOG(4) << "Calling open file: " << path.value().ToString();
+               return OpenFile(OpenFileOptions{
+                                   .editor_state = editor,
+                                   .path = path.value(),
+                                   .ignore_if_not_found = true,
+                                   .insertion_type =
+                                       BuffersList::AddBufferType::kIgnore,
+                                   .use_search_paths = false})
+                   .Transform(
+                       [data, adjusted_position](
+                           std::map<BufferName, std::shared_ptr<OpenBuffer>>::
+                               iterator buffer_context_it) {
+                         if (adjusted_position !=
+                             data->source->AdjustLineColumn(
+                                 data->source->position())) {
+                           data->output = Error(L"Computation was cancelled.");
+                           return futures::IterationControlCommand::kStop;
+                         }
+                         if (buffer_context_it ==
+                             data->source->editor().buffers()->end()) {
+                           return futures::IterationControlCommand::kContinue;
+                         }
+                         data->output = Success(buffer_context_it->second);
+                         return futures::IterationControlCommand::kStop;
+                       });
+             })
+      .Transform([data](IterationControlCommand iteration_control_command) {
+        return iteration_control_command ==
+                       futures::IterationControlCommand::kContinue
+                   ? Success(std::shared_ptr<OpenBuffer>())
+                   : std::move(data->output);
+      });
 }
 
 LineColumn OpenBuffer::end_position() const {
