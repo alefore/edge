@@ -64,6 +64,8 @@ Don't save backups of internal files, perhaps based on a variable.
 
 ### Autocomplete
 
+If autocomplete of files doesn't find any matches, attempt a case-insensitive match? If it matches, expand (correcting invalid characters).
+
 ## Navigation
 
 Improve "g", the current behavior is kind of annoying:
