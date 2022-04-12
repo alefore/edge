@@ -53,7 +53,7 @@ BackgroundReadDirOutput ReadDir(Path path, std::wregex noise_regex) {
 void StartDeleteFile(EditorState& editor_state, wstring path) {
   Prompt({.editor_state = editor_state,
           .prompt = L"unlink " + path + L"? [yes/no] ",
-          .history_file = L"confirmation",
+          .history_file = HistoryFile(L"confirmation"),
           .handler =
               [&editor_state, path](const wstring input) {
                 auto buffer = editor_state.current_buffer();

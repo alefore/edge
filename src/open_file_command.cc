@@ -231,7 +231,7 @@ std::unique_ptr<Command> NewOpenFileCommand(EditorState& editor) {
         .editor_state = editor,
         .prompt = L"<",
         .prompt_contents_type = L"path",
-        .history_file = L"files",
+        .history_file = HistoryFileFiles(),
         .initial_value =
             source_buffers.empty()
                 ? L""

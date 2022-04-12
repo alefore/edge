@@ -191,7 +191,7 @@ class SearchCommand : public Command {
     Prompt(
         {.editor_state = editor_state_,
          .prompt = L"🔎 ",
-         .history_file = L"search",
+         .history_file = HistoryFile(L"search"),
          .colorize_options_provider =
              [async_search_processor = std::make_shared<AsyncSearchProcessor>(
                   editor_state_.work_queue()),

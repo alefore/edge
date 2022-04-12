@@ -296,7 +296,8 @@ std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
         return PromptOptions{
             .editor_state = editor_state,
             .prompt = prompt + L" ",
-            .history_file = prompt == L":" ? L"colon" : prompt,
+            .history_file =
+                prompt == L":" ? HistoryFile(L"colon") : HistoryFile(prompt),
             .colorize_options_provider = std::move(colorize_options_provider),
             .handler = std::move(handler),
             .cancel_handler = []() { /* Nothing. */ },

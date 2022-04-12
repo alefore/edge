@@ -172,22 +172,22 @@ const bool get_synthetic_features_tests_registration = tests::Register(
       }}});
 
 futures::Value<std::shared_ptr<OpenBuffer>> GetHistoryBuffer(
-    EditorState& editor_state, const wstring& name) {
-  BufferName buffer_name(L"- history: " + name);
+    EditorState& editor_state, const HistoryFile& name) {
+  BufferName buffer_name(L"- history: " + name.read());
   auto it = editor_state.buffers()->find(buffer_name);
   if (it != editor_state.buffers()->end()) {
     return futures::Past(it->second);
   }
-  return OpenFile(
-             {.editor_state = editor_state,
-              .name = buffer_name,
-              .path = editor_state.edge_path().empty()
-                          ? std::nullopt
-                          : std::make_optional(Path::Join(
-                                editor_state.edge_path().front(),
-                                PathComponent::FromString(name + L"_history")
-                                    .value())),
-              .insertion_type = BuffersList::AddBufferType::kIgnore})
+  return OpenFile({.editor_state = editor_state,
+                   .name = buffer_name,
+                   .path = editor_state.edge_path().empty()
+                               ? std::nullopt
+                               : std::make_optional(Path::Join(
+                                     editor_state.edge_path().front(),
+                                     PathComponent::FromString(name.read() +
+                                                               L"_history")
+                                         .value())),
+                   .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform(
           [&editor_state](
               std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator it) {
@@ -745,7 +745,10 @@ futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
 }
 }  // namespace
 
-void AddLineToHistory(EditorState& editor, std::wstring history_file,
+HistoryFile HistoryFileFiles() { return HistoryFile(L"files"); }
+HistoryFile HistoryFileCommands() { return HistoryFile(L"commands"); }
+
+void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
                       std::shared_ptr<LazyString> input) {
   if (input->size().IsZero()) return;
   GetHistoryBuffer(editor, history_file)
@@ -764,7 +767,7 @@ using std::unique_ptr;
 void Prompt(PromptOptions options) {
   CHECK(options.handler != nullptr);
   EditorState& editor_state = options.editor_state;
-  auto history_file = options.history_file;
+  HistoryFile history_file = options.history_file;
   GetHistoryBuffer(editor_state, history_file)
       .SetConsumer([options = std::move(options),
                     &editor_state](std::shared_ptr<OpenBuffer> history) {

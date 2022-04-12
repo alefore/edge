@@ -55,11 +55,12 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   Status& default_error_status = active_buffers.size() == 1
                                      ? active_buffers[0]->status()
                                      : editor_state.status();
+  const HistoryFile history_file(L"values");
   if (auto var = buffer_variables::StringStruct()->find_variable(name);
       var != nullptr) {
     Prompt({.editor_state = editor_state,
             .prompt = name + L" := ",
-            .history_file = L"values",
+            .history_file = history_file,
             .initial_value = active_buffers[0]->Read(var),
             .handler =
                 [&editor_state, var](const wstring& input) {
@@ -91,7 +92,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
     Prompt(
         {.editor_state = editor_state,
          .prompt = name + L" := ",
-         .history_file = L"values",
+         .history_file = history_file,
          .initial_value = std::to_wstring(editor_state.Read(var)),
          .handler =
              [&editor_state, var, &default_error_status](const wstring& input) {
@@ -130,7 +131,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
     Prompt(
         {.editor_state = editor_state,
          .prompt = name + L" := ",
-         .history_file = L"values",
+         .history_file = history_file,
          .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
          .handler =
              [&editor_state, var, &default_error_status](const wstring& input) {
@@ -160,7 +161,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
     Prompt(
         {.editor_state = editor_state,
          .prompt = name + L" := ",
-         .history_file = L"values",
+         .history_file = history_file,
          .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
          .handler =
              [&editor_state, var, &default_error_status](const wstring& input) {
@@ -196,7 +197,7 @@ unique_ptr<Command> NewSetVariableCommand(EditorState& editor_state) {
         return PromptOptions{
             .editor_state = editor_state,
             .prompt = L"🔧 ",
-            .history_file = L"variables",
+            .history_file = HistoryFile(L"variables"),
             .colorize_options_provider =
                 [&editor_state, variables_predictor = variables_predictor](
                     const std::shared_ptr<LazyString>& line,

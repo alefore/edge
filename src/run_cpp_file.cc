@@ -28,7 +28,7 @@ class RunCppFileCommand : public Command {
     Prompt(
         {.editor_state = editor_state_,
          .prompt = L"cmd ",
-         .history_file = L"editor_commands",
+         .history_file = HistoryFile(L"editor_commands"),
          .initial_value = buffer->Read(buffer_variables::editor_commands_path),
          .handler =
              [&editor = editor_state_](const wstring& input) {

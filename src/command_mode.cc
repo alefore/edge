@@ -540,7 +540,8 @@ class ActivateLink : public Command {
           if (target != nullptr) {
             if (std::wstring path = target->Read(buffer_variables::path);
                 !path.empty())
-              AddLineToHistory(editor_state, L"files", NewLazyString(path));
+              AddLineToHistory(editor_state, HistoryFileFiles(),
+                               NewLazyString(path));
             editor_state.AddBuffer(target, BuffersList::AddBufferType::kVisit);
           }
           return Success();
@@ -733,7 +734,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
             return PromptOptions{
                 .editor_state = editor_state,
                 .prompt = L"...$ ",
-                .history_file = L"commands",
+                .history_file = HistoryFileCommands(),
                 .handler = [&editor_state](std::wstring input) {
                   return RunMultipleCommandsHandler(input, editor_state);
                 }};

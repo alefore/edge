@@ -5,12 +5,18 @@
 
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/ghost_type.h"
 #include "src/predictor.h"
 #include "src/tokenize.h"
 
 namespace afc::editor {
 
 using std::unique_ptr;
+
+GHOST_TYPE(HistoryFile, std::wstring);
+
+HistoryFile HistoryFileFiles();
+HistoryFile HistoryFileCommands();
 
 struct TokenAndModifiers {
   // The portion to colorize. The `value` field is ignored; instead, the
@@ -40,7 +46,7 @@ struct PromptOptions {
 
   // Optional. Name of the file with the history for this type of prompt.
   // Defaults to no history.
-  wstring history_file = L"";
+  HistoryFile history_file;
 
   // Optional. Initial value for the prompt. Defaults to empty.
   wstring initial_value = L"";
@@ -72,7 +78,7 @@ struct PromptOptions {
   Status status = Status::kEditor;
 };
 
-void AddLineToHistory(EditorState& editor, std::wstring history_file,
+void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
                       std::shared_ptr<LazyString> input);
 
 void Prompt(PromptOptions options);

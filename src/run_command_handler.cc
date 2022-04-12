@@ -391,7 +391,7 @@ class ForkEditorCommand : public Command {
                   (children_path.IsError() ? L""
                                            : children_path.value().ToString()) +
                   L"$ ",
-              .history_file = L"commands",
+              .history_file = HistoryFileCommands(),
               .colorize_options_provider =
                   prompt_state->context_command_callback == nullptr
                       ? PromptOptions::ColorizeFunction(nullptr)
