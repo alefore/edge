@@ -16,12 +16,12 @@ namespace afc::editor {
 
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::make_shared<Options>(std::move(options))) {
-  CHECK(options_->fd != -1);
+  CHECK(fd() != -1);
 }
 
-FileDescriptorReader::~FileDescriptorReader() { close(options_->fd); }
+FileDescriptorReader::~FileDescriptorReader() { close(fd()); }
 
-int FileDescriptorReader::fd() const { return options_->fd; }
+int FileDescriptorReader::fd() const { return options_->fd.read(); }
 
 struct timespec FileDescriptorReader::last_input_received() const {
   return last_input_received_;

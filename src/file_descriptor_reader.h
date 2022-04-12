@@ -11,6 +11,7 @@
 
 #include "src/async_processor.h"
 #include "src/decaying_counter.h"
+#include "src/ghost_type.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
@@ -21,6 +22,8 @@ namespace editor {
 class OpenBuffer;
 class BufferTerminal;
 
+GHOST_TYPE(FileDescriptor, int);
+
 // Class used to read input from a file descriptor into a buffer.
 class FileDescriptorReader {
  public:
@@ -29,7 +32,7 @@ class FileDescriptorReader {
 
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.
-    int fd;
+    FileDescriptor fd;
 
     LineModifierSet modifiers;
 

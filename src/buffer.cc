@@ -1964,7 +1964,7 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
     }
     return std::make_unique<FileDescriptorReader>(
         FileDescriptorReader::Options{.buffer = *this,
-                                      .fd = fd,
+                                      .fd = FileDescriptor(fd),
                                       .modifiers = std::move(modifiers),
                                       .terminal = terminal_.get(),
                                       .read_evaluator = async_read_evaluator_});

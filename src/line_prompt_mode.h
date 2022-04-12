@@ -44,8 +44,7 @@ struct PromptOptions {
   // The extensions code inspects this and can adjust behaviors.
   std::wstring prompt_contents_type = L"";
 
-  // Optional. Name of the file with the history for this type of prompt.
-  // Defaults to no history.
+  // Name of the file with the history for this type of prompt.
   HistoryFile history_file;
 
   // Optional. Initial value for the prompt. Defaults to empty.
