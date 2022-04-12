@@ -73,6 +73,9 @@ struct PromptOptions {
   Status status = Status::kEditor;
 };
 
+void AddLineToHistory(EditorState& editor, std::wstring history_file,
+                      std::shared_ptr<LazyString> input);
+
 void Prompt(PromptOptions options);
 
 // options_supplier will only be called if the editor has an active buffer.

@@ -273,19 +273,6 @@ std::shared_ptr<LazyString> BuildHistoryLine(
   return Concatenate(std::move(line_for_history));
 }
 
-void AddLineToHistory(EditorState& editor, std::wstring history_file,
-                      std::shared_ptr<LazyString> input) {
-  if (input->size().IsZero()) return;
-  GetHistoryBuffer(editor, history_file)
-      .Transform([history_line = BuildHistoryLine(editor, input)](
-                     std::shared_ptr<OpenBuffer> history) {
-        CHECK(history != nullptr);
-        CHECK(history_line != nullptr);
-        history->AppendLine(history_line);
-        return Success();
-      });
-}
-
 std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
                                    std::vector<TokenAndModifiers> tokens) {
   sort(tokens.begin(), tokens.end(),
@@ -757,6 +744,19 @@ futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
   });
 }
 }  // namespace
+
+void AddLineToHistory(EditorState& editor, std::wstring history_file,
+                      std::shared_ptr<LazyString> input) {
+  if (input->size().IsZero()) return;
+  GetHistoryBuffer(editor, history_file)
+      .Transform([history_line = BuildHistoryLine(editor, input)](
+                     std::shared_ptr<OpenBuffer> history) {
+        CHECK(history != nullptr);
+        CHECK(history_line != nullptr);
+        history->AppendLine(history_line);
+        return Success();
+      });
+}
 
 using std::shared_ptr;
 using std::unique_ptr;
