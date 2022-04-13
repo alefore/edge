@@ -96,7 +96,6 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
   }
   return output;
 }
-}  // namespace
 
 struct MetadataLine {
   wchar_t info_char;
@@ -111,7 +110,6 @@ struct MetadataLine {
   Type type;
 };
 
-namespace {
 ColumnNumberDelta width(const std::wstring prefix, MetadataLine& line) {
   return max(ColumnNumberDelta(1), ColumnNumberDelta(prefix.size())) +
          line.suffix->contents()->size();
