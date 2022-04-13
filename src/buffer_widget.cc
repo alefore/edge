@@ -93,14 +93,15 @@ LineWithCursor::Generator::Vector LinesSpanView(
 
   if (sections_count > 1) {
     columns_vector.push_back(
-        {SectionBrackets(LineNumberDelta(screen_lines.size()),
-                         SectionBracketsSide::kLeft),
-         ColumnNumberDelta(1)});
+        {.lines = SectionBrackets(LineNumberDelta(screen_lines.size()),
+                                  SectionBracketsSide::kLeft),
+         .width = ColumnNumberDelta(1)});
   }
 
   LineWithCursor::Generator::Vector line_numbers =
       LineNumberOutput(buffer, screen_lines);
-  columns_vector.push_back({line_numbers, line_numbers.width});
+  columns_vector.push_back(
+      {.lines = line_numbers, .width = line_numbers.width});
 
   if (sections_count > 1 && !buffer_output.empty() &&
       buffer_output.size() > LineNumberDelta(3)) {
@@ -115,26 +116,24 @@ LineWithCursor::Generator::Vector LinesSpanView(
           return output;
         }};
   }
-  columns_vector.push_back(
-      {std::move(buffer_output), output_producer_options.size.column});
+  columns_vector.push_back({.lines = std::move(buffer_output),
+                            .width = output_producer_options.size.column});
 
   if (sections_count > 1) {
     columns_vector.push_back(
-        {SectionBrackets(LineNumberDelta(screen_lines.size()),
-                         SectionBracketsSide::kRight),
-         ColumnNumberDelta(1)});
+        {.lines = SectionBrackets(LineNumberDelta(screen_lines.size()),
+                                  SectionBracketsSide::kRight),
+         .width = ColumnNumberDelta(1)});
   }
 
-  columns_vector.push_back(
-      {BufferMetadataOutput(
-           {.buffer = buffer,
-            .screen_lines = screen_lines,
-            .zoomed_out_tree = buffer
-                                   .current_zoomed_out_parse_tree(min(
-                                       output_producer_options.size.line,
-                                       LineNumberDelta(screen_lines.size())))
-                                   .get()}),
-       std::nullopt});
+  columns_vector.push_back(BufferMetadataOutput(
+      {.buffer = buffer,
+       .screen_lines = screen_lines,
+       .zoomed_out_tree = buffer
+                              .current_zoomed_out_parse_tree(
+                                  min(output_producer_options.size.line,
+                                      LineNumberDelta(screen_lines.size())))
+                              .get()}));
   return OutputFromColumnsVector(std::move(columns_vector));
 }
 

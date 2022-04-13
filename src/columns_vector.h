@@ -10,8 +10,21 @@
 namespace afc::editor {
 
 struct ColumnsVector {
+  // If present, a column may stretch leftwards as long as the previous column
+  // is shorter than its width. In this case, the padding will be a subset of
+  // `head` followed by repetitions of `body`.
+  struct Padding {
+    LineModifierSet modifiers = {};
+    std::shared_ptr<LazyString> head;
+    std::shared_ptr<LazyString> body;
+  };
+
   struct Column {
     LineWithCursor::Generator::Vector lines;
+
+    // Optional. Can be empty or shorter than `lines` (or longer, in which case
+    // additional elements will be ignored).
+    std::vector<std::optional<Padding>> padding = {};
 
     // If absent, this column will be the last column produced, and it will be
     // allowed to span the entire screen.

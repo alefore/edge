@@ -6,6 +6,9 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/lazy_string.h"
+#include "src/lazy_string_append.h"
+#include "src/substring.h"
 #include "src/tests/tests.h"
 #include "src/wstring.h"
 
@@ -31,10 +34,32 @@ std::optional<size_t> CombineHashes(
                                   return compute_hash(column.width);
                                 }));
 }
+
+Line GeneratePadding(const ColumnsVector::Padding padding,
+                     ColumnNumberDelta size) {
+  Line::Options options;
+  CHECK(!padding.body->size().IsZero());
+  std::shared_ptr<LazyString> contents = padding.head;
+  while (contents->size() < size) {
+    contents = StringAppend(std::move(contents), padding.body);
+  }
+  options.AppendString(Substring(std::move(contents), ColumnNumber(), size),
+                       padding.modifiers);
+  return Line(std::move(options));
+}
 }  // namespace
 
 LineWithCursor::Generator::Vector OutputFromColumnsVector(
     ColumnsVector columns_vector_raw) {
+  for (const auto& column : columns_vector_raw.columns) {
+    for (const auto& p : column.padding) {
+      if (p.has_value()) {
+        CHECK(p->head != nullptr);
+        CHECK(p->body != nullptr);
+        CHECK(!p->body->size().IsZero());
+      }
+    }
+  }
   auto columns_vector =
       std::make_shared<ColumnsVector>(std::move(columns_vector_raw));
   std::vector<LineWithCursor::Generator::Vector> inputs_by_column;
@@ -72,10 +97,14 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
     }
   }
 
-  for (auto& line_input : generator_by_line_column) {
+  for (LineNumber line;
+       line.ToDelta() < LineNumberDelta(generator_by_line_column.size());
+       ++line) {
+    auto& line_input = generator_by_line_column[line.line];
     output.lines.push_back(LineWithCursor::Generator{
         .inputs_hash = CombineHashes(line_input, *columns_vector),
-        .generate = [line_input = std::move(line_input), columns_vector]() {
+        .generate = [line, line_input = std::move(line_input),
+                     columns_vector]() {
           LineWithCursor output;
           Line::Options options;
           ColumnNumber initial_column;
@@ -84,9 +113,17 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
           // options.EndColumn() when there are wide characters).
           ColumnNumber columns_shown;
           for (size_t i = 0; i < line_input.size(); i++) {
-            options.AppendString(ColumnNumberDelta::PaddingString(
-                                     initial_column - columns_shown, L' '),
-                                 current_modifiers);
+            ColumnNumberDelta padding_needed = initial_column - columns_shown;
+            if (columns_vector->columns[i].padding.size() > i &&
+                columns_vector->columns[i].padding[line.line].has_value()) {
+              options.Append(GeneratePadding(
+                  *columns_vector->columns[i].padding[line.line],
+                  padding_needed));
+            } else {
+              options.AppendString(
+                  ColumnNumberDelta::PaddingString(padding_needed, L' '),
+                  current_modifiers);
+            }
             columns_shown = initial_column;
 
             LineWithCursor column_data = line_input[i].generate();

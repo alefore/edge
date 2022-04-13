@@ -128,7 +128,7 @@ LineWithCursor::Generator NewGenerator(MetadataLine line, std::wstring prefix) {
         if (prefix.empty()) {
           options.AppendCharacter(info_char, {modifier});
         } else {
-          options.Append(Line(prefix));
+          options.AppendString(prefix, LineModifierSet{LineModifier::YELLOW});
         }
         options.Append(suffix);
         return LineWithCursor{Line(options)};
@@ -653,7 +653,7 @@ std::vector<std::wstring> ComputePrefixLines(
 }
 }  // namespace
 
-LineWithCursor::Generator::Vector BufferMetadataOutput(
+ColumnsVector::Column BufferMetadataOutput(
     BufferMetadataOutputOptions options) {
   const LineNumberDelta screen_size(options.screen_lines.size());
   if (screen_size.IsZero()) return {};
@@ -689,9 +689,12 @@ LineWithCursor::Generator::Vector BufferMetadataOutput(
              b.box.size);
   }
 
+  std::set<LineNumber> lines_referenced;
+  for (auto& b : boxes) lines_referenced.insert(b.box.reference);
+
   const std::vector<std::wstring> prefix_lines =
       ComputePrefixLines(screen_size, boxes);
-  LineWithCursor::Generator::Vector output;
+  ColumnsVector::Column output;
   size_t box_index = 0;
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
     CHECK_LT(i.line, metadata_by_line.size());
@@ -709,11 +712,17 @@ LineWithCursor::Generator::Vector BufferMetadataOutput(
     MetadataLine& metadata_line = metadata_by_line[source].front();
 
     std::wstring prefix = prefix_lines[i.line];
-    output.width =
-        std::max(output.width, ColumnNumberDelta(prefix.size()) +
-                                   width(metadata_line, false, false));
-    output.lines.push_back(NewGenerator(std::move(metadata_line), prefix));
-
+    output.lines.width =
+        std::max(output.lines.width, ColumnNumberDelta(prefix.size()) +
+                                         width(metadata_line, false, false));
+    output.lines.lines.push_back(
+        NewGenerator(std::move(metadata_line), prefix));
+    output.padding.push_back(
+        lines_referenced.find(i) != lines_referenced.end()
+            ? ColumnsVector::Padding{.modifiers = {LineModifier::YELLOW},
+                                     .head = NewLazyString(L"  ←"),
+                                     .body = NewLazyString(L"-")}
+            : std::optional<ColumnsVector::Padding>());
     metadata_by_line[source].pop_front();
   }
   return output;
