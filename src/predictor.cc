@@ -380,69 +380,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
     std::vector<Path> search_paths;
     ResolvePathOptions resolve_path_options;
     std::wregex noise_regex;
-    futures::Value<PredictorOutput>::Consumer output_consumer;
   };
 
-  // TODO(easy): Replace with AsyncEvaluator.
-  AsyncProcessor<AsyncInput, int>::Options options;
-  options.name = L"FilePredictor";
-  options.factory = [](AsyncInput input) {
-    std::wstring path = input.path;
-    if (!path.empty() && *path.begin() == L'/') {
-      input.search_paths = {Path::Root()};
-    } else {
-      std::vector<Path> resolved_paths;
-      for (auto& search_path : input.search_paths) {
-        if (auto output = search_path.Resolve(); !output.IsError()) {
-          resolved_paths.push_back(output.value());
-        }
-      }
-      input.search_paths = std::move(resolved_paths);
-
-      std::set<Path> unique_paths_set;
-      std::vector<Path> unique_paths;
-      for (const auto& search_path : input.search_paths) {
-        if (unique_paths_set.insert(search_path).second) {
-          unique_paths.push_back(search_path);
-        }
-      }
-
-      input.search_paths = std::move(unique_paths);
-    }
-
-    int matches = 0;
-    for (const auto& search_path : input.search_paths) {
-      VLOG(4) << "Considering search path: " << search_path;
-      auto descend_results =
-          DescendDirectoryTree(search_path.ToString(), input.path);
-      if (descend_results.dir == nullptr) {
-        LOG(WARNING) << "Unable to descend: " << search_path;
-        continue;
-      }
-      input.get_buffer([length = descend_results.valid_proper_prefix_length](
-                           OpenBuffer& buffer) {
-        RegisterPredictorDirectoryMatch(length, buffer);
-      });
-      CHECK_LE(descend_results.valid_prefix_length, input.path.size());
-      ScanDirectory(descend_results.dir.get(), input.noise_regex,
-                    input.path.substr(descend_results.valid_prefix_length,
-                                      input.path.size()),
-                    input.path.substr(0, descend_results.valid_prefix_length),
-                    &matches, input.progress_channel,
-                    input.abort_notification.get(), input.get_buffer);
-      if (input.abort_notification->HasBeenNotified()) return 0;
-    }
-    input.get_buffer([output_consumer = std::move(input.output_consumer)](
-                         OpenBuffer& buffer) {
-      LOG(INFO) << "Signaling end of file.";
-      buffer.EndOfFile();
-      output_consumer(PredictorOutput());
-    });
-    return 0;
-  };
-  static AsyncProcessor<AsyncInput, int> async_processor(std::move(options));
-
-  futures::Future<PredictorOutput> output;
   auto input_path = Path::FromString(predictor_input.input);
   auto input = std::make_shared<AsyncInput>(AsyncInput{
       .progress_channel = predictor_input.progress_channel,
@@ -460,12 +399,68 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       .noise_regex = predictor_input.source_buffers.empty()
                          ? std::wregex()
                          : std::wregex(predictor_input.source_buffers[0]->Read(
-                               buffer_variables::directory_noise)),
-      .output_consumer = std::move(output.consumer)});
-  GetSearchPaths(predictor_input.editor, &input->search_paths)
-      .SetConsumer(
-          [input](EmptyValue) { async_processor.Push(std::move(*input)); });
-  return std::move(output.value);
+                               buffer_variables::directory_noise))});
+
+  // TODO(2022-04-13): Ensure the pool won't be deleted while this is executing?
+  return GetSearchPaths(predictor_input.editor, &input->search_paths)
+      .Transform([input,
+                  &pool = predictor_input.editor.thread_pool()](EmptyValue) {
+        return pool.Run([input] {
+          std::wstring path = input->path;
+          if (!path.empty() && *path.begin() == L'/') {
+            input->search_paths = {Path::Root()};
+          } else {
+            std::vector<Path> resolved_paths;
+            for (auto& search_path : input->search_paths) {
+              if (auto output = search_path.Resolve(); !output.IsError()) {
+                resolved_paths.push_back(output.value());
+              }
+            }
+            input->search_paths = std::move(resolved_paths);
+
+            std::set<Path> unique_paths_set;
+            std::vector<Path> unique_paths;
+            for (const auto& search_path : input->search_paths) {
+              if (unique_paths_set.insert(search_path).second) {
+                unique_paths.push_back(search_path);
+              }
+            }
+
+            input->search_paths = std::move(unique_paths);
+          }
+
+          int matches = 0;
+          for (const auto& search_path : input->search_paths) {
+            VLOG(4) << "Considering search path: " << search_path;
+            auto descend_results =
+                DescendDirectoryTree(search_path.ToString(), input->path);
+            if (descend_results.dir == nullptr) {
+              LOG(WARNING) << "Unable to descend: " << search_path;
+              continue;
+            }
+            input->get_buffer(
+                [length = descend_results.valid_proper_prefix_length](
+                    OpenBuffer& buffer) {
+                  RegisterPredictorDirectoryMatch(length, buffer);
+                });
+            CHECK_LE(descend_results.valid_prefix_length, input->path.size());
+            ScanDirectory(
+                descend_results.dir.get(), input->noise_regex,
+                input->path.substr(descend_results.valid_prefix_length,
+                                   input->path.size()),
+                input->path.substr(0, descend_results.valid_prefix_length),
+                &matches, input->progress_channel,
+                input->abort_notification.get(), input->get_buffer);
+            if (input->abort_notification->HasBeenNotified())
+              return PredictorOutput();
+          }
+          input->get_buffer([](OpenBuffer& buffer) {
+            LOG(INFO) << "Signaling end of file.";
+            buffer.EndOfFile();
+          });
+          return PredictorOutput();
+        });
+      });
 }
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {
