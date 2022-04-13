@@ -21,7 +21,7 @@ class BufferContents;
 
 class BufferTerminal : public fuzz::FuzzTestable {
  public:
-  BufferTerminal(OpenBuffer* buffer, BufferContents* contents);
+  BufferTerminal(OpenBuffer& buffer, BufferContents& contents);
 
   // Propagates the last view size to buffer->fd().
   void UpdateSize();
@@ -39,10 +39,10 @@ class BufferTerminal : public fuzz::FuzzTestable {
     // The last size written to buffer->fd() by UpdateSize.
     std::optional<LineColumnDelta> last_updated_size = std::nullopt;
 
-    OpenBuffer* const buffer;
+    OpenBuffer& buffer;
 
     // TODO: Find a way to remove this? I.e. always use buffer_.
-    BufferContents* const contents;
+    BufferContents& contents;
 
     LineColumn position = LineColumn();
   };

@@ -1834,7 +1834,7 @@ std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
 }
 
 std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
-  return std::make_unique<BufferTerminal>(this, &contents_);
+  return std::make_unique<BufferTerminal>(*this, contents_);
 }
 
 const std::shared_ptr<const Line> OpenBuffer::current_line() const {
