@@ -70,7 +70,7 @@ void SignalHandler(int sig) {
     }
   }
 
-  editor_state().PushSignal(sig);
+  editor_state().PushSignal(UnixSignal(sig));
 }
 
 static const wchar_t* kDefaultCommandsToRun =

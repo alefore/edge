@@ -54,6 +54,7 @@ using namespace afc::vm;
 
 class ParseTree;
 class TreeParser;
+class UnixSignal;
 
 class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   struct ConstructorAccessTag {};
@@ -397,7 +398,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::optional<int> child_exit_status() const { return child_exit_status_; }
   const struct timespec time_last_exit() const;
 
-  void PushSignal(int signal);
+  void PushSignal(UnixSignal signal);
 
   Viewers* viewers();
   const Viewers* viewers() const;

@@ -1065,14 +1065,18 @@ Path EditorState::expand_path(Path path) const {
   return Path::ExpandHomeDirectory(home_directory(), path);
 }
 
+void EditorState::PushSignal(UnixSignal signal) {
+  pending_signals_.push_back(signal);
+}
+
 void EditorState::ProcessSignals() {
   if (pending_signals_.empty()) {
     return;
   }
-  vector<int> signals;
+  vector<UnixSignal> signals;
   signals.swap(pending_signals_);
-  for (int signal : signals) {
-    switch (signal) {
+  for (UnixSignal signal : signals) {
+    switch (signal.read()) {
       case SIGINT:
       case SIGTSTP:
         ForEachActiveBuffer([signal](OpenBuffer& buffer) {

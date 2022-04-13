@@ -1867,14 +1867,14 @@ const struct timespec OpenBuffer::time_last_exit() const {
   return time_last_exit_;
 }
 
-void OpenBuffer::PushSignal(int sig) {
-  switch (sig) {
+void OpenBuffer::PushSignal(UnixSignal signal) {
+  switch (signal.read()) {
     case SIGINT:
       if (terminal_ == nullptr ? child_pid_ == -1 : fd_ == nullptr) {
         status_.SetWarningText(L"No subprocess found.");
       } else if (terminal_ == nullptr) {
         status_.SetInformationText(L"SIGINT >> pid:" + to_wstring(child_pid_));
-        kill(child_pid_, sig);
+        kill(child_pid_, signal.read());
       } else {
         string sequence(1, 0x03);
         (void)write(fd_->fd().read(), sequence.c_str(), sequence.size());
@@ -1890,7 +1890,8 @@ void OpenBuffer::PushSignal(int sig) {
       break;
 
     default:
-      status_.SetWarningText(L"Unexpected signal received: " + to_wstring(sig));
+      status_.SetWarningText(L"Unexpected signal received: " +
+                             to_wstring(signal.read()));
   }
 }
 

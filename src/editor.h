@@ -19,6 +19,7 @@
 #include "src/direction.h"
 #include "src/editor_mode.h"
 #include "src/editor_variables.h"
+#include "src/ghost_type.h"
 #include "src/lazy_string.h"
 #include "src/line_marks.h"
 #include "src/modifiers.h"
@@ -33,6 +34,8 @@
 #include "vm/public/vm.h"
 
 namespace afc::editor {
+
+GHOST_TYPE(UnixSignal, int);
 
 using namespace afc::vm;
 
@@ -196,7 +199,7 @@ class EditorState {
 
   Path expand_path(Path path) const;
 
-  void PushSignal(int signal) { pending_signals_.push_back(signal); }
+  void PushSignal(UnixSignal signal);
   void ProcessSignals();
   void StartHandlingInterrupts() { handling_interrupts_ = true; }
   bool handling_interrupts() const { return handling_interrupts_; }
@@ -264,7 +267,7 @@ class EditorState {
   // actually using Edge (e.g. modifies a buffer), we start consuming it.
   bool handling_interrupts_ = false;
 
-  vector<int> pending_signals_;
+  vector<UnixSignal> pending_signals_;
 
   Modifiers modifiers_;
   LineMarks line_marks_;
