@@ -372,94 +372,85 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 
 futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
-  struct AsyncInput {
-    ProgressChannel& progress_channel;
-    std::shared_ptr<Notification> abort_notification;
-    OpenBuffer::LockFunction get_buffer;
-    std::wstring path;
-    std::vector<Path> search_paths;
-    ResolvePathOptions resolve_path_options;
-    std::wregex noise_regex;
-  };
+  auto search_paths = std::make_shared<std::vector<Path>>();
+  return GetSearchPaths(predictor_input.editor, search_paths.get())
+      .Transform([predictor_input, search_paths](EmptyValue) {
+        auto input_path = Path::FromString(predictor_input.input);
+        auto path = input_path.IsError()
+                        ? predictor_input.input
+                        : predictor_input.editor.expand_path(input_path.value())
+                              .ToString();
+        OpenBuffer::LockFunction get_buffer =
+            predictor_input.predictions->GetLockFunction();
+        ResolvePathOptions resolve_path_options = ResolvePathOptions::New(
+            predictor_input.editor, std::make_shared<FileSystemDriver>(
+                                        predictor_input.editor.thread_pool()));
 
-  auto input_path = Path::FromString(predictor_input.input);
-  auto input = std::make_shared<AsyncInput>(AsyncInput{
-      .progress_channel = predictor_input.progress_channel,
-      .abort_notification = predictor_input.abort_notification,
-      .get_buffer = predictor_input.predictions->GetLockFunction(),
-      .path = input_path.IsError()
-                  ? predictor_input.input
-                  : predictor_input.editor.expand_path(input_path.value())
-                        .ToString(),
-      .search_paths = {},
-      .resolve_path_options = ResolvePathOptions::New(
-          predictor_input.editor, std::make_shared<FileSystemDriver>(
-                                      predictor_input.editor.thread_pool())),
-      // TODO: Don't use sources_buffers[0], ignoring the other buffers.
-      .noise_regex = predictor_input.source_buffers.empty()
-                         ? std::wregex()
-                         : std::wregex(predictor_input.source_buffers[0]->Read(
-                               buffer_variables::directory_noise))});
+        // TODO: Don't use sources_buffers[0], ignoring the other buffers.
+        std::wregex noise_regex =
+            predictor_input.source_buffers.empty()
+                ? std::wregex()
+                : std::wregex(predictor_input.source_buffers[0]->Read(
+                      buffer_variables::directory_noise));
+        return predictor_input.editor.thread_pool().Run(std::bind_front(
+            [search_paths, path, get_buffer, resolve_path_options, noise_regex](
+                ProgressChannel& progress_channel,
+                const std::shared_ptr<Notification>& abort_notification) {
+              if (!path.empty() && *path.begin() == L'/') {
+                *search_paths = {Path::Root()};
+              } else {
+                std::vector<Path> resolved_paths;
+                for (auto& search_path : *search_paths) {
+                  if (auto output = search_path.Resolve(); !output.IsError()) {
+                    resolved_paths.push_back(output.value());
+                  }
+                }
+                *search_paths = std::move(resolved_paths);
 
-  // TODO(2022-04-13): Ensure the pool won't be deleted while this is executing?
-  return GetSearchPaths(predictor_input.editor, &input->search_paths)
-      .Transform([input,
-                  &pool = predictor_input.editor.thread_pool()](EmptyValue) {
-        return pool.Run([input] {
-          std::wstring path = input->path;
-          if (!path.empty() && *path.begin() == L'/') {
-            input->search_paths = {Path::Root()};
-          } else {
-            std::vector<Path> resolved_paths;
-            for (auto& search_path : input->search_paths) {
-              if (auto output = search_path.Resolve(); !output.IsError()) {
-                resolved_paths.push_back(output.value());
+                std::set<Path> unique_paths_set;
+                std::vector<Path> unique_paths;
+                for (const auto& search_path : *search_paths) {
+                  if (unique_paths_set.insert(search_path).second) {
+                    unique_paths.push_back(search_path);
+                  }
+                }
+
+                *search_paths = std::move(unique_paths);
               }
-            }
-            input->search_paths = std::move(resolved_paths);
 
-            std::set<Path> unique_paths_set;
-            std::vector<Path> unique_paths;
-            for (const auto& search_path : input->search_paths) {
-              if (unique_paths_set.insert(search_path).second) {
-                unique_paths.push_back(search_path);
+              int matches = 0;
+              for (const auto& search_path : *search_paths) {
+                VLOG(4) << "Considering search path: " << search_path;
+                auto descend_results =
+                    DescendDirectoryTree(search_path.ToString(), path);
+                if (descend_results.dir == nullptr) {
+                  LOG(WARNING) << "Unable to descend: " << search_path;
+                  continue;
+                }
+                get_buffer(
+                    [length = descend_results.valid_proper_prefix_length](
+                        OpenBuffer& buffer) {
+                      RegisterPredictorDirectoryMatch(length, buffer);
+                    });
+                CHECK_LE(descend_results.valid_prefix_length, path.size());
+                ScanDirectory(
+                    descend_results.dir.get(), noise_regex,
+                    path.substr(descend_results.valid_prefix_length,
+                                path.size()),
+                    path.substr(0, descend_results.valid_prefix_length),
+                    &matches, progress_channel, abort_notification.get(),
+                    get_buffer);
+                if (abort_notification->HasBeenNotified())
+                  return PredictorOutput();
               }
-            }
-
-            input->search_paths = std::move(unique_paths);
-          }
-
-          int matches = 0;
-          for (const auto& search_path : input->search_paths) {
-            VLOG(4) << "Considering search path: " << search_path;
-            auto descend_results =
-                DescendDirectoryTree(search_path.ToString(), input->path);
-            if (descend_results.dir == nullptr) {
-              LOG(WARNING) << "Unable to descend: " << search_path;
-              continue;
-            }
-            input->get_buffer(
-                [length = descend_results.valid_proper_prefix_length](
-                    OpenBuffer& buffer) {
-                  RegisterPredictorDirectoryMatch(length, buffer);
-                });
-            CHECK_LE(descend_results.valid_prefix_length, input->path.size());
-            ScanDirectory(
-                descend_results.dir.get(), input->noise_regex,
-                input->path.substr(descend_results.valid_prefix_length,
-                                   input->path.size()),
-                input->path.substr(0, descend_results.valid_prefix_length),
-                &matches, input->progress_channel,
-                input->abort_notification.get(), input->get_buffer);
-            if (input->abort_notification->HasBeenNotified())
+              get_buffer([](OpenBuffer& buffer) {
+                LOG(INFO) << "Signaling end of file.";
+                buffer.EndOfFile();
+              });
               return PredictorOutput();
-          }
-          input->get_buffer([](OpenBuffer& buffer) {
-            LOG(INFO) << "Signaling end of file.";
-            buffer.EndOfFile();
-          });
-          return PredictorOutput();
-        });
+            },
+            predictor_input.progress_channel,
+            std::move(predictor_input.abort_notification)));
       });
 }
 
