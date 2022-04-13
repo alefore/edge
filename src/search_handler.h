@@ -20,6 +20,7 @@ using std::wstring;
 class EditorState;
 class OpenBuffer;
 struct LineColumn;
+class ThreadPool;
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input);
 
@@ -51,36 +52,30 @@ std::vector<LineColumn> SearchHandler(EditorState& editor_state,
 void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
                      OpenBuffer& buffer);
 
-class AsyncSearchProcessor {
- public:
-  AsyncSearchProcessor(
-      std::shared_ptr<WorkQueue> work_queue,
-      BackgroundCallbackRunner::Options::QueueBehavior queue_behavior =
-          BackgroundCallbackRunner::Options::QueueBehavior::kFlush);
-
-  struct Output {
-    std::optional<std::wstring> pattern_error;
-    int matches = 0;
-    enum class SearchCompletion {
-      // The search was interrupted. It's possible that there are more matches.
-      kInterrupted,
-      // The search consumed the entire input.
-      kFull,
-      // The pattern was invalid (see pattern_error for details).
-      kInvalidPattern,
-    };
-    SearchCompletion search_completion = SearchCompletion::kFull;
-
-    std::wstring ToString() const;
+struct SearchResultsSummary {
+  std::optional<std::wstring> pattern_error;
+  int matches = 0;
+  enum class SearchCompletion {
+    // The search was interrupted. It's possible that there are more matches.
+    kInterrupted,
+    // The search consumed the entire input.
+    kFull,
+    // The pattern was invalid (see pattern_error for details).
+    kInvalidPattern,
   };
+  SearchCompletion search_completion = SearchCompletion::kFull;
 
-  futures::Value<Output> Search(SearchOptions search_options,
-                                const OpenBuffer& buffer,
-                                std::shared_ptr<ProgressChannel> channel);
-
- private:
-  AsyncEvaluator evaluator_;
+  std::wstring ToString() const;
 };
+
+// Return a callback that is safe to run in a background thread to count the
+// number of matches, feeding information to a `ProgressChannel`.
+//
+// Customer must ensure that `progress_channel` survives until the callback has
+// returned (but it's OK for `buffer` to be deleted as soon as
+// `BackgroundSearchCallback` has returned).
+std::function<SearchResultsSummary()> BackgroundSearchCallback(
+    SearchOptions search_options, const OpenBuffer& buffer, ProgressChannel&);
 
 }  // namespace editor
 }  // namespace afc

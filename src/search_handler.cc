@@ -101,44 +101,41 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
 
 }  // namespace
 
-AsyncSearchProcessor::AsyncSearchProcessor(
-    std::shared_ptr<WorkQueue> work_queue,
-    BackgroundCallbackRunner::Options::QueueBehavior queue_behavior)
-    : evaluator_(L"search", work_queue, queue_behavior) {}
-
-std::wstring AsyncSearchProcessor::Output::ToString() const {
+std::wstring SearchResultsSummary::ToString() const {
   if (pattern_error.has_value()) {
     return L"error: " + pattern_error.value();
   }
   return L"matches: " + std::to_wstring(matches);
 }
 
-futures::Value<AsyncSearchProcessor::Output> AsyncSearchProcessor::Search(
+std::function<SearchResultsSummary()> BackgroundSearchCallback(
     SearchOptions search_options, const OpenBuffer& buffer,
-    std::shared_ptr<ProgressChannel> progress_channel) {
+    ProgressChannel& progress_channel) {
+  // TODO(easy, 2022-04-14): Why is this here?
   search_options.required_positions = 100;
   auto traits = GetRegexTraits(buffer);
-  return evaluator_.Run([search_options, query = search_options.search_query,
-                         traits,
-                         buffer_contents = std::shared_ptr<BufferContents>(
-                             buffer.contents().copy()),
-                         progress_channel] {
-    auto search_results = PerformSearch(
-        search_options, traits, *buffer_contents, progress_channel.get());
-    VLOG(5) << "Async search completed for \"" << query
+  std::shared_ptr<BufferContents> buffer_contents = buffer.contents().copy();
+  // Must take special care to only capture instances of thread-safe classes:
+  return [search_options, traits, buffer_contents, &progress_channel]() {
+    auto search_results = PerformSearch(search_options, traits,
+                                        *buffer_contents, &progress_channel);
+    VLOG(5) << "Background search completed for \""
+            << search_options.search_query
             << "\", found results: " << search_results.positions.size();
-    Output output;
+    SearchResultsSummary output;
     if (search_results.error.has_value()) {
       output.pattern_error = search_results.error.value();
-      output.search_completion = Output::SearchCompletion::kInvalidPattern;
+      output.search_completion =
+          SearchResultsSummary::SearchCompletion::kInvalidPattern;
     } else {
       output.matches = search_results.positions.size();
-      output.search_completion = output.matches >= kMatchesLimit
-                                     ? Output::SearchCompletion::kInterrupted
-                                     : Output::SearchCompletion::kFull;
+      output.search_completion =
+          output.matches >= kMatchesLimit
+              ? SearchResultsSummary::SearchCompletion::kInterrupted
+              : SearchResultsSummary::SearchCompletion::kFull;
     }
     return output;
-  });
+  };
 }
 
 std::wstring RegexEscape(std::shared_ptr<LazyString> str) {

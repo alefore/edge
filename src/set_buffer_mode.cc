@@ -317,9 +317,6 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
           // TODO: Maybe tweak the parameters to allow more than just one to
           // run at a given time? Would require changes to async_processor.h
           // (I think).
-          auto evaluator = std::make_shared<AsyncSearchProcessor>(
-              editor.work_queue(),
-              BackgroundCallbackRunner::Options::QueueBehavior::kWait);
           auto progress_channel = std::make_shared<ProgressChannel>(
               editor.work_queue(), [](ProgressInformation) {},
               WorkQueueChannelConsumeMode::kLastAvailable);
@@ -333,23 +330,22 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
               // TODO: Pass SearchOptions::abort_notification to allow
               // aborting as the user continues to type?
               search_futures.push_back(
-                  evaluator
-                      ->Search(
+                  editor.thread_pool()
+                      .Run(BackgroundSearchCallback(
                           {.search_query = text_input, .required_positions = 1},
-                          *buffer, progress_channel)
-                      .Transform(
-                          [new_state,
-                           index](AsyncSearchProcessor::Output search_output) {
-                            if (search_output.pattern_error.has_value()) {
-                              new_state->pattern_error = std::move(
-                                  search_output.pattern_error.value());
-                              return futures::IterationControlCommand::kStop;
-                            }
-                            if (search_output.matches > 0) {
-                              new_state->indices.push_back(index);
-                            }
-                            return futures::IterationControlCommand::kContinue;
-                          }));
+                          *buffer, *progress_channel))
+                      .Transform([new_state, progress_channel,
+                                  index](SearchResultsSummary search_output) {
+                        if (search_output.pattern_error.has_value()) {
+                          new_state->pattern_error =
+                              std::move(search_output.pattern_error.value());
+                          return futures::IterationControlCommand::kStop;
+                        }
+                        if (search_output.matches > 0) {
+                          new_state->indices.push_back(index);
+                        }
+                        return futures::IterationControlCommand::kContinue;
+                      }));
             }
           }
           return futures::ForEachWithCopy(

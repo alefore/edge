@@ -12,22 +12,22 @@ namespace afc::editor {
 namespace {
 using futures::IterationControlCommand;
 
-static void MergeInto(AsyncSearchProcessor::Output current_results,
-                      AsyncSearchProcessor::Output* final_results) {
+static void MergeInto(SearchResultsSummary current_results,
+                      SearchResultsSummary* final_results) {
   if (current_results.pattern_error.has_value()) {
   }
   final_results->matches += current_results.matches;
   switch (current_results.search_completion) {
-    case AsyncSearchProcessor::Output::SearchCompletion::kInvalidPattern:
+    case SearchResultsSummary::SearchCompletion::kInvalidPattern:
       final_results->pattern_error = current_results.pattern_error;
       final_results->search_completion =
-          AsyncSearchProcessor::Output::SearchCompletion::kInvalidPattern;
+          SearchResultsSummary::SearchCompletion::kInvalidPattern;
       break;
-    case AsyncSearchProcessor::Output::SearchCompletion::kInterrupted:
+    case SearchResultsSummary::SearchCompletion::kInterrupted:
       final_results->search_completion =
-          AsyncSearchProcessor::Output::SearchCompletion::kInterrupted;
+          SearchResultsSummary::SearchCompletion::kInterrupted;
       break;
-    case AsyncSearchProcessor::Output::SearchCompletion::kFull:
+    case SearchResultsSummary::SearchCompletion::kFull:
       break;
   }
 }
@@ -37,9 +37,9 @@ static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
   buffer.ResetMode();
 }
 
-ColorizePromptOptions SearchResultsModifiers(
-    std::shared_ptr<LazyString> line, AsyncSearchProcessor::Output result) {
-  using SC = AsyncSearchProcessor::Output::SearchCompletion;
+ColorizePromptOptions SearchResultsModifiers(std::shared_ptr<LazyString> line,
+                                             SearchResultsSummary result) {
+  using SC = SearchResultsSummary::SearchCompletion;
   LineModifierSet modifiers;
   switch (result.search_completion) {
     case SC::kInvalidPattern:
@@ -193,8 +193,7 @@ class SearchCommand : public Command {
          .prompt = L"🔎 ",
          .history_file = HistoryFile(L"search"),
          .colorize_options_provider =
-             [async_search_processor = std::make_shared<AsyncSearchProcessor>(
-                  editor_state_.work_queue()),
+             [&editor_state = editor_state_,
               buffers =
                   std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
                       editor_state_.active_buffers())](
@@ -202,15 +201,15 @@ class SearchCommand : public Command {
                  std::unique_ptr<ProgressChannel> progress_channel,
                  std::shared_ptr<Notification> abort_notification) {
                VLOG(5) << "Triggering async search.";
-               auto results = std::make_shared<AsyncSearchProcessor::Output>();
+               auto results = std::make_shared<SearchResultsSummary>();
                auto progress_aggregator = std::make_shared<ProgressAggregator>(
                    std::move(progress_channel));
                return futures::ForEach(
                           buffers,
-                          [async_search_processor, line, progress_aggregator,
+                          [&editor_state, line, progress_aggregator,
                            abort_notification,
                            results](const std::shared_ptr<OpenBuffer>& buffer) {
-                            auto progress_channel =
+                            std::shared_ptr<ProgressChannel> progress_channel =
                                 progress_aggregator->NewChild();
                             if (buffer->Read(
                                     buffer_variables::search_case_sensitive)) {
@@ -233,21 +232,24 @@ class SearchCommand : public Command {
                             }
                             VLOG(5) << "Starting search in buffer: "
                                     << buffer->Read(buffer_variables::name);
-                            return async_search_processor
-                                ->Search(search_options.value(), *buffer,
-                                         std::move(progress_channel))
-                                .Transform([results, abort_notification, line,
-                                            buffer](AsyncSearchProcessor::Output
-                                                        current_results) {
-                                  MergeInto(current_results, results.get());
-                                  return abort_notification->HasBeenNotified()
-                                             ? futures::
-                                                   IterationControlCommand::
-                                                       kStop
-                                             : futures::
-                                                   IterationControlCommand::
-                                                       kContinue;
-                                });
+                            return editor_state.thread_pool()
+                                .Run(BackgroundSearchCallback(
+                                    search_options.value(), *buffer,
+                                    *progress_channel))
+                                .Transform(
+                                    [results, abort_notification, line, buffer,
+                                     progress_channel](
+                                        SearchResultsSummary current_results) {
+                                      MergeInto(current_results, results.get());
+                                      return abort_notification
+                                                     ->HasBeenNotified()
+                                                 ? futures::
+                                                       IterationControlCommand::
+                                                           kStop
+                                                 : futures::
+                                                       IterationControlCommand::
+                                                           kContinue;
+                                    });
                           })
                    .Transform(
                        [results, buffers, abort_notification, line](
