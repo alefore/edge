@@ -180,42 +180,6 @@ class AsyncProcessor {
   mutable std::mutex thread_creation_mutex_;
   std::thread background_thread_;
 };
-
-using BackgroundCallbackRunner = AsyncProcessor<std::function<void()>, int>;
-
-class AsyncEvaluator {
- public:
-  // work_queue is optional. It will be required if AsyncEvaluator::Run is used.
-  // Otherwise, it may be null.
-  AsyncEvaluator(
-      std::wstring name, std::shared_ptr<WorkQueue> work_queue,
-      BackgroundCallbackRunner::Options::QueueBehavior push_behavior =
-          BackgroundCallbackRunner::Options::QueueBehavior::kWait);
-
-  // It is OK for the AsyncEvaluator itself to be destroyed before the future is
-  // notified.
-  template <typename Callable>
-  auto Run(Callable callable) {
-    CHECK(work_queue_ != nullptr);
-    futures::Future<decltype(callable())> output;
-    background_callback_runner_->Push(
-        [work_queue = work_queue_, callable = std::move(callable),
-         consumer = std::move(output.consumer),
-         background_callback_runner = background_callback_runner_]() mutable {
-          work_queue->Schedule(
-              [consumer = std::move(consumer), value = callable(),
-               background_callback_runner =
-                   std::move(background_callback_runner)]() mutable {
-                consumer(std::move(value));
-              });
-        });
-    return std::move(output.value);
-  }
-
- private:
-  std::shared_ptr<BackgroundCallbackRunner> background_callback_runner_;
-  std::shared_ptr<WorkQueue> work_queue_;
-};
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_ASYNC_PROCESSOR_H__
