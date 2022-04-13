@@ -112,14 +112,12 @@ struct MetadataLine {
 };
 
 namespace {
-ColumnNumberDelta width(MetadataLine& line, bool has_previous, bool has_next) {
-  return ColumnNumberDelta(1) +
-         (has_previous || has_next ? ColumnNumberDelta(1)
-                                   : ColumnNumberDelta(0)) +
+ColumnNumberDelta width(const std::wstring prefix, MetadataLine& line) {
+  return max(ColumnNumberDelta(1), ColumnNumberDelta(prefix.size())) +
          line.suffix->contents()->size();
 }
 
-LineWithCursor::Generator NewGenerator(MetadataLine line, std::wstring prefix) {
+LineWithCursor::Generator NewGenerator(std::wstring prefix, MetadataLine line) {
   CHECK(line.suffix != nullptr);
   return LineWithCursor::Generator::New(CaptureAndHash(
       [](wchar_t info_char, LineModifier modifier, Line suffix,
@@ -133,7 +131,8 @@ LineWithCursor::Generator NewGenerator(MetadataLine line, std::wstring prefix) {
         options.Append(suffix);
         return LineWithCursor{Line(options)};
       },
-      line.info_char, line.modifier, std::move(*line.suffix), prefix));
+      line.info_char, line.modifier, std::move(*line.suffix),
+      std::move(prefix)));
 }
 }  // namespace
 
@@ -713,10 +712,9 @@ ColumnsVector::Column BufferMetadataOutput(
 
     std::wstring prefix = prefix_lines[i.line];
     output.lines.width =
-        std::max(output.lines.width, ColumnNumberDelta(prefix.size()) +
-                                         width(metadata_line, false, false));
+        std::max(output.lines.width, width(prefix, metadata_line));
     output.lines.lines.push_back(
-        NewGenerator(std::move(metadata_line), prefix));
+        NewGenerator(std::move(prefix), std::move(metadata_line)));
     output.padding.push_back(
         lines_referenced.find(i) != lines_referenced.end()
             ? ColumnsVector::Padding{.modifiers = {LineModifier::YELLOW},
