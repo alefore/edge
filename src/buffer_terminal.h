@@ -35,25 +35,29 @@ class BufferTerminal : public fuzz::FuzzTestable {
   std::vector<fuzz::Handler> FuzzHandlers() override;
 
  private:
+  struct Data {
+    // The last size written to buffer->fd() by UpdateSize.
+    std::optional<LineColumnDelta> last_updated_size = std::nullopt;
+
+    OpenBuffer* const buffer;
+
+    // TODO: Find a way to remove this? I.e. always use buffer_.
+    BufferContents* const contents;
+
+    LineColumn position = LineColumn();
+  };
+
+  static void InternalUpdateSize(Data& data);
+
   ColumnNumber ProcessTerminalEscapeSequence(std::shared_ptr<LazyString> str,
                                              ColumnNumber read_index,
                                              LineModifierSet* modifiers);
 
   void MoveToNextLine();
 
-  LineColumnDelta LastViewSize();
+  static LineColumnDelta LastViewSize(Data& data);
 
-  // The last size written to buffer->fd() by UpdateSize.
-  std::optional<LineColumnDelta> last_updated_size_;
-
-  OpenBuffer* const buffer_;
-
-  // TODO: Find a way to remove this? I.e. always use buffer_.
-  BufferContents* const contents_;
-
-  const Viewers::Registration listener_registration_;
-
-  LineColumn position_;
+  const std::shared_ptr<Data> data_;
 };
 
 }  // namespace editor

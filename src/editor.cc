@@ -546,7 +546,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   double_variables_.AddObserver(editor_variables::volume, [this] {
     audio_player_.SetVolume(
         audio::Volume(max(0.0, min(1.0, Read(editor_variables::volume)))));
-    return ObserverState::kAlive;
+    return Observers::State::kAlive;
   });
 }
 

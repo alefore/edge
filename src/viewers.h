@@ -8,6 +8,7 @@
 #include <set>
 
 #include "src/line_column.h"
+#include "src/observers.h"
 
 namespace afc {
 namespace editor {
@@ -25,18 +26,16 @@ class Viewers {
   // they deliver input to that buffer.
   void set_view_size(LineColumnDelta view_size);
 
-  // Adds a callback that will be updated whenever the view size changes. The
-  // callback will be executed until the time when the customer deletes the
-  // returned value. Once the first such callback runs, view_size_ will always
-  // have a value.
-  Registration AddListener(std::function<void()> listener);
+  // Adds a callback that will be updated whenever the view size changes. Once
+  // the first such callback runs, view_size_ will always have a value.
+  void AddObserver(Observers::Observer observer);
 
   std::optional<LineColumnDelta> view_size() const;
 
  private:
   std::optional<LineColumnDelta> view_size_;
 
-  std::list<std::function<void()>> listeners_;
+  Observers observers_;
 };
 
 }  // namespace editor

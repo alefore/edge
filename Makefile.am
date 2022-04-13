@@ -127,6 +127,8 @@ src/navigation_buffer.h \
 src/navigate_command.cc \
 src/notification.cc \
 src/notification.h \
+src/observers.h \
+src/observers.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
 src/operation.cc \
@@ -222,7 +224,6 @@ src/url.cc \
 src/url.h \
 src/value_or_error.cc \
 src/value_or_error.h \
-src/variables.cc \
 src/variables.h \
 src/viewers.cc \
 src/viewers.h \

@@ -8,19 +8,11 @@ namespace editor {
 void Viewers::set_view_size(LineColumnDelta view_size) {
   if (view_size == view_size_) return;  // Optimization.
   view_size_ = view_size;
-  for (auto& l : listeners_) {
-    l();
-  }
+  observers_.Notify();
 }
 
-Viewers::Registration Viewers::AddListener(std::function<void()> listener) {
-  CHECK_LT(listeners_.size(), 10000ul);
-  listeners_.push_front(listener);
-  return std::unique_ptr<bool, std::function<void(bool*)>>(
-      new bool(), [this, it = listeners_.begin()](bool* value) {
-        delete value;
-        listeners_.erase(it);
-      });
+void Viewers::AddObserver(Observers::Observer observer) {
+  observers_.Add(std::move(observer));
 }
 
 std::optional<LineColumnDelta> Viewers::view_size() const { return view_size_; }
