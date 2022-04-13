@@ -28,6 +28,7 @@ if (extension == "cc" || extension == "h" || extension == "cpp" ||
     extension == "java") {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(
+      "test ! -f " + path.shell_escape() + "||" +
       "clang-format " + path.shell_escape() + "| diff " + path.shell_escape() +
       " /dev/stdin || edge --run 'editor.OpenFile(\"'" + path.shell_escape() +
       "'\", false).SetWarningStatus(\"clang-format: File is not properly "
