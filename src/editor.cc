@@ -333,8 +333,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 values->push_back(buffer_it->second->NewCloseFuture());
             }
             return futures::ForEach(
-                       values->begin(), values->end(),
-                       [values](futures::Value<EmptyValue>& future) {
+                       values,
+                       [](futures::Value<EmptyValue>& future) {
                          return future.Transform([](EmptyValue) {
                            return futures::IterationControlCommand::kContinue;
                          });
