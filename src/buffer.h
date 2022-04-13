@@ -24,6 +24,7 @@
 #include "src/line_marks.h"
 #include "src/log.h"
 #include "src/map_mode.h"
+#include "src/notification.h"
 #include "src/parse_tree.h"
 #include "src/status.h"
 #include "src/substring.h"
@@ -601,8 +602,11 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   std::shared_ptr<TreeParser> tree_parser_ = NewNullTreeParser();
 
-  mutable AsyncEvaluator syntax_data_;
-  mutable AsyncEvaluator syntax_data_view_;
+  // Never null. When the tree changes, we notify it, install a new
+  // notification, and schedule in `syntax_data_` new work.
+  std::shared_ptr<Notification> syntax_data_cancel_ =
+      std::make_shared<Notification>();
+  mutable ThreadPool syntax_data_;
 
   // Never nullptr.
   std::shared_ptr<const ParseTree> parse_tree_ =
@@ -623,7 +627,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   mutable std::unordered_map<LineNumberDelta, ZoomedOutParseTreeData>
       zoomed_out_parse_trees_;
 
-  AsyncEvaluator async_read_evaluator_;
   mutable FileSystemDriver file_system_driver_;
 };
 
