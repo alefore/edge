@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-#include "src/async_processor.h"
 #include "src/file_system_driver.h"
 #include "src/futures/futures.h"
 #include "src/value_or_error.h"

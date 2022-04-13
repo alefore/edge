@@ -315,8 +315,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                                  text_input =
                                      operation.text_input](State state) {
           // TODO: Maybe tweak the parameters to allow more than just one to
-          // run at a given time? Would require changes to async_processor.h
-          // (I think).
+          // run at a given time?
           auto progress_channel = std::make_shared<ProgressChannel>(
               editor.work_queue(), [](ProgressInformation) {},
               WorkQueueChannelConsumeMode::kLastAvailable);

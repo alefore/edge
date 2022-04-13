@@ -9,7 +9,6 @@
 #include <memory>
 #include <vector>
 
-#include "src/async_processor.h"
 #include "src/buffer_contents.h"
 #include "src/buffer_name.h"
 #include "src/buffer_terminal.h"

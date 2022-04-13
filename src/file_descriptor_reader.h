@@ -9,7 +9,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "src/async_processor.h"
 #include "src/decaying_counter.h"
 #include "src/ghost_type.h"
 #include "src/lazy_string.h"
@@ -40,8 +39,8 @@ class FileDescriptorReader {
     BufferTerminal* terminal = nullptr;
 
     // We want to avoid potentially expensive/slow parsing operations in the
-    // main thread. To achieve that, we receive an async_processor owned by the
-    // buffer and we delegate as much work as feasible to that processor.
+    // main thread. To achieve that, we receive a thread pool owned by our
+    // customer and we delegate as much work as feasible to it.
     ThreadPool& thread_pool;
   };
 

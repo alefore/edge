@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "src/async_processor.h"
 #include "src/buffer_contents.h"
 #include "src/futures/futures.h"
 #include "src/line_column.h"

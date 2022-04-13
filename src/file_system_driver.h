@@ -17,7 +17,6 @@ extern "C" {
 #include <string>
 #include <vector>
 
-#include "src/async_processor.h"
 #include "src/dirname.h"
 #include "src/futures/futures.h"
 #include "src/thread_pool.h"
