@@ -19,12 +19,15 @@ class ThreadPool {
   //
   // Should only be called if completion_work_queue is non-nullptr.
   template <typename Callable>
-  auto Run(Callable producer) {
-    futures::Future<decltype(producer())> output;
-    Schedule([producer = std::move(producer), consumer = output.consumer,
-              work_queue = completion_work_queue_] {
+  auto Run(Callable callable) {
+    futures::Future<decltype(callable())> output;
+    // We copy callable into a shared pointer in case it's not copyable.
+    auto shared_callable = std::make_shared<Callable>(std::move(callable));
+    Schedule([shared_callable = std::move(shared_callable),
+              consumer = output.consumer, work_queue = completion_work_queue_] {
       CHECK(work_queue != nullptr);
-      work_queue->Schedule([consumer, value = producer()] { consumer(value); });
+      work_queue->Schedule(
+          [consumer, value = (*shared_callable)()] { consumer(value); });
     });
     return std::move(output.value);
   }
