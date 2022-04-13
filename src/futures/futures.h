@@ -291,7 +291,7 @@ template <typename Container, typename Callable>
 Value<IterationControlCommand> ForEach(std::shared_ptr<Container> container,
                                        Callable callable) {
   return ForEach(container->begin(), container->end(),
-                 [container, callable](auto T) { return callable(T); });
+                 [container, callable](auto& T) { return callable(T); });
 }
 
 template <typename Callable>
