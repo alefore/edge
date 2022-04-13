@@ -22,7 +22,7 @@ namespace afc::editor {
 BufferTerminal::BufferTerminal(OpenBuffer& buffer, BufferContents& contents)
     : data_(std::make_shared<Data>(
           Data{.buffer = buffer, .contents = contents})) {
-  data_->buffer.viewers()->AddObserver(Observers::LockingObserver(
+  data_->buffer.view_size().Add(Observers::LockingObserver(
       std::weak_ptr<Data>(data_), InternalUpdateSize));
 
   LOG(INFO) << "New BufferTerminal for "
@@ -396,7 +396,7 @@ void BufferTerminal::InternalUpdateSize(Data& data) {
 
 /* static */
 LineColumnDelta BufferTerminal::LastViewSize(Data& data) {
-  return data.buffer.viewers()->view_size().value_or(
+  return data.buffer.view_size().Get().value_or(
       LineColumnDelta(LineNumberDelta(24), ColumnNumberDelta(80)));
 }
 

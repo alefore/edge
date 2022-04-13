@@ -11,7 +11,6 @@
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
-#include "src/viewers.h"
 
 namespace afc {
 namespace editor {

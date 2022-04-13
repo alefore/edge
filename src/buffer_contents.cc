@@ -10,7 +10,6 @@
 #include "src/lazy_string_append.h"
 #include "src/substring.h"
 #include "src/tests/tests.h"
-#include "src/viewers.h"
 #include "src/wstring.h"
 
 namespace afc::editor {

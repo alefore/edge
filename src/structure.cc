@@ -452,7 +452,7 @@ Structure* StructurePage() {
                                                   LineColumn position,
                                                   int calls) override {
       CHECK_GT(buffer->contents().size(), LineNumberDelta(0));
-      auto view_size = buffer->viewers()->view_size();
+      auto view_size = buffer->view_size().Get();
       auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
       size_t pages =
           ceil(static_cast<double>(buffer->contents().size().line_delta) /
@@ -469,7 +469,7 @@ Structure* StructurePage() {
                                    LineColumn position, Range range,
                                    const Modifiers& modifiers) override {
       static const auto kDefaultScreenLines = LineNumberDelta(24);
-      auto view_size = buffer.viewers()->view_size();
+      std::optional<LineColumnDelta> view_size = buffer.view_size().Get();
       auto screen_lines =
           max(0.2,
               1.0 - 2.0 * buffer.Read(buffer_variables::margin_lines_ratio)) *

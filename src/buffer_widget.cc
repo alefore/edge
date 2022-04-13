@@ -298,7 +298,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       break;
   }
 
-  buffer->viewers()->set_view_size(LineColumnDelta(
+  buffer->view_size().Set(LineColumnDelta(
       input.output_producer_options.size.line - status_lines.size(),
       input.output_producer_options.size.column));
 

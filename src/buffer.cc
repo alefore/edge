@@ -55,7 +55,6 @@ extern "C" {
 #include "src/transformation/repetitions.h"
 #include "src/transformation/stack.h"
 #include "src/url.h"
-#include "src/viewers.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
@@ -553,6 +552,7 @@ using std::to_wstring;
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
+      view_size_({}),
       work_queue_(WorkQueue::New([] {})),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
@@ -1895,8 +1895,10 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
   }
 }
 
-Viewers* OpenBuffer::viewers() { return &viewers_; }
-const Viewers* OpenBuffer::viewers() const { return &viewers_; }
+Observable<LineColumnDelta>& OpenBuffer::view_size() { return view_size_; }
+const Observable<LineColumnDelta>& OpenBuffer::view_size() const {
+  return view_size_;
+}
 
 FileSystemDriver& OpenBuffer::file_system_driver() const {
   return file_system_driver_;

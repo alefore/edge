@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 namespace afc::editor {
 
@@ -30,6 +31,33 @@ class Observers {
 
  private:
   std::vector<Observer> observers_;
+};
+
+template <typename Value>
+class Observable {
+ public:
+  Observable(std::optional<Value> value) : value_(std::move(value)) {}
+  Observable(const Observable&) = delete;
+
+  void Set(Value value) {
+    if (value_ == value) return;  // Optimization.
+    value_ = std::move(value);
+    observers_.Notify();
+  }
+
+  const std::optional<Value>& Get() const { return value_; }
+
+  // Adds a callback that will be updated whenever the value changes.
+  //
+  // We will only notify the observers after `Get` returns a value.
+  void Add(Observers::Observer observer) {
+    if (value_.has_value()) observer();
+    observers_.Add(std::move(observer));
+  }
+
+ private:
+  std::optional<Value> value_;
+  Observers observers_;
 };
 
 }  // namespace afc::editor

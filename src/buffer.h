@@ -24,13 +24,13 @@
 #include "src/log.h"
 #include "src/map_mode.h"
 #include "src/notification.h"
+#include "src/observers.h"
 #include "src/parse_tree.h"
 #include "src/status.h"
 #include "src/substring.h"
 #include "src/transformation.h"
 #include "src/transformation/type.h"
 #include "src/variables.h"
-#include "src/viewers.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
@@ -400,8 +400,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   void PushSignal(UnixSignal signal);
 
-  Viewers* viewers();
-  const Viewers* viewers() const;
+  Observable<LineColumnDelta>& view_size();
+  const Observable<LineColumnDelta>& view_size() const;
 
   FileSystemDriver& file_system_driver() const;
 
@@ -500,7 +500,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::unique_ptr<FileDescriptorReader> fd_;
   std::unique_ptr<FileDescriptorReader> fd_error_;
 
-  Viewers viewers_;
+  Observable<LineColumnDelta> view_size_;
 
   std::unique_ptr<BufferTerminal> terminal_;
 

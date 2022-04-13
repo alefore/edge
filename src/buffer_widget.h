@@ -6,7 +6,6 @@
 
 #include "src/line_scroll_control.h"
 #include "src/line_with_cursor.h"
-#include "src/viewers.h"
 #include "src/widget.h"
 
 namespace afc::editor {
