@@ -20,4 +20,11 @@ void Observers::Notify() {
     observers_.erase(std::remove(observers_.begin(), observers_.end(), nullptr),
                      observers_.end());
 }
+
+futures::Value<EmptyValue> Observers::NewFuture() {
+  futures::Future<EmptyValue> output;
+  Add(Observers::Once(
+      [consumer = std::move(output.consumer)] { consumer(EmptyValue()); }));
+  return std::move(output.value);
+}
 }  // namespace afc::editor

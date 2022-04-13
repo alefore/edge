@@ -137,7 +137,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Otherwise, it'll be notified when the buffer is done being read.
   futures::Value<EmptyValue> WaitForEndOfFile();
 
-  void AddCloseObserver(std::function<void()> observer);
+  futures::Value<EmptyValue> NewCloseFuture();
 
   // Enter signals that the buffer went from being hidden to being displayed.
   void Enter();
@@ -507,10 +507,10 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Functions to be called when the end of file is reached. The functions will
   // be called at most once (so they won't be notified if the buffer is
   // reloaded.
-  vector<std::function<void(EmptyValue)>> end_of_file_observers_;
+  Observers end_of_file_observers_;
 
   // Functions to call when this buffer is deleted.
-  std::vector<std::function<void()>> close_observers_;
+  Observers close_observers_;
 
   enum class ReloadState {
     // No need to reload this buffer.

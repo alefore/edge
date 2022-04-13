@@ -654,11 +654,7 @@ void OpenBuffer::Close() {
     log_->Append(L"Saving buffer: " + Read(buffer_variables::name));
     Save();
   }
-  std::vector<std::function<void()>> close_observers;
-  close_observers.swap(close_observers_);
-  for (auto& observer : close_observers) {
-    observer();
-  }
+  close_observers_.Notify();
 }
 
 futures::Value<EmptyValue> OpenBuffer::WaitForEndOfFile() {
@@ -666,13 +662,11 @@ futures::Value<EmptyValue> OpenBuffer::WaitForEndOfFile() {
       reload_state_ == ReloadState::kDone) {
     return futures::Past(EmptyValue());
   }
-  futures::Future<EmptyValue> output;
-  end_of_file_observers_.push_back(std::move(output.consumer));
-  return std::move(output.value);
+  return end_of_file_observers_.NewFuture();
 }
 
-void OpenBuffer::AddCloseObserver(std::function<void()> observer) {
-  close_observers_.push_back(std::move(observer));
+futures::Value<EmptyValue> OpenBuffer::NewCloseFuture() {
+  return close_observers_.NewFuture();
 }
 
 void OpenBuffer::Enter() {
@@ -812,11 +806,7 @@ void OpenBuffer::EndOfFile() {
   // complete.
   editor().line_marks().RemoveExpiredMarksFromSource(name());
 
-  vector<std::function<void(EmptyValue)>> observers;
-  observers.swap(end_of_file_observers_);
-  for (auto& observer : observers) {
-    observer(EmptyValue());
-  }
+  end_of_file_observers_.Notify();
 
   if (Read(buffer_variables::reload_after_exit)) {
     Set(buffer_variables::reload_after_exit,

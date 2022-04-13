@@ -7,6 +7,8 @@
 #include <memory>
 #include <optional>
 
+#include "src/futures/futures.h"
+
 namespace afc::editor {
 
 class Observers {
@@ -19,6 +21,9 @@ class Observers {
   // Will remove expired observers from the container.
   void Notify();
 
+  // Returns a future that gets notificed the next time that `Notify` is called.
+  futures::Value<EmptyValue> NewFuture();
+
   template <typename P, typename Callable>
   static Observer LockingObserver(std::weak_ptr<P> data, Callable callable) {
     return [data, callable] {
@@ -26,6 +31,13 @@ class Observers {
       if (shared_data == nullptr) return State::kExpired;
       callable(*shared_data);
       return State::kAlive;
+    };
+  }
+
+  static Observer Once(std::function<void()> observer) {
+    return [observer = std::move(observer)] {
+      observer();
+      return State::kExpired;
     };
   }
 

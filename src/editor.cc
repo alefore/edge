@@ -327,18 +327,10 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             auto values =
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
             for (const auto& buffer_name_str : buffers_to_wait) {
-              BufferName buffer_name(buffer_name_str);
-              auto buffer_it = editor->buffers()->find(buffer_name);
-              if (buffer_it == editor->buffers()->end()) {
-                continue;
-              }
-              futures::Future<EmptyValue> future;
-              buffer_it->second->AddCloseObserver(
-                  [consumer = std::move(future.consumer)]() {
-                    LOG(INFO) << "Buffer is closing";
-                    consumer(EmptyValue());
-                  });
-              values->push_back(std::move(future.value));
+              if (auto buffer_it =
+                      editor->buffers()->find(BufferName(buffer_name_str));
+                  buffer_it == editor->buffers()->end())
+                values->push_back(buffer_it->second->NewCloseFuture());
             }
             return futures::ForEach(
                        values->begin(), values->end(),
