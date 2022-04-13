@@ -370,6 +370,10 @@ void BufferTerminal::UpdateSize() { InternalUpdateSize(*data_); }
 
 /* static */
 void BufferTerminal::InternalUpdateSize(Data& data) {
+  if (data.buffer.fd() == nullptr) {
+    LOG(INFO) << "Buffer fd is nullptr!";
+    return;
+  }
   auto view_size = LastViewSize(data);
   if (data.last_updated_size.has_value() &&
       view_size == *data.last_updated_size) {
@@ -384,10 +388,9 @@ void BufferTerminal::InternalUpdateSize(Data& data) {
   // Silence valgrind warnings about uninitialized values:
   screen_size.ws_xpixel = 0;
   screen_size.ws_ypixel = 0;
-  if (data.buffer.fd() == nullptr) {
-    LOG(INFO) << "Buffer fd is nullptr!";
-  } else if (ioctl(data.buffer.fd()->fd().read(), TIOCSWINSZ, &screen_size) ==
-             -1) {
+  CHECK(data.buffer.fd() != nullptr);
+
+  if (ioctl(data.buffer.fd()->fd().read(), TIOCSWINSZ, &screen_size) == -1) {
     LOG(INFO) << "Buffer ioctl TICSWINSZ failed.";
     data.buffer.status().SetWarningText(L"ioctl TIOCSWINSZ failed: " +
                                         FromByteString(strerror(errno)));
