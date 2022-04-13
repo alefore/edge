@@ -329,12 +329,14 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             for (const auto& buffer_name_str : buffers_to_wait) {
               if (auto buffer_it =
                       editor->buffers()->find(BufferName(buffer_name_str));
-                  buffer_it == editor->buffers()->end())
+                  buffer_it != editor->buffers()->end()) {
+                CHECK(buffer_it->second != nullptr);
                 values->push_back(buffer_it->second->NewCloseFuture());
+              }
             }
             return futures::ForEach(
                        values,
-                       [](futures::Value<EmptyValue>& future) {
+                       [values](futures::Value<EmptyValue>& future) {
                          return future.Transform([](EmptyValue) {
                            return futures::IterationControlCommand::kContinue;
                          });
