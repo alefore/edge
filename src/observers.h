@@ -36,7 +36,8 @@ class Observers {
 template <typename Value>
 class Observable {
  public:
-  Observable(std::optional<Value> value) : value_(std::move(value)) {}
+  Observable() : Observable(std::nullopt) {}
+  explicit Observable(std::optional<Value> value) : value_(std::move(value)) {}
   Observable(const Observable&) = delete;
 
   void Set(Value value) {

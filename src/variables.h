@@ -104,8 +104,7 @@ class EdgeStructInstance {
 
   // We use deque to workaround the fact that std::vector<bool> doesn't return
   // references.
-  std::deque<T> values_;
-  std::vector<Observers> observers_;
+  std::deque<Observable<T>> values_;
 
   friend class EdgeStruct<T>;
 };
@@ -123,8 +122,7 @@ class EdgeStructInstance<unique_ptr<T>> {
   // Instantiate it through EdgeStruct::NewInstance.
   EdgeStructInstance() {}
 
-  std::deque<unique_ptr<T>> values_;
-  std::vector<Observers> observers_;
+  std::deque<Observable<unique_ptr<T>>> values_;
 
   friend class EdgeStruct<unique_ptr<T>>;
 };
@@ -184,11 +182,10 @@ class EdgeStruct {
   EdgeStructInstance<T> NewInstance() {
     EdgeStructInstance<T> instance;
     instance.values_.resize(variables_.size());
-    instance.observers_.resize(variables_.size());
     for (const auto& v : variables_) {
       VLOG(5) << "Initializing variable: " << v.first << " = "
               << v.second->default_value();
-      instance.values_[v.second->position()] = v.second->default_value();
+      instance.values_[v.second->position()].Set(v.second->default_value());
     }
     return instance;
   }
@@ -268,36 +265,34 @@ void EdgeStructInstance<T>::CopyFrom(const EdgeStructInstance<T>& src) {
 template <typename T>
 const T& EdgeStructInstance<T>::Get(const EdgeVariable<T>* variable) const {
   CHECK_LE(variable->position(), values_.size());
-  return values_.at(variable->position());
+  return values_.at(variable->position()).Get().value();
 }
 
 template <typename T>
 const T* EdgeStructInstance<unique_ptr<T>>::Get(
     const EdgeVariable<unique_ptr<T>>* variable) const {
   CHECK_LE(variable->position(), values_.size());
-  return values_.at(variable->position()).get();
+  return values_.at(variable->position()).get().value().get();
 }
 
 template <typename T>
 void EdgeStructInstance<T>::Set(const EdgeVariable<T>* variable, T value) {
   CHECK_LE(variable->position(), values_.size());
-  values_[variable->position()] = std::move(value);
-  observers_.at(variable->position()).Notify();
+  values_[variable->position()].Set(std::move(value));
 }
 
 template <typename T>
 void EdgeStructInstance<unique_ptr<T>>::Set(
     const EdgeVariable<unique_ptr<T>>* variable, unique_ptr<T> value) {
   CHECK_GE(variable->position(), values_.size());
-  values_[variable->position()] = std::move(value);
-  observers_.at(variable->position()).Notify();
+  values_[variable->position()].Set(std::move(value));
 }
 
 template <typename T>
 void EdgeStructInstance<T>::AddObserver(const EdgeVariable<T>* variable,
                                         Observers::Observer value) {
   CHECK_LE(variable->position(), values_.size());
-  observers_.at(variable->position()).Add(std::move(value));
+  values_.at(variable->position()).Add(std::move(value));
 }
 
 template <typename T>
@@ -305,7 +300,7 @@ void EdgeStructInstance<std::unique_ptr<T>>::AddObserver(
     const EdgeVariable<std::unique_ptr<T>>* variable,
     Observers::Observer value) {
   CHECK_LE(variable->position(), values_.size());
-  observers_.at(variable->position()).Add(std::move(value));
+  values_.at(variable->position()).Add(std::move(value));
 }
 
 template <typename T>

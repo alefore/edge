@@ -552,7 +552,6 @@ using std::to_wstring;
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
-      view_size_({}),
       work_queue_(WorkQueue::New([] {})),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
