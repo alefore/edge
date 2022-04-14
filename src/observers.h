@@ -20,7 +20,15 @@ class Observers {
 
   void Add(Observer observer);
 
-  // Will remove expired observers from the container.
+  // Notify is fully reentrant.
+  //
+  // Notify will remove expired observers from the container.
+  //
+  // When Notify is called concurrently (by different threads or from one of the
+  // observers), some of them may return before the notifications happen. We
+  // guarrantee that all observers will be notified after the start of the last
+  // call to Notify (but may actually execute the observers fewer times than the
+  // number of calls to Notify).
   void Notify();
 
   // Returns a future that gets notificed the next time that `Notify` is called.
