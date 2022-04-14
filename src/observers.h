@@ -45,6 +45,11 @@ class Observers {
 
  private:
   Protected<std::vector<Observer>> observers_;
+
+  // `Add` only adds to `new_observers_`, and it is the job of `Notify` to merge
+  // those back into `observers_`. We do this so that observers can call `Add`
+  // without deadlocking. We never require both locks to be held concurrently.
+  Protected<std::vector<Observer>> new_observers_;
 };
 
 template <typename Value>
