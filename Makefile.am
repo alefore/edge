@@ -33,6 +33,8 @@ src/buffer_terminal.h \
 src/buffer_tests.cc \
 src/widget_list.cc \
 src/widget_list.h \
+src/buffer_syntax_parser.cc \
+src/buffer_syntax_parser.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
 src/buffer_widget.cc \

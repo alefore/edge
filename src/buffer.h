@@ -11,6 +11,7 @@
 
 #include "src/buffer_contents.h"
 #include "src/buffer_name.h"
+#include "src/buffer_syntax_parser.h"
 #include "src/buffer_terminal.h"
 #include "src/cursors.h"
 #include "src/dirname.h"
@@ -600,32 +601,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   mutable Status status_;
 
-  std::shared_ptr<TreeParser> tree_parser_ = NewNullTreeParser();
-
-  // Never null. When the tree changes, we notify it, install a new
-  // notification, and schedule in `syntax_data_` new work.
-  std::shared_ptr<Notification> syntax_data_cancel_ =
-      std::make_shared<Notification>();
-  mutable ThreadPool syntax_data_;
-
-  // Never nullptr.
-  std::shared_ptr<const ParseTree> parse_tree_ =
-      std::make_shared<ParseTree>(Range());
-  // Never nullptr.
-  std::shared_ptr<const ParseTree> simplified_parse_tree_ =
-      std::make_shared<ParseTree>(Range());
-
-  // Caches the last parse done (by syntax_data_zoom_) for a given view size.
-  struct ZoomedOutParseTreeData {
-    // The input parse tree from which zoomed_out_parse_tree was computed. This
-    // is kept so that we can detect when the parse tree has changed and thus
-    // we need to start updating the zoomed_out_parse_tree (if the view is still
-    // active).
-    std::shared_ptr<const ParseTree> simplified_parse_tree;
-    std::shared_ptr<const ParseTree> zoomed_out_parse_tree;
-  };
-  mutable std::unordered_map<LineNumberDelta, ZoomedOutParseTreeData>
-      zoomed_out_parse_trees_;
+  BufferSyntaxParser buffer_syntax_parser_;
 
   mutable FileSystemDriver file_system_driver_;
 };

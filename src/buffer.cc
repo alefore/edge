@@ -566,7 +566,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       default_commands_(options_.editor.default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor.GetConsole(), options_.editor.audio_player()),
-      syntax_data_(1, work_queue_),
       file_system_driver_(editor().thread_pool()) {
   work_queue_->SetScheduleListener(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
@@ -879,43 +878,41 @@ void OpenBuffer::ReadData() { ReadData(fd_); }
 void OpenBuffer::ReadErrorData() { ReadData(fd_error_); }
 
 void OpenBuffer::UpdateTreeParser() {
-  auto parser = Read(buffer_variables::tree_parser);
   std::wistringstream typos_stream(Read(buffer_variables::typos));
-  std::unordered_set<wstring> typos_set{
-      std::istream_iterator<std::wstring, wchar_t>(typos_stream),
-      std::istream_iterator<std::wstring, wchar_t>()};
-  if (parser == L"text") {
-    tree_parser_ = NewLineTreeParser(
-        NewWordsTreeParser(Read(buffer_variables::symbol_characters), typos_set,
-                           NewNullTreeParser()));
-  } else if (parser == L"cpp") {
-    std::wistringstream keywords(Read(buffer_variables::language_keywords));
-    tree_parser_ = NewCppTreeParser(
-        std::unordered_set<wstring>(
-            std::istream_iterator<wstring, wchar_t>(keywords),
-            std::istream_iterator<wstring, wchar_t>()),
-        std::move(typos_set),
-        Read(buffer_variables::identifier_behavior) == L"color-by-hash"
-            ? IdentifierBehavior::kColorByHash
-            : IdentifierBehavior::kNone);
-  } else if (parser == L"diff") {
-    tree_parser_ = parsers::NewDiffTreeParser();
-  } else if (parser == L"md") {
-    tree_parser_ = parsers::NewMarkdownTreeParser();
-  } else {
-    tree_parser_ = NewNullTreeParser();
-  }
+  std::wistringstream language_keywords(
+      Read(buffer_variables::language_keywords));
+  buffer_syntax_parser_.UpdateParser(
+      {.parser_name = Read(buffer_variables::tree_parser),
+       .typos_set =
+           std::unordered_set<wstring>{
+               std::istream_iterator<std::wstring, wchar_t>(typos_stream),
+               std::istream_iterator<std::wstring, wchar_t>()},
+       .language_keywords = std::unordered_set<wstring>(
+           std::istream_iterator<wstring, wchar_t>(language_keywords),
+           std::istream_iterator<wstring, wchar_t>()),
+       .symbol_characters = Read(buffer_variables::symbol_characters),
+       .identifier_behavior =
+           Read(buffer_variables::identifier_behavior) == L"color-by-hash"
+               ? IdentifierBehavior::kColorByHash
+               : IdentifierBehavior::kNone});
 }
 
 std::shared_ptr<const ParseTree> OpenBuffer::parse_tree() const {
-  return parse_tree_;
+  return buffer_syntax_parser_.tree();
 }
 
 std::shared_ptr<const ParseTree> OpenBuffer::simplified_parse_tree() const {
-  return simplified_parse_tree_;
+  return buffer_syntax_parser_.simplified_tree();
 }
 
 void OpenBuffer::Initialize() {
+  std::weak_ptr<OpenBuffer> weak_this(shared_from_this());
+  buffer_syntax_parser_.observers().Add(
+      Observers::LockingObserver(weak_this, [](OpenBuffer& buffer) {
+        // Trigger a wake up alarm.
+        buffer.work_queue()->Schedule([] {});
+      }));
+
   UpdateTreeParser();
 
   // We use the aliasing constructor or else ... we'll never actually be
@@ -963,7 +960,6 @@ void OpenBuffer::Initialize() {
   }
   ClearContents(BufferContents::CursorsBehavior::kUnmodified);
 
-  std::weak_ptr<OpenBuffer> weak_this(shared_from_this());
   if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
       !buffer_path.IsError()) {
     for (const auto& dir : options_.editor.edge_path()) {
@@ -1013,39 +1009,7 @@ void OpenBuffer::Initialize() {
 }
 
 void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
-  CHECK(tree_parser_ != nullptr);
-  if (TreeParser::IsNull(tree_parser_.get())) return;
-
-  syntax_data_cancel_->Notify();
-  syntax_data_cancel_ = std::make_shared<Notification>();
-
-  struct Output {
-    std::shared_ptr<const ParseTree> parse_tree;
-    std::shared_ptr<const ParseTree> simplified_parse_tree;
-  };
-
-  syntax_data_
-      .Run([contents = std::shared_ptr<BufferContents>(contents_.copy()),
-            parser = tree_parser_, notification = syntax_data_cancel_] {
-        static Tracker tracker(
-            L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
-        auto tracker_call = tracker.Call();
-        VLOG(3) << "Executing parse tree update.";
-        if (notification->HasBeenNotified()) return Output();
-        auto parse_tree = parser->FindChildren(*contents, contents->range());
-        return Output{.parse_tree = std::make_shared<ParseTree>(parse_tree),
-                      .simplified_parse_tree = std::make_shared<ParseTree>(
-                          SimplifyTree(parse_tree))};
-      })
-      .SetConsumer([weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
-                       Output output) {
-        auto shared_this = weak_this.lock();
-        if (shared_this == nullptr || output.parse_tree == nullptr) return;
-        LOG(INFO) << "Installing new parse trees.";
-        shared_this->parse_tree_ = std::move(output.parse_tree);
-        shared_this->simplified_parse_tree_ =
-            std::move(output.simplified_parse_tree);
-      });
+  buffer_syntax_parser_.Parse(contents_.copy());
 }
 
 void OpenBuffer::StartNewLine(std::shared_ptr<Line> line) {
@@ -1785,41 +1749,8 @@ const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
 
 std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
     LineNumberDelta view_size) const {
-  auto simplified_tree = simplified_parse_tree();
-  auto it = zoomed_out_parse_trees_.find(view_size);
-  if (it == zoomed_out_parse_trees_.end() ||
-      it->second.simplified_parse_tree != simplified_tree) {
-    syntax_data_
-        .Run([lines_size = lines_size(), view_size, simplified_tree,
-              notification =
-                  syntax_data_cancel_]() -> std::shared_ptr<ParseTree> {
-          static Tracker tracker(
-              L"OpenBuffer::current_zoomed_out_parse_tree::produce");
-          auto tracker_call = tracker.Call();
-          if (notification->HasBeenNotified()) return nullptr;
-          return std::make_shared<ParseTree>(ZoomOutTree(
-              Pointer(simplified_tree).Reference(), lines_size, view_size));
-        })
-        .SetConsumer([this, view_size, simplified_tree](
-                         std::shared_ptr<ParseTree> zoomed_parse_tree) mutable {
-          if (simplified_parse_tree() != simplified_tree) {
-            LOG(INFO) << "Parse tree changed in the meantime, discarding.";
-            return;
-          }
-          LOG(INFO) << "Installing tree.";
-          CHECK(zoomed_parse_tree != nullptr);
-          zoomed_out_parse_trees_[view_size] = {
-              .simplified_parse_tree = std::move(simplified_tree),
-              .zoomed_out_parse_tree = std::move(zoomed_parse_tree)};
-        });
-  }
-  // We don't check if it's still current: we prefer returning a stale tree over
-  // an empty tree. The empty tree would just cause flickering as the user is
-  // typing; the stale tree is almost always correct (and, when it isn't, it'll
-  // be refreshed very shortly).
-  return it != zoomed_out_parse_trees_.end()
-             ? it->second.zoomed_out_parse_tree
-             : std::make_shared<ParseTree>(Range());
+  return buffer_syntax_parser_.current_zoomed_out_parse_tree(view_size,
+                                                             lines_size());
 }
 
 std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
