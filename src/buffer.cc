@@ -906,8 +906,8 @@ std::shared_ptr<const ParseTree> OpenBuffer::simplified_parse_tree() const {
 }
 
 void OpenBuffer::Initialize() {
-  std::weak_ptr<OpenBuffer> weak_this(shared_from_this());
-  buffer_syntax_parser_.observers().Add(
+  std::weak_ptr<OpenBuffer> weak_this = shared_from_this();
+  buffer_syntax_parser_.Add(
       Observers::LockingObserver(weak_this, [](OpenBuffer& buffer) {
         // Trigger a wake up alarm.
         buffer.work_queue()->Schedule([] {});
@@ -1815,8 +1815,8 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
   }
 }
 
-Observable<LineColumnDelta>& OpenBuffer::view_size() { return view_size_; }
-const Observable<LineColumnDelta>& OpenBuffer::view_size() const {
+ObservableValue<LineColumnDelta>& OpenBuffer::view_size() { return view_size_; }
+const ObservableValue<LineColumnDelta>& OpenBuffer::view_size() const {
   return view_size_;
 }
 

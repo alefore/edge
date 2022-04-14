@@ -13,7 +13,7 @@
 
 namespace afc::editor {
 // This class is thread-safe (and does significant work in a background thread).
-class BufferSyntaxParser {
+class BufferSyntaxParser : public Observable {
  public:
   struct ParserOptions {
     std::wstring parser_name;
@@ -32,7 +32,7 @@ class BufferSyntaxParser {
   std::shared_ptr<const ParseTree> current_zoomed_out_parse_tree(
       LineNumberDelta view_size, LineNumberDelta lines_size) const;
 
-  Observers& observers();
+  void Add(Observers::Observer observer) override;
 
  private:
   mutable ThreadPool thread_pool_ = ThreadPool(1, nullptr);

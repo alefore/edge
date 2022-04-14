@@ -104,7 +104,7 @@ class EdgeStructInstance {
 
   // We use deque to workaround the fact that std::vector<bool> doesn't return
   // references.
-  std::deque<Observable<T>> values_;
+  std::deque<ObservableValue<T>> values_;
 
   friend class EdgeStruct<T>;
 };
@@ -122,7 +122,7 @@ class EdgeStructInstance<unique_ptr<T>> {
   // Instantiate it through EdgeStruct::NewInstance.
   EdgeStructInstance() {}
 
-  std::deque<Observable<unique_ptr<T>>> values_;
+  std::deque<ObservableValue<unique_ptr<T>>> values_;
 
   friend class EdgeStruct<unique_ptr<T>>;
 };

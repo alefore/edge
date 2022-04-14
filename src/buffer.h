@@ -401,8 +401,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   void PushSignal(UnixSignal signal);
 
-  Observable<LineColumnDelta>& view_size();
-  const Observable<LineColumnDelta>& view_size() const;
+  ObservableValue<LineColumnDelta>& view_size();
+  const ObservableValue<LineColumnDelta>& view_size() const;
 
   FileSystemDriver& file_system_driver() const;
 
@@ -501,7 +501,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::unique_ptr<FileDescriptorReader> fd_;
   std::unique_ptr<FileDescriptorReader> fd_error_;
 
-  Observable<LineColumnDelta> view_size_;
+  ObservableValue<LineColumnDelta> view_size_;
 
   std::unique_ptr<BufferTerminal> terminal_;
 

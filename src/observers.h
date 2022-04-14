@@ -12,13 +12,20 @@
 
 namespace afc::editor {
 
-// This class is thread-safe.
-class Observers {
+class Observable {
  public:
+  virtual ~Observable() {}
+
   enum class State { kExpired, kAlive };
   using Observer = std::function<State()>;
 
-  void Add(Observer observer);
+  virtual void Add(Observer observer) = 0;
+};
+
+// This class is thread-safe.
+class Observers : public Observable {
+ public:
+  void Add(Observer observer) override;
 
   // Notify is fully reentrant.
   //
@@ -74,11 +81,12 @@ class Observers {
 };
 
 template <typename Value>
-class Observable {
+class ObservableValue : public Observable {
  public:
-  Observable() : Observable(std::nullopt) {}
-  explicit Observable(std::optional<Value> value) : value_(std::move(value)) {}
-  Observable(const Observable&) = delete;
+  ObservableValue() : ObservableValue(std::nullopt) {}
+  explicit ObservableValue(std::optional<Value> value)
+      : value_(std::move(value)) {}
+  ObservableValue(const Observable&) = delete;
 
   void Set(Value value) {
     if (value_ == value) return;  // Optimization.
@@ -91,7 +99,7 @@ class Observable {
   // Adds a callback that will be updated whenever the value changes.
   //
   // We will only notify the observers after `Get` returns a value.
-  void Add(Observers::Observer observer) {
+  void Add(Observers::Observer observer) override {
     if (value_.has_value()) observer();
     observers_.Add(std::move(observer));
   }
