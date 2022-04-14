@@ -61,11 +61,10 @@ LineWithCursor::Generator ParseTreeHighlighter(
 // the time, range.end is either in the same line or at the beginning of the
 // next, and this restriction won't apply.
 void GetSyntaxModifiersForLine(
-    Range range, const ParseTree* tree, LineModifierSet syntax_modifiers,
+    Range range, const ParseTree& tree, LineModifierSet syntax_modifiers,
     std::map<ColumnNumber, LineModifierSet>* output) {
-  CHECK(tree);
-  VLOG(5) << "Getting syntax for " << range << " from " << tree->range();
-  if (range.Intersection(tree->range()).IsEmpty()) return;
+  VLOG(5) << "Getting syntax for " << range << " from " << tree.range();
+  if (range.Intersection(tree.range()).IsEmpty()) return;
   auto PushCurrentModifiers = [&](LineColumn tree_position) {
     if (tree_position.line != range.begin.line) return;
     auto column = tree_position.column.MinusHandlingOverflow(
@@ -73,11 +72,11 @@ void GetSyntaxModifiersForLine(
     (*output)[column] = syntax_modifiers;
   };
 
-  PushCurrentModifiers(tree->range().end);
-  syntax_modifiers.insert(tree->modifiers().begin(), tree->modifiers().end());
-  PushCurrentModifiers(std::max(range.begin, tree->range().begin));
+  PushCurrentModifiers(tree.range().end);
+  syntax_modifiers.insert(tree.modifiers().begin(), tree.modifiers().end());
+  PushCurrentModifiers(std::max(range.begin, tree.range().begin));
 
-  const auto& children = tree->children();
+  const auto& children = tree.children();
   auto it = std::upper_bound(
       children.begin(), children.end(), range.begin,
       [](const LineColumn& position, const ParseTree& candidate) {
@@ -85,13 +84,14 @@ void GetSyntaxModifiersForLine(
       });
 
   while (it != children.end() && (*it).range().begin <= range.end) {
-    GetSyntaxModifiersForLine(range, &*it, syntax_modifiers, output);
+    GetSyntaxModifiersForLine(range, *it, syntax_modifiers, output);
     ++it;
   }
 }
 
 LineWithCursor::Generator ParseTreeHighlighterTokens(
-    const ParseTree* root, Range range, LineWithCursor::Generator generator) {
+    std::shared_ptr<const ParseTree> root, Range range,
+    LineWithCursor::Generator generator) {
   CHECK(root != nullptr);
   generator.inputs_hash =
       hash_combine(hash_combine(generator.inputs_hash.value(), root->hash()),
@@ -101,7 +101,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
     Line::Options options(std::move(*input.line));
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
-    GetSyntaxModifiersForLine(range, root, {}, &syntax_modifiers);
+    GetSyntaxModifiersForLine(range, *root, {}, &syntax_modifiers);
     LOG(INFO) << "Syntax tokens for " << range << ": "
               << syntax_modifiers.size();
 
@@ -156,7 +156,8 @@ LineWithCursor::Generator::Vector ProduceBufferView(
   CHECK_GE(output_producer_options.size.line, LineNumberDelta());
 
   const std::shared_ptr<const ParseTree> root = buffer.parse_tree();
-  const ParseTree* current_tree = buffer.current_tree(root.get());
+  CHECK(root != nullptr);
+  const ParseTree* const current_tree = buffer.current_tree(root.get());
 
   LineWithCursor::Generator::Vector output{
       .lines = {}, .width = output_producer_options.size.column};
@@ -262,7 +263,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
               : line_contents->EndColumn();
       generator = ParseTreeHighlighter(begin, end, std::move(generator));
     } else if (!buffer.parse_tree()->children().empty()) {
-      generator = ParseTreeHighlighterTokens(root.get(), screen_line.range,
+      generator = ParseTreeHighlighterTokens(root, screen_line.range,
                                              std::move(generator));
     }
 
