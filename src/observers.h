@@ -50,6 +50,19 @@ class Observers {
   // those back into `observers_`. We do this so that observers can call `Add`
   // without deadlocking. We never require both locks to be held concurrently.
   Protected<std::vector<Observer>> new_observers_;
+
+  // This allow us to make Notify reentrant.
+  enum class NotifyState {
+    // Notify is not running. The first call should actually work.
+    kIdle,
+    // A call to Notify is running; once it finishes, it should return.
+    kRunning,
+    // A call to Notify happened while Notify was running. When the thread that
+    // is delivering notifications finishes, it should switch back to kRunning
+    // and start delivering notifications again.
+    kRunningAndScheduled
+  };
+  Protected<NotifyState> notify_state_ = NotifyState::kIdle;
 };
 
 template <typename Value>
