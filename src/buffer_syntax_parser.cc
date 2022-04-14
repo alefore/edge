@@ -118,8 +118,11 @@ void BufferSyntaxParser::Add(Observers::Observer observer) {
 }
 
 /* static */ void BufferSyntaxParser::ValidateInvariants(const Data& data) {
+  CHECK(data.syntax_data_cancel != nullptr);
+  CHECK(data.tree_parser != nullptr);
   CHECK(data.tree != nullptr);
   CHECK(data.simplified_tree != nullptr);
+
   for (const auto& z : data.zoomed_out_trees) {
     CHECK(z.second.simplified_tree != nullptr);
     CHECK(z.second.zoomed_out_tree != nullptr);
