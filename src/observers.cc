@@ -2,12 +2,13 @@
 
 namespace afc::editor {
 void Observers::Add(Observers::Observer observer) {
-  observers_.push_back(std::move(observer));
+  observers_.lock()->push_back(std::move(observer));
 }
 
 void Observers::Notify() {
+  auto observers = observers_.lock();
   bool expired_observers = false;
-  for (auto& o : observers_) {
+  for (auto& o : *observers) {
     switch (o()) {
       case State::kAlive:
         break;
@@ -17,8 +18,8 @@ void Observers::Notify() {
     }
   }
   if (expired_observers)
-    observers_.erase(std::remove(observers_.begin(), observers_.end(), nullptr),
-                     observers_.end());
+    observers->erase(std::remove(observers->begin(), observers->end(), nullptr),
+                     observers->end());
 }
 
 futures::Value<EmptyValue> Observers::NewFuture() {

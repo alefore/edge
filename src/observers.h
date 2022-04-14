@@ -8,9 +8,11 @@
 #include <optional>
 
 #include "src/futures/futures.h"
+#include "src/protected.h"
 
 namespace afc::editor {
 
+// This class is thread-safe.
 class Observers {
  public:
   enum class State { kExpired, kAlive };
@@ -42,7 +44,7 @@ class Observers {
   }
 
  private:
-  std::vector<Observer> observers_;
+  Protected<std::vector<Observer>> observers_;
 };
 
 template <typename Value>
