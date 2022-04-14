@@ -29,7 +29,6 @@ void BufferSyntaxParser::Parse(std::unique_ptr<BufferContents> contents) {
   data_->lock(std::bind_front(
       [&pool = thread_pool_, data_ptr = data_, observers = observers_](
           const std::shared_ptr<BufferContents>& contents, Data& data) {
-        CHECK(data.tree_parser != nullptr);
         if (TreeParser::IsNull(data.tree_parser.get())) return;
 
         data.syntax_data_cancel->Notify();
@@ -90,14 +89,14 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
             .simplified_tree = simplified_tree,
             .zoomed_out_tree = std::make_shared<ParseTree>(ZoomOutTree(
                 Pointer(simplified_tree).Reference(), lines_size, view_size))};
-        data_ptr->lock([view_size, output](Data& data) {
+        data_ptr->lock([view_size, &output](Data& data) {
           if (data.simplified_tree != output.simplified_tree) {
             LOG(INFO) << "Parse tree changed in the meantime, discarding.";
             return;
           }
           LOG(INFO) << "Installing tree.";
           CHECK(output.zoomed_out_tree != nullptr);
-          data.zoomed_out_trees[view_size] = output;
+          data.zoomed_out_trees[view_size] = std::move(output);
         });
         observers->Notify();
       });
