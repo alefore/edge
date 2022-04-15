@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/decaying_counter.h"
+#include "src/observers.h"
 #include "src/protected.h"
 #include "src/time.h"
 
@@ -38,10 +39,9 @@ class WorkQueue {
     friend WorkQueue;
   };
 
-  static std::shared_ptr<WorkQueue> New(
-      std::function<void()> schedule_listener);
+  static std::shared_ptr<WorkQueue> New();
 
-  WorkQueue(ConstructorAccessTag, std::function<void()> schedule_listener);
+  explicit WorkQueue(ConstructorAccessTag);
 
   void Schedule(std::function<void()> callback);
   void ScheduleAt(struct timespec when, std::function<void()> callback);
@@ -59,12 +59,10 @@ class WorkQueue {
   // WorkQueue is spending running callbacks, recently.
   double RecentUtilization() const;
 
-  void SetScheduleListener(std::function<void()> schedule_listener);
+  Observable& OnSchedule();
 
  private:
   struct MutableData {
-    std::function<void()> schedule_listener;
-
     struct Callback {
       struct timespec time;
       std::function<void()> callback;
@@ -83,6 +81,7 @@ class WorkQueue {
     DecayingCounter execution_seconds = DecayingCounter(1.0);
   };
   Protected<MutableData> data_;
+  Observers schedule_observers_;
 };
 
 enum class WorkQueueChannelConsumeMode {

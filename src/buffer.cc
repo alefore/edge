@@ -191,14 +191,14 @@ void AddLineMetadata(OpenBuffer& buffer, BufferContents& contents,
 
 // next_scheduled_execution holds the smallest time at which we know we have
 // scheduled an execution of work_queue_ in the editor's work queue.
-void MaybeScheduleNextWorkQueueExecution(
+Observers::State MaybeScheduleNextWorkQueueExecution(
     std::weak_ptr<WorkQueue> work_queue_weak,
     std::shared_ptr<WorkQueue> parent_work_queue,
     std::shared_ptr<std::optional<struct timespec>> next_scheduled_execution) {
   CHECK(parent_work_queue != nullptr);
   CHECK(next_scheduled_execution != nullptr);
   auto work_queue = work_queue_weak.lock();
-  if (work_queue == nullptr) return;
+  if (work_queue == nullptr) return Observers::State::kExpired;
   if (auto next = work_queue->NextExecution();
       next.has_value() && next != *next_scheduled_execution) {
     *next_scheduled_execution = next;
@@ -211,6 +211,7 @@ void MaybeScheduleNextWorkQueueExecution(
                                               next_scheduled_execution);
         });
   }
+  return Observers::State::kAlive;
 }
 }  // namespace
 
@@ -552,7 +553,7 @@ using std::to_wstring;
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
-      work_queue_(WorkQueue::New([] {})),
+      work_queue_(WorkQueue::New()),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
@@ -567,7 +568,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor.GetConsole(), options_.editor.audio_player()),
       file_system_driver_(editor().thread_pool()) {
-  work_queue_->SetScheduleListener(std::bind_front(
+  work_queue_->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
       std::weak_ptr<WorkQueue>(work_queue_), editor().work_queue(),
       std::make_shared<std::optional<struct timespec>>(std::nullopt)));

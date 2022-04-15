@@ -485,7 +485,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
-      work_queue_(WorkQueue::New([this] { NotifyInternalEvent(); })),
+      work_queue_(WorkQueue::New()),
       thread_pool_(32, work_queue_),
       home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
@@ -509,6 +509,10 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
       audio_player_(audio_player),
       buffer_tree_(*this),
       status_(GetConsole(), audio_player_) {
+  work_queue_->OnSchedule().Add([this] {
+    NotifyInternalEvent();
+    return Observers::State::kAlive;
+  });
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());

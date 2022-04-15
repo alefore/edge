@@ -526,7 +526,7 @@ const bool buffer_tests_registration =
           {L"foo", L"bar", L"bard", L"foo_bar", L"alejo"}, L'_');
       auto predict = [&](std::wstring input) {
         ProgressChannel channel(
-            WorkQueue::New([] {}), [](ProgressInformation) {},
+            WorkQueue::New(), [](ProgressInformation) {},
             WorkQueueChannelConsumeMode::kAll);
         std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
         test_predictor(PredictorInput{

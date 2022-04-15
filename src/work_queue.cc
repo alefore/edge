@@ -5,54 +5,42 @@
 #include "src/time.h"
 
 namespace afc::editor {
-/* static */ std::shared_ptr<WorkQueue> WorkQueue::New(
-    std::function<void()> schedule_listener) {
-  return std::make_shared<WorkQueue>(ConstructorAccessTag(),
-                                     std::move(schedule_listener));
+/* static */ std::shared_ptr<WorkQueue> WorkQueue::New() {
+  return std::make_shared<WorkQueue>(ConstructorAccessTag());
 }
 
-WorkQueue::WorkQueue(ConstructorAccessTag,
-                     std::function<void()> schedule_listener)
-    : data_({.schedule_listener = std::move(schedule_listener)}) {
-  data_.lock(
-      [](MutableData& data) { CHECK(data.schedule_listener != nullptr); });
-}
+WorkQueue::WorkQueue(ConstructorAccessTag) {}
 
 void WorkQueue::Schedule(std::function<void()> callback) {
-  struct timespec now;
-  CHECK_NE(clock_gettime(0, &now), -1);
-  ScheduleAt(std::move(now), std::move(callback));
+  CHECK(callback != nullptr);
+  ScheduleAt(Now(), std::move(callback));
 }
 
 void WorkQueue::ScheduleAt(struct timespec time,
                            std::function<void()> callback) {
-  Protected<MutableData>::Lock data = data_.lock();
-  data->callbacks.push({std::move(time), std::move(callback)});
-  auto listener = data->schedule_listener;
-  data = nullptr;
-
-  listener();
+  CHECK(callback != nullptr);
+  data_.lock()->callbacks.push({std::move(time), std::move(callback)});
+  schedule_observers_.Notify();
 }
 
 void WorkQueue::Execute() {
   std::vector<std::function<void()>> callbacks_ready;
-  Protected<MutableData>::Lock data = data_.lock();
   auto start = Now();
-  VLOG(5) << "Executing work queue: callbacks: " << data->callbacks.size();
-  while (!data->callbacks.empty() && data->callbacks.top().time < Now()) {
-    callbacks_ready.push_back(std::move(data->callbacks.top().callback));
-    data->callbacks.pop();
-  }
+  data_.lock([&callbacks_ready](MutableData& data) {
+    VLOG(5) << "Executing work queue: callbacks: " << data.callbacks.size();
+    while (!data.callbacks.empty() && data.callbacks.top().time < Now()) {
+      callbacks_ready.push_back(std::move(data.callbacks.top().callback));
+      data.callbacks.pop();
+    }
+  });
 
   for (auto& callback : callbacks_ready) {
-    data = nullptr;
     callback();
     // We could assign nullptr to `callback` in order to allow it to be deleted.
     // However, we prefer to only let them be deleted at the end, before we
     // return, in case they are the only thing keeping the work queue alive.
-    data = data_.lock();
     auto end = Now();
-    data->execution_seconds.IncrementAndGetEventsPerSecond(
+    data_.lock()->execution_seconds.IncrementAndGetEventsPerSecond(
         SecondsBetween(start, end));
     start = end;
   }
@@ -72,17 +60,13 @@ double WorkQueue::RecentUtilization() const {
   });
 }
 
-void WorkQueue::SetScheduleListener(std::function<void()> schedule_listener) {
-  data_.lock([&](MutableData& data) {
-    data.schedule_listener = std::move(schedule_listener);
-  });
-}
+Observable& WorkQueue::OnSchedule() { return schedule_observers_; }
 
 namespace {
 const bool work_queue_tests_registration = tests::Register(
     L"WorkQueue",
     {{.name = L"CallbackKeepsWorkQueueAlive", .runs = 100, .callback = [] {
-        std::shared_ptr<WorkQueue> work_queue = WorkQueue::New([] {});
+        std::shared_ptr<WorkQueue> work_queue = WorkQueue::New();
         auto notification = std::make_shared<Notification>();
         work_queue->Schedule(
             [work_queue] { LOG(INFO) << "First callback starts"; });
@@ -104,7 +88,7 @@ const bool work_queue_channel_tests_registration = tests::Register(
       .callback =
           [] {
             WorkQueueChannel<int>(
-                WorkQueue::New([] {}), [](int) {},
+                WorkQueue::New(), [](int) {},
                 WorkQueueChannelConsumeMode::kAll);
           }},
      // Creates a channel with consume mode kAll and pushes a few values. It
@@ -113,7 +97,7 @@ const bool work_queue_channel_tests_registration = tests::Register(
       .callback =
           [] {
             std::vector<int> values;
-            auto work_queue = WorkQueue::New([] {});
+            auto work_queue = WorkQueue::New();
             WorkQueueChannel<int> channel(
                 work_queue, [&](int value) { values.push_back(value); },
                 WorkQueueChannelConsumeMode::kAll);
@@ -144,7 +128,7 @@ const bool work_queue_channel_tests_registration = tests::Register(
       .callback =
           [] {
             std::vector<int> values;
-            auto work_queue = WorkQueue::New([] {});
+            auto work_queue = WorkQueue::New();
             WorkQueueChannel<int> channel(
                 work_queue, [&](int value) { values.push_back(value); },
                 WorkQueueChannelConsumeMode::kLastAvailable);
@@ -174,7 +158,7 @@ const bool work_queue_channel_tests_registration = tests::Register(
       .callback =
           [] {
             std::vector<int> values;
-            auto work_queue = WorkQueue::New([] {});
+            auto work_queue = WorkQueue::New();
             auto channel = std::make_unique<WorkQueueChannel<int>>(
                 work_queue, [&](int value) { values.push_back(value); },
                 WorkQueueChannelConsumeMode::kAll);
@@ -194,7 +178,7 @@ const bool work_queue_channel_tests_registration = tests::Register(
      // callbacks execute.
      {.name = L"LastAvailableChannelDeleteBeforeExecute", .callback = [] {
         std::vector<int> values;
-        auto work_queue = WorkQueue::New([] {});
+        auto work_queue = WorkQueue::New();
         auto channel = std::make_unique<WorkQueueChannel<int>>(
             work_queue, [&](int value) { values.push_back(value); },
             WorkQueueChannelConsumeMode::kLastAvailable);
