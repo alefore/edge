@@ -349,7 +349,7 @@ int main(int argc, const char** argv) {
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
       commands_to_run += L"editor.SendExitTo(\"" +
-                         CppEscapeString(server_path.ToString()) + L"\");";
+                         CppEscapeString(server_path.read()) + L"\");";
     }
 
     LOG(INFO) << "Sending commands.";
@@ -509,6 +509,7 @@ int main(int argc, const char** argv) {
   }
 
   LOG(INFO) << "Removing server file: " << server_path;
-  unlink(ToByteString(server_path.ToString()).c_str());
+  // TODO(2022-04-18): Move this functionality to the server's buffer?
+  unlink(ToByteString(server_path.read()).c_str());
   return editor_state().exit_value().value();
 }

@@ -708,7 +708,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                        PathComponent::FromString(L".edge_state").value());
         LOG(INFO) << "PersistState: Preparing state file: " << path;
         auto contents = std::make_unique<BufferContents>();
-        contents->push_back(L"// State of file: " + path.ToString());
+        contents->push_back(L"// State of file: " + path.read());
         contents->push_back(L"");
 
         contents->push_back(L"buffer.set_position(" + position().ToCppString() +
@@ -949,7 +949,7 @@ void OpenBuffer::Initialize() {
 
   Set(buffer_variables::name, options_.name.read());
   if (options_.path.has_value()) {
-    Set(buffer_variables::path, options_.path.value().ToString());
+    Set(buffer_variables::path, options_.path.value().read());
   }
   Set(buffer_variables::pts_path, L"");
   Set(buffer_variables::command, L"");
@@ -1167,7 +1167,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   if (file_path.value().GetRootType() != Path::RootType::kAbsolute) {
     return futures::Past(ValueOrError<Path>(
         Error(L"Unable to persist buffer without absolute path: " +
-              file_path.value().ToString())));
+              file_path.value().read())));
   }
 
   auto file_path_components = AugmentErrors(L"Unable to split path",
@@ -1193,7 +1193,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                        return Success(IterationControlCommand::kContinue);
                      }
                      *error = Error(L"Oops, exists, but is not a directory: " +
-                                    path->ToString());
+                                    path->read());
                      return Success(IterationControlCommand::kStop);
                    })
                    .ConsumeErrors([this, path, error](Error) {
@@ -1347,10 +1347,10 @@ futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateString(
 futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
   wstring error_description;
-  std::shared_ptr<Expression> expression = CompileFile(
-      ToByteString(path.ToString()), environment_, &error_description);
+  std::shared_ptr<Expression> expression =
+      CompileFile(ToByteString(path.read()), environment_, &error_description);
   if (expression == nullptr) {
-    Error error(path.ToString() + L": error: " + error_description);
+    Error error(path.read() + L": error: " + error_description);
     status_.SetWarningText(error.description);
     return futures::Past(ValueOrError<std::unique_ptr<Value>>(error));
   }
@@ -2099,7 +2099,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                if (path.IsError())
                  return futures::Past(
                      futures::IterationControlCommand::kContinue);
-               VLOG(4) << "Calling open file: " << path.value().ToString();
+               VLOG(4) << "Calling open file: " << path.value().read();
                return OpenFile(OpenFileOptions{
                                    .editor_state = editor,
                                    .path = path.value(),

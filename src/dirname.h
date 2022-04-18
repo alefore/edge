@@ -69,7 +69,7 @@ class Path {
   ValueOrError<PathComponent> Basename() const;
   std::optional<std::wstring> extension() const;
 
-  const std::wstring& ToString() const;
+  const std::wstring& read() const;
   ValueOrError<std::list<PathComponent>> DirectorySplit() const;
   bool IsRoot() const;
 
@@ -88,8 +88,6 @@ class Path {
   explicit Path(std::wstring path);
 
  private:
-  // TODO(easy): Get rid of this; it's only needed for GHOST_TYPE_HASH.
-  std::wstring read() const { return path_; }
   std::wstring path_;
 };
 

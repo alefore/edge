@@ -84,7 +84,7 @@ GetSyntheticFeatures(
     }
   }
   for (auto& dir : directories) {
-    output.insert({L"directory", NewLazyString(dir.ToString())});
+    output.insert({L"directory", NewLazyString(dir.read())});
   }
   for (auto& extension : extensions) {
     output.insert({L"extension", NewLazyString(std::move(extension))});

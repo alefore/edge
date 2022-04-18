@@ -221,7 +221,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       }));
 
   editor_type->AddField(L"home", vm::NewCallback([](EditorState* editor) {
-                          return editor->home_directory().ToString();
+                          return editor->home_directory().read();
                         }));
 
   editor_type->AddField(
@@ -518,12 +518,11 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
     wstring error_description;
     std::shared_ptr<Expression> expression = CompileFile(
-        ToByteString(path.ToString()), environment_, &error_description);
+        ToByteString(path.read()), environment_, &error_description);
     if (expression == nullptr) {
       LOG(INFO) << "Compilation error for " << path << ": "
                 << error_description;
-      status_.SetWarningText(path.ToString() + L": error: " +
-                             error_description);
+      status_.SetWarningText(path.read() + L": error: " + error_description);
       return futures::Past(futures::IterationControlCommand::kContinue);
     }
     LOG(INFO) << "Evaluating file: " << path;

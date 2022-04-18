@@ -19,8 +19,8 @@ futures::Value<ValueOrError<int>> FileSystemDriver::Open(Path path, int flags,
                                                          mode_t mode) const {
   return thread_pool_.Run([path = std::move(path), flags, mode]() {
     LOG(INFO) << "Opening file:" << path;
-    int fd = open(ToByteString(path.ToString()).c_str(), flags, mode);
-    PossibleError output = SyscallReturnValue(L"Open: " + path.ToString(), fd);
+    int fd = open(ToByteString(path.read()).c_str(), flags, mode);
+    PossibleError output = SyscallReturnValue(L"Open: " + path.read(), fd);
     return output.IsError() ? output.error() : Success(fd);
   });
 }
@@ -34,8 +34,8 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
   return thread_pool_.Run([path =
                                std::move(path)]() -> ValueOrError<struct stat> {
     struct stat output;
-    if (stat(ToByteString(path.ToString()).c_str(), &output) == -1) {
-      return Error(L"Stat failed: `" + path.ToString() + L"`: " +
+    if (stat(ToByteString(path.read()).c_str(), &output) == -1) {
+      return Error(L"Stat failed: `" + path.read() + L"`: " +
                    FromByteString(strerror(errno)));
     }
     return Success(output);
@@ -46,8 +46,8 @@ futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
                                                        Path newpath) const {
   return thread_pool_.Run([oldpath, newpath] {
     return SyscallReturnValue(L"Rename",
-                              rename(ToByteString(oldpath.ToString()).c_str(),
-                                     ToByteString(newpath.ToString()).c_str()));
+                              rename(ToByteString(oldpath.read()).c_str(),
+                                     ToByteString(newpath.read()).c_str()));
   });
 }
 
@@ -55,9 +55,9 @@ futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
                                                       mode_t mode) const {
   return thread_pool_.Run([path, mode] {
     return AugmentErrors(
-        path.ToString(),
+        path.read(),
         SyscallReturnValue(L"Mkdir",
-                           mkdir(ToByteString(path.ToString()).c_str(), mode)));
+                           mkdir(ToByteString(path.read()).c_str(), mode)));
   });
 }
 

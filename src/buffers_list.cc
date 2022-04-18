@@ -345,7 +345,7 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
     std::optional<Path> path;
     for (auto& c : components)
       path = path.has_value() ? Path::Join(*path, c) : c;
-    output.push_back(path.has_value() ? path->ToString() : L"");
+    output.push_back(path.has_value() ? path->read() : L"");
   }
   return output;
 }

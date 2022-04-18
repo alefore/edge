@@ -130,7 +130,7 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
   auto path = path_or_error.value();
   struct stat stat_buffer;
   // TODO(blocking): Use FileSystemDriver here!
-  if (stat(ToByteString(path.ToString()).c_str(), &stat_buffer) == -1 ||
+  if (stat(ToByteString(path.read()).c_str(), &stat_buffer) == -1 ||
       !S_ISDIR(stat_buffer.st_mode)) {
     LOG(INFO) << "Taking dirname for prompt: " << path;
     auto dir_or_error = path.Dirname();
@@ -167,7 +167,7 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
       path = output_path.value();
     }
   }
-  return path.ToString() + L"/";
+  return path.read() + L"/";
 }
 
 const bool get_initial_prompt_value_tests_registration = tests::Register(

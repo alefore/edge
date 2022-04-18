@@ -376,10 +376,10 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   return GetSearchPaths(predictor_input.editor, search_paths.get())
       .Transform([predictor_input, search_paths](EmptyValue) {
         auto input_path = Path::FromString(predictor_input.input);
-        auto path = input_path.IsError()
-                        ? predictor_input.input
-                        : predictor_input.editor.expand_path(input_path.value())
-                              .ToString();
+        auto path =
+            input_path.IsError()
+                ? predictor_input.input
+                : predictor_input.editor.expand_path(input_path.value()).read();
         OpenBuffer::LockFunction get_buffer =
             predictor_input.predictions->GetLockFunction();
         ResolvePathOptions resolve_path_options = ResolvePathOptions::New(
@@ -422,7 +422,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               for (const auto& search_path : *search_paths) {
                 VLOG(4) << "Considering search path: " << search_path;
                 auto descend_results =
-                    DescendDirectoryTree(search_path.ToString(), path);
+                    DescendDirectoryTree(search_path.read(), path);
                 if (descend_results.dir == nullptr) {
                   LOG(WARNING) << "Unable to descend: " << search_path;
                   continue;

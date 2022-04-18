@@ -65,7 +65,7 @@ map<wstring, wstring> LoadEnvironmentVariables(
                             PathComponent::FromString(L"environment").value()));
   for (auto dir : path) {
     Path full_path = Path::Join(dir, environment_local_path);
-    std::ifstream infile(ToByteString(full_path.ToString()));
+    std::ifstream infile(ToByteString(full_path.read()));
     if (!infile.is_open()) {
       continue;
     }
@@ -334,7 +334,7 @@ futures::Value<EmptyValue> RunCommandHandler(
   map<wstring, wstring> environment = {{L"EDGE_RUN", std::to_wstring(i)},
                                        {L"EDGE_RUNS", std::to_wstring(n)}};
   wstring name =
-      (children_path.has_value() ? children_path->ToString() : L"") + L"$";
+      (children_path.has_value() ? children_path->read() : L"") + L"$";
   if (n > 1) {
     for (auto& it : environment) {
       name += L" " + it.first + L"=" + it.second;
@@ -387,25 +387,25 @@ class ForkEditorCommand : public Command {
               VMType::Function({VMType::String(), VMType::String()}))});
 
       auto children_path = GetChildrenPath(editor_state_);
-      Prompt({.editor_state = editor_state_,
-              .prompt =
-                  (children_path.IsError() ? L""
-                                           : children_path.value().ToString()) +
-                  L"$ ",
-              .history_file = HistoryFileCommands(),
-              .colorize_options_provider =
-                  prompt_state->context_command_callback == nullptr
-                      ? PromptOptions::ColorizeFunction(nullptr)
-                      : ([prompt_state](const std::shared_ptr<LazyString>& line,
-                                        std::unique_ptr<ProgressChannel>,
-                                        std::shared_ptr<Notification>) {
-                          return PromptChange(prompt_state.get(), line);
-                        }),
-              .handler = ([&editor_state = editor_state_,
-                           children_path](const wstring& name) {
-                return RunCommandHandler(name, editor_state, 0, 1,
-                                         children_path.AsOptional());
-              })});
+      Prompt(
+          {.editor_state = editor_state_,
+           .prompt =
+               (children_path.IsError() ? L"" : children_path.value().read()) +
+               L"$ ",
+           .history_file = HistoryFileCommands(),
+           .colorize_options_provider =
+               prompt_state->context_command_callback == nullptr
+                   ? PromptOptions::ColorizeFunction(nullptr)
+                   : ([prompt_state](const std::shared_ptr<LazyString>& line,
+                                     std::unique_ptr<ProgressChannel>,
+                                     std::shared_ptr<Notification>) {
+                       return PromptChange(prompt_state.get(), line);
+                     }),
+           .handler = ([&editor_state = editor_state_,
+                        children_path](const wstring& name) {
+             return RunCommandHandler(name, editor_state, 0, 1,
+                                      children_path.AsOptional());
+           })});
     } else if (editor_state_.structure() == StructureLine()) {
       auto buffer = editor_state_.current_buffer();
       if (buffer == nullptr || buffer->current_line() == nullptr) {
@@ -581,7 +581,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
              }});
     buffer->Set(buffer_variables::children_path,
                 options.children_path.has_value()
-                    ? options.children_path->ToString()
+                    ? options.children_path->read()
                     : L"");
     buffer->Set(buffer_variables::command, options.command);
     it.first->second = std::move(buffer);

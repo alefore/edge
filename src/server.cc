@@ -50,7 +50,7 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
                   FromByteString(mktemp(strdup("/tmp/edge-server-XXXXXX"))))
                   .value();
 
-    char* path_str = strdup(ToByteString(output.ToString()).c_str());
+    char* path_str = strdup(ToByteString(output.read()).c_str());
     int mkfifo_result = mkfifo(path_str, 0600);
     free(path_str);
     if (mkfifo_result != -1) {
@@ -59,7 +59,7 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 
     if (input_path.has_value()) {
       // No point retrying.
-      return Error(output.ToString() + L": " + FromByteString(strerror(errno)));
+      return Error(output.read() + L": " + FromByteString(strerror(errno)));
     }
   }
 }
@@ -81,10 +81,10 @@ ValueOrError<int> MaybeConnectToParentServer() {
 }
 
 ValueOrError<int> MaybeConnectToServer(const Path& path) {
-  LOG(INFO) << "Connecting to server: " << path.ToString();
-  int fd = open(ToByteString(path.ToString()).c_str(), O_WRONLY);
+  LOG(INFO) << "Connecting to server: " << path.read();
+  int fd = open(ToByteString(path.read()).c_str(), O_WRONLY);
   if (fd == -1) {
-    return Error(path.ToString() + L": Connecting to server: open failed: " +
+    return Error(path.read() + L": Connecting to server: open failed: " +
                  FromByteString(strerror(errno)));
   }
   ValueOrError<Path> private_fifo = CreateFifo({});
@@ -93,23 +93,23 @@ ValueOrError<int> MaybeConnectToServer(const Path& path) {
         L"Unable to create fifo for communication with server",
         private_fifo.error());
   }
-  LOG(INFO) << "Fifo created: " << private_fifo.value().ToString();
-  string command =
-      "editor.ConnectTo(\"" +
-      ToByteString(CppEscapeString(private_fifo.value().ToString())) + "\");\n";
+  LOG(INFO) << "Fifo created: " << private_fifo.value().read();
+  string command = "editor.ConnectTo(\"" +
+                   ToByteString(CppEscapeString(private_fifo.value().read())) +
+                   "\");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {
-    return Error(path.ToString() + L": write failed: " +
+    return Error(path.read() + L": write failed: " +
                  FromByteString(strerror(errno)));
   }
   close(fd);
 
-  LOG(INFO) << "Opening private fifo: " << private_fifo.value().ToString();
+  LOG(INFO) << "Opening private fifo: " << private_fifo.value().read();
   int private_fd =
-      open(ToByteString(private_fifo.value().ToString()).c_str(), O_RDWR);
+      open(ToByteString(private_fifo.value().read()).c_str(), O_RDWR);
   LOG(INFO) << "Connection fd: " << private_fd;
   if (private_fd == -1) {
-    return Error(private_fifo.value().ToString() + L": open failed: " +
+    return Error(private_fifo.value().read() + L": open failed: " +
                  FromByteString(strerror(errno)));
   }
   CHECK_GT(private_fd, -1);
@@ -173,9 +173,8 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
     return Error(L"Error creating fifo: " + output.error().description);
   }
 
-  LOG(INFO) << "Starting server: " << output.value().ToString();
-  setenv("EDGE_PARENT_ADDRESS", ToByteString(output.value().ToString()).c_str(),
-         1);
+  LOG(INFO) << "Starting server: " << output.value().read();
+  setenv("EDGE_PARENT_ADDRESS", ToByteString(output.value().read()).c_str(), 1);
   auto buffer = OpenServerBuffer(editor_state, output.value());
   buffer->Set(buffer_variables::reload_after_exit, true);
   buffer->Set(buffer_variables::default_reload_after_exit, true);

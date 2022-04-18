@@ -8,7 +8,7 @@
 namespace afc::editor {
 
 /* static */
-URL URL::FromPath(Path path) { return URL(L"file:" + path.ToString()); }
+URL URL::FromPath(Path path) { return URL(L"file:" + path.read()); }
 
 std::optional<URL::Schema> URL::schema() const {
   auto colon = value_.find_first_of(L':');
@@ -62,7 +62,7 @@ const bool get_local_file_path_tests_registration = tests::Register(
       .callback =
           [] {
             Path input = Path::FromString(L"foo/bar/hey").value();
-            CHECK(URL(input.ToString()).GetLocalFilePath().value() == input);
+            CHECK(URL(input.read()).GetLocalFilePath().value() == input);
           }},
      {.name = L"URLStringFile", .callback = [] {
         std::wstring input = L"foo/bar/hey";

@@ -22,7 +22,7 @@ struct BackgroundReadDirOutput {
 
 BackgroundReadDirOutput ReadDir(Path path, std::wregex noise_regex) {
   BackgroundReadDirOutput output;
-  auto dir = OpenDir(path.ToString());
+  auto dir = OpenDir(path.read());
   if (dir == nullptr) {
     output.error_description =
         L"Unable to open directory: " + FromByteString(strerror(errno));
@@ -194,7 +194,7 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
         }
 
         output.AppendToLastLine(
-            NewLazyString(L"# 🗁  File listing: " + path.ToString()));
+            NewLazyString(L"# 🗁  File listing: " + path.read()));
         output.AppendEmptyLine();
 
         ShowFiles(L"🗁  Directories", std::move(results.directories), output);

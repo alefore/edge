@@ -151,7 +151,7 @@ futures::Value<PossibleError> Save(
           switch (options.save_type) {
             case OpenBuffer::Options::SaveType::kMainFile:
               buffer->status().SetInformationText(L"🖫 Saved: " +
-                                                  path.ToString());
+                                                  path.read());
               // TODO(easy): Move this to the caller, for symmetry with
               // kBackup case.
               // TODO: Since the save is async, what if the contents have
@@ -173,7 +173,7 @@ futures::Value<PossibleError> Save(
                   }
                 }
               }
-              stat(ToByteString(path.ToString()).c_str(), stat_buffer);
+              stat(ToByteString(path.read()).c_str(), stat_buffer);
               break;
             case OpenBuffer::Options::SaveType::kBackup:
               break;
@@ -212,9 +212,8 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
       string str = (position == LineNumber(0) ? "" : "\n") +
                    ToByteString(line.ToString());
       if (write(fd, str.c_str(), str.size()) == -1) {
-        error =
-            Error(path.ToString() + L": write failed: " + std::to_wstring(fd) +
-                  L": " + FromByteString(strerror(errno)));
+        error = Error(path.read() + L": write failed: " + std::to_wstring(fd) +
+                      L": " + FromByteString(strerror(errno)));
         return false;
       }
       return true;
@@ -365,8 +364,8 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   }
 
   if (auto path = Path::FromString(input.path); !path.IsError()) {
-    input.path = Path::ExpandHomeDirectory(input.home_directory, path.value())
-                     .ToString();
+    input.path =
+        Path::ExpandHomeDirectory(input.home_directory, path.value()).read();
   }
   if (!input.path.empty() && input.path[0] == L'/') {
     input.search_paths = {Path::Root()};
@@ -569,7 +568,7 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
     return futures::Past(false);
   };
   if (path.has_value()) {
-    resolve_path_options.path = path.value().ToString();
+    resolve_path_options.path = path.value().read();
   }
 
   return ResolvePath(resolve_path_options)
@@ -692,7 +691,7 @@ OpenFile(const OpenFileOptions& options) {
           buffer_options->name = *options.name;
         } else if (buffer_options->path.has_value()) {
           buffer_options->name =
-              BufferName(buffer_options->path.value().ToString());
+              BufferName(buffer_options->path.value().read());
         } else {
           buffer_options->name =
               options.editor_state.GetUnusedBufferName(L"anonymous buffer");

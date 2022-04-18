@@ -269,7 +269,7 @@ std::optional<std::wstring> Path::extension() const {
   return name.value().extension();
 }
 
-const std::wstring& Path::ToString() const { return path_; }
+const std::wstring& Path::read() const { return path_; }
 
 ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
   std::list<PathComponent> output;
@@ -284,7 +284,7 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
     ASSIGN_OR_RETURN(auto dir, AugmentErrors(L"Dirname error", path.Dirname()));
     if (dir.path_.size() >= path.path_.size()) {
       LOG(INFO) << "Unable to advance: " << path << " -> " << dir;
-      return Error(L"Unable to advance: " + path.ToString());
+      return Error(L"Unable to advance: " + path.read());
     }
     VLOG(5) << "DirectorySplit: Advance: " << dir;
     path = std::move(dir);
@@ -385,7 +385,7 @@ ValueOrError<AbsolutePath> AbsolutePath::FromString(std::wstring path) {
 AbsolutePath::AbsolutePath(std::wstring path) : Path(std::move(path)) {}
 
 std::ostream& operator<<(std::ostream& os, const Path& p) {
-  os << p.ToString();
+  os << p.read();
   return os;
 }
 
@@ -397,7 +397,7 @@ wstring PathJoin(const wstring& a, const wstring& b) {
     return a;
   }
   return Path::Join(Path::FromString(a).value(), Path::FromString(b).value())
-      .ToString();
+      .read();
 }
 
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path) {

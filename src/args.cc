@@ -49,7 +49,7 @@ static vector<std::wstring> GetEdgeConfigPath(const Path& home) {
   // TODO: Don't add repeated paths?
   vector<wstring> output;
   output.push_back(
-      Path::Join(home, PathComponent::FromString(L".edge").value()).ToString());
+      Path::Join(home, PathComponent::FromString(L".edge").value()).read());
   LOG(INFO) << "Pushing config path: " << output[0];
   char* env = getenv("EDGE_PATH");
   if (env != nullptr) {
