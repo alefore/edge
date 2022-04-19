@@ -266,13 +266,15 @@ void Line::Options::ValidateInvariants() { CHECK(contents != nullptr); }
 Line::Line(wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}
 
 Line::Line(Options options)
-    : environment_(options.environment == nullptr
-                       ? std::make_shared<Environment>()
-                       : std::move(options.environment)),
-      data_(Data{.options = std::move(options)}, Line::ValidateInvariants) {}
+    : data_(Data{.options =
+                     [](Options options) {
+                       if (options.environment == nullptr)
+                         options.environment = std::make_shared<Environment>();
+                       return options;
+                     }(std::move(options))},
+            Line::ValidateInvariants) {}
 
 Line::Line(const Line& line) : data_(Data{}, Line::ValidateInvariants) {
-  environment_ = line.environment_;
   data_.lock([&line](Data& data) {
     line.data_.lock([&data](const Data& line_data) {
       data.options = line_data.options;
@@ -346,8 +348,10 @@ void Line::Append(const Line& line) {
 }
 
 std::shared_ptr<vm::Environment> Line::environment() const {
-  CHECK(environment_ != nullptr);
-  return environment_;
+  std::shared_ptr<vm::Environment> environment =
+      data_.lock([](const Data& data) { return data.options.environment; });
+  CHECK(environment != nullptr);
+  return environment;
 }
 
 LineWithCursor Line::Output(const OutputOptions& options) const {
@@ -355,7 +359,6 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
   auto tracker_call = tracker.Call();
 
   VLOG(5) << "Producing output of line: " << ToString();
-  CHECK(environment_ != nullptr);
   return data_.lock([&options](const Data& data) {
     Line::Options line_output;
     ColumnNumber input_column = options.initial_column;

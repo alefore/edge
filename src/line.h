@@ -192,7 +192,6 @@ class Line {
 
   friend class Options;
 
-  std::shared_ptr<vm::Environment> environment_;
   Protected<Data, decltype(&Line::ValidateInvariants)> data_;
 };
 
