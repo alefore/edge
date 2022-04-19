@@ -64,8 +64,8 @@ class NewLineTransformation : public CompositeTransformation {
     Output output;
     {
       auto contents_to_insert = std::make_unique<BufferContents>();
-      contents_to_insert->push_back(std::make_shared<Line>(
-          Line::Options(*line).DeleteSuffix(prefix_end)));
+      contents_to_insert->push_back(
+          std::make_shared<Line>(line->CopyOptions().DeleteSuffix(prefix_end)));
       output.Push(transformation::Insert{.contents_to_insert =
                                              std::move(contents_to_insert)});
     }

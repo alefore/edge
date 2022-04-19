@@ -8,6 +8,7 @@
 #include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
+#include "src/safe_types.h"
 #include "src/substring.h"
 #include "src/tests/tests.h"
 #include "src/wstring.h"
@@ -576,7 +577,9 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
 void BufferContents::SplitLine(LineColumn position) {
   // TODO: Can maybe combine this with next for fewer updates.
   insert_line(position.line + LineNumberDelta(1),
-              Line::New(Line::Options(*at(position.line))
+              Line::New(Pointer(at(position.line))
+                            .Reference()
+                            .CopyOptions()
                             .DeleteCharacters(ColumnNumber(0),
                                               position.column.ToDelta())));
   update_listener_(CursorsTracker::Transformation()

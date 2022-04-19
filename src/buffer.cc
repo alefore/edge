@@ -140,7 +140,7 @@ std::shared_ptr<const Line> AddLineMetadata(
     return line.metadata() == nullptr
                ? line_ptr
                : std::make_shared<Line>(
-                     Line::Options(line).SetMetadata(std::nullopt));
+                     line.CopyOptions().SetMetadata(std::nullopt));
   std::wstring description = L"C++: " + TypesToString(expr->Types());
   if (expr->purity() == Expression::PurityType::kPure) {
     description += L" ...";
@@ -152,7 +152,7 @@ std::shared_ptr<const Line> AddLineMetadata(
   if (expr->purity() == Expression::PurityType::kPure) {
     if (expr->Types() == std::vector<VMType>({VMType::Void()})) {
       return std::make_shared<Line>(
-          Line::Options(line).SetMetadata(std::nullopt));
+          line.CopyOptions().SetMetadata(std::nullopt));
     }
     futures::Future<std::shared_ptr<LazyString>> metadata_future;
     buffer.work_queue()->Schedule([buffer = buffer.shared_from_this(), expr,
@@ -177,7 +177,7 @@ std::shared_ptr<const Line> AddLineMetadata(
     metadata_value = std::move(metadata_future.value);
   }
 
-  return std::make_shared<Line>(Line::Options(line).SetMetadata(
+  return std::make_shared<Line>(line.CopyOptions().SetMetadata(
       Line::MetadataEntry{.initial_value = NewLazyString(description),
                           .value = std::move(metadata_value)}));
 }
@@ -1305,7 +1305,7 @@ void OpenBuffer::AppendToLastLine(Line line) {
   static Tracker tracker(L"OpenBuffer::AppendToLastLine");
   auto tracker_call = tracker.Call();
   auto follower = GetEndPositionFollower();
-  Line::Options options(Pointer(contents_.back()).Reference());
+  Line::Options options = Pointer(contents_.back()).Reference().CopyOptions();
   options.Append(line);
   AppendRawLine(std::make_shared<Line>(std::move(options)));
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),

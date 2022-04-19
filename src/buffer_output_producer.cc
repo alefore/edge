@@ -23,7 +23,8 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
       std::nullopt, [generator]() {
         auto output = generator.generate();
-        Line::Options line_options(*output.line);
+        Line::Options line_options =
+            Pointer(output.line).Reference().CopyOptions();
         line_options.modifiers.insert({ColumnNumber(0), {}});
         for (auto& m : line_options.modifiers) {
           auto it = m.second.insert(LineModifier::REVERSE);
@@ -41,7 +42,8 @@ LineWithCursor::Generator ParseTreeHighlighter(
   return LineWithCursor::Generator{
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
-        Line::Options line_options(std::move(*output.line));
+        Line::Options line_options =
+            Pointer(output.line).Reference().CopyOptions();
         LineModifierSet modifiers = {LineModifier::BLUE};
         line_options.modifiers.erase(line_options.modifiers.lower_bound(begin),
                                      line_options.modifiers.lower_bound(end));
@@ -98,7 +100,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
                    std::hash<Range>{}(range));
   generator.generate = [root, range, generator = std::move(generator)]() {
     LineWithCursor input = generator.generate();
-    Line::Options options(std::move(*input.line));
+    Line::Options options = Pointer(input.line).Reference().CopyOptions();
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
     GetSyntaxModifiersForLine(range, *root, {}, &syntax_modifiers);

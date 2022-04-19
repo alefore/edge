@@ -9,6 +9,7 @@
 #include "src/fuzz_testable.h"
 #include "src/line.h"
 #include "src/line_column.h"
+#include "src/safe_types.h"
 #include "src/tracker.h"
 
 namespace afc {
@@ -170,7 +171,8 @@ class BufferContents : public fuzz::FuzzTestable {
       lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
     }
     CHECK_LE(line_number, EndLine());
-    Line::Options options(*at(line_number));
+    Line::Options options = Pointer(at(line_number)).Reference().CopyOptions();
+    // TODO(2022-04-19): Don't pass options by pointer, rather by ref.
     callback(&options);
     set_line(line_number, std::make_shared<Line>(std::move(options)));
     update_listener_(cursors_transformation);

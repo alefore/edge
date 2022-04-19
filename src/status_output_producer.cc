@@ -154,11 +154,11 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     VLOG(5) << "Setting status cursor: " << column;
 
     line_options.AppendString(options.status.text(), LineModifierSet());
-    Line::Options prefix(*contents);
+    Line::Options prefix = contents->CopyOptions();
     prefix.DeleteSuffix(column);
     line_options.Append(Line(std::move(prefix)));
     line_with_cursor.cursor = ColumnNumber(0) + line_options.contents->size();
-    Line::Options suffix(*contents);
+    Line::Options suffix = contents->CopyOptions();
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
     line_options.Append(Line(std::move(suffix)));
     line_options.Append(*options.status.prompt_extra_information()->GetLine());

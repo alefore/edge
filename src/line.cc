@@ -83,15 +83,6 @@ const bool line_tests_registration = tests::Register(
       }}});
 }
 
-// TODO(2022-04-06, easy): Provide a constructor that takes the lock and other
-// fields, to avoid redundant locking here.
-Line::Options::Options(Line line)
-    : contents(std::move(line.contents())),
-      modifiers(std::move(line.modifiers())),
-      end_of_line_modifiers(line.end_of_line_modifiers()),
-      metadata(line.data_.lock()->options.metadata),
-      environment(line.environment()) {}
-
 ColumnNumber Line::Options::EndColumn() const {
   // TODO: Compute this separately, taking the width of characters into account.
   return ColumnNumber(0) + contents->size();
@@ -281,6 +272,10 @@ Line::Line(const Line& line) : data_(Data{}, Line::ValidateInvariants) {
       data.hash = line_data.hash;
     });
   });
+}
+
+Line::Options Line::CopyOptions() const {
+  return data_.lock([](const Data& data) { return data.options; });
 }
 
 std::shared_ptr<LazyString> Line::contents() const {

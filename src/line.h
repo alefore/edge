@@ -44,7 +44,6 @@ class Line {
     Options() : contents(EmptyString()) {}
     Options(shared_ptr<LazyString> input_contents)
         : contents(std::move(input_contents)) {}
-    Options(Line line);
 
     ColumnNumber EndColumn() const;
 
@@ -103,6 +102,8 @@ class Line {
   explicit Line(Options options);
   explicit Line(wstring text);
   Line(const Line& line);
+
+  Options CopyOptions() const;
 
   shared_ptr<LazyString> contents() const;
   ColumnNumber EndColumn() const;

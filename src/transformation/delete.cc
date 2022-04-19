@@ -58,15 +58,18 @@ std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
   auto delete_buffer = OpenBuffer::New(
       {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});
   for (LineNumber i = range.begin.line; i <= range.end.line; ++i) {
-    Line::Options line(*buffer.LineAt(i));
+    Line::Options line_options =
+        Pointer(buffer.contents().at(i)).Reference().CopyOptions();
     if (i == range.end.line) {
-      line.DeleteSuffix(range.end.column);
+      line_options.DeleteSuffix(range.end.column);
     }
     if (i == range.begin.line) {
-      line.DeleteCharacters(ColumnNumber(0), range.begin.column.ToDelta());
-      delete_buffer->AppendToLastLine(Line(std::move(line)));
+      line_options.DeleteCharacters(ColumnNumber(0),
+                                    range.begin.column.ToDelta());
+      delete_buffer->AppendToLastLine(Line(std::move(line_options)));
     } else {
-      delete_buffer->AppendRawLine(std::make_shared<Line>(line));
+      delete_buffer->AppendRawLine(
+          std::make_shared<Line>(std::move(line_options)));
     }
   }
 
