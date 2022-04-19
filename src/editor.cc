@@ -764,6 +764,8 @@ BufferName EditorState::GetUnusedBufferName(const wstring& prefix) {
 }
 
 void EditorState::Terminate(TerminationType termination_type, int exit_value) {
+  status().SetInformationText(L"Exit: Preparing to close buffers (" +
+                              std::to_wstring(buffers_.size()) + L")");
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<wstring> buffers_with_problems;
@@ -786,14 +788,17 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     }
   }
 
-  std::shared_ptr<int> pending_calls(
-      new int(buffers_.size()),
-      [this, exit_value, termination_type](int* value) {
-        if (*value != 0) {
+  std::shared_ptr<std::set<std::shared_ptr<OpenBuffer>>> pending_buffers(
+      new std::set<std::shared_ptr<OpenBuffer>>(),
+      [this, exit_value,
+       termination_type](std::set<std::shared_ptr<OpenBuffer>>* value) {
+        if (!value->empty()) {
           LOG(INFO) << "Termination attempt didn't complete successfully. It "
                        "must mean that a new one has started.";
+          delete value;
           return;
         }
+        delete value;
         // Since `PrepareToClose is asynchronous, we must check that they are
         // all ready to be deleted.
         if (termination_type == TerminationType::kIgnoringErrors) {
@@ -817,12 +822,36 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           return status_.SetWarningText(error);
         }
         LOG(INFO) << "Terminating.";
+        status().SetInformationText(
+            L"Exit: All buffers closed, shutting down.");
         exit_value_ = exit_value;
       });
 
-  for (auto& it : buffers_) {
+  auto decrement = [this, pending_buffers](
+                       const std::shared_ptr<OpenBuffer>& buffer,
+                       PossibleError) {
+    pending_buffers->erase(buffer);
+    std::wstring extra;
+    std::wstring separator = L": ";
+    int count = 0;
+    for (auto& buffer : *pending_buffers) {
+      if (count < 5) {
+        extra += separator + buffer->name().read();
+        separator = L", ";
+      } else if (count == 5) {
+        extra += L"…";
+      }
+      count++;
+    }
+    status().SetInformationText(L"Exit: Closing buffers: Remaining: " +
+                                std::to_wstring(pending_buffers->size()) +
+                                extra);
+  };
+
+  for (const auto& it : buffers_) {
+    pending_buffers->insert(it.second);
     it.second->PrepareToClose().SetConsumer(
-        [pending_calls](PossibleError) { --*pending_calls; });
+        std::bind_front(decrement, it.second));
   }
 }
 
