@@ -45,19 +45,24 @@ static Path GetHomeDirectory() {
   return Path::Root();  // What else?
 }
 
-static vector<std::wstring> GetEdgeConfigPath(const Path& home) {
-  // TODO: Don't add repeated paths?
-  vector<wstring> output;
-  output.push_back(
-      Path::Join(home, PathComponent::FromString(L".edge").value()).read());
+static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
+  std::vector<std::wstring> output;
+  std::unordered_set<Path> output_set;
+  auto push = [&output, &output_set](Path path) {
+    if (output_set.insert(path).second) {
+      output.push_back(path.read());
+    }
+  };
+  push(Path::Join(home, PathComponent::FromString(L".edge").value()));
   LOG(INFO) << "Pushing config path: " << output[0];
-  char* env = getenv("EDGE_PATH");
-  if (env != nullptr) {
+  if (char* env = getenv("EDGE_PATH"); env != nullptr) {
     std::istringstream text_stream(string(env) + ";");
     std::string dir;
     // TODO: stat it and don't add it if it doesn't exist.
     while (std::getline(text_stream, dir, ';')) {
-      output.push_back(FromByteString(dir));
+      if (auto path = Path::FromString(FromByteString(dir)); !path.IsError()) {
+        push(path.value());
+      }
     }
   }
   return output;
