@@ -102,13 +102,10 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
 }  // namespace
 
 std::wstring SearchResultsSummary::ToString() const {
-  if (pattern_error.has_value()) {
-    return L"error: " + pattern_error.value();
-  }
   return L"matches: " + std::to_wstring(matches);
 }
 
-std::function<SearchResultsSummary()> BackgroundSearchCallback(
+std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
     SearchOptions search_options, const OpenBuffer& buffer,
     ProgressChannel& progress_channel) {
   // TODO(easy, 2022-04-14): Why is this here?
@@ -116,25 +113,22 @@ std::function<SearchResultsSummary()> BackgroundSearchCallback(
   auto traits = GetRegexTraits(buffer);
   std::shared_ptr<BufferContents> buffer_contents = buffer.contents().copy();
   // Must take special care to only capture instances of thread-safe classes:
-  return [search_options, traits, buffer_contents, &progress_channel]() {
+  return [search_options, traits, buffer_contents,
+          &progress_channel]() -> ValueOrError<SearchResultsSummary> {
     auto search_results = PerformSearch(search_options, traits,
                                         *buffer_contents, &progress_channel);
     VLOG(5) << "Background search completed for \""
             << search_options.search_query
             << "\", found results: " << search_results.positions.size();
-    SearchResultsSummary output;
     if (search_results.error.has_value()) {
-      output.pattern_error = search_results.error.value();
-      output.search_completion =
-          SearchResultsSummary::SearchCompletion::kInvalidPattern;
-    } else {
-      output.matches = search_results.positions.size();
-      output.search_completion =
-          output.matches >= kMatchesLimit
-              ? SearchResultsSummary::SearchCompletion::kInterrupted
-              : SearchResultsSummary::SearchCompletion::kFull;
+      return Error(search_results.error.value());
     }
-    return output;
+    return Success(SearchResultsSummary{
+        .matches = search_results.positions.size(),
+        .search_completion =
+            search_results.positions.size() >= kMatchesLimit
+                ? SearchResultsSummary::SearchCompletion::kInterrupted
+                : SearchResultsSummary::SearchCompletion::kFull});
   };
 }
 

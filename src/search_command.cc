@@ -13,18 +13,12 @@ namespace {
 using futures::IterationControlCommand;
 
 static void MergeInto(SearchResultsSummary current_results,
-                      SearchResultsSummary* final_results) {
-  if (current_results.pattern_error.has_value()) {
-  }
-  final_results->matches += current_results.matches;
+                      ValueOrError<SearchResultsSummary>* final_results) {
+  if (final_results->IsError()) return;
+  final_results->value().matches += current_results.matches;
   switch (current_results.search_completion) {
-    case SearchResultsSummary::SearchCompletion::kInvalidPattern:
-      final_results->pattern_error = current_results.pattern_error;
-      final_results->search_completion =
-          SearchResultsSummary::SearchCompletion::kInvalidPattern;
-      break;
     case SearchResultsSummary::SearchCompletion::kInterrupted:
-      final_results->search_completion =
+      final_results->value().search_completion =
           SearchResultsSummary::SearchCompletion::kInterrupted;
       break;
     case SearchResultsSummary::SearchCompletion::kFull:
@@ -37,31 +31,26 @@ static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
   buffer.ResetMode();
 }
 
-ColorizePromptOptions SearchResultsModifiers(std::shared_ptr<LazyString> line,
-                                             SearchResultsSummary result) {
-  using SC = SearchResultsSummary::SearchCompletion;
+ColorizePromptOptions SearchResultsModifiers(
+    std::shared_ptr<LazyString> line,
+    ValueOrError<SearchResultsSummary> result) {
   LineModifierSet modifiers;
-  switch (result.search_completion) {
-    case SC::kInvalidPattern:
-      modifiers.insert(LineModifier::RED);
-      CHECK(result.pattern_error.has_value());
-      break;
-    case SC::kInterrupted:
-    case SC::kFull:
-      switch (result.matches) {
-        case 0:
-          break;
-        case 1:
-          modifiers.insert(LineModifier::CYAN);
-          break;
-        case 2:
-          modifiers.insert(LineModifier::YELLOW);
-          break;
-        default:
-          modifiers.insert(LineModifier::GREEN);
-          break;
-      }
-      break;
+  if (result.IsError()) {
+    modifiers.insert(LineModifier::RED);
+  } else {
+    switch (result.value().matches) {
+      case 0:
+        break;
+      case 1:
+        modifiers.insert(LineModifier::CYAN);
+        break;
+      case 2:
+        modifiers.insert(LineModifier::YELLOW);
+        break;
+      default:
+        modifiers.insert(LineModifier::GREEN);
+        break;
+    }
   }
 
   return {.tokens = {{.token = {.value = L"",
@@ -201,9 +190,12 @@ class SearchCommand : public Command {
                  std::unique_ptr<ProgressChannel> progress_channel,
                  std::shared_ptr<Notification> abort_notification) {
                VLOG(5) << "Triggering async search.";
-               auto results = std::make_shared<SearchResultsSummary>();
+               auto results =
+                   std::make_shared<ValueOrError<SearchResultsSummary>>(
+                       Success(SearchResultsSummary()));
                auto progress_aggregator = std::make_shared<ProgressAggregator>(
                    std::move(progress_channel));
+               using Control = futures::IterationControlCommand;
                return futures::ForEach(
                           buffers,
                           [&editor_state, line, progress_aggregator,
@@ -219,16 +211,14 @@ class SearchCommand : public Command {
                                                L"on"}}});
                             }
                             if (line->size().IsZero()) {
-                              return futures::Past(
-                                  futures::IterationControlCommand::kContinue);
+                              return futures::Past(Control::kContinue);
                             }
                             auto search_options = BuildPromptSearchOptions(
                                 line->ToString(), buffer.get(),
                                 abort_notification);
                             if (!search_options.has_value()) {
                               VLOG(6) << "search_options has no value.";
-                              return futures::Past(
-                                  futures::IterationControlCommand::kContinue);
+                              return futures::Past(Control::kContinue);
                             }
                             VLOG(5) << "Starting search in buffer: "
                                     << buffer->Read(buffer_variables::name);
@@ -243,30 +233,18 @@ class SearchCommand : public Command {
                                       MergeInto(current_results, results.get());
                                       return abort_notification
                                                      ->HasBeenNotified()
-                                                 ? futures::
-                                                       IterationControlCommand::
-                                                           kStop
-                                                 : futures::
-                                                       IterationControlCommand::
-                                                           kContinue;
-                                    });
+                                                 ? Success(Control::kStop)
+                                                 : Success(Control::kContinue);
+                                    })
+                                .ConsumeErrors([results](Error error) {
+                                  *results = error;
+                                  return futures::Past(Control::kStop);
+                                });
                           })
-                   .Transform(
-                       [results, buffers, abort_notification, line](
-                           futures::IterationControlCommand iteration_result) {
-                         switch (iteration_result) {
-                           case futures::IterationControlCommand::kStop:
-                             return ColorizePromptOptions();
-                           case futures::IterationControlCommand::kContinue:
-                             VLOG(5) << "Drawing of search results.";
-                             return SearchResultsModifiers(line,
-                                                           std::move(*results));
-                           default:
-                             LOG(FATAL)
-                                 << "Invalid value for iteration_result.";
-                             return ColorizePromptOptions();
-                         }
-                       });
+                   .Transform([results, line](Control) {
+                     VLOG(5) << "Drawing of search results.";
+                     return SearchResultsModifiers(line, std::move(*results));
+                   });
              },
          .handler =
              [&editor_state = editor_state_](const wstring& input) {

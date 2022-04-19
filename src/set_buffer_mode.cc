@@ -321,8 +321,8 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
               WorkQueueChannelConsumeMode::kLastAvailable);
           auto new_state = std::make_shared<State>(
               State{.index = state.index, .indices = {}});
-          std::vector<futures::Value<futures::IterationControlCommand>>
-              search_futures;
+          using Control = futures::IterationControlCommand;
+          std::vector<futures::Value<Control>> search_futures;
           for (auto& index : state.indices) {
             if (auto buffer = buffers_list.GetBuffer(index).get();
                 buffer != nullptr) {
@@ -335,15 +335,14 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                           *buffer, *progress_channel))
                       .Transform([new_state, progress_channel,
                                   index](SearchResultsSummary search_output) {
-                        if (search_output.pattern_error.has_value()) {
-                          new_state->pattern_error =
-                              std::move(search_output.pattern_error.value());
-                          return futures::IterationControlCommand::kStop;
-                        }
                         if (search_output.matches > 0) {
                           new_state->indices.push_back(index);
                         }
-                        return futures::IterationControlCommand::kContinue;
+                        return Success(Control::kContinue);
+                      })
+                      .ConsumeErrors([new_state](Error error) {
+                        new_state->pattern_error = std::move(error.description);
+                        return futures::Past(Control::kStop);
                       }));
             }
           }

@@ -52,15 +52,12 @@ void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
                      OpenBuffer& buffer);
 
 struct SearchResultsSummary {
-  std::optional<std::wstring> pattern_error;
-  int matches = 0;
+  size_t matches = 0;
   enum class SearchCompletion {
     // The search was interrupted. It's possible that there are more matches.
     kInterrupted,
     // The search consumed the entire input.
     kFull,
-    // The pattern was invalid (see pattern_error for details).
-    kInvalidPattern,
   };
   SearchCompletion search_completion = SearchCompletion::kFull;
 
@@ -73,7 +70,7 @@ struct SearchResultsSummary {
 // Customer must ensure that `progress_channel` survives until the callback has
 // returned (but it's OK for `buffer` to be deleted as soon as
 // `BackgroundSearchCallback` has returned).
-std::function<SearchResultsSummary()> BackgroundSearchCallback(
+std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
     SearchOptions search_options, const OpenBuffer& buffer, ProgressChannel&);
 
 }  // namespace editor
