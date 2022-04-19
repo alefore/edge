@@ -510,8 +510,8 @@ void BufferContents::DeleteCharactersFromLine(LineColumn position,
 
   TransformLine(
       position.line,
-      [&](Line::Options* options) {
-        options->DeleteCharacters(position.column, amount);
+      [&](Line::Options& options) {
+        options.DeleteCharacters(position.column, amount);
       },
       CursorsTracker::Transformation()
           .WithBegin(position)
@@ -532,21 +532,21 @@ void BufferContents::SetCharacter(
     std::unordered_set<LineModifier, std::hash<int>> modifiers) {
   VLOG(5) << "Set character: " << c << " at " << position
           << " with modifiers: " << modifiers.size();
-  TransformLine(position.line, [&](Line::Options* options) {
-    options->SetCharacter(position.column, c, modifiers);
+  TransformLine(position.line, [&](Line::Options& options) {
+    options.SetCharacter(position.column, c, modifiers);
   });
 }
 
 void BufferContents::InsertCharacter(LineColumn position) {
-  TransformLine(position.line, [&](Line::Options* options) {
-    options->InsertCharacterAtPosition(position.column);
+  TransformLine(position.line, [&](Line::Options& options) {
+    options.InsertCharacterAtPosition(position.column);
   });
 }
 
 void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
   TransformLine(min(position, LineNumber() + size() - LineNumberDelta(1)),
-                [&](Line::Options* options) {
-                  options->Append(std::move(line_to_append));
+                [&](Line::Options& options) {
+                  options.Append(std::move(line_to_append));
                 });
 }
 

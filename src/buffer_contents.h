@@ -172,8 +172,7 @@ class BufferContents : public fuzz::FuzzTestable {
     }
     CHECK_LE(line_number, EndLine());
     Line::Options options = Pointer(at(line_number)).Reference().CopyOptions();
-    // TODO(2022-04-19): Don't pass options by pointer, rather by ref.
-    callback(&options);
+    callback(options);
     set_line(line_number, std::make_shared<Line>(std::move(options)));
     update_listener_(cursors_transformation);
   }
