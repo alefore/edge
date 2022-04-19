@@ -181,7 +181,8 @@ class Line {
     bool filtered = true;
     size_t filter_version = 0;
     bool modified = false;
-    // TODO(2022-04-06): Attempt to remove `mutable`.
+    // This is mutable so that when it is computed (from a `const Data&`), we
+    // can memoize the value.
     mutable std::optional<size_t> hash = std::nullopt;
   };
 
