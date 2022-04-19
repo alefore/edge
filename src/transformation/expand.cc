@@ -42,7 +42,6 @@ transformation::Delete DeleteLastCharacters(int characters) {
       .modifiers = {
           .direction = Direction::kBackwards,
           .repetitions = characters,
-          .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
           .paste_buffer_behavior = Modifiers::PasteBufferBehavior::kDoNothing}};
 }
 

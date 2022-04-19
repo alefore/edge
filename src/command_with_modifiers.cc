@@ -129,10 +129,11 @@ bool CharConsumer(wint_t c, Modifiers* modifiers) {
       return true;
 
     case 'k':
-      modifiers->delete_behavior =
-          modifiers->delete_behavior == Modifiers::DeleteBehavior::kDeleteText
-              ? Modifiers::DeleteBehavior::kDoNothing
-              : Modifiers::DeleteBehavior::kDeleteText;
+      modifiers->text_delete_behavior =
+          modifiers->text_delete_behavior ==
+                  Modifiers::TextDeleteBehavior::kDelete
+              ? Modifiers::TextDeleteBehavior::kKeep
+              : Modifiers::TextDeleteBehavior::kDelete;
       return modifiers;
 
     default:
@@ -156,7 +157,7 @@ std::wstring BuildStatus(
   if (modifiers.repetitions.has_value()) {
     status += L" " + std::to_wstring(modifiers.repetitions.value());
   }
-  if (modifiers.delete_behavior == Modifiers::DeleteBehavior::kDoNothing) {
+  if (modifiers.text_delete_behavior == Modifiers::TextDeleteBehavior::kKeep) {
     status += L" keep";
   }
   if (modifiers.paste_buffer_behavior ==

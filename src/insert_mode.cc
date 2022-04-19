@@ -315,8 +315,6 @@ class InsertMode : public EditorMode {
                   buffer->ApplyToCursors(transformation::Delete{
                       .modifiers = {
                           .structure = StructureLine(),
-                          .delete_behavior =
-                              Modifiers::DeleteBehavior::kDeleteText,
                           .paste_buffer_behavior =
                               Modifiers::PasteBufferBehavior::kDoNothing,
                           .boundary_begin = Modifiers::CURRENT_POSITION,
@@ -388,17 +386,13 @@ class InsertMode : public EditorMode {
         [direction,
          options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
           buffer->MaybeAdjustPositionCol();
-          transformation::Delete delete_options;
-          if (direction == Direction::kBackwards) {
-            delete_options.modifiers.direction = Direction::kBackwards;
-          }
-          delete_options.modifiers.paste_buffer_behavior =
-              Modifiers::PasteBufferBehavior::kDoNothing;
-          delete_options.modifiers.delete_behavior =
-              Modifiers::DeleteBehavior::kDeleteText;
           return CallModifyHandler(
                      options, *buffer,
-                     buffer->ApplyToCursors(std::move(delete_options)))
+                     buffer->ApplyToCursors(transformation::Delete{
+                         .modifiers =
+                             {.direction = direction,
+                              .paste_buffer_behavior =
+                                  Modifiers::PasteBufferBehavior::kDoNothing}}))
               .Transform([options, direction, buffer](EmptyValue) {
                 if (options.editor_state.modifiers().insertion !=
                     Modifiers::ModifyMode::kOverwrite)

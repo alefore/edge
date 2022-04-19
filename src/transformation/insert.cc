@@ -37,7 +37,6 @@ transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
   return transformation::Delete{
       .modifiers = {
           .repetitions = repetitions,
-          .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
           .paste_buffer_behavior = Modifiers::PasteBufferBehavior::kDoNothing}};
 }
 

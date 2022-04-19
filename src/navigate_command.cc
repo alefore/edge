@@ -216,7 +216,6 @@ class NavigateTransformation : public CompositeTransformation {
     output->Push(transformation::Delete{
         .modifiers = {.structure = StructureLine(),
                       .direction = direction,
-                      .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::kDoNothing},
         .line_end_behavior = transformation::Delete::LineEndBehavior::kStop,

@@ -609,7 +609,6 @@ class HistoryScrollBehavior : public ScrollBehavior {
     buffer.ApplyToCursors(transformation::Delete{
         .modifiers = {
             .structure = StructureLine(),
-            .delete_behavior = Modifiers::DeleteBehavior::kDeleteText,
             .paste_buffer_behavior = Modifiers::PasteBufferBehavior::kDoNothing,
             .boundary_begin = Modifiers::LIMIT_CURRENT,
             .boundary_end = Modifiers::LIMIT_CURRENT}});
@@ -913,8 +912,6 @@ void Prompt(PromptOptions options) {
                           buffer->ApplyToCursors(transformation::Delete{
                               .modifiers = {
                                   .structure = StructureLine(),
-                                  .delete_behavior =
-                                      Modifiers::DeleteBehavior::kDeleteText,
                                   .paste_buffer_behavior = Modifiers::
                                       PasteBufferBehavior::kDoNothing,
                                   .boundary_begin = Modifiers::LIMIT_CURRENT,

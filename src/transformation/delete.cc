@@ -140,8 +140,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     return futures::Past(std::move(*output));
   }
 
-  if (options.modifiers.delete_behavior ==
-          Modifiers::DeleteBehavior::kDeleteText &&
+  if (options.modifiers.text_delete_behavior ==
+          Modifiers::TextDeleteBehavior::kDelete &&
       input.mode == Input::Mode::kFinal) {
     LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
     for (LineColumn delete_position = range.begin;
@@ -164,8 +164,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         .contents_to_insert = delete_buffer->contents().copy()});
   }
 
-  if (options.modifiers.delete_behavior ==
-          Modifiers::DeleteBehavior::kDoNothing &&
+  if (options.modifiers.text_delete_behavior ==
+          Modifiers::TextDeleteBehavior::kKeep &&
       input.mode == Input::Mode::kFinal) {
     LOG(INFO) << "Not actually deleting region.";
     output->position = range.end;
@@ -195,8 +195,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         }
         LOG(INFO) << "Inserting preview at: " << range.begin;
         insert_options.modifiers_set =
-            options.modifiers.delete_behavior ==
-                    Modifiers::DeleteBehavior::kDoNothing
+            options.modifiers.text_delete_behavior ==
+                    Modifiers::TextDeleteBehavior::kKeep
                 ? LineModifierSet{LineModifier::UNDERLINE, LineModifier::GREEN}
                 : options.preview_modifiers;
         input.position = range.begin;
