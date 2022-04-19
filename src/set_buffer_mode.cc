@@ -107,8 +107,13 @@ bool CharConsumer(wint_t c, Data* data) {
     case Data::State::kReadingSearch:
       switch (static_cast<int>(c)) {
         case L'\n':
-          // TODO: If text_input is empty, just pop it.
           data->state = Data::State::kDefault;
+          CHECK(!data->operations.empty());
+          CHECK(data->operations.back().type == Operation::Type::kFilter ||
+                data->operations.back().type == Operation::Type::kSearch);
+          if (data->operations.back().text_input.empty()) {
+            data->operations.pop_back();
+          }
           return true;
         case Terminal::ESCAPE:
           return false;
