@@ -9,6 +9,7 @@
 #include "../public/value.h"
 #include "../public/vector.h"
 #include "../public/vm.h"
+#include "src/safe_types.h"
 #include "wstring.h"
 
 namespace afc::vm {
@@ -86,21 +87,29 @@ void RegisterTimeType(Environment* environment) {
         t.tm_mday += days;
         return Time{.tv_sec = mktime(&t), .tv_nsec = input.tv_nsec};
       })));
-  // TODO: Correctly handle errors (abort evaluation).
   time_type->AddField(
       L"format",
-      vm::NewCallback(std::function<wstring(Time, wstring)>(
-          [](Time input, wstring format) -> std::wstring {
+      Value::NewFunction(
+          {VMType::String(), time_type->type(), VMType::String()},
+          [](std::vector<Value::Ptr> args, Trampoline*) {
+            CHECK_EQ(args.size(), 2ul);
+            CHECK(args[0]->IsObject());
+            Time input =
+                editor::Pointer(static_cast<Time*>(args[0]->user_value.get()))
+                    .Reference();
+            CHECK(args[1]->IsString());
             struct tm t;
             localtime_r(&(input.tv_sec), &t);
             char buffer[2048];
             if (strftime(buffer, sizeof(buffer),
-                         ToByteString(std::move(format)).c_str(), &t) == 0) {
-              // TODO: Improve error handling.
-              return L"strftime error";
+                         ToByteString(std::move(args[1]->str)).c_str(),
+                         &t) == 0) {
+              return futures::Past(
+                  EvaluationOutput::Abort(editor::Error(L"strftime error")));
             }
-            return FromByteString(buffer);
-          })));
+            return futures::Past(EvaluationOutput::Return(
+                Value::NewString(FromByteString(buffer))));
+          }, ));
   time_type->AddField(L"year",
                       vm::NewCallback(std::function<int(Time)>([](Time input) {
                         struct tm t;
