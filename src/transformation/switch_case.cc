@@ -18,8 +18,7 @@ std::wstring SwitchCaseTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
     Input input) const {
-  auto buffer_to_insert = OpenBuffer::New(
-      {.editor = input.editor, .name = BufferName(L"- text inserted")});
+  auto contents_to_insert = std::make_unique<BufferContents>();
   VLOG(5) << "Switch Case Transformation at " << input.position << ": "
           << input.modifiers << ": Range: " << input.range;
   LineColumn i = input.range.begin;
@@ -29,12 +28,13 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
       break;
     }
     if (i.column >= line->EndColumn()) {  // Switch to the next line.
-      buffer_to_insert->AppendEmptyLine();
+      contents_to_insert->push_back(std::make_shared<Line>());
       i = LineColumn(i.line + LineNumberDelta(1));
     } else {
       wchar_t c = line->get(i.column);
-      buffer_to_insert->AppendToLastLine(
-          NewLazyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
+      contents_to_insert->AppendToLine(
+          contents_to_insert->EndLine(),
+          Line(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       i.column++;
     }
   }
@@ -42,24 +42,21 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
   Output output = Output::SetPosition(input.range.begin);
 
   output.Push(transformation::Delete{
-      .modifiers = {.repetitions =
-                        buffer_to_insert->contents().CountCharacters(),
+      .modifiers = {.repetitions = contents_to_insert->CountCharacters(),
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::kDoNothing},
       .mode = transformation::Input::Mode::kFinal});
 
-  // TODO(easy, 2022-03-24): Turn this into a BufferContents.
-  transformation::Insert insert_options{
-      .contents_to_insert = buffer_to_insert->contents().copy()};
-  if (input.modifiers.direction == Direction::kBackwards) {
-    insert_options.final_position =
-        transformation::Insert::FinalPosition::kStart;
-  }
-  if (input.mode == transformation::Input::Mode::kPreview) {
-    insert_options.modifiers_set = {LineModifier::UNDERLINE,
-                                    LineModifier::BLUE};
-  }
-  output.Push(std::move(insert_options));
+  output.Push(transformation::Insert{
+      .contents_to_insert = std::move(contents_to_insert),
+      .final_position = input.modifiers.direction == Direction::kBackwards
+                            ? transformation::Insert::FinalPosition::kStart
+                            : transformation::Insert::FinalPosition::kEnd,
+      .modifiers_set =
+          input.mode == transformation::Input::Mode::kPreview
+              ? LineModifierSet({LineModifier::UNDERLINE, LineModifier::BLUE})
+              : std::optional<LineModifierSet>()});
+
   return futures::Past(std::move(output));
 }
 
