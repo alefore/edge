@@ -23,6 +23,8 @@ extern "C" {
 
 namespace afc::editor {
 
+GHOST_TYPE(FileDescriptor, int);
+
 // Class used to interact with the file system. All operations are performed
 // asynchronously in a background thread; once their results are available, the
 // corresponding future is notified through `work_queue` (to switch back to the
@@ -31,9 +33,9 @@ class FileSystemDriver {
  public:
   FileSystemDriver(ThreadPool& thread_pool);
 
-  futures::Value<ValueOrError<int>> Open(Path path, int flags,
-                                         mode_t mode) const;
-  futures::Value<PossibleError> Close(int fd) const;
+  futures::Value<ValueOrError<FileDescriptor>> Open(Path path, int flags,
+                                                    mode_t mode) const;
+  futures::Value<PossibleError> Close(FileDescriptor fd) const;
   futures::Value<ValueOrError<struct stat>> Stat(Path path) const;
   futures::Value<PossibleError> Rename(Path oldpath, Path newpath) const;
   futures::Value<PossibleError> Mkdir(Path path, mode_t mode) const;

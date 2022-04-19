@@ -66,9 +66,8 @@ futures::Value<PossibleError> GenerateContents(
         if (!S_ISDIR(stat_buffer->st_mode)) {
           return file_system_driver
               ->Open(path.value(), O_RDONLY | O_NONBLOCK, 0)
-              .Transform([&target](int fd) {
-                target.SetInputFiles(FileDescriptor(fd), FileDescriptor(-1),
-                                     false, -1);
+              .Transform([&target](FileDescriptor fd) {
+                target.SetInputFiles(fd, FileDescriptor(-1), false, -1);
                 return Success();
               });
         }
@@ -202,7 +201,7 @@ static futures::Value<bool> CanStatPath(
 }
 
 futures::Value<PossibleError> SaveContentsToOpenFile(
-    ThreadPool& thread_pool, Path path, int fd,
+    ThreadPool& thread_pool, Path path, FileDescriptor fd,
     std::shared_ptr<const BufferContents> contents) {
   return thread_pool.Run([contents, path, fd]() {
     // TODO: It'd be significant more efficient to do fewer (bigger)
@@ -211,9 +210,10 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
     contents->EveryLine([&](LineNumber position, const Line& line) {
       string str = (position == LineNumber(0) ? "" : "\n") +
                    ToByteString(line.ToString());
-      if (write(fd, str.c_str(), str.size()) == -1) {
-        error = Error(path.read() + L": write failed: " + std::to_wstring(fd) +
-                      L": " + FromByteString(strerror(errno)));
+      if (write(fd.read(), str.c_str(), str.size()) == -1) {
+        error = Error(path.read() + L": write failed: " +
+                      std::to_wstring(fd.read()) + L": " +
+                      FromByteString(strerror(errno)));
         return false;
       }
       return true;
@@ -248,8 +248,8 @@ futures::Value<PossibleError> SaveContentsToFile(
                                        stat_value.st_mode);
       })
       .Transform([&thread_pool, path, contents, tmp_path,
-                  &file_system_driver](int fd) {
-        CHECK_NE(fd, -1);
+                  &file_system_driver](FileDescriptor fd) {
+        CHECK_NE(fd.read(), -1);
         return OnError(
                    SaveContentsToOpenFile(thread_pool, tmp_path, fd, contents),
                    [&file_system_driver, fd](Error error) {

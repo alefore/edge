@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/decaying_counter.h"
+#include "src/file_system_driver.h"
 #include "src/ghost_type.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
@@ -21,8 +22,6 @@ namespace editor {
 
 class OpenBuffer;
 class BufferTerminal;
-
-GHOST_TYPE(FileDescriptor, int);
 
 // Class used to read input from a file descriptor into a buffer.
 class FileDescriptorReader {

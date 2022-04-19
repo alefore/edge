@@ -20,7 +20,7 @@ class NullLog : public Log {
 };
 
 struct FileLogData {
-  const int fd;
+  const FileDescriptor fd;
   int next_id = 0;
 };
 
@@ -54,7 +54,7 @@ class FileLog : public Log {
              (time.IsError() ? L"[error:" + time.error().description + L"]"
                              : time.value()) +
              L" " + std::to_wstring(id) + L": " + statement + L"\n")] {
-          return write(data->fd, statement.c_str(), statement.size());
+          return write(data->fd.read(), statement.c_str(), statement.size());
         });
   }
 
@@ -68,7 +68,7 @@ futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
   return file_system
       ->Open(path, O_WRONLY | O_CREAT | O_APPEND,
              S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
-      .Transform([](int fd) {
+      .Transform([](FileDescriptor fd) {
         return Success<std::unique_ptr<Log>>(std::make_unique<FileLog>(
             std::make_shared<FileLogData>(FileLogData{.fd = fd})));
       });

@@ -15,19 +15,19 @@ PossibleError SyscallReturnValue(std::wstring description, int return_value) {
 FileSystemDriver::FileSystemDriver(ThreadPool& thread_pool)
     : thread_pool_(thread_pool) {}
 
-futures::Value<ValueOrError<int>> FileSystemDriver::Open(Path path, int flags,
-                                                         mode_t mode) const {
+futures::Value<ValueOrError<FileDescriptor>> FileSystemDriver::Open(
+    Path path, int flags, mode_t mode) const {
   return thread_pool_.Run([path = std::move(path), flags, mode]() {
     LOG(INFO) << "Opening file:" << path;
     int fd = open(ToByteString(path.read()).c_str(), flags, mode);
     PossibleError output = SyscallReturnValue(L"Open: " + path.read(), fd);
-    return output.IsError() ? output.error() : Success(fd);
+    return output.IsError() ? output.error() : Success(FileDescriptor(fd));
   });
 }
 
-futures::Value<PossibleError> FileSystemDriver::Close(int fd) const {
+futures::Value<PossibleError> FileSystemDriver::Close(FileDescriptor fd) const {
   return thread_pool_.Run(
-      [fd] { return SyscallReturnValue(L"Close", close(fd)); });
+      [fd] { return SyscallReturnValue(L"Close", close(fd.read())); });
 }
 
 futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {

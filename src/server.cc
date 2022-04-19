@@ -159,9 +159,9 @@ futures::Value<PossibleError> GenerateContents(
                               << error.description;
                    return error;
                  })
-      .Transform([&target](int fd) {
+      .Transform([&target](FileDescriptor fd) {
         LOG(INFO) << "Server received connection: " << fd;
-        target.SetInputFiles(FileDescriptor(fd), FileDescriptor(-1), false, -1);
+        target.SetInputFiles(fd, FileDescriptor(-1), false, -1);
         return Success();
       });
 }
