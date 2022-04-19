@@ -32,7 +32,7 @@ class CommandArgumentMode : public EditorMode {
     EditorState& editor_state;
     Argument initial_value = Argument();
 
-    std::function<bool(wint_t, Argument*)> char_consumer;
+    std::function<bool(wint_t, Argument&)> char_consumer;
 
     // Returns the string to show in the status.
     std::function<std::wstring(const Argument&)> status_factory;
@@ -64,7 +64,7 @@ class CommandArgumentMode : public EditorMode {
                            BuildArgument());
         default:
           auto argument = BuildArgument();
-          if (ApplyChar(c, &argument)) {
+          if (ApplyChar(c, argument)) {
             argument_string_.push_back(c);
             return Transform(CommandArgumentModeApplyMode::kPreview, argument);
           }
@@ -92,12 +92,12 @@ class CommandArgumentMode : public EditorMode {
   Argument BuildArgument() {
     auto argument = options_.initial_value;
     for (const auto& c : argument_string_) {
-      CHECK(ApplyChar(c, &argument));
+      CHECK(ApplyChar(c, argument));
     }
     return argument;
   }
 
-  bool ApplyChar(wint_t c, Argument* argument) {
+  bool ApplyChar(wint_t c, Argument& argument) {
     return options_.char_consumer(c, argument);
   }
 

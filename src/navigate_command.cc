@@ -73,14 +73,14 @@ struct NavigateState {
   std::vector<NavigateOperation> operations;
 };
 
-bool CharConsumer(wint_t c, NavigateState* state) {
+bool CharConsumer(wint_t c, NavigateState state) {
   switch (c) {
     case 'l':
-      state->operations.push_back({NavigateOperation::Type::kForward});
+      state.operations.push_back({NavigateOperation::Type::kForward});
       return true;
 
     case 'h':
-      state->operations.push_back({NavigateOperation::Type::kBackward});
+      state.operations.push_back({NavigateOperation::Type::kBackward});
       return true;
 
     case L'1':
@@ -92,7 +92,7 @@ bool CharConsumer(wint_t c, NavigateState* state) {
     case L'7':
     case L'8':
     case L'9':
-      state->operations.push_back(
+      state.operations.push_back(
           {.type = NavigateOperation::Type::kNumber, .number = c - L'1'});
       return true;
 

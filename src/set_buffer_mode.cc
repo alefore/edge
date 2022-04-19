@@ -37,35 +37,35 @@ struct Data {
   std::optional<size_t> initial_number;
 };
 
-bool CharConsumer(wint_t c, Data* data) {
-  CHECK(data->state != Data::State::kReadingFilter ||
-        (!data->operations.empty() &&
-         data->operations.back().type == Operation::Type::kFilter));
-  CHECK(data->state != Data::State::kReadingSearch ||
-        (!data->operations.empty() &&
-         data->operations.back().type == Operation::Type::kSearch));
-  switch (data->state) {
+bool CharConsumer(wint_t c, Data& data) {
+  CHECK(data.state != Data::State::kReadingFilter ||
+        (!data.operations.empty() &&
+         data.operations.back().type == Operation::Type::kFilter));
+  CHECK(data.state != Data::State::kReadingSearch ||
+        (!data.operations.empty() &&
+         data.operations.back().type == Operation::Type::kSearch));
+  switch (data.state) {
     case Data::State::kDefault:
       // TODO: Get rid of this cast, ugh.
       switch (static_cast<int>(c)) {
         case L'!':
-          data->operations.push_back({Operation::Type::kWarningFilter});
+          data.operations.push_back({Operation::Type::kWarningFilter});
           return true;
 
         case L'l':
-          data->operations.push_back({Operation::Type::kForward});
+          data.operations.push_back({Operation::Type::kForward});
           return true;
 
         case L'h':
-          data->operations.push_back({Operation::Type::kBackward});
+          data.operations.push_back({Operation::Type::kBackward});
           return true;
 
         case L'j':
-          data->operations.push_back({Operation::Type::kNext});
+          data.operations.push_back({Operation::Type::kNext});
           return true;
 
         case L'k':
-          data->operations.push_back({Operation::Type::kPrevious});
+          data.operations.push_back({Operation::Type::kPrevious});
           return true;
 
         case L'0':
@@ -78,25 +78,25 @@ bool CharConsumer(wint_t c, Data* data) {
         case L'7':
         case L'8':
         case L'9':
-          if (data->operations.empty() ||
-              data->operations.back().type != Operation::Type::kNumber) {
+          if (data.operations.empty() ||
+              data.operations.back().type != Operation::Type::kNumber) {
             if (c == L'0') {
               return true;
             }
-            data->operations.push_back({Operation::Type::kNumber});
+            data.operations.push_back({Operation::Type::kNumber});
           }
-          data->operations.back().number *= 10;
-          data->operations.back().number += c - L'0';
+          data.operations.back().number *= 10;
+          data.operations.back().number += c - L'0';
           return true;
 
         case L'w':
-          data->state = Data::State::kReadingFilter;
-          data->operations.push_back({Operation::Type::kFilter});
+          data.state = Data::State::kReadingFilter;
+          data.operations.push_back({Operation::Type::kFilter});
           return true;
 
         case L'/':
-          data->state = Data::State::kReadingSearch;
-          data->operations.push_back({Operation::Type::kSearch});
+          data.state = Data::State::kReadingSearch;
+          data.operations.push_back({Operation::Type::kSearch});
           return true;
 
         default:
@@ -107,18 +107,18 @@ bool CharConsumer(wint_t c, Data* data) {
     case Data::State::kReadingSearch:
       switch (static_cast<int>(c)) {
         case L'\n':
-          data->state = Data::State::kDefault;
-          CHECK(!data->operations.empty());
-          CHECK(data->operations.back().type == Operation::Type::kFilter ||
-                data->operations.back().type == Operation::Type::kSearch);
-          if (data->operations.back().text_input.empty()) {
-            data->operations.pop_back();
+          data.state = Data::State::kDefault;
+          CHECK(!data.operations.empty());
+          CHECK(data.operations.back().type == Operation::Type::kFilter ||
+                data.operations.back().type == Operation::Type::kSearch);
+          if (data.operations.back().text_input.empty()) {
+            data.operations.pop_back();
           }
           return true;
         case Terminal::ESCAPE:
           return false;
         default:
-          data->operations.back().text_input.push_back(c);
+          data.operations.back().text_input.push_back(c);
           return true;
       }
   }

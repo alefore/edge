@@ -10,32 +10,31 @@
 
 namespace afc::editor {
 namespace {
-bool CharConsumer(wint_t c, Modifiers* modifiers) {
-  auto set_structure = [modifiers](Structure* structure) {
-    modifiers->structure =
-        modifiers->structure == structure ? StructureChar() : structure;
+bool CharConsumer(wint_t c, Modifiers modifiers) {
+  auto set_structure = [&modifiers](Structure* structure) {
+    modifiers.structure =
+        modifiers.structure == structure ? StructureChar() : structure;
   };
 
   switch (c) {
     case '+':
-      modifiers->repetitions = modifiers->repetitions.value_or(1) + 1;
+      modifiers.repetitions = modifiers.repetitions.value_or(1) + 1;
       return true;
 
     case '-':
-      if (modifiers->repetitions.value_or(1) > 0) {
-        modifiers->repetitions = modifiers->repetitions.value_or(1) - 1;
+      if (modifiers.repetitions.value_or(1) > 0) {
+        modifiers.repetitions = modifiers.repetitions.value_or(1) - 1;
       }
       return true;
 
     case '*':
-      switch (modifiers->cursors_affected.value_or(
+      switch (modifiers.cursors_affected.value_or(
           Modifiers::kDefaultCursorsAffected)) {
         case Modifiers::CursorsAffected::kOnlyCurrent:
-          modifiers->cursors_affected = Modifiers::CursorsAffected::kAll;
+          modifiers.cursors_affected = Modifiers::CursorsAffected::kAll;
           break;
         case Modifiers::CursorsAffected::kAll:
-          modifiers->cursors_affected =
-              Modifiers::CursorsAffected::kOnlyCurrent;
+          modifiers.cursors_affected = Modifiers::CursorsAffected::kOnlyCurrent;
           break;
       }
       return true;
@@ -50,42 +49,41 @@ bool CharConsumer(wint_t c, Modifiers* modifiers) {
     case L'7':
     case L'8':
     case L'9':
-      modifiers->repetitions =
-          10 * modifiers->repetitions.value_or(0) + c - L'0';
+      modifiers.repetitions = 10 * modifiers.repetitions.value_or(0) + c - L'0';
       return true;
 
     case '(':
-      modifiers->boundary_begin = Modifiers::CURRENT_POSITION;
+      modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
       return true;
 
     case '[':
-      modifiers->boundary_begin = Modifiers::LIMIT_CURRENT;
+      modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
       return true;
 
     case '{':
-      modifiers->boundary_begin = Modifiers::LIMIT_NEIGHBOR;
+      modifiers.boundary_begin = Modifiers::LIMIT_NEIGHBOR;
       return true;
 
     case ')':
-      modifiers->boundary_end = Modifiers::CURRENT_POSITION;
+      modifiers.boundary_end = Modifiers::CURRENT_POSITION;
       return true;
 
     case ']':
-      if (modifiers->boundary_end == Modifiers::CURRENT_POSITION) {
-        modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
-      } else if (modifiers->boundary_end == Modifiers::LIMIT_CURRENT) {
-        modifiers->boundary_end = Modifiers::LIMIT_NEIGHBOR;
-      } else if (modifiers->boundary_end == Modifiers::LIMIT_NEIGHBOR) {
-        modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
-        if (!modifiers->repetitions.has_value()) {
-          modifiers->repetitions = 1;
+      if (modifiers.boundary_end == Modifiers::CURRENT_POSITION) {
+        modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+      } else if (modifiers.boundary_end == Modifiers::LIMIT_CURRENT) {
+        modifiers.boundary_end = Modifiers::LIMIT_NEIGHBOR;
+      } else if (modifiers.boundary_end == Modifiers::LIMIT_NEIGHBOR) {
+        modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+        if (!modifiers.repetitions.has_value()) {
+          modifiers.repetitions = 1;
         }
-        ++modifiers->repetitions.value();
+        ++modifiers.repetitions.value();
       }
       return true;
 
     case 'r':
-      modifiers->direction = ReverseDirection(modifiers->direction);
+      modifiers.direction = ReverseDirection(modifiers.direction);
       return true;
 
     case 'e':
@@ -121,20 +119,20 @@ bool CharConsumer(wint_t c, Modifiers* modifiers) {
       return true;
 
     case 'P':
-      modifiers->paste_buffer_behavior =
-          modifiers->paste_buffer_behavior ==
+      modifiers.paste_buffer_behavior =
+          modifiers.paste_buffer_behavior ==
                   Modifiers::PasteBufferBehavior::kDeleteInto
               ? Modifiers::PasteBufferBehavior::kDoNothing
               : Modifiers::PasteBufferBehavior::kDeleteInto;
       return true;
 
     case 'k':
-      modifiers->text_delete_behavior =
-          modifiers->text_delete_behavior ==
+      modifiers.text_delete_behavior =
+          modifiers.text_delete_behavior ==
                   Modifiers::TextDeleteBehavior::kDelete
               ? Modifiers::TextDeleteBehavior::kKeep
               : Modifiers::TextDeleteBehavior::kDelete;
-      return modifiers;
+      return true;
 
     default:
       return false;
@@ -212,7 +210,7 @@ std::unique_ptr<Command> NewCommandWithModifiers(
          CommandArgumentMode<Modifiers>::Options options{
              .editor_state = editor_state,
              .initial_value = std::move(mutable_modifiers),
-             .char_consumer = &CharConsumer,
+             .char_consumer = CharConsumer,
              .status_factory = [name_function](const Modifiers& modifiers) {
                return BuildStatus(name_function, modifiers);
              }};
