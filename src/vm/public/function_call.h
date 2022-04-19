@@ -24,10 +24,9 @@ std::unique_ptr<Expression> NewFunctionCall(
     Compilation* compilation, std::unique_ptr<Expression> func,
     std::vector<std::unique_ptr<Expression>> args);
 
-// TODO: Remove the nullptr default value and force all callers to pass a value.
 futures::ValueOrError<std::unique_ptr<Value>> Call(
     const Value& func, vector<Value::Ptr> args,
-    std::function<void(std::function<void()>)> yield_callback = nullptr);
+    std::function<void(std::function<void()>)> yield_callback);
 
 std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                                             std::unique_ptr<Expression> object,
