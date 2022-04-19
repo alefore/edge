@@ -551,14 +551,14 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::list<std::shared_ptr<transformation::Stack>> undo_past_;
   std::list<std::shared_ptr<transformation::Stack>> undo_future_;
 
-  list<unique_ptr<Value>> keyboard_text_transformers_;
+  std::list<unique_ptr<Value>> keyboard_text_transformers_;
   const std::shared_ptr<Environment> environment_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be
   // shown.  This does not remove any lines: it merely hides them (by setting
   // the Line::filtered field).
-  unique_ptr<Value> filter_;
+  std::unique_ptr<Value> filter_;
   size_t filter_version_;
 
   transformation::Variant last_transformation_;
