@@ -109,7 +109,7 @@ void RegisterTimeType(Environment* environment) {
             }
             return futures::Past(EvaluationOutput::Return(
                 Value::NewString(FromByteString(buffer))));
-          }, ));
+          }));
   time_type->AddField(L"year",
                       vm::NewCallback(std::function<int(Time)>([](Time input) {
                         struct tm t;
