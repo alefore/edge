@@ -101,10 +101,6 @@ SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
 
 }  // namespace
 
-std::wstring SearchResultsSummary::ToString() const {
-  return L"matches: " + std::to_wstring(matches);
-}
-
 std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
     SearchOptions search_options, const OpenBuffer& buffer,
     ProgressChannel& progress_channel) {

@@ -60,8 +60,6 @@ struct SearchResultsSummary {
     kFull,
   };
   SearchCompletion search_completion = SearchCompletion::kFull;
-
-  std::wstring ToString() const;
 };
 
 // Return a callback that is safe to run in a background thread to count the
