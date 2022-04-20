@@ -1,21 +1,12 @@
-#ifndef __AFC_EDITOR_FILE_SYSTEM_DRIVER_H__
-#define __AFC_EDITOR_FILE_SYSTEM_DRIVER_H__
+#ifndef __AFC_INFRASTRUCTURE_FILE_SYSTEM_DRIVER_H__
+#define __AFC_INFRASTRUCTURE_FILE_SYSTEM_DRIVER_H__
 
 extern "C" {
-#include <dirent.h>
 #include <fcntl.h>
-#include <libgen.h>
-#include <limits.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 }
-
-#include <functional>
-#include <memory>
-#include <string>
-#include <vector>
 
 #include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
@@ -26,9 +17,7 @@ namespace afc::editor {
 GHOST_TYPE(FileDescriptor, int);
 
 // Class used to interact with the file system. All operations are performed
-// asynchronously in a background thread; once their results are available, the
-// corresponding future is notified through `work_queue` (to switch back to the
-// main thread).
+// asynchronously in a thread pool.
 class FileSystemDriver {
  public:
   FileSystemDriver(ThreadPool& thread_pool);
@@ -46,4 +35,4 @@ class FileSystemDriver {
 
 }  // namespace afc::editor
 
-#endif  // __AFC_EDITOR_FILE_SYSTEM_DRIVER_H__
+#endif  // __AFC_INFRASTRUCTURE_FILE_SYSTEM_DRIVER_H__
