@@ -13,8 +13,6 @@ extern "C" {
 #include <dirent.h>
 }
 
-// TODO(easy, 2022-04-20): Remove the dependency on command.h?
-#include "src/command.h"
 #include "src/language/ghost_type.h"
 #include "src/language/value_or_error.h"
 
