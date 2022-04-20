@@ -102,6 +102,8 @@ src/language/function_traits.h \
 src/language/ghost_type.h \
 src/language/hash.cc \
 src/language/hash.h \
+src/language/observers.h \
+src/language/observers.cc \
 src/language/safe_types.h \
 src/language/value_or_error.cc \
 src/language/value_or_error.h \
@@ -139,8 +141,6 @@ src/modifiers.h \
 src/navigation_buffer.cc \
 src/navigation_buffer.h \
 src/navigate_command.cc \
-src/observers.h \
-src/observers.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
 src/operation.cc \

@@ -77,4 +77,9 @@ Code here should only depend on code in:
 
 ## Checking dependencies
 
-grep ^.include src/vm/*/*.{cc,h} | cut -f2 -d\  | grep 'src/.*/' | cut -f2 -d'"' | cut -f2 -d/ |  sort -u
+for d in concurrent language tests futures infrastructure vm
+do
+  echo $d:
+  grep ^.include src/$d/{*/,}*.{cc,h} 2>/dev/null | cut -f2 -d\  | grep 'src/' | cut -f2 -d'"' | cut -f2 -d/ | sort -u
+  echo
+done

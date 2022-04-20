@@ -10,8 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "src/language/observers.h"
 #include "src/language/wstring.h"
-#include "src/observers.h"
 #include "src/predictor.h"
 #include "vm/public/types.h"
 
