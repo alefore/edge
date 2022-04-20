@@ -23,6 +23,7 @@ extern "C" {
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/command_line.h"
+#include "src/infrastructure/time.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
 #include "src/run_command_handler.h"
@@ -33,7 +34,6 @@ extern "C" {
 #include "src/terminal.h"
 #include "src/tests/benchmarks.h"
 #include "src/tests/tests.h"
-#include "src/time.h"
 #include "src/vm/public/value.h"
 
 namespace {

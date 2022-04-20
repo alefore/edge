@@ -4,9 +4,9 @@
 #include <memory>
 
 #include "src/audio.h"
+#include "src/infrastructure/time.h"
 #include "src/language/ghost_type.h"
 #include "src/line_column.h"
-#include "src/time.h"
 
 namespace afc::editor {
 

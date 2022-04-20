@@ -7,9 +7,9 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/infrastructure/time.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
-#include "src/time.h"
 #include "src/tracker.h"
 
 namespace afc::editor {

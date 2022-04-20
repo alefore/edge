@@ -1,6 +1,6 @@
 #include "src/tests/benchmarks.h"
 
-#include "src/time.h"
+#include "src/infrastructure/time.h"
 
 namespace afc::tests {
 namespace {

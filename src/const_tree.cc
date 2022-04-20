@@ -1,8 +1,8 @@
 #include "src/const_tree.h"
 
+#include "src/infrastructure/time.h"
 #include "src/tests/benchmarks.h"
 #include "src/tests/tests.h"
-#include "src/time.h"
 
 namespace afc::editor {
 namespace {

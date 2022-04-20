@@ -1,8 +1,8 @@
 #include "src/work_queue.h"
 
 #include "src/concurrent/notification.h"
+#include "src/infrastructure/time.h"
 #include "src/tests/tests.h"
-#include "src/time.h"
 
 namespace afc::editor {
 /* static */ std::shared_ptr<WorkQueue> WorkQueue::New() {

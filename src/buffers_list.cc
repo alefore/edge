@@ -9,10 +9,10 @@
 #include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/time.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_trim.h"
 #include "src/tests/tests.h"
-#include "src/time.h"
 #include "src/widget.h"
 
 namespace afc::editor {

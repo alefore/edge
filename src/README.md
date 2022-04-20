@@ -52,7 +52,7 @@ Infrastructure for interacting with the Unix kernel.
 Obviously, there's some overlap with src/language. A rule-of-thumb principle is
 that code that makes/exposes (wraps) syscalls should likely be here; whereas
 code that augments the typing system (even if it makes syscalls) should be in
-src/language.
+src/language. If in doubt, it probably belongs in src/infrastructure.
 
 ### Dependencies
 

@@ -95,6 +95,8 @@ src/infrastructure/dirname.cc \
 src/infrastructure/dirname.h \
 src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
+src/infrastructure/time.cc \
+src/infrastructure/time.h \
 src/insert_mode.cc \
 src/language/function_traits.h \
 src/language/ghost_type.h \
@@ -191,8 +193,6 @@ src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
 src/tests/tests.cc \
 src/tests/tests.h \
-src/time.cc \
-src/time.h \
 src/tokenize.cc \
 src/tokenize.h \
 src/tokenize_test.cc \
