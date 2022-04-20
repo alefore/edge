@@ -95,10 +95,7 @@ class EdgeStructInstance {
   void CopyFrom(const EdgeStructInstance<T>& src);
   const T& Get(const EdgeVariable<T>* variable) const;
   void Set(const EdgeVariable<T>* variable, T value);
-  // TODO(easy, 2022-04-20): Rather than receive the observer, return an
-  // observable.
-  void AddObserver(const EdgeVariable<T>* variable,
-                   language::Observers::Observer observer);
+  language::Observable& ObserveValue(const EdgeVariable<T>* variable);
 
  private:
   // Instantiate it through EdgeStruct::NewInstance.
@@ -117,10 +114,8 @@ class EdgeStructInstance<unique_ptr<T>> {
   void CopyFrom(const EdgeStructInstance<unique_ptr<T>>& src);
   const T* Get(const EdgeVariable<unique_ptr<T>>* variable) const;
   void Set(const EdgeVariable<unique_ptr<T>>* variable, unique_ptr<T> value);
-  // TODO(easy, 2022-04-20): Rather than receive the observer, return an
-  // observable.
-  void AddObserver(const EdgeVariable<std::unique_ptr<T>>* variable,
-                   language::Observers::Observer observer);
+  language::Observable& ObserveValue(
+      const EdgeVariable<std::unique_ptr<T>>* variable);
 
  private:
   // Instantiate it through EdgeStruct::NewInstance.
@@ -293,18 +288,17 @@ void EdgeStructInstance<unique_ptr<T>>::Set(
 }
 
 template <typename T>
-void EdgeStructInstance<T>::AddObserver(const EdgeVariable<T>* variable,
-                                        language::Observers::Observer value) {
+language::Observable& EdgeStructInstance<T>::ObserveValue(
+    const EdgeVariable<T>* variable) {
   CHECK_LE(variable->position(), values_.size());
-  values_.at(variable->position()).Add(std::move(value));
+  return values_.at(variable->position());
 }
 
 template <typename T>
-void EdgeStructInstance<std::unique_ptr<T>>::AddObserver(
-    const EdgeVariable<std::unique_ptr<T>>* variable,
-    language::Observers::Observer value) {
+language::Observable& EdgeStructInstance<std::unique_ptr<T>>::ObserveValue(
+    const EdgeVariable<std::unique_ptr<T>>* variable) {
   CHECK_LE(variable->position(), values_.size());
-  values_.at(variable->position()).Add(std::move(value));
+  return values_.at(variable->position());
 }
 
 template <typename T>

@@ -594,7 +594,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
        {buffer_variables::symbol_characters, buffer_variables::tree_parser,
         buffer_variables::language_keywords, buffer_variables::typos,
         buffer_variables::identifier_behavior})
-    string_variables_.AddObserver(v, [this] {
+    string_variables_.ObserveValue(v).Add([this] {
       UpdateTreeParser();
       MaybeStartUpdatingSyntaxTrees();
       return Observers::State::kAlive;
@@ -926,7 +926,7 @@ std::shared_ptr<const ParseTree> OpenBuffer::simplified_parse_tree() const {
 
 void OpenBuffer::Initialize() {
   std::weak_ptr<OpenBuffer> weak_this = shared_from_this();
-  buffer_syntax_parser_.Add(
+  buffer_syntax_parser_.ObserveTrees().Add(
       Observers::LockingObserver(weak_this, [](OpenBuffer& buffer) {
         // Trigger a wake up alarm.
         buffer.work_queue()->Schedule([] {});

@@ -115,9 +115,7 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
   });
 }
 
-void BufferSyntaxParser::Add(Observers::Observer observer) {
-  observers_->Add(std::move(observer));
-}
+language::Observable& BufferSyntaxParser::ObserveTrees() { return *observers_; }
 
 /* static */ void BufferSyntaxParser::ValidateInvariants(const Data& data) {
   CHECK(data.syntax_data_cancel != nullptr);
