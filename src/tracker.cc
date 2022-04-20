@@ -39,13 +39,7 @@ Tracker::~Tracker() { lock_trackers()->erase(trackers_it_); }
 
 std::unique_ptr<bool, std::function<void(bool*)>> Tracker::Call() {
   data_.lock([](Data& data) { data.executions++; });
-
-  // TODO(easy, 2022-04-20): Use `infrastructure::Now()`.
-  struct timespec start;
-  if (clock_gettime(0, &start) == -1) {
-    return nullptr;
-  }
-
+  struct timespec start = infrastructure::Now();
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this, start](bool* value) {
         double seconds = GetElapsedSecondsSince(start);
