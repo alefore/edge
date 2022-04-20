@@ -8,8 +8,8 @@
 
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
-#include "src/dirname.h"
 #include "src/frame_output_producer.h"
+#include "src/infrastructure/dirname.h"
 #include "src/line_marks.h"
 #include "src/parse_tree.h"
 #include "src/status_output_producer.h"

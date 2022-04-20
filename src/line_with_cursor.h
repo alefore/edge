@@ -5,7 +5,7 @@
 #include <optional>
 #include <vector>
 
-#include "src/hash.h"
+#include "src/language/hash.h"
 #include "src/line_column.h"
 
 namespace afc::editor {

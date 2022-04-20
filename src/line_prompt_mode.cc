@@ -12,14 +12,15 @@
 #include "src/command.h"
 #include "src/command_argument_mode.h"
 #include "src/command_mode.h"
-#include "src/dirname.h"
+#include "src/concurrent/notification.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
 #include "src/file_link_mode.h"
+#include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
 #include "src/naive_bayes.h"
-#include "src/notification.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
@@ -30,7 +31,6 @@
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 #include "src/vm/public/value.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

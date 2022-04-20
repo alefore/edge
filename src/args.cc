@@ -14,11 +14,11 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "src/command_line.h"
-#include "src/dirname.h"
+#include "src/infrastructure/command_line.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/wstring.h"
 #include "src/server.h"
 #include "src/tests/benchmarks.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 namespace {

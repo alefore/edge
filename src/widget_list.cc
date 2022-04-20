@@ -18,8 +18,8 @@
 #include "src/editor.h"
 #include "src/editor_variables.h"
 #include "src/frame_output_producer.h"
+#include "src/language/wstring.h"
 #include "src/widget.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

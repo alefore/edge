@@ -5,7 +5,7 @@
 
 #include "src/command.h"
 #include "src/editor.h"
-#include "src/ghost_type.h"
+#include "src/language/ghost_type.h"
 #include "src/predictor.h"
 #include "src/tokenize.h"
 

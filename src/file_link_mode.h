@@ -6,10 +6,10 @@
 #include <string>
 #include <vector>
 
-#include "src/dirname.h"
 #include "src/editor.h"
 #include "src/futures/futures.h"
-#include "src/value_or_error.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/value_or_error.h"
 #include "src/widget_list.h"
 
 namespace afc {

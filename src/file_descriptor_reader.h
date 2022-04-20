@@ -9,13 +9,13 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/concurrent/thread_pool.h"
 #include "src/decaying_counter.h"
-#include "src/file_system_driver.h"
-#include "src/ghost_type.h"
+#include "src/infrastructure/file_system_driver.h"
+#include "src/language/ghost_type.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
-#include "src/thread_pool.h"
 
 namespace afc {
 namespace editor {

@@ -2,7 +2,7 @@
 
 #include <glog/logging.h>
 
-#include "src/protected.h"
+#include "src/concurrent/protected.h"
 #include "src/tracker.h"
 
 namespace afc::editor::audio {

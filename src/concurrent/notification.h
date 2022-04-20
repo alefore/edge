@@ -1,7 +1,7 @@
 #ifndef __AFC_EDITOR_NOTIFICATION_H__
 #define __AFC_EDITOR_NOTIFICATION_H__
 
-#include "src/protected.h"
+#include "src/concurrent/protected.h"
 
 namespace afc::editor {
 // This class is thread-safe.

@@ -20,8 +20,7 @@ extern "C" {
 #include <sysexits.h>
 }
 
-// TODO: Don't depend on these "internal" (to Edge) symbols:
-#include "src/wstring.h"
+#include "src/language/wstring.h"
 
 namespace afc::command_line_arguments {
 template <typename ParsedValues>

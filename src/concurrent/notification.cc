@@ -1,4 +1,4 @@
-#include "src/notification.h"
+#include "src/concurrent/notification.h"
 
 namespace afc::editor {
 void Notification::Notify() {

@@ -7,10 +7,10 @@
 #include "src/audio.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
+#include "src/concurrent/notification.h"
 #include "src/editor.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string_functional.h"
-#include "src/notification.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 namespace {

@@ -6,10 +6,10 @@ extern "C" {
 
 #include "src/buffer_variables.h"
 #include "src/command.h"
-#include "src/dirname.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
-#include "src/wstring.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/wstring.h"
 
 namespace afc {
 namespace editor {

@@ -4,8 +4,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "src/ghost_type.h"
-#include "src/wstring.h"
+#include "src/language/ghost_type.h"
+#include "src/language/wstring.h"
 
 namespace afc::naive_bayes {
 using ::operator<<;

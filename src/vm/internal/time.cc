@@ -9,7 +9,7 @@
 #include "../public/value.h"
 #include "../public/vector.h"
 #include "../public/vm.h"
-#include "src/safe_types.h"
+#include "src/language/safe_types.h"
 #include "wstring.h"
 
 namespace afc::vm {

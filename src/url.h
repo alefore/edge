@@ -1,9 +1,9 @@
 #ifndef __AFC_EDITOR_URL_H__
 #define __AFC_EDITOR_URL_H__
 
-#include "src/dirname.h"
-#include "src/ghost_type.h"
-#include "src/value_or_error.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/ghost_type.h"
+#include "src/language/value_or_error.h"
 
 namespace afc::editor {
 

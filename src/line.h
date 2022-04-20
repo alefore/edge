@@ -10,11 +10,11 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
-#include "src/protected.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {

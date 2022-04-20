@@ -1,8 +1,8 @@
 #include "src/log.h"
 
-#include "src/thread_pool.h"
+#include "src/concurrent/thread_pool.h"
+#include "src/language/wstring.h"
 #include "src/time.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 namespace {

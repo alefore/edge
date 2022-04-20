@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "src/command_line.h"
-#include "src/dirname.h"
+#include "src/infrastructure/command_line.h"
+#include "src/infrastructure/dirname.h"
 
 namespace afc::editor {
 

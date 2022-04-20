@@ -6,7 +6,7 @@
 #include <memory>
 #include <string>
 
-#include "src/protected.h"
+#include "src/concurrent/protected.h"
 
 namespace afc::editor {
 

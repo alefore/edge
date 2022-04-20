@@ -1,7 +1,7 @@
-#include "src/value_or_error.h"
+#include "src/language/value_or_error.h"
 
 #include "glog/logging.h"
-#include "src/wstring.h"
+#include "src/language/wstring.h"
 
 namespace afc::editor {
 

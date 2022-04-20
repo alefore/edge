@@ -18,12 +18,13 @@
 #include "src/command_argument_mode.h"
 #include "src/command_with_modifiers.h"
 #include "src/cpp_command.h"
-#include "src/dirname.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/find_mode.h"
 #include "src/goto_command.h"
+#include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
 #include "src/line_column.h"
 #include "src/line_prompt_mode.h"
@@ -58,7 +59,6 @@
 #include "src/transformation/switch_case.h"
 #include "src/transformation/tree_navigate.h"
 #include "src/transformation/type.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

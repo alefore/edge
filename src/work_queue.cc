@@ -1,6 +1,6 @@
 #include "src/work_queue.h"
 
-#include "src/notification.h"
+#include "src/concurrent/notification.h"
 #include "src/tests/tests.h"
 #include "src/time.h"
 

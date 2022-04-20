@@ -16,13 +16,13 @@
 #include "src/editor.h"
 #include "src/frame_output_producer.h"
 #include "src/horizontal_center_output_producer.h"
+#include "src/language/wstring.h"
 #include "src/line_number_output_producer.h"
 #include "src/line_scroll_control.h"
 #include "src/section_brackets_producer.h"
 #include "src/status_output_producer.h"
 #include "src/tests/tests.h"
 #include "src/widget.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 namespace {

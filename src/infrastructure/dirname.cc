@@ -1,4 +1,4 @@
-#include "src/dirname.h"
+#include "src/infrastructure/dirname.h"
 
 #include <cstring>
 
@@ -8,8 +8,8 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/language/wstring.h"
 #include "src/tests/tests.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 

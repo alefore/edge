@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "../../value_or_error.h"
 #include "../public/vm.h"
+#include "src/language/value_or_error.h"
 
 namespace afc {
 namespace vm {

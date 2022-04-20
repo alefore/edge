@@ -6,12 +6,12 @@
 #include <vector>
 
 #include "src/char_buffer.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/set.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vector.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace vm {

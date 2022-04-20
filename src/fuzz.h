@@ -8,8 +8,8 @@
 #include <optional>
 
 #include "src/fuzz_testable.h"
+#include "src/language/wstring.h"
 #include "src/line_column.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

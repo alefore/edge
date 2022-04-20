@@ -21,8 +21,9 @@ extern "C" {
 #include "src/audio.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
-#include "src/dirname.h"
 #include "src/file_link_mode.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/wstring.h"
 #include "src/open_file_command.h"
 #include "src/run_command_handler.h"
 #include "src/server.h"
@@ -40,7 +41,6 @@ extern "C" {
 #include "src/vm/public/value.h"
 #include "src/vm_transformation.h"
 #include "src/widget_list.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace vm {

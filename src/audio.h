@@ -19,7 +19,7 @@
 #include <thread>
 #include <vector>
 
-#include "src/ghost_type.h"
+#include "src/language/ghost_type.h"
 
 namespace afc::editor::audio {
 GHOST_TYPE_DOUBLE(Frequency);

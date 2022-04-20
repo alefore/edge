@@ -17,9 +17,9 @@ extern "C" {
 #include <string>
 #include <vector>
 
-#include "src/dirname.h"
+#include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
-#include "src/thread_pool.h"
+#include "src/infrastructure/dirname.h"
 
 namespace afc::editor {
 

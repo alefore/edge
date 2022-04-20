@@ -6,7 +6,7 @@
 #include <optional>
 #include <string>
 
-#include "src/wstring.h"
+#include "src/language/wstring.h"
 
 namespace afc::editor {
 struct Error {

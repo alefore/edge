@@ -14,13 +14,14 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/command_mode.h"
+#include "src/concurrent/notification.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/futures/futures.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
-#include "src/notification.h"
 #include "src/parse_tree.h"
 #include "src/substring.h"
 #include "src/terminal.h"
@@ -37,7 +38,6 @@ extern "C" {
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 namespace {

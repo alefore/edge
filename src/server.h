@@ -6,8 +6,8 @@
 #include <unordered_set>
 
 #include "src/buffer.h"
-#include "src/dirname.h"
-#include "src/value_or_error.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/value_or_error.h"
 
 namespace afc {
 namespace editor {

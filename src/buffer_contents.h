@@ -7,9 +7,9 @@
 #include "src/const_tree.h"
 #include "src/cursors.h"
 #include "src/fuzz_testable.h"
+#include "src/language/safe_types.h"
 #include "src/line.h"
 #include "src/line_column.h"
-#include "src/safe_types.h"
 #include "src/tracker.h"
 
 namespace afc {

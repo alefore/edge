@@ -2,7 +2,7 @@
 #include "src/buffer.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
-#include "src/safe_types.h"
+#include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {

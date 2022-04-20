@@ -7,8 +7,8 @@
 #include <vector>
 
 #include "src/fuzz.h"
-#include "src/hash.h"
-#include "src/value_or_error.h"
+#include "src/language/hash.h"
+#include "src/language/value_or_error.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 

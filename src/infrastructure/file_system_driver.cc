@@ -1,6 +1,6 @@
-#include "src/file_system_driver.h"
+#include "src/infrastructure/file_system_driver.h"
 
-#include "src/wstring.h"
+#include "src/language/wstring.h"
 
 namespace afc::editor {
 namespace {

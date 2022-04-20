@@ -9,7 +9,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/buffer.h"
-#include "src/hash.h"
+#include "src/language/hash.h"
 
 namespace afc::editor {
 /*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {

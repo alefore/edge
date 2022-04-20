@@ -7,8 +7,8 @@
 #include <memory>
 #include <optional>
 
+#include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
-#include "src/protected.h"
 
 namespace afc::editor {
 

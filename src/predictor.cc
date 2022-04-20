@@ -17,14 +17,14 @@ extern "C" {
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
-#include "src/dirname.h"
+#include "src/concurrent/notification.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/wstring.h"
 #include "src/lowercase.h"
-#include "src/notification.h"
 #include "src/predictor.h"
 #include "src/tests/tests.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 namespace {

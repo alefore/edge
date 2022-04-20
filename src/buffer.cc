@@ -24,11 +24,13 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/command_with_modifiers.h"
 #include "src/cpp_parse_tree.h"
-#include "src/dirname.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/futures/futures.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language//safe_types.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_functional.h"
@@ -37,7 +39,6 @@ extern "C" {
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
 #include "src/run_command_handler.h"
-#include "src/safe_types.h"
 #include "src/screen.h"
 #include "src/screen_vm.h"
 #include "src/seek.h"
@@ -62,7 +63,6 @@ extern "C" {
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 #include "src/vm_transformation.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace vm {

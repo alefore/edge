@@ -21,10 +21,10 @@ extern "C" {
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
-#include "src/file_system_driver.h"
+#include "src/infrastructure/file_system_driver.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string.h"
 #include "src/vm/public/vm.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

@@ -2,9 +2,9 @@
 
 #include <glog/logging.h>
 
-#include "../../value_or_error.h"
-#include "../public/value.h"
+#include "src/language/value_or_error.h"
 #include "src/vm/internal/compilation.h"
+#include "src/vm/public/value.h"
 
 namespace afc {
 namespace vm {

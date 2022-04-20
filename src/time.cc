@@ -5,7 +5,7 @@
 #include <cmath>
 #include <memory>
 
-#include "src/wstring.h"
+#include "src/language/wstring.h"
 
 namespace afc {
 namespace editor {

@@ -3,6 +3,7 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
+#include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 #include "src/log.h"
 #include "src/run_command_handler.h"
@@ -11,7 +12,6 @@
 #include "src/transformation/input.h"
 #include "src/transformation/switch_case.h"
 #include "src/vm_transformation.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 namespace transformation {

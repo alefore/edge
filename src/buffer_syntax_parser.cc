@@ -1,9 +1,9 @@
 #include "src/buffer_syntax_parser.h"
 
+#include "src/language/safe_types.h"
 #include "src/parse_tree.h"
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
-#include "src/safe_types.h"
 
 namespace afc::editor {
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {

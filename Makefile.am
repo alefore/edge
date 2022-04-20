@@ -44,7 +44,6 @@ src/buffers_list.h \
 src/columns_vector.cc \
 src/columns_vector.h \
 src/command_argument_mode.h \
-src/command_line.h \
 src/cpp_command.cc \
 src/cpp_parse_tree.cc \
 src/cpp_parse_tree.h \
@@ -55,14 +54,17 @@ src/command_mode.cc \
 src/command_mode.h \
 src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
+src/concurrent/notification.cc \
+src/concurrent/notification.h \
+src/concurrent/protected.h \
+src/concurrent/thread_pool.cc \
+src/concurrent/thread_pool.h \
 src/const_tree.cc \
 src/const_tree.h \
 src/cursors.cc \
 src/cursors.h \
 src/decaying_counter.cc \
 src/decaying_counter.h \
-src/dirname.cc \
-src/dirname.h \
 src/direction.cc \
 src/directory_listing.h \
 src/directory_listing.cc \
@@ -73,12 +75,9 @@ src/editor_variables.h \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
 src/file_link_mode.cc \
-src/file_system_driver.cc \
-src/file_system_driver.h \
 src/file_descriptor_reader.cc \
 src/file_descriptor_reader.h \
 src/find_mode.cc \
-src/function_traits.h \
 src/futures/futures.cc \
 src/futures/futures.h \
 src/futures/serializer.cc \
@@ -87,14 +86,25 @@ src/fuzz.h \
 src/fuzz.cc \
 src/fuzz_testable.h \
 src/fuzz_testable.cc \
-src/ghost_type.h \
 src/goto_command.cc \
-src/hash.cc \
-src/hash.h \
 src/help_command.cc \
 src/horizontal_center_output_producer.cc \
 src/horizontal_center_output_producer.h \
+src/infrastructure/command_line.h \
+src/infrastructure/dirname.cc \
+src/infrastructure/dirname.h \
+src/infrastructure/file_system_driver.cc \
+src/infrastructure/file_system_driver.h \
 src/insert_mode.cc \
+src/language/function_traits.h \
+src/language/ghost_type.h \
+src/language/hash.cc \
+src/language/hash.h \
+src/language/safe_types.h \
+src/language/value_or_error.cc \
+src/language/value_or_error.h \
+src/language/wstring.cc \
+src/language/wstring.h \
 src/lazy_string.cc \
 src/lazy_string_append.cc \
 src/lazy_string_functional.cc \
@@ -127,8 +137,6 @@ src/modifiers.h \
 src/navigation_buffer.cc \
 src/navigation_buffer.h \
 src/navigate_command.cc \
-src/notification.cc \
-src/notification.h \
 src/observers.h \
 src/observers.cc \
 src/open_directory_command.cc \
@@ -144,7 +152,6 @@ src/parsers/diff.h \
 src/parsers/markdown.cc \
 src/parsers/markdown.h \
 src/predictor.cc \
-src/protected.h \
 src/quit_command.cc \
 src/record_command.cc \
 src/repeat_mode.cc \
@@ -153,7 +160,6 @@ src/run_cpp_command.cc \
 src/run_cpp_command.h \
 src/run_cpp_file.cc \
 src/run_cpp_file.h \
-src/safe_types.h \
 src/screen.h \
 src/screen_curses.cc \
 src/screen_curses.h \
@@ -185,8 +191,6 @@ src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
 src/tests/tests.cc \
 src/tests/tests.h \
-src/thread_pool.cc \
-src/thread_pool.h \
 src/time.cc \
 src/time.h \
 src/tokenize.cc \
@@ -224,8 +228,6 @@ src/transformation.cc \
 src/transformation.h \
 src/url.cc \
 src/url.h \
-src/value_or_error.cc \
-src/value_or_error.h \
 src/variables.h \
 src/vm_transformation.cc \
 src/vm_transformation.h \
@@ -264,8 +266,7 @@ src/vm/internal/variable_lookup.cc \
 src/vm/internal/wstring.cc \
 src/widget.h \
 src/work_queue.cc \
-src/work_queue.h \
-src/wstring.cc
+src/work_queue.h
 
 BENCHMARK_SOURCES = \
 src/const_tree.cc \

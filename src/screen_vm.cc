@@ -4,12 +4,12 @@
 
 #include <memory>
 
+#include "src/language/wstring.h"
 #include "src/screen.h"
 #include "src/server.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace vm {

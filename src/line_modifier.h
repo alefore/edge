@@ -1,10 +1,11 @@
 #ifndef __AFC_EDITOR_LINE_MODIFIER_H__
 #define __AFC_EDITOR_LINE_MODIFIER_H__
 
-#include "src/hash.h"
+#include <unordered_set>
+
+#include "src/language/hash.h"
 #include "src/lazy_string.h"
 #include "src/vm/public/environment.h"
-#include "unordered_set"
 
 namespace afc {
 namespace editor {

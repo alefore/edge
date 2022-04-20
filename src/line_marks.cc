@@ -7,7 +7,7 @@
 
 #include "src/buffer.h"
 #include "src/char_buffer.h"
-#include "src/wstring.h"
+#include "src/language/wstring.h"
 
 namespace afc {
 namespace editor {

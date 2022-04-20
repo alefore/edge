@@ -7,8 +7,8 @@
 #include <unordered_set>
 
 #include "src/char_buffer.h"
+#include "src/language/wstring.h"
 #include "src/test/line_test.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

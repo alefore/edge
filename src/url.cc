@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "src/dirname.h"
+#include "src/infrastructure/dirname.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {

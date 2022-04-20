@@ -5,11 +5,11 @@
 #include <string>
 #include <unordered_set>
 
+#include "src/concurrent/notification.h"
+#include "src/concurrent/protected.h"
+#include "src/concurrent/thread_pool.h"
 #include "src/cpp_parse_tree.h"
-#include "src/notification.h"
 #include "src/observers.h"
-#include "src/protected.h"
-#include "src/thread_pool.h"
 
 namespace afc::editor {
 // This class is thread-safe (and does significant work in a background thread).

@@ -1,9 +1,8 @@
-#include "src/thread_pool.h"
+#include "src/concurrent/thread_pool.h"
 
 #include <cctype>
 #include <ostream>
 
-#include "src/notification.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {

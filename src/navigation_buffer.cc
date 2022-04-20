@@ -4,16 +4,16 @@
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/command_argument_mode.h"
-#include "src/dirname.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_trim.h"
 #include "src/line_prompt_mode.h"
 #include "src/parse_tree.h"
 #include "src/screen.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

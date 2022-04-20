@@ -8,8 +8,8 @@
 #include "src/buffer_variables.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
+#include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

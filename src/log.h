@@ -4,9 +4,9 @@
 #include <memory>
 #include <string>
 
-#include "src/file_system_driver.h"
 #include "src/futures/futures.h"
-#include "src/value_or_error.h"
+#include "src/infrastructure/file_system_driver.h"
+#include "src/language/value_or_error.h"
 
 namespace afc::editor {
 class Log {

@@ -1,4 +1,6 @@
-#include "src/hash.h"
+#include "src/language/hash.h"
+
+#include <glog/logging.h>
 
 #include <vector>
 

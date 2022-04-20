@@ -9,9 +9,9 @@
 #include <queue>
 #include <vector>
 
+#include "src/concurrent/protected.h"
 #include "src/decaying_counter.h"
 #include "src/observers.h"
-#include "src/protected.h"
 #include "src/time.h"
 
 namespace afc::editor {

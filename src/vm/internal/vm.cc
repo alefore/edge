@@ -11,11 +11,6 @@
 #include <string>
 #include <utility>
 
-#include "../../value_or_error.h"
-#include "../public/constant_expression.h"
-#include "../public/environment.h"
-#include "../public/function_call.h"
-#include "../public/value.h"
 #include "append_expression.h"
 #include "assign_expression.h"
 #include "binary_operator.h"
@@ -27,6 +22,11 @@
 #include "namespace_expression.h"
 #include "negate_expression.h"
 #include "return_expression.h"
+#include "src/language/value_or_error.h"
+#include "src/vm/public/constant_expression.h"
+#include "src/vm/public/environment.h"
+#include "src/vm/public/function_call.h"
+#include "src/vm/public/value.h"
 #include "string.h"
 #include "types_promotion.h"
 #include "variable_lookup.h"

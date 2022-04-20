@@ -6,7 +6,7 @@
 #include <string>
 
 #include "line_column.h"
-#include "src/hash.h"
+#include "src/language/hash.h"
 #include "src/lazy_string.h"
 
 namespace afc::editor {

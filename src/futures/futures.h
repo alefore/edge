@@ -33,8 +33,8 @@
 #include <memory>
 #include <type_traits>
 
-#include "src/function_traits.h"
-#include "src/value_or_error.h"
+#include "src/language/function_traits.h"
+#include "src/language/value_or_error.h"
 
 namespace afc::futures {
 

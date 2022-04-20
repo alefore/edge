@@ -6,6 +6,7 @@
 #include "src/buffer_variables.h"
 #include "src/direction.h"
 #include "src/editor.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
@@ -18,7 +19,6 @@
 #include "src/vm/public/environment.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm_transformation.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace vm {

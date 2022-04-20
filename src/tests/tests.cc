@@ -1,5 +1,10 @@
 #include "src/tests/tests.h"
 
+#include <glog/logging.h>
+
+#include <unordered_map>
+#include <unordered_set>
+
 namespace afc::tests {
 namespace {
 std::unordered_map<std::wstring, std::vector<Test>>* tests_map() {

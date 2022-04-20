@@ -13,9 +13,9 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/fuzz.h"
+#include "src/language//safe_types.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string.h"
-#include "src/safe_types.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 

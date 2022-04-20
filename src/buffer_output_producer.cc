@@ -8,8 +8,8 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
-#include "src/dirname.h"
-#include "src/hash.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/hash.h"
 #include "src/line.h"
 #include "src/line_column.h"
 #include "src/parse_tree.h"

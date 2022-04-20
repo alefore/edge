@@ -4,12 +4,12 @@
 
 #include <unordered_set>
 
-#include "../public/constant_expression.h"
-#include "../public/value.h"
-#include "../public/vm.h"
+#include "src/language/wstring.h"
 #include "src/vm/internal/compilation.h"
+#include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
-#include "src/wstring.h"
+#include "src/vm/public/value.h"
+#include "src/vm/public/vm.h"
 
 namespace afc {
 namespace vm {

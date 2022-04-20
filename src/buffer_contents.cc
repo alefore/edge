@@ -7,11 +7,11 @@
 
 #include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/language/safe_types.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
-#include "src/safe_types.h"
 #include "src/substring.h"
 #include "src/tests/tests.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 

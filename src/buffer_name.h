@@ -1,8 +1,8 @@
 #ifndef __AFC_EDITOR_BUFFER_NAME_H__
 #define __AFC_EDITOR_BUFFER_NAME_H__
 
-#include "src/dirname.h"
-#include "src/ghost_type.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/ghost_type.h"
 
 namespace afc::editor {
 class OpenBuffer;

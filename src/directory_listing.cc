@@ -6,8 +6,8 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/language//safe_types.h"
 #include "src/line_prompt_mode.h"
-#include "src/safe_types.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
 

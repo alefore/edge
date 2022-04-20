@@ -1,5 +1,5 @@
+#include "src/language/wstring.h"
 #include "src/tests/benchmarks.h"
-#include "src/wstring.h"
 
 int main(int argc, const char** argv) {
   using namespace afc::editor;

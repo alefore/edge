@@ -7,7 +7,7 @@
 #include <unordered_set>
 
 #include "src/buffer_contents.h"
-#include "src/ghost_type.h"
+#include "src/language/ghost_type.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
 

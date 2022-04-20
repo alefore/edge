@@ -6,8 +6,8 @@
 
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/language/wstring.h"
 #include "src/vm/public/vm.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

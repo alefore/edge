@@ -7,11 +7,11 @@
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/insert_mode.h"
+#include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
 #include "src/line_prompt_mode.h"
 #include "src/screen.h"
 #include "src/screen_vm.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

@@ -2,7 +2,7 @@
 
 #include <glog/logging.h>
 
-#include "src/hash.h"
+#include "src/language/hash.h"
 #include "src/line.h"
 #include "src/line_column.h"
 #include "src/tests/tests.h"

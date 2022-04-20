@@ -1,15 +1,15 @@
 #include "src/open_file_command.h"
 
-#include "src/wstring.h"
+#include "src/language/wstring.h"
 
 extern "C" {
 #include <sys/stat.h>
 }
 
 #include "src/buffer_variables.h"
-#include "src/dirname.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/infrastructure/dirname.h"
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
 

@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "src/audio.h"
-#include "src/ghost_type.h"
+#include "src/language/ghost_type.h"
 #include "src/line_column.h"
 #include "src/time.h"
 

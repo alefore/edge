@@ -1,8 +1,8 @@
 #ifndef __AFC_EDITOR_DIRECTORY_LISTING_H__
 #define __AFC_EDITOR_DIRECTORY_LISTING_H__
 
-#include "src/dirname.h"
 #include "src/futures/futures.h"
+#include "src/infrastructure/dirname.h"
 
 namespace afc::editor {
 class OpenBuffer;

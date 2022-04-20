@@ -23,13 +23,13 @@ extern "C" {
 #include "src/command_mode.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
+#include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 #include "src/time.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/value.h"
-#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

@@ -5,10 +5,10 @@
 #include <vector>
 
 #include "src/buffer_contents.h"
+#include "src/concurrent/notification.h"
 #include "src/futures/futures.h"
 #include "src/line_column.h"
 #include "src/line_prompt_mode.h"
-#include "src/notification.h"
 #include "src/predictor.h"
 
 namespace afc {

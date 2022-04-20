@@ -3,8 +3,8 @@
 #include <glog/logging.h>
 
 #include "src/char_buffer.h"
+#include "src/language/wstring.h"
 #include "src/tests/tests.h"
-#include "src/wstring.h"
 
 namespace afc::editor {
 namespace {

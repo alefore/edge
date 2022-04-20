@@ -9,10 +9,10 @@
 #include "src/command_argument_mode.h"
 #include "src/const_tree.h"
 #include "src/editor.h"
+#include "src/language/wstring.h"
 #include "src/terminal.h"
 #include "src/test/buffer_contents_test.h"
 #include "src/test/line_test.h"
-#include "src/wstring.h"
 
 using namespace afc::editor;
 

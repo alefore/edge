@@ -8,7 +8,7 @@
 #include "src/futures/futures.h"
 #include "src/futures/serializer.h"
 #include "src/goto_command.h"
-#include "src/safe_types.h"
+#include "src/language//safe_types.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
 #include "src/transformation/composite.h"
