@@ -1,4 +1,4 @@
-#include "src/decaying_counter.h"
+#include "src/math/decaying_counter.h"
 
 #include <glog/logging.h>
 

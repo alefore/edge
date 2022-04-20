@@ -10,9 +10,9 @@
 #include <vector>
 
 #include "src/concurrent/protected.h"
-#include "src/decaying_counter.h"
 #include "src/infrastructure/time.h"
 #include "src/language/observers.h"
+#include "src/math/decaying_counter.h"
 
 namespace afc::editor {
 // Contains a list of callbacks that will be executed later, at some point

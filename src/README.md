@@ -63,6 +63,16 @@ Code here should only depend on code in:
 * src/language
 * src/tests
 
+## src/math
+
+Code that implements math formulas.
+
+### Dependencies
+
+Code here should only depend on code in:
+
+* src/language
+
 ## src/vm
 
 Implementation of our subset of C++.
@@ -77,7 +87,7 @@ Code here should only depend on code in:
 
 ## Checking dependencies
 
-for d in concurrent language tests futures infrastructure vm
+for d in concurrent language tests futures infrastructure math vm
 do
   echo $d:
   grep ^.include src/$d/{*/,}*.{cc,h} 2>/dev/null | cut -f2 -d\  | grep 'src/' | cut -f2 -d'"' | cut -f2 -d/ | sort -u

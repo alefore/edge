@@ -63,8 +63,6 @@ src/const_tree.cc \
 src/const_tree.h \
 src/cursors.cc \
 src/cursors.h \
-src/decaying_counter.cc \
-src/decaying_counter.h \
 src/direction.cc \
 src/directory_listing.h \
 src/directory_listing.cc \
@@ -136,6 +134,8 @@ src/log.h \
 src/lowercase.cc \
 src/lru_cache.h \
 src/map_mode.cc \
+src/math/decaying_counter.cc \
+src/math/decaying_counter.h \
 src/modifiers.cc \
 src/modifiers.h \
 src/navigation_buffer.cc \
