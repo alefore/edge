@@ -97,16 +97,18 @@ class EditorState {
   std::vector<std::shared_ptr<OpenBuffer>> active_buffers() const;
   void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                  BuffersList::AddBufferType insertion_type);
-  futures::Value<EmptyValue> ForEachActiveBuffer(
-      std::function<futures::Value<EmptyValue>(OpenBuffer&)> callback);
+  futures::Value<language::EmptyValue> ForEachActiveBuffer(
+      std::function<futures::Value<language::EmptyValue>(OpenBuffer&)>
+          callback);
   // Similar to ForEachActiveBuffer, but if repetions are set, only runs the
   // callback for the buffer referenced by repetitions (in the list of buffers,
   // buffer_tree_).
-  futures::Value<EmptyValue> ForEachActiveBufferWithRepetitions(
-      std::function<futures::Value<EmptyValue>(OpenBuffer&)> callback);
+  futures::Value<language::EmptyValue> ForEachActiveBufferWithRepetitions(
+      std::function<futures::Value<language::EmptyValue>(OpenBuffer&)>
+          callback);
 
   // Convenience wrapper of `ForEachActiveBuffer` that applies `transformation`.
-  futures::Value<EmptyValue> ApplyToActiveBuffers(
+  futures::Value<language::EmptyValue> ApplyToActiveBuffers(
       transformation::Variant transformation);
 
   BufferName GetUnusedBufferName(const wstring& prefix);
@@ -163,8 +165,8 @@ class EditorState {
     modifiers_.default_insertion = default_insertion_modifier;
   }
 
-  futures::Value<EmptyValue> ProcessInputString(const string& input);
-  futures::Value<EmptyValue> ProcessInput(int c);
+  futures::Value<language::EmptyValue> ProcessInputString(const string& input);
+  futures::Value<language::EmptyValue> ProcessInput(int c);
 
   const LineMarks& line_marks() const { return line_marks_; }
   LineMarks& line_marks() { return line_marks_; }
@@ -192,12 +194,12 @@ class EditorState {
   Status& status();
   const Status& status() const;
 
-  const Path& home_directory() const { return home_directory_; }
-  const vector<Path>& edge_path() const { return edge_path_; }
+  const infrastructure::Path& home_directory() const { return home_directory_; }
+  const vector<infrastructure::Path>& edge_path() const { return edge_path_; }
 
   std::shared_ptr<Environment> environment() { return environment_; }
 
-  Path expand_path(Path path) const;
+  infrastructure::Path expand_path(infrastructure::Path path) const;
 
   void PushSignal(UnixSignal signal);
   void ProcessSignals();
@@ -225,8 +227,8 @@ class EditorState {
   // Executes pending work from all buffers.
   void ExecutePendingWork();
   std::optional<struct timespec> WorkQueueNextExecution() const;
-  const std::shared_ptr<WorkQueue>& work_queue() const;
-  ThreadPool& thread_pool();
+  const std::shared_ptr<concurrent::WorkQueue>& work_queue() const;
+  concurrent::ThreadPool& thread_pool();
 
   void ResetInternalEventNotifications();
 
@@ -240,14 +242,14 @@ class EditorState {
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<double> double_variables_;
 
-  const std::shared_ptr<WorkQueue> work_queue_;
-  ThreadPool thread_pool_;
+  const std::shared_ptr<concurrent::WorkQueue> work_queue_;
+  concurrent::ThreadPool thread_pool_;
 
   std::map<BufferName, std::shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
 
-  const Path home_directory_;
-  const std::vector<Path> edge_path_;
+  const infrastructure::Path home_directory_;
+  const std::vector<infrastructure::Path> edge_path_;
 
   double frames_per_second_;
 
@@ -279,8 +281,11 @@ class EditorState {
   // We use has_internal_events_ to avoid redundantly notifying this. The
   // customer must call ResetInternalEventsNotifications to reset it just before
   // starting to process events.
+  //
+  // TODO(easy, 2022-04-20): Why aren't these infrastructure::FileDescriptor?
   const std::pair<int, int> pipe_to_communicate_internal_events_;
-  Protected<bool> has_internal_events_ = Protected<bool>(false);
+  concurrent::Protected<bool> has_internal_events_ =
+      concurrent::Protected<bool>(false);
 
   audio::Player& audio_player_;
 

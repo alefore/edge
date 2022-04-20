@@ -11,8 +11,11 @@
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+
+using concurrent::Notification;
+using language::EmptyValue;
+using language::FromByteString;
 
 using std::wstring;
 
@@ -229,5 +232,4 @@ unique_ptr<Command> NewSetVariableCommand(EditorState& editor_state) {
       });
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

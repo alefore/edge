@@ -5,11 +5,7 @@
 
 #include "src/editor_mode.h"
 
-namespace afc {
-namespace editor {
-
-class EditorState;
-
+namespace afc::editor {
 class Command : public EditorMode {
  public:
   virtual ~Command() {}
@@ -18,8 +14,6 @@ class Command : public EditorMode {
   virtual void ProcessInput(wint_t c) = 0;
   CursorMode cursor_mode() const override;
 };
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif

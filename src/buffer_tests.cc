@@ -6,6 +6,8 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+using concurrent::WorkQueue;
+
 namespace {
 std::wstring GetMetadata(std::wstring line) {
   auto buffer = NewBufferForTests();

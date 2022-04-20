@@ -550,11 +550,11 @@ std::wstring LineColumn::Serialize() const {
   return Range(LineColumn(line, column), LineColumn(line, column + size));
 }
 
-ValueOrError<Range> Range::Union(const Range& other) const {
+language::ValueOrError<Range> Range::Union(const Range& other) const {
   return (end < other.begin || begin > other.end)
-             ? Error(L"Gap found between the ranges.")
-             : Success(Range(std::min(begin, other.begin),
-                             std::max(end, other.end)));
+             ? language::Error(L"Gap found between the ranges.")
+             : language::Success(Range(std::min(begin, other.begin),
+                                       std::max(end, other.end)));
 }
 
 std::ostream& operator<<(std::ostream& os, const Range& range) {

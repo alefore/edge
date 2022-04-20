@@ -49,10 +49,19 @@ Code here should only depend on code in:
 
 Infrastructure for interacting with the Unix kernel.
 
-Obviously, there's some overlap with src/language. A rule-of-thumb principle is
-that code that makes/exposes (wraps) syscalls should likely be here; whereas
-code that augments the typing system (even if it makes syscalls) should be in
-src/language. If in doubt, it probably belongs in src/infrastructure.
+Obviously, there's some overlap with src/language.
+
+Reasons for src/infrastructure:
+
+* Code that makes/exposes (wraps) syscalls.
+* Code that interacts with the world.
+
+Reasons for src/language:
+
+* Code that augments the typing system (even if it makes syscalls).
+* Code that is entirely contained within the process.
+
+If in doubt, it probably belongs in src/infrastructure.
 
 ### Dependencies
 

@@ -18,6 +18,8 @@ extern "C" {
 #include "src/lazy_string.h"
 
 namespace afc::editor {
+using language::FromByteString;
+using language::Observers;
 
 BufferTerminal::BufferTerminal(OpenBuffer& buffer, BufferContents& contents)
     : data_(std::make_shared<Data>(

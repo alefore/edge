@@ -19,6 +19,13 @@
 #include "src/vm/public/vector.h"
 
 namespace afc::editor {
+using concurrent::Notification;
+using language::EmptyValue;
+using language::Error;
+using language::FromByteString;
+using language::Success;
+using language::ValueOrError;
+
 namespace {
 
 struct SearchNamespaces {

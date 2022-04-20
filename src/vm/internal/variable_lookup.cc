@@ -36,7 +36,7 @@ class VariableLookup : public Expression {
     auto result = EvaluationOutput::New(
         trampoline->environment()->Lookup(symbol_namespace_, symbol_, type));
     CHECK(result.value != nullptr)
-        << "Invalid lookup: " << afc::editor::ToByteString(symbol_)
+        << "Invalid lookup: " << language::ToByteString(symbol_)
         << " (type: " << type << ")";
     DVLOG(5) << "Variable lookup: " << *result.value;
     return futures::Past(std::move(result));

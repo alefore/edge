@@ -4,13 +4,14 @@
 #include <memory>
 #include <string>
 
-#include "command.h"
 #include "src/futures/futures.h"
+#include "src/language/value_or_error.h"
 
 namespace afc::editor {
-
-futures::Value<PossibleError> RunCppFileHandler(const std::wstring& input,
-                                                EditorState& editor_state);
+class EditorState;
+class Command;
+futures::Value<language::PossibleError> RunCppFileHandler(
+    const std::wstring& input, EditorState& editor_state);
 std::unique_ptr<Command> NewRunCppFileCommand(EditorState& editor_state);
 
 }  // namespace afc::editor

@@ -40,6 +40,20 @@ extern "C" {
 namespace afc {
 namespace editor {
 namespace {
+using concurrent::ThreadPool;
+using concurrent::WorkQueue;
+using infrastructure::FileDescriptor;
+using infrastructure::FileSystemDriver;
+using infrastructure::Path;
+using infrastructure::PathComponent;
+using language::EmptyValue;
+using language::Error;
+using language::FromByteString;
+using language::PossibleError;
+using language::Success;
+using language::ToByteString;
+using language::ValueOrError;
+
 using std::shared_ptr;
 using std::unique_ptr;
 

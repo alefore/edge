@@ -30,7 +30,7 @@ extern "C" {
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
-#include "src/language//safe_types.h"
+#include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
@@ -87,7 +87,25 @@ const VMType VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype =
     VMType::ObjectType(L"Buffer");
 }  // namespace vm
 namespace editor {
+using concurrent::WorkQueue;
 using futures::IterationControlCommand;
+using infrastructure::AbsolutePath;
+using infrastructure::AddSeconds;
+using infrastructure::FileDescriptor;
+using infrastructure::FileSystemDriver;
+using infrastructure::Now;
+using infrastructure::Path;
+using infrastructure::PathComponent;
+using infrastructure::UpdateIfMillisecondsHavePassed;
+using language::EmptyValue;
+using language::Error;
+using language::FromByteString;
+using language::ObservableValue;
+using language::Observers;
+using language::PossibleError;
+using language::Success;
+using language::ToByteString;
+using language::ValueOrError;
 
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
@@ -751,7 +769,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         }
         contents->push_back(L"");
 
-        return OnError(
+        return futures::OnError(
             SaveContentsToFile(path, std::move(contents),
                                editor().thread_pool(), file_system_driver()),
             [shared_this](Error error) {

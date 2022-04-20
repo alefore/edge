@@ -15,10 +15,17 @@
 namespace afc::editor {
 namespace {
 
-static constexpr int kMatchesLimit = 100;
-
 using std::vector;
 using std::wstring;
+
+using concurrent::WorkQueueChannelConsumeMode;
+using language::EmptyValue;
+using language::Error;
+using language::FromByteString;
+using language::Success;
+using language::ValueOrError;
+
+static constexpr int kMatchesLimit = 100;
 
 typedef std::wregex RegexPattern;
 

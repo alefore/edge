@@ -19,10 +19,10 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& str) {
   return operator<<(out, str.c_str());
 }
 
-namespace afc::editor {
+namespace afc::language {
 using ::operator<<;
 std::string ToByteString(std::wstring input);
 std::wstring FromByteString(std::string input);
-}  // namespace afc::editor
+}  // namespace afc::language
 
 #endif  // __AFC_EDITOR_WSTRING_H__

@@ -13,6 +13,7 @@
 namespace afc {
 namespace editor {
 namespace fuzz {
+using language::FromByteString;
 
 std::optional<size_t> Reader<size_t>::Read(Stream& input_stream) {
   size_t high = abs(input_stream.get());

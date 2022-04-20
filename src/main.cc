@@ -39,6 +39,14 @@ extern "C" {
 namespace {
 
 using namespace afc::editor;
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::MillisecondsBetween;
+using afc::infrastructure::Now;
+using afc::infrastructure::Path;
+using afc::language::FromByteString;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
 
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
 static std::unique_ptr<EditorState> global_editor_state;

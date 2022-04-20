@@ -6,8 +6,7 @@
 
 #include "src/language/value_or_error.h"
 
-namespace afc {
-namespace editor {
+namespace afc::infrastructure {
 struct timespec Now();
 
 // TODO: Replace all this with Abseil.
@@ -27,9 +26,9 @@ std::optional<double> UpdateIfMillisecondsHavePassed(
 
 struct timespec AddSeconds(struct timespec time, double seconds_duration);
 
-ValueOrError<std::wstring> HumanReadableTime(const struct timespec& time);
-}  // namespace editor
-}  // namespace afc
+language::ValueOrError<std::wstring> HumanReadableTime(
+    const struct timespec& time);
+}  // namespace afc::infrastructure
 
 bool operator==(const struct timespec& a, const struct timespec& b);
 bool operator!=(const struct timespec& a, const struct timespec& b);

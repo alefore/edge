@@ -1,7 +1,9 @@
 #ifndef __AFC_EDITOR_LINE_PROMPT_MODE_H__
 #define __AFC_EDITOR_LINE_PROMPT_MODE_H__
 
+#include <functional>
 #include <memory>
+#include <string>
 
 #include "src/command.h"
 #include "src/editor.h"
@@ -10,8 +12,6 @@
 #include "src/tokenize.h"
 
 namespace afc::editor {
-
-using std::unique_ptr;
 
 GHOST_TYPE(HistoryFile, std::wstring);
 
@@ -53,14 +53,15 @@ struct PromptOptions {
   using ColorizeFunction = std::function<futures::Value<ColorizePromptOptions>(
       const std::shared_ptr<LazyString>& line,
       std::unique_ptr<ProgressChannel> progress_channel,
-      std::shared_ptr<Notification> abort_notification)>;
+      std::shared_ptr<concurrent::Notification> abort_notification)>;
 
   // Run whenever the text in the promot changes; should return a future with
   // options to colorize it.
   ColorizeFunction colorize_options_provider = nullptr;
 
   // Function to run when the prompt receives the final input.
-  std::function<futures::Value<EmptyValue>(const wstring& input)> handler;
+  std::function<futures::Value<language::EmptyValue>(const wstring& input)>
+      handler;
 
   // Optional. Function to run when the prompt is cancelled (because ESCAPE was
   // pressed). If empty, handler will be run with an empty input.
@@ -83,7 +84,7 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
 void Prompt(PromptOptions options);
 
 // options_supplier will only be called if the editor has an active buffer.
-unique_ptr<Command> NewLinePromptCommand(
+std::unique_ptr<Command> NewLinePromptCommand(
     EditorState& editor_state, wstring description,
     std::function<PromptOptions()> options_supplier);
 

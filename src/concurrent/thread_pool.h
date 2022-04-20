@@ -10,7 +10,7 @@
 #include "src/concurrent/work_queue.h"
 #include "src/futures/futures.h"
 
-namespace afc::editor {
+namespace afc::concurrent {
 class ThreadPool {
  public:
   ThreadPool(size_t size, std::shared_ptr<WorkQueue> completion_work_queue);
@@ -54,5 +54,5 @@ class ThreadPool {
   };
   ProtectedWithCondition<Data> data_;
 };
-}  // namespace afc::editor
+}  // namespace afc::concurrent
 #endif  //__AFC_EDITOR_THREAD_POOL_H__

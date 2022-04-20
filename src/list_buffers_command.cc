@@ -13,9 +13,9 @@
 #include "src/screen.h"
 #include "src/screen_vm.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+using language::PossibleError;
+using language::Success;
 namespace {
 
 pair<LineNumber, LineNumber> LinesToShow(const OpenBuffer& buffer,
@@ -207,5 +207,4 @@ std::unique_ptr<Command> NewListBuffersCommand(EditorState& editor_state) {
   return std::make_unique<ListBuffersCommand>(editor_state);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

@@ -11,8 +11,12 @@ extern "C" {
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor {
-
+namespace afc::infrastructure {
+using language::Error;
+using language::FromByteString;
+using language::Success;
+using language::ToByteString;
+using language::ValueOrError;
 using std::list;
 using std::wstring;
 
@@ -406,4 +410,4 @@ std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path) {
       opendir(ToByteString(path).c_str()), closedir);
 }
 
-}  // namespace afc::editor
+}  // namespace afc::infrastructure

@@ -3,14 +3,10 @@
 
 #include <memory>
 
-#include "command.h"
-
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+class EditorState;
+class Command;
 std::unique_ptr<Command> NewListBuffersCommand(EditorState& editor_state);
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_LIST_BUFFERS_COMMAND_H__

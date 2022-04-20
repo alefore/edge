@@ -15,6 +15,7 @@ namespace afc {
 namespace editor {
 
 namespace {
+using infrastructure::Path;
 
 class OpenDirectoryCommand : public Command {
  public:

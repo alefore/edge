@@ -235,7 +235,7 @@ class Handler {
 
   static void DisplayHelp(std::wstring description,
                           ParsingData<ParsedValues>* data) {
-    using afc::editor::ToByteString;
+    using language::ToByteString;
     std::cout << "Usage: " << ToByteString(data->output.binary_name)
               << " [OPTION]... [FILE]...\n"
               << ToByteString(description)
@@ -301,8 +301,8 @@ class Handler {
 template <typename ParsedValues>
 ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
                    const char** argv) {
-  using afc::editor::FromByteString;
-  using afc::editor::ToByteString;
+  using language::FromByteString;
+  using language::ToByteString;
   using std::cerr;
   using std::cout;
 

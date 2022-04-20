@@ -6,7 +6,9 @@
 
 namespace afc::editor {
 namespace {
+using infrastructure::Now;
 using IntTree = ConstTree<int>;
+using infrastructure::SecondsBetween;
 
 const int kNumberToInsert = 25;
 

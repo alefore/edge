@@ -5,6 +5,11 @@
 #include "src/tokenize.h"
 
 namespace afc::editor {
+using concurrent::WorkQueueChannelConsumeMode;
+using language::EmptyValue;
+using language::Error;
+using language::Success;
+
 namespace {
 struct Operation {
   enum class Type {

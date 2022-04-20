@@ -23,12 +23,12 @@ namespace afc::futures {
 // Push.
 class Serializer {
  public:
-  using Callback = std::function<futures::Value<afc::editor::EmptyValue>()>;
+  using Callback = std::function<futures::Value<language::EmptyValue>()>;
   void Push(Callback callback);
 
  private:
-  futures::Value<afc::editor::EmptyValue> last_execution_ =
-      futures::Past(afc::editor::EmptyValue());
+  futures::Value<language::EmptyValue> last_execution_ =
+      futures::Past(language::EmptyValue());
 };
 }  // namespace afc::futures
 

@@ -3,7 +3,7 @@
 
 #include "src/concurrent/protected.h"
 
-namespace afc::editor {
+namespace afc::concurrent {
 // This class is thread-safe.
 class Notification {
  public:
@@ -16,5 +16,5 @@ class Notification {
   ProtectedWithCondition<State> state_ =
       ProtectedWithCondition<State>(State::kPending);
 };
-}  // namespace afc::editor
+}  // namespace afc::concurrent
 #endif  // __AFC_EDITOR_NOTIFICATION_H__

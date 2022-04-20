@@ -59,6 +59,19 @@ const VMType VMTypeMapper<editor::EditorState*>::vmtype =
 namespace editor {
 namespace {
 
+using concurrent::ThreadPool;
+using concurrent::WorkQueue;
+using infrastructure::AddSeconds;
+using infrastructure::Now;
+using infrastructure::Path;
+using language::EmptyValue;
+using language::Error;
+using language::FromByteString;
+using language::Observers;
+using language::PossibleError;
+using language::Success;
+using language::ToByteString;
+
 using std::make_pair;
 using std::string;
 using std::stringstream;

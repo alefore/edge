@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <string>
 
 extern "C" {
 #include <fcntl.h>
@@ -34,17 +35,29 @@ extern "C" {
 namespace afc {
 namespace editor {
 namespace {
+using concurrent::Notification;
+using infrastructure::FileDescriptor;
+using infrastructure::GetElapsedSecondsSince;
+using infrastructure::Path;
+using infrastructure::PathComponent;
+using language::EmptyValue;
+using language::Error;
+using language::FromByteString;
+using language::PossibleError;
+using language::Success;
+using language::ToByteString;
+using language::ValueOrError;
 
-using namespace afc::editor;
 using std::cerr;
 using std::to_string;
+using std::wstring;
 
 struct CommandData {
   time_t time_start = 0;
   time_t time_end = 0;
 };
 
-map<wstring, wstring> LoadEnvironmentVariables(
+std::map<wstring, wstring> LoadEnvironmentVariables(
     const vector<Path>& path, const wstring& full_command,
     map<wstring, wstring> environment) {
   static const wstring whitespace = L"\t ";

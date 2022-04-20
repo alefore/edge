@@ -10,8 +10,7 @@
 #include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
 
-namespace afc::editor {
-
+namespace afc::language {
 class Observable {
  public:
   virtual ~Observable() {}
@@ -59,12 +58,12 @@ class Observers : public Observable {
   }
 
  private:
-  Protected<std::vector<Observer>> observers_;
+  concurrent::Protected<std::vector<Observer>> observers_;
 
   // `Add` only adds to `new_observers_`, and it is the job of `Notify` to merge
   // those back into `observers_`. We do this so that observers can call `Add`
   // without deadlocking. We never require both locks to be held concurrently.
-  Protected<std::vector<Observer>> new_observers_;
+  concurrent::Protected<std::vector<Observer>> new_observers_;
 
   // This allow us to make Notify reentrant.
   enum class NotifyState {
@@ -77,7 +76,7 @@ class Observers : public Observable {
     // and start delivering notifications again.
     kRunningAndScheduled
   };
-  Protected<NotifyState> notify_state_ = NotifyState::kIdle;
+  concurrent::Protected<NotifyState> notify_state_ = NotifyState::kIdle;
 };
 
 template <typename Value>
@@ -109,5 +108,5 @@ class ObservableValue : public Observable {
   Observers observers_;
 };
 
-}  // namespace afc::editor
+}  // namespace afc::language
 #endif  //__AFC_EDITOR_OBSERVERS_H__

@@ -18,6 +18,10 @@
 namespace afc {
 namespace editor {
 namespace {
+using infrastructure::Path;
+using language::PossibleError;
+using language::Success;
+
 const wstring kDepthSymbol = L"navigation_buffer_depth";
 
 void AdjustLastLine(OpenBuffer& buffer, std::shared_ptr<OpenBuffer> link_to,

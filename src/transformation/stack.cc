@@ -17,6 +17,12 @@ namespace afc::editor {
 namespace transformation {
 using ::operator<<;
 
+using language::EmptyValue;
+using language::Error;
+using language::FromByteString;
+using language::PossibleError;
+using language::Success;
+
 namespace {
 void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
                const Value& value) {

@@ -82,13 +82,13 @@ struct TransformTraits {
 };
 
 template <class InitialType, class Callable>
-struct TransformTraits<editor::ValueOrError<InitialType>, Callable> {
+struct TransformTraits<language::ValueOrError<InitialType>, Callable> {
   using ReturnTraits =
       TransformTraitsCallableReturn<decltype(std::declval<Callable>()(
           std::declval<InitialType>()))>;
   using ReturnType = typename ReturnTraits::Type;
 
-  static void FeedValue(editor::ValueOrError<InitialType> initial_value,
+  static void FeedValue(language::ValueOrError<InitialType> initial_value,
                         Callable& callable,
                         typename ReturnType::Consumer consumer) {
     if (initial_value.IsError()) {
@@ -163,7 +163,7 @@ class Value {
 };
 
 template <typename T>
-using ValueOrError = Value<editor::ValueOrError<T>>;
+using ValueOrError = Value<language::ValueOrError<T>>;
 
 // Similar to Value, but allows us to queue multiple listeners. The listeners
 // receive the value by const-ref.
@@ -313,7 +313,8 @@ Value<IterationControlCommand> While(Callable callable) {
   return std::move(output.value);
 }
 
-Value<editor::PossibleError> IgnoreErrors(Value<editor::PossibleError> value);
+Value<language::PossibleError> IgnoreErrors(
+    Value<language::PossibleError> value);
 
 // If value evaluates to an error, runs error_callback. error_callback will
 // receive the error and should return a ValueOrError<T> to replace it. If it
@@ -323,10 +324,10 @@ Value<editor::PossibleError> IgnoreErrors(Value<editor::PossibleError> value);
 // ValueOrError).
 template <typename T, typename Callable>
 ValueOrError<T> OnError(ValueOrError<T>&& value, Callable error_callback) {
-  Future<editor::ValueOrError<T>> future;
+  Future<language::ValueOrError<T>> future;
   value.SetConsumer([consumer = std::move(future.consumer),
                      error_callback = std::move(error_callback)](
-                        editor::ValueOrError<T> value_or_error) {
+                        language::ValueOrError<T> value_or_error) {
     consumer(value_or_error.IsError()
                  ? error_callback(std::move(value_or_error.error()))
                  : std::move(value_or_error));

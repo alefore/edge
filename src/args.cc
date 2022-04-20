@@ -21,6 +21,9 @@ extern "C" {
 #include "src/tests/benchmarks.h"
 
 namespace afc::editor {
+using infrastructure::Path;
+using infrastructure::PathComponent;
+using language::FromByteString;
 namespace {
 static Path GetHomeDirectory() {
   char* env = getenv("HOME");

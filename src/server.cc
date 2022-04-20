@@ -29,6 +29,16 @@ extern "C" {
 namespace afc {
 namespace editor {
 
+using infrastructure::FileDescriptor;
+using infrastructure::FileSystemDriver;
+using infrastructure::Path;
+using language::Error;
+using language::FromByteString;
+using language::PossibleError;
+using language::Success;
+using language::ToByteString;
+using language::ValueOrError;
+
 using namespace afc::vm;
 
 using std::cerr;

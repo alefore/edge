@@ -42,6 +42,9 @@ Value::Ptr VMTypeMapper<editor::transformation::Variant*>::New(
 }  // namespace vm
 namespace editor {
 namespace {
+using language::Error;
+using language::Success;
+
 class FunctionTransformation : public CompositeTransformation {
  public:
   FunctionTransformation(std::unique_ptr<vm::Value> function)

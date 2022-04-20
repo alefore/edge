@@ -16,6 +16,8 @@
 namespace afc {
 namespace editor {
 
+using language::FromByteString;
+
 using std::map;
 using std::shared_ptr;
 using std::unique_ptr;

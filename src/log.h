@@ -19,7 +19,7 @@ class Log {
 // file_system may be deleted as soon as this function returns (i.e., before the
 // future has a value).
 futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
-    FileSystemDriver* file_system, Path path);
+    infrastructure::FileSystemDriver* file_system, infrastructure::Path path);
 
 std::unique_ptr<Log> NewNullLog();
 

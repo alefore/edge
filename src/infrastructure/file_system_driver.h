@@ -12,7 +12,7 @@ extern "C" {
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 
-namespace afc::editor {
+namespace afc::infrastructure {
 
 GHOST_TYPE(FileDescriptor, int);
 
@@ -20,19 +20,20 @@ GHOST_TYPE(FileDescriptor, int);
 // asynchronously in a thread pool.
 class FileSystemDriver {
  public:
-  FileSystemDriver(ThreadPool& thread_pool);
+  FileSystemDriver(concurrent::ThreadPool& thread_pool);
 
-  futures::Value<ValueOrError<FileDescriptor>> Open(Path path, int flags,
-                                                    mode_t mode) const;
-  futures::Value<PossibleError> Close(FileDescriptor fd) const;
-  futures::Value<ValueOrError<struct stat>> Stat(Path path) const;
-  futures::Value<PossibleError> Rename(Path oldpath, Path newpath) const;
-  futures::Value<PossibleError> Mkdir(Path path, mode_t mode) const;
+  futures::ValueOrError<FileDescriptor> Open(Path path, int flags,
+                                             mode_t mode) const;
+  futures::Value<language::PossibleError> Close(FileDescriptor fd) const;
+  futures::ValueOrError<struct stat> Stat(Path path) const;
+  futures::Value<language::PossibleError> Rename(Path oldpath,
+                                                 Path newpath) const;
+  futures::Value<language::PossibleError> Mkdir(Path path, mode_t mode) const;
 
  private:
-  ThreadPool& thread_pool_;
+  concurrent::ThreadPool& thread_pool_;
 };
 
-}  // namespace afc::editor
+}  // namespace afc::infrastructure
 
 #endif  // __AFC_INFRASTRUCTURE_FILE_SYSTEM_DRIVER_H__

@@ -1,12 +1,7 @@
 #ifndef __AFC_EDITOR_EDITOR_MODE_H__
 #define __AFC_EDITOR_EDITOR_MODE_H__
 
-#include <memory>
-
-namespace afc {
-namespace editor {
-
-class EditorState;
+namespace afc::editor {
 
 // Rename to something like 'KeyboardHandler'.
 class EditorMode {
@@ -18,7 +13,6 @@ class EditorMode {
   virtual CursorMode cursor_mode() const = 0;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif

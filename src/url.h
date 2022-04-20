@@ -11,7 +11,7 @@ class URL {
  public:
   GHOST_TYPE_CONSTRUCTOR(URL, std::wstring, value_);
 
-  static URL FromPath(Path path);
+  static URL FromPath(infrastructure::Path path);
 
   GHOST_TYPE_EQ(URL, value_);
   GHOST_TYPE_LT(URL, value_);
@@ -19,7 +19,7 @@ class URL {
   enum class Schema { kFile, kHttp, kHttps };
   std::optional<Schema> schema() const;
 
-  ValueOrError<Path> GetLocalFilePath() const;
+  language::ValueOrError<infrastructure::Path> GetLocalFilePath() const;
 
   std::wstring ToString() const;
 

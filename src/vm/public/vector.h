@@ -68,7 +68,7 @@ struct VMTypeMapper<std::vector<T>*> {
               CHECK(args[1]->IsInteger());
               int index = args[1]->integer;
               if (index < 0 || static_cast<size_t>(index) >= v->size()) {
-                return futures::Past(EvaluationOutput::Abort(afc::editor::Error(
+                return futures::Past(EvaluationOutput::Abort(language::Error(
                     vmtype.ToString() + L": Index out of range " +
                     std::to_wstring(index) + L" (size: " +
                     std::to_wstring(v->size()) + L")")));

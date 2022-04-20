@@ -2,8 +2,8 @@
 #define __AFC_EDITOR_RUN_CPP_COMMAND_H__
 
 #include <memory>
+#include <string>
 
-#include "src/command.h"
 #include "src/futures/futures.h"
 
 namespace afc {
@@ -23,6 +23,9 @@ enum class CppCommandMode {
   // This has nothing to do with the system shell (i.e., system(3)).
   kShell
 };
+
+class EditorState;
+class Command;
 
 // A command looks like this: build foo "bar hey".
 //

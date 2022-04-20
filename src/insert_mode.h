@@ -3,11 +3,16 @@
 
 #include <memory>
 
-#include "src/command.h"
-#include "src/editor.h"
 #include "src/futures/futures.h"
 
-namespace afc::editor {
+namespace afc {
+namespace concurrent {
+class Notification;
+}
+namespace editor {
+class EditorState;
+class OpenBuffer;
+class Command;
 
 std::unique_ptr<Command> NewFindCompletionCommand(EditorState& editor_state);
 
@@ -38,7 +43,7 @@ class ScrollBehaviorFactory {
   static std::unique_ptr<ScrollBehaviorFactory> Default();
   virtual ~ScrollBehaviorFactory() = default;
   virtual futures::Value<std::unique_ptr<ScrollBehavior>> Build(
-      std::shared_ptr<Notification> abort_notification) = 0;
+      std::shared_ptr<concurrent::Notification> abort_notification) = 0;
 };
 
 struct InsertModeOptions {
@@ -49,8 +54,8 @@ struct InsertModeOptions {
       std::nullopt;
 
   // Optional function to run whenever the contents of the buffer are modified.
-  std::function<futures::Value<EmptyValue>(OpenBuffer&)> modify_handler =
-      nullptr;
+  std::function<futures::Value<language::EmptyValue>(OpenBuffer&)>
+      modify_handler = nullptr;
 
   std::shared_ptr<ScrollBehaviorFactory> scroll_behavior =
       ScrollBehaviorFactory::Default();
@@ -61,7 +66,8 @@ struct InsertModeOptions {
 
   // Optional function to run when a new line is received. Defaults to inserting
   // a new line and moving to it.
-  std::function<futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
+  std::function<futures::Value<language::EmptyValue>(
+      const std::shared_ptr<OpenBuffer>&)>
       new_line_handler = nullptr;
 
   // Optional function to run when the user presses Tab for completions. Returns
@@ -73,6 +79,7 @@ struct InsertModeOptions {
 
 void EnterInsertMode(InsertModeOptions options);
 
-}  // namespace afc::editor
+}  // namespace editor
+}  // namespace afc
 
-#endif
+#endif  // __AFC_EDITOR_INSERT_MODE_H__

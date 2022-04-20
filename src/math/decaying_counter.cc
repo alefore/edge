@@ -7,8 +7,7 @@
 
 #include "src/infrastructure/time.h"
 
-namespace afc {
-namespace editor {
+namespace afc::math {
 
 double SecondsToMicroseconds(double seconds) { return seconds * 1e6; }
 
@@ -23,7 +22,8 @@ double DecayingCounter::GetEventsPerSecond() const {
 
 double DecayingCounter::IncrementAndGetEventsPerSecond(double events) {
   const double elapsed_half_lifes =
-      GetElapsedSecondsAndUpdate(&last_decay_) / half_life_seconds_;
+      infrastructure::GetElapsedSecondsAndUpdate(&last_decay_) /
+      half_life_seconds_;
   if (elapsed_half_lifes > 0) {
     const double decay_factor = std::exp2(-elapsed_half_lifes);
     VLOG(5) << "Decaying. Factor: " << decay_factor
@@ -37,5 +37,4 @@ double DecayingCounter::IncrementAndGetEventsPerSecond(double events) {
   return scaled_rate_ / rate_scale_factor_;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::math

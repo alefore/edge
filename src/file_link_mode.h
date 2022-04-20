@@ -19,9 +19,11 @@ using std::string;
 using std::unique_ptr;
 
 // Saves the contents of the buffer to the path given.
-futures::Value<PossibleError> SaveContentsToFile(
-    const Path& path, std::shared_ptr<const BufferContents> contents,
-    ThreadPool& thread_pool, FileSystemDriver& file_system_driver);
+futures::Value<language::PossibleError> SaveContentsToFile(
+    const infrastructure::Path& path,
+    std::shared_ptr<const BufferContents> contents,
+    concurrent::ThreadPool& thread_pool,
+    infrastructure::FileSystemDriver& file_system_driver);
 
 struct OpenFileOptions {
   EditorState& editor_state;
@@ -30,7 +32,7 @@ struct OpenFileOptions {
   std::optional<BufferName> name = std::nullopt;
 
   // The path of the file to open.
-  std::optional<Path> path;
+  std::optional<infrastructure::Path> path;
   // TODO: Turn into an enum.
   bool ignore_if_not_found = false;
 
@@ -39,13 +41,13 @@ struct OpenFileOptions {
 
   // Should the contents of the search paths buffer be used to find the file?
   bool use_search_paths = true;
-  std::vector<Path> initial_search_paths = {};
+  std::vector<infrastructure::Path> initial_search_paths = {};
 };
 
 futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
     EditorState& editor_state);
-futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
-                                          vector<Path>* output);
+futures::Value<language::EmptyValue> GetSearchPaths(
+    EditorState& editor_state, vector<infrastructure::Path>* output);
 
 // Takes a specification of a path (which can be absolute or relative) and, if
 // relative, looks it up in the search paths. If a file is found, returns an
@@ -54,28 +56,29 @@ struct ResolvePathOptions {
  public:
   static ResolvePathOptions New(
       EditorState& editor_state,
-      std::shared_ptr<FileSystemDriver> file_system_driver);
+      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver);
   static ResolvePathOptions NewWithEmptySearchPaths(
       EditorState& editor_state,
-      std::shared_ptr<FileSystemDriver> file_system_driver);
+      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver);
 
   // This is not a Path because it may contain various embedded tokens such as
   // a ':LINE:COLUMN' suffix. A Path will be extracted from it.
   std::wstring path = L"";
-  std::vector<Path> search_paths = {};
-  Path home_directory;
+  std::vector<infrastructure::Path> search_paths = {};
+  infrastructure::Path home_directory;
 
-  using Validator = std::function<futures::Value<bool>(const Path&)>;
+  using Validator =
+      std::function<futures::Value<bool>(const infrastructure::Path&)>;
   Validator validator = nullptr;
 
  private:
-  ResolvePathOptions(Path home_directory, Validator validator);
+  ResolvePathOptions(infrastructure::Path home_directory, Validator validator);
   ResolvePathOptions() = default;
 };
 
 struct ResolvePathOutput {
   // The absolute path pointing to the file.
-  Path path;
+  infrastructure::Path path;
 
   // The position to jump to.
   std::optional<LineColumn> position;

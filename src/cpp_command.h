@@ -4,17 +4,15 @@
 #include <memory>
 #include <string>
 
-#include "command.h"
 #include "vm/public/vm.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+class EditorState;
+class Command;
 
 std::unique_ptr<Command> NewCppCommand(
     EditorState& editor_state,
     std::shared_ptr<afc::vm::Environment> environment, const std::wstring code);
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_CPP_COMMAND_H__

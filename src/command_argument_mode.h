@@ -37,9 +37,9 @@ class CommandArgumentMode : public EditorMode {
     // Returns the string to show in the status.
     std::function<std::wstring(const Argument&)> status_factory;
 
-    std::function<futures::Value<EmptyValue>()> undo = nullptr;
-    std::function<futures::Value<EmptyValue>(CommandArgumentModeApplyMode,
-                                             Argument)>
+    std::function<futures::Value<language::EmptyValue>()> undo = nullptr;
+    std::function<futures::Value<language::EmptyValue>(
+        CommandArgumentModeApplyMode, Argument)>
         apply = nullptr;
   };
 
@@ -53,7 +53,7 @@ class CommandArgumentMode : public EditorMode {
   }
 
   void ProcessInput(wint_t c) override {
-    options_.undo().Transform([this, c](EmptyValue) {
+    options_.undo().Transform([this, c](language::EmptyValue) {
       // TODO: Get rid of this cast, ugh.
       switch (static_cast<int>(c)) {
         case Terminal::BACKSPACE:
@@ -69,19 +69,19 @@ class CommandArgumentMode : public EditorMode {
             return Transform(CommandArgumentModeApplyMode::kPreview, argument);
           }
           return (static_cast<int>(c) == Terminal::ESCAPE
-                      ? futures::Past(EmptyValue())
+                      ? futures::Past(language::EmptyValue())
                       : Transform(CommandArgumentModeApplyMode::kFinal,
                                   argument))
-              .Transform(
-                  [&editor_state = options_.editor_state, c](EmptyValue) {
-                    editor_state.status().Reset();
-                    auto& editor_state_copy = editor_state;
-                    editor_state.set_keyboard_redirect(nullptr);
-                    if (c != L'\n') {
-                      editor_state_copy.ProcessInput(c);
-                    }
-                    return EmptyValue();
-                  });
+              .Transform([&editor_state = options_.editor_state,
+                          c](language::EmptyValue) {
+                editor_state.status().Reset();
+                auto& editor_state_copy = editor_state;
+                editor_state.set_keyboard_redirect(nullptr);
+                if (c != L'\n') {
+                  editor_state_copy.ProcessInput(c);
+                }
+                return language::EmptyValue();
+              });
       }
     });
   }
@@ -101,8 +101,8 @@ class CommandArgumentMode : public EditorMode {
     return options_.char_consumer(c, argument);
   }
 
-  futures::Value<EmptyValue> Transform(CommandArgumentModeApplyMode apply_mode,
-                                       Argument argument) {
+  futures::Value<language::EmptyValue> Transform(
+      CommandArgumentModeApplyMode apply_mode, Argument argument) {
     options_.editor_state.status().SetInformationText(
         options_.status_factory(argument));
     return options_.apply(apply_mode, std::move(argument));
@@ -130,14 +130,14 @@ void SetOptionsForBufferTransformation(
               const std::shared_ptr<OpenBuffer>&)>& callback) {
         return futures::ForEach(buffers->begin(), buffers->end(), callback)
             .Transform([buffers](futures::IterationControlCommand) {
-              return EmptyValue();
+              return language::EmptyValue();
             });
       };
 
   options->undo = [for_each_buffer] {
     return for_each_buffer([](const std::shared_ptr<OpenBuffer>& buffer) {
       return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
-          .Transform([](EmptyValue) {
+          .Transform([](language::EmptyValue) {
             return futures::IterationControlCommand::kContinue;
           });
     });

@@ -21,6 +21,8 @@ using std::cerr;
 using std::set;
 using std::to_wstring;
 
+using infrastructure::Path;
+
 constexpr int Terminal::DOWN_ARROW;
 constexpr int Terminal::UP_ARROW;
 constexpr int Terminal::LEFT_ARROW;

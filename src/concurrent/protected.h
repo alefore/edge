@@ -6,7 +6,7 @@
 #include <memory>
 #include <mutex>
 
-namespace afc::editor {
+namespace afc::concurrent {
 template <typename T>
 struct EmptyValidator {
   void operator()(const T&) const {}
@@ -99,5 +99,5 @@ class ProtectedWithCondition : public Protected<T, Validator> {
  private:
   mutable std::condition_variable condition_;
 };
-}  // namespace afc::editor
+}  // namespace afc::concurrent
 #endif  //__AFC_EDITOR_PROTECTED_H__

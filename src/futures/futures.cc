@@ -5,21 +5,19 @@
 #include "src/tests/tests.h"
 
 namespace afc::futures {
-Value<editor::ValueOrError<editor::EmptyValue>> IgnoreErrors(
-    Value<editor::PossibleError> value) {
-  Future<editor::PossibleError> output;
-  value.SetConsumer(
-      [consumer = std::move(output.consumer)](const editor::PossibleError&) {
-        consumer(editor::Success());
-      });
+using language::Error;
+using language::PossibleError;
+using language::Success;
+
+Value<language::ValueOrError<language::EmptyValue>> IgnoreErrors(
+    Value<PossibleError> value) {
+  Future<PossibleError> output;
+  value.SetConsumer([consumer = std::move(output.consumer)](
+                        const PossibleError&) { consumer(Success()); });
   return std::move(output.value);
 }
 
 namespace {
-using editor::Error;
-using editor::Success;
-using editor::ValueOrError;
-
 // TODO(easy): Add more tests.
 const bool futures_transform_tests_registration = tests::Register(
     L"TransformTests",
@@ -27,26 +25,28 @@ const bool futures_transform_tests_registration = tests::Register(
         {.name = L"StopsEarlyOnError",
          .callback =
              [] {
-               std::optional<ValueOrError<bool>> final_result;
-               Future<ValueOrError<bool>> inner_value;
+               std::optional<language::ValueOrError<bool>> final_result;
+               Future<language::ValueOrError<bool>> inner_value;
                auto value = inner_value.value.Transform([](bool) {
                  CHECK(false);
                  return Success(true);
                });
-               value.SetConsumer(
-                   [&](ValueOrError<bool> result) { final_result = result; });
+               value.SetConsumer([&](language::ValueOrError<bool> result) {
+                 final_result = result;
+               });
                inner_value.consumer(Error(L"xyz"));
                CHECK(final_result.has_value());
              }},
         {.name = L"CorrectlyReturnsError",
          .callback =
              [] {
-               std::optional<ValueOrError<bool>> final_result;
-               Future<ValueOrError<bool>> inner_value;
+               std::optional<language::ValueOrError<bool>> final_result;
+               Future<language::ValueOrError<bool>> inner_value;
                auto value = inner_value.value.Transform(
                    [](bool) { return Success(true); });
-               value.SetConsumer(
-                   [&](ValueOrError<bool> result) { final_result = result; });
+               value.SetConsumer([&](language::ValueOrError<bool> result) {
+                 final_result = result;
+               });
                inner_value.consumer(Error(L"xyz"));
                CHECK(final_result.has_value());
                CHECK(final_result.value().IsError());
@@ -59,7 +59,7 @@ const bool futures_on_error_tests_registration = tests::Register(
     {{.name = L"WaitsForFuture",
       .callback =
           [] {
-            Future<ValueOrError<int>> internal;
+            Future<language::ValueOrError<int>> internal;
             bool executed = false;
             auto external =
                 OnError(std::move(internal.value), [&](Error error) {
@@ -74,18 +74,21 @@ const bool futures_on_error_tests_registration = tests::Register(
      {.name = L"OverridesReturnedValue",
       .callback =
           [] {
-            std::optional<ValueOrError<int>> value;
-            OnError(futures::Past(ValueOrError<int>(Error(L"Foo"))),
+            std::optional<language::ValueOrError<int>> value;
+            OnError(futures::Past(language::ValueOrError<int>(Error(L"Foo"))),
                     [&](Error) { return Success(27); })
-                .SetConsumer([&](ValueOrError<int> result) { value = result; });
+                .SetConsumer([&](language::ValueOrError<int> result) {
+                  value = result;
+                });
             CHECK(!value.value().IsError());
             CHECK_EQ(value.value().value(), 27);
           }},
      {.name = L"SkippedOnSuccess", .callback = [] {
-        OnError(futures::Past(ValueOrError(Success(12))), [&](Error value) {
-          CHECK(false);
-          return value;
-        });
+        OnError(futures::Past(language::ValueOrError(Success(12))),
+                [&](Error value) {
+                  CHECK(false);
+                  return value;
+                });
       }}});
 }  // namespace
 

@@ -51,7 +51,7 @@ class AssignExpression : public Expression {
               return EvaluationOutput::New(std::move(value_output.value));
           }
           LOG(FATAL) << "Unhandled case.";
-          return EvaluationOutput::Abort(afc::editor::Error(L"Unhandled case"));
+          return EvaluationOutput::Abort(language::Error(L"Unhandled case"));
         });
   }
 

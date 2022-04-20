@@ -36,7 +36,7 @@ struct ForkCommandOptions {
       BuffersList::AddBufferType::kVisit;
 
   // If non-empty, change to this directory in the children. Ignored if empty.
-  std::optional<Path> children_path = std::nullopt;
+  std::optional<infrastructure::Path> children_path = std::nullopt;
 };
 
 unique_ptr<Command> NewForkCommand(EditorState& editor_state);
@@ -46,10 +46,10 @@ class OpenBuffer;
 std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
                                         const ForkCommandOptions& options);
 
-futures::Value<EmptyValue> RunCommandHandler(
+futures::Value<language::EmptyValue> RunCommandHandler(
     const wstring& input, EditorState& editor_state,
     std::map<wstring, wstring> environment);
-futures::Value<EmptyValue> RunMultipleCommandsHandler(
+futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
     const wstring& input, EditorState& editor_state);
 }  // namespace editor
 namespace vm {

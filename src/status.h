@@ -35,6 +35,7 @@ class StatusPromptExtraInformationKey {
   std::wstring value;
 };
 
+using ::operator<<;
 GHOST_TYPE_OUTPUT(StatusPromptExtraInformationKey, value);
 }  // namespace afc::editor
 
@@ -108,7 +109,7 @@ class Status {
   struct timespec last_change_time() const;
 
   template <typename T>
-  T ConsumeErrors(ValueOrError<T> value, T replacement_value) {
+  T ConsumeErrors(language::ValueOrError<T> value, T replacement_value) {
     if (value.IsError()) {
       SetWarningText(value.error().description);
       return replacement_value;
@@ -134,7 +135,7 @@ class Status {
   // changed (between the call to `SetExpiringInformationText` and the moment
   // when the `StatusExpirationControl` that it returns is deleted).
   struct Data {
-    const struct timespec creation_time = Now();
+    const struct timespec creation_time = infrastructure::Now();
 
     const Type type = Type::kInformation;
     std::wstring text;

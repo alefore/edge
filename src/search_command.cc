@@ -10,7 +10,12 @@
 
 namespace afc::editor {
 namespace {
+using concurrent::Notification;
 using futures::IterationControlCommand;
+using language::EmptyValue;
+using language::Error;
+using language::Success;
+using language::ValueOrError;
 
 static void MergeInto(SearchResultsSummary current_results,
                       ValueOrError<SearchResultsSummary>* final_results) {

@@ -8,7 +8,7 @@
 
 #include "src/language/wstring.h"
 
-namespace afc::editor {
+namespace afc::language {
 struct Error {
   Error(std::wstring description) : description(std::move(description)) {}
   static Error Augment(std::wstring prefix, Error error) {
@@ -32,7 +32,7 @@ class ValueOrError {
   using ValueType = T;
 
   ValueOrError(Error error) : error_(std::move(error)) {}
-  ValueOrError(editor::ValueType<T> value) : value_(std::move(value.value)) {}
+  ValueOrError(language::ValueType<T> value) : value_(std::move(value.value)) {}
 
   std::optional<T> AsOptional() const {
     return IsError() ? std::optional<T>() : value();
@@ -106,5 +106,5 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
     tmp.value();                               \
   })
 
-}  // namespace afc::editor
+}  // namespace afc::language
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__

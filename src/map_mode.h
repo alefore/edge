@@ -22,6 +22,7 @@ using std::unique_ptr;
 using std::wstring;
 
 class MapMode;
+class EditorState;
 
 class MapModeCommands {
  public:

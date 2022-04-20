@@ -2,7 +2,7 @@
 
 #include "src/tests/tests.h"
 
-namespace afc::editor {
+namespace afc::language {
 void Observers::Add(Observers::Observer observer) {
   new_observers_.lock()->push_back(std::move(observer));
 }
@@ -121,4 +121,4 @@ bool observers_test_registration = tests::Register(
         CHECK_EQ(runs_top, 3);
       }}});
 }
-}  // namespace afc::editor
+}  // namespace afc::language

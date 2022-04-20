@@ -15,12 +15,14 @@ extern "C" {
 
 #include "src/language/ghost_type.h"
 #include "src/language/value_or_error.h"
+#include "src/language/wstring.h"
 
-namespace afc::editor {
+namespace afc::infrastructure {
 
 class PathComponent {
  public:
-  static ValueOrError<PathComponent> FromString(std::wstring component);
+  static language::ValueOrError<PathComponent> FromString(
+      std::wstring component);
   static PathComponent WithExtension(const PathComponent& path,
                                      const std::wstring& extension);
   const std::wstring& ToString() const;
@@ -30,7 +32,7 @@ class PathComponent {
   GHOST_TYPE_LT(PathComponent, component_);
 
   // Can fail for ".md".
-  ValueOrError<PathComponent> remove_extension() const;
+  language::ValueOrError<PathComponent> remove_extension() const;
 
   // "hey" => nullopt
   // "hey." => ""
@@ -45,6 +47,7 @@ class PathComponent {
   std::wstring component_;
 };
 
+using ::operator<<;
 GHOST_TYPE_OUTPUT(PathComponent, component_);
 
 class AbsolutePath;
@@ -58,24 +61,24 @@ class Path {
   static Path Root();            // Similar to FromString(L"/").
 
   static Path Join(Path a, Path b);
-  static ValueOrError<Path> FromString(std::wstring path);
+  static language::ValueOrError<Path> FromString(std::wstring path);
   static Path ExpandHomeDirectory(const Path& home_directory, const Path& path);
 
   // If an extension was already present, replaces it with the new value.
   static Path WithExtension(const Path& path, const std::wstring& extension);
 
-  ValueOrError<Path> Dirname() const;
-  ValueOrError<PathComponent> Basename() const;
+  language::ValueOrError<Path> Dirname() const;
+  language::ValueOrError<PathComponent> Basename() const;
   std::optional<std::wstring> extension() const;
 
   const std::wstring& read() const;
-  ValueOrError<std::list<PathComponent>> DirectorySplit() const;
+  language::ValueOrError<std::list<PathComponent>> DirectorySplit() const;
   bool IsRoot() const;
 
   enum class RootType { kAbsolute, kRelative };
   RootType GetRootType() const;
 
-  ValueOrError<AbsolutePath> Resolve() const;
+  language::ValueOrError<AbsolutePath> Resolve() const;
 
   Path& operator=(Path path);
 
@@ -93,7 +96,7 @@ class Path {
 class AbsolutePath : public Path {
  public:
   // Doesn't do any resolution; path must begin with '/'.
-  static ValueOrError<AbsolutePath> FromString(std::wstring path);
+  static language::ValueOrError<AbsolutePath> FromString(std::wstring path);
 
  private:
   explicit AbsolutePath(std::wstring path);
@@ -108,7 +111,7 @@ std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
 // Wrapper around `opendir` that calls `closedir` in the deleter.
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);
 
-}  // namespace afc::editor
+}  // namespace afc::infrastructure
 
-GHOST_TYPE_HASH(afc::editor::Path);
+GHOST_TYPE_HASH(afc::infrastructure::Path);
 #endif  // __AFC_EDITOR_DIRNAME_H__

@@ -55,7 +55,7 @@ class IfExpression : public Expression {
                                             : false_case.get(),
                                         type);
           }
-          auto error = afc::editor::Error(L"Unhandled OutputType case.");
+          language::Error error(L"Unhandled OutputType case.");
           LOG(FATAL) << error;
           return futures::Past(EvaluationOutput::Abort(error));
         });

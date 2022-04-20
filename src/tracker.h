@@ -46,7 +46,7 @@ class Tracker {
  private:
   const std::list<Tracker*>::iterator trackers_it_;
 
-  Protected<Data> data_;
+  concurrent::Protected<Data> data_;
 };
 
 }  // namespace afc::editor

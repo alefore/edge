@@ -4,7 +4,10 @@
 #include "src/infrastructure/time.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor {
+namespace afc::concurrent {
+using infrastructure::Now;
+using infrastructure::SecondsBetween;
+
 /* static */ std::shared_ptr<WorkQueue> WorkQueue::New() {
   return std::make_shared<WorkQueue>(ConstructorAccessTag());
 }
@@ -60,7 +63,7 @@ double WorkQueue::RecentUtilization() const {
   });
 }
 
-Observable& WorkQueue::OnSchedule() { return schedule_observers_; }
+language::Observable& WorkQueue::OnSchedule() { return schedule_observers_; }
 
 namespace {
 const bool work_queue_tests_registration = tests::Register(
@@ -193,4 +196,4 @@ const bool work_queue_channel_tests_registration = tests::Register(
         CHECK_EQ(values[0], 2);
       }}});
 }  // namespace
-}  // namespace afc::editor
+}  // namespace afc::concurrent

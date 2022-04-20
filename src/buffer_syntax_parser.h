@@ -13,7 +13,7 @@
 
 namespace afc::editor {
 // This class is thread-safe (and does significant work in a background thread).
-class BufferSyntaxParser : public Observable {
+class BufferSyntaxParser : public language::Observable {
  public:
   struct ParserOptions {
     std::wstring parser_name;
@@ -32,16 +32,19 @@ class BufferSyntaxParser : public Observable {
   std::shared_ptr<const ParseTree> current_zoomed_out_parse_tree(
       LineNumberDelta view_size, LineNumberDelta lines_size) const;
 
-  void Add(Observers::Observer observer) override;
+  // TODO(easy, 2022-04-20): Rather than implement language::Observable, just
+  // return the observable interface.
+  void Add(language::Observers::Observer observer) override;
 
  private:
-  mutable ThreadPool thread_pool_ = ThreadPool(1, nullptr);
+  mutable concurrent::ThreadPool thread_pool_ =
+      concurrent::ThreadPool(1, nullptr);
 
   struct Data {
     // Never null. When the tree changes, we notify it, install a new
     // notification, and schedule in `syntax_data_` new work.
-    std::shared_ptr<Notification> syntax_data_cancel =
-        std::make_shared<Notification>();
+    std::shared_ptr<concurrent::Notification> syntax_data_cancel =
+        std::make_shared<concurrent::Notification>();
 
     std::shared_ptr<TreeParser> tree_parser = NewNullTreeParser();
 
@@ -68,13 +71,14 @@ class BufferSyntaxParser : public Observable {
 
   static void ValidateInvariants(const Data& data);
 
-  const std::shared_ptr<
-      Protected<Data, decltype(&BufferSyntaxParser::ValidateInvariants)>>
-      data_ = std::make_shared<
-          Protected<Data, decltype(&BufferSyntaxParser::ValidateInvariants)>>(
+  const std::shared_ptr<concurrent::Protected<
+      Data, decltype(&BufferSyntaxParser::ValidateInvariants)>>
+      data_ = std::make_shared<concurrent::Protected<
+          Data, decltype(&BufferSyntaxParser::ValidateInvariants)>>(
           Data(), BufferSyntaxParser::ValidateInvariants);
 
-  const std::shared_ptr<Observers> observers_ = std::make_shared<Observers>();
+  const std::shared_ptr<language::Observers> observers_ =
+      std::make_shared<language::Observers>();
 };
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_BUFFER_SYNTAX_PARSER__

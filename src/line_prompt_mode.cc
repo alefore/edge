@@ -32,8 +32,15 @@
 #include "src/transformation/type.h"
 #include "src/vm/public/value.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using concurrent::Notification;
+using concurrent::WorkQueueChannelConsumeMode;
+using infrastructure::Path;
+using infrastructure::PathComponent;
+using language::EmptyValue;
+using language::Error;
+using language::Success;
+using language::ValueOrError;
 namespace {
 
 std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
@@ -991,5 +998,4 @@ std::unique_ptr<Command> NewLinePromptCommand(
       editor_state, std::move(description), std::move(options_supplier));
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

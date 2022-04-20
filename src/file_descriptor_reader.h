@@ -31,7 +31,7 @@ class FileDescriptorReader {
 
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.
-    FileDescriptor fd;
+    infrastructure::FileDescriptor fd;
 
     LineModifierSet modifiers;
 
@@ -40,13 +40,13 @@ class FileDescriptorReader {
     // We want to avoid potentially expensive/slow parsing operations in the
     // main thread. To achieve that, we receive a thread pool owned by our
     // customer and we delegate as much work as feasible to it.
-    ThreadPool& thread_pool;
+    concurrent::ThreadPool& thread_pool;
   };
 
   FileDescriptorReader(Options options);
   ~FileDescriptorReader();
 
-  FileDescriptor fd() const;
+  infrastructure::FileDescriptor fd() const;
   struct timespec last_input_received() const;
   double lines_read_rate() const;
 
@@ -82,8 +82,8 @@ class FileDescriptorReader {
 
   mutable struct timespec last_input_received_ = {0, 0};
 
-  const std::shared_ptr<DecayingCounter> lines_read_rate_ =
-      std::make_shared<DecayingCounter>(2.0);
+  const std::shared_ptr<math::DecayingCounter> lines_read_rate_ =
+      std::make_shared<math::DecayingCounter>(2.0);
 };
 
 }  // namespace editor

@@ -9,9 +9,9 @@
 namespace afc {
 namespace vm {
 
-using afc::editor::PossibleError;
-using afc::editor::Success;
-using afc::editor::ValueOrError;
+using language::PossibleError;
+using language::Success;
+using language::ValueOrError;
 
 BinaryOperator::BinaryOperator(
     unique_ptr<Expression> a, unique_ptr<Expression> b, const VMType type,

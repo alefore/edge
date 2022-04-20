@@ -3,14 +3,10 @@
 
 #include <memory>
 
-#include "command.h"
-
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+class Command;
+class EditorState;
 std::unique_ptr<Command> NewRecordCommand(EditorState& editor_state);
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_RECORD_COMMAND_H__

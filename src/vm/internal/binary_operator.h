@@ -18,7 +18,7 @@ class BinaryOperator : public Expression {
  public:
   BinaryOperator(
       unique_ptr<Expression> a, unique_ptr<Expression> b, const VMType type,
-      function<afc::editor::PossibleError(const Value&, const Value&, Value*)>
+      function<language::PossibleError(const Value&, const Value&, Value*)>
           callback);
 
   std::vector<VMType> Types() override;
@@ -35,7 +35,7 @@ class BinaryOperator : public Expression {
   const std::shared_ptr<Expression> a_;
   const std::shared_ptr<Expression> b_;
   VMType type_;
-  std::function<afc::editor::PossibleError(const Value&, const Value&, Value*)>
+  std::function<language::PossibleError(const Value&, const Value&, Value*)>
       operator_;
 };
 
@@ -44,12 +44,12 @@ class BinaryOperator : public Expression {
 std::unique_ptr<Expression> NewBinaryExpression(
     Compilation* compilation, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b,
-    std::function<afc::editor::ValueOrError<wstring>(wstring, wstring)>
+    std::function<language::ValueOrError<wstring>(wstring, wstring)>
         str_operator,
-    std::function<afc::editor::ValueOrError<int>(int, int)> int_operator,
-    std::function<afc::editor::ValueOrError<double>(double, double)>
+    std::function<language::ValueOrError<int>(int, int)> int_operator,
+    std::function<language::ValueOrError<double>(double, double)>
         double_operator,
-    std::function<afc::editor::ValueOrError<wstring>(wstring, int)>
+    std::function<language::ValueOrError<wstring>(wstring, int)>
         str_int_operator);
 
 }  // namespace vm

@@ -16,6 +16,13 @@
 #include "src/widget.h"
 
 namespace afc::editor {
+using infrastructure::GetElapsedSecondsSince;
+using infrastructure::Path;
+using infrastructure::PathComponent;
+using language::Error;
+using language::Success;
+using language::ValueOrError;
+
 namespace {
 struct ProcessedPathComponent {
   PathComponent path_component;

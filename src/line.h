@@ -193,7 +193,7 @@ class Line {
 
   friend class Options;
 
-  Protected<Data, decltype(&Line::ValidateInvariants)> data_;
+  concurrent::Protected<Data, decltype(&Line::ValidateInvariants)> data_;
 };
 
 }  // namespace afc::editor

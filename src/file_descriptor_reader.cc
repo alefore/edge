@@ -13,6 +13,7 @@
 #include "src/tracker.h"
 
 namespace afc::editor {
+using infrastructure::FileDescriptor;
 
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::make_shared<Options>(std::move(options))) {

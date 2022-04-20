@@ -3,6 +3,8 @@
 #include "src/substring.h"
 
 namespace afc::editor {
+using ::operator<<;
+
 std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   std::vector<Token> output;
   Token token;

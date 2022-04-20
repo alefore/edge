@@ -67,7 +67,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   struct Options {
     EditorState& editor;
     BufferName name = BufferName(L"");
-    std::optional<Path> path = {};
+    std::optional<infrastructure::Path> path = {};
 
     // Optional function that will be run to generate the contents of the
     // buffer.
@@ -83,7 +83,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     //
     // The caller (OpenBuffer) guarantees that the buffer won't be deleted until
     // the return future has received a value.
-    std::function<futures::Value<PossibleError>(OpenBuffer&)>
+    std::function<futures::Value<language::PossibleError>(OpenBuffer&)>
         generate_contents = nullptr;
 
     // Optional function to generate additional information for the status of
@@ -103,15 +103,17 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
       OpenBuffer& buffer;
       SaveType save_type = SaveType::kMainFile;
     };
-    std::function<futures::Value<PossibleError>(HandleSaveOptions)>
+    std::function<futures::Value<language::PossibleError>(HandleSaveOptions)>
         handle_save = nullptr;
 
     // Optional log to use. Must never return nullptr.
     std::function<futures::ValueOrError<std::unique_ptr<Log>>(
-        std::shared_ptr<WorkQueue> work_queue, Path edge_state_directory)>
-        log_supplier = [](std::shared_ptr<WorkQueue>, Path) {
-          return futures::Past(Success(NewNullLog()));
-        };
+        std::shared_ptr<concurrent::WorkQueue> work_queue,
+        infrastructure::Path edge_state_directory)>
+        log_supplier =
+            [](std::shared_ptr<concurrent::WorkQueue>, infrastructure::Path) {
+              return futures::Past(language::Success(NewNullLog()));
+            };
   };
 
   static std::shared_ptr<OpenBuffer> New(Options options);
@@ -127,18 +129,18 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // If it is closeable, returns std::nullopt. Otherwise, returns reasons why
   // we can predict that PrepareToClose will fail.
-  PossibleError IsUnableToPrepareToClose() const;
+  language::PossibleError IsUnableToPrepareToClose() const;
 
   // Starts saving this buffer. The future returned will have a value if there
   // was an error.
-  futures::Value<PossibleError> PrepareToClose();
+  futures::Value<language::PossibleError> PrepareToClose();
   void Close();
 
   // If the buffer was already read (fd_ == -1), this is immediately notified.
   // Otherwise, it'll be notified when the buffer is done being read.
-  futures::Value<EmptyValue> WaitForEndOfFile();
+  futures::Value<language::EmptyValue> WaitForEndOfFile();
 
-  futures::Value<EmptyValue> NewCloseFuture();
+  futures::Value<language::EmptyValue> NewCloseFuture();
 
   // Enter signals that the buffer went from being hidden to being displayed.
   void Enter();
@@ -152,11 +154,11 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Saves state of this buffer (not including contents). Currently that means
   // the values of variables, but in the future it could include other things.
   // Returns true if the state could be persisted successfully.
-  futures::Value<PossibleError> PersistState() const;
+  futures::Value<language::PossibleError> PersistState() const;
 
   // If an error occurs, returns it (in the future). Otherwise, returns an
   // empty value.
-  futures::Value<PossibleError> Save();
+  futures::Value<language::PossibleError> Save();
 
   // If we're currently at the end of the buffer *and* variable
   // `follow_end_of_file` is set, returns an object that, when deleted, will
@@ -308,13 +310,13 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   futures::Value<std::wstring> TransformKeyboardText(std::wstring input);
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
-  futures::Value<EmptyValue> ApplyToCursors(
+  futures::Value<language::EmptyValue> ApplyToCursors(
       transformation::Variant transformation);
-  futures::Value<EmptyValue> ApplyToCursors(
+  futures::Value<language::EmptyValue> ApplyToCursors(
       transformation::Variant transformation,
       Modifiers::CursorsAffected cursors_affected,
       transformation::Input::Mode mode);
-  futures::Value<EmptyValue> RepeatLastTransformation();
+  futures::Value<language::EmptyValue> RepeatLastTransformation();
 
   void PushTransformationStack();
   void PopTransformationStack();
@@ -330,7 +332,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     // modifications).
     kOnlyOne
   };
-  futures::Value<EmptyValue> Undo(UndoMode undo_mode);
+  futures::Value<language::EmptyValue> Undo(UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);
 
@@ -352,9 +354,10 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
       Expression* expr, std::shared_ptr<Environment> environment);
   futures::ValueOrError<std::unique_ptr<Value>> EvaluateString(
       const wstring& str);
-  futures::ValueOrError<std::unique_ptr<Value>> EvaluateFile(const Path& path);
+  futures::ValueOrError<std::unique_ptr<Value>> EvaluateFile(
+      const infrastructure::Path& path);
 
-  const std::shared_ptr<WorkQueue>& work_queue() const;
+  const std::shared_ptr<concurrent::WorkQueue>& work_queue() const;
 
   // Asynchronous threads that need to interact with the buffer shouldn't be
   // given a direct reference to the buffer, since OpenBuffer isn't thread safe.
@@ -389,7 +392,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   /////////////////////////////////////////////////////////////////////////////
   // Interaction with the operating system
 
-  void SetInputFiles(FileDescriptor input_fd, FileDescriptor input_fd_error,
+  void SetInputFiles(infrastructure::FileDescriptor input_fd,
+                     infrastructure::FileDescriptor input_fd_error,
                      bool fd_is_terminal, pid_t child_pid);
 
   const FileDescriptorReader* fd() const;
@@ -401,14 +405,14 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   void PushSignal(UnixSignal signal);
 
-  ObservableValue<LineColumnDelta>& view_size();
-  const ObservableValue<LineColumnDelta>& view_size() const;
+  language::ObservableValue<LineColumnDelta>& view_size();
+  const language::ObservableValue<LineColumnDelta>& view_size() const;
 
-  FileSystemDriver& file_system_driver() const;
+  infrastructure::FileSystemDriver& file_system_driver() const;
 
   // Returns the path to the directory that should be used to keep state for the
   // current buffer. If the directory doesn't exist, creates it.
-  futures::ValueOrError<Path> GetEdgeStateDirectory() const;
+  futures::ValueOrError<infrastructure::Path> GetEdgeStateDirectory() const;
 
   Log& log() const;
 
@@ -501,17 +505,17 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::unique_ptr<FileDescriptorReader> fd_;
   std::unique_ptr<FileDescriptorReader> fd_error_;
 
-  ObservableValue<LineColumnDelta> view_size_;
+  language::ObservableValue<LineColumnDelta> view_size_;
 
   std::unique_ptr<BufferTerminal> terminal_;
 
   // Functions to be called when the end of file is reached. The functions will
   // be called at most once (so they won't be notified if the buffer is
   // reloaded.
-  Observers end_of_file_observers_;
+  language::Observers end_of_file_observers_;
 
   // Functions to call when this buffer is deleted.
-  Observers close_observers_;
+  language::Observers close_observers_;
 
   enum class ReloadState {
     // No need to reload this buffer.
@@ -532,7 +536,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Optional function to execute when a sub-process exits.
   std::function<void()> on_exit_handler_;
 
-  std::shared_ptr<WorkQueue> work_queue_;
+  std::shared_ptr<concurrent::WorkQueue> work_queue_;
 
   BufferContents contents_;
 
@@ -603,7 +607,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   BufferSyntaxParser buffer_syntax_parser_;
 
-  mutable FileSystemDriver file_system_driver_;
+  mutable infrastructure::FileSystemDriver file_system_driver_;
 };
 
 EditorState& EditorForTests();

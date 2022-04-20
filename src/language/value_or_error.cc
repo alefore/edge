@@ -3,7 +3,7 @@
 #include "glog/logging.h"
 #include "src/language/wstring.h"
 
-namespace afc::editor {
+namespace afc::language {
 
 std::ostream& operator<<(std::ostream& os, const Error& p) {
   os << "[Error: " << p.description << "]";
@@ -12,4 +12,4 @@ std::ostream& operator<<(std::ostream& os, const Error& p) {
 
 ValueOrError<EmptyValue> Success() { return ValueType(EmptyValue()); }
 
-}  // namespace afc::editor
+}  // namespace afc::language

@@ -5,8 +5,7 @@
 #include <locale>
 #include <vector>
 
-namespace afc {
-namespace editor {
+namespace afc::language {
 
 typedef std::codecvt<wchar_t, char, std::mbstate_t> Converter;
 
@@ -50,5 +49,4 @@ std::wstring FromByteString(std::string input) {
   return output_string;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::language

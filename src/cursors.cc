@@ -12,8 +12,8 @@
 #include "src/lazy_string_append.h"
 #include "src/substring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::EmptyValue;
 
 void CursorsSet::SetCurrentCursor(LineColumn position) {
   active_ = cursors_.find(position);
@@ -514,5 +514,4 @@ bool operator==(const CursorsTracker::Transformation& a,
          a.column_lower_bound == b.column_lower_bound;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

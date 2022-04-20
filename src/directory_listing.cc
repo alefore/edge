@@ -12,6 +12,13 @@
 #include "src/vm/public/function_call.h"
 
 namespace afc::editor {
+using infrastructure::OpenDir;
+using infrastructure::Path;
+using language::EmptyValue;
+using language::Error;
+using language::FromByteString;
+using language::Success;
+using language::ToByteString;
 namespace {
 struct BackgroundReadDirOutput {
   std::optional<std::wstring> error_description;

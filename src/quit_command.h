@@ -3,13 +3,11 @@
 
 #include <memory>
 
-#include "command.h"
-
-namespace afc {
-namespace editor {
+namespace afc::editor {
+class Command;
+class EditorState;
 std::unique_ptr<Command> NewQuitCommand(EditorState& editor_state,
                                         int exit_value);
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_QUIT_COMMAND_H__

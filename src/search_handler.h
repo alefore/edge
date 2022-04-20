@@ -12,6 +12,9 @@
 #include "src/predictor.h"
 
 namespace afc {
+namespace concurrent {
+class Notification;
+}
 namespace editor {
 
 using std::wstring;
@@ -19,7 +22,6 @@ using std::wstring;
 class EditorState;
 class OpenBuffer;
 struct LineColumn;
-class ThreadPool;
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input);
 
@@ -40,8 +42,8 @@ struct SearchOptions {
   std::optional<size_t> required_positions;
 
   // When notified, interrupts the search. Must not be nullptr.
-  std::shared_ptr<Notification> abort_notification =
-      std::make_shared<Notification>();
+  std::shared_ptr<concurrent::Notification> abort_notification =
+      std::make_shared<concurrent::Notification>();
 };
 
 std::vector<LineColumn> SearchHandler(EditorState& editor_state,
@@ -68,8 +70,9 @@ struct SearchResultsSummary {
 // Customer must ensure that `progress_channel` survives until the callback has
 // returned (but it's OK for `buffer` to be deleted as soon as
 // `BackgroundSearchCallback` has returned).
-std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
-    SearchOptions search_options, const OpenBuffer& buffer, ProgressChannel&);
+std::function<language::ValueOrError<SearchResultsSummary>()>
+BackgroundSearchCallback(SearchOptions search_options, const OpenBuffer& buffer,
+                         ProgressChannel&);
 
 }  // namespace editor
 }  // namespace afc

@@ -60,12 +60,17 @@
 #include "src/transformation/tree_navigate.h"
 #include "src/transformation/type.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 namespace {
 using std::advance;
 using std::ceil;
 using std::make_pair;
+
+using infrastructure::AddSeconds;
+using infrastructure::Now;
+using language::EmptyValue;
+using language::Success;
+using language::ToByteString;
 
 // TODO: Replace with insert.  Insert should be called 'type'.
 class Paste : public Command {
@@ -944,5 +949,4 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   return commands;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

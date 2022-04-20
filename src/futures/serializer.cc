@@ -6,12 +6,12 @@
 
 namespace afc::futures {
 void Serializer::Push(Callback callback) {
-  futures::Future<afc::editor::EmptyValue> new_future;
+  futures::Future<language::EmptyValue> new_future;
   auto last_execution = std::move(last_execution_);
   last_execution_ = std::move(new_future.value);
   last_execution.SetConsumer(
       [callback = std::move(callback),
-       consumer = std::move(new_future.consumer)](afc::editor::EmptyValue) {
+       consumer = std::move(new_future.consumer)](language::EmptyValue) {
         callback().SetConsumer(consumer);
       });
 }

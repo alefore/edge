@@ -40,6 +40,10 @@ extern "C" {
 #include "src/vm/public/value.h"
 
 namespace afc::editor {
+using concurrent::Notification;
+using language::EmptyValue;
+using language::Error;
+using language::FromByteString;
 namespace {
 class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }

@@ -18,6 +18,9 @@
 
 namespace afc::editor {
 namespace {
+using infrastructure::Path;
+using language::EmptyValue;
+
 std::wstring GetToken(const CompositeTransformation::Input& input,
                       EdgeVariable<wstring>* characters_variable) {
   if (input.position.column < ColumnNumber(2)) return L"";

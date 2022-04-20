@@ -3,8 +3,10 @@
 #include "src/infrastructure/time.h"
 
 namespace afc::editor {
+using infrastructure::GetElapsedSecondsSince;
 namespace {
 using Trackers = std::list<Tracker*>;
+using concurrent::Protected;
 
 Protected<Trackers>::Lock lock_trackers() {
   static Protected<Trackers>* const output = new Protected<Trackers>();
@@ -38,6 +40,7 @@ Tracker::~Tracker() { lock_trackers()->erase(trackers_it_); }
 std::unique_ptr<bool, std::function<void(bool*)>> Tracker::Call() {
   data_.lock([](Data& data) { data.executions++; });
 
+  // TODO(easy, 2022-04-20): Use `infrastructure::Now()`.
   struct timespec start;
   if (clock_gettime(0, &start) == -1) {
     return nullptr;

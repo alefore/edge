@@ -13,6 +13,9 @@
 #include "src/structure.h"
 
 namespace afc {
+namespace concurrent {
+class Notification;
+}
 namespace editor {
 
 using std::function;
@@ -22,7 +25,6 @@ using std::wstring;
 
 class EditorState;
 class OpenBuffer;
-class Notification;
 
 struct ProgressInformation {
   std::map<StatusPromptExtraInformationKey, std::wstring> values = {};
@@ -37,7 +39,7 @@ struct ProgressInformation {
   std::map<StatusPromptExtraInformationKey, size_t> counters = {};
 };
 
-using ProgressChannel = WorkQueueChannel<ProgressInformation>;
+using ProgressChannel = concurrent::WorkQueueChannel<ProgressInformation>;
 
 // A Predictor is a function that generates predictions (autocompletions) for a
 // given prompt input and writes them to a buffer.
@@ -68,7 +70,7 @@ struct PredictorInput {
   ProgressChannel& progress_channel;
 
   // Will never be nullptr: Predict ensures that.
-  std::shared_ptr<Notification> abort_notification;
+  std::shared_ptr<concurrent::Notification> abort_notification;
 };
 
 struct PredictorOutput {};
@@ -124,15 +126,14 @@ struct PredictOptions {
   std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
 
   // Can be null, in which case Predict will use a dummy no-op channel.
-  std::unique_ptr<WorkQueueChannel<ProgressInformation>> progress_channel =
-      nullptr;
+  std::unique_ptr<ProgressChannel> progress_channel = nullptr;
 
   // Notification that the caller can use to signal that it wants to stop the
   // prediction (without waiting for it to complete).
   //
   // Can be null, in which case Predict will create a notification (that never
   // gets notified).
-  std::shared_ptr<Notification> abort_notification = nullptr;
+  std::shared_ptr<concurrent::Notification> abort_notification = nullptr;
 };
 
 // Create a new buffer running a given predictor on the input in a given status

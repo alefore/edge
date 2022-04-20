@@ -19,6 +19,8 @@
 
 namespace afc::editor::operation {
 using futures::Past;
+using language::EmptyValue;
+
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 

@@ -107,7 +107,7 @@ void FinishClassDeclaration(
           trampoline->SetEnvironment(original_environment);
           switch (constructor_evaluation.type) {
             case EvaluationOutput::OutputType::kReturn:
-              return EvaluationOutput::Abort(editor::Error(
+              return EvaluationOutput::Abort(language::Error(
                   L"Unexpected: return (inside class declaration)."));
             case EvaluationOutput::OutputType::kContinue:
               return EvaluationOutput::New(Value::NewObject(

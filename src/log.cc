@@ -6,6 +6,15 @@
 
 namespace afc::editor {
 namespace {
+using concurrent::ThreadPool;
+using infrastructure::FileDescriptor;
+using infrastructure::FileSystemDriver;
+using infrastructure::HumanReadableTime;
+using infrastructure::Now;
+using infrastructure::Path;
+using language::Success;
+using language::ToByteString;
+
 ThreadPool& LoggingThreadPool() {
   static ThreadPool* output = new ThreadPool(1, nullptr);
   return *output;

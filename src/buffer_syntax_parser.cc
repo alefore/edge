@@ -6,6 +6,9 @@
 #include "src/parsers/markdown.h"
 
 namespace afc::editor {
+using concurrent::Notification;
+using language::Observers;
+
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   data_->lock([&options](Data& data) {
     if (options.parser_name == L"text") {

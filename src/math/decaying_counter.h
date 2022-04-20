@@ -1,10 +1,9 @@
-#ifndef __AFC_EDITOR_DECAYING_COUNTER_H__
-#define __AFC_EDITOR_DECAYING_COUNTER_H__
+#ifndef __AFC_MATH_DECAYING_COUNTER_H__
+#define __AFC_MATH_DECAYING_COUNTER_H__
 
 #include "src/infrastructure/time.h"
 
-namespace afc {
-namespace editor {
+namespace afc::math {
 
 class DecayingCounter {
  public:
@@ -21,7 +20,6 @@ class DecayingCounter {
   mutable double scaled_rate_ = 0;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::math
 
-#endif  // __AFC_EDITOR_DECAYING_COUNTER_H__
+#endif  // __AFC_MATH_DECAYING_COUNTER_H__

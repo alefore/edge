@@ -27,6 +27,8 @@ const VMType VMTypeMapper<editor::Screen*>::vmtype =
 }  // namespace vm
 namespace editor {
 
+using infrastructure::Path;
+using language::ToByteString;
 using vm::Environment;
 using vm::ObjectType;
 using vm::Value;

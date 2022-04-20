@@ -105,7 +105,7 @@ void RegisterTimeType(Environment* environment) {
                          ToByteString(std::move(args[1]->str)).c_str(),
                          &t) == 0) {
               return futures::Past(
-                  EvaluationOutput::Abort(editor::Error(L"strftime error")));
+                  EvaluationOutput::Abort(language::Error(L"strftime error")));
             }
             return futures::Past(EvaluationOutput::Return(
                 Value::NewString(FromByteString(buffer))));

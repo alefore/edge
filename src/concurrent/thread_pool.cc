@@ -1,11 +1,8 @@
 #include "src/concurrent/thread_pool.h"
 
-#include <cctype>
-#include <ostream>
-
 #include "src/tests/tests.h"
 
-namespace afc::editor {
+namespace afc::concurrent {
 ThreadPool::ThreadPool(size_t size,
                        std::shared_ptr<WorkQueue> completion_work_queue)
     : completion_work_queue_(completion_work_queue), data_(Data{.size = size}) {
@@ -53,4 +50,4 @@ void ThreadPool::BackgroundThread() {
   }
 }
 
-}  // namespace afc::editor
+}  // namespace afc::concurrent

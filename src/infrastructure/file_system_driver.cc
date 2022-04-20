@@ -2,7 +2,13 @@
 
 #include "src/language/wstring.h"
 
-namespace afc::editor {
+namespace afc::infrastructure {
+using language::Error;
+using language::FromByteString;
+using language::PossibleError;
+using language::Success;
+using language::ToByteString;
+
 namespace {
 PossibleError SyscallReturnValue(std::wstring description, int return_value) {
   LOG(INFO) << "Syscall return value: " << description << ": " << return_value;
@@ -12,10 +18,10 @@ PossibleError SyscallReturnValue(std::wstring description, int return_value) {
 }
 }  // namespace
 
-FileSystemDriver::FileSystemDriver(ThreadPool& thread_pool)
+FileSystemDriver::FileSystemDriver(concurrent::ThreadPool& thread_pool)
     : thread_pool_(thread_pool) {}
 
-futures::Value<ValueOrError<FileDescriptor>> FileSystemDriver::Open(
+futures::ValueOrError<FileDescriptor> FileSystemDriver::Open(
     Path path, int flags, mode_t mode) const {
   return thread_pool_.Run([path = std::move(path), flags, mode]() {
     LOG(INFO) << "Opening file:" << path;
@@ -31,8 +37,8 @@ futures::Value<PossibleError> FileSystemDriver::Close(FileDescriptor fd) const {
 }
 
 futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
-  return thread_pool_.Run([path =
-                               std::move(path)]() -> ValueOrError<struct stat> {
+  return thread_pool_.Run([path = std::move(
+                               path)]() -> language::ValueOrError<struct stat> {
     struct stat output;
     if (stat(ToByteString(path.read()).c_str(), &output) == -1) {
       return Error(L"Stat failed: `" + path.read() + L"`: " +
@@ -61,4 +67,4 @@ futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
   });
 }
 
-}  // namespace afc::editor
+}  // namespace afc::infrastructure

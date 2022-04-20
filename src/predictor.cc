@@ -28,6 +28,16 @@ extern "C" {
 
 namespace afc::editor {
 namespace {
+using concurrent::Notification;
+using concurrent::WorkQueue;
+using concurrent::WorkQueueChannelConsumeMode;
+using infrastructure::FileSystemDriver;
+using infrastructure::OpenDir;
+using infrastructure::Path;
+using infrastructure::PathJoin;
+using language::EmptyValue;
+using language::FromByteString;
+using language::Success;
 
 using std::cout;
 using std::function;

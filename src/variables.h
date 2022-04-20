@@ -95,8 +95,10 @@ class EdgeStructInstance {
   void CopyFrom(const EdgeStructInstance<T>& src);
   const T& Get(const EdgeVariable<T>* variable) const;
   void Set(const EdgeVariable<T>* variable, T value);
+  // TODO(easy, 2022-04-20): Rather than receive the observer, return an
+  // observable.
   void AddObserver(const EdgeVariable<T>* variable,
-                   Observers::Observer observer);
+                   language::Observers::Observer observer);
 
  private:
   // Instantiate it through EdgeStruct::NewInstance.
@@ -104,7 +106,7 @@ class EdgeStructInstance {
 
   // We use deque to workaround the fact that std::vector<bool> doesn't return
   // references.
-  std::deque<ObservableValue<T>> values_;
+  std::deque<language::ObservableValue<T>> values_;
 
   friend class EdgeStruct<T>;
 };
@@ -115,14 +117,16 @@ class EdgeStructInstance<unique_ptr<T>> {
   void CopyFrom(const EdgeStructInstance<unique_ptr<T>>& src);
   const T* Get(const EdgeVariable<unique_ptr<T>>* variable) const;
   void Set(const EdgeVariable<unique_ptr<T>>* variable, unique_ptr<T> value);
+  // TODO(easy, 2022-04-20): Rather than receive the observer, return an
+  // observable.
   void AddObserver(const EdgeVariable<std::unique_ptr<T>>* variable,
-                   Observers::Observer observer);
+                   language::Observers::Observer observer);
 
  private:
   // Instantiate it through EdgeStruct::NewInstance.
   EdgeStructInstance() {}
 
-  std::deque<ObservableValue<unique_ptr<T>>> values_;
+  std::deque<language::ObservableValue<unique_ptr<T>>> values_;
 
   friend class EdgeStruct<unique_ptr<T>>;
 };
@@ -290,7 +294,7 @@ void EdgeStructInstance<unique_ptr<T>>::Set(
 
 template <typename T>
 void EdgeStructInstance<T>::AddObserver(const EdgeVariable<T>* variable,
-                                        Observers::Observer value) {
+                                        language::Observers::Observer value) {
   CHECK_LE(variable->position(), values_.size());
   values_.at(variable->position()).Add(std::move(value));
 }
@@ -298,7 +302,7 @@ void EdgeStructInstance<T>::AddObserver(const EdgeVariable<T>* variable,
 template <typename T>
 void EdgeStructInstance<std::unique_ptr<T>>::AddObserver(
     const EdgeVariable<std::unique_ptr<T>>* variable,
-    Observers::Observer value) {
+    language::Observers::Observer value) {
   CHECK_LE(variable->position(), values_.size());
   values_.at(variable->position()).Add(std::move(value));
 }

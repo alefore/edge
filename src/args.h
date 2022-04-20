@@ -16,7 +16,7 @@ using std::wstring;
 struct CommandLineValues : public command_line_arguments::StandardArguments {
   CommandLineValues();
 
-  Path home_directory;
+  infrastructure::Path home_directory;
 
   std::vector<std::wstring> commands_to_fork;
 
@@ -24,10 +24,10 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   wstring commands_to_run;
 
   bool server = false;
-  std::optional<Path> server_path = {};
+  std::optional<infrastructure::Path> server_path = {};
 
   // If non-empty, path of the server to connect to.
-  std::optional<Path> client = {};
+  std::optional<infrastructure::Path> client = {};
 
   bool mute = false;
   bool background = false;

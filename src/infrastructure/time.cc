@@ -7,8 +7,7 @@
 
 #include "src/language/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::infrastructure {
 
 struct timespec Now() {
   struct timespec output;
@@ -75,7 +74,10 @@ struct timespec AddSeconds(struct timespec time, double seconds_duration) {
   return time;
 }
 
-ValueOrError<std::wstring> HumanReadableTime(const struct timespec& time) {
+language::ValueOrError<std::wstring> HumanReadableTime(
+    const struct timespec& time) {
+  using language::Error;
+  using language::Success;
   struct tm tm_value;
   if (localtime_r(&time.tv_sec, &tm_value) == nullptr)
     return Error(L"localtime_r failed");
@@ -83,11 +85,10 @@ ValueOrError<std::wstring> HumanReadableTime(const struct timespec& time) {
   size_t len = strftime(buffer, sizeof(buffer), "%Y-%m-%e %T %z", &tm_value);
   if (len == 0) return Error(L"strftime failed");
   snprintf(buffer + len, sizeof(buffer) - len, ".%09ld", time.tv_nsec);
-  return Success(FromByteString(std::string(buffer, strlen(buffer))));
+  return Success(language::FromByteString(std::string(buffer, strlen(buffer))));
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::infrastructure
 
 bool operator==(const struct timespec& a, const struct timespec& b) {
   return a.tv_sec == b.tv_sec && a.tv_nsec == b.tv_nsec;

@@ -6,6 +6,9 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+using infrastructure::Path;
+using language::Error;
+using language::ValueOrError;
 
 /* static */
 URL URL::FromPath(Path path) { return URL(L"file:" + path.read()); }

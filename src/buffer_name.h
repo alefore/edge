@@ -19,7 +19,7 @@ class BufferName {
   // Name of a special buffer that contains text being inserted.
   static const BufferName& TextInsertion();
 
-  explicit BufferName(Path path);
+  explicit BufferName(infrastructure::Path path);
 
   GHOST_TYPE_CONSTRUCTOR(BufferName, std::wstring, value);
   GHOST_TYPE_EQ(BufferName, value);
@@ -32,6 +32,7 @@ class BufferName {
  private:
   std::wstring value;
 };
+using ::operator<<;
 GHOST_TYPE_OUTPUT(BufferName, value);
 }  // namespace afc::editor
 

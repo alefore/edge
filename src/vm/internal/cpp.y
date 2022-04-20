@@ -401,7 +401,7 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
                 nullptr,
                 [](int a, int b) { return Success(a * b); },
                 [](double a, double b) { return Success(a * b); },
-                [](wstring a, int b) -> afc::editor::ValueOrError<wstring> {
+                [](wstring a, int b) -> language::ValueOrError<wstring> {
                   wstring output;
                   for(int i = 0; i < b; i++) {
                     try {
@@ -844,7 +844,7 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
             std::unique_ptr<Expression>(B), nullptr,
             [](int a, int b) { return Success(a * b); },
             [](double a, double b) { return Success(a * b); },
-            [](wstring a, int b) -> afc::editor::ValueOrError<wstring> {
+            [](wstring a, int b) -> language::ValueOrError<wstring> {
               wstring output;
               for(int i = 0; i < b; i++) {
                 try {

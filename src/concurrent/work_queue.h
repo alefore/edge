@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_WORK_QUEUE_H__
-#define __AFC_EDITOR_WORK_QUEUE_H__
+#ifndef __AFC_CONCURRENT_WORK_QUEUE_H__
+#define __AFC_CONCURRENT_WORK_QUEUE_H__
 
 #include <glog/logging.h>
 
@@ -14,7 +14,7 @@
 #include "src/language/observers.h"
 #include "src/math/decaying_counter.h"
 
-namespace afc::editor {
+namespace afc::concurrent {
 // Contains a list of callbacks that will be executed later, at some point
 // shortly before the Editor attempts to sleep waiting for IO (in the main
 // loop). If this isn't empty, the main loop will actually skip the sleep and
@@ -59,7 +59,7 @@ class WorkQueue {
   // WorkQueue is spending running callbacks, recently.
   double RecentUtilization() const;
 
-  Observable& OnSchedule();
+  language::Observable& OnSchedule();
 
  private:
   struct MutableData {
@@ -78,10 +78,10 @@ class WorkQueue {
 
     // This is used to track the percentage of time spent executing (seconds per
     // second).
-    DecayingCounter execution_seconds = DecayingCounter(1.0);
+    math::DecayingCounter execution_seconds = math::DecayingCounter(1.0);
   };
   Protected<MutableData> data_;
-  Observers schedule_observers_;
+  language::Observers schedule_observers_;
 };
 
 enum class WorkQueueChannelConsumeMode {
@@ -162,6 +162,5 @@ class WorkQueueChannel {
   };
   const std::shared_ptr<Data> data_;
 };
-
-}  // namespace afc::editor
-#endif  // __AFC_EDITOR_WORK_QUEUE_H__
+}  // namespace afc::concurrent
+#endif  // __AFC_CONCURRENT_WORK_QUEUE_H__

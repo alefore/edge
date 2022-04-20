@@ -6,6 +6,8 @@
 #include "src/tracker.h"
 
 namespace afc::editor::audio {
+using concurrent::Protected;
+
 struct Generator {
   using Callback = std::function<SpeakerValue(audio::Player::Time)>;
   Callback callback;

@@ -112,7 +112,7 @@ struct EvaluationOutput {
     output.type = OutputType::kReturn;
     return output;
   }
-  static EvaluationOutput Abort(afc::editor::Error error) {
+  static EvaluationOutput Abort(afc::language::Error error) {
     EvaluationOutput output;
     output.error = std::move(error);
     output.type = OutputType::kAbort;
@@ -120,7 +120,7 @@ struct EvaluationOutput {
   }
 
   std::unique_ptr<Value> value;
-  std::optional<afc::editor::Error> error;
+  std::optional<afc::language::Error> error;
   OutputType type = OutputType::kContinue;
 };
 

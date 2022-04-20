@@ -17,6 +17,10 @@ namespace afc {
 namespace editor {
 
 namespace {
+using concurrent::Notification;
+using infrastructure::Path;
+using language::EmptyValue;
+using language::ToByteString;
 futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
                                            EditorState& editor_state) {
   OpenFile(

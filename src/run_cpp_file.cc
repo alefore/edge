@@ -9,8 +9,13 @@
 #include "src/file_link_mode.h"
 #include "src/line_prompt_mode.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using infrastructure::FileSystemDriver;
+using language::EmptyValue;
+using language::Error;
+using language::PossibleError;
+using language::Success;
+using language::ValueOrError;
 
 namespace {
 class RunCppFileCommand : public Command {
@@ -103,5 +108,4 @@ std::unique_ptr<Command> NewRunCppFileCommand(EditorState& editor_state) {
   return std::make_unique<RunCppFileCommand>(editor_state);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

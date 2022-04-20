@@ -314,7 +314,7 @@ struct Range {
   }
 
   // Returns the union, unless there's a gap between the ranges.
-  ValueOrError<Range> Union(const Range& other) const;
+  language::ValueOrError<Range> Union(const Range& other) const;
 
   Range Intersection(const Range& other) const {
     if (Disjoint(other)) {
