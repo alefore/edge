@@ -484,8 +484,8 @@ CursorsTracker::scheduled_transformations() {
 }
 
 void CursorsTracker::ApplyTransformation(const Transformation& transformation) {
-  if (transformation.line_delta == LineNumberDelta(0) &&
-      transformation.column_delta == ColumnNumberDelta(0)) {
+  if (transformation.line_delta.IsZero() &&
+      transformation.column_delta.IsZero()) {
     return;
   }
   for (auto& cursors_set : cursors_) {
