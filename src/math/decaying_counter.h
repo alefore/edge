@@ -1,15 +1,7 @@
 #ifndef __AFC_EDITOR_DECAYING_COUNTER_H__
 #define __AFC_EDITOR_DECAYING_COUNTER_H__
 
-#include <functional>
-#include <memory>
-#include <string>
-#include <unordered_set>
-#include <vector>
-
-#include "src/lazy_string.h"
-#include "src/line_column.h"
-#include "src/line_modifier.h"
+#include "src/infrastructure/time.h"
 
 namespace afc {
 namespace editor {

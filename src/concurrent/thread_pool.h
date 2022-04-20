@@ -1,7 +1,11 @@
 #ifndef __AFC_EDITOR_THREAD_POOL_H__
 #define __AFC_EDITOR_THREAD_POOL_H__
 
+#include <functional>
+#include <list>
+#include <memory>
 #include <thread>
+#include <vector>
 
 #include "src/futures/futures.h"
 #include "src/work_queue.h"
