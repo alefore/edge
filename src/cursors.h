@@ -148,7 +148,7 @@ class CursorsTracker {
     // If column_delta would leave the output cursor at a value smaller than
     // this one, goes with this one.
     //
-    // Same as output_line_ge but for column computations.
+    // Same as line_lower_bound but for column computations.
     ColumnNumber column_lower_bound;
   };
 
@@ -166,8 +166,7 @@ class CursorsTracker {
     return result == cursors_.end() ? nullptr : &result->second;
   }
 
-  // Applies the callback to every single cursor and leaves it at the returned
-  // position.
+  // Applies the transformation to every single cursor.
   void AdjustCursors(Transformation transformation);
 
   // Iterate over all cursors, running callback for each of them. callback
@@ -224,8 +223,7 @@ class CursorsTracker {
   // A key in cursors_.
   std::wstring active_set_;
 
-  // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
-  // operate.
+  // A stack of sets of cursors on which Push and Pop operate.
   std::list<CursorsSet> cursors_stack_;
 
   std::weak_ptr<std::list<ExtendedTransformation>> scheduled_transformations_;
