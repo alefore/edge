@@ -8,7 +8,6 @@
 
 #include "src/fuzz_testable.h"
 #include "src/language/wstring.h"
-#include "src/line_column.h"
 
 namespace afc::tests {
 using BenchmarkSize = size_t;
