@@ -14,6 +14,9 @@
 
 namespace afc::editor {
 namespace {
+using language::compute_hash;
+using language::MakeHashableIteratorRange;
+
 std::optional<size_t> CombineHashes(
     const std::vector<LineWithCursor::Generator>& delegates,
     const ColumnsVector& columns_vector) {

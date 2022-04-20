@@ -36,7 +36,8 @@ struct LineWithCursor {
     }
 
     template <typename Callable>
-    static Generator New(CallableWithCapture<Callable> callable_with_capture) {
+    static Generator New(
+        language::CallableWithCapture<Callable> callable_with_capture) {
       return Generator{.inputs_hash = callable_with_capture.hash,
                        .generate = std::move(callable_with_capture.callable)};
     }

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace afc::editor {
+namespace afc::language {
 inline size_t hash_combine(size_t seed) { return seed; }
 
 inline size_t hash_combine(size_t seed, size_t h) {
@@ -114,17 +114,17 @@ template <typename T>
 WithHash<T> MakeWithHash(T value, size_t hash) {
   return WithHash<T>{.hash = hash, .value = value};
 }
-}  // namespace afc::editor
+}  // namespace afc::language
 namespace std {
 template <typename Iterator, typename Callable>
-struct hash<afc::editor::HashableIteratorRange<Iterator, Callable>> {
+struct hash<afc::language::HashableIteratorRange<Iterator, Callable>> {
   std::size_t operator()(
-      const afc::editor::HashableIteratorRange<Iterator, Callable>& range) {
+      const afc::language::HashableIteratorRange<Iterator, Callable>& range) {
     size_t hash = 0;
     for (auto it = range.begin; it != range.end; ++it) {
       using Element = typename std::remove_const<typename std::remove_reference<
           decltype(range.callable(*it))>::type>::type;
-      hash = afc::editor::hash_combine(
+      hash = afc::language::hash_combine(
           hash, std::hash<Element>{}(range.callable(*it)));
     }
     return hash;
@@ -132,17 +132,17 @@ struct hash<afc::editor::HashableIteratorRange<Iterator, Callable>> {
 };
 
 template <typename Container>
-struct hash<afc::editor::HashableContainer<Container>> {
+struct hash<afc::language::HashableContainer<Container>> {
   std::size_t operator()(
-      const afc::editor::HashableContainer<Container>& container) const {
-    return afc::editor::compute_hash(afc::editor::MakeHashableIteratorRange(
+      const afc::language::HashableContainer<Container>& container) const {
+    return afc::language::compute_hash(afc::language::MakeHashableIteratorRange(
         container.container.begin(), container.container.end()));
   }
 };
 
 template <typename T>
-struct hash<afc::editor::WithHash<T>> {
-  std::size_t operator()(const afc::editor::WithHash<T>& with_hash) const {
+struct hash<afc::language::WithHash<T>> {
+  std::size_t operator()(const afc::language::WithHash<T>& with_hash) const {
     return with_hash.hash;
   }
 };

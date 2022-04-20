@@ -24,6 +24,9 @@ using std::hash;
 using std::unordered_set;
 using std::wstring;
 
+using language::compute_hash;
+using language::MakeHashableIteratorRange;
+
 namespace {
 const bool line_tests_registration = tests::Register(
     L"LineTests",

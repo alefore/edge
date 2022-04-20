@@ -18,6 +18,11 @@
 
 namespace afc::editor {
 namespace {
+using language::compute_hash;
+using language::hash_combine;
+using language::MakeWithHash;
+using language::WithHash;
+
 // Use to highlight entire lines (for variable `atomic_lines`).
 LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
@@ -176,7 +181,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     std::shared_ptr<EditorMode> editor_keyboard_redirect =
         buffer.editor().keyboard_redirect();
     LineWithCursor::Generator generator =
-        LineWithCursor::Generator::New(CaptureAndHash(
+        LineWithCursor::Generator::New(language::CaptureAndHash(
             [](ColumnNumberDelta size_columns,
                Widget::OutputProducerOptions::MainCursorBehavior
                    main_cursor_behavior,

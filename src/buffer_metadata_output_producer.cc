@@ -21,6 +21,8 @@
 namespace afc {
 namespace editor {
 namespace {
+using language::CaptureAndHash;
+
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
           wchar_t connect_final_char, wstring& output) {
   CHECK_LT(pos, output.size());

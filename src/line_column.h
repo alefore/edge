@@ -390,13 +390,13 @@ struct hash<afc::editor::LineNumber> {
 template <>
 struct hash<afc::editor::LineColumn> {
   std::size_t operator()(const afc::editor::LineColumn& line_column) const {
-    return afc::editor::compute_hash(line_column.line, line_column.column);
+    return afc::language::compute_hash(line_column.line, line_column.column);
   }
 };
 template <>
 struct hash<afc::editor::Range> {
   std::size_t operator()(const afc::editor::Range& range) const {
-    return afc::editor::compute_hash(range.begin, range.end);
+    return afc::language::compute_hash(range.begin, range.end);
   }
 };
 }  // namespace std

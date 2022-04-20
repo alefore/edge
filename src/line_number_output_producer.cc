@@ -23,6 +23,8 @@
 
 namespace afc {
 namespace editor {
+using language::CaptureAndHash;
+using language::HashableContainer;
 
 /* static */ ColumnNumberDelta LineNumberOutputWidth(
     LineNumberDelta lines_size) {

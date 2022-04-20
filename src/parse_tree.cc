@@ -12,6 +12,10 @@ extern "C" {
 #include "src/language/hash.h"
 
 namespace afc::editor {
+using language::compute_hash;
+using language::hash_combine;
+using language::MakeHashableIteratorRange;
+
 /*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
   static const auto* output = new ParseTreeProperty(L"link");
   return *output;
@@ -90,7 +94,7 @@ void ParseTree::PushChild(ParseTree child) {
 }
 
 size_t ParseTree::hash() const {
-  return hash_combine(
+  return language::hash_combine(
       compute_hash(range_, MakeHashableIteratorRange(modifiers_),
                    MakeHashableIteratorRange(properties_)),
       children_hashes_);

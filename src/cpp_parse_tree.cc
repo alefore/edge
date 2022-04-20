@@ -152,6 +152,8 @@ class CppTreeParser : public TreeParser {
  private:
   size_t GetLineHash(const LazyString& line,
                      const std::vector<size_t>& states) {
+    using language::compute_hash;
+    using language::MakeHashableIteratorRange;
     static Tracker tracker(L"CppTreeParser::GetLineHash");
     auto call = tracker.Call();
     return compute_hash(line, MakeHashableIteratorRange(states));

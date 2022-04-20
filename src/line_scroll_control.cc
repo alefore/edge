@@ -672,6 +672,9 @@ const bool line_scroll_control_tests_registration =
 }  // namespace
 }  // namespace afc::editor
 namespace std {
+using afc::language::compute_hash;
+using afc::language::MakeHashableIteratorRange;
+
 std::size_t hash<afc::editor::BufferContentsWindow::Line>::operator()(
     const afc::editor::BufferContentsWindow::Line& line) const {
   return compute_hash(line.range, line.has_active_cursor,

@@ -6,7 +6,7 @@
 
 #include "src/tests/tests.h"
 
-namespace afc::editor {
+namespace afc::language {
 namespace {
 const bool line_tests_registration = tests::Register(
     L"Hash", {{.name = L"HashableContainerFromVector",
@@ -29,4 +29,4 @@ const bool line_tests_registration = tests::Register(
                            value, compute_hash(*value))) != initial_hash);
                }}});
 }
-}  // namespace afc::editor
+}  // namespace afc::language
