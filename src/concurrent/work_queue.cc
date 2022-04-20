@@ -1,4 +1,4 @@
-#include "src/work_queue.h"
+#include "src/concurrent/work_queue.h"
 
 #include "src/concurrent/notification.h"
 #include "src/infrastructure/time.h"

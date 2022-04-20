@@ -59,6 +59,8 @@ src/concurrent/notification.h \
 src/concurrent/protected.h \
 src/concurrent/thread_pool.cc \
 src/concurrent/thread_pool.h \
+src/concurrent/work_queue.cc \
+src/concurrent/work_queue.h \
 src/const_tree.cc \
 src/const_tree.h \
 src/cursors.cc \
@@ -264,9 +266,7 @@ src/vm/internal/negate_expression.cc \
 src/vm/internal/logical_expression.cc \
 src/vm/internal/variable_lookup.cc \
 src/vm/internal/wstring.cc \
-src/widget.h \
-src/work_queue.cc \
-src/work_queue.h
+src/widget.h
 
 BENCHMARK_SOURCES = \
 src/const_tree.cc \

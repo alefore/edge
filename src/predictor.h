@@ -7,10 +7,10 @@
 #include <vector>
 
 #include "src/buffer_name.h"
+#include "src/concurrent/work_queue.h"
 #include "src/futures/futures.h"
 #include "src/status.h"
 #include "src/structure.h"
-#include "src/work_queue.h"
 
 namespace afc {
 namespace editor {

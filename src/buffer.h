@@ -14,6 +14,7 @@
 #include "src/buffer_syntax_parser.h"
 #include "src/buffer_terminal.h"
 #include "src/concurrent/notification.h"
+#include "src/concurrent/work_queue.h"
 #include "src/cursors.h"
 #include "src/file_descriptor_reader.h"
 #include "src/futures/futures.h"
@@ -35,7 +36,6 @@
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
-#include "src/work_queue.h"
 
 namespace afc {
 namespace editor {

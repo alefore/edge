@@ -17,6 +17,7 @@
 #include "src/buffers_list.h"
 #include "src/command_mode.h"
 #include "src/concurrent/thread_pool.h"
+#include "src/concurrent/work_queue.h"
 #include "src/direction.h"
 #include "src/editor_mode.h"
 #include "src/editor_variables.h"
@@ -29,7 +30,6 @@
 #include "src/transformation/type.h"
 #include "src/widget.h"
 #include "src/widget_list.h"
-#include "src/work_queue.h"
 #include "vm/public/environment.h"
 #include "vm/public/vm.h"
 

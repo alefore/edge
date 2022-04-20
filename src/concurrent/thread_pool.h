@@ -7,8 +7,8 @@
 #include <thread>
 #include <vector>
 
+#include "src/concurrent/work_queue.h"
 #include "src/futures/futures.h"
-#include "src/work_queue.h"
 
 namespace afc::editor {
 class ThreadPool {
