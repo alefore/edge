@@ -78,9 +78,6 @@ LineWithCursor::Generator::Vector::RemoveCursor() {
   return *this;
 }
 
-// TODO(2022-04-21, easy): Get rid of this, serves no purpose.
-/* static */ LineWithCursor LineWithCursor::Empty() { return LineWithCursor{}; }
-
 LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
                                              LineNumberDelta times) {
   return LineWithCursor::Generator::Vector{

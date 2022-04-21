@@ -33,7 +33,7 @@ struct LineWithCursor {
     };
 
     static Generator Empty() {
-      return Generator{std::nullopt, []() { return LineWithCursor::Empty(); }};
+      return Generator{std::nullopt, []() { return LineWithCursor{}; }};
     }
 
     template <typename Callable>
@@ -51,8 +51,6 @@ struct LineWithCursor {
     // Generates the line. Must be called at most once.
     std::function<LineWithCursor()> generate;
   };
-
-  static LineWithCursor Empty();
 
   language::NonNull<std::shared_ptr<Line>> line =
       language::MakeNonNullShared<Line>();
