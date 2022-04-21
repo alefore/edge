@@ -922,7 +922,8 @@ NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::parse_tree() const {
   return buffer_syntax_parser_.tree();
 }
 
-std::shared_ptr<const ParseTree> OpenBuffer::simplified_parse_tree() const {
+NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::simplified_parse_tree()
+    const {
   return buffer_syntax_parser_.simplified_tree();
 }
 

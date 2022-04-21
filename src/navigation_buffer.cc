@@ -115,11 +115,6 @@ futures::Value<PossibleError> GenerateContents(
   }
 
   auto tree = source->simplified_parse_tree();
-  if (tree == nullptr) {
-    target.AppendToLastLine(NewLazyString(L"Target has no tree."));
-    return futures::Past(Success());
-  }
-
   target.AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
   auto depth_value = target.environment()->Lookup(
       Environment::Namespace(), kDepthSymbol, VMType::Integer());
@@ -143,10 +138,6 @@ class NavigationBufferCommand : public Command {
     if (source == nullptr) {
       editor_state_.status().SetWarningText(
           L"NavigationBuffer needs an existing buffer.");
-      return;
-    }
-    if (source->simplified_parse_tree() == nullptr) {
-      source->status().SetInformationText(L"Buffer has no tree.");
       return;
     }
 

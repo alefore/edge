@@ -274,10 +274,8 @@ std::shared_ptr<Line> GetDefaultInformation(
     const BufferMetadataOutputOptions& options, LineNumber line) {
   Line::Options line_options;
   auto parse_tree = options.buffer.simplified_parse_tree();
-  if (parse_tree != nullptr) {
-    line_options.AppendString(
-        DrawTree(line, options.buffer.lines_size(), *parse_tree), std::nullopt);
-  }
+  line_options.AppendString(
+      DrawTree(line, options.buffer.lines_size(), *parse_tree), std::nullopt);
 
   if (options.buffer.lines_size() >
       LineNumberDelta(options.screen_lines.size())) {

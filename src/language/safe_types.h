@@ -93,6 +93,12 @@ class NonNull<std::shared_ptr<T>> {
 };
 
 template <typename T>
+bool operator==(const NonNull<std::shared_ptr<T>>& a,
+                const NonNull<std::shared_ptr<T>>& b) {
+  return a.get() == b.get();
+}
+
+template <typename T>
 NonNull<std::shared_ptr<T>> MakeNonNull(std::shared_ptr<T> obj) {
   return NonNull<std::shared_ptr<T>>(std::move(obj));
 }

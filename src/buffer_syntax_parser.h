@@ -28,7 +28,7 @@ class BufferSyntaxParser {
   void Parse(std::unique_ptr<BufferContents> contents);
 
   language::NonNull<std::shared_ptr<const ParseTree>> tree() const;
-  std::shared_ptr<const ParseTree> simplified_tree() const;
+  language::NonNull<std::shared_ptr<const ParseTree>> simplified_tree() const;
 
   std::shared_ptr<const ParseTree> current_zoomed_out_parse_tree(
       LineNumberDelta view_size, LineNumberDelta lines_size) const;
@@ -52,9 +52,8 @@ class BufferSyntaxParser {
     language::NonNull<std::shared_ptr<const ParseTree>> tree =
         language::MakeNonNullShared<const ParseTree>(Range());
 
-    // Never nullptr.
-    std::shared_ptr<const ParseTree> simplified_tree =
-        std::make_shared<ParseTree>(Range());
+    language::NonNull<std::shared_ptr<const ParseTree>> simplified_tree =
+        language::MakeNonNullShared<const ParseTree>(Range());
 
     // Caches the last parse done (by syntax_data_zoom_) for a given view size.
     struct ZoomedOutTreeData {
@@ -62,7 +61,7 @@ class BufferSyntaxParser {
       // This is kept so that we can detect when the parse tree has changed and
       // thus we need to start updating the zoomed_out_parse_tree (if the view
       // is still active).
-      std::shared_ptr<const ParseTree> simplified_tree;
+      language::NonNull<std::shared_ptr<const ParseTree>> simplified_tree;
       std::shared_ptr<const ParseTree> zoomed_out_tree;
     };
     mutable std::unordered_map<LineNumberDelta, ZoomedOutTreeData>

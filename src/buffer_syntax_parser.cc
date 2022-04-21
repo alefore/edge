@@ -57,14 +57,15 @@ void BufferSyntaxParser::Parse(std::unique_ptr<BufferContents> contents) {
               MakeNonNullShared<const ParseTree>(
                   parser->FindChildren(*contents, contents->range()));
           data_ptr->lock(std::bind_front(
-              [notification](NonNull<std::shared_ptr<const ParseTree>>& tree,
-                             std::shared_ptr<const ParseTree> simplified_tree,
-                             Data& data) {
+              [notification](
+                  NonNull<std::shared_ptr<const ParseTree>>& tree,
+                  NonNull<std::shared_ptr<const ParseTree>>& simplified_tree,
+                  Data& data) {
                 if (notification->HasBeenNotified()) return;
                 data.tree = std::move(tree);
                 data.simplified_tree = std::move(simplified_tree);
               },
-              tree, std::make_shared<ParseTree>(SimplifyTree(*tree))));
+              tree, MakeNonNullShared<const ParseTree>(SimplifyTree(*tree))));
           observers->Notify();
         });
       },
@@ -75,7 +76,8 @@ NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::tree() const {
   return data_->lock()->tree;
 }
 
-std::shared_ptr<const ParseTree> BufferSyntaxParser::simplified_tree() const {
+NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::simplified_tree()
+    const {
   return data_->lock()->simplified_tree;
 }
 
@@ -88,30 +90,30 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
     auto it = data.zoomed_out_trees.find(view_size);
     if (it == data.zoomed_out_trees.end() ||
         it->second.simplified_tree != data.simplified_tree) {
-      pool.RunIgnoringResult(
-          [view_size, lines_size, simplified_tree = data.simplified_tree,
-           notification = data.cancel_notification, data_ptr, observers]() {
-            static Tracker tracker(
-                L"OpenBuffer::current_zoomed_out_parse_tree::produce");
-            auto tracker_call = tracker.Call();
-            if (notification->HasBeenNotified()) return;
+      pool.RunIgnoringResult([view_size, lines_size,
+                              simplified_tree = data.simplified_tree,
+                              notification = data.cancel_notification, data_ptr,
+                              observers]() {
+        static Tracker tracker(
+            L"OpenBuffer::current_zoomed_out_parse_tree::produce");
+        auto tracker_call = tracker.Call();
+        if (notification->HasBeenNotified()) return;
 
-            Data::ZoomedOutTreeData output = {
-                .simplified_tree = simplified_tree,
-                .zoomed_out_tree = std::make_shared<ParseTree>(
-                    ZoomOutTree(language::Pointer(simplified_tree).Reference(),
-                                lines_size, view_size))};
-            data_ptr->lock([view_size, &output](Data& data) {
-              if (data.simplified_tree != output.simplified_tree) {
-                LOG(INFO) << "Parse tree changed in the meantime, discarding.";
-                return;
-              }
-              LOG(INFO) << "Installing tree.";
-              CHECK(output.zoomed_out_tree != nullptr);
-              data.zoomed_out_trees[view_size] = std::move(output);
-            });
-            observers->Notify();
-          });
+        Data::ZoomedOutTreeData output = {
+            .simplified_tree = simplified_tree,
+            .zoomed_out_tree = std::make_shared<ParseTree>(
+                ZoomOutTree(*simplified_tree, lines_size, view_size))};
+        data_ptr->lock([view_size, &output](Data& data) {
+          if (data.simplified_tree != output.simplified_tree) {
+            LOG(INFO) << "Parse tree changed in the meantime, discarding.";
+            return;
+          }
+          LOG(INFO) << "Installing tree.";
+          CHECK(output.zoomed_out_tree != nullptr);
+          data.zoomed_out_trees.insert_or_assign(view_size, std::move(output));
+        });
+        observers->Notify();
+      });
     }
 
     // We don't check if it's still current: we prefer returning a stale tree
@@ -127,10 +129,7 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
 language::Observable& BufferSyntaxParser::ObserveTrees() { return *observers_; }
 
 /* static */ void BufferSyntaxParser::ValidateInvariants(const Data& data) {
-  CHECK(data.simplified_tree != nullptr);
-
   for (const auto& z : data.zoomed_out_trees) {
-    CHECK(z.second.simplified_tree != nullptr);
     CHECK(z.second.zoomed_out_tree != nullptr);
   }
 }
