@@ -81,7 +81,7 @@ NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::simplified_tree()
   return data_->lock()->simplified_tree;
 }
 
-std::shared_ptr<const ParseTree>
+NonNull<std::shared_ptr<const ParseTree>>
 BufferSyntaxParser::current_zoomed_out_parse_tree(
     LineNumberDelta view_size, LineNumberDelta lines_size) const {
   return data_->lock([view_size, lines_size, data_ptr = data_,
@@ -101,7 +101,7 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
 
         Data::ZoomedOutTreeData output = {
             .simplified_tree = simplified_tree,
-            .zoomed_out_tree = std::make_shared<ParseTree>(
+            .zoomed_out_tree = MakeNonNullShared<const ParseTree>(
                 ZoomOutTree(*simplified_tree, lines_size, view_size))};
         data_ptr->lock([view_size, &output](Data& data) {
           if (data.simplified_tree != output.simplified_tree) {
@@ -109,7 +109,6 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
             return;
           }
           LOG(INFO) << "Installing tree.";
-          CHECK(output.zoomed_out_tree != nullptr);
           data.zoomed_out_trees.insert_or_assign(view_size, std::move(output));
         });
         observers->Notify();
@@ -122,16 +121,9 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
     // isn't, it'll be refreshed very shortly).
     return it != data.zoomed_out_trees.end()
                ? it->second.zoomed_out_tree
-               : std::make_shared<ParseTree>(Range());
+               : MakeNonNullShared<const ParseTree>(Range());
   });
 }
 
 language::Observable& BufferSyntaxParser::ObserveTrees() { return *observers_; }
-
-/* static */ void BufferSyntaxParser::ValidateInvariants(const Data& data) {
-  for (const auto& z : data.zoomed_out_trees) {
-    CHECK(z.second.zoomed_out_tree != nullptr);
-  }
-}
-
 }  // namespace afc::editor

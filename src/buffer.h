@@ -468,8 +468,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   const ParseTree* current_tree(const ParseTree* root) const;
 
-  std::shared_ptr<const ParseTree> current_zoomed_out_parse_tree(
-      LineNumberDelta lines) const;
+  language::NonNull<std::shared_ptr<const ParseTree>>
+  current_zoomed_out_parse_tree(LineNumberDelta lines) const;
 
   std::unique_ptr<BufferTerminal> NewTerminal();  // Public for testing.
 

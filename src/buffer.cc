@@ -1769,8 +1769,8 @@ const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
   return FollowRoute(*root, route);
 }
 
-std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
-    LineNumberDelta view_size) const {
+language::NonNull<std::shared_ptr<const ParseTree>>
+OpenBuffer::current_zoomed_out_parse_tree(LineNumberDelta view_size) const {
   return buffer_syntax_parser_.current_zoomed_out_parse_tree(view_size,
                                                              lines_size());
 }
