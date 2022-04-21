@@ -69,8 +69,8 @@ class BufferSyntaxParser {
         zoomed_out_trees;
   };
 
-  const std::shared_ptr<concurrent::Protected<Data>> data_ =
-      std::make_shared<concurrent::Protected<Data>>(Data());
+  const language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_ =
+      language::MakeNonNullShared<concurrent::Protected<Data>>(Data());
 
   const language::NonNull<std::shared_ptr<language::Observers>> observers_ =
       language::MakeNonNullShared<language::Observers>();
