@@ -54,5 +54,34 @@ void IfObj(std::optional<T> p, Callable callable) {
   if (p.has_value()) callable(*p);
 }
 
+template <typename P>
+class NonNull {};
+
+template <typename T>
+class NonNull<std::unique_ptr<T>> {
+ public:
+  NonNull(std::unique_ptr<T> value) : value_(std::move(value)) {
+    CHECK(value_ != nullptr);
+  };
+
+  T* operator->() { return value_.get(); }
+
+ private:
+  std::unique_ptr<T> value_;
+};
+
+template <typename T>
+class NonNull<std::shared_ptr<T>> {
+ public:
+  NonNull(std::shared_ptr<T> value) : value_(std::move(value)) {
+    CHECK(value_ != nullptr);
+  };
+
+  T* operator->() { return value_.get(); }
+
+ private:
+  std::shared_ptr<T> value_;
+};
+
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_SAFE_TYPES_H__

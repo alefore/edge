@@ -17,7 +17,7 @@ using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
-using language::Pointer;
+using language::NonNull;
 using language::Success;
 using language::ToByteString;
 namespace {
@@ -107,8 +107,10 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   return {
       .initial_value = NewLazyString(L"…"),
       .value = target.EvaluateExpression(expression.get(), target.environment())
-                   .Transform([expression](std::unique_ptr<Value> value) {
-                     CHECK(Pointer(value).Reference().IsString());
+                   .Transform([expression](std::unique_ptr<Value> value_ptr) {
+                     NonNull<std::unique_ptr<Value>> value =
+                         std::move(value_ptr);
+                     CHECK(value->IsString());
                      VLOG(7) << "Evaluated result: " << value->str;
                      return futures::Past(Success(std::shared_ptr<LazyString>(
                          NewLazyString(std::move(value->str)))));
