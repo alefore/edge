@@ -1,7 +1,7 @@
 #ifndef __AFC_EDITOR_SAFE_TYPES_H__
 #define __AFC_EDITOR_SAFE_TYPES_H__
 
-namespace afc::editor {
+namespace afc::language {
 template <typename Extractor>
 class BoundPointer {
  public:
@@ -54,5 +54,5 @@ void IfObj(std::optional<T> p, Callable callable) {
   if (p.has_value()) callable(*p);
 }
 
-}  // namespace afc::editor
+}  // namespace afc::language
 #endif  // __AFC_EDITOR_SAFE_TYPES_H__

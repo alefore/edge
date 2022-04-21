@@ -102,6 +102,7 @@ using language::Error;
 using language::FromByteString;
 using language::ObservableValue;
 using language::Observers;
+using language::Pointer;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;

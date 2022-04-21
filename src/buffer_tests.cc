@@ -7,6 +7,7 @@
 
 namespace afc::editor {
 using concurrent::WorkQueue;
+using language::Pointer;
 
 namespace {
 std::wstring GetMetadata(std::wstring line) {

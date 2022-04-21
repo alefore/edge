@@ -79,30 +79,30 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
     auto it = data.zoomed_out_trees.find(view_size);
     if (it == data.zoomed_out_trees.end() ||
         it->second.simplified_tree != data.simplified_tree) {
-      pool.RunIgnoringResult([view_size, lines_size,
-                              simplified_tree = data.simplified_tree,
-                              notification = data.syntax_data_cancel, data_ptr,
-                              observers]() {
-        static Tracker tracker(
-            L"OpenBuffer::current_zoomed_out_parse_tree::produce");
-        auto tracker_call = tracker.Call();
-        if (notification->HasBeenNotified()) return;
+      pool.RunIgnoringResult(
+          [view_size, lines_size, simplified_tree = data.simplified_tree,
+           notification = data.syntax_data_cancel, data_ptr, observers]() {
+            static Tracker tracker(
+                L"OpenBuffer::current_zoomed_out_parse_tree::produce");
+            auto tracker_call = tracker.Call();
+            if (notification->HasBeenNotified()) return;
 
-        Data::ZoomedOutTreeData output = {
-            .simplified_tree = simplified_tree,
-            .zoomed_out_tree = std::make_shared<ParseTree>(ZoomOutTree(
-                Pointer(simplified_tree).Reference(), lines_size, view_size))};
-        data_ptr->lock([view_size, &output](Data& data) {
-          if (data.simplified_tree != output.simplified_tree) {
-            LOG(INFO) << "Parse tree changed in the meantime, discarding.";
-            return;
-          }
-          LOG(INFO) << "Installing tree.";
-          CHECK(output.zoomed_out_tree != nullptr);
-          data.zoomed_out_trees[view_size] = std::move(output);
-        });
-        observers->Notify();
-      });
+            Data::ZoomedOutTreeData output = {
+                .simplified_tree = simplified_tree,
+                .zoomed_out_tree = std::make_shared<ParseTree>(
+                    ZoomOutTree(language::Pointer(simplified_tree).Reference(),
+                                lines_size, view_size))};
+            data_ptr->lock([view_size, &output](Data& data) {
+              if (data.simplified_tree != output.simplified_tree) {
+                LOG(INFO) << "Parse tree changed in the meantime, discarding.";
+                return;
+              }
+              LOG(INFO) << "Installing tree.";
+              CHECK(output.zoomed_out_tree != nullptr);
+              data.zoomed_out_trees[view_size] = std::move(output);
+            });
+            observers->Notify();
+          });
     }
 
     // We don't check if it's still current: we prefer returning a stale tree

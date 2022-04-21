@@ -95,7 +95,7 @@ void RegisterTimeType(Environment* environment) {
             CHECK_EQ(args.size(), 2ul);
             CHECK(args[0]->IsObject());
             Time input =
-                editor::Pointer(static_cast<Time*>(args[0]->user_value.get()))
+                language::Pointer(static_cast<Time*>(args[0]->user_value.get()))
                     .Reference();
             CHECK(args[1]->IsString());
             struct tm t;

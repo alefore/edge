@@ -171,7 +171,8 @@ class BufferContents : public fuzz::FuzzTestable {
       lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
     }
     CHECK_LE(line_number, EndLine());
-    Line::Options options = Pointer(at(line_number)).Reference().CopyOptions();
+    Line::Options options =
+        language::Pointer(at(line_number)).Reference().CopyOptions();
     callback(options);
     set_line(line_number, std::make_shared<Line>(std::move(options)));
     update_listener_(cursors_transformation);

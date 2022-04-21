@@ -14,6 +14,7 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+using language::Pointer;
 
 BufferContents::BufferContents() : BufferContents(UpdateListener()) {}
 

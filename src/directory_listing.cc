@@ -17,6 +17,7 @@ using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::Pointer;
 using language::Success;
 using language::ToByteString;
 namespace {

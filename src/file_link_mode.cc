@@ -49,6 +49,7 @@ using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::IfObj;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;

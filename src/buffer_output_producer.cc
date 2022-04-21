@@ -21,6 +21,7 @@ namespace {
 using language::compute_hash;
 using language::hash_combine;
 using language::MakeWithHash;
+using language::Pointer;
 using language::WithHash;
 
 // Use to highlight entire lines (for variable `atomic_lines`).
@@ -29,7 +30,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
       std::nullopt, [generator]() {
         auto output = generator.generate();
         Line::Options line_options =
-            Pointer(output.line).Reference().CopyOptions();
+            language::Pointer(output.line).Reference().CopyOptions();
         line_options.modifiers.insert({ColumnNumber(0), {}});
         for (auto& m : line_options.modifiers) {
           auto it = m.second.insert(LineModifier::REVERSE);
@@ -48,7 +49,7 @@ LineWithCursor::Generator ParseTreeHighlighter(
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
         Line::Options line_options =
-            Pointer(output.line).Reference().CopyOptions();
+            language::Pointer(output.line).Reference().CopyOptions();
         LineModifierSet modifiers = {LineModifier::BLUE};
         line_options.modifiers.erase(line_options.modifiers.lower_bound(begin),
                                      line_options.modifiers.lower_bound(end));
