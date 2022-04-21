@@ -100,6 +100,7 @@ using infrastructure::UpdateIfMillisecondsHavePassed;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::NonNull;
 using language::ObservableValue;
 using language::Observers;
 using language::Pointer;
@@ -917,7 +918,7 @@ void OpenBuffer::UpdateTreeParser() {
                : IdentifierBehavior::kNone});
 }
 
-std::shared_ptr<const ParseTree> OpenBuffer::parse_tree() const {
+NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::parse_tree() const {
   return buffer_syntax_parser_.tree();
 }
 
@@ -1992,10 +1993,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   auto adjusted_position = buffer.AdjustLineColumn(buffer.position());
   std::optional<URL> initial_url;
 
-  auto tree = buffer.parse_tree();
-  CHECK(tree != nullptr);
-  ParseTree::Route route =
-      FindRouteToPosition(Pointer(tree).Reference(), adjusted_position);
+  NonNull<std::shared_ptr<const ParseTree>> tree = buffer.parse_tree();
+  ParseTree::Route route = FindRouteToPosition(*tree, adjusted_position);
   for (const ParseTree* subtree : MapRoute(*tree, route)) {
     if (subtree->properties().find(ParseTreeProperty::Link()) !=
         subtree->properties().end()) {

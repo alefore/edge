@@ -2,6 +2,7 @@
 
 #include "src/buffer.h"
 #include "src/futures/futures.h"
+#include "src/language/safe_types.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"
 #include "src/transformation/composite.h"
@@ -9,12 +10,13 @@
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
+using language::NonNull;
+
 std::wstring TreeNavigate::Serialize() const { return L"TreeNavigate()"; }
 
 futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
     Input input) const {
-  auto root = input.buffer->parse_tree();
-  if (root == nullptr) return futures::Past(Output());
+  NonNull<std::shared_ptr<const ParseTree>> root = input.buffer->parse_tree();
   const ParseTree* tree = root.get();
   auto next_position = input.position;
   Seek(input.buffer->contents(), &next_position).Once();

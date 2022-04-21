@@ -460,7 +460,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Parse tree
 
   // Never returns nullptr (may return an empty tree instead).
-  std::shared_ptr<const ParseTree> parse_tree() const;
+  language::NonNull<std::shared_ptr<const ParseTree>> parse_tree() const;
   // Never returns nullptr (may return an empty tree instead).
   std::shared_ptr<const ParseTree> simplified_parse_tree() const;
 

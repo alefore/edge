@@ -60,11 +60,12 @@ class NonNull {};
 template <typename T>
 class NonNull<std::unique_ptr<T>> {
  public:
-  NonNull(std::unique_ptr<T> value) : value_(std::move(value)) {
+  explicit NonNull(std::unique_ptr<T> value) : value_(std::move(value)) {
     CHECK(value_ != nullptr);
   };
 
   T* operator->() { return value_.get(); }
+  T* get() { return value_.get(); }
 
  private:
   std::unique_ptr<T> value_;
@@ -73,15 +74,43 @@ class NonNull<std::unique_ptr<T>> {
 template <typename T>
 class NonNull<std::shared_ptr<T>> {
  public:
-  NonNull(std::shared_ptr<T> value) : value_(std::move(value)) {
+  explicit NonNull(std::unique_ptr<T> value)
+      : NonNull(std::shared_ptr<T>(std::move(value))) {}
+
+  explicit NonNull(std::shared_ptr<T> value) : value_(std::move(value)) {
     CHECK(value_ != nullptr);
   };
 
   T* operator->() { return value_.get(); }
+  T* operator->() const { return value_.get(); }
+  T& operator*() { return *value_; }
+  T& operator*() const { return *value_; }
+  T* get() { return value_.get(); }
+  T* get() const { return value_.get(); }
 
  private:
   std::shared_ptr<T> value_;
 };
+
+template <typename T>
+NonNull<std::shared_ptr<T>> MakeNonNull(std::shared_ptr<T> obj) {
+  return NonNull<std::shared_ptr<T>>(std::move(obj));
+}
+
+template <typename T>
+NonNull<std::unique_ptr<T>> MakeNonNull(std::unique_ptr<T> obj) {
+  return NonNull<std::unique_ptr<T>>(std::move(obj));
+}
+
+template <typename T>
+NonNull<std::shared_ptr<T>> MakeNonNullShared() {
+  return MakeNonNull(std::make_shared<T>());
+}
+
+template <typename T, typename Arg>
+NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg arg) {
+  return MakeNonNull(std::make_shared<T>(arg));
+}
 
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_SAFE_TYPES_H__

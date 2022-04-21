@@ -570,10 +570,6 @@ Structure* StructureTree() {
     bool FindTreeRange(const OpenBuffer* buffer, LineColumn position,
                        Direction direction, Range* output) {
       auto root = buffer->parse_tree();
-      if (root == nullptr) {
-        return false;
-      }
-
       const ParseTree* tree = root.get();
       while (true) {
         // Each iteration descends by one level in the parse tree.

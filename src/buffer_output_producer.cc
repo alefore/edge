@@ -20,6 +20,7 @@ namespace afc::editor {
 namespace {
 using language::compute_hash;
 using language::hash_combine;
+using language::MakeNonNull;
 using language::MakeWithHash;
 using language::NonNull;
 using language::WithHash;
@@ -48,7 +49,7 @@ LineWithCursor::Generator ParseTreeHighlighter(
   return LineWithCursor::Generator{
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
-        Line::Options line_options = NonNull(output.line)->CopyOptions();
+        Line::Options line_options = MakeNonNull(output.line)->CopyOptions();
         LineModifierSet modifiers = {LineModifier::BLUE};
         line_options.modifiers.erase(line_options.modifiers.lower_bound(begin),
                                      line_options.modifiers.lower_bound(end));
@@ -97,15 +98,14 @@ void GetSyntaxModifiersForLine(
 }
 
 LineWithCursor::Generator ParseTreeHighlighterTokens(
-    std::shared_ptr<const ParseTree> root, Range range,
+    NonNull<std::shared_ptr<const ParseTree>> root, Range range,
     LineWithCursor::Generator generator) {
-  CHECK(root != nullptr);
   generator.inputs_hash =
       hash_combine(hash_combine(generator.inputs_hash.value(), root->hash()),
                    std::hash<Range>{}(range));
   generator.generate = [root, range, generator = std::move(generator)]() {
     LineWithCursor input = generator.generate();
-    Line::Options options = NonNull(input.line)->CopyOptions();
+    Line::Options options = MakeNonNull(input.line)->CopyOptions();
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
     GetSyntaxModifiersForLine(range, *root, {}, &syntax_modifiers);
@@ -162,8 +162,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     const Widget::OutputProducerOptions& output_producer_options) {
   CHECK_GE(output_producer_options.size.line, LineNumberDelta());
 
-  const std::shared_ptr<const ParseTree> root = buffer.parse_tree();
-  CHECK(root != nullptr);
+  const NonNull<std::shared_ptr<const ParseTree>> root = buffer.parse_tree();
   const ParseTree* const current_tree = buffer.current_tree(root.get());
 
   LineWithCursor::Generator::Vector output{

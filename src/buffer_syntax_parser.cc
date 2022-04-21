@@ -7,23 +7,31 @@
 
 namespace afc::editor {
 using concurrent::Notification;
+using language::MakeNonNull;
+using language::MakeNonNullShared;
+using language::NonNull;
 using language::Observers;
 
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   data_->lock([&options](Data& data) {
     if (options.parser_name == L"text") {
-      data.tree_parser = NewLineTreeParser(NewWordsTreeParser(
-          options.symbol_characters, options.typos_set, NewNullTreeParser()));
-    } else if (options.parser_name == L"cpp") {
       data.tree_parser =
+          MakeNonNull(std::shared_ptr<TreeParser>(NewLineTreeParser(
+              NewWordsTreeParser(options.symbol_characters, options.typos_set,
+                                 NewNullTreeParser()))));
+    } else if (options.parser_name == L"cpp") {
+      data.tree_parser = MakeNonNull(std::shared_ptr<TreeParser>(
           NewCppTreeParser(options.language_keywords, options.typos_set,
-                           options.identifier_behavior);
+                           options.identifier_behavior)));
     } else if (options.parser_name == L"diff") {
-      data.tree_parser = parsers::NewDiffTreeParser();
+      data.tree_parser = MakeNonNull(
+          std::shared_ptr<TreeParser>(parsers::NewDiffTreeParser()));
     } else if (options.parser_name == L"md") {
-      data.tree_parser = parsers::NewMarkdownTreeParser();
+      data.tree_parser = MakeNonNull(
+          std::shared_ptr<TreeParser>(parsers::NewMarkdownTreeParser()));
     } else {
-      data.tree_parser = NewNullTreeParser();
+      data.tree_parser =
+          MakeNonNull(std::shared_ptr<TreeParser>(NewNullTreeParser()));
     }
   });
 }
@@ -34,21 +42,22 @@ void BufferSyntaxParser::Parse(std::unique_ptr<BufferContents> contents) {
           const std::shared_ptr<BufferContents>& contents, Data& data) {
         if (TreeParser::IsNull(data.tree_parser.get())) return;
 
-        data.syntax_data_cancel->Notify();
-        data.syntax_data_cancel = std::make_shared<Notification>();
+        data.cancel_notification->Notify();
+        data.cancel_notification = MakeNonNullShared<Notification>();
 
         pool.RunIgnoringResult([contents, parser = data.tree_parser,
-                                notification = data.syntax_data_cancel,
+                                notification = data.cancel_notification,
                                 data_ptr, observers] {
           static Tracker tracker(
               L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
           auto tracker_call = tracker.Call();
           VLOG(3) << "Executing parse tree update.";
           if (notification->HasBeenNotified()) return;
-          auto tree = std::make_shared<ParseTree>(
-              parser->FindChildren(*contents, contents->range()));
+          NonNull<std::shared_ptr<const ParseTree>> tree =
+              MakeNonNullShared<const ParseTree>(
+                  parser->FindChildren(*contents, contents->range()));
           data_ptr->lock(std::bind_front(
-              [notification](std::shared_ptr<const ParseTree> tree,
+              [notification](NonNull<std::shared_ptr<const ParseTree>>& tree,
                              std::shared_ptr<const ParseTree> simplified_tree,
                              Data& data) {
                 if (notification->HasBeenNotified()) return;
@@ -62,7 +71,7 @@ void BufferSyntaxParser::Parse(std::unique_ptr<BufferContents> contents) {
       std::shared_ptr<BufferContents>(std::move(contents))));
 }
 
-std::shared_ptr<const ParseTree> BufferSyntaxParser::tree() const {
+NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::tree() const {
   return data_->lock()->tree;
 }
 
@@ -81,7 +90,7 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
         it->second.simplified_tree != data.simplified_tree) {
       pool.RunIgnoringResult(
           [view_size, lines_size, simplified_tree = data.simplified_tree,
-           notification = data.syntax_data_cancel, data_ptr, observers]() {
+           notification = data.cancel_notification, data_ptr, observers]() {
             static Tracker tracker(
                 L"OpenBuffer::current_zoomed_out_parse_tree::produce");
             auto tracker_call = tracker.Call();
@@ -118,9 +127,6 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
 language::Observable& BufferSyntaxParser::ObserveTrees() { return *observers_; }
 
 /* static */ void BufferSyntaxParser::ValidateInvariants(const Data& data) {
-  CHECK(data.syntax_data_cancel != nullptr);
-  CHECK(data.tree_parser != nullptr);
-  CHECK(data.tree != nullptr);
   CHECK(data.simplified_tree != nullptr);
 
   for (const auto& z : data.zoomed_out_trees) {

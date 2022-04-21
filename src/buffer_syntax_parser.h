@@ -10,6 +10,7 @@
 #include "src/concurrent/thread_pool.h"
 #include "src/cpp_parse_tree.h"
 #include "src/language/observers.h"
+#include "src/language/safe_types.h"
 
 namespace afc::editor {
 // This class is thread-safe (and does significant work in a background thread).
@@ -26,7 +27,7 @@ class BufferSyntaxParser {
 
   void Parse(std::unique_ptr<BufferContents> contents);
 
-  std::shared_ptr<const ParseTree> tree() const;
+  language::NonNull<std::shared_ptr<const ParseTree>> tree() const;
   std::shared_ptr<const ParseTree> simplified_tree() const;
 
   std::shared_ptr<const ParseTree> current_zoomed_out_parse_tree(
@@ -39,16 +40,17 @@ class BufferSyntaxParser {
       concurrent::ThreadPool(1, nullptr);
 
   struct Data {
-    // Never null. When the tree changes, we notify it, install a new
-    // notification, and schedule in `syntax_data_` new work.
-    std::shared_ptr<concurrent::Notification> syntax_data_cancel =
-        std::make_shared<concurrent::Notification>();
+    // When the tree changes, we notify it, install a new notification, and
+    // schedule in `syntax_data_` new work.
+    language::NonNull<std::shared_ptr<concurrent::Notification>>
+        cancel_notification =
+            language::MakeNonNullShared<concurrent::Notification>();
 
-    std::shared_ptr<TreeParser> tree_parser = NewNullTreeParser();
+    language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
+        language::MakeNonNull(std::shared_ptr<TreeParser>(NewNullTreeParser()));
 
-    // Never nullptr.
-    std::shared_ptr<const ParseTree> tree =
-        std::make_shared<ParseTree>(Range());
+    language::NonNull<std::shared_ptr<const ParseTree>> tree =
+        language::MakeNonNullShared<const ParseTree>(Range());
 
     // Never nullptr.
     std::shared_ptr<const ParseTree> simplified_tree =
