@@ -55,14 +55,14 @@ class BufferContents : public fuzz::FuzzTestable {
     return lines_->Get(position.line);
   }
 
-  shared_ptr<const Line> back() const {
+  language::NonNull<std::shared_ptr<const Line>> back() const {
     CHECK(lines_ != nullptr);
-    return at(EndLine());
+    return language::MakeNonNull(at(EndLine()));
   }
 
-  shared_ptr<const Line> front() const {
+  language::NonNull<std::shared_ptr<const Line>> front() const {
     CHECK(lines_ != nullptr);
-    return at(LineNumber(0));
+    return language::MakeNonNull(at(LineNumber(0)));
   }
 
   // Iterates: runs the callback on every line in the buffer, passing as the
