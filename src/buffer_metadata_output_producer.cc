@@ -22,6 +22,7 @@ namespace afc {
 namespace editor {
 namespace {
 using language::CaptureAndHash;
+using language::MakeNonNullShared;
 
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
           wchar_t connect_final_char, wstring& output) {
@@ -129,7 +130,7 @@ LineWithCursor::Generator NewGenerator(std::wstring prefix, MetadataLine line) {
           options.AppendString(prefix, LineModifierSet{LineModifier::YELLOW});
         }
         options.Append(suffix);
-        return LineWithCursor{Line(options)};
+        return LineWithCursor{.line = MakeNonNullShared<Line>(options)};
       },
       line.info_char, line.modifier, std::move(*line.suffix),
       std::move(prefix)));

@@ -25,6 +25,7 @@ namespace afc {
 namespace editor {
 using language::CaptureAndHash;
 using language::HashableContainer;
+using language::MakeNonNullShared;
 
 /* static */ ColumnNumberDelta LineNumberOutputWidth(
     LineNumberDelta lines_size) {
@@ -69,7 +70,8 @@ LineWithCursor::Generator::Vector LineNumberOutput(
           line_options.AppendString(
               StringAppend(padding, NewLazyString(number + L":")),
               modifiers.container);
-          return LineWithCursor(Line(std::move(line_options)));
+          return LineWithCursor{
+              .line = MakeNonNullShared<Line>(std::move(line_options))};
         },
         std::move(screen_line.range), width, std::move(modifiers))));
   }

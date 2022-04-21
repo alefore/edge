@@ -20,7 +20,7 @@ namespace afc::editor {
 namespace {
 using language::compute_hash;
 using language::hash_combine;
-using language::MakeNonNull;
+using language::MakeNonNullShared;
 using language::MakeWithHash;
 using language::NonNull;
 using language::WithHash;
@@ -30,8 +30,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
       std::nullopt, [generator]() {
         auto output = generator.generate();
-        Line::Options line_options =
-            language::Pointer(output.line).Reference().CopyOptions();
+        Line::Options line_options = output.line->CopyOptions();
         line_options.modifiers.insert({ColumnNumber(0), {}});
         for (auto& m : line_options.modifiers) {
           auto it = m.second.insert(LineModifier::REVERSE);
@@ -39,7 +38,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
             m.second.erase(it.first);
           }
         }
-        output.line = std::make_shared<Line>(std::move(line_options));
+        output.line = MakeNonNullShared<Line>(std::move(line_options));
         return output;
       }};
 }
@@ -49,12 +48,12 @@ LineWithCursor::Generator ParseTreeHighlighter(
   return LineWithCursor::Generator{
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
-        Line::Options line_options = MakeNonNull(output.line)->CopyOptions();
+        Line::Options line_options = output.line->CopyOptions();
         LineModifierSet modifiers = {LineModifier::BLUE};
         line_options.modifiers.erase(line_options.modifiers.lower_bound(begin),
                                      line_options.modifiers.lower_bound(end));
         line_options.modifiers[begin] = {LineModifier::BLUE};
-        output.line = std::make_shared<Line>(std::move(line_options));
+        output.line = MakeNonNullShared<Line>(std::move(line_options));
         return output;
       }};
 }
@@ -105,7 +104,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
                    std::hash<Range>{}(range));
   generator.generate = [root, range, generator = std::move(generator)]() {
     LineWithCursor input = generator.generate();
-    Line::Options options = MakeNonNull(input.line)->CopyOptions();
+    Line::Options options = input.line->CopyOptions();
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
     GetSyntaxModifiersForLine(range, *root, {}, &syntax_modifiers);
@@ -149,7 +148,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
     }
     options.modifiers = std::move(merged_modifiers);
 
-    input.line = std::make_shared<Line>(std::move(options));
+    input.line = MakeNonNullShared<Line>(std::move(options));
     return input;
   };
   return generator;

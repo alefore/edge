@@ -26,13 +26,15 @@
 
 namespace afc::editor {
 namespace {
+using language::MakeNonNullShared;
+
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
 LineWithCursor ProducerForString(std::wstring src, LineModifierSet modifiers) {
   Line::Options options;
   options.AppendString(std::move(src), std::move(modifiers));
-  return LineWithCursor(Line(std::move(options)));
+  return LineWithCursor{.line = MakeNonNullShared<Line>(std::move(options))};
 }
 
 LineWithCursor::Generator::Vector AddLeftFrame(
@@ -112,7 +114,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
           Line::Options line_options;
           line_options.AppendString(output.line->contents(),
                                     LineModifierSet{LineModifier::DIM});
-          output.line = std::make_shared<Line>(std::move(line_options));
+          output.line = MakeNonNullShared<Line>(std::move(line_options));
           return output;
         }};
   }
@@ -275,8 +277,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   auto buffer = input.buffer;
   if (buffer == nullptr) {
     return BufferOutputProducerOutput{
-        .lines = RepeatLine(LineWithCursor(Line()),
-                            input.output_producer_options.size.line),
+        .lines = RepeatLine({}, input.output_producer_options.size.line),
         .view_start = input.view_start};
   }
 
@@ -349,8 +350,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       BufferContentsWindow::Get(buffer_contents_window_input);
   if (window.lines.empty())
     return BufferOutputProducerOutput{
-        .lines = RepeatLine(LineWithCursor(Line()),
-                            input.output_producer_options.size.line),
+        .lines = RepeatLine({}, input.output_producer_options.size.line),
         .view_start = {}};
 
   LineColumnDelta total_size = input.output_producer_options.size;
@@ -444,9 +444,9 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
     frame_options.prefix =
         (options.size.line > kTopFrameLines && add_left_frame) ? L"╭" : L"─";
 
-    auto frame_lines =
-        RepeatLine(LineWithCursor(FrameLine(std::move(frame_options))),
-                   LineNumberDelta(1));
+    auto frame_lines = RepeatLine(
+        {.line = MakeNonNullShared<Line>(FrameLine(std::move(frame_options)))},
+        LineNumberDelta(1));
 
     if (add_left_frame) {
       output.lines = AddLeftFrame(

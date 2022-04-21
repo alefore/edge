@@ -185,7 +185,6 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   Terminal::LineDrawer output;
   std::vector<decltype(LineDrawer::draw_callback)> functions;
 
-  CHECK(line_with_cursor.line != nullptr);
   VLOG(6) << "Writing line of length: "
           << line_with_cursor.line->EndColumn().ToDelta();
   ColumnNumber input_column;

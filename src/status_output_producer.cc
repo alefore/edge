@@ -17,6 +17,8 @@
 
 namespace afc::editor {
 namespace {
+using language::MakeNonNullShared;
+
 wstring GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
   if (auto current_line_marks = marks.find(buffer.position().line.line);
@@ -132,7 +134,6 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
   }
 
-  LineWithCursor line_with_cursor;
   Line::Options line_options;
 
   ColumnNumberDelta status_columns;
@@ -144,6 +145,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
           ? LineModifierSet({LineModifier::RED, LineModifier::BOLD})
           : LineModifierSet();
 
+  std::optional<ColumnNumber> cursor;
   line_options.AppendString(output, modifiers);
 
   auto text = options.status.text();
@@ -157,7 +159,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     Line::Options prefix = contents->CopyOptions();
     prefix.DeleteSuffix(column);
     line_options.Append(Line(std::move(prefix)));
-    line_with_cursor.cursor = ColumnNumber(0) + line_options.contents->size();
+    cursor = ColumnNumber(0) + line_options.contents->size();
     Line::Options suffix = contents->CopyOptions();
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
     line_options.Append(Line(std::move(suffix)));
@@ -166,8 +168,9 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     VLOG(6) << "Not setting status cursor.";
     line_options.AppendString(text, modifiers);
   }
-  line_with_cursor.line = std::make_shared<Line>(std::move(line_options));
-  return line_with_cursor;
+  return LineWithCursor{
+      .line = MakeNonNullShared<Line>(std::move(line_options)),
+      .cursor = cursor};
 }
 
 LineNumberDelta context_lines(const StatusOutputOptions& options) {

@@ -3,11 +3,13 @@
 #include <glog/logging.h>
 
 #include "src/language/hash.h"
+#include "src/language/safe_types.h"
 #include "src/line.h"
 #include "src/line_column.h"
 #include "src/tests/tests.h"
-
 namespace afc::editor {
+using language::MakeNonNullShared;
+
 LineWithCursor::Generator::Vector& LineWithCursor::Generator::Vector::resize(
     LineNumberDelta size) {
   lines.resize(size.line_delta, Generator::Empty());
@@ -43,9 +45,13 @@ const bool tests_registration =
       return std::vector<tests::Test>{
           {.name = L"TwoRowsShort", .callback = [&] {
              auto output = Build(
-                 RepeatLine(LineWithCursor(Line(L"top")), LineNumberDelta(2))
-                     .Append(RepeatLine(LineWithCursor(Line(L"bottom")),
-                                        LineNumberDelta(2))));
+                 RepeatLine(
+                     LineWithCursor{.line = MakeNonNullShared<Line>(L"top")},
+                     LineNumberDelta(2))
+                     .Append(RepeatLine(
+                         LineWithCursor{.line =
+                                            MakeNonNullShared<Line>(L"bottom")},
+                         LineNumberDelta(2))));
              CHECK_EQ(output.size(), 4ul);
              CHECK(output[0] == L"top");
              CHECK(output[1] == L"top");
@@ -72,12 +78,8 @@ LineWithCursor::Generator::Vector::RemoveCursor() {
   return *this;
 }
 
-LineWithCursor::LineWithCursor(Line line)
-    : line(std::make_shared<Line>(std::move(line))){};
-
-/* static */ LineWithCursor LineWithCursor::Empty() {
-  return LineWithCursor(Line());
-}
+// TODO(2022-04-21, easy): Get rid of this, serves no purpose.
+/* static */ LineWithCursor LineWithCursor::Empty() { return LineWithCursor{}; }
 
 LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
                                              LineNumberDelta times) {

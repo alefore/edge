@@ -20,6 +20,7 @@ using infrastructure::GetElapsedSecondsSince;
 using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::Error;
+using language::MakeNonNullShared;
 using language::Success;
 using language::ValueOrError;
 
@@ -605,7 +606,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                                 : LineModifierSet{},
                 selection_state, path_components[index + i], &output);
           }
-          return LineWithCursor(Line(std::move(output)));
+          return LineWithCursor{.line =
+                                    MakeNonNullShared<Line>(std::move(output))};
         }});
     index += options->buffers_per_line;
   }

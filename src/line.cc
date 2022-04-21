@@ -26,6 +26,7 @@ using std::wstring;
 
 using language::compute_hash;
 using language::MakeHashableIteratorRange;
+using language::MakeNonNullShared;
 
 namespace {
 const bool line_tests_registration = tests::Register(
@@ -452,7 +453,7 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
       line_with_cursor.cursor = ColumnNumber() + line_output.contents->size();
     }
 
-    line_with_cursor.line = std::make_shared<Line>(std::move(line_output));
+    line_with_cursor.line = MakeNonNullShared<Line>(std::move(line_output));
     return line_with_cursor;
   });
 }

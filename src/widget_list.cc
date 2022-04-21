@@ -23,6 +23,7 @@
 
 namespace afc {
 namespace editor {
+using language::MakeNonNullShared;
 
 WidgetList::WidgetList(std::vector<std::unique_ptr<Widget>> children,
                        size_t active)
@@ -149,11 +150,12 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
   if (children_skipped > 0) {
     output.lines.push_back(
         {.inputs_hash = {}, .generate = [children_skipped] {
-           return LineWithCursor(FrameLine(
-               {.title =
-                    L"Additional files: " + std::to_wstring(children_skipped),
-                .active_state =
-                    FrameOutputProducerOptions::ActiveState::kActive}));
+           return LineWithCursor{
+               .line = MakeNonNullShared<Line>(FrameLine(
+                   {.title = L"Additional files: " +
+                             std::to_wstring(children_skipped),
+                    .active_state =
+                        FrameOutputProducerOptions::ActiveState::kActive}))};
          }});
   }
 
@@ -221,7 +223,7 @@ LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
     column.lines = children_[index]->CreateOutput(std::move(child_options));
   }
   return columns_vector.columns.empty()
-             ? RepeatLine(LineWithCursor(Line()), options.size.line)
+             ? RepeatLine({}, options.size.line)
              : OutputFromColumnsVector(std::move(columns_vector));
 }
 

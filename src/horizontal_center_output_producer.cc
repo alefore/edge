@@ -12,8 +12,7 @@ namespace afc::editor {
 using V = ColumnsVector;
 namespace {
 V::Column GetPadding(LineNumberDelta lines, ColumnNumberDelta width) {
-  return V::Column{.lines = RepeatLine(LineWithCursor(Line()), lines),
-                   .width = width};
+  return V::Column{.lines = RepeatLine({}, lines), .width = width};
 }
 }  // namespace
 

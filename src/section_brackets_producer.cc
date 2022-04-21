@@ -13,6 +13,8 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+using language::MakeNonNullShared;
+
 LineWithCursor::Generator::Vector SectionBrackets(
     LineNumberDelta lines, SectionBracketsSide section_brackets_side) {
   LineWithCursor::Generator::Vector output{.lines = {},
@@ -21,7 +23,8 @@ LineWithCursor::Generator::Vector SectionBrackets(
     if (output.size() < lines)
       output.lines.push_back(LineWithCursor::Generator{
           std::hash<wstring>{}(c), [c]() {
-            return LineWithCursor(Line(Line::Options(NewLazyString(c))));
+            return LineWithCursor{.line = MakeNonNullShared<Line>(
+                                      Line::Options(NewLazyString(c)))};
           }});
   };
   push(section_brackets_side == SectionBracketsSide::kLeft ? L"╭" : L"╮");

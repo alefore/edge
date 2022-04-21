@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "src/language/hash.h"
+#include "src/language/safe_types.h"
 #include "src/line_column.h"
 
 namespace afc::editor {
@@ -51,12 +52,10 @@ struct LineWithCursor {
     std::function<LineWithCursor()> generate;
   };
 
-  explicit LineWithCursor(Line line);
-  LineWithCursor() = default;
-
   static LineWithCursor Empty();
 
-  std::shared_ptr<Line> line;
+  language::NonNull<std::shared_ptr<Line>> line =
+      language::MakeNonNullShared<Line>();
 
   // Output parameter. If the active cursor is found in the line, stores here
   // the column in which it was output here. May be nullptr.

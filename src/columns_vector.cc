@@ -16,6 +16,7 @@ namespace afc::editor {
 namespace {
 using language::compute_hash;
 using language::MakeHashableIteratorRange;
+using language::MakeNonNullShared;
 
 std::optional<size_t> CombineHashes(
     const std::vector<LineWithCursor::Generator>& delegates,
@@ -108,7 +109,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
         .inputs_hash = CombineHashes(line_input, *columns_vector),
         .generate = [line, line_input = std::move(line_input),
                      columns_vector]() {
-          LineWithCursor output;
+          std::optional<ColumnNumber> cursor;
           Line::Options options;
           ColumnNumber initial_column;
           LineModifierSet current_modifiers;
@@ -132,13 +133,11 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
             LineWithCursor column_data = line_input[i].generate();
             if (column_data.cursor.has_value() &&
                 i == columns_vector->index_active) {
-              output.cursor =
-                  initial_column + column_data.cursor.value().ToDelta();
+              cursor = initial_column + column_data.cursor.value().ToDelta();
             }
 
             current_modifiers = column_data.line->end_of_line_modifiers();
 
-            CHECK(column_data.line != nullptr);
             if (columns_vector->columns.at(i).width.has_value()) {
               // TODO: respect columns_[i].width.
               initial_column += columns_vector->columns.at(i).width.value();
@@ -150,8 +149,9 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
                 std::max(0, wcswidth(str.c_str(), str.size())));
             options.Append(std::move(*column_data.line));
           }
-          output.line = std::make_shared<Line>(std::move(options));
-          return output;
+          return LineWithCursor{
+              .line = MakeNonNullShared<Line>(std::move(options)),
+              .cursor = cursor};
         }});
   }
   return output;
@@ -167,8 +167,9 @@ const bool buffer_tests_registration = tests::Register(
                ColumnsVector columns_vector;
                for (int i = 0; i < 5; i++)
                  columns_vector.push_back(
-                     {.lines = RepeatLine(LineWithCursor(Line(L"foo bar")),
-                                          LineNumberDelta(5)),
+                     {.lines = RepeatLine(
+                          {.line = MakeNonNullShared<Line>(L"foo bar")},
+                          LineNumberDelta(5)),
                       .width = ColumnNumberDelta(10)});
                LineWithCursor::Generator::Vector produce =
                    OutputFromColumnsVector(std::move(columns_vector));
@@ -186,12 +187,14 @@ const bool buffer_tests_registration = tests::Register(
              [] {
                ColumnsVector columns_vector;
                columns_vector.push_back(
-                   {.lines = RepeatLine(LineWithCursor(Line(L"foo")),
-                                        LineNumberDelta(1)),
+                   {.lines =
+                        RepeatLine({.line = MakeNonNullShared<Line>(L"foo")},
+                                   LineNumberDelta(1)),
                     .width = ColumnNumberDelta(3)});
                columns_vector.push_back(
-                   {.lines = RepeatLine(LineWithCursor(Line(L"bar")),
-                                        LineNumberDelta(10)),
+                   {.lines =
+                        RepeatLine({.line = MakeNonNullShared<Line>(L"bar")},
+                                   LineNumberDelta(10)),
                     .width = ColumnNumberDelta(10)});
                LineWithCursor::Generator::Vector output =
                    OutputFromColumnsVector(std::move(columns_vector));

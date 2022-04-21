@@ -1,6 +1,8 @@
 #ifndef __AFC_EDITOR_SAFE_TYPES_H__
 #define __AFC_EDITOR_SAFE_TYPES_H__
 
+#include <glog/logging.h>
+
 namespace afc::language {
 template <typename Extractor>
 class BoundPointer {
