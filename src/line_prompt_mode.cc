@@ -45,9 +45,10 @@ using language::Success;
 using language::ValueOrError;
 namespace {
 
-std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
 GetCurrentFeatures(EditorState& editor) {
-  std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
+  std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
+      output;
   for (auto& [_, buffer] : *editor.buffers()) {
     // We have to deal with nullptr buffers here because this gets called after
     // the entry for the new buffer has been inserted to the editor, but before
@@ -56,16 +57,12 @@ GetCurrentFeatures(EditorState& editor) {
         buffer->Read(buffer_variables::show_in_buffers_list) &&
         editor.buffer_tree().GetBufferIndex(buffer.get()).has_value()) {
       output.insert(
-          {L"name",
-           std::move(NewLazyString(buffer->Read(buffer_variables::name))
-                         .get_unique())});
+          {L"name", NewLazyString(buffer->Read(buffer_variables::name))});
     }
   }
   editor.ForEachActiveBuffer([&output](OpenBuffer& buffer) {
     output.insert(
-        {L"active",
-         std::move(
-             NewLazyString(buffer.Read(buffer_variables::name)).get_unique())});
+        {L"active", NewLazyString(buffer.Read(buffer_variables::name))});
     return futures::Past(EmptyValue());
   });
   return output;
@@ -73,11 +70,12 @@ GetCurrentFeatures(EditorState& editor) {
 
 // Generates additional features that are derived from the features returned by
 // GetCurrentFeatures (and thus don't need to be saved).
-std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
 GetSyntheticFeatures(
-    const std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>&
-        input) {
-  std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
+    const std::unordered_multimap<
+        std::wstring, NonNull<std::shared_ptr<LazyString>>>& input) {
+  std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
+      output;
   std::unordered_set<Path> directories;
   std::unordered_set<std::wstring> extensions;
   for (const auto& [name, value] : input) {
@@ -97,13 +95,10 @@ GetSyntheticFeatures(
     }
   }
   for (auto& dir : directories) {
-    output.insert(
-        {L"directory", std::move(NewLazyString(dir.read()).get_unique())});
+    output.insert({L"directory", NewLazyString(dir.read())});
   }
   for (auto& extension : extensions) {
-    output.insert(
-        {L"extension",
-         std::move(NewLazyString(std::move(extension)).get_unique())});
+    output.insert({L"extension", NewLazyString(std::move(extension))});
   }
   return output;
 }
@@ -115,10 +110,10 @@ const bool get_synthetic_features_tests_registration = tests::Register(
      {.name = L"ExtensionsSimple",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
                 input;
-            input.insert(
-                {L"name", std::move(NewLazyString(L"foo.cc").get_unique())});
+            input.insert({L"name", NewLazyString(L"foo.cc")});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
             CHECK(output.find(L"extension")->second->ToString() == L"cc");
@@ -126,11 +121,11 @@ const bool get_synthetic_features_tests_registration = tests::Register(
      {.name = L"ExtensionsLongDirectory",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
                 input;
-            input.insert({L"name", std::move(NewLazyString(
-                                                 L"/home/alejo/src/edge/foo.cc")
-                                                 .get_unique())});
+            input.insert(
+                {L"name", NewLazyString(L"/home/alejo/src/edge/foo.cc")});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
             CHECK(output.find(L"extension")->second->ToString() == L"cc");
@@ -138,21 +133,17 @@ const bool get_synthetic_features_tests_registration = tests::Register(
      {.name = L"ExtensionsMultiple",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
                 input;
-            input.insert(
-                {L"name",
-                 std::move(NewLazyString(L"/home/alejo/foo.cc").get_unique())});
-            input.insert(
-                {L"name", std::move(NewLazyString(L"bar.cc").get_unique())});
-            input.insert(
-                {L"name",
-                 std::move(
-                     NewLazyString(L"/home/alejo/buffer.h").get_unique())});
-            input.insert(
-                {L"name",
-                 std::move(
-                     NewLazyString(L"/home/alejo/README.md").get_unique())});
+            input.insert({L"name", NewLazyString(L"/home/alejo/foo.cc")});
+            input.insert({L"name", NewLazyString(L"bar.cc")});
+            input.insert({L"name",
+
+                          NewLazyString(L"/home/alejo/buffer.h")});
+            input.insert({L"name",
+
+                          NewLazyString(L"/home/alejo/README.md")});
             auto output = GetSyntheticFeatures(input);
             auto range = output.equal_range(L"extension");
             CHECK_EQ(std::distance(range.first, range.second), 3l);
@@ -165,42 +156,32 @@ const bool get_synthetic_features_tests_registration = tests::Register(
      {.name = L"DirectoryPlain",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
                 input;
-            input.insert(
-                {L"name", std::move(NewLazyString(L"foo.cc").get_unique())});
+            input.insert({L"name", NewLazyString(L"foo.cc")});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"directory"), 0ul);
           }},
      {.name = L"DirectoryPath",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
                 input;
-            input.insert(
-                {L"name",
-                 std::move(
-                     NewLazyString(L"/home/alejo/edge/foo.cc").get_unique())});
+            input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"directory"), 1ul);
             CHECK(output.find(L"directory")->second->ToString() ==
                   L"/home/alejo/edge");
           }},
      {.name = L"DirectoryMultiple", .callback = [] {
-        std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
+        std::unordered_multimap<std::wstring,
+                                NonNull<std::shared_ptr<LazyString>>>
             input;
-        input.insert(
-            {L"name",
-             std::move(
-                 NewLazyString(L"/home/alejo/edge/foo.cc").get_unique())});
-        input.insert(
-            {L"name",
-             std::move(
-                 NewLazyString(L"/home/alejo/edge/bar.cc").get_unique())});
-        input.insert(
-            {L"name",
-             std::move(
-                 NewLazyString(L"/home/alejo/btc/input.txt").get_unique())});
+        input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
+        input.insert({L"name", NewLazyString(L"/home/alejo/edge/bar.cc")});
+        input.insert({L"name", NewLazyString(L"/home/alejo/btc/input.txt")});
         auto output = GetSyntheticFeatures(input);
         auto range = output.equal_range(L"directory");
         CHECK_EQ(std::distance(range.first, range.second), 2l);
@@ -248,10 +229,11 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetHistoryBuffer(
           });
 }
 
-// TODO(easy, 2022-04-22): The values should be NonNull.
-ValueOrError<std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>>
+ValueOrError<
+    std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>>
 ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
-  std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
+  std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
+      output;
   for (const auto& token : TokenizeBySpaces(*line)) {
     auto colon = token.value.find(':');
     if (colon == string::npos) {
@@ -269,9 +251,8 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
     // Skip quotes:
     ++value_start;
     --value_end;
-    output.insert(
-        {token.value.substr(0, colon),
-         Substring(line, value_start, value_end - value_start).get_shared()});
+    output.insert({token.value.substr(0, colon),
+                   Substring(line, value_start, value_end - value_start)});
   }
   for (auto& additional_features : GetSyntheticFeatures(output)) {
     output.insert(additional_features);
@@ -279,22 +260,20 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
   return Success(std::move(output));
 }
 
-std::shared_ptr<LazyString> QuoteString(std::shared_ptr<LazyString> src) {
-  // TODO(easy, 2022-04-22): Convert to NonNull.
+NonNull<std::shared_ptr<LazyString>> QuoteString(
+    NonNull<std::shared_ptr<LazyString>> src) {
   return StringAppend(NewLazyString(L"\""),
                       NewLazyString(CppEscapeString(src->ToString())),
-                      NewLazyString(L"\""))
-      .get_shared();
+                      NewLazyString(L"\""));
 }
 
 auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
   auto test = [](std::wstring name, std::wstring input,
                  std::wstring expected_output) {
-    return tests::Test(
-        {.name = name, .callback = [=] {
-           CHECK(QuoteString(std::move(NewLazyString(input).get_unique()))
-                     ->ToString() == expected_output);
-         }});
+    return tests::Test({.name = name, .callback = [=] {
+                          CHECK(QuoteString(NewLazyString(input))->ToString() ==
+                                expected_output);
+                        }});
   };
   return std::vector<tests::Test>(
       {test(L"Simple", L"alejo", L"\"alejo\""),
@@ -306,17 +285,13 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
 }());
 
 NonNull<std::shared_ptr<LazyString>> BuildHistoryLine(
-    EditorState& editor, std::shared_ptr<LazyString> input) {
+    EditorState& editor, NonNull<std::shared_ptr<LazyString>> input) {
   std::vector<NonNull<std::shared_ptr<LazyString>>> line_for_history;
   line_for_history.emplace_back(NewLazyString(L"prompt:"));
-  // TODO(2022-04-22, easy): Get rid of the 'Unsafe':
-  line_for_history.emplace_back(NonNull<std::shared_ptr<LazyString>>::Unsafe(
-      QuoteString(std::move(input))));
+  line_for_history.emplace_back(QuoteString(std::move(input)));
   for (auto& [name, feature] : GetCurrentFeatures(editor)) {
     line_for_history.emplace_back(NewLazyString(L" " + name + L":"));
-    // TODO(2022-04-22, easy): Get rid of the 'Unsafe':
-    line_for_history.emplace_back(
-        NonNull<std::shared_ptr<LazyString>>::Unsafe(QuoteString(feature)));
+    line_for_history.emplace_back(QuoteString(feature));
   }
   return Concatenate(std::move(line_for_history));
 }
@@ -729,8 +704,7 @@ class LinePromptCommand : public Command {
     if (editor_state_.structure() == StructureLine()) {
       editor_state_.ResetStructure();
       auto input = buffer->current_line();
-      AddLineToHistory(editor_state_, options.history_file,
-                       input->contents().get_shared());
+      AddLineToHistory(editor_state_, options.history_file, input->contents());
       options.handler(input->ToString());
     } else {
       Prompt(std::move(options));
@@ -799,9 +773,8 @@ futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
 HistoryFile HistoryFileFiles() { return HistoryFile(L"files"); }
 HistoryFile HistoryFileCommands() { return HistoryFile(L"commands"); }
 
-// TODO(easy, 2022-04-22): Receive input as NonNull.
 void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
-                      std::shared_ptr<LazyString> input) {
+                      NonNull<std::shared_ptr<LazyString>> input) {
   if (input->size().IsZero()) return;
   GetHistoryBuffer(editor, history_file)
       .Transform([history_line = BuildHistoryLine(editor, input)](
@@ -934,8 +907,7 @@ void Prompt(PromptOptions options) {
                 [&editor_state, options,
                  prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
                   auto input = buffer->current_line()->contents();
-                  AddLineToHistory(editor_state, options.history_file,
-                                   input.get_shared());
+                  AddLineToHistory(editor_state, options.history_file, input);
                   auto ensure_survival_of_current_closure =
                       editor_state.set_keyboard_redirect(nullptr);
                   prompt_state->Reset();

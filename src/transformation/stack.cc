@@ -335,9 +335,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             std::unique_ptr<BufferContents> contents =
                 input.buffer.contents().copy();
             contents->FilterToRange(*delete_transformation.range);
-            AddLineToHistory(
-                input.buffer.editor(), HistoryFileCommands(),
-                std::move(NewLazyString(contents->ToString()).get_unique()));
+            AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),
+                             NewLazyString(contents->ToString()));
             ForkCommand(input.buffer.editor(),
                         ForkCommandOptions{
                             .command = contents->ToString(),

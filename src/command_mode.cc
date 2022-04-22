@@ -547,7 +547,7 @@ class ActivateLink : public Command {
             if (std::wstring path = target->Read(buffer_variables::path);
                 !path.empty())
               AddLineToHistory(editor_state, HistoryFileFiles(),
-                               std::move(NewLazyString(path).get_unique()));
+                               NewLazyString(path));
             editor_state.AddBuffer(target, BuffersList::AddBufferType::kVisit);
           }
           return Success();

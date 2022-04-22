@@ -80,7 +80,7 @@ struct PromptOptions {
 };
 
 void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
-                      std::shared_ptr<LazyString> input);
+                      language::NonNull<std::shared_ptr<LazyString>> input);
 
 void Prompt(PromptOptions options);
 
