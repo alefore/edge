@@ -122,7 +122,7 @@ futures::Value<PossibleError> GenerateContents(
   auto depth_value = target.environment()->Lookup(
       Environment::Namespace(), kDepthSymbol, VMType::Integer());
   int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
-  DisplayTree(source, depth, *tree, EmptyString(), target);
+  DisplayTree(source, depth, *tree, EmptyString().get_shared(), target);
   return futures::Past(Success());
 }
 

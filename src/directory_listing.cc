@@ -94,7 +94,7 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
       VMType::Function({VMType::String(), VMType::String()}));
   if (callback == nullptr) {
     VLOG(5) << "Unable to find suitable GetPathMetadata definition";
-    return {.initial_value = EmptyString(),
+    return {.initial_value = EmptyString().get_shared(),
             .value = futures::Future<std::shared_ptr<LazyString>>().value};
   }
 

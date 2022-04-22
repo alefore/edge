@@ -165,7 +165,7 @@ ValueOrError<ParsedCommand> Parse(
 ValueOrError<ParsedCommand> Parse(std::shared_ptr<LazyString> command,
                                   Environment* environment,
                                   const SearchNamespaces& search_namespaces) {
-  return Parse(command, environment, EmptyString(),
+  return Parse(command, environment, EmptyString().get_shared(),
                {VMType::Void(), VMType::String()}, search_namespaces);
 }
 

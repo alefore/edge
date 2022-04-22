@@ -126,10 +126,11 @@ LineNumberDelta operator--(LineNumberDelta& a, int) {
   return copy;
 }
 
+// TODO(easy, 2022-04-22): Add NonNull.
 /* static */ std::shared_ptr<LazyString> ColumnNumberDelta::PaddingString(
     const ColumnNumberDelta& length, wchar_t fill) {
   if (length < ColumnNumberDelta(0)) {
-    return EmptyString();
+    return EmptyString().get_shared();
   }
   return NewLazyString(length, fill);
 }

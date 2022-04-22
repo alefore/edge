@@ -33,7 +33,8 @@ const bool lower_case_tests_registration = tests::Register(
     {{.name = L"EmptyString",
       .callback =
           [] {
-            CHECK_EQ(LowerCaseImpl(EmptyString()).size(), ColumnNumberDelta());
+            CHECK_EQ(LowerCaseImpl(EmptyString().get_shared()).size(),
+                     ColumnNumberDelta());
           }},
      {.name = L"SimpleString", .callback = [] {
         // TODO: Why can't we use CHECK_EQ? Why can't the compiler find

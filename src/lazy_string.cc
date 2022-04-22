@@ -5,9 +5,8 @@
 #include "src/lazy_string_functional.h"
 #include "src/tracker.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+using language::NonNull;
 namespace {
 class EmptyStringImpl : public LazyString {
  public:
@@ -43,9 +42,8 @@ bool LazyString::operator<(const LazyString& x) {
   return size() < x.size();
 }
 
-std::shared_ptr<LazyString> EmptyString() {
-  return std::make_shared<EmptyStringImpl>();
+NonNull<std::shared_ptr<LazyString>> EmptyString() {
+  return NonNull<std::shared_ptr<EmptyStringImpl>>();
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

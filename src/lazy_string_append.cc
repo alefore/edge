@@ -3,11 +3,13 @@
 #include <glog/logging.h>
 
 #include "src/const_tree.h"
+#include "src/language/safe_types.h"
 #include "src/lazy_string_functional.h"
 #include "src/line_column.h"
 
 namespace afc {
 namespace editor {
+using language::NonNull;
 namespace {
 class StringAppendImpl : public LazyString {
  public:
@@ -71,11 +73,11 @@ std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
 std::shared_ptr<LazyString> Concatenate(
     std::vector<std::shared_ptr<LazyString>> inputs) {
   // TODO: There's probably a faster way to do this. Not sure it matters.
-  auto output = EmptyString();
+  NonNull<std::shared_ptr<LazyString>> output = EmptyString();
   for (auto& i : inputs) {
-    output = StringAppend(output, i);
+    output = StringAppend(output.get_shared(), i);
   }
-  return output;
+  return output.get_shared();
 }
 
 }  // namespace editor

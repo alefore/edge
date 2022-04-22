@@ -4,8 +4,9 @@
 #include <memory>
 #include <string>
 
-namespace afc::editor {
+#include "src/language/safe_types.h"
 
+namespace afc::editor {
 class ColumnNumber;
 class ColumnNumberDelta;
 
@@ -22,8 +23,7 @@ class LazyString {
   bool operator<(const LazyString& x);
 };
 
-std::shared_ptr<LazyString> EmptyString();
-
+language::NonNull<std::shared_ptr<LazyString>> EmptyString();
 }  // namespace afc::editor
 
 #endif
