@@ -195,7 +195,8 @@ NonNull<std::unique_ptr<T>> MakeNonNullUnique(Arg... arg) {
 
 template <typename T, typename... Arg>
 NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg&&... arg) {
-  return NonNull<std::shared_ptr<T>>::Unsafe(std::make_shared<T>(arg...));
+  return NonNull<std::shared_ptr<T>>::Unsafe(
+      std::make_shared<T>(std::move(arg)...));
 }
 
 }  // namespace afc::language
