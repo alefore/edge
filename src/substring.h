@@ -8,16 +8,13 @@
 #include "src/language/safe_types.h"
 
 namespace afc::editor {
-
-using std::shared_ptr;
-
 // Returns the substring from pos to the end of the string.
 //
 // Equivalent to:
 //
 //     Substring(input, pos, input.size() - pos);
 language::NonNull<std::shared_ptr<LazyString>> Substring(
-    std::shared_ptr<LazyString> input, ColumnNumber column);
+    language::NonNull<std::shared_ptr<LazyString>> input, ColumnNumber column);
 
 // Returns the contents in [pos, pos + len).
 //
@@ -25,7 +22,7 @@ language::NonNull<std::shared_ptr<LazyString>> Substring(
 //
 // Example: Substring("alejo", 1, 2) := "le"
 language::NonNull<std::shared_ptr<LazyString>> Substring(
-    std::shared_ptr<LazyString> input, ColumnNumber column,
+    language::NonNull<std::shared_ptr<LazyString>> input, ColumnNumber column,
     ColumnNumberDelta delta);
 
 // Similar to the other versions, but performs checks on the bounds; instead of
@@ -33,8 +30,7 @@ language::NonNull<std::shared_ptr<LazyString>> Substring(
 //
 // Example: Substring("carla", 2, 30) := "rla"
 language::NonNull<std::shared_ptr<LazyString>> SubstringWithRangeChecks(
-    shared_ptr<LazyString> input, ColumnNumber column, ColumnNumberDelta delta);
-
+    language::NonNull<std::shared_ptr<LazyString>> input, ColumnNumber column,
+    ColumnNumberDelta delta);
 }  // namespace afc::editor
-
 #endif  // __AFC_EDITOR_SUBSTRING_H__

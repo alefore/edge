@@ -12,8 +12,8 @@ using language::NonNull;
 
 class SubstringImpl : public LazyString {
  public:
-  SubstringImpl(const shared_ptr<LazyString>& input, ColumnNumber column,
-                ColumnNumberDelta delta)
+  SubstringImpl(const NonNull<std::shared_ptr<LazyString>> input,
+                ColumnNumber column, ColumnNumberDelta delta)
       : buffer_(input), column_(column), delta_(delta) {}
 
   wchar_t get(ColumnNumber pos) const override {
@@ -23,22 +23,21 @@ class SubstringImpl : public LazyString {
   ColumnNumberDelta size() const override { return delta_; }
 
  private:
-  const shared_ptr<LazyString> buffer_;
+  const NonNull<std::shared_ptr<LazyString>> buffer_;
   // First column to read from.
   const ColumnNumber column_;
   const ColumnNumberDelta delta_;
 };
 
 NonNull<std::shared_ptr<LazyString>> Substring(
-    std::shared_ptr<LazyString> input, ColumnNumber column) {
+    NonNull<std::shared_ptr<LazyString>> input, ColumnNumber column) {
   auto size = input->size();
   return Substring(std::move(input), column, size - column.ToDelta());
 }
 
 NonNull<std::shared_ptr<LazyString>> Substring(
-    std::shared_ptr<LazyString> input, ColumnNumber column,
+    NonNull<std::shared_ptr<LazyString>> input, ColumnNumber column,
     ColumnNumberDelta delta) {
-  CHECK(input != nullptr);
   if (column.IsZero() && delta == ColumnNumberDelta(input->size())) {
     return input;  // Optimization.
   }
@@ -48,12 +47,11 @@ NonNull<std::shared_ptr<LazyString>> Substring(
 }
 
 NonNull<std::shared_ptr<LazyString>> SubstringWithRangeChecks(
-    std::shared_ptr<LazyString> input, ColumnNumber column,
+    NonNull<std::shared_ptr<LazyString>> input, ColumnNumber column,
     ColumnNumberDelta delta) {
   auto length = ColumnNumberDelta(input->size());
   column = std::min(column, ColumnNumber(0) + length);
   return Substring(std::move(input), column,
                    std::min(delta, length - column.ToDelta()));
 }
-
 }  // namespace afc::editor
