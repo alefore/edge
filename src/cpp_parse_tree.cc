@@ -39,7 +39,7 @@ class CppTreeParser : public TreeParser {
                 IdentifierBehavior identifier_behavior)
       : words_parser_(NewWordsTreeParser(
             L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", typos,
-            NewNullTreeParser())),
+            std::move(NewNullTreeParser().get_unique()))),
         keywords_(std::move(keywords)),
         typos_(std::move(typos)),
         identifier_behavior_(identifier_behavior),

@@ -8,6 +8,7 @@
 
 #include "src/buffer_contents.h"
 #include "src/language/ghost_type.h"
+#include "src/language/safe_types.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
 
@@ -117,7 +118,7 @@ class TreeParser {
   virtual ParseTree FindChildren(const BufferContents& lines, Range range) = 0;
 };
 
-std::unique_ptr<TreeParser> NewNullTreeParser();
+language::NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser();
 std::unique_ptr<TreeParser> NewCharTreeParser();
 std::unique_ptr<TreeParser> NewWordsTreeParser(
     std::wstring word_characters, std::unordered_set<std::wstring> typos,

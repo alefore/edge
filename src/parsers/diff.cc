@@ -11,6 +11,7 @@
 namespace afc {
 namespace editor {
 namespace parsers {
+using language::NonNull;
 namespace {
 
 enum State { DEFAULT, HEADERS, SECTION, CONTENTS };
@@ -125,8 +126,8 @@ class DiffParser : public TreeParser {
 
 }  // namespace
 
-std::unique_ptr<TreeParser> NewDiffTreeParser() {
-  return std::make_unique<DiffParser>();
+NonNull<std::unique_ptr<TreeParser>> NewDiffTreeParser() {
+  return NonNull<std::unique_ptr<DiffParser>>();
 }
 }  // namespace parsers
 }  // namespace editor

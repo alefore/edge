@@ -15,23 +15,20 @@ using language::Observers;
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   data_->lock([&options](Data& data) {
     if (options.parser_name == L"text") {
-      data.tree_parser =
-          MakeNonNull(std::shared_ptr<TreeParser>(NewLineTreeParser(
-              NewWordsTreeParser(options.symbol_characters, options.typos_set,
-                                 NewNullTreeParser()))));
+      data.tree_parser = MakeNonNull(
+          std::shared_ptr<TreeParser>(NewLineTreeParser(NewWordsTreeParser(
+              options.symbol_characters, options.typos_set,
+              std::move(NewNullTreeParser().get_unique())))));
     } else if (options.parser_name == L"cpp") {
       data.tree_parser = MakeNonNull(std::shared_ptr<TreeParser>(
           NewCppTreeParser(options.language_keywords, options.typos_set,
                            options.identifier_behavior)));
     } else if (options.parser_name == L"diff") {
-      data.tree_parser = MakeNonNull(
-          std::shared_ptr<TreeParser>(parsers::NewDiffTreeParser()));
+      data.tree_parser = parsers::NewDiffTreeParser();
     } else if (options.parser_name == L"md") {
-      data.tree_parser = MakeNonNull(
-          std::shared_ptr<TreeParser>(parsers::NewMarkdownTreeParser()));
+      data.tree_parser = parsers::NewMarkdownTreeParser();
     } else {
-      data.tree_parser =
-          MakeNonNull(std::shared_ptr<TreeParser>(NewNullTreeParser()));
+      data.tree_parser = NewNullTreeParser();
     }
   });
 }

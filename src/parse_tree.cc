@@ -15,6 +15,7 @@ namespace afc::editor {
 using language::compute_hash;
 using language::hash_combine;
 using language::MakeHashableIteratorRange;
+using language::NonNull;
 
 /*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
   static const auto* output = new ParseTreeProperty(L"link");
@@ -296,8 +297,8 @@ class LineTreeParser : public TreeParser {
   return dynamic_cast<NullTreeParser*>(parser) != nullptr;
 }
 
-std::unique_ptr<TreeParser> NewNullTreeParser() {
-  return std::make_unique<NullTreeParser>();
+NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser() {
+  return NonNull<std::unique_ptr<NullTreeParser>>();
 }
 
 std::unique_ptr<TreeParser> NewWordsTreeParser(

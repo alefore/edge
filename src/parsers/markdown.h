@@ -3,12 +3,13 @@
 
 #include <memory>
 
+#include "src/language/safe_types.h"
 #include "src/parse_tree.h"
 
 namespace afc {
 namespace editor {
 namespace parsers {
-std::unique_ptr<TreeParser> NewMarkdownTreeParser();
+language::NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser();
 }  // namespace parsers
 }  // namespace editor
 }  // namespace afc

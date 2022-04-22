@@ -3,6 +3,8 @@
 
 #include <glog/logging.h>
 
+#include <optional>
+
 namespace afc::language {
 template <typename Extractor>
 class BoundPointer {
@@ -62,12 +64,24 @@ class NonNull {};
 template <typename T>
 class NonNull<std::unique_ptr<T>> {
  public:
+  NonNull() : value_(std::make_unique<T>()) {}
+
   explicit NonNull(std::unique_ptr<T> value) : value_(std::move(value)) {
     CHECK(value_ != nullptr);
   };
 
+  // Use the `Other` type for types where `std::unique_ptr<Other>` can be
+  // converted to `std::unique_ptr<T>`.
+  template <typename Other>
+  NonNull(NonNull<std::unique_ptr<Other>> value)
+      : value_(std::move(value.get_unique())) {
+    CHECK(value_ != nullptr);
+  }
+
   T* operator->() { return value_.get(); }
   T* get() { return value_.get(); }
+
+  std::unique_ptr<T>& get_unique() { return value_; }
 
  private:
   std::unique_ptr<T> value_;
@@ -99,6 +113,12 @@ class NonNull<std::shared_ptr<T>> {
   template <typename Other>
   NonNull operator=(const NonNull<std::shared_ptr<Other>>& value) {
     value_ = value.get_shared();
+    return *this;
+  }
+
+  template <typename Other>
+  NonNull operator=(NonNull<std::unique_ptr<Other>> value) {
+    value_ = std::move(value.get_unique());
     return *this;
   }
 

@@ -11,6 +11,7 @@
 namespace afc {
 namespace editor {
 namespace parsers {
+using language::NonNull;
 namespace {
 
 enum State {
@@ -285,12 +286,11 @@ class MarkdownParser : public TreeParser {
     result->seek().ToEndOfLine();
     result->PushAndPop(result->position().column.ToDelta(), {modifiers});
   }
-};  // namespace
-
+};
 }  // namespace
 
-std::unique_ptr<TreeParser> NewMarkdownTreeParser() {
-  return std::make_unique<MarkdownParser>();
+NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser() {
+  return NonNull<std::unique_ptr<MarkdownParser>>();
 }
 }  // namespace parsers
 }  // namespace editor
