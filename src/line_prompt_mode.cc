@@ -967,7 +967,8 @@ void Prompt(PromptOptions options) {
                                         },
                                         WorkQueueChannelConsumeMode::kAll),
                                     NonNull<std::shared_ptr<Notification>>())
-                                // TODO(2022-04-22, easy): Use bind front?
+                                // Can't use std::bind_front: need to return
+                                // success.
                                 .Transform([buffer, prompt_state,
                                             prompt_render_state,
                                             original_line =
