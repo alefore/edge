@@ -207,18 +207,19 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void EraseLines(LineNumber first, LineNumber last);
 
   // Inserts a new line into the buffer at a given position.
-  void InsertLine(LineNumber line_position, shared_ptr<Line> line);
+  void InsertLine(LineNumber line_position,
+                  language::NonNull<std::shared_ptr<Line>> line);
 
   // Can handle \n characters, breaking it into lines.
-  void AppendLazyString(std::shared_ptr<LazyString> input);
+  void AppendLazyString(language::NonNull<std::shared_ptr<LazyString>> input);
   // line must not contain \n characters.
-  void AppendLine(std::shared_ptr<LazyString> line);
-  void AppendRawLine(std::shared_ptr<LazyString> str);
+  void AppendLine(language::NonNull<std::shared_ptr<LazyString>> line);
+  void AppendRawLine(language::NonNull<std::shared_ptr<LazyString>> str);
 
   // Insert a line at the end of the buffer.
-  void AppendRawLine(std::shared_ptr<Line> line);
+  void AppendRawLine(language::NonNull<std::shared_ptr<Line>> line);
 
-  void AppendToLastLine(std::shared_ptr<LazyString> str);
+  void AppendToLastLine(language::NonNull<std::shared_ptr<LazyString>> str);
   void AppendToLastLine(Line line);
 
   // Adds a new line. If there's a previous line, notifies various things about

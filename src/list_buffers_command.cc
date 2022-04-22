@@ -14,6 +14,7 @@
 #include "src/screen_vm.h"
 
 namespace afc::editor {
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
@@ -138,9 +139,9 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
     }
     if (target.contents().size() == LineNumberDelta(1) &&
         target.contents().at(LineNumber(0))->EndColumn().IsZero()) {
-      target.AppendToLastLine(std::move(name.get_shared()));
+      target.AppendToLastLine(name);
     } else {
-      target.AppendLine(std::move(name.get_shared()));
+      target.AppendLine(name);
     }
     AdjustLastLine(target, buffer);
 
@@ -154,7 +155,7 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
         options.Append(*buffer->LineAt(context.first));
         context.first++;
       }
-      target.AppendRawLine(std::make_shared<Line>(options));
+      target.AppendRawLine(MakeNonNullShared<Line>(options));
       AdjustLastLine(target, buffer);
       ++index;
     }

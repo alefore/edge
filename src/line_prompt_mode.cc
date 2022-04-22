@@ -305,7 +305,7 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
        test(L"MultiLine", L"foo\nbar\nhey", L"\"foo\\nbar\\nhey\"")});
 }());
 
-std::shared_ptr<LazyString> BuildHistoryLine(
+NonNull<std::shared_ptr<LazyString>> BuildHistoryLine(
     EditorState& editor, std::shared_ptr<LazyString> input) {
   std::vector<NonNull<std::shared_ptr<LazyString>>> line_for_history;
   line_for_history.emplace_back(NewLazyString(L"prompt:"));
@@ -318,8 +318,7 @@ std::shared_ptr<LazyString> BuildHistoryLine(
     line_for_history.emplace_back(
         NonNull<std::shared_ptr<LazyString>>::Unsafe(QuoteString(feature)));
   }
-  // TODO(2022-04-22, easy): Get rid of the 'get_shared':
-  return Concatenate(std::move(line_for_history)).get_shared();
+  return Concatenate(std::move(line_for_history));
 }
 
 NonNull<std::shared_ptr<Line>> ColorizeLine(
@@ -487,7 +486,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             if (!abort_notification->HasBeenNotified()) {
               for (auto& line : output.lines) {
                 // TODO(easy, 2022-04-22): Get rid of get_shared.
-                filter_buffer->AppendRawLine(line.get_shared());
+                filter_buffer->AppendRawLine(line);
               }
 
               if (filter_buffer->lines_size() > LineNumberDelta(1)) {
@@ -778,7 +777,7 @@ void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
   }
 
   status_buffer->AppendRawLine(
-      ColorizeLine(line->contents(), std::move(options.tokens)).get_shared());
+      ColorizeLine(line->contents(), std::move(options.tokens)));
   status_buffer->EraseLines(LineNumber(0), LineNumber(1));
   if (options.context.has_value()) {
     prompt_state->status().set_context(options.context.value());
@@ -808,7 +807,6 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
       .Transform([history_line = BuildHistoryLine(editor, input)](
                      std::shared_ptr<OpenBuffer> history) {
         CHECK(history != nullptr);
-        CHECK(history_line != nullptr);
         history->AppendLine(history_line);
         return Success();
       });

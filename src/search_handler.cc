@@ -22,6 +22,7 @@ using concurrent::WorkQueueChannelConsumeMode;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::MakeNonNullShared;
 using language::Success;
 using language::ValueOrError;
 
@@ -258,9 +259,9 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   if (!matches.empty()) {
     // Add the matches to the predictions buffer.
     for (auto& match : matches) {
-      input.predictions->AppendToLastLine(
-          std::move(NewLazyString(std::move(match)).get_unique()));
-      input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
+      input.predictions->AppendToLastLine(NewLazyString(std::move(match)));
+      input.predictions->AppendRawLine(
+          MakeNonNullShared<Line>(Line::Options()));
     }
   }
   input.predictions->EndOfFile();

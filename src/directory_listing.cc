@@ -17,6 +17,7 @@ using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::Success;
 using language::ToByteString;
@@ -154,9 +155,7 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
   }
 
   line_options.SetMetadata(GetMetadata(target, path));
-
-  auto line = std::make_shared<Line>(std::move(line_options));
-  target.AppendRawLine(line);
+  target.AppendRawLine(MakeNonNullShared<Line>(std::move(line_options)));
   target.contents().back()->environment()->Define(
       L"EdgeLineDeleteHandler",
       vm::NewCallback([&editor = target.editor(), path]() {
@@ -173,10 +172,8 @@ void ShowFiles(wstring name, std::vector<dirent> entries, OpenBuffer& target) {
               return strcmp(a.d_name, b.d_name) < 0;
             });
 
-  target.AppendLine(
-      std::move(NewLazyString(L"## " + name + L" (" +
-                              std::to_wstring(entries.size()) + L")")
-                    .get_unique()));
+  target.AppendLine(NewLazyString(L"## " + name + L" (" +
+                                  std::to_wstring(entries.size()) + L")"));
   for (auto& entry : entries) {
     AddLine(target, entry);
   }
@@ -200,15 +197,13 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
         auto disk_state_freezer = output.FreezeDiskState();
         if (results.error_description.has_value()) {
           output.status().SetInformationText(results.error_description.value());
-          output.AppendLine(std::move(
-              NewLazyString(std::move(results.error_description.value()))
-                  .get_unique()));
+          output.AppendLine(
+              NewLazyString(std::move(results.error_description.value())));
           return EmptyValue();
         }
 
         output.AppendToLastLine(
-            std::move(NewLazyString(L"# 🗁  File listing: " + path.read())
-                          .get_unique()));
+            NewLazyString(L"# 🗁  File listing: " + path.read()));
         output.AppendEmptyLine();
 
         ShowFiles(L"🗁  Directories", std::move(results.directories), output);

@@ -7,13 +7,13 @@
 
 namespace afc::editor {
 using concurrent::WorkQueue;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::Pointer;
-
 namespace {
 std::wstring GetMetadata(std::wstring line) {
   auto buffer = NewBufferForTests();
-  buffer->AppendToLastLine(std::move(NewLazyString(line).get_unique()));
+  buffer->AppendToLastLine(NewLazyString(line));
 
   // Gives it a chance to execute:
   buffer->editor().work_queue()->Execute();
@@ -72,7 +72,7 @@ const bool buffer_tests_registration = tests::Register(
                    .value = futures::Past(NonNull<std::shared_ptr<LazyString>>(
                        NewLazyString(L"quux")))});
                buffer->AppendRawLine(
-                   std::make_shared<Line>(std::move(options)));
+                   MakeNonNullShared<Line>(std::move(options)));
                // Gives it a chance to execute:
                buffer->editor().work_queue()->Execute();
                CHECK(Pointer(buffer->contents().back()->metadata())

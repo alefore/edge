@@ -498,15 +498,15 @@ const BufferName& PredictionsBufferName() {
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator) {
-  const auto contents =
-      std::make_shared<std::multimap<wstring, shared_ptr<LazyString>>>();
+  const auto contents = std::make_shared<
+      std::multimap<wstring, NonNull<std::shared_ptr<LazyString>>>>();
   for (const std::wstring& prediction_raw : predictions) {
     std::vector<std::wstring> variations;
     RegisterVariations(prediction_raw, separator, &variations);
     const NonNull<std::shared_ptr<LazyString>> prediction =
         NewLazyString(prediction_raw);
     for (auto& variation : variations) {
-      contents->insert(make_pair(variation, prediction.get_shared()));
+      contents->insert(make_pair(variation, prediction));
     }
   }
   return [contents](PredictorInput input) {
@@ -516,7 +516,7 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
           mismatch(input.input.begin(), input.input.end(), (*it).first.begin());
       if (result.first == input.input.end()) {
         input.predictions->AppendToLastLine(it->second);
-        input.predictions->AppendRawLine(std::make_shared<Line>());
+        input.predictions->AppendRawLine(NonNull<std::shared_ptr<Line>>());
       } else {
         break;
       }
@@ -589,7 +589,7 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
       if (result.first != input.input.end()) {
         break;
       }
-      input.predictions->AppendRawLine(line_contents->contents().get_shared());
+      input.predictions->AppendRawLine(line_contents->contents());
 
       ++line;
     }
@@ -639,8 +639,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   auto dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName(L"Dictionary")});
   for (auto& word : words) {
-    dictionary->AppendLine(
-        std::move(NewLazyString(std::move(word)).get_unique()));
+    dictionary->AppendLine(NewLazyString(std::move(word)));
   }
   return DictionaryPredictor(std::move(dictionary))(input);
 }

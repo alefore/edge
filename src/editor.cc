@@ -58,7 +58,6 @@ const VMType VMTypeMapper<editor::EditorState*>::vmtype =
 }  // namespace vm
 namespace editor {
 namespace {
-
 using concurrent::ThreadPool;
 using concurrent::WorkQueue;
 using infrastructure::AddSeconds;
@@ -67,6 +66,7 @@ using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::MakeNonNullShared;
 using language::Observers;
 using language::PossibleError;
 using language::Success;
@@ -1025,7 +1025,7 @@ void EditorState::PushPosition(LineColumn position) {
   }
 
   positions_buffer.SetConsumer(
-      [line_to_insert = std::make_shared<Line>(
+      [line_to_insert = MakeNonNullShared<Line>(
            position.ToString() + L" " + buffer->Read(buffer_variables::name))](
           std::shared_ptr<OpenBuffer> buffer) {
         CHECK(buffer != nullptr);

@@ -44,6 +44,8 @@ const VMType
         VMType::ObjectType(L"DeleteTransformationBuilder");
 }  // namespace vm
 namespace editor {
+using language::MakeNonNullShared;
+
 std::ostream& operator<<(std::ostream& os,
                          const transformation::Delete& options) {
   os << "[Delete: modifiers:" << options.modifiers << "]";
@@ -68,7 +70,7 @@ std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
       delete_buffer->AppendToLastLine(Line(std::move(line_options)));
     } else {
       delete_buffer->AppendRawLine(
-          std::make_shared<Line>(std::move(line_options)));
+          MakeNonNullShared<Line>(std::move(line_options)));
     }
   }
 

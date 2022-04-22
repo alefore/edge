@@ -19,6 +19,7 @@ namespace afc {
 namespace editor {
 namespace {
 using infrastructure::Path;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
@@ -58,7 +59,7 @@ void AppendLine(const std::shared_ptr<OpenBuffer>& source,
   Line::Options options;
   options.contents = padding;
   AddContents(*source, *source->LineAt(position.line), &options);
-  target.AppendRawLine(std::make_shared<Line>(options));
+  target.AppendRawLine(MakeNonNullShared<Line>(options));
   AdjustLastLine(target, source, position);
 }
 
@@ -86,7 +87,7 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
           child.range().end.line != tree.children()[i + 1].range().begin.line) {
         AddContents(*source, *source->LineAt(child.range().end.line), &options);
       }
-      target.AppendRawLine(std::make_shared<Line>(options));
+      target.AppendRawLine(MakeNonNullShared<Line>(options));
       AdjustLastLine(target, source, child.range().begin);
       continue;
     }
@@ -113,14 +114,12 @@ futures::Value<PossibleError> GenerateContents(
   }
   auto source = source_weak.lock();
   if (source == nullptr) {
-    target.AppendToLastLine(std::move(
-        NewLazyString(L"Source buffer no longer loaded.").get_unique()));
+    target.AppendToLastLine(NewLazyString(L"Source buffer no longer loaded."));
     return futures::Past(Success());
   }
 
   auto tree = source->simplified_parse_tree();
-  target.AppendToLastLine(std::move(
-      NewLazyString(source->Read(buffer_variables::name)).get_unique()));
+  target.AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
   auto depth_value = target.environment()->Lookup(
       Environment::Namespace(), kDepthSymbol, VMType::Integer());
   int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
