@@ -185,9 +185,6 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
         shared_options->editor_state.work_queue(), [](ProgressInformation) {},
         WorkQueueChannelConsumeMode::kLastAvailable);
   }
-  if (shared_options->abort_notification == nullptr) {
-    shared_options->abort_notification = std::make_shared<Notification>();
-  }
   CHECK(!shared_options->abort_notification->HasBeenNotified());
 
   auto input = GetPredictInput(*shared_options);
@@ -312,7 +309,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
 void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
                    std::wstring pattern, std::wstring prefix, int* matches,
                    ProgressChannel& progress_channel,
-                   Notification* abort_notification,
+                   Notification& abort_notification,
                    OpenBuffer::LockFunction get_buffer) {
   static Tracker tracker(L"FilePredictor::ScanDirectory");
   auto call = tracker.Call();
@@ -336,7 +333,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   };
 
   while ((entry = readdir(dir)) != nullptr) {
-    if (abort_notification->HasBeenNotified()) return;
+    if (abort_notification.HasBeenNotified()) return;
     string entry_path = entry->d_name;
     auto mismatch_results = std::mismatch(pattern.begin(), pattern.end(),
                                           entry_path.begin(), entry_path.end());
@@ -407,7 +404,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
         return predictor_input.editor.thread_pool().Run(std::bind_front(
             [search_paths, path, get_buffer, resolve_path_options, noise_regex](
                 ProgressChannel& progress_channel,
-                const std::shared_ptr<Notification>& abort_notification) {
+                const NonNull<std::shared_ptr<Notification>>&
+                    abort_notification) {
               if (!path.empty() && *path.begin() == L'/') {
                 *search_paths = {Path::Root()};
               } else {
@@ -450,7 +448,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     path.substr(descend_results.valid_prefix_length,
                                 path.size()),
                     path.substr(0, descend_results.valid_prefix_length),
-                    &matches, progress_channel, abort_notification.get(),
+                    &matches, progress_channel, *abort_notification,
                     get_buffer);
                 if (abort_notification->HasBeenNotified())
                   return PredictorOutput();
@@ -541,13 +539,11 @@ const bool buffer_tests_registration =
             WorkQueue::New(), [](ProgressInformation) {},
             WorkQueueChannelConsumeMode::kAll);
         std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
-        test_predictor(PredictorInput{
-            .editor = buffer->editor(),
-            .input = input,
-            .predictions = buffer.get(),
-            .source_buffers = {},
-            .progress_channel = channel,
-            .abort_notification = std::make_shared<Notification>()});
+        test_predictor(PredictorInput{.editor = buffer->editor(),
+                                      .input = input,
+                                      .predictions = buffer.get(),
+                                      .source_buffers = {},
+                                      .progress_channel = channel});
         buffer->SortContents(LineNumber(), buffer->EndLine(),
                              [](const NonNull<std::shared_ptr<const Line>>& a,
                                 const NonNull<std::shared_ptr<const Line>>& b) {

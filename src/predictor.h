@@ -7,15 +7,14 @@
 #include <vector>
 
 #include "src/buffer_name.h"
+#include "src/concurrent/notification.h"
 #include "src/concurrent/work_queue.h"
 #include "src/futures/futures.h"
+#include "src/language/safe_types.h"
 #include "src/status.h"
 #include "src/structure.h"
 
 namespace afc {
-namespace concurrent {
-class Notification;
-}
 namespace editor {
 
 using std::function;
@@ -55,6 +54,8 @@ struct PredictorInput {
   // OpenBuffer::AppendRawLine(..., empty_line). In other words, once the
   // predictor is done running, the buffer must have an empty line at the end
   // (and not at the beginning).
+  //
+  // TODO(2022-04-22, easy): Why not ref?
   OpenBuffer* predictions = nullptr;
 
   // If the completion is specific to a given buffer (as opposed to in a global
@@ -69,8 +70,8 @@ struct PredictorInput {
 
   ProgressChannel& progress_channel;
 
-  // Will never be nullptr: Predict ensures that.
-  std::shared_ptr<concurrent::Notification> abort_notification;
+  language::NonNull<std::shared_ptr<concurrent::Notification>>
+      abort_notification = {};
 };
 
 struct PredictorOutput {};
@@ -130,10 +131,8 @@ struct PredictOptions {
 
   // Notification that the caller can use to signal that it wants to stop the
   // prediction (without waiting for it to complete).
-  //
-  // Can be null, in which case Predict will create a notification (that never
-  // gets notified).
-  std::shared_ptr<concurrent::Notification> abort_notification = nullptr;
+  language::NonNull<std::shared_ptr<concurrent::Notification>>
+      abort_notification = {};
 };
 
 // Create a new buffer running a given predictor on the input in a given status
