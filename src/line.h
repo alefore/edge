@@ -57,7 +57,9 @@ class Line {
 
     void InsertCharacterAtPosition(ColumnNumber position);
     void AppendCharacter(wchar_t c, LineModifierSet modifier);
+    // TODO(easy, 2022-04-22): NonNull.
     void AppendString(std::shared_ptr<LazyString> suffix);
+    // TODO(easy, 2022-04-22): NonNull.
     void AppendString(std::shared_ptr<LazyString> suffix,
                       std::optional<LineModifierSet> modifier);
     void AppendString(std::wstring contents,
@@ -73,7 +75,7 @@ class Line {
     Options& DeleteSuffix(ColumnNumber column);
 
     // TODO: Make these fields private.
-    std::shared_ptr<LazyString> contents;
+    language::NonNull<std::shared_ptr<LazyString>> contents;
 
     // Columns without an entry here reuse the last present value. If no
     // previous value, assume LineModifierSet(). There's no need to include
@@ -106,7 +108,7 @@ class Line {
 
   Options CopyOptions() const;
 
-  shared_ptr<LazyString> contents() const;
+  language::NonNull<std::shared_ptr<LazyString>> contents() const;
   ColumnNumber EndColumn() const;
   bool empty() const;
 

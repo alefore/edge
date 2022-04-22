@@ -112,7 +112,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
         .generate = [original_generator = buffer_output.lines.back().generate] {
           LineWithCursor output = original_generator();
           Line::Options line_options;
-          line_options.AppendString(output.line->contents(),
+          line_options.AppendString(output.line->contents().get_shared(),
                                     LineModifierSet{LineModifier::DIM});
           output.line = MakeNonNullShared<Line>(std::move(line_options));
           return output;

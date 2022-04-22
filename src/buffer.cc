@@ -1249,11 +1249,11 @@ void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
   ForEachColumn(Pointer(input).Reference(), [&](ColumnNumber i, wchar_t c) {
     CHECK_GE(i, start);
     if (c == '\n') {
-      AppendLine(Substring(input, start, i - start));
+      AppendLine(Substring(input, start, i - start).get_shared());
       start = i + ColumnNumberDelta(1);
     }
   });
-  AppendLine(Substring(input, start));
+  AppendLine(Substring(input, start).get_shared());
 }
 
 static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
@@ -1283,12 +1283,13 @@ void OpenBuffer::InsertLine(LineNumber line_position, shared_ptr<Line> line) {
   contents_.insert_line(line_position, AddLineMetadata(*this, line));
 }
 
+// TODO(easy, 2022-04-22): Receive as NonNull.
 void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
   CHECK(str != nullptr);
   if (reading_from_parser_) {
     switch (str->get(ColumnNumber(0))) {
       case 'E':
-        return AppendRawLine(Substring(str, ColumnNumber(1)));
+        return AppendRawLine(Substring(str, ColumnNumber(1)).get_shared());
 
       case 'T':
         AddToParseTree(str);

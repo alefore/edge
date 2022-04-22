@@ -40,7 +40,7 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
       DVLOG(3) << "Unable to find content for mark!";
       mark.second.source_line_content = NewLazyString(L"Expired mark.");
     } else {
-      mark.second.source_line_content = line->contents();
+      mark.second.source_line_content = line->contents().get_shared();
     }
     CHECK(mark.second.IsExpired());
   }

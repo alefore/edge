@@ -272,7 +272,6 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                                              std::move(generator));
     }
 
-    CHECK(line_contents->contents() != nullptr);
     if (buffer.Read(buffer_variables::atomic_lines) &&
         buffer.active_cursors()->cursors_in_line(line)) {
       generator = LineHighlighter(std::move(generator));

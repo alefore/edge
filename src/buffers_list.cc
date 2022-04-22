@@ -444,10 +444,12 @@ void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
         output_name->get(ColumnNumber(0)) == L'$' &&
         output_name->get(ColumnNumber(1)) == L' ') {
       output_name = StringTrimLeft(
-          Substring(std::move(output_name), ColumnNumber(1)), L" ");
+          Substring(std::move(output_name), ColumnNumber(1)).get_shared(),
+          L" ");
     }
     output->AppendString(SubstringWithRangeChecks(std::move(output_name),
-                                                  ColumnNumber(0), columns),
+                                                  ColumnNumber(0), columns)
+                             .get_shared(),
                          modifiers);
     return;
   }

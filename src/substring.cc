@@ -6,8 +6,9 @@
 
 #include "src/line_column.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::MakeNonNullShared;
+using language::NonNull;
 
 class SubstringImpl : public LazyString {
  public:
@@ -28,25 +29,25 @@ class SubstringImpl : public LazyString {
   const ColumnNumberDelta delta_;
 };
 
-std::shared_ptr<LazyString> Substring(std::shared_ptr<LazyString> input,
-                                      ColumnNumber column) {
+NonNull<std::shared_ptr<LazyString>> Substring(
+    std::shared_ptr<LazyString> input, ColumnNumber column) {
   auto size = input->size();
   return Substring(std::move(input), column, size - column.ToDelta());
 }
 
-std::shared_ptr<LazyString> Substring(std::shared_ptr<LazyString> input,
-                                      ColumnNumber column,
-                                      ColumnNumberDelta delta) {
+NonNull<std::shared_ptr<LazyString>> Substring(
+    std::shared_ptr<LazyString> input, ColumnNumber column,
+    ColumnNumberDelta delta) {
   CHECK(input != nullptr);
   if (column.IsZero() && delta == ColumnNumberDelta(input->size())) {
     return input;  // Optimization.
   }
   CHECK_LE(column, ColumnNumber(0) + input->size());
   CHECK_LE(column + delta, ColumnNumber(0) + input->size());
-  return std::make_shared<SubstringImpl>(std::move(input), column, delta);
+  return MakeNonNullShared<SubstringImpl>(std::move(input), column, delta);
 }
 
-std::shared_ptr<LazyString> SubstringWithRangeChecks(
+NonNull<std::shared_ptr<LazyString>> SubstringWithRangeChecks(
     std::shared_ptr<LazyString> input, ColumnNumber column,
     ColumnNumberDelta delta) {
   auto length = ColumnNumberDelta(input->size());
@@ -55,5 +56,4 @@ std::shared_ptr<LazyString> SubstringWithRangeChecks(
                    std::min(delta, length - column.ToDelta()));
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

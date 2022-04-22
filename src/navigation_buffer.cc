@@ -36,13 +36,15 @@ void AdjustLastLine(OpenBuffer& buffer, std::shared_ptr<OpenBuffer> link_to,
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
                  Line::Options* line_options) {
-  auto trim = StringTrimLeft(
-      input.contents(), source.Read(buffer_variables::line_prefix_characters));
+  auto trim =
+      StringTrimLeft(input.contents().get_shared(),
+                     source.Read(buffer_variables::line_prefix_characters));
   CHECK_LE(trim->size(), input.contents()->size());
   auto characters_trimmed =
       ColumnNumberDelta(input.contents()->size() - trim->size());
   auto initial_length = line_options->EndColumn().ToDelta();
-  line_options->contents = StringAppend(line_options->contents, trim);
+  line_options->contents =
+      StringAppend(line_options->contents.get_shared(), trim);
   for (auto& m : input.modifiers()) {
     if (m.first >= ColumnNumber(0) + characters_trimmed) {
       line_options->modifiers[m.first + initial_length - characters_trimmed] =
@@ -74,10 +76,11 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
       AddContents(*source, *source->LineAt(child.range().begin.line), &options);
       if (child.range().begin.line + LineNumberDelta(1) <
           child.range().end.line) {
-        options.contents =
-            StringAppend(options.contents, NewLazyString(L" ... "));
+        options.contents = StringAppend(options.contents.get_shared(),
+                                        NewLazyString(L" ... "));
       } else {
-        options.contents = StringAppend(options.contents, NewLazyString(L" "));
+        options.contents =
+            StringAppend(options.contents.get_shared(), NewLazyString(L" "));
       }
       if (i + 1 >= tree.children().size() ||
           child.range().end.line != tree.children()[i + 1].range().begin.line) {

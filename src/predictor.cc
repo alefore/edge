@@ -59,7 +59,8 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
       LineNumber(0), predictions_buffer.EndLine(),
       [](const NonNull<std::shared_ptr<const Line>>& a,
          const NonNull<std::shared_ptr<const Line>>& b) {
-        return *LowerCase(a->contents()) < *LowerCase(b->contents());
+        return *LowerCase(a->contents().get_shared()) <
+               *LowerCase(b->contents().get_shared());
       });
 
   LOG(INFO) << "Removing duplicates.";
@@ -588,7 +589,7 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
       if (result.first != input.input.end()) {
         break;
       }
-      input.predictions->AppendRawLine(line_contents->contents());
+      input.predictions->AppendRawLine(line_contents->contents().get_shared());
 
       ++line;
     }

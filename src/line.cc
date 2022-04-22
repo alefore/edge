@@ -99,13 +99,16 @@ void Line::Options::SetCharacter(ColumnNumber column, int c,
   auto str = NewLazyString(wstring(1, c));
   if (column >= EndColumn()) {
     column = EndColumn();
-    contents = StringAppend(std::move(contents), std::move(str));
+    contents = StringAppend(std::move(contents.get_shared()), std::move(str));
   } else {
     contents = StringAppend(
-        StringAppend(afc::editor::Substring(std::move(contents),
-                                            ColumnNumber(0), column.ToDelta()),
+        StringAppend(afc::editor::Substring(std::move(contents.get_shared()),
+                                            ColumnNumber(0), column.ToDelta())
+                         .get_shared(),
                      std::move(str)),
-        afc::editor::Substring(contents, column + ColumnNumberDelta(1)));
+        afc::editor::Substring(contents.get_shared(),
+                               column + ColumnNumberDelta(1))
+            .get_shared());
   }
 
   metadata = std::nullopt;
@@ -128,10 +131,11 @@ void Line::Options::SetCharacter(ColumnNumber column, int c,
 void Line::Options::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
   contents = StringAppend(
-      StringAppend(
-          afc::editor::Substring(contents, ColumnNumber(0), column.ToDelta()),
-          NewLazyString(L" ")),
-      afc::editor::Substring(contents, column));
+      StringAppend(afc::editor::Substring(contents.get_shared(),
+                                          ColumnNumber(0), column.ToDelta())
+                       .get_shared(),
+                   NewLazyString(L" ")),
+      afc::editor::Substring(contents.get_shared(), column).get_shared());
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   for (auto& m : modifiers) {
@@ -149,7 +153,8 @@ void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(modifier.find(LineModifier::RESET) == modifier.end());
   modifiers[ColumnNumber(0) + contents->size()] = modifier;
-  contents = StringAppend(std::move(contents), NewLazyString(wstring(1, c)));
+  contents = StringAppend(std::move(contents.get_shared()),
+                          NewLazyString(wstring(1, c)));
   metadata = std::nullopt;
   ValidateInvariants();
 }
@@ -181,7 +186,8 @@ void Line::Options::Append(Line line) {
   end_of_line_modifiers = std::move(line.end_of_line_modifiers());
   if (line.empty()) return;
   auto original_length = EndColumn().ToDelta();
-  contents = StringAppend(std::move(contents), std::move(line.contents()));
+  contents = StringAppend(std::move(contents.get_shared()),
+                          std::move(line.contents().get_shared()));
   metadata = std::nullopt;
 
   auto initial_modifier =
@@ -217,9 +223,12 @@ Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
   CHECK_LE(column, EndColumn());
   CHECK_LE(column + delta, EndColumn());
 
-  contents = StringAppend(
-      afc::editor::Substring(contents, ColumnNumber(0), column.ToDelta()),
-      afc::editor::Substring(contents, column + delta));
+  contents =
+      StringAppend(afc::editor::Substring(contents.get_shared(),
+                                          ColumnNumber(0), column.ToDelta())
+                       .get_shared(),
+                   afc::editor::Substring(contents.get_shared(), column + delta)
+                       .get_shared());
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   // TODO: We could optimize this to only set it once (rather than for every
@@ -253,7 +262,7 @@ Line::Options& Line::Options::DeleteSuffix(ColumnNumber column) {
   return DeleteCharacters(column, EndColumn() - column);
 }
 
-void Line::Options::ValidateInvariants() { CHECK(contents != nullptr); }
+void Line::Options::ValidateInvariants() {}
 
 /* static */ NonNull<std::shared_ptr<Line>> Line::New(Options options) {
   return MakeNonNullShared<Line>(std::move(options));
@@ -283,7 +292,7 @@ Line::Options Line::CopyOptions() const {
   return data_.lock([](const Data& data) { return data.options; });
 }
 
-std::shared_ptr<LazyString> Line::contents() const {
+NonNull<std::shared_ptr<LazyString>> Line::contents() const {
   return data_.lock([](const Data& data) { return data.options.contents; });
 }
 
@@ -291,10 +300,7 @@ ColumnNumber Line::EndColumn() const {
   return data_.lock([](const Data& data) { return EndColumn(data); });
 }
 
-bool Line::empty() const {
-  CHECK(contents() != nullptr);
-  return EndColumn().IsZero();
-}
+bool Line::empty() const { return EndColumn().IsZero(); }
 
 wint_t Line::get(ColumnNumber column) const {
   return data_.lock([column](const Data& data) { return Get(data, column); });
@@ -302,11 +308,12 @@ wint_t Line::get(ColumnNumber column) const {
 
 shared_ptr<LazyString> Line::Substring(ColumnNumber column,
                                        ColumnNumberDelta delta) const {
-  return afc::editor::Substring(contents(), column, delta);
+  return afc::editor::Substring(contents().get_shared(), column, delta)
+      .get_shared();
 }
 
 shared_ptr<LazyString> Line::Substring(ColumnNumber column) const {
-  return afc::editor::Substring(contents(), column);
+  return afc::editor::Substring(contents().get_shared(), column).get_shared();
 }
 
 std::shared_ptr<LazyString> Line::metadata() const {
@@ -333,8 +340,9 @@ void Line::Append(const Line& line) {
     data.hash = std::nullopt;
     line.data_.lock([&data](const Data& line_data) {
       auto original_length = EndColumn(data).ToDelta();
-      data.options.contents =
-          StringAppend(data.options.contents, line_data.options.contents);
+      data.options.contents = NonNull<std::shared_ptr<LazyString>>(
+          StringAppend(data.options.contents.get_shared(),
+                       line_data.options.contents.get_shared()));
       data.options.modifiers[ColumnNumber() + original_length] =
           LineModifierSet{};
       for (auto& [position, modifiers] : line_data.options.modifiers) {
@@ -436,8 +444,9 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
           VLOG(8) << "Print character: " << c;
           output_column += ColumnNumberDelta(wcwidth(c));
           if (output_column.ToDelta() <= options.width)
-            line_output.contents = StringAppend(std::move(line_output.contents),
-                                                NewLazyString(wstring(1, c)));
+            line_output.contents =
+                StringAppend(std::move(line_output.contents.get_shared()),
+                             NewLazyString(wstring(1, c)));
       }
     }
 
@@ -462,7 +471,6 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
 /* static */ void Line::ValidateInvariants(const Data& data) {
   static Tracker tracker(L"Line::ValidateInvariants");
   auto call = tracker.Call();
-  CHECK(data.options.contents != nullptr);
 #if 0
   ForEachColumn(Pointer(data.options.contents).Reference(),
                 [&contents = data.options.contents](ColumnNumber, wchar_t c) {

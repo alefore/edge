@@ -47,8 +47,9 @@ Line GeneratePadding(const ColumnsVector::Padding padding,
   while (contents->size() < size) {
     contents = StringAppend(std::move(contents), padding.body);
   }
-  options.AppendString(Substring(std::move(contents), ColumnNumber(), size),
-                       padding.modifiers);
+  options.AppendString(
+      Substring(std::move(contents), ColumnNumber(), size).get_shared(),
+      padding.modifiers);
   return Line(std::move(options));
 }
 }  // namespace

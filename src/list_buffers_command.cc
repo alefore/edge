@@ -14,6 +14,7 @@
 #include "src/screen_vm.h"
 
 namespace afc::editor {
+using language::NonNull;
 using language::PossibleError;
 using language::Success;
 namespace {
@@ -146,9 +147,9 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
     LineNumber index;
     while (index.ToDelta() < context_lines_var) {
       Line::Options options;
-      options.contents = NewLazyString(
+      options.contents = NonNull<std::shared_ptr<LazyString>>(NewLazyString(
           (index + LineNumberDelta(1)).ToDelta() == context_lines_var ? L"╰ "
-                                                                      : L"│ ");
+                                                                      : L"│ "));
       if (context.first < context.second) {
         options.Append(*buffer->LineAt(context.first));
         context.first++;

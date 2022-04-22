@@ -216,9 +216,9 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetHistoryBuffer(
           });
 }
 
+// TODO(easy, 2022-04-22): The values should be NonNull.
 ValueOrError<std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>>
-ParseHistoryLine(const std::shared_ptr<LazyString>& line) {
-  CHECK(line != nullptr);
+ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
   std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>> output;
   for (const auto& token : TokenizeBySpaces(*line)) {
     auto colon = token.value.find(':');
@@ -237,8 +237,10 @@ ParseHistoryLine(const std::shared_ptr<LazyString>& line) {
     // Skip quotes:
     ++value_start;
     --value_end;
-    output.insert({token.value.substr(0, colon),
-                   Substring(line, value_start, value_end - value_start)});
+    output.insert(
+        {token.value.substr(0, colon),
+         Substring(line.get_shared(), value_start, value_end - value_start)
+             .get_shared()});
   }
   for (auto& additional_features : GetSyntheticFeatures(output)) {
     output.insert(additional_features);
@@ -292,7 +294,7 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
   ColumnNumber position;
   auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
     if (end <= position) return;
-    options.AppendString(Substring(line, position, end - position),
+    options.AppendString(Substring(line, position, end - position).get_shared(),
                          std::move(modifiers));
     position = end;
   };
@@ -646,7 +648,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
   futures::Value<std::unique_ptr<ScrollBehavior>> Build(
       std::shared_ptr<Notification> abort_notification) override {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
-    std::shared_ptr<LazyString> input =
+    NonNull<std::shared_ptr<LazyString>> input =
         buffer_->contents().at(LineNumber(0))->contents();
     return FilterHistory(editor_state_, history_, abort_notification,
                          input->ToString())
@@ -655,8 +657,8 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
                        -> std::unique_ptr<ScrollBehavior> {
           history->set_current_position_line(LineNumber(0) +
                                              history->contents().size());
-          return std::make_unique<HistoryScrollBehavior>(std::move(history),
-                                                         input, prompt_state);
+          return std::make_unique<HistoryScrollBehavior>(
+              std::move(history), input.get_shared(), prompt_state);
         });
   }
 
@@ -686,7 +688,8 @@ class LinePromptCommand : public Command {
     if (editor_state_.structure() == StructureLine()) {
       editor_state_.ResetStructure();
       auto input = buffer->current_line();
-      AddLineToHistory(editor_state_, options.history_file, input->contents());
+      AddLineToHistory(editor_state_, options.history_file,
+                       input->contents().get_shared());
       options.handler(input->ToString());
     } else {
       Prompt(std::move(options));
@@ -733,7 +736,7 @@ void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
   }
 
   status_buffer->AppendRawLine(
-      ColorizeLine(line->contents(), std::move(options.tokens)));
+      ColorizeLine(line->contents().get_shared(), std::move(options.tokens)));
   status_buffer->EraseLines(LineNumber(0), LineNumber(1));
   if (options.context.has_value()) {
     prompt_state->status().set_context(options.context.value());
@@ -755,6 +758,7 @@ futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
 HistoryFile HistoryFileFiles() { return HistoryFile(L"files"); }
 HistoryFile HistoryFileCommands() { return HistoryFile(L"commands"); }
 
+// TODO(easy, 2022-04-22): Receive input as NonNull.
 void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
                       std::shared_ptr<LazyString> input) {
   if (input->size().IsZero()) return;
@@ -804,7 +808,7 @@ void Prompt(PromptOptions options) {
             .modify_handler =
                 [&editor_state, history, prompt_state, options,
                  abort_notification_ptr](OpenBuffer& buffer) {
-                  std::shared_ptr<LazyString> line =
+                  NonNull<std::shared_ptr<LazyString>> line =
                       buffer.contents().at(LineNumber())->contents();
                   if (options.colorize_options_provider == nullptr ||
                       prompt_state->status().GetType() !=
@@ -852,7 +856,8 @@ void Prompt(PromptOptions options) {
                                  }),
                              options
                                  .colorize_options_provider(
-                                     line, std::move(progress_channel),
+                                     line.get_shared(),
+                                     std::move(progress_channel),
                                      *abort_notification_ptr)
                                  .Transform(
                                      [buffer = buffer.shared_from_this(),
@@ -889,7 +894,8 @@ void Prompt(PromptOptions options) {
                 [&editor_state, options,
                  prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
                   auto input = buffer->current_line()->contents();
-                  AddLineToHistory(editor_state, options.history_file, input);
+                  AddLineToHistory(editor_state, options.history_file,
+                                   input.get_shared());
                   auto ensure_survival_of_current_closure =
                       editor_state.set_keyboard_redirect(nullptr);
                   prompt_state->Reset();

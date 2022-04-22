@@ -160,9 +160,9 @@ NonNull<std::unique_ptr<T>> MakeNonNull(std::unique_ptr<T> obj) {
   return NonNull<std::unique_ptr<T>>(std::move(obj));
 }
 
-template <typename T, typename Arg>
-NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg arg) {
-  return MakeNonNull(std::make_shared<T>(arg));
+template <typename T, typename... Arg>
+NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg... arg) {
+  return MakeNonNull(std::make_shared<T>(arg...));
 }
 
 }  // namespace afc::language

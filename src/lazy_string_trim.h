@@ -9,6 +9,7 @@
 namespace afc::editor {
 
 // Returns a copy with all left space characters removed.
+// TODO(2022-04-22, easy): Adopt NonNull.
 std::shared_ptr<LazyString> StringTrimLeft(std::shared_ptr<LazyString> a,
                                            std::wstring space_characters);
 
