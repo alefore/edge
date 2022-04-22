@@ -58,8 +58,7 @@ std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
   auto delete_buffer = OpenBuffer::New(
       {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});
   for (LineNumber i = range.begin.line; i <= range.end.line; ++i) {
-    Line::Options line_options =
-        language::Pointer(buffer.contents().at(i)).Reference().CopyOptions();
+    Line::Options line_options = buffer.contents().at(i)->CopyOptions();
     if (i == range.end.line) {
       line_options.DeleteSuffix(range.end.column);
     }

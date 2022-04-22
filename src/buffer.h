@@ -187,10 +187,11 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void AppendEmptyLine();
 
   // Sort all lines in range [first, last) according to a compare function.
-  void SortContents(LineNumber first, LineNumber last,
-                    std::function<bool(const shared_ptr<const Line>&,
-                                       const shared_ptr<const Line>&)>
-                        compare);
+  void SortContents(
+      LineNumber first, LineNumber last,
+      std::function<bool(const language::NonNull<shared_ptr<const Line>>&,
+                         const language::NonNull<shared_ptr<const Line>>&)>
+          compare);
 
   LineNumberDelta lines_size() const;
   LineNumber EndLine() const;
@@ -222,10 +223,11 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
-  void StartNewLine(std::shared_ptr<Line> line);
+  void StartNewLine(language::NonNull<std::shared_ptr<const Line>> line);
   // Equivalent to calling StartNewLine repeatedly, but significantly more
   // efficient.
-  void AppendLines(std::vector<std::shared_ptr<const Line>> lines);
+  void AppendLines(
+      std::vector<language::NonNull<std::shared_ptr<const Line>>> lines);
 
   void DeleteRange(const Range& range);
 

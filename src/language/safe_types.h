@@ -79,9 +79,26 @@ class NonNull<std::shared_ptr<T>> {
   explicit NonNull(std::unique_ptr<T> value)
       : NonNull(std::shared_ptr<T>(std::move(value))) {}
 
-  explicit NonNull(std::shared_ptr<T> value) : value_(std::move(value)) {
+  // Use the `Other` type for types where `std::shared_ptr<Other>` can be
+  // converted to `std::shared_ptr<T>`.
+  template <typename Other>
+  NonNull(std::shared_ptr<Other> value) : value_(std::move(value)) {
     CHECK(value_ != nullptr);
-  };
+  }
+
+  // Use the `Other` type for types where `std::shared_ptr<Other>` can be
+  // converted to `std::shared_ptr<T>`.
+  template <typename Other>
+  NonNull(NonNull<std::shared_ptr<Other>> value)
+      : value_(std::move(value.get_shared())) {
+    CHECK(value_ != nullptr);
+  }
+
+  template <typename Other>
+  NonNull operator=(const NonNull<std::shared_ptr<Other>>& value) {
+    value_ = value.get_shared();
+    return *this;
+  }
 
   T* operator->() { return value_.get(); }
   T* operator->() const { return value_.get(); }
@@ -89,6 +106,9 @@ class NonNull<std::shared_ptr<T>> {
   T& operator*() const { return *value_; }
   T* get() { return value_.get(); }
   T* get() const { return value_.get(); }
+
+  const std::shared_ptr<T>& get_shared() const { return value_; }
+  std::shared_ptr<T>& get_shared() { return value_; }
 
  private:
   std::shared_ptr<T> value_;

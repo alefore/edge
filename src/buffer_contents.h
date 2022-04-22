@@ -20,14 +20,14 @@ using std::unique_ptr;
 using std::vector;
 
 class BufferContents : public fuzz::FuzzTestable {
-  using Lines = ConstTree<std::shared_ptr<const Line>>;
+  using Lines = ConstTree<language::NonNull<std::shared_ptr<const Line>>>;
 
  public:
   using UpdateListener =
       std::function<void(const CursorsTracker::Transformation&)>;
 
   BufferContents();
-  explicit BufferContents(std::shared_ptr<const Line> line);
+  explicit BufferContents(language::NonNull<std::shared_ptr<const Line>> line);
   explicit BufferContents(UpdateListener update_listener);
 
   void CopyContentsFrom(const BufferContents& source);
@@ -50,19 +50,19 @@ class BufferContents : public fuzz::FuzzTestable {
   // Drops all contents outside of a specific range.
   void FilterToRange(Range range);
 
-  shared_ptr<const Line> at(LineNumber position) const {
+  language::NonNull<shared_ptr<const Line>> at(LineNumber position) const {
     CHECK_LT(position, LineNumber(0) + size());
     return lines_->Get(position.line);
   }
 
   language::NonNull<std::shared_ptr<const Line>> back() const {
     CHECK(lines_ != nullptr);
-    return language::MakeNonNull(at(EndLine()));
+    return at(EndLine());
   }
 
   language::NonNull<std::shared_ptr<const Line>> front() const {
     CHECK(lines_ != nullptr);
-    return language::MakeNonNull(at(LineNumber(0)));
+    return at(LineNumber(0));
   }
 
   // Iterates: runs the callback on every line in the buffer, passing as the
@@ -85,22 +85,25 @@ class BufferContents : public fuzz::FuzzTestable {
 
   size_t CountCharacters() const;
 
-  void insert_line(LineNumber line_position, shared_ptr<const Line> line);
+  void insert_line(LineNumber line_position,
+                   language::NonNull<shared_ptr<const Line>> line);
 
   // Does not call update_listener_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
   // semantic information about what you're doing).
-  void set_line(LineNumber position, shared_ptr<const Line> line);
+  void set_line(LineNumber position,
+                language::NonNull<shared_ptr<const Line>> line);
 
   template <class C>
   void sort(LineNumber first, LineNumber last, C compare) {
     // TODO: Only append to `lines` the actual range [first, last), and then
     // just Append to prefix/suffix.
-    std::vector<std::shared_ptr<const Line>> lines;
-    Lines::Every(lines_, [&lines](std::shared_ptr<const Line> line) {
-      lines.push_back(line);
-      return true;
-    });
+    std::vector<language::NonNull<std::shared_ptr<const Line>>> lines;
+    Lines::Every(lines_,
+                 [&lines](language::NonNull<std::shared_ptr<const Line>> line) {
+                   lines.push_back(line);
+                   return true;
+                 });
     std::sort(lines.begin() + first.line, lines.begin() + last.line, compare);
     lines_ = nullptr;
     for (auto& line : lines) {
@@ -148,8 +151,9 @@ class BufferContents : public fuzz::FuzzTestable {
   void FoldNextLine(LineNumber line);
 
   void push_back(wstring str);
-  void push_back(shared_ptr<const Line> line);
-  void append_back(std::vector<std::shared_ptr<const Line>> lines);
+  void push_back(language::NonNull<std::shared_ptr<const Line>> line);
+  void append_back(
+      std::vector<language::NonNull<std::shared_ptr<const Line>>> lines);
 
   void SetUpdateListener(UpdateListener update_listener);
 
@@ -168,17 +172,19 @@ class BufferContents : public fuzz::FuzzTestable {
     static Tracker tracker(L"BufferContents::TransformLine");
     auto tracker_call = tracker.Call();
     if (lines_ == nullptr) {
-      lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
+      lines_ =
+          Lines::PushBack(nullptr, language::MakeNonNullShared<const Line>());
     }
     CHECK_LE(line_number, EndLine());
-    Line::Options options =
-        language::Pointer(at(line_number)).Reference().CopyOptions();
+    Line::Options options = at(line_number)->CopyOptions();
     callback(options);
-    set_line(line_number, std::make_shared<Line>(std::move(options)));
+    set_line(line_number,
+             language::MakeNonNullShared<const Line>(std::move(options)));
     update_listener_(cursors_transformation);
   }
 
-  Lines::Ptr lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
+  Lines::Ptr lines_ =
+      Lines::PushBack(nullptr, language::MakeNonNullShared<const Line>());
 
   UpdateListener update_listener_;
 };

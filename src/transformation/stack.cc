@@ -20,6 +20,7 @@ using ::operator<<;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::MakeNonNullShared;
 using language::PossibleError;
 using language::Success;
 
@@ -266,9 +267,9 @@ const bool analyze_content_tests_registration = tests::Register(
           }},
      {.name = L"VariousEmptyLines", .callback = [] {
         BufferContents contents;
-        auto line = std::make_shared<Line>();
-        contents.append_back({std::make_shared<Line>(L"foo"), line, line, line,
-                              std::make_shared<Line>(L"bar")});
+        auto line = MakeNonNullShared<const Line>();
+        contents.append_back({MakeNonNullShared<const Line>(L"foo"), line, line,
+                              line, MakeNonNullShared<const Line>(L"bar")});
         CHECK(AnalyzeContent(contents) == ContentStats({.lines = 6,
                                                         .words = 2,
                                                         .alnums = 3 + 3,

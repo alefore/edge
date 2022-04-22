@@ -23,6 +23,7 @@ namespace editor {
 namespace {
 using language::CaptureAndHash;
 using language::MakeNonNullShared;
+using language::NonNull;
 
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
           wchar_t connect_final_char, wstring& output) {
@@ -103,7 +104,7 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
 struct MetadataLine {
   wchar_t info_char;
   LineModifier modifier;
-  std::shared_ptr<const Line> suffix;
+  NonNull<std::shared_ptr<const Line>> suffix;
   enum class Type {
     kDefault,
     kMark,
@@ -119,7 +120,6 @@ ColumnNumberDelta width(const std::wstring prefix, MetadataLine& line) {
 }
 
 LineWithCursor::Generator NewGenerator(std::wstring prefix, MetadataLine line) {
-  CHECK(line.suffix != nullptr);
   return LineWithCursor::Generator::New(CaptureAndHash(
       [](wchar_t info_char, LineModifier modifier, Line suffix,
          std::wstring prefix) {
@@ -317,7 +317,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   if (target_buffer != &options.buffer) {
     output.push_back(
         MetadataLine{info_char, info_char_modifier,
-                     std::make_shared<Line>(
+                     MakeNonNullShared<const Line>(
                          OpenBuffer::FlagsToString(target_buffer->Flags())),
                      MetadataLine::Type::kFlags});
   } else if (contents.modified()) {
@@ -333,7 +333,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
       CHECK(c != L'\n') << "Metadata has invalid newline character.";
     });
     output.push_back(MetadataLine{L'>', LineModifier::GREEN,
-                                  std::make_shared<Line>(metadata),
+                                  MakeNonNullShared<const Line>(metadata),
                                   MetadataLine::Type::kLineContents});
   }
 
@@ -358,7 +358,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         (source != options.buffer.editor().buffers()->end() &&
          mark.source_line < LineNumber(0) + source->second->contents().size())
             ? source->second->contents().at(mark.source_line)
-            : std::make_shared<Line>(L"(dead mark)"),
+            : MakeNonNullShared<const Line>(L"(dead mark)"),
         MetadataLine::Type::kMark});
   }
 

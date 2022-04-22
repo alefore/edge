@@ -39,6 +39,7 @@ using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
+using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 namespace {
@@ -705,7 +706,7 @@ class LinePromptCommand : public Command {
 void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
                     std::shared_ptr<PromptState> prompt_state,
                     std::shared_ptr<Notification> abort_notification,
-                    const std::shared_ptr<const Line>& original_line,
+                    const NonNull<std::shared_ptr<const Line>>& original_line,
                     ColorizePromptOptions options) {
   CHECK(status_buffer != nullptr);
   CHECK(prompt_state != nullptr);

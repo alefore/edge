@@ -14,11 +14,12 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
-using language::Pointer;
+using language::MakeNonNullShared;
+using language::NonNull;
 
 BufferContents::BufferContents() : BufferContents(UpdateListener()) {}
 
-BufferContents::BufferContents(std::shared_ptr<const Line> line)
+BufferContents::BufferContents(NonNull<std::shared_ptr<const Line>> line)
     : lines_(Lines::PushBack(nullptr, std::move(line))),
       update_listener_([](const CursorsTracker::Transformation&) {}) {}
 
@@ -422,11 +423,11 @@ void BufferContents::insert(LineNumber position_line,
   CHECK_LE(position_line, EndLine());
   auto prefix = Lines::Prefix(lines_, position_line.line);
   auto suffix = Lines::Suffix(lines_, position_line.line);
-  Lines::Every(source.lines_, [&](std::shared_ptr<const Line> line) {
+  Lines::Every(source.lines_, [&](NonNull<std::shared_ptr<const Line>> line) {
     VLOG(6) << "Insert line: " << line->EndColumn() << " modifiers: "
             << (modifiers.has_value() ? modifiers->size() : -1);
     if (modifiers.has_value()) {
-      auto replacement = std::make_shared<Line>(*line);
+      auto replacement = MakeNonNullShared<Line>(*line);
       replacement->SetAllModifiers(modifiers.value());
       line = std::move(replacement);
     }
@@ -442,10 +443,10 @@ void BufferContents::insert(LineNumber position_line,
 bool BufferContents::EveryLine(
     const std::function<bool(LineNumber, const Line&)>& callback) const {
   LineNumber line_number;
-  return Lines::Every(lines_, [&](const std::shared_ptr<const Line>& line) {
-    CHECK(line != nullptr);
-    return callback(line_number++, *line);
-  });
+  return Lines::Every(lines_,
+                      [&](const NonNull<std::shared_ptr<const Line>>& line) {
+                        return callback(line_number++, *line);
+                      });
 }
 
 void BufferContents::ForEach(
@@ -474,7 +475,7 @@ size_t BufferContents::CountCharacters() const {
 }
 
 void BufferContents::insert_line(LineNumber line_position,
-                                 shared_ptr<const Line> line) {
+                                 NonNull<std::shared_ptr<const Line>> line) {
   LOG(INFO) << "Inserting line at position: " << line_position;
   size_t original_size = Lines::Size(lines_);
   auto prefix = Lines::Prefix(lines_, line_position.line);
@@ -489,7 +490,7 @@ void BufferContents::insert_line(LineNumber line_position,
 }
 
 void BufferContents::set_line(LineNumber position,
-                              shared_ptr<const Line> line) {
+                              NonNull<std::shared_ptr<const Line>> line) {
   static Tracker tracker(L"BufferContents::set_line");
   auto tracker_call = tracker.Call();
 
@@ -563,7 +564,7 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
                          Lines::Suffix(lines_, last.line));
 
   if (lines_ == nullptr) {
-    lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
+    lines_ = Lines::PushBack(nullptr, MakeNonNullShared<const Line>());
   }
 
   if (cursors_behavior == CursorsBehavior::kUnmodified) {
@@ -577,12 +578,13 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
 
 void BufferContents::SplitLine(LineColumn position) {
   // TODO: Can maybe combine this with next for fewer updates.
-  insert_line(position.line + LineNumberDelta(1),
-              Line::New(Pointer(at(position.line))
-                            .Reference()
-                            .CopyOptions()
-                            .DeleteCharacters(ColumnNumber(0),
-                                              position.column.ToDelta())));
+  // TODO(2022-04-21, easy): Make Line::New return NonNull.
+  insert_line(
+      position.line + LineNumberDelta(1),
+      language::MakeNonNull<const Line>(Line::New(
+          at(position.line)
+              ->CopyOptions()
+              .DeleteCharacters(ColumnNumber(0), position.column.ToDelta()))));
   update_listener_(CursorsTracker::Transformation()
                        .WithBegin(position)
                        .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
@@ -614,12 +616,12 @@ void BufferContents::push_back(wstring str) {
     wchar_t c = str[i.column];
     CHECK_GE(i, start);
     if (c == '\n') {
-      push_back(std::make_shared<Line>(
+      push_back(MakeNonNullShared<const Line>(
           str.substr(start.column, (i - start).column_delta)));
       start = i + ColumnNumberDelta(1);
     }
   }
-  push_back(std::make_shared<Line>(str.substr(start.column)));
+  push_back(MakeNonNullShared<const Line>(str.substr(start.column)));
 }
 
 namespace {
@@ -653,13 +655,13 @@ const bool push_back_wstring_tests_registration = tests::Register(
     });
 }
 
-void BufferContents::push_back(shared_ptr<const Line> line) {
+void BufferContents::push_back(NonNull<std::shared_ptr<const Line>> line) {
   lines_ = Lines::PushBack(std::move(lines_), line);
   update_listener_({});
 }
 
 void BufferContents::append_back(
-    std::vector<std::shared_ptr<const Line>> lines) {
+    std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
   static Tracker tracker_subtree(L"BufferContents::append_back::subtree");
   auto tracker_subtree_call = tracker_subtree.Call();
   Lines::Ptr subtree = Lines::FromRange(lines.begin(), lines.end());
@@ -694,14 +696,14 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = line_number % size();
-        insert_line(line_number, std::make_shared<Line>(Line::Options(
+        insert_line(line_number, MakeNonNullShared<const Line>(Line::Options(
                                      NewLazyString(std::move(text.value)))));
       })));
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = line_number % size();
-        set_line(line_number, std::make_shared<Line>(Line::Options(
+        set_line(line_number, MakeNonNullShared<const Line>(Line::Options(
                                   NewLazyString(std::move(text.value)))));
       })));
 

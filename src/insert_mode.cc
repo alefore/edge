@@ -44,6 +44,8 @@ using concurrent::Notification;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::MakeNonNullShared;
+
 namespace {
 class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }
@@ -404,7 +406,7 @@ class InsertMode : public EditorMode {
 
                 return buffer->ApplyToCursors(transformation::Insert{
                     .contents_to_insert = std::make_unique<BufferContents>(
-                        std::make_shared<Line>(L" ")),
+                        MakeNonNullShared<const Line>(L" ")),
                     .final_position =
                         direction == Direction::kBackwards
                             ? transformation::Insert::FinalPosition::kStart

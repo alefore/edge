@@ -14,6 +14,8 @@
 
 namespace afc::editor {
 using infrastructure::FileDescriptor;
+using language::MakeNonNullShared;
+using language::NonNull;
 
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::make_shared<Options>(std::move(options))) {
@@ -126,12 +128,12 @@ FileDescriptorReader::ReadData() {
   return futures::Past(ReadResult::kContinue);
 }
 
-std::vector<std::shared_ptr<const Line>> CreateLineInstances(
+std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
     std::shared_ptr<LazyString> contents, const LineModifierSet& modifiers) {
   static Tracker tracker(L"FileDescriptorReader::CreateLineInstances");
   auto tracker_call = tracker.Call();
 
-  std::vector<std::shared_ptr<const Line>> lines_to_insert;
+  std::vector<NonNull<std::shared_ptr<const Line>>> lines_to_insert;
   lines_to_insert.reserve(4096);
   ColumnNumber line_start;
   for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); ++i) {
@@ -143,7 +145,7 @@ std::vector<std::shared_ptr<const Line>> CreateLineInstances(
           Substring(contents, line_start, ColumnNumber(i) - line_start);
       line_options.modifiers[ColumnNumber(0)] = modifiers;
       lines_to_insert.emplace_back(
-          std::make_shared<Line>(std::move(line_options)));
+          MakeNonNullShared<const Line>(std::move(line_options)));
 
       line_start = ColumnNumber(i) + ColumnNumberDelta(1);
     }
@@ -158,8 +160,9 @@ std::vector<std::shared_ptr<const Line>> CreateLineInstances(
   return lines_to_insert;
 }
 
-void InsertLines(const FileDescriptorReader::Options& options,
-                 std::vector<std::shared_ptr<const Line>> lines_to_insert) {
+void InsertLines(
+    const FileDescriptorReader::Options& options,
+    std::vector<NonNull<std::shared_ptr<const Line>>> lines_to_insert) {
   static Tracker tracker(L"FileDescriptorReader::InsertLines");
   auto tracker_call = tracker.Call();
 
@@ -183,18 +186,10 @@ void InsertLines(const FileDescriptorReader::Options& options,
 futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
     std::shared_ptr<LazyString> contents) {
   return options_->thread_pool
-      .Run(
-          // TODO: Find a way to remove the `std::function`, letting the read
-          // evaluator somehow detect the return type. Not sure why it doesn't
-          // work.
-          std::function<std::vector<std::shared_ptr<const Line>>()>(
-              [modifiers = options_->modifiers,
-               contents = std::move(contents)]() mutable {
-                return CreateLineInstances(std::move(contents),
-                                           std::move(modifiers));
-              }))
+      .Run(std::bind_front(CreateLineInstances, std::move(contents),
+                           options_->modifiers))
       .Transform([options = options_, lines_read_rate = lines_read_rate_](
-                     std::vector<std::shared_ptr<const Line>> lines) {
+                     std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
         lines_read_rate->IncrementAndGetEventsPerSecond(lines.size() - 1);
         InsertLines(*options, std::move(lines));
         return true;

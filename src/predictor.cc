@@ -37,6 +37,7 @@ using infrastructure::Path;
 using infrastructure::PathJoin;
 using language::EmptyValue;
 using language::FromByteString;
+using language::NonNull;
 using language::Success;
 
 using std::cout;
@@ -56,7 +57,8 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
             << predictions_buffer.contents().size();
   predictions_buffer.SortContents(
       LineNumber(0), predictions_buffer.EndLine(),
-      [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
+      [](const NonNull<std::shared_ptr<const Line>>& a,
+         const NonNull<std::shared_ptr<const Line>>& b) {
         return *LowerCase(a->contents()) < *LowerCase(b->contents());
       });
 
@@ -547,8 +549,8 @@ const bool buffer_tests_registration =
             .progress_channel = channel,
             .abort_notification = std::make_shared<Notification>()});
         buffer->SortContents(LineNumber(), buffer->EndLine(),
-                             [](const shared_ptr<const Line>& a,
-                                const shared_ptr<const Line>& b) {
+                             [](const NonNull<std::shared_ptr<const Line>>& a,
+                                const NonNull<std::shared_ptr<const Line>>& b) {
                                return a->ToString() < b->ToString();
                              });
         VLOG(5) << "Contents: " << buffer->contents().ToString();
@@ -574,8 +576,8 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
         std::make_shared<const Line>(Line::Options(NewLazyString(input.input)));
 
     LineNumber line = contents.upper_bound(
-        input_line,
-        [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
+        input_line, [](const NonNull<shared_ptr<const Line>>& a,
+                       const NonNull<shared_ptr<const Line>>& b) {
           return a->ToString() < b->ToString();
         });
 

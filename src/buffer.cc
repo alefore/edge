@@ -100,6 +100,7 @@ using infrastructure::UpdateIfMillisecondsHavePassed;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::ObservableValue;
 using language::Observers;
@@ -145,22 +146,21 @@ void RegisterBufferFields(
   }
 }
 
-std::shared_ptr<const Line> AddLineMetadata(
-    OpenBuffer& buffer, std::shared_ptr<const Line> line_ptr) {
-  const Line& line = Pointer(line_ptr).Reference();
-  if (line.metadata() != nullptr) return line_ptr;
+NonNull<std::shared_ptr<const Line>> AddLineMetadata(
+    OpenBuffer& buffer, NonNull<std::shared_ptr<const Line>> line) {
+  if (line->metadata() != nullptr) return line;
   std::wstring error_description;
   std::shared_ptr<Expression> expr;
   std::shared_ptr<Environment> sub_environment;
-  if (!line.empty()) {
+  if (!line->empty()) {
     std::tie(expr, sub_environment) =
-        buffer.CompileString(line.contents()->ToString(), &error_description);
+        buffer.CompileString(line->contents()->ToString(), &error_description);
   }
   if (expr == nullptr)
-    return line.metadata() == nullptr
-               ? line_ptr
-               : std::make_shared<Line>(
-                     line.CopyOptions().SetMetadata(std::nullopt));
+    return line->metadata() == nullptr
+               ? line
+               : MakeNonNullShared<const Line>(
+                     line->CopyOptions().SetMetadata(std::nullopt));
   std::wstring description = L"C++: " + TypesToString(expr->Types());
   if (expr->purity() == Expression::PurityType::kPure) {
     description += L" ...";
@@ -171,8 +171,8 @@ std::shared_ptr<const Line> AddLineMetadata(
 
   if (expr->purity() == Expression::PurityType::kPure) {
     if (expr->Types() == std::vector<VMType>({VMType::Void()})) {
-      return std::make_shared<Line>(
-          line.CopyOptions().SetMetadata(std::nullopt));
+      return MakeNonNullShared<const Line>(
+          line->CopyOptions().SetMetadata(std::nullopt));
     }
     futures::Future<std::shared_ptr<LazyString>> metadata_future;
     buffer.work_queue()->Schedule([buffer = buffer.shared_from_this(), expr,
@@ -197,7 +197,7 @@ std::shared_ptr<const Line> AddLineMetadata(
     metadata_value = std::move(metadata_future.value);
   }
 
-  return std::make_shared<Line>(line.CopyOptions().SetMetadata(
+  return MakeNonNullShared<const Line>(line->CopyOptions().SetMetadata(
       Line::MetadataEntry{.initial_value = NewLazyString(description),
                           .value = std::move(metadata_value)}));
 }
@@ -1034,17 +1034,14 @@ void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
   buffer_syntax_parser_.Parse(contents_.copy());
 }
 
-void OpenBuffer::StartNewLine(std::shared_ptr<Line> line) {
+void OpenBuffer::StartNewLine(NonNull<std::shared_ptr<const Line>> line) {
   static Tracker tracker(L"OpenBuffer::StartNewLine");
   auto tracker_call = tracker.Call();
-
-  CHECK(line != nullptr);
-  DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
-
   AppendLines({std::move(line)});
 }
 
-void OpenBuffer::AppendLines(std::vector<std::shared_ptr<const Line>> lines) {
+void OpenBuffer::AppendLines(
+    std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
   static Tracker tracker(L"OpenBuffer::AppendLines");
   auto tracker_call = tracker.Call();
 
@@ -1262,10 +1259,11 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
   wstring str = str_input->ToString();
 }
 
-void OpenBuffer::SortContents(LineNumber first, LineNumber last,
-                              std::function<bool(const shared_ptr<const Line>&,
-                                                 const shared_ptr<const Line>&)>
-                                  compare) {
+void OpenBuffer::SortContents(
+    LineNumber first, LineNumber last,
+    std::function<bool(const NonNull<std::shared_ptr<const Line>>&,
+                       const NonNull<std::shared_ptr<const Line>>&)>
+        compare) {
   CHECK(first <= last);
   contents_.sort(first, last, compare);
 }
@@ -1464,15 +1462,14 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
   CHECK_LE(position.line, contents_.EndLine());
-  auto line =
-      std::make_shared<Line>(Pointer(contents_.at(position.line)).Reference());
+  auto line = MakeNonNullShared<Line>(*contents_.at(position.line));
   if (line->EndColumn() > position.column + ColumnNumberDelta(1)) {
     return;
   }
   line->Append(Line(ColumnNumberDelta::PaddingString(
       position.column - line->EndColumn() + ColumnNumberDelta(1), L' ')));
 
-  contents_.set_line(position.line, line);
+  contents_.set_line(position.line, NonNull(std::move(line)));
 }
 
 void OpenBuffer::CheckPosition() {
@@ -1787,7 +1784,7 @@ std::shared_ptr<const Line> OpenBuffer::LineAt(LineNumber line_number) const {
   if (line_number > contents_.EndLine()) {
     return nullptr;
   }
-  return contents_.at(line_number);
+  return contents_.at(line_number).get_shared();
 }
 
 std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
