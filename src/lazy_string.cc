@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/lazy_string_functional.h"
+#include "src/tracker.h"
 
 namespace afc {
 namespace editor {
@@ -19,6 +20,8 @@ class EmptyStringImpl : public LazyString {
 }  // namespace
 
 std::wstring LazyString::ToString() const {
+  static Tracker tracker(L"LazyString::ToString");
+  auto call = tracker.Call();
   std::wstring output(size().column_delta, 0);
   ForEachColumn(*this,
                 [&output](ColumnNumber i, wchar_t c) { output[i.column] = c; });
