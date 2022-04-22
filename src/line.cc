@@ -27,6 +27,7 @@ using std::wstring;
 using language::compute_hash;
 using language::MakeHashableIteratorRange;
 using language::MakeNonNullShared;
+using language::NonNull;
 
 namespace {
 const bool line_tests_registration = tests::Register(
@@ -254,8 +255,8 @@ Line::Options& Line::Options::DeleteSuffix(ColumnNumber column) {
 
 void Line::Options::ValidateInvariants() { CHECK(contents != nullptr); }
 
-/* static */ std::shared_ptr<Line> Line::New(Options options) {
-  return std::make_shared<Line>(std::move(options));
+/* static */ NonNull<std::shared_ptr<Line>> Line::New(Options options) {
+  return MakeNonNullShared<Line>(std::move(options));
 }
 
 Line::Line(wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}

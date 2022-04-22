@@ -12,6 +12,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
+#include "src/language/safe_types.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
@@ -97,7 +98,7 @@ class Line {
     void ValidateInvariants();
   };
 
-  static std::shared_ptr<Line> New(Options options);
+  static language::NonNull<std::shared_ptr<Line>> New(Options options);
   Line() : Line(Options()) {}
   explicit Line(Options options);
   explicit Line(wstring text);

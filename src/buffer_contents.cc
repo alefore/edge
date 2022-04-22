@@ -579,12 +579,11 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
 void BufferContents::SplitLine(LineColumn position) {
   // TODO: Can maybe combine this with next for fewer updates.
   // TODO(2022-04-21, easy): Make Line::New return NonNull.
-  insert_line(
-      position.line + LineNumberDelta(1),
-      language::MakeNonNull<const Line>(Line::New(
-          at(position.line)
-              ->CopyOptions()
-              .DeleteCharacters(ColumnNumber(0), position.column.ToDelta()))));
+  insert_line(position.line + LineNumberDelta(1),
+              Line::New(at(position.line)
+                            ->CopyOptions()
+                            .DeleteCharacters(ColumnNumber(0),
+                                              position.column.ToDelta())));
   update_listener_(CursorsTracker::Transformation()
                        .WithBegin(position)
                        .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
