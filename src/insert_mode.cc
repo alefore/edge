@@ -45,6 +45,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 
 namespace {
@@ -425,7 +426,7 @@ class InsertMode : public EditorMode {
     GetScrollBehavior().AddListener(
         [buffers = buffers_, line_buffer,
          notification = scroll_behavior_abort_notification_,
-         method](std::shared_ptr<ScrollBehavior> scroll_behavior) {
+         method](NonNull<std::shared_ptr<ScrollBehavior>> scroll_behavior) {
           if (notification->HasBeenNotified()) return;
           ForEachActiveBuffer(buffers, line_buffer,
                               [scroll_behavior, method](
@@ -449,19 +450,19 @@ class InsertMode : public EditorMode {
         });
   }
 
-  futures::ListenableValue<std::shared_ptr<ScrollBehavior>>
+  futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>
   GetScrollBehavior() {
     if (!scroll_behavior_.has_value()) {
-      CHECK(options_.scroll_behavior != nullptr);
       scroll_behavior_abort_notification_->Notify();
       scroll_behavior_abort_notification_ =
           NonNull<std::shared_ptr<Notification>>();
       scroll_behavior_ = futures::ListenableValue(
           options_.scroll_behavior->Build(scroll_behavior_abort_notification_)
-              .Transform([](std::unique_ptr<ScrollBehavior> scroll_behavior) {
-                return std::shared_ptr<ScrollBehavior>(
-                    std::move(scroll_behavior));
-              }));
+              .Transform(
+                  [](NonNull<std::unique_ptr<ScrollBehavior>> scroll_behavior) {
+                    return NonNull<std::shared_ptr<ScrollBehavior>>(
+                        std::move(scroll_behavior));
+                  }));
     }
     return scroll_behavior_.value();
   }
@@ -499,7 +500,8 @@ class InsertMode : public EditorMode {
   // Copy of the contents of options_.buffers. Never null. shared_ptr to make it
   // easy for it to be captured efficiently.
   std::shared_ptr<std::vector<std::shared_ptr<OpenBuffer>>> buffers_;
-  std::optional<futures::ListenableValue<std::shared_ptr<ScrollBehavior>>>
+  std::optional<
+      futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>>
       scroll_behavior_;
 
   // For input to buffers that have a file descriptor, buffer the characters
@@ -575,17 +577,17 @@ std::unique_ptr<Command> NewFindCompletionCommand(EditorState& editor_state) {
   return std::make_unique<FindCompletionCommand>(editor_state);
 }
 
-/* static */ std::unique_ptr<ScrollBehaviorFactory>
+/* static */ NonNull<std::unique_ptr<ScrollBehaviorFactory>>
 ScrollBehaviorFactory::Default() {
   class DefaultScrollBehaviorFactory : public ScrollBehaviorFactory {
-    futures::Value<std::unique_ptr<ScrollBehavior>> Build(
+    futures::Value<NonNull<std::unique_ptr<ScrollBehavior>>> Build(
         NonNull<std::shared_ptr<Notification>>) override {
-      return futures::Past(
-          std::unique_ptr<ScrollBehavior>(new DefaultScrollBehavior()));
+      return futures::Past(NonNull<std::unique_ptr<ScrollBehavior>>(
+          MakeNonNullUnique<DefaultScrollBehavior>()));
     }
   };
 
-  return std::make_unique<DefaultScrollBehaviorFactory>();
+  return MakeNonNullUnique<DefaultScrollBehaviorFactory>();
 }
 
 void EnterInsertMode(InsertModeOptions options) {
@@ -617,10 +619,6 @@ void EnterInsertMode(InsertModeOptions options) {
       shared_options->modify_handler = [](OpenBuffer&) {
         return futures::Past(EmptyValue()); /* Nothing. */
       };
-    }
-
-    if (shared_options->scroll_behavior == nullptr) {
-      shared_options->scroll_behavior = ScrollBehaviorFactory::Default();
     }
 
     if (!shared_options->escape_handler) {

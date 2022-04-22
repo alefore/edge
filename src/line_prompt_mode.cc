@@ -686,7 +686,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
         prompt_state_(std::move(prompt_state)),
         buffer_(std::move(buffer)) {}
 
-  futures::Value<std::unique_ptr<ScrollBehavior>> Build(
+  futures::Value<NonNull<std::unique_ptr<ScrollBehavior>>> Build(
       NonNull<std::shared_ptr<Notification>> abort_notification) override {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     NonNull<std::shared_ptr<LazyString>> input =
@@ -695,11 +695,11 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
                          input->ToString())
         .Transform([input, prompt_state = prompt_state_](
                        std::shared_ptr<OpenBuffer> history)
-                       -> std::unique_ptr<ScrollBehavior> {
+                       -> NonNull<std::unique_ptr<ScrollBehavior>> {
           history->set_current_position_line(LineNumber(0) +
                                              history->contents().size());
-          return std::make_unique<HistoryScrollBehavior>(std::move(history),
-                                                         input, prompt_state);
+          return MakeNonNullUnique<HistoryScrollBehavior>(std::move(history),
+                                                          input, prompt_state);
         });
   }
 
@@ -914,7 +914,7 @@ void Prompt(PromptOptions options) {
                                      }))
                       .Transform([](auto) { return EmptyValue(); });
                 },
-            .scroll_behavior = std::make_unique<HistoryScrollBehaviorFactory>(
+            .scroll_behavior = MakeNonNullShared<HistoryScrollBehaviorFactory>(
                 editor_state, options.prompt, history, prompt_state, buffer),
             .escape_handler =
                 [&editor_state, options, prompt_state]() {

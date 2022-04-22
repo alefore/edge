@@ -41,13 +41,11 @@ class DefaultScrollBehavior : public ScrollBehavior {
 
 class ScrollBehaviorFactory {
  public:
-  // TODO(2022-04-22, easy): Return NonNull.
-  static std::unique_ptr<ScrollBehaviorFactory> Default();
+  static language::NonNull<std::unique_ptr<ScrollBehaviorFactory>> Default();
   virtual ~ScrollBehaviorFactory() = default;
-  // TODO(2022-04-22, easy): Return NonNull.
-  virtual futures::Value<std::unique_ptr<ScrollBehavior>> Build(
-      language::NonNull<std::shared_ptr<concurrent::Notification>>
-          abort_notification) = 0;
+  virtual futures::Value<language::NonNull<std::unique_ptr<ScrollBehavior>>>
+  Build(language::NonNull<std::shared_ptr<concurrent::Notification>>
+            abort_notification) = 0;
 };
 
 struct InsertModeOptions {
@@ -61,7 +59,7 @@ struct InsertModeOptions {
   std::function<futures::Value<language::EmptyValue>(OpenBuffer&)>
       modify_handler = nullptr;
 
-  std::shared_ptr<ScrollBehaviorFactory> scroll_behavior =
+  language::NonNull<std::shared_ptr<ScrollBehaviorFactory>> scroll_behavior =
       ScrollBehaviorFactory::Default();
 
   // Optional function to run when escape is pressed (and thus insert mode is
