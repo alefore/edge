@@ -68,7 +68,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
 }
 
 futures::Value<ColorizePromptOptions> DrawPath(
-    EditorState* editor, const std::shared_ptr<LazyString>& line,
+    EditorState* editor, const NonNull<std::shared_ptr<LazyString>>& line,
     PredictResults results) {
   return StatusContext(editor, results, *line)
       .Transform([editor, line,
@@ -110,7 +110,7 @@ futures::Value<ColorizePromptOptions> DrawPath(
 }
 
 futures::Value<ColorizePromptOptions> AdjustPath(
-    EditorState* editor, const std::shared_ptr<LazyString>& line,
+    EditorState* editor, const NonNull<std::shared_ptr<LazyString>>& line,
     std::unique_ptr<ProgressChannel> progress_channel,
     NonNull<std::shared_ptr<Notification>> abort_notification) {
   CHECK(progress_channel != nullptr);
@@ -245,7 +245,7 @@ std::unique_ptr<Command> NewOpenFileCommand(EditorState& editor) {
                       source_buffers[0]->Read(buffer_variables::path)),
         .colorize_options_provider =
             [&editor](
-                const std::shared_ptr<LazyString>& line,
+                const NonNull<std::shared_ptr<LazyString>>& line,
                 std::unique_ptr<ProgressChannel> progress_channel,
                 NonNull<std::shared_ptr<Notification>> abort_notification) {
               return AdjustPath(&editor, line, std::move(progress_channel),

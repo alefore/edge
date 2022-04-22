@@ -410,9 +410,10 @@ class ForkEditorCommand : public Command {
            .colorize_options_provider =
                prompt_state->context_command_callback == nullptr
                    ? PromptOptions::ColorizeFunction(nullptr)
-                   : ([prompt_state](const std::shared_ptr<LazyString>& line,
-                                     std::unique_ptr<ProgressChannel>,
-                                     NonNull<std::shared_ptr<Notification>>) {
+                   : ([prompt_state](
+                          const NonNull<std::shared_ptr<LazyString>>& line,
+                          std::unique_ptr<ProgressChannel>,
+                          NonNull<std::shared_ptr<Notification>>) {
                        return PromptChange(prompt_state.get(), line);
                      }),
            .handler = ([&editor_state = editor_state_,
@@ -441,8 +442,10 @@ class ForkEditorCommand : public Command {
   }
 
  private:
+  // TODO(easy, 2022-04-23): Pass PromptState by ref.
   static futures::Value<ColorizePromptOptions> PromptChange(
-      PromptState* prompt_state, const std::shared_ptr<LazyString>& line) {
+      PromptState* prompt_state,
+      const NonNull<std::shared_ptr<LazyString>>& line) {
     CHECK(prompt_state != nullptr);
     CHECK(prompt_state->context_command_callback);
     auto& editor = prompt_state->original_buffer->editor();

@@ -38,7 +38,7 @@ static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
 }
 
 ColorizePromptOptions SearchResultsModifiers(
-    std::shared_ptr<LazyString> line,
+    NonNull<std::shared_ptr<LazyString>> line,
     ValueOrError<SearchResultsSummary> result) {
   LineModifierSet modifiers;
   if (result.IsError()) {
@@ -192,7 +192,7 @@ class SearchCommand : public Command {
               buffers =
                   std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
                       editor_state_.active_buffers())](
-                 const std::shared_ptr<LazyString>& line,
+                 const NonNull<std::shared_ptr<LazyString>>& line,
                  std::unique_ptr<ProgressChannel> progress_channel,
                  NonNull<std::shared_ptr<Notification>> abort_notification) {
                VLOG(5) << "Triggering async search.";

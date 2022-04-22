@@ -203,7 +203,7 @@ unique_ptr<Command> NewSetVariableCommand(EditorState& editor_state) {
             .history_file = HistoryFile(L"variables"),
             .colorize_options_provider =
                 [&editor_state, variables_predictor = variables_predictor](
-                    const std::shared_ptr<LazyString>& line,
+                    const NonNull<std::shared_ptr<LazyString>>& line,
                     std::unique_ptr<ProgressChannel> progress_channel,
                     NonNull<std::shared_ptr<Notification>> abort_notification)
                 -> futures::Value<ColorizePromptOptions> {

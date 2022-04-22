@@ -869,8 +869,7 @@ void Prompt(PromptOptions options) {
                                  }),
                              options
                                  .colorize_options_provider(
-                                     line.get_shared(),
-                                     std::move(progress_channel),
+                                     line, std::move(progress_channel),
                                      *abort_notification_ptr)
                                  .Transform(
                                      [buffer = buffer.shared_from_this(),
@@ -959,7 +958,7 @@ void Prompt(PromptOptions options) {
                                     prompt_state);
                             options
                                 .colorize_options_provider(
-                                    line.get_shared(),
+                                    line,
                                     std::make_unique<ProgressChannel>(
                                         buffer->work_queue(),
                                         [](ProgressInformation) {

@@ -293,14 +293,11 @@ std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
             CHECK(buffer != nullptr);
             colorize_options_provider =
                 [&editor_state, search_namespaces = SearchNamespaces(*buffer)](
-                    const std::shared_ptr<LazyString>& line,
+                    const NonNull<std::shared_ptr<LazyString>>& line,
                     std::unique_ptr<ProgressChannel>,
                     NonNull<std::shared_ptr<Notification>>) {
-                  // TODO(2022-04-22,easy): Get rid of Unsafe.
-                  return ColorizeOptionsProvider(
-                      editor_state,
-                      NonNull<std::shared_ptr<LazyString>>::Unsafe(line),
-                      search_namespaces);
+                  return ColorizeOptionsProvider(editor_state, line,
+                                                 search_namespaces);
                 };
             break;
         }
