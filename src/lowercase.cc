@@ -11,12 +11,13 @@
 
 namespace afc::editor {
 
-using std::shared_ptr;
+using language::NonNull;
 
 namespace {
 class LowerCaseImpl : public LazyString {
  public:
-  LowerCaseImpl(shared_ptr<LazyString> input) : input_(std::move(input)) {}
+  LowerCaseImpl(NonNull<std::shared_ptr<LazyString>> input)
+      : input_(std::move(input)) {}
 
   wchar_t get(ColumnNumber pos) const override {
     return towlower(input_->get(pos));
@@ -25,7 +26,7 @@ class LowerCaseImpl : public LazyString {
   ColumnNumberDelta size() const override { return input_->size(); }
 
  private:
-  const shared_ptr<LazyString> input_;
+  const NonNull<std::shared_ptr<LazyString>> input_;
 };
 
 const bool lower_case_tests_registration = tests::Register(
@@ -33,8 +34,7 @@ const bool lower_case_tests_registration = tests::Register(
     {{.name = L"EmptyString",
       .callback =
           [] {
-            CHECK_EQ(LowerCaseImpl(EmptyString().get_shared()).size(),
-                     ColumnNumberDelta());
+            CHECK_EQ(LowerCaseImpl(EmptyString()).size(), ColumnNumberDelta());
           }},
      {.name = L"SimpleString", .callback = [] {
         // TODO: Why can't we use CHECK_EQ? Why can't the compiler find
@@ -44,9 +44,9 @@ const bool lower_case_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-shared_ptr<LazyString> LowerCase(shared_ptr<LazyString> input) {
-  DCHECK(input != nullptr);
-  return std::make_shared<LowerCaseImpl>(std::move(input));
+NonNull<std::shared_ptr<LazyString>> LowerCase(
+    NonNull<std::shared_ptr<LazyString>> input) {
+  return MakeNonNullShared<LowerCaseImpl>(std::move(input));
 }
 
 }  // namespace afc::editor

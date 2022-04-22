@@ -15,14 +15,15 @@ using language::Observers;
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   data_->lock([&options](Data& data) {
     if (options.parser_name == L"text") {
-      data.tree_parser = MakeNonNull(
-          std::shared_ptr<TreeParser>(NewLineTreeParser(NewWordsTreeParser(
-              options.symbol_characters, options.typos_set,
-              std::move(NewNullTreeParser().get_unique())))));
+      data.tree_parser =
+          NonNull<std::shared_ptr<TreeParser>>::Unsafe(NewLineTreeParser(
+              NewWordsTreeParser(options.symbol_characters, options.typos_set,
+                                 std::move(NewNullTreeParser().get_unique()))));
     } else if (options.parser_name == L"cpp") {
-      data.tree_parser = MakeNonNull(std::shared_ptr<TreeParser>(
+      // TODO(easy, 2022-04-22): Get rid of this `Unsafe` call.
+      data.tree_parser = NonNull<std::shared_ptr<TreeParser>>::Unsafe(
           NewCppTreeParser(options.language_keywords, options.typos_set,
-                           options.identifier_behavior)));
+                           options.identifier_behavior));
     } else if (options.parser_name == L"diff") {
       data.tree_parser = parsers::NewDiffTreeParser();
     } else if (options.parser_name == L"md") {

@@ -12,6 +12,7 @@
 #include "src/concurrent/thread_pool.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/ghost_type.h"
+#include "src/language/safe_types.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
@@ -67,7 +68,7 @@ class FileDescriptorReader {
 
  private:
   futures::Value<bool> ParseAndInsertLines(
-      std::shared_ptr<LazyString> contents);
+      language::NonNull<std::shared_ptr<LazyString>> contents);
 
   const std::shared_ptr<const Options> options_;
 

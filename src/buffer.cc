@@ -166,15 +166,15 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
     description += L" ...";
   }
 
-  futures::ListenableValue<std::shared_ptr<LazyString>> metadata_value(
-      futures::Future<std::shared_ptr<LazyString>>().value);
+  futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>> metadata_value(
+      futures::Future<NonNull<std::shared_ptr<LazyString>>>().value);
 
   if (expr->purity() == Expression::PurityType::kPure) {
     if (expr->Types() == std::vector<VMType>({VMType::Void()})) {
       return MakeNonNullShared<const Line>(
           line->CopyOptions().SetMetadata(std::nullopt));
     }
-    futures::Future<std::shared_ptr<LazyString>> metadata_future;
+    futures::Future<NonNull<std::shared_ptr<LazyString>>> metadata_future;
     buffer.work_queue()->Schedule([buffer = buffer.shared_from_this(), expr,
                                    sub_environment,
                                    consumer = metadata_future.consumer] {
@@ -189,7 +189,7 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
             return futures::Past(
                 NewLazyString(L"E: " + std::move(error.description)));
           })
-          .Transform([consumer](std::shared_ptr<LazyString> output) {
+          .Transform([consumer](NonNull<std::shared_ptr<LazyString>> output) {
             consumer(output);
             return Success();
           });
@@ -528,11 +528,13 @@ using std::to_wstring;
   buffer->AddField(
       L"ShowTrackers", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
         for (auto& data : Tracker::GetData()) {
-          buffer->AppendLine(StringAppend(
-              StringAppend(NewLazyString(data.name), NewLazyString(L": ")),
-              NewLazyString(std::to_wstring(data.executions)),
-              NewLazyString(L" "),
-              NewLazyString(std::to_wstring(data.seconds))));
+          buffer->AppendLine(
+              StringAppend(
+                  StringAppend(NewLazyString(data.name), NewLazyString(L": ")),
+                  NewLazyString(std::to_wstring(data.executions)),
+                  NewLazyString(L" "),
+                  NewLazyString(std::to_wstring(data.seconds)))
+                  .get_shared());
         }
       }));
 
@@ -798,7 +800,7 @@ void OpenBuffer::ClearContents(
 
 void OpenBuffer::AppendEmptyLine() {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(std::make_shared<Line>());
+  contents_.push_back(NonNull<std::shared_ptr<Line>>());
 }
 
 void OpenBuffer::EndOfFile() {
@@ -1049,7 +1051,7 @@ void OpenBuffer::AppendLines(
   if (lines_added.IsZero()) return;
 
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
-  for (auto& line : lines) {
+  for (NonNull<std::shared_ptr<const Line>>& line : lines) {
     line = AddLineMetadata(*this, std::move(line));
   }
   contents_.append_back(std::move(lines));
@@ -1244,9 +1246,12 @@ void OpenBuffer::UpdateBackup() {
   backup_state_ = DiskState::kCurrent;
 }
 
-void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
+void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input_raw) {
   ColumnNumber start;
-  ForEachColumn(Pointer(input).Reference(), [&](ColumnNumber i, wchar_t c) {
+  // TODO(2022-04-22, easy): Get rid of Unsafe.
+  auto input =
+      NonNull<std::shared_ptr<LazyString>>::Unsafe(std::move(input_raw));
+  ForEachColumn(*input, [&](ColumnNumber i, wchar_t c) {
     CHECK_GE(i, start);
     if (c == '\n') {
       AppendLine(Substring(input, start, i - start).get_shared());
@@ -1256,7 +1261,8 @@ void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
   AppendLine(Substring(input, start).get_shared());
 }
 
-static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
+// TODO: WTF is this?
+static void AddToParseTree(const NonNull<shared_ptr<LazyString>>& str_input) {
   wstring str = str_input->ToString();
 }
 
@@ -1280,12 +1286,16 @@ void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
 }
 
 void OpenBuffer::InsertLine(LineNumber line_position, shared_ptr<Line> line) {
-  contents_.insert_line(line_position, AddLineMetadata(*this, line));
+  // TODO(easy, 2022-04-22): Get rid of Unsafe.
+  contents_.insert_line(
+      line_position,
+      AddLineMetadata(*this, NonNull<std::shared_ptr<Line>>::Unsafe(line)));
 }
 
 // TODO(easy, 2022-04-22): Receive as NonNull.
-void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
-  CHECK(str != nullptr);
+void OpenBuffer::AppendLine(shared_ptr<LazyString> str_raw) {
+  CHECK(str_raw != nullptr);
+  auto str = NonNull<std::shared_ptr<LazyString>>::Unsafe(std::move(str_raw));
   if (reading_from_parser_) {
     switch (str->get(ColumnNumber(0))) {
       case 'E':
@@ -1306,20 +1316,26 @@ void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
     }
   }
 
-  AppendRawLine(str);
+  AppendRawLine(str.get_shared());
 }
 
 void OpenBuffer::AppendRawLine(std::shared_ptr<LazyString> str) {
-  AppendRawLine(std::make_shared<Line>(Line::Options(str)));
+  // TODO(easy, 2022-04-22): Get rid of unsafe.
+  AppendRawLine(std::make_shared<Line>(Line::Options(
+      NonNull<std::shared_ptr<LazyString>>::Unsafe(std::move(str)))));
 }
 
 void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(AddLineMetadata(*this, std::move(line)));
+  // TODO(easy, 2022-04-22): Get rid of unsafe.
+  contents_.push_back(AddLineMetadata(
+      *this, NonNull<std::shared_ptr<Line>>::Unsafe(std::move(line))));
 }
 
 void OpenBuffer::AppendToLastLine(std::shared_ptr<LazyString> str) {
-  AppendToLastLine(Line(Line::Options(std::move(str))));
+  // TODO(easy, 2022-04-22): Get rid of unsafe.
+  AppendToLastLine(Line(Line::Options(
+      NonNull<std::shared_ptr<LazyString>>::Unsafe(std::move(str)))));
 }
 
 void OpenBuffer::AppendToLastLine(Line line) {

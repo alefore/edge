@@ -199,7 +199,7 @@ class HelpCommand : public Command {
                             ? 0
                             : kPaddingSize - field_name.size(),
                         L' ');
-        output.push_back(std::make_shared<Line>(StringAppend(
+        output.push_back(MakeNonNullShared<Line>(StringAppend(
             NewLazyString(L"* `"), NewLazyString(field_name),
             NewLazyString(L"`" + std::move(padding) + L"`"),
             NewLazyString(FromByteString(value_stream.str()) + L"`"))));
@@ -227,7 +227,7 @@ class HelpCommand : public Command {
         value_stream << *value;
       }
 
-      output.push_back(std::make_shared<Line>(StringAppend(
+      output.push_back(MakeNonNullShared<Line>(StringAppend(
           NewLazyString(L"* `"), NewLazyString(name),
           NewLazyString(L"`" + std::move(padding) + L"`"),
           NewLazyString(FromByteString(value_stream.str()) + L"`"))));
@@ -242,15 +242,15 @@ class HelpCommand : public Command {
       /*std::function<std::wstring(const T&)>*/ C print) {
     StartSection(L"### " + type_name, output);
     for (const auto& variable : variables->variables()) {
-      output.push_back(std::make_shared<Line>(StringAppend(
+      output.push_back(MakeNonNullShared<Line>(StringAppend(
           NewLazyString(L"#### "), NewLazyString(variable.second->name()))));
       output.push_back(L"");
       output.push_back(variable.second->description());
       output.push_back(L"");
-      output.push_back(std::make_shared<Line>(StringAppend(
+      output.push_back(MakeNonNullShared<Line>(StringAppend(
           NewLazyString(L"* Value: "),
           NewLazyString(print(source.Read(variable.second.get()))))));
-      output.push_back(std::make_shared<Line>(StringAppend(
+      output.push_back(MakeNonNullShared<Line>(StringAppend(
           NewLazyString(L"* Default: "),
           NewLazyString(print(variable.second->default_value())))));
 

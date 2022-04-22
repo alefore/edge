@@ -36,14 +36,15 @@ using std::wstring;
 class Line {
  public:
   struct MetadataEntry {
-    std::shared_ptr<LazyString> initial_value;
-    futures::ListenableValue<std::shared_ptr<LazyString>> value;
+    language::NonNull<std::shared_ptr<LazyString>> initial_value;
+    futures::ListenableValue<language::NonNull<std::shared_ptr<LazyString>>>
+        value;
   };
 
   class Options {
    public:
     Options() : contents(EmptyString()) {}
-    Options(shared_ptr<LazyString> input_contents)
+    Options(language::NonNull<std::shared_ptr<LazyString>> input_contents)
         : contents(std::move(input_contents)) {}
 
     ColumnNumber EndColumn() const;
@@ -57,10 +58,8 @@ class Line {
 
     void InsertCharacterAtPosition(ColumnNumber position);
     void AppendCharacter(wchar_t c, LineModifierSet modifier);
-    // TODO(easy, 2022-04-22): NonNull.
-    void AppendString(std::shared_ptr<LazyString> suffix);
-    // TODO(easy, 2022-04-22): NonNull.
-    void AppendString(std::shared_ptr<LazyString> suffix,
+    void AppendString(language::NonNull<std::shared_ptr<LazyString>> suffix);
+    void AppendString(language::NonNull<std::shared_ptr<LazyString>> suffix,
                       std::optional<LineModifierSet> modifier);
     void AppendString(std::wstring contents,
                       std::optional<LineModifierSet> modifier);

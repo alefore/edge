@@ -123,7 +123,7 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
   for (const auto& buffer : buffers_to_show) {
     auto context_lines_var = lines_to_show[buffer.get()] - LineNumberDelta(1);
     auto context = LinesToShow(*buffer, context_lines_var);
-    std::shared_ptr<LazyString> name =
+    NonNull<std::shared_ptr<LazyString>> name =
         NewLazyString(buffer->Read(buffer_variables::name));
     if (context.first != context.second) {
       name = StringAppend(NewLazyString(L"╭──"), name);
@@ -138,9 +138,9 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
     }
     if (target.contents().size() == LineNumberDelta(1) &&
         target.contents().at(LineNumber(0))->EndColumn().IsZero()) {
-      target.AppendToLastLine(std::move(name));
+      target.AppendToLastLine(std::move(name.get_shared()));
     } else {
-      target.AppendLine(std::move(name));
+      target.AppendLine(std::move(name.get_shared()));
     }
     AdjustLastLine(target, buffer);
 

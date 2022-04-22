@@ -43,6 +43,7 @@ using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
@@ -411,7 +412,7 @@ class ForkEditorCommand : public Command {
                    ? PromptOptions::ColorizeFunction(nullptr)
                    : ([prompt_state](const std::shared_ptr<LazyString>& line,
                                      std::unique_ptr<ProgressChannel>,
-                                     std::shared_ptr<Notification>) {
+                                     NonNull<std::shared_ptr<Notification>>) {
                        return PromptChange(prompt_state.get(), line);
                      }),
            .handler = ([&editor_state = editor_state_,

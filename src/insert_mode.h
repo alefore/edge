@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "src/futures/futures.h"
+#include "src/language/safe_types.h"
 
 namespace afc {
 namespace concurrent {
@@ -40,10 +41,13 @@ class DefaultScrollBehavior : public ScrollBehavior {
 
 class ScrollBehaviorFactory {
  public:
+  // TODO(2022-04-22, easy): Return NonNull.
   static std::unique_ptr<ScrollBehaviorFactory> Default();
   virtual ~ScrollBehaviorFactory() = default;
+  // TODO(2022-04-22, easy): Return NonNull.
   virtual futures::Value<std::unique_ptr<ScrollBehavior>> Build(
-      std::shared_ptr<concurrent::Notification> abort_notification) = 0;
+      language::NonNull<std::shared_ptr<concurrent::Notification>>
+          abort_notification) = 0;
 };
 
 struct InsertModeOptions {

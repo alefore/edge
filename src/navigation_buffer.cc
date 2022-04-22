@@ -19,6 +19,7 @@ namespace afc {
 namespace editor {
 namespace {
 using infrastructure::Path;
+using language::NonNull;
 using language::PossibleError;
 using language::Success;
 
@@ -36,15 +37,13 @@ void AdjustLastLine(OpenBuffer& buffer, std::shared_ptr<OpenBuffer> link_to,
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
                  Line::Options* line_options) {
-  auto trim =
-      StringTrimLeft(input.contents().get_shared(),
-                     source.Read(buffer_variables::line_prefix_characters));
+  auto trim = StringTrimLeft(
+      input.contents(), source.Read(buffer_variables::line_prefix_characters));
   CHECK_LE(trim->size(), input.contents()->size());
   auto characters_trimmed =
       ColumnNumberDelta(input.contents()->size() - trim->size());
   auto initial_length = line_options->EndColumn().ToDelta();
-  line_options->contents =
-      StringAppend(line_options->contents.get_shared(), trim);
+  line_options->contents = StringAppend(line_options->contents, trim);
   for (auto& m : input.modifiers()) {
     if (m.first >= ColumnNumber(0) + characters_trimmed) {
       line_options->modifiers[m.first + initial_length - characters_trimmed] =
@@ -54,8 +53,8 @@ void AddContents(const OpenBuffer& source, const Line& input,
 }
 
 void AppendLine(const std::shared_ptr<OpenBuffer>& source,
-                std::shared_ptr<LazyString> padding, LineColumn position,
-                OpenBuffer& target) {
+                NonNull<std::shared_ptr<LazyString>> padding,
+                LineColumn position, OpenBuffer& target) {
   Line::Options options;
   options.contents = padding;
   AddContents(*source, *source->LineAt(position.line), &options);
@@ -64,7 +63,8 @@ void AppendLine(const std::shared_ptr<OpenBuffer>& source,
 }
 
 void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
-                 const ParseTree& tree, std::shared_ptr<LazyString> padding,
+                 const ParseTree& tree,
+                 NonNull<std::shared_ptr<LazyString>> padding,
                  OpenBuffer& target) {
   for (size_t i = 0; i < tree.children().size(); i++) {
     auto& child = tree.children()[i];
@@ -76,11 +76,11 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
       AddContents(*source, *source->LineAt(child.range().begin.line), &options);
       if (child.range().begin.line + LineNumberDelta(1) <
           child.range().end.line) {
-        options.contents = StringAppend(options.contents.get_shared(),
-                                        NewLazyString(L" ... "));
+        options.contents =
+            StringAppend(std::move(options.contents), NewLazyString(L" ... "));
       } else {
         options.contents =
-            StringAppend(options.contents.get_shared(), NewLazyString(L" "));
+            StringAppend(std::move(options.contents), NewLazyString(L" "));
       }
       if (i + 1 >= tree.children().size() ||
           child.range().end.line != tree.children()[i + 1].range().begin.line) {
@@ -113,16 +113,18 @@ futures::Value<PossibleError> GenerateContents(
   }
   auto source = source_weak.lock();
   if (source == nullptr) {
-    target.AppendToLastLine(NewLazyString(L"Source buffer no longer loaded."));
+    target.AppendToLastLine(std::move(
+        NewLazyString(L"Source buffer no longer loaded.").get_unique()));
     return futures::Past(Success());
   }
 
   auto tree = source->simplified_parse_tree();
-  target.AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
+  target.AppendToLastLine(std::move(
+      NewLazyString(source->Read(buffer_variables::name)).get_unique()));
   auto depth_value = target.environment()->Lookup(
       Environment::Namespace(), kDepthSymbol, VMType::Integer());
   int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
-  DisplayTree(source, depth, *tree, EmptyString().get_shared(), target);
+  DisplayTree(source, depth, *tree, EmptyString(), target);
   return futures::Past(Success());
 }
 

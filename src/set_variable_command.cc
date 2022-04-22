@@ -12,10 +12,10 @@
 #include "src/line_prompt_mode.h"
 
 namespace afc::editor {
-
 using concurrent::Notification;
 using language::EmptyValue;
 using language::FromByteString;
+using language::NonNull;
 
 using std::wstring;
 
@@ -205,7 +205,7 @@ unique_ptr<Command> NewSetVariableCommand(EditorState& editor_state) {
                 [&editor_state, variables_predictor = variables_predictor](
                     const std::shared_ptr<LazyString>& line,
                     std::unique_ptr<ProgressChannel> progress_channel,
-                    std::shared_ptr<Notification> abort_notification)
+                    NonNull<std::shared_ptr<Notification>> abort_notification)
                 -> futures::Value<ColorizePromptOptions> {
               CHECK(progress_channel != nullptr);
               return Predict(

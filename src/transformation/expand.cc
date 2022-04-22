@@ -20,6 +20,7 @@ namespace afc::editor {
 namespace {
 using infrastructure::Path;
 using language::EmptyValue;
+using language::MakeNonNullShared;
 
 std::wstring GetToken(const CompositeTransformation::Input& input,
                       EdgeVariable<wstring>* characters_variable) {
@@ -91,7 +92,7 @@ class PredictorTransformation : public CompositeTransformation {
           output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
               .contents_to_insert =
-                  std::make_shared<BufferContents>(std::make_shared<Line>(
+                  std::make_shared<BufferContents>(MakeNonNullShared<Line>(
                       results.value().common_prefix.value()))});
           return output;
         });
@@ -216,7 +217,7 @@ class Execute : public CompositeTransformation {
           if (value != nullptr && value->IsString()) {
             output.Push(transformation::Insert{
                 .contents_to_insert = std::make_shared<BufferContents>(
-                    std::make_shared<Line>(value->str))});
+                    MakeNonNullShared<Line>(value->str))});
           }
           return futures::Past(std::move(output));
         });

@@ -8,6 +8,7 @@
 
 #include "src/fuzz.h"
 #include "src/language/hash.h"
+#include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
@@ -53,7 +54,7 @@ struct ColumnNumberDelta {
   // character given.
   //
   // If length is negative (or zero), returns an empty string.
-  static std::shared_ptr<LazyString> PaddingString(
+  static language::NonNull<std::shared_ptr<LazyString>> PaddingString(
       const ColumnNumberDelta& length, wchar_t fill);
 
   ColumnNumberDelta() = default;

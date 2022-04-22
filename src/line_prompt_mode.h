@@ -53,7 +53,8 @@ struct PromptOptions {
   using ColorizeFunction = std::function<futures::Value<ColorizePromptOptions>(
       const std::shared_ptr<LazyString>& line,
       std::unique_ptr<ProgressChannel> progress_channel,
-      std::shared_ptr<concurrent::Notification> abort_notification)>;
+      language::NonNull<std::shared_ptr<concurrent::Notification>>
+          abort_notification)>;
 
   // Run whenever the text in the promot changes; should return a future with
   // options to colorize it.

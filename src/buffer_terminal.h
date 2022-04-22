@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/fuzz_testable.h"
+#include "src/language/safe_types.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
@@ -28,7 +29,7 @@ class BufferTerminal : public fuzz::FuzzTestable {
   LineColumn position() const;
   void SetPosition(LineColumn position);
 
-  void ProcessCommandInput(std::shared_ptr<LazyString> str,
+  void ProcessCommandInput(language::NonNull<std::shared_ptr<LazyString>> str,
                            const std::function<void()>& new_line_callback);
 
   std::vector<fuzz::Handler> FuzzHandlers() override;
@@ -48,9 +49,9 @@ class BufferTerminal : public fuzz::FuzzTestable {
 
   static void InternalUpdateSize(Data& data);
 
-  ColumnNumber ProcessTerminalEscapeSequence(std::shared_ptr<LazyString> str,
-                                             ColumnNumber read_index,
-                                             LineModifierSet* modifiers);
+  ColumnNumber ProcessTerminalEscapeSequence(
+      language::NonNull<std::shared_ptr<LazyString>> str,
+      ColumnNumber read_index, LineModifierSet* modifiers);
 
   void MoveToNextLine();
 

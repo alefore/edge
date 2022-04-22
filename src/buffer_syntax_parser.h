@@ -47,8 +47,7 @@ class BufferSyntaxParser {
         cancel_notification;
 
     language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
-        language::NonNull<std::shared_ptr<TreeParser>>(
-            std::move(NewNullTreeParser().get_unique()));
+        NewNullTreeParser();
 
     language::NonNull<std::shared_ptr<const ParseTree>> tree =
         language::MakeNonNullShared<const ParseTree>(Range());

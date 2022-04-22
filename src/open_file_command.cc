@@ -20,6 +20,7 @@ namespace {
 using concurrent::Notification;
 using infrastructure::Path;
 using language::EmptyValue;
+using language::NonNull;
 using language::ToByteString;
 futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
                                            EditorState& editor_state) {
@@ -111,7 +112,7 @@ futures::Value<ColorizePromptOptions> DrawPath(
 futures::Value<ColorizePromptOptions> AdjustPath(
     EditorState* editor, const std::shared_ptr<LazyString>& line,
     std::unique_ptr<ProgressChannel> progress_channel,
-    std::shared_ptr<Notification> abort_notification) {
+    NonNull<std::shared_ptr<Notification>> abort_notification) {
   CHECK(progress_channel != nullptr);
   return Predict(PredictOptions{
                      .editor_state = *editor,
@@ -243,9 +244,10 @@ std::unique_ptr<Command> NewOpenFileCommand(EditorState& editor) {
                       editor.modifiers().repetitions,
                       source_buffers[0]->Read(buffer_variables::path)),
         .colorize_options_provider =
-            [&editor](const std::shared_ptr<LazyString>& line,
-                      std::unique_ptr<ProgressChannel> progress_channel,
-                      std::shared_ptr<Notification> abort_notification) {
+            [&editor](
+                const std::shared_ptr<LazyString>& line,
+                std::unique_ptr<ProgressChannel> progress_channel,
+                NonNull<std::shared_ptr<Notification>> abort_notification) {
               return AdjustPath(&editor, line, std::move(progress_channel),
                                 std::move(abort_notification));
             },

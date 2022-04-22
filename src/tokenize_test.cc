@@ -10,6 +10,7 @@ namespace afc::editor {
 namespace {
 
 inline std::ostream& operator<<(std::ostream& out, const std::wstring& str) {
+  // TODO(2022-04-22, easy): Why is str not used?
   return out;
 }
 

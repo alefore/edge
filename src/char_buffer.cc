@@ -5,11 +5,12 @@
 #include <cstring>
 #include <string>
 
+#include "src/language/safe_types.h"
 #include "src/line_column.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+using language::MakeNonNullUnique;
+using language::NonNull;
 namespace {
 class RepeatedChar : public LazyString {
  public:
@@ -77,37 +78,39 @@ class CharBufferWithOwnership : public CharBuffer {
 };
 }  // namespace
 
-std::unique_ptr<LazyString> NewMoveableCharBuffer(const wchar_t* const* buffer,
-                                                  size_t size) {
-  return std::make_unique<MoveableCharBuffer>(buffer, size);
+NonNull<std::unique_ptr<LazyString>> NewMoveableCharBuffer(
+    const wchar_t* const* buffer, size_t size) {
+  return MakeNonNullUnique<MoveableCharBuffer>(buffer, size);
 }
 
-std::unique_ptr<LazyString> NewCharBuffer(const wchar_t* buffer, size_t size) {
-  return std::make_unique<CharBuffer>(buffer, size);
+NonNull<std::unique_ptr<LazyString>> NewCharBuffer(const wchar_t* buffer,
+                                                   size_t size) {
+  return MakeNonNullUnique<CharBuffer>(buffer, size);
 }
 
-std::unique_ptr<LazyString> NewCharBufferWithOwnership(const wchar_t* buffer,
-                                                       size_t size) {
-  return std::make_unique<CharBufferWithOwnership>(buffer, size);
+NonNull<std::unique_ptr<LazyString>> NewCharBufferWithOwnership(
+    const wchar_t* buffer, size_t size) {
+  return MakeNonNullUnique<CharBufferWithOwnership>(buffer, size);
 }
 
-std::unique_ptr<LazyString> NewCopyCharBuffer(const wchar_t* buffer) {
-  return std::make_unique<CharBufferWithOwnership>(wcsdup(buffer),
-                                                   wcslen(buffer));
+NonNull<std::unique_ptr<LazyString>> NewCopyCharBuffer(const wchar_t* buffer) {
+  return MakeNonNullUnique<CharBufferWithOwnership>(wcsdup(buffer),
+                                                    wcslen(buffer));
 }
 
-std::unique_ptr<LazyString> NewLazyString(std::wstring buffer) {
-  return std::make_unique<StringFromContainer<std::wstring>>(std::move(buffer));
+NonNull<std::unique_ptr<LazyString>> NewLazyString(std::wstring buffer) {
+  return MakeNonNullUnique<StringFromContainer<std::wstring>>(
+      std::move(buffer));
 }
 
-std::unique_ptr<LazyString> NewLazyString(std::vector<wchar_t> data) {
-  return std::make_unique<StringFromContainer<std::vector<wchar_t>>>(
+NonNull<std::unique_ptr<LazyString>> NewLazyString(std::vector<wchar_t> data) {
+  return MakeNonNullUnique<StringFromContainer<std::vector<wchar_t>>>(
       std::move(data));
 }
 
-std::unique_ptr<LazyString> NewLazyString(ColumnNumberDelta times, wchar_t c) {
-  return std::make_unique<RepeatedChar>(times, c);
+NonNull<std::unique_ptr<LazyString>> NewLazyString(ColumnNumberDelta times,
+                                                   wchar_t c) {
+  return MakeNonNullUnique<RepeatedChar>(times, c);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

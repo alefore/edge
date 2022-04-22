@@ -24,6 +24,8 @@ const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
     VMType::ObjectType(L"SetLineColumn");
 }  // namespace vm
 namespace editor {
+using language::NonNull;
+
 bool LineNumberDelta::IsZero() const { return *this == LineNumberDelta(); }
 
 bool operator==(const LineNumberDelta& a, const LineNumberDelta& b) {
@@ -126,11 +128,11 @@ LineNumberDelta operator--(LineNumberDelta& a, int) {
   return copy;
 }
 
-// TODO(easy, 2022-04-22): Add NonNull.
-/* static */ std::shared_ptr<LazyString> ColumnNumberDelta::PaddingString(
-    const ColumnNumberDelta& length, wchar_t fill) {
+/* static */ NonNull<std::shared_ptr<LazyString>>
+ColumnNumberDelta::PaddingString(const ColumnNumberDelta& length,
+                                 wchar_t fill) {
   if (length < ColumnNumberDelta(0)) {
-    return EmptyString().get_shared();
+    return EmptyString();
   }
   return NewLazyString(length, fill);
 }

@@ -9,6 +9,7 @@
 
 namespace afc {
 namespace editor {
+using language::MakeNonNullShared;
 using language::NonNull;
 namespace {
 class StringAppendImpl : public LazyString {
@@ -27,7 +28,7 @@ class StringAppendImpl : public LazyString {
   const ConstTree<wchar_t>::Ptr tree_;
 };
 
-ConstTree<wchar_t>::Ptr TreeFrom(std::shared_ptr<LazyString> a) {
+ConstTree<wchar_t>::Ptr TreeFrom(NonNull<std::shared_ptr<LazyString>> a) {
   auto a_cast = dynamic_cast<StringAppendImpl*>(a.get());
   if (a_cast != nullptr) {
     return a_cast->tree();
@@ -40,11 +41,9 @@ ConstTree<wchar_t>::Ptr TreeFrom(std::shared_ptr<LazyString> a) {
 }
 }  // namespace
 
-std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
-                                         std::shared_ptr<LazyString> b) {
-  CHECK(a != nullptr);
-  CHECK(b != nullptr);
-
+NonNull<std::shared_ptr<LazyString>> StringAppend(
+    NonNull<std::shared_ptr<LazyString>> a,
+    NonNull<std::shared_ptr<LazyString>> b) {
   if (a->size() == ColumnNumberDelta()) {
     return b;
   }
@@ -52,32 +51,34 @@ std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
     return a;
   }
 
-  return std::make_shared<StringAppendImpl>(
+  return MakeNonNullShared<StringAppendImpl>(
       ConstTree<wchar_t>::Append(TreeFrom(a), TreeFrom(b)));
 }
 
-std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
-                                         std::shared_ptr<LazyString> b,
-                                         std::shared_ptr<LazyString> c) {
+NonNull<std::shared_ptr<LazyString>> StringAppend(
+    NonNull<std::shared_ptr<LazyString>> a,
+    NonNull<std::shared_ptr<LazyString>> b,
+    NonNull<std::shared_ptr<LazyString>> c) {
   return StringAppend(std::move(a), StringAppend(std::move(b), std::move(c)));
 }
 
-std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
-                                         std::shared_ptr<LazyString> b,
-                                         std::shared_ptr<LazyString> c,
-                                         std::shared_ptr<LazyString> d) {
+NonNull<std::shared_ptr<LazyString>> StringAppend(
+    NonNull<std::shared_ptr<LazyString>> a,
+    NonNull<std::shared_ptr<LazyString>> b,
+    NonNull<std::shared_ptr<LazyString>> c,
+    NonNull<std::shared_ptr<LazyString>> d) {
   return StringAppend(StringAppend(std::move(a), std::move(b)),
                       StringAppend(std::move(c), std::move(d)));
 }
 
-std::shared_ptr<LazyString> Concatenate(
-    std::vector<std::shared_ptr<LazyString>> inputs) {
+NonNull<std::shared_ptr<LazyString>> Concatenate(
+    std::vector<NonNull<std::shared_ptr<LazyString>>> inputs) {
   // TODO: There's probably a faster way to do this. Not sure it matters.
   NonNull<std::shared_ptr<LazyString>> output = EmptyString();
   for (auto& i : inputs) {
-    output = StringAppend(output.get_shared(), i);
+    output = StringAppend(std::move(output), i);
   }
-  return output.get_shared();
+  return output;
 }
 
 }  // namespace editor

@@ -37,6 +37,7 @@ using infrastructure::Path;
 using infrastructure::PathJoin;
 using language::EmptyValue;
 using language::FromByteString;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::Success;
 
@@ -59,8 +60,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
       LineNumber(0), predictions_buffer.EndLine(),
       [](const NonNull<std::shared_ptr<const Line>>& a,
          const NonNull<std::shared_ptr<const Line>>& b) {
-        return *LowerCase(a->contents().get_shared()) <
-               *LowerCase(b->contents().get_shared());
+        return *LowerCase(a->contents()) < *LowerCase(b->contents());
       });
 
   LOG(INFO) << "Removing duplicates.";
@@ -320,13 +320,13 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   // The length of the longest prefix of `pattern` that matches an entry.
   size_t longest_pattern_match = 0;
   struct dirent* entry;
-  std::vector<std::shared_ptr<Line>> predictions;
+  std::vector<NonNull<std::shared_ptr<Line>>> predictions;
 
   auto FlushPredictions = [&predictions, get_buffer] {
     get_buffer([batch = std::move(predictions)](OpenBuffer& buffer) mutable {
       static Tracker tracker(L"FilePredictor::ScanDirectory::FlushPredictions");
       auto call = tracker.Call();
-      for (auto& prediction : batch) {
+      for (NonNull<std::shared_ptr<Line>>& prediction : batch) {
         buffer.StartNewLine(std::move(prediction));
       }
     });
@@ -356,7 +356,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
     if (std::regex_match(full_path, noise_regex)) {
       continue;
     }
-    predictions.push_back(std::make_shared<Line>(
+    predictions.push_back(MakeNonNullShared<Line>(
         Line::Options(NewLazyString(std::move(full_path)))));
     if (predictions.size() > 100) {
       FlushPredictions();
@@ -500,13 +500,13 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator) {
   const auto contents =
       std::make_shared<std::multimap<wstring, shared_ptr<LazyString>>>();
-  for (const auto& prediction_raw : predictions) {
-    vector<wstring> variations;
+  for (const std::wstring& prediction_raw : predictions) {
+    std::vector<std::wstring> variations;
     RegisterVariations(prediction_raw, separator, &variations);
-    const std::shared_ptr<LazyString> prediction =
+    const NonNull<std::shared_ptr<LazyString>> prediction =
         NewLazyString(prediction_raw);
     for (auto& variation : variations) {
-      contents->insert(make_pair(variation, prediction));
+      contents->insert(make_pair(variation, prediction.get_shared()));
     }
   }
   return [contents](PredictorInput input) {
@@ -569,12 +569,12 @@ const bool buffer_tests_registration =
 Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
   return [dictionary](PredictorInput input) {
     const BufferContents& contents = dictionary->contents();
-    auto input_line =
-        std::make_shared<const Line>(Line::Options(NewLazyString(input.input)));
+    auto input_line = MakeNonNullShared<const Line>(
+        Line::Options(NewLazyString(input.input)));
 
     LineNumber line = contents.upper_bound(
-        input_line, [](const NonNull<shared_ptr<const Line>>& a,
-                       const NonNull<shared_ptr<const Line>>& b) {
+        input_line, [](const NonNull<std::shared_ptr<const Line>>& a,
+                       const NonNull<std::shared_ptr<const Line>>& b) {
           return a->ToString() < b->ToString();
         });
 
@@ -639,7 +639,8 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   auto dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName(L"Dictionary")});
   for (auto& word : words) {
-    dictionary->AppendLine(NewLazyString(std::move(word)));
+    dictionary->AppendLine(
+        std::move(NewLazyString(std::move(word)).get_unique()));
   }
   return DictionaryPredictor(std::move(dictionary))(input);
 }

@@ -5,21 +5,17 @@
 #include "src/lazy_string_functional.h"
 #include "src/substring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::NonNull;
 
-std::shared_ptr<LazyString> StringTrimLeft(std::shared_ptr<LazyString> source,
-                                           std::wstring space_characters) {
-  CHECK(source != nullptr);
-  return Substring(source, FindFirstColumnWithPredicate(
-                               *source,
-                               [&](ColumnNumber, wchar_t c) {
-                                 return space_characters.find(c) ==
-                                        std::wstring::npos;
-                               })
-                               .value_or(ColumnNumber(0) + source->size()))
-      .get_shared();
+NonNull<std::shared_ptr<LazyString>> StringTrimLeft(
+    NonNull<std::shared_ptr<LazyString>> source,
+    std::wstring space_characters) {
+  return Substring(
+      source,
+      FindFirstColumnWithPredicate(*source, [&](ColumnNumber, wchar_t c) {
+        return space_characters.find(c) == std::wstring::npos;
+      }).value_or(ColumnNumber(0) + source->size()));
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

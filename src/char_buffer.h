@@ -4,25 +4,28 @@
 #include <memory>
 #include <vector>
 
+#include "src/language/safe_types.h"
 #include "src/lazy_string.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 class ColumnNumberDelta;
 
-std::unique_ptr<LazyString> NewMoveableCharBuffer(const wchar_t* const* buffer,
-                                                  size_t size);
-std::unique_ptr<LazyString> NewCharBuffer(const wchar_t* buffer, size_t size);
-std::unique_ptr<LazyString> NewCharBufferWithOwnership(const wchar_t* buffer,
-                                                       size_t size);
-std::unique_ptr<LazyString> NewCopyCharBuffer(const wchar_t* buffer);
-std::unique_ptr<LazyString> NewLazyString(std::wstring input);
-std::unique_ptr<LazyString> NewLazyString(std::vector<wchar_t> input);
+language::NonNull<std::unique_ptr<LazyString>> NewMoveableCharBuffer(
+    const wchar_t* const* buffer, size_t size);
+language::NonNull<std::unique_ptr<LazyString>> NewCharBuffer(
+    const wchar_t* buffer, size_t size);
+language::NonNull<std::unique_ptr<LazyString>> NewCharBufferWithOwnership(
+    const wchar_t* buffer, size_t size);
+language::NonNull<std::unique_ptr<LazyString>> NewCopyCharBuffer(
+    const wchar_t* buffer);
+language::NonNull<std::unique_ptr<LazyString>> NewLazyString(
+    std::wstring input);
+language::NonNull<std::unique_ptr<LazyString>> NewLazyString(
+    std::vector<wchar_t> input);
 
-std::unique_ptr<LazyString> NewLazyString(ColumnNumberDelta times, wchar_t c);
+language::NonNull<std::unique_ptr<LazyString>> NewLazyString(
+    ColumnNumberDelta times, wchar_t c);
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif

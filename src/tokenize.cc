@@ -1,9 +1,12 @@
 #include "src/tokenize.h"
 
+#include "src/language/safe_types.h"
 #include "src/substring.h"
 
 namespace afc::editor {
 using ::operator<<;
+
+using language::NonNull;
 
 std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   std::vector<Token> output;
@@ -45,19 +48,18 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   return output;
 }
 
-void PushIfNonEmpty(const std::shared_ptr<LazyString>& source, Token token,
-                    std::vector<Token>* output) {
+void PushIfNonEmpty(const NonNull<std::shared_ptr<LazyString>>& source,
+                    Token token, std::vector<Token>& output) {
   CHECK_LE(token.begin, token.end);
-  CHECK(output != nullptr);
   if (token.begin < token.end) {
     token.value =
         Substring(source, token.begin, token.end - token.begin)->ToString();
-    output->push_back(std::move(token));
+    output.push_back(std::move(token));
   }
 }
 
 std::vector<Token> TokenizeGroupsAlnum(
-    const std::shared_ptr<LazyString>& name) {
+    const NonNull<std::shared_ptr<LazyString>>& name) {
   std::vector<Token> output;
   for (ColumnNumber i; i.ToDelta() < name->size(); ++i) {
     while (i.ToDelta() < name->size() && !isalnum(name->get(i))) {
@@ -69,13 +71,13 @@ std::vector<Token> TokenizeGroupsAlnum(
       ++i;
     }
     token.end = i;
-    PushIfNonEmpty(name, std::move(token), &output);
+    PushIfNonEmpty(name, std::move(token), output);
   }
   return output;
 }
 
 std::vector<Token> TokenizeNameForPrefixSearches(
-    const std::shared_ptr<LazyString>& name) {
+    const NonNull<std::shared_ptr<LazyString>>& name) {
   std::vector<Token> output;
   for (const auto& input_token : TokenizeGroupsAlnum(name)) {
     ColumnNumber i = input_token.begin;
@@ -89,7 +91,7 @@ std::vector<Token> TokenizeNameForPrefixSearches(
         ++i;
       }
       output_token.end = i;
-      PushIfNonEmpty(name, std::move(output_token), &output);
+      PushIfNonEmpty(name, std::move(output_token), output);
     }
   }
   return output;
@@ -114,8 +116,8 @@ std::optional<Token> FindPrefixInTokens(std::wstring prefix,
 }
 }  // namespace
 
-std::vector<Token> ExtendTokensToEndOfString(std::shared_ptr<LazyString> str,
-                                             std::vector<Token> tokens) {
+std::vector<Token> ExtendTokensToEndOfString(
+    NonNull<std::shared_ptr<LazyString>> str, std::vector<Token> tokens) {
   std::vector<Token> output;
   output.reserve(tokens.size());
   for (auto& token : tokens) {

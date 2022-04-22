@@ -19,6 +19,7 @@ extern "C" {
 
 namespace afc::editor {
 using language::FromByteString;
+using language::NonNull;
 using language::Observers;
 
 BufferTerminal::BufferTerminal(OpenBuffer& buffer, BufferContents& contents)
@@ -38,7 +39,7 @@ void BufferTerminal::SetPosition(LineColumn position) {
 }
 
 void BufferTerminal::ProcessCommandInput(
-    shared_ptr<LazyString> str,
+    NonNull<std::shared_ptr<LazyString>> str,
     const std::function<void()>& new_line_callback) {
   data_->position.line = min(data_->position.line, data_->buffer.EndLine());
   std::unordered_set<LineModifier, std::hash<int>> modifiers;
@@ -106,7 +107,7 @@ std::vector<fuzz::Handler> BufferTerminal::FuzzHandlers() {
 }
 
 ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
-    shared_ptr<LazyString> str, ColumnNumber read_index,
+    NonNull<std::shared_ptr<LazyString>> str, ColumnNumber read_index,
     LineModifierSet* modifiers) {
   if (str->size() <= read_index.ToDelta()) {
     LOG(INFO) << "Unhandled character sequence: "

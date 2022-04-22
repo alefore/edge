@@ -94,8 +94,9 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
       VMType::Function({VMType::String(), VMType::String()}));
   if (callback == nullptr) {
     VLOG(5) << "Unable to find suitable GetPathMetadata definition";
-    return {.initial_value = EmptyString().get_shared(),
-            .value = futures::Future<std::shared_ptr<LazyString>>().value};
+    return {
+        .initial_value = EmptyString(),
+        .value = futures::Future<NonNull<std::shared_ptr<LazyString>>>().value};
   }
 
   std::vector<std::unique_ptr<vm::Expression>> args;
@@ -111,12 +112,13 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
                     NonNull<std::unique_ptr<Value>> value(std::move(value_ptr));
                     CHECK(value->IsString());
                     VLOG(7) << "Evaluated result: " << value->str;
-                    return futures::Past(Success(std::shared_ptr<LazyString>(
-                        NewLazyString(std::move(value->str)))));
+                    return futures::Past(
+                        Success(NonNull<std::shared_ptr<LazyString>>(
+                            NewLazyString(std::move(value->str)))));
                   })
                   .ConsumeErrors([](Error error) {
                     VLOG(7) << "Evaluation error: " << error.description;
-                    return futures::Past(std::shared_ptr<LazyString>(
+                    return futures::Past(NonNull<std::shared_ptr<LazyString>>(
                         NewLazyString(L"E: " + std::move(error.description))));
                   })};
 }
@@ -146,8 +148,7 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
   }
 
   Line::Options line_options;
-  line_options.contents =
-      shared_ptr<LazyString>(NewLazyString(path + type_it->second.description));
+  line_options.contents = NewLazyString(path + type_it->second.description);
   if (!type_it->second.modifiers.empty()) {
     line_options.modifiers[ColumnNumber(0)] = (type_it->second.modifiers);
   }
@@ -172,8 +173,10 @@ void ShowFiles(wstring name, std::vector<dirent> entries, OpenBuffer& target) {
               return strcmp(a.d_name, b.d_name) < 0;
             });
 
-  target.AppendLine(NewLazyString(L"## " + name + L" (" +
-                                  std::to_wstring(entries.size()) + L")"));
+  target.AppendLine(
+      std::move(NewLazyString(L"## " + name + L" (" +
+                              std::to_wstring(entries.size()) + L")")
+                    .get_unique()));
   for (auto& entry : entries) {
     AddLine(target, entry);
   }
@@ -197,13 +200,15 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
         auto disk_state_freezer = output.FreezeDiskState();
         if (results.error_description.has_value()) {
           output.status().SetInformationText(results.error_description.value());
-          output.AppendLine(
-              NewLazyString(std::move(results.error_description.value())));
+          output.AppendLine(std::move(
+              NewLazyString(std::move(results.error_description.value()))
+                  .get_unique()));
           return EmptyValue();
         }
 
         output.AppendToLastLine(
-            NewLazyString(L"# 🗁  File listing: " + path.read()));
+            std::move(NewLazyString(L"# 🗁  File listing: " + path.read())
+                          .get_unique()));
         output.AppendEmptyLine();
 
         ShowFiles(L"🗁  Directories", std::move(results.directories), output);

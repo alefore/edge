@@ -17,6 +17,7 @@ namespace {
 using language::compute_hash;
 using language::MakeHashableIteratorRange;
 using language::MakeNonNullShared;
+using language::NonNull;
 
 std::optional<size_t> CombineHashes(
     const std::vector<LineWithCursor::Generator>& delegates,
@@ -43,13 +44,12 @@ Line GeneratePadding(const ColumnsVector::Padding padding,
                      ColumnNumberDelta size) {
   Line::Options options;
   CHECK(!padding.body->size().IsZero());
-  std::shared_ptr<LazyString> contents = padding.head;
+  NonNull<std::shared_ptr<LazyString>> contents = padding.head;
   while (contents->size() < size) {
     contents = StringAppend(std::move(contents), padding.body);
   }
-  options.AppendString(
-      Substring(std::move(contents), ColumnNumber(), size).get_shared(),
-      padding.modifiers);
+  options.AppendString(Substring(std::move(contents), ColumnNumber(), size),
+                       padding.modifiers);
   return Line(std::move(options));
 }
 }  // namespace
@@ -59,8 +59,6 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
   for (const auto& column : columns_vector_raw.columns) {
     for (const auto& p : column.padding) {
       if (p.has_value()) {
-        CHECK(p->head != nullptr);
-        CHECK(p->body != nullptr);
         CHECK(!p->body->size().IsZero());
       }
     }

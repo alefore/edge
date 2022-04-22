@@ -23,6 +23,7 @@ using concurrent::Notification;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
@@ -71,8 +72,8 @@ struct ParsedCommand {
 };
 
 ValueOrError<ParsedCommand> Parse(
-    std::shared_ptr<LazyString> command, Environment* environment,
-    std::shared_ptr<LazyString> function_name_prefix,
+    NonNull<std::shared_ptr<LazyString>> command, Environment* environment,
+    NonNull<std::shared_ptr<LazyString>> function_name_prefix,
     std::unordered_set<VMType> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
   ParsedCommand output;
@@ -162,10 +163,10 @@ ValueOrError<ParsedCommand> Parse(
   return Success(std::move(output));
 }
 
-ValueOrError<ParsedCommand> Parse(std::shared_ptr<LazyString> command,
+ValueOrError<ParsedCommand> Parse(NonNull<std::shared_ptr<LazyString>> command,
                                   Environment* environment,
                                   const SearchNamespaces& search_namespaces) {
-  return Parse(command, environment, EmptyString().get_shared(),
+  return Parse(std::move(command), environment, EmptyString(),
                {VMType::Void(), VMType::String()}, search_namespaces);
 }
 
@@ -194,7 +195,7 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
-    EditorState& editor, std::shared_ptr<LazyString> line,
+    EditorState& editor, NonNull<std::shared_ptr<LazyString>> line,
     const SearchNamespaces& search_namespaces) {
   ColorizePromptOptions output;
   auto buffer = editor.current_buffer();
@@ -294,9 +295,12 @@ std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
                 [&editor_state, search_namespaces = SearchNamespaces(*buffer)](
                     const std::shared_ptr<LazyString>& line,
                     std::unique_ptr<ProgressChannel>,
-                    std::shared_ptr<Notification>) {
-                  return ColorizeOptionsProvider(editor_state, line,
-                                                 search_namespaces);
+                    NonNull<std::shared_ptr<Notification>>) {
+                  // TODO(2022-04-22,easy): Get rid of Unsafe.
+                  return ColorizeOptionsProvider(
+                      editor_state,
+                      NonNull<std::shared_ptr<LazyString>>::Unsafe(line),
+                      search_namespaces);
                 };
             break;
         }

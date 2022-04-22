@@ -8,6 +8,7 @@ namespace afc::editor {
 using concurrent::WorkQueueChannelConsumeMode;
 using language::EmptyValue;
 using language::Error;
+using language::NonNull;
 using language::Success;
 
 namespace {
@@ -302,7 +303,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
               for (auto& index : state.indices) {
                 if (auto buffer = buffers_list.GetBuffer(index).get();
                     buffer != nullptr) {
-                  if (std::shared_ptr<LazyString> str =
+                  if (NonNull<std::shared_ptr<LazyString>> str =
                           NewLazyString(buffer->Read(buffer_variables::name));
                       FindFilterPositions(
                           filter, ExtendTokensToEndOfString(

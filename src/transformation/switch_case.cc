@@ -3,6 +3,7 @@
 #include "src/buffer.h"
 #include "src/buffer_name.h"
 #include "src/char_buffer.h"
+#include "src/language/safe_types.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
@@ -12,6 +13,7 @@
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
+using language::NonNull;
 std::wstring SwitchCaseTransformation::Serialize() const {
   return L"SwitchCaseTransformation();";
 }
@@ -28,7 +30,7 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
       break;
     }
     if (i.column >= line->EndColumn()) {  // Switch to the next line.
-      contents_to_insert->push_back(std::make_shared<Line>());
+      contents_to_insert->push_back(NonNull<std::shared_ptr<Line>>());
       i = LineColumn(i.line + LineNumberDelta(1));
     } else {
       wchar_t c = line->get(i.column);

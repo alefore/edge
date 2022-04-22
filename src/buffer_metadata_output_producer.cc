@@ -271,7 +271,7 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   return Line(std::move(line_options));
 }
 
-std::shared_ptr<Line> GetDefaultInformation(
+NonNull<std::shared_ptr<Line>> GetDefaultInformation(
     const BufferMetadataOutputOptions& options, LineNumber line) {
   Line::Options line_options;
   auto parse_tree = options.buffer.simplified_parse_tree();
@@ -295,7 +295,7 @@ std::shared_ptr<Line> GetDefaultInformation(
           std::nullopt);
     }
   }
-  return std::make_shared<Line>(std::move(line_options));
+  return MakeNonNullShared<Line>(std::move(line_options));
 }
 
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
@@ -327,14 +327,17 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     info_char_modifier = LineModifier::DIM;
   }
 
-  if (auto metadata = contents.metadata();
-      metadata != nullptr && !metadata->size().IsZero()) {
+  if (std::shared_ptr<LazyString> metadata_raw = contents.metadata();
+      metadata_raw != nullptr && !metadata_raw->size().IsZero()) {
+    auto metadata =
+        NonNull<std::shared_ptr<LazyString>>::Unsafe(std::move(metadata_raw));
     ForEachColumn(*metadata, [](ColumnNumber, wchar_t c) {
       CHECK(c != L'\n') << "Metadata has invalid newline character.";
     });
-    output.push_back(MetadataLine{L'>', LineModifier::GREEN,
-                                  MakeNonNullShared<const Line>(metadata),
-                                  MetadataLine::Type::kLineContents});
+    output.push_back(
+        MetadataLine{L'>', LineModifier::GREEN,
+                     MakeNonNullShared<const Line>(std::move(metadata)),
+                     MetadataLine::Type::kLineContents});
   }
 
   std::list<LineMarks::Mark> marks;
@@ -378,7 +381,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     if (auto contents = mark.source_line_content->ToString();
         marks_strings.find(contents) == marks_strings.end()) {
       output.push_back(MetadataLine{'!', LineModifier::RED,
-                                    std::make_shared<Line>(L"👻 " + contents),
+                                    MakeNonNullShared<Line>(L"👻 " + contents),
                                     MetadataLine::Type::kMark});
     }
   }

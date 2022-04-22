@@ -21,6 +21,7 @@ using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::Error;
 using language::MakeNonNullShared;
+using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
@@ -439,17 +440,16 @@ void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
   std::wstring name = buffer.Read(buffer_variables::name);
   std::replace(name.begin(), name.end(), L'\n', L' ');
   if (components.empty()) {
-    std::shared_ptr<LazyString> output_name = NewLazyString(std::move(name));
+    NonNull<std::shared_ptr<LazyString>> output_name =
+        NewLazyString(std::move(name));
     if (output_name->size() > ColumnNumberDelta(2) &&
         output_name->get(ColumnNumber(0)) == L'$' &&
         output_name->get(ColumnNumber(1)) == L' ') {
       output_name = StringTrimLeft(
-          Substring(std::move(output_name), ColumnNumber(1)).get_shared(),
-          L" ");
+          Substring(std::move(output_name), ColumnNumber(1)), L" ");
     }
     output->AppendString(SubstringWithRangeChecks(std::move(output_name),
-                                                  ColumnNumber(0), columns)
-                             .get_shared(),
+                                                  ColumnNumber(0), columns),
                          modifiers);
     return;
   }

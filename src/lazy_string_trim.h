@@ -5,13 +5,13 @@
 #include <string>
 
 #include "lazy_string.h"
-
+#include "src/language/safe_types.h"
 namespace afc::editor {
 
 // Returns a copy with all left space characters removed.
-// TODO(2022-04-22, easy): Adopt NonNull.
-std::shared_ptr<LazyString> StringTrimLeft(std::shared_ptr<LazyString> a,
-                                           std::wstring space_characters);
+language::NonNull<std::shared_ptr<LazyString>> StringTrimLeft(
+    language::NonNull<std::shared_ptr<LazyString>> a,
+    std::wstring space_characters);
 
 }  // namespace afc::editor
 

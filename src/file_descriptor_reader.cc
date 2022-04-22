@@ -90,7 +90,8 @@ FileDescriptorReader::ReadData() {
 
   chars_tracker_call = nullptr;
 
-  shared_ptr<LazyString> buffer_wrapper(NewLazyString(std::move(buffer)));
+  NonNull<std::shared_ptr<LazyString>> buffer_wrapper =
+      NewLazyString(std::move(buffer));
   VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
 
   size_t processed = low_buffer_tmp == nullptr
@@ -129,7 +130,8 @@ FileDescriptorReader::ReadData() {
 }
 
 std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
-    std::shared_ptr<LazyString> contents, const LineModifierSet& modifiers) {
+    NonNull<std::shared_ptr<LazyString>> contents,
+    const LineModifierSet& modifiers) {
   static Tracker tracker(L"FileDescriptorReader::CreateLineInstances");
   auto tracker_call = tracker.Call();
 
@@ -156,7 +158,8 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
   Line::Options line_options;
   line_options.contents = Substring(contents, line_start);
   line_options.modifiers[ColumnNumber(0)] = modifiers;
-  lines_to_insert.emplace_back(std::make_shared<Line>(std::move(line_options)));
+  lines_to_insert.emplace_back(
+      MakeNonNullShared<Line>(std::move(line_options)));
   return lines_to_insert;
 }
 
@@ -184,7 +187,7 @@ void InsertLines(
 }
 
 futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
-    std::shared_ptr<LazyString> contents) {
+    NonNull<std::shared_ptr<LazyString>> contents) {
   return options_->thread_pool
       .Run(std::bind_front(CreateLineInstances, std::move(contents),
                            options_->modifiers))

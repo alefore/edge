@@ -45,6 +45,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
+using language::NonNull;
 
 namespace {
 class NewLineTransformation : public CompositeTransformation {
@@ -70,8 +71,8 @@ class NewLineTransformation : public CompositeTransformation {
     Output output;
     {
       auto contents_to_insert = std::make_unique<BufferContents>();
-      contents_to_insert->push_back(
-          std::make_shared<Line>(line->CopyOptions().DeleteSuffix(prefix_end)));
+      contents_to_insert->push_back(MakeNonNullShared<Line>(
+          line->CopyOptions().DeleteSuffix(prefix_end)));
       output.Push(transformation::Insert{.contents_to_insert =
                                              std::move(contents_to_insert)});
     }
@@ -341,7 +342,7 @@ class InsertMode : public EditorMode {
                     options, *buffer,
                     buffer->ApplyToCursors(transformation::Insert{
                         .contents_to_insert = std::make_shared<BufferContents>(
-                            std::make_shared<Line>(value)),
+                            MakeNonNullShared<Line>(value)),
                         .modifiers = {
                             .insertion =
                                 options.editor_state.modifiers().insertion}}));
@@ -453,7 +454,8 @@ class InsertMode : public EditorMode {
     if (!scroll_behavior_.has_value()) {
       CHECK(options_.scroll_behavior != nullptr);
       scroll_behavior_abort_notification_->Notify();
-      scroll_behavior_abort_notification_ = std::make_shared<Notification>();
+      scroll_behavior_abort_notification_ =
+          NonNull<std::shared_ptr<Notification>>();
       scroll_behavior_ = futures::ListenableValue(
           options_.scroll_behavior->Build(scroll_behavior_abort_notification_)
               .Transform([](std::unique_ptr<ScrollBehavior> scroll_behavior) {
@@ -507,8 +509,7 @@ class InsertMode : public EditorMode {
 
   // Given to ScrollBehaviorFactory::Build, and used to signal when we want to
   // abort the build of the history.
-  std::shared_ptr<Notification> scroll_behavior_abort_notification_ =
-      std::make_shared<Notification>();
+  NonNull<std::shared_ptr<Notification>> scroll_behavior_abort_notification_;
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
@@ -578,7 +579,7 @@ std::unique_ptr<Command> NewFindCompletionCommand(EditorState& editor_state) {
 ScrollBehaviorFactory::Default() {
   class DefaultScrollBehaviorFactory : public ScrollBehaviorFactory {
     futures::Value<std::unique_ptr<ScrollBehavior>> Build(
-        std::shared_ptr<Notification>) override {
+        NonNull<std::shared_ptr<Notification>>) override {
       return futures::Past(
           std::unique_ptr<ScrollBehavior>(new DefaultScrollBehavior()));
     }

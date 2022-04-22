@@ -4,15 +4,15 @@
 #include <memory>
 
 #include "lazy_string.h"
+#include "src/language/safe_types.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 using std::shared_ptr;
 
-shared_ptr<LazyString> LowerCase(shared_ptr<LazyString> input);
+language::NonNull<shared_ptr<LazyString>> LowerCase(
+    language::NonNull<shared_ptr<LazyString>> input);
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_LOWERCASE_H__

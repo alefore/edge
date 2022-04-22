@@ -3,6 +3,7 @@
 
 #include <glog/logging.h>
 
+#include <memory>
 #include <optional>
 
 namespace afc::language {
@@ -63,7 +64,17 @@ class NonNull {};
 
 template <typename T>
 class NonNull<std::unique_ptr<T>> {
+  struct UnsafeConstructorKey {};
+
  public:
+  // Use the `Other` type for types where `std::shared_ptr<Other>` can be
+  // converted to `std::shared_ptr<T>`.
+  template <typename Other>
+  static NonNull<std::unique_ptr<T>> Unsafe(std::unique_ptr<Other> value) {
+    CHECK(value != nullptr);
+    return NonNull(UnsafeConstructorKey(), std::move(value));
+  }
+
   NonNull() : value_(std::make_unique<T>()) {}
 
   explicit NonNull(std::unique_ptr<T> value) : value_(std::move(value)) {
@@ -82,16 +93,23 @@ class NonNull<std::unique_ptr<T>> {
   explicit NonNull(Arg arg) : value_(std::make_unique<T>(std::move(arg))) {}
 
   T* operator->() const { return value_.get(); }
+  T& operator*() const { return *value_; }
   T* get() const { return value_.get(); }
 
   std::unique_ptr<T>& get_unique() { return value_; }
 
  private:
+  template <typename Other>
+  NonNull(UnsafeConstructorKey, std::unique_ptr<Other> value)
+      : value_(std::move(value)) {}
+
   std::unique_ptr<T> value_;
 };
 
 template <typename T>
 class NonNull<std::shared_ptr<T>> {
+  struct UnsafeConstructorKey {};
+
  public:
   NonNull() : value_(std::make_shared<T>()) {}
 
@@ -101,25 +119,31 @@ class NonNull<std::shared_ptr<T>> {
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
   // converted to `std::shared_ptr<T>`.
   template <typename Other>
-  NonNull(std::shared_ptr<Other> value) : value_(std::move(value)) {
-    CHECK(value_ != nullptr);
+  static NonNull<std::shared_ptr<T>> Unsafe(std::shared_ptr<Other> value) {
+    CHECK(value != nullptr);
+    return NonNull(UnsafeConstructorKey(), std::move(value));
+  }
+
+  // Use the `Other` type for types where `std::shared_ptr<Other>` can be
+  // converted to `std::shared_ptr<T>`.
+  template <typename Other>
+  static NonNull<std::shared_ptr<T>> Unsafe(std::unique_ptr<Other> value) {
+    CHECK(value != nullptr);
+    return NonNull(UnsafeConstructorKey(),
+                   std::shared_ptr<Other>(std::move(value)));
   }
 
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
   // converted to `std::shared_ptr<T>`.
   template <typename Other>
   NonNull(NonNull<std::shared_ptr<Other>> value)
-      : value_(std::move(value.get_shared())) {
-    CHECK(value_ != nullptr);
-  }
+      : value_(std::move(value.get_shared())) {}
 
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
   // converted to `std::shared_ptr<T>`.
   template <typename Other>
   NonNull(NonNull<std::unique_ptr<Other>> value)
-      : value_(std::move(value.get_unique())) {
-    CHECK(value_ != nullptr);
-  }
+      : value_(std::move(value.get_unique())) {}
 
   template <typename Other>
   NonNull operator=(const NonNull<std::shared_ptr<Other>>& value) {
@@ -141,6 +165,10 @@ class NonNull<std::shared_ptr<T>> {
   std::shared_ptr<T>& get_shared() { return value_; }
 
  private:
+  template <typename Other>
+  NonNull(UnsafeConstructorKey, std::shared_ptr<Other> value)
+      : value_(std::move(value)) {}
+
   std::shared_ptr<T> value_;
 };
 
@@ -161,8 +189,13 @@ NonNull<std::unique_ptr<T>> MakeNonNull(std::unique_ptr<T> obj) {
 }
 
 template <typename T, typename... Arg>
+NonNull<std::unique_ptr<T>> MakeNonNullUnique(Arg... arg) {
+  return NonNull<std::unique_ptr<T>>::Unsafe(std::make_unique<T>(arg...));
+}
+
+template <typename T, typename... Arg>
 NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg... arg) {
-  return MakeNonNull(std::make_shared<T>(arg...));
+  return NonNull<std::shared_ptr<T>>::Unsafe(std::make_shared<T>(arg...));
 }
 
 }  // namespace afc::language

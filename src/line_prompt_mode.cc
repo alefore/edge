@@ -39,6 +39,7 @@ using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
@@ -55,12 +56,16 @@ GetCurrentFeatures(EditorState& editor) {
         buffer->Read(buffer_variables::show_in_buffers_list) &&
         editor.buffer_tree().GetBufferIndex(buffer.get()).has_value()) {
       output.insert(
-          {L"name", NewLazyString(buffer->Read(buffer_variables::name))});
+          {L"name",
+           std::move(NewLazyString(buffer->Read(buffer_variables::name))
+                         .get_unique())});
     }
   }
   editor.ForEachActiveBuffer([&output](OpenBuffer& buffer) {
     output.insert(
-        {L"active", NewLazyString(buffer.Read(buffer_variables::name))});
+        {L"active",
+         std::move(
+             NewLazyString(buffer.Read(buffer_variables::name)).get_unique())});
     return futures::Past(EmptyValue());
   });
   return output;
@@ -92,10 +97,13 @@ GetSyntheticFeatures(
     }
   }
   for (auto& dir : directories) {
-    output.insert({L"directory", NewLazyString(dir.read())});
+    output.insert(
+        {L"directory", std::move(NewLazyString(dir.read()).get_unique())});
   }
   for (auto& extension : extensions) {
-    output.insert({L"extension", NewLazyString(std::move(extension))});
+    output.insert(
+        {L"extension",
+         std::move(NewLazyString(std::move(extension)).get_unique())});
   }
   return output;
 }
@@ -109,7 +117,8 @@ const bool get_synthetic_features_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
                 input;
-            input.insert({L"name", NewLazyString(L"foo.cc")});
+            input.insert(
+                {L"name", std::move(NewLazyString(L"foo.cc").get_unique())});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
             CHECK(output.find(L"extension")->second->ToString() == L"cc");
@@ -119,8 +128,9 @@ const bool get_synthetic_features_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
                 input;
-            input.insert(
-                {L"name", NewLazyString(L"/home/alejo/src/edge/foo.cc")});
+            input.insert({L"name", std::move(NewLazyString(
+                                                 L"/home/alejo/src/edge/foo.cc")
+                                                 .get_unique())});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
             CHECK(output.find(L"extension")->second->ToString() == L"cc");
@@ -130,10 +140,19 @@ const bool get_synthetic_features_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
                 input;
-            input.insert({L"name", NewLazyString(L"/home/alejo/foo.cc")});
-            input.insert({L"name", NewLazyString(L"bar.cc")});
-            input.insert({L"name", NewLazyString(L"/home/alejo/buffer.h")});
-            input.insert({L"name", NewLazyString(L"/home/alejo/README.md")});
+            input.insert(
+                {L"name",
+                 std::move(NewLazyString(L"/home/alejo/foo.cc").get_unique())});
+            input.insert(
+                {L"name", std::move(NewLazyString(L"bar.cc").get_unique())});
+            input.insert(
+                {L"name",
+                 std::move(
+                     NewLazyString(L"/home/alejo/buffer.h").get_unique())});
+            input.insert(
+                {L"name",
+                 std::move(
+                     NewLazyString(L"/home/alejo/README.md").get_unique())});
             auto output = GetSyntheticFeatures(input);
             auto range = output.equal_range(L"extension");
             CHECK_EQ(std::distance(range.first, range.second), 3l);
@@ -148,7 +167,8 @@ const bool get_synthetic_features_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
                 input;
-            input.insert({L"name", NewLazyString(L"foo.cc")});
+            input.insert(
+                {L"name", std::move(NewLazyString(L"foo.cc").get_unique())});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"directory"), 0ul);
           }},
@@ -157,7 +177,10 @@ const bool get_synthetic_features_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
                 input;
-            input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
+            input.insert(
+                {L"name",
+                 std::move(
+                     NewLazyString(L"/home/alejo/edge/foo.cc").get_unique())});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"directory"), 1ul);
             CHECK(output.find(L"directory")->second->ToString() ==
@@ -166,9 +189,18 @@ const bool get_synthetic_features_tests_registration = tests::Register(
      {.name = L"DirectoryMultiple", .callback = [] {
         std::unordered_multimap<std::wstring, std::shared_ptr<LazyString>>
             input;
-        input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
-        input.insert({L"name", NewLazyString(L"/home/alejo/edge/bar.cc")});
-        input.insert({L"name", NewLazyString(L"/home/alejo/btc/input.txt")});
+        input.insert(
+            {L"name",
+             std::move(
+                 NewLazyString(L"/home/alejo/edge/foo.cc").get_unique())});
+        input.insert(
+            {L"name",
+             std::move(
+                 NewLazyString(L"/home/alejo/edge/bar.cc").get_unique())});
+        input.insert(
+            {L"name",
+             std::move(
+                 NewLazyString(L"/home/alejo/btc/input.txt").get_unique())});
         auto output = GetSyntheticFeatures(input);
         auto range = output.equal_range(L"directory");
         CHECK_EQ(std::distance(range.first, range.second), 2l);
@@ -239,8 +271,7 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
     --value_end;
     output.insert(
         {token.value.substr(0, colon),
-         Substring(line.get_shared(), value_start, value_end - value_start)
-             .get_shared()});
+         Substring(line, value_start, value_end - value_start).get_shared()});
   }
   for (auto& additional_features : GetSyntheticFeatures(output)) {
     output.insert(additional_features);
@@ -249,18 +280,21 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
 }
 
 std::shared_ptr<LazyString> QuoteString(std::shared_ptr<LazyString> src) {
+  // TODO(easy, 2022-04-22): Convert to NonNull.
   return StringAppend(NewLazyString(L"\""),
                       NewLazyString(CppEscapeString(src->ToString())),
-                      NewLazyString(L"\""));
+                      NewLazyString(L"\""))
+      .get_shared();
 }
 
 auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
   auto test = [](std::wstring name, std::wstring input,
                  std::wstring expected_output) {
-    return tests::Test({.name = name, .callback = [=] {
-                          CHECK(QuoteString(NewLazyString(input))->ToString() ==
-                                expected_output);
-                        }});
+    return tests::Test(
+        {.name = name, .callback = [=] {
+           CHECK(QuoteString(std::move(NewLazyString(input).get_unique()))
+                     ->ToString() == expected_output);
+         }});
   };
   return std::vector<tests::Test>(
       {test(L"Simple", L"alejo", L"\"alejo\""),
@@ -273,18 +307,24 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
 
 std::shared_ptr<LazyString> BuildHistoryLine(
     EditorState& editor, std::shared_ptr<LazyString> input) {
-  std::vector<std::shared_ptr<LazyString>> line_for_history;
+  std::vector<NonNull<std::shared_ptr<LazyString>>> line_for_history;
   line_for_history.emplace_back(NewLazyString(L"prompt:"));
-  line_for_history.emplace_back(QuoteString(std::move(input)));
+  // TODO(2022-04-22, easy): Get rid of the 'Unsafe':
+  line_for_history.emplace_back(NonNull<std::shared_ptr<LazyString>>::Unsafe(
+      QuoteString(std::move(input))));
   for (auto& [name, feature] : GetCurrentFeatures(editor)) {
     line_for_history.emplace_back(NewLazyString(L" " + name + L":"));
-    line_for_history.emplace_back(QuoteString(feature));
+    // TODO(2022-04-22, easy): Get rid of the 'Unsafe':
+    line_for_history.emplace_back(
+        NonNull<std::shared_ptr<LazyString>>::Unsafe(QuoteString(feature)));
   }
-  return Concatenate(std::move(line_for_history));
+  // TODO(2022-04-22, easy): Get rid of the 'get_shared':
+  return Concatenate(std::move(line_for_history)).get_shared();
 }
 
-std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
-                                   std::vector<TokenAndModifiers> tokens) {
+NonNull<std::shared_ptr<Line>> ColorizeLine(
+    NonNull<std::shared_ptr<LazyString>> line,
+    std::vector<TokenAndModifiers> tokens) {
   sort(tokens.begin(), tokens.end(),
        [](const TokenAndModifiers& a, const TokenAndModifiers& b) {
          return a.token.begin < b.token.begin;
@@ -294,7 +334,7 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
   ColumnNumber position;
   auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
     if (end <= position) return;
-    options.AppendString(Substring(line, position, end - position).get_shared(),
+    options.AppendString(Substring(line, position, end - position),
                          std::move(modifiers));
     position = end;
   };
@@ -303,12 +343,14 @@ std::shared_ptr<Line> ColorizeLine(std::shared_ptr<LazyString> line,
     push_to_position(t.token.end, t.modifiers);
   }
   push_to_position(ColumnNumber() + line->size(), {});
-  return std::make_shared<Line>(std::move(options));
+  return MakeNonNullShared<Line>(std::move(options));
 }
 
+// TODO(easy, 2022-04-22): Use NonNull for history_buffer.
 futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
     EditorState& editor_state, std::shared_ptr<OpenBuffer> history_buffer,
-    std::shared_ptr<Notification> abort_notification, std::wstring filter) {
+    NonNull<std::shared_ptr<Notification>> abort_notification,
+    std::wstring filter) {
   BufferName name(L"- history filter: " + history_buffer->name().read() +
                   L": " + filter);
   auto filter_buffer = OpenBuffer::New({.editor = editor_state, .name = name});
@@ -320,7 +362,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
 
   struct Output {
     std::deque<std::wstring> errors;
-    std::deque<std::shared_ptr<Line>> lines;
+    std::deque<NonNull<std::shared_ptr<Line>>> lines;
   };
 
   return history_buffer->WaitForEndOfFile()
@@ -374,7 +416,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
                         << range.first->second->ToString();
               return !abort_notification->HasBeenNotified();
             }
-            std::shared_ptr<LazyString> prompt_value =
+            NonNull<std::shared_ptr<LazyString>> prompt_value =
                 NewLazyString(*prompt_value_optional);
             VLOG(8) << "Considering history value: "
                     << prompt_value->ToString();
@@ -444,7 +486,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
             }
             if (!abort_notification->HasBeenNotified()) {
               for (auto& line : output.lines) {
-                filter_buffer->AppendRawLine(line);
+                // TODO(easy, 2022-04-22): Get rid of get_shared.
+                filter_buffer->AppendRawLine(line.get_shared());
               }
 
               if (filter_buffer->lines_size() > LineNumberDelta(1)) {
@@ -558,13 +601,12 @@ class PromptRenderState {
 class HistoryScrollBehavior : public ScrollBehavior {
  public:
   HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history,
-                        std::shared_ptr<LazyString> original_input,
+                        NonNull<std::shared_ptr<LazyString>> original_input,
                         std::shared_ptr<PromptState> prompt_state)
       : history_(std::move(history)),
         original_input_(std::move(original_input)),
         prompt_state_(std::move(prompt_state)),
         previous_context_(prompt_state_->status().context()) {
-    CHECK(original_input_ != nullptr);
     CHECK(prompt_state_ != nullptr);
     CHECK(prompt_state_->status().GetType() == Status::Type::kPrompt ||
           prompt_state_->IsGone());
@@ -628,7 +670,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   }
 
   const std::shared_ptr<OpenBuffer> history_;
-  const std::shared_ptr<LazyString> original_input_;
+  const NonNull<std::shared_ptr<LazyString>> original_input_;
   const std::shared_ptr<PromptState> prompt_state_;
   const std::shared_ptr<OpenBuffer> previous_context_;
 };
@@ -646,7 +688,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
         buffer_(std::move(buffer)) {}
 
   futures::Value<std::unique_ptr<ScrollBehavior>> Build(
-      std::shared_ptr<Notification> abort_notification) override {
+      NonNull<std::shared_ptr<Notification>> abort_notification) override {
     CHECK_GT(buffer_->lines_size(), LineNumberDelta(0));
     NonNull<std::shared_ptr<LazyString>> input =
         buffer_->contents().at(LineNumber(0))->contents();
@@ -657,8 +699,8 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
                        -> std::unique_ptr<ScrollBehavior> {
           history->set_current_position_line(LineNumber(0) +
                                              history->contents().size());
-          return std::make_unique<HistoryScrollBehavior>(
-              std::move(history), input.get_shared(), prompt_state);
+          return std::make_unique<HistoryScrollBehavior>(std::move(history),
+                                                         input, prompt_state);
         });
   }
 
@@ -708,7 +750,7 @@ class LinePromptCommand : public Command {
 // tokens become available.
 void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
                     std::shared_ptr<PromptState> prompt_state,
-                    std::shared_ptr<Notification> abort_notification,
+                    NonNull<std::shared_ptr<Notification>> abort_notification,
                     const NonNull<std::shared_ptr<const Line>>& original_line,
                     ColorizePromptOptions options) {
   CHECK(status_buffer != nullptr);
@@ -736,7 +778,7 @@ void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
   }
 
   status_buffer->AppendRawLine(
-      ColorizeLine(line->contents().get_shared(), std::move(options.tokens)));
+      ColorizeLine(line->contents(), std::move(options.tokens)).get_shared());
   status_buffer->EraseLines(LineNumber(0), LineNumber(1));
   if (options.context.has_value()) {
     prompt_state->status().set_context(options.context.value());
@@ -792,7 +834,7 @@ void Prompt(PromptOptions options) {
 
         buffer->ApplyToCursors(transformation::Insert(
             {.contents_to_insert = std::make_unique<BufferContents>(
-                 std::make_shared<Line>(options.initial_value))}));
+                 MakeNonNullShared<Line>(options.initial_value))}));
 
         // Notification that can be used to abort an ongoing execution of
         // `colorize_options_provider`. Every time we call
@@ -800,8 +842,7 @@ void Prompt(PromptOptions options) {
         // previous notification and set this to a new notification that will be
         // given to the `colorize_options_provider`.
         auto abort_notification_ptr =
-            std::make_shared<std::shared_ptr<Notification>>(
-                std::make_shared<Notification>());
+            std::make_shared<NonNull<std::shared_ptr<Notification>>>();
         InsertModeOptions insert_mode_options{
             .editor_state = editor_state,
             .buffers = {{buffer}},
@@ -828,7 +869,8 @@ void Prompt(PromptOptions options) {
                       },
                       WorkQueueChannelConsumeMode::kAll);
                   (*abort_notification_ptr)->Notify();
-                  *abort_notification_ptr = std::make_shared<Notification>();
+                  *abort_notification_ptr =
+                      NonNull<std::shared_ptr<Notification>>();
                   return JoinValues(
                              FilterHistory(editor_state, history,
                                            *abort_notification_ptr,
@@ -931,13 +973,14 @@ void Prompt(PromptOptions options) {
                                   .boundary_begin = Modifiers::LIMIT_CURRENT,
                                   .boundary_end = Modifiers::LIMIT_CURRENT}});
 
-                          std::shared_ptr<LazyString> line = NewLazyString(
-                              results.value().common_prefix.value());
+                          NonNull<std::shared_ptr<LazyString>> line =
+                              NewLazyString(
+                                  results.value().common_prefix.value());
 
                           buffer->ApplyToCursors(transformation::Insert(
                               {.contents_to_insert =
                                    std::make_unique<BufferContents>(
-                                       std::make_shared<Line>(line))}));
+                                       MakeNonNullShared<Line>(line))}));
                           if (options.colorize_options_provider != nullptr) {
                             CHECK(prompt_state->status().GetType() ==
                                   Status::Type::kPrompt);
@@ -946,24 +989,27 @@ void Prompt(PromptOptions options) {
                                     prompt_state);
                             options
                                 .colorize_options_provider(
-                                    line,
+                                    line.get_shared(),
                                     std::make_unique<ProgressChannel>(
                                         buffer->work_queue(),
                                         [](ProgressInformation) {
                                           /* Nothing for now. */
                                         },
                                         WorkQueueChannelConsumeMode::kAll),
-                                    std::make_shared<Notification>())
-                                .Transform(
-                                    [buffer, prompt_state, prompt_render_state,
-                                     original_line = buffer->LineAt(LineNumber(
-                                         0))](ColorizePromptOptions options) {
-                                      ColorizePrompt(
-                                          buffer, prompt_state,
-                                          std::make_shared<Notification>(),
-                                          original_line, options);
-                                      return Success();
-                                    });
+                                    NonNull<std::shared_ptr<Notification>>())
+                                // TODO(2022-04-22, easy): Use bind front?
+                                .Transform([buffer, prompt_state,
+                                            prompt_render_state,
+                                            original_line =
+                                                buffer->contents().at(
+                                                    LineNumber(0))](
+                                               ColorizePromptOptions options) {
+                                  ColorizePrompt(
+                                      buffer, prompt_state,
+                                      NonNull<std::shared_ptr<Notification>>(),
+                                      original_line, options);
+                                  return Success();
+                                });
                           }
                           return;
                         }

@@ -79,7 +79,8 @@ class BufferContents : public fuzz::FuzzTestable {
   wstring ToString() const;
 
   template <class C>
-  LineNumber upper_bound(std::shared_ptr<const Line>& key, C compare) const {
+  LineNumber upper_bound(language::NonNull<std::shared_ptr<const Line>>& key,
+                         C compare) const {
     return LineNumber(Lines::UpperBound(lines_, key, compare));
   }
 

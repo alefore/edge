@@ -14,6 +14,7 @@ using concurrent::Notification;
 using futures::IterationControlCommand;
 using language::EmptyValue;
 using language::Error;
+using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
@@ -193,7 +194,7 @@ class SearchCommand : public Command {
                       editor_state_.active_buffers())](
                  const std::shared_ptr<LazyString>& line,
                  std::unique_ptr<ProgressChannel> progress_channel,
-                 std::shared_ptr<Notification> abort_notification) {
+                 NonNull<std::shared_ptr<Notification>> abort_notification) {
                VLOG(5) << "Triggering async search.";
                auto results =
                    std::make_shared<ValueOrError<SearchResultsSummary>>(
@@ -256,7 +257,8 @@ class SearchCommand : public Command {
                return editor_state
                    .ForEachActiveBuffer([input](OpenBuffer& buffer) {
                      if (auto search_options = BuildPromptSearchOptions(
-                             input, &buffer, std::make_shared<Notification>());
+                             input, &buffer,
+                             NonNull<std::shared_ptr<Notification>>());
                          search_options.has_value()) {
                        DoSearch(buffer, *search_options);
                      }
@@ -275,7 +277,7 @@ class SearchCommand : public Command {
  private:
   static std::optional<SearchOptions> BuildPromptSearchOptions(
       std::wstring input, OpenBuffer* buffer,
-      std::shared_ptr<Notification> abort_notification) {
+      NonNull<std::shared_ptr<Notification>> abort_notification) {
     auto& editor = buffer->editor();
     SearchOptions search_options;
     search_options.search_query = input;
@@ -299,7 +301,8 @@ class SearchCommand : public Command {
       LOG(INFO) << "Searching region: " << search_options.starting_position
                 << " to " << search_options.limit_position.value();
     }
-    search_options.abort_notification = abort_notification;
+    // TODO(easy, 2022-04-22): Get rid of call to get_shared.
+    search_options.abort_notification = abort_notification.get_shared();
     return search_options;
   }
 

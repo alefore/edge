@@ -242,11 +242,10 @@ class WordsTreeParser : public TreeParser {
         }
 
         CHECK_GT(range.end.column, range.begin.column);
-        // TODO(2022-04-22, easy): Make Substring receive NonNull.
-        auto keyword =
-            Substring(contents.contents().get_shared(), range.begin.column,
-                      range.end.column - range.begin.column)
-                ->ToString();
+        // TODO(2022-04-22): Find a way to avoid the call to ToString?
+        auto keyword = Substring(contents.contents(), range.begin.column,
+                                 range.end.column - range.begin.column)
+                           ->ToString();
         ParseTree child = delegate_->FindChildren(buffer, range);
         if (typos_.find(keyword) != typos_.end()) {
           child.InsertModifier(LineModifier::RED);

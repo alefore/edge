@@ -7,12 +7,13 @@
 
 namespace afc::editor {
 using concurrent::WorkQueue;
+using language::NonNull;
 using language::Pointer;
 
 namespace {
 std::wstring GetMetadata(std::wstring line) {
   auto buffer = NewBufferForTests();
-  buffer->AppendToLastLine(NewLazyString(line));
+  buffer->AppendToLastLine(std::move(NewLazyString(line).get_unique()));
 
   // Gives it a chance to execute:
   buffer->editor().work_queue()->Execute();
@@ -68,8 +69,8 @@ const bool buffer_tests_registration = tests::Register(
                Line::Options options(NewLazyString(L"foo"));
                options.SetMetadata(Line::MetadataEntry{
                    .initial_value = NewLazyString(L"bar"),
-                   .value = futures::Past(
-                       std::shared_ptr<LazyString>(NewLazyString(L"quux")))});
+                   .value = futures::Past(NonNull<std::shared_ptr<LazyString>>(
+                       NewLazyString(L"quux")))});
                buffer->AppendRawLine(
                    std::make_shared<Line>(std::move(options)));
                // Gives it a chance to execute:
