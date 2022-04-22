@@ -59,11 +59,14 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
 namespace editor {
 namespace transformation {
 namespace {
+using language::NonNull;
+
 futures::Value<Result> ApplyBase(const Modifiers& modifiers,
                                  CompositeTransformation* transformation,
                                  Input transformation_input) {
-  std::shared_ptr<Log> trace = transformation_input.buffer.log().NewChild(
-      L"ApplyBase(CompositeTransformation)");
+  NonNull<std::shared_ptr<Log>> trace =
+      transformation_input.buffer.log().NewChild(
+          L"ApplyBase(CompositeTransformation)");
   auto position = transformation_input.buffer.AdjustLineColumn(
       transformation_input.position);
   return transformation

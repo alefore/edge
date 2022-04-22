@@ -6,6 +6,7 @@
 
 #include "src/futures/futures.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 
 namespace afc::editor {
@@ -13,15 +14,16 @@ class Log {
  public:
   virtual ~Log() {}
   virtual void Append(std::wstring statement) = 0;
-  virtual std::unique_ptr<Log> NewChild(std::wstring name) = 0;
+  virtual language::NonNull<std::unique_ptr<Log>> NewChild(
+      std::wstring name) = 0;
 };
 
 // file_system may be deleted as soon as this function returns (i.e., before the
 // future has a value).
-futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
+futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>> NewFileLog(
     infrastructure::FileSystemDriver* file_system, infrastructure::Path path);
 
-std::unique_ptr<Log> NewNullLog();
+language::NonNull<std::unique_ptr<Log>> NewNullLog();
 
 template <typename Callable>
 auto RunAndLog(Log* log, std::wstring name, Callable callable) {

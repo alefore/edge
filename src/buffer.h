@@ -106,10 +106,10 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     std::function<futures::Value<language::PossibleError>(HandleSaveOptions)>
         handle_save = nullptr;
 
-    // Optional log to use. Must never return nullptr.
-    std::function<futures::ValueOrError<std::unique_ptr<Log>>(
-        std::shared_ptr<concurrent::WorkQueue> work_queue,
-        infrastructure::Path edge_state_directory)>
+    std::function<
+        futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>>(
+            std::shared_ptr<concurrent::WorkQueue> work_queue,
+            infrastructure::Path edge_state_directory)>
         log_supplier =
             [](std::shared_ptr<concurrent::WorkQueue>, infrastructure::Path) {
               return futures::Past(language::Success(NewNullLog()));
@@ -501,7 +501,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   const Options options_;
 
-  std::unique_ptr<Log> log_ = NewNullLog();
+  language::NonNull<std::unique_ptr<Log>> log_ = NewNullLog();
 
   std::unique_ptr<FileDescriptorReader> fd_;
   std::unique_ptr<FileDescriptorReader> fd_error_;

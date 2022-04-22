@@ -119,10 +119,9 @@ futures::Value<Result> HandleCommandCpp(Input input,
 }
 
 template <typename Iterator>
-futures::Value<EmptyValue> ApplyStackDirectly(Iterator begin, Iterator end,
-                                              Input& input,
-                                              std::shared_ptr<Log> trace,
-                                              std::shared_ptr<Result> output) {
+futures::Value<EmptyValue> ApplyStackDirectly(
+    Iterator begin, Iterator end, Input& input,
+    NonNull<std::shared_ptr<Log>> trace, std::shared_ptr<Result> output) {
   return futures::ForEach(
              begin, end,
              [output, &input,
@@ -283,7 +282,8 @@ const bool analyze_content_tests_registration = tests::Register(
 futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   auto output = std::make_shared<Result>(input.position);
   auto copy = std::make_shared<Stack>(parameters);
-  std::shared_ptr<Log> trace = input.buffer.log().NewChild(L"ApplyBase(Stack)");
+  NonNull<std::shared_ptr<Log>> trace =
+      input.buffer.log().NewChild(L"ApplyBase(Stack)");
   return ApplyStackDirectly(copy->stack.begin(), copy->stack.end(), input,
                             trace, output)
       .Transform([output, input, copy, trace](EmptyValue) {

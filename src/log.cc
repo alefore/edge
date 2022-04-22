@@ -12,6 +12,7 @@ using infrastructure::FileSystemDriver;
 using infrastructure::HumanReadableTime;
 using infrastructure::Now;
 using infrastructure::Path;
+using language::NonNull;
 using language::Success;
 using language::ToByteString;
 
@@ -22,10 +23,14 @@ ThreadPool& LoggingThreadPool() {
 
 class NullLog : public Log {
  public:
-  static std::unique_ptr<Log> New() { return std::make_unique<NullLog>(); }
+  static NonNull<std::unique_ptr<Log>> New() {
+    return NonNull<std::unique_ptr<NullLog>>();
+  }
 
   void Append(std::wstring) override {}
-  std::unique_ptr<Log> NewChild(std::wstring) override { return New(); }
+  NonNull<std::unique_ptr<Log>> NewChild(std::wstring) override {
+    return New();
+  }
 };
 
 struct FileLogData {
@@ -46,10 +51,10 @@ class FileLog : public Log {
     Write(data_, id_, L"Info: " + std::move(statement));
   }
 
-  std::unique_ptr<Log> NewChild(std::wstring name) {
+  NonNull<std::unique_ptr<Log>> NewChild(std::wstring name) {
     Write(data_, id_,
           L"New Child: id:" + std::to_wstring(data_->next_id) + L": " + name);
-    return std::make_unique<FileLog>(data_);
+    return NonNull<std::unique_ptr<FileLog>>(data_);
   }
 
  private:
@@ -71,18 +76,19 @@ class FileLog : public Log {
   int id_;
 };
 }  // namespace
-futures::ValueOrError<std::unique_ptr<Log>> NewFileLog(
+futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>> NewFileLog(
     FileSystemDriver* file_system, Path path) {
   LOG(INFO) << "Opening log: " << path;
   return file_system
       ->Open(path, O_WRONLY | O_CREAT | O_APPEND,
              S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
       .Transform([](FileDescriptor fd) {
-        return Success<std::unique_ptr<Log>>(std::make_unique<FileLog>(
-            std::make_shared<FileLogData>(FileLogData{.fd = fd})));
+        return Success<NonNull<std::unique_ptr<Log>>>(
+            NonNull<std::unique_ptr<FileLog>>(
+                std::make_shared<FileLogData>(FileLogData{.fd = fd})));
       });
 }
 
-std::unique_ptr<Log> NewNullLog() { return NullLog::New(); }
+NonNull<std::unique_ptr<Log>> NewNullLog() { return NullLog::New(); }
 
 }  // namespace afc::editor

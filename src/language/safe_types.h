@@ -78,8 +78,11 @@ class NonNull<std::unique_ptr<T>> {
     CHECK(value_ != nullptr);
   }
 
-  T* operator->() { return value_.get(); }
-  T* get() { return value_.get(); }
+  template <typename Arg>
+  explicit NonNull(Arg arg) : value_(std::make_unique<T>(std::move(arg))) {}
+
+  T* operator->() const { return value_.get(); }
+  T* get() const { return value_.get(); }
 
   std::unique_ptr<T>& get_unique() { return value_; }
 
@@ -110,6 +113,14 @@ class NonNull<std::shared_ptr<T>> {
     CHECK(value_ != nullptr);
   }
 
+  // Use the `Other` type for types where `std::shared_ptr<Other>` can be
+  // converted to `std::shared_ptr<T>`.
+  template <typename Other>
+  NonNull(NonNull<std::unique_ptr<Other>> value)
+      : value_(std::move(value.get_unique())) {
+    CHECK(value_ != nullptr);
+  }
+
   template <typename Other>
   NonNull operator=(const NonNull<std::shared_ptr<Other>>& value) {
     value_ = value.get_shared();
@@ -122,11 +133,8 @@ class NonNull<std::shared_ptr<T>> {
     return *this;
   }
 
-  T* operator->() { return value_.get(); }
   T* operator->() const { return value_.get(); }
-  T& operator*() { return *value_; }
   T& operator*() const { return *value_; }
-  T* get() { return value_.get(); }
   T* get() const { return value_.get(); }
 
   const std::shared_ptr<T>& get_shared() const { return value_; }

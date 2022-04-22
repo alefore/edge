@@ -1130,11 +1130,12 @@ void OpenBuffer::Reload() {
               return Success(NewNullLog());
             });
       })
-      .Transform([this](std::unique_ptr<Log> log) -> ValueOrError<EmptyValue> {
-        CHECK(log != nullptr);
+      .Transform([this](NonNull<std::unique_ptr<Log>> log)
+                     -> ValueOrError<EmptyValue> {
         log_ = std::move(log);
         return Success();
       })
+      // TODO(2022-04-22, easy): Roll back this and the previous?
       .Transform([shared_this = shared_from_this(), this](EmptyValue) {
         switch (reload_state_) {
           case ReloadState::kDone:
