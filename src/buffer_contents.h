@@ -172,8 +172,7 @@ class BufferContents : public fuzz::FuzzTestable {
     static Tracker tracker(L"BufferContents::TransformLine");
     auto tracker_call = tracker.Call();
     if (lines_ == nullptr) {
-      lines_ =
-          Lines::PushBack(nullptr, language::MakeNonNullShared<const Line>());
+      lines_ = Lines::PushBack(nullptr, {});
     }
     CHECK_LE(line_number, EndLine());
     Line::Options options = at(line_number)->CopyOptions();
@@ -183,8 +182,7 @@ class BufferContents : public fuzz::FuzzTestable {
     update_listener_(cursors_transformation);
   }
 
-  Lines::Ptr lines_ =
-      Lines::PushBack(nullptr, language::MakeNonNullShared<const Line>());
+  Lines::Ptr lines_ = Lines::PushBack(nullptr, {});
 
   UpdateListener update_listener_;
 };

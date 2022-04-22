@@ -44,8 +44,7 @@ class BufferSyntaxParser {
     // When the tree changes, we notify it, install a new notification, and
     // schedule in `syntax_data_` new work.
     language::NonNull<std::shared_ptr<concurrent::Notification>>
-        cancel_notification =
-            language::MakeNonNullShared<concurrent::Notification>();
+        cancel_notification;
 
     language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
         language::MakeNonNull(std::shared_ptr<TreeParser>(NewNullTreeParser()));
@@ -69,11 +68,8 @@ class BufferSyntaxParser {
         zoomed_out_trees;
   };
 
-  const language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_ =
-      language::MakeNonNullShared<concurrent::Protected<Data>>(Data());
-
-  const language::NonNull<std::shared_ptr<language::Observers>> observers_ =
-      language::MakeNonNullShared<language::Observers>();
+  const language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_;
+  const language::NonNull<std::shared_ptr<language::Observers>> observers_;
 };
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_BUFFER_SYNTAX_PARSER__

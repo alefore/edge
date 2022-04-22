@@ -43,7 +43,7 @@ void BufferSyntaxParser::Parse(std::unique_ptr<BufferContents> contents) {
         if (TreeParser::IsNull(data.tree_parser.get())) return;
 
         data.cancel_notification->Notify();
-        data.cancel_notification = MakeNonNullShared<Notification>();
+        data.cancel_notification = NonNull<std::shared_ptr<Notification>>();
 
         pool.RunIgnoringResult([contents, parser = data.tree_parser,
                                 notification = data.cancel_notification,

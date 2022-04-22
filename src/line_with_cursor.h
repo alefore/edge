@@ -52,8 +52,7 @@ struct LineWithCursor {
     std::function<LineWithCursor()> generate;
   };
 
-  language::NonNull<std::shared_ptr<Line>> line =
-      language::MakeNonNullShared<Line>();
+  language::NonNull<std::shared_ptr<Line>> line;
 
   // Output parameter. If the active cursor is found in the line, stores here
   // the column in which it was output here. May be nullptr.

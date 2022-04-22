@@ -564,7 +564,7 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
                          Lines::Suffix(lines_, last.line));
 
   if (lines_ == nullptr) {
-    lines_ = Lines::PushBack(nullptr, MakeNonNullShared<const Line>());
+    lines_ = Lines::PushBack(nullptr, {});
   }
 
   if (cursors_behavior == CursorsBehavior::kUnmodified) {

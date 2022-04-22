@@ -76,6 +76,8 @@ class NonNull<std::unique_ptr<T>> {
 template <typename T>
 class NonNull<std::shared_ptr<T>> {
  public:
+  NonNull() : value_(std::make_shared<T>()) {}
+
   explicit NonNull(std::unique_ptr<T> value)
       : NonNull(std::shared_ptr<T>(std::move(value))) {}
 
@@ -128,11 +130,6 @@ NonNull<std::shared_ptr<T>> MakeNonNull(std::shared_ptr<T> obj) {
 template <typename T>
 NonNull<std::unique_ptr<T>> MakeNonNull(std::unique_ptr<T> obj) {
   return NonNull<std::unique_ptr<T>>(std::move(obj));
-}
-
-template <typename T>
-NonNull<std::shared_ptr<T>> MakeNonNullShared() {
-  return MakeNonNull(std::make_shared<T>());
 }
 
 template <typename T, typename Arg>
