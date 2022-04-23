@@ -127,6 +127,7 @@ class Status {
   friend StatusExpirationControl;
   void ValidatePreconditions() const;
 
+  // TODO(easy, 2022-04-23): Nothing seems to use console_? Hmm.
   const std::shared_ptr<OpenBuffer> console_;
   audio::Player& audio_player_;
 
