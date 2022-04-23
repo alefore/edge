@@ -613,7 +613,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 };
 
 EditorState& EditorForTests();
-std::shared_ptr<OpenBuffer> NewBufferForTests();
+language::NonNull<std::shared_ptr<OpenBuffer>> NewBufferForTests();
 }  // namespace editor
 namespace vm {
 template <>

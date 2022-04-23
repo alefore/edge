@@ -539,7 +539,7 @@ const bool buffer_tests_registration =
         ProgressChannel channel(
             WorkQueue::New(), [](ProgressInformation) {},
             WorkQueueChannelConsumeMode::kAll);
-        std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
+        NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
         test_predictor(PredictorInput{.editor = buffer->editor(),
                                       .input = input,
                                       .predictions = *buffer,

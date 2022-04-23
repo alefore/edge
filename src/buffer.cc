@@ -2608,8 +2608,8 @@ EditorState& EditorForTests() {
   return editor_for_tests;
 }
 
-std::shared_ptr<OpenBuffer> NewBufferForTests() {
-  return OpenBuffer::New({.editor = EditorForTests()}).get_shared();
+NonNull<std::shared_ptr<OpenBuffer>> NewBufferForTests() {
+  return OpenBuffer::New({.editor = EditorForTests()});
 }
 
 }  // namespace editor

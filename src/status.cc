@@ -10,8 +10,8 @@
 #include "src/line_modifier.h"
 #include "src/tests/tests.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::NonNull;
 
 wchar_t Braille(size_t counter) {
   wchar_t c = L'⠀';
@@ -288,23 +288,22 @@ const bool prompt_tests_registration = tests::Register(
           [] {
             std::unique_ptr<audio::Player> audio_player =
                 audio::NewNullPlayer();
-            Status status(NewBufferForTests(), *audio_player);
-            std::shared_ptr<OpenBuffer> prompt = NewBufferForTests();
-            status.set_prompt(L">", prompt);
+            Status status(NewBufferForTests().get_shared(), *audio_player);
+            NonNull<std::shared_ptr<OpenBuffer>> prompt = NewBufferForTests();
+            status.set_prompt(L">", prompt.get_shared());
             status.SetWarningText(L"Foobar");
             CHECK(status.text() == L">");
-            CHECK(status.prompt_buffer() == prompt);
+            CHECK(status.prompt_buffer() == prompt.get_shared());
           }},
      {.name = L"SetExpiringInformationText", .callback = [] {
         std::unique_ptr<audio::Player> audio_player = audio::NewNullPlayer();
-        Status status(NewBufferForTests(), *audio_player);
-        std::shared_ptr<OpenBuffer> prompt = NewBufferForTests();
-        status.set_prompt(L">", prompt);
+        Status status(NewBufferForTests().get_shared(), *audio_player);
+        NonNull<std::shared_ptr<OpenBuffer>> prompt = NewBufferForTests();
+        status.set_prompt(L">", prompt.get_shared());
         status.SetExpiringInformationText(L"Foobar");
         CHECK(status.text() == L">");
-        CHECK(status.prompt_buffer() == prompt);
+        CHECK(status.prompt_buffer() == prompt.get_shared());
       }}});
 
 }
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

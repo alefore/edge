@@ -139,6 +139,12 @@ Automatically adjust the width of the view to fit the screen.
 
 ## Variables
 
+Detect which variables have actually been assigned to (or, even better, which ones have a value different than their default) and only save those (in the state files).
+
+Add command line options to set values for editor variables.
+
+Add command line options to set default values for buffer variables. Figure out what to do when they conflict with the values from the persist state.
+
 ## VM
 
 LineNumber and ColumnNumber types should be exposed to extensions?

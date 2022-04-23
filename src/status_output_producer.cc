@@ -18,6 +18,7 @@
 namespace afc::editor {
 namespace {
 using language::MakeNonNullShared;
+using language::NonNull;
 
 wstring GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
@@ -185,7 +186,7 @@ LineNumberDelta context_lines(const StatusOutputOptions& options) {
 auto status_basic_info_tests_registration = tests::Register(
     L"StatusBasicInfo",
     {{.name = L"BufferNameHasEnter", .callback = [] {
-        std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
+        NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
         buffer->Set(buffer_variables::name, L"foo\nbar\nhey");
         buffer->Set(buffer_variables::path, L"");
         StatusBasicInfo(StatusOutputOptions{
