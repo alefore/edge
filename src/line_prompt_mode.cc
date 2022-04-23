@@ -192,12 +192,13 @@ const bool get_synthetic_features_tests_registration = tests::Register(
         }
       }}});
 
-futures::Value<std::shared_ptr<OpenBuffer>> GetHistoryBuffer(
+futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetHistoryBuffer(
     EditorState& editor_state, const HistoryFile& name) {
   BufferName buffer_name(L"- history: " + name.read());
   auto it = editor_state.buffers()->find(buffer_name);
   if (it != editor_state.buffers()->end()) {
-    return futures::Past(it->second);
+    return futures::Past(
+        NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second));
   }
   return OpenFile({.editor_state = editor_state,
                    .name = buffer_name,
@@ -225,7 +226,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetHistoryBuffer(
               editor_state.set_current_buffer(
                   it->second, CommandArgumentModeApplyMode::kFinal);
             }
-            return it->second;
+            return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second);
           });
 }
 
@@ -320,9 +321,9 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
   return MakeNonNullShared<Line>(std::move(options));
 }
 
-// TODO(easy, 2022-04-22): Use NonNull for history_buffer.
 futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
-    EditorState& editor_state, std::shared_ptr<OpenBuffer> history_buffer,
+    EditorState& editor_state,
+    NonNull<std::shared_ptr<OpenBuffer>> history_buffer,
     NonNull<std::shared_ptr<Notification>> abort_notification,
     std::wstring filter) {
   BufferName name(L"- history filter: " + history_buffer->name().read() +
@@ -652,7 +653,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
  public:
   HistoryScrollBehaviorFactory(
       EditorState& editor_state, wstring prompt,
-      std::shared_ptr<OpenBuffer> history,
+      NonNull<std::shared_ptr<OpenBuffer>> history,
       NonNull<std::shared_ptr<PromptState>> prompt_state,
       std::shared_ptr<OpenBuffer> buffer)
       : editor_state_(editor_state),
@@ -681,7 +682,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
  private:
   EditorState& editor_state_;
   const wstring prompt_;
-  const std::shared_ptr<OpenBuffer> history_;
+  const NonNull<std::shared_ptr<OpenBuffer>> history_;
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
   const std::shared_ptr<OpenBuffer> buffer_;
 };
@@ -777,8 +778,7 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
   if (input->size().IsZero()) return;
   GetHistoryBuffer(editor, history_file)
       .Transform([history_line = BuildHistoryLine(editor, input)](
-                     std::shared_ptr<OpenBuffer> history) {
-        CHECK(history != nullptr);
+                     NonNull<std::shared_ptr<OpenBuffer>> history) {
         history->AppendLine(history_line);
         return Success();
       });
@@ -792,8 +792,8 @@ void Prompt(PromptOptions options) {
   EditorState& editor_state = options.editor_state;
   HistoryFile history_file = options.history_file;
   GetHistoryBuffer(editor_state, history_file)
-      .SetConsumer([options = std::move(options),
-                    &editor_state](std::shared_ptr<OpenBuffer> history) {
+      .SetConsumer([options = std::move(options), &editor_state](
+                       NonNull<std::shared_ptr<OpenBuffer>> history) {
         history->set_current_position_line(LineNumber(0) +
                                            history->contents().size());
 
