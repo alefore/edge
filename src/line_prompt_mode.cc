@@ -214,6 +214,7 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetHistoryBuffer(
           [&editor_state](
               std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator it) {
             CHECK(it != editor_state.buffers()->end());
+            // TODO(2022-04-23): Change editor_state.buffers() to use NonNull.
             CHECK(it->second != nullptr);
             it->second->Set(buffer_variables::save_on_close, true);
             it->second->Set(buffer_variables::trigger_reload_on_buffer_write,
@@ -321,14 +322,16 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
   return MakeNonNullShared<Line>(std::move(options));
 }
 
-futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
+futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> FilterHistory(
     EditorState& editor_state,
     NonNull<std::shared_ptr<OpenBuffer>> history_buffer,
     NonNull<std::shared_ptr<Notification>> abort_notification,
     std::wstring filter) {
   BufferName name(L"- history filter: " + history_buffer->name().read() +
                   L": " + filter);
-  auto filter_buffer = OpenBuffer::New({.editor = editor_state, .name = name});
+  // TODO(easy, 2022-04-23) Get rid of Unsafe.
+  auto filter_buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
+      OpenBuffer::New({.editor = editor_state, .name = name}));
   filter_buffer->Set(buffer_variables::allow_dirty_delete, true);
   filter_buffer->Set(buffer_variables::show_in_buffers_list, false);
   filter_buffer->Set(buffer_variables::delete_into_paste_buffer, false);
@@ -575,7 +578,7 @@ class PromptRenderState {
 
 class HistoryScrollBehavior : public ScrollBehavior {
  public:
-  HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history,
+  HistoryScrollBehavior(NonNull<std::shared_ptr<OpenBuffer>> history,
                         NonNull<std::shared_ptr<LazyString>> original_input,
                         NonNull<std::shared_ptr<PromptState>> prompt_state)
       : history_(std::move(history)),
@@ -613,15 +616,14 @@ class HistoryScrollBehavior : public ScrollBehavior {
     if (prompt_state_->IsGone()) return;
     auto contents_to_insert = std::make_unique<BufferContents>();
 
-    if (history_ != nullptr &&
-        (history_->contents().size() > LineNumberDelta(1) ||
-         !history_->LineAt(LineNumber())->empty())) {
+    if (history_->contents().size() > LineNumberDelta(1) ||
+        !history_->LineAt(LineNumber())->empty()) {
       LineColumn position = history_->position();
       position.line = min(position.line.PlusHandlingOverflow(delta),
                           LineNumber() + history_->contents().size());
       history_->set_position(position);
       if (position.line < LineNumber(0) + history_->contents().size()) {
-        prompt_state_->status().set_context(history_);
+        prompt_state_->status().set_context(history_.get_shared());
         if (history_->current_line() != nullptr) {
           contents_to_insert->AppendToLine(LineNumber(),
                                            *history_->current_line());
@@ -643,7 +645,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
         .contents_to_insert = std::move(contents_to_insert)});
   }
 
-  const std::shared_ptr<OpenBuffer> history_;
+  const NonNull<std::shared_ptr<OpenBuffer>> history_;
   const NonNull<std::shared_ptr<LazyString>> original_input_;
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
   const std::shared_ptr<OpenBuffer> previous_context_;
@@ -670,12 +672,12 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
     return FilterHistory(editor_state_, history_, abort_notification,
                          input->ToString())
         .Transform([input, prompt_state = prompt_state_](
-                       std::shared_ptr<OpenBuffer> history)
+                       NonNull<std::shared_ptr<OpenBuffer>> history_filtered)
                        -> NonNull<std::unique_ptr<ScrollBehavior>> {
-          history->set_current_position_line(LineNumber(0) +
-                                             history->contents().size());
-          return MakeNonNullUnique<HistoryScrollBehavior>(std::move(history),
-                                                          input, prompt_state);
+          history_filtered->set_current_position_line(
+              LineNumber(0) + history_filtered->contents().size());
+          return MakeNonNullUnique<HistoryScrollBehavior>(
+              std::move(history_filtered), input, prompt_state);
         });
   }
 
@@ -845,27 +847,28 @@ void Prompt(PromptOptions options) {
                              FilterHistory(editor_state, history,
                                            *abort_notification_ptr,
                                            line->ToString())
-                                 .Transform([prompt_render_state](
-                                                std::shared_ptr<OpenBuffer>
-                                                    filtered_history) {
-                                   LOG(INFO)
-                                       << "Propagating history information "
-                                          "to status.";
-                                   if (!prompt_render_state->IsGone()) {
-                                     bool last_line_empty =
-                                         filtered_history
-                                             ->LineAt(
-                                                 filtered_history->EndLine())
-                                             ->empty();
-                                     prompt_render_state->SetStatusValue(
-                                         StatusPromptExtraInformationKey(
-                                             L"history"),
-                                         filtered_history->lines_size()
-                                                 .line_delta -
-                                             (last_line_empty ? 1 : 0));
-                                   }
-                                   return EmptyValue();
-                                 }),
+                                 .Transform(
+                                     [prompt_render_state](
+                                         NonNull<std::shared_ptr<OpenBuffer>>
+                                             filtered_history) {
+                                       LOG(INFO)
+                                           << "Propagating history information "
+                                              "to status.";
+                                       if (!prompt_render_state->IsGone()) {
+                                         bool last_line_empty =
+                                             filtered_history
+                                                 ->LineAt(filtered_history
+                                                              ->EndLine())
+                                                 ->empty();
+                                         prompt_render_state->SetStatusValue(
+                                             StatusPromptExtraInformationKey(
+                                                 L"history"),
+                                             filtered_history->lines_size()
+                                                     .line_delta -
+                                                 (last_line_empty ? 1 : 0));
+                                       }
+                                       return EmptyValue();
+                                     }),
                              options
                                  .colorize_options_provider(
                                      line, std::move(progress_channel),
