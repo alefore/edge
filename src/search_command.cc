@@ -207,6 +207,7 @@ class SearchCommand : public Command {
                           [&editor_state, line, progress_aggregator,
                            abort_notification,
                            results](const std::shared_ptr<OpenBuffer>& buffer) {
+                            CHECK(buffer != nullptr);
                             std::shared_ptr<ProgressChannel> progress_channel =
                                 progress_aggregator->NewChild();
                             if (buffer->Read(
@@ -220,8 +221,7 @@ class SearchCommand : public Command {
                               return futures::Past(Control::kContinue);
                             }
                             auto search_options = BuildPromptSearchOptions(
-                                line->ToString(), buffer.get(),
-                                abort_notification);
+                                line->ToString(), *buffer, abort_notification);
                             if (!search_options.has_value()) {
                               VLOG(6) << "search_options has no value.";
                               return futures::Past(Control::kContinue);
@@ -257,7 +257,7 @@ class SearchCommand : public Command {
                return editor_state
                    .ForEachActiveBuffer([input](OpenBuffer& buffer) {
                      if (auto search_options = BuildPromptSearchOptions(
-                             input, &buffer,
+                             input, buffer,
                              NonNull<std::shared_ptr<Notification>>());
                          search_options.has_value()) {
                        DoSearch(buffer, *search_options);
@@ -276,18 +276,18 @@ class SearchCommand : public Command {
 
  private:
   static std::optional<SearchOptions> BuildPromptSearchOptions(
-      std::wstring input, OpenBuffer* buffer,
+      std::wstring input, OpenBuffer& buffer,
       NonNull<std::shared_ptr<Notification>> abort_notification) {
-    auto& editor = buffer->editor();
+    auto& editor = buffer.editor();
     SearchOptions search_options;
     search_options.search_query = input;
     if (editor.structure()->search_range() == Structure::SearchRange::kBuffer) {
-      search_options.starting_position = buffer->position();
+      search_options.starting_position = buffer.position();
     } else {
       Range range =
-          buffer->FindPartialRange(editor.modifiers(), buffer->position());
+          buffer.FindPartialRange(editor.modifiers(), buffer.position());
       if (range.begin == range.end) {
-        buffer->status().SetInformationText(L"Unable to extract region.");
+        buffer.status().SetInformationText(L"Unable to extract region.");
         return std::nullopt;
       }
       CHECK_LE(range.begin, range.end);
