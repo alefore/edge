@@ -1,5 +1,6 @@
 #include "src/buffer_syntax_parser.h"
 
+#include "src/cpp_parse_tree.h"
 #include "src/language/safe_types.h"
 #include "src/parse_tree.h"
 #include "src/parsers/diff.h"
@@ -15,15 +16,12 @@ using language::Observers;
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   data_->lock([&options](Data& data) {
     if (options.parser_name == L"text") {
-      data.tree_parser =
-          NonNull<std::shared_ptr<TreeParser>>::Unsafe(NewLineTreeParser(
-              NewWordsTreeParser(options.symbol_characters, options.typos_set,
-                                 std::move(NewNullTreeParser().get_unique()))));
+      data.tree_parser = NewLineTreeParser(NewWordsTreeParser(
+          options.symbol_characters, options.typos_set, NewNullTreeParser()));
     } else if (options.parser_name == L"cpp") {
-      // TODO(easy, 2022-04-22): Get rid of this `Unsafe` call.
-      data.tree_parser = NonNull<std::shared_ptr<TreeParser>>::Unsafe(
+      data.tree_parser =
           NewCppTreeParser(options.language_keywords, options.typos_set,
-                           options.identifier_behavior));
+                           options.identifier_behavior);
     } else if (options.parser_name == L"diff") {
       data.tree_parser = parsers::NewDiffTreeParser();
     } else if (options.parser_name == L"md") {
@@ -34,6 +32,7 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   });
 }
 
+// TODO(easy, 2022-04-23): Receive contents as NonNull.
 void BufferSyntaxParser::Parse(std::unique_ptr<BufferContents> contents) {
   data_->lock(std::bind_front(
       [&pool = thread_pool_, data_ptr = data_, observers = observers_](

@@ -14,6 +14,7 @@
 
 namespace afc::editor {
 class BufferContents;
+enum class IdentifierBehavior { kNone, kColorByHash };
 
 class ParseTreeProperty {
  public:
@@ -119,12 +120,12 @@ class TreeParser {
 };
 
 language::NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser();
-std::unique_ptr<TreeParser> NewCharTreeParser();
-std::unique_ptr<TreeParser> NewWordsTreeParser(
+language::NonNull<std::unique_ptr<TreeParser>> NewCharTreeParser();
+language::NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
     std::wstring word_characters, std::unordered_set<std::wstring> typos,
-    std::unique_ptr<TreeParser> delegate);
-std::unique_ptr<TreeParser> NewLineTreeParser(
-    std::unique_ptr<TreeParser> delegate);
+    language::NonNull<std::unique_ptr<TreeParser>> delegate);
+language::NonNull<std::unique_ptr<TreeParser>> NewLineTreeParser(
+    language::NonNull<std::unique_ptr<TreeParser>> delegate);
 
 }  // namespace afc::editor
 

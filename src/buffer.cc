@@ -23,7 +23,6 @@ extern "C" {
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command_with_modifiers.h"
-#include "src/cpp_parse_tree.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"

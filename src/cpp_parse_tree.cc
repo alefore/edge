@@ -10,6 +10,7 @@
 #include "src/seek.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
 using language::NonNull;
 namespace {
 enum State {
@@ -40,7 +41,7 @@ class CppTreeParser : public TreeParser {
                 IdentifierBehavior identifier_behavior)
       : words_parser_(NewWordsTreeParser(
             L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", typos,
-            std::move(NewNullTreeParser().get_unique()))),
+            NewNullTreeParser())),
         keywords_(std::move(keywords)),
         typos_(std::move(typos)),
         identifier_behavior_(identifier_behavior),
@@ -381,7 +382,7 @@ class CppTreeParser : public TreeParser {
     return output;
   }
 
-  const std::unique_ptr<TreeParser> words_parser_;
+  const NonNull<std::unique_ptr<TreeParser>> words_parser_;
   const std::unordered_set<wstring> keywords_;
   const std::unordered_set<wstring> typos_;
   const IdentifierBehavior identifier_behavior_;
@@ -398,11 +399,11 @@ class CppTreeParser : public TreeParser {
 
 }  // namespace
 
-std::unique_ptr<TreeParser> NewCppTreeParser(
+NonNull<std::unique_ptr<TreeParser>> NewCppTreeParser(
     std::unordered_set<wstring> keywords, std::unordered_set<wstring> typos,
     IdentifierBehavior identifier_behavior) {
-  return std::make_unique<CppTreeParser>(std::move(keywords), std::move(typos),
-                                         identifier_behavior);
+  return MakeNonNullUnique<CppTreeParser>(std::move(keywords), std::move(typos),
+                                          identifier_behavior);
 }
 
 }  // namespace afc::editor

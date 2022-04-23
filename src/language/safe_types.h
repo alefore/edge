@@ -190,7 +190,8 @@ NonNull<std::unique_ptr<T>> MakeNonNull(std::unique_ptr<T> obj) {
 
 template <typename T, typename... Arg>
 NonNull<std::unique_ptr<T>> MakeNonNullUnique(Arg... arg) {
-  return NonNull<std::unique_ptr<T>>::Unsafe(std::make_unique<T>(arg...));
+  return NonNull<std::unique_ptr<T>>::Unsafe(
+      std::make_unique<T>(std::forward<Arg>(arg)...));
 }
 
 template <typename T, typename... Arg>

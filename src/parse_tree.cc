@@ -208,7 +208,7 @@ class WordsTreeParser : public TreeParser {
  public:
   WordsTreeParser(std::wstring symbol_characters,
                   std::unordered_set<wstring> typos,
-                  std::unique_ptr<TreeParser> delegate)
+                  NonNull<std::unique_ptr<TreeParser>> delegate)
       : symbol_characters_(symbol_characters),
         typos_(typos),
         delegate_(std::move(delegate)) {}
@@ -264,12 +264,12 @@ class WordsTreeParser : public TreeParser {
 
   const std::wstring symbol_characters_;
   const std::unordered_set<wstring> typos_;
-  const std::unique_ptr<TreeParser> delegate_;
+  const NonNull<std::unique_ptr<TreeParser>> delegate_;
 };
 
 class LineTreeParser : public TreeParser {
  public:
-  LineTreeParser(std::unique_ptr<TreeParser> delegate)
+  LineTreeParser(NonNull<std::unique_ptr<TreeParser>> delegate)
       : delegate_(std::move(delegate)) {}
 
   ParseTree FindChildren(const BufferContents& buffer, Range range) override {
@@ -289,7 +289,7 @@ class LineTreeParser : public TreeParser {
   }
 
  private:
-  const std::unique_ptr<TreeParser> delegate_;
+  const NonNull<std::unique_ptr<TreeParser>> delegate_;
 };
 
 }  // namespace
@@ -302,16 +302,16 @@ NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser() {
   return NonNull<std::unique_ptr<NullTreeParser>>();
 }
 
-std::unique_ptr<TreeParser> NewWordsTreeParser(
+NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
     wstring symbol_characters, std::unordered_set<wstring> typos,
-    std::unique_ptr<TreeParser> delegate) {
-  return std::make_unique<WordsTreeParser>(
+    NonNull<std::unique_ptr<TreeParser>> delegate) {
+  return MakeNonNullUnique<WordsTreeParser>(
       std::move(symbol_characters), std::move(typos), std::move(delegate));
 }
 
-std::unique_ptr<TreeParser> NewLineTreeParser(
-    std::unique_ptr<TreeParser> delegate) {
-  return std::make_unique<LineTreeParser>(std::move(delegate));
+NonNull<std::unique_ptr<TreeParser>> NewLineTreeParser(
+    NonNull<std::unique_ptr<TreeParser>> delegate) {
+  return MakeNonNullUnique<LineTreeParser>(std::move(delegate));
 }
 
 }  // namespace afc::editor
