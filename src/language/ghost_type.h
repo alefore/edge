@@ -1,6 +1,9 @@
 // Macros for easily defining ghost types:
 //
-//   GHOST_TYPE(HistoryFile, std::wstring)
+//   namespace foo::bar {
+//     GHOST_TYPE(HistoryFile, std::wstring)
+//   }
+//   GHOST_TYPE_TOP_LEVEL(foo::bar::HistoryFile);
 //
 // This is based on the principle that code is more readable if the types it
 // operates on convey more semantics than just what their underlying
@@ -90,6 +93,8 @@
   };                                                        \
                                                             \
   GHOST_TYPE_OUTPUT(ClassName, value);
+
+#define GHOST_TYPE_TOP_LEVEL(ClassName) GHOST_TYPE_HASH(ClassName);
 
 #define GHOST_TYPE_DOUBLE(ClassName)                  \
   class ClassName {                                   \
