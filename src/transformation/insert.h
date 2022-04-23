@@ -19,7 +19,8 @@ namespace transformation {
 struct Insert {
   std::wstring Serialize() const;
 
-  // Probably should be unique_ptr?
+  // This would ideally be unique_ptr, but then `Insert` wouldn't be copyable
+  // (which would make transformation::Variant non-copyable).
   language::NonNull<std::shared_ptr<const BufferContents>> contents_to_insert;
 
   editor::Modifiers modifiers = Modifiers();

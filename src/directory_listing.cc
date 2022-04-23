@@ -106,22 +106,22 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
       vm::NewConstantExpression(std::make_unique<vm::Value>(*callback)),
       std::move(args));
 
-  return {.initial_value = NewLazyString(L"…"),
-          .value =
-              target.EvaluateExpression(expression.get(), target.environment())
-                  .Transform([expression](std::unique_ptr<Value> value_ptr) {
-                    NonNull<std::unique_ptr<Value>> value(std::move(value_ptr));
-                    CHECK(value->IsString());
-                    VLOG(7) << "Evaluated result: " << value->str;
-                    return futures::Past(
-                        Success(NonNull<std::shared_ptr<LazyString>>(
-                            NewLazyString(std::move(value->str)))));
-                  })
-                  .ConsumeErrors([](Error error) {
-                    VLOG(7) << "Evaluation error: " << error.description;
-                    return futures::Past(NonNull<std::shared_ptr<LazyString>>(
-                        NewLazyString(L"E: " + std::move(error.description))));
-                  })};
+  return {
+      .initial_value = NewLazyString(L"…"),
+      .value =
+          target.EvaluateExpression(expression.get(), target.environment())
+              .Transform([expression](NonNull<std::unique_ptr<Value>> value) {
+                CHECK(value->IsString());
+                VLOG(7) << "Evaluated result: " << value->str;
+                return futures::Past(
+                    Success(NonNull<std::shared_ptr<LazyString>>(
+                        NewLazyString(std::move(value->str)))));
+              })
+              .ConsumeErrors([](Error error) {
+                VLOG(7) << "Evaluation error: " << error.description;
+                return futures::Past(NonNull<std::shared_ptr<LazyString>>(
+                    NewLazyString(L"E: " + std::move(error.description))));
+              })};
 }
 
 void AddLine(OpenBuffer& target, const dirent& entry) {

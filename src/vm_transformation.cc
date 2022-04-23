@@ -5,6 +5,7 @@
 
 #include "src/buffer.h"
 #include "src/char_buffer.h"
+#include "src/language/safe_types.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
@@ -43,6 +44,7 @@ Value::Ptr VMTypeMapper<editor::transformation::Variant*>::New(
 namespace editor {
 namespace {
 using language::Error;
+using language::NonNull;
 using language::Success;
 
 class FunctionTransformation : public CompositeTransformation {
@@ -65,7 +67,7 @@ class FunctionTransformation : public CompositeTransformation {
                     [buffer = input.buffer](std::function<void()> callback) {
                       buffer->work_queue()->Schedule(std::move(callback));
                     })
-        .Transform([](std::unique_ptr<Value> value) {
+        .Transform([](NonNull<std::unique_ptr<Value>> value) {
           return Success(std::move(
               *VMTypeMapper<std::shared_ptr<Output>>::get(value.get())));
         })

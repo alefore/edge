@@ -67,6 +67,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
+using language::NonNull;
 using language::Observers;
 using language::PossibleError;
 using language::Success;
@@ -545,7 +546,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
                  LOG(INFO) << "Evaluation of file yields: " << path;
                  work_queue->Schedule(std::move(resume));
                })
-        .Transform([](std::unique_ptr<Value>) {
+        .Transform([](NonNull<std::unique_ptr<Value>>) {
           return Success(futures::IterationControlCommand::kContinue);
         })
         .ConsumeErrors([](Error) {

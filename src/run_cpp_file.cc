@@ -13,6 +13,7 @@ namespace afc::editor {
 using infrastructure::FileSystemDriver;
 using language::EmptyValue;
 using language::Error;
+using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
@@ -90,7 +91,7 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                    return futures::Past(IterationControlCommand::kStop);
                  ++*index;
                  return buffer->EvaluateFile(adjusted_input)
-                     .Transform([](std::unique_ptr<Value>) {
+                     .Transform([](NonNull<std::unique_ptr<Value>>) {
                        return Success(IterationControlCommand::kContinue);
                      })
                      .ConsumeErrors([](Error) {

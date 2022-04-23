@@ -18,9 +18,13 @@
 
 namespace afc::editor {
 namespace {
+using futures::OnError;
 using infrastructure::Path;
 using language::EmptyValue;
+using language::Error;
 using language::MakeNonNullShared;
+using language::NonNull;
+using language::Success;
 
 std::wstring GetToken(const CompositeTransformation::Input& input,
                       EdgeVariable<wstring>* characters_variable) {
@@ -211,16 +215,17 @@ class Execute : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     return RunCppCommandShell(command_, input.editor)
-        .Transform([command_size = command_.size(),
-                    &editor = input.editor](std::unique_ptr<Value> value) {
+        .Transform([command_size = command_.size(), &editor = input.editor](
+                       NonNull<std::unique_ptr<Value>> value) {
           Output output;
-          if (value != nullptr && value->IsString()) {
+          if (value->IsString()) {
             output.Push(transformation::Insert{
                 .contents_to_insert = MakeNonNullShared<BufferContents>(
                     MakeNonNullShared<Line>(value->str))});
           }
-          return futures::Past(std::move(output));
-        });
+          return futures::Past(Success(std::move(output)));
+        })
+        .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

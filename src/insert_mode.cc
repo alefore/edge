@@ -296,8 +296,11 @@ class InsertMode : public EditorMode {
                   buffer
                       ->EvaluateExpression(expression.get(),
                                            buffer->environment())
-                      .ConsumeErrors(
-                          [](Error) { return futures::Past(nullptr); }));
+                      .ConsumeErrors([](Error) {
+                        return futures::Past(
+                            NonNull<std::unique_ptr<Value>>::Unsafe(
+                                vm::Value::NewVoid()));
+                      }));
             });
         return;
       }

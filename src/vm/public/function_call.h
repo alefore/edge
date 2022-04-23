@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "src/futures/futures.h"
+#include "src/language/safe_types.h"
 #include "value.h"
 
 namespace afc {
@@ -24,7 +25,7 @@ std::unique_ptr<Expression> NewFunctionCall(
     Compilation* compilation, std::unique_ptr<Expression> func,
     std::vector<std::unique_ptr<Expression>> args);
 
-futures::ValueOrError<std::unique_ptr<Value>> Call(
+futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Call(
     const Value& func, vector<Value::Ptr> args,
     std::function<void(std::function<void()>)> yield_callback);
 

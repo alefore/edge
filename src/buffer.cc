@@ -178,8 +178,7 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
                                    sub_environment,
                                    consumer = metadata_future.consumer] {
       buffer->EvaluateExpression(expr.get(), sub_environment)
-          .Transform([](std::unique_ptr<Value> value) {
-            CHECK(value != nullptr);
+          .Transform([](NonNull<std::unique_ptr<Value>> value) {
             std::ostringstream oss;
             oss << *value;
             return Success(NewLazyString(FromByteString(oss.str())));
@@ -993,8 +992,9 @@ void OpenBuffer::Initialize() {
           .Transform([state_path, weak_this](struct stat) {
             auto shared_this = weak_this.lock();
             if (shared_this == nullptr)
-              return futures::Past(ValueOrError<std::unique_ptr<Value>>(
-                  Error(L"Buffer has been deleted.")));
+              return futures::Past(
+                  ValueOrError<NonNull<std::unique_ptr<Value>>>(
+                      Error(L"Buffer has been deleted.")));
             return shared_this->EvaluateFile(state_path);
           });
     }
@@ -1104,7 +1104,7 @@ void OpenBuffer::Reload() {
                    Path::Join(
                        dir,
                        Path::FromString(L"hooks/buffer-reload.cc").value()))
-            .Transform([](std::unique_ptr<Value>) {
+            .Transform([](NonNull<std::unique_ptr<Value>>) {
               return Success(IterationControlCommand::kContinue);
             })
             .ConsumeErrors(
@@ -1338,8 +1338,9 @@ OpenBuffer::CompileString(const std::wstring& code,
           sub_environment};
 }
 
-futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
-    Expression* expr, std::shared_ptr<Environment> environment) {
+futures::ValueOrError<NonNull<std::unique_ptr<Value>>>
+OpenBuffer::EvaluateExpression(Expression* expr,
+                               std::shared_ptr<Environment> environment) {
   return Evaluate(expr, environment,
                   [work_queue = work_queue(), shared_this = shared_from_this()](
                       std::function<void()> callback) {
@@ -1347,8 +1348,8 @@ futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateExpression(
                   });
 }
 
-futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateString(
-    const wstring& code) {
+futures::ValueOrError<NonNull<std::unique_ptr<Value>>>
+OpenBuffer::EvaluateString(const wstring& code) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
   if (auto [expression, environment] = CompileString(code, &error_description);
@@ -1358,10 +1359,11 @@ futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateString(
   }
   Error error(L"🐜Compilation error: " + error_description);
   status_.SetWarningText(error.description);
-  return futures::Past(ValueOrError<std::unique_ptr<Value>>(std::move(error)));
+  return futures::Past(
+      ValueOrError<NonNull<std::unique_ptr<Value>>>(std::move(error)));
 }
 
-futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateFile(
+futures::ValueOrError<NonNull<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
     const Path& path) {
   wstring error_description;
   std::shared_ptr<Expression> expression =
@@ -1369,7 +1371,7 @@ futures::ValueOrError<std::unique_ptr<Value>> OpenBuffer::EvaluateFile(
   if (expression == nullptr) {
     Error error(path.read() + L": error: " + error_description);
     status_.SetWarningText(error.description);
-    return futures::Past(ValueOrError<std::unique_ptr<Value>>(error));
+    return futures::Past(ValueOrError<NonNull<std::unique_ptr<Value>>>(error));
   }
   LOG(INFO) << Read(buffer_variables::path) << " ("
             << Read(buffer_variables::name) << "): Evaluating file: " << path;
@@ -1858,8 +1860,8 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
                              work_queue->Schedule(std::move(callback));
                            })
                    .Transform(
-                       [input_shared](const std::unique_ptr<Value>& value) {
-                         CHECK(value != nullptr);
+                       [input_shared](
+                           const NonNull<std::unique_ptr<Value>>& value) {
                          CHECK(value->IsString());
                          *input_shared = std::move(value->str);
                          return Success(IterationControlCommand::kContinue);

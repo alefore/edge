@@ -57,10 +57,11 @@ futures::Value<PossibleError> PreviewCppExpression(
   switch (expression->purity()) {
     case vm::Expression::PurityType::kPure: {
       return buffer.EvaluateExpression(expression.get(), environment)
-          .Transform([&buffer, expression](std::unique_ptr<Value> value) {
-            ShowValue(buffer, nullptr, *value);
-            return Success();
-          })
+          .Transform(
+              [&buffer, expression](NonNull<std::unique_ptr<Value>> value) {
+                ShowValue(buffer, nullptr, *value);
+                return Success();
+              })
           .ConsumeErrors([&buffer](Error error) {
             buffer.status().SetInformationText(L"E: " + error.description);
             return futures::Past(EmptyValue());
@@ -98,8 +99,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
         });
   }
   return input.buffer.EvaluateString(contents->ToString())
-      .Transform([input](std::unique_ptr<Value> value) {
-        CHECK(value != nullptr);
+      .Transform([input](NonNull<std::unique_ptr<Value>> value) {
         ShowValue(input.buffer, input.delete_buffer, *value);
         Result output(input.position);
         output.added_to_paste_buffer = true;

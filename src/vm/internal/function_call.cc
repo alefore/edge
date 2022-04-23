@@ -4,6 +4,7 @@
 
 #include <unordered_set>
 
+#include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/vm/internal/compilation.h"
 #include "src/vm/public/constant_expression.h"
@@ -11,10 +12,10 @@
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::NonNull;
+
 bool TypeMatchesArguments(const VMType& type,
                           const std::vector<std::unique_ptr<Expression>>& args,
                           wstring* error) {
@@ -340,7 +341,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
   return nullptr;
 }
 
-futures::ValueOrError<std::unique_ptr<Value>> Call(
+futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
     const Value& func, vector<Value::Ptr> args,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK_EQ(func.type.type, VMType::FUNCTION);
@@ -355,5 +356,4 @@ futures::ValueOrError<std::unique_ptr<Value>> Call(
                   nullptr, yield_callback);
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

@@ -465,30 +465,30 @@ class ForkEditorCommand : public Command {
     return prompt_state.original_buffer
         ->EvaluateExpression(expression.get(),
                              prompt_state.original_buffer->environment())
-        .Transform([&prompt_state, &editor](std::unique_ptr<Value> value) {
-          CHECK(value != nullptr);
-          CHECK(value->IsString());
-          auto base_command = value->str;
-          if (prompt_state.base_command == base_command) {
-            return Success(ColorizePromptOptions{});
-          }
+        .Transform(
+            [&prompt_state, &editor](NonNull<std::unique_ptr<Value>> value) {
+              CHECK(value->IsString());
+              auto base_command = value->str;
+              if (prompt_state.base_command == base_command) {
+                return Success(ColorizePromptOptions{});
+              }
 
-          if (base_command.empty()) {
-            prompt_state.base_command = std::nullopt;
-            return Success(ColorizePromptOptions{.context = nullptr});
-          }
+              if (base_command.empty()) {
+                prompt_state.base_command = std::nullopt;
+                return Success(ColorizePromptOptions{.context = nullptr});
+              }
 
-          prompt_state.base_command = base_command;
-          ForkCommandOptions options;
-          options.command = base_command;
-          options.name = BufferName(L"- help: " + base_command);
-          options.insertion_type = BuffersList::AddBufferType::kIgnore;
-          auto help_buffer = ForkCommand(editor, options);
-          help_buffer->Set(buffer_variables::follow_end_of_file, false);
-          help_buffer->Set(buffer_variables::show_in_buffers_list, false);
-          help_buffer->set_position({});
-          return Success(ColorizePromptOptions{.context = help_buffer});
-        })
+              prompt_state.base_command = base_command;
+              ForkCommandOptions options;
+              options.command = base_command;
+              options.name = BufferName(L"- help: " + base_command);
+              options.insertion_type = BuffersList::AddBufferType::kIgnore;
+              auto help_buffer = ForkCommand(editor, options);
+              help_buffer->Set(buffer_variables::follow_end_of_file, false);
+              help_buffer->Set(buffer_variables::show_in_buffers_list, false);
+              help_buffer->set_position({});
+              return Success(ColorizePromptOptions{.context = help_buffer});
+            })
         .ConsumeErrors(
             [](Error) { return futures::Past(ColorizePromptOptions{}); });
   }

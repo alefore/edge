@@ -22,6 +22,7 @@
 #include "namespace_expression.h"
 #include "negate_expression.h"
 #include "return_expression.h"
+#include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
@@ -42,6 +43,7 @@ using std::to_wstring;
 
 namespace {
 using language::Error;
+using language::NonNull;
 using language::Success;
 
 extern "C" {
@@ -642,7 +644,7 @@ bool Expression::SupportsType(const VMType& type) {
   return false;
 }
 
-futures::ValueOrError<std::unique_ptr<Value>> Evaluate(
+futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
     Expression* expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK(expr != nullptr);
@@ -650,22 +652,25 @@ futures::ValueOrError<std::unique_ptr<Value>> Evaluate(
       Trampoline::Options{.environment = std::move(environment),
                           .yield_callback = std::move(yield_callback)});
   return trampoline->Bounce(expr, expr->Types()[0])
-      .Transform([trampoline](EvaluationOutput value)
-                     -> language::ValueOrError<std::unique_ptr<Value>> {
-        DVLOG(4) << "Evaluation done.";
-        switch (value.type) {
-          case EvaluationOutput::OutputType::kContinue:
-          case EvaluationOutput::OutputType::kReturn:
-            CHECK(value.value != nullptr);
-            DVLOG(5) << "Result: " << *value.value;
-            return Success(std::move(value.value));
-          case EvaluationOutput::OutputType::kAbort:
-            LOG(INFO) << "Evaluation error: " << value.error.value();
-            return value.error.value();
-        }
-        LOG(FATAL) << "Unhandled OutputType.";
-        return Error(L"Unhandled OutputType.");
-      });
+      .Transform(
+          [trampoline](EvaluationOutput value)
+              -> language::ValueOrError<NonNull<std::unique_ptr<Value>>> {
+            DVLOG(4) << "Evaluation done.";
+            switch (value.type) {
+              case EvaluationOutput::OutputType::kContinue:
+              case EvaluationOutput::OutputType::kReturn:
+                CHECK(value.value != nullptr);
+                DVLOG(5) << "Result: " << *value.value;
+                // TODO(easy, 2022-04-23): Get rid of Unsafe below.
+                return Success(NonNull<std::unique_ptr<Value>>::Unsafe(
+                    std::move(value.value)));
+              case EvaluationOutput::OutputType::kAbort:
+                LOG(INFO) << "Evaluation error: " << value.error.value();
+                return value.error.value();
+            }
+            LOG(FATAL) << "Unhandled OutputType.";
+            return Error(L"Unhandled OutputType.");
+          });
 }
 
 }  // namespace vm

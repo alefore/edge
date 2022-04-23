@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/futures/futures.h"
+#include "src/language/safe_types.h"
 #include "types.h"
 
 namespace afc {
@@ -141,7 +142,7 @@ unique_ptr<Expression> CompileString(const wstring& str,
 // Caller must make sure expr lives until consumer runs. `yield_callback` is an
 // optional function that must ensure that the callback it receives will run
 // in the future.
-futures::ValueOrError<std::unique_ptr<Value>> Evaluate(
+futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Evaluate(
     Expression* expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback);
 
