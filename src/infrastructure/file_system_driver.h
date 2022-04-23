@@ -36,4 +36,6 @@ class FileSystemDriver {
 
 }  // namespace afc::infrastructure
 
+GHOST_TYPE_TOP_LEVEL(afc::infrastructure::FileDescriptor);
+
 #endif  // __AFC_INFRASTRUCTURE_FILE_SYSTEM_DRIVER_H__
