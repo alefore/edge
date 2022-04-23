@@ -151,7 +151,6 @@ class ReadAndInsert : public CompositeTransformation {
                   [buffer_to_insert = buffer_it->second,
                    input = std::move(input)](EmptyValue) {
                     Output output;
-                    // TODO(easy, 2022-04-23): Get rid of get_unique.
                     output.Push(transformation::Insert{
                         .contents_to_insert =
                             buffer_to_insert->contents().copy()});
