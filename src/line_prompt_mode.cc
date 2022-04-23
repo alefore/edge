@@ -463,7 +463,6 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> FilterHistory(
             }
             if (!abort_notification->HasBeenNotified()) {
               for (auto& line : output.lines) {
-                // TODO(easy, 2022-04-22): Get rid of get_shared.
                 filter_buffer->AppendRawLine(line);
               }
 
