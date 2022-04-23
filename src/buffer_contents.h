@@ -45,7 +45,7 @@ class BufferContents : public fuzz::FuzzTestable {
 
   // Returns a copy of the contents of the tree. No actual copying takes place.
   // This is dirt cheap. The updates listener isn't copied.
-  std::unique_ptr<BufferContents> copy() const;
+  language::NonNull<std::unique_ptr<BufferContents>> copy() const;
 
   // Drops all contents outside of a specific range.
   void FilterToRange(Range range);

@@ -25,7 +25,7 @@ class BufferSyntaxParser {
   };
   void UpdateParser(ParserOptions options);
 
-  void Parse(std::unique_ptr<BufferContents> contents);
+  void Parse(language::NonNull<std::unique_ptr<BufferContents>> contents);
 
   language::NonNull<std::shared_ptr<const ParseTree>> tree() const;
   language::NonNull<std::shared_ptr<const ParseTree>> simplified_tree() const;

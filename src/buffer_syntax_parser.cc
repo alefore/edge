@@ -32,11 +32,12 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   });
 }
 
-// TODO(easy, 2022-04-23): Receive contents as NonNull.
-void BufferSyntaxParser::Parse(std::unique_ptr<BufferContents> contents) {
+void BufferSyntaxParser::Parse(
+    NonNull<std::unique_ptr<BufferContents>> contents) {
   data_->lock(std::bind_front(
       [&pool = thread_pool_, data_ptr = data_, observers = observers_](
-          const std::shared_ptr<BufferContents>& contents, Data& data) {
+          const NonNull<std::shared_ptr<BufferContents>>& contents,
+          Data& data) {
         if (TreeParser::IsNull(data.tree_parser.get())) return;
 
         data.cancel_notification->Notify();
@@ -66,7 +67,7 @@ void BufferSyntaxParser::Parse(std::unique_ptr<BufferContents> contents) {
           observers->Notify();
         });
       },
-      std::shared_ptr<BufferContents>(std::move(contents))));
+      NonNull<std::shared_ptr<BufferContents>>(std::move(contents))));
 }
 
 NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::tree() const {

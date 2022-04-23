@@ -156,9 +156,10 @@ futures::Value<PossibleError> Save(
 
   return path.Transform([stat_buffer, options,
                          buffer = buffer.shared_from_this()](Path path) {
-    return SaveContentsToFile(path, buffer->contents().copy(),
-                              buffer->editor().thread_pool(),
-                              buffer->file_system_driver())
+    // TODO(easy, 2022-04-23): Drop the get_unique.
+    return SaveContentsToFile(
+               path, std::move(buffer->contents().copy().get_unique()),
+               buffer->editor().thread_pool(), buffer->file_system_driver())
         .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
         .Transform([stat_buffer, options, buffer, path](EmptyValue) {
           CHECK(buffer != nullptr);

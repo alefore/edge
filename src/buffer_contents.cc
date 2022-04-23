@@ -15,6 +15,7 @@
 
 namespace afc::editor {
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 
 BufferContents::BufferContents() : BufferContents(UpdateListener()) {}
@@ -38,9 +39,8 @@ Range BufferContents::range() const {
   return Range(LineColumn(), LineColumn(EndLine(), back()->EndColumn()));
 }
 
-// TODO(easy, 2022-04-23): Return NonNull.
-std::unique_ptr<BufferContents> BufferContents::copy() const {
-  auto output = std::make_unique<BufferContents>();
+NonNull<std::unique_ptr<BufferContents>> BufferContents::copy() const {
+  auto output = MakeNonNullUnique<BufferContents>();
   output->lines_ = lines_;
   return output;
 }

@@ -151,9 +151,10 @@ class ReadAndInsert : public CompositeTransformation {
                   [buffer_to_insert = buffer_it->second,
                    input = std::move(input)](EmptyValue) {
                     Output output;
+                    // TODO(easy, 2022-04-23): Get rid of get_unique.
                     output.Push(transformation::Insert{
-                        .contents_to_insert =
-                            buffer_to_insert->contents().copy()});
+                        .contents_to_insert = std::move(
+                            buffer_to_insert->contents().copy().get_unique())});
                     LineColumn position = buffer_to_insert->position();
                     if (position.line.IsZero()) {
                       position.column += input.position.column.ToDelta();

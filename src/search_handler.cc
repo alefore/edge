@@ -116,25 +116,27 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
   // TODO(easy, 2022-04-14): Why is this here?
   search_options.required_positions = 100;
   auto traits = GetRegexTraits(buffer);
-  std::shared_ptr<BufferContents> buffer_contents = buffer.contents().copy();
   // Must take special care to only capture instances of thread-safe classes:
-  return [search_options, traits, buffer_contents,
-          &progress_channel]() -> ValueOrError<SearchResultsSummary> {
-    auto search_results = PerformSearch(search_options, traits,
-                                        *buffer_contents, &progress_channel);
-    VLOG(5) << "Background search completed for \""
-            << search_options.search_query
-            << "\", found results: " << search_results.positions.size();
-    if (search_results.error.has_value()) {
-      return Error(search_results.error.value());
-    }
-    return Success(SearchResultsSummary{
-        .matches = search_results.positions.size(),
-        .search_completion =
-            search_results.positions.size() >= kMatchesLimit
-                ? SearchResultsSummary::SearchCompletion::kInterrupted
-                : SearchResultsSummary::SearchCompletion::kFull});
-  };
+  return std::bind_front(
+      [search_options, traits, &progress_channel](
+          const NonNull<std::shared_ptr<BufferContents>>& buffer_contents)
+          -> ValueOrError<SearchResultsSummary> {
+        auto search_results = PerformSearch(
+            search_options, traits, *buffer_contents, &progress_channel);
+        VLOG(5) << "Background search completed for \""
+                << search_options.search_query
+                << "\", found results: " << search_results.positions.size();
+        if (search_results.error.has_value()) {
+          return Error(search_results.error.value());
+        }
+        return Success(SearchResultsSummary{
+            .matches = search_results.positions.size(),
+            .search_completion =
+                search_results.positions.size() >= kMatchesLimit
+                    ? SearchResultsSummary::SearchCompletion::kInterrupted
+                    : SearchResultsSummary::SearchCompletion::kFull});
+      },
+      NonNull<std::shared_ptr<BufferContents>>(buffer.contents().copy()));
 }
 
 std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {

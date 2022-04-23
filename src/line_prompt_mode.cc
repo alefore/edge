@@ -349,9 +349,11 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> FilterHistory(
                                                history_contents =
                                                    std::shared_ptr<
                                                        BufferContents>(
-                                                       history_buffer
-                                                           ->contents()
-                                                           .copy()),
+                                                       std::move(
+                                                           history_buffer
+                                                               ->contents()
+                                                               .copy()
+                                                               .get_unique())),
                                                features = GetCurrentFeatures(
                                                    editor_state)]() -> Output {
           if (abort_notification->HasBeenNotified()) return Output{};
