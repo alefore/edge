@@ -109,20 +109,20 @@ class Value {
   Value(Value<Type>&&) = default;
   Value<Type>& operator=(Value<Type>&&) = default;
 
+  template <typename Other>
+  Value(Value<Other> other) {
+    other.SetConsumer([data = data_](Other other_value) {
+      data->Feed(std::move(other_value));
+    });
+  }
+
   using Consumer = std::function<void(Type)>;
   using type = Type;
 
-  const std::optional<Type>& Get() const { return data_->value; }
+  const std::optional<Type>& Get() const { return data_->read(); }
 
   void SetConsumer(Consumer consumer) {
-    CHECK(!data_->consumer.has_value());
-    if (data_->value.has_value()) {
-      consumer(std::move(data_->value.value()));
-      data_->consumer = nullptr;
-      data_->value = std::nullopt;
-    } else {
-      data_->consumer = std::move(consumer);
-    }
+    data_->SetConsumer(std::move(consumer));
   }
 
   template <typename Callable>
@@ -150,11 +150,38 @@ class Value {
  private:
   friend Future<Type>;
 
-  struct FutureData {
+  class FutureData {
+   public:
+    FutureData() = default;
+    const std::optional<Type>& read() { return value_; }
+
+    void Feed(Type final_value) {
+      CHECK(!value_.has_value());
+      CHECK(!consumer_.has_value() || consumer_.value() != nullptr);
+      if (consumer_.has_value()) {
+        (*consumer_)(std::move(final_value));
+        consumer_ = nullptr;
+      } else {
+        value_.emplace(std::move(final_value));
+      }
+    }
+
+    void SetConsumer(Consumer final_consumer) {
+      CHECK(!consumer_.has_value());
+      if (value_.has_value()) {
+        final_consumer(std::move(*value_));
+        consumer_ = nullptr;
+        value_ = std::nullopt;
+      } else {
+        consumer_ = std::move(final_consumer);
+      }
+    }
+
+   private:
     // std::nullopt before a consumer is set. nullptr when a consumer has
     // already been executed.
-    std::optional<Consumer> consumer;
-    std::optional<Type> value;
+    std::optional<Consumer> consumer_;
+    std::optional<Type> value_;
   };
 
   Value(std::shared_ptr<FutureData> data) : data_(std::move(data)) {}
@@ -212,17 +239,7 @@ struct Future {
   using FutureData = typename Value<Type>::FutureData;
 
   Future(std::shared_ptr<FutureData> data)
-      : consumer([data](Type value) {
-          CHECK(!data->value.has_value());
-          CHECK(!data->consumer.has_value() ||
-                data->consumer.value() != nullptr);
-          if (data->consumer.has_value()) {
-            data->consumer.value()(std::move(value));
-            data->consumer = nullptr;
-          } else {
-            data->value.emplace(std::move(value));
-          }
-        }),
+      : consumer([data](Type value) { data->Feed(std::move(value)); }),
         value(std::move(data)) {}
 };
 

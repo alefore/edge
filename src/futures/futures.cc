@@ -1,5 +1,7 @@
 #include "src/futures/futures.h"
 
+#include <variant>
+
 #include "glog/logging.h"
 #include "src/language/value_or_error.h"
 #include "src/tests/tests.h"
@@ -51,6 +53,29 @@ const bool futures_transform_tests_registration = tests::Register(
                CHECK(final_result.has_value());
                CHECK(final_result.value().IsError());
                CHECK(final_result.value().error().description == L"xyz");
+             }},
+        {.name = L"CanConvertToParentWithPreviousValue",
+         .callback =
+             [] {
+               using V = std::variant<int, double, bool>;
+               Value<int> int_value = Past(5);
+               Value<V> variant_value = std::move(int_value);
+               CHECK(variant_value.Get().has_value());
+               CHECK_EQ(*std::get_if<int>(&*variant_value.Get()), 5);
+             }},
+        {.name = L"CanConvertToParentAndReceive",
+         .callback =
+             [] {
+               using V = std::variant<int, double, bool>;
+               Future<int> int_future;
+               Value<V> variant_value = std::move(int_future.value);
+               CHECK(!variant_value.Get().has_value());
+               int_future.consumer(6);
+               CHECK_EQ(*std::get_if<int>(&*variant_value.Get()), 6);
+               std::optional<V> value_received;
+               variant_value.SetConsumer([&](V v) { value_received = v; });
+               CHECK(value_received.has_value());
+               CHECK_EQ(*std::get_if<int>(&*value_received), 6);
              }},
     });
 
