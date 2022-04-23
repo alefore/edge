@@ -301,8 +301,7 @@ class SearchCommand : public Command {
       LOG(INFO) << "Searching region: " << search_options.starting_position
                 << " to " << search_options.limit_position.value();
     }
-    // TODO(easy, 2022-04-22): Get rid of call to get_shared.
-    search_options.abort_notification = abort_notification.get_shared();
+    search_options.abort_notification = abort_notification;
     return search_options;
   }
 

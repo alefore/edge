@@ -7,6 +7,7 @@
 #include "src/buffer_contents.h"
 #include "src/concurrent/notification.h"
 #include "src/futures/futures.h"
+#include "src/language/safe_types.h"
 #include "src/line_column.h"
 #include "src/line_prompt_mode.h"
 #include "src/predictor.h"
@@ -41,9 +42,9 @@ struct SearchOptions {
   // number of positions has been found.
   std::optional<size_t> required_positions;
 
-  // When notified, interrupts the search. Must not be nullptr.
-  std::shared_ptr<concurrent::Notification> abort_notification =
-      std::make_shared<concurrent::Notification>();
+  // When notified, interrupts the search.
+  language::NonNull<std::shared_ptr<concurrent::Notification>>
+      abort_notification = {};
 };
 
 std::vector<LineColumn> SearchHandler(EditorState& editor_state,
