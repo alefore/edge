@@ -167,7 +167,6 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
       input.mode == Input::Mode::kFinal && input.delete_buffer != nullptr) {
     VLOG(5) << "Preparing delete buffer.";
     output->added_to_paste_buffer = true;
-    // TODO(easy, 2022-04-23) Get rid of get_unique below.
     input.delete_buffer->ApplyToCursors(transformation::Insert{
         .contents_to_insert = delete_buffer->contents().copy()});
   }
