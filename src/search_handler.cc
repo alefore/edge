@@ -23,6 +23,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
+using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
@@ -136,7 +137,7 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
   };
 }
 
-std::wstring RegexEscape(std::shared_ptr<LazyString> str) {
+std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
   std::wstring results;
   static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
   ForEachColumn(*str, [&](ColumnNumber, wchar_t c) {

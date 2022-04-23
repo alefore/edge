@@ -112,11 +112,12 @@ class Line {
   bool empty() const;
 
   wint_t get(ColumnNumber column) const;
-  shared_ptr<LazyString> Substring(ColumnNumber column,
-                                   ColumnNumberDelta length) const;
+  language::NonNull<std::shared_ptr<LazyString>> Substring(
+      ColumnNumber column, ColumnNumberDelta length) const;
 
   // Returns the substring from pos to the end of the string.
-  shared_ptr<LazyString> Substring(ColumnNumber column) const;
+  language::NonNull<std::shared_ptr<LazyString>> Substring(
+      ColumnNumber column) const;
 
   wstring ToString() const { return contents()->ToString(); }
 

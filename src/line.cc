@@ -297,13 +297,14 @@ wint_t Line::get(ColumnNumber column) const {
   return data_.lock([column](const Data& data) { return Get(data, column); });
 }
 
-std::shared_ptr<LazyString> Line::Substring(ColumnNumber column,
-                                            ColumnNumberDelta delta) const {
-  return afc::editor::Substring(contents(), column, delta).get_shared();
+NonNull<std::shared_ptr<LazyString>> Line::Substring(
+    ColumnNumber column, ColumnNumberDelta delta) const {
+  return afc::editor::Substring(contents(), column, delta);
 }
 
-std::shared_ptr<LazyString> Line::Substring(ColumnNumber column) const {
-  return afc::editor::Substring(contents(), column).get_shared();
+NonNull<std::shared_ptr<LazyString>> Line::Substring(
+    ColumnNumber column) const {
+  return afc::editor::Substring(contents(), column);
 }
 
 std::shared_ptr<LazyString> Line::metadata() const {
