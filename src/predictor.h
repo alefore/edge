@@ -55,8 +55,9 @@ struct PredictorInput {
   // predictor is done running, the buffer must have an empty line at the end
   // (and not at the beginning).
   //
-  // TODO(2022-04-22, easy): Why not ref?
-  OpenBuffer* predictions = nullptr;
+  // The customer must ensure that the buffer survives until the corresponding
+  // future is notified by the predictor.
+  OpenBuffer& predictions;
 
   // If the completion is specific to a given buffer (as opposed to in a global
   // status, with no corresponding buffer), this will be pointing to the buffer.

@@ -229,7 +229,6 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
 }
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
-  CHECK(input.predictions != nullptr);
   std::set<wstring> matches;
   for (auto& search_buffer : input.source_buffers) {
     CHECK(search_buffer != nullptr);
@@ -259,13 +258,12 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   if (!matches.empty()) {
     // Add the matches to the predictions buffer.
     for (auto& match : matches) {
-      input.predictions->AppendToLastLine(NewLazyString(std::move(match)));
-      input.predictions->AppendRawLine(
-          MakeNonNullShared<Line>(Line::Options()));
+      input.predictions.AppendToLastLine(NewLazyString(std::move(match)));
+      input.predictions.AppendRawLine(MakeNonNullShared<Line>(Line::Options()));
     }
   }
-  input.predictions->EndOfFile();
-  return input.predictions->WaitForEndOfFile().Transform(
+  input.predictions.EndOfFile();
+  return input.predictions.WaitForEndOfFile().Transform(
       [](EmptyValue) { return PredictorOutput(); });
 }
 

@@ -204,7 +204,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
     return shared_options
         ->predictor({.editor = shared_options->editor_state,
                      .input = std::move(input),
-                     .predictions = &buffer,
+                     .predictions = buffer,
                      .source_buffers = shared_options->source_buffers,
                      .progress_channel = *shared_options->progress_channel,
                      .abort_notification = shared_options->abort_notification})
@@ -391,7 +391,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                 ? predictor_input.input
                 : predictor_input.editor.expand_path(input_path.value()).read();
         OpenBuffer::LockFunction get_buffer =
-            predictor_input.predictions->GetLockFunction();
+            predictor_input.predictions.GetLockFunction();
         ResolvePathOptions resolve_path_options = ResolvePathOptions::New(
             predictor_input.editor, std::make_shared<FileSystemDriver>(
                                         predictor_input.editor.thread_pool()));
@@ -466,7 +466,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
 }
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {
-  input.predictions->EndOfFile();
+  input.predictions.EndOfFile();
   return futures::Past(PredictorOutput());
 }
 
@@ -515,17 +515,17 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
       auto result =
           mismatch(input.input.begin(), input.input.end(), (*it).first.begin());
       if (result.first == input.input.end()) {
-        input.predictions->AppendToLastLine(it->second);
-        input.predictions->AppendRawLine(NonNull<std::shared_ptr<Line>>());
+        input.predictions.AppendToLastLine(it->second);
+        input.predictions.AppendRawLine(NonNull<std::shared_ptr<Line>>());
       } else {
         break;
       }
     }
     input.progress_channel.Push(ProgressInformation{
-        .values = {{StatusPromptExtraInformationKey(L"values"),
-                    std::to_wstring(input.predictions->lines_size().line_delta -
-                                    1)}}});
-    input.predictions->EndOfFile();
+        .values = {
+            {StatusPromptExtraInformationKey(L"values"),
+             std::to_wstring(input.predictions.lines_size().line_delta - 1)}}});
+    input.predictions.EndOfFile();
     return futures::Past(PredictorOutput());
   };
 }
@@ -542,7 +542,7 @@ const bool buffer_tests_registration =
         std::shared_ptr<OpenBuffer> buffer = NewBufferForTests();
         test_predictor(PredictorInput{.editor = buffer->editor(),
                                       .input = input,
-                                      .predictions = buffer.get(),
+                                      .predictions = *buffer,
                                       .source_buffers = {},
                                       .progress_channel = channel});
         buffer->SortContents(LineNumber(), buffer->EndLine(),
@@ -590,17 +590,17 @@ Predictor DictionaryPredictor(
       if (result.first != input.input.end()) {
         break;
       }
-      input.predictions->AppendRawLine(line_contents->contents());
+      input.predictions.AppendRawLine(line_contents->contents());
 
       ++line;
     }
 
-    if (input.predictions->lines_size() > LineNumberDelta() &&
-        input.predictions->LineAt(LineNumber())->empty()) {
-      input.predictions->EraseLines(LineNumber(), LineNumber().next());
+    if (input.predictions.lines_size() > LineNumberDelta() &&
+        input.predictions.LineAt(LineNumber())->empty()) {
+      input.predictions.EraseLines(LineNumber(), LineNumber().next());
     }
 
-    input.predictions->EndOfFile();
+    input.predictions.EndOfFile();
     return futures::Past(PredictorOutput());
   };
 }
