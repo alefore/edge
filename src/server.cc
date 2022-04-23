@@ -34,6 +34,7 @@ using infrastructure::FileSystemDriver;
 using infrastructure::Path;
 using language::Error;
 using language::FromByteString;
+using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
@@ -191,9 +192,8 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
   return output;
 }
 
-// TODO(easy, 2022-04-23): Return NonNull.
-shared_ptr<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
-                                        const Path& address) {
+NonNull<std::shared_ptr<OpenBuffer>> OpenServerBuffer(EditorState& editor_state,
+                                                      const Path& address) {
   auto buffer = OpenBuffer::New(
       {.editor = editor_state,
        .name = editor_state.GetUnusedBufferName(L"- server"),
@@ -211,7 +211,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
 
   editor_state.buffers()->insert({buffer->name(), buffer.get_shared()});
   buffer->Reload();
-  return buffer.get_shared();
+  return buffer;
 }
 
 }  // namespace editor
