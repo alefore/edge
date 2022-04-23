@@ -127,7 +127,7 @@ ValueOrError<int> MaybeConnectToServer(const Path& path) {
   return Success(private_fd);
 }
 
-void Daemonize(const std::unordered_set<int>& surviving_fds) {
+void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
   pid_t pid;
 
   pid = fork();
@@ -148,7 +148,7 @@ void Daemonize(const std::unordered_set<int>& surviving_fds) {
   }
 
   for (int fd = sysconf(_SC_OPEN_MAX); fd >= 0; fd--) {
-    if (surviving_fds.find(fd) == surviving_fds.end()) {
+    if (surviving_fds.find(FileDescriptor(fd)) == surviving_fds.end()) {
       close(fd);
     }
   }

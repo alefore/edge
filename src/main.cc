@@ -186,7 +186,8 @@ void SendCommandsToParent(int fd, const string commands_to_run) {
 Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
   LOG(INFO) << "Starting server.";
 
-  std::unordered_set<int> surviving_fds = {1, 2};
+  std::unordered_set<FileDescriptor> surviving_fds = {FileDescriptor(1),
+                                                      FileDescriptor(2)};
   if (args.server && args.server_path.has_value()) {
     // We can't close stdout until we've printed the address in which the server
     // will run.
@@ -203,8 +204,8 @@ Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
                 << ": Server starting at: " << server_address.value()
                 << std::endl;
     }
-    for (int fd : surviving_fds) {
-      close(fd);
+    for (FileDescriptor fd : surviving_fds) {
+      close(fd.read());
     }
   }
   return server_address.value();

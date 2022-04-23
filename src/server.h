@@ -6,13 +6,14 @@
 
 #include "src/buffer.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/file_system_driver.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 
 namespace afc::editor {
 
-// TODO(easy, 2022-04-20): Convert to FileDescriptor.
-void Daemonize(const std::unordered_set<int>& surviving_fd);
+void Daemonize(
+    const std::unordered_set<infrastructure::FileDescriptor>& surviving_fd);
 
 language::ValueOrError<int> MaybeConnectToServer(
     const infrastructure::Path& address);
