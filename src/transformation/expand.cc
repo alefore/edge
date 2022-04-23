@@ -92,7 +92,7 @@ class PredictorTransformation : public CompositeTransformation {
           output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
               .contents_to_insert =
-                  std::make_shared<BufferContents>(MakeNonNullShared<Line>(
+                  MakeNonNullShared<BufferContents>(MakeNonNullShared<Line>(
                       results.value().common_prefix.value()))});
           return output;
         });
@@ -153,8 +153,8 @@ class ReadAndInsert : public CompositeTransformation {
                     Output output;
                     // TODO(easy, 2022-04-23): Get rid of get_unique.
                     output.Push(transformation::Insert{
-                        .contents_to_insert = std::move(
-                            buffer_to_insert->contents().copy().get_unique())});
+                        .contents_to_insert =
+                            buffer_to_insert->contents().copy()});
                     LineColumn position = buffer_to_insert->position();
                     if (position.line.IsZero()) {
                       position.column += input.position.column.ToDelta();
@@ -217,7 +217,7 @@ class Execute : public CompositeTransformation {
           Output output;
           if (value != nullptr && value->IsString()) {
             output.Push(transformation::Insert{
-                .contents_to_insert = std::make_shared<BufferContents>(
+                .contents_to_insert = MakeNonNullShared<BufferContents>(
                     MakeNonNullShared<Line>(value->str))});
           }
           return futures::Past(std::move(output));

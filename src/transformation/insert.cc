@@ -34,6 +34,7 @@ const VMType
 }  // namespace vm
 namespace editor::transformation {
 using language::MakeNonNullShared;
+using language::NonNull;
 
 transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
   return transformation::Delete{
@@ -120,7 +121,7 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
       L"set_text",
       vm::NewCallback([editor](std::shared_ptr<Insert> options, wstring text) {
         CHECK(options != nullptr);
-        auto buffer = std::make_shared<BufferContents>();
+        NonNull<std::shared_ptr<BufferContents>> buffer;
         ColumnNumber line_start;
         for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(text.size());
              ++i) {

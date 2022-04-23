@@ -71,7 +71,7 @@ class NewLineTransformation : public CompositeTransformation {
 
     Output output;
     {
-      auto contents_to_insert = std::make_unique<BufferContents>();
+      NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
       contents_to_insert->push_back(MakeNonNullShared<Line>(
           line->CopyOptions().DeleteSuffix(prefix_end)));
       output.Push(transformation::Insert{.contents_to_insert =
@@ -342,7 +342,7 @@ class InsertMode : public EditorMode {
                 return CallModifyHandler(
                     options, *buffer,
                     buffer->ApplyToCursors(transformation::Insert{
-                        .contents_to_insert = std::make_shared<BufferContents>(
+                        .contents_to_insert = MakeNonNullShared<BufferContents>(
                             MakeNonNullShared<Line>(value)),
                         .modifiers = {
                             .insertion =
@@ -407,7 +407,7 @@ class InsertMode : public EditorMode {
                   return futures::Past(EmptyValue());
 
                 return buffer->ApplyToCursors(transformation::Insert{
-                    .contents_to_insert = std::make_unique<BufferContents>(
+                    .contents_to_insert = MakeNonNullShared<BufferContents>(
                         MakeNonNullShared<const Line>(L" ")),
                     .final_position =
                         direction == Direction::kBackwards

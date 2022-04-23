@@ -169,8 +169,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     output->added_to_paste_buffer = true;
     // TODO(easy, 2022-04-23) Get rid of get_unique below.
     input.delete_buffer->ApplyToCursors(transformation::Insert{
-        .contents_to_insert =
-            std::move(delete_buffer->contents().copy().get_unique())});
+        .contents_to_insert = delete_buffer->contents().copy()});
   }
 
   if (options.modifiers.text_delete_behavior ==
@@ -189,10 +188,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
       .Transform([options, range, output, input,
                   delete_buffer](transformation::Result result) mutable {
         output->MergeFrom(std::move(result));
-        // TODO(easy, 2022-04-23): Get rid of get_unique below.
         transformation::Insert insert_options{
-            .contents_to_insert =
-                std::move(delete_buffer->contents().copy().get_unique()),
+            .contents_to_insert = delete_buffer->contents().copy(),
             .final_position =
                 options.modifiers.direction == Direction::kForwards
                     ? Insert::FinalPosition::kEnd

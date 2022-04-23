@@ -615,7 +615,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
  private:
   void ScrollHistory(OpenBuffer& buffer, LineNumberDelta delta) const {
     if (prompt_state_->IsGone()) return;
-    auto contents_to_insert = std::make_unique<BufferContents>();
+    NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
 
     if (history_->contents().size() > LineNumberDelta(1) ||
         !history_->LineAt(LineNumber())->empty()) {
@@ -806,7 +806,7 @@ void Prompt(PromptOptions options) {
         auto prompt_state = MakeNonNullShared<PromptState>(options);
 
         buffer->ApplyToCursors(transformation::Insert(
-            {.contents_to_insert = std::make_unique<BufferContents>(
+            {.contents_to_insert = MakeNonNullUnique<BufferContents>(
                  MakeNonNullShared<Line>(options.initial_value))}));
 
         // Notification that can be used to abort an ongoing execution of
@@ -951,7 +951,7 @@ void Prompt(PromptOptions options) {
 
                           buffer->ApplyToCursors(transformation::Insert(
                               {.contents_to_insert =
-                                   std::make_unique<BufferContents>(
+                                   MakeNonNullUnique<BufferContents>(
                                        MakeNonNullShared<Line>(line))}));
                           if (options.colorize_options_provider != nullptr) {
                             CHECK(prompt_state->status().GetType() ==

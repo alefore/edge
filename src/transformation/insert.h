@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 
+#include "src/language/safe_types.h"
 #include "src/line_modifier.h"
 #include "src/modifiers.h"
 #include "src/transformation/input.h"
@@ -18,7 +19,8 @@ namespace transformation {
 struct Insert {
   std::wstring Serialize() const;
 
-  std::shared_ptr<const BufferContents> contents_to_insert;
+  // Probably should be unique_ptr?
+  language::NonNull<std::shared_ptr<const BufferContents>> contents_to_insert;
 
   editor::Modifiers modifiers = Modifiers();
 

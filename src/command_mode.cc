@@ -145,10 +145,8 @@ class Paste : public Command {
           }
           buffer.CheckPosition();
           buffer.MaybeAdjustPositionCol();
-          // TODO(easy, 2022-04-23): Drop the get_shared below.
           return buffer.ApplyToCursors(transformation::Insert{
-              .contents_to_insert =
-                  std::move(paste_buffer->contents().copy().get_unique()),
+              .contents_to_insert = paste_buffer->contents().copy(),
               .modifiers = {.insertion = editor_state.modifiers().insertion,
                             .repetitions = editor_state.repetitions()}});
         })

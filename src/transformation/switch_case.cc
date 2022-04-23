@@ -20,7 +20,7 @@ std::wstring SwitchCaseTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
     Input input) const {
-  auto contents_to_insert = std::make_unique<BufferContents>();
+  NonNull<std::unique_ptr<BufferContents>> contents_to_insert;
   VLOG(5) << "Switch Case Transformation at " << input.position << ": "
           << input.modifiers << ": Range: " << input.range;
   LineColumn i = input.range.begin;
