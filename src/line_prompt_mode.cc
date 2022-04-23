@@ -475,8 +475,8 @@ futures::Value<std::shared_ptr<OpenBuffer>> FilterHistory(
           });
 }
 
-shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
-                                       EditorState& editor_state) {
+NonNull<std::shared_ptr<OpenBuffer>> GetPromptBuffer(
+    const PromptOptions& options, EditorState& editor_state) {
   auto& element =
       *editor_state.buffers()->insert({BufferName(L"- prompt"), nullptr}).first;
   if (element.second == nullptr) {
@@ -495,7 +495,7 @@ shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
   element.second->Set(buffer_variables::contents_type,
                       options.prompt_contents_type);
   element.second->Reload();
-  return element.second;
+  return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(element.second);
 }
 
 // Holds the state required to show and update a prompt.
@@ -655,7 +655,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
       EditorState& editor_state, wstring prompt,
       NonNull<std::shared_ptr<OpenBuffer>> history,
       NonNull<std::shared_ptr<PromptState>> prompt_state,
-      std::shared_ptr<OpenBuffer> buffer)
+      NonNull<std::shared_ptr<OpenBuffer>> buffer)
       : editor_state_(editor_state),
         prompt_(std::move(prompt)),
         history_(std::move(history)),
@@ -684,7 +684,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
   const wstring prompt_;
   const NonNull<std::shared_ptr<OpenBuffer>> history_;
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
-  const std::shared_ptr<OpenBuffer> buffer_;
+  const NonNull<std::shared_ptr<OpenBuffer>> buffer_;
 };
 
 class LinePromptCommand : public Command {
@@ -797,8 +797,8 @@ void Prompt(PromptOptions options) {
         history->set_current_position_line(LineNumber(0) +
                                            history->contents().size());
 
-        auto buffer = GetPromptBuffer(options, editor_state);
-        CHECK(buffer != nullptr);
+        NonNull<std::shared_ptr<OpenBuffer>> buffer =
+            GetPromptBuffer(options, editor_state);
 
         auto prompt_state = MakeNonNullShared<PromptState>(options);
 
@@ -815,7 +815,7 @@ void Prompt(PromptOptions options) {
             std::make_shared<NonNull<std::shared_ptr<Notification>>>();
         InsertModeOptions insert_mode_options{
             .editor_state = editor_state,
-            .buffers = {{buffer}},
+            .buffers = {{buffer.get_shared()}},
             .modify_handler =
                 [&editor_state, history, prompt_state, options,
                  abort_notification_ptr](OpenBuffer& buffer) {
@@ -1008,7 +1008,7 @@ void Prompt(PromptOptions options) {
 
         // We do this after `EnterInsertMode` because `EnterInsertMode` resets
         // the status.
-        prompt_state->status().set_prompt(options.prompt, buffer);
+        prompt_state->status().set_prompt(options.prompt, buffer.get_shared());
         insert_mode_options.modify_handler(*buffer);
       });
 }
