@@ -537,7 +537,7 @@ class PromptState {
 // a frozen state of the status.
 class PromptRenderState {
  public:
-  PromptRenderState(std::shared_ptr<PromptState> prompt_state)
+  PromptRenderState(NonNull<std::shared_ptr<PromptState>> prompt_state)
       : prompt_state_(std::move(prompt_state)),
         status_version_(prompt_state_->status()
                             .prompt_extra_information()
@@ -565,7 +565,7 @@ class PromptRenderState {
   }
 
  private:
-  const std::shared_ptr<PromptState> prompt_state_;
+  const NonNull<std::shared_ptr<PromptState>> prompt_state_;
 
   // The version of the status for which we're collecting information. This is
   // incremented by the PromptState constructor.
@@ -576,12 +576,11 @@ class HistoryScrollBehavior : public ScrollBehavior {
  public:
   HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history,
                         NonNull<std::shared_ptr<LazyString>> original_input,
-                        std::shared_ptr<PromptState> prompt_state)
+                        NonNull<std::shared_ptr<PromptState>> prompt_state)
       : history_(std::move(history)),
         original_input_(std::move(original_input)),
         prompt_state_(std::move(prompt_state)),
         previous_context_(prompt_state_->status().context()) {
-    CHECK(prompt_state_ != nullptr);
     CHECK(prompt_state_->status().GetType() == Status::Type::kPrompt ||
           prompt_state_->IsGone());
   }
@@ -645,16 +644,17 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
   const std::shared_ptr<OpenBuffer> history_;
   const NonNull<std::shared_ptr<LazyString>> original_input_;
-  const std::shared_ptr<PromptState> prompt_state_;
+  const NonNull<std::shared_ptr<PromptState>> prompt_state_;
   const std::shared_ptr<OpenBuffer> previous_context_;
 };
 
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
  public:
-  HistoryScrollBehaviorFactory(EditorState& editor_state, wstring prompt,
-                               std::shared_ptr<OpenBuffer> history,
-                               std::shared_ptr<PromptState> prompt_state,
-                               std::shared_ptr<OpenBuffer> buffer)
+  HistoryScrollBehaviorFactory(
+      EditorState& editor_state, wstring prompt,
+      std::shared_ptr<OpenBuffer> history,
+      NonNull<std::shared_ptr<PromptState>> prompt_state,
+      std::shared_ptr<OpenBuffer> buffer)
       : editor_state_(editor_state),
         prompt_(std::move(prompt)),
         history_(std::move(history)),
@@ -682,7 +682,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
   EditorState& editor_state_;
   const wstring prompt_;
   const std::shared_ptr<OpenBuffer> history_;
-  const std::shared_ptr<PromptState> prompt_state_;
+  const NonNull<std::shared_ptr<PromptState>> prompt_state_;
   const std::shared_ptr<OpenBuffer> buffer_;
 };
 
@@ -722,12 +722,11 @@ class LinePromptCommand : public Command {
 // between the time when `ColorizePrompt` is executed and the time when the
 // tokens become available.
 void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
-                    std::shared_ptr<PromptState> prompt_state,
+                    NonNull<std::shared_ptr<PromptState>> prompt_state,
                     NonNull<std::shared_ptr<Notification>> abort_notification,
                     const NonNull<std::shared_ptr<const Line>>& original_line,
                     ColorizePromptOptions options) {
   CHECK(status_buffer != nullptr);
-  CHECK(prompt_state != nullptr);
   CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
   if (prompt_state->IsGone()) {
     LOG(INFO) << "Status is no longer a prompt, aborting colorize prompt.";
@@ -801,7 +800,7 @@ void Prompt(PromptOptions options) {
         auto buffer = GetPromptBuffer(options, editor_state);
         CHECK(buffer != nullptr);
 
-        auto prompt_state = std::make_shared<PromptState>(options);
+        auto prompt_state = MakeNonNullShared<PromptState>(options);
 
         buffer->ApplyToCursors(transformation::Insert(
             {.contents_to_insert = std::make_unique<BufferContents>(

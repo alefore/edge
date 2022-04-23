@@ -43,6 +43,7 @@ using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
@@ -393,7 +394,7 @@ class ForkEditorCommand : public Command {
   void ProcessInput(wint_t) {
     if (editor_state_.structure() == StructureChar()) {
       auto original_buffer = editor_state_.current_buffer();
-      auto prompt_state = std::make_shared<PromptState>(PromptState{
+      auto prompt_state = MakeNonNullShared<PromptState>(PromptState{
           .original_buffer = original_buffer,
           .base_command = std::nullopt,
           .context_command_callback = original_buffer->environment()->Lookup(
@@ -414,7 +415,7 @@ class ForkEditorCommand : public Command {
                           const NonNull<std::shared_ptr<LazyString>>& line,
                           std::unique_ptr<ProgressChannel>,
                           NonNull<std::shared_ptr<Notification>>) {
-                       return PromptChange(prompt_state.get(), line);
+                       return PromptChange(*prompt_state, line);
                      }),
            .handler = ([&editor_state = editor_state_,
                         children_path](const wstring& name) {
@@ -442,44 +443,42 @@ class ForkEditorCommand : public Command {
   }
 
  private:
-  // TODO(easy, 2022-04-23): Pass PromptState by ref.
   static futures::Value<ColorizePromptOptions> PromptChange(
-      PromptState* prompt_state,
+      PromptState& prompt_state,
       const NonNull<std::shared_ptr<LazyString>>& line) {
-    CHECK(prompt_state != nullptr);
-    CHECK(prompt_state->context_command_callback);
-    auto& editor = prompt_state->original_buffer->editor();
+    CHECK(prompt_state.context_command_callback);
+    auto& editor = prompt_state.original_buffer->editor();
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
     std::vector<std::unique_ptr<Expression>> arguments;
     arguments.push_back(
         vm::NewConstantExpression(vm::Value::NewString(line->ToString())));
     std::shared_ptr<Expression> expression = vm::NewFunctionCall(
         vm::NewConstantExpression(
-            std::make_unique<Value>(*prompt_state->context_command_callback)),
+            std::make_unique<Value>(*prompt_state.context_command_callback)),
         std::move(arguments));
     if (expression->Types().empty()) {
-      prompt_state->base_command = std::nullopt;
-      prompt_state->original_buffer->status().SetWarningText(
+      prompt_state.base_command = std::nullopt;
+      prompt_state.original_buffer->status().SetWarningText(
           L"Unable to compile (type mismatch).");
       return futures::Past(ColorizePromptOptions{.context = nullptr});
     }
-    return prompt_state->original_buffer
+    return prompt_state.original_buffer
         ->EvaluateExpression(expression.get(),
-                             prompt_state->original_buffer->environment())
-        .Transform([prompt_state, &editor](std::unique_ptr<Value> value) {
+                             prompt_state.original_buffer->environment())
+        .Transform([&prompt_state, &editor](std::unique_ptr<Value> value) {
           CHECK(value != nullptr);
           CHECK(value->IsString());
           auto base_command = value->str;
-          if (prompt_state->base_command == base_command) {
+          if (prompt_state.base_command == base_command) {
             return Success(ColorizePromptOptions{});
           }
 
           if (base_command.empty()) {
-            prompt_state->base_command = std::nullopt;
+            prompt_state.base_command = std::nullopt;
             return Success(ColorizePromptOptions{.context = nullptr});
           }
 
-          prompt_state->base_command = base_command;
+          prompt_state.base_command = base_command;
           ForkCommandOptions options;
           options.command = base_command;
           options.name = BufferName(L"- help: " + base_command);
