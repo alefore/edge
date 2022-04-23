@@ -328,9 +328,13 @@ ValueOrError<T> OnError(ValueOrError<T>&& value, Callable error_callback) {
   value.SetConsumer([consumer = std::move(future.consumer),
                      error_callback = std::move(error_callback)](
                         language::ValueOrError<T> value_or_error) {
-    consumer(value_or_error.IsError()
-                 ? error_callback(std::move(value_or_error.error()))
-                 : std::move(value_or_error));
+    if (value_or_error.IsError()) {
+      language::ValueOrError<T> error_callback_result =
+          error_callback(std::move(value_or_error.error()));
+      consumer(std::move(error_callback_result));
+    } else {
+      consumer(std::move(value_or_error));
+    }
   });
   return std::move(future.value);
 }
