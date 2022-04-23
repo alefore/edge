@@ -191,6 +191,7 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
   return output;
 }
 
+// TODO(easy, 2022-04-23): Return NonNull.
 shared_ptr<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
                                         const Path& address) {
   auto buffer = OpenBuffer::New(
@@ -208,9 +209,9 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
   buffer->Set(buffer_variables::allow_dirty_delete, true);
   buffer->Set(buffer_variables::display_progress, false);
 
-  editor_state.buffers()->insert({buffer->name(), buffer});
+  editor_state.buffers()->insert({buffer->name(), buffer.get_shared()});
   buffer->Reload();
-  return buffer;
+  return buffer.get_shared();
 }
 
 }  // namespace editor

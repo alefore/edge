@@ -566,7 +566,8 @@ const bool buffer_tests_registration =
     }());
 }  // namespace
 
-Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
+Predictor DictionaryPredictor(
+    NonNull<std::shared_ptr<const OpenBuffer>> dictionary) {
   return [dictionary](PredictorInput input) {
     const BufferContents& contents = dictionary->contents();
     auto input_line = MakeNonNullShared<const Line>(

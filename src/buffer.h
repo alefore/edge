@@ -116,7 +116,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
             };
   };
 
-  static std::shared_ptr<OpenBuffer> New(Options options);
+  static language::NonNull<std::shared_ptr<OpenBuffer>> New(Options options);
   OpenBuffer(ConstructorAccessTag, Options options);
   ~OpenBuffer();
 

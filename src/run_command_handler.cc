@@ -600,7 +600,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
                     ? options.children_path->read()
                     : L"");
     buffer->Set(buffer_variables::command, options.command);
-    it.first->second = std::move(buffer);
+    it.first->second = std::move(buffer.get_shared());
   } else {
     it.first->second->ResetMode();
   }

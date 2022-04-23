@@ -6,6 +6,7 @@
 #include "src/buffer_variables.h"
 #include "src/direction.h"
 #include "src/editor.h"
+#include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
 #include "src/modifiers.h"
@@ -53,9 +54,11 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 namespace {
+using language::NonNull;
+
 // Copy to a new buffer the contents of `range`.
-std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
-                                                 Range range) {
+NonNull<std::shared_ptr<OpenBuffer>> GetDeletedTextBuffer(
+    const OpenBuffer& buffer, Range range) {
   LOG(INFO) << "Preparing deleted text buffer: " << range;
   auto delete_buffer = OpenBuffer::New(
       {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});

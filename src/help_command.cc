@@ -113,8 +113,9 @@ class HelpCommand : public Command {
     buffer->set_current_position_line(LineNumber(0));
     buffer->ResetMode();
 
-    (*editor_state_.buffers())[name] = buffer;
-    editor_state_.AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
+    (*editor_state_.buffers())[name] = buffer.get_shared();
+    editor_state_.AddBuffer(buffer.get_shared(),
+                            BuffersList::AddBufferType::kVisit);
     editor_state_.ResetRepetitions();
   }
 

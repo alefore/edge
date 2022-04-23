@@ -564,9 +564,10 @@ using std::to_wstring;
   environment->DefineType(L"Buffer", std::move(buffer));
 }
 
-/* static */ std::shared_ptr<OpenBuffer> OpenBuffer::New(Options options) {
+/* static */ NonNull<std::shared_ptr<OpenBuffer>> OpenBuffer::New(
+    Options options) {
   auto output =
-      std::make_shared<OpenBuffer>(ConstructorAccessTag(), std::move(options));
+      MakeNonNullShared<OpenBuffer>(ConstructorAccessTag(), std::move(options));
   output->Initialize();
   return output;
 }
@@ -2398,7 +2399,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
     if (it.first->second == nullptr) {
       LOG(INFO) << "Creating paste buffer.";
       it.first->second =
-          OpenBuffer::New({.editor = editor(), .name = kFuturePasteBuffer});
+          OpenBuffer::New({.editor = editor(), .name = kFuturePasteBuffer})
+              .get_shared();
     }
     input.delete_buffer = it.first->second.get();
     CHECK(input.delete_buffer != nullptr);
@@ -2607,7 +2609,7 @@ EditorState& EditorForTests() {
 }
 
 std::shared_ptr<OpenBuffer> NewBufferForTests() {
-  return OpenBuffer::New({.editor = EditorForTests()});
+  return OpenBuffer::New({.editor = EditorForTests()}).get_shared();
 }
 
 }  // namespace editor

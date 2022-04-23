@@ -150,7 +150,8 @@ futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input);
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);
 
-Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary);
+Predictor DictionaryPredictor(
+    language::NonNull<std::shared_ptr<const OpenBuffer>> dictionary);
 
 // Based on the parse tree of the source_buffer.
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input);

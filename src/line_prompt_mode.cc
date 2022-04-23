@@ -329,9 +329,8 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> FilterHistory(
     std::wstring filter) {
   BufferName name(L"- history filter: " + history_buffer->name().read() +
                   L": " + filter);
-  // TODO(easy, 2022-04-23) Get rid of Unsafe.
-  auto filter_buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
-      OpenBuffer::New({.editor = editor_state, .name = name}));
+  NonNull<std::shared_ptr<OpenBuffer>> filter_buffer =
+      OpenBuffer::New({.editor = editor_state, .name = name});
   filter_buffer->Set(buffer_variables::allow_dirty_delete, true);
   filter_buffer->Set(buffer_variables::show_in_buffers_list, false);
   filter_buffer->Set(buffer_variables::delete_into_paste_buffer, false);
@@ -484,7 +483,8 @@ NonNull<std::shared_ptr<OpenBuffer>> GetPromptBuffer(
       *editor_state.buffers()->insert({BufferName(L"- prompt"), nullptr}).first;
   if (element.second == nullptr) {
     element.second =
-        OpenBuffer::New({.editor = editor_state, .name = element.first});
+        OpenBuffer::New({.editor = editor_state, .name = element.first})
+            .get_shared();
     element.second->Set(buffer_variables::allow_dirty_delete, true);
     element.second->Set(buffer_variables::show_in_buffers_list, false);
     element.second->Set(buffer_variables::delete_into_paste_buffer, false);

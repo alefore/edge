@@ -187,7 +187,7 @@ class ListBuffersCommand : public Command {
       buffer->Set(buffer_variables::show_in_buffers_list, false);
       buffer->Set(buffer_variables::push_positions_to_history, false);
       buffer->Set(buffer_variables::allow_dirty_delete, true);
-      it.first->second = std::move(buffer);
+      it.first->second = std::move(buffer.get_shared());
       editor_state_.StartHandlingInterrupts();
     }
     editor_state_.set_current_buffer(it.first->second,

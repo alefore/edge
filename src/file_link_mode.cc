@@ -710,14 +710,14 @@ OpenFile(const OpenFileOptions& options) {
         } else {
           buffer_options->name =
               options.editor_state.GetUnusedBufferName(L"anonymous buffer");
-          buffer = OpenBuffer::New(*buffer_options);
+          buffer = OpenBuffer::New(*buffer_options).get_shared();
         }
         auto insert_result = options.editor_state.buffers()->insert(
             {buffer_options->name, buffer});
         if (insert_result.second) {
           if (insert_result.first->second.get() == nullptr) {
             insert_result.first->second =
-                OpenBuffer::New(std::move(*buffer_options));
+                OpenBuffer::New(std::move(*buffer_options)).get_shared();
             insert_result.first->second->Set(buffer_variables::persist_state,
                                              true);
           }
