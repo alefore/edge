@@ -40,8 +40,7 @@ NonNull<std::unique_ptr<Value>> BuildSetter(VMType class_type,
     CHECK(instance != nullptr);
 
     CHECK_EQ(args[1]->type, field_type);
-    // TODO(easy, 2022-04-24): Get rid of get_unique.
-    instance->environment->Assign(field_name, std::move(args[1].get_unique()));
+    instance->environment->Assign(field_name, std::move(args[1]));
 
     return futures::Past(Success(EvaluationOutput::New(std::move(args[0]))));
   };

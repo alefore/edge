@@ -47,9 +47,7 @@ class AssignExpression : public Expression {
                   if (assignment_type == AssignmentType::kDefine) {
                     trampoline->environment()->Define(symbol, std::move(copy));
                   } else {
-                    // TODO(easy, 2022-04-24): Get rid of get_unique.
-                    trampoline->environment()->Assign(
-                        symbol, std::move(copy.get_unique()));
+                    trampoline->environment()->Assign(symbol, std::move(copy));
                   }
                   return Success(
                       EvaluationOutput::New(std::move(value_output.value)));

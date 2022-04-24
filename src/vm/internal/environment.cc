@@ -227,7 +227,8 @@ void Environment::Define(const wstring& symbol,
   table_[symbol][value->type] = std::move(value.get_unique());
 }
 
-void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
+void Environment::Assign(const wstring& symbol,
+                         NonNull<std::unique_ptr<Value>> value) {
   auto it = table_.find(symbol);
   if (it == table_.end()) {
     // TODO: Show the symbol.
@@ -241,7 +242,7 @@ void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
     parent_environment_->Assign(symbol, std::move(value));
     return;
   }
-  it->second[value->type] = std::move(value);
+  it->second[value->type] = std::move(value.get_unique());
 }
 
 void Environment::Remove(const wstring& symbol, VMType type) {
