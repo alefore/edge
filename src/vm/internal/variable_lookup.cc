@@ -11,9 +11,9 @@
 
 namespace afc::vm {
 namespace {
+using language::Error;
 using language::NonNull;
 using language::Success;
-
 class VariableLookup : public Expression {
  public:
   VariableLookup(Environment::Namespace symbol_namespace, std::wstring symbol,
@@ -33,11 +33,15 @@ class VariableLookup : public Expression {
     // DVLOG(5) << "Look up symbol: " << symbol_;
     CHECK(trampoline != nullptr);
     CHECK(trampoline->environment() != nullptr);
-    // TODO(easy, 2022-04-24): Get rid of Unsafe.
-    auto result = EvaluationOutput::New(NonNull<std::unique_ptr<Value>>::Unsafe(
-        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type)));
-    DVLOG(5) << "Variable lookup: " << *result.value;
-    return futures::Past(Success(std::move(result)));
+    std::unique_ptr<Value> value =
+        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type);
+    if (value == nullptr) {
+      return futures::Past(
+          Error(L"Unexpected: variable value is null: " + symbol_));
+    }
+    DVLOG(5) << "Variable lookup: " << *value;
+    return futures::Past(Success(EvaluationOutput::New(
+        NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)))));
   }
 
   std::unique_ptr<Expression> Clone() override {
