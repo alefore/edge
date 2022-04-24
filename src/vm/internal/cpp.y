@@ -124,7 +124,9 @@ statement(OUT) ::= function_declaration_params(FUNC)
       OUT = nullptr;
     } else {
       CHECK(FUNC->name.has_value());
-      compilation->environment->Define(FUNC->name.value(), std::move(value));
+      compilation->environment->Define(
+          FUNC->name.value(),
+          NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)));
       OUT = NewVoidExpression().release();
     }
   }
@@ -883,17 +885,20 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 ////////////////////////////////////////////////////////////////////////////////
 
 expr(OUT) ::= BOOL(B). {
-  OUT = NewConstantExpression(unique_ptr<Value>(B)).release();
+  OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
+      std::unique_ptr<Value>(B))).release();
   B = nullptr;
 }
 
 expr(OUT) ::= INTEGER(I). {
-  OUT = NewConstantExpression(unique_ptr<Value>(I)).release();
+  OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
+      std::unique_ptr<Value>(I))).release();
   I = nullptr;
 }
 
 expr(OUT) ::= DOUBLE(I). {
-  OUT = NewConstantExpression(unique_ptr<Value>(I)).release();
+  OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
+      std::unique_ptr<Value>(I))).release();
   I = nullptr;
 }
 
@@ -901,7 +906,8 @@ expr(OUT) ::= DOUBLE(I). {
 %destructor string { delete $$; }
 
 expr(OUT) ::= string(S). {
-  OUT = NewConstantExpression(unique_ptr<Value>(S)).release();
+  OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
+      std::unique_ptr<Value>(S))).release();
   S = nullptr;
 }
 

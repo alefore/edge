@@ -47,10 +47,11 @@ struct VMTypeMapper<std::vector<T>*> {
     auto name = vmtype.object_type;
     environment->Define(
         name,
-        Value::NewFunction({vmtype}, [name](std::vector<Value::Ptr> args) {
-          CHECK(args.empty());
-          return Value::NewObject(name, std::make_shared<std::vector<T>>());
-        }));
+        Value::NewFunction(
+            {vmtype}, [name](std::vector<language::NonNull<Value::Ptr>> args) {
+              CHECK(args.empty());
+              return Value::NewObject(name, std::make_shared<std::vector<T>>());
+            }));
 
     vector_type->AddField(L"empty", vm::NewCallback([](std::vector<T>* v) {
                             return v->empty();
@@ -62,7 +63,7 @@ struct VMTypeMapper<std::vector<T>*> {
         L"get",
         Value::NewFunction(
             {VMTypeMapper<T>::vmtype, vmtype, VMType::Integer()},
-            [](std::vector<std::unique_ptr<Value>> args,
+            [](std::vector<language::NonNull<std::unique_ptr<Value>>> args,
                Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
               CHECK_EQ(args.size(), 2ul);
               auto* v = get(args[0].get());
@@ -92,7 +93,8 @@ struct VMTypeMapper<std::vector<T>*> {
 // Allow safer construction than with VMTypeMapper<std::vector<T>>::New.
 template <typename T>
 struct VMTypeMapper<std::unique_ptr<std::vector<T>>> {
-  static Value::Ptr New(std::unique_ptr<std::vector<T>> value) {
+  static language::NonNull<Value::Ptr> New(
+      std::unique_ptr<std::vector<T>> value) {
     std::shared_ptr<void> void_ptr(value.release(), [](void* value) {
       delete static_cast<std::vector<T>*>(value);
     });

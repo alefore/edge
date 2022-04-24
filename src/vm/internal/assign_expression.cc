@@ -10,7 +10,9 @@
 
 namespace afc::vm {
 namespace {
+using language::MakeNonNullUnique;
 using language::Success;
+
 class AssignExpression : public Expression {
  public:
   enum class AssignmentType { kDefine, kAssign };
@@ -41,11 +43,13 @@ class AssignExpression : public Expression {
                 case EvaluationOutput::OutputType::kContinue:
                   DVLOG(3) << "Setting value for: " << symbol;
                   DVLOG(4) << "Value: " << *value_output.value;
-                  auto copy = std::make_unique<Value>(*value_output.value);
+                  auto copy = MakeNonNullUnique<Value>(*value_output.value);
                   if (assignment_type == AssignmentType::kDefine) {
                     trampoline->environment()->Define(symbol, std::move(copy));
                   } else {
-                    trampoline->environment()->Assign(symbol, std::move(copy));
+                    // TODO(easy, 2022-04-24): Get rid of get_unique.
+                    trampoline->environment()->Assign(
+                        symbol, std::move(copy.get_unique()));
                   }
                   return Success(
                       EvaluationOutput::New(std::move(value_output.value)));
@@ -87,7 +91,7 @@ std::optional<VMType> NewDefineTypeExpression(
     }
     type_def = *type_ptr;
   }
-  compilation->environment->Define(symbol, std::make_unique<Value>(type_def));
+  compilation->environment->Define(symbol, MakeNonNullUnique<Value>(type_def));
   return type_def;
 }
 

@@ -33,6 +33,7 @@ extern "C" {
 #include "src/vm/public/value.h"
 
 namespace afc {
+using language::NonNull;
 namespace editor {
 namespace {
 using concurrent::Notification;
@@ -44,7 +45,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
-using language::NonNull;
+using language::MakeNonNullUnique;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
@@ -454,7 +455,7 @@ class ForkEditorCommand : public Command {
         vm::NewConstantExpression(vm::Value::NewString(line->ToString())));
     std::shared_ptr<Expression> expression = vm::NewFunctionCall(
         vm::NewConstantExpression(
-            std::make_unique<Value>(*prompt_state.context_command_callback)),
+            MakeNonNullUnique<Value>(*prompt_state.context_command_callback)),
         std::move(arguments));
     if (expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
@@ -508,7 +509,7 @@ VMTypeMapper<editor::ForkCommandOptions*>::get(Value* value) {
   return static_cast<editor::ForkCommandOptions*>(value->user_value.get());
 }
 
-/* static */ Value::Ptr VMTypeMapper<editor::ForkCommandOptions*>::New(
+/* static */ NonNull<Value::Ptr> VMTypeMapper<editor::ForkCommandOptions*>::New(
     editor::ForkCommandOptions* value) {
   CHECK(value != nullptr);
   return Value::NewObject(L"ForkCommandOptions",

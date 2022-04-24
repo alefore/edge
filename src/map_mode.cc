@@ -8,6 +8,7 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/help_command.h"
+#include "src/language/safe_types.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/types.h"
@@ -17,6 +18,7 @@
 namespace afc {
 namespace editor {
 
+using language::NonNull;
 using vm::Expression;
 using vm::Value;
 using vm::VMType;
@@ -93,21 +95,24 @@ void MapModeCommands::Add(wstring name, wstring description,
   CHECK_EQ(value->type.type, VMType::FUNCTION);
   CHECK(value->type.type_arguments == std::vector<VMType>({VMType::Void()}));
 
-  Add(name,
-      MakeCommandFromFunction(
-          std::bind_front(
-              [&editor_state = editor_state_,
-               environment](std::unique_ptr<vm::Expression>& expression) {
-                LOG(INFO) << "Evaluating expression from Value::Ptr...";
-                Evaluate(expression.get(), environment,
-                         [&editor_state](std::function<void()> callback) {
-                           auto buffer = editor_state.current_buffer();
-                           CHECK(buffer != nullptr);
-                           buffer->work_queue()->Schedule(callback);
-                         });
-              },
-              NewFunctionCall(NewConstantExpression(std::move(value)), {})),
-          description));
+  Add(name, MakeCommandFromFunction(
+                std::bind_front(
+                    [&editor_state = editor_state_,
+                     environment](std::unique_ptr<vm::Expression>& expression) {
+                      LOG(INFO) << "Evaluating expression from Value::Ptr...";
+                      Evaluate(expression.get(), environment,
+                               [&editor_state](std::function<void()> callback) {
+                                 auto buffer = editor_state.current_buffer();
+                                 CHECK(buffer != nullptr);
+                                 buffer->work_queue()->Schedule(callback);
+                               });
+                    },
+                    // TODO(easy, 2022-04-24): Remove Unsafe.
+                    NewFunctionCall(NewConstantExpression(
+                                        NonNull<std::unique_ptr<Value>>::Unsafe(
+                                            std::move(value))),
+                                    {})),
+                description));
 }
 
 void MapModeCommands::Add(wstring name, std::function<void()> callback,

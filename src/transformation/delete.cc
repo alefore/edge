@@ -22,6 +22,7 @@
 #include "src/vm_transformation.h"
 
 namespace afc {
+using language::NonNull;
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
@@ -33,7 +34,8 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
     return std::static_pointer_cast<editor::transformation::Delete>(
         value->user_value);
   }
-  static Value::Ptr New(std::shared_ptr<editor::transformation::Delete> value) {
+  static NonNull<Value::Ptr> New(
+      std::shared_ptr<editor::transformation::Delete> value) {
     return Value::NewObject(L"DeleteTransformationBuilder",
                             std::shared_ptr<void>(value, value.get()));
   }
@@ -102,8 +104,10 @@ void HandleLineDeletion(LineColumn position, OpenBuffer& buffer) {
       VMType::Function({VMType::Void()}));
   if (callback == nullptr) return;
   LOG(INFO) << "Running EdgeLineDeleteHandler.";
-  std::shared_ptr<Expression> expr =
-      vm::NewFunctionCall(vm::NewConstantExpression(std::move(callback)), {});
+  std::shared_ptr<Expression> expr = vm::NewFunctionCall(
+      vm::NewConstantExpression(
+          NonNull<std::unique_ptr<Value>>::Unsafe(std::move(callback))),
+      {});
   // TODO(easy): I think we don't need to keep expr alive?
   Evaluate(
       expr.get(), buffer.environment(),

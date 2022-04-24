@@ -29,14 +29,17 @@ class AppendExpression : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                                    const VMType&) override {
     return trampoline->Bounce(e0_.get(), e0_->Types()[0])
-        .Transform([trampoline, e1 = e1_](EvaluationOutput e0_output) {
+        .Transform([trampoline, e1 = e1_](EvaluationOutput e0_output)
+                       -> futures::ValueOrError<EvaluationOutput> {
           switch (e0_output.type) {
             case EvaluationOutput::OutputType::kReturn:
               return futures::Past(Success(std::move(e0_output)));
             case EvaluationOutput::OutputType::kContinue:
               return trampoline->Bounce(e1.get(), e1->Types()[0]);
           }
-          LOG(FATAL) << "Unhandled evaluation type";
+          language::Error error(L"Unhandled OutputType case.");
+          LOG(FATAL) << error;
+          return futures::Past(error);
         });
   }
 

@@ -23,6 +23,7 @@ using concurrent::Notification;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
@@ -172,7 +173,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Execute(
     std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
   std::shared_ptr<Expression> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(
-          std::make_unique<vm::Value>(*parsed_command.function)),
+          MakeNonNullUnique<vm::Value>(*parsed_command.function)),
       std::move(parsed_command.inputs));
   if (expression->Types().empty()) {
     // TODO: Show the error.

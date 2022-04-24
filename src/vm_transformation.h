@@ -6,23 +6,23 @@
 #include <list>
 #include <memory>
 
+#include "src/language/safe_types.h"
 #include "src/transformation.h"
 #include "src/vm/public/callbacks.h"
 
-namespace afc {
-namespace vm {
+namespace afc::vm {
 class Environment;
 
 template <>
 struct VMTypeMapper<editor::transformation::Variant*> {
   static editor::transformation::Variant* get(Value* value);
-  static Value::Ptr New(editor::transformation::Variant* value);
+  static language::NonNull<Value::Ptr> New(
+      editor::transformation::Variant* value);
   static const VMType vmtype;
 };
-}  // namespace vm
-namespace editor {
+}  // namespace afc::vm
+namespace afc::editor {
 void RegisterTransformations(EditorState* editor, vm::Environment* environment);
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_VM_TRANSFORMATION_H__

@@ -16,9 +16,7 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
         case VMType::VM_DOUBLE:
           return [](NonNull<std::unique_ptr<Value>> value) {
             CHECK(value->IsInteger());
-            // TODO(easy, 2022-04-24): Get rid of Unsafe.
-            return NonNull<std::unique_ptr<Value>>::Unsafe(
-                Value::NewDouble(value->integer));
+            return Value::NewDouble(value->integer);
           };
         default:
           return nullptr;
@@ -49,26 +47,23 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
           return [argument_callbacks, purity = desired.function_purity](
                      NonNull<std::unique_ptr<Value>> value) {
             value->type.function_purity = purity;
-            value->callback = [argument_callbacks,
-                               original_callback = std::move(value->callback)](
-                                  std::vector<std::unique_ptr<Value>> arguments,
-                                  Trampoline* trampoline) {
-              CHECK_EQ(argument_callbacks.size(), arguments.size() + 1);
-              for (size_t i = 0; i < arguments.size(); ++i) {
-                // TODO(easy, 2022-04-24): Get rid of Unsafe and get_unique.
-                arguments[i] =
-                    std::move(argument_callbacks[i + 1](
-                                  NonNull<std::unique_ptr<Value>>::Unsafe(
-                                      std::move(arguments[i])))
-                                  .get_unique());
-              }
-              return original_callback(std::move(arguments), trampoline)
-                  .Transform([return_callback = argument_callbacks[0]](
-                                 EvaluationOutput output) {
-                    output.value = return_callback(std::move(output.value));
-                    return Success(std::move(output));
-                  });
-            };
+            value->callback =
+                [argument_callbacks,
+                 original_callback = std::move(value->callback)](
+                    std::vector<NonNull<std::unique_ptr<Value>>> arguments,
+                    Trampoline* trampoline) {
+                  CHECK_EQ(argument_callbacks.size(), arguments.size() + 1);
+                  for (size_t i = 0; i < arguments.size(); ++i) {
+                    arguments[i] =
+                        argument_callbacks[i + 1](std::move(arguments[i]));
+                  }
+                  return original_callback(std::move(arguments), trampoline)
+                      .Transform([return_callback = argument_callbacks[0]](
+                                     EvaluationOutput output) {
+                        output.value = return_callback(std::move(output.value));
+                        return Success(std::move(output));
+                      });
+                };
             return value;
           };
         }

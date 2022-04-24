@@ -20,6 +20,7 @@
 #include "src/vm/public/types.h"
 
 namespace afc {
+using language::NonNull;
 namespace vm {
 const VMType VMTypeMapper<editor::transformation::Variant*>::vmtype =
     VMType::ObjectType(L"Transformation");
@@ -33,7 +34,7 @@ VMTypeMapper<editor::transformation::Variant*>::get(Value* value) {
   return static_cast<editor::transformation::Variant*>(value->user_value.get());
 }
 
-Value::Ptr VMTypeMapper<editor::transformation::Variant*>::New(
+NonNull<Value::Ptr> VMTypeMapper<editor::transformation::Variant*>::New(
     editor::transformation::Variant* value) {
   return Value::NewObject(
       L"Transformation", shared_ptr<void>(value, [](void* v) {
@@ -44,7 +45,6 @@ Value::Ptr VMTypeMapper<editor::transformation::Variant*>::New(
 namespace editor {
 namespace {
 using language::Error;
-using language::NonNull;
 using language::Success;
 
 class FunctionTransformation : public CompositeTransformation {
@@ -59,7 +59,7 @@ class FunctionTransformation : public CompositeTransformation {
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    std::vector<std::unique_ptr<vm::Value>> args;
+    std::vector<NonNull<std::unique_ptr<vm::Value>>> args;
     args.emplace_back(
         VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::
             New(std::make_shared<Input>(input)));
@@ -97,12 +97,13 @@ void RegisterTransformations(EditorState* editor,
                     std::shared_ptr<CompositeTransformation::Output>>::vmtype,
                 VMTypeMapper<
                     std::shared_ptr<CompositeTransformation::Input>>::vmtype})},
-          [](vector<unique_ptr<vm::Value>> args) {
+          [](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
             CHECK_EQ(args.size(), 1ul);
+            // TODO(easy, 2022-04-24): Remove get_unique.
             return VMTypeMapper<editor::transformation::Variant*>::New(
                 std::make_unique<transformation::Variant>(
                     std::make_unique<FunctionTransformation>(
-                        std::move(args[0])))
+                        std::move(args[0].get_unique())))
                     .release());
           }));
   transformation::RegisterInsert(editor, environment);

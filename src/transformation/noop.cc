@@ -6,13 +6,16 @@
 
 namespace afc::editor {
 namespace {
+using language::NonNull;
+
 class Noop : public CompositeTransformation {
  public:
   static void Register(vm::Environment* environment) {
     environment->Define(
         L"NoopTransformation",
         vm::Value::NewFunction(
-            {vm::VMType::Void()}, [](vector<unique_ptr<vm::Value>> args) {
+            {vm::VMType::Void()},
+            [](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
               CHECK(args.empty());
               return vm::VMTypeMapper<editor::transformation::Variant*>::New(
                   std::make_unique<transformation::Variant>(

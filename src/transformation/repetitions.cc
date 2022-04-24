@@ -10,6 +10,7 @@
 #include "src/vm_transformation.h"
 
 namespace afc {
+using language::NonNull;
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
@@ -22,7 +23,7 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
     return std::static_pointer_cast<editor::transformation::Repetitions>(
         value->user_value);
   }
-  static Value::Ptr New(
+  static NonNull<Value::Ptr> New(
       std::shared_ptr<editor::transformation::Repetitions> value) {
     return Value::NewObject(L"RepetitionsTransformationBuilder",
                             std::shared_ptr<void>(value, value.get()));

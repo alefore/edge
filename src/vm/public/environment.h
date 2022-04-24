@@ -6,8 +6,9 @@
 #include <memory>
 #include <string>
 
-namespace afc {
-namespace vm {
+#include "src/language/safe_types.h"
+
+namespace afc::vm {
 
 using std::map;
 using std::unique_ptr;
@@ -57,7 +58,8 @@ class Environment {
   void CaseInsensitiveLookup(const Namespace& symbol_namespace,
                              const wstring& symbol,
                              std::vector<Value*>* output);
-  void Define(const wstring& symbol, unique_ptr<Value> value);
+  void Define(const wstring& symbol,
+              language::NonNull<std::unique_ptr<Value>> value);
   void Assign(const wstring& symbol, unique_ptr<Value> value);
   void Remove(const wstring& symbol, VMType type);
 
@@ -75,7 +77,6 @@ class Environment {
   const std::shared_ptr<Environment> parent_environment_;
 };
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm
 
 #endif

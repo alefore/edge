@@ -76,7 +76,7 @@ template <>
 struct VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>> {
   static std::shared_ptr<editor::CompositeTransformation::Output> get(
       Value* value);
-  static Value::Ptr New(
+  static language::NonNull<Value::Ptr> New(
       std::shared_ptr<editor::CompositeTransformation::Output> value);
   static const VMType vmtype;
 };
@@ -84,7 +84,7 @@ template <>
 struct VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>> {
   static std::shared_ptr<editor::CompositeTransformation::Input> get(
       Value* value);
-  static Value::Ptr New(
+  static language::NonNull<Value::Ptr> New(
       std::shared_ptr<editor::CompositeTransformation::Input> value);
   static const VMType vmtype;
 };

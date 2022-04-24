@@ -284,7 +284,7 @@ class InsertMode : public EditorMode {
                   {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(buffer)}));
               std::shared_ptr<Expression> expression = vm::NewFunctionCall(
                   vm::NewConstantExpression(
-                      std::make_unique<vm::Value>(*callback)),
+                      MakeNonNullUnique<vm::Value>(*callback)),
                   std::move(args));
               if (expression->Types().empty()) {
                 buffer->status().SetWarningText(
@@ -297,9 +297,7 @@ class InsertMode : public EditorMode {
                       ->EvaluateExpression(expression.get(),
                                            buffer->environment())
                       .ConsumeErrors([](Error) {
-                        return futures::Past(
-                            NonNull<std::unique_ptr<Value>>::Unsafe(
-                                vm::Value::NewVoid()));
+                        return futures::Past(vm::Value::NewVoid());
                       }));
             });
         return;

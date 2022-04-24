@@ -8,8 +8,9 @@
 #include <unordered_set>
 #include <vector>
 
-namespace afc {
-namespace vm {
+#include "src/language/safe_types.h"
+
+namespace afc::vm {
 
 using std::map;
 using std::unique_ptr;
@@ -76,7 +77,8 @@ class ObjectType {
   const VMType& type() const { return type_; }
   wstring ToString() const { return type_.ToString(); }
 
-  void AddField(const wstring& name, unique_ptr<Value> field);
+  void AddField(const wstring& name,
+                language::NonNull<std::unique_ptr<Value>> field);
 
   Value* LookupField(const wstring& name) const {
     auto it = fields_.find(name);
@@ -90,8 +92,7 @@ class ObjectType {
   map<wstring, unique_ptr<Value>> fields_;
 };
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm
 
 namespace std {
 template <>

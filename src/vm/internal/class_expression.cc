@@ -11,7 +11,10 @@
 
 namespace afc::vm {
 using language::Error;
+using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
+
 struct Instance {
   std::shared_ptr<Environment> environment = std::make_shared<Environment>();
 };
@@ -23,33 +26,36 @@ void StartClassDeclaration(Compilation* compilation, const std::wstring& name) {
 }
 
 namespace {
-std::unique_ptr<Value> BuildSetter(VMType class_type, VMType field_type,
-                                   std::wstring field_name) {
-  auto output = std::make_unique<Value>(VMType::FUNCTION);
+NonNull<std::unique_ptr<Value>> BuildSetter(VMType class_type,
+                                            VMType field_type,
+                                            std::wstring field_name) {
+  auto output = MakeNonNullUnique<Value>(VMType::FUNCTION);
   output->type.function_purity = Expression::PurityType::kUnknown;
   output->type.type_arguments = {class_type, class_type, field_type};
   output->callback = [field_name, field_type](
-                         std::vector<std::unique_ptr<Value>> args,
+                         std::vector<NonNull<std::unique_ptr<Value>>> args,
                          Trampoline*) {
     CHECK_EQ(args.size(), 2u);
     auto instance = static_cast<Instance*>(args[0]->user_value.get());
     CHECK(instance != nullptr);
 
     CHECK_EQ(args[1]->type, field_type);
-    instance->environment->Assign(field_name, std::move(args[1]));
+    // TODO(easy, 2022-04-24): Get rid of get_unique.
+    instance->environment->Assign(field_name, std::move(args[1].get_unique()));
 
     return futures::Past(Success(EvaluationOutput::New(std::move(args[0]))));
   };
   return output;
 }
 
-std::unique_ptr<Value> BuildGetter(VMType class_type, VMType field_type,
-                                   std::wstring field_name) {
-  auto output = std::make_unique<Value>(VMType::FUNCTION);
+NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
+                                            VMType field_type,
+                                            std::wstring field_name) {
+  auto output = MakeNonNullUnique<Value>(VMType::FUNCTION);
   output->type.function_purity = Expression::PurityType::kPure;
   output->type.type_arguments = {field_type, class_type};
   output->callback = [field_name, field_type](
-                         std::vector<std::unique_ptr<Value>> args,
+                         std::vector<NonNull<std::unique_ptr<Value>>> args,
                          Trampoline*) {
     CHECK_EQ(args.size(), 1u);
     auto instance = static_cast<Instance*>(args[0]->user_value.get());
@@ -90,12 +96,12 @@ void FinishClassDeclaration(
       });
   compilation->environment->DefineType(class_type.object_type,
                                        std::move(class_object_type));
-  auto constructor = std::make_unique<Value>(VMType::FUNCTION);
+  auto constructor = MakeNonNullUnique<Value>(VMType::FUNCTION);
   constructor->type.function_purity = constructor_expression_shared->purity();
   constructor->type.type_arguments.push_back(class_type);
   constructor->callback = [constructor_expression_shared, class_environment,
                            class_type,
-                           values](std::vector<std::unique_ptr<Value>>,
+                           values](std::vector<NonNull<std::unique_ptr<Value>>>,
                                    Trampoline* trampoline) {
     auto instance_environment =
         std::make_shared<Environment>(class_environment->parent_environment());

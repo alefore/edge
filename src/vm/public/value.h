@@ -31,20 +31,21 @@ struct Value {
   Value(const VMType& t) : type(t) {}
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
-      std::vector<Ptr>, Trampoline*)>;
-  static unique_ptr<Value> NewVoid();
-  static unique_ptr<Value> NewBool(bool value);
-  static unique_ptr<Value> NewInteger(int value);
-  static unique_ptr<Value> NewDouble(double value);
-  static unique_ptr<Value> NewString(wstring value);
-  static unique_ptr<Value> NewObject(std::wstring name,
-                                     std::shared_ptr<void> value);
-  static unique_ptr<Value> NewFunction(std::vector<VMType> arguments,
-                                       Callback callback);
+      std::vector<language::NonNull<Ptr>>, Trampoline*)>;
+  static language::NonNull<std::unique_ptr<Value>> NewVoid();
+  static language::NonNull<std::unique_ptr<Value>> NewBool(bool value);
+  static language::NonNull<std::unique_ptr<Value>> NewInteger(int value);
+  static language::NonNull<std::unique_ptr<Value>> NewDouble(double value);
+  static language::NonNull<std::unique_ptr<Value>> NewString(wstring value);
+  static language::NonNull<std::unique_ptr<Value>> NewObject(
+      std::wstring name, std::shared_ptr<void> value);
+  static language::NonNull<std::unique_ptr<Value>> NewFunction(
+      std::vector<VMType> arguments, Callback callback);
   // Convenience wrapper.
-  static unique_ptr<Value> NewFunction(
+  static language::NonNull<std::unique_ptr<Value>> NewFunction(
       std::vector<VMType> arguments,
-      std::function<Ptr(std::vector<Ptr>)> callback);
+      std::function<language::NonNull<Ptr>(std::vector<language::NonNull<Ptr>>)>
+          callback);
 
   bool IsVoid() const { return type.type == VMType::VM_VOID; };
   bool IsBool() const { return type.type == VMType::VM_BOOLEAN; };

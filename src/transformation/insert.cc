@@ -10,6 +10,7 @@
 #include "src/vm_transformation.h"
 
 namespace afc {
+using language::NonNull;
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
@@ -21,7 +22,8 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
     return std::static_pointer_cast<editor::transformation::Insert>(
         value->user_value);
   }
-  static Value::Ptr New(std::shared_ptr<editor::transformation::Insert> value) {
+  static NonNull<Value::Ptr> New(
+      std::shared_ptr<editor::transformation::Insert> value) {
     return Value::NewObject(L"InsertTransformationBuilder",
                             std::shared_ptr<void>(value, value.get()));
   }
@@ -34,7 +36,6 @@ const VMType
 }  // namespace vm
 namespace editor::transformation {
 using language::MakeNonNullShared;
-using language::NonNull;
 
 transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
   return transformation::Delete{

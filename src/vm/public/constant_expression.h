@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "src/language/safe_types.h"
 #include "src/vm/public/value.h"
 
 namespace afc {
@@ -12,7 +13,8 @@ class Expression;
 struct Value;
 
 std::unique_ptr<Expression> NewVoidExpression();
-std::unique_ptr<Expression> NewConstantExpression(Value::Ptr value);
+std::unique_ptr<Expression> NewConstantExpression(
+    language::NonNull<Value::Ptr> value);
 
 }  // namespace vm
 }  // namespace afc

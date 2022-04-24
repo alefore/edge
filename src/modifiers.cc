@@ -2,8 +2,7 @@
 
 #include "src/language/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
   os << "[" << bp.buffer_name << ":" << bp.position << "]";
@@ -132,8 +131,10 @@ std::wstring Modifiers::Serialize() const {
   return output;
 }
 
-}  // namespace editor
-namespace vm {
+}  // namespace afc::editor
+namespace afc::vm {
+using language::NonNull;
+
 /* static */
 std::shared_ptr<editor::Modifiers>
 VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value* value) {
@@ -145,7 +146,7 @@ VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value* value) {
 }
 
 /* static */
-Value::Ptr VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
+NonNull<Value::Ptr> VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
     std::shared_ptr<editor::Modifiers> value) {
   return Value::NewObject(L"Modifiers",
                           std::shared_ptr<void>(value, value.get()));
@@ -153,5 +154,4 @@ Value::Ptr VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
 
 const VMType VMTypeMapper<std::shared_ptr<editor::Modifiers>>::vmtype =
     VMType::ObjectType(L"Modifiers");
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

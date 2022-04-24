@@ -14,6 +14,8 @@
 #include "src/vm/public/vector.h"
 
 namespace afc {
+using language::NonNull;
+
 namespace vm {
 template <>
 const VMType VMTypeMapper<std::vector<editor::LineColumn>*>::vmtype =
@@ -24,8 +26,6 @@ const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
     VMType::ObjectType(L"SetLineColumn");
 }  // namespace vm
 namespace editor {
-using language::NonNull;
-
 bool LineNumberDelta::IsZero() const { return *this == LineNumberDelta(); }
 
 bool operator==(const LineNumberDelta& a, const LineNumberDelta& b) {
@@ -683,7 +683,8 @@ editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value* value) {
 }
 
 /* static */
-Value::Ptr VMTypeMapper<editor::LineColumn>::New(editor::LineColumn value) {
+NonNull<Value::Ptr> VMTypeMapper<editor::LineColumn>::New(
+    editor::LineColumn value) {
   return Value::NewObject(
       vmtype.object_type,
       shared_ptr<void>(new editor::LineColumn(value), [](void* v) {
@@ -704,7 +705,7 @@ editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
 }
 
 /* static */
-Value::Ptr VMTypeMapper<editor::LineColumnDelta>::New(
+NonNull<Value::Ptr> VMTypeMapper<editor::LineColumnDelta>::New(
     editor::LineColumnDelta value) {
   return Value::NewObject(
       vmtype.object_type,
@@ -725,7 +726,7 @@ editor::Range VMTypeMapper<editor::Range>::get(Value* value) {
 }
 
 /* static */
-Value::Ptr VMTypeMapper<editor::Range>::New(editor::Range range) {
+NonNull<Value::Ptr> VMTypeMapper<editor::Range>::New(editor::Range range) {
   return Value::NewObject(
       L"Range", shared_ptr<void>(new editor::Range(range), [](void* v) {
         delete static_cast<editor::Range*>(v);

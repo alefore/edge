@@ -12,7 +12,6 @@ namespace afc {
 namespace vm {
 
 using std::unique_ptr;
-using std::vector;
 
 class Expression;
 class Compilation;
@@ -26,7 +25,7 @@ std::unique_ptr<Expression> NewFunctionCall(
     std::vector<std::unique_ptr<Expression>> args);
 
 futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Call(
-    const Value& func, vector<Value::Ptr> args,
+    const Value& func, std::vector<language::NonNull<Value::Ptr>> args,
     std::function<void(std::function<void()>)> yield_callback);
 
 std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,

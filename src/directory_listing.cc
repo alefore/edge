@@ -18,6 +18,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ToByteString;
@@ -103,7 +104,7 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   std::vector<std::unique_ptr<vm::Expression>> args;
   args.push_back(vm::NewConstantExpression({vm::Value::NewString(path)}));
   std::shared_ptr<Expression> expression = vm::NewFunctionCall(
-      vm::NewConstantExpression(std::make_unique<vm::Value>(*callback)),
+      vm::NewConstantExpression(MakeNonNullUnique<vm::Value>(*callback)),
       std::move(args));
 
   return {

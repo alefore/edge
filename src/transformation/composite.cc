@@ -8,6 +8,7 @@
 #include "src/vm_transformation.h"
 
 namespace afc {
+using language::NonNull;
 namespace vm {
 const VMType VMTypeMapper<
     std::shared_ptr<editor::CompositeTransformation::Output>>::vmtype =
@@ -24,7 +25,7 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::get(
       value->user_value);
 }
 
-Value::Ptr
+NonNull<Value::Ptr>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::New(
     std::shared_ptr<editor::CompositeTransformation::Output> value) {
   CHECK(value != nullptr);
@@ -47,7 +48,7 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::get(
       value->user_value);
 }
 
-Value::Ptr
+NonNull<Value::Ptr>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
     std::shared_ptr<editor::CompositeTransformation::Input> value) {
   CHECK(value != nullptr);
@@ -59,8 +60,6 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
 namespace editor {
 namespace transformation {
 namespace {
-using language::NonNull;
-
 futures::Value<Result> ApplyBase(const Modifiers& modifiers,
                                  CompositeTransformation* transformation,
                                  Input transformation_input) {

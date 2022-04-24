@@ -15,9 +15,11 @@
 namespace afc::vm {
 namespace {
 using language::Error;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
+
 bool TypeMatchesArguments(const VMType& type,
                           const std::vector<std::unique_ptr<Expression>>& args,
                           wstring* error) {
@@ -113,9 +115,10 @@ class FunctionCall : public Expression {
           CHECK_EQ(callback.value->type.type, VMType::FUNCTION);
           CHECK(callback.value->callback != nullptr);
           futures::Future<ValueOrError<EvaluationOutput>> output;
-          CaptureArgs(trampoline, std::move(output.consumer), args_types,
-                      std::make_shared<vector<unique_ptr<Value>>>(),
-                      std::move(callback.value));
+          CaptureArgs(
+              trampoline, std::move(output.consumer), args_types,
+              std::make_shared<std::vector<NonNull<std::unique_ptr<Value>>>>(),
+              std::move(callback.value));
           return std::move(output.value);
         });
   }
@@ -129,7 +132,7 @@ class FunctionCall : public Expression {
       Trampoline* trampoline,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer,
       std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_types,
-      std::shared_ptr<std::vector<unique_ptr<Value>>> values,
+      std::shared_ptr<std::vector<NonNull<unique_ptr<Value>>>> values,
       NonNull<std::shared_ptr<Value>> callback) {
     CHECK(args_types != nullptr);
     CHECK(values != nullptr);
@@ -167,8 +170,7 @@ class FunctionCall : public Expression {
               DVLOG(5) << "Received results of parameter " << values->size() + 1
                        << " (of " << args_types->size()
                        << "): " << *value.value().value;
-              // TODO(easy, 2022-04-24): Get rid of call to get_unique.
-              values->push_back(std::move(value.value().value.get_unique()));
+              values->push_back(std::move(value.value().value));
               DVLOG(6) << "Recursive call.";
               CaptureArgs(trampoline, consumer, args_types, values, callback);
           }
@@ -290,29 +292,29 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
           Trampoline* trampoline, const VMType& type) override {
         return trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0])
-            .Transform(
-                [type, shared_type = type_, shared_delegate = delegate_](
-                    EvaluationOutput output) -> ValueOrError<EvaluationOutput> {
-                  switch (output.type) {
-                    case EvaluationOutput::OutputType::kReturn:
-                      return Success(std::move(output));
-                    case EvaluationOutput::OutputType::kContinue:
-                      return Success(EvaluationOutput::New(Value::NewFunction(
-                          shared_type->type_arguments,
-                          [obj = NonNull<std::shared_ptr<Value>>(
-                               std::move(output.value)),
-                           shared_delegate](std::vector<Value::Ptr> args,
-                                            Trampoline* trampoline) {
-                            args.emplace(args.begin(), std::make_unique<Value>(
-                                                           *obj.get_shared()));
-                            return shared_delegate->callback(std::move(args),
-                                                             trampoline);
-                          })));
-                  }
-                  language::Error error(L"Unhandled OutputType case.");
-                  LOG(FATAL) << error;
-                  return error;
-                });
+            .Transform([type, shared_type = type_,
+                        shared_delegate = delegate_](EvaluationOutput output)
+                           -> ValueOrError<EvaluationOutput> {
+              switch (output.type) {
+                case EvaluationOutput::OutputType::kReturn:
+                  return Success(std::move(output));
+                case EvaluationOutput::OutputType::kContinue:
+                  return Success(EvaluationOutput::New(Value::NewFunction(
+                      shared_type->type_arguments,
+                      [obj = NonNull<std::shared_ptr<Value>>(
+                           std::move(output.value)),
+                       shared_delegate](std::vector<NonNull<Value::Ptr>> args,
+                                        Trampoline* trampoline) {
+                        args.emplace(args.begin(), MakeNonNullUnique<Value>(
+                                                       *obj.get_shared()));
+                        return shared_delegate->callback(std::move(args),
+                                                         trampoline);
+                      })));
+              }
+              language::Error error(L"Unhandled OutputType case.");
+              LOG(FATAL) << error;
+              return error;
+            });
       }
 
      private:
@@ -334,7 +336,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 }
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
-    const Value& func, vector<Value::Ptr> args,
+    const Value& func, std::vector<NonNull<Value::Ptr>> args,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK_EQ(func.type.type, VMType::FUNCTION);
   std::vector<std::unique_ptr<Expression>> args_expr;

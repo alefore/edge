@@ -56,7 +56,7 @@ namespace vm {
 template <>
 struct VMTypeMapper<editor::ForkCommandOptions*> {
   static editor::ForkCommandOptions* get(Value* value);
-  static Value::Ptr New(editor::ForkCommandOptions* value);
+  static language::NonNull<Value::Ptr> New(editor::ForkCommandOptions* value);
   static const VMType vmtype;
 };
 }  // namespace vm

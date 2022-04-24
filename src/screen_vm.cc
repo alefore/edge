@@ -28,6 +28,7 @@ const VMType VMTypeMapper<editor::Screen*>::vmtype =
 namespace editor {
 
 using infrastructure::Path;
+using language::NonNull;
 using language::Success;
 using language::ToByteString;
 using vm::Environment;
@@ -108,7 +109,7 @@ void RegisterScreenType(Environment* environment) {
       L"RemoteScreen",
       Value::NewFunction(
           {VMType::ObjectType(screen_type.get()), VMType::String()},
-          [](vector<unique_ptr<Value>> args,
+          [](std::vector<NonNull<std::unique_ptr<Value>>> args,
              Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
             CHECK_EQ(args[0]->type, VMType::VM_STRING);

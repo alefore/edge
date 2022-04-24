@@ -363,10 +363,10 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
             value *= pow(10, signal * ConsumeDecimal(str, &pos));
           }
           token = DOUBLE;
-          input = Value::NewDouble(value);
+          input = std::move(Value::NewDouble(value).get_unique());
         } else {
           token = INTEGER;
-          input = Value::NewInteger(decimal);
+          input = std::move(Value::NewInteger(decimal).get_unique());
         }
       } break;
 
@@ -478,7 +478,8 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
         wstring symbol = str.substr(start, pos - start);
         struct Keyword {
           int token;
-          std::function<std::unique_ptr<Value>()> value_supplier = nullptr;
+          std::function<NonNull<std::unique_ptr<Value>>()> value_supplier =
+              nullptr;
         };
         static const auto* const keywords =
             new std::unordered_map<std::wstring, Keyword>(
@@ -498,7 +499,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
         if (auto it = keywords->find(symbol); it != keywords->end()) {
           token = it->second.token;
           if (auto supplier = it->second.value_supplier; supplier != nullptr) {
-            input = supplier();
+            input = std::move(supplier().get_unique());
           }
         } else {
           token = SYMBOL;

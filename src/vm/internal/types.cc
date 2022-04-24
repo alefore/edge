@@ -13,8 +13,8 @@ size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
   return output;
 }
 }  // namespace std
-namespace afc {
-namespace vm {
+namespace afc::vm {
+using language::NonNull;
 
 bool operator==(const VMType& lhs, const VMType& rhs) {
   return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments &&
@@ -120,8 +120,10 @@ ObjectType::ObjectType(const VMType& type) : type_(type) {}
 ObjectType::ObjectType(const wstring& type_name)
     : ObjectType(VMType::ObjectType(type_name)) {}
 
-void ObjectType::AddField(const wstring& name, std::unique_ptr<Value> field) {
-  fields_.insert({name, std::move(field)});
+void ObjectType::AddField(const wstring& name,
+                          NonNull<std::unique_ptr<Value>> field) {
+  // TODO(easy, 2022-04-24): Get rid of `get_unique`.
+  fields_.insert({name, std::move(field.get_unique())});
 }
 
 void ObjectType::ForEachField(
@@ -131,5 +133,4 @@ void ObjectType::ForEachField(
   }
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

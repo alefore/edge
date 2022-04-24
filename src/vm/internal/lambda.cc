@@ -86,7 +86,7 @@ class LambdaExpression : public Expression {
     output->callback =
         [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
-            vector<unique_ptr<Value>> args, Trampoline* trampoline) {
+            vector<NonNull<unique_ptr<Value>>> args, Trampoline* trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
           auto environment = std::make_shared<Environment>(parent_environment);
@@ -146,13 +146,13 @@ std::unique_ptr<UserFunction> UserFunction::New(
   if (name.has_value()) {
     output->name = name.value();
     compilation->environment->Define(name.value(),
-                                     std::make_unique<Value>(output->type));
+                                     MakeNonNullUnique<Value>(output->type));
   }
   compilation->environment =
       std::make_shared<Environment>(compilation->environment);
   for (pair<VMType, wstring> arg : *args) {
     compilation->environment->Define(arg.second,
-                                     std::make_unique<Value>(arg.first));
+                                     MakeNonNullUnique<Value>(arg.first));
   }
   return output;
 }

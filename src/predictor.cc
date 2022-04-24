@@ -242,10 +242,12 @@ void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
                                             kLongestPrefixEnvironmentVariable,
                                             VMType::VM_INTEGER);
   if (value == nullptr) return;
+  // TODO(easy, 2022-04-24): Get rid of get_unique.
   buffer.environment()->Assign(
       kLongestPrefixEnvironmentVariable,
-      vm::Value::NewInteger(
-          std::max(value->integer, static_cast<int>(new_value))));
+      std::move(vm::Value::NewInteger(
+                    std::max(value->integer, static_cast<int>(new_value)))
+                    .get_unique()));
 }
 
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
@@ -253,10 +255,12 @@ void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
       Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
       VMType::VM_INTEGER);
   if (value == nullptr) return;
+  // TODO(easy, 2022-04-24): Get rid of get_unique.
   buffer.environment()->Assign(
       kLongestDirectoryMatchEnvironmentVariable,
-      vm::Value::NewInteger(
-          std::max(value->integer, static_cast<int>(new_value))));
+      std::move(vm::Value::NewInteger(
+                    std::max(value->integer, static_cast<int>(new_value)))
+                    .get_unique()));
 }
 
 void RegisterPredictorExactMatch(OpenBuffer& buffer) {
@@ -264,8 +268,9 @@ void RegisterPredictorExactMatch(OpenBuffer& buffer) {
                                             kExactMatchEnvironmentVariable,
                                             VMType::VM_BOOLEAN);
   if (value == nullptr) return;
-  buffer.environment()->Assign(kExactMatchEnvironmentVariable,
-                               vm::Value::NewBool(true));
+  buffer.environment()->Assign(
+      kExactMatchEnvironmentVariable,
+      std::move(vm::Value::NewBool(true).get_unique()));
 }
 
 // TODO(easy): Receive Paths rather than wstrings.

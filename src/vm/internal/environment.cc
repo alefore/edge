@@ -18,6 +18,7 @@
 namespace afc::vm {
 namespace {
 using language::MakeNonNullUnique;
+using language::NonNull;
 
 template <>
 const VMType VMTypeMapper<std::vector<int>*>::vmtype =
@@ -220,8 +221,10 @@ void Environment::CaseInsensitiveLookup(
   }
 }
 
-void Environment::Define(const wstring& symbol, unique_ptr<Value> value) {
-  table_[symbol][value->type] = std::move(value);
+void Environment::Define(const wstring& symbol,
+                         NonNull<std::unique_ptr<Value>> value) {
+  // TODO(easy, 2022-04-24): Get rid of `get_unique`.
+  table_[symbol][value->type] = std::move(value.get_unique());
 }
 
 void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {

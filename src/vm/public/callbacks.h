@@ -22,7 +22,7 @@ struct VMTypeMapper {};
 
 template <>
 struct VMTypeMapper<void> {
-  static Value::Ptr New() { return Value::NewVoid(); }
+  static language::NonNull<Value::Ptr> New() { return Value::NewVoid(); }
   static const VMType vmtype;
 };
 
@@ -32,7 +32,9 @@ struct VMTypeMapper<bool> {
     CHECK(value->IsBool());
     return value->boolean;
   }
-  static Value::Ptr New(bool value) { return Value::NewBool(value); }
+  static language::NonNull<Value::Ptr> New(bool value) {
+    return Value::NewBool(value);
+  }
   static const VMType vmtype;
 };
 
@@ -42,7 +44,9 @@ struct VMTypeMapper<int> {
     CHECK(value->IsInteger());
     return value->integer;
   }
-  static Value::Ptr New(int value) { return Value::NewInteger(value); }
+  static language::NonNull<Value::Ptr> New(int value) {
+    return Value::NewInteger(value);
+  }
   static const VMType vmtype;
 };
 
@@ -52,14 +56,18 @@ struct VMTypeMapper<double> {
     CHECK(value->IsDouble());
     return value->double_value;
   }
-  static Value::Ptr New(double value) { return Value::NewDouble(value); }
+  static language::NonNull<Value::Ptr> New(double value) {
+    return Value::NewDouble(value);
+  }
   static const VMType vmtype;
 };
 
 template <>
 struct VMTypeMapper<wstring> {
   static wstring get(Value* value) { return std::move(value->str); }
-  static Value::Ptr New(wstring value) { return Value::NewString(value); }
+  static language::NonNull<Value::Ptr> New(wstring value) {
+    return Value::NewString(value);
+  }
   static const VMType vmtype;
 };
 
@@ -104,8 +112,9 @@ struct function_traits<R (*const)(Args...)> {
 };
 
 template <typename Callable, size_t... I>
-Value::Ptr RunCallback(Callable& callback, std::vector<Value::Ptr> args,
-                       std::index_sequence<I...>) {
+language::NonNull<Value::Ptr> RunCallback(
+    Callable& callback, std::vector<language::NonNull<Value::Ptr>> args,
+    std::index_sequence<I...>) {
   using ft = function_traits<Callable>;
   CHECK_EQ(args.size(), std::tuple_size<typename ft::ArgTuple>::value);
   if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
@@ -120,16 +129,18 @@ Value::Ptr RunCallback(Callable& callback, std::vector<Value::Ptr> args,
 }
 
 template <typename Callable>
-Value::Ptr NewCallback(Callable callback, VMType::PurityType purity =
-                                              VMType::PurityType::kUnknown) {
+language::NonNull<Value::Ptr> NewCallback(
+    Callable callback,
+    VMType::PurityType purity = VMType::PurityType::kUnknown) {
   using ft = function_traits<Callable>;
-  auto callback_wrapper = std::make_unique<Value>(VMType::FUNCTION);
+  auto callback_wrapper = language::MakeNonNullUnique<Value>(VMType::FUNCTION);
   callback_wrapper->type.function_purity = purity;
   callback_wrapper->type.type_arguments.push_back(
       VMTypeMapper<typename ft::ReturnType>().vmtype);
   AddArgs<typename ft::ArgTuple, 0>(&callback_wrapper->type.type_arguments);
   callback_wrapper->callback = [callback = std::move(callback)](
-                                   vector<Value::Ptr> args, Trampoline*) {
+                                   vector<language::NonNull<Value::Ptr>> args,
+                                   Trampoline*) {
     return futures::Past(language::Success(EvaluationOutput::New(
         RunCallback(callback, std::move(args),
                     std::make_index_sequence<

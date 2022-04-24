@@ -13,7 +13,7 @@
 #include "wstring.h"
 
 namespace afc::vm {
-
+using language::NonNull;
 using language::Success;
 
 using Time = struct timespec;
@@ -34,7 +34,7 @@ struct VMTypeMapper<Time> {
     return *static_cast<Time*>(value->user_value.get());
   }
 
-  static Value::Ptr New(Time value) {
+  static NonNull<Value::Ptr> New(Time value) {
     return Value::NewObject(vmtype.object_type,
                             shared_ptr<void>(new Time(value), [](void* v) {
                               delete static_cast<Time*>(v);
@@ -53,7 +53,7 @@ struct VMTypeMapper<Duration> {
     return *static_cast<Duration*>(value->user_value.get());
   }
 
-  static Value::Ptr New(Duration value) {
+  static NonNull<Value::Ptr> New(Duration value) {
     return Value::NewObject(vmtype.object_type,
                             shared_ptr<void>(new Duration(value), [](void* v) {
                               delete static_cast<Time*>(v);
@@ -93,7 +93,7 @@ void RegisterTimeType(Environment* environment) {
       L"format",
       Value::NewFunction(
           {VMType::String(), time_type->type(), VMType::String()},
-          [](std::vector<Value::Ptr> args,
+          [](std::vector<NonNull<Value::Ptr>> args,
              Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
             CHECK(args[0]->IsObject());

@@ -7,11 +7,14 @@
 #include "src/vm_transformation.h"
 
 namespace afc::editor::transformation {
+using language::MakeNonNullUnique;
+
 void RegisterSetPosition(vm::Environment* environment) {
   environment->Define(
       L"SetColumnTransformation",
       vm::NewCallback(std::function<Variant*(int)>([](int column) {
-        return std::make_unique<Variant>(SetPosition(ColumnNumber(column)))
+        return MakeNonNullUnique<Variant>(SetPosition(ColumnNumber(column)))
+            .get_unique()
             .release();
       })));
 
@@ -19,7 +22,9 @@ void RegisterSetPosition(vm::Environment* environment) {
       L"SetPositionTransformation",
       vm::NewCallback(
           std::function<Variant*(LineColumn)>([](LineColumn position) {
-            return std::make_unique<Variant>(SetPosition(position)).release();
+            return MakeNonNullUnique<Variant>(SetPosition(position))
+                .get_unique()
+                .release();
           })));
 }
 

@@ -64,6 +64,7 @@ extern "C" {
 #include "src/vm_transformation.h"
 
 namespace afc {
+using language::NonNull;
 namespace vm {
 struct BufferWrapper {
   std::shared_ptr<editor::OpenBuffer> buffer;
@@ -74,7 +75,8 @@ VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value* value) {
   return static_cast<BufferWrapper*>(value->user_value.get())->buffer;
 }
 
-/* static */ Value::Ptr VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
+/* static */ NonNull<Value::Ptr>
+VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
     std::shared_ptr<editor::OpenBuffer> value) {
   auto wrapper = std::make_shared<BufferWrapper>();
   wrapper->buffer = std::move(value);
@@ -100,7 +102,6 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
-using language::NonNull;
 using language::ObservableValue;
 using language::Observers;
 using language::Pointer;
@@ -309,7 +310,7 @@ using std::to_wstring;
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()),
            vm::VMTypeMapper<editor::transformation::Variant*>::vmtype},
-          [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
+          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline*) {
             CHECK_EQ(args.size(), 2ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
@@ -383,15 +384,16 @@ using std::to_wstring;
       Value::NewFunction(
           {VMType::Bool(), VMType::ObjectType(buffer.get()),
            VMType::Function({VMType::String(), VMType::String()})},
-          [](vector<unique_ptr<Value>> args) {
+          [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), size_t(2));
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
             CHECK(buffer != nullptr);
-            return Value::NewBool(
-                buffer->AddKeyboardTextTransformer(std::move(args[1])));
+            // TODO(easy, 2022-04-24): Get rid of `get_unique`.
+            return Value::NewBool(buffer->AddKeyboardTextTransformer(
+                std::move(args[1].get_unique())));
           }));
 
   buffer->AddField(
@@ -399,14 +401,15 @@ using std::to_wstring;
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()),
            VMType::Function({VMType::Bool(), VMType::String()})},
-          [](vector<unique_ptr<Value>> args) {
+          [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), size_t(2));
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
             CHECK(buffer != nullptr);
-            buffer->set_filter(std::move(args[1]));
+            // TODO(easy, 2022-04-24): Get rid of `get_unique`.
+            buffer->set_filter(std::move(args[1].get_unique()));
             return Value::NewVoid();
           }));
 
@@ -438,7 +441,7 @@ using std::to_wstring;
       L"Save",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get())},
-          [](vector<Value::Ptr> args, Trampoline*) {
+          [](std::vector<NonNull<Value::Ptr>> args, Trampoline*) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
@@ -480,7 +483,7 @@ using std::to_wstring;
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()), VMType::String(),
            VMType::String(), VMType::Function({VMType::Void()})},
-          [](vector<unique_ptr<Value>> args) {
+          [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
@@ -490,7 +493,7 @@ using std::to_wstring;
                     args[0].get());
             CHECK(buffer != nullptr);
             buffer->default_commands_->Add(args[1]->str, args[2]->str,
-                                           std::move(args[3]),
+                                           std::move(args[3].get_unique()),
                                            buffer->environment_);
             return Value::NewVoid();
           }));
@@ -550,7 +553,7 @@ using std::to_wstring;
       L"WaitForEndOfFile",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get())},
-          [](vector<Value::Ptr> args, Trampoline*) {
+          [](vector<NonNull<Value::Ptr>> args, Trampoline*) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
@@ -948,7 +951,7 @@ void OpenBuffer::Initialize() {
       L"sleep", Value::NewFunction(
                     {VMType::Void(), VMType::Double()},
                     [weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
-                        std::vector<Value::Ptr> args, Trampoline*) {
+                        std::vector<NonNull<Value::Ptr>> args, Trampoline*) {
                       CHECK_EQ(args.size(), 1ul);
                       CHECK(args[0]->IsDouble());
                       double delay_seconds = args[0]->double_value;
@@ -1853,7 +1856,7 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
              keyboard_text_transformers_.end(),
              [this, input_shared](const std::unique_ptr<Value>& t) {
                CHECK(t != nullptr);
-               std::vector<Value::Ptr> args;
+               std::vector<NonNull<Value::Ptr>> args;
                args.push_back(Value::NewString(std::move(*input_shared)));
                return Call(*t, std::move(args),
                            [work_queue =
