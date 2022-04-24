@@ -223,8 +223,7 @@ void Environment::CaseInsensitiveLookup(
 
 void Environment::Define(const wstring& symbol,
                          NonNull<std::unique_ptr<Value>> value) {
-  // TODO(easy, 2022-04-24): Get rid of `get_unique`.
-  table_[symbol][value->type] = std::move(value.get_unique());
+  table_[symbol].insert_or_assign(value->type, std::move(value));
 }
 
 void Environment::Assign(const wstring& symbol,
@@ -234,15 +233,13 @@ void Environment::Assign(const wstring& symbol,
     // TODO: Show the symbol.
     CHECK(parent_environment_ != nullptr)
         << "Environment::parent_environment_ is nullptr while trying to "
-           "assign a new value to a symbol `"
-        << "..."
-        << "`. This likely means that the symbol is undefined (which the "
-           "caller should have validated "
-           "as part of the compilation process).";
+           "assign a new value to a symbol `...`. This likely means that the "
+           "symbol is undefined (which the caller should have validated as "
+           "part of the compilation process).";
     parent_environment_->Assign(symbol, std::move(value));
     return;
   }
-  it->second[value->type] = std::move(value.get_unique());
+  it->second.insert_or_assign(value->type, std::move(value));
 }
 
 void Environment::Remove(const wstring& symbol, VMType type) {

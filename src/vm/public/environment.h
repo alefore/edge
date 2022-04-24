@@ -70,8 +70,11 @@ class Environment {
       std::function<void(const wstring&, Value*)> callback);
 
  private:
-  map<wstring, unique_ptr<ObjectType>> object_types_;
-  map<wstring, std::unordered_map<VMType, unique_ptr<Value>>> table_;
+  // TODO(easy, 2022-04-24): Switch to NonNull.
+  map<wstring, std::unique_ptr<ObjectType>> object_types_;
+  map<wstring,
+      std::unordered_map<VMType, language::NonNull<std::unique_ptr<Value>>>>
+      table_;
   map<wstring, std::shared_ptr<Environment>> namespaces_;
 
   // TODO: Consider whether the parent environment should itself be const?
