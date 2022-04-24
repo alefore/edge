@@ -25,7 +25,6 @@ class NegateExpression : public Expression {
                                                    const VMType&) override {
     return trampoline->Bounce(expr_.get(), expr_->Types()[0])
         .Transform([negate = negate_](EvaluationOutput expr_output) {
-          CHECK(expr_output.value != nullptr);
           negate(expr_output.value.get());
           return Success(EvaluationOutput::New(std::move(expr_output.value)));
         });

@@ -15,10 +15,9 @@
 #include "time.h"
 #include "types_promotion.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::MakeNonNullUnique;
 
 template <>
 const VMType VMTypeMapper<std::vector<int>*>::vmtype =
@@ -155,7 +154,7 @@ std::unique_ptr<Value> Environment::Lookup(const Namespace& symbol_namespace,
   for (auto& value : values) {
     if (auto callback = GetImplicitPromotion(value->type, expected_type);
         callback != nullptr) {
-      return callback(std::make_unique<Value>(*value));
+      return std::move(callback(MakeNonNullUnique<Value>(*value)).get_unique());
     }
   }
   return nullptr;
@@ -275,5 +274,4 @@ void Environment::ForEachNonRecursive(
   }
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

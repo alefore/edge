@@ -27,7 +27,6 @@ class ReturnExpression : public Expression {
                                                    const VMType&) override {
     return trampoline->Bounce(expr_.get(), expr_->Types()[0])
         .Transform([](EvaluationOutput expr_output) {
-          CHECK(expr_output.value != nullptr);
           return Success(
               EvaluationOutput::Return(std::move(expr_output.value)));
         });

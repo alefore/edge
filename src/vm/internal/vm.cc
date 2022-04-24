@@ -656,12 +656,8 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
           .Transform(
               [trampoline](EvaluationOutput value)
                   -> language::ValueOrError<NonNull<std::unique_ptr<Value>>> {
-                DVLOG(4) << "Evaluation done.";
-                CHECK(value.value != nullptr);
-                DVLOG(5) << "Result: " << *value.value;
-                // TODO(easy, 2022-04-23): Get rid of Unsafe below.
-                return Success(NonNull<std::unique_ptr<Value>>::Unsafe(
-                    std::move(value.value)));
+                DVLOG(5) << "Evaluation done: " << *value.value;
+                return Success(std::move(value.value));
               }),
       [](Error error) {
         LOG(INFO) << "Evaluation error: " << error;

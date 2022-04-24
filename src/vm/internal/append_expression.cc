@@ -34,7 +34,6 @@ class AppendExpression : public Expression {
             case EvaluationOutput::OutputType::kReturn:
               return futures::Past(Success(std::move(e0_output)));
             case EvaluationOutput::OutputType::kContinue:
-              CHECK(e0_output.value != nullptr);
               return trampoline->Bounce(e1.get(), e1->Types()[0]);
           }
           LOG(FATAL) << "Unhandled evaluation type";

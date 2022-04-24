@@ -10,6 +10,8 @@
 
 namespace afc::vm {
 namespace {
+using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
 
 class LambdaExpression : public Expression {
@@ -32,7 +34,8 @@ class LambdaExpression : public Expression {
       }
       return nullptr;
     }
-    std::function<std::unique_ptr<Value>(std::unique_ptr<Value>)>
+    std::function<NonNull<std::unique_ptr<Value>>(
+        NonNull<std::unique_ptr<Value>>)>
         promotion_function =
             GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
     if (promotion_function == nullptr) {
@@ -49,7 +52,8 @@ class LambdaExpression : public Expression {
   LambdaExpression(VMType type,
                    std::shared_ptr<std::vector<std::wstring>> argument_names,
                    std::shared_ptr<Expression> body,
-                   std::function<std::unique_ptr<Value>(std::unique_ptr<Value>)>
+                   std::function<NonNull<std::unique_ptr<Value>>(
+                       NonNull<std::unique_ptr<Value>>)>
                        promotion_function)
       : type_(std::move(type)),
         argument_names_(std::move(argument_names)),
@@ -73,10 +77,11 @@ class LambdaExpression : public Expression {
         promotion_function(BuildValue(trampoline->environment())))));
   }
 
-  std::unique_ptr<Value> BuildValue(
+  NonNull<std::unique_ptr<Value>> BuildValue(
       std::shared_ptr<Environment> parent_environment) {
     CHECK(parent_environment != nullptr);
-    auto output = std::make_unique<Value>(VMType::FUNCTION);
+    NonNull<std::unique_ptr<Value>> output =
+        MakeNonNullUnique<Value>(VMType::FUNCTION);
     output->type = type_;
     output->callback =
         [body = body_, parent_environment, argument_names = argument_names_,
@@ -93,7 +98,6 @@ class LambdaExpression : public Expression {
           return trampoline->Bounce(body.get(), body->Types()[0])
               .Transform([original_trampoline, trampoline, body,
                           promotion_function](EvaluationOutput body_output) {
-                CHECK(body_output.value != nullptr);
                 *trampoline = original_trampoline;
                 return Success(EvaluationOutput::New(
                     promotion_function(std::move(body_output.value))));
@@ -111,7 +115,8 @@ class LambdaExpression : public Expression {
   VMType type_;
   const std::shared_ptr<std::vector<std::wstring>> argument_names_;
   const std::shared_ptr<Expression> body_;
-  const std::function<std::unique_ptr<Value>(std::unique_ptr<Value>)>
+  const std::function<NonNull<std::unique_ptr<Value>>(
+      NonNull<std::unique_ptr<Value>>)>
       promotion_function_;
 };
 }  // namespace
@@ -159,8 +164,10 @@ std::unique_ptr<Value> UserFunction::BuildValue(
   compilation->environment = compilation->environment->parent_environment();
   auto expression = LambdaExpression::New(
       std::move(type), std::move(argument_names), std::move(body), error);
-  return expression == nullptr ? nullptr
-                               : expression->BuildValue(std::move(environment));
+  return expression == nullptr
+             ? nullptr
+             : std::move(
+                   expression->BuildValue(std::move(environment)).get_unique());
 }
 
 std::unique_ptr<Expression> UserFunction::BuildExpression(

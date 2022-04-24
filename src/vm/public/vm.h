@@ -102,20 +102,30 @@ struct EvaluationOutput {
   enum class OutputType { kReturn, kContinue };
 
   static EvaluationOutput New(std::unique_ptr<Value> value) {
-    EvaluationOutput output;
     CHECK(value != nullptr);
-    output.value = std::move(value);
-    return output;
-  }
-  static EvaluationOutput Return(std::unique_ptr<Value> value) {
-    EvaluationOutput output;
-    CHECK(value != nullptr);
-    output.value = std::move(value);
-    output.type = OutputType::kReturn;
-    return output;
+    // TODO(easy, 2022-04-24): Get rid of Unsafe.
+    return New(
+        language::NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)));
   }
 
-  std::unique_ptr<Value> value;
+  static EvaluationOutput New(language::NonNull<std::unique_ptr<Value>> value) {
+    return EvaluationOutput{.value = std::move(value)};
+  }
+
+  static EvaluationOutput Return(std::unique_ptr<Value> value) {
+    CHECK(value != nullptr);
+    // TODO(easy, 2022-04-24): Get rid of Unsafe.
+    return New(
+        language::NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)));
+  }
+
+  static EvaluationOutput Return(
+      language::NonNull<std::unique_ptr<Value>> value) {
+    return EvaluationOutput{.value = std::move(value),
+                            .type = OutputType::kReturn};
+  }
+
+  language::NonNull<std::unique_ptr<Value>> value;
   OutputType type = OutputType::kContinue;
 };
 

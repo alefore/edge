@@ -109,7 +109,6 @@ class FunctionCall : public Expression {
         .Transform([trampoline, args_types = args_](EvaluationOutput callback) {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
             return futures::Past(Success(std::move(callback)));
-          CHECK(callback.value != nullptr);
           DVLOG(6) << "Got function: " << *callback.value;
           CHECK_EQ(callback.value->type.type, VMType::FUNCTION);
           CHECK(callback.value->callback != nullptr);
@@ -131,7 +130,7 @@ class FunctionCall : public Expression {
       futures::ValueOrError<EvaluationOutput>::Consumer consumer,
       std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_types,
       std::shared_ptr<std::vector<unique_ptr<Value>>> values,
-      std::shared_ptr<Value> callback) {
+      NonNull<std::shared_ptr<Value>> callback) {
     CHECK(args_types != nullptr);
     CHECK(values != nullptr);
     CHECK_EQ(callback->type.type, VMType::FUNCTION);
@@ -148,9 +147,8 @@ class FunctionCall : public Expression {
               DVLOG(3) << "Function call aborted: " << return_value.error();
               return consumer(std::move(return_value.error()));
             }
-            std::unique_ptr<Value> result =
+            NonNull<std::unique_ptr<Value>> result =
                 std::move(return_value.value().value);
-            CHECK(result != nullptr);
             DVLOG(5) << "Function call consumer gets value: " << *result;
             consumer(Success(EvaluationOutput::New(std::move(result))));
           });
@@ -166,11 +164,11 @@ class FunctionCall : public Expression {
             case EvaluationOutput::OutputType::kReturn:
               return consumer(std::move(value));
             case EvaluationOutput::OutputType::kContinue:
-              CHECK(value.value().value != nullptr);
               DVLOG(5) << "Received results of parameter " << values->size() + 1
                        << " (of " << args_types->size()
                        << "): " << *value.value().value;
-              values->push_back(std::move(value.value().value));
+              // TODO(easy, 2022-04-24): Get rid of call to get_unique.
+              values->push_back(std::move(value.value().value.get_unique()));
               DVLOG(6) << "Recursive call.";
               CaptureArgs(trampoline, consumer, args_types, values, callback);
           }
@@ -299,14 +297,14 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                     case EvaluationOutput::OutputType::kReturn:
                       return Success(std::move(output));
                     case EvaluationOutput::OutputType::kContinue:
-                      CHECK(output.value != nullptr);
                       return Success(EvaluationOutput::New(Value::NewFunction(
                           shared_type->type_arguments,
-                          [obj = std::shared_ptr(std::move(output.value)),
+                          [obj = NonNull<std::shared_ptr<Value>>(
+                               std::move(output.value)),
                            shared_delegate](std::vector<Value::Ptr> args,
                                             Trampoline* trampoline) {
-                            args.emplace(args.begin(),
-                                         std::make_unique<Value>(*obj));
+                            args.emplace(args.begin(), std::make_unique<Value>(
+                                                           *obj.get_shared()));
                             return shared_delegate->callback(std::move(args),
                                                              trampoline);
                           })));
