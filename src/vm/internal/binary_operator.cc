@@ -8,7 +8,7 @@
 
 namespace afc {
 namespace vm {
-
+using language::MakeNonNullUnique;
 using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
@@ -46,7 +46,7 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
                 [a_value = std::make_shared<Value>(std::move(*a_value.value)),
                  type, op](EvaluationOutput b_value)
                     -> ValueOrError<EvaluationOutput> {
-                  auto output = std::make_unique<Value>(type);
+                  auto output = MakeNonNullUnique<Value>(type);
                   auto result = op(*a_value, *b_value.value, output.get());
                   if (result.IsError()) return result.error();
                   return Success(EvaluationOutput::New(std::move(output)));

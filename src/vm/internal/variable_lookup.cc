@@ -11,6 +11,7 @@
 
 namespace afc::vm {
 namespace {
+using language::NonNull;
 using language::Success;
 
 class VariableLookup : public Expression {
@@ -32,8 +33,9 @@ class VariableLookup : public Expression {
     // DVLOG(5) << "Look up symbol: " << symbol_;
     CHECK(trampoline != nullptr);
     CHECK(trampoline->environment() != nullptr);
-    auto result = EvaluationOutput::New(
-        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type));
+    // TODO(easy, 2022-04-24): Get rid of Unsafe.
+    auto result = EvaluationOutput::New(NonNull<std::unique_ptr<Value>>::Unsafe(
+        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type)));
     DVLOG(5) << "Variable lookup: " << *result.value;
     return futures::Past(Success(std::move(result)));
   }

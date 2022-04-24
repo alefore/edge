@@ -60,9 +60,9 @@ NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
     auto instance = static_cast<Instance*>(args[0]->user_value.get());
     CHECK(instance != nullptr);
     static Environment::Namespace empty_namespace;
-    return futures::Past(
-        Success(EvaluationOutput::New(instance->environment->Lookup(
-            empty_namespace, field_name, field_type))));
+    return futures::Past(Success(EvaluationOutput::New(
+        NonNull<std::unique_ptr<Value>>::Unsafe(instance->environment->Lookup(
+            empty_namespace, field_name, field_type)))));
   };
   return output;
 }

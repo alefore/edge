@@ -26,7 +26,7 @@ class ConstantExpression : public Expression {
     CHECK_EQ(type, value_->type);
     DVLOG(5) << "Evaluating constant value: " << *value_;
     return futures::Past(
-        Success(EvaluationOutput::New(std::make_unique<Value>(*value_))));
+        Success(EvaluationOutput::New(MakeNonNullUnique<Value>(*value_))));
   }
 
   std::unique_ptr<Expression> Clone() override {

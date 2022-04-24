@@ -101,22 +101,8 @@ class Expression {
 struct EvaluationOutput {
   enum class OutputType { kReturn, kContinue };
 
-  static EvaluationOutput New(std::unique_ptr<Value> value) {
-    CHECK(value != nullptr);
-    // TODO(easy, 2022-04-24): Get rid of Unsafe.
-    return New(
-        language::NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)));
-  }
-
   static EvaluationOutput New(language::NonNull<std::unique_ptr<Value>> value) {
     return EvaluationOutput{.value = std::move(value)};
-  }
-
-  static EvaluationOutput Return(std::unique_ptr<Value> value) {
-    CHECK(value != nullptr);
-    // TODO(easy, 2022-04-24): Get rid of Unsafe.
-    return New(
-        language::NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)));
   }
 
   static EvaluationOutput Return(
