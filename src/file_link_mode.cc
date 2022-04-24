@@ -156,7 +156,7 @@ futures::Value<PossibleError> Save(
 
   return path.Transform([stat_buffer, options,
                          buffer = buffer.shared_from_this()](Path path) {
-    return SaveContentsToFile(path, std::move(buffer->contents().copy()),
+    return SaveContentsToFile(path, buffer->contents().copy(),
                               buffer->editor().thread_pool(),
                               buffer->file_system_driver())
         .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
@@ -241,7 +241,7 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 // Caller must ensure that file_system_driver survives until the future is
 // notified.
 futures::Value<PossibleError> SaveContentsToFile(
-    const Path& path, NonNull<std::shared_ptr<const BufferContents>> contents,
+    const Path& path, NonNull<std::unique_ptr<const BufferContents>> contents,
     ThreadPool& thread_pool, FileSystemDriver& file_system_driver) {
   Path tmp_path = Path::Join(
       path.Dirname().value(),
@@ -262,8 +262,10 @@ futures::Value<PossibleError> SaveContentsToFile(
         return file_system_driver.Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
                                        stat_value.st_mode);
       })
-      .Transform([&thread_pool, path, contents, tmp_path,
-                  &file_system_driver](FileDescriptor fd) {
+      .Transform([&thread_pool, path,
+                  contents = NonNull<std::shared_ptr<const BufferContents>>(
+                      std::move(contents)),
+                  tmp_path, &file_system_driver](FileDescriptor fd) {
         CHECK_NE(fd.read(), -1);
         return OnError(
                    SaveContentsToOpenFile(thread_pool, tmp_path, fd, contents),
