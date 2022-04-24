@@ -62,6 +62,14 @@ const bool buffer_tests_registration = tests::Register(
              [] {
                CHECK(GetMetadata(L"(1/0).tostring()").substr(0, 3) == L"E: ");
              }},
+        {.name = L"MetadataReturnIntToStringRuntimeError",
+         .callback =
+             [] {
+               // TODO(2022-04-24): Figure out why this test fails if we remove
+               // the semicolon.
+               CHECK(GetMetadata(L"return (1/0).tostring();").substr(0, 3) ==
+                     L"E: ");
+             }},
         {.name = L"HonorsExistingMetadata",
          .callback =
              [] {

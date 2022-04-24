@@ -6,10 +6,9 @@
 #include "../public/vm.h"
 #include "compilation.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::Success;
 
 class ReturnExpression : public Expression {
  public:
@@ -24,12 +23,13 @@ class ReturnExpression : public Expression {
 
   PurityType purity() override { return expr_->purity(); }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType&) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType&) override {
     return trampoline->Bounce(expr_.get(), expr_->Types()[0])
         .Transform([](EvaluationOutput expr_output) {
-          expr_output.type = EvaluationOutput::OutputType::kReturn;
-          return expr_output;
+          CHECK(expr_output.value != nullptr);
+          return Success(
+              EvaluationOutput::Return(std::move(expr_output.value)));
         });
   }
 
@@ -52,5 +52,4 @@ std::unique_ptr<Expression> NewReturnExpression(
   return std::make_unique<ReturnExpression>(std::move(expr));
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

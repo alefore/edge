@@ -26,8 +26,8 @@ class BinaryOperator : public Expression {
 
   PurityType purity() override;
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* evaluation,
-                                            const VMType& type) override;
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* evaluation,
+                                                   const VMType& type) override;
 
   std::unique_ptr<Expression> Clone() override;
 

@@ -100,7 +100,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
         })
         .Transform([editor](EmptyValue) {
           editor->ResetModifiers();
-          return EvaluationOutput::New(Value::NewVoid());
+          return Success(EvaluationOutput::New(Value::NewVoid()));
         });
   };
   editor_type->AddField(name, std::move(callback));
@@ -264,10 +264,14 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
                           buffer.shared_from_this()));
                   return callback(std::move(args), trampoline)
-                      .Transform([](EvaluationOutput) { return EmptyValue(); });
+                      .Transform([](EvaluationOutput) { return Success(); })
+                      // TODO(easy): Don't ConsumeErrors; change
+                      // ForEachActiveBuffer.
+                      .ConsumeErrors(
+                          [](Error) { return futures::Past(EmptyValue()); });
                 })
                 .Transform([](EmptyValue) {
-                  return EvaluationOutput::Return(Value::NewVoid());
+                  return Success(EvaluationOutput::Return(Value::NewVoid()));
                 });
           }));
 
@@ -292,10 +296,14 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
                           buffer.shared_from_this()));
                   return callback(std::move(args), trampoline)
-                      .Transform([](EvaluationOutput) { return EmptyValue(); });
+                      .Transform([](EvaluationOutput) { return Success(); })
+                      // TODO(easy): Don't ConsumeErrors; change
+                      // ForEachActiveBuffer.
+                      .ConsumeErrors(
+                          [](Error) { return futures::Past(EmptyValue()); });
                 })
                 .Transform([](EmptyValue) {
-                  return EvaluationOutput::Return(Value::NewVoid());
+                  return Success(EvaluationOutput::Return(Value::NewVoid()));
                 });
           }));
 
@@ -310,7 +318,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       Value::NewFunction(
           {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
            VMType::VM_STRING},
-          [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
+          [](std::vector<std::unique_ptr<Value>> args,
+             Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
@@ -320,11 +329,11 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             if (target_path.IsError()) {
               editor->status().SetWarningText(L"ConnectTo error: " +
                                               target_path.error().description);
-              return futures::Past(
-                  EvaluationOutput::Abort(target_path.error()));
+              return futures::Past(target_path.error());
             }
             OpenServerBuffer(*editor, target_path.value());
-            return futures::Past(EvaluationOutput::Return(Value::NewVoid()));
+            return futures::Past(
+                Success(EvaluationOutput::Return(Value::NewVoid())));
           }));
 
   editor_type->AddField(
@@ -356,7 +365,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                          });
                        })
                 .Transform([](futures::IterationControlCommand) {
-                  return EvaluationOutput::Return(Value::NewVoid());
+                  return Success(EvaluationOutput::Return(Value::NewVoid()));
                 });
           }));
 
@@ -437,8 +446,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 .Transform(
                     [](std::map<BufferName,
                                 std::shared_ptr<OpenBuffer>>::iterator result) {
-                      return EvaluationOutput::Return(
-                          Value::NewObject(L"Buffer", result->second));
+                      return Success(EvaluationOutput::Return(
+                          Value::NewObject(L"Buffer", result->second)));
                     });
           }));
 

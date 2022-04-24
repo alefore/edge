@@ -12,6 +12,7 @@
 
 #include "src/futures/futures.h"
 #include "src/language/safe_types.h"
+#include "src/language/value_or_error.h"
 #include "types.h"
 
 namespace afc {
@@ -46,8 +47,8 @@ class Trampoline {
   const std::shared_ptr<Environment>& environment() const;
 
   // Must ensure expression lives until the future is notified.
-  futures::Value<EvaluationOutput> Bounce(Expression* expression,
-                                          VMType expression_type);
+  futures::ValueOrError<EvaluationOutput> Bounce(Expression* expression,
+                                                 VMType expression_type);
 
  private:
   std::list<std::wstring> namespace_;
@@ -93,12 +94,12 @@ class Expression {
 
   // The expression may be deleted as soon as `Evaluate` returns, even before
   // the returned Value has been given a value.
-  virtual futures::Value<EvaluationOutput> Evaluate(Trampoline* evaluation,
-                                                    const VMType& type) = 0;
+  virtual futures::ValueOrError<EvaluationOutput> Evaluate(
+      Trampoline* evaluation, const VMType& type) = 0;
 };
 
 struct EvaluationOutput {
-  enum class OutputType { kReturn, kContinue, kAbort };
+  enum class OutputType { kReturn, kContinue };
 
   static EvaluationOutput New(std::unique_ptr<Value> value) {
     EvaluationOutput output;
@@ -113,15 +114,8 @@ struct EvaluationOutput {
     output.type = OutputType::kReturn;
     return output;
   }
-  static EvaluationOutput Abort(afc::language::Error error) {
-    EvaluationOutput output;
-    output.error = std::move(error);
-    output.type = OutputType::kAbort;
-    return output;
-  }
 
   std::unique_ptr<Value> value;
-  std::optional<afc::language::Error> error;
   OutputType type = OutputType::kContinue;
 };
 

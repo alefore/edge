@@ -28,6 +28,7 @@ const VMType VMTypeMapper<editor::Screen*>::vmtype =
 namespace editor {
 
 using infrastructure::Path;
+using language::Success;
 using language::ToByteString;
 using vm::Environment;
 using vm::ObjectType;
@@ -107,22 +108,24 @@ void RegisterScreenType(Environment* environment) {
       L"RemoteScreen",
       Value::NewFunction(
           {VMType::ObjectType(screen_type.get()), VMType::String()},
-          [](vector<unique_ptr<Value>> args, Trampoline*) {
+          [](vector<unique_ptr<Value>> args,
+             Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
             CHECK_EQ(args[0]->type, VMType::VM_STRING);
             auto path = Path::FromString(args[0]->str);
             if (path.IsError()) {
               LOG(ERROR) << "RemoteScreen: " << path.error();
-              return futures::Past(EvaluationOutput::Abort(path.error()));
+              return futures::Past(path.error());
             }
             auto output = MaybeConnectToServer(path.value());
             if (output.IsError()) {
               LOG(ERROR) << "RemoteScreen: MaybeConnectToServer: "
                          << output.error();
-              return futures::Past(EvaluationOutput::Abort(output.error()));
+              return futures::Past(output.error());
             }
-            return futures::Past(EvaluationOutput::Return(Value::NewObject(
-                L"Screen", std::make_shared<ScreenVm>(output.value()))));
+            return futures::Past(
+                Success(EvaluationOutput::Return(Value::NewObject(
+                    L"Screen", std::make_shared<ScreenVm>(output.value())))));
           }));
 
   // Methods for Screen.

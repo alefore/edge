@@ -4,8 +4,8 @@
 #include "src/tests/tests.h"
 #include "wstring.h"
 
-namespace afc {
-namespace vm {
+namespace afc::vm {
+using language::Success;
 
 std::wstring CppEscapeString(std::wstring input) {
   std::wstring output;
@@ -131,7 +131,8 @@ bool cpp_unescape_string_tests_registration =
     std::vector<VMType> arguments,
     std::function<Value::Ptr(std::vector<Value::Ptr>)> callback) {
   return NewFunction(arguments, [callback](std::vector<Ptr> args, Trampoline*) {
-    return futures::Past(EvaluationOutput::New(callback(std::move(args))));
+    return futures::Past(
+        Success(EvaluationOutput::New(callback(std::move(args)))));
   });
 }
 
@@ -150,5 +151,4 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
   return os;
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

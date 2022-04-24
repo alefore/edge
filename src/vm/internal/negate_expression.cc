@@ -4,10 +4,9 @@
 #include "../public/vm.h"
 #include "compilation.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::Success;
 
 class NegateExpression : public Expression {
  public:
@@ -22,15 +21,13 @@ class NegateExpression : public Expression {
 
   PurityType purity() override { return expr_->purity(); }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType&) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType&) override {
     return trampoline->Bounce(expr_.get(), expr_->Types()[0])
         .Transform([negate = negate_](EvaluationOutput expr_output) {
-          if (expr_output.type == EvaluationOutput::OutputType::kAbort)
-            return expr_output;
           CHECK(expr_output.value != nullptr);
           negate(expr_output.value.get());
-          return EvaluationOutput::New(std::move(expr_output.value));
+          return Success(EvaluationOutput::New(std::move(expr_output.value)));
         });
   }
 
@@ -59,5 +56,4 @@ std::unique_ptr<Expression> NewNegateExpression(
   return std::make_unique<NegateExpression>(negate, std::move(expr));
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

@@ -7,10 +7,10 @@
 #include "append_expression.h"
 #include "compilation.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::Success;
+using language::ValueOrError;
 
 class WhileExpression : public Expression {
  public:
@@ -34,10 +34,10 @@ class WhileExpression : public Expression {
                : PurityType::kUnknown;
   }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType&) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType&) override {
     DVLOG(4) << "Starting iteration.";
-    futures::Future<EvaluationOutput> output;
+    futures::Future<ValueOrError<EvaluationOutput>> output;
     Iterate(trampoline, condition_, body_, std::move(output.consumer));
     return std::move(output.value);
   }
@@ -47,34 +47,35 @@ class WhileExpression : public Expression {
   }
 
  private:
-  static void Iterate(Trampoline* trampoline,
-                      std::shared_ptr<Expression> condition,
-                      std::shared_ptr<Expression> body,
-                      futures::Value<EvaluationOutput>::Consumer consumer) {
+  static void Iterate(
+      Trampoline* trampoline, std::shared_ptr<Expression> condition,
+      std::shared_ptr<Expression> body,
+      futures::ValueOrError<EvaluationOutput>::Consumer consumer) {
     trampoline->Bounce(condition.get(), VMType::Bool())
-        .SetConsumer([condition, body, consumer,
-                      trampoline](EvaluationOutput condition_output) {
-          switch (condition_output.type) {
+        .SetConsumer([condition, body, consumer, trampoline](
+                         ValueOrError<EvaluationOutput> condition_output) {
+          if (condition_output.IsError())
+            return consumer(std::move(condition_output));
+          switch (condition_output.value().type) {
             case EvaluationOutput::OutputType::kReturn:
-            case EvaluationOutput::OutputType::kAbort:
               consumer(std::move(condition_output));
               return;
 
             case EvaluationOutput::OutputType::kContinue:
-              CHECK(condition_output.value->IsBool());
-              if (!condition_output.value->boolean) {
+              CHECK(condition_output.value().value->IsBool());
+              if (!condition_output.value().value->boolean) {
                 DVLOG(3) << "Iteration is done.";
-                consumer(EvaluationOutput::New(Value::NewVoid()));
+                consumer(Success(EvaluationOutput::New(Value::NewVoid())));
                 return;
               }
 
               DVLOG(5) << "Iterating...";
               trampoline->Bounce(body.get(), body->Types()[0])
-                  .SetConsumer([condition, body, consumer,
-                                trampoline](EvaluationOutput body_output) {
-                    switch (body_output.type) {
+                  .SetConsumer([condition, body, consumer, trampoline](
+                                   ValueOrError<EvaluationOutput> body_output) {
+                    if (body_output.IsError()) consumer(std::move(body_output));
+                    switch (body_output.value().type) {
                       case EvaluationOutput::OutputType::kReturn:
-                      case EvaluationOutput::OutputType::kAbort:
                         consumer(std::move(body_output));
                         break;
                       case EvaluationOutput::OutputType::kContinue:
@@ -124,5 +125,4 @@ std::unique_ptr<Expression> NewForExpression(
                                              std::move(update))));
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

@@ -8,6 +8,8 @@
 
 namespace afc::vm {
 namespace {
+using language::Error;
+using language::Success;
 
 class NamespaceExpression : public Expression {
  public:
@@ -25,19 +27,24 @@ class NamespaceExpression : public Expression {
 
   PurityType purity() { return body_->purity(); }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType& type) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(
+      Trampoline* trampoline, const VMType& type) override {
     auto original_environment = trampoline->environment();
     auto namespace_environment =
         Environment::LookupNamespace(original_environment, namespace_);
     CHECK(namespace_environment != nullptr);
     trampoline->SetEnvironment(namespace_environment);
 
-    return trampoline->Bounce(body_.get(), type)
-        .Transform([trampoline, original_environment](EvaluationOutput output) {
-          trampoline->SetEnvironment(original_environment);
-          return output;
-        });
+    return OnError(trampoline->Bounce(body_.get(), type)
+                       .Transform([trampoline, original_environment](
+                                      EvaluationOutput output) {
+                         trampoline->SetEnvironment(original_environment);
+                         return Success(std::move(output));
+                       }),
+                   [trampoline, original_environment](Error error) {
+                     trampoline->SetEnvironment(original_environment);
+                     return error;
+                   });
   }
 
   std::unique_ptr<Expression> Clone() override {

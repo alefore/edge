@@ -10,6 +10,8 @@
 
 namespace afc::vm {
 namespace {
+using language::Success;
+
 class LambdaExpression : public Expression {
  public:
   static std::unique_ptr<LambdaExpression> New(
@@ -63,12 +65,12 @@ class LambdaExpression : public Expression {
 
   PurityType purity() override { return PurityType::kPure; }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType& type) {
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType& type) {
     auto promotion_function = GetImplicitPromotion(type_, type);
     CHECK(promotion_function != nullptr);
-    return futures::Past(EvaluationOutput::New(
-        promotion_function(BuildValue(trampoline->environment()))));
+    return futures::Past(Success(EvaluationOutput::New(
+        promotion_function(BuildValue(trampoline->environment())))));
   }
 
   std::unique_ptr<Value> BuildValue(
@@ -91,11 +93,10 @@ class LambdaExpression : public Expression {
           return trampoline->Bounce(body.get(), body->Types()[0])
               .Transform([original_trampoline, trampoline, body,
                           promotion_function](EvaluationOutput body_output) {
+                CHECK(body_output.value != nullptr);
                 *trampoline = original_trampoline;
-                body_output.type = EvaluationOutput::OutputType::kContinue;
-                body_output.value =
-                    promotion_function(std::move(body_output.value));
-                return body_output;
+                return Success(EvaluationOutput::New(
+                    promotion_function(std::move(body_output.value))));
               });
         };
     return output;

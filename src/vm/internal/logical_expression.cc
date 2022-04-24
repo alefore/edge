@@ -7,10 +7,9 @@
 #include "../public/vm.h"
 #include "src/vm/internal/compilation.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::Success;
 
 class LogicalExpression : public Expression {
  public:
@@ -30,22 +29,23 @@ class LogicalExpression : public Expression {
                : PurityType::kUnknown;
   }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType& type) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(
+      Trampoline* trampoline, const VMType& type) override {
     return trampoline->Bounce(expr_a_.get(), VMType::Bool())
         .Transform([type, trampoline, identity = identity_,
-                    expr_b = expr_b_](EvaluationOutput a_output) {
+                    expr_b = expr_b_](EvaluationOutput a_output)
+                       -> futures::ValueOrError<EvaluationOutput> {
           switch (a_output.type) {
-            case EvaluationOutput::OutputType::kAbort:
             case EvaluationOutput::OutputType::kReturn:
-              return futures::Past(std::move(a_output));
+              return futures::Past(Success(std::move(a_output)));
             case EvaluationOutput::OutputType::kContinue:
               return a_output.value->boolean == identity
                          ? trampoline->Bounce(expr_b.get(), type)
-                         : futures::Past(std::move(a_output));
+                         : futures::Past(Success(std::move(a_output)));
           }
-          LOG(FATAL) << "Unhandled case.";
-          return futures::Past(std::move(a_output));
+          language::Error error(L"Unhandled OutputType case.");
+          LOG(FATAL) << error;
+          return futures::Past(error);
         });
   }
 
@@ -81,5 +81,4 @@ std::unique_ptr<Expression> NewLogicalExpression(
                                              std::move(b));
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

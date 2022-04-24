@@ -14,6 +14,8 @@
 
 namespace afc::vm {
 
+using language::Success;
+
 using Time = struct timespec;
 
 // We box it so that the C++ type system can distinguish Time and Duration.
@@ -91,7 +93,8 @@ void RegisterTimeType(Environment* environment) {
       L"format",
       Value::NewFunction(
           {VMType::String(), time_type->type(), VMType::String()},
-          [](std::vector<Value::Ptr> args, Trampoline*) {
+          [](std::vector<Value::Ptr> args,
+             Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
             CHECK(args[0]->IsObject());
             Time input =
@@ -104,11 +107,10 @@ void RegisterTimeType(Environment* environment) {
             if (strftime(buffer, sizeof(buffer),
                          ToByteString(std::move(args[1]->str)).c_str(),
                          &t) == 0) {
-              return futures::Past(
-                  EvaluationOutput::Abort(language::Error(L"strftime error")));
+              return futures::Past(language::Error(L"strftime error"));
             }
-            return futures::Past(EvaluationOutput::Return(
-                Value::NewString(FromByteString(buffer))));
+            return futures::Past(Success(EvaluationOutput::Return(
+                Value::NewString(FromByteString(buffer)))));
           }));
   time_type->AddField(L"year",
                       vm::NewCallback(std::function<int(Time)>([](Time input) {

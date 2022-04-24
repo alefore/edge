@@ -604,8 +604,8 @@ Trampoline::Trampoline(Options options)
     : environment_(std::move(options.environment)),
       yield_callback_(std::move(options.yield_callback)) {}
 
-futures::Value<EvaluationOutput> Trampoline::Bounce(Expression* expression,
-                                                    VMType type) {
+futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
+    Expression* expression, VMType type) {
   if (!expression->SupportsType(type)) {
     LOG(FATAL) << "Expression has types: " << TypesToString(expression->Types())
                << ", expected: " << type;
@@ -615,7 +615,7 @@ futures::Value<EvaluationOutput> Trampoline::Bounce(Expression* expression,
     return expression->Evaluate(this, type);
   }
 
-  futures::Future<EvaluationOutput> output;
+  futures::Future<language::ValueOrError<EvaluationOutput>> output;
   yield_callback_([this, expression_raw = expression->Clone().release(), type,
                    consumer = std::move(output.consumer)]() mutable {
     std::unique_ptr<Expression> expression(expression_raw);
@@ -651,26 +651,22 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
   auto trampoline = std::make_shared<Trampoline>(
       Trampoline::Options{.environment = std::move(environment),
                           .yield_callback = std::move(yield_callback)});
-  return trampoline->Bounce(expr, expr->Types()[0])
-      .Transform(
-          [trampoline](EvaluationOutput value)
-              -> language::ValueOrError<NonNull<std::unique_ptr<Value>>> {
-            DVLOG(4) << "Evaluation done.";
-            switch (value.type) {
-              case EvaluationOutput::OutputType::kContinue:
-              case EvaluationOutput::OutputType::kReturn:
+  return OnError(
+      trampoline->Bounce(expr, expr->Types()[0])
+          .Transform(
+              [trampoline](EvaluationOutput value)
+                  -> language::ValueOrError<NonNull<std::unique_ptr<Value>>> {
+                DVLOG(4) << "Evaluation done.";
                 CHECK(value.value != nullptr);
                 DVLOG(5) << "Result: " << *value.value;
                 // TODO(easy, 2022-04-23): Get rid of Unsafe below.
                 return Success(NonNull<std::unique_ptr<Value>>::Unsafe(
                     std::move(value.value)));
-              case EvaluationOutput::OutputType::kAbort:
-                LOG(INFO) << "Evaluation error: " << value.error.value();
-                return value.error.value();
-            }
-            LOG(FATAL) << "Unhandled OutputType.";
-            return Error(L"Unhandled OutputType.");
-          });
+              }),
+      [](Error error) {
+        LOG(INFO) << "Evaluation error: " << error;
+        return error;
+      });
 }
 
 }  // namespace vm

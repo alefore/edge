@@ -8,10 +8,9 @@
 #include "compilation.h"
 #include "wstring.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::Success;
 class AssignExpression : public Expression {
  public:
   enum class AssignmentType { kDefine, kAssign };
@@ -29,30 +28,32 @@ class AssignExpression : public Expression {
 
   PurityType purity() override { return PurityType::kUnknown; }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType& type) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(
+      Trampoline* trampoline, const VMType& type) override {
     return trampoline->Bounce(value_.get(), type)
-        .Transform([trampoline, symbol = symbol_,
-                    assignment_type =
-                        assignment_type_](EvaluationOutput value_output) {
-          switch (value_output.type) {
-            case EvaluationOutput::OutputType::kReturn:
-            case EvaluationOutput::OutputType::kAbort:
-              return value_output;
-            case EvaluationOutput::OutputType::kContinue:
-              DVLOG(3) << "Setting value for: " << symbol;
-              DVLOG(4) << "Value: " << *value_output.value;
-              auto copy = std::make_unique<Value>(*value_output.value);
-              if (assignment_type == AssignmentType::kDefine) {
-                trampoline->environment()->Define(symbol, std::move(copy));
-              } else {
-                trampoline->environment()->Assign(symbol, std::move(copy));
+        .Transform(
+            [trampoline, symbol = symbol_,
+             assignment_type = assignment_type_](EvaluationOutput value_output)
+                -> language::ValueOrError<EvaluationOutput> {
+              switch (value_output.type) {
+                case EvaluationOutput::OutputType::kReturn:
+                  return Success(std::move(value_output));
+                case EvaluationOutput::OutputType::kContinue:
+                  DVLOG(3) << "Setting value for: " << symbol;
+                  DVLOG(4) << "Value: " << *value_output.value;
+                  auto copy = std::make_unique<Value>(*value_output.value);
+                  if (assignment_type == AssignmentType::kDefine) {
+                    trampoline->environment()->Define(symbol, std::move(copy));
+                  } else {
+                    trampoline->environment()->Assign(symbol, std::move(copy));
+                  }
+                  return Success(
+                      EvaluationOutput::New(std::move(value_output.value)));
               }
-              return EvaluationOutput::New(std::move(value_output.value));
-          }
-          LOG(FATAL) << "Unhandled case.";
-          return EvaluationOutput::Abort(language::Error(L"Unhandled case"));
-        });
+              language::Error error(L"Unhandled OutputType case.");
+              LOG(FATAL) << error;
+              return error;
+            });
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -154,5 +155,4 @@ std::unique_ptr<Expression> NewAssignExpression(
   return nullptr;
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

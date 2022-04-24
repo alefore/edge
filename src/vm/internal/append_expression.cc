@@ -4,10 +4,9 @@
 #include "../public/vm.h"
 #include "src/vm/internal/compilation.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::Success;
 
 class AppendExpression : public Expression {
  public:
@@ -27,14 +26,13 @@ class AppendExpression : public Expression {
 
   PurityType purity() override { return PurityType::kUnknown; }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType&) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
+                                                   const VMType&) override {
     return trampoline->Bounce(e0_.get(), e0_->Types()[0])
         .Transform([trampoline, e1 = e1_](EvaluationOutput e0_output) {
           switch (e0_output.type) {
             case EvaluationOutput::OutputType::kReturn:
-            case EvaluationOutput::OutputType::kAbort:
-              return futures::Past(std::move(e0_output));
+              return futures::Past(Success(std::move(e0_output)));
             case EvaluationOutput::OutputType::kContinue:
               CHECK(e0_output.value != nullptr);
               return trampoline->Bounce(e1.get(), e1->Types()[0]);
@@ -77,5 +75,4 @@ std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
                                             std::move(return_types.value()));
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

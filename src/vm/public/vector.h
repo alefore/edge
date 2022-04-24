@@ -62,19 +62,20 @@ struct VMTypeMapper<std::vector<T>*> {
         L"get",
         Value::NewFunction(
             {VMTypeMapper<T>::vmtype, vmtype, VMType::Integer()},
-            [](std::vector<std::unique_ptr<Value>> args, Trampoline*) {
+            [](std::vector<std::unique_ptr<Value>> args,
+               Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
               CHECK_EQ(args.size(), 2ul);
               auto* v = get(args[0].get());
               CHECK(args[1]->IsInteger());
               int index = args[1]->integer;
               if (index < 0 || static_cast<size_t>(index) >= v->size()) {
-                return futures::Past(EvaluationOutput::Abort(language::Error(
+                return futures::Past(language::Error(
                     vmtype.ToString() + L": Index out of range " +
                     std::to_wstring(index) + L" (size: " +
-                    std::to_wstring(v->size()) + L")")));
+                    std::to_wstring(v->size()) + L")"));
               }
-              return futures::Past(
-                  EvaluationOutput::New(VMTypeMapper<T>::New(v->at(index))));
+              return futures::Past(language::Success(
+                  EvaluationOutput::New(VMTypeMapper<T>::New(v->at(index)))));
             }));
     vector_type->AddField(L"erase",
                           vm::NewCallback([](std::vector<T>* v, int i) {

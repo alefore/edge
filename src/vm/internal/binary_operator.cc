@@ -35,25 +35,21 @@ Expression::PurityType BinaryOperator::purity() {
              : PurityType::kUnknown;
 }
 
-futures::Value<EvaluationOutput> BinaryOperator::Evaluate(
+futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
     Trampoline* trampoline, const VMType& type) {
   CHECK(type_ == type);
   return trampoline->Bounce(a_.get(), a_->Types()[0])
       .Transform([b = b_, type = type_, op = operator_,
                   trampoline](EvaluationOutput a_value) {
-        if (a_value.type == EvaluationOutput::OutputType::kAbort)
-          return futures::Past(std::move(a_value));
         return trampoline->Bounce(b.get(), b->Types()[0])
             .Transform(
                 [a_value = std::make_shared<Value>(std::move(*a_value.value)),
-                 type, op](EvaluationOutput b_value) {
-                  if (b_value.type == EvaluationOutput::OutputType::kAbort)
-                    return b_value;
+                 type, op](EvaluationOutput b_value)
+                    -> ValueOrError<EvaluationOutput> {
                   auto output = std::make_unique<Value>(type);
                   auto result = op(*a_value, *b_value.value, output.get());
-                  return result.IsError()
-                             ? EvaluationOutput::Abort(result.error())
-                             : EvaluationOutput::New(std::move(output));
+                  if (result.IsError()) return result.error();
+                  return Success(EvaluationOutput::New(std::move(output)));
                 });
       });
 }

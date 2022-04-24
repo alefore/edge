@@ -1,6 +1,8 @@
 #include "src/vm/internal/types_promotion.h"
 
 namespace afc::vm {
+using language::Success;
+
 using PromotionCallback =
     std::function<std::unique_ptr<Value>(std::unique_ptr<Value>)>;
 
@@ -56,10 +58,9 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
               return original_callback(std::move(arguments), trampoline)
                   .Transform([return_callback = argument_callbacks[0]](
                                  EvaluationOutput output) {
-                    if (output.value != nullptr) {
-                      output.value = return_callback(std::move(output.value));
-                    }
-                    return output;
+                    CHECK(output.value != nullptr);
+                    output.value = return_callback(std::move(output.value));
+                    return Success(std::move(output));
                   });
             };
             return value;

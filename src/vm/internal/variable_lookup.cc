@@ -9,10 +9,9 @@
 #include "../public/vm.h"
 #include "compilation.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::Success;
 
 class VariableLookup : public Expression {
  public:
@@ -27,8 +26,8 @@ class VariableLookup : public Expression {
 
   PurityType purity() override { return PurityType::kPure; }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType& type) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(
+      Trampoline* trampoline, const VMType& type) override {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
     CHECK(trampoline != nullptr);
@@ -39,7 +38,7 @@ class VariableLookup : public Expression {
         << "Invalid lookup: " << language::ToByteString(symbol_)
         << " (type: " << type << ")";
     DVLOG(5) << "Variable lookup: " << *result.value;
-    return futures::Past(std::move(result));
+    return futures::Past(Success(std::move(result)));
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -84,5 +83,4 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
                                           std::move(symbol), types);
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

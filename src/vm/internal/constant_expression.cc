@@ -5,10 +5,9 @@
 #include "../public/value.h"
 #include "../public/vm.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::Success;
 
 class ConstantExpression : public Expression {
  public:
@@ -21,11 +20,12 @@ class ConstantExpression : public Expression {
 
   PurityType purity() override { return PurityType::kPure; }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline*, const VMType& type) {
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline*,
+                                                   const VMType& type) {
     CHECK_EQ(type, value_->type);
     DVLOG(5) << "Evaluating constant value: " << *value_;
     return futures::Past(
-        EvaluationOutput::New(std::make_unique<Value>(*value_)));
+        Success(EvaluationOutput::New(std::make_unique<Value>(*value_))));
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -49,5 +49,4 @@ std::unique_ptr<Expression> NewConstantExpression(
   return std::make_unique<ConstantExpression>(std::move(value));
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

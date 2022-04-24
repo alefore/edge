@@ -318,7 +318,7 @@ using std::to_wstring;
                 args[1]->user_value.get());
             return buffer->ApplyToCursors(Pointer(transformation).Reference())
                 .Transform([](EmptyValue) {
-                  return EvaluationOutput::Return(Value::NewVoid());
+                  return Success(EvaluationOutput::Return(Value::NewVoid()));
                 });
           }));
 
@@ -450,13 +450,14 @@ using std::to_wstring;
               }
             }
 
-            futures::Future<EvaluationOutput> future;
-            buffer->Save().SetConsumer(
-                [consumer = std::move(future.consumer)](PossibleError result) {
-                  consumer(result.IsError()
-                               ? EvaluationOutput::Abort(result.error())
-                               : EvaluationOutput::Return(Value::NewVoid()));
-                });
+            futures::Future<ValueOrError<EvaluationOutput>> future;
+            buffer->Save().SetConsumer([consumer = std::move(future.consumer)](
+                                           PossibleError result) {
+              if (result.IsError())
+                consumer(result.error());
+              else
+                consumer(Success(EvaluationOutput::Return(Value::NewVoid())));
+            });
             buffer->editor().ResetModifiers();
             return std::move(future.value);
           }));
@@ -555,7 +556,7 @@ using std::to_wstring;
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
             return buffer->WaitForEndOfFile().Transform([](EmptyValue) {
-              return EvaluationOutput::Return(Value::NewVoid());
+              return Success(EvaluationOutput::Return(Value::NewVoid()));
             });
           }));
 
@@ -953,16 +954,16 @@ void OpenBuffer::Initialize() {
                       double delay_seconds = args[0]->double_value;
                       auto shared_this = weak_this.lock();
                       if (shared_this == nullptr)
-                        return futures::Past(
-                            vm::EvaluationOutput::Return(vm::Value::NewVoid()));
-                      futures::Future<vm::EvaluationOutput> future;
+                        return futures::Past(Success(
+                            EvaluationOutput::Return(vm::Value::NewVoid())));
+                      futures::Future<ValueOrError<EvaluationOutput>> future;
                       shared_this->work_queue()->ScheduleAt(
                           AddSeconds(Now(), delay_seconds),
                           [weak_this, consumer = std::move(future.consumer)] {
                             auto shared_this = weak_this.lock();
                             if (shared_this != nullptr)
-                              consumer(vm::EvaluationOutput::Return(
-                                  vm::Value::NewVoid()));
+                              consumer(Success(vm::EvaluationOutput::Return(
+                                  vm::Value::NewVoid())));
                           });
                       return std::move(future.value);
                     }));

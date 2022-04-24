@@ -5,10 +5,10 @@
 #include "../internal/compilation.h"
 #include "../public/value.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 namespace {
+using language::Success;
+using language::ValueOrError;
 
 class IfExpression : public Expression {
  public:
@@ -40,15 +40,15 @@ class IfExpression : public Expression {
                : PurityType::kUnknown;
   }
 
-  futures::Value<EvaluationOutput> Evaluate(Trampoline* trampoline,
-                                            const VMType& type) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(
+      Trampoline* trampoline, const VMType& type) override {
     return trampoline->Bounce(cond_.get(), VMType::Bool())
         .Transform([type, true_case = true_case_, false_case = false_case_,
-                    trampoline](EvaluationOutput cond_output) {
+                    trampoline](EvaluationOutput cond_output)
+                       -> futures::ValueOrError<EvaluationOutput> {
           switch (cond_output.type) {
             case EvaluationOutput::OutputType::kReturn:
-            case EvaluationOutput::OutputType::kAbort:
-              return futures::Past(std::move(cond_output));
+              return futures::Past(Success(std::move(cond_output)));
             case EvaluationOutput::OutputType::kContinue:
               return trampoline->Bounce(cond_output.value->boolean
                                             ? true_case.get()
@@ -57,7 +57,7 @@ class IfExpression : public Expression {
           }
           language::Error error(L"Unhandled OutputType case.");
           LOG(FATAL) << error;
-          return futures::Past(EvaluationOutput::Abort(error));
+          return futures::Past(error);
         });
   }
 
@@ -111,5 +111,4 @@ std::unique_ptr<Expression> NewIfExpression(
       std::move(return_types.value()));
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

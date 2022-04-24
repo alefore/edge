@@ -10,7 +10,8 @@
 #include "src/vm/public/value.h"
 
 namespace afc::vm {
-
+using language::Error;
+using language::Success;
 struct Instance {
   std::shared_ptr<Environment> environment = std::make_shared<Environment>();
 };
@@ -37,7 +38,7 @@ std::unique_ptr<Value> BuildSetter(VMType class_type, VMType field_type,
     CHECK_EQ(args[1]->type, field_type);
     instance->environment->Assign(field_name, std::move(args[1]));
 
-    return futures::Past(EvaluationOutput::New(std::move(args[0])));
+    return futures::Past(Success(EvaluationOutput::New(std::move(args[0]))));
   };
   return output;
 }
@@ -54,8 +55,9 @@ std::unique_ptr<Value> BuildGetter(VMType class_type, VMType field_type,
     auto instance = static_cast<Instance*>(args[0]->user_value.get());
     CHECK(instance != nullptr);
     static Environment::Namespace empty_namespace;
-    return futures::Past(EvaluationOutput::New(instance->environment->Lookup(
-        empty_namespace, field_name, field_type)));
+    return futures::Past(
+        Success(EvaluationOutput::New(instance->environment->Lookup(
+            empty_namespace, field_name, field_type))));
   };
   return output;
 }
@@ -103,22 +105,21 @@ void FinishClassDeclaration(
         ->Bounce(constructor_expression_shared.get(), VMType::Void())
         .Transform([constructor_expression_shared, original_environment,
                     class_type, instance_environment,
-                    trampoline](EvaluationOutput constructor_evaluation) {
+                    trampoline](EvaluationOutput constructor_evaluation)
+                       -> language::ValueOrError<EvaluationOutput> {
           trampoline->SetEnvironment(original_environment);
           switch (constructor_evaluation.type) {
             case EvaluationOutput::OutputType::kReturn:
-              return EvaluationOutput::Abort(language::Error(
-                  L"Unexpected: return (inside class declaration)."));
+              return Error(L"Unexpected: return (inside class declaration).");
             case EvaluationOutput::OutputType::kContinue:
-              return EvaluationOutput::New(Value::NewObject(
+              return Success(EvaluationOutput::New(Value::NewObject(
                   class_type.object_type,
                   std::make_shared<Instance>(
-                      Instance{.environment = instance_environment})));
-            case EvaluationOutput::OutputType::kAbort:
-              return constructor_evaluation;
+                      Instance{.environment = instance_environment}))));
           }
-          LOG(FATAL) << "Unhandled switch value.";
-          return constructor_evaluation;
+          language::Error error(L"Unhandled OutputType case.");
+          LOG(FATAL) << error;
+          return error;
         });
   };
   compilation->environment->Define(class_type.object_type,
