@@ -191,10 +191,9 @@ class HelpCommand : public Command {
     environment->ForEachType([&](const wstring& name, ObjectType* type) {
       CHECK(type != nullptr);
       StartSection(L"#### " + name, output);
-      type->ForEachField([&](const wstring& field_name, Value* value) {
-        CHECK(value != nullptr);
+      type->ForEachField([&](const wstring& field_name, Value& value) {
         std::stringstream value_stream;
-        value_stream << *value;
+        value_stream << value;
         const static int kPaddingSize = 40;
         wstring padding(field_name.size() > kPaddingSize
                             ? 0

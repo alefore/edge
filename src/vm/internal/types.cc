@@ -126,11 +126,8 @@ void ObjectType::AddField(const wstring& name,
 }
 
 void ObjectType::ForEachField(
-    std::function<void(const wstring&, Value*)> callback) {
-  // TODO(easy, 2022-04-24): Pass Value by ref?
-  for (auto& it : fields_) {
-    callback(it.first, it.second.get());
-  }
+    std::function<void(const wstring&, Value&)> callback) {
+  for (auto& it : fields_) callback(it.first, *it.second);
 }
 
 }  // namespace afc::vm

@@ -85,7 +85,7 @@ class ObjectType {
     return it == fields_.end() ? nullptr : it->second.get();
   }
 
-  void ForEachField(std::function<void(const wstring&, Value*)> callback);
+  void ForEachField(std::function<void(const wstring&, Value&)> callback);
 
  private:
   VMType type_;
