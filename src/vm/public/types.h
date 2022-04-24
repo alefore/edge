@@ -89,7 +89,7 @@ class ObjectType {
 
  private:
   VMType type_;
-  map<wstring, unique_ptr<Value>> fields_;
+  std::map<std::wstring, language::NonNull<std::unique_ptr<Value>>> fields_;
 };
 
 }  // namespace afc::vm

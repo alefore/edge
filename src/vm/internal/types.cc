@@ -122,12 +122,12 @@ ObjectType::ObjectType(const wstring& type_name)
 
 void ObjectType::AddField(const wstring& name,
                           NonNull<std::unique_ptr<Value>> field) {
-  // TODO(easy, 2022-04-24): Get rid of `get_unique`.
-  fields_.insert({name, std::move(field.get_unique())});
+  fields_.insert({name, std::move(field)});
 }
 
 void ObjectType::ForEachField(
     std::function<void(const wstring&, Value*)> callback) {
+  // TODO(easy, 2022-04-24): Pass Value by ref?
   for (auto& it : fields_) {
     callback(it.first, it.second.get());
   }
