@@ -16,12 +16,13 @@ namespace afc {
 namespace editor {
 
 using std::string;
-using std::unique_ptr;
 
 // Saves the contents of the buffer to the path given.
+//
+// TODO(easy, 2022-04-24): contents: Receive by unique_ptr.
 futures::Value<language::PossibleError> SaveContentsToFile(
     const infrastructure::Path& path,
-    std::shared_ptr<const BufferContents> contents,
+    language::NonNull<std::shared_ptr<const BufferContents>> contents,
     concurrent::ThreadPool& thread_pool,
     infrastructure::FileSystemDriver& file_system_driver);
 

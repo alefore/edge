@@ -37,8 +37,8 @@ extern "C" {
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/value.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::NonNull;
 namespace {
 using concurrent::ThreadPool;
 using concurrent::WorkQueue;
@@ -156,10 +156,9 @@ futures::Value<PossibleError> Save(
 
   return path.Transform([stat_buffer, options,
                          buffer = buffer.shared_from_this()](Path path) {
-    // TODO(easy, 2022-04-23): Drop the get_unique.
-    return SaveContentsToFile(
-               path, std::move(buffer->contents().copy().get_unique()),
-               buffer->editor().thread_pool(), buffer->file_system_driver())
+    return SaveContentsToFile(path, std::move(buffer->contents().copy()),
+                              buffer->editor().thread_pool(),
+                              buffer->file_system_driver())
         .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
         .Transform([stat_buffer, options, buffer, path](EmptyValue) {
           CHECK(buffer != nullptr);
@@ -218,7 +217,7 @@ static futures::Value<bool> CanStatPath(
 
 futures::Value<PossibleError> SaveContentsToOpenFile(
     ThreadPool& thread_pool, Path path, FileDescriptor fd,
-    std::shared_ptr<const BufferContents> contents) {
+    NonNull<std::shared_ptr<const BufferContents>> contents) {
   return thread_pool.Run([contents, path, fd]() {
     // TODO: It'd be significant more efficient to do fewer (bigger)
     // writes.
@@ -242,7 +241,7 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 // Caller must ensure that file_system_driver survives until the future is
 // notified.
 futures::Value<PossibleError> SaveContentsToFile(
-    const Path& path, std::shared_ptr<const BufferContents> contents,
+    const Path& path, NonNull<std::shared_ptr<const BufferContents>> contents,
     ThreadPool& thread_pool, FileSystemDriver& file_system_driver) {
   Path tmp_path = Path::Join(
       path.Dirname().value(),
@@ -755,5 +754,4 @@ futures::Value<std::shared_ptr<OpenBuffer>> OpenAnonymousBuffer(
       .Transform([](auto it) { return it->second; });
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

@@ -730,7 +730,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
             Path::Join(edge_state_directory,
                        PathComponent::FromString(L".edge_state").value());
         LOG(INFO) << "PersistState: Preparing state file: " << path;
-        auto contents = std::make_unique<BufferContents>();
+        NonNull<std::unique_ptr<BufferContents>> contents;
         contents->push_back(L"// State of file: " + path.read());
         contents->push_back(L"");
 
