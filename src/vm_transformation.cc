@@ -45,14 +45,13 @@ NonNull<Value::Ptr> VMTypeMapper<editor::transformation::Variant*>::New(
 namespace editor {
 namespace {
 using language::Error;
+using language::MakeNonNullUnique;
 using language::Success;
 
 class FunctionTransformation : public CompositeTransformation {
  public:
-  FunctionTransformation(std::unique_ptr<vm::Value> function)
-      : function_(std::move(function)) {
-    CHECK(function_ != nullptr);
-  }
+  FunctionTransformation(NonNull<std::unique_ptr<vm::Value>> function)
+      : function_(std::move(function)) {}
 
   std::wstring Serialize() const override {
     return L"FunctionTransformation()";
@@ -76,11 +75,11 @@ class FunctionTransformation : public CompositeTransformation {
 
   std::unique_ptr<CompositeTransformation> Clone() const override {
     return std::make_unique<FunctionTransformation>(
-        std::make_unique<Value>(*function_));
+        MakeNonNullUnique<Value>(*function_));
   }
 
  private:
-  const std::unique_ptr<vm::Value> function_;
+  const NonNull<std::unique_ptr<vm::Value>> function_;
 };
 }  // namespace
 void RegisterTransformations(EditorState* editor,
@@ -103,7 +102,7 @@ void RegisterTransformations(EditorState* editor,
             return VMTypeMapper<editor::transformation::Variant*>::New(
                 std::make_unique<transformation::Variant>(
                     std::make_unique<FunctionTransformation>(
-                        std::move(args[0].get_unique())))
+                        std::move(args[0])))
                     .release());
           }));
   transformation::RegisterInsert(editor, environment);
