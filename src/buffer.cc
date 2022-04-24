@@ -493,7 +493,7 @@ using std::to_wstring;
                     args[0].get());
             CHECK(buffer != nullptr);
             buffer->default_commands_->Add(args[1]->str, args[2]->str,
-                                           std::move(args[3].get_unique()),
+                                           std::move(args[3]),
                                            buffer->environment_);
             return Value::NewVoid();
           }));

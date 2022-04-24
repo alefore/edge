@@ -467,7 +467,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 static_cast<EditorState*>(args[0]->user_value.get());
             CHECK(editor != nullptr);
             editor->default_commands_->Add(args[1]->str, args[2]->str,
-                                           std::move(args[3].get_unique()),
+                                           std::move(args[3]),
                                            editor->environment_);
             return Value::NewVoid();
           }));
