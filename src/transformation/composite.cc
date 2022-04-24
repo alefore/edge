@@ -8,6 +8,7 @@
 #include "src/vm_transformation.h"
 
 namespace afc {
+using language::MakeNonNullUnique;
 using language::NonNull;
 namespace vm {
 const VMType VMTypeMapper<
@@ -143,7 +144,7 @@ void CompositeTransformation::Output::Push(
 }
 
 void RegisterCompositeTransformation(vm::Environment* environment) {
-  auto input_type = std::make_unique<ObjectType>(L"TransformationInput");
+  auto input_type = MakeNonNullUnique<ObjectType>(L"TransformationInput");
 
   input_type->AddField(
       L"position",
@@ -165,7 +166,7 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
           }));
   environment->DefineType(L"TransformationInput", std::move(input_type));
 
-  auto output_type = std::make_unique<ObjectType>(L"TransformationOutput");
+  auto output_type = MakeNonNullUnique<ObjectType>(L"TransformationOutput");
   environment->Define(
       L"TransformationOutput", vm::NewCallback([] {
         return std::make_shared<CompositeTransformation::Output>();

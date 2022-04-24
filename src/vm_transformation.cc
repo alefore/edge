@@ -43,9 +43,9 @@ NonNull<Value::Ptr> VMTypeMapper<editor::transformation::Variant*>::New(
 }
 }  // namespace vm
 namespace editor {
+using language::MakeNonNullUnique;
 namespace {
 using language::Error;
-using language::MakeNonNullUnique;
 using language::Success;
 
 class FunctionTransformation : public CompositeTransformation {
@@ -85,7 +85,7 @@ class FunctionTransformation : public CompositeTransformation {
 void RegisterTransformations(EditorState* editor,
                              vm::Environment* environment) {
   environment->DefineType(L"Transformation",
-                          std::make_unique<vm::ObjectType>(L"Transformation"));
+                          MakeNonNullUnique<vm::ObjectType>(L"Transformation"));
 
   environment->Define(
       L"FunctionTransformation",

@@ -6,11 +6,11 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/language/safe_types.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
-namespace afc {
-namespace vm {
+namespace afc::vm {
 
 // Defines a vector type.
 //
@@ -42,7 +42,7 @@ struct VMTypeMapper<std::vector<T>*> {
   static const VMType vmtype;
 
   static void Export(Environment* environment) {
-    auto vector_type = std::make_unique<ObjectType>(vmtype);
+    auto vector_type = language::MakeNonNullUnique<ObjectType>(vmtype);
 
     auto name = vmtype.object_type;
     environment->Define(
@@ -104,7 +104,6 @@ struct VMTypeMapper<std::unique_ptr<std::vector<T>>> {
   static const VMType vmtype;
 };
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm
 
 #endif  // __AFC_VM_PUBLIC_VECTOR_H__

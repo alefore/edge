@@ -3,6 +3,7 @@
 #include "src/language/wstring.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
 
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
   os << "[" << bp.buffer_name << ":" << bp.position << "]";
@@ -58,7 +59,7 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary) {
 }
 
 void Modifiers::Register(vm::Environment* environment) {
-  auto modifiers_type = std::make_unique<vm::ObjectType>(L"Modifiers");
+  auto modifiers_type = MakeNonNullUnique<vm::ObjectType>(L"Modifiers");
 
   environment->Define(L"Modifiers",
                       vm::NewCallback(std::make_shared<Modifiers>));

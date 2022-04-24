@@ -196,7 +196,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
   environment->Define(L"terminal_control_u",
                       Value::NewString({Terminal::CTRL_U}));
 
-  auto editor_type = std::make_unique<ObjectType>(L"Editor");
+  auto editor_type = MakeNonNullUnique<ObjectType>(L"Editor");
 
   // Methods for Editor.
   RegisterVariableFields<EdgeStruct<bool>, bool>(

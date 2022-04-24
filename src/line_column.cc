@@ -14,6 +14,7 @@
 #include "src/vm/public/vector.h"
 
 namespace afc {
+using language::MakeNonNullUnique;
 using language::NonNull;
 
 namespace vm {
@@ -624,7 +625,7 @@ namespace fuzz {
   using vm::ObjectType;
   using vm::Value;
   using vm::VMType;
-  auto line_column = std::make_unique<ObjectType>(L"LineColumn");
+  auto line_column = MakeNonNullUnique<ObjectType>(L"LineColumn");
 
   // Methods for LineColumn.
   environment->Define(
@@ -653,7 +654,7 @@ namespace fuzz {
   using vm::ObjectType;
   using vm::Value;
   using vm::VMType;
-  auto range = std::make_unique<ObjectType>(L"Range");
+  auto range = MakeNonNullUnique<ObjectType>(L"Range");
 
   // Methods for Range.
   environment->Define(L"Range",

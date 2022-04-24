@@ -7,11 +7,10 @@
 #include <set>
 #include <type_traits>
 
+#include "src/language/safe_types.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
-
-namespace afc {
-namespace vm {
+namespace afc::vm {
 
 // Defines a set type.
 //
@@ -33,7 +32,7 @@ struct VMTypeMapper<std::set<T>*> {
   static const VMType vmtype;
 
   static void Export(Environment* environment) {
-    auto set_type = std::make_unique<ObjectType>(vmtype);
+    auto set_type = language::MakeNonNullUnique<ObjectType>(vmtype);
 
     auto name = vmtype.object_type;
     environment->Define(
@@ -73,7 +72,6 @@ struct VMTypeMapper<std::set<T>*> {
   }
 };
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm
 
 #endif  // __AFC_VM_PUBLIC_SET_H__

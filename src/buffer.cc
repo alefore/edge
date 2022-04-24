@@ -102,6 +102,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::ObservableValue;
 using language::Observers;
 using language::Pointer;
@@ -250,7 +251,7 @@ using std::to_wstring;
 
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState& editor_state, afc::vm::Environment* environment) {
-  auto buffer = std::make_unique<ObjectType>(L"Buffer");
+  auto buffer = MakeNonNullUnique<ObjectType>(L"Buffer");
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(buffer_variables::BoolStruct(),
                                                buffer.get(), &OpenBuffer::Read,

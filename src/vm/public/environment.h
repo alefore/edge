@@ -43,7 +43,8 @@ class Environment {
 
   const ObjectType* LookupObjectType(const wstring& symbol);
   const VMType* LookupType(const wstring& symbol);
-  void DefineType(const wstring& name, unique_ptr<ObjectType> value);
+  void DefineType(const std::wstring& name,
+                  language::NonNull<std::unique_ptr<ObjectType>> value);
 
   std::unique_ptr<Value> Lookup(const Namespace& symbol_namespace,
                                 const wstring& symbol, VMType expected_type);
@@ -70,12 +71,14 @@ class Environment {
       std::function<void(const wstring&, Value*)> callback);
 
  private:
-  // TODO(easy, 2022-04-24): Switch to NonNull.
-  map<wstring, std::unique_ptr<ObjectType>> object_types_;
-  map<wstring,
-      std::unordered_map<VMType, language::NonNull<std::unique_ptr<Value>>>>
+  std::map<std::wstring, language::NonNull<std::unique_ptr<ObjectType>>>
+      object_types_;
+
+  std::map<std::wstring, std::unordered_map<
+                             VMType, language::NonNull<std::unique_ptr<Value>>>>
       table_;
-  map<wstring, std::shared_ptr<Environment>> namespaces_;
+
+  std::map<std::wstring, std::shared_ptr<Environment>> namespaces_;
 
   // TODO: Consider whether the parent environment should itself be const?
   const std::shared_ptr<Environment> parent_environment_;

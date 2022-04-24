@@ -48,6 +48,7 @@ const VMType
 }  // namespace vm
 namespace editor {
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 
 std::ostream& operator<<(std::ostream& os,
                          const transformation::Delete& options) {
@@ -223,7 +224,7 @@ std::wstring ToStringBase(const Delete&) { return L"Delete(...);"; }
 Delete OptimizeBase(Delete transformation) { return transformation; }
 
 void RegisterDelete(vm::Environment* environment) {
-  auto builder = std::make_unique<ObjectType>(L"DeleteTransformationBuilder");
+  auto builder = MakeNonNullUnique<ObjectType>(L"DeleteTransformationBuilder");
 
   environment->Define(
       L"DeleteTransformationBuilder",

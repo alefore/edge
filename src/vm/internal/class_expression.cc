@@ -78,7 +78,7 @@ void FinishClassDeclaration(
                           NewVoidExpression());
   auto class_type = std::move(compilation->current_class.back());
   compilation->current_class.pop_back();
-  auto class_object_type = std::make_unique<ObjectType>(class_type);
+  auto class_object_type = MakeNonNullUnique<ObjectType>(class_type);
 
   auto class_environment = compilation->environment;
   compilation->environment = compilation->environment->parent_environment();

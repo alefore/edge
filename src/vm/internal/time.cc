@@ -13,6 +13,7 @@
 #include "wstring.h"
 
 namespace afc::vm {
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 
@@ -74,7 +75,7 @@ void AddMethod(const wstring& name,
 }
 
 void RegisterTimeType(Environment* environment) {
-  auto time_type = std::make_unique<ObjectType>(L"Time");
+  auto time_type = MakeNonNullUnique<ObjectType>(L"Time");
   time_type->AddField(
       L"tostring", vm::NewCallback(std::function<wstring(Time)>([](Time t) {
         return std::to_wstring(t.tv_sec) + L"." + std::to_wstring(t.tv_nsec);
@@ -142,7 +143,7 @@ void RegisterTimeType(Environment* environment) {
         return Time{.tv_sec = output, .tv_nsec = 0};
       }));
 
-  auto duration_type = std::make_unique<ObjectType>(L"Duration");
+  auto duration_type = MakeNonNullUnique<ObjectType>(L"Duration");
   environment->DefineType(L"Duration", std::move(duration_type));
   environment->Define(L"Seconds", vm::NewCallback([](int input) {
                         return Duration{.value{.tv_sec = input, .tv_nsec = 0}};

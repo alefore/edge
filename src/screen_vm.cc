@@ -28,6 +28,7 @@ const VMType VMTypeMapper<editor::Screen*>::vmtype =
 namespace editor {
 
 using infrastructure::Path;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ToByteString;
@@ -102,7 +103,7 @@ class ScreenVm : public Screen {
 }  // namespace
 
 void RegisterScreenType(Environment* environment) {
-  auto screen_type = std::make_unique<ObjectType>(L"Screen");
+  auto screen_type = MakeNonNullUnique<ObjectType>(L"Screen");
 
   // Constructors.
   environment->Define(

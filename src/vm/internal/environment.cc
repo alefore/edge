@@ -33,7 +33,7 @@ std::shared_ptr<Environment> BuildDefaultEnvironment() {
   RegisterStringType(environment.get());
   RegisterNumberFunctions(environment.get());
   RegisterTimeType(environment.get());
-  auto bool_type = std::make_unique<ObjectType>(VMType::Bool());
+  auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool());
   bool_type->AddField(L"tostring",
                       NewCallback(std::function<wstring(bool)>([](bool v) {
                                     return v ? L"true" : L"false";
@@ -41,7 +41,7 @@ std::shared_ptr<Environment> BuildDefaultEnvironment() {
                                   VMType::PurityType::kPure));
   environment->DefineType(L"bool", std::move(bool_type));
 
-  auto int_type = std::make_unique<ObjectType>(VMType::Integer());
+  auto int_type = MakeNonNullUnique<ObjectType>(VMType::Integer());
   int_type->AddField(
       L"tostring", NewCallback(std::function<std::wstring(int)>([](int value) {
                                  return std::to_wstring(value);
@@ -49,7 +49,7 @@ std::shared_ptr<Environment> BuildDefaultEnvironment() {
                                VMType::PurityType::kPure));
   environment->DefineType(L"int", std::move(int_type));
 
-  auto double_type = std::make_unique<ObjectType>(VMType::Double());
+  auto double_type = MakeNonNullUnique<ObjectType>(VMType::Double());
   double_type->AddField(
       L"tostring",
       NewCallback(std::function<std::wstring(double)>(
@@ -142,9 +142,8 @@ Environment::Environment(std::shared_ptr<Environment> parent_environment)
 }
 
 void Environment::DefineType(const wstring& name,
-                             unique_ptr<ObjectType> value) {
-  auto it = object_types_.insert(make_pair(name, nullptr));
-  it.first->second = std::move(value);
+                             NonNull<std::unique_ptr<ObjectType>> value) {
+  object_types_.insert_or_assign(name, std::move(value));
 }
 
 std::unique_ptr<Value> Environment::Lookup(const Namespace& symbol_namespace,

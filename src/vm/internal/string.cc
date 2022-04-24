@@ -10,9 +10,8 @@
 #include "../public/vector.h"
 #include "../public/vm.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
+using language::MakeNonNullUnique;
 template <>
 const VMType VMTypeMapper<std::vector<wstring>*>::vmtype =
     VMType::ObjectType(L"VectorString");
@@ -33,7 +32,7 @@ void AddMethod(const wstring& name,
 }
 
 void RegisterStringType(Environment* environment) {
-  auto string_type = std::make_unique<ObjectType>(VMType::String());
+  auto string_type = MakeNonNullUnique<ObjectType>(VMType::String());
   AddMethod<int>(L"size", std::function<int(wstring)>([](wstring str) {
                    return str.size();
                  }),
@@ -145,5 +144,4 @@ void RegisterStringType(Environment* environment) {
   VMTypeMapper<std::set<wstring>*>::Export(environment);
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

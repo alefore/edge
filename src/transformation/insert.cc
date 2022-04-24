@@ -36,6 +36,7 @@ const VMType
 }  // namespace vm
 namespace editor::transformation {
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 
 transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
   return transformation::Delete{
@@ -112,7 +113,7 @@ std::wstring ToStringBase(const Insert& options) {
 Insert OptimizeBase(Insert transformation) { return transformation; }
 
 void RegisterInsert(EditorState* editor, vm::Environment* environment) {
-  auto builder = std::make_unique<ObjectType>(L"InsertTransformationBuilder");
+  auto builder = MakeNonNullUnique<ObjectType>(L"InsertTransformationBuilder");
 
   environment->Define(L"InsertTransformationBuilder",
                       vm::NewCallback(std::function<std::shared_ptr<Insert>()>(

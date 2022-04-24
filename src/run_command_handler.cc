@@ -528,7 +528,7 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
   using vm::Value;
   using vm::VMType;
   auto fork_command_options =
-      std::make_unique<ObjectType>(L"ForkCommandOptions");
+      MakeNonNullUnique<ObjectType>(L"ForkCommandOptions");
 
   environment->Define(L"ForkCommandOptions",
                       NewCallback(std::function<ForkCommandOptions*()>(
