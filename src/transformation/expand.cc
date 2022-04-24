@@ -17,13 +17,14 @@
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
+using language::NonNull;
 namespace {
 using futures::OnError;
 using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
 using language::MakeNonNullShared;
-using language::NonNull;
+using language::MakeNonNullUnique;
 using language::Success;
 
 std::wstring GetToken(const CompositeTransformation::Input& input,
@@ -276,8 +277,10 @@ class ExpandTransformation : public CompositeTransformation {
       }
     }
     if (transformation != nullptr) {
-      output.Push(
-          ModifiersAndComposite{.transformation = std::move(transformation)});
+      output.Push(ModifiersAndComposite{
+          .transformation =
+              NonNull<std::unique_ptr<CompositeTransformation>>::Unsafe(
+                  std::move(transformation))});
     }
 
     return futures::Past(std::move(output));
@@ -289,7 +292,7 @@ class ExpandTransformation : public CompositeTransformation {
 };
 }  // namespace
 
-std::unique_ptr<CompositeTransformation> NewExpandTransformation() {
-  return std::make_unique<ExpandTransformation>();
+NonNull<std::unique_ptr<CompositeTransformation>> NewExpandTransformation() {
+  return MakeNonNullUnique<ExpandTransformation>();
 }
 }  // namespace afc::editor

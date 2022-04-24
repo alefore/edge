@@ -86,7 +86,7 @@ futures::Value<Result> ApplyBase(const Modifiers& modifiers,
 }  // namespace
 
 futures::Value<Result> ApplyBase(
-    const std::shared_ptr<CompositeTransformation>& transformation,
+    const NonNull<std::shared_ptr<CompositeTransformation>>& transformation,
     Input input) {
   return ApplyBase(editor::Modifiers(), transformation.get(), std::move(input));
 }
@@ -102,18 +102,18 @@ std::wstring ToStringBase(const ModifiersAndComposite& transformation) {
          L")";
 }
 std::wstring ToStringBase(
-    const std::shared_ptr<CompositeTransformation>& transformation) {
+    const NonNull<std::shared_ptr<CompositeTransformation>>& transformation) {
   return L"CompositeTransformation(" + transformation->Serialize() + L")";
 }
 
 Variant OptimizeBase(ModifiersAndComposite transformation) {
   return transformation;
 }
+
 Variant OptimizeBase(
-    const std::shared_ptr<CompositeTransformation>& transformation) {
+    const NonNull<std::shared_ptr<CompositeTransformation>>& transformation) {
   return transformation;
 }
-
 }  // namespace transformation
 
 CompositeTransformation::Output CompositeTransformation::Output::SetPosition(

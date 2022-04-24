@@ -55,20 +55,24 @@ void RegisterCompositeTransformation(vm::Environment* environment);
 namespace transformation {
 struct ModifiersAndComposite {
   Modifiers modifiers = Modifiers();
-  std::shared_ptr<CompositeTransformation> transformation;
+  language::NonNull<std::shared_ptr<CompositeTransformation>> transformation;
 };
 
 futures::Value<Result> ApplyBase(const ModifiersAndComposite& parameters,
                                  Input input);
 futures::Value<Result> ApplyBase(
-    const std::shared_ptr<CompositeTransformation>& parameters, Input input);
+    const language::NonNull<std::shared_ptr<CompositeTransformation>>&
+        parameters,
+    Input input);
 std::wstring ToStringBase(const ModifiersAndComposite& parameters);
 std::wstring ToStringBase(
-    const std::shared_ptr<CompositeTransformation>& parameters);
+    const language::NonNull<std::shared_ptr<CompositeTransformation>>&
+        parameters);
 
 Variant OptimizeBase(ModifiersAndComposite transformation);
 Variant OptimizeBase(
-    const std::shared_ptr<CompositeTransformation>& transformation);
+    const language::NonNull<std::shared_ptr<CompositeTransformation>>&
+        transformation);
 }  // namespace transformation
 }  // namespace afc::editor
 namespace afc::vm {

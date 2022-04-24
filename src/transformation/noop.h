@@ -7,7 +7,8 @@
 #include "src/vm/public/environment.h"
 
 namespace afc::editor {
-std::unique_ptr<CompositeTransformation> NewNoopTransformation();
+language::NonNull<std::unique_ptr<CompositeTransformation>>
+NewNoopTransformation();
 void RegisterNoopTransformation(vm::Environment* environment);
 }  // namespace afc::editor
 

@@ -15,9 +15,8 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+using language::MakeNonNullUnique;
 namespace {
 // Arguments:
 //   prefix_len: The length of prefix that we skip when calls is 0.
@@ -73,7 +72,7 @@ class GotoCommand : public Command {
         structure == StructurePage() || structure == StructureSearch() ||
         structure == StructureCursor()) {
       editor_state_.ApplyToActiveBuffers(
-          std::make_unique<GotoTransformation>(calls_));
+          MakeNonNullUnique<GotoTransformation>(calls_));
     } else if (structure == StructureBuffer()) {
       size_t buffers = editor_state_.buffers()->size();
       size_t position =
@@ -127,5 +126,4 @@ std::unique_ptr<Command> NewGotoCommand(EditorState& editor_state) {
   return std::make_unique<GotoCommand>(editor_state, 0);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

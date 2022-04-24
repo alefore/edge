@@ -14,6 +14,8 @@
 #include "src/transformation/set_position.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
+using language::NonNull;
 namespace transformation {
 futures::Value<Result> ApplyBase(const SwapActiveCursor& swap_active_cursor,
                                  Input input) {
@@ -48,7 +50,6 @@ SwapActiveCursor OptimizeBase(SwapActiveCursor transformation) {
   return transformation;
 }
 };  // namespace transformation
-
 namespace {
 class MoveTransformation : public CompositeTransformation {
  public:
@@ -92,7 +93,7 @@ class MoveTransformation : public CompositeTransformation {
 };
 }  // namespace
 
-std::unique_ptr<CompositeTransformation> NewMoveTransformation() {
-  return std::make_unique<MoveTransformation>();
+NonNull<std::unique_ptr<CompositeTransformation>> NewMoveTransformation() {
+  return MakeNonNullUnique<MoveTransformation>();
 }
 }  // namespace afc::editor

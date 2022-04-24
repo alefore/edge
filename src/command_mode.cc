@@ -69,6 +69,8 @@ using std::make_pair;
 using infrastructure::AddSeconds;
 using infrastructure::Now;
 using language::EmptyValue;
+using language::MakeNonNullShared;
+using language::NonNull;
 using language::Success;
 using language::ToByteString;
 
@@ -607,9 +609,9 @@ class TreeNavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) {
-    static const auto transformation =
-        new std::shared_ptr<CompositeTransformation>(
-            std::make_shared<TreeNavigate>());
+    static const NonNull<std::shared_ptr<CompositeTransformation>>*
+        transformation = new NonNull<std::shared_ptr<CompositeTransformation>>(
+            MakeNonNullShared<TreeNavigate>());
     editor_state_.ApplyToActiveBuffers(*transformation);
   }
 
@@ -880,16 +882,17 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                         .structure = StructureLine(),
                         .repetitions = operation::CommandArgumentRepetitions(1),
                         .direction = Direction::kBackwards}}));
-  commands->Add(
-      L"~", NewCommandWithModifiers(
-                [](const Modifiers&) { return L"🔠🔡"; },
-                L"Switches the case of the current character.", Modifiers(),
-                [transformation = std::make_shared<SwitchCaseTransformation>()](
-                    Modifiers modifiers) {
-                  return transformation::ModifiersAndComposite{
-                      std::move(modifiers), transformation};
-                },
-                editor_state));
+  commands->Add(L"~",
+                NewCommandWithModifiers(
+                    [](const Modifiers&) { return L"🔠🔡"; },
+                    L"Switches the case of the current character.", Modifiers(),
+                    [transformation =
+                         NonNull<std::shared_ptr<SwitchCaseTransformation>>()](
+                        Modifiers modifiers) {
+                      return transformation::ModifiersAndComposite{
+                          std::move(modifiers), transformation};
+                    },
+                    editor_state));
 
   commands->Add(L"%", std::make_unique<TreeNavigateCommand>(editor_state));
   commands->Add(L"sr", NewRecordCommand(editor_state));

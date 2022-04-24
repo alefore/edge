@@ -19,6 +19,7 @@
 #include "src/transformation/type.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
 namespace {
 class SearchRange {
  public:
@@ -309,7 +310,7 @@ std::unique_ptr<Command> NewNavigateCommand(EditorState& editor_state) {
              .status_factory = BuildStatus};
          SetOptionsForBufferTransformation<NavigateState>(
              [](NavigateState state) -> transformation::Variant {
-               return std::make_unique<NavigateTransformation>(
+               return MakeNonNullUnique<NavigateTransformation>(
                    std::move(state));
              },
              [](const NavigateState&) {

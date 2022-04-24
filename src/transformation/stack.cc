@@ -349,7 +349,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           case Stack::PostTransformationBehavior::kCommandCpp:
             return HandleCommandCpp(std::move(input), delete_transformation);
           case Stack::PostTransformationBehavior::kCapitalsSwitch: {
-            auto transformation = std::make_shared<SwitchCaseTransformation>();
+            NonNull<std::shared_ptr<SwitchCaseTransformation>> transformation;
             std::vector<ModifiersAndComposite> transformations;
             if (range.lines() > LineNumberDelta(1))
               transformations.push_back(

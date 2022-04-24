@@ -15,7 +15,8 @@ namespace afc::editor {
 class OpenBuffer;
 class CompositeTransformation;
 namespace transformation {
-using CompositePtr = std::shared_ptr<editor::CompositeTransformation>;
+using CompositePtr =
+    language::NonNull<std::shared_ptr<editor::CompositeTransformation>>;
 
 class ModifiersAndComposite;
 class Repetitions;

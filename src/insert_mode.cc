@@ -100,7 +100,7 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
     }
     Output output = Output::SetPosition(LineColumn(input.position.line));
     output.Push(transformation::ModifiersAndComposite{
-        Modifiers(), std::make_unique<NewLineTransformation>()});
+        Modifiers(), MakeNonNullUnique<NewLineTransformation>()});
     output.Push(transformation::SetPosition(input.position));
     return futures::Past(std::move(output));
   }
@@ -630,7 +630,7 @@ void EnterInsertMode(InsertModeOptions options) {
       shared_options->new_line_handler =
           [](const std::shared_ptr<OpenBuffer>& buffer) {
             return buffer->ApplyToCursors(
-                std::make_unique<NewLineTransformation>());
+                MakeNonNullUnique<NewLineTransformation>());
           };
     }
 
@@ -658,7 +658,7 @@ void EnterInsertMode(InsertModeOptions options) {
       if (shared_options->editor_state.structure() == StructureLine()) {
         for (auto& buffer : shared_options->buffers.value()) {
           buffer->ApplyToCursors(
-              std::make_unique<InsertEmptyLineTransformation>(
+              MakeNonNullUnique<InsertEmptyLineTransformation>(
                   shared_options->editor_state.direction()));
         }
       }

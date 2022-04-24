@@ -34,8 +34,8 @@ class Noop : public CompositeTransformation {
 };
 }  // namespace
 
-std::unique_ptr<CompositeTransformation> NewNoopTransformation() {
-  return std::make_unique<Noop>();
+NonNull<std::unique_ptr<CompositeTransformation>> NewNoopTransformation() {
+  return NonNull<std::unique_ptr<Noop>>();
 }
 
 void RegisterNoopTransformation(vm::Environment* environment) {

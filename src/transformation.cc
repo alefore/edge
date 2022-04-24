@@ -13,6 +13,7 @@
 #include "src/transformation/type.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
 namespace {
 class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
  public:
@@ -57,6 +58,6 @@ transformation::Variant TransformationAtPosition(
 }
 
 transformation::Variant NewDeleteSuffixSuperfluousCharacters() {
-  return std::make_unique<DeleteSuffixSuperfluousCharacters>();
+  return MakeNonNullUnique<DeleteSuffixSuperfluousCharacters>();
 }
 }  // namespace afc::editor

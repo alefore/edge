@@ -98,10 +98,9 @@ void RegisterTransformations(EditorState* editor,
                     std::shared_ptr<CompositeTransformation::Input>>::vmtype})},
           [](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
             CHECK_EQ(args.size(), 1ul);
-            // TODO(easy, 2022-04-24): Remove get_unique.
             return VMTypeMapper<editor::transformation::Variant*>::New(
                 std::make_unique<transformation::Variant>(
-                    std::make_unique<FunctionTransformation>(
+                    MakeNonNullUnique<FunctionTransformation>(
                         std::move(args[0])))
                     .release());
           }));

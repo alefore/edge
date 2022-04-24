@@ -20,6 +20,7 @@
 namespace afc::editor::operation {
 using futures::Past;
 using language::EmptyValue;
+using language::MakeNonNullUnique;
 
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
@@ -141,7 +142,7 @@ transformation::ModifiersAndComposite GetTransformation(
   return transformation::ModifiersAndComposite{
       .modifiers = GetModifiers(reach_begin.structure, reach_begin.repetitions,
                                 reach_begin.direction),
-      .transformation = std::make_unique<GotoTransformation>(0)};
+      .transformation = MakeNonNullUnique<GotoTransformation>(0)};
 }
 
 transformation::Stack GetTransformation(CommandReachLine reach_line) {
@@ -174,7 +175,7 @@ transformation::Stack GetTransformation(CommandReachChar reach_char) {
         .modifiers =
             GetModifiers(StructureChar(), repetitions, Direction::kForwards),
         .transformation =
-            std::make_unique<FindTransformation>(reach_char.c.value())});
+            MakeNonNullUnique<FindTransformation>(reach_char.c.value())});
   }
   return transformation;
 }

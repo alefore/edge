@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "src/language/safe_types.h"
 #include "src/modifiers.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
@@ -24,7 +25,8 @@ SwapActiveCursor OptimizeBase(SwapActiveCursor transformation);
 }  // namespace transformation
 
 class CompositeTransformation;
-std::unique_ptr<CompositeTransformation> NewMoveTransformation();
+language::NonNull<std::unique_ptr<CompositeTransformation>>
+NewMoveTransformation();
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_TRANSFORMATION_MOVE_H__
