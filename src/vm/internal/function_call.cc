@@ -270,8 +270,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
     // that wraps `delegate`, inserting the value that `obj_expr` evaluated to.
     class BindObjectExpression : public Expression {
      public:
-      // TODO(easy, 2022-04-25): Receive obj_xpr as NonNull.
-      BindObjectExpression(std::unique_ptr<Expression> obj_expr,
+      BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
                            Value* delegate)
           : type_([=]() {
               auto output = std::make_shared<VMType>(delegate->type);
@@ -285,8 +284,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
       NonNull<std::unique_ptr<Expression>> Clone() override {
-        return MakeNonNullUnique<BindObjectExpression>(
-            std::move(obj_expr_->Clone().get_unique()), delegate_);
+        return MakeNonNullUnique<BindObjectExpression>(obj_expr_, delegate_);
       }
 
       PurityType purity() override {
@@ -326,7 +324,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
      private:
       const std::shared_ptr<VMType> type_;
-      const std::shared_ptr<Expression> obj_expr_;
+      const NonNull<std::shared_ptr<Expression>> obj_expr_;
       Value* const delegate_;
     };
 
@@ -334,8 +332,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
     CHECK_GE(field->type.type_arguments.size(), 2ul);
     CHECK_EQ(field->type.type_arguments[1], type);
 
-    return std::make_unique<BindObjectExpression>(
-        std::move(object->Clone().get_unique()), field);
+    return std::make_unique<BindObjectExpression>(object->Clone(), field);
   }
 
   CHECK(!errors.empty());
