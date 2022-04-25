@@ -48,7 +48,7 @@ class BuffersList {
   const EditorState& editor_state_;
   std::vector<std::shared_ptr<OpenBuffer>> buffers_;
   // Contains the whole hierarchy of widgets.
-  std::unique_ptr<Widget> widget_;
+  language::NonNull<std::unique_ptr<Widget>> widget_;
   // Points to the BufferWidget that corresponds to the active buffer.
   BufferWidget* active_buffer_widget_ = nullptr;
 

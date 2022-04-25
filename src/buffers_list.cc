@@ -21,6 +21,7 @@ using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::Error;
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
@@ -619,7 +620,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
 BuffersList::BuffersList(const EditorState& editor_state)
     : editor_state_(editor_state),
-      widget_(std::make_unique<BufferWidget>(BufferWidget::Options{})),
+      widget_(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{})),
       active_buffer_widget_(static_cast<BufferWidget*>(widget_.get())) {}
 
 void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
@@ -820,7 +821,6 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
           << ", size column: " << options.size.column;
 
   options.size.line -= layout.lines;
-  CHECK(widget_ != nullptr);
   LineWithCursor::Generator::Vector output = widget_->CreateOutput(options);
   CHECK_EQ(output.size(), options.size.line);
   if (layout.lines.IsZero()) return output;
@@ -928,15 +928,15 @@ void BuffersList::Update() {
   }
 
   if (buffers.empty()) {
-    widget_ = std::make_unique<BufferWidget>(BufferWidget::Options{});
+    widget_ = MakeNonNullUnique<BufferWidget>(BufferWidget::Options{});
     active_buffer_widget_ = static_cast<BufferWidget*>(widget_.get());
     return;
   }
 
-  std::vector<std::unique_ptr<Widget>> widgets;
+  std::vector<NonNull<std::unique_ptr<Widget>>> widgets;
   widgets.reserve(buffers.size());
   for (auto& buffer : buffers) {
-    widgets.push_back(std::make_unique<BufferWidget>(BufferWidget::Options{
+    widgets.push_back(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{
         .buffer = buffer,
         .is_active = widgets.size() == index_active ||
                      editor_state_.Read(editor_variables::multiple_buffers),
@@ -951,8 +951,8 @@ void BuffersList::Update() {
   if (widgets.size() == 1) {
     widget_ = std::move(widgets[index_active]);
   } else {
-    widget_ = std::make_unique<WidgetListHorizontal>(std::move(widgets),
-                                                     index_active);
+    widget_ = MakeNonNullUnique<WidgetListHorizontal>(std::move(widgets),
+                                                      index_active);
   }
 }
 }  // namespace afc::editor

@@ -21,34 +21,35 @@
 #include "src/language/wstring.h"
 #include "src/widget.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 using language::MakeNonNullShared;
+using language::NonNull;
 
-WidgetList::WidgetList(std::vector<std::unique_ptr<Widget>> children,
+WidgetList::WidgetList(std::vector<NonNull<std::unique_ptr<Widget>>> children,
                        size_t active)
     : children_(std::move(children)), active_(active) {}
 
-WidgetList::WidgetList(std::unique_ptr<Widget> children)
+WidgetList::WidgetList(NonNull<std::unique_ptr<Widget>> children)
     : WidgetList(
           [&]() {
-            std::vector<std::unique_ptr<Widget>> output;
-            output.push_back(std::move(children));
-            return output;
-          }(),
-          0) {}
-
-WidgetListHorizontal::WidgetListHorizontal(std::unique_ptr<Widget> children)
-    : WidgetList(
-          [&]() {
-            std::vector<std::unique_ptr<Widget>> output;
+            std::vector<NonNull<std::unique_ptr<Widget>>> output;
             output.push_back(std::move(children));
             return output;
           }(),
           0) {}
 
 WidgetListHorizontal::WidgetListHorizontal(
-    std::vector<std::unique_ptr<Widget>> children, size_t active)
+    NonNull<std::unique_ptr<Widget>> children)
+    : WidgetList(
+          [&]() {
+            std::vector<NonNull<std::unique_ptr<Widget>>> output;
+            output.push_back(std::move(children));
+            return output;
+          }(),
+          0) {}
+
+WidgetListHorizontal::WidgetListHorizontal(
+    std::vector<NonNull<std::unique_ptr<Widget>>> children, size_t active)
     : WidgetList(std::move(children), active) {}
 
 LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
@@ -186,11 +187,12 @@ LineNumberDelta WidgetListHorizontal::DesiredLines() const {
   return count;
 }
 
-WidgetListVertical::WidgetListVertical(std::unique_ptr<Widget> children)
+WidgetListVertical::WidgetListVertical(
+    NonNull<std::unique_ptr<Widget>> children)
     : WidgetList(std::move(children)) {}
 
 WidgetListVertical::WidgetListVertical(
-    std::vector<std::unique_ptr<Widget>> children, size_t active)
+    std::vector<NonNull<std::unique_ptr<Widget>>> children, size_t active)
     : WidgetList(std::move(children), active) {}
 
 LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
@@ -245,5 +247,4 @@ LineNumberDelta WidgetListVertical::DesiredLines() const {
   return output + kFrameLines;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

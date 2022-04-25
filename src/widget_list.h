@@ -4,27 +4,29 @@
 #include <list>
 #include <memory>
 
+#include "src/language/safe_types.h"
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 class WidgetList : public Widget {
  protected:
-  WidgetList(std::unique_ptr<Widget> children);
-  WidgetList(std::vector<std::unique_ptr<Widget>> children, size_t active);
+  WidgetList(language::NonNull<std::unique_ptr<Widget>> children);
+  WidgetList(std::vector<language::NonNull<std::unique_ptr<Widget>>> children,
+             size_t active);
 
-  std::vector<std::unique_ptr<Widget>> children_;
+  std::vector<language::NonNull<std::unique_ptr<Widget>>> children_;
   size_t active_;
 };
 
 class WidgetListHorizontal : public WidgetList {
  public:
-  WidgetListHorizontal(std::unique_ptr<Widget> children);
+  WidgetListHorizontal(language::NonNull<std::unique_ptr<Widget>> children);
 
-  WidgetListHorizontal(std::vector<std::unique_ptr<Widget>> children,
-                       size_t active);
+  WidgetListHorizontal(
+      std::vector<language::NonNull<std::unique_ptr<Widget>>> children,
+      size_t active);
 
   LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const override;
@@ -39,10 +41,11 @@ class WidgetListHorizontal : public WidgetList {
 
 class WidgetListVertical : public WidgetList {
  public:
-  WidgetListVertical(std::unique_ptr<Widget> children);
+  WidgetListVertical(language::NonNull<std::unique_ptr<Widget>> children);
 
-  WidgetListVertical(std::vector<std::unique_ptr<Widget>> children,
-                     size_t active);
+  WidgetListVertical(
+      std::vector<language::NonNull<std::unique_ptr<Widget>>> children,
+      size_t active);
 
   LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const override;
@@ -54,7 +57,5 @@ class WidgetListVertical : public WidgetList {
   std::vector<ColumnNumberDelta> columns_per_child_;
 };
 
-}  // namespace editor
-}  // namespace afc
-
+}  // namespace afc::editor
 #endif  // __AFC_EDITOR_BUFFER_TREE_HORIZONTAL_H__
