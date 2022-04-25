@@ -18,8 +18,9 @@ class AssignExpression : public Expression {
  public:
   enum class AssignmentType { kDefine, kAssign };
 
+  // TODO(easy, 2022-04-25): Receive value_ as NonNull.
   AssignExpression(AssignmentType assignment_type, wstring symbol,
-                   unique_ptr<Expression> value)
+                   std::shared_ptr<Expression> value)
       : assignment_type_(assignment_type),
         symbol_(std::move(symbol)),
         value_(std::move(value)) {}
@@ -60,9 +61,8 @@ class AssignExpression : public Expression {
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {
-    // TODO(easy, 2022-04-25) Avoid the call to Clone below?
-    return MakeNonNullUnique<AssignExpression>(
-        assignment_type_, symbol_, std::move(value_->Clone().get_unique()));
+    return MakeNonNullUnique<AssignExpression>(assignment_type_, symbol_,
+                                               value_);
   }
 
  private:
