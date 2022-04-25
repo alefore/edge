@@ -18,9 +18,8 @@ class AssignExpression : public Expression {
  public:
   enum class AssignmentType { kDefine, kAssign };
 
-  // TODO(easy, 2022-04-25): Receive value_ as NonNull.
   AssignExpression(AssignmentType assignment_type, wstring symbol,
-                   std::shared_ptr<Expression> value)
+                   NonNull<std::shared_ptr<Expression>> value)
       : assignment_type_(assignment_type),
         symbol_(std::move(symbol)),
         value_(std::move(value)) {}
@@ -68,7 +67,7 @@ class AssignExpression : public Expression {
  private:
   const AssignmentType assignment_type_;
   const wstring symbol_;
-  const std::shared_ptr<Expression> value_;
+  const NonNull<std::shared_ptr<Expression>> value_;
 };
 }  // namespace
 
@@ -123,7 +122,7 @@ std::unique_ptr<Expression> NewDefineExpression(
   }
   return std::make_unique<AssignExpression>(
       AssignExpression::AssignmentType::kDefine, std::move(symbol),
-      std::move(value));
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
 }
 
 std::unique_ptr<Expression> NewAssignExpression(
@@ -137,7 +136,8 @@ std::unique_ptr<Expression> NewAssignExpression(
   for (auto& v : variables) {
     if (value->SupportsType(v->type)) {
       return std::make_unique<AssignExpression>(
-          AssignExpression::AssignmentType::kAssign, symbol, std::move(value));
+          AssignExpression::AssignmentType::kAssign, symbol,
+          NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
     }
   }
 
