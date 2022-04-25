@@ -248,17 +248,19 @@ void Environment::Remove(const wstring& symbol, VMType type) {
 }
 
 void Environment::ForEachType(
-    std::function<void(const wstring&, ObjectType*)> callback) {
+    std::function<void(const std::wstring&, ObjectType&)> callback) {
   if (parent_environment_ != nullptr) {
     parent_environment_->ForEachType(callback);
   }
-  for (auto& entry : object_types_) {
-    callback(entry.first, entry.second.get());
+  for (const std::pair<const std::wstring,
+                       NonNull<std::unique_ptr<ObjectType>>>& entry :
+       object_types_) {
+    callback(entry.first, *entry.second);
   }
 }
 
 void Environment::ForEach(
-    std::function<void(const wstring&, Value*)> callback) {
+    std::function<void(const wstring&, Value&)> callback) {
   if (parent_environment_ != nullptr) {
     parent_environment_->ForEach(callback);
   }
@@ -266,10 +268,12 @@ void Environment::ForEach(
 }
 
 void Environment::ForEachNonRecursive(
-    std::function<void(const wstring&, Value*)> callback) {
+    std::function<void(const std::wstring&, Value&)> callback) {
   for (auto& symbol_entry : table_) {
-    for (auto& type_entry : symbol_entry.second) {
-      callback(symbol_entry.first, type_entry.second.get());
+    for (const std::pair<const VMType,
+                         language::NonNull<std::unique_ptr<Value>>>&
+             type_entry : symbol_entry.second) {
+      callback(symbol_entry.first, *type_entry.second);
     }
   }
 }

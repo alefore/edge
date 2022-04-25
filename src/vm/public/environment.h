@@ -65,10 +65,10 @@ class Environment {
               language::NonNull<std::unique_ptr<Value>> value);
   void Remove(const wstring& symbol, VMType type);
 
-  void ForEachType(std::function<void(const wstring&, ObjectType*)> callback);
-  void ForEach(std::function<void(const wstring&, Value*)> callback);
+  void ForEachType(std::function<void(const wstring&, ObjectType&)> callback);
+  void ForEach(std::function<void(const wstring&, Value&)> callback);
   void ForEachNonRecursive(
-      std::function<void(const wstring&, Value*)> callback);
+      std::function<void(const wstring&, Value&)> callback);
 
  private:
   std::map<std::wstring, language::NonNull<std::unique_ptr<ObjectType>>>

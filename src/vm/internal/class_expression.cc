@@ -96,12 +96,11 @@ void FinishClassDeclaration(
   std::map<std::wstring, Value> values;
   class_environment->ForEachNonRecursive(
       [&values, &class_object_type, class_type](std::wstring name,
-                                                Value* value) {
-        CHECK(value != nullptr);
+                                                Value& value) {
         class_object_type->AddField(name,
-                                    BuildGetter(class_type, value->type, name));
+                                    BuildGetter(class_type, value.type, name));
         class_object_type->AddField(L"set_" + name,
-                                    BuildSetter(class_type, value->type, name));
+                                    BuildSetter(class_type, value.type, name));
       });
   compilation->environment->DefineType(class_type.object_type,
                                        std::move(class_object_type));
