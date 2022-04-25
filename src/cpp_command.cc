@@ -45,11 +45,10 @@ wstring GetCategoryString(wstring code) {
 class CppCommand : public Command {
  public:
   CppCommand(EditorState& editor_state,
-             std::unique_ptr<afc::vm::Expression> expression, wstring code)
+             NonNull<std::unique_ptr<afc::vm::Expression>> expression,
+             wstring code)
       : editor_state_(editor_state),
-        // TODO(easy, 2022-04-25): Get rid of Unsafe.
-        expression_(NonNull<std::unique_ptr<vm::Expression>>::Unsafe(
-            std::move(expression))),
+        expression_(std::move(expression)),
         code_(std::move(code)),
         description_(GetDescriptionString(code_)),
         category_(GetCategoryString(code_)) {}
@@ -79,16 +78,13 @@ class CppCommand : public Command {
 std::unique_ptr<Command> NewCppCommand(
     EditorState& editor_state,
     std::shared_ptr<afc::vm::Environment> environment, wstring code) {
-  wstring error_description;
-  auto expr =
-      afc::vm::CompileString(code, std::move(environment), &error_description);
-  if (expr == nullptr) {
+  auto result = vm::CompileString(code, std::move(environment));
+  if (result.IsError()) {
     LOG(ERROR) << "Failed compilation of command: " << code << ": "
-               << error_description;
+               << result.error();
     return nullptr;
   }
-
-  return std::make_unique<CppCommand>(editor_state, std::move(expr),
+  return std::make_unique<CppCommand>(editor_state, std::move(result.value()),
                                       std::move(code));
 }
 

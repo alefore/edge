@@ -1336,11 +1336,16 @@ void OpenBuffer::AppendToLastLine(Line line) {
                        BufferContents::CursorsBehavior::kUnmodified);
 }
 
+// TODO(easy, 2022-04-25): Change to return ValueOrError.
 std::pair<std::unique_ptr<Expression>, std::shared_ptr<Environment>>
 OpenBuffer::CompileString(const std::wstring& code,
                           std::wstring* error_description) {
   auto sub_environment = std::make_shared<Environment>(environment_);
-  return {afc::vm::CompileString(code, sub_environment, error_description),
+  auto expression = afc::vm::CompileString(code, sub_environment);
+  if (error_description != nullptr && expression.IsError())
+    *error_description = expression.error().description;
+  return {expression.IsError() ? std::unique_ptr<Expression>()
+                               : std::move(expression.value().get_unique()),
           sub_environment};
 }
 
