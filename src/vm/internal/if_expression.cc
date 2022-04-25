@@ -98,11 +98,10 @@ std::unique_ptr<Expression> NewIfExpression(
     return nullptr;
   }
 
-  std::wstring error;
-  auto return_types = CombineReturnTypes(true_case->ReturnTypes(),
-                                         false_case->ReturnTypes(), &error);
-  if (!return_types.has_value()) {
-    compilation->errors.push_back(error);
+  auto return_types =
+      CombineReturnTypes(true_case->ReturnTypes(), false_case->ReturnTypes());
+  if (return_types.IsError()) {
+    compilation->errors.push_back(return_types.error().description);
     return nullptr;
   }
 

@@ -573,17 +573,16 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
 }
 }  // namespace
 
-std::optional<std::unordered_set<VMType>> CombineReturnTypes(
-    std::unordered_set<VMType> a, std::unordered_set<VMType> b,
-    std::wstring* error) {
-  if (a.empty()) return b;
-  if (b.empty()) return a;
+ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
+    std::unordered_set<VMType> a, std::unordered_set<VMType> b) {
+  if (a.empty()) return Success(b);
+  if (b.empty()) return Success(a);
   if (a != b) {
-    *error = L"Incompatible types found: `" + a.cbegin()->ToString() +
-             L"` and `" + b.cbegin()->ToString() + L"`.";
-    return std::nullopt;
+    return Error(L"Incompatible return types found: `" +
+                 a.cbegin()->ToString() + L"` and `" + b.cbegin()->ToString() +
+                 L"`.");
   }
-  return a;
+  return Success(a);
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(

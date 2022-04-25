@@ -118,9 +118,8 @@ struct EvaluationOutput {
 
 // Combine the return types of two sub-expressions (see Expression::ReturnType).
 // If there's an error, a string will be stored in `error` describing it.
-std::optional<std::unordered_set<VMType>> CombineReturnTypes(
-    std::unordered_set<VMType> a, std::unordered_set<VMType> b,
-    std::wstring* error);
+language::ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
+    std::unordered_set<VMType> a, std::unordered_set<VMType> b);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
 CompileFile(const string& path, std::shared_ptr<Environment> environment);

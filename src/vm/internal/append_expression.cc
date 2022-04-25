@@ -63,13 +63,9 @@ std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
   }
   if (a->purity() == Expression::PurityType::kPure && a->ReturnTypes().empty())
     return b;
-  std::wstring error;
-  auto return_types =
-      CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes(), &error);
-  if (!return_types.has_value()) {
-    compilation->errors.push_back(L"Incompatible return types found: " +
-                                  TypesToString(a->ReturnTypes()) + L" and " +
-                                  TypesToString(b->ReturnTypes()));
+  auto return_types = CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes());
+  if (return_types.IsError()) {
+    compilation->errors.push_back(return_types.error().description);
     return nullptr;
   }
 
