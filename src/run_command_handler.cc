@@ -577,40 +577,44 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
                           std::move(fork_command_options));
 }
 
+// TODO(easy, 2022-04-25): Return NonNull.
 std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
                                         const ForkCommandOptions& options) {
   BufferName name = options.name.value_or(BufferName(L"$ " + options.command));
-  auto it = editor_state.buffers()->insert(make_pair(name, nullptr));
-  if (it.second) {
-    auto command_data = std::make_shared<CommandData>();
-    auto buffer = OpenBuffer::New(
-        {.editor = editor_state,
-         .name = name,
-         .generate_contents =
-             [&editor_state, environment = options.environment,
-              command_data](OpenBuffer& target) {
-               return GenerateContents(editor_state, environment,
-                                       command_data.get(), target);
-             },
-         .describe_status =
-             [command_data](const OpenBuffer& buffer) {
-               return Flags(*command_data, buffer);
-             }});
-    buffer->Set(buffer_variables::children_path,
-                options.children_path.has_value()
-                    ? options.children_path->read()
-                    : L"");
-    buffer->Set(buffer_variables::command, options.command);
-    it.first->second = std::move(buffer.get_shared());
-  } else {
-    it.first->second->ResetMode();
+  if (auto it = editor_state.buffers()->find(name);
+      it != editor_state.buffers()->end()) {
+    NonNull<std::shared_ptr<OpenBuffer>> buffer =
+        NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second);
+    buffer->ResetMode();
+    buffer->Reload();
+    buffer->set_current_position_line(LineNumber(0));
+    editor_state.AddBuffer(buffer.get_shared(), options.insertion_type);
+    return buffer.get_shared();
   }
 
-  editor_state.AddBuffer(it.first->second, options.insertion_type);
+  auto command_data = std::make_shared<CommandData>();
+  NonNull<std::shared_ptr<OpenBuffer>> buffer = OpenBuffer::New(
+      {.editor = editor_state,
+       .name = name,
+       .generate_contents =
+           [&editor_state, environment = options.environment,
+            command_data](OpenBuffer& target) {
+             return GenerateContents(editor_state, environment,
+                                     command_data.get(), target);
+           },
+       .describe_status =
+           [command_data](const OpenBuffer& buffer) {
+             return Flags(*command_data, buffer);
+           }});
+  buffer->Set(
+      buffer_variables::children_path,
+      options.children_path.has_value() ? options.children_path->read() : L"");
+  buffer->Set(buffer_variables::command, options.command);
+  buffer->Reload();
 
-  it.first->second->Reload();
-  it.first->second->set_current_position_line(LineNumber(0));
-  return it.first->second;
+  editor_state.buffers()->insert({name, buffer.get_shared()});
+  editor_state.AddBuffer(buffer.get_shared(), options.insertion_type);
+  return buffer.get_shared();
 }
 
 std::unique_ptr<Command> NewForkCommand(EditorState& editor_state) {
