@@ -1378,26 +1378,21 @@ OpenBuffer::EvaluateString(const wstring& code) {
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
     const Path& path) {
-  wstring error_description;
-
-  return VisitPointer(
-      CompileFile(ToByteString(path.read()), environment_, &error_description),
-      [this, path](NonNull<std::unique_ptr<Expression>> expression) {
-        LOG(INFO) << Read(buffer_variables::path) << " ("
-                  << Read(buffer_variables::name)
-                  << "): Evaluating file: " << path;
-        return Evaluate(
-            *expression, environment_,
-            [path, work_queue = work_queue()](std::function<void()> resume) {
-              LOG(INFO) << "Evaluation of file yields: " << path;
-              work_queue->Schedule(std::move(resume));
-            });
-      },
-      [&]() {
-        Error error(path.read() + L": error: " + error_description);
-        status_.SetWarningText(error.description);
-        return futures::Past(
-            ValueOrError<NonNull<std::unique_ptr<Value>>>(error));
+  ValueOrError<NonNull<std::unique_ptr<Expression>>> expression =
+      CompileFile(ToByteString(path.read()), environment_);
+  if (expression.IsError()) {
+    Error error =
+        Error::Augment(path.read() + L": error: ", expression.error());
+    status_.SetWarningText(error.description);
+    return futures::Past(error);
+  }
+  LOG(INFO) << Read(buffer_variables::path) << " ("
+            << Read(buffer_variables::name) << "): Evaluating file: " << path;
+  return Evaluate(
+      *expression.value(), environment_,
+      [path, work_queue = work_queue()](std::function<void()> resume) {
+        LOG(INFO) << "Evaluation of file yields: " << path;
+        work_queue->Schedule(std::move(resume));
       });
 }
 

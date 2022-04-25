@@ -586,20 +586,12 @@ std::optional<std::unordered_set<VMType>> CombineReturnTypes(
   return a;
 }
 
-unique_ptr<Expression> CompileFile(const string& path,
-                                   std::shared_ptr<Environment> environment,
-                                   wstring* error_description) {
+ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
+    const string& path, std::shared_ptr<Environment> environment) {
   Compilation compilation{.directory = CppDirname(path),
                           .environment = std::move(environment)};
   CompileFile(path, &compilation, GetParser(&compilation).get());
-  auto result = ResultsFromCompilation(std::move(compilation));
-  if (result.IsError()) {
-    if (error_description != nullptr)
-      *error_description = result.error().description;
-    return nullptr;
-  }
-  // TODO(easy, 2022-04-25): Get rid of call to get_unique.
-  return std::move(result.value().get_unique());
+  return ResultsFromCompilation(std::move(compilation));
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileString(

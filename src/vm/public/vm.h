@@ -122,12 +122,12 @@ std::optional<std::unordered_set<VMType>> CombineReturnTypes(
     std::unordered_set<VMType> a, std::unordered_set<VMType> b,
     std::wstring* error);
 
-unique_ptr<Expression> CompileFile(const string& path,
-                                   std::shared_ptr<Environment> environment,
-                                   wstring* error_description);
+language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
+CompileFile(const string& path, std::shared_ptr<Environment> environment);
 
-language::ValueOrError<language::NonNull<unique_ptr<Expression>>> CompileString(
-    const std::wstring& str, std::shared_ptr<Environment> environment);
+language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
+CompileString(const std::wstring& str,
+              std::shared_ptr<Environment> environment);
 
 // `yield_callback` is an optional function that must ensure that the callback
 // it receives will run in the future.
