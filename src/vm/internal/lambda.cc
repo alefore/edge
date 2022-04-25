@@ -17,7 +17,8 @@ using language::Success;
 class LambdaExpression : public Expression {
  public:
   static std::unique_ptr<LambdaExpression> New(
-      VMType type, std::shared_ptr<std::vector<std::wstring>> argument_names,
+      VMType type,
+      NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body, std::wstring* error) {
     type.function_purity = body->purity();
     VMType expected_return_type = *type.type_arguments.cbegin();
@@ -49,12 +50,13 @@ class LambdaExpression : public Expression {
         std::move(promotion_function));
   }
 
-  LambdaExpression(VMType type,
-                   std::shared_ptr<std::vector<std::wstring>> argument_names,
-                   NonNull<std::shared_ptr<Expression>> body,
-                   std::function<NonNull<std::unique_ptr<Value>>(
-                       NonNull<std::unique_ptr<Value>>)>
-                       promotion_function)
+  LambdaExpression(
+      VMType type,
+      NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
+      NonNull<std::shared_ptr<Expression>> body,
+      std::function<
+          NonNull<std::unique_ptr<Value>>(NonNull<std::unique_ptr<Value>>)>
+          promotion_function)
       : type_(std::move(type)),
         argument_names_(std::move(argument_names)),
         body_(std::move(body)),
@@ -112,8 +114,7 @@ class LambdaExpression : public Expression {
 
  private:
   VMType type_;
-  // TODO(easy, 2022-04-25): NonNull.
-  const std::shared_ptr<std::vector<std::wstring>> argument_names_;
+  const NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names_;
   const NonNull<std::shared_ptr<Expression>> body_;
   const std::function<NonNull<std::unique_ptr<Value>>(
       NonNull<std::unique_ptr<Value>>)>
