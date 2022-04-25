@@ -518,11 +518,11 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
 
 // Arguments list
 
-%type arguments_list { vector<unique_ptr<Expression>>* }
+%type arguments_list { vector<language::NonNull<unique_ptr<Expression>>>* }
 %destructor arguments_list { delete $$; }
 
 arguments_list(OUT) ::= . {
-  OUT = new vector<unique_ptr<Expression>>;
+  OUT = new vector<language::NonNull<unique_ptr<Expression>>>;
 }
 
 arguments_list(OUT) ::= non_empty_arguments_list(L). {
@@ -530,15 +530,18 @@ arguments_list(OUT) ::= non_empty_arguments_list(L). {
   L = nullptr;
 }
 
-%type non_empty_arguments_list { vector<unique_ptr<Expression>>* }
+%type non_empty_arguments_list {
+   vector<language::NonNull<unique_ptr<Expression>>>*
+}
 %destructor non_empty_arguments_list { delete $$; }
 
 non_empty_arguments_list(OUT) ::= expr(E). {
   if (E == nullptr) {
     OUT = nullptr;
   } else {
-    OUT = new vector<unique_ptr<Expression>>;
-    OUT->push_back(unique_ptr<Expression>(E));
+    OUT = new vector<NonNull<unique_ptr<Expression>>>();
+    OUT->push_back(language::NonNull<std::unique_ptr<Expression>>::Unsafe(
+        unique_ptr<Expression>(E)));
     E = nullptr;
   }
 }
@@ -548,7 +551,8 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
     OUT = nullptr;
   } else {
     OUT = L;
-    OUT->push_back(unique_ptr<Expression>(E));
+    OUT->push_back(language::NonNull<std::unique_ptr<Expression>>::Unsafe(
+        unique_ptr<Expression>(E)));
     L = nullptr;
     E = nullptr;
   }

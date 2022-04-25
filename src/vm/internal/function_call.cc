@@ -21,9 +21,10 @@ using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
-bool TypeMatchesArguments(const VMType& type,
-                          const std::vector<std::unique_ptr<Expression>>& args,
-                          wstring* error) {
+bool TypeMatchesArguments(
+    const VMType& type,
+    const std::vector<NonNull<std::unique_ptr<Expression>>>& args,
+    wstring* error) {
   wstring dummy_error;
   if (error == nullptr) {
     error = &dummy_error;
@@ -54,7 +55,8 @@ bool TypeMatchesArguments(const VMType& type,
 }
 
 std::vector<VMType> DeduceTypes(
-    Expression* func, const std::vector<std::unique_ptr<Expression>>& args) {
+    Expression* func,
+    const std::vector<NonNull<std::unique_ptr<Expression>>>& args) {
   CHECK(func != nullptr);
   std::unordered_set<VMType> output;
   for (auto& type : func->Types()) {
@@ -69,7 +71,9 @@ class FunctionCall : public Expression {
  public:
   FunctionCall(
       NonNull<std::shared_ptr<Expression>> func,
-      NonNull<std::shared_ptr<std::vector<std::unique_ptr<Expression>>>> args)
+      NonNull<
+          std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
+          args)
       : func_(std::move(func)),
         args_(std::move(args)),
         types_(DeduceTypes(func_.get(), *args_)) {}
@@ -129,8 +133,8 @@ class FunctionCall : public Expression {
   static void CaptureArgs(
       Trampoline* trampoline,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer,
-      // TODO(easy, 2022-04-25): args_types should contain NonNull.
-      NonNull<std::shared_ptr<std::vector<std::unique_ptr<Expression>>>>
+      NonNull<
+          std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
           args_types,
       std::shared_ptr<std::vector<NonNull<unique_ptr<Value>>>> values,
       NonNull<std::shared_ptr<Value>> callback) {
@@ -156,7 +160,7 @@ class FunctionCall : public Expression {
           });
       return;
     }
-    std::unique_ptr<Expression>& arg = args_types->at(values->size());
+    NonNull<std::unique_ptr<Expression>>& arg = args_types->at(values->size());
     trampoline->Bounce(*arg, arg->Types()[0])
         .SetConsumer([trampoline, consumer, args_types, values,
                       callback](ValueOrError<EvaluationOutput> value) {
@@ -178,7 +182,8 @@ class FunctionCall : public Expression {
 
   // Expression that evaluates to get the function to call.
   const NonNull<std::shared_ptr<Expression>> func_;
-  const NonNull<std::shared_ptr<std::vector<std::unique_ptr<Expression>>>>
+  const NonNull<
+      std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
       args_;
   const std::vector<VMType> types_;
 };
@@ -187,16 +192,16 @@ class FunctionCall : public Expression {
 
 NonNull<std::unique_ptr<Expression>> NewFunctionCall(
     NonNull<std::unique_ptr<Expression>> func,
-    std::vector<std::unique_ptr<Expression>> args) {
+    std::vector<NonNull<std::unique_ptr<Expression>>> args) {
   return MakeNonNullUnique<FunctionCall>(
       std::move(func),
-      MakeNonNullShared<std::vector<std::unique_ptr<Expression>>>(
+      MakeNonNullShared<std::vector<NonNull<std::unique_ptr<Expression>>>>(
           std::move(args)));
 }
 
 std::unique_ptr<Expression> NewFunctionCall(
     Compilation* compilation, NonNull<std::unique_ptr<Expression>> func,
-    std::vector<std::unique_ptr<Expression>> args) {
+    std::vector<NonNull<std::unique_ptr<Expression>>> args) {
   std::vector<wstring> errors;
   wstring errors_separator;
   for (auto& type : func->Types()) {
@@ -342,10 +347,9 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
     const Value& func, std::vector<NonNull<Value::Ptr>> args,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK_EQ(func.type.type, VMType::FUNCTION);
-  std::vector<std::unique_ptr<Expression>> args_expr;
+  std::vector<NonNull<std::unique_ptr<Expression>>> args_expr;
   for (auto& a : args) {
-    args_expr.push_back(
-        std::move(NewConstantExpression(std::move(a)).get_unique()));
+    args_expr.push_back(NewConstantExpression(std::move(a)));
   }
   NonNull<std::unique_ptr<Expression>> expr =
       NewFunctionCall(NewConstantExpression(Value::NewFunction(

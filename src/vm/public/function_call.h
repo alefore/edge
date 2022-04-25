@@ -18,12 +18,12 @@ class Compilation;
 
 language::NonNull<std::unique_ptr<Expression>> NewFunctionCall(
     language::NonNull<std::unique_ptr<Expression>> func,
-    std::vector<std::unique_ptr<Expression>> args);
+    std::vector<language::NonNull<std::unique_ptr<Expression>>> args);
 
 std::unique_ptr<Expression> NewFunctionCall(
     Compilation* compilation,
     language::NonNull<std::unique_ptr<Expression>> func,
-    std::vector<std::unique_ptr<Expression>> args);
+    std::vector<language::NonNull<std::unique_ptr<Expression>>> args);
 
 futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Call(
     const Value& func, std::vector<language::NonNull<Value::Ptr>> args,

@@ -279,11 +279,9 @@ class InsertMode : public EditorMode {
             buffers_, {21},
             [options = options_,
              callback](const std::shared_ptr<OpenBuffer>& buffer) {
-              std::vector<std::unique_ptr<vm::Expression>> args;
-              args.push_back(std::move(
-                  vm::NewConstantExpression(
-                      {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(buffer)})
-                      .get_unique()));
+              std::vector<NonNull<std::unique_ptr<vm::Expression>>> args;
+              args.push_back(vm::NewConstantExpression(
+                  {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(buffer)}));
               NonNull<std::unique_ptr<Expression>> expression =
                   vm::NewFunctionCall(
                       vm::NewConstantExpression(

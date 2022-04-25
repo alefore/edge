@@ -101,9 +101,8 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
         .value = futures::Future<NonNull<std::shared_ptr<LazyString>>>().value};
   }
 
-  std::vector<std::unique_ptr<vm::Expression>> args;
-  args.push_back(std::move(
-      vm::NewConstantExpression({vm::Value::NewString(path)}).get_unique()));
+  std::vector<NonNull<std::unique_ptr<vm::Expression>>> args;
+  args.push_back(vm::NewConstantExpression({vm::Value::NewString(path)}));
   NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(MakeNonNullUnique<vm::Value>(*callback)),
       std::move(args));
