@@ -29,7 +29,7 @@ class BinaryOperator : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* evaluation,
                                                    const VMType& type) override;
 
-  std::unique_ptr<Expression> Clone() override;
+  language::NonNull<std::unique_ptr<Expression>> Clone() override;
 
  private:
   const std::shared_ptr<Expression> a_;

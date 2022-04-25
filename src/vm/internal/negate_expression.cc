@@ -6,6 +6,8 @@
 
 namespace afc::vm {
 namespace {
+using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
 
 class NegateExpression : public Expression {
@@ -30,8 +32,10 @@ class NegateExpression : public Expression {
         });
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<NegateExpression>(negate_, expr_->Clone());
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    // TODO(easy, 2022-04-25): pass expr_ directly? Avoid copying it?
+    return MakeNonNullUnique<NegateExpression>(
+        negate_, std::move(expr_->Clone().get_unique()));
   }
 
  private:

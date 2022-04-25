@@ -9,6 +9,7 @@
 namespace afc {
 namespace vm {
 using language::MakeNonNullUnique;
+using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
@@ -54,9 +55,11 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
       });
 }
 
-std::unique_ptr<Expression> BinaryOperator::Clone() {
-  return std::make_unique<BinaryOperator>(a_->Clone(), b_->Clone(), type_,
-                                          operator_);
+NonNull<std::unique_ptr<Expression>> BinaryOperator::Clone() {
+  // TODO(easy, 2022-04-25): Drop the get_unique.
+  return MakeNonNullUnique<BinaryOperator>(std::move(a_->Clone().get_unique()),
+                                           std::move(b_->Clone().get_unique()),
+                                           type_, operator_);
 }
 
 std::unique_ptr<Expression> NewBinaryExpression(

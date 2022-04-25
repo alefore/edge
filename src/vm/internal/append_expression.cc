@@ -6,6 +6,8 @@
 
 namespace afc::vm {
 namespace {
+using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
 
 class AppendExpression : public Expression {
@@ -43,8 +45,8 @@ class AppendExpression : public Expression {
         });
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<AppendExpression>(e0_, e1_, return_types_);
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    return MakeNonNullUnique<AppendExpression>(e0_, e1_, return_types_);
   }
 
  private:

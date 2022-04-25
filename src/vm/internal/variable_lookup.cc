@@ -12,6 +12,7 @@
 namespace afc::vm {
 namespace {
 using language::Error;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::VisitPointer;
@@ -46,8 +47,9 @@ class VariableLookup : public Expression {
         }));
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<VariableLookup>(symbol_namespace_, symbol_, types_);
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    return MakeNonNullUnique<VariableLookup>(symbol_namespace_, symbol_,
+                                             types_);
   }
 
  private:

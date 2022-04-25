@@ -9,6 +9,8 @@
 namespace afc::vm {
 namespace {
 using language::Error;
+using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
 
 class NamespaceExpression : public Expression {
@@ -16,6 +18,7 @@ class NamespaceExpression : public Expression {
   NamespaceExpression(Environment::Namespace full_namespace,
                       std::shared_ptr<Expression> body)
       : namespace_(full_namespace), body_(std::move(body)) {
+    // TODO(easy, 2022-04-25): Make body_ NonNull.
     CHECK(body_ != nullptr);
   }
 
@@ -47,8 +50,8 @@ class NamespaceExpression : public Expression {
                    });
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<NamespaceExpression>(namespace_, body_);
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    return MakeNonNullUnique<NamespaceExpression>(namespace_, body_);
   }
 
  private:

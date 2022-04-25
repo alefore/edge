@@ -29,8 +29,9 @@ class ConstantExpression : public Expression {
         Success(EvaluationOutput::New(MakeNonNullUnique<Value>(*value_))));
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<ConstantExpression>(
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    // Maybe make value_ a shared_ptr<> and avoid the deep copy?
+    return MakeNonNullUnique<ConstantExpression>(
         MakeNonNullUnique<Value>(*value_));
   }
 

@@ -8,6 +8,8 @@
 
 namespace afc::vm {
 namespace {
+using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
 
 class ReturnExpression : public Expression {
@@ -32,8 +34,8 @@ class ReturnExpression : public Expression {
         });
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<ReturnExpression>(expr_);
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    return MakeNonNullUnique<ReturnExpression>(expr_);
   }
 
  private:

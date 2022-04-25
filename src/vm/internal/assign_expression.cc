@@ -11,6 +11,7 @@
 namespace afc::vm {
 namespace {
 using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
 
 class AssignExpression : public Expression {
@@ -58,9 +59,10 @@ class AssignExpression : public Expression {
             });
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<AssignExpression>(assignment_type_, symbol_,
-                                              value_->Clone());
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    // TODO(easy, 2022-04-25) Avoid the call to Clone below?
+    return MakeNonNullUnique<AssignExpression>(
+        assignment_type_, symbol_, std::move(value_->Clone().get_unique()));
   }
 
  private:

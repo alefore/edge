@@ -9,6 +9,8 @@
 
 namespace afc::vm {
 namespace {
+using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
 
 class LogicalExpression : public Expression {
@@ -49,12 +51,13 @@ class LogicalExpression : public Expression {
         });
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<LogicalExpression>(identity_, expr_a_, expr_b_);
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    return MakeNonNullUnique<LogicalExpression>(identity_, expr_a_, expr_b_);
   }
 
  private:
   const bool identity_;
+  // TODO(easy, 2022-04-25), Why are these not NonNull?
   const std::shared_ptr<Expression> expr_a_;
   const std::shared_ptr<Expression> expr_b_;
 };

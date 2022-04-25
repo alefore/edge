@@ -7,6 +7,8 @@
 
 namespace afc::vm {
 namespace {
+using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
@@ -61,9 +63,9 @@ class IfExpression : public Expression {
         });
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<IfExpression>(cond_, true_case_, false_case_,
-                                          return_types_);
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    return MakeNonNullUnique<IfExpression>(cond_, true_case_, false_case_,
+                                           return_types_);
   }
 
  private:

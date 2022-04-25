@@ -91,7 +91,7 @@ class Expression {
   virtual PurityType purity() = 0;
 
   // Returns a new copy of this expression.
-  virtual std::unique_ptr<Expression> Clone() = 0;
+  virtual language::NonNull<std::unique_ptr<Expression>> Clone() = 0;
 
   // The expression may be deleted as soon as `Evaluate` returns, even before
   // the returned Value has been given a value.

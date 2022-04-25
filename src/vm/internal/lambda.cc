@@ -106,9 +106,9 @@ class LambdaExpression : public Expression {
     return output;
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<LambdaExpression>(type_, argument_names_, body_,
-                                              promotion_function_);
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    return MakeNonNullUnique<LambdaExpression>(type_, argument_names_, body_,
+                                               promotion_function_);
   }
 
  private:

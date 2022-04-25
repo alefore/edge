@@ -606,6 +606,7 @@ Trampoline::Trampoline(Options options)
     : environment_(std::move(options.environment)),
       yield_callback_(std::move(options.yield_callback)) {}
 
+// TODO(easy, 2022-04-25): Receive expression by value.
 futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
     Expression* expression, VMType type) {
   if (!expression->SupportsType(type)) {
@@ -618,8 +619,9 @@ futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
   }
 
   futures::Future<language::ValueOrError<EvaluationOutput>> output;
-  yield_callback_([this, expression_raw = expression->Clone().release(), type,
-                   consumer = std::move(output.consumer)]() mutable {
+  yield_callback_([this,
+                   expression_raw = expression->Clone().get_unique().release(),
+                   type, consumer = std::move(output.consumer)]() mutable {
     std::unique_ptr<Expression> expression(expression_raw);
     jumps_ = 0;
     Bounce(expression.get(), type).SetConsumer(std::move(consumer));

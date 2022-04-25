@@ -9,6 +9,8 @@
 
 namespace afc::vm {
 namespace {
+using language::MakeNonNullUnique;
+using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
@@ -42,8 +44,8 @@ class WhileExpression : public Expression {
     return std::move(output.value);
   }
 
-  std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<WhileExpression>(condition_, body_);
+  NonNull<std::unique_ptr<Expression>> Clone() override {
+    return MakeNonNullUnique<WhileExpression>(condition_, body_);
   }
 
  private:
