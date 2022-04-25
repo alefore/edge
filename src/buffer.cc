@@ -151,21 +151,11 @@ void RegisterBufferFields(
 NonNull<std::shared_ptr<const Line>> AddLineMetadata(
     OpenBuffer& buffer, NonNull<std::shared_ptr<const Line>> line) {
   if (line->metadata() != nullptr) return line;
-  std::wstring error_description;
-  std::shared_ptr<Expression> expr;
-  std::shared_ptr<Environment> sub_environment;
-  if (!line->empty()) {
-    if (auto compilation_result =
-            buffer.CompileString(line->contents()->ToString());
-        !compilation_result.IsError()) {
-      std::tie(expr, sub_environment) = std::move(compilation_result.value());
-    }
-  }
-  if (expr == nullptr)
-    return line->metadata() == nullptr
-               ? line
-               : MakeNonNullShared<const Line>(
-                     line->CopyOptions().SetMetadata(std::nullopt));
+  if (line->empty()) return line;
+
+  auto compilation_result = buffer.CompileString(line->contents()->ToString());
+  if (compilation_result.IsError()) return line;
+  auto [expr, sub_environment] = std::move(compilation_result.value());
   std::wstring description = L"C++: " + TypesToString(expr->Types());
   if (expr->purity() == Expression::PurityType::kPure) {
     description += L" ...";
@@ -180,24 +170,26 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
           line->CopyOptions().SetMetadata(std::nullopt));
     }
     futures::Future<NonNull<std::shared_ptr<LazyString>>> metadata_future;
-    buffer.work_queue()->Schedule([buffer = buffer.shared_from_this(), expr,
-                                   sub_environment,
-                                   consumer = metadata_future.consumer] {
-      buffer->EvaluateExpression(*expr, sub_environment)
-          .Transform([](NonNull<std::unique_ptr<Value>> value) {
-            std::ostringstream oss;
-            oss << *value;
-            return Success(NewLazyString(FromByteString(oss.str())));
-          })
-          .ConsumeErrors([](Error error) {
-            return futures::Past(
-                NewLazyString(L"E: " + std::move(error.description)));
-          })
-          .Transform([consumer](NonNull<std::shared_ptr<LazyString>> output) {
-            consumer(output);
-            return Success();
-          });
-    });
+    buffer.work_queue()->Schedule(
+        [buffer = buffer.shared_from_this(),
+         expr = NonNull<std::shared_ptr<Expression>>(std::move(expr)),
+         sub_environment, consumer = metadata_future.consumer] {
+          buffer->EvaluateExpression(*expr, sub_environment)
+              .Transform([](NonNull<std::unique_ptr<Value>> value) {
+                std::ostringstream oss;
+                oss << *value;
+                return Success(NewLazyString(FromByteString(oss.str())));
+              })
+              .ConsumeErrors([](Error error) {
+                return futures::Past(
+                    NewLazyString(L"E: " + std::move(error.description)));
+              })
+              .Transform(
+                  [consumer](NonNull<std::shared_ptr<LazyString>> output) {
+                    consumer(output);
+                    return Success();
+                  });
+        });
     metadata_value = std::move(metadata_future.value);
   }
 
@@ -1339,14 +1331,14 @@ void OpenBuffer::AppendToLastLine(Line line) {
                        BufferContents::CursorsBehavior::kUnmodified);
 }
 
-ValueOrError<
-    std::pair<std::unique_ptr<Expression>, std::shared_ptr<Environment>>>
+ValueOrError<std::pair<NonNull<std::unique_ptr<Expression>>,
+                       std::shared_ptr<Environment>>>
 OpenBuffer::CompileString(const std::wstring& code) {
   auto sub_environment = std::make_shared<Environment>(environment_);
-  auto expression = afc::vm::CompileString(code, sub_environment);
-  if (expression.IsError()) return expression.error();
-  return Success(std::make_pair(std::move(expression.value().get_unique()),
-                                sub_environment));
+  auto compilation_result = afc::vm::CompileString(code, sub_environment);
+  if (compilation_result.IsError()) return compilation_result.error();
+  return Success(
+      std::make_pair(std::move(compilation_result.value()), sub_environment));
 }
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>>
@@ -1371,8 +1363,6 @@ OpenBuffer::EvaluateString(const wstring& code) {
         ValueOrError<NonNull<std::unique_ptr<Value>>>(std::move(error)));
   }
   auto [expression, environment] = std::move(compilation_result.value());
-  // TODO(easy, 2022-04-25): Receive expression as NonNull.
-  CHECK(expression != nullptr);
   LOG(INFO) << "Code compiled, evaluating.";
   return EvaluateExpression(*expression, environment);
 }

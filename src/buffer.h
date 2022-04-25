@@ -352,7 +352,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   }
 
   language::ValueOrError<
-      std::pair<std::unique_ptr<Expression>, std::shared_ptr<Environment>>>
+      std::pair<language::NonNull<std::unique_ptr<Expression>>,
+                std::shared_ptr<Environment>>>
   CompileString(const wstring& str);
 
   // `expr` can be deleted as soon as we return.

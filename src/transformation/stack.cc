@@ -47,11 +47,7 @@ futures::Value<PossibleError> PreviewCppExpression(
   auto compilation_result = buffer.CompileString(expression_str.ToString());
   if (compilation_result.IsError())
     return futures::Past(compilation_result.error());
-  std::shared_ptr<Expression> expression;
-  std::shared_ptr<Environment> environment;
-  std::tie(expression, environment) = std::move(compilation_result.value());
-  // TODO(easy, 2022-04-25): Expression should be NonNull.
-  CHECK(expression != nullptr);
+  auto [expression, environment] = std::move(compilation_result.value());
   buffer.status().Reset();
   switch (expression->purity()) {
     case vm::Expression::PurityType::kPure: {
