@@ -14,18 +14,15 @@ using language::ValueOrError;
 
 class IfExpression : public Expression {
  public:
-  IfExpression(std::shared_ptr<Expression> cond,
-               std::shared_ptr<Expression> true_case,
-               std::shared_ptr<Expression> false_case,
+  IfExpression(NonNull<std::shared_ptr<Expression>> cond,
+               NonNull<std::shared_ptr<Expression>> true_case,
+               NonNull<std::shared_ptr<Expression>> false_case,
                std::unordered_set<VMType> return_types)
       : cond_(std::move(cond)),
         true_case_(std::move(true_case)),
         false_case_(std::move(false_case)),
         return_types_(std::move(return_types)) {
-    CHECK(cond_ != nullptr);
     CHECK(cond_->IsBool());
-    CHECK(true_case_ != nullptr);
-    CHECK(false_case_ != nullptr);
   }
 
   std::vector<VMType> Types() override { return true_case_->Types(); }
@@ -67,10 +64,9 @@ class IfExpression : public Expression {
   }
 
  private:
-  // TODO(easy, 2022-04-25): NonNull:
-  const std::shared_ptr<Expression> cond_;
-  const std::shared_ptr<Expression> true_case_;
-  const std::shared_ptr<Expression> false_case_;
+  const NonNull<std::shared_ptr<Expression>> cond_;
+  const NonNull<std::shared_ptr<Expression>> true_case_;
+  const NonNull<std::shared_ptr<Expression>> false_case_;
   const std::unordered_set<VMType> return_types_;
 };
 
@@ -107,7 +103,9 @@ std::unique_ptr<Expression> NewIfExpression(
   }
 
   return std::make_unique<IfExpression>(
-      std::move(condition), std::move(true_case), std::move(false_case),
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(condition)),
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(true_case)),
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(false_case)),
       std::move(return_types.value()));
 }
 
