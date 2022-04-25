@@ -16,12 +16,9 @@ using language::ValueOrError;
 
 class WhileExpression : public Expression {
  public:
-  WhileExpression(std::shared_ptr<Expression> condition,
-                  std::shared_ptr<Expression> body)
-      : condition_(std::move(condition)), body_(std::move(body)) {
-    CHECK(condition_ != nullptr);
-    CHECK(body_ != nullptr);
-  }
+  WhileExpression(NonNull<std::shared_ptr<Expression>> condition,
+                  NonNull<std::shared_ptr<Expression>> body)
+      : condition_(std::move(condition)), body_(std::move(body)) {}
 
   std::vector<VMType> Types() { return {VMType::Void()}; }
 
@@ -49,10 +46,9 @@ class WhileExpression : public Expression {
   }
 
  private:
-  // TODO(easy, 2022-04-25): condition and body should be NonNull.
   static void Iterate(
-      Trampoline* trampoline, std::shared_ptr<Expression> condition,
-      std::shared_ptr<Expression> body,
+      Trampoline* trampoline, NonNull<std::shared_ptr<Expression>> condition,
+      NonNull<std::shared_ptr<Expression>> body,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer) {
     trampoline->Bounce(*condition, VMType::Bool())
         .SetConsumer([condition, body, consumer, trampoline](
@@ -90,8 +86,8 @@ class WhileExpression : public Expression {
         });
   }
 
-  const std::shared_ptr<Expression> condition_;
-  const std::shared_ptr<Expression> body_;
+  const NonNull<std::shared_ptr<Expression>> condition_;
+  const NonNull<std::shared_ptr<Expression>> body_;
 };
 
 }  // namespace
@@ -109,8 +105,9 @@ std::unique_ptr<Expression> NewWhileExpression(
     return nullptr;
   }
 
-  return std::make_unique<WhileExpression>(std::move(condition),
-                                           std::move(body));
+  return std::make_unique<WhileExpression>(
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(condition)),
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(body)));
 }
 
 std::unique_ptr<Expression> NewForExpression(
