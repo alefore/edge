@@ -77,13 +77,18 @@ NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
 
 void FinishClassDeclaration(
     Compilation* compilation,
-    std::unique_ptr<Expression> constructor_expression) {
+    std::unique_ptr<Expression> constructor_expression_input) {
   CHECK(compilation != nullptr);
-  CHECK(constructor_expression != nullptr);
-  // TODO(easy, 2022-04-25): Make NonNull.
-  std::shared_ptr<Expression> constructor_expression_shared =
-      NewAppendExpression(compilation, std::move(constructor_expression),
-                          std::move(NewVoidExpression().get_unique()));
+  // TODO(easy): Receive constructor_expression_input as NonNull.
+  CHECK(constructor_expression_input != nullptr);
+  ValueOrError<NonNull<std::unique_ptr<Expression>>> constructor_expression =
+      NewAppendExpression(NonNull<std::unique_ptr<Expression>>::Unsafe(
+                              std::move(constructor_expression_input)),
+                          NewVoidExpression());
+  if (constructor_expression.IsError()) {
+    compilation->errors.push_back(constructor_expression.error().description);
+    return;
+  }
   auto class_type = std::move(compilation->current_class.back());
   compilation->current_class.pop_back();
   auto class_object_type = MakeNonNullUnique<ObjectType>(class_type);
@@ -104,10 +109,12 @@ void FinishClassDeclaration(
   compilation->environment->DefineType(class_type.object_type,
                                        std::move(class_object_type));
   auto constructor = MakeNonNullUnique<Value>(VMType::FUNCTION);
-  constructor->type.function_purity = constructor_expression_shared->purity();
+  constructor->type.function_purity = constructor_expression.value()->purity();
   constructor->type.type_arguments.push_back(class_type);
-  constructor->callback = [constructor_expression_shared, class_environment,
-                           class_type,
+  constructor->callback = [constructor_expression_shared =
+                               NonNull<std::shared_ptr<Expression>>(
+                                   std::move(constructor_expression.value())),
+                           class_environment, class_type,
                            values](std::vector<NonNull<std::unique_ptr<Value>>>,
                                    Trampoline* trampoline) {
     auto instance_environment =

@@ -9,6 +9,7 @@ namespace {
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
+using language::ValueOrError;
 
 class AppendExpression : public Expression {
  public:
@@ -63,18 +64,29 @@ std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
   if (a == nullptr || b == nullptr) {
     return nullptr;
   }
-  if (a->purity() == Expression::PurityType::kPure && a->ReturnTypes().empty())
-    return b;
-  auto return_types = CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes());
-  if (return_types.IsError()) {
-    compilation->errors.push_back(return_types.error().description);
+  auto result = NewAppendExpression(
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)));
+  if (result.IsError()) {
+    compilation->errors.push_back(result.error().description);
     return nullptr;
   }
+  return std::move(result.value().get_unique());
+}
 
-  return std::make_unique<AppendExpression>(
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-      std::move(return_types.value()));
+ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
+    NonNull<std::unique_ptr<Expression>> a,
+    NonNull<std::unique_ptr<Expression>> b) {
+  if (a->purity() == Expression::PurityType::kPure && a->ReturnTypes().empty())
+    return Success(std::move(b));
+  auto return_types = CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes());
+  if (return_types.IsError()) {
+    return return_types.error();
+  }
+
+  return Success<NonNull<std::unique_ptr<Expression>>>(
+      MakeNonNullUnique<AppendExpression>(std::move(a), std::move(b),
+                                          std::move(return_types.value())));
 }
 
 }  // namespace afc::vm
