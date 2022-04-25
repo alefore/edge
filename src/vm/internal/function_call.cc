@@ -15,6 +15,7 @@
 namespace afc::vm {
 namespace {
 using language::Error;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -67,13 +68,13 @@ std::vector<VMType> DeduceTypes(
 class FunctionCall : public Expression {
  public:
   // TODO(easy, 2022-04-25): Make func NonNull.
-  FunctionCall(std::unique_ptr<Expression> func,
-               std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args)
+  FunctionCall(
+      std::unique_ptr<Expression> func,
+      NonNull<std::shared_ptr<std::vector<std::unique_ptr<Expression>>>> args)
       : func_(std::move(func)),
         args_(std::move(args)),
         types_(DeduceTypes(func_.get(), *args_)) {
     CHECK(func_ != nullptr);
-    CHECK(args_ != nullptr);
   }
 
   std::vector<VMType> Types() override { return types_; }
@@ -134,10 +135,10 @@ class FunctionCall : public Expression {
       Trampoline* trampoline,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer,
       // TODO(easy, 2022-04-25): args_types should contain NonNull.
-      std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_types,
+      NonNull<std::shared_ptr<std::vector<std::unique_ptr<Expression>>>>
+          args_types,
       std::shared_ptr<std::vector<NonNull<unique_ptr<Value>>>> values,
       NonNull<std::shared_ptr<Value>> callback) {
-    CHECK(args_types != nullptr);
     CHECK(values != nullptr);
     CHECK_EQ(callback->type.type, VMType::FUNCTION);
     CHECK(callback->callback != nullptr);
@@ -182,7 +183,8 @@ class FunctionCall : public Expression {
 
   // Expression that evaluates to get the function to call.
   const std::unique_ptr<Expression> func_;
-  const std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_;
+  const NonNull<std::shared_ptr<std::vector<std::unique_ptr<Expression>>>>
+      args_;
   const std::vector<VMType> types_;
 };
 
@@ -193,7 +195,7 @@ NonNull<std::unique_ptr<Expression>> NewFunctionCall(
     std::vector<std::unique_ptr<Expression>> args) {
   return MakeNonNullUnique<FunctionCall>(
       std::move(func),
-      std::make_shared<std::vector<std::unique_ptr<Expression>>>(
+      MakeNonNullShared<std::vector<std::unique_ptr<Expression>>>(
           std::move(args)));
 }
 
