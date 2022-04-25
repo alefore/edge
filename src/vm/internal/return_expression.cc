@@ -27,7 +27,7 @@ class ReturnExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                                    const VMType&) override {
-    return trampoline->Bounce(expr_.get(), expr_->Types()[0])
+    return trampoline->Bounce(*expr_, expr_->Types()[0])
         .Transform([](EvaluationOutput expr_output) {
           return Success(
               EvaluationOutput::Return(std::move(expr_output.value)));
@@ -39,6 +39,7 @@ class ReturnExpression : public Expression {
   }
 
  private:
+  // TODO(easy, 2022-04-25): Make NonNull.
   const std::shared_ptr<Expression> expr_;
 };
 

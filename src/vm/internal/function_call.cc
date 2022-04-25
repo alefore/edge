@@ -66,6 +66,7 @@ std::vector<VMType> DeduceTypes(
 
 class FunctionCall : public Expression {
  public:
+  // TODO(easy, 2022-04-25): Make func NonNull.
   FunctionCall(std::unique_ptr<Expression> func,
                std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args)
       : func_(std::move(func)),
@@ -106,8 +107,7 @@ class FunctionCall : public Expression {
     }
 
     return trampoline
-        ->Bounce(func_.get(),
-                 VMType::Function(std::move(type_arguments), purity()))
+        ->Bounce(*func_, VMType::Function(std::move(type_arguments), purity()))
         .Transform([trampoline, args_types = args_](EvaluationOutput callback) {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
             return futures::Past(Success(std::move(callback)));
@@ -124,7 +124,7 @@ class FunctionCall : public Expression {
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {
-    // TODO(easy, 2022-04-25): Drop the get_unique.
+    // TODO(easy, 2022-04-25): Drop the get_unique. Also avoid the deep copy.
     return MakeNonNullUnique<FunctionCall>(
         std::move(func_->Clone().get_unique()), args_);
   }
@@ -133,6 +133,7 @@ class FunctionCall : public Expression {
   static void CaptureArgs(
       Trampoline* trampoline,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer,
+      // TODO(easy, 2022-04-25): args_types should contain NonNull.
       std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_types,
       std::shared_ptr<std::vector<NonNull<unique_ptr<Value>>>> values,
       NonNull<std::shared_ptr<Value>> callback) {
@@ -159,8 +160,8 @@ class FunctionCall : public Expression {
           });
       return;
     }
-    auto arg = args_types->at(values->size()).get();
-    trampoline->Bounce(arg, arg->Types()[0])
+    std::unique_ptr<Expression>& arg = args_types->at(values->size());
+    trampoline->Bounce(*arg, arg->Types()[0])
         .SetConsumer([trampoline, consumer, args_types, values,
                       callback](ValueOrError<EvaluationOutput> value) {
           CHECK(values != nullptr);
@@ -295,7 +296,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
       futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
           Trampoline* trampoline, const VMType& type) override {
-        return trampoline->Bounce(obj_expr_.get(), obj_expr_->Types()[0])
+        return trampoline->Bounce(*obj_expr_, obj_expr_->Types()[0])
             .Transform([type, shared_type = type_,
                         shared_delegate = delegate_](EvaluationOutput output)
                            -> ValueOrError<EvaluationOutput> {

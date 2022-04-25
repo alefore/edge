@@ -80,6 +80,7 @@ void FinishClassDeclaration(
     std::unique_ptr<Expression> constructor_expression) {
   CHECK(compilation != nullptr);
   CHECK(constructor_expression != nullptr);
+  // TODO(easy, 2022-04-25): Make NonNull.
   std::shared_ptr<Expression> constructor_expression_shared =
       NewAppendExpression(compilation, std::move(constructor_expression),
                           NewVoidExpression());
@@ -113,8 +114,7 @@ void FinishClassDeclaration(
         std::make_shared<Environment>(class_environment->parent_environment());
     auto original_environment = trampoline->environment();
     trampoline->SetEnvironment(instance_environment);
-    return trampoline
-        ->Bounce(constructor_expression_shared.get(), VMType::Void())
+    return trampoline->Bounce(*constructor_expression_shared, VMType::Void())
         .Transform([constructor_expression_shared, original_environment,
                     class_type, instance_environment,
                     trampoline](EvaluationOutput constructor_evaluation)

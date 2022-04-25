@@ -95,7 +95,7 @@ class LambdaExpression : public Expression {
           }
           auto original_trampoline = *trampoline;
           trampoline->SetEnvironment(environment);
-          return trampoline->Bounce(body.get(), body->Types()[0])
+          return trampoline->Bounce(*body, body->Types()[0])
               .Transform([original_trampoline, trampoline, body,
                           promotion_function](EvaluationOutput body_output) {
                 *trampoline = original_trampoline;
@@ -114,6 +114,7 @@ class LambdaExpression : public Expression {
  private:
   VMType type_;
   const std::shared_ptr<std::vector<std::wstring>> argument_names_;
+  // TODO(easy, 2022-04-25): NonNull.
   const std::shared_ptr<Expression> body_;
   const std::function<NonNull<std::unique_ptr<Value>>(
       NonNull<std::unique_ptr<Value>>)>

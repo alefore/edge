@@ -606,25 +606,24 @@ Trampoline::Trampoline(Options options)
     : environment_(std::move(options.environment)),
       yield_callback_(std::move(options.yield_callback)) {}
 
-// TODO(easy, 2022-04-25): Receive expression by value.
 futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
-    Expression* expression, VMType type) {
-  if (!expression->SupportsType(type)) {
-    LOG(FATAL) << "Expression has types: " << TypesToString(expression->Types())
+    Expression& expression, VMType type) {
+  if (!expression.SupportsType(type)) {
+    LOG(FATAL) << "Expression has types: " << TypesToString(expression.Types())
                << ", expected: " << type;
   }
   static const size_t kMaximumJumps = 100;
   if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr) {
-    return expression->Evaluate(this, type);
+    return expression.Evaluate(this, type);
   }
 
   futures::Future<language::ValueOrError<EvaluationOutput>> output;
   yield_callback_([this,
-                   expression_raw = expression->Clone().get_unique().release(),
+                   expression_raw = expression.Clone().get_unique().release(),
                    type, consumer = std::move(output.consumer)]() mutable {
     std::unique_ptr<Expression> expression(expression_raw);
     jumps_ = 0;
-    Bounce(expression.get(), type).SetConsumer(std::move(consumer));
+    Bounce(*expression, type).SetConsumer(std::move(consumer));
   });
   return std::move(output.value);
 }
@@ -655,7 +654,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
       Trampoline::Options{.environment = std::move(environment),
                           .yield_callback = std::move(yield_callback)});
   return OnError(
-      trampoline->Bounce(&expr, expr.Types()[0])
+      trampoline->Bounce(expr, expr.Types()[0])
           .Transform(
               [trampoline](EvaluationOutput value)
                   -> language::ValueOrError<NonNull<std::unique_ptr<Value>>> {

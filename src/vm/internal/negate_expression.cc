@@ -25,7 +25,7 @@ class NegateExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
                                                    const VMType&) override {
-    return trampoline->Bounce(expr_.get(), expr_->Types()[0])
+    return trampoline->Bounce(*expr_, expr_->Types()[0])
         .Transform([negate = negate_](EvaluationOutput expr_output) {
           negate(expr_output.value.get());
           return Success(EvaluationOutput::New(std::move(expr_output.value)));

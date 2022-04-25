@@ -48,7 +48,7 @@ class Trampoline {
 
   // Expression can be deleted as soon as this returns (even before a value is
   // given to the returned future).
-  futures::ValueOrError<EvaluationOutput> Bounce(Expression* expression,
+  futures::ValueOrError<EvaluationOutput> Bounce(Expression& expression,
                                                  VMType expression_type);
 
  private:

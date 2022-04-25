@@ -37,10 +37,10 @@ Expression::PurityType BinaryOperator::purity() {
 futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
     Trampoline* trampoline, const VMType& type) {
   CHECK(type_ == type);
-  return trampoline->Bounce(a_.get(), a_->Types()[0])
+  return trampoline->Bounce(*a_, a_->Types()[0])
       .Transform([b = b_, type = type_, op = operator_,
                   trampoline](EvaluationOutput a_value) {
-        return trampoline->Bounce(b.get(), b->Types()[0])
+        return trampoline->Bounce(*b, b->Types()[0])
             .Transform(
                 [a_value = std::make_shared<Value>(std::move(*a_value.value)),
                  type, op](EvaluationOutput b_value)

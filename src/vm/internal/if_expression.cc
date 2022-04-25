@@ -44,7 +44,7 @@ class IfExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(
       Trampoline* trampoline, const VMType& type) override {
-    return trampoline->Bounce(cond_.get(), VMType::Bool())
+    return trampoline->Bounce(*cond_, VMType::Bool())
         .Transform([type, true_case = true_case_, false_case = false_case_,
                     trampoline](EvaluationOutput cond_output)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -52,10 +52,8 @@ class IfExpression : public Expression {
             case EvaluationOutput::OutputType::kReturn:
               return futures::Past(Success(std::move(cond_output)));
             case EvaluationOutput::OutputType::kContinue:
-              return trampoline->Bounce(cond_output.value->boolean
-                                            ? true_case.get()
-                                            : false_case.get(),
-                                        type);
+              return trampoline->Bounce(
+                  cond_output.value->boolean ? *true_case : *false_case, type);
           }
           language::Error error(L"Unhandled OutputType case.");
           LOG(FATAL) << error;
@@ -69,6 +67,7 @@ class IfExpression : public Expression {
   }
 
  private:
+  // TODO(easy, 2022-04-25): NonNull:
   const std::shared_ptr<Expression> cond_;
   const std::shared_ptr<Expression> true_case_;
   const std::shared_ptr<Expression> false_case_;
