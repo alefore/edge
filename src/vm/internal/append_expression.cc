@@ -12,8 +12,8 @@ using language::Success;
 
 class AppendExpression : public Expression {
  public:
-  AppendExpression(std::shared_ptr<Expression> e0,
-                   std::shared_ptr<Expression> e1,
+  AppendExpression(NonNull<std::shared_ptr<Expression>> e0,
+                   NonNull<std::shared_ptr<Expression>> e1,
                    std::unordered_set<VMType> return_types)
       : e0_(std::move(e0)), e1_(std::move(e1)), return_types_(return_types) {
     // Check that the optimization in NewAppendExpression is applied.
@@ -50,9 +50,8 @@ class AppendExpression : public Expression {
   }
 
  private:
-  // TODO(easy, 2022-04-25): Make these NonNull.
-  const std::shared_ptr<Expression> e0_;
-  const std::shared_ptr<Expression> e1_;
+  const NonNull<std::shared_ptr<Expression>> e0_;
+  const NonNull<std::shared_ptr<Expression>> e1_;
   const std::unordered_set<VMType> return_types_;
 };
 
@@ -72,8 +71,10 @@ std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
     return nullptr;
   }
 
-  return std::make_unique<AppendExpression>(std::move(a), std::move(b),
-                                            std::move(return_types.value()));
+  return std::make_unique<AppendExpression>(
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+      std::move(return_types.value()));
 }
 
 }  // namespace afc::vm
