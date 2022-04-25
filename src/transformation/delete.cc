@@ -49,7 +49,7 @@ const VMType
 namespace editor {
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
-
+using language::VisitPointer;
 std::ostream& operator<<(std::ostream& os,
                          const transformation::Delete& options) {
   os << "[Delete: modifiers:" << options.modifiers << "]";
@@ -100,21 +100,23 @@ void HandleLineDeletion(LineColumn position, OpenBuffer& buffer) {
   }
 
   if (contents == nullptr) return;
-  auto callback = contents->environment()->Lookup(
-      Environment::Namespace(), L"EdgeLineDeleteHandler",
-      VMType::Function({VMType::Void()}));
-  if (callback == nullptr) return;
-  LOG(INFO) << "Running EdgeLineDeleteHandler.";
-  std::shared_ptr<Expression> expr = vm::NewFunctionCall(
-      vm::NewConstantExpression(
-          NonNull<std::unique_ptr<Value>>::Unsafe(std::move(callback))),
-      {});
-  // TODO(easy): I think we don't need to keep expr alive?
-  Evaluate(
-      expr.get(), buffer.environment(),
-      [work_queue = target_buffer->work_queue()](
-          std::function<void()> callback) { work_queue->Schedule(callback); })
-      .SetConsumer([expr](auto) { /* Keep expr alive. */ });
+  VisitPointer(
+      contents->environment()->Lookup(Environment::Namespace(),
+                                      L"EdgeLineDeleteHandler",
+                                      VMType::Function({VMType::Void()})),
+      [&](NonNull<std::unique_ptr<Value>> callback) {
+        LOG(INFO) << "Running EdgeLineDeleteHandler.";
+        std::shared_ptr<Expression> expr = vm::NewFunctionCall(
+            vm::NewConstantExpression(std::move(callback)), {});
+        // TODO(easy): I think we don't need to keep expr alive?
+        Evaluate(expr.get(), buffer.environment(),
+                 [work_queue = target_buffer->work_queue()](
+                     std::function<void()> callback) {
+                   work_queue->Schedule(callback);
+                 })
+            .SetConsumer([expr](auto) { /* Keep expr alive. */ });
+      },
+      [] {});
 }
 }  // namespace
 namespace transformation {

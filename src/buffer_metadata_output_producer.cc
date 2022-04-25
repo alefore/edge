@@ -24,6 +24,7 @@ namespace {
 using language::CaptureAndHash;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::VisitPointer;
 
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
           wchar_t connect_final_char, wstring& output) {
@@ -327,18 +328,19 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     info_char_modifier = LineModifier::DIM;
   }
 
-  if (std::shared_ptr<LazyString> metadata_raw = contents.metadata();
-      metadata_raw != nullptr && !metadata_raw->size().IsZero()) {
-    auto metadata =
-        NonNull<std::shared_ptr<LazyString>>::Unsafe(std::move(metadata_raw));
-    ForEachColumn(*metadata, [](ColumnNumber, wchar_t c) {
-      CHECK(c != L'\n') << "Metadata has invalid newline character.";
-    });
-    output.push_back(
-        MetadataLine{L'>', LineModifier::GREEN,
-                     MakeNonNullShared<const Line>(std::move(metadata)),
-                     MetadataLine::Type::kLineContents});
-  }
+  VisitPointer(
+      contents.metadata(),
+      [&output](NonNull<std::shared_ptr<LazyString>> metadata) {
+        if (metadata->size().IsZero()) return;
+        ForEachColumn(*metadata, [](ColumnNumber, wchar_t c) {
+          CHECK(c != L'\n') << "Metadata has invalid newline character.";
+        });
+        output.push_back(
+            MetadataLine{L'>', LineModifier::GREEN,
+                         MakeNonNullShared<const Line>(std::move(metadata)),
+                         MetadataLine::Type::kLineContents});
+      },
+      [] {});
 
   std::list<LineMarks::Mark> marks;
   std::list<LineMarks::Mark> marks_expired;

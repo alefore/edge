@@ -200,5 +200,13 @@ NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg&&... arg) {
       std::make_shared<T>(std::forward<Arg>(arg)...));
 }
 
+template <typename T, typename Callable, typename NullCallable>
+auto VisitPointer(T t, Callable callable, NullCallable null_callable) {
+  if (t == nullptr)
+    return null_callable();
+  else
+    return callable(NonNull<T>::Unsafe(std::move(t)));
+}
+
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_SAFE_TYPES_H__

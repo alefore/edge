@@ -14,6 +14,8 @@ using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
+using language::ValueOrError;
+using language::VisitPointer;
 
 struct Instance {
   std::shared_ptr<Environment> environment = std::make_shared<Environment>();
@@ -60,9 +62,14 @@ NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
     auto instance = static_cast<Instance*>(args[0]->user_value.get());
     CHECK(instance != nullptr);
     static Environment::Namespace empty_namespace;
-    return futures::Past(Success(EvaluationOutput::New(
-        NonNull<std::unique_ptr<Value>>::Unsafe(instance->environment->Lookup(
-            empty_namespace, field_name, field_type)))));
+    return futures::Past(VisitPointer(
+        instance->environment->Lookup(empty_namespace, field_name, field_type),
+        [](NonNull<std::unique_ptr<Value>> value) {
+          return Success(EvaluationOutput::New(std::move(value)));
+        },
+        [&]() -> ValueOrError<EvaluationOutput> {
+          return Error(L"Unexpected: variable value is null: " + field_name);
+        }));
   };
   return output;
 }

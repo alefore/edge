@@ -14,6 +14,8 @@ namespace {
 using language::Error;
 using language::NonNull;
 using language::Success;
+using language::VisitPointer;
+
 class VariableLookup : public Expression {
  public:
   VariableLookup(Environment::Namespace symbol_namespace, std::wstring symbol,
@@ -33,15 +35,15 @@ class VariableLookup : public Expression {
     // DVLOG(5) << "Look up symbol: " << symbol_;
     CHECK(trampoline != nullptr);
     CHECK(trampoline->environment() != nullptr);
-    std::unique_ptr<Value> value =
-        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type);
-    if (value == nullptr) {
-      return futures::Past(
-          Error(L"Unexpected: variable value is null: " + symbol_));
-    }
-    DVLOG(5) << "Variable lookup: " << *value;
-    return futures::Past(Success(EvaluationOutput::New(
-        NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)))));
+    return futures::Past(VisitPointer(
+        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type),
+        [](NonNull<std::unique_ptr<Value>> value) {
+          DVLOG(5) << "Variable lookup: " << *value;
+          return Success(EvaluationOutput::New(std::move(value)));
+        },
+        [this]() -> language::ValueOrError<EvaluationOutput> {
+          return Error(L"Unexpected: variable value is null: " + symbol_);
+        }));
   }
 
   std::unique_ptr<Expression> Clone() override {

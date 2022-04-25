@@ -26,6 +26,7 @@ using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::Success;
+using language::VisitPointer;
 
 std::wstring GetToken(const CompositeTransformation::Input& input,
                       EdgeVariable<wstring>* characters_variable) {
@@ -276,12 +277,14 @@ class ExpandTransformation : public CompositeTransformation {
         transformation = std::make_unique<Execute>(symbol);
       }
     }
-    if (transformation != nullptr) {
-      output.Push(ModifiersAndComposite{
-          .transformation =
-              NonNull<std::unique_ptr<CompositeTransformation>>::Unsafe(
-                  std::move(transformation))});
-    }
+    VisitPointer(
+        std::move(transformation),
+        [&output](
+            NonNull<std::unique_ptr<CompositeTransformation>> transformation) {
+          output.Push(ModifiersAndComposite{.transformation =
+                                                std::move(transformation)});
+        },
+        [] {});
 
     return futures::Past(std::move(output));
   }
