@@ -12,15 +12,13 @@ using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
+using language::VisitPointer;
 
 class NamespaceExpression : public Expression {
  public:
   NamespaceExpression(Environment::Namespace full_namespace,
-                      std::shared_ptr<Expression> body)
-      : namespace_(full_namespace), body_(std::move(body)) {
-    // TODO(easy, 2022-04-25): Make body_ NonNull.
-    CHECK(body_ != nullptr);
-  }
+                      NonNull<std::shared_ptr<Expression>> body)
+      : namespace_(full_namespace), body_(std::move(body)) {}
 
   std::vector<VMType> Types() override { return body_->Types(); }
 
@@ -56,7 +54,7 @@ class NamespaceExpression : public Expression {
 
  private:
   const Environment::Namespace namespace_;
-  const std::shared_ptr<Expression> body_;
+  const NonNull<std::shared_ptr<Expression>> body_;
 };
 
 }  // namespace
@@ -73,11 +71,14 @@ std::unique_ptr<Expression> NewNamespaceExpression(
   auto current_namespace = compilation->current_namespace;
   compilation->current_namespace.pop_back();
   compilation->environment = compilation->environment->parent_environment();
-  if (body == nullptr) {
-    return nullptr;
-  }
-  return std::make_unique<NamespaceExpression>(std::move(current_namespace),
-                                               std::move(body));
+  return VisitPointer(
+      std::move(body),
+      [&](NonNull<std::unique_ptr<Expression>> body)
+          -> std::unique_ptr<Expression> {
+        return std::make_unique<NamespaceExpression>(
+            std::move(current_namespace), std::move(body));
+      },
+      [] { return std::unique_ptr<Expression>(); });
 }
 
 }  // namespace afc::vm
