@@ -13,7 +13,7 @@ using language::Success;
 
 class ConstantExpression : public Expression {
  public:
-  ConstantExpression(NonNull<std::unique_ptr<Value>> value)
+  ConstantExpression(NonNull<std::shared_ptr<Value>> value)
       : value_(std::move(value)) {}
 
   std::vector<VMType> Types() { return {value_->type}; }
@@ -30,14 +30,11 @@ class ConstantExpression : public Expression {
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {
-    // TODO(easy, 2022-04-25): Maybe make value_ a shared_ptr<> and avoid the
-    // deep copy?
-    return MakeNonNullUnique<ConstantExpression>(
-        MakeNonNullUnique<Value>(*value_));
+    return MakeNonNullUnique<ConstantExpression>(value_);
   }
 
  private:
-  const NonNull<std::unique_ptr<Value>> value_;
+  const NonNull<std::shared_ptr<Value>> value_;
 };
 
 }  // namespace
