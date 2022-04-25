@@ -433,7 +433,8 @@ int main(int argc, const char** argv) {
       buffers.push_back(nullptr);
     }
 
-    fds[buffers.size()].fd = editor_state().fd_to_detect_internal_events();
+    fds[buffers.size()].fd =
+        editor_state().fd_to_detect_internal_events().read();
     fds[buffers.size()].events = POLLIN | POLLPRI;
     buffers.push_back(nullptr);
 
@@ -494,7 +495,8 @@ int main(int argc, const char** argv) {
         continue;
       }
 
-      if (fds[i].fd == editor_state().fd_to_detect_internal_events()) {
+      if (FileDescriptor(fds[i].fd) ==
+          editor_state().fd_to_detect_internal_events()) {
         editor_state().ResetInternalEventNotifications();
         continue;
       }

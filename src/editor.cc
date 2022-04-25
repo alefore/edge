@@ -61,6 +61,7 @@ namespace {
 using concurrent::ThreadPool;
 using concurrent::WorkQueue;
 using infrastructure::AddSeconds;
+using infrastructure::FileDescriptor;
 using infrastructure::Now;
 using infrastructure::Path;
 using language::EmptyValue;
@@ -135,7 +136,8 @@ ThreadPool& EditorState::thread_pool() { return thread_pool_; }
 void EditorState::ResetInternalEventNotifications() {
   char buffer[4096];
   VLOG(5) << "Internal events detected.";
-  while (read(fd_to_detect_internal_events(), buffer, sizeof(buffer)) > 0)
+  while (read(fd_to_detect_internal_events().read(), buffer, sizeof(buffer)) >
+         0)
     continue;
   has_internal_events_.lock([](bool& value) { value = false; });
 }
@@ -147,7 +149,7 @@ void EditorState::NotifyInternalEvent() {
         value = true;
         return old_value;
       }) &&
-      write(pipe_to_communicate_internal_events_.second, " ", 1) == -1) {
+      write(pipe_to_communicate_internal_events_.second.read(), " ", 1) == -1) {
     status_.SetWarningText(L"Write to internal pipe failed: " +
                            FromByteString(strerror(errno)));
   }
@@ -530,8 +532,9 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
       pipe_to_communicate_internal_events_([] {
         int output[2];
         return pipe2(output, O_NONBLOCK) == -1
-                   ? std::make_pair(-1, -1)
-                   : std::make_pair(output[0], output[1]);
+                   ? std::make_pair(FileDescriptor(-1), FileDescriptor(-1))
+                   : std::make_pair(FileDescriptor(output[0]),
+                                    FileDescriptor(output[1]));
       }()),
       audio_player_(audio_player),
       buffer_tree_(*this),

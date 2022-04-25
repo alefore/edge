@@ -207,7 +207,7 @@ class EditorState {
   bool handling_interrupts() const { return handling_interrupts_; }
   bool handling_stop_signals() const;
 
-  int fd_to_detect_internal_events() const {
+  infrastructure::FileDescriptor fd_to_detect_internal_events() const {
     return pipe_to_communicate_internal_events_.first;
   }
 
@@ -281,9 +281,9 @@ class EditorState {
   // We use has_internal_events_ to avoid redundantly notifying this. The
   // customer must call ResetInternalEventsNotifications to reset it just before
   // starting to process events.
-  //
-  // TODO(easy, 2022-04-20): Why aren't these infrastructure::FileDescriptor?
-  const std::pair<int, int> pipe_to_communicate_internal_events_;
+  const std::pair<infrastructure::FileDescriptor,
+                  infrastructure::FileDescriptor>
+      pipe_to_communicate_internal_events_;
   concurrent::Protected<bool> has_internal_events_ =
       concurrent::Protected<bool>(false);
 
