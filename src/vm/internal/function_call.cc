@@ -55,11 +55,10 @@ bool TypeMatchesArguments(
 }
 
 std::vector<VMType> DeduceTypes(
-    Expression* func,
+    Expression& func,
     const std::vector<NonNull<std::unique_ptr<Expression>>>& args) {
-  CHECK(func != nullptr);
   std::unordered_set<VMType> output;
-  for (auto& type : func->Types()) {
+  for (auto& type : func.Types()) {
     if (TypeMatchesArguments(type, args, nullptr)) {
       output.insert(type.type_arguments[0]);
     }
@@ -76,7 +75,7 @@ class FunctionCall : public Expression {
           args)
       : func_(std::move(func)),
         args_(std::move(args)),
-        types_(DeduceTypes(func_.get(), *args_)) {}
+        types_(DeduceTypes(*func_, *args_)) {}
 
   std::vector<VMType> Types() override { return types_; }
 
