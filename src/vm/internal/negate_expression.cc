@@ -13,7 +13,7 @@ using language::Success;
 class NegateExpression : public Expression {
  public:
   NegateExpression(std::function<void(Value*)> negate,
-                   unique_ptr<Expression> expr)
+                   NonNull<std::shared_ptr<Expression>> expr)
       : negate_(negate), expr_(std::move(expr)) {}
 
   std::vector<VMType> Types() override { return expr_->Types(); }
@@ -33,14 +33,12 @@ class NegateExpression : public Expression {
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {
-    // TODO(easy, 2022-04-25): pass expr_ directly? Avoid copying it?
-    return MakeNonNullUnique<NegateExpression>(
-        negate_, std::move(expr_->Clone().get_unique()));
+    return MakeNonNullUnique<NegateExpression>(negate_, std::move(expr_));
   }
 
  private:
   const std::function<void(Value*)> negate_;
-  const std::shared_ptr<Expression> expr_;
+  const NonNull<std::shared_ptr<Expression>> expr_;
 };
 
 }  // namespace
@@ -56,7 +54,8 @@ std::unique_ptr<Expression> NewNegateExpression(
                                   TypesToString(expr->Types()) + L"\"");
     return nullptr;
   }
-  return std::make_unique<NegateExpression>(negate, std::move(expr));
+  return std::make_unique<NegateExpression>(
+      negate, NonNull<std::shared_ptr<Expression>>::Unsafe(std::move(expr)));
 }
 
 }  // namespace afc::vm
