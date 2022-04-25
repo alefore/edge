@@ -388,7 +388,6 @@ using std::to_wstring;
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
             CHECK(buffer != nullptr);
-            // TODO(easy, 2022-04-24): Get rid of `get_unique`.
             return Value::NewBool(buffer->AddKeyboardTextTransformer(
                 std::move(args[1].get_unique())));
           }));
@@ -405,7 +404,6 @@ using std::to_wstring;
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
             CHECK(buffer != nullptr);
-            // TODO(easy, 2022-04-24): Get rid of `get_unique`.
             buffer->set_filter(std::move(args[1].get_unique()));
             return Value::NewVoid();
           }));
