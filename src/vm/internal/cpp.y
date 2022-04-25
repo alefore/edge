@@ -449,8 +449,9 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
     OUT = NewAssignExpression(
               compilation, NAME->str,
               std::make_unique<BinaryOperator>(
-                  NewVoidExpression(),
-                  std::move(var),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(
+                      NewVoidExpression()),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
                   var->IsInteger()
                       ? [](const Value&, const Value& a, Value* output) {
@@ -478,8 +479,9 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
     OUT = NewAssignExpression(
               compilation, NAME->str,
               std::make_unique<BinaryOperator>(
-                  NewVoidExpression(),
-                  std::move(var),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(
+                      NewVoidExpression()),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
                   var->IsInteger()
                       ? [](const Value&, const Value& a, Value* output) {
@@ -566,8 +568,10 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     OUT = nullptr;
   } else if (A->IsString() && B->IsString()) {
     OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.str == b.str;
@@ -577,8 +581,10 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     B = nullptr;
   } else if (A->IsInteger() && B->IsInteger()) {
     OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.integer == b.integer;
@@ -599,8 +605,10 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
     OUT = nullptr;
   } else if (A->IsString() && B->IsString()) {
     OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.str != b.str;
@@ -610,8 +618,10 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
     B = nullptr;
   } else if (A->IsInteger() && B->IsInteger()) {
     OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.integer != b.integer;
@@ -633,8 +643,10 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
   } else if ((A->IsInteger() || A->IsDouble())
              && (B->IsInteger() || B->IsDouble())) {
     OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           if (a.type.type == VMType::VM_INTEGER
@@ -671,8 +683,10 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
   } else if ((A->IsInteger() || A->IsDouble())
              && (B->IsInteger() || B->IsDouble())) {
     OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           if (a.type.type == VMType::VM_INTEGER
@@ -709,8 +723,10 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
   } else if ((A->IsInteger() || A->IsDouble())
              && (B->IsInteger() || B->IsDouble())) {
     OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           if (a.type.type == VMType::VM_INTEGER
@@ -747,8 +763,10 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
   } else if ((A->IsInteger() || A->IsDouble())
              && (B->IsInteger() || B->IsDouble())) {
     OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {

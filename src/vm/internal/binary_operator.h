@@ -17,7 +17,8 @@ class Compilation;
 class BinaryOperator : public Expression {
  public:
   BinaryOperator(
-      unique_ptr<Expression> a, unique_ptr<Expression> b, const VMType type,
+      language::NonNull<std::shared_ptr<Expression>> a,
+      language::NonNull<std::shared_ptr<Expression>> b, const VMType type,
       function<language::PossibleError(const Value&, const Value&, Value*)>
           callback);
 
@@ -32,8 +33,8 @@ class BinaryOperator : public Expression {
   language::NonNull<std::unique_ptr<Expression>> Clone() override;
 
  private:
-  const std::shared_ptr<Expression> a_;
-  const std::shared_ptr<Expression> b_;
+  const language::NonNull<std::shared_ptr<Expression>> a_;
+  const language::NonNull<std::shared_ptr<Expression>> b_;
   VMType type_;
   std::function<language::PossibleError(const Value&, const Value&, Value*)>
       operator_;

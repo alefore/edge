@@ -15,12 +15,10 @@ using language::Success;
 using language::ValueOrError;
 
 BinaryOperator::BinaryOperator(
-    unique_ptr<Expression> a, unique_ptr<Expression> b, const VMType type,
+    NonNull<std::shared_ptr<Expression>> a,
+    NonNull<std::shared_ptr<Expression>> b, const VMType type,
     function<PossibleError(const Value&, const Value&, Value*)> callback)
-    : a_(std::move(a)), b_(std::move(b)), type_(type), operator_(callback) {
-  CHECK(a_ != nullptr);
-  CHECK(b_ != nullptr);
-}
+    : a_(std::move(a)), b_(std::move(b)), type_(type), operator_(callback) {}
 
 std::vector<VMType> BinaryOperator::Types() { return {type_}; }
 
@@ -56,22 +54,22 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
 }
 
 NonNull<std::unique_ptr<Expression>> BinaryOperator::Clone() {
-  // TODO(easy, 2022-04-25): Drop the get_unique.
-  return MakeNonNullUnique<BinaryOperator>(std::move(a_->Clone().get_unique()),
-                                           std::move(b_->Clone().get_unique()),
-                                           type_, operator_);
+  return MakeNonNullUnique<BinaryOperator>(a_, b_, type_, operator_);
 }
 
 std::unique_ptr<Expression> NewBinaryExpression(
-    Compilation* compilation, std::unique_ptr<Expression> a,
-    std::unique_ptr<Expression> b,
+    Compilation* compilation, std::unique_ptr<Expression> a_raw,
+    std::unique_ptr<Expression> b_raw,
     std::function<ValueOrError<wstring>(wstring, wstring)> str_operator,
     std::function<ValueOrError<int>(int, int)> int_operator,
     std::function<ValueOrError<double>(double, double)> double_operator,
     std::function<ValueOrError<wstring>(wstring, int)> str_int_operator) {
-  if (a == nullptr || b == nullptr) {
+  if (a_raw == nullptr || b_raw == nullptr) {
     return nullptr;
   }
+
+  auto a = NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a_raw));
+  auto b = NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b_raw));
 
   if (str_operator != nullptr && a->IsString() && b->IsString()) {
     return std::make_unique<BinaryOperator>(
