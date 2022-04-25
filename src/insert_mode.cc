@@ -282,10 +282,12 @@ class InsertMode : public EditorMode {
               std::vector<std::unique_ptr<vm::Expression>> args;
               args.push_back(vm::NewConstantExpression(
                   {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(buffer)}));
-              std::shared_ptr<Expression> expression = vm::NewFunctionCall(
+              std::unique_ptr<Expression> expression = vm::NewFunctionCall(
                   vm::NewConstantExpression(
                       MakeNonNullUnique<vm::Value>(*callback)),
                   std::move(args));
+              // TODO(easy, 2022-04-25): Get Expression as NonNull.
+              CHECK(expression != nullptr);
               if (expression->Types().empty()) {
                 buffer->status().SetWarningText(
                     L"Unable to compile (type mismatch).");
@@ -293,9 +295,7 @@ class InsertMode : public EditorMode {
               }
               return CallModifyHandler(
                   options, *buffer,
-                  buffer
-                      ->EvaluateExpression(expression.get(),
-                                           buffer->environment())
+                  buffer->EvaluateExpression(*expression, buffer->environment())
                       .ConsumeErrors([](Error) {
                         return futures::Past(vm::Value::NewVoid());
                       }));

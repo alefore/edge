@@ -103,26 +103,26 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
 
   std::vector<std::unique_ptr<vm::Expression>> args;
   args.push_back(vm::NewConstantExpression({vm::Value::NewString(path)}));
-  std::shared_ptr<Expression> expression = vm::NewFunctionCall(
+  std::unique_ptr<Expression> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(MakeNonNullUnique<vm::Value>(*callback)),
       std::move(args));
-
+  // TODO(easy, 2022-04-25): Receive NonNull expr.
+  CHECK(expression != nullptr);
   return {
       .initial_value = NewLazyString(L"…"),
-      .value =
-          target.EvaluateExpression(expression.get(), target.environment())
-              .Transform([expression](NonNull<std::unique_ptr<Value>> value) {
-                CHECK(value->IsString());
-                VLOG(7) << "Evaluated result: " << value->str;
-                return futures::Past(
-                    Success(NonNull<std::shared_ptr<LazyString>>(
-                        NewLazyString(std::move(value->str)))));
-              })
-              .ConsumeErrors([](Error error) {
-                VLOG(7) << "Evaluation error: " << error.description;
-                return futures::Past(NonNull<std::shared_ptr<LazyString>>(
-                    NewLazyString(L"E: " + std::move(error.description))));
-              })};
+      .value = target.EvaluateExpression(*expression, target.environment())
+                   .Transform([](NonNull<std::unique_ptr<Value>> value) {
+                     CHECK(value->IsString());
+                     VLOG(7) << "Evaluated result: " << value->str;
+                     return futures::Past(
+                         Success(NonNull<std::shared_ptr<LazyString>>(
+                             NewLazyString(std::move(value->str)))));
+                   })
+                   .ConsumeErrors([](Error error) {
+                     VLOG(7) << "Evaluation error: " << error.description;
+                     return futures::Past(NonNull<std::shared_ptr<LazyString>>(
+                         NewLazyString(L"E: " + std::move(error.description))));
+                   })};
 }
 
 void AddLine(OpenBuffer& target, const dirent& entry) {

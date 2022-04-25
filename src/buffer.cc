@@ -180,7 +180,7 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
     buffer.work_queue()->Schedule([buffer = buffer.shared_from_this(), expr,
                                    sub_environment,
                                    consumer = metadata_future.consumer] {
-      buffer->EvaluateExpression(expr.get(), sub_environment)
+      buffer->EvaluateExpression(*expr, sub_environment)
           .Transform([](NonNull<std::unique_ptr<Value>> value) {
             std::ostringstream oss;
             oss << *value;
@@ -1350,11 +1350,9 @@ OpenBuffer::CompileString(const std::wstring& code,
 }
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>>
-OpenBuffer::EvaluateExpression(Expression* expr,
+OpenBuffer::EvaluateExpression(Expression& expr,
                                std::shared_ptr<Environment> environment) {
-  // TODO(easy, 2022-04-25): Get Expression as NonNull.
-  CHECK(expr != nullptr);
-  return Evaluate(*expr, environment,
+  return Evaluate(expr, environment,
                   [work_queue = work_queue(), shared_this = shared_from_this()](
                       std::function<void()> callback) {
                     work_queue->Schedule(std::move(callback));
@@ -1368,7 +1366,7 @@ OpenBuffer::EvaluateString(const wstring& code) {
   if (auto [expression, environment] = CompileString(code, &error_description);
       expression != nullptr) {
     LOG(INFO) << "Code compiled, evaluating.";
-    return EvaluateExpression(expression.get(), environment);
+    return EvaluateExpression(*expression, environment);
   }
   Error error(L"🐜Compilation error: " + error_description);
   status_.SetWarningText(error.description);

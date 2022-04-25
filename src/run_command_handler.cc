@@ -457,6 +457,8 @@ class ForkEditorCommand : public Command {
         vm::NewConstantExpression(
             MakeNonNullUnique<Value>(*prompt_state.context_command_callback)),
         std::move(arguments));
+    // TODO(easy, 2022-04-25): Get Expression as NonNull.
+    CHECK(expression != nullptr);
     if (expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer->status().SetWarningText(
@@ -464,7 +466,7 @@ class ForkEditorCommand : public Command {
       return futures::Past(ColorizePromptOptions{.context = nullptr});
     }
     return prompt_state.original_buffer
-        ->EvaluateExpression(expression.get(),
+        ->EvaluateExpression(*expression,
                              prompt_state.original_buffer->environment())
         .Transform(
             [&prompt_state, &editor](NonNull<std::unique_ptr<Value>> value) {

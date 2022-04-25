@@ -175,12 +175,14 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Execute(
       vm::NewConstantExpression(
           MakeNonNullUnique<vm::Value>(*parsed_command.function)),
       std::move(parsed_command.inputs));
+  // TODO(easy, 2022-04-25): Receive NonNull.
+  CHECK(expression != nullptr);
   if (expression->Types().empty()) {
     // TODO: Show the error.
     return futures::Past(ValueOrError<NonNull<std::unique_ptr<Value>>>(
         Error(L"Unable to compile (type mismatch).")));
   }
-  return buffer->EvaluateExpression(expression.get(), buffer->environment());
+  return buffer->EvaluateExpression(*expression, buffer->environment());
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
