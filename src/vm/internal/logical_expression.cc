@@ -15,8 +15,8 @@ using language::Success;
 
 class LogicalExpression : public Expression {
  public:
-  LogicalExpression(bool identity, std::shared_ptr<Expression> expr_a,
-                    std::shared_ptr<Expression> expr_b)
+  LogicalExpression(bool identity, NonNull<std::shared_ptr<Expression>> expr_a,
+                    NonNull<std::shared_ptr<Expression>> expr_b)
       : identity_(identity),
         expr_a_(std::move(expr_a)),
         expr_b_(std::move(expr_b)) {}
@@ -57,9 +57,8 @@ class LogicalExpression : public Expression {
 
  private:
   const bool identity_;
-  // TODO(easy, 2022-04-25), Why are these not NonNull?
-  const std::shared_ptr<Expression> expr_a_;
-  const std::shared_ptr<Expression> expr_b_;
+  const NonNull<std::shared_ptr<Expression>> expr_a_;
+  const NonNull<std::shared_ptr<Expression>> expr_b_;
 };
 
 }  // namespace
@@ -80,8 +79,9 @@ std::unique_ptr<Expression> NewLogicalExpression(
                                   TypesToString(b->Types()));
     return nullptr;
   }
-  return std::make_unique<LogicalExpression>(identity, std::move(a),
-                                             std::move(b));
+  return std::make_unique<LogicalExpression>(
+      identity, NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)));
 }
 
 }  // namespace afc::vm
