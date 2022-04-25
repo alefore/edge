@@ -480,26 +480,29 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> FilterHistory(
 
 NonNull<std::shared_ptr<OpenBuffer>> GetPromptBuffer(
     const PromptOptions& options, EditorState& editor_state) {
-  auto& element =
-      *editor_state.buffers()->insert({BufferName(L"- prompt"), nullptr}).first;
-  if (element.second == nullptr) {
-    element.second =
-        OpenBuffer::New({.editor = editor_state, .name = element.first})
-            .get_shared();
-    element.second->Set(buffer_variables::allow_dirty_delete, true);
-    element.second->Set(buffer_variables::show_in_buffers_list, false);
-    element.second->Set(buffer_variables::delete_into_paste_buffer, false);
-    element.second->Set(buffer_variables::save_on_close, false);
-    element.second->Set(buffer_variables::persist_state, false);
-  } else {
-    element.second->ClearContents(BufferContents::CursorsBehavior::kAdjust);
-    CHECK_EQ(element.second->EndLine(), LineNumber(0));
-    CHECK(element.second->contents().back()->empty());
+  BufferName name(L"- prompt");
+  if (auto it = editor_state.buffers()->find(name);
+      it != editor_state.buffers()->end()) {
+    NonNull<std::shared_ptr<OpenBuffer>> buffer =
+        NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second);
+    buffer->ClearContents(BufferContents::CursorsBehavior::kAdjust);
+    CHECK_EQ(buffer->EndLine(), LineNumber(0));
+    CHECK(buffer->contents().back()->empty());
+    buffer->Reload();
+    return buffer;
   }
-  element.second->Set(buffer_variables::contents_type,
-                      options.prompt_contents_type);
-  element.second->Reload();
-  return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(element.second);
+  NonNull<std::shared_ptr<OpenBuffer>> buffer =
+      OpenBuffer::New({.editor = editor_state, .name = name});
+  buffer->Set(buffer_variables::allow_dirty_delete, true);
+  buffer->Set(buffer_variables::show_in_buffers_list, false);
+  buffer->Set(buffer_variables::delete_into_paste_buffer, false);
+  buffer->Set(buffer_variables::save_on_close, false);
+  buffer->Set(buffer_variables::persist_state, false);
+  buffer->Set(buffer_variables::contents_type, options.prompt_contents_type);
+  auto insert_results = editor_state.buffers()->insert(
+      {BufferName(L"- prompt"), buffer.get_shared()});
+  CHECK(insert_results.second);
+  return buffer;
 }
 
 // Holds the state required to show and update a prompt.
