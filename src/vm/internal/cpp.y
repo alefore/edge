@@ -49,7 +49,7 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
 %destructor statement_list { delete $$; }
 
 statement_list(L) ::= . {
-  L = NewVoidExpression().release();
+  L = NewVoidExpression().get_unique().release();
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
@@ -89,7 +89,7 @@ statement(OUT) ::= class_declaration
   } else {
     FinishClassDeclaration(compilation, std::unique_ptr<Expression>(A));
     A = nullptr;
-    OUT = NewVoidExpression().release();
+    OUT = NewVoidExpression().get_unique().release();
   }
 }
 
@@ -103,7 +103,8 @@ statement(OUT) ::= RETURN expr(A) SEMICOLON . {
 }
 
 statement(OUT) ::= RETURN SEMICOLON . {
-  OUT = NewReturnExpression(compilation, NewVoidExpression()).release();
+  OUT = NewReturnExpression(compilation,
+      std::move(NewVoidExpression().get_unique())).release();
 }
 
 statement(OUT) ::= function_declaration_params(FUNC)
@@ -127,13 +128,13 @@ statement(OUT) ::= function_declaration_params(FUNC)
       compilation->environment->Define(
           FUNC->name.value(),
           NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)));
-      OUT = NewVoidExpression().release();
+      OUT = NewVoidExpression().get_unique().release();
     }
   }
 }
 
 statement(A) ::= SEMICOLON . {
-  A = NewVoidExpression().release();
+  A = NewVoidExpression().get_unique().release();
 }
 
 statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
@@ -169,9 +170,9 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
       compilation,
       unique_ptr<Expression>(CONDITION),
       NewAppendExpression(compilation, unique_ptr<Expression>(TRUE_CASE),
-                          NewVoidExpression()),
+                          std::move(NewVoidExpression().get_unique())),
       NewAppendExpression(compilation, unique_ptr<Expression>(FALSE_CASE),
-                          NewVoidExpression()))
+                          std::move(NewVoidExpression().get_unique())))
       .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;
@@ -183,8 +184,8 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
       compilation,
       unique_ptr<Expression>(CONDITION),
       NewAppendExpression(compilation, unique_ptr<Expression>(TRUE_CASE),
-                          NewVoidExpression()),
-      NewVoidExpression())
+                          std::move(NewVoidExpression().get_unique())),
+      std::move(NewVoidExpression().get_unique()))
       .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;
@@ -210,7 +211,7 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
       OUT = nullptr;
       FUNC->Abort(compilation);
     } else {
-      OUT = NewVoidExpression().release();
+      OUT = NewVoidExpression().get_unique().release();
       FUNC->Done(compilation);
     }
   }
@@ -220,7 +221,9 @@ assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
   auto result = NewDefineTypeExpression(compilation, TYPE->str, NAME->str, {});
   delete TYPE;
   delete NAME;
-  A = result == std::nullopt ? nullptr : NewVoidExpression().release();
+  A = result == std::nullopt
+      ? nullptr
+      : NewVoidExpression().get_unique().release();
 }
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
@@ -449,8 +452,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
     OUT = NewAssignExpression(
               compilation, NAME->str,
               std::make_unique<BinaryOperator>(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(
-                      NewVoidExpression()),
+                  NewVoidExpression(),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
                   var->IsInteger()
@@ -479,8 +481,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
     OUT = NewAssignExpression(
               compilation, NAME->str,
               std::make_unique<BinaryOperator>(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(
-                      NewVoidExpression()),
+                  NewVoidExpression(),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
                   var->IsInteger()
@@ -505,7 +506,8 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
     OUT = nullptr;
   } else {
       OUT = NewFunctionCall(compilation,
-                    std::unique_ptr<Expression>(B),
+                    NonNull<std::unique_ptr<Expression>>::Unsafe(
+                        std::unique_ptr<Expression>(B)),
                     std::move(*ARGS))
                 .release();
       B = nullptr;
@@ -904,19 +906,19 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 
 expr(OUT) ::= BOOL(B). {
   OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
-      std::unique_ptr<Value>(B))).release();
+      std::unique_ptr<Value>(B))).get_unique().release();
   B = nullptr;
 }
 
 expr(OUT) ::= INTEGER(I). {
   OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
-      std::unique_ptr<Value>(I))).release();
+      std::unique_ptr<Value>(I))).get_unique().release();
   I = nullptr;
 }
 
 expr(OUT) ::= DOUBLE(I). {
   OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
-      std::unique_ptr<Value>(I))).release();
+      std::unique_ptr<Value>(I))).get_unique().release();
   I = nullptr;
 }
 
@@ -925,7 +927,7 @@ expr(OUT) ::= DOUBLE(I). {
 
 expr(OUT) ::= string(S). {
   OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
-      std::unique_ptr<Value>(S))).release();
+      std::unique_ptr<Value>(S))).get_unique().release();
   S = nullptr;
 }
 

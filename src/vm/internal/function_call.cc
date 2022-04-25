@@ -67,15 +67,12 @@ std::vector<VMType> DeduceTypes(
 
 class FunctionCall : public Expression {
  public:
-  // TODO(easy, 2022-04-25): Make func NonNull.
   FunctionCall(
-      std::unique_ptr<Expression> func,
+      NonNull<std::shared_ptr<Expression>> func,
       NonNull<std::shared_ptr<std::vector<std::unique_ptr<Expression>>>> args)
       : func_(std::move(func)),
         args_(std::move(args)),
-        types_(DeduceTypes(func_.get(), *args_)) {
-    CHECK(func_ != nullptr);
-  }
+        types_(DeduceTypes(func_.get(), *args_)) {}
 
   std::vector<VMType> Types() override { return types_; }
 
@@ -125,9 +122,7 @@ class FunctionCall : public Expression {
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {
-    // TODO(easy, 2022-04-25): Drop the get_unique. Also avoid the deep copy.
-    return MakeNonNullUnique<FunctionCall>(
-        std::move(func_->Clone().get_unique()), args_);
+    return MakeNonNullUnique<FunctionCall>(func_, args_);
   }
 
  private:
@@ -182,7 +177,7 @@ class FunctionCall : public Expression {
   }
 
   // Expression that evaluates to get the function to call.
-  const std::unique_ptr<Expression> func_;
+  const NonNull<std::shared_ptr<Expression>> func_;
   const NonNull<std::shared_ptr<std::vector<std::unique_ptr<Expression>>>>
       args_;
   const std::vector<VMType> types_;
@@ -191,7 +186,7 @@ class FunctionCall : public Expression {
 }  // namespace
 
 NonNull<std::unique_ptr<Expression>> NewFunctionCall(
-    std::unique_ptr<Expression> func,
+    NonNull<std::unique_ptr<Expression>> func,
     std::vector<std::unique_ptr<Expression>> args) {
   return MakeNonNullUnique<FunctionCall>(
       std::move(func),
@@ -200,7 +195,7 @@ NonNull<std::unique_ptr<Expression>> NewFunctionCall(
 }
 
 std::unique_ptr<Expression> NewFunctionCall(
-    Compilation* compilation, std::unique_ptr<Expression> func,
+    Compilation* compilation, NonNull<std::unique_ptr<Expression>> func,
     std::vector<std::unique_ptr<Expression>> args) {
   std::vector<wstring> errors;
   wstring errors_separator;
@@ -349,7 +344,8 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
   CHECK_EQ(func.type.type, VMType::FUNCTION);
   std::vector<std::unique_ptr<Expression>> args_expr;
   for (auto& a : args) {
-    args_expr.push_back(NewConstantExpression(std::move(a)));
+    args_expr.push_back(
+        std::move(NewConstantExpression(std::move(a)).get_unique()));
   }
   NonNull<std::unique_ptr<Expression>> expr =
       NewFunctionCall(NewConstantExpression(Value::NewFunction(

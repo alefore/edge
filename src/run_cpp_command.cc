@@ -131,9 +131,11 @@ ValueOrError<ParsedCommand> Parse(
     for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
       argument_values->push_back(it->value);
     }
-    output.inputs.push_back(vm::NewConstantExpression(
-        VMTypeMapper<std::unique_ptr<std::vector<std::wstring>>>::New(
-            std::move(argument_values))));
+    output.inputs.push_back(std::move(
+        vm::NewConstantExpression(
+            VMTypeMapper<std::unique_ptr<std::vector<std::wstring>>>::New(
+                std::move(argument_values)))
+            .get_unique()));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output.function = type_match_functions[0];
@@ -148,12 +150,13 @@ ValueOrError<ParsedCommand> Parse(
 
     for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
       output.inputs.push_back(
-          vm::NewConstantExpression(vm::Value::NewString(it->value)));
+          std::move(vm::NewConstantExpression(vm::Value::NewString(it->value))
+                        .get_unique()));
     }
 
     while (output.inputs.size() < expected_arguments) {
-      output.inputs.push_back(
-          vm::NewConstantExpression(vm::Value::NewString(L"")));
+      output.inputs.push_back(std::move(
+          vm::NewConstantExpression(vm::Value::NewString(L"")).get_unique()));
     }
   } else {
     return Error(L"No suitable definition found: " + output.tokens[0].value);

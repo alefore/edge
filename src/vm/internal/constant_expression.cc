@@ -30,7 +30,8 @@ class ConstantExpression : public Expression {
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {
-    // Maybe make value_ a shared_ptr<> and avoid the deep copy?
+    // TODO(easy, 2022-04-25): Maybe make value_ a shared_ptr<> and avoid the
+    // deep copy?
     return MakeNonNullUnique<ConstantExpression>(
         MakeNonNullUnique<Value>(*value_));
   }
@@ -41,12 +42,12 @@ class ConstantExpression : public Expression {
 
 }  // namespace
 
-std::unique_ptr<Expression> NewVoidExpression() {
+NonNull<std::unique_ptr<Expression>> NewVoidExpression() {
   return NewConstantExpression(Value::NewVoid());
 }
 
-std::unique_ptr<Expression> NewConstantExpression(
+NonNull<std::unique_ptr<Expression>> NewConstantExpression(
     NonNull<std::unique_ptr<Value>> value) {
-  return std::make_unique<ConstantExpression>(std::move(value));
+  return MakeNonNullUnique<ConstantExpression>(std::move(value));
 }
 }  // namespace afc::vm

@@ -102,7 +102,8 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   }
 
   std::vector<std::unique_ptr<vm::Expression>> args;
-  args.push_back(vm::NewConstantExpression({vm::Value::NewString(path)}));
+  args.push_back(std::move(
+      vm::NewConstantExpression({vm::Value::NewString(path)}).get_unique()));
   NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(MakeNonNullUnique<vm::Value>(*callback)),
       std::move(args));

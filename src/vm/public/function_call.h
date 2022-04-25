@@ -17,11 +17,12 @@ class Expression;
 class Compilation;
 
 language::NonNull<std::unique_ptr<Expression>> NewFunctionCall(
-    std::unique_ptr<Expression> func,
+    language::NonNull<std::unique_ptr<Expression>> func,
     std::vector<std::unique_ptr<Expression>> args);
 
 std::unique_ptr<Expression> NewFunctionCall(
-    Compilation* compilation, std::unique_ptr<Expression> func,
+    Compilation* compilation,
+    language::NonNull<std::unique_ptr<Expression>> func,
     std::vector<std::unique_ptr<Expression>> args);
 
 futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Call(

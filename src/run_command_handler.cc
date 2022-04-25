@@ -451,8 +451,9 @@ class ForkEditorCommand : public Command {
     auto& editor = prompt_state.original_buffer->editor();
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
     std::vector<std::unique_ptr<Expression>> arguments;
-    arguments.push_back(
-        vm::NewConstantExpression(vm::Value::NewString(line->ToString())));
+    arguments.push_back(std::move(
+        vm::NewConstantExpression(vm::Value::NewString(line->ToString()))
+            .get_unique()));
     NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
         vm::NewConstantExpression(
             MakeNonNullUnique<Value>(*prompt_state.context_command_callback)),

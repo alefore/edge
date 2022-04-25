@@ -83,7 +83,7 @@ void FinishClassDeclaration(
   // TODO(easy, 2022-04-25): Make NonNull.
   std::shared_ptr<Expression> constructor_expression_shared =
       NewAppendExpression(compilation, std::move(constructor_expression),
-                          NewVoidExpression());
+                          std::move(NewVoidExpression().get_unique()));
   auto class_type = std::move(compilation->current_class.back());
   compilation->current_class.pop_back();
   auto class_object_type = MakeNonNullUnique<ObjectType>(class_type);
