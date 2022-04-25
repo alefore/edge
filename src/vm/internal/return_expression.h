@@ -3,16 +3,12 @@
 
 #include "../public/vm.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 class Compilation;
 class Expression;
 
-unique_ptr<Expression> NewReturnExpression(Compilation* compilation,
-                                           unique_ptr<Expression> expr);
-
-}  // namespace vm
-}  // namespace afc
+std::unique_ptr<Expression> NewReturnExpression(
+    Compilation* compilation, std::unique_ptr<Expression> expr);
+}  // namespace afc::vm
 
 #endif  // __AFC_VM_RETURN_EXPRESSION_H__
