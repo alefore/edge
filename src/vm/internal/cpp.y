@@ -118,7 +118,10 @@ statement(OUT) ::= function_declaration_params(FUNC)
   } else {
     std::wstring error;
     auto value = FUNC->BuildValue(
-        compilation, std::unique_ptr<Expression>(BODY), &error);
+        compilation,
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(BODY)),
+        &error);
     BODY = nullptr;
     if (value == nullptr) {
       compilation->errors.push_back(error);
@@ -350,7 +353,10 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
   } else {
     std::wstring error;
     auto value = FUNC->BuildExpression(
-        compilation, std::unique_ptr<Expression>(BODY), &error);
+        compilation,
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(BODY)),
+        &error);
     BODY = nullptr;
 
     if (value == nullptr) {

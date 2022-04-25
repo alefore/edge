@@ -17,13 +17,13 @@ struct UserFunction {
       std::optional<std::wstring> name,
       std::vector<std::pair<VMType, wstring>>* args);
 
-  std::unique_ptr<Expression> BuildExpression(Compilation* compilation,
-                                              std::unique_ptr<Expression> body,
-                                              std::wstring* error);
+  std::unique_ptr<Expression> BuildExpression(
+      Compilation* compilation,
+      language::NonNull<std::unique_ptr<Expression>> body, std::wstring* error);
 
-  std::unique_ptr<Value> BuildValue(Compilation* compilation,
-                                    std::unique_ptr<Expression> body,
-                                    std::wstring* error);
+  std::unique_ptr<Value> BuildValue(
+      Compilation* compilation,
+      language::NonNull<std::unique_ptr<Expression>> body, std::wstring* error);
   void Abort(Compilation* compilation);
   void Done(Compilation* compilation);
 

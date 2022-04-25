@@ -1,4 +1,4 @@
-#include "lambda.h"
+#include "src/vm/internal/lambda.h"
 
 #include <glog/logging.h>
 
@@ -18,7 +18,7 @@ class LambdaExpression : public Expression {
  public:
   static std::unique_ptr<LambdaExpression> New(
       VMType type, std::shared_ptr<std::vector<std::wstring>> argument_names,
-      std::shared_ptr<Expression> body, std::wstring* error) {
+      NonNull<std::shared_ptr<Expression>> body, std::wstring* error) {
     type.function_purity = body->purity();
     VMType expected_return_type = *type.type_arguments.cbegin();
     auto deduced_types = body->ReturnTypes();
@@ -51,7 +51,7 @@ class LambdaExpression : public Expression {
 
   LambdaExpression(VMType type,
                    std::shared_ptr<std::vector<std::wstring>> argument_names,
-                   std::shared_ptr<Expression> body,
+                   NonNull<std::shared_ptr<Expression>> body,
                    std::function<NonNull<std::unique_ptr<Value>>(
                        NonNull<std::unique_ptr<Value>>)>
                        promotion_function)
@@ -59,7 +59,6 @@ class LambdaExpression : public Expression {
         argument_names_(std::move(argument_names)),
         body_(std::move(body)),
         promotion_function_(std::move(promotion_function)) {
-    CHECK(body_ != nullptr);
     CHECK_EQ(type_.type, VMType::FUNCTION);
     CHECK(type_.function_purity == body_->purity());
   }
@@ -113,9 +112,9 @@ class LambdaExpression : public Expression {
 
  private:
   VMType type_;
-  const std::shared_ptr<std::vector<std::wstring>> argument_names_;
   // TODO(easy, 2022-04-25): NonNull.
-  const std::shared_ptr<Expression> body_;
+  const std::shared_ptr<std::vector<std::wstring>> argument_names_;
+  const NonNull<std::shared_ptr<Expression>> body_;
   const std::function<NonNull<std::unique_ptr<Value>>(
       NonNull<std::unique_ptr<Value>>)>
       promotion_function_;
@@ -159,7 +158,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
 }
 
 std::unique_ptr<Value> UserFunction::BuildValue(
-    Compilation* compilation, std::unique_ptr<Expression> body,
+    Compilation* compilation, NonNull<std::unique_ptr<Expression>> body,
     std::wstring* error) {
   std::shared_ptr<Environment> environment = compilation->environment;
   compilation->environment = compilation->environment->parent_environment();
@@ -172,7 +171,7 @@ std::unique_ptr<Value> UserFunction::BuildValue(
 }
 
 std::unique_ptr<Expression> UserFunction::BuildExpression(
-    Compilation* compilation, std::unique_ptr<Expression> body,
+    Compilation* compilation, NonNull<std::unique_ptr<Expression>> body,
     std::wstring* error) {
   // We ignore the environment used during the compilation. Instead, each time
   // the expression is evaluated, it will use the environment from the
