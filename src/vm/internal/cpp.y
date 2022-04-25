@@ -87,7 +87,9 @@ statement(OUT) ::= class_declaration
   if (A == nullptr) {
     OUT = nullptr;
   } else {
-    FinishClassDeclaration(compilation, std::unique_ptr<Expression>(A));
+    FinishClassDeclaration(compilation,
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(A)));
     A = nullptr;
     OUT = NewVoidExpression().get_unique().release();
   }

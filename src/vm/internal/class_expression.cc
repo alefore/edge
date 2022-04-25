@@ -77,13 +77,10 @@ NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
 
 void FinishClassDeclaration(
     Compilation* compilation,
-    std::unique_ptr<Expression> constructor_expression_input) {
+    NonNull<std::unique_ptr<Expression>> constructor_expression_input) {
   CHECK(compilation != nullptr);
-  // TODO(easy): Receive constructor_expression_input as NonNull.
-  CHECK(constructor_expression_input != nullptr);
   ValueOrError<NonNull<std::unique_ptr<Expression>>> constructor_expression =
-      NewAppendExpression(NonNull<std::unique_ptr<Expression>>::Unsafe(
-                              std::move(constructor_expression_input)),
+      NewAppendExpression(std::move(constructor_expression_input),
                           NewVoidExpression());
   if (constructor_expression.IsError()) {
     compilation->errors.push_back(constructor_expression.error().description);
