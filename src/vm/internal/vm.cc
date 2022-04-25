@@ -646,14 +646,13 @@ bool Expression::SupportsType(const VMType& type) {
 }
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
-    Expression* expr, std::shared_ptr<Environment> environment,
+    Expression& expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
-  CHECK(expr != nullptr);
   auto trampoline = std::make_shared<Trampoline>(
       Trampoline::Options{.environment = std::move(environment),
                           .yield_callback = std::move(yield_callback)});
   return OnError(
-      trampoline->Bounce(expr, expr->Types()[0])
+      trampoline->Bounce(&expr, expr.Types()[0])
           .Transform(
               [trampoline](EvaluationOutput value)
                   -> language::ValueOrError<NonNull<std::unique_ptr<Value>>> {

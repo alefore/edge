@@ -73,6 +73,7 @@ using language::Observers;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
+using language::VisitPointer;
 
 using std::make_pair;
 using std::string;
@@ -542,25 +543,30 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
     wstring error_description;
-    std::shared_ptr<Expression> expression = CompileFile(
-        ToByteString(path.read()), environment_, &error_description);
-    if (expression == nullptr) {
-      LOG(INFO) << "Compilation error for " << path << ": "
-                << error_description;
-      status_.SetWarningText(path.read() + L": error: " + error_description);
-      return futures::Past(futures::IterationControlCommand::kContinue);
-    }
-    LOG(INFO) << "Evaluating file: " << path;
-    return Evaluate(
-               expression.get(), environment_,
-               [path, work_queue = work_queue()](std::function<void()> resume) {
-                 LOG(INFO) << "Evaluation of file yields: " << path;
-                 work_queue->Schedule(std::move(resume));
-               })
-        .Transform([](NonNull<std::unique_ptr<Value>>) {
-          return Success(futures::IterationControlCommand::kContinue);
-        })
-        .ConsumeErrors([](Error) {
+    return VisitPointer(
+        CompileFile(ToByteString(path.read()), environment_,
+                    &error_description),
+        [&](NonNull<std::unique_ptr<Expression>> expression) {
+          LOG(INFO) << "Evaluating file: " << path;
+          return Evaluate(*expression, environment_,
+                          [path, work_queue = work_queue()](
+                              std::function<void()> resume) {
+                            LOG(INFO) << "Evaluation of file yields: " << path;
+                            work_queue->Schedule(std::move(resume));
+                          })
+              .Transform([](NonNull<std::unique_ptr<Value>>) {
+                return Success(futures::IterationControlCommand::kContinue);
+              })
+              .ConsumeErrors([](Error) {
+                return futures::Past(
+                    futures::IterationControlCommand::kContinue);
+              });
+        },
+        [&] {
+          LOG(INFO) << "Compilation error for " << path << ": "
+                    << error_description;
+          status_.SetWarningText(path.read() + L": error: " +
+                                 error_description);
           return futures::Past(futures::IterationControlCommand::kContinue);
         });
   });

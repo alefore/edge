@@ -98,9 +98,11 @@ void MapModeCommands::Add(wstring name, wstring description,
       MakeCommandFromFunction(
           std::bind_front(
               [&editor_state = editor_state_,
+               // TODO(easy, 2022-04-25): Receive expression as NonNull.
                environment](std::unique_ptr<vm::Expression>& expression) {
+                CHECK(expression != nullptr);
                 LOG(INFO) << "Evaluating expression from Value::Ptr...";
-                Evaluate(expression.get(), environment,
+                Evaluate(*expression, environment,
                          [&editor_state](std::function<void()> callback) {
                            auto buffer = editor_state.current_buffer();
                            CHECK(buffer != nullptr);

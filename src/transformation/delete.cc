@@ -106,15 +106,15 @@ void HandleLineDeletion(LineColumn position, OpenBuffer& buffer) {
                                       VMType::Function({VMType::Void()})),
       [&](NonNull<std::unique_ptr<Value>> callback) {
         LOG(INFO) << "Running EdgeLineDeleteHandler.";
-        std::shared_ptr<Expression> expr = vm::NewFunctionCall(
+        // TODO(easy, 2022-04-25): Get a NonNull?
+        std::unique_ptr<Expression> expr = vm::NewFunctionCall(
             vm::NewConstantExpression(std::move(callback)), {});
-        // TODO(easy): I think we don't need to keep expr alive?
-        Evaluate(expr.get(), buffer.environment(),
+        CHECK(expr != nullptr);
+        Evaluate(*expr, buffer.environment(),
                  [work_queue = target_buffer->work_queue()](
                      std::function<void()> callback) {
                    work_queue->Schedule(callback);
-                 })
-            .SetConsumer([expr](auto) { /* Keep expr alive. */ });
+                 });
       },
       [] {});
 }

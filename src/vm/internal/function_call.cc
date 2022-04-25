@@ -343,11 +343,12 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));
   }
-  return Evaluate(NewFunctionCall(NewConstantExpression(Value::NewFunction(
-                                      func.type.type_arguments, func.callback)),
-                                  std::move(args_expr))
-                      .get(),
-                  nullptr, yield_callback);
+  // TODO(easy, 2022-04-25): Get a NonNull?
+  std::unique_ptr<Expression> expr =
+      NewFunctionCall(NewConstantExpression(Value::NewFunction(
+                          func.type.type_arguments, func.callback)),
+                      std::move(args_expr));
+  return Evaluate(*expr, nullptr, yield_callback);
 }
 
 }  // namespace afc::vm

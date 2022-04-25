@@ -46,7 +46,8 @@ class Trampoline {
   void SetEnvironment(std::shared_ptr<Environment> environment);
   const std::shared_ptr<Environment>& environment() const;
 
-  // Must ensure expression lives until the future is notified.
+  // Expression can be deleted as soon as this returns (even before a value is
+  // given to the returned future).
   futures::ValueOrError<EvaluationOutput> Bounce(Expression* expression,
                                                  VMType expression_type);
 
@@ -129,11 +130,13 @@ unique_ptr<Expression> CompileString(const wstring& str,
                                      std::shared_ptr<Environment> environment,
                                      wstring* error_description);
 
-// Caller must make sure expr lives until consumer runs. `yield_callback` is an
-// optional function that must ensure that the callback it receives will run
-// in the future.
+// `yield_callback` is an optional function that must ensure that the callback
+// it receives will run in the future.
+//
+// `expr` can be deleted as soon as this returns (even before a value is given
+// to the returned future).
 futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Evaluate(
-    Expression* expr, std::shared_ptr<Environment> environment,
+    Expression& expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback);
 
 }  // namespace vm

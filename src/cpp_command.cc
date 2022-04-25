@@ -9,8 +9,8 @@
 #include "src/language/wstring.h"
 #include "src/vm/public/vm.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::NonNull;
 
 using std::wstring;
 
@@ -47,20 +47,19 @@ class CppCommand : public Command {
   CppCommand(EditorState& editor_state,
              std::unique_ptr<afc::vm::Expression> expression, wstring code)
       : editor_state_(editor_state),
-        expression_(std::move(expression)),
+        // TODO(easy, 2022-04-25): Get rid of Unsafe.
+        expression_(NonNull<std::unique_ptr<vm::Expression>>::Unsafe(
+            std::move(expression))),
         code_(std::move(code)),
         description_(GetDescriptionString(code_)),
-        category_(GetCategoryString(code_)) {
-    CHECK(expression_ != nullptr);
-  }
+        category_(GetCategoryString(code_)) {}
 
   std::wstring Description() const override { return description_; }
   std::wstring Category() const override { return category_; }
 
   void ProcessInput(wint_t) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
-    auto expression = expression_;
-    Evaluate(expression_.get(), editor_state_.environment(),
+    Evaluate(*expression_, editor_state_.environment(),
              [work_queue =
                   editor_state_.work_queue()](std::function<void()> callback) {
                work_queue->Schedule(std::move(callback));
@@ -69,7 +68,7 @@ class CppCommand : public Command {
 
  private:
   EditorState& editor_state_;
-  const std::shared_ptr<afc::vm::Expression> expression_;
+  const NonNull<std::unique_ptr<vm::Expression>> expression_;
   const wstring code_;
   const wstring description_;
   const wstring category_;
@@ -93,5 +92,4 @@ std::unique_ptr<Command> NewCppCommand(
                                       std::move(code));
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
