@@ -16,7 +16,7 @@ using std::unique_ptr;
 class Expression;
 class Compilation;
 
-std::unique_ptr<Expression> NewFunctionCall(
+language::NonNull<std::unique_ptr<Expression>> NewFunctionCall(
     std::unique_ptr<Expression> func,
     std::vector<std::unique_ptr<Expression>> args);
 

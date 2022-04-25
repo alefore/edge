@@ -171,16 +171,13 @@ ValueOrError<ParsedCommand> Parse(NonNull<std::shared_ptr<LazyString>> command,
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Execute(
     std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
-  std::shared_ptr<Expression> expression = vm::NewFunctionCall(
+  NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(
           MakeNonNullUnique<vm::Value>(*parsed_command.function)),
       std::move(parsed_command.inputs));
-  // TODO(easy, 2022-04-25): Receive NonNull.
-  CHECK(expression != nullptr);
   if (expression->Types().empty()) {
     // TODO: Show the error.
-    return futures::Past(ValueOrError<NonNull<std::unique_ptr<Value>>>(
-        Error(L"Unable to compile (type mismatch).")));
+    return futures::Past(Error(L"Unable to compile (type mismatch)."));
   }
   return buffer->EvaluateExpression(*expression, buffer->environment());
 }

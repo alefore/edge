@@ -453,12 +453,10 @@ class ForkEditorCommand : public Command {
     std::vector<std::unique_ptr<Expression>> arguments;
     arguments.push_back(
         vm::NewConstantExpression(vm::Value::NewString(line->ToString())));
-    std::shared_ptr<Expression> expression = vm::NewFunctionCall(
+    NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
         vm::NewConstantExpression(
             MakeNonNullUnique<Value>(*prompt_state.context_command_callback)),
         std::move(arguments));
-    // TODO(easy, 2022-04-25): Get Expression as NonNull.
-    CHECK(expression != nullptr);
     if (expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer->status().SetWarningText(

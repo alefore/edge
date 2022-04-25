@@ -103,11 +103,9 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
 
   std::vector<std::unique_ptr<vm::Expression>> args;
   args.push_back(vm::NewConstantExpression({vm::Value::NewString(path)}));
-  std::unique_ptr<Expression> expression = vm::NewFunctionCall(
+  NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(MakeNonNullUnique<vm::Value>(*callback)),
       std::move(args));
-  // TODO(easy, 2022-04-25): Receive NonNull expr.
-  CHECK(expression != nullptr);
   return {
       .initial_value = NewLazyString(L"…"),
       .value = target.EvaluateExpression(*expression, target.environment())

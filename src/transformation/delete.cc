@@ -106,10 +106,8 @@ void HandleLineDeletion(LineColumn position, OpenBuffer& buffer) {
                                       VMType::Function({VMType::Void()})),
       [&](NonNull<std::unique_ptr<Value>> callback) {
         LOG(INFO) << "Running EdgeLineDeleteHandler.";
-        // TODO(easy, 2022-04-25): Get a NonNull?
-        std::unique_ptr<Expression> expr = vm::NewFunctionCall(
+        NonNull<std::unique_ptr<Expression>> expr = vm::NewFunctionCall(
             vm::NewConstantExpression(std::move(callback)), {});
-        CHECK(expr != nullptr);
         Evaluate(*expr, buffer.environment(),
                  [work_queue = target_buffer->work_queue()](
                      std::function<void()> callback) {

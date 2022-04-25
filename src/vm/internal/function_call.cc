@@ -185,10 +185,10 @@ class FunctionCall : public Expression {
 
 }  // namespace
 
-std::unique_ptr<Expression> NewFunctionCall(
+NonNull<std::unique_ptr<Expression>> NewFunctionCall(
     std::unique_ptr<Expression> func,
     std::vector<std::unique_ptr<Expression>> args) {
-  return std::make_unique<FunctionCall>(
+  return MakeNonNullUnique<FunctionCall>(
       std::move(func),
       std::make_shared<std::vector<std::unique_ptr<Expression>>>(
           std::move(args)));
@@ -202,7 +202,8 @@ std::unique_ptr<Expression> NewFunctionCall(
   for (auto& type : func->Types()) {
     wstring error;
     if (TypeMatchesArguments(type, args, &error)) {
-      return NewFunctionCall(std::move(func), std::move(args));
+      return std::move(
+          NewFunctionCall(std::move(func), std::move(args)).get_unique());
     }
     errors.push_back(errors_separator + error);
     errors_separator = L", ";
@@ -343,8 +344,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));
   }
-  // TODO(easy, 2022-04-25): Get a NonNull?
-  std::unique_ptr<Expression> expr =
+  NonNull<std::unique_ptr<Expression>> expr =
       NewFunctionCall(NewConstantExpression(Value::NewFunction(
                           func.type.type_arguments, func.callback)),
                       std::move(args_expr));
