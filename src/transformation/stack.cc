@@ -44,15 +44,14 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 
 futures::Value<PossibleError> PreviewCppExpression(
     OpenBuffer& buffer, const BufferContents& expression_str) {
-  std::wstring errors;
+  auto compilation_result = buffer.CompileString(expression_str.ToString());
+  if (compilation_result.IsError())
+    return futures::Past(compilation_result.error());
   std::shared_ptr<Expression> expression;
   std::shared_ptr<Environment> environment;
-  std::tie(expression, environment) =
-      buffer.CompileString(expression_str.ToString(), &errors);
-  if (expression == nullptr) {
-    return futures::Past(PossibleError(Error(errors)));
-  }
-
+  std::tie(expression, environment) = std::move(compilation_result.value());
+  // TODO(easy, 2022-04-25): Expression should be NonNull.
+  CHECK(expression != nullptr);
   buffer.status().Reset();
   switch (expression->purity()) {
     case vm::Expression::PurityType::kPure: {

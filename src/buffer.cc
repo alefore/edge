@@ -155,8 +155,11 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
   std::shared_ptr<Expression> expr;
   std::shared_ptr<Environment> sub_environment;
   if (!line->empty()) {
-    std::tie(expr, sub_environment) =
-        buffer.CompileString(line->contents()->ToString(), &error_description);
+    if (auto compilation_result =
+            buffer.CompileString(line->contents()->ToString());
+        !compilation_result.IsError()) {
+      std::tie(expr, sub_environment) = std::move(compilation_result.value());
+    }
   }
   if (expr == nullptr)
     return line->metadata() == nullptr
@@ -1336,17 +1339,14 @@ void OpenBuffer::AppendToLastLine(Line line) {
                        BufferContents::CursorsBehavior::kUnmodified);
 }
 
-// TODO(easy, 2022-04-25): Change to return ValueOrError.
-std::pair<std::unique_ptr<Expression>, std::shared_ptr<Environment>>
-OpenBuffer::CompileString(const std::wstring& code,
-                          std::wstring* error_description) {
+ValueOrError<
+    std::pair<std::unique_ptr<Expression>, std::shared_ptr<Environment>>>
+OpenBuffer::CompileString(const std::wstring& code) {
   auto sub_environment = std::make_shared<Environment>(environment_);
   auto expression = afc::vm::CompileString(code, sub_environment);
-  if (error_description != nullptr && expression.IsError())
-    *error_description = expression.error().description;
-  return {expression.IsError() ? std::unique_ptr<Expression>()
-                               : std::move(expression.value().get_unique()),
-          sub_environment};
+  if (expression.IsError()) return expression.error();
+  return Success(std::make_pair(std::move(expression.value().get_unique()),
+                                sub_environment));
 }
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>>
@@ -1361,17 +1361,20 @@ OpenBuffer::EvaluateExpression(Expression& expr,
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>>
 OpenBuffer::EvaluateString(const wstring& code) {
-  wstring error_description;
   LOG(INFO) << "Compiling code.";
-  if (auto [expression, environment] = CompileString(code, &error_description);
-      expression != nullptr) {
-    LOG(INFO) << "Code compiled, evaluating.";
-    return EvaluateExpression(*expression, environment);
+  auto compilation_result = CompileString(code);
+  if (compilation_result.IsError()) {
+    Error error =
+        Error::Augment(L"🐜Compilation error", compilation_result.error());
+    status_.SetWarningText(error.description);
+    return futures::Past(
+        ValueOrError<NonNull<std::unique_ptr<Value>>>(std::move(error)));
   }
-  Error error(L"🐜Compilation error: " + error_description);
-  status_.SetWarningText(error.description);
-  return futures::Past(
-      ValueOrError<NonNull<std::unique_ptr<Value>>>(std::move(error)));
+  auto [expression, environment] = std::move(compilation_result.value());
+  // TODO(easy, 2022-04-25): Receive expression as NonNull.
+  CHECK(expression != nullptr);
+  LOG(INFO) << "Code compiled, evaluating.";
+  return EvaluateExpression(*expression, environment);
 }
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
