@@ -77,10 +77,6 @@ class NonNull<std::unique_ptr<T>> {
 
   NonNull() : value_(std::make_unique<T>()) {}
 
-  explicit NonNull(std::unique_ptr<T> value) : value_(std::move(value)) {
-    CHECK(value_ != nullptr);
-  };
-
   // Use the `Other` type for types where `std::unique_ptr<Other>` can be
   // converted to `std::unique_ptr<T>`.
   template <typename Other>
