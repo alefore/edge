@@ -14,7 +14,8 @@ using language::Success;
 
 class ReturnExpression : public Expression {
  public:
-  ReturnExpression(std::shared_ptr<Expression> expr) : expr_(std::move(expr)) {}
+  ReturnExpression(NonNull<std::shared_ptr<Expression>> expr)
+      : expr_(std::move(expr)) {}
 
   std::vector<VMType> Types() override { return expr_->Types(); }
 
@@ -39,8 +40,7 @@ class ReturnExpression : public Expression {
   }
 
  private:
-  // TODO(easy, 2022-04-25): Make NonNull.
-  const std::shared_ptr<Expression> expr_;
+  const NonNull<std::shared_ptr<Expression>> expr_;
 };
 
 }  // namespace
@@ -51,7 +51,8 @@ std::unique_ptr<Expression> NewReturnExpression(
     return nullptr;
   }
 
-  return std::make_unique<ReturnExpression>(std::move(expr));
+  return std::make_unique<ReturnExpression>(
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(expr)));
 }
 
 }  // namespace afc::vm
