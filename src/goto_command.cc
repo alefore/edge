@@ -119,9 +119,9 @@ futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
       position.has_value() ? Output::SetPosition(position.value()) : Output());
 }
 
-// TODO(easy, 2022-04-26): Return NonNull.
-std::unique_ptr<CompositeTransformation> GotoTransformation::Clone() const {
-  return std::make_unique<GotoTransformation>(calls_);
+language::NonNull<std::unique_ptr<CompositeTransformation>>
+GotoTransformation::Clone() const {
+  return MakeNonNullUnique<GotoTransformation>(calls_);
 }
 
 NonNull<std::unique_ptr<Command>> NewGotoCommand(EditorState& editor_state) {

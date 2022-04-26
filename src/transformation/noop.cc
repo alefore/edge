@@ -6,6 +6,7 @@
 
 namespace afc::editor {
 namespace {
+using language::MakeNonNullUnique;
 using language::NonNull;
 
 class Noop : public CompositeTransformation {
@@ -28,8 +29,8 @@ class Noop : public CompositeTransformation {
   futures::Value<Output> Apply(Input) const override {
     return futures::Past(Output());
   }
-  std::unique_ptr<CompositeTransformation> Clone() const override {
-    return std::make_unique<Noop>();
+  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
+    return MakeNonNullUnique<Noop>();
   }
 };
 }  // namespace

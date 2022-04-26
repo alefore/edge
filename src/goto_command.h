@@ -16,7 +16,8 @@ class GotoTransformation : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override;
 
-  std::unique_ptr<CompositeTransformation> Clone() const override;
+  language::NonNull<std::unique_ptr<CompositeTransformation>> Clone()
+      const override;
 
  private:
   const int calls_;

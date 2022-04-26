@@ -10,7 +10,8 @@ namespace afc::editor {
 class TreeNavigate : public CompositeTransformation {
   std::wstring Serialize() const override;
   futures::Value<Output> Apply(Input input) const override;
-  std::unique_ptr<CompositeTransformation> Clone() const override;
+  language::NonNull<std::unique_ptr<CompositeTransformation>> Clone()
+      const override;
 };
 }  // namespace afc::editor
 

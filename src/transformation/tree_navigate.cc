@@ -10,6 +10,7 @@
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
 using language::NonNull;
 
 std::wstring TreeNavigate::Serialize() const { return L"TreeNavigate()"; }
@@ -49,7 +50,7 @@ futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
       input.position == last_position ? tree->range().begin : last_position));
 }
 
-std::unique_ptr<CompositeTransformation> TreeNavigate::Clone() const {
-  return std::make_unique<TreeNavigate>();
+NonNull<std::unique_ptr<CompositeTransformation>> TreeNavigate::Clone() const {
+  return MakeNonNullUnique<TreeNavigate>();
 }
 }  // namespace afc::editor

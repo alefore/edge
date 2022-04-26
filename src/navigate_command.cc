@@ -201,8 +201,8 @@ class NavigateTransformation : public CompositeTransformation {
     return futures::Past(std::move(output));
   }
 
-  std::unique_ptr<CompositeTransformation> Clone() const override {
-    return std::make_unique<NavigateTransformation>(state_);
+  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
+    return MakeNonNullUnique<NavigateTransformation>(state_);
   }
 
  private:

@@ -85,8 +85,9 @@ class NewLineTransformation : public CompositeTransformation {
     return futures::Past(std::move(output));
   }
 
-  std::unique_ptr<CompositeTransformation> Clone() const override {
-    return std::make_unique<NewLineTransformation>();
+  language::NonNull<std::unique_ptr<CompositeTransformation>> Clone()
+      const override {
+    return MakeNonNullUnique<NewLineTransformation>();
   }
 };
 
@@ -105,8 +106,9 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
     return futures::Past(std::move(output));
   }
 
-  std::unique_ptr<CompositeTransformation> Clone() const override {
-    return std::make_unique<InsertEmptyLineTransformation>(direction_);
+  language::NonNull<std::unique_ptr<CompositeTransformation>> Clone()
+      const override {
+    return MakeNonNullUnique<InsertEmptyLineTransformation>(direction_);
   }
 
  private:

@@ -14,6 +14,9 @@
 #include "src/transformation/stack.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
+using language::NonNull;
+
 FindTransformation::FindTransformation(wchar_t c) : c_(c) {}
 
 std::wstring FindTransformation::Serialize() const {
@@ -37,8 +40,9 @@ futures::Value<CompositeTransformation::Output> FindTransformation::Apply(
   return futures::Past(Output::SetColumn(column));
 }
 
-std::unique_ptr<CompositeTransformation> FindTransformation::Clone() const {
-  return std::make_unique<FindTransformation>(c_);
+NonNull<std::unique_ptr<CompositeTransformation>> FindTransformation::Clone()
+    const {
+  return MakeNonNullUnique<FindTransformation>(c_);
 }
 
 std::optional<ColumnNumber> FindTransformation::SeekOnce(

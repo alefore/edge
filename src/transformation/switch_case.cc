@@ -13,6 +13,7 @@
 #include "src/vm_transformation.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
 using language::NonNull;
 std::wstring SwitchCaseTransformation::Serialize() const {
   return L"SwitchCaseTransformation();";
@@ -62,9 +63,9 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
   return futures::Past(std::move(output));
 }
 
-std::unique_ptr<CompositeTransformation> SwitchCaseTransformation::Clone()
-    const {
-  return std::make_unique<SwitchCaseTransformation>();
+NonNull<std::unique_ptr<CompositeTransformation>>
+SwitchCaseTransformation::Clone() const {
+  return MakeNonNullUnique<SwitchCaseTransformation>();
 }
 
 }  // namespace afc::editor

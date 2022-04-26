@@ -87,8 +87,8 @@ class MoveTransformation : public CompositeTransformation {
     return futures::Past(Output::SetPosition(position.value()));
   }
 
-  std::unique_ptr<CompositeTransformation> Clone() const override {
-    return std::make_unique<MoveTransformation>();
+  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
+    return MakeNonNullUnique<MoveTransformation>();
   }
 };
 }  // namespace
