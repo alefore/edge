@@ -9,6 +9,8 @@
 #include "src/editor_mode.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
+using language::NonNull;
 namespace {
 class SetModeCommand : public Command {
  public:
@@ -26,8 +28,9 @@ class SetModeCommand : public Command {
 };
 }  // namespace
 
-std::unique_ptr<Command> NewSetModeCommand(SetModeCommandOptions options) {
-  return std::make_unique<SetModeCommand>(std::move(options));
+NonNull<std::unique_ptr<Command>> NewSetModeCommand(
+    SetModeCommandOptions options) {
+  return MakeNonNullUnique<SetModeCommand>(std::move(options));
 }
 
 }  // namespace afc::editor

@@ -9,6 +9,7 @@
 #include "src/terminal.h"
 
 namespace afc::editor {
+using language::NonNull;
 namespace {
 bool CharConsumer(wint_t c, Modifiers modifiers) {
   auto set_structure = [&modifiers](Structure* structure) {
@@ -189,7 +190,7 @@ std::wstring BuildStatus(
 }
 }  // namespace
 
-std::unique_ptr<Command> NewCommandWithModifiers(
+NonNull<std::unique_ptr<Command>> NewCommandWithModifiers(
     std::function<std::wstring(const Modifiers&)> name_function,
     wstring description, Modifiers modifiers,
     CommandWithModifiersHandler handler, EditorState& editor_state) {

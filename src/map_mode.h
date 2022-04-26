@@ -30,7 +30,8 @@ class MapModeCommands {
   std::map<std::wstring, std::map<std::wstring, Command*>> Coallesce() const;
 
   // Adds an entry mapping a given string to a given command.
-  void Add(std::wstring name, std::unique_ptr<Command> value);
+  void Add(std::wstring name,
+           language::NonNull<std::unique_ptr<Command>> value);
   void Add(std::wstring name, std::wstring description,
            language::NonNull<std::unique_ptr<vm::Value>> value,
            std::shared_ptr<vm::Environment> environment);
@@ -41,6 +42,7 @@ class MapModeCommands {
   friend class MapMode;
 
   struct Frame {
+    // TODO(easy, 2022-04-26): Use NonNull.
     std::map<std::wstring, std::unique_ptr<Command>> commands;
     // The key is the name of a variable. The set contains all commands
     // associated with that variable.
@@ -49,6 +51,7 @@ class MapModeCommands {
   };
 
   EditorState& editor_state_;
+  // TODO(easy, 2022-04-26): Use NonNull.
   std::list<std::shared_ptr<Frame>> frames_;
 };
 

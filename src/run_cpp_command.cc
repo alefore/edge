@@ -254,8 +254,8 @@ futures::ValueOrError<NonNull<std::unique_ptr<vm::Value>>> RunCppCommandShell(
                           });
 }
 
-std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
-                                          CppCommandMode mode) {
+NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
+                                                   CppCommandMode mode) {
   std::wstring description;
   switch (mode) {
     case CppCommandMode::kLiteral:

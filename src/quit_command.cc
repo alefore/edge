@@ -4,12 +4,12 @@
 
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/language/safe_types.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+using language::MakeNonNullUnique;
+using language::NonNull;
 namespace {
-
 class QuitCommand : public Command {
  public:
   QuitCommand(EditorState& editor_state, int exit_value)
@@ -41,10 +41,9 @@ class QuitCommand : public Command {
 
 }  // namespace
 
-std::unique_ptr<Command> NewQuitCommand(EditorState& editor_state,
-                                        int exit_value) {
-  return std::make_unique<QuitCommand>(editor_state, exit_value);
+NonNull<std::unique_ptr<Command>> NewQuitCommand(EditorState& editor_state,
+                                                 int exit_value) {
+  return MakeNonNullUnique<QuitCommand>(editor_state, exit_value);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

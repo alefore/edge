@@ -85,7 +85,7 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
 void Prompt(PromptOptions options);
 
 // options_supplier will only be called if the editor has an active buffer.
-std::unique_ptr<Command> NewLinePromptCommand(
+language::NonNull<std::unique_ptr<Command>> NewLinePromptCommand(
     EditorState& editor_state, wstring description,
     std::function<PromptOptions()> options_supplier);
 

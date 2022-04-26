@@ -17,6 +17,7 @@
 
 namespace afc::editor {
 using language::MakeNonNullUnique;
+using language::NonNull;
 namespace {
 // Arguments:
 //   prefix_len: The length of prefix that we skip when calls is 0.
@@ -118,12 +119,13 @@ futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
       position.has_value() ? Output::SetPosition(position.value()) : Output());
 }
 
+// TODO(easy, 2022-04-26): Return NonNull.
 std::unique_ptr<CompositeTransformation> GotoTransformation::Clone() const {
   return std::make_unique<GotoTransformation>(calls_);
 }
 
-std::unique_ptr<Command> NewGotoCommand(EditorState& editor_state) {
-  return std::make_unique<GotoCommand>(editor_state, 0);
+NonNull<std::unique_ptr<Command>> NewGotoCommand(EditorState& editor_state) {
+  return MakeNonNullUnique<GotoCommand>(editor_state, 0);
 }
 
 }  // namespace afc::editor

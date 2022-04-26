@@ -3,11 +3,11 @@
 
 #include <memory>
 
-#include "command.h"
+#include "src/language/safe_types.h"
 #include "src/transformation/composite.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+class Command;
 class GotoTransformation : public CompositeTransformation {
  public:
   GotoTransformation(int calls);
@@ -22,9 +22,9 @@ class GotoTransformation : public CompositeTransformation {
   const int calls_;
 };
 
-std::unique_ptr<Command> NewGotoCommand(EditorState& editor_state);
+language::NonNull<std::unique_ptr<Command>> NewGotoCommand(
+    EditorState& editor_state);
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_GOTO_COMMAND_H__

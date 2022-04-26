@@ -13,6 +13,7 @@ namespace afc::editor {
 using infrastructure::FileSystemDriver;
 using language::EmptyValue;
 using language::Error;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
@@ -105,8 +106,9 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
       });
 }
 
-std::unique_ptr<Command> NewRunCppFileCommand(EditorState& editor_state) {
-  return std::make_unique<RunCppFileCommand>(editor_state);
+NonNull<std::unique_ptr<Command>> NewRunCppFileCommand(
+    EditorState& editor_state) {
+  return MakeNonNullUnique<RunCppFileCommand>(editor_state);
 }
 
 }  // namespace afc::editor

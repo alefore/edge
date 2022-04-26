@@ -3,10 +3,13 @@
 
 #include <memory>
 
+#include "src/language/safe_types.h"
+
 namespace afc::editor {
 class EditorState;
 class Command;
-std::unique_ptr<Command> NewListBuffersCommand(EditorState& editor_state);
+language::NonNull<std::unique_ptr<Command>> NewListBuffersCommand(
+    EditorState& editor_state);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_LIST_BUFFERS_COMMAND_H__

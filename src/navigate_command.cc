@@ -20,6 +20,7 @@
 
 namespace afc::editor {
 using language::MakeNonNullUnique;
+using language::NonNull;
 namespace {
 class SearchRange {
  public:
@@ -297,7 +298,8 @@ NavigateState InitialState(EditorState& editor_state) {
 }
 }  // namespace
 
-std::unique_ptr<Command> NewNavigateCommand(EditorState& editor_state) {
+NonNull<std::unique_ptr<Command>> NewNavigateCommand(
+    EditorState& editor_state) {
   return NewSetModeCommand(
       {.editor_state = editor_state,
        .description = L"activates navigate mode.",

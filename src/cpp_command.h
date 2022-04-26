@@ -4,15 +4,18 @@
 #include <memory>
 #include <string>
 
+#include "src/language/safe_types.h"
+#include "src/language/value_or_error.h"
 #include "vm/public/vm.h"
 
 namespace afc::editor {
 class EditorState;
 class Command;
 
-std::unique_ptr<Command> NewCppCommand(
-    EditorState& editor_state,
-    std::shared_ptr<afc::vm::Environment> environment, const std::wstring code);
+language::ValueOrError<language::NonNull<std::unique_ptr<Command>>>
+NewCppCommand(EditorState& editor_state,
+              std::shared_ptr<afc::vm::Environment> environment,
+              const std::wstring code);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_CPP_COMMAND_H__

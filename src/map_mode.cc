@@ -15,9 +15,8 @@
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+using language::MakeNonNullUnique;
 using language::NonNull;
 using vm::Expression;
 using vm::Value;
@@ -43,9 +42,9 @@ class CommandFromFunction : public Command {
 };
 
 template <typename Callback>
-std::unique_ptr<Command> MakeCommandFromFunction(Callback callback,
-                                                 wstring description) {
-  return std::make_unique<CommandFromFunction<Callback>>(
+NonNull<std::unique_ptr<Command>> MakeCommandFromFunction(Callback callback,
+                                                          wstring description) {
+  return MakeNonNullUnique<CommandFromFunction<Callback>>(
       std::move(callback), std::move(description));
 }
 }  // namespace
@@ -82,10 +81,10 @@ std::map<wstring, std::map<wstring, Command*>> MapModeCommands::Coallesce()
   return output;
 }
 
-void MapModeCommands::Add(wstring name, std::unique_ptr<Command> value) {
-  CHECK(value != nullptr);
+void MapModeCommands::Add(wstring name,
+                          NonNull<std::unique_ptr<Command>> value) {
   CHECK(!frames_.empty());
-  frames_.front()->commands.insert({name, std::move(value)});
+  frames_.front()->commands.insert({name, std::move(value.get_unique())});
 }
 
 void MapModeCommands::Add(wstring name, wstring description,
@@ -150,5 +149,4 @@ MapMode::CursorMode MapMode::cursor_mode() const {
   return CursorMode::kDefault;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

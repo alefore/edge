@@ -10,7 +10,10 @@
 #include "src/vm/public/vm.h"
 
 namespace afc::editor {
+using language::MakeNonNullUnique;
 using language::NonNull;
+using language::Success;
+using language::ValueOrError;
 
 using std::wstring;
 
@@ -75,17 +78,20 @@ class CppCommand : public Command {
 
 }  // namespace
 
-std::unique_ptr<Command> NewCppCommand(
+ValueOrError<NonNull<std::unique_ptr<Command>>> NewCppCommand(
     EditorState& editor_state,
     std::shared_ptr<afc::vm::Environment> environment, wstring code) {
   auto result = vm::CompileString(code, std::move(environment));
   if (result.IsError()) {
     LOG(ERROR) << "Failed compilation of command: " << code << ": "
                << result.error();
-    return nullptr;
+    return result.error();
   }
-  return std::make_unique<CppCommand>(editor_state, std::move(result.value()),
-                                      std::move(code));
+  // TODO(easy, 2022-04-26): Why do we need to explicit cast? Improve
+  // ValueOrError.
+  return Success<NonNull<std::unique_ptr<Command>>>(
+      MakeNonNullUnique<CppCommand>(editor_state, std::move(result.value()),
+                                    std::move(code)));
 }
 
 }  // namespace afc::editor

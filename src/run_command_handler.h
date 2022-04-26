@@ -39,12 +39,13 @@ struct ForkCommandOptions {
   std::optional<infrastructure::Path> children_path = std::nullopt;
 };
 
-unique_ptr<Command> NewForkCommand(EditorState& editor_state);
+language::NonNull<std::unique_ptr<Command>> NewForkCommand(
+    EditorState& editor_state);
 
 class OpenBuffer;
 
-std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
-                                        const ForkCommandOptions& options);
+language::NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(
+    EditorState& editor_state, const ForkCommandOptions& options);
 
 futures::Value<language::EmptyValue> RunCommandHandler(
     const wstring& input, EditorState& editor_state,

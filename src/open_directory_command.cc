@@ -11,9 +11,9 @@ extern "C" {
 #include "src/infrastructure/dirname.h"
 #include "src/language/wstring.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
+using language::MakeNonNullUnique;
+using language::NonNull;
 namespace {
 using infrastructure::Path;
 
@@ -47,9 +47,9 @@ class OpenDirectoryCommand : public Command {
 
 }  // namespace
 
-std::unique_ptr<Command> NewOpenDirectoryCommand(EditorState& editor_state) {
-  return std::make_unique<OpenDirectoryCommand>(editor_state);
+NonNull<std::unique_ptr<Command>> NewOpenDirectoryCommand(
+    EditorState& editor_state) {
+  return MakeNonNullUnique<OpenDirectoryCommand>(editor_state);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

@@ -573,8 +573,9 @@ void DefaultScrollBehavior::End(OpenBuffer& buffer) {
       transformation::SetPosition(std::numeric_limits<ColumnNumber>::max()));
 }
 
-std::unique_ptr<Command> NewFindCompletionCommand(EditorState& editor_state) {
-  return std::make_unique<FindCompletionCommand>(editor_state);
+NonNull<std::unique_ptr<Command>> NewFindCompletionCommand(
+    EditorState& editor_state) {
+  return MakeNonNullUnique<FindCompletionCommand>(editor_state);
 }
 
 /* static */ NonNull<std::unique_ptr<ScrollBehaviorFactory>>

@@ -40,6 +40,7 @@ using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
@@ -1020,10 +1021,10 @@ void Prompt(PromptOptions options) {
       });
 }
 
-std::unique_ptr<Command> NewLinePromptCommand(
+NonNull<std::unique_ptr<Command>> NewLinePromptCommand(
     EditorState& editor_state, wstring description,
     std::function<PromptOptions()> options_supplier) {
-  return std::make_unique<LinePromptCommand>(
+  return MakeNonNullUnique<LinePromptCommand>(
       editor_state, std::move(description), std::move(options_supplier));
 }
 

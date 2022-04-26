@@ -15,6 +15,7 @@
 
 namespace afc::editor {
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
@@ -205,8 +206,9 @@ class ListBuffersCommand : public Command {
 
 }  // namespace
 
-std::unique_ptr<Command> NewListBuffersCommand(EditorState& editor_state) {
-  return std::make_unique<ListBuffersCommand>(editor_state);
+NonNull<std::unique_ptr<Command>> NewListBuffersCommand(
+    EditorState& editor_state) {
+  return MakeNonNullUnique<ListBuffersCommand>(editor_state);
 }
 
 }  // namespace afc::editor

@@ -8,20 +8,14 @@
 
 #include "command.h"
 #include "map_mode.h"
+#include "src/language/safe_types.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
-using std::map;
-using std::unique_ptr;
-using std::vector;
-using std::wstring;
+language::NonNull<std::unique_ptr<Command>> NewHelpCommand(
+    EditorState& editor_state, const MapModeCommands* commands,
+    const std::wstring& mode_description);
 
-std::unique_ptr<Command> NewHelpCommand(EditorState& editor_state,
-                                        const MapModeCommands* commands,
-                                        const std::wstring& mode_description);
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif

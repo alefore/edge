@@ -21,7 +21,7 @@ namespace afc::editor::operation {
 using futures::Past;
 using language::EmptyValue;
 using language::MakeNonNullUnique;
-
+using language::NonNull;
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
@@ -750,7 +750,7 @@ bool CommandArgumentRepetitions::PopValue() {
   return entry.additive_default + entry.additive + entry.multiplicative;
 }
 
-std::unique_ptr<afc::editor::Command> NewTopLevelCommand(
+NonNull<std::unique_ptr<afc::editor::Command>> NewTopLevelCommand(
     std::wstring, std::wstring description, TopCommand top_command,
     EditorState& editor_state, std::vector<Command> commands) {
   return NewSetModeCommand({.editor_state = editor_state,

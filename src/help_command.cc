@@ -13,10 +13,12 @@
 #include "src/terminal.h"
 #include "src/tests/tests.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 using language::FromByteString;
+using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
+using language::NonNull;
 
 using std::map;
 using std::shared_ptr;
@@ -303,12 +305,11 @@ const bool buffer_registration =
                     });
 }  // namespace
 
-unique_ptr<Command> NewHelpCommand(EditorState& editor_state,
-                                   const MapModeCommands* commands,
-                                   const wstring& mode_description) {
-  return std::make_unique<HelpCommand>(editor_state, commands,
-                                       mode_description);
+NonNull<std::unique_ptr<Command>> NewHelpCommand(
+    EditorState& editor_state, const MapModeCommands* commands,
+    const wstring& mode_description) {
+  return MakeNonNullUnique<HelpCommand>(editor_state, commands,
+                                        mode_description);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

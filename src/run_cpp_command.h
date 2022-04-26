@@ -34,8 +34,8 @@ class Command;
 futures::ValueOrError<language::NonNull<std::unique_ptr<vm::Value>>>
 RunCppCommandShell(const std::wstring& command, EditorState& editor_state);
 
-std::unique_ptr<Command> NewRunCppCommand(EditorState& editor_state,
-                                          CppCommandMode mode);
+language::NonNull<std::unique_ptr<Command>> NewRunCppCommand(
+    EditorState& editor_state, CppCommandMode mode);
 
 }  // namespace editor
 }  // namespace afc

@@ -3,11 +3,13 @@
 
 #include <memory>
 
-#include "command.h"
+#include "src/language/safe_types.h"
 
 namespace afc::editor {
 class EditorState;
-std::unique_ptr<Command> NewNavigateCommand(EditorState& editor_state);
+class Command;
+language::NonNull<std::unique_ptr<Command>> NewNavigateCommand(
+    EditorState& editor_state);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_NAVIGATE_COMMAND_H__

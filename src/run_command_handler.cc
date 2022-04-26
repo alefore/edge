@@ -488,7 +488,8 @@ class ForkEditorCommand : public Command {
               help_buffer->Set(buffer_variables::follow_end_of_file, false);
               help_buffer->Set(buffer_variables::show_in_buffers_list, false);
               help_buffer->set_position({});
-              return Success(ColorizePromptOptions{.context = help_buffer});
+              return Success(
+                  ColorizePromptOptions{.context = help_buffer.get_shared()});
             })
         .ConsumeErrors(
             [](Error) { return futures::Past(ColorizePromptOptions{}); });
@@ -577,9 +578,8 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
                           std::move(fork_command_options));
 }
 
-// TODO(easy, 2022-04-25): Return NonNull.
-std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
-                                        const ForkCommandOptions& options) {
+NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(
+    EditorState& editor_state, const ForkCommandOptions& options) {
   BufferName name = options.name.value_or(BufferName(L"$ " + options.command));
   if (auto it = editor_state.buffers()->find(name);
       it != editor_state.buffers()->end()) {
@@ -589,7 +589,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
     buffer->Reload();
     buffer->set_current_position_line(LineNumber(0));
     editor_state.AddBuffer(buffer.get_shared(), options.insertion_type);
-    return buffer.get_shared();
+    return buffer;
   }
 
   auto command_data = std::make_shared<CommandData>();
@@ -614,11 +614,11 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState& editor_state,
 
   editor_state.buffers()->insert({name, buffer.get_shared()});
   editor_state.AddBuffer(buffer.get_shared(), options.insertion_type);
-  return buffer.get_shared();
+  return buffer;
 }
 
-std::unique_ptr<Command> NewForkCommand(EditorState& editor_state) {
-  return std::make_unique<ForkEditorCommand>(editor_state);
+NonNull<std::unique_ptr<Command>> NewForkCommand(EditorState& editor_state) {
+  return MakeNonNullUnique<ForkEditorCommand>(editor_state);
 }
 
 futures::Value<EmptyValue> RunCommandHandler(

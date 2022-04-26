@@ -15,12 +15,12 @@
 #include "src/parse_tree.h"
 #include "src/screen.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::MakeNonNullUnique;
+using language::NonNull;
 namespace {
 using infrastructure::Path;
 using language::MakeNonNullShared;
-using language::NonNull;
 using language::PossibleError;
 using language::Success;
 
@@ -182,9 +182,9 @@ class NavigationBufferCommand : public Command {
 };
 }  // namespace
 
-std::unique_ptr<Command> NewNavigationBufferCommand(EditorState& editor_state) {
-  return std::make_unique<NavigationBufferCommand>(editor_state);
+NonNull<std::unique_ptr<Command>> NewNavigationBufferCommand(
+    EditorState& editor_state) {
+  return MakeNonNullUnique<NavigationBufferCommand>(editor_state);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

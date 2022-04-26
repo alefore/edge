@@ -414,7 +414,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       L"ForkCommand",
       vm::NewCallback([](EditorState* editor, ForkCommandOptions* options) {
         CHECK(editor != nullptr);
-        return ForkCommand(*editor, *options);
+        return std::move(ForkCommand(*editor, *options).get_shared());
       }));
 
   editor_type->AddField(

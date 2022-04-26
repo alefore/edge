@@ -17,8 +17,9 @@ extern "C" {
 #include "src/command.h"
 #include "src/editor.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::MakeNonNullUnique;
+using language::NonNull;
 
 class RecordCommand : public Command {
  public:
@@ -48,9 +49,8 @@ class RecordCommand : public Command {
   EditorState& editor_state_;
 };
 
-std::unique_ptr<Command> NewRecordCommand(EditorState& editor_state) {
-  return std::make_unique<RecordCommand>(editor_state);
+NonNull<std::unique_ptr<Command>> NewRecordCommand(EditorState& editor_state) {
+  return MakeNonNullUnique<RecordCommand>(editor_state);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

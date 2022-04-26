@@ -14,6 +14,7 @@ using concurrent::Notification;
 using futures::IterationControlCommand;
 using language::EmptyValue;
 using language::Error;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
@@ -309,8 +310,8 @@ class SearchCommand : public Command {
 };
 }  // namespace
 
-std::unique_ptr<Command> NewSearchCommand(EditorState& editor_state) {
-  return std::make_unique<SearchCommand>(editor_state);
+NonNull<std::unique_ptr<Command>> NewSearchCommand(EditorState& editor_state) {
+  return MakeNonNullUnique<SearchCommand>(editor_state);
 }
 
 }  // namespace afc::editor

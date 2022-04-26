@@ -8,6 +8,7 @@
 #include "src/buffer_variables.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
+#include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 
@@ -193,7 +194,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   return futures::Past(EmptyValue());
 }
 
-unique_ptr<Command> NewSetVariableCommand(EditorState& editor_state) {
+NonNull<unique_ptr<Command>> NewSetVariableCommand(EditorState& editor_state) {
   static Predictor variables_predictor = VariablesPredictor();
   return NewLinePromptCommand(
       editor_state, L"assigns to a variable", [&editor_state] {

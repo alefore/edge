@@ -70,9 +70,11 @@ using infrastructure::AddSeconds;
 using infrastructure::Now;
 using language::EmptyValue;
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ToByteString;
+using language::ValueOrError;
 
 // TODO: Replace with insert.  Insert should be called 'type'.
 class Paste : public Command {
@@ -647,9 +649,12 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   LOG(INFO) << "Command: " << command;
-  map_mode->Add(
-      L"v" + variable->key(),
-      NewCppCommand(editor_state, editor_state.environment(), command));
+  ValueOrError<NonNull<std::unique_ptr<Command>>> value =
+      NewCppCommand(editor_state, editor_state.environment(), command);
+  if (value.IsError()) {
+    LOG(FATAL) << "Internal error in ToggleVariable code.";
+  }
+  map_mode->Add(L"v" + variable->key(), std::move(value.value()));
 }
 
 void ToggleVariable(EditorState& editor_state,
@@ -669,9 +674,12 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   LOG(INFO) << "Command: " << command;
-  map_mode->Add(
-      L"v" + variable->key(),
-      NewCppCommand(editor_state, editor_state.environment(), command));
+  ValueOrError<NonNull<std::unique_ptr<Command>>> value =
+      NewCppCommand(editor_state, editor_state.environment(), command);
+  if (value.IsError()) {
+    LOG(FATAL) << "Internal error in ToggleVariable code.";
+  }
+  map_mode->Add(L"v" + variable->key(), std::move(value.value()));
 }
 
 void ToggleVariable(EditorState& editor_state,
@@ -699,9 +707,12 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   LOG(INFO) << "Command: " << command;
-  map_mode->Add(
-      L"v" + variable->key(),
-      NewCppCommand(editor_state, editor_state.environment(), command));
+  ValueOrError<NonNull<std::unique_ptr<Command>>> value =
+      NewCppCommand(editor_state, editor_state.environment(), command);
+  if (value.IsError()) {
+    LOG(FATAL) << "Internal error in ToggleVariable code.";
+  }
+  map_mode->Add(L"v" + variable->key(), std::move(value.value()));
 }
 
 template <typename T>
@@ -751,10 +762,10 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   commands->Add(L"af", NewForkCommand(editor_state));
 
   commands->Add(L"N", NewNavigationBufferCommand(editor_state));
-  commands->Add(L"i", std::make_unique<EnterInsertModeCommand>(editor_state,
-                                                               std::nullopt));
+  commands->Add(L"i", MakeNonNullUnique<EnterInsertModeCommand>(editor_state,
+                                                                std::nullopt));
   commands->Add(L"I",
-                std::make_unique<EnterInsertModeCommand>(editor_state, [] {
+                MakeNonNullUnique<EnterInsertModeCommand>(editor_state, [] {
                   Modifiers output;
                   output.insertion = Modifiers::ModifyMode::kOverwrite;
                   return output;
@@ -780,25 +791,26 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                           L"reach", L"starts a new reach command",
                           operation::TopCommand(), editor_state, {}));
 
-  commands->Add(L"R", std::make_unique<InsertionModifierCommand>(editor_state));
+  commands->Add(L"R",
+                MakeNonNullUnique<InsertionModifierCommand>(editor_state));
 
   commands->Add(L"/", NewSearchCommand(editor_state));
   commands->Add(L"g", NewGotoCommand(editor_state));
 
-  commands->Add(L"W", std::make_unique<SetStructureCommand>(editor_state,
-                                                            StructureSymbol()));
-  commands->Add(L"w", std::make_unique<SetStructureCommand>(editor_state,
-                                                            StructureWord()));
-  commands->Add(L"E", std::make_unique<SetStructureCommand>(editor_state,
-                                                            StructurePage()));
-  commands->Add(L"c", std::make_unique<SetStructureCommand>(editor_state,
-                                                            StructureCursor()));
-  commands->Add(L"B", std::make_unique<SetStructureCommand>(editor_state,
-                                                            StructureBuffer()));
-  commands->Add(L"!", std::make_unique<SetStructureCommand>(editor_state,
-                                                            StructureMark()));
-  commands->Add(L"t", std::make_unique<SetStructureCommand>(editor_state,
-                                                            StructureTree()));
+  commands->Add(L"W", MakeNonNullUnique<SetStructureCommand>(
+                          editor_state, StructureSymbol()));
+  commands->Add(L"w", MakeNonNullUnique<SetStructureCommand>(editor_state,
+                                                             StructureWord()));
+  commands->Add(L"E", MakeNonNullUnique<SetStructureCommand>(editor_state,
+                                                             StructurePage()));
+  commands->Add(L"c", MakeNonNullUnique<SetStructureCommand>(
+                          editor_state, StructureCursor()));
+  commands->Add(L"B", MakeNonNullUnique<SetStructureCommand>(
+                          editor_state, StructureBuffer()));
+  commands->Add(L"!", MakeNonNullUnique<SetStructureCommand>(editor_state,
+                                                             StructureMark()));
+  commands->Add(L"t", MakeNonNullUnique<SetStructureCommand>(editor_state,
+                                                             StructureTree()));
 
   commands->Add(
       L"e", operation::NewTopLevelCommand(
@@ -809,16 +821,16 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 editor_state,
                 {operation::CommandReach{
                     .repetitions = operation::CommandArgumentRepetitions(1)}}));
-  commands->Add(L"p", std::make_unique<Paste>(editor_state));
+  commands->Add(L"p", MakeNonNullUnique<Paste>(editor_state));
 
   commands->Add(L"u",
-                std::make_unique<UndoCommand>(editor_state, std::nullopt));
-  commands->Add(
-      L"U", std::make_unique<UndoCommand>(editor_state, Direction::kBackwards));
-  commands->Add(L"\n", std::make_unique<ActivateLink>(editor_state));
+                MakeNonNullUnique<UndoCommand>(editor_state, std::nullopt));
+  commands->Add(L"U", MakeNonNullUnique<UndoCommand>(editor_state,
+                                                     Direction::kBackwards));
+  commands->Add(L"\n", MakeNonNullUnique<ActivateLink>(editor_state));
 
   commands->Add(L"b",
-                std::make_unique<GotoPreviousPositionCommand>(editor_state));
+                MakeNonNullUnique<GotoPreviousPositionCommand>(editor_state));
   commands->Add(L"n", NewNavigateCommand(editor_state));
 
   commands->Add(
@@ -894,7 +906,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                     },
                     editor_state));
 
-  commands->Add(L"%", std::make_unique<TreeNavigateCommand>(editor_state));
+  commands->Add(L"%", MakeNonNullUnique<TreeNavigateCommand>(editor_state));
   commands->Add(L"sr", NewRecordCommand(editor_state));
   commands->Add(L"\t", NewFindCompletionCommand(editor_state));
 
@@ -910,31 +922,31 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                        VariableLocation::kBuffer, commands.get());
 
   commands->Add({Terminal::ESCAPE},
-                std::make_unique<ResetStateCommand>(editor_state));
+                MakeNonNullUnique<ResetStateCommand>(editor_state));
 
   commands->Add({Terminal::CTRL_L},
-                std::make_unique<HardRedrawCommand>(editor_state));
-  commands->Add(L"*", std::make_unique<SetStrengthCommand>(editor_state));
-  commands->Add(L"0", std::make_unique<NumberMode>(editor_state));
-  commands->Add(L"1", std::make_unique<NumberMode>(editor_state));
-  commands->Add(L"2", std::make_unique<NumberMode>(editor_state));
-  commands->Add(L"3", std::make_unique<NumberMode>(editor_state));
-  commands->Add(L"4", std::make_unique<NumberMode>(editor_state));
-  commands->Add(L"5", std::make_unique<NumberMode>(editor_state));
-  commands->Add(L"6", std::make_unique<NumberMode>(editor_state));
-  commands->Add(L"7", std::make_unique<NumberMode>(editor_state));
-  commands->Add(L"8", std::make_unique<NumberMode>(editor_state));
-  commands->Add(L"9", std::make_unique<NumberMode>(editor_state));
+                MakeNonNullUnique<HardRedrawCommand>(editor_state));
+  commands->Add(L"*", MakeNonNullUnique<SetStrengthCommand>(editor_state));
+  commands->Add(L"0", MakeNonNullUnique<NumberMode>(editor_state));
+  commands->Add(L"1", MakeNonNullUnique<NumberMode>(editor_state));
+  commands->Add(L"2", MakeNonNullUnique<NumberMode>(editor_state));
+  commands->Add(L"3", MakeNonNullUnique<NumberMode>(editor_state));
+  commands->Add(L"4", MakeNonNullUnique<NumberMode>(editor_state));
+  commands->Add(L"5", MakeNonNullUnique<NumberMode>(editor_state));
+  commands->Add(L"6", MakeNonNullUnique<NumberMode>(editor_state));
+  commands->Add(L"7", MakeNonNullUnique<NumberMode>(editor_state));
+  commands->Add(L"8", MakeNonNullUnique<NumberMode>(editor_state));
+  commands->Add(L"9", MakeNonNullUnique<NumberMode>(editor_state));
 
   commands->Add({Terminal::DOWN_ARROW},
-                std::make_unique<LineDown>(editor_state));
-  commands->Add({Terminal::UP_ARROW}, std::make_unique<LineUp>(editor_state));
+                MakeNonNullUnique<LineDown>(editor_state));
+  commands->Add({Terminal::UP_ARROW}, MakeNonNullUnique<LineUp>(editor_state));
   commands->Add(
       {Terminal::LEFT_ARROW},
-      std::make_unique<MoveForwards>(editor_state, Direction::kBackwards));
+      MakeNonNullUnique<MoveForwards>(editor_state, Direction::kBackwards));
   commands->Add(
       {Terminal::RIGHT_ARROW},
-      std::make_unique<MoveForwards>(editor_state, Direction::kForwards));
+      MakeNonNullUnique<MoveForwards>(editor_state, Direction::kForwards));
   commands->Add(
       {Terminal::PAGE_DOWN},
       operation::NewTopLevelCommand(
