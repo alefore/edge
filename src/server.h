@@ -4,7 +4,6 @@
 #include <memory>
 #include <unordered_set>
 
-#include "src/buffer.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/safe_types.h"
@@ -20,6 +19,7 @@ language::ValueOrError<int> MaybeConnectToServer(
 language::ValueOrError<int> MaybeConnectToParentServer();
 
 class EditorState;
+class OpenBuffer;
 
 // address can be empty, in which case it'll use a temporary file in /tmp. The
 // actual address used is returned.
