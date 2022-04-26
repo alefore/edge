@@ -49,4 +49,16 @@ std::wstring FromByteString(std::string input) {
   return output_string;
 }
 
+std::wstring ShellEscape(std::wstring input) {
+  std::wstring output;
+  output.push_back(L'\'');
+  for (auto c : input) {
+    if (c == L'\'') {
+      output.push_back('\\');
+    }
+    output.push_back(c);
+  }
+  output.push_back(L'\'');
+  return output;
+}
 }  // namespace afc::language

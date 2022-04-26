@@ -67,16 +67,7 @@ void RegisterStringType(Environment* environment) {
                      string_type.get());
   AddMethod<wstring>(L"shell_escape",
                      std::function<wstring(wstring)>([](wstring str) {
-                       wstring output;
-                       output.push_back(L'\'');
-                       for (auto c : str) {
-                         if (c == L'\'') {
-                           output.push_back('\\');
-                         }
-                         output.push_back(c);
-                       }
-                       output.push_back(L'\'');
-                       return output;
+                       return language::ShellEscape(std::move(str));
                      }),
                      string_type.get());
   AddMethod<wstring, int, int>(

@@ -23,6 +23,7 @@ namespace afc::language {
 using ::operator<<;
 std::string ToByteString(std::wstring input);
 std::wstring FromByteString(std::string input);
+std::wstring ShellEscape(std::wstring input);
 }  // namespace afc::language
 
 #endif  // __AFC_EDITOR_WSTRING_H__

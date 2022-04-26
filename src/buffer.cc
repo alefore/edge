@@ -107,6 +107,7 @@ using language::ObservableValue;
 using language::Observers;
 using language::Pointer;
 using language::PossibleError;
+using language::ShellEscape;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
@@ -2052,19 +2053,6 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   return urls;
 }
 
-// TODO(easy): Deduplicate with version in vm/internal/string.cc.
-std::wstring ShellEscape(std::wstring input) {
-  wstring output;
-  output.push_back(L'\'');
-  for (auto c : input) {
-    if (c == L'\'') {
-      output.push_back('\\');
-    }
-    output.push_back(c);
-  }
-  output.push_back(L'\'');
-  return output;
-}
 }  // namespace
 
 futures::ValueOrError<std::shared_ptr<OpenBuffer>>
