@@ -87,11 +87,8 @@ ValueOrError<NonNull<std::unique_ptr<Command>>> NewCppCommand(
                << result.error();
     return result.error();
   }
-  // TODO(easy, 2022-04-26): Why do we need to explicit cast? Improve
-  // ValueOrError.
-  return Success<NonNull<std::unique_ptr<Command>>>(
-      MakeNonNullUnique<CppCommand>(editor_state, std::move(result.value()),
-                                    std::move(code)));
+  return Success(MakeNonNullUnique<CppCommand>(
+      editor_state, std::move(result.value()), std::move(code)));
 }
 
 }  // namespace afc::editor

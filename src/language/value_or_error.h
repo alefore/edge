@@ -34,6 +34,12 @@ class ValueOrError {
   ValueOrError(Error error) : error_(std::move(error)) {}
   ValueOrError(language::ValueType<T> value) : value_(std::move(value.value)) {}
 
+  template <typename Other>
+  ValueOrError(ValueOrError<Other> other)
+      : value_(other.IsError() ? std::optional<T>() : std::move(other.value())),
+        error_(other.IsError() ? std::move(other.error())
+                               : std::optional<Error>()) {}
+
   std::optional<T> AsOptional() const {
     return IsError() ? std::optional<T>() : value();
   }
