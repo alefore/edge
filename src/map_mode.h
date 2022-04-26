@@ -51,8 +51,7 @@ class MapModeCommands {
   };
 
   EditorState& editor_state_;
-  // TODO(easy, 2022-04-26): Use NonNull.
-  std::list<std::shared_ptr<Frame>> frames_;
+  std::list<language::NonNull<std::shared_ptr<Frame>>> frames_;
 };
 
 class MapMode : public EditorMode {

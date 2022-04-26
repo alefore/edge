@@ -51,14 +51,14 @@ NonNull<std::unique_ptr<Command>> MakeCommandFromFunction(Callback callback,
 
 class EditorState;
 MapModeCommands::MapModeCommands(EditorState& editor_state)
-    : editor_state_(editor_state), frames_({std::make_shared<Frame>()}) {
+    : editor_state_(editor_state), frames_(1) {
   Add(L"?", NewHelpCommand(editor_state_, this, L"command mode"));
 }
 
 std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
   auto output = std::make_unique<MapModeCommands>(editor_state_);
   output->frames_ = frames_;
-  output->frames_.push_front(std::make_shared<Frame>());
+  output->frames_.push_front({});
 
   // Override the parent's help command, so that bindings added to the child are
   // visible.
