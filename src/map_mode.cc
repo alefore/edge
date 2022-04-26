@@ -55,8 +55,8 @@ MapModeCommands::MapModeCommands(EditorState& editor_state)
   Add(L"?", NewHelpCommand(editor_state_, this, L"command mode"));
 }
 
-std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
-  auto output = std::make_unique<MapModeCommands>(editor_state_);
+NonNull<std::unique_ptr<MapModeCommands>> MapModeCommands::NewChild() {
+  auto output = MakeNonNullUnique<MapModeCommands>(editor_state_);
   output->frames_ = frames_;
   output->frames_.push_front({});
 

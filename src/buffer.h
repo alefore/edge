@@ -199,7 +199,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   EditorMode* mode() const { return mode_.get(); }
   std::shared_ptr<EditorMode> ResetMode() {
     auto copy = std::move(mode_);
-    mode_.reset(new MapMode(default_commands_));
+    mode_ = std::make_shared<MapMode>(default_commands_.get_shared());
     return copy;
   }
 
@@ -597,7 +597,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   size_t tree_depth_ = 0;
 
-  std::shared_ptr<MapModeCommands> default_commands_;
+  language::NonNull<std::shared_ptr<MapModeCommands>> default_commands_;
   std::shared_ptr<EditorMode> mode_;
 
   // The time when the buffer was last selected as active.

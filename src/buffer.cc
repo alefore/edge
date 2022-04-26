@@ -583,7 +583,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor.default_commands()->NewChild()),
-      mode_(std::make_unique<MapMode>(default_commands_)),
+      mode_(std::make_unique<MapMode>(default_commands_.get_shared())),
       status_(options_.editor.GetConsole(), options_.editor.audio_player()),
       file_system_driver_(editor().thread_pool()) {
   work_queue_->OnSchedule().Add(std::bind_front(

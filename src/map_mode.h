@@ -23,7 +23,7 @@ class EditorState;
 class MapModeCommands {
  public:
   MapModeCommands(EditorState& editor_state);
-  std::unique_ptr<MapModeCommands> NewChild();
+  language::NonNull<std::unique_ptr<MapModeCommands>> NewChild();
 
   // Flattens the set of commands (in the entire list), grouped by category (as
   // the key of the outer map).
