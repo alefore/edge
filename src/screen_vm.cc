@@ -103,6 +103,9 @@ class ScreenVm : public Screen {
 }  // namespace
 
 void RegisterScreenType(Environment* environment) {
+  using vm::EvaluationOutput;
+  using vm::Trampoline;
+
   auto screen_type = MakeNonNullUnique<ObjectType>(L"Screen");
 
   // Constructors.
@@ -167,6 +170,7 @@ void RegisterScreenType(Environment* environment) {
 
   screen_type->AddField(L"WriteString",
                         vm::NewCallback([](Screen* screen, wstring str) {
+                          using ::operator<<;
                           CHECK(screen != nullptr);
                           DVLOG(5) << "Writing string: " << str;
                           screen->WriteString(str);
