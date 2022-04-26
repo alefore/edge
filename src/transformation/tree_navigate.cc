@@ -49,8 +49,4 @@ futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
   return futures::Past(Output::SetPosition(
       input.position == last_position ? tree->range().begin : last_position));
 }
-
-NonNull<std::unique_ptr<CompositeTransformation>> TreeNavigate::Clone() const {
-  return MakeNonNullUnique<TreeNavigate>();
-}
 }  // namespace afc::editor

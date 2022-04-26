@@ -201,10 +201,6 @@ class NavigateTransformation : public CompositeTransformation {
     return futures::Past(std::move(output));
   }
 
-  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
-    return MakeNonNullUnique<NavigateTransformation>(state_);
-  }
-
  private:
   // Receives one of the ends of the range (as `index`) and deletes from that
   // point on (in the direction specified).

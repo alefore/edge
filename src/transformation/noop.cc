@@ -29,9 +29,6 @@ class Noop : public CompositeTransformation {
   futures::Value<Output> Apply(Input) const override {
     return futures::Past(Output());
   }
-  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
-    return MakeNonNullUnique<Noop>();
-  }
 };
 }  // namespace
 

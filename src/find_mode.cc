@@ -40,11 +40,6 @@ futures::Value<CompositeTransformation::Output> FindTransformation::Apply(
   return futures::Past(Output::SetColumn(column));
 }
 
-NonNull<std::unique_ptr<CompositeTransformation>> FindTransformation::Clone()
-    const {
-  return MakeNonNullUnique<FindTransformation>(c_);
-}
-
 std::optional<ColumnNumber> FindTransformation::SeekOnce(
     const Line& line, ColumnNumber column, const Modifiers& modifiers) const {
   ColumnNumberDelta direction;

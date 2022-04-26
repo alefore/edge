@@ -43,10 +43,6 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
                           Modifiers::PasteBufferBehavior::kDoNothing}});
     return futures::Past(std::move(output));
   }
-
-  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
-    return MakeNonNullUnique<DeleteSuffixSuperfluousCharacters>();
-  }
 };
 
 ;

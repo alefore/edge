@@ -104,10 +104,6 @@ class PredictorTransformation : public CompositeTransformation {
         });
   }
 
-  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
-    return MakeNonNullUnique<PredictorTransformation>(predictor_, text_);
-  }
-
  private:
   const Predictor predictor_;
   const std::wstring text_;
@@ -171,10 +167,6 @@ class ReadAndInsert : public CompositeTransformation {
             });
   }
 
-  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
-    return MakeNonNullUnique<ReadAndInsert>(path_, open_file_callback_);
-  }
-
  private:
   const Path path_;
   const OpenFileCallback open_file_callback_;
@@ -230,10 +222,6 @@ class Execute : public CompositeTransformation {
         .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }
 
-  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
-    return MakeNonNullUnique<Execute>(command_);
-  }
-
  private:
   const std::wstring command_;
 };
@@ -287,10 +275,6 @@ class ExpandTransformation : public CompositeTransformation {
         [] {});
 
     return futures::Past(std::move(output));
-  }
-
-  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
-    return MakeNonNullUnique<ExpandTransformation>();
   }
 };
 }  // namespace

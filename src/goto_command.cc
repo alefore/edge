@@ -119,11 +119,6 @@ futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
       position.has_value() ? Output::SetPosition(position.value()) : Output());
 }
 
-language::NonNull<std::unique_ptr<CompositeTransformation>>
-GotoTransformation::Clone() const {
-  return MakeNonNullUnique<GotoTransformation>(calls_);
-}
-
 NonNull<std::unique_ptr<Command>> NewGotoCommand(EditorState& editor_state) {
   return MakeNonNullUnique<GotoCommand>(editor_state, 0);
 }

@@ -62,10 +62,4 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
 
   return futures::Past(std::move(output));
 }
-
-NonNull<std::unique_ptr<CompositeTransformation>>
-SwitchCaseTransformation::Clone() const {
-  return MakeNonNullUnique<SwitchCaseTransformation>();
-}
-
 }  // namespace afc::editor

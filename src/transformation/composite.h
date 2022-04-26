@@ -48,8 +48,6 @@ class CompositeTransformation {
     std::unique_ptr<transformation::Stack> stack;
   };
   virtual futures::Value<Output> Apply(Input input) const = 0;
-  virtual language::NonNull<std::unique_ptr<CompositeTransformation>> Clone()
-      const = 0;
 };
 
 void RegisterCompositeTransformation(vm::Environment* environment);

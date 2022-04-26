@@ -86,10 +86,6 @@ class MoveTransformation : public CompositeTransformation {
               << position.value() << " " << input.modifiers;
     return futures::Past(Output::SetPosition(position.value()));
   }
-
-  NonNull<std::unique_ptr<CompositeTransformation>> Clone() const override {
-    return MakeNonNullUnique<MoveTransformation>();
-  }
 };
 }  // namespace
 

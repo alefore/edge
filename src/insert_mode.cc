@@ -84,11 +84,6 @@ class NewLineTransformation : public CompositeTransformation {
         LineColumn(input.position.line + LineNumberDelta(1), prefix_end)));
     return futures::Past(std::move(output));
   }
-
-  language::NonNull<std::unique_ptr<CompositeTransformation>> Clone()
-      const override {
-    return MakeNonNullUnique<NewLineTransformation>();
-  }
 };
 
 class InsertEmptyLineTransformation : public CompositeTransformation {
@@ -104,11 +99,6 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
         Modifiers(), MakeNonNullUnique<NewLineTransformation>()});
     output.Push(transformation::SetPosition(input.position));
     return futures::Past(std::move(output));
-  }
-
-  language::NonNull<std::unique_ptr<CompositeTransformation>> Clone()
-      const override {
-    return MakeNonNullUnique<InsertEmptyLineTransformation>(direction_);
   }
 
  private:

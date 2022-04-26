@@ -73,12 +73,6 @@ class FunctionTransformation : public CompositeTransformation {
         .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }
 
-  language::NonNull<std::unique_ptr<CompositeTransformation>> Clone()
-      const override {
-    return MakeNonNullUnique<FunctionTransformation>(
-        MakeNonNullUnique<Value>(*function_));
-  }
-
  private:
   const NonNull<std::unique_ptr<vm::Value>> function_;
 };
