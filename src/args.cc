@@ -19,6 +19,7 @@ extern "C" {
 #include "src/language/wstring.h"
 #include "src/server.h"
 #include "src/tests/benchmarks.h"
+#include "src/vm/public/value.h"
 
 namespace afc::editor {
 using infrastructure::Path;
@@ -59,7 +60,7 @@ static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
   push(Path::Join(home, PathComponent::FromString(L".edge").value()));
   LOG(INFO) << "Pushing config path: " << output[0];
   if (char* env = getenv("EDGE_PATH"); env != nullptr) {
-    std::istringstream text_stream(string(env) + ";");
+    std::istringstream text_stream(std::string(env) + ";");
     std::string dir;
     // TODO: stat it and don't add it if it doesn't exist.
     while (std::getline(text_stream, dir, ';')) {
@@ -109,8 +110,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
       Handler<CommandLineValues>({L"load", L"l"},
                                  L"Load a file with VM commands")
           .Require(L"path", L"Path to file containing VM commands to run")
-          .Transform([](wstring value) {
-            return L"buffer.EvaluateFile(\"" + CppEscapeString(value) + L"\");";
+          .Transform([](std::wstring value) {
+            return L"buffer.EvaluateFile(\"" + vm::CppEscapeString(value) +
+                   L"\");";
           })
           .AppendTo(&CommandLineValues::commands_to_run),
 
