@@ -70,8 +70,8 @@ class ScreenVm : public Screen {
   }
 
   void WriteString(const wstring& str) override {
-    buffer_ +=
-        "screen.WriteString(\"" + ToByteString(CppEscapeString(str)) + "\");";
+    buffer_ += "screen.WriteString(\"" +
+               ToByteString(vm::CppEscapeString(str)) + "\");";
   }
 
   void SetModifier(LineModifier modifier) override {
