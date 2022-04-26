@@ -199,8 +199,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   EditorMode* mode() const { return mode_.get(); }
   std::shared_ptr<EditorMode> ResetMode() {
     auto copy = std::move(mode_);
-    mode_ = std::make_shared<MapMode>(default_commands_.get_shared());
-    return copy;
+    mode_ =
+        language::MakeNonNullShared<MapMode>(default_commands_.get_shared());
+    return copy.get_shared();
   }
 
   // Erases all lines in range [first, last).
@@ -598,7 +599,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   size_t tree_depth_ = 0;
 
   const language::NonNull<std::shared_ptr<MapModeCommands>> default_commands_;
-  std::shared_ptr<EditorMode> mode_;
+  language::NonNull<std::shared_ptr<EditorMode>> mode_;
 
   // The time when the buffer was last selected as active.
   struct timespec last_visit_ = {};
