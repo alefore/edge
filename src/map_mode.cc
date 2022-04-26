@@ -118,7 +118,7 @@ void MapModeCommands::Add(wstring name, std::function<void()> callback,
       MakeCommandFromFunction(std::move(callback), std::move(description)));
 }
 
-MapMode::MapMode(std::shared_ptr<MapModeCommands> commands)
+MapMode::MapMode(NonNull<std::shared_ptr<MapModeCommands>> commands)
     : commands_(std::move(commands)) {}
 
 void MapMode::ProcessInput(wint_t c) {

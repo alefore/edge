@@ -197,11 +197,10 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   LineNumber EndLine() const;
 
   EditorMode* mode() const { return mode_.get(); }
-  std::shared_ptr<EditorMode> ResetMode() {
+  language::NonNull<std::shared_ptr<EditorMode>> ResetMode() {
     auto copy = std::move(mode_);
-    mode_ =
-        language::MakeNonNullShared<MapMode>(default_commands_.get_shared());
-    return copy.get_shared();
+    mode_ = language::MakeNonNullShared<MapMode>(default_commands_);
+    return copy;
   }
 
   // Erases all lines in range [first, last).

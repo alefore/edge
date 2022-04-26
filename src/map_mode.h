@@ -57,14 +57,14 @@ class MapModeCommands {
 
 class MapMode : public EditorMode {
  public:
-  MapMode(std::shared_ptr<MapModeCommands> commands);
+  MapMode(language::NonNull<std::shared_ptr<MapModeCommands>> commands);
 
   void ProcessInput(wint_t c) override;
   CursorMode cursor_mode() const override;
 
  private:
   std::wstring current_input_;
-  std::shared_ptr<MapModeCommands> commands_;
+  const language::NonNull<std::shared_ptr<MapModeCommands>> commands_;
 };
 
 }  // namespace afc::editor
