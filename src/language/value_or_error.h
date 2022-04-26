@@ -31,6 +31,8 @@ class ValueOrError {
  public:
   using ValueType = T;
 
+  ValueOrError() : value_() {}
+
   ValueOrError(Error error) : error_(std::move(error)) {}
   ValueOrError(language::ValueType<T> value) : value_(std::move(value.value)) {}
 
