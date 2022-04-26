@@ -1109,16 +1109,14 @@ void OpenBuffer::Reload() {
             .ConsumeErrors(
                 [](Error) { return Past(IterationControlCommand::kContinue); });
       })
-      .Transform(
-          [this](IterationControlCommand) -> futures::ValueOrError<EmptyValue> {
-            if (editor().exit_value().has_value())
-              return futures::Past(Success());
-            SetDiskState(DiskState::kCurrent);
-            LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
-            return options_.generate_contents != nullptr
-                       ? IgnoreErrors(options_.generate_contents(*this))
-                       : futures::Past(Success());
-          })
+      .Transform([this](IterationControlCommand) {
+        if (editor().exit_value().has_value()) return futures::Past(Success());
+        SetDiskState(DiskState::kCurrent);
+        LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
+        return options_.generate_contents != nullptr
+                   ? IgnoreErrors(options_.generate_contents(*this))
+                   : futures::Past(Success());
+      })
       .Transform([this](EmptyValue) {
         return futures::OnError(
             GetEdgeStateDirectory().Transform([this](Path dir) {
@@ -1222,8 +1220,8 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                    });
              })
       .Transform([path, error](IterationControlCommand) -> ValueOrError<Path> {
-        return error->has_value() ? ValueOrError<Path>(Error(error->value()))
-                                  : ValueOrError<Path>(Success(*path));
+        if (error->has_value()) return error->value();
+        return Success(*path);
       });
 }
 

@@ -83,9 +83,8 @@ futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>> NewFileLog(
       ->Open(path, O_WRONLY | O_CREAT | O_APPEND,
              S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
       .Transform([](FileDescriptor fd) {
-        return Success<NonNull<std::unique_ptr<Log>>>(
-            NonNull<std::unique_ptr<FileLog>>(
-                std::make_shared<FileLogData>(FileLogData{.fd = fd})));
+        return Success(NonNull<std::unique_ptr<FileLog>>(
+            std::make_shared<FileLogData>(FileLogData{.fd = fd})));
       });
 }
 
