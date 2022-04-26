@@ -2066,12 +2066,12 @@ OpenBuffer::OpenBufferForCurrentPosition(
   // meantime.
   auto adjusted_position = AdjustLineColumn(position());
   struct Data {
-    // TODO(easy, 2022-04-26): NonNull.
-    std::shared_ptr<OpenBuffer> source;
+    const NonNull<std::shared_ptr<OpenBuffer>> source;
     ValueOrError<std::shared_ptr<OpenBuffer>> output = nullptr;
   };
-  auto data = std::make_shared<Data>();
-  data->source = shared_from_this();
+  NonNull<std::shared_ptr<Data>> data = MakeNonNullShared<Data>(Data{
+      .source =
+          NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(shared_from_this())});
 
   return futures::ForEach(
              std::make_shared<std::vector<URL>>(
