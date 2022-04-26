@@ -1,7 +1,7 @@
 #include "src/transformation/insert.h"
 
+#include "src/buffer.h"
 #include "src/char_buffer.h"
-#include "src/server.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
