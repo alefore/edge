@@ -84,7 +84,7 @@ std::map<wstring, std::map<wstring, Command*>> MapModeCommands::Coallesce()
 void MapModeCommands::Add(wstring name,
                           NonNull<std::unique_ptr<Command>> value) {
   CHECK(!frames_.empty());
-  frames_.front()->commands.insert({name, std::move(value.get_unique())});
+  frames_.front()->commands.insert({name, std::move(value)});
 }
 
 void MapModeCommands::Add(wstring name, wstring description,
@@ -131,7 +131,6 @@ void MapMode::ProcessInput(wint_t c) {
         std::equal(current_input_.begin(), current_input_.end(),
                    it->first.begin())) {
       if (current_input_ == it->first) {
-        CHECK(it->second);
         current_input_ = L"";
         it->second->ProcessInput(c);
         return;

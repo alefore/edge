@@ -42,8 +42,9 @@ class MapModeCommands {
   friend class MapMode;
 
   struct Frame {
-    // TODO(easy, 2022-04-26): Use NonNull.
-    std::map<std::wstring, std::unique_ptr<Command>> commands;
+    std::map<std::wstring, language::NonNull<std::unique_ptr<Command>>>
+        commands;
+
     // The key is the name of a variable. The set contains all commands
     // associated with that variable.
     std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
