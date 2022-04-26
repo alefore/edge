@@ -262,21 +262,24 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
              Trampoline* trampoline) {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
+            NonNull<std::shared_ptr<PossibleError>> output;
             return editor
                 ->ForEachActiveBuffer([callback = std::move(input[1]->callback),
-                                       trampoline](OpenBuffer& buffer) {
+                                       trampoline, output](OpenBuffer& buffer) {
                   std::vector<NonNull<std::unique_ptr<Value>>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
                           buffer.shared_from_this()));
                   return callback(std::move(args), trampoline)
                       .Transform([](EvaluationOutput) { return Success(); })
-                      // TODO(easy): Don't ConsumeErrors; change
-                      // ForEachActiveBuffer.
-                      .ConsumeErrors(
-                          [](Error) { return futures::Past(EmptyValue()); });
+                      .ConsumeErrors([output](Error error) {
+                        *output = error;
+                        return futures::Past(EmptyValue());
+                      });
                 })
-                .Transform([](EmptyValue) {
+                .Transform([output](
+                               EmptyValue) -> ValueOrError<EvaluationOutput> {
+                  if (output->IsError()) return output->error();
                   return Success(EvaluationOutput::Return(Value::NewVoid()));
                 });
           }));
