@@ -6,7 +6,6 @@
 #include <unordered_set>
 
 #include "src/char_buffer.h"
-#include "src/editor.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
@@ -53,13 +52,13 @@ void BufferContents::FilterToRange(Range range) {
                EndLine() + LineNumberDelta(1), CursorsBehavior::kAdjust);
   }
   auto tail_line = at(range.end.line);
-  range.end.column = min(range.end.column, tail_line->EndColumn());
+  range.end.column = std::min(range.end.column, tail_line->EndColumn());
   DeleteCharactersFromLine(range.end,
                            tail_line->EndColumn() - range.end.column);
 
   // Drop the head.
   range.begin.column =
-      min(range.begin.column, at(range.begin.line)->EndColumn());
+      std::min(range.begin.column, at(range.begin.line)->EndColumn());
   if (range.begin.line > LineNumber()) {
     EraseLines(LineNumber(), range.begin.line, CursorsBehavior::kAdjust);
   }
@@ -67,6 +66,8 @@ void BufferContents::FilterToRange(Range range) {
 }
 
 namespace {
+using ::operator<<;
+
 BufferContents BufferContentsForTests() {
   BufferContents output;
   output.AppendToLine(LineNumber(), Line(L"alejandro"));
@@ -198,7 +199,7 @@ LineColumn BufferContents::PositionBefore(LineColumn position) const {
     position.column--;
   } else if (position.line > LineNumber(0)) {
     position.line =
-        min(position.line, LineNumber(0) + size()) - LineNumberDelta(1);
+        std::min(position.line, LineNumber(0) + size()) - LineNumberDelta(1);
     position.column = at(position.line)->EndColumn();
   }
   return position;
@@ -547,7 +548,7 @@ void BufferContents::InsertCharacter(LineColumn position) {
 }
 
 void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
-  TransformLine(min(position, LineNumber() + size() - LineNumberDelta(1)),
+  TransformLine(std::min(position, LineNumber() + size() - LineNumberDelta(1)),
                 [&](Line::Options& options) {
                   options.Append(std::move(line_to_append));
                 });
@@ -718,7 +719,7 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
       [this](LineNumber a, LineNumber b) {
         a = a % size();
         b = b % size();
-        EraseLines(min(a, b), max(a, b), CursorsBehavior::kAdjust);
+        EraseLines(std::min(a, b), std::max(a, b), CursorsBehavior::kAdjust);
       })));
 
   output.push_back(
