@@ -489,6 +489,7 @@ NonNull<std::shared_ptr<OpenBuffer>> GetPromptBuffer(
     buffer->ClearContents(BufferContents::CursorsBehavior::kAdjust);
     CHECK_EQ(buffer->EndLine(), LineNumber(0));
     CHECK(buffer->contents().back()->empty());
+    buffer->Set(buffer_variables::contents_type, options.prompt_contents_type);
     buffer->Reload();
     return buffer;
   }
