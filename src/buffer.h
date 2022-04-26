@@ -597,7 +597,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   size_t tree_depth_ = 0;
 
-  language::NonNull<std::shared_ptr<MapModeCommands>> default_commands_;
+  const language::NonNull<std::shared_ptr<MapModeCommands>> default_commands_;
   std::shared_ptr<EditorMode> mode_;
 
   // The time when the buffer was last selected as active.
