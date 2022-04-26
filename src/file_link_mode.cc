@@ -387,8 +387,9 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (!input.path.empty() && input.path[0] == L'/') {
     input.search_paths = {Path::Root()};
   }
-  auto output =
-      std::make_shared<std::optional<ValueOrError<ResolvePathOutput>>>();
+
+  NonNull<std::shared_ptr<std::optional<ValueOrError<ResolvePathOutput>>>>
+      output;
   using futures::IterationControlCommand;
   using futures::Past;
   return futures::ForEachWithCopy(
@@ -475,11 +476,11 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                                 }
                               }
                               auto resolved = path_with_prefix.Resolve();
-                              *output = Success(ResolvePathOutput{
+                              *output = ResolvePathOutput{
                                   .path = resolved.IsError() ? path_with_prefix
                                                              : resolved.value(),
                                   .position = output_position,
-                                  .pattern = output_pattern});
+                                  .pattern = output_pattern};
                               VLOG(4) << "Resolved path: "
                                       << output->value().value().path;
                               return IterationControlCommand::kStop;
@@ -564,7 +565,7 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
   ResolvePathOptions resolve_path_options =
       ResolvePathOptions::NewWithEmptySearchPaths(editor_state,
                                                   file_system_driver);
-  auto output = std::make_shared<OpenFileResolvePathOutput>();
+  const NonNull<std::shared_ptr<OpenFileResolvePathOutput>> output;
   resolve_path_options.validator = [&editor_state, output](const Path& path) {
     auto path_components = path.DirectorySplit();
     if (path_components.IsError()) return futures::Past(false);

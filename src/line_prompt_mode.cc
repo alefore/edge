@@ -260,7 +260,7 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
   for (auto& additional_features : GetSyntheticFeatures(output)) {
     output.insert(additional_features);
   }
-  return Success(std::move(output));
+  return output;
 }
 
 NonNull<std::shared_ptr<LazyString>> QuoteString(

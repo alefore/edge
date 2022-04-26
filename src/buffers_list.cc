@@ -23,7 +23,6 @@ using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
-using language::Success;
 using language::ValueOrError;
 
 namespace {
@@ -65,7 +64,7 @@ ValueOrError<std::list<ProcessedPathComponent>> GetOutputComponents(
     ASSIGN_OR_RETURN(
         PathComponent next,
         ColumnNumberDelta(it->size()) <= columns_allowed
-            ? Success(*it)
+            ? *it
             : PathComponent::FromString(
                   output.empty()
                       ? it->ToString().substr(it->size() -
@@ -80,7 +79,7 @@ ValueOrError<std::list<ProcessedPathComponent>> GetOutputComponents(
         {.path_component = std::move(next), .complete = complete});
   }
 
-  return Success(output);
+  return output;
 }
 
 ValueOrError<std::list<ProcessedPathComponent>> GetOutputComponentsForTesting(

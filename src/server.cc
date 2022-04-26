@@ -65,7 +65,7 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
     int mkfifo_result = mkfifo(path_str, 0600);
     free(path_str);
     if (mkfifo_result != -1) {
-      return Success(output);
+      return output;
     }
 
     if (input_path.has_value()) {
@@ -124,7 +124,7 @@ ValueOrError<int> MaybeConnectToServer(const Path& path) {
                  FromByteString(strerror(errno)));
   }
   CHECK_GT(private_fd, -1);
-  return Success(private_fd);
+  return private_fd;
 }
 
 void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {

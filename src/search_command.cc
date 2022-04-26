@@ -199,7 +199,7 @@ class SearchCommand : public Command {
                VLOG(5) << "Triggering async search.";
                auto results =
                    std::make_shared<ValueOrError<SearchResultsSummary>>(
-                       Success(SearchResultsSummary()));
+                       SearchResultsSummary());
                auto progress_aggregator = std::make_shared<ProgressAggregator>(
                    std::move(progress_channel));
                using Control = futures::IterationControlCommand;

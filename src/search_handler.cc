@@ -129,12 +129,12 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
         if (search_results.error.has_value()) {
           return Error(search_results.error.value());
         }
-        return Success(SearchResultsSummary{
+        return SearchResultsSummary{
             .matches = search_results.positions.size(),
             .search_completion =
                 search_results.positions.size() >= kMatchesLimit
                     ? SearchResultsSummary::SearchCompletion::kInterrupted
-                    : SearchResultsSummary::SearchCompletion::kFull});
+                    : SearchResultsSummary::SearchCompletion::kFull};
       },
       NonNull<std::shared_ptr<BufferContents>>(buffer.contents().copy()));
 }
@@ -228,7 +228,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     audio::BeepFrequencies(editor_state.audio_player(), 0.1, frequencies);
     buffer.Set(buffer_variables::multiple_cursors, false);
   }
-  return Success(head);
+  return head;
 }
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {

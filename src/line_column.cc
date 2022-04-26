@@ -555,10 +555,9 @@ std::wstring LineColumn::Serialize() const {
 }
 
 language::ValueOrError<Range> Range::Union(const Range& other) const {
-  return (end < other.begin || begin > other.end)
-             ? language::Error(L"Gap found between the ranges.")
-             : language::Success(Range(std::min(begin, other.begin),
-                                       std::max(end, other.end)));
+  if (end < other.begin || begin > other.end)
+    return language::Error(L"Gap found between the ranges.");
+  return Range(std::min(begin, other.begin), std::max(end, other.end));
 }
 
 std::ostream& operator<<(std::ostream& os, const Range& range) {

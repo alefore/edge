@@ -159,7 +159,7 @@ ValueOrError<ParsedCommand> Parse(
     return Error(L"No suitable definition found: " + output.tokens[0].value);
   }
 
-  return Success(std::move(output));
+  return output;
 }
 
 ValueOrError<ParsedCommand> Parse(NonNull<std::shared_ptr<LazyString>> command,

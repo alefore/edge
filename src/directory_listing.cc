@@ -20,7 +20,6 @@ using language::FromByteString;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
-using language::Success;
 using language::ToByteString;
 namespace {
 struct BackgroundReadDirOutput {
@@ -109,17 +108,17 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   return {
       .initial_value = NewLazyString(L"…"),
       .value = target.EvaluateExpression(*expression, target.environment())
-                   .Transform([](NonNull<std::unique_ptr<Value>> value) {
+                   .Transform([](NonNull<std::unique_ptr<Value>> value)
+                                  -> futures::ValueOrError<
+                                      NonNull<std::shared_ptr<LazyString>>> {
                      CHECK(value->IsString());
                      VLOG(7) << "Evaluated result: " << value->str;
-                     return futures::Past(
-                         Success(NonNull<std::shared_ptr<LazyString>>(
-                             NewLazyString(std::move(value->str)))));
+                     return futures::Past(NewLazyString(std::move(value->str)));
                    })
                    .ConsumeErrors([](Error error) {
                      VLOG(7) << "Evaluation error: " << error.description;
-                     return futures::Past(NonNull<std::shared_ptr<LazyString>>(
-                         NewLazyString(L"E: " + std::move(error.description))));
+                     return futures::Past(
+                         NewLazyString(L"E: " + std::move(error.description)));
                    })};
 }
 

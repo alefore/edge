@@ -44,7 +44,6 @@ using afc::infrastructure::MillisecondsBetween;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::language::FromByteString;
-using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 
@@ -362,7 +361,7 @@ int main(int argc, const char** argv) {
     }
 
     LOG(INFO) << "Sending commands.";
-    ValueOrError<int> self_fd = Success(remote_server_fd);
+    ValueOrError<int> self_fd = remote_server_fd;
     if (remote_server_fd != -1) {
       // Pass.
     } else if (args.server && args.server_path.has_value()) {

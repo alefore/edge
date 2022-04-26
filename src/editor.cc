@@ -105,7 +105,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
             })
             .Transform([editor](EmptyValue) {
               editor->ResetModifiers();
-              return Success(EvaluationOutput::New(Value::NewVoid()));
+              return EvaluationOutput::New(Value::NewVoid());
             });
       };
   editor_type->AddField(name, std::move(callback));
@@ -277,11 +277,11 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                         return futures::Past(EmptyValue());
                       });
                 })
-                .Transform([output](
-                               EmptyValue) -> ValueOrError<EvaluationOutput> {
-                  if (output->IsError()) return output->error();
-                  return Success(EvaluationOutput::Return(Value::NewVoid()));
-                });
+                .Transform(
+                    [output](EmptyValue) -> ValueOrError<EvaluationOutput> {
+                      if (output->IsError()) return output->error();
+                      return EvaluationOutput::Return(Value::NewVoid());
+                    });
           }));
 
   editor_type->AddField(
@@ -312,7 +312,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                           [](Error) { return futures::Past(EmptyValue()); });
                 })
                 .Transform([](EmptyValue) {
-                  return Success(EvaluationOutput::Return(Value::NewVoid()));
+                  return EvaluationOutput::Return(Value::NewVoid());
                 });
           }));
 
@@ -341,8 +341,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
               return futures::Past(target_path.error());
             }
             OpenServerBuffer(*editor, target_path.value());
-            return futures::Past(
-                Success(EvaluationOutput::Return(Value::NewVoid())));
+            return futures::Past(EvaluationOutput::Return(Value::NewVoid()));
           }));
 
   editor_type->AddField(
@@ -374,7 +373,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                          });
                        })
                 .Transform([](futures::IterationControlCommand) {
-                  return Success(EvaluationOutput::Return(Value::NewVoid()));
+                  return EvaluationOutput::Return(Value::NewVoid());
                 });
           }));
 
@@ -455,8 +454,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 .Transform(
                     [](std::map<BufferName,
                                 std::shared_ptr<OpenBuffer>>::iterator result) {
-                      return Success(EvaluationOutput::Return(
-                          Value::NewObject(L"Buffer", result->second)));
+                      return EvaluationOutput::Return(
+                          Value::NewObject(L"Buffer", result->second));
                     });
           }));
 
@@ -566,7 +565,9 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
                  work_queue->Schedule(std::move(resume));
                })
         .Transform([](NonNull<std::unique_ptr<Value>>) {
-          return Success(futures::IterationControlCommand::kContinue);
+          // TODO(2022-04-26): Figure out a way to get rid of `Success`.
+          return futures::Past(
+              Success(futures::IterationControlCommand::kContinue));
         })
         .ConsumeErrors([](Error) {
           return futures::Past(futures::IterationControlCommand::kContinue);

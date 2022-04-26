@@ -179,6 +179,8 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
               .Transform([](NonNull<std::unique_ptr<Value>> value) {
                 std::ostringstream oss;
                 oss << *value;
+                // TODO(2022-04-26): Improve futures to be able to remove
+                // Success.
                 return Success(NewLazyString(FromByteString(oss.str())));
               })
               .ConsumeErrors([](Error error) {
@@ -317,7 +319,7 @@ using std::to_wstring;
                 args[1]->user_value.get());
             return buffer->ApplyToCursors(Pointer(transformation).Reference())
                 .Transform([](EmptyValue) {
-                  return Success(EvaluationOutput::Return(Value::NewVoid()));
+                  return EvaluationOutput::Return(Value::NewVoid());
                 });
           }));
 
@@ -450,13 +452,13 @@ using std::to_wstring;
             }
 
             futures::Future<ValueOrError<EvaluationOutput>> future;
-            buffer->Save().SetConsumer([consumer = std::move(future.consumer)](
-                                           PossibleError result) {
-              if (result.IsError())
-                consumer(result.error());
-              else
-                consumer(Success(EvaluationOutput::Return(Value::NewVoid())));
-            });
+            buffer->Save().SetConsumer(
+                [consumer = std::move(future.consumer)](PossibleError result) {
+                  if (result.IsError())
+                    consumer(result.error());
+                  else
+                    consumer(EvaluationOutput::Return(Value::NewVoid()));
+                });
             buffer->editor().ResetModifiers();
             return std::move(future.value);
           }));
@@ -555,7 +557,7 @@ using std::to_wstring;
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].get());
             return buffer->WaitForEndOfFile().Transform([](EmptyValue) {
-              return Success(EvaluationOutput::Return(Value::NewVoid()));
+              return EvaluationOutput::Return(Value::NewVoid());
             });
           }));
 
@@ -961,8 +963,8 @@ void OpenBuffer::Initialize() {
                           [weak_this, consumer = std::move(future.consumer)] {
                             auto shared_this = weak_this.lock();
                             if (shared_this != nullptr)
-                              consumer(Success(vm::EvaluationOutput::Return(
-                                  vm::Value::NewVoid())));
+                              consumer(vm::EvaluationOutput::Return(
+                                  vm::Value::NewVoid()));
                           });
                       return std::move(future.value);
                     }));
@@ -1104,8 +1106,9 @@ void OpenBuffer::Reload() {
                    Path::Join(
                        dir,
                        Path::FromString(L"hooks/buffer-reload.cc").value()))
-            .Transform([](NonNull<std::unique_ptr<Value>>) {
-              return Success(IterationControlCommand::kContinue);
+            .Transform([](NonNull<std::unique_ptr<Value>>)
+                           -> futures::ValueOrError<IterationControlCommand> {
+              return futures::Past(IterationControlCommand::kContinue);
             })
             .ConsumeErrors(
                 [](Error) { return Past(IterationControlCommand::kContinue); });
@@ -1125,7 +1128,7 @@ void OpenBuffer::Reload() {
             }),
             [](Error error) {
               LOG(INFO) << "Error opening log: " << error.description;
-              return Success(NewNullLog());
+              return NewNullLog();
             });
       })
       .Transform([this, shared_this = shared_from_this()](
@@ -1222,7 +1225,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
              })
       .Transform([path, error](IterationControlCommand) -> ValueOrError<Path> {
         if (error->has_value()) return error->value();
-        return Success(*path);
+        return *path;
       });
 }
 
@@ -1334,8 +1337,7 @@ OpenBuffer::CompileString(const std::wstring& code) {
   auto sub_environment = std::make_shared<Environment>(environment_);
   auto compilation_result = afc::vm::CompileString(code, sub_environment);
   if (compilation_result.IsError()) return compilation_result.error();
-  return Success(
-      std::make_pair(std::move(compilation_result.value()), sub_environment));
+  return std::make_pair(std::move(compilation_result.value()), sub_environment);
 }
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>>
@@ -1979,7 +1981,7 @@ ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
       tree.properties().end()) {
     auto contents = buffer.contents().copy();
     contents->FilterToRange(tree.range());
-    return Success(URL(contents->ToString()));
+    return URL(contents->ToString());
   }
   for (const auto& child : tree.children()) {
     if (auto output = FindLinkTarget(buffer, child); !output.IsError())
@@ -2064,9 +2066,9 @@ OpenBuffer::OpenBufferForCurrentPosition(
   // meantime.
   auto adjusted_position = AdjustLineColumn(position());
   struct Data {
+    // TODO(easy, 2022-04-26): NonNull.
     std::shared_ptr<OpenBuffer> source;
-    ValueOrError<std::shared_ptr<OpenBuffer>> output =
-        Success(std::shared_ptr<OpenBuffer>());
+    ValueOrError<std::shared_ptr<OpenBuffer>> output = nullptr;
   };
   auto data = std::make_shared<Data>();
   data->source = shared_from_this();
@@ -2125,14 +2127,14 @@ OpenBuffer::OpenBufferForCurrentPosition(
                              data->source->editor().buffers()->end()) {
                            return futures::IterationControlCommand::kContinue;
                          }
-                         data->output = Success(buffer_context_it->second);
+                         data->output = buffer_context_it->second;
                          return futures::IterationControlCommand::kStop;
                        });
              })
       .Transform([data](IterationControlCommand iteration_control_command) {
         return iteration_control_command ==
                        futures::IterationControlCommand::kContinue
-                   ? Success(std::shared_ptr<OpenBuffer>())
+                   ? nullptr
                    : std::move(data->output);
       });
 }

@@ -30,7 +30,6 @@ namespace editor {
 using infrastructure::Path;
 using language::MakeNonNullUnique;
 using language::NonNull;
-using language::Success;
 using language::ToByteString;
 using vm::Environment;
 using vm::ObjectType;
@@ -128,9 +127,8 @@ void RegisterScreenType(Environment* environment) {
                          << output.error();
               return futures::Past(output.error());
             }
-            return futures::Past(
-                Success(EvaluationOutput::Return(Value::NewObject(
-                    L"Screen", std::make_shared<ScreenVm>(output.value())))));
+            return futures::Past(EvaluationOutput::Return(Value::NewObject(
+                L"Screen", std::make_shared<ScreenVm>(output.value()))));
           }));
 
   // Methods for Screen.

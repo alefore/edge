@@ -12,7 +12,6 @@
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
-using language::Success;
 using language::ValueOrError;
 
 using std::wstring;
@@ -87,8 +86,8 @@ ValueOrError<NonNull<std::unique_ptr<Command>>> NewCppCommand(
                << result.error();
     return result.error();
   }
-  return Success(MakeNonNullUnique<CppCommand>(
-      editor_state, std::move(result.value()), std::move(code)));
+  return MakeNonNullUnique<CppCommand>(editor_state, std::move(result.value()),
+                                       std::move(code));
 }
 
 }  // namespace afc::editor
