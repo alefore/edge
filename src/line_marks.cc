@@ -8,6 +8,7 @@
 #include "src/buffer.h"
 #include "src/char_buffer.h"
 #include "src/language/wstring.h"
+#include "src/tracker.h"
 
 namespace afc {
 namespace editor {
@@ -19,6 +20,9 @@ void LineMarks::AddMark(Mark mark) {
 
 void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
                                       const BufferName& source) {
+  static Tracker tracker(L"LineMarks::ExpireMarksFromSource");
+  auto call = tracker.Call();
+
   auto it = marks.find(source);
   if (it == marks.end() || it->second.empty()) {
     LOG(INFO) << "No marks from source: " << source;
@@ -53,6 +57,9 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
 }
 
 void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
+  static Tracker tracker(L"LineMarks::RemoveExpiredMarksFromSource");
+  auto call = tracker.Call();
+
   auto it = marks.find(source);
   if (it == marks.end() || it->second.empty()) {
     LOG(INFO) << "No marks from source: " << source;
@@ -82,6 +89,9 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
 
 std::vector<LineMarks::Mark> LineMarks::GetMarksForTargetBuffer(
     const BufferName& target_buffer) const {
+  static Tracker tracker(L"LineMarks::GetMarksForTargetBuffer");
+  auto call = tracker.Call();
+
   DLOG(INFO) << "Producing marks for buffer: " << target_buffer;
   std::vector<LineMarks::Mark> output;
   for (auto& source_it : marks) {
