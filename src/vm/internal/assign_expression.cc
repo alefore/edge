@@ -44,7 +44,6 @@ class AssignExpression : public Expression {
                 case EvaluationOutput::OutputType::kContinue:
                   DVLOG(3) << "Setting value for: " << symbol;
                   DVLOG(4) << "Value: " << *value_output.value;
-                  // TODO(2022-04-27, easy): Why do we need to copy value?
                   auto copy = MakeNonNullUnique<Value>(*value_output.value);
                   if (assignment_type == AssignmentType::kDefine) {
                     trampoline.environment()->Define(symbol, std::move(copy));
