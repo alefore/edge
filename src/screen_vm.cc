@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "src/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/screen.h"
 #include "src/server.h"
@@ -68,9 +69,10 @@ class ScreenVm : public Screen {
                ", " + std::to_string(position.column.column) + "));";
   }
 
-  void WriteString(const wstring& str) override {
+  void WriteString(const NonNull<std::shared_ptr<LazyString>>& str) override {
+    // TODO(easy, 2022-04-27): Avoid call of ToString.
     buffer_ += "screen.WriteString(\"" +
-               ToByteString(vm::CppEscapeString(str)) + "\");";
+               ToByteString(vm::CppEscapeString(str->ToString())) + "\");";
   }
 
   void SetModifier(LineModifier modifier) override {
@@ -171,7 +173,7 @@ void RegisterScreenType(Environment* environment) {
                           using ::operator<<;
                           CHECK(screen != nullptr);
                           DVLOG(5) << "Writing string: " << str;
-                          screen->WriteString(str);
+                          screen->WriteString(NewLazyString(std::move(str)));
                         }));
 
   screen_type->AddField(

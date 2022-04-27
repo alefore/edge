@@ -4,11 +4,12 @@ extern "C" {
 #include <ncursesw/curses.h>
 }
 
+#include "src/language/safe_types.h"
 #include "src/line_column.h"
 #include "src/terminal.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::NonNull;
 namespace {
 class ScreenCurses : public Screen {
  public:
@@ -53,7 +54,11 @@ class ScreenCurses : public Screen {
   void Move(LineColumn position) override {
     move(position.line.line, position.column.column);
   }
-  void WriteString(const wstring& s) override { addwstr(s.c_str()); }
+  void WriteString(const NonNull<std::shared_ptr<LazyString>>& s) override {
+    static Tracker tracker(L"ScreenCurses::WriteString");
+    auto call = tracker.Call();
+    addwstr(s->ToString().c_str());
+  }
 
   void SetModifier(LineModifier modifier) override {
     switch (modifier) {
@@ -222,6 +227,4 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
 std::unique_ptr<Screen> NewScreenCurses() {
   return std::make_unique<ScreenCurses>();
 }
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

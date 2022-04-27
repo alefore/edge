@@ -8,6 +8,7 @@
 
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
+#include "src/char_buffer.h"
 #include "src/frame_output_producer.h"
 #include "src/infrastructure/dirname.h"
 #include "src/line_marks.h"
@@ -219,13 +220,11 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
       ++input_column;
     }
 
-    // TODO: Have screen receive the LazyString directly.
     if (start != input_column) {
-      static Tracker tracker(L"Terminal::GetLineDrawer: Call ToString");
+      static Tracker tracker(L"Terminal::GetLineDrawer: Call WriteString");
       auto call = tracker.Call();
       auto str = Substring(line_with_cursor.line->contents(), start,
-                           input_column - start)
-                     ->ToString();
+                           input_column - start);
       functions.push_back([str](Screen& screen) { screen.WriteString(str); });
     }
 
@@ -246,7 +245,8 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   }
 
   if (output_column < ColumnNumber(0) + width) {
-    functions.push_back([](Screen& screen) { screen.WriteString(L"\n"); });
+    functions.push_back(
+        [](Screen& screen) { screen.WriteString(NewLazyString(L"\n")); });
   }
   output.draw_callback = [functions = std::move(functions)](Screen& screen) {
     for (auto& f : functions) {
