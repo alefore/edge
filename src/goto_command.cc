@@ -16,6 +16,7 @@
 #include "src/transformation/set_position.h"
 
 namespace afc::editor {
+using infrastructure::Tracker;
 using language::MakeNonNullUnique;
 using language::NonNull;
 namespace {

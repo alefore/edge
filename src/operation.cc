@@ -8,7 +8,7 @@
 #include "src/futures/futures.h"
 #include "src/futures/serializer.h"
 #include "src/goto_command.h"
-#include "src/language//safe_types.h"
+#include "src/language/safe_types.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
 #include "src/transformation/composite.h"
@@ -19,9 +19,11 @@
 
 namespace afc::editor::operation {
 using futures::Past;
+using infrastructure::Tracker;
 using language::EmptyValue;
 using language::MakeNonNullUnique;
 using language::NonNull;
+
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 

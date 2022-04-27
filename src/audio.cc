@@ -3,7 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/concurrent/protected.h"
-#include "src/tracker.h"
+#include "src/infrastructure/tracker.h"
 
 namespace afc::editor::audio {
 using concurrent::Protected;
@@ -142,7 +142,7 @@ class PlayerImpl : public Player {
   }
 
   bool PlayNextFrame() {
-    static Tracker tracker(L"audio::Player::PlayNextFrame");
+    static infrastructure::Tracker tracker(L"audio::Player::PlayNextFrame");
     auto call = tracker.Call();
 
     std::unique_ptr<Frame> new_frame;

@@ -8,6 +8,7 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
@@ -15,7 +16,6 @@
 #include "src/lazy_string_functional.h"
 #include "src/substring.h"
 #include "src/tests/tests.h"
-#include "src/tracker.h"
 
 namespace afc {
 namespace editor {
@@ -24,6 +24,7 @@ using std::hash;
 using std::unordered_set;
 using std::wstring;
 
+using infrastructure::Tracker;
 using language::compute_hash;
 using language::MakeHashableIteratorRange;
 using language::MakeNonNullShared;

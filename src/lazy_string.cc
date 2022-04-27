@@ -2,12 +2,14 @@
 
 #include <glog/logging.h>
 
+#include "src/infrastructure/tracker.h"
 #include "src/lazy_string_functional.h"
-#include "src/tracker.h"
 
 namespace afc::editor {
 using language::NonNull;
 namespace {
+using infrastructure::Tracker;
+
 class EmptyStringImpl : public LazyString {
  public:
   wchar_t get(ColumnNumber) const override {

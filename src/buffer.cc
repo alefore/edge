@@ -29,6 +29,7 @@ extern "C" {
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
@@ -46,7 +47,6 @@ extern "C" {
 #include "src/status.h"
 #include "src/substring.h"
 #include "src/tokenize.h"
-#include "src/tracker.h"
 #include "src/transformation.h"
 #include "src/transformation/cursors.h"
 #include "src/transformation/delete.h"
@@ -97,6 +97,7 @@ using infrastructure::FileSystemDriver;
 using infrastructure::Now;
 using infrastructure::Path;
 using infrastructure::PathComponent;
+using infrastructure::Tracker;
 using infrastructure::UpdateIfMillisecondsHavePassed;
 using language::EmptyValue;
 using language::Error;

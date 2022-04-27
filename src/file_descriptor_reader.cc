@@ -8,12 +8,13 @@
 #include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/infrastructure/time.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
-#include "src/tracker.h"
 
 namespace afc::editor {
 using infrastructure::FileDescriptor;
+using infrastructure::Tracker;
 using language::MakeNonNullShared;
 using language::NonNull;
 

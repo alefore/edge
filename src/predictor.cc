@@ -35,6 +35,7 @@ using infrastructure::FileSystemDriver;
 using infrastructure::OpenDir;
 using infrastructure::Path;
 using infrastructure::PathJoin;
+using infrastructure::Tracker;
 using language::EmptyValue;
 using language::FromByteString;
 using language::MakeNonNullShared;

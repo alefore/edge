@@ -13,6 +13,7 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+using infrastructure::Tracker;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;

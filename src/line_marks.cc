@@ -7,11 +7,11 @@
 
 #include "src/buffer.h"
 #include "src/char_buffer.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/wstring.h"
-#include "src/tracker.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using infrastructure::Tracker;
 
 void LineMarks::AddMark(Mark mark) {
   marks[mark.source].insert(make_pair(mark.target_buffer, mark));
@@ -114,5 +114,4 @@ std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lm) {
   return os;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

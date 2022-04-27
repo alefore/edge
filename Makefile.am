@@ -97,6 +97,8 @@ src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
+src/infrastructure/tracker.cc \
+src/infrastructure/tracker.h \
 src/insert_mode.cc \
 src/language/function_traits.h \
 src/language/ghost_type.h \
@@ -198,8 +200,6 @@ src/tests/tests.h \
 src/tokenize.cc \
 src/tokenize.h \
 src/tokenize_test.cc \
-src/tracker.cc \
-src/tracker.h \
 src/transformation/composite.cc \
 src/transformation/composite.h \
 src/transformation/cursors.cc \

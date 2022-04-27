@@ -8,7 +8,7 @@
 
 #include "src/concurrent/protected.h"
 
-namespace afc::editor {
+namespace afc::infrastructure {
 
 // Tracks number of times an operation happens (globally), as well as total time
 // spent executing it.
@@ -49,6 +49,6 @@ class Tracker {
   concurrent::Protected<Data> data_;
 };
 
-}  // namespace afc::editor
+}  // namespace afc::infrastructure
 
 #endif  // __AFC_EDITOR_SRC_TRACKERS_H__

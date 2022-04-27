@@ -1,9 +1,8 @@
-#include "src/tracker.h"
+#include "src/infrastructure/tracker.h"
 
 #include "src/infrastructure/time.h"
 
-namespace afc::editor {
-using infrastructure::GetElapsedSecondsSince;
+namespace afc::infrastructure {
 namespace {
 using Trackers = std::list<Tracker*>;
 using concurrent::Protected;
@@ -47,4 +46,4 @@ std::unique_ptr<bool, std::function<void(bool*)>> Tracker::Call() {
         data_.lock([start, seconds](Data& data) { data.seconds += seconds; });
       });
 }
-}  // namespace afc::editor
+}  // namespace afc::infrastructure

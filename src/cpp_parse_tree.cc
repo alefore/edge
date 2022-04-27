@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/buffer.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/safe_types.h"
 #include "src/lazy_string_functional.h"
 #include "src/lru_cache.h"
@@ -10,8 +11,10 @@
 #include "src/seek.h"
 
 namespace afc::editor {
+using infrastructure::Tracker;
 using language::MakeNonNullUnique;
 using language::NonNull;
+
 namespace {
 enum State {
   DEFAULT_AT_START_OF_LINE,

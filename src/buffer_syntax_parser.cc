@@ -8,6 +8,7 @@
 
 namespace afc::editor {
 using concurrent::Notification;
+using infrastructure::Tracker;
 using language::MakeNonNull;
 using language::MakeNonNullShared;
 using language::NonNull;

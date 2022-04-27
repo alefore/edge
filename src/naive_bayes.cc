@@ -1,9 +1,9 @@
 #include "src/naive_bayes.h"
 
 #include "glog/logging.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
-#include "src/tracker.h"
 
 namespace afc::naive_bayes {
 
@@ -254,7 +254,7 @@ std::vector<Event> Sort(const History& history,
   // compute a small value epsilon and use:
   //
   //     p(mi, F) = p(mi) Πj max(epsilon, p(fj | mi))
-  static afc::editor::Tracker tracker(
+  static infrastructure::Tracker tracker(
       L"NaiveBayes::SortByProportionalProbability");
   auto call = tracker.Call();
 

@@ -9,6 +9,7 @@ extern "C" {
 #include "src/terminal.h"
 
 namespace afc::editor {
+using infrastructure::Tracker;
 using language::NonNull;
 namespace {
 class ScreenCurses : public Screen {

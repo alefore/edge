@@ -11,6 +11,7 @@
 #include "src/char_buffer.h"
 #include "src/frame_output_producer.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/tracker.h"
 #include "src/line_marks.h"
 #include "src/parse_tree.h"
 #include "src/status_output_producer.h"
@@ -23,6 +24,7 @@ using std::set;
 using std::to_wstring;
 
 using infrastructure::Path;
+using infrastructure::Tracker;
 
 constexpr int Terminal::DOWN_ARROW;
 constexpr int Terminal::UP_ARROW;
