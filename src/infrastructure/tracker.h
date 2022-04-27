@@ -13,10 +13,6 @@ namespace afc::infrastructure {
 // Tracks number of times an operation happens (globally), as well as total time
 // spent executing it.
 //
-// Register the tracker for an operation:
-//
-//     static Tracker tracker(L"Line::Output");
-//
 // When an operation starts, just call tracker. Capture the returned value and
 // discard it when the operation completes:
 //
