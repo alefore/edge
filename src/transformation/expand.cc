@@ -87,8 +87,7 @@ class PredictorTransformation : public CompositeTransformation {
             CHECK_LE(results->longest_prefix, ColumnNumberDelta(text.size()));
             auto prefix = text.substr(0, results->longest_prefix.column_delta);
             if (!prefix.empty()) {
-              // TODO(easy, 2022-04-27): Add a test that deletes the buffer and
-              // runs this path. Ensure this doesn't crash.
+              VLOG(5) << "Setting buffer status.";
               buffer.status().SetInformationText(
                   L"No matches found. Longest prefix with matches: \"" +
                   prefix + L"\"");
@@ -110,6 +109,37 @@ class PredictorTransformation : public CompositeTransformation {
   const Predictor predictor_;
   const std::wstring text_;
 };
+
+namespace {
+bool predictor_transformation_tests_register = tests::Register(
+    L"PredictorTransformation",
+    {{.name = L"DeleteBufferDuringPrediction", .callback = [] {
+        futures::Future<PredictorOutput> inner_future;
+        OpenBuffer* predictions_buffer = nullptr;
+        auto final_value = NewBufferForTests()->ApplyToCursors(
+            MakeNonNullShared<PredictorTransformation>(
+                [&](PredictorInput input) -> futures::Value<PredictorOutput> {
+                  predictions_buffer = &input.predictions;
+                  return std::move(inner_future.value);
+                },
+                L"foo"));
+        // We've dropped our reference to the buffer, even though it still has
+        // work scheduled. This is the gist of this tests: validate that the
+        // transformation executes successfully regardless.
+        LOG(INFO) << "Preparing predictions buffer";
+        CHECK(predictions_buffer != nullptr);
+        predictions_buffer->AppendLine(NewLazyString(L"footer"));
+        predictions_buffer->AppendLine(NewLazyString(L"foxtrot"));
+        predictions_buffer->EraseLines(LineNumber(), LineNumber().next());
+        RegisterPredictorPrefixMatch(2, *predictions_buffer);
+        LOG(INFO) << "Signaling EOF to predictions_buffer.";
+        predictions_buffer->EndOfFile();
+        LOG(INFO) << "Notifying inner future";
+        CHECK(!final_value.Get().has_value());
+        inner_future.consumer(PredictorOutput());
+        CHECK(final_value.Get().has_value());
+      }}});
+}
 
 using OpenFileCallback = std::function<
     futures::Value<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>(
