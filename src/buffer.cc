@@ -1121,10 +1121,7 @@ void OpenBuffer::Reload() {
       })
       .Transform([this](EmptyValue) {
         return futures::OnError(
-            GetEdgeStateDirectory().Transform([this](Path dir) {
-              // TODO(easy, 2022-04-27): Drop get_shared.
-              return options_.log_supplier(work_queue_.get_shared(), dir);
-            }),
+            GetEdgeStateDirectory().Transform(options_.log_supplier),
             [](Error error) {
               LOG(INFO) << "Error opening log: " << error.description;
               return NewNullLog();

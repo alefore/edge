@@ -12,6 +12,7 @@ using infrastructure::FileSystemDriver;
 using infrastructure::HumanReadableTime;
 using infrastructure::Now;
 using infrastructure::Path;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::Success;
 using language::ToByteString;
@@ -40,7 +41,7 @@ struct FileLogData {
 
 class FileLog : public Log {
  public:
-  FileLog(std::shared_ptr<FileLogData> data)
+  FileLog(NonNull<std::shared_ptr<FileLogData>> data)
       : data_(std::move(data)), id_(data_->next_id++) {
     Write(data_, id_, L"Start");
   }
@@ -58,9 +59,8 @@ class FileLog : public Log {
   }
 
  private:
-  static void Write(std::shared_ptr<FileLogData> data, int id,
+  static void Write(NonNull<std::shared_ptr<FileLogData>> data, int id,
                     std::wstring statement) {
-    CHECK(data != nullptr);
     auto time = HumanReadableTime(Now());
     LoggingThreadPool().RunIgnoringResult(
         [data = std::move(data),
@@ -72,20 +72,20 @@ class FileLog : public Log {
         });
   }
 
-  const std::shared_ptr<FileLogData> data_;
+  const NonNull<std::shared_ptr<FileLogData>> data_;
   int id_;
 };
 }  // namespace
 futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>> NewFileLog(
-    FileSystemDriver* file_system, Path path) {
+    FileSystemDriver& file_system, Path path) {
   LOG(INFO) << "Opening log: " << path;
   return file_system
-      ->Open(path, O_WRONLY | O_CREAT | O_APPEND,
-             S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+      .Open(path, O_WRONLY | O_CREAT | O_APPEND,
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
       .Transform([](FileDescriptor fd) {
         // TODO(2022-04-26): Get rid of Success?
         return Success(NonNull<std::unique_ptr<FileLog>>(
-            std::make_shared<FileLogData>(FileLogData{.fd = fd})));
+            MakeNonNullShared<FileLogData>(FileLogData{.fd = fd})));
       });
 }
 

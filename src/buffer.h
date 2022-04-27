@@ -108,12 +108,10 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
     std::function<
         futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>>(
-            std::shared_ptr<concurrent::WorkQueue> work_queue,
             infrastructure::Path edge_state_directory)>
-        log_supplier =
-            [](std::shared_ptr<concurrent::WorkQueue>, infrastructure::Path) {
-              return futures::Past(language::Success(NewNullLog()));
-            };
+        log_supplier = [](infrastructure::Path) {
+          return futures::Past(language::Success(NewNullLog()));
+        };
   };
 
   static language::NonNull<std::shared_ptr<OpenBuffer>> New(Options options);

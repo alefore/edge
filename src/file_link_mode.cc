@@ -693,11 +693,11 @@ OpenFile(const OpenFileOptions& options) {
           buffer_options->path = input.path.value();
         }
         buffer_options->log_supplier =
-            [path = input.path, &editor_state = options.editor_state](
-                std::shared_ptr<WorkQueue>, Path edge_state_directory) {
+            [path = input.path,
+             &editor_state = options.editor_state](Path edge_state_directory) {
               FileSystemDriver driver(editor_state.thread_pool());
               return NewFileLog(
-                  &driver,
+                  driver,
                   Path::Join(edge_state_directory,
                              PathComponent::FromString(L".edge_log").value()));
             };
