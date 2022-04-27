@@ -56,7 +56,7 @@ extern "C" {
 #include "cpp.h"
 }
 
-void CompileLine(Compilation* compilation, void* parser, const wstring& str);
+void CompileLine(Compilation& compilation, void* parser, const wstring& str);
 
 string CppDirname(string path) {
   char* directory_c_str = strdup(path.c_str());
@@ -65,32 +65,31 @@ string CppDirname(string path) {
   return output;
 }
 
-void CompileStream(std::wistream& stream, Compilation* compilation,
+void CompileStream(std::wistream& stream, Compilation& compilation,
                    void* parser) {
-  CHECK(compilation != nullptr);
   std::wstring line;
-  while (compilation->errors.empty() && std::getline(stream, line)) {
+  while (compilation.errors.empty() && std::getline(stream, line)) {
     VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
     CompileLine(compilation, parser, line);
   }
 }
 
-void CompileFile(const string& path, Compilation* compilation, void* parser) {
+void CompileFile(const string& path, Compilation& compilation, void* parser) {
   VLOG(3) << "Compiling file: [" << path << "]";
 
   std::wifstream infile(path);
   infile.imbue(std::locale(""));
   if (infile.fail()) {
-    compilation->AddError(FromByteString(path) + L": open failed");
+    compilation.AddError(FromByteString(path) + L": open failed");
     return;
   }
 
   CompileStream(infile, compilation, parser);
 }
 
-void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
+void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
                    size_t* pos_output) {
-  CHECK(compilation->errors.empty());
+  CHECK(compilation.errors.empty());
 
   VLOG(6) << "Processing #include directive.";
   size_t pos = *pos_output;
@@ -99,7 +98,7 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
   }
   if (pos >= str.size() || (str[pos] != '\"' && str[pos] != '<')) {
     VLOG(5) << "Processing #include failed: Expected opening delimiter";
-    compilation->AddError(
+    compilation.AddError(
         L"#include expects \"FILENAME\" or <FILENAME>; in line: " + str);
     return;
   }
@@ -111,7 +110,7 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
   }
   if (pos >= str.size()) {
     VLOG(5) << "Processing #include failed: Expected closing delimiter";
-    compilation->AddError(
+    compilation.AddError(
         L"#include expects \"FILENAME\" or <FILENAME>, failed to find closing "
         L"character; in line: " +
         str);
@@ -122,18 +121,18 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
 
   if (delimiter == '\"' && !low_level_path.empty() &&
       low_level_path[0] != L'/') {
-    low_level_path = compilation->directory + "/" + low_level_path;
+    low_level_path = compilation.directory + "/" + low_level_path;
   }
 
-  const string old_directory = compilation->directory;
-  compilation->directory = CppDirname(low_level_path);
+  const string old_directory = compilation.directory;
+  compilation.directory = CppDirname(low_level_path);
 
   CompileFile(low_level_path, compilation, parser);
-  for (auto& error : compilation->errors) {
+  for (auto& error : compilation.errors) {
     error = L"During processing of included file \"" + path + L"\": " + error;
   }
 
-  compilation->directory = old_directory;
+  compilation.directory = old_directory;
 
   *pos_output = pos + 1;
 
@@ -149,12 +148,11 @@ int ConsumeDecimal(const wstring& str, size_t* pos) {
   return output;
 }
 
-void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
-  CHECK(compilation != nullptr);
-  CHECK(compilation->errors.empty());
+void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
+  CHECK(compilation.errors.empty());
   size_t pos = 0;
   int token;
-  while (compilation->errors.empty() && pos < str.size()) {
+  while (compilation.errors.empty() && pos < str.size()) {
     VLOG(5) << L"Compiling from character: " << std::wstring(1, str.at(pos));
     std::unique_ptr<Value> input;
     switch (str.at(pos)) {
@@ -200,7 +198,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           token = AND;
           break;
         }
-        compilation->AddError(L"Unhandled character: &");
+        compilation.AddError(L"Unhandled character: &");
         return;
 
       case '[':
@@ -220,7 +218,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           token = OR;
           break;
         }
-        compilation->AddError(L"Unhandled character: |");
+        compilation.AddError(L"Unhandled character: |");
         return;
 
       case '<':
@@ -272,8 +270,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           if (symbol == L"include") {
             HandleInclude(compilation, parser, str, &pos);
           } else {
-            compilation->AddError(L"Invalid preprocessing directive #" +
-                                  symbol);
+            compilation.AddError(L"Invalid preprocessing directive #" + symbol);
           }
           continue;
         }
@@ -405,7 +402,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           }
         }
         if (pos == str.size()) {
-          compilation->AddError(L"Missing terminating \" character.");
+          compilation.AddError(L"Missing terminating \" character.");
           return;
         }
         pos++;
@@ -531,25 +528,25 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
         break;
 
       default:
-        compilation->AddError(L"Unhandled character at position: " +
-                              to_wstring(pos) + L" in line: " + str);
+        compilation.AddError(L"Unhandled character at position: " +
+                             to_wstring(pos) + L" in line: " + str);
         return;
     }
     if (token == SYMBOL || token == STRING) {
       CHECK(input != nullptr) << "No input with token: " << token;
       CHECK(input->type == VMType::VM_SYMBOL ||
             input->type == VMType::VM_STRING);
-      compilation->last_token = input->str;
+      compilation.last_token = input->str;
     }
-    Cpp(parser, token, input.release(), compilation);
+    Cpp(parser, token, input.release(), &compilation);
   }
 }
 
 std::unique_ptr<void, std::function<void(void*)>> GetParser(
-    Compilation* compilation) {
+    Compilation& compilation) {
   return std::unique_ptr<void, std::function<void(void*)>>(
-      CppAlloc(malloc), [compilation](void* parser) {
-        Cpp(parser, 0, nullptr, compilation);
+      CppAlloc(malloc), [&compilation](void* parser) {
+        Cpp(parser, 0, nullptr, &compilation);
         CppFree(parser, free);
       });
 }
@@ -587,7 +584,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
     const string& path, std::shared_ptr<Environment> environment) {
   Compilation compilation{.directory = CppDirname(path),
                           .environment = std::move(environment)};
-  CompileFile(path, &compilation, GetParser(&compilation).get());
+  CompileFile(path, compilation, GetParser(compilation).get());
   return ResultsFromCompilation(std::move(compilation));
 }
 
@@ -596,7 +593,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileString(
   std::wstringstream instr(str, std::ios_base::in);
   Compilation compilation{.directory = ".",
                           .environment = std::move(environment)};
-  CompileStream(instr, &compilation, GetParser(&compilation).get());
+  CompileStream(instr, compilation, GetParser(compilation).get());
   return ResultsFromCompilation(std::move(compilation));
 }
 
