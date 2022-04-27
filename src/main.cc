@@ -43,6 +43,7 @@ using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::MillisecondsBetween;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
+using afc::infrastructure::Tracker;
 using afc::language::FromByteString;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
@@ -234,6 +235,9 @@ std::wstring GetGreetingMessage() {
 void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
                    std::optional<LineColumnDelta>* last_screen_size,
                    Terminal* terminal, Screen* screen_curses) {
+  static Tracker tracker(L"Main::RedrawScreens");
+  auto call = tracker.Call();
+
   auto screen_state = editor_state().FlushScreenState();
   if (!screen_state.has_value()) return;
   if (screen_curses != nullptr) {
@@ -401,7 +405,11 @@ int main(int argc, const char** argv) {
     // We execute pending work before updating screens, since we expect that the
     // pending work updates may have visible effects.
     VLOG(5) << "Executing pending work.";
-    editor_state().ExecutePendingWork();
+    {
+      static Tracker tracker(L"Main::ExecutePendingWork");
+      auto call = tracker.Call();
+      editor_state().ExecutePendingWork();
+    }
 
     VLOG(5) << "Updating screens.";
     RedrawScreens(args, remote_server_fd, &last_screen_size, &terminal,
@@ -482,6 +490,8 @@ int main(int argc, const char** argv) {
             input.push_back(c);
           }
           for (auto& c : input) {
+            static Tracker tracker(L"Main::ProcessInput");
+            auto call = tracker.Call();
             if (remote_server_fd == -1) {
               editor_state().ProcessInput(c);
             } else {
@@ -506,11 +516,15 @@ int main(int argc, const char** argv) {
           FileDescriptor(fds[i].fd) == buffers[i]->fd()->fd()) {
         LOG(INFO) << "Reading (normal): "
                   << buffers[i]->Read(buffer_variables::name);
+        static Tracker tracker(L"Main::ReadData");
+        auto call = tracker.Call();
         buffers[i]->ReadData();
       } else if (buffers[i] && buffers[i]->fd_error() != nullptr &&
                  FileDescriptor(fds[i].fd) == buffers[i]->fd_error()->fd()) {
         LOG(INFO) << "Reading (error): "
                   << buffers[i]->Read(buffer_variables::name);
+        static Tracker tracker(L"Main::ReadErrorData");
+        auto call = tracker.Call();
         buffers[i]->ReadErrorData();
       } else {
         LOG(FATAL) << "Invalid file descriptor.";
