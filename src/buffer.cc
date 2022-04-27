@@ -2319,7 +2319,6 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   undo_future_.clear();
 
   if (!last_transformation_stack_.empty()) {
-    CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation);
     if (undo_past_.empty()) {
       VLOG(5) << "last_transformation_stack_ has values but undo_past_ is "
@@ -2446,8 +2445,7 @@ void OpenBuffer::PushTransformationStack() {
   if (last_transformation_stack_.empty()) {
     undo_past_.push_back(MakeNonNullUnique<transformation::Stack>());
   }
-  last_transformation_stack_.emplace_back(
-      std::make_unique<transformation::Stack>());
+  last_transformation_stack_.push_back({});
 }
 
 void OpenBuffer::PopTransformationStack() {

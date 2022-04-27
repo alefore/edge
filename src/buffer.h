@@ -582,7 +582,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // this to non-null (to signal that we've entered this mode) and
   // OpenBuffer::PopTransformationStack (which sets this back to null and moves
   // this value to last_transformation_).
-  std::list<std::unique_ptr<transformation::Stack>> last_transformation_stack_;
+  std::list<language::NonNull<std::unique_ptr<transformation::Stack>>>
+      last_transformation_stack_;
 
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).
