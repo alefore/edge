@@ -113,6 +113,8 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
           Environment::Namespace(), kLongestPrefixEnvironmentVariable,
           VMType::VM_INTEGER);
       value != nullptr) {
+    LOG(INFO) << "Setting " << kLongestPrefixEnvironmentVariable << ": "
+              << value->integer;
     CHECK(value->IsInteger());
     predict_results.longest_prefix = ColumnNumberDelta(value->integer);
   }
@@ -235,19 +237,6 @@ struct DescendDirectoryTreeOutput {
   size_t valid_prefix_length = 0;
   size_t valid_proper_prefix_length = 0;
 };
-
-// Buffer must be a buffer given to a predictor by `Predict`. Registers a new
-// size of a prefix that has a match.
-void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
-  auto value = buffer.environment()->Lookup(Environment::Namespace(),
-                                            kLongestPrefixEnvironmentVariable,
-                                            VMType::VM_INTEGER);
-  if (value == nullptr) return;
-  buffer.environment()->Assign(
-      kLongestPrefixEnvironmentVariable,
-      vm::Value::NewInteger(
-          std::max(value->integer, static_cast<int>(new_value))));
-}
 
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
   auto value = buffer.environment()->Lookup(
@@ -644,6 +633,17 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
     dictionary->AppendLine(NewLazyString(std::move(word)));
   }
   return DictionaryPredictor(std::move(dictionary))(input);
+}
+
+void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
+  auto value = buffer.environment()->Lookup(Environment::Namespace(),
+                                            kLongestPrefixEnvironmentVariable,
+                                            VMType::VM_INTEGER);
+  if (value == nullptr) return;
+  buffer.environment()->Assign(
+      kLongestPrefixEnvironmentVariable,
+      vm::Value::NewInteger(
+          std::max(value->integer, static_cast<int>(new_value))));
 }
 
 }  // namespace afc::editor

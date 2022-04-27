@@ -157,6 +157,10 @@ Predictor DictionaryPredictor(
 // Based on the parse tree of the source_buffer.
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input);
 
+// Buffer must be a buffer given to a predictor by `Predict`. Registers a new
+// size of a prefix that has a match.
+void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer);
+
 }  // namespace editor
 }  // namespace afc
 
