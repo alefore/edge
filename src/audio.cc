@@ -4,9 +4,12 @@
 
 #include "src/concurrent/protected.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/safe_types.h"
 
 namespace afc::editor::audio {
 using concurrent::Protected;
+using language::MakeNonNullUnique;
+using language::NonNull;
 
 struct Generator {
   using Callback = std::function<SpeakerValue(audio::Player::Time)>;
@@ -122,8 +125,8 @@ class PlayerImpl : public Player {
     Protected<MutableData>::Lock data_;
   };
 
-  std::unique_ptr<Player::Lock> lock() override {
-    return std::make_unique<PlayerImplLock>(data_.lock());
+  NonNull<std::unique_ptr<Player::Lock>> lock() override {
+    return MakeNonNullUnique<PlayerImplLock>(data_.lock());
   }
 
   virtual void SetVolume(Volume volume) {
@@ -131,9 +134,9 @@ class PlayerImpl : public Player {
   }
 
  private:
-  std::unique_ptr<Frame> NewFrame() {
-    return std::make_unique<Frame>(frame_length_ * format_.bits / 8 *
-                                   format_.channels * format_.rate);
+  NonNull<std::unique_ptr<Frame>> NewFrame() {
+    return MakeNonNullUnique<Frame>(frame_length_ * format_.bits / 8 *
+                                    format_.channels * format_.rate);
   }
 
   void PlayAudio() {
@@ -158,7 +161,7 @@ class PlayerImpl : public Player {
           enabled_generators.push_back(&generator);
 
       if (!enabled_generators.empty()) {  // Optimization.
-        new_frame = NewFrame();
+        new_frame = std::move(NewFrame().get_unique());
         for (int i = 0; i < iterations; i++, data->time += delta) {
           data->volume =
               0.8 * data->volume + 0.2 * (1.0 / enabled_generators.size());
@@ -187,7 +190,7 @@ class PlayerImpl : public Player {
   const double frame_length_ = 0.01;
   ao_device* const device_;
   const ao_sample_format format_;
-  const std::unique_ptr<Frame> empty_frame_;
+  const NonNull<std::unique_ptr<Frame>> empty_frame_;
 
   Protected<MutableData> data_;
 
@@ -201,18 +204,18 @@ class NullPlayer : public Player {
     void Add(Generator) override {}
   };
 
-  std::unique_ptr<Player::Lock> lock() override {
-    return std::make_unique<NullLock>();
+  NonNull<std::unique_ptr<Player::Lock>> lock() override {
+    return MakeNonNullUnique<NullLock>();
   }
   virtual void SetVolume(Volume) {}
 };
 }  // namespace
 
-std::unique_ptr<Player> NewNullPlayer() {
-  return std::make_unique<NullPlayer>();
+NonNull<std::unique_ptr<Player>> NewNullPlayer() {
+  return MakeNonNullUnique<NullPlayer>();
 }
 
-std::unique_ptr<Player> NewPlayer() {
+NonNull<std::unique_ptr<Player>> NewPlayer() {
 #if HAVE_LIBAO
   ao_initialize();
   ao_sample_format format;
@@ -227,7 +230,7 @@ std::unique_ptr<Player> NewPlayer() {
     fprintf(stderr, "Error opening device.\n");
     return NewNullPlayer();
   }
-  return std::make_unique<PlayerImpl>(device, format);
+  return MakeNonNullUnique<PlayerImpl>(device, format);
 #else
   return NewNullPlayer();
 #endif

@@ -10,7 +10,9 @@ extern "C" {
 
 namespace afc::editor {
 using infrastructure::Tracker;
+using language::MakeNonNullUnique;
 using language::NonNull;
+
 namespace {
 class ScreenCurses : public Screen {
  public:
@@ -225,7 +227,7 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
   }
 }
 
-std::unique_ptr<Screen> NewScreenCurses() {
-  return std::make_unique<ScreenCurses>();
+NonNull<std::unique_ptr<Screen>> NewScreenCurses() {
+  return MakeNonNullUnique<ScreenCurses>();
 }
 }  // namespace afc::editor

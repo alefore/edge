@@ -4,15 +4,14 @@
 #include <memory>
 
 #include "screen.h"
+#include "src/language/safe_types.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 wint_t ReadChar(std::mbstate_t* mbstate);
 
-std::unique_ptr<Screen> NewScreenCurses();
+language::NonNull<std::unique_ptr<Screen>> NewScreenCurses();
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_SCREEN_CURSES_H__

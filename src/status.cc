@@ -286,7 +286,7 @@ const bool prompt_tests_registration = tests::Register(
     {{.name = L"SetWarningText",
       .callback =
           [] {
-            std::unique_ptr<audio::Player> audio_player =
+            NonNull<std::unique_ptr<audio::Player>> audio_player =
                 audio::NewNullPlayer();
             Status status(NewBufferForTests().get_shared(), *audio_player);
             NonNull<std::shared_ptr<OpenBuffer>> prompt = NewBufferForTests();
@@ -296,7 +296,8 @@ const bool prompt_tests_registration = tests::Register(
             CHECK(status.prompt_buffer() == prompt.get_shared());
           }},
      {.name = L"SetExpiringInformationText", .callback = [] {
-        std::unique_ptr<audio::Player> audio_player = audio::NewNullPlayer();
+        NonNull<std::unique_ptr<audio::Player>> audio_player =
+            audio::NewNullPlayer();
         Status status(NewBufferForTests().get_shared(), *audio_player);
         NonNull<std::shared_ptr<OpenBuffer>> prompt = NewBufferForTests();
         status.set_prompt(L">", prompt.get_shared());

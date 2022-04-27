@@ -2583,7 +2583,7 @@ void OpenBuffer::UpdateLastAction() {
 }
 
 EditorState& EditorForTests() {
-  static audio::Player* player = audio::NewNullPlayer().release();
+  static audio::Player* player = audio::NewNullPlayer().get_unique().release();
   static EditorState editor_for_tests(
       [] {
         CommandLineValues output;

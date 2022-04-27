@@ -45,6 +45,7 @@ using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::Tracker;
 using afc::language::FromByteString;
+using afc::language::NonNull;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 
@@ -298,7 +299,7 @@ int main(int argc, const char** argv) {
                                                  argc, argv);
 
   LOG(INFO) << "Setting up audio_player.";
-  const std::unique_ptr<audio::Player> audio_player =
+  const NonNull<std::unique_ptr<audio::Player>> audio_player =
       getenv(kEdgeParentAddress) != nullptr || args.mute
           ? audio::NewNullPlayer()
           : audio::NewPlayer();
@@ -344,7 +345,7 @@ int main(int argc, const char** argv) {
   std::shared_ptr<Screen> screen_curses;
   if (!args.server) {
     LOG(INFO) << "Creating curses screen.";
-    screen_curses = NewScreenCurses();
+    screen_curses = std::move(NewScreenCurses().get_unique());
   }
   RegisterScreenType(editor_state().environment().get());
   editor_state().environment()->Define(

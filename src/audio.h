@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "src/language/ghost_type.h"
+#include "src/language/safe_types.h"
 
 namespace afc::editor::audio {
 GHOST_TYPE_DOUBLE(Frequency);
@@ -41,12 +42,12 @@ class Player {
   };
 
   virtual ~Player() {}
-  virtual std::unique_ptr<Lock> lock() = 0;
+  virtual language::NonNull<std::unique_ptr<Lock>> lock() = 0;
   virtual void SetVolume(Volume) = 0;
 };
 
-std::unique_ptr<Player> NewPlayer();
-std::unique_ptr<Player> NewNullPlayer();
+language::NonNull<std::unique_ptr<Player>> NewPlayer();
+language::NonNull<std::unique_ptr<Player>> NewNullPlayer();
 
 void GenerateBeep(Player& player, Frequency frequency);
 void BeepFrequencies(Player& player, Player::Duration duration,
