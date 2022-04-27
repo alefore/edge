@@ -14,7 +14,7 @@ class Expression;
 class Value;
 class VMType;
 
-unique_ptr<Expression> NewNegateExpression(std::function<void(Value*)> negate,
+unique_ptr<Expression> NewNegateExpression(std::function<void(Value&)> negate,
                                            const VMType& expected_type,
                                            Compilation* compilation,
                                            unique_ptr<Expression> expr);

@@ -571,7 +571,7 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 
 expr(OUT) ::= NOT expr(A). {
   OUT = NewNegateExpression(
-      [](Value* value) { value->boolean = !value->boolean; },
+      [](Value& value) { value.boolean = !value.boolean; },
       VMType::Bool(),
       compilation, unique_ptr<Expression>(A)).release();
   A = nullptr;
@@ -855,13 +855,13 @@ expr(OUT) ::= MINUS expr(A). {
     OUT = nullptr;
   } else if (A->IsInteger()) {
     OUT = NewNegateExpression(
-        [](Value* value) { value->integer = -value->integer; },
+        [](Value& value) { value.integer = -value.integer; },
         VMType::Integer(),
         compilation, unique_ptr<Expression>(A)).release();
     A = nullptr;
   } else if (A->IsDouble()) {
     OUT = NewNegateExpression(
-        [](Value* value) { value->double_value = -value->double_value; },
+        [](Value& value) { value.double_value = -value.double_value; },
         VMType::Double(),
         compilation, unique_ptr<Expression>(A)).release();
     A = nullptr;

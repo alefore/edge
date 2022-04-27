@@ -12,7 +12,7 @@ using language::Success;
 
 class NegateExpression : public Expression {
  public:
-  NegateExpression(std::function<void(Value*)> negate,
+  NegateExpression(std::function<void(Value&)> negate,
                    NonNull<std::shared_ptr<Expression>> expr)
       : negate_(negate), expr_(std::move(expr)) {}
 
@@ -27,7 +27,7 @@ class NegateExpression : public Expression {
                                                    const VMType&) override {
     return trampoline.Bounce(*expr_, expr_->Types()[0])
         .Transform([negate = negate_](EvaluationOutput expr_output) {
-          negate(expr_output.value.get());
+          negate(*expr_output.value);
           return Success(EvaluationOutput::New(std::move(expr_output.value)));
         });
   }
@@ -37,14 +37,14 @@ class NegateExpression : public Expression {
   }
 
  private:
-  const std::function<void(Value*)> negate_;
+  const std::function<void(Value&)> negate_;
   const NonNull<std::shared_ptr<Expression>> expr_;
 };
 
 }  // namespace
 
 std::unique_ptr<Expression> NewNegateExpression(
-    std::function<void(Value*)> negate, const VMType& expected_type,
+    std::function<void(Value&)> negate, const VMType& expected_type,
     Compilation* compilation, std::unique_ptr<Expression> expr) {
   if (expr == nullptr) {
     return nullptr;
