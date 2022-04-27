@@ -70,12 +70,12 @@ class LambdaExpression : public Expression {
 
   PurityType purity() override { return PurityType::kPure; }
 
-  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const VMType& type) {
     auto promotion_function = GetImplicitPromotion(type_, type);
     CHECK(promotion_function != nullptr);
     return futures::Past(Success(EvaluationOutput::New(
-        promotion_function(BuildValue(trampoline->environment())))));
+        promotion_function(BuildValue(trampoline.environment())))));
   }
 
   NonNull<std::unique_ptr<Value>> BuildValue(

@@ -33,7 +33,7 @@ class WhileExpression : public Expression {
                : PurityType::kUnknown;
   }
 
-  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const VMType&) override {
     DVLOG(4) << "Starting iteration.";
     futures::Future<ValueOrError<EvaluationOutput>> output;
@@ -47,11 +47,11 @@ class WhileExpression : public Expression {
 
  private:
   static void Iterate(
-      Trampoline* trampoline, NonNull<std::shared_ptr<Expression>> condition,
+      Trampoline& trampoline, NonNull<std::shared_ptr<Expression>> condition,
       NonNull<std::shared_ptr<Expression>> body,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer) {
-    trampoline->Bounce(*condition, VMType::Bool())
-        .SetConsumer([condition, body, consumer, trampoline](
+    trampoline.Bounce(*condition, VMType::Bool())
+        .SetConsumer([condition, body, consumer, &trampoline](
                          ValueOrError<EvaluationOutput> condition_output) {
           if (condition_output.IsError())
             return consumer(std::move(condition_output));
@@ -69,8 +69,8 @@ class WhileExpression : public Expression {
               }
 
               DVLOG(5) << "Iterating...";
-              trampoline->Bounce(*body, body->Types()[0])
-                  .SetConsumer([condition, body, consumer, trampoline](
+              trampoline.Bounce(*body, body->Types()[0])
+                  .SetConsumer([condition, body, consumer, &trampoline](
                                    ValueOrError<EvaluationOutput> body_output) {
                     if (body_output.IsError()) consumer(std::move(body_output));
                     switch (body_output.value().type) {

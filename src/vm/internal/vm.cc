@@ -43,6 +43,7 @@ using std::to_wstring;
 
 namespace {
 using language::Error;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
@@ -614,7 +615,7 @@ futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
   }
   static const size_t kMaximumJumps = 100;
   if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr) {
-    return expression.Evaluate(this, type);
+    return expression.Evaluate(*this, type);
   }
 
   futures::Future<language::ValueOrError<EvaluationOutput>> output;
@@ -650,7 +651,7 @@ bool Expression::SupportsType(const VMType& type) {
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
     Expression& expr, std::shared_ptr<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
-  auto trampoline = std::make_shared<Trampoline>(
+  auto trampoline = MakeNonNullShared<Trampoline>(
       Trampoline::Options{.environment = std::move(environment),
                           .yield_callback = std::move(yield_callback)});
   return OnError(

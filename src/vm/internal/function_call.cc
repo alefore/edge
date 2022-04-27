@@ -100,7 +100,7 @@ class FunctionCall : public Expression {
   }
 
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
-      Trampoline* trampoline, const VMType& type) {
+      Trampoline& trampoline, const VMType& type) {
     DVLOG(3) << "Function call evaluation starts.";
     std::vector<VMType> type_arguments = {type};
     for (auto& arg : *args_) {
@@ -108,8 +108,9 @@ class FunctionCall : public Expression {
     }
 
     return trampoline
-        ->Bounce(*func_, VMType::Function(std::move(type_arguments), purity()))
-        .Transform([trampoline, args_types = args_](EvaluationOutput callback) {
+        .Bounce(*func_, VMType::Function(std::move(type_arguments), purity()))
+        .Transform([&trampoline,
+                    args_types = args_](EvaluationOutput callback) {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
             return futures::Past(Success(std::move(callback)));
           DVLOG(6) << "Got function: " << *callback.value;
@@ -130,7 +131,7 @@ class FunctionCall : public Expression {
 
  private:
   static void CaptureArgs(
-      Trampoline* trampoline,
+      Trampoline& trampoline,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer,
       NonNull<
           std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
@@ -145,7 +146,8 @@ class FunctionCall : public Expression {
              << " of " << args_types->size();
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
-      callback->callback(std::move(*values), trampoline)
+      // TODO(easy, 2022-04-27): Pass trampoline by ref.
+      callback->callback(std::move(*values), &trampoline)
           .SetConsumer([consumer,
                         callback](ValueOrError<EvaluationOutput> return_value) {
             if (return_value.IsError()) {
@@ -160,8 +162,8 @@ class FunctionCall : public Expression {
       return;
     }
     NonNull<std::unique_ptr<Expression>>& arg = args_types->at(values->size());
-    trampoline->Bounce(*arg, arg->Types()[0])
-        .SetConsumer([trampoline, consumer, args_types, values,
+    trampoline.Bounce(*arg, arg->Types()[0])
+        .SetConsumer([&trampoline, consumer, args_types, values,
                       callback](ValueOrError<EvaluationOutput> value) {
           CHECK(values != nullptr);
           if (value.IsError()) return consumer(std::move(value.error()));
@@ -294,8 +296,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       }
 
       futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
-          Trampoline* trampoline, const VMType& type) override {
-        return trampoline->Bounce(*obj_expr_, obj_expr_->Types()[0])
+          Trampoline& trampoline, const VMType& type) override {
+        return trampoline.Bounce(*obj_expr_, obj_expr_->Types()[0])
             .Transform([type, shared_type = type_,
                         shared_delegate = delegate_](EvaluationOutput output)
                            -> ValueOrError<EvaluationOutput> {

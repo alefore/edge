@@ -29,21 +29,21 @@ class NamespaceExpression : public Expression {
   PurityType purity() { return body_->purity(); }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(
-      Trampoline* trampoline, const VMType& type) override {
-    auto original_environment = trampoline->environment();
+      Trampoline& trampoline, const VMType& type) override {
+    auto original_environment = trampoline.environment();
     auto namespace_environment =
         Environment::LookupNamespace(original_environment, namespace_);
     CHECK(namespace_environment != nullptr);
-    trampoline->SetEnvironment(namespace_environment);
+    trampoline.SetEnvironment(namespace_environment);
 
-    return OnError(trampoline->Bounce(*body_, type)
-                       .Transform([trampoline, original_environment](
+    return OnError(trampoline.Bounce(*body_, type)
+                       .Transform([&trampoline, original_environment](
                                       EvaluationOutput output) {
-                         trampoline->SetEnvironment(original_environment);
+                         trampoline.SetEnvironment(original_environment);
                          return Success(std::move(output));
                        }),
-                   [trampoline, original_environment](Error error) {
-                     trampoline->SetEnvironment(original_environment);
+                   [&trampoline, original_environment](Error error) {
+                     trampoline.SetEnvironment(original_environment);
                      return error;
                    });
   }

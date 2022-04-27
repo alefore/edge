@@ -31,17 +31,18 @@ class VariableLookup : public Expression {
   PurityType purity() override { return PurityType::kPure; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(
-      Trampoline* trampoline, const VMType& type) override {
+      Trampoline& trampoline, const VMType& type) override {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
-    CHECK(trampoline != nullptr);
-    CHECK(trampoline->environment() != nullptr);
+    CHECK(trampoline.environment() != nullptr);
     return futures::Past(VisitPointer(
-        trampoline->environment()->Lookup(symbol_namespace_, symbol_, type),
+        trampoline.environment()->Lookup(symbol_namespace_, symbol_, type),
         [](NonNull<std::unique_ptr<Value>> value) {
           DVLOG(5) << "Variable lookup: " << *value;
           return Success(EvaluationOutput::New(std::move(value)));
         },
+        // TODO(easy, 2022-04-27): Adjust VisitPointer to assume the type of the
+        // non-null callback and remove the explicit return type here.
         [this]() -> language::ValueOrError<EvaluationOutput> {
           return Error(L"Unexpected: variable value is null: " + symbol_);
         }));

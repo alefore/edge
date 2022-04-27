@@ -98,8 +98,11 @@ class Expression {
 
   // The expression may be deleted as soon as `Evaluate` returns, even before
   // the returned Value has been given a value.
+  //
+  // The trampoline must not be deleted until the returned future is given a
+  // value.
   virtual futures::ValueOrError<EvaluationOutput> Evaluate(
-      Trampoline* evaluation, const VMType& type) = 0;
+      Trampoline& trampoline, const VMType& type) = 0;
 };
 
 struct EvaluationOutput {

@@ -32,10 +32,10 @@ class AssignExpression : public Expression {
   PurityType purity() override { return PurityType::kUnknown; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(
-      Trampoline* trampoline, const VMType& type) override {
-    return trampoline->Bounce(*value_, type)
+      Trampoline& trampoline, const VMType& type) override {
+    return trampoline.Bounce(*value_, type)
         .Transform(
-            [trampoline, symbol = symbol_,
+            [&trampoline, symbol = symbol_,
              assignment_type = assignment_type_](EvaluationOutput value_output)
                 -> language::ValueOrError<EvaluationOutput> {
               switch (value_output.type) {
@@ -44,11 +44,12 @@ class AssignExpression : public Expression {
                 case EvaluationOutput::OutputType::kContinue:
                   DVLOG(3) << "Setting value for: " << symbol;
                   DVLOG(4) << "Value: " << *value_output.value;
+                  // TODO(2022-04-27, easy): Why do we need to copy value?
                   auto copy = MakeNonNullUnique<Value>(*value_output.value);
                   if (assignment_type == AssignmentType::kDefine) {
-                    trampoline->environment()->Define(symbol, std::move(copy));
+                    trampoline.environment()->Define(symbol, std::move(copy));
                   } else {
-                    trampoline->environment()->Assign(symbol, std::move(copy));
+                    trampoline.environment()->Assign(symbol, std::move(copy));
                   }
                   return Success(
                       EvaluationOutput::New(std::move(value_output.value)));

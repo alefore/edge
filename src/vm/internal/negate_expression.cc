@@ -23,9 +23,9 @@ class NegateExpression : public Expression {
 
   PurityType purity() override { return expr_->purity(); }
 
-  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline* trampoline,
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const VMType&) override {
-    return trampoline->Bounce(*expr_, expr_->Types()[0])
+    return trampoline.Bounce(*expr_, expr_->Types()[0])
         .Transform([negate = negate_](EvaluationOutput expr_output) {
           negate(expr_output.value.get());
           return Success(EvaluationOutput::New(std::move(expr_output.value)));

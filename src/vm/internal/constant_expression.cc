@@ -21,12 +21,12 @@ class ConstantExpression : public Expression {
 
   PurityType purity() override { return PurityType::kPure; }
 
-  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline*,
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline&,
                                                    const VMType& type) {
     CHECK_EQ(type, value_->type);
     DVLOG(5) << "Evaluating constant value: " << *value_;
     return futures::Past(
-        Success(EvaluationOutput::New(MakeNonNullUnique<Value>(*value_))));
+        EvaluationOutput::New(MakeNonNullUnique<Value>(*value_)));
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {
