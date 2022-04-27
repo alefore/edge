@@ -211,9 +211,9 @@ void AddLineMetadata(OpenBuffer& buffer, BufferContents& contents,
 // scheduled an execution of work_queue_ in the editor's work queue.
 Observers::State MaybeScheduleNextWorkQueueExecution(
     std::weak_ptr<WorkQueue> work_queue_weak,
-    std::shared_ptr<WorkQueue> parent_work_queue,
+    NonNull<std::shared_ptr<WorkQueue>> parent_work_queue,
+    // TODO(easy, 2022-04-27): NonNull.
     std::shared_ptr<std::optional<struct timespec>> next_scheduled_execution) {
-  CHECK(parent_work_queue != nullptr);
   CHECK(next_scheduled_execution != nullptr);
   auto work_queue = work_queue_weak.lock();
   if (work_queue == nullptr) return Observers::State::kExpired;
@@ -590,7 +590,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       file_system_driver_(editor().thread_pool()) {
   work_queue_->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
-      std::weak_ptr<WorkQueue>(work_queue_), editor().work_queue(),
+      std::weak_ptr<WorkQueue>(work_queue_.get_shared()), editor().work_queue(),
       std::make_shared<std::optional<struct timespec>>(std::nullopt)));
   for (auto* v :
        {buffer_variables::symbol_characters, buffer_variables::tree_parser,
@@ -1123,7 +1123,8 @@ void OpenBuffer::Reload() {
       .Transform([this](EmptyValue) {
         return futures::OnError(
             GetEdgeStateDirectory().Transform([this](Path dir) {
-              return options_.log_supplier(work_queue_, dir);
+              // TODO(easy, 2022-04-27): Drop get_shared.
+              return options_.log_supplier(work_queue_.get_shared(), dir);
             }),
             [](Error error) {
               LOG(INFO) << "Error opening log: " << error.description;
@@ -1385,7 +1386,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
       });
 }
 
-const std::shared_ptr<WorkQueue>& OpenBuffer::work_queue() const {
+const NonNull<std::shared_ptr<WorkQueue>>& OpenBuffer::work_queue() const {
   return work_queue_;
 }
 

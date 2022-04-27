@@ -126,7 +126,7 @@ std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
   return output;
 }
 
-const std::shared_ptr<WorkQueue>& EditorState::work_queue() const {
+const NonNull<std::shared_ptr<WorkQueue>>& EditorState::work_queue() const {
   return work_queue_;
 }
 
@@ -517,7 +517,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
       work_queue_(WorkQueue::New()),
-      thread_pool_(32, work_queue_),
+      thread_pool_(32, work_queue_.get_shared()),
       home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
         std::vector<Path> output;

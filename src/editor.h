@@ -227,7 +227,8 @@ class EditorState {
   // Executes pending work from all buffers.
   void ExecutePendingWork();
   std::optional<struct timespec> WorkQueueNextExecution() const;
-  const std::shared_ptr<concurrent::WorkQueue>& work_queue() const;
+  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>>& work_queue()
+      const;
   concurrent::ThreadPool& thread_pool();
 
   void ResetInternalEventNotifications();
@@ -242,7 +243,7 @@ class EditorState {
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<double> double_variables_;
 
-  const std::shared_ptr<concurrent::WorkQueue> work_queue_;
+  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
   concurrent::ThreadPool thread_pool_;
 
   std::map<BufferName, std::shared_ptr<OpenBuffer>> buffers_;

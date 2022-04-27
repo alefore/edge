@@ -7,9 +7,11 @@
 namespace afc::concurrent {
 using infrastructure::Now;
 using infrastructure::SecondsBetween;
+using language::MakeNonNullShared;
+using language::NonNull;
 
-/* static */ std::shared_ptr<WorkQueue> WorkQueue::New() {
-  return std::make_shared<WorkQueue>(ConstructorAccessTag());
+/* static */ NonNull<std::shared_ptr<WorkQueue>> WorkQueue::New() {
+  return MakeNonNullShared<WorkQueue>(ConstructorAccessTag());
 }
 
 WorkQueue::WorkQueue(ConstructorAccessTag) {}
@@ -69,19 +71,22 @@ namespace {
 const bool work_queue_tests_registration = tests::Register(
     L"WorkQueue",
     {{.name = L"CallbackKeepsWorkQueueAlive", .runs = 100, .callback = [] {
-        std::shared_ptr<WorkQueue> work_queue = WorkQueue::New();
-        auto notification = std::make_shared<Notification>();
-        work_queue->Schedule(
-            [work_queue] { LOG(INFO) << "First callback starts"; });
-        work_queue->Schedule([notification] {
-          LOG(INFO) << "Second callback starts";
-          notification->Notify();
-        });
-        LOG(INFO) << "Execute.";
-        WorkQueue* work_queue_raw = work_queue.get();
-        work_queue = nullptr;
+        WorkQueue* work_queue_raw;
+        NonNull<std::shared_ptr<Notification>> notification;
+        {
+          NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
+          work_queue->Schedule(
+              [work_queue] { LOG(INFO) << "First callback starts"; });
+          work_queue->Schedule([notification] {
+            LOG(INFO) << "Second callback starts";
+            notification->Notify();
+          });
+          LOG(INFO) << "Execute.";
+          work_queue_raw = work_queue.get();
+        }
+        // We know it hasn't been deleted since it contains a reference to
+        // itself (in the first scheduled callback).
         work_queue_raw->Execute();
-        CHECK(work_queue == nullptr);
         notification->WaitForNotification();
       }}});
 
@@ -100,7 +105,7 @@ const bool work_queue_channel_tests_registration = tests::Register(
       .callback =
           [] {
             std::vector<int> values;
-            auto work_queue = WorkQueue::New();
+            NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
             WorkQueueChannel<int> channel(
                 work_queue, [&](int value) { values.push_back(value); },
                 WorkQueueChannelConsumeMode::kAll);

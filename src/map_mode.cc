@@ -101,11 +101,7 @@ void MapModeCommands::Add(wstring name, wstring description,
                 LOG(INFO) << "Evaluating expression from Value::Ptr...";
                 Evaluate(*expression, environment,
                          [&editor_state](std::function<void()> callback) {
-                           // TODO(easy, 2022-04-25): Schedule in Editor's work
-                           // queue?
-                           auto buffer = editor_state.current_buffer();
-                           CHECK(buffer != nullptr);
-                           buffer->work_queue()->Schedule(callback);
+                           editor_state.work_queue()->Schedule(callback);
                          });
               },
               NewFunctionCall(NewConstantExpression(std::move(value)), {})),

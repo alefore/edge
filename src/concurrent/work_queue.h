@@ -12,6 +12,7 @@
 #include "src/concurrent/protected.h"
 #include "src/infrastructure/time.h"
 #include "src/language/observers.h"
+#include "src/language/safe_types.h"
 #include "src/math/decaying_counter.h"
 
 namespace afc::concurrent {
@@ -39,7 +40,7 @@ class WorkQueue {
     friend WorkQueue;
   };
 
-  static std::shared_ptr<WorkQueue> New();
+  static language::NonNull<std::shared_ptr<WorkQueue>> New();
 
   explicit WorkQueue(ConstructorAccessTag);
 
@@ -104,18 +105,19 @@ enum class WorkQueueChannelConsumeMode {
 template <typename T>
 class WorkQueueChannel {
  public:
-  WorkQueueChannel(std::shared_ptr<WorkQueue> work_queue,
+  WorkQueueChannel(language::NonNull<std::shared_ptr<WorkQueue>> work_queue,
                    std::function<void(T t)> consume_callback,
                    WorkQueueChannelConsumeMode consume_mode)
       : work_queue_(std::move(work_queue)),
         consume_mode_(consume_mode),
-        data_(std::make_shared<Data>(std::move(consume_callback))) {
-    CHECK(work_queue_ != nullptr);
-    CHECK(data_ != nullptr);
+        data_(language::MakeNonNullShared<Data>(std::move(consume_callback))) {
     CHECK(data_->consume_callback != nullptr);
   }
 
-  const std::shared_ptr<WorkQueue>& work_queue() const { return work_queue_; }
+  const language::NonNull<std::shared_ptr<WorkQueue>>& work_queue() const {
+    return work_queue_;
+  }
+
   WorkQueueChannelConsumeMode consume_mode() const { return consume_mode_; }
 
   void Push(T value) {
@@ -145,7 +147,7 @@ class WorkQueueChannel {
   }
 
  private:
-  const std::shared_ptr<WorkQueue> work_queue_;
+  const language::NonNull<std::shared_ptr<WorkQueue>> work_queue_;
   const WorkQueueChannelConsumeMode consume_mode_;
 
   // To enable deletion of the channel before the callbacks it schedules in
@@ -160,7 +162,7 @@ class WorkQueueChannel {
     // Only used when consume_mode_ is kLastAvailable.
     Protected<std::optional<T>> value;
   };
-  const std::shared_ptr<Data> data_;
+  const language::NonNull<std::shared_ptr<Data>> data_;
 };
 }  // namespace afc::concurrent
 #endif  // __AFC_CONCURRENT_WORK_QUEUE_H__

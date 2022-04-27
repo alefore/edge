@@ -92,23 +92,26 @@ const bool buffer_tests_registration = tests::Register(
 const bool buffer_work_queue_tests_registration = tests::Register(
     L"BufferWorkQueue",
     {{.name = L"WorkQueueStaysAlive", .callback = [] {
-        // Validates that the work queue in a buffer is correctly connected to
-        // the work queue in the editor, including not being destroyed early.
+        // Validates that the work queue in a buffer is
+        // correctly connected to the work queue in the
+        // editor, including not being destroyed early.
         bool keep_going = true;
-        std::shared_ptr<WorkQueue> work_queue =
-            NewBufferForTests()->work_queue();
         int iterations = 0;
-        std::function<void()> callback =
-            [work_queue_weak = std::weak_ptr<WorkQueue>(work_queue), &callback,
-             &iterations, &keep_going] {
-              if (keep_going) {
-                CHECK(work_queue_weak.lock() != nullptr);
-                work_queue_weak.lock()->Schedule(callback);
-              }
-              iterations++;
-            };
-        callback();
-        work_queue = nullptr;
+        {
+          NonNull<std::shared_ptr<WorkQueue>> work_queue =
+              NewBufferForTests()->work_queue();
+          std::function<void()> callback =
+              [work_queue_weak =
+                   std::weak_ptr<WorkQueue>(work_queue.get_shared()),
+               &callback, &iterations, &keep_going] {
+                if (keep_going) {
+                  CHECK(work_queue_weak.lock() != nullptr);
+                  work_queue_weak.lock()->Schedule(callback);
+                }
+                iterations++;
+              };
+          callback();
+        }
         for (int i = 0; i < 10; i++) {
           CHECK_EQ(iterations, i + 1);
           EditorForTests().work_queue()->Execute();

@@ -366,7 +366,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> EvaluateFile(
       const infrastructure::Path& path);
 
-  const std::shared_ptr<concurrent::WorkQueue>& work_queue() const;
+  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>>& work_queue()
+      const;
 
   // Asynchronous threads that need to interact with the buffer shouldn't be
   // given a direct reference to the buffer, since OpenBuffer isn't thread safe.
@@ -544,7 +545,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Optional function to execute when a sub-process exits.
   std::function<void()> on_exit_handler_;
 
-  std::shared_ptr<concurrent::WorkQueue> work_queue_;
+  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
 
   BufferContents contents_;
 
