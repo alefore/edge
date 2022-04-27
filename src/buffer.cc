@@ -212,9 +212,8 @@ void AddLineMetadata(OpenBuffer& buffer, BufferContents& contents,
 Observers::State MaybeScheduleNextWorkQueueExecution(
     std::weak_ptr<WorkQueue> work_queue_weak,
     NonNull<std::shared_ptr<WorkQueue>> parent_work_queue,
-    // TODO(easy, 2022-04-27): NonNull.
-    std::shared_ptr<std::optional<struct timespec>> next_scheduled_execution) {
-  CHECK(next_scheduled_execution != nullptr);
+    NonNull<std::shared_ptr<std::optional<struct timespec>>>
+        next_scheduled_execution) {
   auto work_queue = work_queue_weak.lock();
   if (work_queue == nullptr) return Observers::State::kExpired;
   if (auto next = work_queue->NextExecution();
@@ -591,7 +590,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
   work_queue_->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
       std::weak_ptr<WorkQueue>(work_queue_.get_shared()), editor().work_queue(),
-      std::make_shared<std::optional<struct timespec>>(std::nullopt)));
+      NonNull<std::shared_ptr<std::optional<struct timespec>>>()));
   for (auto* v :
        {buffer_variables::symbol_characters, buffer_variables::tree_parser,
         buffer_variables::language_keywords, buffer_variables::typos,
