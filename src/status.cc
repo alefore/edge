@@ -11,6 +11,7 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+using language::MakeNonNullShared;
 using language::NonNull;
 
 wchar_t Braille(size_t counter) {
@@ -165,7 +166,7 @@ Status::Type Status::GetType() const {
 void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   CHECK(buffer != nullptr);
   ValidatePreconditions();
-  data_ = std::make_shared<Data>(Data{
+  data_ = MakeNonNullShared<Data>(Data{
       .type = Status::Type::kPrompt,
       .text = std::move(text),
       .prompt_buffer = std::move(buffer),
@@ -203,7 +204,7 @@ void Status::SetInformationText(std::wstring text) {
   if (data_->prompt_buffer != nullptr) {
     return;
   }
-  data_ = std::make_shared<Data>(
+  data_ = MakeNonNullShared<Data>(
       Data{.type = Type::kInformation, .text = std::move(text)});
   ValidatePreconditions();
 }
@@ -224,7 +225,7 @@ Status::SetExpiringInformationText(std::wstring text) {
 
   return std::unique_ptr<StatusExpirationControl,
                          std::function<void(StatusExpirationControl*)>>(
-      new StatusExpirationControl{data_},
+      new StatusExpirationControl{data_.get_shared()},
       [](StatusExpirationControl* status_expiration_control) {
         auto data = status_expiration_control->data.lock();
         if (data != nullptr) {
@@ -242,7 +243,7 @@ void Status::SetWarningText(std::wstring text) {
   if (data_->prompt_buffer != nullptr) {
     return;
   }
-  data_ = std::make_shared<Data>(
+  data_ = MakeNonNullShared<Data>(
       Data{.type = Type::kWarning, .text = std::move(text)});
   ValidatePreconditions();
 }
@@ -253,7 +254,7 @@ struct timespec Status::last_change_time() const {
 
 void Status::Reset() {
   ValidatePreconditions();
-  data_ = std::make_shared<Data>();
+  data_ = MakeNonNullShared<Data>();
   ValidatePreconditions();
 }
 
@@ -276,7 +277,6 @@ const std::wstring& Status::text() const {
 }
 
 void Status::ValidatePreconditions() const {
-  CHECK(data_ != nullptr);
   CHECK((data_->prompt_buffer != nullptr) == (data_->type == Type::kPrompt));
 }
 

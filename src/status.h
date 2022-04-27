@@ -151,7 +151,7 @@ class Status {
     std::unique_ptr<StatusPromptExtraInformation> extra_information = nullptr;
   };
 
-  std::shared_ptr<Data> data_ = std::make_shared<Data>();
+  language::NonNull<std::shared_ptr<Data>> data_;
 };
 
 }  // namespace afc::editor
