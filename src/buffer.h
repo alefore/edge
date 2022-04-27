@@ -559,8 +559,10 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // When a transformation is done, we append its result to
   // transformations_past_, so that it can be undone.
-  std::list<std::shared_ptr<transformation::Stack>> undo_past_;
-  std::list<std::shared_ptr<transformation::Stack>> undo_future_;
+  std::list<language::NonNull<std::shared_ptr<transformation::Stack>>>
+      undo_past_;
+  std::list<language::NonNull<std::shared_ptr<transformation::Stack>>>
+      undo_future_;
 
   std::list<unique_ptr<Value>> keyboard_text_transformers_;
   const std::shared_ptr<Environment> environment_;

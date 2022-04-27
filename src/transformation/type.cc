@@ -27,9 +27,7 @@ Input Input::NewChild(LineColumn new_position) const {
   return child;
 }
 
-Result::Result(LineColumn position)
-    : undo_stack(std::make_unique<transformation::Stack>()),
-      position(position) {}
+Result::Result(LineColumn position) : position(position) {}
 
 Result::Result(Result&&) = default;
 Result::~Result() = default;

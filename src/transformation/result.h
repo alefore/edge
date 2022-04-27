@@ -28,7 +28,7 @@ struct Result {
   bool modified_buffer = false;
 
   // Transformation that will undo any changes done by this one.
-  std::unique_ptr<transformation::Stack> undo_stack;
+  language::NonNull<std::unique_ptr<transformation::Stack>> undo_stack;
 
   bool added_to_paste_buffer = false;
 

@@ -2326,10 +2326,10 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
                  "means that contents were cleared while the stack wasn't "
                  "empty (perhaps because the buffer was reloaded while some "
                  "active transformation/mode was being executed.";
-      undo_past_.push_back(std::make_unique<transformation::Stack>());
+      undo_past_.push_back(MakeNonNullUnique<transformation::Stack>());
     }
   } else {
-    undo_past_.push_back(std::make_unique<transformation::Stack>());
+    undo_past_.push_back(MakeNonNullUnique<transformation::Stack>());
   }
 
   undo_past_.back()->PushFront(transformation::Cursors{
@@ -2376,7 +2376,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
     transformation::Input::Mode mode) {
   CHECK(!undo_past_.empty());
   const std::weak_ptr<transformation::Stack> undo_stack_weak =
-      undo_past_.back();
+      undo_past_.back().get_shared();
 
   transformation::Input input(*this);
   input.mode = mode;
@@ -2443,7 +2443,7 @@ futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {
 
 void OpenBuffer::PushTransformationStack() {
   if (last_transformation_stack_.empty()) {
-    undo_past_.push_back(std::make_unique<transformation::Stack>());
+    undo_past_.push_back(MakeNonNullUnique<transformation::Stack>());
   }
   last_transformation_stack_.emplace_back(
       std::make_unique<transformation::Stack>());
@@ -2465,8 +2465,8 @@ void OpenBuffer::PopTransformationStack() {
 
 futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
   struct Data {
-    std::list<std::shared_ptr<transformation::Stack>>* source;
-    std::list<std::shared_ptr<transformation::Stack>>* target;
+    std::list<NonNull<std::shared_ptr<transformation::Stack>>>* source;
+    std::list<NonNull<std::shared_ptr<transformation::Stack>>>* target;
     size_t repetitions = 0;
   };
   auto data = std::make_shared<Data>();
