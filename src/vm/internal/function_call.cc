@@ -146,8 +146,7 @@ class FunctionCall : public Expression {
              << " of " << args_types->size();
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
-      // TODO(easy, 2022-04-27): Pass trampoline by ref.
-      callback->callback(std::move(*values), &trampoline)
+      callback->callback(std::move(*values), trampoline)
           .SetConsumer([consumer,
                         callback](ValueOrError<EvaluationOutput> return_value) {
             if (return_value.IsError()) {
@@ -310,7 +309,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                       [obj = NonNull<std::shared_ptr<Value>>(
                            std::move(output.value)),
                        shared_delegate](std::vector<NonNull<Value::Ptr>> args,
-                                        Trampoline* trampoline) {
+                                        Trampoline& trampoline) {
                         args.emplace(args.begin(), MakeNonNullUnique<Value>(
                                                        *obj.get_shared()));
                         return shared_delegate->callback(std::move(args),

@@ -31,7 +31,7 @@ struct Value {
   Value(const VMType& t) : type(t) {}
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
-      std::vector<language::NonNull<Ptr>>, Trampoline*)>;
+      std::vector<language::NonNull<Ptr>>, Trampoline&)>;
   static language::NonNull<std::unique_ptr<Value>> NewVoid();
   static language::NonNull<std::unique_ptr<Value>> NewBool(bool value);
   static language::NonNull<std::unique_ptr<Value>> NewInteger(int value);

@@ -51,7 +51,7 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
                 [argument_callbacks,
                  original_callback = std::move(value->callback)](
                     std::vector<NonNull<std::unique_ptr<Value>>> arguments,
-                    Trampoline* trampoline) {
+                    Trampoline& trampoline) {
                   CHECK_EQ(argument_callbacks.size(), arguments.size() + 1);
                   for (size_t i = 0; i < arguments.size(); ++i) {
                     arguments[i] =

@@ -134,7 +134,7 @@ bool cpp_unescape_string_tests_registration =
     std::function<NonNull<Value::Ptr>(std::vector<NonNull<Value::Ptr>>)>
         callback) {
   return NewFunction(
-      arguments, [callback](std::vector<NonNull<Ptr>> args, Trampoline*) {
+      arguments, [callback](std::vector<NonNull<Ptr>> args, Trampoline&) {
         return futures::Past(
             Success(EvaluationOutput::New(callback(std::move(args)))));
       });

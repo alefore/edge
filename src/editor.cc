@@ -91,7 +91,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
   callback->type.type_arguments = {VMType(VMType::VM_VOID),
                                    VMType::ObjectType(editor_type)};
   callback->callback =
-      [method](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline*) {
+      [method](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
         CHECK_EQ(args.size(), size_t(1));
         CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
 
@@ -258,13 +258,14 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                {VMType::Void(),
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> input,
-             Trampoline* trampoline) {
+             Trampoline& trampoline) {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
             NonNull<std::shared_ptr<PossibleError>> output;
             return editor
                 ->ForEachActiveBuffer([callback = std::move(input[1]->callback),
-                                       trampoline, output](OpenBuffer& buffer) {
+                                       &trampoline,
+                                       output](OpenBuffer& buffer) {
                   std::vector<NonNull<std::unique_ptr<Value>>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
@@ -291,13 +292,13 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                {VMType::Void(),
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> input,
-             Trampoline* trampoline) {
+             Trampoline& trampoline) {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].get());
             return editor
                 ->ForEachActiveBufferWithRepetitions([callback = std::move(
                                                           input[1]->callback),
-                                                      trampoline](
+                                                      &trampoline](
                                                          OpenBuffer& buffer) {
                   std::vector<NonNull<std::unique_ptr<Value>>> args;
                   args.push_back(
@@ -327,7 +328,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
           {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
            VMType::VM_STRING},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args,
-             Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
+             Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
@@ -348,7 +349,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       Value::NewFunction(
           {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
            VMType::ObjectType(L"SetString")},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline*) {
+          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2u);
             auto editor = static_cast<EditorState*>(args[0]->user_value.get());
             const auto& buffers_to_wait =
@@ -434,7 +435,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       Value::NewFunction(
           {VMType::ObjectType(L"Buffer"), VMTypeMapper<EditorState*>::vmtype,
            VMType::VM_STRING, VMType::VM_BOOLEAN},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline*) {
+          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
             auto editor_state =

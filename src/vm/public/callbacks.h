@@ -140,7 +140,7 @@ language::NonNull<Value::Ptr> NewCallback(
   AddArgs<typename ft::ArgTuple, 0>(&callback_wrapper->type.type_arguments);
   callback_wrapper->callback = [callback = std::move(callback)](
                                    vector<language::NonNull<Value::Ptr>> args,
-                                   Trampoline*) {
+                                   Trampoline&) {
     return futures::Past(language::Success(EvaluationOutput::New(
         RunCallback(callback, std::move(args),
                     std::make_index_sequence<

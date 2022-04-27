@@ -87,19 +87,19 @@ class LambdaExpression : public Expression {
     output->callback =
         [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
-            vector<NonNull<unique_ptr<Value>>> args, Trampoline* trampoline) {
+            vector<NonNull<unique_ptr<Value>>> args, Trampoline& trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
           auto environment = std::make_shared<Environment>(parent_environment);
           for (size_t i = 0; i < args.size(); i++) {
             environment->Define(argument_names->at(i), std::move(args.at(i)));
           }
-          auto original_trampoline = *trampoline;
-          trampoline->SetEnvironment(environment);
-          return trampoline->Bounce(*body, body->Types()[0])
-              .Transform([original_trampoline, trampoline, body,
+          auto original_trampoline = trampoline;
+          trampoline.SetEnvironment(environment);
+          return trampoline.Bounce(*body, body->Types()[0])
+              .Transform([original_trampoline, &trampoline, body,
                           promotion_function](EvaluationOutput body_output) {
-                *trampoline = original_trampoline;
+                trampoline = original_trampoline;
                 return Success(EvaluationOutput::New(
                     promotion_function(std::move(body_output.value))));
               });

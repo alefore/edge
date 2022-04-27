@@ -36,7 +36,7 @@ NonNull<std::unique_ptr<Value>> BuildSetter(VMType class_type,
   output->type.type_arguments = {class_type, class_type, field_type};
   output->callback = [field_name, field_type](
                          std::vector<NonNull<std::unique_ptr<Value>>> args,
-                         Trampoline*) {
+                         Trampoline&) {
     CHECK_EQ(args.size(), 2u);
     auto instance = static_cast<Instance*>(args[0]->user_value.get());
     CHECK(instance != nullptr);
@@ -57,7 +57,7 @@ NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
   output->type.type_arguments = {field_type, class_type};
   output->callback = [field_name, field_type](
                          std::vector<NonNull<std::unique_ptr<Value>>> args,
-                         Trampoline*) {
+                         Trampoline&) {
     CHECK_EQ(args.size(), 1u);
     auto instance = static_cast<Instance*>(args[0]->user_value.get());
     CHECK(instance != nullptr);
@@ -112,17 +112,17 @@ void FinishClassDeclaration(
                                    std::move(constructor_expression.value())),
                            class_environment, class_type,
                            values](std::vector<NonNull<std::unique_ptr<Value>>>,
-                                   Trampoline* trampoline) {
+                                   Trampoline& trampoline) {
     auto instance_environment =
         std::make_shared<Environment>(class_environment->parent_environment());
-    auto original_environment = trampoline->environment();
-    trampoline->SetEnvironment(instance_environment);
-    return trampoline->Bounce(*constructor_expression_shared, VMType::Void())
+    auto original_environment = trampoline.environment();
+    trampoline.SetEnvironment(instance_environment);
+    return trampoline.Bounce(*constructor_expression_shared, VMType::Void())
         .Transform([constructor_expression_shared, original_environment,
                     class_type, instance_environment,
-                    trampoline](EvaluationOutput constructor_evaluation)
+                    &trampoline](EvaluationOutput constructor_evaluation)
                        -> language::ValueOrError<EvaluationOutput> {
-          trampoline->SetEnvironment(original_environment);
+          trampoline.SetEnvironment(original_environment);
           switch (constructor_evaluation.type) {
             case EvaluationOutput::OutputType::kReturn:
               return Error(L"Unexpected: return (inside class declaration).");

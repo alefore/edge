@@ -309,7 +309,7 @@ using std::to_wstring;
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()),
            vm::VMTypeMapper<editor::transformation::Variant*>::vmtype},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline*) {
+          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
@@ -328,14 +328,14 @@ using std::to_wstring;
       Value::NewFunction(
           {VMType::ObjectType(L"Range"), VMType::ObjectType(buffer.get()),
            VMType::String()},
-          [](vector<Value::Ptr> args, Trampoline* trampoline) {
+          [](vector<Value::Ptr> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2u);
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
             // TODO: Don't ignore the buffer! Apply it to it!
             // auto buffer =
             // static_cast<OpenBuffer*>(args[0]->user_value.get());
-            auto resume = trampoline->Interrupt();
+            auto resume = trampoline.Interrupt();
             NewCommandWithModifiers(
                 args[1]->str, L"Selects a region",
                 [resume](EditorState*, OpenBuffer* buffer,
@@ -438,7 +438,7 @@ using std::to_wstring;
       L"Save",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get())},
-          [](std::vector<NonNull<Value::Ptr>> args, Trampoline*) {
+          [](std::vector<NonNull<Value::Ptr>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
@@ -550,7 +550,7 @@ using std::to_wstring;
       L"WaitForEndOfFile",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get())},
-          [](vector<NonNull<Value::Ptr>> args, Trampoline*) {
+          [](vector<NonNull<Value::Ptr>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
@@ -948,7 +948,7 @@ void OpenBuffer::Initialize() {
       L"sleep", Value::NewFunction(
                     {VMType::Void(), VMType::Double()},
                     [weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
-                        std::vector<NonNull<Value::Ptr>> args, Trampoline*) {
+                        std::vector<NonNull<Value::Ptr>> args, Trampoline&) {
                       CHECK_EQ(args.size(), 1ul);
                       CHECK(args[0]->IsDouble());
                       double delay_seconds = args[0]->double_value;

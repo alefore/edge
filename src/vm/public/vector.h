@@ -64,7 +64,7 @@ struct VMTypeMapper<std::vector<T>*> {
         Value::NewFunction(
             {VMTypeMapper<T>::vmtype, vmtype, VMType::Integer()},
             [](std::vector<language::NonNull<std::unique_ptr<Value>>> args,
-               Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
+               Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
               CHECK_EQ(args.size(), 2ul);
               auto* v = get(args[0].get());
               CHECK(args[1]->IsInteger());

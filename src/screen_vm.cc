@@ -113,7 +113,7 @@ void RegisterScreenType(Environment* environment) {
       Value::NewFunction(
           {VMType::ObjectType(screen_type.get()), VMType::String()},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args,
-             Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
+             Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
             CHECK_EQ(args[0]->type, VMType::VM_STRING);
             auto path = Path::FromString(args[0]->str);

@@ -95,7 +95,7 @@ void RegisterTimeType(Environment* environment) {
       Value::NewFunction(
           {VMType::String(), time_type->type(), VMType::String()},
           [](std::vector<NonNull<Value::Ptr>> args,
-             Trampoline*) -> futures::ValueOrError<EvaluationOutput> {
+             Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
             CHECK(args[0]->IsObject());
             Time input =
