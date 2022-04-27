@@ -85,8 +85,8 @@ class NonNull<std::unique_ptr<T>> {
     CHECK(value_ != nullptr);
   }
 
-  template <typename Arg>
-  explicit NonNull(Arg arg) : value_(std::make_unique<T>(std::move(arg))) {}
+  template <typename... Arg>
+  explicit NonNull(Arg&&... arg) : value_(std::make_unique<T>(arg...)) {}
 
   T* operator->() const { return value_.get(); }
   T& operator*() const { return *value_; }
