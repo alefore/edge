@@ -111,7 +111,6 @@ using language::ShellEscape;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
-using language::VisitPointer;
 
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";

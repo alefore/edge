@@ -78,7 +78,7 @@ std::unique_ptr<Expression> NewNamespaceExpression(
         return std::make_unique<NamespaceExpression>(
             std::move(current_namespace), std::move(body));
       },
-      [] { return std::unique_ptr<Expression>(); });
+      [] { return nullptr; });
 }
 
 }  // namespace afc::vm

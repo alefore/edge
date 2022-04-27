@@ -75,7 +75,6 @@ using language::PossibleError;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
-using language::VisitPointer;
 
 using std::make_pair;
 using std::string;

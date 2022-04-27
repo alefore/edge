@@ -221,6 +221,8 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
 
     // TODO: Have screen receive the LazyString directly.
     if (start != input_column) {
+      static Tracker tracker(L"Terminal::GetLineDrawer: Call ToString");
+      auto call = tracker.Call();
       auto str = Substring(line_with_cursor.line->contents(), start,
                            input_column - start)
                      ->ToString();

@@ -67,7 +67,7 @@ NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
         [](NonNull<std::unique_ptr<Value>> value) {
           return Success(EvaluationOutput::New(std::move(value)));
         },
-        [&]() -> ValueOrError<EvaluationOutput> {
+        [&]() {
           return Error(L"Unexpected: variable value is null: " + field_name);
         }));
   };

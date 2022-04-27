@@ -41,9 +41,7 @@ class VariableLookup : public Expression {
           DVLOG(5) << "Variable lookup: " << *value;
           return Success(EvaluationOutput::New(std::move(value)));
         },
-        // TODO(easy, 2022-04-27): Adjust VisitPointer to assume the type of the
-        // non-null callback and remove the explicit return type here.
-        [this]() -> language::ValueOrError<EvaluationOutput> {
+        [this]() {
           return Error(L"Unexpected: variable value is null: " + symbol_);
         }));
   }

@@ -565,12 +565,9 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
     }
     return Error(error_description);
   }
-  return VisitPointer(
-      std::move(compilation.expr),
-      &language::Success<NonNull<std::unique_ptr<Expression>>>, []() {
-        return ValueOrError<NonNull<std::unique_ptr<Expression>>>(
-            Error(L"Unexpected empty expression."));
-      });
+  return VisitPointer(std::move(compilation.expr),
+                      &language::Success<NonNull<std::unique_ptr<Expression>>>,
+                      []() { return Error(L"Unexpected empty expression."); });
 }
 }  // namespace
 
