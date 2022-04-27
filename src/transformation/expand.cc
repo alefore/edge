@@ -32,11 +32,11 @@ std::wstring GetToken(const CompositeTransformation::Input& input,
                       EdgeVariable<wstring>* characters_variable) {
   if (input.position.column < ColumnNumber(2)) return L"";
   ColumnNumber end = input.position.column.previous().previous();
-  auto line = input.buffer->LineAt(input.position.line);
+  auto line = input.buffer.LineAt(input.position.line);
   auto line_str = line->ToString();
 
   size_t index_before_symbol = line_str.find_last_not_of(
-      input.buffer->Read(characters_variable), end.column);
+      input.buffer.Read(characters_variable), end.column);
   ColumnNumber symbol_start;
   if (index_before_symbol == wstring::npos) {
     symbol_start = ColumnNumber(0);
@@ -65,7 +65,7 @@ class PredictorTransformation : public CompositeTransformation {
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    return Predict({.editor_state = input.buffer->editor(),
+    return Predict({.editor_state = input.buffer.editor(),
                     .predictor = predictor_,
                     .text = text_,
                     // TODO: Ugh, the const_cast below is fucking ugly. I have a
@@ -76,8 +76,8 @@ class PredictorTransformation : public CompositeTransformation {
                     // is to make search handler not modify the buffer, but
                     // rather do that on the caller, based on its outputs.
                     .source_buffers = {std::const_pointer_cast<OpenBuffer>(
-                        input.buffer->shared_from_this())}})
-        .Transform([text = text_, buffer = input.buffer](
+                        input.buffer.shared_from_this())}})
+        .Transform([text = text_, &buffer = input.buffer](
                        std::optional<PredictResults> results) {
           if (!results.has_value()) {
             return Output();
@@ -87,7 +87,9 @@ class PredictorTransformation : public CompositeTransformation {
             CHECK_LE(results->longest_prefix, ColumnNumberDelta(text.size()));
             auto prefix = text.substr(0, results->longest_prefix.column_delta);
             if (!prefix.empty()) {
-              buffer->status().SetInformationText(
+              // TODO(easy, 2022-04-27): Add a test that deletes the buffer and
+              // runs this path. Ensure this doesn't crash.
+              buffer.status().SetInformationText(
                   L"No matches found. Longest prefix with matches: \"" +
                   prefix + L"\"");
             }
@@ -124,19 +126,19 @@ class ReadAndInsert : public CompositeTransformation {
   std::wstring Serialize() const override { return L"ReadAndInsert();"; }
 
   futures::Value<Output> Apply(Input input) const override {
-    if (input.buffer->editor().edge_path().empty()) {
+    if (input.buffer.editor().edge_path().empty()) {
       LOG(INFO) << "Error preparing path for completion: Empty "
                    "edge_path.";
       return futures::Past(Output());
     }
-    auto edge_path_front = input.buffer->editor().edge_path().front();
+    auto edge_path_front = input.buffer.editor().edge_path().front();
     auto full_path =
         Path::Join(edge_path_front,
                    Path::Join(Path::FromString(L"expand").value(), path_));
 
     return open_file_callback_(
                OpenFileOptions{
-                   .editor_state = input.buffer->editor(),
+                   .editor_state = input.buffer.editor(),
                    .path = full_path,
                    .ignore_if_not_found = true,
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
@@ -145,7 +147,7 @@ class ReadAndInsert : public CompositeTransformation {
             [full_path, input = std::move(input)](
                 std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
                     buffer_it) {
-              if (buffer_it == input.buffer->editor().buffers()->end()) {
+              if (buffer_it == input.buffer.editor().buffers()->end()) {
                 LOG(INFO) << "Unable to open file: " << full_path;
                 return futures::Past(Output());
               }
@@ -188,7 +190,7 @@ const bool read_and_insert_tests_registration = tests::Register(
                      return futures::Past(buffer->editor().buffers()->end());
                    })
                    .Apply(CompositeTransformation::Input{
-                       .editor = buffer->editor(), .buffer = buffer.get()})
+                       .editor = buffer->editor(), .buffer = *buffer})
                    .SetConsumer([&](CompositeTransformation::Output) {
                      transformation_done = true;
                    });
@@ -235,7 +237,7 @@ class ExpandTransformation : public CompositeTransformation {
     Output output;
     if (input.position.column.IsZero()) return futures::Past(std::move(output));
 
-    auto line = input.buffer->LineAt(input.position.line);
+    auto line = input.buffer.LineAt(input.position.line);
     auto c = line->get(input.position.column.previous());
     std::unique_ptr<CompositeTransformation> transformation;
     switch (c) {

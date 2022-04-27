@@ -76,7 +76,7 @@ futures::Value<Result> ApplyBase(const Modifiers& modifiers,
           .position = position,
           .range =
               transformation_input.buffer.FindPartialRange(modifiers, position),
-          .buffer = &transformation_input.buffer,
+          .buffer = transformation_input.buffer,
           .modifiers = modifiers,
           .mode = transformation_input.mode})
       .Transform([transformation_input, trace = std::move(trace)](

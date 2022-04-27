@@ -26,10 +26,8 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
           << input.modifiers << ": Range: " << input.range;
   LineColumn i = input.range.begin;
   while (i < input.range.end) {
-    auto line = input.buffer->LineAt(i.line);
-    if (line == nullptr) {
-      break;
-    }
+    NonNull<std::shared_ptr<const Line>> line =
+        input.buffer.contents().at(i.line);
     if (i.column >= line->EndColumn()) {  // Switch to the next line.
       contents_to_insert->push_back(NonNull<std::shared_ptr<Line>>());
       i = LineColumn(i.line + LineNumberDelta(1));

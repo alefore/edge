@@ -23,9 +23,9 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    const wstring& superfluous_characters = input.buffer->Read(
-        buffer_variables::line_suffix_superfluous_characters);
-    const auto line = input.buffer->LineAt(input.position.line);
+    const wstring& superfluous_characters =
+        input.buffer.Read(buffer_variables::line_suffix_superfluous_characters);
+    const auto line = input.buffer.LineAt(input.position.line);
     if (line == nullptr) return futures::Past(Output());
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&

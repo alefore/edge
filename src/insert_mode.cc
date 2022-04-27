@@ -53,15 +53,15 @@ class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }
   futures::Value<Output> Apply(Input input) const override {
     const ColumnNumber column = input.position.column;
-    auto line = input.buffer->LineAt(input.position.line);
+    auto line = input.buffer.LineAt(input.position.line);
     if (line == nullptr) return futures::Past(Output());
-    if (input.buffer->Read(buffer_variables::atomic_lines) &&
+    if (input.buffer.Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn())
       return futures::Past(Output());
     const wstring& line_prefix_characters(
-        input.buffer->Read(buffer_variables::line_prefix_characters));
+        input.buffer.Read(buffer_variables::line_prefix_characters));
     ColumnNumber prefix_end;
-    if (!input.buffer->Read(buffer_variables::paste_mode)) {
+    if (!input.buffer.Read(buffer_variables::paste_mode)) {
       while (prefix_end < column &&
              (line_prefix_characters.find(line->get(prefix_end)) !=
               line_prefix_characters.npos)) {

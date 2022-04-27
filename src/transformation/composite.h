@@ -31,7 +31,7 @@ class CompositeTransformation {
     // Adjusted to ensure that it is within the length of the current line.
     LineColumn position = LineColumn();
     Range range = Range();
-    const OpenBuffer* buffer = nullptr;
+    const OpenBuffer& buffer;
     Modifiers modifiers = Modifiers();
     transformation::Input::Mode mode = transformation::Input::Mode::kFinal;
   };

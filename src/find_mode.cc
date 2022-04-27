@@ -25,8 +25,8 @@ std::wstring FindTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> FindTransformation::Apply(
     CompositeTransformation::Input input) const {
-  auto position = input.buffer->AdjustLineColumn(input.position);
-  auto line = input.buffer->LineAt(position.line);
+  auto position = input.buffer.AdjustLineColumn(input.position);
+  auto line = input.buffer.LineAt(position.line);
   if (line == nullptr) return futures::Past(Output());
   ColumnNumber column = min(position.column, line->EndColumn());
   for (size_t i = 0; i < input.modifiers.repetitions.value_or(1); i++) {

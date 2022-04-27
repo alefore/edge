@@ -41,7 +41,7 @@ class SearchRange {
 
 struct NavigateOptions {
   // Returns the initial range containing a given position.
-  std::function<SearchRange(const OpenBuffer*, LineColumn)> initial_range;
+  std::function<SearchRange(const OpenBuffer&, LineColumn)> initial_range;
 
   // Makes a new position, adjusting an existing position.
   std::function<LineColumn(LineColumn, size_t)> write_index;
@@ -104,7 +104,7 @@ bool CharConsumer(wint_t c, NavigateState state) {
 }
 
 SearchRange GetRange(const NavigateState& navigate_state,
-                     const OpenBuffer* buffer, LineColumn position) {
+                     const OpenBuffer& buffer, LineColumn position) {
   const SearchRange initial_range =
       navigate_state.navigate_options.initial_range(buffer, position);
   auto range = initial_range;
@@ -233,9 +233,9 @@ NavigateState InitialState(EditorState& editor_state) {
   // TODO: Move to Structure.
   NavigateState initial_state;
   if (structure == StructureChar()) {
-    initial_state.navigate_options.initial_range = [](const OpenBuffer* buffer,
+    initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn position) {
-      return SearchRange{0, buffer->LineAt(position.line)->EndColumn().column};
+      return SearchRange{0, buffer.LineAt(position.line)->EndColumn().column};
     };
     initial_state.navigate_options.write_index = [](LineColumn position,
                                                     size_t target) {
@@ -246,17 +246,17 @@ NavigateState InitialState(EditorState& editor_state) {
       return position.column.column;
     };
   } else if (structure == StructureSymbol()) {
-    initial_state.navigate_options.initial_range = [](const OpenBuffer* buffer,
+    initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn position) {
-      auto contents = buffer->LineAt(position.line);
+      auto contents = buffer.LineAt(position.line);
       auto contents_str = contents->ToString();
       size_t previous_space = contents_str.find_last_not_of(
-          buffer->Read(buffer_variables::symbol_characters),
-          buffer->position().column.column);
+          buffer.Read(buffer_variables::symbol_characters),
+          buffer.position().column.column);
 
       size_t next_space = contents_str.find_first_not_of(
-          buffer->Read(buffer_variables::symbol_characters),
-          buffer->position().column.column);
+          buffer.Read(buffer_variables::symbol_characters),
+          buffer.position().column.column);
       return SearchRange(
           previous_space == wstring::npos ? 0 : previous_space + 1,
           next_space == wstring::npos ? contents->EndColumn().column
@@ -273,10 +273,10 @@ NavigateState InitialState(EditorState& editor_state) {
       return position.column.column;
     };
   } else if (structure == StructureLine()) {
-    initial_state.navigate_options.initial_range = [](const OpenBuffer* buffer,
+    initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn) {
       return SearchRange{
-          0, static_cast<size_t>(buffer->contents().size().line_delta)};
+          0, static_cast<size_t>(buffer.contents().size().line_delta)};
     };
     initial_state.navigate_options.write_index = [](LineColumn position,
                                                     size_t target) {

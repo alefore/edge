@@ -58,9 +58,8 @@ class MoveTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"MoveTransformation()"; }
 
   futures::Value<Output> Apply(Input input) const override {
-    CHECK(input.buffer != nullptr);
     VLOG(1) << "Move Transformation starts: "
-            << input.buffer->Read(buffer_variables::name) << " "
+            << input.buffer.Read(buffer_variables::name) << " "
             << input.modifiers;
     // TODO: Finish moving to Structure.
     auto structure = input.modifiers.structure;
@@ -69,12 +68,12 @@ class MoveTransformation : public CompositeTransformation {
           transformation::SwapActiveCursor{.modifiers = input.modifiers}));
     }
 
-    auto position = structure->Move(*input.buffer, input.original_position,
+    auto position = structure->Move(input.buffer, input.original_position,
                                     input.range, input.modifiers);
 
     if (!position.has_value()) {
-      input.buffer->status().SetWarningText(L"Unhandled structure: " +
-                                            structure->ToString());
+      input.buffer.status().SetWarningText(L"Unhandled structure: " +
+                                           structure->ToString());
       return futures::Past(Output());
     }
 
