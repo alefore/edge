@@ -42,6 +42,9 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
 
 wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
                  const ParseTree& root) {
+  static Tracker tracker(L"BufferMetadataOutput::DrawTree");
+  auto call = tracker.Call();
+
   // Route along the tree where each child ends after previous line.
   vector<const ParseTree*> route_begin;
   if (line > LineNumber(0)) {
@@ -167,6 +170,9 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
 
 Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
                           LineNumber line) {
+  static Tracker tracker(L"BufferMetadataOutput::ComputeCursorsSuffix");
+  auto call = tracker.Call();
+
   auto cursors = options.buffer.active_cursors();
   if (cursors->size() <= 1) {
     return Line(L"");
@@ -206,6 +212,9 @@ Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
 
 Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                             LineNumber line) {
+  static Tracker tracker(L"BufferMetadataOutput::ComputeScrollBarSuffix");
+  auto call = tracker.Call();
+
   LineNumberDelta lines_size = options.buffer.lines_size();
   LineNumberDelta lines_shown = LineNumberDelta(options.screen_lines.size());
   DCHECK_GE(line, initial_line(options));
@@ -304,7 +313,11 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
 
 NonNull<std::shared_ptr<Line>> GetDefaultInformation(
     const BufferMetadataOutputOptions& options, LineNumber line) {
+  static Tracker tracker(L"BufferMetadataOutput::GetDefaultInformation");
+  auto call = tracker.Call();
+
   Line::Options line_options;
+
   auto parse_tree = options.buffer.simplified_parse_tree();
   line_options.AppendString(
       DrawTree(line, options.buffer.lines_size(), *parse_tree), std::nullopt);
@@ -380,6 +393,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   auto marks_range =
       options.buffer.GetLineMarks().equal_range(range.begin.line.line);
   while (marks_range.first != marks_range.second) {
+    static Tracker tracker(L"BufferMetadataOutput::Prepare:CheckMarks");
+    auto call = tracker.Call();
     if (range.Contains(marks_range.first->second.target)) {
       (marks_range.first->second.IsExpired() ? marks_expired : marks)
           .push_back(marks_range.first->second);
@@ -388,6 +403,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   }
 
   for (const auto& mark : marks) {
+    static Tracker tracker(L"BufferMetadataOutput::Prepare:AddMetadataForMark");
+    auto call = tracker.Call();
     auto source = options.buffer.editor().buffers()->find(mark.source);
     output.push_back(MetadataLine{
         output.empty() ? L'!' : L' ',
@@ -412,6 +429,9 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   }
 
   for (const auto& mark : marks_expired) {
+    static Tracker tracker(
+        L"BufferMetadataOutput::Prepare:AddMetadataForExpiredMark");
+    auto call = tracker.Call();
     if (auto contents = mark.source_line_content->ToString();
         marks_strings.find(contents) == marks_strings.end()) {
       output.push_back(MetadataLine{'!', LineModifier::RED,
