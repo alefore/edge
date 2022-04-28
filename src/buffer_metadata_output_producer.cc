@@ -235,19 +235,23 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
       << "Line is " << line << " and view_start is " << initial_line(options)
       << ", which exceeds lines_shown_ of " << lines_shown;
   DCHECK_LT(initial_line(options), LineNumber(0) + lines_size);
-  size_t halves_to_show = lines_shown.line_delta * 2;
 
-  // Number of halves the bar should take.
-  size_t bar_size = max(
-      size_t(1), size_t(std::round(halves_to_show *
+  using Rows = size_t;  // TODO(easy, 2022-04-28): Use a ghost type.
+
+  static const Rows kRowsPerScreenLine = 4;
+  Rows total_rows = lines_shown.line_delta * kRowsPerScreenLine;
+
+  // Number of rows the bar should take.
+  Rows bar_size = max(
+      size_t(1), size_t(std::round(total_rows *
                                    static_cast<double>(lines_shown.line_delta) /
                                    lines_size.line_delta)));
 
   // Bar will be shown in lines in interval [bar, end] (units are halves).
-  size_t start = std::round(halves_to_show *
-                            static_cast<double>(initial_line(options).line) /
-                            lines_size.line_delta);
-  size_t end = start + bar_size;
+  Rows start =
+      std::round(total_rows * static_cast<double>(initial_line(options).line) /
+                 lines_size.line_delta);
+  Rows end = start + bar_size;
 
   LineModifierSet modifiers =
       MapScreenLineToContentsRange(
@@ -255,20 +259,38 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                 LineColumn(LineNumber(initial_line(options) + lines_shown))),
           line, options.buffer.lines_size())
               .Contains(options.buffer.position())
-          ? LineModifierSet({LineModifier::BLUE})
+          ? LineModifierSet({LineModifier::YELLOW})
           : LineModifierSet({LineModifier::CYAN});
 
   Line::Options line_options;
-  size_t current = 2 * (line - initial_line(options)).line_delta;
-  if (current < start - (start % 2) || current >= end) {
-    line_options.AppendString(L" ", modifiers);
-  } else if (start == current + 1) {
-    line_options.AppendString(L"▄", modifiers);
-  } else if (current + 1 == end) {
-    line_options.AppendString(L"▀", modifiers);
-  } else {
-    line_options.AppendString(L"█", modifiers);
-  }
+  Rows current = kRowsPerScreenLine * (line - initial_line(options)).line_delta;
+
+  wchar_t base_char = L'⠀';
+  auto turn_on = [&base_char](size_t row) {
+    // Braille characters:
+    // 14
+    // 25
+    // 36
+    // 78
+    CHECK_LT(row, 4ul);
+    switch (row) {
+      case 0:
+        return 0x01 + 0x08;
+      case 1:
+        return 0x02 + 0x10;
+      case 2:
+        return 0x04 + 0x20;
+      case 3:
+        return 0x40 + 0x80;
+    }
+    LOG(FATAL) << "Unhandled switch case.";
+    return 0;
+  };
+  if (current + 0 >= start && current + 0 < end) base_char += turn_on(0);
+  if (current + 1 >= start && current + 1 < end) base_char += turn_on(1);
+  if (current + 2 >= start && current + 2 < end) base_char += turn_on(2);
+  if (current + 3 >= start && current + 3 < end) base_char += turn_on(3);
+  line_options.AppendString(std::wstring(1, base_char), modifiers);
   return Line(std::move(line_options));
 }
 
