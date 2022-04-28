@@ -554,13 +554,13 @@ void Rev() {
 
 void S(string query) {
   internal::RunCommand("s: " + query,
-                       "grep -i " + query.shell_escape() + " ???.md", "visit")
+                       "grep -ni " + query.shell_escape() + " ???.md", "visit")
       .set_allow_dirty_delete(true);
 }
 
 Buffer PreviewS(string query) {
   auto buffer = internal::RunCommand(
-      "s: " + query, "grep -i " + query.shell_escape() + " ???.md", "ignore");
+      "s: " + query, "grep -ni " + query.shell_escape() + " ???.md", "ignore");
   buffer.WaitForEndOfFile();
   buffer.set_allow_dirty_delete(true);
   return buffer;
