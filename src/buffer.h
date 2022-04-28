@@ -506,8 +506,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void ReadData(std::unique_ptr<FileDescriptorReader>& source);
 
   void UpdateLastAction();
-  // This is logically const, even if not physically const.
-  void MaybeUpdateLineMarks() const;
 
   const Options options_;
 
@@ -588,17 +586,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // this value to last_transformation_).
   std::list<language::NonNull<std::unique_ptr<transformation::Stack>>>
       last_transformation_stack_;
-
-  // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
-  // current buffer). The key is the line (i.e. Mark::line).
-  //
-  // mutable because GetLineMarks will always update it if needed.
-  mutable multimap<LineColumn, LineMarks::Mark> line_marks_;
-  mutable multimap<LineColumn, LineMarks::ExpiredMark> line_expired_marks_;
-  // The value that EditorState::marks_::updates had when we last computed
-  // line_marks_. This allows us to avoid recomputing line_marks_ when no new
-  // marks have been added.
-  mutable size_t line_marks_last_updates_ = 0;
 
   CursorsTracker cursors_tracker_;
 

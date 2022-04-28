@@ -2511,27 +2511,13 @@ void OpenBuffer::set_filter(unique_ptr<Value> filter) {
   filter_version_++;
 }
 
-void OpenBuffer::MaybeUpdateLineMarks() const {
-  static Tracker tracker(L"OpenBuffer::MaybeUpdateLineMarks");
-  auto tracker_call = tracker.Call();
-
-  auto marks = editor().line_marks();
-  if (marks.updates <= line_marks_last_updates_) return;
-  LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
-  line_marks_ = marks.GetMarksForTargetBuffer(name());
-  line_expired_marks_ = marks.GetExpiredMarksForTargetBuffer(name());
-  line_marks_last_updates_ = marks.updates;
-}
-
 const multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks() const {
-  MaybeUpdateLineMarks();
-  return line_marks_;
+  return editor().line_marks().GetMarksForTargetBuffer(name());
 }
 
 const multimap<LineColumn, LineMarks::ExpiredMark>&
 OpenBuffer::GetExpiredLineMarks() const {
-  MaybeUpdateLineMarks();
-  return line_expired_marks_;
+  return editor().line_marks().GetExpiredMarksForTargetBuffer(name());
 }
 
 wstring OpenBuffer::GetLineMarksText() const {
@@ -2539,7 +2525,7 @@ wstring OpenBuffer::GetLineMarksText() const {
   size_t expired_marks = GetExpiredLineMarks().size();
   wstring output;
   if (marks > 0 || expired_marks > 0) {
-    output = L"marks:" + to_wstring(marks - expired_marks);
+    output = L"marks:" + to_wstring(marks);
     if (expired_marks > 0) {
       output += L"(" + to_wstring(expired_marks) + L")";
     }
