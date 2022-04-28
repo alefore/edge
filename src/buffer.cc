@@ -2519,9 +2519,7 @@ void OpenBuffer::MaybeUpdateLineMarks() const {
   if (marks.updates <= line_marks_last_updates_) return;
   LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
   line_marks_ = marks.GetMarksForTargetBuffer(name());
-
   line_expired_marks_ = marks.GetExpiredMarksForTargetBuffer(name());
-
   line_marks_last_updates_ = marks.updates;
 }
 
