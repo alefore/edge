@@ -378,6 +378,10 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   VisitPointer(
       contents.metadata(),
       [&output](NonNull<std::shared_ptr<LazyString>> metadata) {
+        static Tracker tracker(
+            L"BufferMetadataOutput::Prepare:VisitContentsMetadata");
+        auto call = tracker.Call();
+
         if (metadata->size().IsZero()) return;
         ForEachColumn(*metadata, [](ColumnNumber, wchar_t c) {
           CHECK(c != L'\n') << "Metadata has invalid newline character.";
@@ -388,6 +392,10 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                          MetadataLine::Type::kLineContents});
       },
       [] {});
+
+  static Tracker tracker_generic_marks_logic(
+      L"BufferMetadataOutput::Prepare::GenericMarksLogic");
+  auto call_generic_marks_logic = tracker_generic_marks_logic.Call();
 
   std::list<LineMarks::Mark> marks;
   std::list<LineMarks::ExpiredMark> expired_marks;

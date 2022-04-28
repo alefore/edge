@@ -2511,6 +2511,9 @@ void OpenBuffer::set_filter(unique_ptr<Value> filter) {
 }
 
 void OpenBuffer::MaybeUpdateLineMarks() const {
+  static Tracker tracker(L"OpenBuffer::MaybeUpdateLineMarks");
+  auto tracker_call = tracker.Call();
+
   auto marks = editor().line_marks();
   if (marks.updates <= line_marks_last_updates_) return;
   LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
