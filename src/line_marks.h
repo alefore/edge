@@ -21,16 +21,16 @@ struct LineMarks {
  public:
   struct Mark {
     // What created this mark?
-    BufferName source = BufferName(L"");
+    const BufferName source = BufferName(L"");
 
     // What line in the source did this mark occur in?
-    LineNumber source_line;
+    const LineNumber source_line;
 
     // What buffer does this mark identify?
-    BufferName target_buffer = BufferName(L"");
+    const BufferName target_buffer = BufferName(L"");
 
     // The line marked.
-    LineColumn target_line_column;
+    const LineColumn target_line_column;
   };
 
   // A mark whose source buffer was removed will be preserved for some time. In
@@ -41,16 +41,16 @@ struct LineMarks {
   // previous run of the compiler) while they're being updated.
   struct ExpiredMark {
     // What created this mark?
-    BufferName source = BufferName(L"");
+    const BufferName source = BufferName(L"");
 
     // The contents in the source (and line) that created this mark.
-    language::NonNull<std::shared_ptr<LazyString>> source_line_content;
+    const language::NonNull<std::shared_ptr<LazyString>> source_line_content;
 
     // What buffer does this mark identify?
-    BufferName target_buffer = BufferName(L"");
+    const BufferName target_buffer = BufferName(L"");
 
     // The position marked.
-    LineColumn target_line_column;
+    const LineColumn target_line_column;
   };
 
   void AddMark(Mark mark);
