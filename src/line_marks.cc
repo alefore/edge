@@ -52,6 +52,7 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
                        .target_line_column = mark.target_line_column}});
     }
   }
+  marks.erase(it);
   if (changes) {
     LOG(INFO) << "Actually expired some marks.";
     updates++;
@@ -90,7 +91,7 @@ LineMarks::GetExpiredMarksForTargetBuffer(
   std::multimap<LineColumn, LineMarks::ExpiredMark> output;
   for (auto& [source, source_target_map] : expired_marks)
     if (auto target_it = source_target_map.find(target_buffer);
-        target_it == source_target_map.end())
+        target_it != source_target_map.end())
       output.insert(target_it->second.begin(), target_it->second.end());
   return output;
 }
