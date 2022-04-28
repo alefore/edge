@@ -14,7 +14,8 @@ namespace afc::editor {
 using infrastructure::Tracker;
 
 void LineMarks::AddMark(Mark mark) {
-  marks[mark.source].insert(make_pair(mark.target_buffer, mark));
+  marks[mark.source][mark.target_buffer].insert(
+      std::make_pair(mark.target_line_column.line, mark));
   updates++;
 }
 
@@ -31,28 +32,26 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
 
   DVLOG(5) << "Expiring marks from: " << source;
   bool changes = false;
-  std::multimap<BufferName, ExpiredMark>& output = expired_marks[source];
-  for (auto& mark : it->second) {
+  std::unordered_map<BufferName, std::multimap<LineNumber, ExpiredMark>>&
+      expired_marks_by_source = expired_marks[source];
+  for (auto& [target, marks_multimap] : it->second) {
+    if (marks_multimap.empty()) continue;
     DVLOG(10) << "Mark transitions from fresh to expired.";
-    changes = true;
-    auto line = source_buffer.LineAt(mark.second.source_line);
-    if (line == nullptr) {
-      DVLOG(3) << "Unable to find content for mark!";
+    std::multimap<LineNumber, ExpiredMark>& output =
+        expired_marks_by_source[target];
+    for (auto& [line, mark] : marks_multimap) {
+      changes = true;
       output.insert(
-          {it->first,
-           ExpiredMark{.source = it->first,
-                       .source_line_content = NewLazyString(L"Expired mark."),
-                       .target_buffer = mark.second.target_buffer,
-                       .target = mark.second.target}});
-    } else {
-      output.insert(
-          {it->first, ExpiredMark{.source = it->first,
-                                  .source_line_content = line->contents(),
-                                  .target_buffer = mark.second.target_buffer,
-                                  .target = mark.second.target}});
+          {line,
+           ExpiredMark{.source = source,
+                       .source_line_content =
+                           line > source_buffer.contents().EndLine()
+                               ? NewLazyString(L"Expired mark.")
+                               : source_buffer.contents().at(line)->contents(),
+                       .target_buffer = mark.target_buffer,
+                       .target_line_column = mark.target_line_column}});
     }
   }
-
   if (changes) {
     LOG(INFO) << "Actually expired some marks.";
     updates++;
@@ -81,16 +80,15 @@ std::vector<LineMarks::Mark> LineMarks::GetMarksForTargetBuffer(
 
   DLOG(INFO) << "Producing marks for buffer: " << target_buffer;
   std::vector<LineMarks::Mark> output;
-  for (auto& source_it : marks) {
-    auto range = source_it.second.equal_range(target_buffer);
-    if (range.first == source_it.second.end()) {
+  for (auto& [source, source_target_map] : marks) {
+    auto target_it = source_target_map.find(target_buffer);
+    if (target_it == source_target_map.end()) {
       DVLOG(5) << "Didn't find any marks.";
       continue;
     }
-    while (range.first != range.second) {
-      DVLOG(6) << "Mark: " << range.first->second;
-      output.push_back(range.first->second);
-      ++range.first;
+    for (auto& [line, mark] : target_it->second) {
+      DVLOG(6) << "Mark: " << mark;
+      output.push_back(mark);
     }
   }
   return output;
@@ -103,29 +101,29 @@ std::vector<LineMarks::ExpiredMark> LineMarks::GetExpiredMarksForTargetBuffer(
 
   DLOG(INFO) << "Producing marks for buffer: " << target_buffer;
   std::vector<LineMarks::ExpiredMark> output;
-  for (auto& source_it : expired_marks) {
-    auto range = source_it.second.equal_range(target_buffer);
-    if (range.first == source_it.second.end()) {
+  for (auto& [source, source_target_map] : expired_marks) {
+    auto target_it = source_target_map.find(target_buffer);
+    if (target_it == source_target_map.end()) {
       DVLOG(5) << "Didn't find any marks.";
       continue;
     }
-    while (range.first != range.second) {
-      DVLOG(6) << "Mark: " << range.first->second;
-      output.push_back(range.first->second);
-      ++range.first;
+    for (auto& [line, mark] : target_it->second) {
+      DVLOG(6) << "Mark: " << mark;
+      output.push_back(mark);
     }
   }
   return output;
 }
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lm) {
-  os << "[" << lm.source << ":" << lm.target_buffer << ":" << lm.target << "]";
+  os << "[" << lm.source << ":" << lm.target_buffer << ":"
+     << lm.target_line_column << "]";
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::ExpiredMark& lm) {
-  os << "[expired:" << lm.source << ":" << lm.target_buffer << ":" << lm.target
-     << "]";
+  os << "[expired:" << lm.source << ":" << lm.target_buffer << ":"
+     << lm.target_line_column << "]";
   return os;
 }
 

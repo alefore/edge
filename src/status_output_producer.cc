@@ -24,7 +24,7 @@ using language::NonNull;
 
 wstring GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
-  if (auto current_line_marks = marks.find(buffer.position().line.line);
+  if (auto current_line_marks = marks.find(buffer.position().line);
       current_line_marks != marks.end()) {
     auto mark = current_line_marks->second;
     auto source = buffer.editor().buffers()->find(mark.source);

@@ -269,9 +269,9 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
 
   size_t base_char = 0;
 
-  const std::multimap<size_t, LineMarks::Mark>& marks =
+  const std::multimap<LineNumber, LineMarks::Mark>& marks =
       options.buffer.GetLineMarks();
-  const std::multimap<size_t, LineMarks::ExpiredMark>& expired_marks =
+  const std::multimap<LineNumber, LineMarks::ExpiredMark>& expired_marks =
       options.buffer.GetExpiredLineMarks();
   for (size_t row = 0; row < 3; row++)
     if (current + row >= start && current + row < end) {
@@ -294,8 +294,8 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
         total_rows;
     bool active_marks = false;
     for (size_t row = 0; row < 3; row++) {
-      size_t begin_line = (current + row) * buffer_lines_per_row;
-      size_t end_line = (current + row + 1) * buffer_lines_per_row;
+      LineNumber begin_line((current + row) * buffer_lines_per_row);
+      LineNumber end_line((current + row + 1) * buffer_lines_per_row);
       if (begin_line == end_line) continue;
       if (marks.lower_bound(begin_line) != marks.lower_bound(end_line)) {
         active_marks = true;
@@ -401,22 +401,22 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   std::list<LineMarks::ExpiredMark> expired_marks;
 
   auto marks_range =
-      options.buffer.GetLineMarks().equal_range(range.begin.line.line);
+      options.buffer.GetLineMarks().equal_range(range.begin.line);
   while (marks_range.first != marks_range.second) {
     static Tracker tracker(L"BufferMetadataOutput::Prepare:CheckMarks");
     auto call = tracker.Call();
-    if (range.Contains(marks_range.first->second.target)) {
+    if (range.Contains(marks_range.first->second.target_line_column)) {
       marks.push_back(marks_range.first->second);
     }
     ++marks_range.first;
   }
 
   auto expired_marks_range =
-      options.buffer.GetExpiredLineMarks().equal_range(range.begin.line.line);
+      options.buffer.GetExpiredLineMarks().equal_range(range.begin.line);
   while (expired_marks_range.first != expired_marks_range.second) {
     static Tracker tracker(L"BufferMetadataOutput::Prepare:CheckExpiredMarks");
     auto call = tracker.Call();
-    if (range.Contains(expired_marks_range.first->second.target)) {
+    if (range.Contains(expired_marks_range.first->second.target_line_column)) {
       expired_marks.push_back(expired_marks_range.first->second);
     }
     ++expired_marks_range.first;

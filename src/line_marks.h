@@ -30,7 +30,7 @@ struct LineMarks {
     BufferName target_buffer = BufferName(L"");
 
     // The line marked.
-    LineColumn target;
+    LineColumn target_line_column;
   };
 
   // A mark whose source buffer was removed will be preserved for some time. In
@@ -49,8 +49,8 @@ struct LineMarks {
     // What buffer does this mark identify?
     BufferName target_buffer = BufferName(L"");
 
-    // The line marked.
-    LineColumn target;
+    // The position marked.
+    LineColumn target_line_column;
   };
 
   void AddMark(Mark mark);
@@ -64,10 +64,18 @@ struct LineMarks {
   std::vector<ExpiredMark> GetExpiredMarksForTargetBuffer(
       const BufferName& target_buffer) const;
 
-  // First key is the source, second key is the target_buffer.
-  std::unordered_map<BufferName, std::multimap<BufferName, Mark>> marks;
-  std::unordered_map<BufferName, std::multimap<BufferName, ExpiredMark>>
+  // First key is the source, second key is the target_buffer, third key is the
+  // target line.
+  std::unordered_map<
+      BufferName,
+      std::unordered_map<BufferName, std::multimap<LineNumber, Mark>>>
+      marks;
+
+  std::unordered_map<
+      BufferName,
+      std::unordered_map<BufferName, std::multimap<LineNumber, ExpiredMark>>>
       expired_marks;
+
   size_t updates = 0;
 };
 

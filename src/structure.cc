@@ -332,7 +332,7 @@ template <typename Iterator>
 static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
                                   LineColumn current,
                                   const Modifiers& modifiers) {
-  using P = pair<const size_t, LineMarks::Mark>;
+  using P = std::pair<const LineNumber, LineMarks::Mark>;
   Iterator it = std::upper_bound(
       it_begin, it_end, P(current.line.line, LineMarks::Mark()),
       modifiers.direction == Direction::kForwards
@@ -343,7 +343,7 @@ static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
   }
 
   for (size_t i = 1; i < modifiers.repetitions; i++) {
-    size_t position = it->first;
+    LineNumber position = it->first;
     ++it;
     // Skip more marks for the same line.
     while (it != it_end && it->first == position) {
@@ -351,11 +351,11 @@ static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
     }
     if (it == it_end) {
       // Can't move past the current mark.
-      return LineColumn(LineNumber(position));
+      return LineColumn(position);
     }
   }
 
-  return it->second.target;
+  return it->second.target_line_column;
 }
 }  // namespace
 
@@ -386,14 +386,15 @@ Structure* StructureMark() {
                                                   LineColumn position,
                                                   int calls) override {
       // Navigates marks in the current buffer.
-      const std::multimap<size_t, LineMarks::Mark>& marks =
+      const std::multimap<LineNumber, LineMarks::Mark>& marks =
           buffer->GetLineMarks();
-      std::vector<pair<size_t, LineMarks::Mark>> lines;
-      std::unique_copy(marks.begin(), marks.end(), std::back_inserter(lines),
-                       [](const pair<size_t, LineMarks::Mark>& entry1,
-                          const pair<size_t, LineMarks::Mark>& entry2) {
-                         return (entry1.first == entry2.first);
-                       });
+      std::vector<std::pair<LineNumber, LineMarks::Mark>> lines;
+      std::unique_copy(
+          marks.begin(), marks.end(), std::back_inserter(lines),
+          [](const std::pair<LineNumber, LineMarks::Mark>& entry1,
+             const std::pair<LineNumber, LineMarks::Mark>& entry2) {
+            return (entry1.first == entry2.first);
+          });
       size_t index =
           ComputePosition(0, lines.size(), lines.size(), modifiers.direction,
                           modifiers.repetitions.value_or(1), calls);
@@ -405,7 +406,8 @@ Structure* StructureMark() {
     std::optional<LineColumn> Move(const OpenBuffer& buffer,
                                    LineColumn position, Range,
                                    const Modifiers& modifiers) override {
-      const multimap<size_t, LineMarks::Mark>& marks = buffer.GetLineMarks();
+      const multimap<LineNumber, LineMarks::Mark>& marks =
+          buffer.GetLineMarks();
       switch (modifiers.direction) {
         case Direction::kForwards:
           return GetMarkPosition(marks.begin(), marks.end(), position,
