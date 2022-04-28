@@ -53,6 +53,8 @@ struct LineMarks {
 
   void AddMark(Mark mark);
 
+  void RemoveSource(const BufferName& source);
+
   void ExpireMarksFromSource(const BufferContents& source_buffer,
                              const BufferName& source);
   void RemoveExpiredMarksFromSource(const BufferName& source);
@@ -62,6 +64,7 @@ struct LineMarks {
   const std::multimap<LineColumn, ExpiredMark>& GetExpiredMarksForTargetBuffer(
       const BufferName& target_buffer) const;
 
+ private:
   struct MarksMaps {
     std::multimap<LineColumn, Mark> marks;
     std::multimap<LineColumn, ExpiredMark> expired_marks;
@@ -73,8 +76,6 @@ struct LineMarks {
 
   // First key is the target_buffer.
   std::unordered_map<BufferName, MarksMaps> marks_by_target;
-
-  size_t updates = 0;
 };
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lc);

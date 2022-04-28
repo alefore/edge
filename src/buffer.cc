@@ -674,6 +674,7 @@ void OpenBuffer::Close() {
     log_->Append(L"Saving buffer: " + Read(buffer_variables::name));
     Save();
   }
+  editor().line_marks().RemoveSource(name());
   close_observers_.Notify();
 }
 

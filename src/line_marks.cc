@@ -18,7 +18,32 @@ void LineMarks::AddMark(Mark mark) {
       std::make_pair(mark.target_line_column, mark));
   marks_by_target[mark.target_buffer].marks.insert(
       std::make_pair(mark.target_line_column, mark));
-  updates++;
+}
+
+void LineMarks::RemoveSource(const BufferName& source) {
+  LOG(INFO) << "Removing source: " << source;
+  auto it = marks_by_source_target.find(source);
+  if (it == marks_by_source_target.end()) return;
+  for (auto& [target, source_target_marks] : it->second) {
+    auto& target_marks = marks_by_target[target];
+
+    for (auto it = target_marks.marks.begin();
+         it != target_marks.marks.end();) {
+      if (it->second.source == source)
+        target_marks.marks.erase(it++);
+      else
+        ++it;
+    }
+
+    for (auto it = target_marks.expired_marks.begin();
+         it != target_marks.expired_marks.end();) {
+      if (it->second.source == source)
+        target_marks.expired_marks.erase(it++);
+      else
+        ++it;
+    }
+  }
+  marks_by_source_target.erase(it);
 }
 
 void LineMarks::ExpireMarksFromSource(const BufferContents& source_buffer,
@@ -33,12 +58,10 @@ void LineMarks::ExpireMarksFromSource(const BufferContents& source_buffer,
   }
 
   DVLOG(5) << "Expiring marks from: " << source;
-  bool changes = false;
   for (auto& [target, source_target_marks] : it->second) {
     auto& target_marks = marks_by_target[target];
     DVLOG(10) << "Mark transitions from fresh to expired.";
     for (auto& [position, mark] : source_target_marks.marks) {
-      changes = true;
       ExpiredMark expired_mark{
           .source = source,
           .source_line_content =
@@ -59,10 +82,6 @@ void LineMarks::ExpireMarksFromSource(const BufferContents& source_buffer,
     }
     source_target_marks.marks.clear();
   }
-  if (changes) {
-    LOG(INFO) << "Actually expired some marks.";
-    updates++;
-  }
 }
 
 void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
@@ -75,18 +94,17 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
     return;
   }
 
-  bool changes = false;
   std::vector<BufferName> targets_to_process;
   for (auto& [target, marks_set] : it->second) {
     if (marks_set.expired_marks.empty()) continue;
-    changes = true;
     marks_set.expired_marks.clear();
     targets_to_process.push_back(target);
   }
   for (auto& target : targets_to_process) {
+    // TODO(easy, 2022-04-29): Why are we removing all? Shouldn't we check that
+    // we only remove the ones from source?
     marks_by_target[target].expired_marks.clear();
   }
-  if (changes) updates++;
 }
 
 const std::multimap<LineColumn, LineMarks::Mark>&
