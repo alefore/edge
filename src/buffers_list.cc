@@ -835,27 +835,25 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
   CHECK_EQ(output.size(), options.size.line);
   if (layout.lines.IsZero()) return output;
 
-  if (!layout.lines.IsZero()) {
-    VLOG(2) << "Buffers per line: " << layout.buffers_per_line
-            << ", from: " << buffers_.size()
-            << " buffers with lines: " << layout.lines;
+  VLOG(2) << "Buffers per line: " << layout.buffers_per_line
+          << ", from: " << buffers_.size()
+          << " buffers with lines: " << layout.lines;
 
-    std::set<OpenBuffer*> active_buffers;
-    for (auto& b : editor_state_.active_buffers()) {
-      active_buffers.insert(b.get());
-    }
-    auto buffers_list_lines = ProduceBuffersList(
-        std::make_shared<BuffersListOptions>(BuffersListOptions{
-            .buffers = &buffers_,
-            .active_buffer = active_buffer(),
-            .active_buffers = std::move(active_buffers),
-            .buffers_per_line = layout.buffers_per_line,
-            .size = LineColumnDelta(layout.lines, options.size.column),
-            .filter = OptimizeFilter(filter_)}));
-    CHECK_EQ(buffers_list_lines.size(), layout.lines);
-    buffers_list_lines.RemoveCursor();
-    output.Append(std::move(buffers_list_lines));
+  std::set<OpenBuffer*> active_buffers;
+  for (auto& b : editor_state_.active_buffers()) {
+    active_buffers.insert(b.get());
   }
+  auto buffers_list_lines = ProduceBuffersList(
+      std::make_shared<BuffersListOptions>(BuffersListOptions{
+          .buffers = &buffers_,
+          .active_buffer = active_buffer(),
+          .active_buffers = std::move(active_buffers),
+          .buffers_per_line = layout.buffers_per_line,
+          .size = LineColumnDelta(layout.lines, options.size.column),
+          .filter = OptimizeFilter(filter_)}));
+  CHECK_EQ(buffers_list_lines.size(), layout.lines);
+  buffers_list_lines.RemoveCursor();
+  output.Append(std::move(buffers_list_lines));
 
   return output;
 }
