@@ -11,12 +11,14 @@
 #include "src/buffer_variables.h"
 #include "src/columns_vector.h"
 #include "src/editor.h"
+#include "src/infrastructure/tracker.h"
 #include "src/line_marks.h"
 #include "src/section_brackets_producer.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
 namespace {
+using infrastructure::Tracker;
 using language::MakeNonNullShared;
 using language::NonNull;
 
@@ -199,6 +201,9 @@ auto status_basic_info_tests_registration = tests::Register(
 }  // namespace
 
 LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
+  static Tracker tracker(L"StatusOutput");
+  auto call = tracker.Call();
+
   const auto info_lines = options.status.GetType() == Status::Type::kPrompt ||
                                   !options.status.text().empty() ||
                                   options.buffer != nullptr

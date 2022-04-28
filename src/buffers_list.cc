@@ -10,6 +10,7 @@
 #include "src/editor.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
+#include "src/infrastructure/tracker.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_trim.h"
 #include "src/tests/tests.h"
@@ -19,6 +20,7 @@ namespace afc::editor {
 using infrastructure::GetElapsedSecondsSince;
 using infrastructure::Path;
 using infrastructure::PathComponent;
+using infrastructure::Tracker;
 using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
@@ -477,6 +479,9 @@ void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
 
 LineWithCursor::Generator::Vector ProduceBuffersList(
     std::shared_ptr<BuffersListOptions> options) {
+  static Tracker tracker(L"BuffersList::ProduceBuffersList");
+  auto call = tracker.Call();
+
   const ColumnNumberDelta prefix_width = ColumnNumberDelta(
       max(2ul, std::to_wstring(options->buffers->size()).size()) + 2);
 
@@ -712,6 +717,9 @@ struct Layout {
 
 Layout BuffersPerLine(LineNumberDelta maximum_lines, ColumnNumberDelta width,
                       size_t buffers_count) {
+  static Tracker tracker(L"BuffersPerLine");
+  auto call = tracker.Call();
+
   if (buffers_count == 0 || maximum_lines.IsZero()) {
     return Layout{.buffers_per_line = 0, .lines = LineNumberDelta(0)};
   }
@@ -813,6 +821,9 @@ const bool buffers_per_line_tests_registration = tests::Register(
 
 LineWithCursor::Generator::Vector BuffersList::GetLines(
     Widget::OutputProducerOptions options) const {
+  static Tracker tracker(L"BuffersList::GetLines");
+  auto call = tracker.Call();
+
   Layout layout = BuffersPerLine(options.size.line / 2, options.size.column,
                                  buffers_.size());
   VLOG(1) << "Buffers list lines: " << layout.lines
@@ -867,6 +878,9 @@ void BuffersList::SetBuffersToShow(std::optional<size_t> buffers_to_show) {
 }
 
 void BuffersList::Update() {
+  static Tracker tracker(L"BuffersList::Update");
+  auto call = tracker.Call();
+
   auto order_predicate =
       buffer_sort_order_ == BufferSortOrder::kLastVisit
           ? [](const std::shared_ptr<OpenBuffer>& a,
