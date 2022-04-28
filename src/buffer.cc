@@ -1549,15 +1549,15 @@ void OpenBuffer::PopActiveCursors() {
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
-  const multimap<LineNumber, LineMarks::Mark>& marks = GetLineMarks();
+  const multimap<LineColumn, LineMarks::Mark>& marks = GetLineMarks();
   if (marks.empty()) {
     status_.SetWarningText(L"Buffer has no marks!");
     return;
   }
 
   std::vector<LineColumn> cursors;
-  for (auto& it : marks) {
-    cursors.push_back(it.second.target_line_column);
+  for (auto& [line_column, mark] : marks) {
+    cursors.push_back(line_column);
   }
   set_active_cursors(cursors);
 }
@@ -2518,31 +2518,19 @@ void OpenBuffer::MaybeUpdateLineMarks() const {
   auto marks = editor().line_marks();
   if (marks.updates <= line_marks_last_updates_) return;
   LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
-  line_marks_.clear();
+  line_marks_ = marks.GetMarksForTargetBuffer(name());
 
-  std::vector<LineMarks::Mark> relevant_marks =
-      marks.GetMarksForTargetBuffer(name());
-  for (auto& mark : relevant_marks) {
-    line_marks_.insert(std::make_pair(mark.target_line_column.line, mark));
-  }
-
-  line_expired_marks_.clear();
-  std::vector<LineMarks::ExpiredMark> relevant_expired_marks =
-      marks.GetExpiredMarksForTargetBuffer(name());
-  for (auto& mark : relevant_expired_marks) {
-    line_expired_marks_.insert(
-        std::make_pair(mark.target_line_column.line, mark));
-  }
+  line_expired_marks_ = marks.GetExpiredMarksForTargetBuffer(name());
 
   line_marks_last_updates_ = marks.updates;
 }
 
-const multimap<LineNumber, LineMarks::Mark>& OpenBuffer::GetLineMarks() const {
+const multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks() const {
   MaybeUpdateLineMarks();
   return line_marks_;
 }
 
-const multimap<LineNumber, LineMarks::ExpiredMark>&
+const multimap<LineColumn, LineMarks::ExpiredMark>&
 OpenBuffer::GetExpiredLineMarks() const {
   MaybeUpdateLineMarks();
   return line_expired_marks_;

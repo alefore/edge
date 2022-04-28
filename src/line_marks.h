@@ -59,9 +59,9 @@ struct LineMarks {
                              const BufferName& source);
   void RemoveExpiredMarksFromSource(const BufferName& source);
 
-  std::vector<Mark> GetMarksForTargetBuffer(
+  std::multimap<LineColumn, Mark> GetMarksForTargetBuffer(
       const BufferName& target_buffer) const;
-  std::vector<ExpiredMark> GetExpiredMarksForTargetBuffer(
+  std::multimap<LineColumn, ExpiredMark> GetExpiredMarksForTargetBuffer(
       const BufferName& target_buffer) const;
 
   // First key is the source, second key is the target_buffer, third key is the

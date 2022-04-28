@@ -73,45 +73,33 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
   updates++;
 }
 
-std::vector<LineMarks::Mark> LineMarks::GetMarksForTargetBuffer(
+std::multimap<LineColumn, LineMarks::Mark> LineMarks::GetMarksForTargetBuffer(
     const BufferName& target_buffer) const {
   static Tracker tracker(L"LineMarks::GetMarksForTargetBuffer");
   auto call = tracker.Call();
 
   DLOG(INFO) << "Producing marks for buffer: " << target_buffer;
-  std::vector<LineMarks::Mark> output;
-  for (auto& [source, source_target_map] : marks) {
-    auto target_it = source_target_map.find(target_buffer);
-    if (target_it == source_target_map.end()) {
-      DVLOG(5) << "Didn't find any marks.";
-      continue;
-    }
-    for (auto& [line, mark] : target_it->second) {
-      DVLOG(6) << "Mark: " << mark;
-      output.push_back(mark);
-    }
-  }
+  std::multimap<LineColumn, LineMarks::Mark> output;
+  for (auto& [source, source_target_map] : marks)
+    if (auto target_it = source_target_map.find(target_buffer);
+        target_it != source_target_map.end())
+      output.insert(target_it->second.begin(), target_it->second.end());
+
   return output;
 }
 
-std::vector<LineMarks::ExpiredMark> LineMarks::GetExpiredMarksForTargetBuffer(
+std::multimap<LineColumn, LineMarks::ExpiredMark>
+LineMarks::GetExpiredMarksForTargetBuffer(
     const BufferName& target_buffer) const {
   static Tracker tracker(L"LineMarks::GetExpiredMarksForTargetBuffer");
   auto call = tracker.Call();
 
   DLOG(INFO) << "Producing marks for buffer: " << target_buffer;
-  std::vector<LineMarks::ExpiredMark> output;
-  for (auto& [source, source_target_map] : expired_marks) {
-    auto target_it = source_target_map.find(target_buffer);
-    if (target_it == source_target_map.end()) {
-      DVLOG(5) << "Didn't find any marks.";
-      continue;
-    }
-    for (auto& [line, mark] : target_it->second) {
-      DVLOG(6) << "Mark: " << mark;
-      output.push_back(mark);
-    }
-  }
+  std::multimap<LineColumn, LineMarks::ExpiredMark> output;
+  for (auto& [source, source_target_map] : expired_marks)
+    if (auto target_it = source_target_map.find(target_buffer);
+        target_it == source_target_map.end())
+      output.insert(target_it->second.begin(), target_it->second.end());
   return output;
 }
 
