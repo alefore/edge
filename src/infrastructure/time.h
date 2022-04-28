@@ -7,34 +7,40 @@
 #include "src/language/value_or_error.h"
 
 namespace afc::infrastructure {
-struct timespec Now();
+using Time = struct timespec;
+
+Time Now();
 
 // TODO: Replace all this with Abseil.
-double SecondsBetween(const struct timespec& begin, const struct timespec& end);
-double MillisecondsBetween(const struct timespec& begin,
-                           const struct timespec& end);
-double GetElapsedSecondsSince(const struct timespec& spec);
-double GetElapsedMillisecondsSince(const struct timespec& spec);
+double SecondsBetween(const Time& begin, const Time& end);
+double MillisecondsBetween(const Time& begin, const Time& end);
+double GetElapsedSecondsSince(const Time& spec);
+double GetElapsedMillisecondsSince(const Time& spec);
 
-double GetElapsedMillisecondsAndUpdate(struct timespec* spec);
-double GetElapsedSecondsAndUpdate(struct timespec* spec);
+double GetElapsedMillisecondsAndUpdate(Time* spec);
+double GetElapsedSecondsAndUpdate(Time* spec);
 
 // If required_milliseconds have passed since the last call, updates `spec` to
 // now and returns the elapsed time. Otherwise, returns nullopt.
 std::optional<double> UpdateIfMillisecondsHavePassed(
-    struct timespec* spec, double required_milliseconds);
+    Time* spec, double required_milliseconds);
 
-struct timespec AddSeconds(struct timespec time, double seconds_duration);
+Time AddSeconds(Time time, double seconds_duration);
 
-language::ValueOrError<std::wstring> HumanReadableTime(
-    const struct timespec& time);
+language::ValueOrError<std::wstring> HumanReadableTime(const Time& time);
 }  // namespace afc::infrastructure
 
-bool operator==(const struct timespec& a, const struct timespec& b);
-bool operator!=(const struct timespec& a, const struct timespec& b);
-bool operator<(const struct timespec& a, const struct timespec& b);
-bool operator>(const struct timespec& a, const struct timespec& b);
-bool operator<=(const struct timespec& a, const struct timespec& b);
-bool operator>=(const struct timespec& a, const struct timespec& b);
+bool operator==(const afc::infrastructure::Time& a,
+                const afc::infrastructure::Time& b);
+bool operator!=(const afc::infrastructure::Time& a,
+                const afc::infrastructure::Time& b);
+bool operator<(const afc::infrastructure::Time& a,
+               const afc::infrastructure::Time& b);
+bool operator>(const afc::infrastructure::Time& a,
+               const afc::infrastructure::Time& b);
+bool operator<=(const afc::infrastructure::Time& a,
+                const afc::infrastructure::Time& b);
+bool operator>=(const afc::infrastructure::Time& a,
+                const afc::infrastructure::Time& b);
 
 #endif  // __AFC_EDITOR_TIME_H__
