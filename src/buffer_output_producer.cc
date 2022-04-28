@@ -9,6 +9,7 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
 #include "src/line.h"
 #include "src/line_column.h"
@@ -18,6 +19,7 @@
 
 namespace afc::editor {
 namespace {
+using infrastructure::Tracker;
 using language::compute_hash;
 using language::hash_combine;
 using language::MakeNonNullShared;
@@ -159,6 +161,9 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     const OpenBuffer& buffer,
     const std::vector<BufferContentsWindow::Line>& lines,
     const Widget::OutputProducerOptions& output_producer_options) {
+  static Tracker tracker(L"ProduceBufferView");
+  auto call = tracker.Call();
+
   CHECK_GE(output_producer_options.size.line, LineNumberDelta());
 
   const NonNull<std::shared_ptr<const ParseTree>> root = buffer.parse_tree();

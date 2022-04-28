@@ -16,6 +16,7 @@
 #include "src/editor.h"
 #include "src/frame_output_producer.h"
 #include "src/horizontal_center_output_producer.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/wstring.h"
 #include "src/line_number_output_producer.h"
 #include "src/line_scroll_control.h"
@@ -26,6 +27,7 @@
 
 namespace afc::editor {
 namespace {
+using infrastructure::Tracker;
 using language::MakeNonNullShared;
 
 static const auto kTopFrameLines = LineNumberDelta(1);
@@ -86,6 +88,9 @@ LineWithCursor::Generator::Vector LinesSpanView(
     const std::vector<BufferContentsWindow::Line>& screen_lines,
     const Widget::OutputProducerOptions& output_producer_options,
     const size_t sections_count) {
+  static Tracker tracker(L"LinesSpanView");
+  auto call = tracker.Call();
+
   LineWithCursor::Generator::Vector buffer_output =
       ProduceBufferView(buffer, screen_lines, output_producer_options);
 
@@ -399,6 +404,9 @@ BufferWidget::BufferWidget(Options options) : options_(std::move(options)) {}
 
 LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
     OutputProducerOptions options) const {
+  static Tracker tracker(L"BufferWidget::CreateOutput");
+  auto call = tracker.Call();
+
   auto buffer = options_.buffer.lock();
   BufferOutputProducerInput input;
   input.output_producer_options = options;

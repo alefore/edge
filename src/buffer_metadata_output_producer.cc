@@ -10,6 +10,7 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
 #include "src/lazy_string_functional.h"
 #include "src/line_marks.h"
@@ -21,6 +22,7 @@
 namespace afc {
 namespace editor {
 namespace {
+using infrastructure::Tracker;
 using language::CaptureAndHash;
 using language::MakeNonNullShared;
 using language::NonNull;
@@ -328,6 +330,9 @@ NonNull<std::shared_ptr<Line>> GetDefaultInformation(
 
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                                 Range range) {
+  static Tracker tracker(L"BufferMetadataOutput::Prepare");
+  auto call = tracker.Call();
+
   std::list<MetadataLine> output;
   const Line& contents = *options.buffer.contents().at(range.begin.line);
   auto target_buffer_value = contents.environment()->Lookup(
@@ -685,6 +690,9 @@ std::vector<std::wstring> ComputePrefixLines(
 
 ColumnsVector::Column BufferMetadataOutput(
     BufferMetadataOutputOptions options) {
+  static Tracker tracker(L"BufferMetadataOutput");
+  auto call = tracker.Call();
+
   const LineNumberDelta screen_size(options.screen_lines.size());
   if (screen_size.IsZero()) return {};
 
