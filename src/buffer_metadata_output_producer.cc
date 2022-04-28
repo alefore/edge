@@ -163,28 +163,6 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
   return output;
 }
 
-Line ComputeMarksSuffix(const BufferMetadataOutputOptions& options,
-                        LineNumber line) {
-  CHECK_GE(line, initial_line(options));
-  const std::multimap<size_t, LineMarks::Mark>& marks =
-      options.buffer.GetLineMarks();
-  if (marks.empty()) return Line(L"");
-  auto range = MapScreenLineToContentsRange(
-      Range(LineColumn(LineNumber(initial_line(options))),
-            options.screen_lines.back().range.begin),
-      line, options.buffer.lines_size());
-
-  auto begin = marks.lower_bound(range.begin.line.line);
-  auto end = marks.lower_bound(range.end.line.line);
-  if (begin == end) return Line(L" ");
-  LineModifierSet modifiers;
-  for (auto it = begin; it != end && modifiers.empty(); ++it)
-    if (!it->second.IsExpired()) modifiers.insert(LineModifier::RED);
-  Line::Options line_options;
-  line_options.AppendString(L"!", modifiers);
-  return Line(std::move(line_options));
-}
-
 Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
                           LineNumber line) {
   auto cursors = options.buffer.active_cursors();
@@ -236,7 +214,7 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
 
   using Rows = size_t;  // TODO(easy, 2022-04-28): Use a ghost type.
 
-  static const Rows kRowsPerScreenLine = 4;
+  static const Rows kRowsPerScreenLine = 3;
   Rows total_rows = lines_shown.line_delta * kRowsPerScreenLine;
 
   // Number of rows the bar should take.
@@ -251,53 +229,58 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                  lines_size.line_delta);
   Rows end = start + bar_size;
 
-  LineModifierSet modifiers =
-      MapScreenLineToContentsRange(
-          Range(LineColumn(LineNumber(initial_line(options))),
-                LineColumn(LineNumber(initial_line(options) + lines_shown))),
-          line, options.buffer.lines_size())
-              .Contains(options.buffer.position())
-          ? LineModifierSet({LineModifier::YELLOW})
-          : LineModifierSet({LineModifier::CYAN});
+  LineModifierSet modifiers;
 
   Line::Options line_options;
   Rows current = kRowsPerScreenLine * (line - initial_line(options)).line_delta;
 
-  wchar_t base_char = L'⠀';
+  // Characters:
+  // 01
+  // 23
+  // 45
+  static const std::wstring chars =
+      L" 🬀🬁🬂"
+      L"🬃🬄🬅🬆"
+      L"🬇🬈🬉🬊"
+      L"🬋🬌🬍🬎"
+      L"🬏🬐🬑🬒"
+      L"🬓▌🬔🬕"
+      L"🬖🬗🬘🬙"
+      L"🬚🬛🬜🬝"
+      L"🬞🬟🬠🬡"
+      L"🬢🬣🬤🬥"
+      L"🬦🬧▐🬨"
+      L"🬩🬪🬫🬬"
+      L"🬭🬮🬯🬰"
+      L"🬱🬲🬳🬴"
+      L"🬵🬶🬷🬸"
+      L"🬹🬺🬻█";
 
-  auto turn_on = [&base_char](size_t row, bool left, bool right) {
-    // Braille characters:
-    // 14
-    // 25
-    // 36
-    // 78
-    CHECK_LT(row, 4ul);
-    switch (row) {
-      case 0:
-        return (left ? 0x01 : 0) + (right ? 0x08 : 0);
-      case 1:
-        return (left ? 0x02 : 0) + (right ? 0x10 : 0);
-      case 2:
-        return (left ? 0x04 : 0) + (right ? 0x20 : 0);
-      case 3:
-        return (left ? 0x40 : 0) + (right ? 0x80 : 0);
-    }
-    LOG(FATAL) << "Unhandled switch case.";
-    return 0;
-  };
+  size_t base_char = 0;
 
   const std::multimap<size_t, LineMarks::Mark>& marks =
       options.buffer.GetLineMarks();
-  for (size_t row = 0; row < 4; row++)
-    if (current + row >= start && current + row < end)
-      base_char += turn_on(row, true, marks.empty());
+  for (size_t row = 0; row < 3; row++)
+    if (current + row >= start && current + row < end) {
+      base_char |= 1 << (row * 2);
+      if (marks.empty()) base_char |= 1 << (row * 2 + 1);
+    }
+  if (base_char != 0)
+    modifiers =
+        MapScreenLineToContentsRange(
+            Range(LineColumn(LineNumber(initial_line(options))),
+                  LineColumn(LineNumber(initial_line(options) + lines_shown))),
+            line, options.buffer.lines_size())
+                .Contains(options.buffer.position())
+            ? LineModifierSet({LineModifier::YELLOW})
+            : LineModifierSet({LineModifier::CYAN});
 
   if (!marks.empty()) {
     double buffer_lines_per_row =
         static_cast<double>(options.buffer.lines_size().line_delta) /
         total_rows;
     bool active_marks = false;
-    for (size_t row = 0; row < 4; row++) {
+    for (size_t row = 0; row < 3; row++) {
       size_t begin_line = (current + row) * buffer_lines_per_row;
       size_t end_line = (current + row + 1) * buffer_lines_per_row;
       if (begin_line == end_line) continue;
@@ -306,13 +289,14 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
       if (begin != end) {
         for (auto it = begin; it != end && !active_marks; ++it)
           if (!it->second.IsExpired()) active_marks = true;
-        base_char += turn_on(row, false, true);
+        base_char |= (1 << (row * 2 + 1));
       }
     }
     if (active_marks) modifiers = {LineModifier::RED};
   }
 
-  line_options.AppendString(std::wstring(1, base_char), modifiers);
+  CHECK_LT(base_char, chars.size());
+  line_options.AppendString(std::wstring(1, chars[base_char]), modifiers);
   return Line(std::move(line_options));
 }
 
@@ -328,7 +312,6 @@ NonNull<std::shared_ptr<Line>> GetDefaultInformation(
     if (options.buffer.Read(buffer_variables::scrollbar)) {
       CHECK_GE(line, initial_line(options));
       line_options.Append(ComputeCursorsSuffix(options, line));
-      line_options.Append(ComputeMarksSuffix(options, line));
       line_options.Append(ComputeScrollBarSuffix(options, line));
     }
     if (options.zoomed_out_tree != nullptr &&
