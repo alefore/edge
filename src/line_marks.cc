@@ -62,15 +62,7 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
   static Tracker tracker(L"LineMarks::RemoveExpiredMarksFromSource");
   auto call = tracker.Call();
 
-  auto it = expired_marks.find(source);
-  if (it == expired_marks.end() || it->second.empty()) {
-    LOG(INFO) << "No marks from source: " << source;
-    return;
-  }
-
-  DVLOG(5) << "Removing expired marks from: " << source;
-  expired_marks.erase(it);
-  updates++;
+  updates += expired_marks.erase(source);
 }
 
 std::multimap<LineColumn, LineMarks::Mark> LineMarks::GetMarksForTargetBuffer(
