@@ -786,7 +786,7 @@ void OpenBuffer::ClearContents(
     BufferContents::CursorsBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
   options_.editor.line_marks().RemoveExpiredMarksFromSource(name());
-  options_.editor.line_marks().ExpireMarksFromSource(*this, name());
+  options_.editor.line_marks().ExpireMarksFromSource(contents(), name());
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
                        cursors_behavior);
   if (terminal_ != nullptr) {

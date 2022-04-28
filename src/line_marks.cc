@@ -21,7 +21,7 @@ void LineMarks::AddMark(Mark mark) {
   updates++;
 }
 
-void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
+void LineMarks::ExpireMarksFromSource(const BufferContents& source_buffer,
                                       const BufferName& source) {
   static Tracker tracker(L"LineMarks::ExpireMarksFromSource");
   auto call = tracker.Call();
@@ -42,9 +42,9 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
       ExpiredMark expired_mark{
           .source = source,
           .source_line_content =
-              position.line > source_buffer.contents().EndLine()
+              position.line > source_buffer.EndLine()
                   ? NewLazyString(L"Expired mark.")
-                  : source_buffer.contents().at(position.line)->contents(),
+                  : source_buffer.at(position.line)->contents(),
           .target_buffer = mark.target_buffer,
           .target_line_column = mark.target_line_column};
       source_target_marks.expired_marks.insert({position, expired_mark});

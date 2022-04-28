@@ -5,17 +5,15 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #include "src/buffer_name.h"
-#include "src/editor_mode.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 
 namespace afc {
 namespace editor {
 
-class OpenBuffer;
+class BufferContents;
 
 struct LineMarks {
  public:
@@ -55,7 +53,7 @@ struct LineMarks {
 
   void AddMark(Mark mark);
 
-  void ExpireMarksFromSource(const OpenBuffer& source_buffer,
+  void ExpireMarksFromSource(const BufferContents& source_buffer,
                              const BufferName& source);
   void RemoveExpiredMarksFromSource(const BufferName& source);
 
