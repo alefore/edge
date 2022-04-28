@@ -228,8 +228,6 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                             LineNumber line) {
   LineNumberDelta lines_size = options.buffer.lines_size();
   LineNumberDelta lines_shown = LineNumberDelta(options.screen_lines.size());
-  // Each line is split into two units (upper and bottom halves). All units in
-  // this function are halves (of a line).
   DCHECK_GE(line, initial_line(options));
   DCHECK_LE(line - initial_line(options), lines_shown)
       << "Line is " << line << " and view_start is " << initial_line(options)
@@ -247,7 +245,7 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                                    static_cast<double>(lines_shown.line_delta) /
                                    lines_size.line_delta)));
 
-  // Bar will be shown in lines in interval [bar, end] (units are halves).
+  // Bar will be shown in lines in interval [start, end] (units are rows).
   Rows start =
       std::round(total_rows * static_cast<double>(initial_line(options).line) /
                  lines_size.line_delta);
@@ -266,7 +264,8 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   Rows current = kRowsPerScreenLine * (line - initial_line(options)).line_delta;
 
   wchar_t base_char = L'⠀';
-  auto turn_on = [&base_char](size_t row) {
+
+  auto turn_on = [&base_char](size_t row, bool left, bool right) {
     // Braille characters:
     // 14
     // 25
@@ -275,21 +274,44 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
     CHECK_LT(row, 4ul);
     switch (row) {
       case 0:
-        return 0x01 + 0x08;
+        return (left ? 0x01 : 0) + (right ? 0x08 : 0);
       case 1:
-        return 0x02 + 0x10;
+        return (left ? 0x02 : 0) + (right ? 0x10 : 0);
       case 2:
-        return 0x04 + 0x20;
+        return (left ? 0x04 : 0) + (right ? 0x20 : 0);
       case 3:
-        return 0x40 + 0x80;
+        return (left ? 0x40 : 0) + (right ? 0x80 : 0);
     }
     LOG(FATAL) << "Unhandled switch case.";
     return 0;
   };
-  if (current + 0 >= start && current + 0 < end) base_char += turn_on(0);
-  if (current + 1 >= start && current + 1 < end) base_char += turn_on(1);
-  if (current + 2 >= start && current + 2 < end) base_char += turn_on(2);
-  if (current + 3 >= start && current + 3 < end) base_char += turn_on(3);
+
+  const std::multimap<size_t, LineMarks::Mark>& marks =
+      options.buffer.GetLineMarks();
+  for (size_t row = 0; row < 4; row++)
+    if (current + row >= start && current + row < end)
+      base_char += turn_on(row, true, marks.empty());
+
+  if (!marks.empty()) {
+    double buffer_lines_per_row =
+        static_cast<double>(options.buffer.lines_size().line_delta) /
+        total_rows;
+    bool active_marks = false;
+    for (size_t row = 0; row < 4; row++) {
+      size_t begin_line = (current + row) * buffer_lines_per_row;
+      size_t end_line = (current + row + 1) * buffer_lines_per_row;
+      if (begin_line == end_line) continue;
+      auto begin = marks.lower_bound(begin_line);
+      auto end = marks.lower_bound(end_line);
+      if (begin != end) {
+        for (auto it = begin; it != end && !active_marks; ++it)
+          if (!it->second.IsExpired()) active_marks = true;
+        base_char += turn_on(row, false, true);
+      }
+    }
+    if (active_marks) modifiers = {LineModifier::RED};
+  }
+
   line_options.AppendString(std::wstring(1, base_char), modifiers);
   return Line(std::move(line_options));
 }

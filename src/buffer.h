@@ -589,6 +589,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // current buffer). The key is the line (i.e. Mark::line).
   //
   // mutable because GetLineMarks will always update it if needed.
+  //
+  // TODO(easy, 2022-04-28): Switch the key to LineNumber?
   mutable multimap<size_t, LineMarks::Mark> line_marks_;
   // The value that EditorState::marks_::updates had when we last computed
   // line_marks_. This allows us to avoid recomputing line_marks_ when no new
