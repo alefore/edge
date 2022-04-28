@@ -340,6 +340,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
   const multimap<size_t, LineMarks::Mark>& GetLineMarks() const;
+  const multimap<size_t, LineMarks::ExpiredMark>& GetExpiredLineMarks() const;
   wstring GetLineMarksText() const;
 
   /////////////////////////////////////////////////////////////////////////////
@@ -504,6 +505,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   void ReadData(std::unique_ptr<FileDescriptorReader>& source);
 
   void UpdateLastAction();
+  // This is logically const, even if not physically const.
+  void MaybeUpdateLineMarks() const;
 
   const Options options_;
 
@@ -592,6 +595,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   //
   // TODO(easy, 2022-04-28): Switch the key to LineNumber?
   mutable multimap<size_t, LineMarks::Mark> line_marks_;
+  mutable multimap<size_t, LineMarks::ExpiredMark> line_expired_marks_;
   // The value that EditorState::marks_::updates had when we last computed
   // line_marks_. This allows us to avoid recomputing line_marks_ when no new
   // marks have been added.

@@ -2510,31 +2510,43 @@ void OpenBuffer::set_filter(unique_ptr<Value> filter) {
   filter_version_++;
 }
 
-const multimap<size_t, LineMarks::Mark>& OpenBuffer::GetLineMarks() const {
+void OpenBuffer::MaybeUpdateLineMarks() const {
   auto marks = editor().line_marks();
-  if (marks.updates > line_marks_last_updates_) {
-    LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
-    line_marks_.clear();
-    auto relevant_marks = marks.GetMarksForTargetBuffer(name());
-    for (auto& mark : relevant_marks) {
-      line_marks_.insert(make_pair(mark.target.line.line, mark));
-    }
-    line_marks_last_updates_ = marks.updates;
+  if (marks.updates <= line_marks_last_updates_) return;
+  LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
+  line_marks_.clear();
+
+  auto relevant_marks = marks.GetMarksForTargetBuffer(name());
+  for (auto& mark : relevant_marks) {
+    line_marks_.insert(make_pair(mark.target.line.line, mark));
   }
+
+  line_expired_marks_.clear();
+  auto relevant_expired_marks = marks.GetExpiredMarksForTargetBuffer(name());
+  for (auto& mark : relevant_expired_marks) {
+    line_expired_marks_.insert(make_pair(mark.target.line.line, mark));
+  }
+
+  line_marks_last_updates_ = marks.updates;
+}
+
+const multimap<size_t, LineMarks::Mark>& OpenBuffer::GetLineMarks() const {
+  MaybeUpdateLineMarks();
   return line_marks_;
 }
 
+const multimap<size_t, LineMarks::ExpiredMark>&
+OpenBuffer::GetExpiredLineMarks() const {
+  MaybeUpdateLineMarks();
+  return line_expired_marks_;
+}
+
 wstring OpenBuffer::GetLineMarksText() const {
-  const multimap<size_t, LineMarks::Mark>& marks = GetLineMarks();
+  size_t marks = GetLineMarks().size();
+  size_t expired_marks = GetExpiredLineMarks().size();
   wstring output;
-  if (!marks.empty()) {
-    size_t expired_marks =
-        std::count_if(marks.begin(), marks.end(),
-                      [](const std::pair<size_t, LineMarks::Mark>& mark) {
-                        return mark.second.IsExpired();
-                      });
-    CHECK_LE(expired_marks, marks.size());
-    output = L"marks:" + to_wstring(marks.size() - expired_marks);
+  if (marks > 0 || expired_marks > 0) {
+    output = L"marks:" + to_wstring(marks - expired_marks);
     if (expired_marks > 0) {
       output += L"(" + to_wstring(expired_marks) + L")";
     }

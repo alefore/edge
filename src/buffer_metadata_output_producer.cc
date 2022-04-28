@@ -271,6 +271,8 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
 
   const std::multimap<size_t, LineMarks::Mark>& marks =
       options.buffer.GetLineMarks();
+  const std::multimap<size_t, LineMarks::ExpiredMark>& expired_marks =
+      options.buffer.GetExpiredLineMarks();
   for (size_t row = 0; row < 3; row++)
     if (current + row >= start && current + row < end) {
       base_char |= 1 << (row * 2);
@@ -286,7 +288,7 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
             ? LineModifierSet({LineModifier::YELLOW})
             : LineModifierSet({LineModifier::CYAN});
 
-  if (!marks.empty()) {
+  if (!marks.empty() || !expired_marks.empty()) {
     double buffer_lines_per_row =
         static_cast<double>(options.buffer.lines_size().line_delta) /
         total_rows;
@@ -295,11 +297,11 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
       size_t begin_line = (current + row) * buffer_lines_per_row;
       size_t end_line = (current + row + 1) * buffer_lines_per_row;
       if (begin_line == end_line) continue;
-      auto begin = marks.lower_bound(begin_line);
-      auto end = marks.lower_bound(end_line);
-      if (begin != end) {
-        for (auto it = begin; it != end && !active_marks; ++it)
-          if (!it->second.IsExpired()) active_marks = true;
+      if (marks.lower_bound(begin_line) != marks.lower_bound(end_line)) {
+        active_marks = true;
+        base_char |= (1 << (row * 2 + 1));
+      } else if (expired_marks.lower_bound(begin_line) !=
+                 expired_marks.lower_bound(end_line)) {
         base_char |= (1 << (row * 2 + 1));
       }
     }
@@ -388,7 +390,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
       [] {});
 
   std::list<LineMarks::Mark> marks;
-  std::list<LineMarks::Mark> marks_expired;
+  std::list<LineMarks::ExpiredMark> expired_marks;
 
   auto marks_range =
       options.buffer.GetLineMarks().equal_range(range.begin.line.line);
@@ -396,10 +398,20 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     static Tracker tracker(L"BufferMetadataOutput::Prepare:CheckMarks");
     auto call = tracker.Call();
     if (range.Contains(marks_range.first->second.target)) {
-      (marks_range.first->second.IsExpired() ? marks_expired : marks)
-          .push_back(marks_range.first->second);
+      marks.push_back(marks_range.first->second);
     }
     ++marks_range.first;
+  }
+
+  auto expired_marks_range =
+      options.buffer.GetExpiredLineMarks().equal_range(range.begin.line.line);
+  while (expired_marks_range.first != expired_marks_range.second) {
+    static Tracker tracker(L"BufferMetadataOutput::Prepare:CheckExpiredMarks");
+    auto call = tracker.Call();
+    if (range.Contains(expired_marks_range.first->second.target)) {
+      expired_marks.push_back(expired_marks_range.first->second);
+    }
+    ++expired_marks_range.first;
   }
 
   for (const auto& mark : marks) {
@@ -428,7 +440,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     }
   }
 
-  for (const auto& mark : marks_expired) {
+  for (const auto& mark : expired_marks) {
     static Tracker tracker(
         L"BufferMetadataOutput::Prepare:AddMetadataForExpiredMark");
     auto call = tracker.Call();

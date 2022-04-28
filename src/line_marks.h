@@ -23,23 +23,28 @@ struct LineMarks {
     // What created this mark?
     BufferName source = BufferName(L"");
 
-    // The contents in the source that created this mark. Typically this will be
-    // set to null: the customer must look it up directly through source and
-    // source_line. However, we support an "expired" mode, where marks are
-    // preserved for some time after their source buffer is removed. In that
-    // case, contents will be set to non-null (and source_line must be ignored).
-    //
-    // We say that a mark is "expired" if source_line_content != nullptr;
-    // otherwise, we say that it is "fresh".
-    //
-    // The reason for expired marks is to preserve marks while recompilation is
-    // taking place: the user can still see the old marks (the output from the
-    // previous run of the compiler) while they're being updated.
-    std::shared_ptr<LazyString> source_line_content = nullptr;
-    bool IsExpired() const { return source_line_content != nullptr; }
-
     // What line in the source did this mark occur in?
     LineNumber source_line;
+
+    // What buffer does this mark identify?
+    BufferName target_buffer = BufferName(L"");
+
+    // The line marked.
+    LineColumn target;
+  };
+
+  // A mark whose source buffer was removed will be preserved for some time. In
+  // this case, we retain the original content.
+  //
+  // The reason for expired marks is to preserve marks while recompilation is
+  // taking place: the user can still see the old marks (the output from the
+  // previous run of the compiler) while they're being updated.
+  struct ExpiredMark {
+    // What created this mark?
+    BufferName source = BufferName(L"");
+
+    // The contents in the source (and line) that created this mark.
+    language::NonNull<std::shared_ptr<LazyString>> source_line_content;
 
     // What buffer does this mark identify?
     BufferName target_buffer = BufferName(L"");
@@ -56,13 +61,18 @@ struct LineMarks {
 
   std::vector<Mark> GetMarksForTargetBuffer(
       const BufferName& target_buffer) const;
+  std::vector<ExpiredMark> GetExpiredMarksForTargetBuffer(
+      const BufferName& target_buffer) const;
 
   // First key is the source, second key is the target_buffer.
   std::unordered_map<BufferName, std::multimap<BufferName, Mark>> marks;
+  std::unordered_map<BufferName, std::multimap<BufferName, ExpiredMark>>
+      expired_marks;
   size_t updates = 0;
 };
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lc);
+std::ostream& operator<<(std::ostream& os, const LineMarks::ExpiredMark& lc);
 
 }  // namespace editor
 }  // namespace afc

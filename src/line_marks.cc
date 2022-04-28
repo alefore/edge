@@ -31,23 +31,26 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
 
   DVLOG(5) << "Expiring marks from: " << source;
   bool changes = false;
+  std::multimap<BufferName, ExpiredMark>& output = expired_marks[source];
   for (auto& mark : it->second) {
-    if (mark.second.IsExpired()) {
-      DVLOG(10) << "Skipping already expired mark.";
-      continue;
-    }
-
     DVLOG(10) << "Mark transitions from fresh to expired.";
     changes = true;
     auto line = source_buffer.LineAt(mark.second.source_line);
     if (line == nullptr) {
       DVLOG(3) << "Unable to find content for mark!";
-      mark.second.source_line_content =
-          std::move(NewLazyString(L"Expired mark.").get_unique());
+      output.insert(
+          {it->first,
+           ExpiredMark{.source = it->first,
+                       .source_line_content = NewLazyString(L"Expired mark."),
+                       .target_buffer = mark.second.target_buffer,
+                       .target = mark.second.target}});
     } else {
-      mark.second.source_line_content = line->contents().get_shared();
+      output.insert(
+          {it->first, ExpiredMark{.source = it->first,
+                                  .source_line_content = line->contents(),
+                                  .target_buffer = mark.second.target_buffer,
+                                  .target = mark.second.target}});
     }
-    CHECK(mark.second.IsExpired());
   }
 
   if (changes) {
@@ -60,31 +63,15 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
   static Tracker tracker(L"LineMarks::RemoveExpiredMarksFromSource");
   auto call = tracker.Call();
 
-  auto it = marks.find(source);
-  if (it == marks.end() || it->second.empty()) {
+  auto it = expired_marks.find(source);
+  if (it == expired_marks.end() || it->second.empty()) {
     LOG(INFO) << "No marks from source: " << source;
     return;
   }
 
   DVLOG(5) << "Removing expired marks from: " << source;
-  bool changes = false;
-  auto& marks_from_source = it->second;
-  for (auto mark = marks_from_source.begin();
-       mark != marks_from_source.end();) {
-    if (mark->second.IsExpired()) {
-      DVLOG(5) << "Removing expired mark.";
-      changes = true;
-      marks_from_source.erase(mark++);
-    } else {
-      DVLOG(10) << "Skipping fresh mark.";
-      ++mark;
-    }
-  }
-
-  if (changes) {
-    LOG(INFO) << "Actually removed some marks.";
-    updates++;
-  }
+  expired_marks.erase(it);
+  updates++;
 }
 
 std::vector<LineMarks::Mark> LineMarks::GetMarksForTargetBuffer(
@@ -109,8 +96,36 @@ std::vector<LineMarks::Mark> LineMarks::GetMarksForTargetBuffer(
   return output;
 }
 
+std::vector<LineMarks::ExpiredMark> LineMarks::GetExpiredMarksForTargetBuffer(
+    const BufferName& target_buffer) const {
+  static Tracker tracker(L"LineMarks::GetExpiredMarksForTargetBuffer");
+  auto call = tracker.Call();
+
+  DLOG(INFO) << "Producing marks for buffer: " << target_buffer;
+  std::vector<LineMarks::ExpiredMark> output;
+  for (auto& source_it : expired_marks) {
+    auto range = source_it.second.equal_range(target_buffer);
+    if (range.first == source_it.second.end()) {
+      DVLOG(5) << "Didn't find any marks.";
+      continue;
+    }
+    while (range.first != range.second) {
+      DVLOG(6) << "Mark: " << range.first->second;
+      output.push_back(range.first->second);
+      ++range.first;
+    }
+  }
+  return output;
+}
+
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lm) {
   os << "[" << lm.source << ":" << lm.target_buffer << ":" << lm.target << "]";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const LineMarks::ExpiredMark& lm) {
+  os << "[expired:" << lm.source << ":" << lm.target_buffer << ":" << lm.target
+     << "]";
   return os;
 }
 

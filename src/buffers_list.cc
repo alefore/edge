@@ -573,12 +573,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             wstring progress;
             LineModifierSet progress_modifier;
-            if (auto marks = buffer->GetLineMarks(); !marks.empty()) {
+            if (!buffer->GetLineMarks().empty()) {
               progress = L"!";
-              if (std::find_if(marks.begin(), marks.end(), [](auto p) {
-                    return !p.second.IsExpired();
-                  }) != marks.end())
-                progress_modifier.insert(LineModifier::RED);
+              progress_modifier.insert(LineModifier::RED);
+            } else if (!buffer->GetExpiredLineMarks().empty()) {
+              progress = L"!";
             } else if (buffer->ShouldDisplayProgress()) {
               progress =
                   ProgressString(buffer->Read(buffer_variables::progress),
