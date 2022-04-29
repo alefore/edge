@@ -67,15 +67,13 @@ class NonNull {};
 
 template <typename T>
 class NonNull<std::unique_ptr<T>> {
-  struct UnsafeConstructorKey {};
-
  public:
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
   // converted to `std::shared_ptr<T>`.
   template <typename Other>
   static NonNull<std::unique_ptr<T>> Unsafe(std::unique_ptr<Other> value) {
     CHECK(value != nullptr);
-    return NonNull(UnsafeConstructorKey(), std::move(value));
+    return NonNull(std::move(value));
   }
 
   NonNull() : value_(std::make_unique<T>()) {}
@@ -99,16 +97,13 @@ class NonNull<std::unique_ptr<T>> {
 
  private:
   template <typename Other>
-  NonNull(UnsafeConstructorKey, std::unique_ptr<Other> value)
-      : value_(std::move(value)) {}
+  NonNull(std::unique_ptr<Other> value) : value_(std::move(value)) {}
 
   std::unique_ptr<T> value_;
 };
 
 template <typename T>
 class NonNull<std::shared_ptr<T>> {
-  struct UnsafeConstructorKey {};
-
  public:
   NonNull() : value_(std::make_shared<T>()) {}
 
@@ -120,7 +115,7 @@ class NonNull<std::shared_ptr<T>> {
   template <typename Other>
   static NonNull<std::shared_ptr<T>> Unsafe(std::shared_ptr<Other> value) {
     CHECK(value != nullptr);
-    return NonNull(UnsafeConstructorKey(), std::move(value));
+    return NonNull(std::move(value));
   }
 
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
@@ -128,8 +123,7 @@ class NonNull<std::shared_ptr<T>> {
   template <typename Other>
   static NonNull<std::shared_ptr<T>> Unsafe(std::unique_ptr<Other> value) {
     CHECK(value != nullptr);
-    return NonNull(UnsafeConstructorKey(),
-                   std::shared_ptr<Other>(std::move(value)));
+    return NonNull(std::shared_ptr<Other>(std::move(value)));
   }
 
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
@@ -165,8 +159,7 @@ class NonNull<std::shared_ptr<T>> {
 
  private:
   template <typename Other>
-  NonNull(UnsafeConstructorKey, std::shared_ptr<Other> value)
-      : value_(std::move(value)) {}
+  NonNull(std::shared_ptr<Other> value) : value_(std::move(value)) {}
 
   std::shared_ptr<T> value_;
 };
