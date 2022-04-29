@@ -344,6 +344,23 @@ NonNull<std::shared_ptr<Line>> GetDefaultInformation(
   return MakeNonNullShared<Line>(std::move(line_options));
 }
 
+template <typename MarkType>
+std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
+                              Range range) {
+  static Tracker tracker(L"BufferMetadataOutput::Prepare:PushMarks");
+  auto call = tracker.Call();
+  std::list<MarkType> output;
+  auto it_begin = input.lower_bound(range.begin);
+  auto it_end = input.lower_bound(range.end);
+  while (it_begin != it_end) {
+    if (range.Contains(it_begin->second.target_line_column)) {
+      output.push_back(it_begin->second);
+    }
+    ++it_begin;
+  }
+  return output;
+}
+
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                                 Range range) {
   static Tracker tracker(L"BufferMetadataOutput::Prepare");
@@ -398,29 +415,11 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
       L"BufferMetadataOutput::Prepare::GenericMarksLogic");
   auto call_generic_marks_logic = tracker_generic_marks_logic.Call();
 
-  std::list<LineMarks::Mark> marks;
-  std::list<LineMarks::ExpiredMark> expired_marks;
+  std::list<LineMarks::Mark> marks =
+      PushMarks(options.buffer.GetLineMarks(), range);
 
-  auto marks_range = options.buffer.GetLineMarks().equal_range(range.begin);
-  while (marks_range.first != marks_range.second) {
-    static Tracker tracker(L"BufferMetadataOutput::Prepare:CheckMarks");
-    auto call = tracker.Call();
-    if (range.Contains(marks_range.first->second.target_line_column)) {
-      marks.push_back(marks_range.first->second);
-    }
-    ++marks_range.first;
-  }
-
-  auto expired_marks_range =
-      options.buffer.GetExpiredLineMarks().equal_range(range.begin);
-  while (expired_marks_range.first != expired_marks_range.second) {
-    static Tracker tracker(L"BufferMetadataOutput::Prepare:CheckExpiredMarks");
-    auto call = tracker.Call();
-    if (range.Contains(expired_marks_range.first->second.target_line_column)) {
-      expired_marks.push_back(expired_marks_range.first->second);
-    }
-    ++expired_marks_range.first;
-  }
+  std::list<LineMarks::ExpiredMark> expired_marks =
+      PushMarks(options.buffer.GetExpiredLineMarks(), range);
 
   for (const auto& mark : marks) {
     static Tracker tracker(L"BufferMetadataOutput::Prepare:AddMetadataForMark");
