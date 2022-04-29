@@ -530,28 +530,22 @@ std::list<Box> Squash(std::list<Box> inputs, LineNumberDelta screen_size) {
 }
 
 namespace {
-// TODO(easy): Turn this into an iterative algorithm.
-std::list<BoxWithPosition> RecursiveLayout(std::list<Box> boxes,
-                                           LineNumberDelta screen_size,
-                                           LineNumberDelta sum_sizes) {
-  if (boxes.empty()) return {};
-  Box back = std::move(boxes.back());
-  boxes.pop_back();
-  sum_sizes -= back.size;
-  LineNumber position =
-      max(LineNumber() + sum_sizes,
-          min(back.reference, LineNumber() + screen_size - back.size));
-  auto output =
-      RecursiveLayout(std::move(boxes), position.ToDelta(), sum_sizes);
-  output.push_back({.box = back, .position = position});
-  return output;
-}
-
 std::list<BoxWithPosition> FindLayout(std::list<Box> boxes,
                                       LineNumberDelta screen_size) {
   boxes = Squash(std::move(boxes), screen_size);
-  CHECK_LE(SumSizes(boxes), screen_size);
-  return RecursiveLayout(std::move(boxes), screen_size, SumSizes(boxes));
+  LineNumberDelta sum_sizes = SumSizes(boxes);
+  CHECK_LE(sum_sizes, screen_size);
+
+  std::list<BoxWithPosition> output;
+  for (auto box_it = boxes.rbegin(); box_it != boxes.rend(); ++box_it) {
+    sum_sizes -= box_it->size;
+    LineNumber position =
+        max(LineNumber() + sum_sizes,
+            min(box_it->reference, LineNumber() + screen_size - box_it->size));
+    output.push_front({.box = *box_it, .position = position});
+    screen_size = position.ToDelta();
+  }
+  return output;
 }
 
 bool find_layout_tests_registration =
