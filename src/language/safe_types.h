@@ -7,6 +7,9 @@
 #include <optional>
 
 namespace afc::language {
+// Wrapper that contains a pointer and information for how to de-reference it,
+// and provides runtime checks to ensure that we'll crash if we de-reference a
+// null/empty object.
 template <typename Extractor>
 class BoundPointer {
  public:
