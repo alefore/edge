@@ -149,5 +149,4 @@ std::ostream& operator<<(std::ostream& os, const LineMarks::ExpiredMark& lm) {
      << lm.target_line_column << "]";
   return os;
 }
-
 }  // namespace afc::editor

@@ -2587,7 +2587,9 @@ EditorState& EditorForTests() {
 }
 
 NonNull<std::shared_ptr<OpenBuffer>> NewBufferForTests() {
-  return OpenBuffer::New({.editor = EditorForTests()});
+  return OpenBuffer::New(
+      {.editor = EditorForTests(),
+       .name = EditorForTests().GetUnusedBufferName(L"test buffer")});
 }
 
 }  // namespace editor
