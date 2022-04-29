@@ -101,9 +101,14 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
     targets_to_process.push_back(target);
   }
   for (auto& target : targets_to_process) {
-    // TODO(easy, 2022-04-29): Why are we removing all? Shouldn't we check that
-    // we only remove the ones from source?
-    marks_by_target[target].expired_marks.clear();
+    std::multimap<LineColumn, ExpiredMark>& target_expired_marks =
+        marks_by_target[target].expired_marks;
+    for (auto it = target_expired_marks.begin();
+         it != target_expired_marks.end();)
+      if (it->second.source == source)
+        target_expired_marks.erase(it++);
+      else
+        ++it;
   }
 }
 
