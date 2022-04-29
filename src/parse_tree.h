@@ -107,7 +107,7 @@ ParseTree::Route FindRouteToPosition(const ParseTree& root,
 std::vector<const ParseTree*> MapRoute(const ParseTree& root,
                                        const ParseTree::Route& route);
 
-const ParseTree* FollowRoute(const ParseTree& root,
+const ParseTree& FollowRoute(const ParseTree& root,
                              const ParseTree::Route& route);
 
 std::ostream& operator<<(std::ostream& os, const ParseTree& lc);

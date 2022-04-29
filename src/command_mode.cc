@@ -315,9 +315,9 @@ class LineDown : public Command {
           }
           break;
         case Direction::kForwards: {
-          auto root = buffer->parse_tree();
-          const ParseTree* tree = buffer->current_tree(root.get());
-          if (!tree->children().empty()) {
+          NonNull<std::shared_ptr<const ParseTree>> root = buffer->parse_tree();
+          const ParseTree& tree = buffer->current_tree(*root);
+          if (!tree.children().empty()) {
             buffer->set_tree_depth(buffer->tree_depth() + 1);
           }
           break;

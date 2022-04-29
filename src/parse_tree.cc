@@ -186,14 +186,14 @@ std::vector<const ParseTree*> MapRoute(const ParseTree& root,
   return output;
 }
 
-const ParseTree* FollowRoute(const ParseTree& root,
+const ParseTree& FollowRoute(const ParseTree& root,
                              const ParseTree::Route& route) {
   auto tree = &root;
   for (auto& index : route) {
     CHECK_LT(index, tree->children().size());
     tree = &tree->children().at(index);
   }
-  return tree;
+  return *tree;
 }
 
 namespace {

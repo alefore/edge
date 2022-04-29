@@ -167,7 +167,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
   CHECK_GE(output_producer_options.size.line, LineNumberDelta());
 
   const NonNull<std::shared_ptr<const ParseTree>> root = buffer.parse_tree();
-  const ParseTree* const current_tree = buffer.current_tree(root.get());
+  const ParseTree& current_tree = buffer.current_tree(*root);
 
   LineWithCursor::Generator::Vector output{
       .lines = {}, .width = output_producer_options.size.column};
@@ -260,16 +260,16 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                                                  : *editor_keyboard_redirect)
                 .cursor_mode()));
 
-    if (current_tree != root.get() &&
-        screen_line.range.begin.line >= current_tree->range().begin.line &&
-        screen_line.range.begin.line <= current_tree->range().end.line) {
+    if (&current_tree != root.get() &&
+        screen_line.range.begin.line >= current_tree.range().begin.line &&
+        screen_line.range.begin.line <= current_tree.range().end.line) {
       ColumnNumber begin =
-          screen_line.range.begin.line == current_tree->range().begin.line
-              ? current_tree->range().begin.column
+          screen_line.range.begin.line == current_tree.range().begin.line
+              ? current_tree.range().begin.column
               : ColumnNumber(0);
       ColumnNumber end =
-          screen_line.range.begin.line == current_tree->range().end.line
-              ? current_tree->range().end.column
+          screen_line.range.begin.line == current_tree.range().end.line
+              ? current_tree.range().end.column
               : line_contents->EndColumn();
       generator = ParseTreeHighlighter(begin, end, std::move(generator));
     } else if (!buffer.parse_tree()->children().empty()) {

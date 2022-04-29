@@ -476,7 +476,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   size_t tree_depth() const { return tree_depth_; }
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
 
-  const ParseTree* current_tree(const ParseTree* root) const;
+  const ParseTree& current_tree(const ParseTree& root) const;
 
   language::NonNull<std::shared_ptr<const ParseTree>>
   current_zoomed_out_parse_tree(LineNumberDelta lines) const;

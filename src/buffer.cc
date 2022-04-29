@@ -1756,16 +1756,15 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   return output;
 }
 
-const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
-  CHECK(root);
-  auto route = FindRouteToPosition(*root, position());
+const ParseTree& OpenBuffer::current_tree(const ParseTree& root) const {
+  auto route = FindRouteToPosition(root, position());
   if (route.size() < tree_depth_) {
     return root;
   }
   if (route.size() > tree_depth_) {
     route.resize(tree_depth_);
   }
-  return FollowRoute(*root, route);
+  return FollowRoute(root, route);
 }
 
 language::NonNull<std::shared_ptr<const ParseTree>>
