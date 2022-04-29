@@ -65,9 +65,9 @@ void LineMarks::ExpireMarksFromSource(const BufferContents& source_buffer,
       ExpiredMark expired_mark{
           .source = source,
           .source_line_content =
-              position.line > source_buffer.EndLine()
-                  ? NewLazyString(L"Expired mark.")
-                  : source_buffer.at(position.line)->contents(),
+              mark.source_line > source_buffer.EndLine()
+                  ? NewLazyString(L"(expired)")
+                  : source_buffer.at(mark.source_line)->contents(),
           .target_buffer = mark.target_buffer,
           .target_line_column = mark.target_line_column};
       source_target_marks.expired_marks.insert({position, expired_mark});
