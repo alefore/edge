@@ -276,7 +276,8 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   for (size_t row = 0; row < 3; row++)
     if (current + row >= start && current + row < end) {
       base_char |= 1 << (row * 2);
-      if (marks.empty()) base_char |= 1 << (row * 2 + 1);
+      if (marks.empty() && expired_marks.empty())
+        base_char |= 1 << (row * 2 + 1);
     }
   if (base_char != 0)
     modifiers =
