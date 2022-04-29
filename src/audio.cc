@@ -43,13 +43,13 @@ std::function<Volume(audio::Player::Time)> SmoothVolume(
   };
 }
 
-#if HAVE_LIBAO
 Generator::Callback Oscillate(audio::Frequency freq) {
   return [freq](audio::Player::Time time) {
     return SpeakerValue(32768.0 * sin(2 * M_PI * freq.read() * time));
   };
 }
 
+#if HAVE_LIBAO
 class Frame {
  public:
   Frame(int size)
