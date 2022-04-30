@@ -11,6 +11,8 @@
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
 
+// TODO(easy, 2022-04-30): Rename to 'buffer_contents_window' or such.
+
 namespace afc::editor {
 struct BufferContentsWindow {
   struct Input {
@@ -19,7 +21,7 @@ struct BufferContentsWindow {
     // If present, adjusts the view (`begin`) to contain this location.
     std::optional<LineColumn> active_position;
 
-    CursorsSet* active_cursors;
+    const CursorsSet& active_cursors;
 
     LineWrapStyle line_wrap_style;
     std::wstring symbol_characters;

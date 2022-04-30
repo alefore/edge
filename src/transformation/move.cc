@@ -19,8 +19,9 @@ using language::NonNull;
 namespace transformation {
 futures::Value<Result> ApplyBase(const SwapActiveCursor& swap_active_cursor,
                                  Input input) {
-  auto active_cursors = input.buffer.active_cursors();
-  if (input.position != *active_cursors->active()) {
+  CursorsSet& active_cursors = input.buffer.active_cursors();
+  // TODO(easy, 2022-04-30): Check the iterator?
+  if (input.position != *active_cursors.active()) {
     LOG(INFO) << "Skipping cursor.";
     return futures::Past(Result(input.position));
   }
@@ -35,10 +36,10 @@ futures::Value<Result> ApplyBase(const SwapActiveCursor& swap_active_cursor,
   VLOG(5) << "Moving cursor from " << input.position << " to "
           << output.position;
 
-  auto next_it = active_cursors->find(output.position);
-  CHECK(next_it != active_cursors->end());
-  active_cursors->erase(next_it);
-  active_cursors->insert(input.position);
+  CursorsSet::iterator next_it = active_cursors.find(output.position);
+  CHECK(next_it != active_cursors.end());
+  active_cursors.erase(next_it);
+  active_cursors.insert(input.position);
   return futures::Past(std::move(output));
 }
 

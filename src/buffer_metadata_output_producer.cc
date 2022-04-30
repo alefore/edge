@@ -173,8 +173,8 @@ Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   static Tracker tracker(L"BufferMetadataOutput::ComputeCursorsSuffix");
   auto call = tracker.Call();
 
-  auto cursors = options.buffer.active_cursors();
-  if (cursors->size() <= 1) {
+  const CursorsSet& cursors = options.buffer.active_cursors();
+  if (cursors.size() <= 1) {
     return Line(L"");
   }
   CHECK_GE(line, initial_line(options));
@@ -183,9 +183,9 @@ Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
             options.screen_lines.back().range.begin),
       line, options.buffer.lines_size());
   int count = 0;
-  auto cursors_end = cursors->lower_bound(range.end);
+  auto cursors_end = cursors.lower_bound(range.end);
   static const int kStopCount = 10;
-  for (auto cursors_it = cursors->lower_bound(range.begin);
+  for (auto cursors_it = cursors.lower_bound(range.begin);
        cursors_it != cursors_end && count < kStopCount; ++cursors_it) {
     count++;
     std::distance(cursors_it, cursors_end);
@@ -201,7 +201,7 @@ Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
     output_str = L"+";
     modifiers.insert(LineModifier::BOLD);
   }
-  if (range.Contains(*cursors->active())) {
+  if (range.Contains(*cursors.active())) {
     modifiers.insert(LineModifier::BOLD);
     modifiers.insert(LineModifier::CYAN);
   }

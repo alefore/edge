@@ -257,7 +257,7 @@ BufferContentsWindow BufferContentsWindow::Get(
                      options.lines_shown - options.status_lines)));
   }
   std::map<LineNumber, std::set<ColumnNumber>> cursors;
-  for (auto& cursor : *options.active_cursors) {
+  for (auto& cursor : options.active_cursors) {
     cursors[cursor.line].insert(cursor.column);
   }
 
@@ -349,7 +349,7 @@ const bool line_scroll_control_tests_registration =
       };
       auto new_test = [](std::wstring name, auto callback) {
         return tests::Test(
-            {.name = name, .callback = [callback] {
+            {.name = name, .callback = [callback]() {
                auto contents = std::make_shared<BufferContents>();
                contents->AppendToLine(LineNumber(), Line(L"0alejandro"));
                for (const auto& s : std::list<std::wstring>{
@@ -375,7 +375,7 @@ const bool line_scroll_control_tests_registration =
                BufferContentsWindow::Input options{
                    .contents = *contents,
                    .active_position = LineColumn(),
-                   .active_cursors = new CursorsSet(),  // &active_cursors,
+                   .active_cursors = active_cursors,
                    .line_wrap_style = LineWrapStyle::kBreakWords,
                    .symbol_characters = L"abcdefghijklmnopqrstuvwxyz",
                    .lines_shown = LineNumberDelta(10),
@@ -662,12 +662,7 @@ const bool line_scroll_control_tests_registration =
                       CHECK_EQ(output.view_start,
                                LineColumn(LineNumber(15), ColumnNumber(4)));
 #endif
-                    }),
-           new_test(L"Cursors", [&](auto options) {
-             CursorsSet cursors;
-             options.active_cursors = &cursors;
-             BufferContentsWindow::Get(options);
-           })});
+                    })});
     }());
 }  // namespace
 }  // namespace afc::editor

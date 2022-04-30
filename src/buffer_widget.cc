@@ -236,7 +236,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
     const Widget::OutputProducerOptions& output_producer_options,
     const BufferContentsWindow::Input& buffer_contents_window_input) {
   std::set<Range> sections;
-  for (auto& cursor : *buffer.active_cursors()) {
+  for (auto& cursor : buffer.active_cursors()) {
     sections.insert(Range(
         LineColumn(cursor.line),
         LineColumn(min(buffer.EndLine(), cursor.line + LineNumberDelta(1)))));

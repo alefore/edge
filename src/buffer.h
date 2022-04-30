@@ -253,12 +253,12 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // contents() is empty).
   void CheckPosition();
 
-  CursorsSet* FindOrCreateCursors(const wstring& name);
+  CursorsSet& FindOrCreateCursors(const wstring& name);
   // May return nullptr.
   const CursorsSet* FindCursors(const wstring& name) const;
 
-  CursorsSet* active_cursors();
-  const CursorsSet* active_cursors() const;
+  CursorsSet& active_cursors();
+  const CursorsSet& active_cursors() const;
 
   // Removes all active cursors and replaces them with the ones given. The old
   // cursors are saved and can be restored with ToggleActiveCursors.

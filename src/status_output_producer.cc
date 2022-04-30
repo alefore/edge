@@ -63,13 +63,13 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     auto active_cursors = options.buffer->active_cursors();
-    if (active_cursors->size() != 1) {
+    if (active_cursors.size() != 1) {
       output += L" " +
                 (options.buffer->Read(buffer_variables::multiple_cursors)
                      ? std::wstring(L"CURSORS")
                      : std::wstring(L"cursors")) +
-                L":" + std::to_wstring(active_cursors->current_index() + 1) +
-                L"/" + std::to_wstring(active_cursors->size()) + L" ";
+                L":" + std::to_wstring(active_cursors.current_index() + 1) +
+                L"/" + std::to_wstring(active_cursors.size()) + L" ";
     }
 
     auto flags = options.buffer->Flags();

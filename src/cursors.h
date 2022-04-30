@@ -157,8 +157,8 @@ class CursorsTracker {
   // Returns the position of the current cursor.
   LineColumn position() const;
 
-  CursorsSet* FindOrCreateCursors(const std::wstring& name) {
-    return &cursors_[name];
+  CursorsSet& FindOrCreateCursors(const std::wstring& name) {
+    return cursors_[name];
   }
 
   const CursorsSet* FindCursors(const std::wstring& name) const {
@@ -173,7 +173,7 @@ class CursorsTracker {
   // receives the cursor's position and must notify the receiver with the
   // position to which the cursor moves.
   futures::Value<language::EmptyValue> ApplyTransformationToCursors(
-      CursorsSet* cursors,
+      CursorsSet& cursors,
       std::function<futures::Value<LineColumn>(LineColumn)> callback);
 
   // Push current cursors into cursors_stack_ and returns size of stack.

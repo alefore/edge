@@ -14,6 +14,8 @@
 
 namespace afc::editor {
 using language::EmptyValue;
+using language::MakeNonNullShared;
+using language::NonNull;
 
 void CursorsSet::SetCurrentCursor(LineColumn position) {
   active_ = cursors_.find(position);
@@ -394,45 +396,44 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
 }
 
 futures::Value<EmptyValue> CursorsTracker::ApplyTransformationToCursors(
-    CursorsSet* cursors,
+    CursorsSet& cursors,
     std::function<futures::Value<LineColumn>(LineColumn)> callback) {
   struct Data {
-    CursorsSet* cursors;
+    CursorsSet& cursors;
     std::function<futures::Value<LineColumn>(LineColumn)> callback;
     futures::Value<EmptyValue>::Consumer done;
     bool adjusted_active_cursor = false;
   };
 
   futures::Future<EmptyValue> output;
-  auto data = std::make_shared<Data>();
-  data->cursors = cursors;
-  data->callback = std::move(callback);
-  data->done = std::move(output.consumer);
-
-  LOG(INFO) << "Applying transformation to cursors: " << cursors->size()
-            << ", active is: " << *cursors->active();
+  NonNull<std::shared_ptr<Data>> data =
+      MakeNonNullShared<Data>(Data{.cursors = cursors,
+                                   .callback = std::move(callback),
+                                   .done = std::move(output.consumer)});
+  // TODO(easy, 2022-04-30): Check that cursors.active() is valid?
+  LOG(INFO) << "Applying transformation to cursors: " << cursors.size()
+            << ", active is: " << *cursors.active();
   auto apply_next = [this, data](auto apply_next) {
-    CHECK(data != nullptr);
     CHECK(data->callback != nullptr);
-    if (data->cursors->empty()) {
-      data->cursors->swap(&already_applied_cursors_);
-      LOG(INFO) << "Current cursor at: " << *data->cursors->active();
+    if (data->cursors.empty()) {
+      data->cursors.swap(&already_applied_cursors_);
+      LOG(INFO) << "Current cursor at: " << *data->cursors.active();
       data->done(EmptyValue());
       return;
     }
-    VLOG(6) << "Adjusting cursor: " << *data->cursors->begin();
-    data->callback(*data->cursors->begin())
+    VLOG(6) << "Adjusting cursor: " << *data->cursors.begin();
+    data->callback(*data->cursors.begin())
         .SetConsumer([this, data, apply_next](LineColumn column) {
           auto insert_result = already_applied_cursors_.insert(column);
           VLOG(7) << "Cursor moved to: " << *insert_result;
           if (!data->adjusted_active_cursor &&
-              data->cursors->begin() == data->cursors->active()) {
+              data->cursors.begin() == data->cursors.active()) {
             VLOG(6) << "Adjusting default cursor (multiple): "
                     << *insert_result;
             already_applied_cursors_.set_active(insert_result);
             data->adjusted_active_cursor = true;
           }
-          data->cursors->erase(data->cursors->begin());
+          data->cursors.erase(data->cursors.begin());
           apply_next(apply_next);
         });
   };

@@ -530,7 +530,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
 
   bool beep = false;
   for (auto& buffer : options.buffers.value()) {
-    beep = buffer->active_cursors()->size() > 1 &&
+    beep = buffer->active_cursors().size() > 1 &&
            buffer->Read(buffer_variables::multiple_cursors);
   }
   if (beep) {
