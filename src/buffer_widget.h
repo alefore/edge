@@ -25,7 +25,7 @@ struct BufferOutputProducerInput {
   //
   // * Reloading it (variable reload_on_view).
   // * Setting the view size.
-  language::NonNull<std::shared_ptr<OpenBuffer>> buffer;
+  OpenBuffer& buffer;
   LineColumn view_start;
   enum class StatusBehavior { kShow, kIgnore };
   StatusBehavior status_behavior = StatusBehavior::kShow;

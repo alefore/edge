@@ -280,17 +280,18 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input) {
-  NonNull<std::shared_ptr<OpenBuffer>> buffer = input.buffer;
+  OpenBuffer& buffer = input.buffer;
 
   LOG(INFO) << "BufferWidget::RecomputeData: "
-            << buffer->Read(buffer_variables::name);
+            << buffer.Read(buffer_variables::name);
   LineWithCursor::Generator::Vector status_lines;
   switch (input.status_behavior) {
     case BufferOutputProducerInput::StatusBehavior::kShow:
       status_lines = CenterOutput(
-          StatusOutput({.status = buffer->status(),
-                        .buffer = buffer.get(),
-                        .modifiers = buffer->editor().modifiers(),
+          StatusOutput({.status = buffer.status(),
+                        // TODO(easy, 2022-04-30): Pass it by reference.
+                        .buffer = &buffer,
+                        .modifiers = buffer.editor().modifiers(),
                         .size = LineColumnDelta(
                             input.output_producer_options.size.line / 4,
                             input.output_producer_options.size.column)}),
@@ -300,47 +301,46 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       break;
   }
 
-  buffer->view_size().Set(LineColumnDelta(
+  buffer.view_size().Set(LineColumnDelta(
       input.output_producer_options.size.line - status_lines.size(),
       input.output_producer_options.size.column));
 
-  bool paste_mode = buffer->Read(buffer_variables::paste_mode);
+  bool paste_mode = buffer.Read(buffer_variables::paste_mode);
 
   BufferContentsWindow::Input buffer_contents_window_input{
-      .contents = buffer->contents(),
-      .active_position = buffer->Read(buffer_variables::multiple_cursors)
+      .contents = buffer.contents(),
+      .active_position = buffer.Read(buffer_variables::multiple_cursors)
                              ? std::optional<LineColumn>()
-                             : buffer->position(),
-      .active_cursors = buffer->active_cursors(),
-      .line_wrap_style = buffer->Read(buffer_variables::wrap_from_content)
+                             : buffer.position(),
+      .active_cursors = buffer.active_cursors(),
+      .line_wrap_style = buffer.Read(buffer_variables::wrap_from_content)
                              ? LineWrapStyle::kContentBased
                              : LineWrapStyle::kBreakWords,
-      .symbol_characters = buffer->Read(buffer_variables::symbol_characters),
+      .symbol_characters = buffer.Read(buffer_variables::symbol_characters),
       .lines_shown = input.output_producer_options.size.line,
       .status_lines = status_lines.size(),
       .columns_shown =
           input.output_producer_options.size.column -
           (paste_mode ? ColumnNumberDelta(0)
-                      : LineNumberOutputWidth(buffer->lines_size())),
+                      : LineNumberOutputWidth(buffer.lines_size())),
       .begin = input.view_start,
       .margin_lines =
-          ((buffer->child_pid() == -1 && buffer->fd() != nullptr) ||
-                   buffer->Read(buffer_variables::pts)
+          ((buffer.child_pid() == -1 && buffer.fd() != nullptr) ||
+                   buffer.Read(buffer_variables::pts)
                ? LineNumberDelta()
                : min(max(input.output_producer_options.size.line / 2 -
                              LineNumberDelta(1),
                          LineNumberDelta(0)),
-                     max(LineNumberDelta(
-                             ceil(buffer->Read(
-                                      buffer_variables::margin_lines_ratio) *
-                                  input.output_producer_options.size.line
-                                      .line_delta)),
+                     max(LineNumberDelta(ceil(
+                             buffer.Read(buffer_variables::margin_lines_ratio) *
+                             input.output_producer_options.size.line
+                                 .line_delta)),
                          max(LineNumberDelta(
-                                 buffer->Read(buffer_variables::margin_lines)),
+                                 buffer.Read(buffer_variables::margin_lines)),
                              LineNumberDelta(0)))))};
 
-  if (auto w = ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
-      !buffer->Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
+  if (auto w = ColumnNumberDelta(buffer.Read(buffer_variables::line_width));
+      !buffer.Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
     buffer_contents_window_input.columns_shown =
         min(buffer_contents_window_input.columns_shown, w);
   }
@@ -361,14 +361,14 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       buffer_contents_window_input.columns_shown);
   input.view_start = window.view_start;
 
-  if (buffer->Read(buffer_variables::reload_on_display)) buffer->Reload();
+  if (buffer.Read(buffer_variables::reload_on_display)) buffer.Reload();
 
   BufferOutputProducerOutput output{
       .lines = CenterVertically(
-          buffer->Read(buffer_variables::multiple_cursors)
-              ? ViewMultipleCursors(*buffer, input.output_producer_options,
+          buffer.Read(buffer_variables::multiple_cursors)
+              ? ViewMultipleCursors(buffer, input.output_producer_options,
                                     buffer_contents_window_input)
-              : LinesSpanView(*buffer, window.lines,
+              : LinesSpanView(buffer, window.lines,
                               input.output_producer_options, 1),
           status_lines.size(), total_size.line, window.status_position),
       .view_start = window.view_start};
@@ -377,8 +377,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (!status_lines.size().IsZero()) {
     output.lines = CenterOutput(std::move(output.lines), total_size.column);
     status_lines = CenterOutput(std::move(status_lines), total_size.column);
-    (buffer->status().GetType() == Status::Type::kPrompt ? output.lines
-                                                         : status_lines)
+    (buffer.status().GetType() == Status::Type::kPrompt ? output.lines
+                                                        : status_lines)
         .RemoveCursor();
 
     switch (window.status_position) {
@@ -410,8 +410,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
 
   BufferOutputProducerInput input{
       .output_producer_options = options,
-      // TODO(easy, 2022-04-30): Get rid of Unsafe.
-      .buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer),
+      // TODO(easy, 2022-04-30): Use VisitPointer instead?
+      .buffer = *buffer,
       .view_start = view_start()};
   if (options_.position_in_parent.has_value()) {
     input.output_producer_options.size.line =

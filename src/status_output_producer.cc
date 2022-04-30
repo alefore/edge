@@ -21,6 +21,7 @@ namespace {
 using infrastructure::Tracker;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::Pointer;
 
 wstring GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
@@ -232,9 +233,9 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   BufferOutputProducerInput buffer_producer_input{
       .output_producer_options = {.size = LineColumnDelta(context_lines,
                                                           options.size.column)},
-      // TODO(easy, 2022-04-30): Get rid of Unsafe.
-      .buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
-          options.status.context()),
+      // TODO(easy, 2022-04-30): Find a way to not crash here if context is
+      // null?
+      .buffer = Pointer(options.status.context()).Reference(),
       .view_start = {},
       .status_behavior = BufferOutputProducerInput::StatusBehavior::kIgnore};
 
