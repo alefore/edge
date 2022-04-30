@@ -37,8 +37,6 @@ extern "C" {
 #include "src/lazy_string_functional.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
-#include "src/parsers/diff.h"
-#include "src/parsers/markdown.h"
 #include "src/run_command_handler.h"
 #include "src/screen.h"
 #include "src/screen_vm.h"
