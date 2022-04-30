@@ -71,14 +71,14 @@ LineWithCursor::Generator ParseTreeHighlighter(
 // next, and this restriction won't apply.
 void GetSyntaxModifiersForLine(
     Range range, const ParseTree& tree, LineModifierSet syntax_modifiers,
-    std::map<ColumnNumber, LineModifierSet>* output) {
+    std::map<ColumnNumber, LineModifierSet>& output) {
   VLOG(5) << "Getting syntax for " << range << " from " << tree.range();
   if (range.Intersection(tree.range()).IsEmpty()) return;
   auto PushCurrentModifiers = [&](LineColumn tree_position) {
     if (tree_position.line != range.begin.line) return;
     auto column = tree_position.column.MinusHandlingOverflow(
         range.begin.column.ToDelta());
-    (*output)[column] = syntax_modifiers;
+    output[column] = syntax_modifiers;
   };
 
   PushCurrentModifiers(tree.range().end);
@@ -109,7 +109,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
     Line::Options options = input.line->CopyOptions();
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
-    GetSyntaxModifiersForLine(range, *root, {}, &syntax_modifiers);
+    GetSyntaxModifiersForLine(range, *root, {}, syntax_modifiers);
     LOG(INFO) << "Syntax tokens for " << range << ": "
               << syntax_modifiers.size();
 
