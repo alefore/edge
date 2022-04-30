@@ -84,7 +84,8 @@ class FileDescriptorReader {
   mutable struct timespec last_input_received_ = {0, 0};
 
   const language::NonNull<std::shared_ptr<math::DecayingCounter>>
-      lines_read_rate_ = MakeNonNullShared<math::DecayingCounter>(2.0);
+      lines_read_rate_ =
+          language::MakeNonNullShared<math::DecayingCounter>(2.0);
 };
 
 }  // namespace editor
