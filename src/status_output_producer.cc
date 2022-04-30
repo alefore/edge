@@ -30,7 +30,7 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
       current_line_marks != marks.end() &&
       current_line_marks->first.line == buffer.position().line) {
     auto mark = current_line_marks->second;
-    auto source = buffer.editor().buffers()->find(mark.source);
+    auto source = buffer.editor().buffers()->find(mark.source_buffer);
     if (source != buffer.editor().buffers()->end() &&
         LineNumber(0) + source->second->contents().size() > mark.source_line) {
       return source->second->contents().at(mark.source_line)->ToString();

@@ -1065,7 +1065,7 @@ void OpenBuffer::AppendLines(
       ResolvePath(options).Transform([&editor = editor(), buffer_name,
                                       source_line](ResolvePathOutput results) {
         LineMarks::Mark mark{
-            .source = buffer_name,
+            .source_buffer = buffer_name,
             .source_line = source_line,
             .target_buffer = BufferName(results.path),
             .target_line_column = results.position.value_or(LineColumn())};

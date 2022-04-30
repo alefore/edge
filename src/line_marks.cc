@@ -14,7 +14,7 @@ namespace afc::editor {
 using infrastructure::Tracker;
 
 void LineMarks::AddMark(Mark mark) {
-  marks_by_source_target[mark.source][mark.target_buffer].marks.insert(
+  marks_by_source_target[mark.source_buffer][mark.target_buffer].marks.insert(
       std::make_pair(mark.target_line_column, mark));
   marks_by_target[mark.target_buffer].marks.insert(
       std::make_pair(mark.target_line_column, mark));
@@ -29,7 +29,7 @@ void LineMarks::RemoveSource(const BufferName& source) {
 
     for (auto it = target_marks.marks.begin();
          it != target_marks.marks.end();) {
-      if (it->second.source == source)
+      if (it->second.source_buffer == source)
         target_marks.marks.erase(it++);
       else
         ++it;
@@ -37,7 +37,7 @@ void LineMarks::RemoveSource(const BufferName& source) {
 
     for (auto it = target_marks.expired_marks.begin();
          it != target_marks.expired_marks.end();) {
-      if (it->second.source == source)
+      if (it->second.source_buffer == source)
         target_marks.expired_marks.erase(it++);
       else
         ++it;
@@ -63,7 +63,7 @@ void LineMarks::ExpireMarksFromSource(const BufferContents& source_buffer,
     DVLOG(10) << "Mark transitions from fresh to expired.";
     for (auto& [position, mark] : source_target_marks.marks) {
       ExpiredMark expired_mark{
-          .source = source,
+          .source_buffer = source,
           .source_line_content =
               mark.source_line > source_buffer.EndLine()
                   ? NewLazyString(L"(expired)")
@@ -74,7 +74,7 @@ void LineMarks::ExpireMarksFromSource(const BufferContents& source_buffer,
       target_marks.expired_marks.insert({position, expired_mark});
       auto range = target_marks.marks.equal_range(position);
       while (range.first != range.second) {
-        if (range.first->second.source == source)
+        if (range.first->second.source_buffer == source)
           target_marks.marks.erase(range.first++);
         else
           ++range.first;
@@ -105,7 +105,7 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
         marks_by_target[target].expired_marks;
     for (auto it = target_expired_marks.begin();
          it != target_expired_marks.end();)
-      if (it->second.source == source)
+      if (it->second.source_buffer == source)
         target_expired_marks.erase(it++);
       else
         ++it;
@@ -139,13 +139,13 @@ LineMarks::GetExpiredMarksForTargetBuffer(
 }
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lm) {
-  os << "[" << lm.source << ":" << lm.target_buffer << ":"
+  os << "[" << lm.source_buffer << ":" << lm.target_buffer << ":"
      << lm.target_line_column << "]";
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::ExpiredMark& lm) {
-  os << "[expired:" << lm.source << ":" << lm.target_buffer << ":"
+  os << "[expired:" << lm.source_buffer << ":" << lm.target_buffer << ":"
      << lm.target_line_column << "]";
   return os;
 }

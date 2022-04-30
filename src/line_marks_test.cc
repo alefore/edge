@@ -17,7 +17,7 @@ class LineMarksTest {
   }
   LineMarks::Mark TestMark(LineNumber source_line,
                            LineColumn target_line_column) {
-    return LineMarks::Mark{.source = source_->name(),
+    return LineMarks::Mark{.source_buffer = source_->name(),
                            .source_line = source_line,
                            .target_buffer = target_->name(),
                            .target_line_column = target_line_column};
@@ -62,7 +62,7 @@ bool line_marks_test_registration = tests::Register(
                 *marks.GetMarksForTargetBuffer(test.target_name()).begin();
             CHECK_EQ(entry.first,
                      LineColumn(LineNumber(100), ColumnNumber(50)));
-            CHECK_EQ(entry.second.source, test.source_name());
+            CHECK_EQ(entry.second.source_buffer, test.source_name());
             CHECK_EQ(entry.second.source_line, LineNumber(4));
             CHECK_EQ(entry.second.target_buffer, test.target_name());
             CHECK_EQ(entry.second.target_line_column,

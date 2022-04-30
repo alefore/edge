@@ -425,7 +425,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   for (const auto& mark : marks) {
     static Tracker tracker(L"BufferMetadataOutput::Prepare:AddMetadataForMark");
     auto call = tracker.Call();
-    auto source = options.buffer.editor().buffers()->find(mark.source);
+    auto source = options.buffer.editor().buffers()->find(mark.source_buffer);
     output.push_back(MetadataLine{
         output.empty() ? L'!' : L' ',
         output.empty() ? LineModifier::RED : LineModifier::DIM,
@@ -440,7 +440,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   // expired). We use `marks_strings` to detect this.
   std::set<std::wstring> marks_strings;
   for (const auto& mark : marks) {
-    if (auto source = options.buffer.editor().buffers()->find(mark.source);
+    if (auto source =
+            options.buffer.editor().buffers()->find(mark.source_buffer);
         source != options.buffer.editor().buffers()->end() &&
         mark.source_line < LineNumber(0) + source->second->contents().size()) {
       marks_strings.insert(

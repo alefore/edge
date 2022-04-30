@@ -19,7 +19,7 @@ struct LineMarks {
  public:
   struct Mark {
     // What created this mark?
-    const BufferName source = BufferName(L"");
+    const BufferName source_buffer = BufferName(L"");
 
     // What line in the source did this mark occur in?
     const LineNumber source_line;
@@ -39,7 +39,7 @@ struct LineMarks {
   // previous run of the compiler) while they're being updated.
   struct ExpiredMark {
     // What created this mark?
-    const BufferName source = BufferName(L"");
+    const BufferName source_buffer = BufferName(L"");
 
     // The contents in the source (and line) that created this mark.
     const language::NonNull<std::shared_ptr<LazyString>> source_line_content;
