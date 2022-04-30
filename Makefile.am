@@ -273,14 +273,14 @@ src/widget.h
 BENCHMARK_SOURCES = \
 src/const_tree.cc \
 src/const_tree.h \
+src/infrastructure/time.cc \
+src/infrastructure/time.h \
+src/language/wstring.cc \
+src/language/wstring.h \
 src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
 src/tests/tests.cc \
-src/tests/tests.h \
-src/time.cc \
-src/time.h \
-src/wstring.cc \
-src/wstring.h
+src/tests/tests.h
 
 CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
 
