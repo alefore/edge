@@ -25,6 +25,7 @@ class FileSystemDriver {
   futures::ValueOrError<FileDescriptor> Open(Path path, int flags,
                                              mode_t mode) const;
   futures::Value<language::PossibleError> Close(FileDescriptor fd) const;
+  futures::Value<language::PossibleError> Unlink(Path path) const;
   futures::ValueOrError<struct stat> Stat(Path path) const;
   futures::Value<language::PossibleError> Rename(Path oldpath,
                                                  Path newpath) const;

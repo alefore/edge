@@ -36,6 +36,13 @@ futures::Value<PossibleError> FileSystemDriver::Close(FileDescriptor fd) const {
       [fd] { return SyscallReturnValue(L"Close", close(fd.read())); });
 }
 
+futures::Value<PossibleError> FileSystemDriver::Unlink(Path path) const {
+  return thread_pool_.Run([path = std::move(path)]() {
+    return SyscallReturnValue(L"Unlink",
+                              unlink(ToByteString(path.read()).c_str()));
+  });
+}
+
 futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
   return thread_pool_.Run([path = std::move(
                                path)]() -> language::ValueOrError<struct stat> {
