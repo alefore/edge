@@ -282,13 +282,15 @@ futures::Value<PossibleError> SaveContentsToFile(
       });
 }
 
-futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
+futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
     EditorState& editor_state, const Path& edge_path) {
   BufferName buffer_name(L"- search paths");
   auto it = editor_state.buffers()->find(buffer_name);
-  futures::Value<std::shared_ptr<OpenBuffer>> output =
+  futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> output =
       it != editor_state.buffers()->end()
-          ? futures::Past(it->second)
+          // TODO(easy, 2022-05-01): How do we get rid of Unsafe?
+          ? futures::Past(
+                NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second))
           : OpenFile(
                 OpenFileOptions{
                     .editor_state = editor_state,
@@ -297,26 +299,21 @@ futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
                         edge_path, Path::FromString(L"/search_paths").value()),
                     .insertion_type = BuffersList::AddBufferType::kIgnore,
                     .use_search_paths = false})
-                .Transform(
-                    [&editor_state](
-                        std::map<BufferName,
-                                 std::shared_ptr<OpenBuffer>>::iterator it) {
-                      CHECK(it != editor_state.buffers()->end());
-                      CHECK(it->second != nullptr);
-                      it->second->Set(buffer_variables::save_on_close, true);
-                      it->second->Set(
-                          buffer_variables::trigger_reload_on_buffer_write,
-                          false);
-                      it->second->Set(buffer_variables::show_in_buffers_list,
-                                      false);
-                      if (!editor_state.has_current_buffer()) {
-                        editor_state.set_current_buffer(
-                            it->second, CommandArgumentModeApplyMode::kFinal);
-                      }
-                      return it->second;
-                    });
+                .Transform([&editor_state](std::shared_ptr<OpenBuffer> buffer) {
+                  // TODO(easy, 2022-05-01): Ugh: Get rid of this check.
+                  CHECK(buffer != nullptr);
+                  buffer->Set(buffer_variables::save_on_close, true);
+                  buffer->Set(buffer_variables::trigger_reload_on_buffer_write,
+                              false);
+                  buffer->Set(buffer_variables::show_in_buffers_list, false);
+                  if (!editor_state.has_current_buffer()) {
+                    editor_state.set_current_buffer(
+                        buffer, CommandArgumentModeApplyMode::kFinal);
+                  }
+                  return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer);
+                });
 
-  return output.Transform([](std::shared_ptr<OpenBuffer> buffer) {
+  return output.Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
     return buffer->WaitForEndOfFile().Transform(
         [buffer](EmptyValue) { return buffer; });
   });
@@ -331,12 +328,8 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
              paths.begin(), paths.end(),
              [&editor_state, output](Path edge_path) {
                return GetSearchPathsBuffer(editor_state, edge_path)
-                   .Transform([&editor_state, output,
-                               edge_path](std::shared_ptr<OpenBuffer> buffer) {
-                     if (buffer == nullptr) {
-                       LOG(INFO) << edge_path << ": No search paths buffer.";
-                       return futures::IterationControlCommand::kContinue;
-                     }
+                   .Transform([&editor_state, output, edge_path](
+                                  NonNull<std::shared_ptr<OpenBuffer>> buffer) {
                      buffer->contents().ForEach([&editor_state,
                                                  output](wstring line) {
                        auto path = Path::FromString(line);
@@ -504,8 +497,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
 
 struct OpenFileResolvePathOutput {
   // If set, this is the buffer to open.
-  std::optional<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>
-      buffer = std::nullopt;
+  std::shared_ptr<OpenBuffer> buffer = nullptr;
   std::optional<Path> path = std::nullopt;
   std::optional<LineColumn> position = std::nullopt;
   wstring pattern = L"";
@@ -560,7 +552,7 @@ const bool ends_in_registration = tests::Register(
 
 futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
     EditorState& editor_state, std::shared_ptr<std::vector<Path>> search_paths,
-    std::optional<Path> path, bool ignore_if_not_found,
+    std::optional<Path> path,
     std::shared_ptr<FileSystemDriver> file_system_driver) {
   ResolvePathOptions resolve_path_options =
       ResolvePathOptions::NewWithEmptySearchPaths(editor_state,
@@ -571,14 +563,14 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
     if (path_components.IsError()) return futures::Past(false);
     for (auto it = editor_state.buffers()->begin();
          it != editor_state.buffers()->end(); ++it) {
-      CHECK(it->second != nullptr);
-      auto buffer_path =
-          Path::FromString(it->second->Read(buffer_variables::path));
+      // TODO(easy, 2022-05-01): Get rid of Unsafe. Use types.
+      auto buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second);
+      auto buffer_path = Path::FromString(buffer->Read(buffer_variables::path));
       if (buffer_path.IsError()) continue;
       auto buffer_components = buffer_path.value().DirectorySplit();
       if (buffer_components.IsError()) continue;
       if (EndsIn(path_components.value(), buffer_components.value())) {
-        output->buffer = it;
+        output->buffer = buffer.get_shared();
         return futures::Past(true);
       }
     }
@@ -590,16 +582,23 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
 
   return ResolvePath(resolve_path_options)
       .Transform([output](ResolvePathOutput input) {
-        CHECK(output->buffer.has_value());
+        // If we're here, ResolvePath must have succeeded (otherwise this would
+        // have been an error). This only succeeded if the validator returned
+        // true. The validator only returns true if it sets output->buffer.
+        //
+        // TODO(2022-05-01): The above is ugly. Try to use types to ensure
+        // correctness.
+        CHECK(output->buffer != nullptr);
+
         if (input.position.has_value()) {
-          output->buffer.value()->second->set_position(input.position.value());
+          output->buffer->set_position(input.position.value());
         }
         // TODO: Apply pattern.
         return futures::Past(Success(std::move(*output)));
       })
-      .ConsumeErrors([&editor_state, path, ignore_if_not_found, output,
-                      resolve_path_options, search_paths,
-                      file_system_driver](Error) {
+      .ConsumeErrors([&editor_state, path, output, resolve_path_options,
+                      search_paths, file_system_driver](Error) {
+        CHECK(output->buffer == nullptr);
         auto resolve_path_options_copy = resolve_path_options;
         resolve_path_options_copy.search_paths = *search_paths;
         resolve_path_options_copy.validator =
@@ -607,29 +606,24 @@ futures::Value<OpenFileResolvePathOutput> OpenFileResolvePath(
               return CanStatPath(file_system_driver, path);
             };
         return ResolvePath(resolve_path_options_copy)
-            .Transform([path, ignore_if_not_found,
-                        resolve_path_options_copy =
-                            resolve_path_options](ResolvePathOutput input) {
+            .Transform([path, resolve_path_options_copy = resolve_path_options](
+                           ResolvePathOutput input) {
               return futures::Past(Success(OpenFileResolvePathOutput{
                   .path = input.path,
                   .position = input.position,
                   .pattern = input.pattern.value_or(L"")}));
             })
-            .ConsumeErrors(
-                [&editor_state, path, ignore_if_not_found, output](Error) {
-                  if (ignore_if_not_found) {
-                    output->buffer = editor_state.buffers()->end();
-                  }
-                  if (path.has_value()) {
-                    output->path = path.value();
-                  }
-                  return futures::Past(std::move(*output));
-                });
+            .ConsumeErrors([&editor_state, path, output](Error) {
+              if (path.has_value()) {
+                output->path = path.value();
+              }
+              return futures::Past(std::move(*output));
+            });
       });
 }
 
-futures::Value<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>
-OpenFile(const OpenFileOptions& options) {
+futures::Value<std::shared_ptr<OpenBuffer>> OpenFile(
+    const OpenFileOptions& options) {
   EditorState& editor_state = options.editor_state;
 
   auto search_paths = std::make_shared<std::vector<Path>>(
@@ -646,21 +640,17 @@ OpenFile(const OpenFileOptions& options) {
       .Transform([&editor_state, options, search_paths,
                   file_system_driver](EmptyValue) {
         return OpenFileResolvePath(editor_state, search_paths, options.path,
-                                   options.ignore_if_not_found,
                                    file_system_driver);
       })
       .Transform([options,
                   file_system_driver](OpenFileResolvePathOutput input) {
-        if (input.buffer.has_value()) {
+        if (input.buffer != nullptr) {
           // Found the buffer, just return it.
-          auto value = input.buffer.value();
-          if (value != options.editor_state.buffers()->end()) {
-            CHECK(value->second != nullptr);
-            options.editor_state.AddBuffer(value->second,
-                                           options.insertion_type);
-          }
-          return input.buffer.value();
+          options.editor_state.AddBuffer(input.buffer, options.insertion_type);
+          return std::move(input.buffer);
         }
+        if (options.ignore_if_not_found) return input.buffer;
+
         auto buffer_options = std::make_shared<OpenBuffer::Options>(
             OpenBuffer::Options{.editor = options.editor_state});
 
@@ -703,7 +693,6 @@ OpenFile(const OpenFileOptions& options) {
             };
 
         std::shared_ptr<OpenBuffer> buffer;
-
         if (options.name.has_value()) {
           buffer_options->name = *options.name;
         } else if (buffer_options->path.has_value()) {
@@ -742,18 +731,22 @@ OpenFile(const OpenFileOptions& options) {
           JumpToNextMatch(options.editor_state, search_options,
                           *insert_result.first->second);
         }
-        return insert_result.first;
+        return insert_result.first->second;
       });
 }
 
-futures::Value<std::shared_ptr<OpenBuffer>> OpenAnonymousBuffer(
+futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> OpenAnonymousBuffer(
     EditorState& editor_state) {
   return OpenFile(OpenFileOptions{
                       .editor_state = editor_state,
                       .path = std::nullopt,
                       .insertion_type = BuffersList::AddBufferType::kIgnore,
                       .use_search_paths = false})
-      .Transform([](auto it) { return it->second; });
+      .Transform([](std::shared_ptr<OpenBuffer> buffer) {
+        // This is safe (but ugly) because we don't set ignore_if_not_found.
+        CHECK(buffer != nullptr);
+        return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(std::move(buffer));
+      });
 }
 
 }  // namespace afc::editor

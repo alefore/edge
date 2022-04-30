@@ -90,11 +90,14 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(
     ResolvePathOptions options);
 
 // Creates a new buffer for the file at the path given.
-futures::Value<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>
-OpenFile(const OpenFileOptions& options);
+//
+// If `ignore_if_not_found` is true, can return nullptr. Otherwise, will always
+// return a value.
+futures::Value<std::shared_ptr<OpenBuffer>> OpenFile(
+    const OpenFileOptions& options);
 
-futures::Value<shared_ptr<OpenBuffer>> OpenAnonymousBuffer(
-    EditorState& editor_state);
+futures::Value<language::NonNull<std::shared_ptr<OpenBuffer>>>
+OpenAnonymousBuffer(EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc

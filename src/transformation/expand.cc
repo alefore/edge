@@ -141,8 +141,8 @@ bool predictor_transformation_tests_register = tests::Register(
       }}});
 }
 
-using OpenFileCallback = std::function<
-    futures::Value<std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator>(
+using OpenFileCallback =
+    std::function<futures::Value<std::shared_ptr<OpenBuffer>>(
         const OpenFileOptions& options)>;
 
 class ReadAndInsert : public CompositeTransformation {
@@ -173,30 +173,27 @@ class ReadAndInsert : public CompositeTransformation {
                    .ignore_if_not_found = true,
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
-        .Transform(
-            [full_path, input = std::move(input)](
-                std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
-                    buffer_it) {
-              if (buffer_it == input.buffer.editor().buffers()->end()) {
-                LOG(INFO) << "Unable to open file: " << full_path;
-                return futures::Past(Output());
-              }
-              return buffer_it->second->WaitForEndOfFile().Transform(
-                  [buffer_to_insert = buffer_it->second,
-                   input = std::move(input)](EmptyValue) {
-                    Output output;
-                    output.Push(transformation::Insert{
-                        .contents_to_insert =
-                            buffer_to_insert->contents().copy()});
-                    LineColumn position = buffer_to_insert->position();
-                    if (position.line.IsZero()) {
-                      position.column += input.position.column.ToDelta();
-                    }
-                    position.line += input.position.line.ToDelta();
-                    output.Push(transformation::SetPosition(position));
-                    return output;
-                  });
-            });
+        .Transform([full_path, input = std::move(input)](
+                       std::shared_ptr<OpenBuffer> buffer) {
+          if (buffer == nullptr) {
+            LOG(INFO) << "Unable to open file: " << full_path;
+            return futures::Past(Output());
+          }
+          return buffer->WaitForEndOfFile().Transform(
+              [buffer_to_insert = buffer,
+               input = std::move(input)](EmptyValue) {
+                Output output;
+                output.Push(transformation::Insert{
+                    .contents_to_insert = buffer_to_insert->contents().copy()});
+                LineColumn position = buffer_to_insert->position();
+                if (position.line.IsZero()) {
+                  position.column += input.position.column.ToDelta();
+                }
+                position.line += input.position.line.ToDelta();
+                output.Push(transformation::SetPosition(position));
+                return output;
+              });
+        });
   }
 
  private:
@@ -213,12 +210,11 @@ const bool read_and_insert_tests_registration = tests::Register(
                auto buffer = NewBufferForTests();
                std::optional<Path> path_opened;
                bool transformation_done = false;
-               ReadAndInsert(
-                   Path::FromString(L"unexistent").value(),
-                   [&](OpenFileOptions options) {
-                     path_opened = options.path;
-                     return futures::Past(buffer->editor().buffers()->end());
-                   })
+               ReadAndInsert(Path::FromString(L"unexistent").value(),
+                             [&](OpenFileOptions options) {
+                               path_opened = options.path;
+                               return futures::Past(nullptr);
+                             })
                    .Apply(CompositeTransformation::Input{
                        .editor = buffer->editor(), .buffer = *buffer})
                    .SetConsumer([&](CompositeTransformation::Output) {

@@ -2112,23 +2112,19 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                    .insertion_type =
                                        BuffersList::AddBufferType::kIgnore,
                                    .use_search_paths = false})
-                   .Transform(
-                       [data, adjusted_position](
-                           std::map<BufferName, std::shared_ptr<OpenBuffer>>::
-                               iterator buffer_context_it) {
-                         if (adjusted_position !=
-                             data->source->AdjustLineColumn(
-                                 data->source->position())) {
-                           data->output = Error(L"Computation was cancelled.");
-                           return futures::IterationControlCommand::kStop;
-                         }
-                         if (buffer_context_it ==
-                             data->source->editor().buffers()->end()) {
-                           return futures::IterationControlCommand::kContinue;
-                         }
-                         data->output = buffer_context_it->second;
-                         return futures::IterationControlCommand::kStop;
-                       });
+                   .Transform([data, adjusted_position](
+                                  std::shared_ptr<OpenBuffer> buffer_context) {
+                     if (adjusted_position != data->source->AdjustLineColumn(
+                                                  data->source->position())) {
+                       data->output = Error(L"Computation was cancelled.");
+                       return futures::IterationControlCommand::kStop;
+                     }
+                     if (buffer_context == nullptr) {
+                       return futures::IterationControlCommand::kContinue;
+                     }
+                     data->output = buffer_context;
+                     return futures::IterationControlCommand::kStop;
+                   });
              })
       .Transform([data](IterationControlCommand iteration_control_command) {
         return iteration_control_command ==

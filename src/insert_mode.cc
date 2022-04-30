@@ -599,8 +599,9 @@ void EnterInsertMode(InsertModeOptions options) {
   if (shared_options->buffers.value().empty()) {
     anonymous_buffer_future =
         OpenAnonymousBuffer(shared_options->editor_state)
-            .Transform([shared_options](std::shared_ptr<OpenBuffer> buffer) {
-              shared_options->buffers.value().push_back(buffer);
+            .Transform([shared_options](
+                           NonNull<std::shared_ptr<OpenBuffer>> buffer) {
+              shared_options->buffers.value().push_back(buffer.get_shared());
               return EmptyValue();
             });
   }

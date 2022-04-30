@@ -32,34 +32,30 @@ futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
 }
 
 // Returns the buffer to show for context, or nullptr.
+//
+// TODO(easy, 2022-05-01): Pass editor by ref. Change PredictResults to make
+// predictions_buffer non-null.
 futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
     EditorState* editor, const PredictResults& results,
     const LazyString& line) {
-  auto output = futures::Past(std::shared_ptr<OpenBuffer>());
+  futures::Value<std::shared_ptr<OpenBuffer>> output = futures::Past(nullptr);
   if (results.found_exact_match) {
     auto path = Path::FromString(line.ToString());
     if (path.IsError()) {
-      return output;
+      return futures::Past(nullptr);
     }
-    output =
-        OpenFile(OpenFileOptions{
-                     .editor_state = *editor,
-                     .path = path.value(),
-                     .ignore_if_not_found = true,
-                     .insertion_type = BuffersList::AddBufferType::kIgnore})
-            .Transform(
-                [editor](
-                    std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
-                        result) {
-                  return result != editor->buffers()->end() ? result->second
-                                                            : nullptr;
-                });
+    output = OpenFile(
+        OpenFileOptions{.editor_state = *editor,
+                        .path = path.value(),
+                        .ignore_if_not_found = true,
+                        .insertion_type = BuffersList::AddBufferType::kIgnore});
   }
-  return output.Transform([results](std::shared_ptr<OpenBuffer> buffer) {
+  return output.Transform([results](std::shared_ptr<OpenBuffer> buffer)
+                              -> std::shared_ptr<OpenBuffer> {
     if (buffer != nullptr) return buffer;
     if (results.predictions_buffer->lines_size() == LineNumberDelta(1) &&
-        results.predictions_buffer->LineAt(LineNumber())->empty()) {
-      return std::shared_ptr<OpenBuffer>();
+        results.predictions_buffer->contents().at(LineNumber())->empty()) {
+      return nullptr;
     }
     LOG(INFO) << "Setting context: "
               << results.predictions_buffer->Read(buffer_variables::name);

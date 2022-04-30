@@ -451,12 +451,12 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                                args[2]->boolean
                                    ? BuffersList::AddBufferType::kVisit
                                    : BuffersList::AddBufferType::kIgnore})
-                .Transform(
-                    [](std::map<BufferName,
-                                std::shared_ptr<OpenBuffer>>::iterator result) {
-                      return EvaluationOutput::Return(
-                          Value::NewObject(L"Buffer", result->second));
-                    });
+                .Transform([](std::shared_ptr<OpenBuffer> buffer) {
+                  // TODO(easy, 2022-05-01): Remove check.
+                  CHECK(buffer != nullptr);
+                  return EvaluationOutput::Return(
+                      Value::NewObject(L"Buffer", buffer));
+                });
           }));
 
   editor_type->AddField(
@@ -913,12 +913,14 @@ futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
   }
 
   return OpenAnonymousBuffer(*this).Transform(
-      [this, c](std::shared_ptr<OpenBuffer> buffer) {
+      [this, c](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
         if (!has_current_buffer()) {
-          buffer_tree_.AddBuffer(buffer, BuffersList::AddBufferType::kOnlyList);
-          set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
+          buffer_tree_.AddBuffer(buffer.get_shared(),
+                                 BuffersList::AddBufferType::kOnlyList);
+          set_current_buffer(buffer.get_shared(),
+                             CommandArgumentModeApplyMode::kFinal);
           CHECK(has_current_buffer());
-          CHECK(current_buffer() == buffer);
+          CHECK(current_buffer() == buffer.get_shared());
         }
         buffer->mode()->ProcessInput(c);
         return EmptyValue();
@@ -1016,40 +1018,37 @@ void EditorState::PushPosition(LineColumn position) {
       !buffer->Read(buffer_variables::push_positions_to_history)) {
     return;
   }
-  auto positions_buffer = futures::Past(std::shared_ptr<OpenBuffer>());
-  if (auto buffer_it = buffers_.find(PositionsBufferName());
-      buffer_it != buffers_.end()) {
-    positions_buffer = futures::Past(buffer_it->second);
-  } else {
-    // Insert a new entry into the list of buffers.
-    positions_buffer =
-        OpenFile(OpenFileOptions{
-                     .editor_state = *this,
-                     .name = PositionsBufferName(),
-                     .path = edge_path().empty()
-                                 ? std::optional<Path>()
-                                 : Path::Join(
-                                       edge_path().front(),
-                                       Path::FromString(L"positions").value()),
-                     .insertion_type = BuffersList::AddBufferType::kIgnore})
-            .Transform(
-                [](std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator
-                       buffer_it) {
-                  CHECK(buffer_it->second != nullptr);
-                  buffer_it->second->Set(buffer_variables::save_on_close, true);
-                  buffer_it->second->Set(
-                      buffer_variables::trigger_reload_on_buffer_write, false);
-                  buffer_it->second->Set(buffer_variables::show_in_buffers_list,
-                                         false);
-                  return buffer_it->second;
+  auto buffer_it = buffers_.find(PositionsBufferName());
+  futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> positions_buffer =
+      buffer_it != buffers_.end()
+          // TODO(easy, 2022-05-01): Get rid of Unsafe.
+          ? futures::Past(
+                NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer_it->second))
+          // Insert a new entry into the list of buffers.
+          : OpenFile(
+                OpenFileOptions{
+                    .editor_state = *this,
+                    .name = PositionsBufferName(),
+                    .path = edge_path().empty()
+                                ? std::optional<Path>()
+                                : Path::Join(
+                                      edge_path().front(),
+                                      Path::FromString(L"positions").value()),
+                    .insertion_type = BuffersList::AddBufferType::kIgnore})
+                .Transform([](std::shared_ptr<OpenBuffer> buffer) {
+                  // TODO(easy, 2022-05-01): Remove ugly check below.
+                  CHECK(buffer != nullptr);
+                  buffer->Set(buffer_variables::save_on_close, true);
+                  buffer->Set(buffer_variables::trigger_reload_on_buffer_write,
+                              false);
+                  buffer->Set(buffer_variables::show_in_buffers_list, false);
+                  return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer);
                 });
-  }
 
   positions_buffer.SetConsumer(
       [line_to_insert = MakeNonNullShared<Line>(
            position.ToString() + L" " + buffer->Read(buffer_variables::name))](
-          std::shared_ptr<OpenBuffer> buffer) {
-        CHECK(buffer != nullptr);
+          NonNull<std::shared_ptr<OpenBuffer>> buffer) {
         buffer->CheckPosition();
         CHECK_LE(buffer->position().line,
                  LineNumber(0) + buffer->contents().size());

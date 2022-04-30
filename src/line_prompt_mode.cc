@@ -211,25 +211,21 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetHistoryBuffer(
                                                                L"_history")
                                          .value())),
                    .insertion_type = BuffersList::AddBufferType::kIgnore})
-      .Transform(
-          [&editor_state](
-              std::map<BufferName, std::shared_ptr<OpenBuffer>>::iterator it) {
-            CHECK(it != editor_state.buffers()->end());
-            // TODO(2022-04-23): Change editor_state.buffers() to use NonNull.
-            CHECK(it->second != nullptr);
-            it->second->Set(buffer_variables::save_on_close, true);
-            it->second->Set(buffer_variables::trigger_reload_on_buffer_write,
-                            false);
-            it->second->Set(buffer_variables::show_in_buffers_list, false);
-            it->second->Set(buffer_variables::atomic_lines, true);
-            it->second->Set(buffer_variables::close_after_idle_seconds, 20.0);
-            if (!editor_state.has_current_buffer()) {
-              // Seems lame, but what can we do?
-              editor_state.set_current_buffer(
-                  it->second, CommandArgumentModeApplyMode::kFinal);
-            }
-            return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second);
-          });
+      .Transform([&editor_state](std::shared_ptr<OpenBuffer> buffer) {
+        // TODO(easy, 2022-05-01): Remove ugly check.
+        CHECK(buffer != nullptr);
+        buffer->Set(buffer_variables::save_on_close, true);
+        buffer->Set(buffer_variables::trigger_reload_on_buffer_write, false);
+        buffer->Set(buffer_variables::show_in_buffers_list, false);
+        buffer->Set(buffer_variables::atomic_lines, true);
+        buffer->Set(buffer_variables::close_after_idle_seconds, 20.0);
+        if (!editor_state.has_current_buffer()) {
+          // Seems lame, but what can we do?
+          editor_state.set_current_buffer(buffer,
+                                          CommandArgumentModeApplyMode::kFinal);
+        }
+        return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer);
+      });
 }
 
 ValueOrError<
