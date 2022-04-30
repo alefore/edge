@@ -114,9 +114,8 @@ futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
     CompositeTransformation::Input input) const {
   static Tracker tracker(L"GotoTransformation::Apply");
   auto call = tracker.Call();
-  // TODO(easy, 2022-04-27): Don't pass the buffer by address.
   auto position = input.modifiers.structure->ComputeGoToPosition(
-      &input.buffer, input.modifiers, input.position, calls_);
+      input.buffer, input.modifiers, input.position, calls_);
   return futures::Past(
       position.has_value() ? Output::SetPosition(position.value()) : Output());
 }
