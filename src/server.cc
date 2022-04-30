@@ -32,6 +32,7 @@ namespace editor {
 using infrastructure::FileDescriptor;
 using infrastructure::FileSystemDriver;
 using infrastructure::Path;
+using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::NonNull;
@@ -154,25 +155,25 @@ void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
   }
 }
 
-futures::Value<PossibleError> GenerateContents(
-    std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer& target) {
+futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
   wstring address_str = target.Read(buffer_variables::path);
-  auto path = Path::FromString(address_str);
+  ValueOrError<Path> path = Path::FromString(address_str);
   if (path.IsError()) {
     return futures::Past(PossibleError(path.error()));
   }
 
   LOG(INFO) << L"Server starts: " << path.value();
-  return OnError(file_system_driver->Open(path.value(), O_RDONLY | O_NDELAY, 0),
-                 [path](Error error) {
-                   LOG(ERROR) << path.value()
-                              << ": Server: GenerateContents: Open failed: "
-                              << error.description;
+  return OnError(target.file_system_driver().Open(path.value(),
+                                                  O_RDONLY | O_NDELAY, 0),
+                 [path = path.value()](Error error) {
+                   LOG(ERROR)
+                       << path << ": Server: GenerateContents: Open failed: "
+                       << error.description;
                    return error;
                  })
-      .Transform([&target](FileDescriptor fd) {
+      .Transform([target = target.shared_from_this()](FileDescriptor fd) {
         LOG(INFO) << "Server received connection: " << fd;
-        target.SetInputFiles(fd, FileDescriptor(-1), false, -1);
+        target->SetInputFiles(fd, FileDescriptor(-1), false, -1);
         return Success();
       });
 }
@@ -187,27 +188,34 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
   LOG(INFO) << "Starting server: " << output.value().read();
   setenv("EDGE_PARENT_ADDRESS", ToByteString(output.value().read()).c_str(), 1);
   auto buffer = OpenServerBuffer(editor_state, output.value());
-  buffer->Set(buffer_variables::reload_after_exit, true);
-  buffer->Set(buffer_variables::default_reload_after_exit, true);
   return output;
 }
 
 NonNull<std::shared_ptr<OpenBuffer>> OpenServerBuffer(EditorState& editor_state,
                                                       const Path& address) {
-  auto buffer = OpenBuffer::New(
-      {.editor = editor_state,
-       .name = editor_state.GetUnusedBufferName(L"- server"),
-       .path = address,
-       .generate_contents =
-           [file_system_driver = std::make_shared<FileSystemDriver>(
-                editor_state.thread_pool())](OpenBuffer& target) {
-             return GenerateContents(file_system_driver, target);
-           }});
-  buffer->Set(buffer_variables::clear_on_reload, false);
-  buffer->Set(buffer_variables::vm_exec, true);
-  buffer->Set(buffer_variables::show_in_buffers_list, false);
+  NonNull<std::shared_ptr<OpenBuffer>> buffer = OpenBuffer::New(
+      OpenBuffer::Options{.editor = editor_state,
+                          .name = editor_state.GetUnusedBufferName(L"- server"),
+                          .path = address,
+                          .generate_contents = GenerateContents});
+
+  buffer->NewCloseFuture().Transform([buffer, address](EmptyValue) {
+    return buffer->file_system_driver().Unlink(address);
+  });
+
+  // We need to trigger the call to `handle_save` in order to unlink the file
+  // in `address`.
+  buffer->SetDiskState(OpenBuffer::DiskState::kStale);
+
   buffer->Set(buffer_variables::allow_dirty_delete, true);
+  buffer->Set(buffer_variables::clear_on_reload, false);
+  buffer->Set(buffer_variables::default_reload_after_exit, true);
   buffer->Set(buffer_variables::display_progress, false);
+  buffer->Set(buffer_variables::persist_state, false);
+  buffer->Set(buffer_variables::reload_after_exit, true);
+  buffer->Set(buffer_variables::save_on_close, true);
+  buffer->Set(buffer_variables::show_in_buffers_list, false);
+  buffer->Set(buffer_variables::vm_exec, true);
 
   editor_state.buffers()->insert({buffer->name(), buffer.get_shared()});
   buffer->Reload();

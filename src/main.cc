@@ -533,8 +533,5 @@ int main(int argc, const char** argv) {
     }
   }
 
-  LOG(INFO) << "Removing server file: " << server_path;
-  // TODO(2022-04-18): Move this functionality to the server's buffer?
-  unlink(ToByteString(server_path.read()).c_str());
   return editor_state().exit_value().value();
 }
