@@ -206,5 +206,10 @@ decltype(std::declval<Callable>()(NonNull<T>::Unsafe(T()))) VisitPointer(
   }
 }
 
+template <typename T, typename Callable, typename NullCallable>
+auto VisitPointer(std::weak_ptr<T> t, Callable callable,
+                  NullCallable null_callable) {
+  return VisitPointer(t.lock(), std::move(callable), std::move(null_callable));
+}
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_SAFE_TYPES_H__
