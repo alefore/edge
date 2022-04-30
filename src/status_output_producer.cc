@@ -230,17 +230,18 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
        .width = ColumnNumberDelta(1)});
   CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);
 
-  BufferOutputProducerInput buffer_producer_input{
-      .output_producer_options = {.size = LineColumnDelta(context_lines,
-                                                          options.size.column)},
-      // TODO(easy, 2022-04-30): Find a way to not crash here if context is
-      // null?
-      .buffer = Pointer(options.status.context()).Reference(),
-      .view_start = {},
-      .status_behavior = BufferOutputProducerInput::StatusBehavior::kIgnore};
+  BufferOutputProducerOutput buffer_output =
+      CreateBufferOutputProducer(BufferOutputProducerInput{
+          .output_producer_options = {.size = LineColumnDelta(
+                                          context_lines, options.size.column)},
+          // TODO(easy, 2022-04-30): Find a way to not crash here if context is
+          // null?
+          .buffer = Pointer(options.status.context()).Reference(),
+          .view_start = {},
+          .status_behavior =
+              BufferOutputProducerInput::StatusBehavior::kIgnore});
 
-  context_columns_vector.push_back(
-      {.lines = CreateBufferOutputProducer(buffer_producer_input).lines});
+  context_columns_vector.push_back({.lines = buffer_output.lines});
   CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);
 
   auto context_rows = OutputFromColumnsVector(context_columns_vector);

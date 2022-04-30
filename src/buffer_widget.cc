@@ -280,7 +280,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input) {
-  OpenBuffer& buffer = input.buffer;
+  const OpenBuffer& buffer = input.buffer;
 
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer.Read(buffer_variables::name);
@@ -301,9 +301,9 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       break;
   }
 
-  buffer.view_size().Set(LineColumnDelta(
+  const LineColumnDelta output_view_size(
       input.output_producer_options.size.line - status_lines.size(),
-      input.output_producer_options.size.column));
+      input.output_producer_options.size.column);
 
   bool paste_mode = buffer.Read(buffer_variables::paste_mode);
 
@@ -352,7 +352,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (window.lines.empty())
     return BufferOutputProducerOutput{
         .lines = RepeatLine({}, input.output_producer_options.size.line),
-        .view_start = {}};
+        .view_start = {},
+        .view_size = output_view_size};
 
   LineColumnDelta total_size = input.output_producer_options.size;
   input.output_producer_options.size = LineColumnDelta(
@@ -360,8 +361,6 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
           input.output_producer_options.size.line - status_lines.size()),
       buffer_contents_window_input.columns_shown);
   input.view_start = window.view_start;
-
-  if (buffer.Read(buffer_variables::reload_on_display)) buffer.Reload();
 
   BufferOutputProducerOutput output{
       .lines = CenterVertically(
@@ -371,7 +370,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
               : LinesSpanView(buffer, window.lines,
                               input.output_producer_options, 1),
           status_lines.size(), total_size.line, window.status_position),
-      .view_start = window.view_start};
+      .view_start = window.view_start,
+      .view_size = output_view_size};
   CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
   if (!status_lines.size().IsZero()) {
@@ -408,6 +408,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
     return RepeatLine({}, options.size.line);
   }
 
+  if (buffer->Read(buffer_variables::reload_on_display)) buffer->Reload();
+
   BufferOutputProducerInput input{
       .output_producer_options = options,
       // TODO(easy, 2022-04-30): Use VisitPointer instead?
@@ -428,6 +430,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
       (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
     buffer->Set(buffer_variables::view_start, output.view_start);
   }
+  buffer->view_size().Set(output.view_size);
 
   if (options_.position_in_parent.has_value()) {
     FrameOutputProducerOptions frame_options;

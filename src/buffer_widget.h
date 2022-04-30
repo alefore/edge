@@ -15,7 +15,14 @@ struct BufferOutputProducerOutput {
   LineWithCursor::Generator::Vector lines;
   // Typically a copy of `BufferOutputProducerInput::view_start`, but may have
   // been adjusted.
+  //
+  // It is the responsibility of the caller to propagate it to the buffer.
   LineColumn view_start;
+
+  // The effective size of the view.
+  //
+  // It is the responsibility of the caller to propagate it to the buffer.
+  LineColumnDelta view_size;
 };
 
 struct BufferOutputProducerInput {
@@ -25,7 +32,7 @@ struct BufferOutputProducerInput {
   //
   // * Reloading it (variable reload_on_view).
   // * Setting the view size.
-  OpenBuffer& buffer;
+  const OpenBuffer& buffer;
   LineColumn view_start;
   enum class StatusBehavior { kShow, kIgnore };
   StatusBehavior status_behavior = StatusBehavior::kShow;
@@ -33,6 +40,10 @@ struct BufferOutputProducerInput {
 
 // Handles things like `multiple_cursors`, `paste_mode`, `scrollbar`, displaying
 // metadata, line numbers, etc..
+//
+// Does not mutate the buffer in any way. It is the caller's responsibility to
+// honor variable reload_on_display, as well as to apply changes communicated
+// through the output.
 BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input);
 
