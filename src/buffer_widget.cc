@@ -30,6 +30,7 @@ namespace {
 using infrastructure::Tracker;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::VisitPointer;
 
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
@@ -403,80 +404,75 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
   static Tracker tracker(L"BufferWidget::CreateOutput");
   auto call = tracker.Call();
 
-  std::shared_ptr<OpenBuffer> buffer = options_.buffer.lock();
-  if (buffer == nullptr) {
-    return RepeatLine({}, options.size.line);
-  }
+  return VisitPointer(
+      options_.buffer,
+      [&](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
+        if (buffer->Read(buffer_variables::reload_on_display)) buffer->Reload();
 
-  if (buffer->Read(buffer_variables::reload_on_display)) buffer->Reload();
+        BufferOutputProducerInput input{.output_producer_options = options,
+                                        .buffer = *buffer,
+                                        .view_start = view_start()};
+        if (options_.position_in_parent.has_value()) {
+          input.output_producer_options.size.line =
+              max(LineNumberDelta(),
+                  input.output_producer_options.size.line - kTopFrameLines);
+        }
+        BufferOutputProducerOutput output =
+            CreateBufferOutputProducer(std::move(input));
+        // We avoid updating the desired view_start while the buffer is still
+        // being read.
+        if (buffer->lines_size() >= buffer->position().line.ToDelta() &&
+            (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
+          buffer->Set(buffer_variables::view_start, output.view_start);
+        }
+        buffer->view_size().Set(output.view_size);
 
-  BufferOutputProducerInput input{
-      .output_producer_options = options,
-      // TODO(easy, 2022-04-30): Use VisitPointer instead?
-      .buffer = *buffer,
-      .view_start = view_start()};
-  if (options_.position_in_parent.has_value()) {
-    input.output_producer_options.size.line =
-        max(LineNumberDelta(),
-            input.output_producer_options.size.line - kTopFrameLines);
-  }
-  BufferOutputProducerOutput output =
-      CreateBufferOutputProducer(std::move(input));
-  // We avoid updating the desired view_start while the buffer is still being
-  // read.
-  // TODO(easy, 2022-04-30): Get rid of check against nullptr.
-  if (buffer != nullptr &&
-      buffer->lines_size() >= buffer->position().line.ToDelta() &&
-      (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
-    buffer->Set(buffer_variables::view_start, output.view_start);
-  }
-  buffer->view_size().Set(output.view_size);
+        if (options_.position_in_parent.has_value()) {
+          FrameOutputProducerOptions frame_options;
+          frame_options.title = buffer->Read(buffer_variables::name);
 
-  if (options_.position_in_parent.has_value()) {
-    FrameOutputProducerOptions frame_options;
-    frame_options.title =
-        buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
+          frame_options.position_in_parent =
+              options_.position_in_parent.value();
+          if (options_.is_active &&
+              options.main_cursor_behavior ==
+                  OutputProducerOptions::MainCursorBehavior::kIgnore) {
+            frame_options.active_state =
+                FrameOutputProducerOptions::ActiveState::kActive;
+          }
 
-    frame_options.position_in_parent = options_.position_in_parent.value();
-    if (options_.is_active &&
-        options.main_cursor_behavior ==
-            OutputProducerOptions::MainCursorBehavior::kIgnore) {
-      frame_options.active_state =
-          FrameOutputProducerOptions::ActiveState::kActive;
-    }
+          frame_options.extra_information =
+              OpenBuffer::FlagsToString(buffer->Flags());
+          frame_options.width =
+              ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
+          bool add_left_frame = !buffer->Read(buffer_variables::paste_mode);
 
-    bool add_left_frame = true;
-    if (buffer != nullptr) {
-      frame_options.extra_information =
-          OpenBuffer::FlagsToString(buffer->Flags());
-      frame_options.width =
-          ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
-      add_left_frame = !buffer->Read(buffer_variables::paste_mode);
-    }
+          frame_options.prefix =
+              (options.size.line > kTopFrameLines && add_left_frame) ? L"╭"
+                                                                     : L"─";
 
-    frame_options.prefix =
-        (options.size.line > kTopFrameLines && add_left_frame) ? L"╭" : L"─";
+          auto frame_lines =
+              RepeatLine({.line = MakeNonNullShared<Line>(
+                              FrameLine(std::move(frame_options)))},
+                         LineNumberDelta(1));
 
-    auto frame_lines = RepeatLine(
-        {.line = MakeNonNullShared<Line>(FrameLine(std::move(frame_options)))},
-        LineNumberDelta(1));
+          if (add_left_frame) {
+            output.lines = AddLeftFrame(
+                std::move(output.lines),
+                options_.is_active
+                    ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
+                    : LineModifierSet{LineModifier::DIM});
+          }
+          frame_lines.Append(std::move(output.lines));
+          output.lines = std::move(frame_lines);
+        }
 
-    if (add_left_frame) {
-      output.lines = AddLeftFrame(
-          std::move(output.lines),
-          options_.is_active
-              ? LineModifierSet{LineModifier::BOLD, LineModifier::CYAN}
-              : LineModifierSet{LineModifier::DIM});
-    }
-    frame_lines.Append(std::move(output.lines));
-    output.lines = std::move(frame_lines);
-  }
-
-  return output.lines;
+        return output.lines;
+      },
+      [&] { return RepeatLine({}, options.size.line); });
 }
 
 LineNumberDelta BufferWidget::MinimumLines() const {
-  auto buffer = Lock();
+  std::shared_ptr<OpenBuffer> buffer = Lock();
   return buffer == nullptr
              ? LineNumberDelta(0)
              : (options_.position_in_parent.has_value() ? kTopFrameLines
@@ -489,7 +485,7 @@ LineNumberDelta BufferWidget::MinimumLines() const {
 }
 
 LineNumberDelta BufferWidget::DesiredLines() const {
-  auto buffer = Lock();
+  std::shared_ptr<OpenBuffer> buffer = Lock();
   return buffer == nullptr
              ? LineNumberDelta(0)
              : (options_.position_in_parent.has_value() ? kTopFrameLines
@@ -498,7 +494,7 @@ LineNumberDelta BufferWidget::DesiredLines() const {
 }
 
 LineColumn BufferWidget::view_start() const {
-  auto buffer = Lock();
+  std::shared_ptr<OpenBuffer> buffer = Lock();
   return buffer == nullptr ? LineColumn()
                            : buffer->Read(buffer_variables::view_start);
 }
