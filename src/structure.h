@@ -54,14 +54,14 @@ class Structure {
   // Moves position in the specified direction until we're inside the structure
   // of the type specified that starts after position. No-op if we're already
   // inside the structure.
-  virtual void SeekToNext(const OpenBuffer* buffer, Direction direction,
+  virtual void SeekToNext(const OpenBuffer& buffer, Direction direction,
                           LineColumn* position) = 0;
 
   // Moves position in the specified direction until we're just outside of the
   // current structure of the type specified. No-op if we're already outside the
   // structure. Returns a boolean indicating whether it successfully found a
   // position outside of the structure.
-  virtual bool SeekToLimit(const OpenBuffer* buffer, Direction direction,
+  virtual bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                            LineColumn* position) = 0;
 
   virtual std::optional<LineColumn> ComputeGoToPosition(
