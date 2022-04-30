@@ -632,6 +632,7 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
   log_->Append(L"PrepareToClose");
   LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
   if (auto is_unable = IsUnableToPrepareToClose(); is_unable.IsError()) {
+    LOG(INFO) << name() << ": Unable to close: " << is_unable.error();
     return futures::Past(is_unable);
   }
 
@@ -639,6 +640,7 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
               ? PersistState()
               : futures::IgnoreErrors(PersistState()))
       .Transform([this](EmptyValue) {
+        LOG(INFO) << name() << ": State persisted.";
         if (child_pid_ != -1) {
           if (Read(buffer_variables::term_on_close)) {
             LOG(INFO) << "Sending termination and preparing handler: "
@@ -660,8 +662,7 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
         if (!dirty() || !Read(buffer_variables::save_on_close)) {
           return futures::Past(ValueOrError(Success()));
         }
-        LOG(INFO) << Read(buffer_variables::name)
-                  << ": attempting to save buffer.";
+        LOG(INFO) << name() << ": attempting to save buffer.";
         return Save();
       });
 }
