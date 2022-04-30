@@ -20,8 +20,8 @@ namespace transformation {
 futures::Value<Result> ApplyBase(const SwapActiveCursor& swap_active_cursor,
                                  Input input) {
   CursorsSet& active_cursors = input.buffer.active_cursors();
-  // TODO(easy, 2022-04-30): Check the iterator?
-  if (input.position != *active_cursors.active()) {
+  if (auto it_active = active_cursors.active();
+      it_active == active_cursors.end() || *it_active != input.position) {
     LOG(INFO) << "Skipping cursor.";
     return futures::Past(Result(input.position));
   }

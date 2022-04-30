@@ -1493,8 +1493,7 @@ CursorsSet& OpenBuffer::active_cursors() {
 }
 
 const CursorsSet& OpenBuffer::active_cursors() const {
-  const CursorsSet* cursors =
-      FindCursors(options_.editor.modifiers().active_cursors);
+  const CursorsSet* cursors = FindCursors(L"");
   // TODO(easy, 2022-04-30): Find a way to get rid of this check.
   return Pointer(cursors).Reference();
 }
