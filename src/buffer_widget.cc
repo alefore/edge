@@ -290,7 +290,6 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     case BufferOutputProducerInput::StatusBehavior::kShow:
       status_lines = CenterOutput(
           StatusOutput({.status = buffer.status(),
-                        // TODO(easy, 2022-04-30): Pass it by reference.
                         .buffer = &buffer,
                         .modifiers = buffer.editor().modifiers(),
                         .size = LineColumnDelta(
