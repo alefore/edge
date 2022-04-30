@@ -17,7 +17,7 @@ class Widget {
   struct OutputProducerOptions {
     LineColumnDelta size;
     enum class MainCursorBehavior { kHighlight, kIgnore };
-    MainCursorBehavior main_cursor_behavior;
+    MainCursorBehavior main_cursor_behavior = MainCursorBehavior::kIgnore;
   };
   virtual LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const = 0;

@@ -229,12 +229,14 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
        .width = ColumnNumberDelta(1)});
   CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);
 
-  BufferOutputProducerInput buffer_producer_input;
-  buffer_producer_input.output_producer_options.size =
-      LineColumnDelta(context_lines, options.size.column);
-  buffer_producer_input.buffer = options.status.context();
-  buffer_producer_input.status_behavior =
-      BufferOutputProducerInput::StatusBehavior::kIgnore;
+  BufferOutputProducerInput buffer_producer_input{
+      .output_producer_options = {.size = LineColumnDelta(context_lines,
+                                                          options.size.column)},
+      // TODO(easy, 2022-04-30): Get rid of Unsafe.
+      .buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
+          options.status.context()),
+      .view_start = {},
+      .status_behavior = BufferOutputProducerInput::StatusBehavior::kIgnore};
 
   context_columns_vector.push_back(
       {.lines = CreateBufferOutputProducer(buffer_producer_input).lines});

@@ -4,6 +4,7 @@
 #include <list>
 #include <memory>
 
+#include "src/language/safe_types.h"
 #include "src/line_scroll_control.h"
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
@@ -19,8 +20,12 @@ struct BufferOutputProducerOutput {
 
 struct BufferOutputProducerInput {
   Widget::OutputProducerOptions output_producer_options;
-  // TODO(easy, 2022-04-30): Make the buffer const (or explain why not).
-  std::shared_ptr<OpenBuffer> buffer;
+  // The buffer is mutable because the view is expected to have some side
+  // effects, such as:
+  //
+  // * Reloading it (variable reload_on_view).
+  // * Setting the view size.
+  language::NonNull<std::shared_ptr<OpenBuffer>> buffer;
   LineColumn view_start;
   enum class StatusBehavior { kShow, kIgnore };
   StatusBehavior status_behavior = StatusBehavior::kShow;

@@ -29,6 +29,7 @@ namespace afc::editor {
 namespace {
 using infrastructure::Tracker;
 using language::MakeNonNullShared;
+using language::NonNull;
 
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
@@ -279,12 +280,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
 
 BufferOutputProducerOutput CreateBufferOutputProducer(
     BufferOutputProducerInput input) {
-  auto buffer = input.buffer;
-  if (buffer == nullptr) {
-    return BufferOutputProducerOutput{
-        .lines = RepeatLine({}, input.output_producer_options.size.line),
-        .view_start = input.view_start};
-  }
+  NonNull<std::shared_ptr<OpenBuffer>> buffer = input.buffer;
 
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
@@ -407,11 +403,16 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
   static Tracker tracker(L"BufferWidget::CreateOutput");
   auto call = tracker.Call();
 
-  auto buffer = options_.buffer.lock();
-  BufferOutputProducerInput input;
-  input.output_producer_options = options;
-  input.buffer = buffer;
-  input.view_start = view_start();
+  std::shared_ptr<OpenBuffer> buffer = options_.buffer.lock();
+  if (buffer == nullptr) {
+    return RepeatLine({}, options.size.line);
+  }
+
+  BufferOutputProducerInput input{
+      .output_producer_options = options,
+      // TODO(easy, 2022-04-30): Get rid of Unsafe.
+      .buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer),
+      .view_start = view_start()};
   if (options_.position_in_parent.has_value()) {
     input.output_producer_options.size.line =
         max(LineNumberDelta(),
@@ -421,6 +422,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
       CreateBufferOutputProducer(std::move(input));
   // We avoid updating the desired view_start while the buffer is still being
   // read.
+  // TODO(easy, 2022-04-30): Get rid of check against nullptr.
   if (buffer != nullptr &&
       buffer->lines_size() >= buffer->position().line.ToDelta() &&
       (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
