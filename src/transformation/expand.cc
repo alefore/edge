@@ -210,11 +210,12 @@ const bool read_and_insert_tests_registration = tests::Register(
                auto buffer = NewBufferForTests();
                std::optional<Path> path_opened;
                bool transformation_done = false;
-               ReadAndInsert(Path::FromString(L"unexistent").value(),
-                             [&](OpenFileOptions options) {
-                               path_opened = options.path;
-                               return futures::Past(nullptr);
-                             })
+               ReadAndInsert(
+                   Path::FromString(L"unexistent").value(),
+                   [&](OpenFileOptions options) {
+                     path_opened = options.path;
+                     return futures::Past(Error(L"File does not exist."));
+                   })
                    .Apply(CompositeTransformation::Input{
                        .editor = buffer->editor(), .buffer = *buffer})
                    .SetConsumer([&](CompositeTransformation::Output) {
