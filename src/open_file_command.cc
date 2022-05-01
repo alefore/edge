@@ -20,11 +20,14 @@ namespace {
 using concurrent::Notification;
 using infrastructure::Path;
 using language::EmptyValue;
+using language::Error;
 using language::NonNull;
+using language::Success;
 using language::ToByteString;
+
 futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
                                            EditorState& editor_state) {
-  OpenFile(
+  OpenOrCreateFile(
       OpenFileOptions{.editor_state = editor_state,
                       .path = Path::FromString(name).AsOptional(),
                       .insertion_type = BuffersList::AddBufferType::kVisit});
@@ -44,11 +47,15 @@ futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
     if (path.IsError()) {
       return futures::Past(nullptr);
     }
-    output = OpenFile(
-        OpenFileOptions{.editor_state = *editor,
-                        .path = path.value(),
-                        .ignore_if_not_found = true,
-                        .insertion_type = BuffersList::AddBufferType::kIgnore});
+    output = OpenFileIfFound(
+                 OpenFileOptions{
+                     .editor_state = *editor,
+                     .path = path.value(),
+                     .insertion_type = BuffersList::AddBufferType::kIgnore})
+                 .Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
+                   return Success(buffer.get_shared());
+                 })
+                 .ConsumeErrors([](Error) { return futures::Past(nullptr); });
   }
   return output.Transform([results](std::shared_ptr<OpenBuffer> buffer)
                               -> std::shared_ptr<OpenBuffer> {

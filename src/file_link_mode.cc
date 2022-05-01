@@ -293,7 +293,7 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
           // TODO(easy, 2022-05-01): How do we get rid of Unsafe?
           ? futures::Past(
                 NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second))
-          : OpenFile(
+          : OpenOrCreateFile(
                 OpenFileOptions{
                     .editor_state = editor_state,
                     .name = buffer_name,
@@ -301,18 +301,18 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
                         edge_path, Path::FromString(L"/search_paths").value()),
                     .insertion_type = BuffersList::AddBufferType::kIgnore,
                     .use_search_paths = false})
-                .Transform([&editor_state](std::shared_ptr<OpenBuffer> buffer) {
-                  // TODO(easy, 2022-05-01): Ugh: Get rid of this check.
-                  CHECK(buffer != nullptr);
+                .Transform([&editor_state](
+                               NonNull<std::shared_ptr<OpenBuffer>> buffer) {
                   buffer->Set(buffer_variables::save_on_close, true);
                   buffer->Set(buffer_variables::trigger_reload_on_buffer_write,
                               false);
                   buffer->Set(buffer_variables::show_in_buffers_list, false);
                   if (!editor_state.has_current_buffer()) {
                     editor_state.set_current_buffer(
-                        buffer, CommandArgumentModeApplyMode::kFinal);
+                        buffer.get_shared(),
+                        CommandArgumentModeApplyMode::kFinal);
                   }
-                  return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer);
+                  return buffer;
                 });
 
   return output.Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
@@ -752,35 +752,13 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> OpenOrCreateFile(
       [options](Error) { return futures::Past(CreateBuffer(options, {})); });
 }
 
-futures::Value<std::shared_ptr<OpenBuffer>> OpenFile(
-    const OpenFileOptions& options) {
-  if (options.ignore_if_not_found) {
-    return OpenFileIfFound(options)
-        .Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-          return Success(buffer.get_shared());
-        })
-        .ConsumeErrors(
-            [](Error) { return futures::Past(std::shared_ptr<OpenBuffer>()); });
-  } else {
-    return OpenOrCreateFile(options).Transform(
-        [](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-          return buffer.get_shared();
-        });
-  }
-}
-
 futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> OpenAnonymousBuffer(
     EditorState& editor_state) {
-  return OpenFile(OpenFileOptions{
-                      .editor_state = editor_state,
+  return OpenOrCreateFile(
+      OpenFileOptions{.editor_state = editor_state,
                       .path = std::nullopt,
                       .insertion_type = BuffersList::AddBufferType::kIgnore,
-                      .use_search_paths = false})
-      .Transform([](std::shared_ptr<OpenBuffer> buffer) {
-        // This is safe (but ugly) because we don't set ignore_if_not_found.
-        CHECK(buffer != nullptr);
-        return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(std::move(buffer));
-      });
+                      .use_search_paths = false});
 }
 
 }  // namespace afc::editor

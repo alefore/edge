@@ -201,19 +201,18 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetHistoryBuffer(
     return futures::Past(
         NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second));
   }
-  return OpenFile({.editor_state = editor_state,
-                   .name = buffer_name,
-                   .path = editor_state.edge_path().empty()
-                               ? std::nullopt
-                               : std::make_optional(Path::Join(
-                                     editor_state.edge_path().front(),
-                                     PathComponent::FromString(name.read() +
-                                                               L"_history")
-                                         .value())),
-                   .insertion_type = BuffersList::AddBufferType::kIgnore})
-      .Transform([&editor_state](std::shared_ptr<OpenBuffer> buffer) {
-        // TODO(easy, 2022-05-01): Remove ugly check.
-        CHECK(buffer != nullptr);
+  return OpenOrCreateFile(
+             {.editor_state = editor_state,
+              .name = buffer_name,
+              .path =
+                  editor_state.edge_path().empty()
+                      ? std::nullopt
+                      : std::make_optional(Path::Join(
+                            editor_state.edge_path().front(),
+                            PathComponent::FromString(name.read() + L"_history")
+                                .value())),
+              .insertion_type = BuffersList::AddBufferType::kIgnore})
+      .Transform([&editor_state](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
         buffer->Set(buffer_variables::save_on_close, true);
         buffer->Set(buffer_variables::trigger_reload_on_buffer_write, false);
         buffer->Set(buffer_variables::show_in_buffers_list, false);
@@ -221,10 +220,10 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetHistoryBuffer(
         buffer->Set(buffer_variables::close_after_idle_seconds, 20.0);
         if (!editor_state.has_current_buffer()) {
           // Seems lame, but what can we do?
-          editor_state.set_current_buffer(buffer,
+          editor_state.set_current_buffer(buffer.get_shared(),
                                           CommandArgumentModeApplyMode::kFinal);
         }
-        return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer);
+        return buffer;
       });
 }
 

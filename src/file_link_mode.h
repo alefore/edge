@@ -32,7 +32,8 @@ struct OpenFileOptions {
 
   // The path of the file to open.
   std::optional<infrastructure::Path> path;
-  // TODO: Turn into an enum.
+  // TODO(easy, 2022-05-01): Get rid of this. Confirm that all callers that
+  // enable it are using OpenFileIfFound.
   bool ignore_if_not_found = false;
 
   BuffersList::AddBufferType insertion_type =
@@ -91,6 +92,9 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(
 
 futures::ValueOrError<language::NonNull<std::shared_ptr<OpenBuffer>>>
 OpenFileIfFound(const OpenFileOptions& options);
+
+futures::Value<language::NonNull<std::shared_ptr<OpenBuffer>>> OpenOrCreateFile(
+    const OpenFileOptions& options);
 
 // Creates a new buffer for the file at the path given.
 //

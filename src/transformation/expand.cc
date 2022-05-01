@@ -142,7 +142,7 @@ bool predictor_transformation_tests_register = tests::Register(
 }
 
 using OpenFileCallback =
-    std::function<futures::Value<std::shared_ptr<OpenBuffer>>(
+    std::function<futures::ValueOrError<NonNull<std::shared_ptr<OpenBuffer>>>(
         const OpenFileOptions& options)>;
 
 class ReadAndInsert : public CompositeTransformation {
@@ -174,11 +174,7 @@ class ReadAndInsert : public CompositeTransformation {
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
         .Transform([full_path, input = std::move(input)](
-                       std::shared_ptr<OpenBuffer> buffer) {
-          if (buffer == nullptr) {
-            LOG(INFO) << "Unable to open file: " << full_path;
-            return futures::Past(Output());
-          }
+                       NonNull<std::shared_ptr<OpenBuffer>> buffer) {
           return buffer->WaitForEndOfFile().Transform(
               [buffer_to_insert = buffer,
                input = std::move(input)](EmptyValue) {
@@ -191,8 +187,12 @@ class ReadAndInsert : public CompositeTransformation {
                 }
                 position.line += input.position.line.ToDelta();
                 output.Push(transformation::SetPosition(position));
-                return output;
+                return Success(std::move(output));
               });
+        })
+        .ConsumeErrors([full_path](Error) {
+          LOG(INFO) << "Unable to open file: " << full_path;
+          return futures::Past(Output());
         });
   }
 
@@ -272,7 +272,7 @@ class ExpandTransformation : public CompositeTransformation {
         output.Push(DeleteLastCharacters(1 + symbol.size()));
         if (auto path = Path::FromString(symbol); !path.IsError()) {
           transformation =
-              std::make_unique<ReadAndInsert>(path.value(), OpenFile);
+              std::make_unique<ReadAndInsert>(path.value(), OpenFileIfFound);
         }
       } break;
       case '/': {

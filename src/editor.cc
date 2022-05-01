@@ -443,7 +443,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             CHECK(args[1]->IsString());
             CHECK(args[2]->IsBool());
             CHECK(editor_state != nullptr);
-            return OpenFile(
+            return OpenOrCreateFile(
                        OpenFileOptions{
                            .editor_state = *editor_state,
                            .path = Path::FromString(args[1]->str).AsOptional(),
@@ -451,11 +451,9 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                                args[2]->boolean
                                    ? BuffersList::AddBufferType::kVisit
                                    : BuffersList::AddBufferType::kIgnore})
-                .Transform([](std::shared_ptr<OpenBuffer> buffer) {
-                  // TODO(easy, 2022-05-01): Remove check.
-                  CHECK(buffer != nullptr);
+                .Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
                   return EvaluationOutput::Return(
-                      Value::NewObject(L"Buffer", buffer));
+                      Value::NewObject(L"Buffer", buffer.get_shared()));
                 });
           }));
 
@@ -1025,7 +1023,7 @@ void EditorState::PushPosition(LineColumn position) {
           ? futures::Past(
                 NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer_it->second))
           // Insert a new entry into the list of buffers.
-          : OpenFile(
+          : OpenOrCreateFile(
                 OpenFileOptions{
                     .editor_state = *this,
                     .name = PositionsBufferName(),
@@ -1035,14 +1033,12 @@ void EditorState::PushPosition(LineColumn position) {
                                       edge_path().front(),
                                       Path::FromString(L"positions").value()),
                     .insertion_type = BuffersList::AddBufferType::kIgnore})
-                .Transform([](std::shared_ptr<OpenBuffer> buffer) {
-                  // TODO(easy, 2022-05-01): Remove ugly check below.
-                  CHECK(buffer != nullptr);
+                .Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
                   buffer->Set(buffer_variables::save_on_close, true);
                   buffer->Set(buffer_variables::trigger_reload_on_buffer_write,
                               false);
                   buffer->Set(buffer_variables::show_in_buffers_list, false);
-                  return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer);
+                  return buffer;
                 });
 
   positions_buffer.SetConsumer(

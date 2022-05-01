@@ -28,8 +28,8 @@ class OpenDirectoryCommand : public Command {
   wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t) override {
-    OpenFile({.editor_state = editor_state_,
-              .path = GetPath(editor_state_.current_buffer().get())});
+    OpenOrCreateFile({.editor_state = editor_state_,
+                      .path = GetPath(editor_state_.current_buffer().get())});
   }
 
  private:
