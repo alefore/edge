@@ -80,7 +80,7 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                  [buffer, input](Error error) {
                    buffer->status().SetWarningText(L"🗱  File not found: " +
                                                    input);
-                   return error;
+                   return futures::Past(error);
                  })
       .Transform([buffer, &editor_state, input](ResolvePathOutput resolved_path)
                      -> futures::Value<PossibleError> {

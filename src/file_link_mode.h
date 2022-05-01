@@ -89,6 +89,9 @@ struct ResolvePathOutput {
 futures::ValueOrError<ResolvePathOutput> ResolvePath(
     ResolvePathOptions options);
 
+futures::ValueOrError<language::NonNull<std::shared_ptr<OpenBuffer>>>
+OpenFileIfFound(const OpenFileOptions& options);
+
 // Creates a new buffer for the file at the path given.
 //
 // If `ignore_if_not_found` is true, can return nullptr. Otherwise, will always

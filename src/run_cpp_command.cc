@@ -250,7 +250,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<vm::Value>>> RunCppCommandShell(
   return futures::OnError(Execute(buffer, std::move(parsed_command.value())),
                           [buffer](Error error) {
                             buffer->status().SetWarningText(error.description);
-                            return error;
+                            return futures::Past(error);
                           });
 }
 

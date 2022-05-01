@@ -90,7 +90,7 @@ const bool futures_on_error_tests_registration = tests::Register(
                 OnError(std::move(internal.value), [&](Error error) {
                   executed = true;
                   CHECK(error.description == L"Foo");
-                  return error;
+                  return futures::Past(error);
                 });
             CHECK(!executed);
             internal.consumer(Error(L"Foo"));
@@ -101,7 +101,7 @@ const bool futures_on_error_tests_registration = tests::Register(
           [] {
             std::optional<language::ValueOrError<int>> value;
             OnError(futures::Past(language::ValueOrError<int>(Error(L"Foo"))),
-                    [&](Error) { return Success(27); })
+                    [&](Error) { return futures::Past(Success(27)); })
                 .SetConsumer([&](language::ValueOrError<int> result) {
                   value = result;
                 });
@@ -112,7 +112,7 @@ const bool futures_on_error_tests_registration = tests::Register(
         OnError(futures::Past(language::ValueOrError(Success(12))),
                 [&](Error value) {
                   CHECK(false);
-                  return value;
+                  return futures::Past(value);
                 });
       }}});
 }  // namespace

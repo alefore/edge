@@ -658,7 +658,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
               }),
       [](Error error) {
         LOG(INFO) << "Evaluation error: " << error;
-        return error;
+        return futures::Past(error);
       });
 }
 

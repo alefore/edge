@@ -516,7 +516,7 @@ using std::to_wstring;
                     buffer->status().SetWarningText(L"Unable to resolve: " +
                                                     path + L": " +
                                                     error.description);
-                    return Success();
+                    return futures::Past(Success());
                   });
             },
             L"Load file: " + path);
@@ -719,7 +719,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
              [this](Error error) {
                status().SetWarningText(L"Unable to get Edge state directory: " +
                                        error.description);
-               return error;
+               return futures::Past(error);
              })
       .Transform([this,
                   shared_this = shared_from_this()](Path edge_state_directory) {
@@ -777,7 +777,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
             [shared_this](Error error) {
               shared_this->status().SetWarningText(
                   L"Unable to persist state: " + error.description);
-              return error;
+              return futures::Past(error);
             });
       });
 }
@@ -1126,7 +1126,7 @@ void OpenBuffer::Reload() {
             GetEdgeStateDirectory().Transform(options_.log_supplier),
             [](Error error) {
               LOG(INFO) << "Error opening log: " << error.description;
-              return NewNullLog();
+              return futures::Past(NewNullLog());
             });
       })
       .Transform([this, shared_this = shared_from_this()](
@@ -2105,25 +2105,28 @@ OpenBuffer::OpenBufferForCurrentPosition(
                  return futures::Past(
                      futures::IterationControlCommand::kContinue);
                VLOG(4) << "Calling open file: " << path.value().read();
-               return OpenFile(OpenFileOptions{
-                                   .editor_state = editor,
-                                   .path = path.value(),
-                                   .ignore_if_not_found = true,
-                                   .insertion_type =
-                                       BuffersList::AddBufferType::kIgnore,
-                                   .use_search_paths = false})
-                   .Transform([data, adjusted_position](
-                                  std::shared_ptr<OpenBuffer> buffer_context) {
+               return OpenFileIfFound(
+                          OpenFileOptions{
+                              .editor_state = editor,
+                              .path = path.value(),
+                              .insertion_type =
+                                  BuffersList::AddBufferType::kIgnore,
+                              .use_search_paths = false})
+                   .Transform([data](NonNull<std::shared_ptr<OpenBuffer>>
+                                         buffer_context) {
+                     data->output = buffer_context.get_shared();
+                     return futures::Past(
+                         Success(futures::IterationControlCommand::kStop));
+                   })
+                   .ConsumeErrors([adjusted_position, data](Error) {
                      if (adjusted_position != data->source->AdjustLineColumn(
                                                   data->source->position())) {
                        data->output = Error(L"Computation was cancelled.");
-                       return futures::IterationControlCommand::kStop;
+                       return futures::Past(
+                           futures::IterationControlCommand::kStop);
                      }
-                     if (buffer_context == nullptr) {
-                       return futures::IterationControlCommand::kContinue;
-                     }
-                     data->output = buffer_context;
-                     return futures::IterationControlCommand::kStop;
+                     return futures::Past(
+                         futures::IterationControlCommand::kContinue);
                    });
              })
       .Transform([data](IterationControlCommand iteration_control_command) {

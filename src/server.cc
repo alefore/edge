@@ -169,7 +169,7 @@ futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
                    LOG(ERROR)
                        << path << ": Server: GenerateContents: Open failed: "
                        << error.description;
-                   return error;
+                   return futures::Past(error);
                  })
       .Transform([target = target.shared_from_this()](FileDescriptor fd) {
         LOG(INFO) << "Server received connection: " << fd;

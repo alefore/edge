@@ -44,7 +44,7 @@ class NamespaceExpression : public Expression {
                        }),
                    [&trampoline, original_environment](Error error) {
                      trampoline.SetEnvironment(original_environment);
-                     return error;
+                     return futures::Past(error);
                    });
   }
 
