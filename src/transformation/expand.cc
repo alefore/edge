@@ -65,18 +65,20 @@ class PredictorTransformation : public CompositeTransformation {
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    return Predict({.editor_state = input.buffer.editor(),
-                    .predictor = predictor_,
-                    .text = text_,
-                    // TODO: Ugh, the const_cast below is fucking ugly. I have a
-                    // lake in my model: should PredictionOptions::source_buffer
-                    // be `const` so that it can be applied here? But then...
-                    // search handler can't really be mapped to a predictor,
-                    // since it wants to modify the buffer. Perhaps the answer
-                    // is to make search handler not modify the buffer, but
-                    // rather do that on the caller, based on its outputs.
-                    .source_buffers = {std::const_pointer_cast<OpenBuffer>(
-                        input.buffer.shared_from_this())}})
+    return Predict(
+               {.editor_state = input.buffer.editor(),
+                .predictor = predictor_,
+                .text = text_,
+                // TODO: Ugh, the const_cast below is fucking ugly. I have a
+                // lake in my model: should PredictionOptions::source_buffer
+                // be `const` so that it can be applied here? But then...
+                // search handler can't really be mapped to a predictor,
+                // since it wants to modify the buffer. Perhaps the answer
+                // is to make search handler not modify the buffer, but
+                // rather do that on the caller, based on its outputs.
+                .source_buffers = {NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
+                    std::const_pointer_cast<OpenBuffer>(
+                        input.buffer.shared_from_this()))}})
         .Transform([text = text_, &buffer = input.buffer](
                        std::optional<PredictResults> results) {
           if (!results.has_value()) {

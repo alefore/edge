@@ -674,7 +674,8 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
 
 void EditorState::SetActiveBuffer(size_t position) {
   set_current_buffer(
-      buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()),
+      buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount())
+          .get_shared(),
       CommandArgumentModeApplyMode::kFinal);
 }
 
@@ -687,7 +688,7 @@ void EditorState::AdvanceActiveBuffer(int delta) {
   } else {
     delta %= total;
   }
-  set_current_buffer(buffer_tree_.GetBuffer(delta % total),
+  set_current_buffer(buffer_tree_.GetBuffer(delta % total).get_shared(),
                      CommandArgumentModeApplyMode::kFinal);
 }
 
@@ -716,22 +717,25 @@ const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
   return buffer_tree_.active_buffer();
 }
 
-std::vector<std::shared_ptr<OpenBuffer>> EditorState::active_buffers() const {
-  std::vector<std::shared_ptr<OpenBuffer>> output;
+std::vector<NonNull<std::shared_ptr<OpenBuffer>>> EditorState::active_buffers()
+    const {
+  std::vector<NonNull<std::shared_ptr<OpenBuffer>>> output;
   if (status().GetType() == Status::Type::kPrompt) {
-    output.push_back(status().prompt_buffer());
+    output.push_back(
+        NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(status().prompt_buffer()));
   } else if (Read(editor_variables::multiple_buffers)) {
     output = buffer_tree_.GetAllBuffers();
   } else if (auto buffer = current_buffer(); buffer != nullptr) {
     if (buffer->status().GetType() == Status::Type::kPrompt) {
       buffer = buffer->status().prompt_buffer();
     }
-    output.push_back(buffer);
+    // TODO(easy, 2022-05-01): Remove Unsafe.
+    output.push_back(NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer));
   }
   return output;
 }
 
-void EditorState::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
+void EditorState::AddBuffer(NonNull<std::shared_ptr<OpenBuffer>> buffer,
                             BuffersList::AddBufferType insertion_type) {
   auto initial_active_buffers = active_buffers();
   buffer_tree().AddBuffer(buffer, insertion_type);
@@ -750,7 +754,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
   auto buffers = active_buffers();
   return futures::ForEachWithCopy(
              buffers.begin(), buffers.end(),
-             [callback](const std::shared_ptr<OpenBuffer>& buffer) {
+             [callback](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
                return callback(*buffer).Transform([](EmptyValue) {
                  return futures::IterationControlCommand::kContinue;
                });
@@ -763,10 +767,10 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
   auto value = futures::Past(EmptyValue());
   if (!modifiers().repetitions.has_value()) {
     value = ForEachActiveBuffer(callback);
-  } else if (auto buffer = buffer_tree().GetBuffer(
-                 (max(modifiers().repetitions.value(), 1ul) - 1) %
-                 buffer_tree().BuffersCount());
-             buffer != nullptr) {
+  } else {
+    NonNull<std::shared_ptr<OpenBuffer>> buffer = buffer_tree().GetBuffer(
+        (max(modifiers().repetitions.value(), 1ul) - 1) %
+        buffer_tree().BuffersCount());
     value = callback(*buffer);
   }
   return value.Transform([this](EmptyValue) {
@@ -913,8 +917,7 @@ futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
   return OpenAnonymousBuffer(*this).Transform(
       [this, c](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
         if (!has_current_buffer()) {
-          buffer_tree_.AddBuffer(buffer.get_shared(),
-                                 BuffersList::AddBufferType::kOnlyList);
+          buffer_tree_.AddBuffer(buffer, BuffersList::AddBufferType::kOnlyList);
           set_current_buffer(buffer.get_shared(),
                              CommandArgumentModeApplyMode::kFinal);
           CHECK(has_current_buffer());
@@ -1144,10 +1147,10 @@ void EditorState::ProcessSignals() {
 }
 
 bool EditorState::handling_stop_signals() const {
-  auto buffers = active_buffers();
+  std::vector<NonNull<std::shared_ptr<OpenBuffer>>> buffers = active_buffers();
   return futures::ForEachWithCopy(
              buffers.begin(), buffers.end(),
-             [](const std::shared_ptr<OpenBuffer>& buffer) {
+             [](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
                return futures::Past(
                    buffer->Read(buffer_variables::pts)
                        ? futures::IterationControlCommand::kStop

@@ -1,12 +1,12 @@
 #ifndef __AFC_EDITOR_BUFFER_METADATA_OUTPUT_PRODUCER_H__
 #define __AFC_EDITOR_BUFFER_METADATA_OUTPUT_PRODUCER_H__
 
-#include "src/buffer.h"
 #include "src/columns_vector.h"
 #include "src/line_scroll_control.h"
 #include "src/line_with_cursor.h"
 
 namespace afc::editor {
+class Buffer;
 
 struct BufferMetadataOutputOptions {
   const OpenBuffer& buffer;

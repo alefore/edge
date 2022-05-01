@@ -552,7 +552,11 @@ class ActivateLink : public Command {
                 !path.empty())
               AddLineToHistory(editor_state, HistoryFileFiles(),
                                NewLazyString(path));
-            editor_state.AddBuffer(target, BuffersList::AddBufferType::kVisit);
+            // TODO(easy, 2022-05-01): Avoid Unsafe; use
+            // ValueOrError<NonNull<>>.
+            editor_state.AddBuffer(
+                NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(target),
+                BuffersList::AddBufferType::kVisit);
           }
           return Success();
         });

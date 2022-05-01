@@ -233,8 +233,8 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   std::set<wstring> matches;
-  for (auto& search_buffer : input.source_buffers) {
-    CHECK(search_buffer != nullptr);
+  for (NonNull<std::shared_ptr<OpenBuffer>>& search_buffer :
+       input.source_buffers) {
     SearchOptions options;
     options.search_query = input.input;
     options.starting_position = search_buffer->position();

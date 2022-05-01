@@ -73,7 +73,8 @@ struct PromptOptions {
 
   // Source buffers to give to the predictor. See
   // `PredictorInput::source_buffers`.
-  std::vector<std::shared_ptr<OpenBuffer>> source_buffers = {};
+  std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> source_buffers =
+      {};
 
   enum class Status { kEditor, kBuffer };
   Status status = Status::kEditor;

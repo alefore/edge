@@ -17,11 +17,13 @@ class BuffersList {
  public:
   BuffersList(const EditorState& editor_state);
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
-  void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
+  void AddBuffer(language::NonNull<std::shared_ptr<OpenBuffer>> buffer,
                  AddBufferType add_buffer_type);
   void RemoveBuffer(const OpenBuffer& buffer);
-  std::vector<std::shared_ptr<OpenBuffer>> GetAllBuffers() const;
-  const std::shared_ptr<OpenBuffer>& GetBuffer(size_t index) const;
+  std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> GetAllBuffers()
+      const;
+  const language::NonNull<std::shared_ptr<OpenBuffer>>& GetBuffer(
+      size_t index) const;
   std::optional<size_t> GetBufferIndex(const OpenBuffer* buffer) const;
   size_t GetCurrentIndex();
   size_t BuffersCount() const;
@@ -46,7 +48,7 @@ class BuffersList {
 
  private:
   const EditorState& editor_state_;
-  std::vector<std::shared_ptr<OpenBuffer>> buffers_;
+  std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> buffers_;
   // Contains the whole hierarchy of widgets.
   language::NonNull<std::unique_ptr<Widget>> widget_;
   // Points to the BufferWidget that corresponds to the active buffer.

@@ -700,8 +700,10 @@ NonNull<std::shared_ptr<OpenBuffer>> CreateBuffer(
     insert_result.first->second->set_position(*resolve_path_output->position);
   }
 
-  options.editor_state.AddBuffer(insert_result.first->second,
-                                 options.insertion_type);
+  // TODO(easy, 2022-05-01): Get rid of Unsafe?
+  options.editor_state.AddBuffer(
+      NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(insert_result.first->second),
+      options.insertion_type);
 
   if (resolve_path_output.has_value() &&
       !resolve_path_output->pattern.empty()) {
@@ -735,17 +737,16 @@ futures::ValueOrError<NonNull<std::shared_ptr<OpenBuffer>>> OpenFileIfFound(
         return OpenFileResolvePath(editor_state, search_paths, options.path,
                                    file_system_driver);
       })
-      .Transform(
-          [options, file_system_driver](OpenFileResolvePathOutput input) {
-            return Success(VisitPointer(
-                input.buffer,
-                [&options](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-                  options.editor_state.AddBuffer(buffer.get_shared(),
-                                                 options.insertion_type);
-                  return buffer;
-                },
-                [&options, &input] { return CreateBuffer(options, input); }));
-          });
+      .Transform([options,
+                  file_system_driver](OpenFileResolvePathOutput input) {
+        return Success(VisitPointer(
+            input.buffer,
+            [&options](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
+              options.editor_state.AddBuffer(buffer, options.insertion_type);
+              return buffer;
+            },
+            [&options, &input] { return CreateBuffer(options, input); }));
+      });
 }
 
 futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> OpenOrCreateFile(

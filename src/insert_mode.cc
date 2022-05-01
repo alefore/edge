@@ -47,6 +47,7 @@ using language::FromByteString;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::VisitPointer;
 
 namespace {
 class NewLineTransformation : public CompositeTransformation {
@@ -131,7 +132,8 @@ class InsertMode : public EditorMode {
  public:
   InsertMode(InsertModeOptions options)
       : options_(std::move(options)),
-        buffers_(MakeNonNullShared<std::vector<std::shared_ptr<OpenBuffer>>>(
+        buffers_(MakeNonNullShared<
+                 std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>(
             options_.buffers->begin(), options_.buffers->end())) {
     CHECK(options_.escape_handler);
     CHECK(options_.buffers.has_value());
@@ -357,7 +359,8 @@ class InsertMode : public EditorMode {
   // Writes `line_buffer` to every buffer with a fd, and runs `callable` in
   // every buffer without an fd.
   static futures::Value<EmptyValue> ForEachActiveBuffer(
-      NonNull<std::shared_ptr<std::vector<std::shared_ptr<OpenBuffer>>>>
+      NonNull<
+          std::shared_ptr<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>>
           buffers,
       std::string line_buffer,
       std::function<
@@ -367,12 +370,14 @@ class InsertMode : public EditorMode {
         .Transform([buffers, callable](EmptyValue) {
           return futures::ForEach(
               buffers.get_shared(),
-              [callable](const std::shared_ptr<OpenBuffer>& buffer) {
+              [callable](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
+                // TODO(easy, 2022-05-01): Get rid of call to get_shared.
                 return buffer->fd() == nullptr
-                           ? callable(buffer).Transform([](EmptyValue) {
-                               return futures::IterationControlCommand::
-                                   kContinue;
-                             })
+                           ? callable(buffer.get_shared())
+                                 .Transform([](EmptyValue) {
+                                   return futures::IterationControlCommand::
+                                       kContinue;
+                                 })
                            : futures::Past(
                                  futures::IterationControlCommand::kContinue);
               });
@@ -425,6 +430,8 @@ class InsertMode : public EditorMode {
           ForEachActiveBuffer(buffers, line_buffer,
                               [scroll_behavior, method](
                                   const std::shared_ptr<OpenBuffer>& buffer) {
+                                // TODO(easy, 2022-05-01): Get rid of check
+                                // below.
                                 CHECK(buffer != nullptr);
                                 if (buffer->fd() == nullptr) {
                                   (scroll_behavior.get()->*method)(*buffer);
@@ -467,14 +474,15 @@ class InsertMode : public EditorMode {
   }
 
   static futures::Value<EmptyValue> WriteLineBuffer(
-      NonNull<std::shared_ptr<std::vector<std::shared_ptr<OpenBuffer>>>>
+      NonNull<
+          std::shared_ptr<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>>
           buffers,
       std::string line_buffer) {
     if (line_buffer.empty()) return futures::Past(EmptyValue());
     return futures::ForEach(
                buffers.get_shared(),
                [line_buffer = std::move(line_buffer)](
-                   const std::shared_ptr<OpenBuffer>& buffer) {
+                   const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
                  if (auto fd = buffer->fd(); fd != nullptr) {
                    if (write(fd->fd().read(), line_buffer.c_str(),
                              line_buffer.size()) == -1) {
@@ -494,7 +502,8 @@ class InsertMode : public EditorMode {
   const InsertModeOptions options_;
   // Copy of the contents of options_.buffers. shared_ptr to make it easy for it
   // to be captured efficiently.
-  const NonNull<std::shared_ptr<std::vector<std::shared_ptr<OpenBuffer>>>>
+  const NonNull<
+      std::shared_ptr<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>>
       buffers_;
 
   std::optional<
@@ -599,19 +608,21 @@ void EnterInsertMode(InsertModeOptions options) {
   if (shared_options->buffers.value().empty()) {
     anonymous_buffer_future =
         OpenAnonymousBuffer(shared_options->editor_state)
-            .Transform([shared_options](
-                           NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-              shared_options->buffers.value().push_back(buffer.get_shared());
-              return EmptyValue();
-            });
+            .Transform(
+                [shared_options](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
+                  shared_options->buffers.value().push_back(buffer);
+                  return EmptyValue();
+                });
   }
 
   anonymous_buffer_future.Transform([shared_options](EmptyValue) {
     for (auto& buffer : shared_options->buffers.value()) {
-      auto target_buffer = buffer->GetBufferFromCurrentLine();
-      if (target_buffer != nullptr) {
-        buffer = target_buffer;
-      }
+      VisitPointer(
+          buffer->GetBufferFromCurrentLine(),
+          [&](NonNull<std::shared_ptr<OpenBuffer>> target_buffer) {
+            buffer = target_buffer;
+          },
+          [] {});
     }
 
     if (shared_options->modify_handler == nullptr) {

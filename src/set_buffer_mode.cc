@@ -383,8 +383,9 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
       return EmptyValue();
     }
     state.index %= state.indices.size();
-    auto buffer = buffers_list.GetBuffer(state.indices[state.index]);
-    editor.set_current_buffer(buffer, mode);
+    NonNull<std::shared_ptr<OpenBuffer>> buffer =
+        buffers_list.GetBuffer(state.indices[state.index]);
+    editor.set_current_buffer(buffer.get_shared(), mode);
     switch (mode) {
       case CommandArgumentModeApplyMode::kFinal:
         editor.buffer_tree().set_filter(std::nullopt);
@@ -395,7 +396,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
           std::vector<std::weak_ptr<OpenBuffer>> filter;
           filter.reserve(state.indices.size());
           for (const auto& i : state.indices) {
-            filter.push_back(buffers_list.GetBuffer(i));
+            filter.push_back(buffers_list.GetBuffer(i).get_shared());
           }
           editor.buffer_tree().set_filter(std::move(filter));
         }
@@ -412,9 +413,10 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
   Data initial_value;
   if (editor.modifiers().repetitions.has_value()) {
     editor.set_current_buffer(
-        buffers_list.GetBuffer(
-            (max(editor.modifiers().repetitions.value(), 1ul) - 1) %
-            buffers_list.BuffersCount()),
+        buffers_list
+            .GetBuffer((max(editor.modifiers().repetitions.value(), 1ul) - 1) %
+                       buffers_list.BuffersCount())
+            .get_shared(),
         CommandArgumentModeApplyMode::kFinal);
     editor.ResetRepetitions();
     return nullptr;

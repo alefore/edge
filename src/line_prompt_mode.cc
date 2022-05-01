@@ -510,7 +510,8 @@ class PromptState {
         status_buffer_([&]() -> std::shared_ptr<OpenBuffer> {
           if (options.status == PromptOptions::Status::kEditor) return nullptr;
           auto active_buffers = editor_state_.active_buffers();
-          return active_buffers.size() == 1 ? active_buffers[0] : nullptr;
+          return active_buffers.size() == 1 ? active_buffers[0].get_shared()
+                                            : nullptr;
         }()),
         status_(status_buffer_ == nullptr ? editor_state_.status()
                                           : status_buffer_->status()),
@@ -818,7 +819,7 @@ void Prompt(PromptOptions options) {
             std::make_shared<NonNull<std::shared_ptr<Notification>>>();
         InsertModeOptions insert_mode_options{
             .editor_state = editor_state,
-            .buffers = {{buffer.get_shared()}},
+            .buffers = {{buffer}},
             .modify_handler =
                 [&editor_state, history, prompt_state, options,
                  abort_notification_ptr](OpenBuffer& buffer) {
@@ -918,6 +919,8 @@ void Prompt(PromptOptions options) {
             .start_completion =
                 [&editor_state, options,
                  prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
+                  // TODO(easy, 2022-05-01): Use NonNull.
+                  CHECK(buffer != nullptr);
                   auto input = buffer->current_line()->contents()->ToString();
                   LOG(INFO) << "Triggering predictions from: " << input;
                   CHECK(prompt_state->status().prompt_extra_information() !=

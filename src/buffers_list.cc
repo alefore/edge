@@ -266,7 +266,8 @@ std::optional<std::unordered_set<OpenBuffer*>> OptimizeFilter(
 }
 
 struct BuffersListOptions {
-  const std::vector<std::shared_ptr<OpenBuffer>>* buffers;
+  // TODO(easy, 2022-05-01): This should be passed by ref?
+  const std::vector<NonNull<std::shared_ptr<OpenBuffer>>>* buffers;
   std::shared_ptr<OpenBuffer> active_buffer;
   std::set<OpenBuffer*> active_buffers;
   size_t buffers_per_line;
@@ -626,16 +627,15 @@ BuffersList::BuffersList(const EditorState& editor_state)
       widget_(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{})),
       active_buffer_widget_(static_cast<BufferWidget*>(widget_.get())) {}
 
-void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
+void BuffersList::AddBuffer(NonNull<std::shared_ptr<OpenBuffer>> buffer,
                             AddBufferType add_buffer_type) {
-  CHECK(buffer != nullptr);
   switch (add_buffer_type) {
     case AddBufferType::kVisit:
       if (std::find(buffers_.begin(), buffers_.end(), buffer) ==
           buffers_.end()) {
         buffers_.push_back(buffer);
       }
-      active_buffer_widget_->SetBuffer(buffer);
+      active_buffer_widget_->SetBuffer(buffer.get_shared());
       buffer->Visit();
       Update();
       break;
@@ -653,33 +653,36 @@ void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
   }
 }
 
-std::vector<std::shared_ptr<OpenBuffer>> BuffersList::GetAllBuffers() const {
+std::vector<NonNull<std::shared_ptr<OpenBuffer>>> BuffersList::GetAllBuffers()
+    const {
   return buffers_;
 }
 
 void BuffersList::RemoveBuffer(const OpenBuffer& buffer) {
-  if (auto it = std::find_if(buffers_.begin(), buffers_.end(),
-                             [&buffer](std::shared_ptr<OpenBuffer>& candidate) {
-                               return candidate.get() == &buffer;
-                             });
+  if (auto it = std::find_if(
+          buffers_.begin(), buffers_.end(),
+          [&buffer](NonNull<std::shared_ptr<OpenBuffer>>& candidate) {
+            return candidate.get() == &buffer;
+          });
       it != buffers_.end()) {
     buffers_.erase(it);
   }
   Update();
 }
 
-const std::shared_ptr<OpenBuffer>& BuffersList::GetBuffer(size_t index) const {
+const NonNull<std::shared_ptr<OpenBuffer>>& BuffersList::GetBuffer(
+    size_t index) const {
   CHECK_LT(index, buffers_.size());
   return buffers_[index];
 }
 
 std::optional<size_t> BuffersList::GetBufferIndex(
     const OpenBuffer* buffer) const {
-  auto it =
-      std::find_if(buffers_.begin(), buffers_.end(),
-                   [buffer](const std::shared_ptr<OpenBuffer>& candidate) {
-                     return candidate.get() == buffer;
-                   });
+  auto it = std::find_if(
+      buffers_.begin(), buffers_.end(),
+      [buffer](const NonNull<std::shared_ptr<OpenBuffer>>& candidate) {
+        return candidate.get() == buffer;
+      });
   return it == buffers_.end() ? std::optional<size_t>()
                               : std::distance(buffers_.begin(), it);
 }
@@ -880,18 +883,17 @@ void BuffersList::Update() {
 
   auto order_predicate =
       buffer_sort_order_ == BufferSortOrder::kLastVisit
-          ? [](const std::shared_ptr<OpenBuffer>& a,
-               const std::shared_ptr<OpenBuffer>&
+          ? [](const NonNull<std::shared_ptr<OpenBuffer>>& a,
+               const NonNull<std::shared_ptr<OpenBuffer>>&
                    b) { return a->last_visit() > b->last_visit(); }
-          : [](const std::shared_ptr<OpenBuffer>& a,
-               const std::shared_ptr<OpenBuffer>& b) {
-              return a->Read(buffer_variables::name) <
-                     b->Read(buffer_variables::name);
+          : [](const NonNull<std::shared_ptr<OpenBuffer>>& a,
+               const NonNull<std::shared_ptr<OpenBuffer>>& b) {
+              return a->name() < b->name();
             };
   std::sort(
       buffers_.begin(), buffers_.end(),
-      [order_predicate](const std::shared_ptr<OpenBuffer>& a,
-                        const std::shared_ptr<OpenBuffer>& b) {
+      [order_predicate](const NonNull<std::shared_ptr<OpenBuffer>>& a,
+                        const NonNull<std::shared_ptr<OpenBuffer>>& b) {
         return (a->Read(buffer_variables::pin) == b->Read(buffer_variables::pin)
                     ? order_predicate(a, b)
                     : a->Read(buffer_variables::pin) >
@@ -900,7 +902,7 @@ void BuffersList::Update() {
 
   if (buffers_to_retain_.has_value() &&
       buffers_.size() > buffers_to_retain_.value()) {
-    std::vector<std::shared_ptr<OpenBuffer>> retained_buffers;
+    std::vector<NonNull<std::shared_ptr<OpenBuffer>>> retained_buffers;
     retained_buffers.reserve(buffers_.size());
     for (size_t index = 0; index < buffers_.size(); ++index) {
       if (index < buffers_to_retain_.value() || buffers_[index]->dirty()) {
@@ -914,27 +916,27 @@ void BuffersList::Update() {
 
   // This is a copy of buffers_ but filtering down some buffers that shouldn't
   // be shown.
-  std::vector<std::shared_ptr<OpenBuffer>> buffers;
-  auto active_buffer = active_buffer_widget_->Lock();
+  std::vector<NonNull<std::shared_ptr<OpenBuffer>>> buffers;
+  std::shared_ptr<OpenBuffer> active_buffer = active_buffer_widget_->Lock();
   size_t index_active = 0;  // The index in `buffers` of `active_buffer`.
   for (size_t index = 0; index < BuffersCount(); index++) {
-    if (auto buffer = GetBuffer(index); buffer != nullptr) {
-      if (buffer == active_buffer) {
-        index_active = buffers.size();
-      }
-      buffers.push_back(std::move(buffer));
+    NonNull<std::shared_ptr<OpenBuffer>> buffer = GetBuffer(index);
+    if (buffer.get() == active_buffer.get()) {
+      index_active = buffers.size();
     }
+    buffers.push_back(std::move(buffer));
   }
 
   if (!buffers_to_show_.has_value()) {
     // Pass.
   } else if (buffers_to_show_.value() <= index_active) {
-    auto active_buffer = std::move(buffers[index_active]);
-    buffers[0] = active_buffer;
+    NonNull<std::shared_ptr<OpenBuffer>> active_buffer =
+        std::move(buffers[index_active]);
+    buffers.clear();
+    buffers.push_back(active_buffer);
     index_active = 0;
-    buffers.resize(1);
-  } else if (buffers_to_show_.value() < buffers.size()) {
-    buffers.resize(buffers_to_show_.value());
+  } else if (*buffers_to_show_ < buffers.size()) {
+    buffers.erase(buffers.begin() + *buffers_to_show_, buffers.end());
   }
 
   if (buffers.empty()) {
@@ -947,7 +949,7 @@ void BuffersList::Update() {
   widgets.reserve(buffers.size());
   for (auto& buffer : buffers) {
     widgets.push_back(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{
-        .buffer = buffer,
+        .buffer = buffer.get_shared(),
         .is_active = widgets.size() == index_active ||
                      editor_state_.Read(editor_variables::multiple_buffers),
         .position_in_parent =

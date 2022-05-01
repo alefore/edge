@@ -190,9 +190,9 @@ class SearchCommand : public Command {
          .history_file = HistoryFile(L"search"),
          .colorize_options_provider =
              [&editor_state = editor_state_,
-              buffers =
-                  std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
-                      editor_state_.active_buffers())](
+              buffers = std::make_shared<
+                  std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>(
+                  editor_state_.active_buffers())](
                  const NonNull<std::shared_ptr<LazyString>>& line,
                  std::unique_ptr<ProgressChannel> progress_channel,
                  NonNull<std::shared_ptr<Notification>> abort_notification) {
@@ -207,8 +207,8 @@ class SearchCommand : public Command {
                           buffers,
                           [&editor_state, line, progress_aggregator,
                            abort_notification,
-                           results](const std::shared_ptr<OpenBuffer>& buffer) {
-                            CHECK(buffer != nullptr);
+                           results](const NonNull<std::shared_ptr<OpenBuffer>>&
+                                        buffer) {
                             std::shared_ptr<ProgressChannel> progress_channel =
                                 progress_aggregator->NewChild();
                             if (buffer->Read(

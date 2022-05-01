@@ -163,8 +163,7 @@ class NavigationBufferCommand : public Command {
       buffer->environment()->Define(kDepthSymbol, Value::NewInteger(3));
       buffer->Set(buffer_variables::reload_on_enter, true);
       editor_state_.StartHandlingInterrupts();
-      editor_state_.AddBuffer(buffer.get_shared(),
-                              BuffersList::AddBufferType::kVisit);
+      editor_state_.AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
       buffer->ResetMode();
       it->second = buffer.get_shared();
     } else {

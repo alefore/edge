@@ -588,7 +588,7 @@ NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(
     buffer->ResetMode();
     buffer->Reload();
     buffer->set_current_position_line(LineNumber(0));
-    editor_state.AddBuffer(buffer.get_shared(), options.insertion_type);
+    editor_state.AddBuffer(buffer, options.insertion_type);
     return buffer;
   }
 
@@ -613,7 +613,7 @@ NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(
   buffer->Reload();
 
   editor_state.buffers()->insert({name, buffer.get_shared()});
-  editor_state.AddBuffer(buffer.get_shared(), options.insertion_type);
+  editor_state.AddBuffer(buffer, options.insertion_type);
   return buffer;
 }
 

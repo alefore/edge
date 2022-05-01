@@ -67,7 +67,7 @@ struct PredictorInput {
   //
   // TODO: Mark the buffers as const. Unfortunately, the search handler wants to
   // modify them.
-  std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
+  std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> source_buffers;
 
   ProgressChannel& progress_channel;
 
@@ -125,7 +125,7 @@ struct PredictOptions {
   // predictor is done running.
   //
   // TODO: Mark the buffers as const. See comments in `PredictorInput`.
-  std::vector<std::shared_ptr<OpenBuffer>> source_buffers;
+  std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> source_buffers;
 
   // Can be null, in which case Predict will use a dummy no-op channel.
   std::unique_ptr<ProgressChannel> progress_channel = nullptr;

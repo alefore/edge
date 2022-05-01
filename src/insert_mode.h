@@ -53,8 +53,8 @@ struct InsertModeOptions {
   EditorState& editor_state;
 
   // The buffers to insert into. If absent, defaults to the active buffers.
-  std::optional<std::vector<std::shared_ptr<OpenBuffer>>> buffers =
-      std::nullopt;
+  std::optional<std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>>>
+      buffers = std::nullopt;
 
   // Optional function to run whenever the contents of the buffer are modified.
   std::function<futures::Value<language::EmptyValue>(OpenBuffer&)>

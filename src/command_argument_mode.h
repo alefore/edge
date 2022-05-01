@@ -109,7 +109,7 @@ class CommandArgumentMode : public EditorMode {
   }
 
   const Options options_;
-  const std::vector<std::shared_ptr<OpenBuffer>> buffers_;
+  const std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> buffers_;
   wstring argument_string_;
 };
 
@@ -121,13 +121,16 @@ void SetOptionsForBufferTransformation(
     std::function<std::optional<Modifiers::CursorsAffected>(const Argument&)>
         cursors_affected_factory,
     typename CommandArgumentMode<Argument>::Options* options) {
+  using language::NonNull;
+  // TODO(easy, 2022-05-01): Use NonNull.
   CHECK(options != nullptr);
-  auto buffers = std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>(
-      options->editor_state.active_buffers());
+  auto buffers =
+      std::make_shared<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>(
+          options->editor_state.active_buffers());
   auto for_each_buffer =
       [buffers](
           const std::function<futures::Value<futures::IterationControlCommand>(
-              const std::shared_ptr<OpenBuffer>&)>& callback) {
+              const NonNull<std::shared_ptr<OpenBuffer>>&)>& callback) {
         return futures::ForEach(buffers->begin(), buffers->end(), callback)
             .Transform([buffers](futures::IterationControlCommand) {
               return language::EmptyValue();
@@ -135,32 +138,35 @@ void SetOptionsForBufferTransformation(
       };
 
   options->undo = [for_each_buffer] {
-    return for_each_buffer([](const std::shared_ptr<OpenBuffer>& buffer) {
-      return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
-          .Transform([](language::EmptyValue) {
-            return futures::IterationControlCommand::kContinue;
-          });
-    });
+    return for_each_buffer(
+        [](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
+          return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
+              .Transform([](language::EmptyValue) {
+                return futures::IterationControlCommand::kContinue;
+              });
+        });
   };
   options->apply = [transformation_factory, cursors_affected_factory,
                     for_each_buffer](CommandArgumentModeApplyMode mode,
                                      Argument argument) {
-    return for_each_buffer([transformation_factory, cursors_affected_factory,
-                            mode, argument = std::move(argument)](
-                               const std::shared_ptr<OpenBuffer>& buffer) {
-      auto cursors_affected = cursors_affected_factory(argument).value_or(
-          buffer->Read(buffer_variables::multiple_cursors)
-              ? Modifiers::CursorsAffected::kAll
-              : Modifiers::CursorsAffected::kOnlyCurrent);
-      return buffer
-          ->ApplyToCursors(transformation_factory(std::move(argument)),
-                           cursors_affected,
-                           mode == CommandArgumentModeApplyMode::kPreview
-                               ? transformation::Input::Mode::kPreview
-                               : transformation::Input::Mode::kFinal)
-          .Transform(
-              [](auto) { return futures::IterationControlCommand::kContinue; });
-    });
+    return for_each_buffer(
+        [transformation_factory, cursors_affected_factory, mode,
+         argument = std::move(argument)](
+            const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
+          auto cursors_affected = cursors_affected_factory(argument).value_or(
+              buffer->Read(buffer_variables::multiple_cursors)
+                  ? Modifiers::CursorsAffected::kAll
+                  : Modifiers::CursorsAffected::kOnlyCurrent);
+          return buffer
+              ->ApplyToCursors(transformation_factory(std::move(argument)),
+                               cursors_affected,
+                               mode == CommandArgumentModeApplyMode::kPreview
+                                   ? transformation::Input::Mode::kPreview
+                                   : transformation::Input::Mode::kFinal)
+              .Transform([](auto) {
+                return futures::IterationControlCommand::kContinue;
+              });
+        });
   };
 }
 
