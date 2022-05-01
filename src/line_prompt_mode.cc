@@ -726,19 +726,18 @@ class LinePromptCommand : public Command {
 // received as a future so that we can detect if the prompt input changes
 // between the time when `ColorizePrompt` is executed and the time when the
 // tokens become available.
-void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
+void ColorizePrompt(OpenBuffer& status_buffer,
                     NonNull<std::shared_ptr<PromptState>> prompt_state,
                     NonNull<std::shared_ptr<Notification>> abort_notification,
                     const NonNull<std::shared_ptr<const Line>>& original_line,
                     ColorizePromptOptions options) {
-  CHECK(status_buffer != nullptr);
-  CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
+  CHECK_EQ(status_buffer.lines_size(), LineNumberDelta(1));
   if (prompt_state->IsGone()) {
     LOG(INFO) << "Status is no longer a prompt, aborting colorize prompt.";
     return;
   }
 
-  if (prompt_state->status().prompt_buffer() != status_buffer) {
+  if (prompt_state->status().prompt_buffer().get() != &status_buffer) {
     LOG(INFO) << "Prompt buffer has changed, aborting colorize prompt.";
     return;
   }
@@ -747,16 +746,16 @@ void ColorizePrompt(std::shared_ptr<OpenBuffer> status_buffer,
     return;
   }
 
-  CHECK_EQ(status_buffer->lines_size(), LineNumberDelta(1));
-  auto line = status_buffer->LineAt(LineNumber(0));
+  CHECK_EQ(status_buffer.lines_size(), LineNumberDelta(1));
+  auto line = status_buffer.LineAt(LineNumber(0));
   if (original_line->ToString() != line->ToString()) {
     LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
     return;
   }
 
-  status_buffer->AppendRawLine(
+  status_buffer.AppendRawLine(
       ColorizeLine(line->contents(), std::move(options.tokens)));
-  status_buffer->EraseLines(LineNumber(0), LineNumber(1));
+  status_buffer.EraseLines(LineNumber(0), LineNumber(1));
   if (options.context.has_value()) {
     prompt_state->status().set_context(options.context.value());
   }
@@ -883,7 +882,7 @@ void Prompt(PromptOptions options) {
                                          ColorizePromptOptions options) {
                                        LOG(INFO) << "Calling ColorizePrompt "
                                                     "with results.";
-                                       ColorizePrompt(buffer, prompt_state,
+                                       ColorizePrompt(*buffer, prompt_state,
                                                       *abort_notification_ptr,
                                                       original_line, options);
                                        return EmptyValue();
@@ -907,9 +906,10 @@ void Prompt(PromptOptions options) {
                   editor_state.set_keyboard_redirect(nullptr);
                 },
             .new_line_handler =
-                [&editor_state, options,
-                 prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
-                  auto input = buffer->current_line()->contents();
+                [&editor_state, options, prompt_state](
+                    const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
+                  NonNull<std::shared_ptr<LazyString>> input =
+                      buffer->current_line()->contents();
                   AddLineToHistory(editor_state, options.history_file, input);
                   auto ensure_survival_of_current_closure =
                       editor_state.set_keyboard_redirect(nullptr);
@@ -917,17 +917,15 @@ void Prompt(PromptOptions options) {
                   return options.handler(input->ToString());
                 },
             .start_completion =
-                [&editor_state, options,
-                 prompt_state](const std::shared_ptr<OpenBuffer>& buffer) {
-                  // TODO(easy, 2022-05-01): Use NonNull.
-                  CHECK(buffer != nullptr);
+                [&editor_state, options, prompt_state](
+                    const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
                   auto input = buffer->current_line()->contents()->ToString();
                   LOG(INFO) << "Triggering predictions from: " << input;
                   CHECK(prompt_state->status().prompt_extra_information() !=
                         nullptr);
                   Predict({.editor_state = editor_state,
                            .predictor = options.predictor,
-                           .input_buffer = buffer,
+                           .input_buffer = buffer.get_shared(),
                            .input_selection_structure = StructureLine(),
                            .source_buffers = options.source_buffers})
                       .SetConsumer([&editor_state, options, buffer,
@@ -981,7 +979,7 @@ void Prompt(PromptOptions options) {
                                                     LineNumber(0))](
                                                ColorizePromptOptions options) {
                                   ColorizePrompt(
-                                      buffer, prompt_state,
+                                      *buffer, prompt_state,
                                       NonNull<std::shared_ptr<Notification>>(),
                                       original_line, options);
                                   return Success();

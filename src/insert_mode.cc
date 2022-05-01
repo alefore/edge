@@ -154,7 +154,8 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
         ForEachActiveBuffer(
             buffers_, {'\t'},
-            [options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
+            [options =
+                 options_](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
               // TODO: Don't ignore the return value. If it's false for all
               // buffers, insert the \t.
               options.start_completion(buffer);
@@ -168,7 +169,7 @@ class InsertMode : public EditorMode {
         ForEachActiveBuffer(
             buffers_, old_literal ? std::string{27} : "",
             [options = options_,
-             old_literal](const std::shared_ptr<OpenBuffer>& buffer) {
+             old_literal](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
               if (buffer->fd() != nullptr) {
                 if (old_literal) {
                   buffer->status().SetInformationText(L"ESC");
@@ -271,10 +272,11 @@ class InsertMode : public EditorMode {
         ForEachActiveBuffer(
             buffers_, {21},
             [options = options_,
-             callback](const std::shared_ptr<OpenBuffer>& buffer) {
+             callback](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
               std::vector<NonNull<std::unique_ptr<vm::Expression>>> args;
               args.push_back(vm::NewConstantExpression(
-                  {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(buffer)}));
+                  {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(
+                      buffer.get_shared())}));
               NonNull<std::unique_ptr<Expression>> expression =
                   vm::NewFunctionCall(
                       vm::NewConstantExpression(
@@ -310,7 +312,8 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
         ForEachActiveBuffer(
             buffers_, {0x0b},
-            [options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
+            [options =
+                 options_](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
               return CallModifyHandler(
                   options, *buffer,
                   buffer->ApplyToCursors(transformation::Delete{
@@ -329,7 +332,8 @@ class InsertMode : public EditorMode {
     // TODO: Apply TransformKeyboardText for buffers with fd?
     ForEachActiveBuffer(
         buffers_, {static_cast<char>(c)},
-        [c, options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
+        [c, options =
+                options_](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
           return buffer->TransformKeyboardText(std::wstring(1, c))
               .Transform([options, buffer](std::wstring value) {
                 return CallModifyHandler(
@@ -363,21 +367,19 @@ class InsertMode : public EditorMode {
           std::shared_ptr<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>>
           buffers,
       std::string line_buffer,
-      std::function<
-          futures::Value<EmptyValue>(const std::shared_ptr<OpenBuffer>&)>
+      std::function<futures::Value<EmptyValue>(
+          const NonNull<std::shared_ptr<OpenBuffer>>&)>
           callable) {
     return WriteLineBuffer(buffers, line_buffer)
         .Transform([buffers, callable](EmptyValue) {
           return futures::ForEach(
               buffers.get_shared(),
               [callable](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-                // TODO(easy, 2022-05-01): Get rid of call to get_shared.
                 return buffer->fd() == nullptr
-                           ? callable(buffer.get_shared())
-                                 .Transform([](EmptyValue) {
-                                   return futures::IterationControlCommand::
-                                       kContinue;
-                                 })
+                           ? callable(buffer).Transform([](EmptyValue) {
+                               return futures::IterationControlCommand::
+                                   kContinue;
+                             })
                            : futures::Past(
                                  futures::IterationControlCommand::kContinue);
               });
@@ -390,8 +392,8 @@ class InsertMode : public EditorMode {
     ResetScrollBehavior();
     ForEachActiveBuffer(
         buffers_, line_buffer,
-        [direction,
-         options = options_](const std::shared_ptr<OpenBuffer>& buffer) {
+        [direction, options = options_](
+            const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
           buffer->MaybeAdjustPositionCol();
           return CallModifyHandler(
                      options, *buffer,
@@ -427,17 +429,15 @@ class InsertMode : public EditorMode {
          notification = scroll_behavior_abort_notification_,
          method](NonNull<std::shared_ptr<ScrollBehavior>> scroll_behavior) {
           if (notification->HasBeenNotified()) return;
-          ForEachActiveBuffer(buffers, line_buffer,
-                              [scroll_behavior, method](
-                                  const std::shared_ptr<OpenBuffer>& buffer) {
-                                // TODO(easy, 2022-05-01): Get rid of check
-                                // below.
-                                CHECK(buffer != nullptr);
-                                if (buffer->fd() == nullptr) {
-                                  (scroll_behavior.get()->*method)(*buffer);
-                                }
-                                return futures::Past(EmptyValue());
-                              });
+          ForEachActiveBuffer(
+              buffers, line_buffer,
+              [scroll_behavior,
+               method](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
+                if (buffer->fd() == nullptr) {
+                  (scroll_behavior.get()->*method)(*buffer);
+                }
+                return futures::Past(EmptyValue());
+              });
         });
   }
 
@@ -637,7 +637,7 @@ void EnterInsertMode(InsertModeOptions options) {
 
     if (!shared_options->new_line_handler) {
       shared_options->new_line_handler =
-          [](const std::shared_ptr<OpenBuffer>& buffer) {
+          [](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
             return buffer->ApplyToCursors(
                 MakeNonNullUnique<NewLineTransformation>());
           };
@@ -645,7 +645,7 @@ void EnterInsertMode(InsertModeOptions options) {
 
     if (!shared_options->start_completion) {
       shared_options->start_completion =
-          [](const std::shared_ptr<OpenBuffer>& buffer) {
+          [](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
             LOG(INFO) << "Start default completion.";
             buffer->ApplyToCursors(NewExpandTransformation());
             return true;

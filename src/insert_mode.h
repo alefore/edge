@@ -70,14 +70,14 @@ struct InsertModeOptions {
   // Optional function to run when a new line is received. Defaults to inserting
   // a new line and moving to it.
   std::function<futures::Value<language::EmptyValue>(
-      const std::shared_ptr<OpenBuffer>&)>
+      const language::NonNull<std::shared_ptr<OpenBuffer>>&)>
       new_line_handler = nullptr;
 
   // Optional function to run when the user presses Tab for completions. Returns
   // true if completions are being attempted; false if autocompletion is not
   // enabled.
-  std::function<bool(const std::shared_ptr<OpenBuffer>&)> start_completion =
-      nullptr;
+  std::function<bool(const language::NonNull<std::shared_ptr<OpenBuffer>>&)>
+      start_completion = nullptr;
 };
 
 void EnterInsertMode(InsertModeOptions options);
