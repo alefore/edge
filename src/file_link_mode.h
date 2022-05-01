@@ -96,13 +96,6 @@ OpenFileIfFound(const OpenFileOptions& options);
 futures::Value<language::NonNull<std::shared_ptr<OpenBuffer>>> OpenOrCreateFile(
     const OpenFileOptions& options);
 
-// Creates a new buffer for the file at the path given.
-//
-// If `ignore_if_not_found` is true, can return nullptr. Otherwise, will always
-// return a value.
-futures::Value<std::shared_ptr<OpenBuffer>> OpenFile(
-    const OpenFileOptions& options);
-
 futures::Value<language::NonNull<std::shared_ptr<OpenBuffer>>>
 OpenAnonymousBuffer(EditorState& editor_state);
 
