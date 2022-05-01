@@ -443,7 +443,6 @@ Structure* StructurePage() {
 
     void SeekToNext(const OpenBuffer&, Direction, LineColumn*) override {}
 
-    // TODO(easy, 2022-04-30): Receive buffer by ref.
     bool SeekToLimit(const OpenBuffer& buffer, Direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
