@@ -565,10 +565,10 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
   resolve_path_options.validator = [&editor_state, output](const Path& path) {
     auto path_components = path.DirectorySplit();
     if (path_components.IsError()) return futures::Past(false);
-    for (auto it = editor_state.buffers()->begin();
-         it != editor_state.buffers()->end(); ++it) {
+    for (auto buffer_pair : *editor_state.buffers()) {
       // TODO(easy, 2022-05-01): Get rid of Unsafe. Use types.
-      auto buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second);
+      auto buffer =
+          NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer_pair.second);
       auto buffer_path = Path::FromString(buffer->Read(buffer_variables::path));
       if (buffer_path.IsError()) continue;
       auto buffer_components = buffer_path.value().DirectorySplit();
