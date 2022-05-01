@@ -266,8 +266,7 @@ std::optional<std::unordered_set<OpenBuffer*>> OptimizeFilter(
 }
 
 struct BuffersListOptions {
-  // TODO(easy, 2022-05-01): This should be passed by ref?
-  const std::vector<NonNull<std::shared_ptr<OpenBuffer>>>* buffers;
+  const std::vector<NonNull<std::shared_ptr<OpenBuffer>>>& buffers;
   std::shared_ptr<OpenBuffer> active_buffer;
   std::set<OpenBuffer*> active_buffers;
   size_t buffers_per_line;
@@ -484,7 +483,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
   auto call = tracker.Call();
 
   const ColumnNumberDelta prefix_width = ColumnNumberDelta(
-      max(2ul, std::to_wstring(options->buffers->size()).size()) + 2);
+      max(2ul, std::to_wstring(options->buffers.size()).size()) + 2);
 
   const ColumnNumberDelta columns_per_buffer =
       (options->size.column -
@@ -495,7 +494,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
   // Contains one element for each entry in options.buffers.
   const std::vector<std::list<ProcessedPathComponent>> path_components = [&] {
     std::vector<std::list<PathComponent>> paths;
-    for (const auto& buffer : *options->buffers) {
+    for (const auto& buffer : options->buffers) {
       auto path_str = buffer->Read(buffer_variables::path);
       if (path_str != buffer->Read(buffer_variables::name)) {
         paths.push_back({});
@@ -520,13 +519,13 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
               ? std::list<ProcessedPathComponent>({})
               : GetOutputComponents(path, columns_per_buffer).value_or({}));
     }
-    CHECK_EQ(output.size(), options->buffers->size());
+    CHECK_EQ(output.size(), options->buffers.size());
     return output;
   }();
 
   VLOG(1) << "BuffersList created. Buffers per line: "
           << options->buffers_per_line << ", prefix width: " << prefix_width
-          << ", count: " << options->buffers->size();
+          << ", count: " << options->buffers.size();
 
   LineWithCursor::Generator::Vector output{.lines = {},
                                            .width = options->size.column};
@@ -534,18 +533,18 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
   for (LineNumberDelta i; i < options->size.line; ++i) {
     VLOG(2) << "BuffersListProducer::WriteLine start, index: " << index
             << ", buffers_per_line: " << options->buffers_per_line
-            << ", size: " << options->buffers->size();
+            << ", size: " << options->buffers.size();
 
-    CHECK_LT(index, options->buffers->size())
+    CHECK_LT(index, options->buffers.size())
         << "Buffers per line: " << options->buffers_per_line;
     output.lines.push_back(LineWithCursor::Generator{
         std::nullopt,
         [options, prefix_width, path_components, columns_per_buffer, index]() {
           Line::Options output;
           for (size_t i = 0; i < options->buffers_per_line &&
-                             index + i < options->buffers->size();
+                             index + i < options->buffers.size();
                i++) {
-            auto buffer = options->buffers->at(index + i).get();
+            auto buffer = options->buffers.at(index + i).get();
             auto number_prefix = std::to_wstring(index + i + 1);
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
@@ -847,7 +846,7 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
   }
   auto buffers_list_lines = ProduceBuffersList(
       std::make_shared<BuffersListOptions>(BuffersListOptions{
-          .buffers = &buffers_,
+          .buffers = buffers_,
           .active_buffer = active_buffer(),
           .active_buffers = std::move(active_buffers),
           .buffers_per_line = layout.buffers_per_line,
