@@ -75,6 +75,7 @@ using language::NonNull;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
+using language::VisitPointer;
 
 // TODO: Replace with insert.  Insert should be called 'type'.
 class Paste : public Command {
@@ -547,18 +548,18 @@ class ActivateLink : public Command {
             OpenBuffer::RemoteURLBehavior::kLaunchBrowser)
         .Transform([&editor_state =
                         editor_state_](std::shared_ptr<OpenBuffer> target) {
-          if (target != nullptr) {
-            if (std::wstring path = target->Read(buffer_variables::path);
-                !path.empty())
-              AddLineToHistory(editor_state, HistoryFileFiles(),
-                               NewLazyString(path));
-            // TODO(easy, 2022-05-01): Avoid Unsafe; use
-            // ValueOrError<NonNull<>>.
-            editor_state.AddBuffer(
-                NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(target),
-                BuffersList::AddBufferType::kVisit);
-          }
-          return Success();
+          return VisitPointer(
+              target,
+              [&](NonNull<std::shared_ptr<OpenBuffer>> target) {
+                if (std::wstring path = target->Read(buffer_variables::path);
+                    !path.empty())
+                  AddLineToHistory(editor_state, HistoryFileFiles(),
+                                   NewLazyString(path));
+                editor_state.AddBuffer(target,
+                                       BuffersList::AddBufferType::kVisit);
+                return Success();
+              },
+              [] { return Success(); });
         });
   }
 
