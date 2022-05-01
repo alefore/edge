@@ -36,10 +36,10 @@ futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
 
 // Returns the buffer to show for context, or nullptr.
 //
-// TODO(easy, 2022-05-01): Pass editor by ref. Change PredictResults to make
-// predictions_buffer non-null.
+// TODO(easy, 2022-05-01): Change PredictResults to make predictions_buffer
+// non-null.
 futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
-    EditorState* editor, const PredictResults& results,
+    EditorState& editor, const PredictResults& results,
     const LazyString& line) {
   futures::Value<std::shared_ptr<OpenBuffer>> output = futures::Past(nullptr);
   if (results.found_exact_match) {
@@ -49,7 +49,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
     }
     output = OpenFileIfFound(
                  OpenFileOptions{
-                     .editor_state = *editor,
+                     .editor_state = editor,
                      .path = path.value(),
                      .insertion_type = BuffersList::AddBufferType::kIgnore})
                  .Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
@@ -71,11 +71,10 @@ futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
 }
 
 futures::Value<ColorizePromptOptions> DrawPath(
-    EditorState* editor, const NonNull<std::shared_ptr<LazyString>>& line,
+    EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
     PredictResults results) {
   return StatusContext(editor, results, *line)
-      .Transform([editor, line,
-                  results](std::shared_ptr<OpenBuffer> context_buffer) {
+      .Transform([line, results](std::shared_ptr<OpenBuffer> context_buffer) {
         ColorizePromptOptions output;
         output.context = context_buffer;
 
@@ -113,19 +112,19 @@ futures::Value<ColorizePromptOptions> DrawPath(
 }
 
 futures::Value<ColorizePromptOptions> AdjustPath(
-    EditorState* editor, const NonNull<std::shared_ptr<LazyString>>& line,
+    EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
     std::unique_ptr<ProgressChannel> progress_channel,
     NonNull<std::shared_ptr<Notification>> abort_notification) {
   CHECK(progress_channel != nullptr);
   return Predict(PredictOptions{
-                     .editor_state = *editor,
+                     .editor_state = editor,
                      .predictor = FilePredictor,
                      .text = line->ToString(),
                      .input_selection_structure = StructureLine(),
-                     .source_buffers = editor->active_buffers(),
+                     .source_buffers = editor.active_buffers(),
                      .progress_channel = std::move(progress_channel),
                      .abort_notification = std::move(abort_notification)})
-      .Transform([editor, line](std::optional<PredictResults> results) {
+      .Transform([&editor, line](std::optional<PredictResults> results) {
         if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
         return DrawPath(editor, line, std::move(results.value()));
       });
@@ -251,11 +250,11 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
                 const NonNull<std::shared_ptr<LazyString>>& line,
                 std::unique_ptr<ProgressChannel> progress_channel,
                 NonNull<std::shared_ptr<Notification>> abort_notification) {
-              return AdjustPath(&editor, line, std::move(progress_channel),
+              return AdjustPath(editor, line, std::move(progress_channel),
                                 std::move(abort_notification));
             },
         .handler =
-            [&editor = editor](const std::wstring input) {
+            [&editor](const std::wstring input) {
               return OpenFileHandler(input, editor);
             },
         .cancel_handler =
