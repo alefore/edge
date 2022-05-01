@@ -32,9 +32,6 @@ struct OpenFileOptions {
 
   // The path of the file to open.
   std::optional<infrastructure::Path> path;
-  // TODO(easy, 2022-05-01): Get rid of this. Confirm that all callers that
-  // enable it are using OpenFileIfFound.
-  bool ignore_if_not_found = false;
 
   BuffersList::AddBufferType insertion_type =
       BuffersList::AddBufferType::kVisit;

@@ -170,7 +170,6 @@ class ReadAndInsert : public CompositeTransformation {
                OpenFileOptions{
                    .editor_state = input.buffer.editor(),
                    .path = full_path,
-                   .ignore_if_not_found = true,
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
         .Transform([full_path, input = std::move(input)](
