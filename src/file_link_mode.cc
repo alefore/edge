@@ -284,6 +284,7 @@ futures::Value<PossibleError> SaveContentsToFile(
       });
 }
 
+namespace {
 futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
     EditorState& editor_state, const Path& edge_path) {
   BufferName buffer_name(L"- search paths");
@@ -320,6 +321,7 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
         [buffer](EmptyValue) { return buffer; });
   });
 }
+}  // namespace
 
 futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
                                           vector<Path>* output) {

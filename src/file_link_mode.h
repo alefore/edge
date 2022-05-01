@@ -41,8 +41,6 @@ struct OpenFileOptions {
   std::vector<infrastructure::Path> initial_search_paths = {};
 };
 
-futures::Value<std::shared_ptr<OpenBuffer>> GetSearchPathsBuffer(
-    EditorState& editor_state);
 futures::Value<language::EmptyValue> GetSearchPaths(
     EditorState& editor_state, vector<infrastructure::Path>* output);
 
