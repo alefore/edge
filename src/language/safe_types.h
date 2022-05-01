@@ -107,9 +107,6 @@ class NonNull<std::shared_ptr<T>> {
  public:
   NonNull() : value_(std::make_shared<T>()) {}
 
-  explicit NonNull(std::unique_ptr<T> value)
-      : NonNull(std::shared_ptr<T>(std::move(value))) {}
-
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
   // converted to `std::shared_ptr<T>`.
   template <typename Other>
