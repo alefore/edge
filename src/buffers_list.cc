@@ -272,7 +272,7 @@ std::optional<std::unordered_set<const OpenBuffer*>> OptimizeFilter(
 struct BuffersListOptions {
   const std::vector<NonNull<std::shared_ptr<OpenBuffer>>>& buffers;
   std::shared_ptr<OpenBuffer> active_buffer;
-  std::set<const OpenBuffer*> active_buffers;
+  std::set<NonNull<const OpenBuffer*>> active_buffers;
   size_t buffers_per_line;
   LineColumnDelta size;
   std::optional<std::unordered_set<const OpenBuffer*>> filter;
@@ -604,10 +604,12 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                 selection_state = SelectionState::kExcludedByFilter;
                 break;
               case FilterResult::kIncluded:
-                selection_state = options->active_buffers.find(&buffer) !=
-                                          options->active_buffers.end()
-                                      ? SelectionState::kReceivingInput
-                                      : SelectionState::kIdle;
+                selection_state =
+                    options->active_buffers.find(
+                        NonNull<const OpenBuffer*>::AddressOf(buffer)) !=
+                            options->active_buffers.end()
+                        ? SelectionState::kReceivingInput
+                        : SelectionState::kIdle;
             }
             AppendBufferPath(
                 columns_per_buffer, buffer,
@@ -849,10 +851,9 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
           << ", from: " << buffers_.size()
           << " buffers with lines: " << layout.lines;
 
-  std::set<const OpenBuffer*> active_buffers;
+  std::set<NonNull<const OpenBuffer*>> active_buffers;
   for (auto& b : editor_state_.active_buffers()) {
-    // TODO(easy, 2022-05-02): Drop the 2nd get.
-    active_buffers.insert(b.get().get());
+    active_buffers.insert(b.get());
   }
   auto buffers_list_lines = ProduceBuffersList(
       std::make_shared<BuffersListOptions>(BuffersListOptions{
