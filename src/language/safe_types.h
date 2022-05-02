@@ -141,9 +141,8 @@ class NonNull<std::unique_ptr<T>> {
   std::unique_ptr<T>& get_unique() { return value_; }
 
  private:
-  // TODO(easy, 2022-05-02): Make this explicit.
   template <typename Other>
-  NonNull(std::unique_ptr<Other> value) : value_(std::move(value)) {}
+  explicit NonNull(std::unique_ptr<Other> value) : value_(std::move(value)) {}
 
   std::unique_ptr<T> value_;
 };
@@ -193,6 +192,7 @@ class NonNull<std::shared_ptr<T>> {
     return *this;
   }
 
+  T& value() const { return *value_; }
   T* operator->() const { return value_.get(); }
   T& operator*() const { return *value_; }
   NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
@@ -201,9 +201,8 @@ class NonNull<std::shared_ptr<T>> {
   std::shared_ptr<T>& get_shared() { return value_; }
 
  private:
-  // TODO(easy, 2022-05-02): Make this explicit.
   template <typename Other>
-  NonNull(std::shared_ptr<Other> value) : value_(std::move(value)) {}
+  explicit NonNull(std::shared_ptr<Other> value) : value_(std::move(value)) {}
 
   std::shared_ptr<T> value_;
 };
