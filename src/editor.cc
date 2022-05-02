@@ -658,6 +658,7 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
       });
 }
 
+// TODO(2022-05-02, easy): Receive as non-null?
 void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
                                      CommandArgumentModeApplyMode apply_mode) {
   if (buffer != nullptr) {
@@ -667,7 +668,7 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
       buffer->Enter();
     }
   }
-  buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
+  buffer_tree_.GetActiveLeaf().SetBuffer(buffer);
   AdjustWidgets();
 }
 

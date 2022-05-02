@@ -711,14 +711,13 @@ void BuffersList::set_filter(
   filter_ = std::move(filter);
 }
 
-BufferWidget* BuffersList::GetActiveLeaf() {
-  return const_cast<BufferWidget*>(
+BufferWidget& BuffersList::GetActiveLeaf() {
+  return const_cast<BufferWidget&>(
       const_cast<const BuffersList*>(this)->GetActiveLeaf());
 }
 
-// TODO(easy, 2022-05-02): Add NonNull.
-const BufferWidget* BuffersList::GetActiveLeaf() const {
-  return active_buffer_widget_.get();
+const BufferWidget& BuffersList::GetActiveLeaf() const {
+  return *active_buffer_widget_;
 }
 
 namespace {

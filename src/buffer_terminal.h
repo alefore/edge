@@ -57,6 +57,7 @@ class BufferTerminal : public fuzz::FuzzTestable {
 
   static LineColumnDelta LastViewSize(Data& data);
 
+  // TODO(easy, 2022-05-02): NonNull.
   const std::shared_ptr<Data> data_;
 };
 

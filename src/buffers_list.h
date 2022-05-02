@@ -33,8 +33,8 @@ class BuffersList {
   // See comments on `filter_`.
   void set_filter(std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter);
 
-  BufferWidget* GetActiveLeaf();
-  const BufferWidget* GetActiveLeaf() const;
+  BufferWidget& GetActiveLeaf();
+  const BufferWidget& GetActiveLeaf() const;
 
   LineWithCursor::Generator::Vector GetLines(
       Widget::OutputProducerOptions options) const;

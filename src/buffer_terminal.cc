@@ -278,7 +278,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
           data_->position = data_->buffer.editor()
                                 .buffer_tree()
                                 .GetActiveLeaf()
-                                ->view_start() +
+                                .view_start() +
                             delta;
           auto follower = data_->buffer.GetEndPositionFollower();
           while (data_->position.line > data_->buffer.EndLine()) {
