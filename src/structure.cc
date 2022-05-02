@@ -573,8 +573,7 @@ Structure* StructureTree() {
     bool FindTreeRange(const OpenBuffer& buffer, LineColumn position,
                        Direction direction, Range* output) {
       NonNull<std::shared_ptr<const ParseTree>> root = buffer.parse_tree();
-      // TODO(easy, 2022-05-02): Switch to NonNull.
-      const ParseTree* tree = root.get().get();
+      NonNull<const ParseTree*> tree = root.get();
       while (true) {
         // Each iteration descends by one level in the parse tree.
         size_t child = 0;
@@ -583,7 +582,7 @@ Structure* StructureTree() {
           if (direction == Direction::kBackwards) {
             i = tree->children().size() - i - 1;  // From last to first.
           }
-          return &tree->children()[i];
+          return NonNull<const ParseTree*>::AddressOf(tree->children()[i]);
         };
         while (child < tree->children().size() &&
                (get_child(child)->children().empty() ||
