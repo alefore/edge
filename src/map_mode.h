@@ -27,7 +27,8 @@ class MapModeCommands {
 
   // Flattens the set of commands (in the entire list), grouped by category (as
   // the key of the outer map).
-  std::map<std::wstring, std::map<std::wstring, Command*>> Coallesce() const;
+  std::map<std::wstring, std::map<std::wstring, language::NonNull<Command*>>>
+  Coallesce() const;
 
   // Adds an entry mapping a given string to a given command.
   void Add(std::wstring name,

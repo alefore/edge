@@ -69,15 +69,14 @@ NonNull<std::unique_ptr<MapModeCommands>> MapModeCommands::NewChild() {
   return output;
 }
 
-std::map<wstring, std::map<wstring, Command*>> MapModeCommands::Coallesce()
-    const {
-  std::map<wstring, std::map<wstring, Command*>> output;
+std::map<wstring, std::map<wstring, NonNull<Command*>>>
+MapModeCommands::Coallesce() const {
+  std::map<wstring, std::map<wstring, NonNull<Command*>>> output;
   std::set<wstring> already_seen;  // Avoid showing unreachable commands.
   for (const auto& frame : frames_) {
     for (const auto& it : frame->commands) {
       if (already_seen.insert(it.first).second) {
-        // TODO(easy, 2022-05-02): Drop the 2nd get.
-        output[it.second->Category()][it.first] = it.second.get().get();
+        output[it.second->Category()].insert({it.first, it.second.get()});
       }
     }
   }

@@ -164,9 +164,9 @@ class HelpCommand : public Command {
 
     for (const auto& category : commands.Coallesce()) {
       StartSection(L"### " + category.first, output);
-      for (const auto& it : category.second) {
-        output.push_back(L"* " + DescribeSequence(it.first) + L" - " +
-                         it.second->Description());
+      for (const auto& [input, command] : category.second) {
+        output.push_back(L"* " + DescribeSequence(input) + L" - " +
+                         command->Description());
       }
       output.push_back(L"");
     }
