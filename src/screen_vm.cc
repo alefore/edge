@@ -113,7 +113,8 @@ void RegisterScreenType(Environment* environment) {
   environment->Define(
       L"RemoteScreen",
       Value::NewFunction(
-          {VMType::ObjectType(screen_type.get()), VMType::String()},
+          // TODO(easy, 2022-05-02): Drop 2nd get.
+          {VMType::ObjectType(screen_type.get().get()), VMType::String()},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args,
              Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);

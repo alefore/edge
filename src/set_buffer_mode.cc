@@ -301,16 +301,15 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
              &buffers_list](State state) {
               Indices new_indices;
               for (auto& index : state.indices) {
-                if (auto buffer = buffers_list.GetBuffer(index).get();
-                    buffer != nullptr) {
-                  if (NonNull<std::shared_ptr<LazyString>> str =
-                          NewLazyString(buffer->Read(buffer_variables::name));
-                      FindFilterPositions(
-                          filter, ExtendTokensToEndOfString(
-                                      str, TokenizeNameForPrefixSearches(str)))
-                          .has_value()) {
-                    new_indices.push_back(index);
-                  }
+                NonNull<std::shared_ptr<OpenBuffer>> buffer =
+                    buffers_list.GetBuffer(index);
+                if (NonNull<std::shared_ptr<LazyString>> str =
+                        NewLazyString(buffer->Read(buffer_variables::name));
+                    FindFilterPositions(
+                        filter, ExtendTokensToEndOfString(
+                                    str, TokenizeNameForPrefixSearches(str)))
+                        .has_value()) {
+                  new_indices.push_back(index);
                 }
               }
               state.indices = std::move(new_indices);
@@ -335,27 +334,27 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
           using Control = futures::IterationControlCommand;
           std::vector<futures::Value<Control>> search_futures;
           for (auto& index : state.indices) {
-            if (auto buffer = buffers_list.GetBuffer(index).get();
-                buffer != nullptr) {
-              // TODO: Pass SearchOptions::abort_notification to allow
-              // aborting as the user continues to type?
-              search_futures.push_back(
-                  editor.thread_pool()
-                      .Run(BackgroundSearchCallback(
-                          {.search_query = text_input, .required_positions = 1},
-                          *buffer, *progress_channel))
-                      .Transform([new_state, progress_channel,
-                                  index](SearchResultsSummary search_output) {
-                        if (search_output.matches > 0) {
-                          new_state->indices.push_back(index);
-                        }
-                        return Success(Control::kContinue);
-                      })
-                      .ConsumeErrors([new_state](Error error) {
-                        new_state->pattern_error = std::move(error.description);
-                        return futures::Past(Control::kStop);
-                      }));
-            }
+            // TODO(easy, 2022-05-02): Keey by ref only?
+            NonNull<std::shared_ptr<OpenBuffer>> buffer =
+                buffers_list.GetBuffer(index);
+            // TODO: Pass SearchOptions::abort_notification to allow
+            // aborting as the user continues to type?
+            search_futures.push_back(
+                editor.thread_pool()
+                    .Run(BackgroundSearchCallback(
+                        {.search_query = text_input, .required_positions = 1},
+                        *buffer, *progress_channel))
+                    .Transform([new_state, progress_channel,
+                                index](SearchResultsSummary search_output) {
+                      if (search_output.matches > 0) {
+                        new_state->indices.push_back(index);
+                      }
+                      return Success(Control::kContinue);
+                    })
+                    .ConsumeErrors([new_state](Error error) {
+                      new_state->pattern_error = std::move(error.description);
+                      return futures::Past(Control::kStop);
+                    }));
           }
           return futures::ForEachWithCopy(
                      search_futures.begin(), search_futures.end(),

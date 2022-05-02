@@ -84,12 +84,12 @@ using std::vector;
 using std::wstring;
 
 template <typename MethodReturnType>
-void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
+void RegisterBufferMethod(ObjectType& editor_type, const wstring& name,
                           MethodReturnType (OpenBuffer::*method)(void)) {
   auto callback = MakeNonNullUnique<Value>(VMType::FUNCTION);
   // Returns nothing.
   callback->type.type_arguments = {VMType(VMType::VM_VOID),
-                                   VMType::ObjectType(editor_type)};
+                                   VMType::ObjectType(&editor_type)};
   callback->callback =
       [method](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
         CHECK_EQ(args.size(), size_t(1));
@@ -107,7 +107,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
               return EvaluationOutput::New(Value::NewVoid());
             });
       };
-  editor_type->AddField(name, std::move(callback));
+  editor_type.AddField(name, std::move(callback));
 }
 }  // namespace
 
@@ -156,7 +156,7 @@ void EditorState::NotifyInternalEvent() {
 
 template <typename EdgeStruct, typename FieldValue>
 void RegisterVariableFields(
-    EdgeStruct* edge_struct, afc::vm::ObjectType* editor_type,
+    EdgeStruct* edge_struct, afc::vm::ObjectType& editor_type,
     const FieldValue& (EditorState::*reader)(const EdgeVariable<FieldValue>*)
         const,
     void (EditorState::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
@@ -166,19 +166,18 @@ void RegisterVariableFields(
     auto variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
     // Getter.
-    editor_type->AddField(
+    editor_type.AddField(
         variable->name(),
         vm::NewCallback([reader, variable](EditorState* editor) {
           return (editor->*reader)(variable);
         }));
 
     // Setter.
-    editor_type->AddField(
-        L"set_" + variable->name(),
-        vm::NewCallback(
-            [variable, setter](EditorState* editor, FieldValue value) {
-              (editor->*setter)(variable, value);
-            }));
+    editor_type.AddField(L"set_" + variable->name(),
+                         vm::NewCallback([variable, setter](EditorState* editor,
+                                                            FieldValue value) {
+                           (editor->*setter)(variable, value);
+                         }));
   }
 }
 
@@ -203,16 +202,16 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
 
   // Methods for Editor.
   RegisterVariableFields<EdgeStruct<bool>, bool>(
-      editor_variables::BoolStruct(), editor_type.get(), &EditorState::Read,
+      editor_variables::BoolStruct(), *editor_type, &EditorState::Read,
       &EditorState::Set);
 
   RegisterVariableFields<EdgeStruct<wstring>, wstring>(
-      editor_variables::StringStruct(), editor_type.get(), &EditorState::Read,
+      editor_variables::StringStruct(), *editor_type, &EditorState::Read,
       &EditorState::Set);
 
-  RegisterVariableFields<EdgeStruct<int>, int>(
-      editor_variables::IntStruct(), editor_type.get(), &EditorState::Read,
-      &EditorState::Set);
+  RegisterVariableFields<EdgeStruct<int>, int>(editor_variables::IntStruct(),
+                                               *editor_type, &EditorState::Read,
+                                               &EditorState::Set);
 
   editor_type->AddField(
       L"EnterSetBufferMode", vm::NewCallback([](EditorState* editor) {
@@ -260,7 +259,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
           [](std::vector<NonNull<std::unique_ptr<Value>>> input,
              Trampoline& trampoline) {
             EditorState* editor =
-                VMTypeMapper<EditorState*>::get(input[0].get());
+                VMTypeMapper<EditorState*>::get(input[0].get().get());
             NonNull<std::shared_ptr<PossibleError>> output;
             return editor
                 ->ForEachActiveBuffer([callback = std::move(input[1]->callback),
@@ -294,7 +293,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
           [](std::vector<NonNull<std::unique_ptr<Value>>> input,
              Trampoline& trampoline) {
             EditorState* editor =
-                VMTypeMapper<EditorState*>::get(input[0].get());
+                VMTypeMapper<EditorState*>::get(input[0].get().get());
             return editor
                 ->ForEachActiveBufferWithRepetitions([callback = std::move(
                                                           input[1]->callback),
@@ -476,21 +475,21 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             return Value::NewVoid();
           }));
 
-  RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
+  RegisterBufferMethod(*editor_type, L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
-  RegisterBufferMethod(editor_type.get(), L"PushActiveCursors",
+  RegisterBufferMethod(*editor_type, L"PushActiveCursors",
                        &OpenBuffer::PushActiveCursors);
-  RegisterBufferMethod(editor_type.get(), L"PopActiveCursors",
+  RegisterBufferMethod(*editor_type, L"PopActiveCursors",
                        &OpenBuffer::PopActiveCursors);
-  RegisterBufferMethod(editor_type.get(), L"SetActiveCursorsToMarks",
+  RegisterBufferMethod(*editor_type, L"SetActiveCursorsToMarks",
                        &OpenBuffer::SetActiveCursorsToMarks);
-  RegisterBufferMethod(editor_type.get(), L"CreateCursor",
+  RegisterBufferMethod(*editor_type, L"CreateCursor",
                        &OpenBuffer::CreateCursor);
-  RegisterBufferMethod(editor_type.get(), L"DestroyCursor",
+  RegisterBufferMethod(*editor_type, L"DestroyCursor",
                        &OpenBuffer::DestroyCursor);
-  RegisterBufferMethod(editor_type.get(), L"DestroyOtherCursors",
+  RegisterBufferMethod(*editor_type, L"DestroyOtherCursors",
                        &OpenBuffer::DestroyOtherCursors);
-  RegisterBufferMethod(editor_type.get(), L"RepeatLastTransformation",
+  RegisterBufferMethod(*editor_type, L"RepeatLastTransformation",
                        &OpenBuffer::RepeatLastTransformation);
   environment->DefineType(L"Editor", std::move(editor_type));
 

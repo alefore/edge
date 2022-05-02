@@ -80,9 +80,8 @@ void Environment::Clear() {
 }
 
 const ObjectType* Environment::LookupObjectType(const wstring& symbol) {
-  auto it = object_types_.find(symbol);
-  if (it != object_types_.end()) {
-    return it->second.get();
+  if (auto it = object_types_.find(symbol); it != object_types_.end()) {
+    return it->second.get().get();
   }
   if (parent_environment_ != nullptr) {
     return parent_environment_->LookupObjectType(symbol);
@@ -166,6 +165,7 @@ void Environment::PolyLookup(const wstring& symbol,
   PolyLookup(*empty_namespace, symbol, output);
 }
 
+// TODO(easy, 2022-05-02): Make the vector contain NonNull pointers.
 void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
                              const wstring& symbol,
                              std::vector<Value*>* output) {
@@ -182,7 +182,8 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
     if (auto it = environment->table_.find(symbol);
         it != environment->table_.end()) {
       for (auto& entry : it->second) {
-        output->push_back(entry.second.get());
+        // TODO(easy, 2022-05-02): Get rid of 2nd get.
+        output->push_back(entry.second.get().get());
       }
     }
   }
@@ -208,7 +209,8 @@ void Environment::CaseInsensitiveLookup(
     for (auto& item : environment->table_) {
       if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
         for (auto& entry : item.second) {
-          output->push_back(entry.second.get());
+          // TODO(easy, 2022-05-02): Get rid of 2nd get. Change output type.
+          output->push_back(entry.second.get().get());
         }
       }
     }

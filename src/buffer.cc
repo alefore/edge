@@ -118,11 +118,11 @@ using std::unordered_set;
 
 template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
-    EdgeStruct* edge_struct, afc::vm::ObjectType* object_type,
+    EdgeStruct* edge_struct, afc::vm::ObjectType& object_type,
     const FieldValue& (OpenBuffer::*reader)(const EdgeVariable<FieldValue>*)
         const,
     void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
-  VMType buffer_type = VMType::ObjectType(object_type);
+  VMType buffer_type = VMType::ObjectType(&object_type);
 
   vector<wstring> variable_names;
   edge_struct->RegisterVariableNames(&variable_names);
@@ -130,7 +130,7 @@ void RegisterBufferFields(
     auto variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
     // Getter.
-    object_type->AddField(
+    object_type.AddField(
         variable->name(),
         vm::NewCallback([reader, variable](std::shared_ptr<OpenBuffer> buffer) {
           DVLOG(4) << "Buffer field reader is returning.";
@@ -138,7 +138,7 @@ void RegisterBufferFields(
         }));
 
     // Setter.
-    object_type->AddField(
+    object_type.AddField(
         L"set_" + variable->name(),
         vm::NewCallback([variable, setter](std::shared_ptr<OpenBuffer> buffer,
                                            FieldValue value) {
@@ -250,19 +250,19 @@ using std::to_wstring;
   auto buffer = MakeNonNullUnique<ObjectType>(L"Buffer");
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(buffer_variables::BoolStruct(),
-                                               buffer.get(), &OpenBuffer::Read,
+                                               *buffer, &OpenBuffer::Read,
                                                &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<wstring>, wstring>(
-      buffer_variables::StringStruct(), buffer.get(), &OpenBuffer::Read,
+      buffer_variables::StringStruct(), *buffer, &OpenBuffer::Read,
       &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<int>, int>(buffer_variables::IntStruct(),
-                                             buffer.get(), &OpenBuffer::Read,
+                                             *buffer, &OpenBuffer::Read,
                                              &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<double>, double>(
-      buffer_variables::DoubleStruct(), buffer.get(), &OpenBuffer::Read,
+      buffer_variables::DoubleStruct(), *buffer, &OpenBuffer::Read,
       &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<LineColumn>, LineColumn>(
-      buffer_variables::LineColumnStruct(), buffer.get(), &OpenBuffer::Read,
+      buffer_variables::LineColumnStruct(), *buffer, &OpenBuffer::Read,
       &OpenBuffer::Set);
 
   buffer->AddField(
@@ -305,13 +305,14 @@ using std::to_wstring;
   buffer->AddField(
       L"ApplyTransformation",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(buffer.get()),
+          // TODO(easy, 2022-05-02): Drop the 2nd get.
+          {VMType::Void(), VMType::ObjectType(buffer.get().get()),
            vm::VMTypeMapper<editor::transformation::Variant*>::vmtype},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get());
+                    args[0].get().get());
             auto transformation = static_cast<editor::transformation::Variant*>(
                 args[1]->user_value.get());
             return buffer->ApplyToCursors(Pointer(transformation).Reference())
@@ -379,14 +380,14 @@ using std::to_wstring;
   buffer->AddField(
       L"AddKeyboardTextTransformer",
       Value::NewFunction(
-          {VMType::Bool(), VMType::ObjectType(buffer.get()),
+          {VMType::Bool(), VMType::ObjectType(buffer.get().get()),
            VMType::Function({VMType::String(), VMType::String()})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), size_t(2));
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get());
+                    args[0].get().get());
             CHECK(buffer != nullptr);
             return Value::NewBool(buffer->AddKeyboardTextTransformer(
                 std::move(args[1].get_unique())));
@@ -395,14 +396,14 @@ using std::to_wstring;
   buffer->AddField(
       L"Filter",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(buffer.get()),
+          {VMType::Void(), VMType::ObjectType(buffer.get().get()),
            VMType::Function({VMType::Bool(), VMType::String()})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), size_t(2));
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get());
+                    args[0].get().get());
             CHECK(buffer != nullptr);
             buffer->set_filter(std::move(args[1].get_unique()));
             return Value::NewVoid();
@@ -435,12 +436,12 @@ using std::to_wstring;
   buffer->AddField(
       L"Save",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(buffer.get())},
+          {VMType::Void(), VMType::ObjectType(buffer.get().get())},
           [](std::vector<NonNull<Value::Ptr>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get());
+                    args[0].get().get());
             if (buffer->editor().structure() == StructureLine()) {
               auto target_buffer = buffer->GetBufferFromCurrentLine();
               if (target_buffer != nullptr) {
@@ -476,8 +477,9 @@ using std::to_wstring;
   buffer->AddField(
       L"AddBinding",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(buffer.get()), VMType::String(),
-           VMType::String(), VMType::Function({VMType::Void()})},
+          {VMType::Void(), VMType::ObjectType(buffer.get().get()),
+           VMType::String(), VMType::String(),
+           VMType::Function({VMType::Void()})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
@@ -485,7 +487,7 @@ using std::to_wstring;
             CHECK_EQ(args[2]->type, VMType::VM_STRING);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get());
+                    args[0].get().get());
             CHECK(buffer != nullptr);
             buffer->default_commands_->Add(args[1]->str, args[2]->str,
                                            std::move(args[3]),
@@ -547,12 +549,12 @@ using std::to_wstring;
   buffer->AddField(
       L"WaitForEndOfFile",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(buffer.get())},
+          {VMType::Void(), VMType::ObjectType(buffer.get().get())},
           [](vector<NonNull<Value::Ptr>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get());
+                    args[0].get().get());
             return buffer->WaitForEndOfFile().Transform([](EmptyValue) {
               return EvaluationOutput::Return(Value::NewVoid());
             });
@@ -1227,7 +1229,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
       });
 }
 
-Log& OpenBuffer::log() const { return Pointer(log_.get()).Reference(); }
+Log& OpenBuffer::log() const { return *log_; }
 
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);

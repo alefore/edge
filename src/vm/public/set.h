@@ -37,7 +37,7 @@ struct VMTypeMapper<std::set<T>*> {
     auto name = vmtype.object_type;
     environment->Define(
         name, Value::NewFunction(
-                  {VMType::ObjectType(set_type.get())},
+                  {VMType::ObjectType(set_type.get().get())},
                   [name](std::vector<language::NonNull<Value::Ptr>> args) {
                     CHECK(args.empty());
                     return Value::NewObject(name,

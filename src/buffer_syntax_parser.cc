@@ -9,7 +9,6 @@
 namespace afc::editor {
 using concurrent::Notification;
 using infrastructure::Tracker;
-using language::MakeNonNull;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::Observers;
@@ -39,7 +38,7 @@ void BufferSyntaxParser::Parse(
       [&pool = thread_pool_, data_ptr = data_, observers = observers_](
           const NonNull<std::shared_ptr<BufferContents>>& contents,
           Data& data) {
-        if (TreeParser::IsNull(data.tree_parser.get())) return;
+        if (TreeParser::IsNull(data.tree_parser.get().get())) return;
 
         data.cancel_notification->Notify();
         data.cancel_notification = NonNull<std::shared_ptr<Notification>>();

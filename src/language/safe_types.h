@@ -66,6 +66,41 @@ template <typename P>
 class NonNull {};
 
 template <typename T>
+class NonNull<std::unique_ptr<T>>;
+template <typename T>
+class NonNull<std::shared_ptr<T>>;
+
+template <typename T>
+class NonNull<T*> {
+ public:
+  static NonNull<T*> Unsafe(T* value) {
+    CHECK(value != nullptr);
+    return NonNull<T*>(value);
+  }
+
+  // Use the `Other` type for types that can be converted to `T`.
+  template <typename Other>
+  NonNull(NonNull<Other*> value) : value_(value.get()) {}
+
+  T* operator->() const { return value_; }
+  T& operator*() const { return *value_; }
+  T* get() const { return value_; }
+
+ private:
+  friend class NonNull<std::unique_ptr<T>>;
+  friend class NonNull<std::shared_ptr<T>>;
+
+  explicit NonNull(T* value) : value_(value) {}
+
+  T* value_;
+};
+
+template <typename A, typename B>
+bool operator==(const NonNull<A*>& a, const NonNull<B*>& b) {
+  return a.get() == b.get();
+}
+
+template <typename T>
 class NonNull<std::unique_ptr<T>> {
  public:
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
@@ -91,11 +126,12 @@ class NonNull<std::unique_ptr<T>> {
 
   T* operator->() const { return value_.get(); }
   T& operator*() const { return *value_; }
-  T* get() const { return value_.get(); }
+  NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
 
   std::unique_ptr<T>& get_unique() { return value_; }
 
  private:
+  // TODO(easy, 2022-05-02): Make this explicit.
   template <typename Other>
   NonNull(std::unique_ptr<Other> value) : value_(std::move(value)) {}
 
@@ -149,12 +185,13 @@ class NonNull<std::shared_ptr<T>> {
 
   T* operator->() const { return value_.get(); }
   T& operator*() const { return *value_; }
-  T* get() const { return value_.get(); }
+  NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
 
   const std::shared_ptr<T>& get_shared() const { return value_; }
   std::shared_ptr<T>& get_shared() { return value_; }
 
  private:
+  // TODO(easy, 2022-05-02): Make this explicit.
   template <typename Other>
   NonNull(std::shared_ptr<Other> value) : value_(std::move(value)) {}
 
@@ -165,16 +202,6 @@ template <typename T>
 bool operator==(const NonNull<std::shared_ptr<T>>& a,
                 const NonNull<std::shared_ptr<T>>& b) {
   return a.get() == b.get();
-}
-
-template <typename T>
-NonNull<std::shared_ptr<T>> MakeNonNull(std::shared_ptr<T> obj) {
-  return NonNull<std::shared_ptr<T>>(std::move(obj));
-}
-
-template <typename T>
-NonNull<std::unique_ptr<T>> MakeNonNull(std::unique_ptr<T> obj) {
-  return NonNull<std::unique_ptr<T>>(std::move(obj));
 }
 
 template <typename T, typename... Arg>

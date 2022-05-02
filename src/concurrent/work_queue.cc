@@ -71,9 +71,8 @@ namespace {
 const bool work_queue_tests_registration = tests::Register(
     L"WorkQueue",
     {{.name = L"CallbackKeepsWorkQueueAlive", .runs = 100, .callback = [] {
-        WorkQueue* work_queue_raw;
         NonNull<std::shared_ptr<Notification>> notification;
-        {
+        NonNull<WorkQueue*> work_queue_raw = [notification] {
           NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
           work_queue->Schedule(
               [work_queue] { LOG(INFO) << "First callback starts"; });
@@ -82,8 +81,8 @@ const bool work_queue_tests_registration = tests::Register(
             notification->Notify();
           });
           LOG(INFO) << "Execute.";
-          work_queue_raw = work_queue.get();
-        }
+          return work_queue.get();
+        }();
         // We know it hasn't been deleted since it contains a reference to
         // itself (in the first scheduled callback).
         work_queue_raw->Execute();

@@ -69,7 +69,7 @@ struct SearchResultsSummary {
 // number of matches, feeding information to a `ProgressChannel`.
 //
 // Customer must ensure that `progress_channel` survives until the callback has
-// returned (but it's OK for `buffer` to be deleted as soon as
+// returned. It's OK for `buffer` to be deleted as soon as
 // `BackgroundSearchCallback` has returned).
 std::function<language::ValueOrError<SearchResultsSummary>()>
 BackgroundSearchCallback(SearchOptions search_options, const OpenBuffer& buffer,

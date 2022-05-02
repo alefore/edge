@@ -68,8 +68,9 @@ class FunctionTransformation : public CompositeTransformation {
                       work_queue->Schedule(std::move(callback));
                     })
         .Transform([](NonNull<std::unique_ptr<Value>> value) {
+          // TODO(easy, 2022-05-02): Get rid of 2nd get?
           return Success(std::move(
-              *VMTypeMapper<std::shared_ptr<Output>>::get(value.get())));
+              *VMTypeMapper<std::shared_ptr<Output>>::get(value.get().get())));
         })
         .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }

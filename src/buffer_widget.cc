@@ -135,14 +135,17 @@ LineWithCursor::Generator::Vector LinesSpanView(
          .width = ColumnNumberDelta(1)});
   }
 
-  columns_vector.push_back(BufferMetadataOutput(
-      {.buffer = buffer,
-       .screen_lines = screen_lines,
-       .zoomed_out_tree = buffer
-                              .current_zoomed_out_parse_tree(
-                                  min(output_producer_options.size.line,
-                                      LineNumberDelta(screen_lines.size())))
-                              .get()}));
+  // TODO(easy, 2022-05-02): Drop the 2nd get for zoomed_out_tree. Pass it by
+  // ref.
+  columns_vector.push_back(BufferMetadataOutput(BufferMetadataOutputOptions{
+      .buffer = buffer,
+      .screen_lines = screen_lines,
+      .zoomed_out_tree = buffer
+                             .current_zoomed_out_parse_tree(
+                                 min(output_producer_options.size.line,
+                                     LineNumberDelta(screen_lines.size())))
+                             .get()
+                             .get()}));
   return OutputFromColumnsVector(std::move(columns_vector));
 }
 

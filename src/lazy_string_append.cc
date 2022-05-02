@@ -29,7 +29,7 @@ class StringAppendImpl : public LazyString {
 };
 
 ConstTree<wchar_t>::Ptr TreeFrom(NonNull<std::shared_ptr<LazyString>> a) {
-  auto a_cast = dynamic_cast<StringAppendImpl*>(a.get());
+  auto a_cast = dynamic_cast<StringAppendImpl*>(a.get().get());
   if (a_cast != nullptr) {
     return a_cast->tree();
   }

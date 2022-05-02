@@ -196,7 +196,7 @@ auto status_basic_info_tests_registration = tests::Register(
         buffer->Set(buffer_variables::path, L"");
         StatusBasicInfo(StatusOutputOptions{
             .status = buffer->status(),
-            .buffer = buffer.get(),
+            .buffer = buffer.get().get(),
             .modifiers = {},
             .size =
                 LineColumnDelta(LineNumberDelta(1), ColumnNumberDelta(80))});

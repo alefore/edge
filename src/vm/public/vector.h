@@ -66,7 +66,8 @@ struct VMTypeMapper<std::vector<T>*> {
             [](std::vector<language::NonNull<std::unique_ptr<Value>>> args,
                Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
               CHECK_EQ(args.size(), 2ul);
-              auto* v = get(args[0].get());
+              // TODO(easy, 2022-05-02): Drop the 2nd get?
+              auto* v = get(args[0].get().get());
               CHECK(args[1]->IsInteger());
               int index = args[1]->integer;
               if (index < 0 || static_cast<size_t>(index) >= v->size()) {

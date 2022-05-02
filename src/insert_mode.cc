@@ -434,7 +434,7 @@ class InsertMode : public EditorMode {
               [scroll_behavior,
                method](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
                 if (buffer->fd() == nullptr) {
-                  (scroll_behavior.get()->*method)(*buffer);
+                  ((*scroll_behavior).*method)(*buffer);
                 }
                 return futures::Past(EmptyValue());
               });

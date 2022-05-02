@@ -43,6 +43,7 @@ struct VMType {
   static const VMType& String();
   static const VMType& Double();
 
+  // TODO(easy, 2022-05-02): NonNull or const ref?
   static VMType ObjectType(ObjectType* type);
   static VMType ObjectType(const wstring& name);
 
@@ -82,7 +83,7 @@ class ObjectType {
 
   Value* LookupField(const wstring& name) const {
     auto it = fields_.find(name);
-    return it == fields_.end() ? nullptr : it->second.get();
+    return it == fields_.end() ? nullptr : it->second.get().get();
   }
 
   void ForEachField(std::function<void(const wstring&, Value&)> callback);

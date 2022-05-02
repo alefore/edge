@@ -118,13 +118,16 @@ language::NonNull<Value::Ptr> RunCallback(
   using ft = function_traits<Callable>;
   CHECK_EQ(args.size(), std::tuple_size<typename ft::ArgTuple>::value);
   if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
-    callback(VMTypeMapper<typename std::tuple_element<
-                 I, typename ft::ArgTuple>::type>::get(args.at(I).get())...);
+    // TODO(easy, 2022-05-02): Drop the 2nd .get():
+    callback(
+        VMTypeMapper<typename std::tuple_element<
+            I, typename ft::ArgTuple>::type>::get(args.at(I).get().get())...);
     return Value::NewVoid();
   } else {
+    // TODO(easy, 2022-05-02): Drop the 2nd .get():
     return VMTypeMapper<typename ft::ReturnType>::New(callback(
         VMTypeMapper<typename std::tuple_element<
-            I, typename ft::ArgTuple>::type>::get(args.at(I).get())...));
+            I, typename ft::ArgTuple>::type>::get(args.at(I).get().get())...));
   }
 }
 

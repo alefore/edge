@@ -276,6 +276,7 @@ struct BuffersListOptions {
 
 enum class FilterResult { kExcluded, kIncluded };
 
+// TODO(easy, 2022-05-02): Pass buffer by ref.
 LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
                                    OpenBuffer* buffer,
                                    FilterResult filter_result) {
@@ -544,7 +545,9 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
           for (size_t i = 0; i < options->buffers_per_line &&
                              index + i < options->buffers.size();
                i++) {
-            auto buffer = options->buffers.at(index + i).get();
+            // TODO(easy, 2022-05-02): Keep just a ref?
+            NonNull<std::shared_ptr<OpenBuffer>> buffer =
+                options->buffers.at(index + i);
             auto number_prefix = std::to_wstring(index + i + 1);
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
@@ -555,13 +558,13 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             FilterResult filter_result =
                 (!options->filter.has_value() ||
-                 options->filter.value().find(buffer) !=
+                 options->filter.value().find(buffer.get().get()) !=
                      options->filter.value().end())
                     ? FilterResult::kIncluded
                     : FilterResult::kExcluded;
 
             LineModifierSet number_modifiers =
-                GetNumberModifiers(*options, buffer, filter_result);
+                GetNumberModifiers(*options, buffer.get().get(), filter_result);
 
             start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
             output.AppendString(
@@ -601,10 +604,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                 selection_state = SelectionState::kExcludedByFilter;
                 break;
               case FilterResult::kIncluded:
-                selection_state = options->active_buffers.find(buffer) !=
-                                          options->active_buffers.end()
-                                      ? SelectionState::kReceivingInput
-                                      : SelectionState::kIdle;
+                selection_state =
+                    options->active_buffers.find(buffer.get().get()) !=
+                            options->active_buffers.end()
+                        ? SelectionState::kReceivingInput
+                        : SelectionState::kIdle;
             }
             AppendBufferPath(
                 columns_per_buffer, *buffer,
@@ -624,7 +628,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 BuffersList::BuffersList(const EditorState& editor_state)
     : editor_state_(editor_state),
       widget_(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{})),
-      active_buffer_widget_(static_cast<BufferWidget*>(widget_.get())) {}
+      // TODO(easy, 2022-05-02): Drop 2nd get, make NonNull.
+      active_buffer_widget_(static_cast<BufferWidget*>(widget_.get().get())) {}
 
 void BuffersList::AddBuffer(NonNull<std::shared_ptr<OpenBuffer>> buffer,
                             AddBufferType add_buffer_type) {
@@ -661,7 +666,7 @@ void BuffersList::RemoveBuffer(const OpenBuffer& buffer) {
   if (auto it = std::find_if(
           buffers_.begin(), buffers_.end(),
           [&buffer](NonNull<std::shared_ptr<OpenBuffer>>& candidate) {
-            return candidate.get() == &buffer;
+            return candidate.get().get() == &buffer;
           });
       it != buffers_.end()) {
     buffers_.erase(it);
@@ -675,12 +680,13 @@ const NonNull<std::shared_ptr<OpenBuffer>>& BuffersList::GetBuffer(
   return buffers_[index];
 }
 
+// TODO(easy, 2022-05-02): Adopt NonNull for buffer argument? Or by ref?
 std::optional<size_t> BuffersList::GetBufferIndex(
     const OpenBuffer* buffer) const {
   auto it = std::find_if(
       buffers_.begin(), buffers_.end(),
       [buffer](const NonNull<std::shared_ptr<OpenBuffer>>& candidate) {
-        return candidate.get() == buffer;
+        return candidate.get().get() == buffer;
       });
   return it == buffers_.end() ? std::optional<size_t>()
                               : std::distance(buffers_.begin(), it);
@@ -842,7 +848,8 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
 
   std::set<OpenBuffer*> active_buffers;
   for (auto& b : editor_state_.active_buffers()) {
-    active_buffers.insert(b.get());
+    // TODO(easy, 2022-05-02): Drop the 2nd get.
+    active_buffers.insert(b.get().get());
   }
   auto buffers_list_lines = ProduceBuffersList(
       std::make_shared<BuffersListOptions>(BuffersListOptions{
@@ -860,7 +867,6 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
 }
 
 std::shared_ptr<OpenBuffer> BuffersList::active_buffer() const {
-  CHECK(active_buffer_widget_ != nullptr);
   return active_buffer_widget_->Lock();
 }
 
@@ -920,7 +926,7 @@ void BuffersList::Update() {
   size_t index_active = 0;  // The index in `buffers` of `active_buffer`.
   for (size_t index = 0; index < BuffersCount(); index++) {
     NonNull<std::shared_ptr<OpenBuffer>> buffer = GetBuffer(index);
-    if (buffer.get() == active_buffer.get()) {
+    if (buffer.get().get() == active_buffer.get()) {
       index_active = buffers.size();
     }
     buffers.push_back(std::move(buffer));
@@ -940,7 +946,8 @@ void BuffersList::Update() {
 
   if (buffers.empty()) {
     widget_ = MakeNonNullUnique<BufferWidget>(BufferWidget::Options{});
-    active_buffer_widget_ = static_cast<BufferWidget*>(widget_.get());
+    // TODO(easy, 2022-05-02): Drop 2nd get.
+    active_buffer_widget_ = static_cast<BufferWidget*>(widget_.get().get());
     return;
   }
 
@@ -956,8 +963,9 @@ void BuffersList::Update() {
   }
 
   CHECK_LT(index_active, widgets.size());
+  // TODO(easy, 2022-05-02): Drop 2nd get.
   active_buffer_widget_ =
-      static_cast<BufferWidget*>(widgets[index_active].get());
+      static_cast<BufferWidget*>(widgets[index_active].get().get());
 
   if (widgets.size() == 1) {
     widget_ = std::move(widgets[index_active]);

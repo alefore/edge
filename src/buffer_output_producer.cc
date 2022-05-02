@@ -260,7 +260,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                                                  : *editor_keyboard_redirect)
                 .cursor_mode()));
 
-    if (&current_tree != root.get() &&
+    if (&current_tree != root.get().get() &&
         screen_line.range.begin.line >= current_tree.range().begin.line &&
         screen_line.range.begin.line <= current_tree.range().end.line) {
       ColumnNumber begin =

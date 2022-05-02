@@ -61,6 +61,7 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
 namespace editor {
 namespace transformation {
 namespace {
+// TODO(easy, 2022-05-02): CompositeTransformation should be NonNull or ref.
 futures::Value<Result> ApplyBase(const Modifiers& modifiers,
                                  CompositeTransformation* transformation,
                                  Input transformation_input) {
@@ -89,12 +90,14 @@ futures::Value<Result> ApplyBase(const Modifiers& modifiers,
 futures::Value<Result> ApplyBase(
     const NonNull<std::shared_ptr<CompositeTransformation>>& transformation,
     Input input) {
-  return ApplyBase(editor::Modifiers(), transformation.get(), std::move(input));
+  // TODO(easy, 2022-05-02): Drop 2nd get?
+  return ApplyBase(editor::Modifiers(), transformation.get().get(),
+                   std::move(input));
 }
 
 futures::Value<Result> ApplyBase(const ModifiersAndComposite& parameters,
                                  Input input) {
-  return ApplyBase(parameters.modifiers, parameters.transformation.get(),
+  return ApplyBase(parameters.modifiers, parameters.transformation.get().get(),
                    std::move(input));
 }
 

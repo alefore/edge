@@ -62,8 +62,10 @@ NonNull<std::unique_ptr<MapModeCommands>> MapModeCommands::NewChild() {
 
   // Override the parent's help command, so that bindings added to the child are
   // visible.
-  output->Add(L"?",
-              NewHelpCommand(editor_state_, output.get(), L"command mode"));
+  //
+  // TODO(easy, 2022-05-02): Drop the 2nd get.
+  output->Add(
+      L"?", NewHelpCommand(editor_state_, output.get().get(), L"command mode"));
   return output;
 }
 
@@ -74,7 +76,8 @@ std::map<wstring, std::map<wstring, Command*>> MapModeCommands::Coallesce()
   for (const auto& frame : frames_) {
     for (const auto& it : frame->commands) {
       if (already_seen.insert(it.first).second) {
-        output[it.second->Category()][it.first] = it.second.get();
+        // TODO(easy, 2022-05-02): Drop the 2nd get.
+        output[it.second->Category()][it.first] = it.second.get().get();
       }
     }
   }
