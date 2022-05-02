@@ -19,14 +19,15 @@ extern "C" {
 
 namespace afc::editor {
 using language::FromByteString;
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::Observers;
 
 BufferTerminal::BufferTerminal(OpenBuffer& buffer, BufferContents& contents)
-    : data_(std::make_shared<Data>(
+    : data_(MakeNonNullShared<Data>(
           Data{.buffer = buffer, .contents = contents})) {
   data_->buffer.view_size().Add(Observers::LockingObserver(
-      std::weak_ptr<Data>(data_), InternalUpdateSize));
+      std::weak_ptr<Data>(data_.get_shared()), InternalUpdateSize));
 
   LOG(INFO) << "New BufferTerminal for "
             << data_->buffer.Read(buffer_variables::name);
