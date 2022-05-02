@@ -61,9 +61,8 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
 namespace editor {
 namespace transformation {
 namespace {
-// TODO(easy, 2022-05-02): CompositeTransformation should be NonNull or ref.
 futures::Value<Result> ApplyBase(const Modifiers& modifiers,
-                                 CompositeTransformation* transformation,
+                                 CompositeTransformation& transformation,
                                  Input transformation_input) {
   NonNull<std::shared_ptr<Log>> trace =
       transformation_input.buffer.log().NewChild(
@@ -71,7 +70,7 @@ futures::Value<Result> ApplyBase(const Modifiers& modifiers,
   auto position = transformation_input.buffer.AdjustLineColumn(
       transformation_input.position);
   return transformation
-      ->Apply(CompositeTransformation::Input{
+      .Apply(CompositeTransformation::Input{
           .editor = transformation_input.buffer.editor(),
           .original_position = transformation_input.position,
           .position = position,
@@ -90,14 +89,13 @@ futures::Value<Result> ApplyBase(const Modifiers& modifiers,
 futures::Value<Result> ApplyBase(
     const NonNull<std::shared_ptr<CompositeTransformation>>& transformation,
     Input input) {
-  // TODO(easy, 2022-05-02): Drop 2nd get?
-  return ApplyBase(editor::Modifiers(), transformation.get().get(),
+  return ApplyBase(editor::Modifiers(), transformation.value(),
                    std::move(input));
 }
 
 futures::Value<Result> ApplyBase(const ModifiersAndComposite& parameters,
                                  Input input) {
-  return ApplyBase(parameters.modifiers, parameters.transformation.get().get(),
+  return ApplyBase(parameters.modifiers, parameters.transformation.value(),
                    std::move(input));
 }
 
