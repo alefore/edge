@@ -344,19 +344,19 @@ bool operator<(const Range& a, const Range& b);
 namespace vm {
 template <>
 struct VMTypeMapper<editor::LineColumn> {
-  static editor::LineColumn get(Value* value);
+  static editor::LineColumn get(Value& value);
   static language::NonNull<Value::Ptr> New(editor::LineColumn value);
   static const VMType vmtype;
 };
 template <>
 struct VMTypeMapper<editor::LineColumnDelta> {
-  static editor::LineColumnDelta get(Value* value);
+  static editor::LineColumnDelta get(Value& value);
   static language::NonNull<Value::Ptr> New(editor::LineColumnDelta value);
   static const VMType vmtype;
 };
 template <>
 struct VMTypeMapper<editor::Range> {
-  static editor::Range get(Value* value);
+  static editor::Range get(Value& value);
   static language::NonNull<Value::Ptr> New(editor::Range value);
   static const VMType vmtype;
 };

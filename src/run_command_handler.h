@@ -56,7 +56,7 @@ futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
 namespace vm {
 template <>
 struct VMTypeMapper<editor::ForkCommandOptions*> {
-  static editor::ForkCommandOptions* get(Value* value);
+  static editor::ForkCommandOptions* get(Value& value);
   static language::NonNull<Value::Ptr> New(editor::ForkCommandOptions* value);
   static const VMType vmtype;
 };

@@ -26,12 +26,11 @@ const VMType VMTypeMapper<editor::transformation::Variant*>::vmtype =
     VMType::ObjectType(L"Transformation");
 
 editor::transformation::Variant*
-VMTypeMapper<editor::transformation::Variant*>::get(Value* value) {
-  CHECK(value != nullptr);
-  CHECK(value->type.type == VMType::OBJECT_TYPE);
-  CHECK(value->type.object_type == L"Transformation");
-  CHECK(value->user_value != nullptr);
-  return static_cast<editor::transformation::Variant*>(value->user_value.get());
+VMTypeMapper<editor::transformation::Variant*>::get(Value& value) {
+  CHECK(value.type.type == VMType::OBJECT_TYPE);
+  CHECK(value.type.object_type == L"Transformation");
+  CHECK(value.user_value != nullptr);
+  return static_cast<editor::transformation::Variant*>(value.user_value.get());
 }
 
 NonNull<Value::Ptr> VMTypeMapper<editor::transformation::Variant*>::New(
@@ -68,9 +67,8 @@ class FunctionTransformation : public CompositeTransformation {
                       work_queue->Schedule(std::move(callback));
                     })
         .Transform([](NonNull<std::unique_ptr<Value>> value) {
-          // TODO(easy, 2022-05-02): Get rid of 2nd get?
           return Success(std::move(
-              *VMTypeMapper<std::shared_ptr<Output>>::get(value.get().get())));
+              *VMTypeMapper<std::shared_ptr<Output>>::get(value.value())));
         })
         .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }

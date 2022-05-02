@@ -136,7 +136,7 @@ ostream& operator<<(ostream& os, const Modifiers& m);
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::Modifiers>> {
-  static std::shared_ptr<editor::Modifiers> get(Value* value);
+  static std::shared_ptr<editor::Modifiers> get(Value& value);
   static language::NonNull<Value::Ptr> New(
       std::shared_ptr<editor::Modifiers> value);
   static const VMType vmtype;

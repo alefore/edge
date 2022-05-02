@@ -28,9 +28,9 @@ struct VMTypeMapper<void> {
 
 template <>
 struct VMTypeMapper<bool> {
-  static int get(Value* value) {
-    CHECK(value->IsBool());
-    return value->boolean;
+  static int get(Value& value) {
+    CHECK(value.IsBool());
+    return value.boolean;
   }
   static language::NonNull<Value::Ptr> New(bool value) {
     return Value::NewBool(value);
@@ -40,9 +40,9 @@ struct VMTypeMapper<bool> {
 
 template <>
 struct VMTypeMapper<int> {
-  static int get(Value* value) {
-    CHECK(value->IsInteger());
-    return value->integer;
+  static int get(Value& value) {
+    CHECK(value.IsInteger());
+    return value.integer;
   }
   static language::NonNull<Value::Ptr> New(int value) {
     return Value::NewInteger(value);
@@ -52,9 +52,9 @@ struct VMTypeMapper<int> {
 
 template <>
 struct VMTypeMapper<double> {
-  static double get(Value* value) {
-    CHECK(value->IsDouble());
-    return value->double_value;
+  static double get(Value& value) {
+    CHECK(value.IsDouble());
+    return value.double_value;
   }
   static language::NonNull<Value::Ptr> New(double value) {
     return Value::NewDouble(value);
@@ -64,7 +64,10 @@ struct VMTypeMapper<double> {
 
 template <>
 struct VMTypeMapper<wstring> {
-  static wstring get(Value* value) { return std::move(value->str); }
+  static wstring get(Value& value) {
+    CHECK(value.IsString());
+    return std::move(value.str);
+  }
   static language::NonNull<Value::Ptr> New(wstring value) {
     return Value::NewString(value);
   }
@@ -118,16 +121,13 @@ language::NonNull<Value::Ptr> RunCallback(
   using ft = function_traits<Callable>;
   CHECK_EQ(args.size(), std::tuple_size<typename ft::ArgTuple>::value);
   if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
-    // TODO(easy, 2022-05-02): Drop the 2nd .get():
-    callback(
-        VMTypeMapper<typename std::tuple_element<
-            I, typename ft::ArgTuple>::type>::get(args.at(I).get().get())...);
+    callback(VMTypeMapper<typename std::tuple_element<
+                 I, typename ft::ArgTuple>::type>::get(args.at(I).value())...);
     return Value::NewVoid();
   } else {
-    // TODO(easy, 2022-05-02): Drop the 2nd .get():
     return VMTypeMapper<typename ft::ReturnType>::New(callback(
         VMTypeMapper<typename std::tuple_element<
-            I, typename ft::ArgTuple>::type>::get(args.at(I).get().get())...));
+            I, typename ft::ArgTuple>::type>::get(args.at(I).value())...));
   }
 }
 

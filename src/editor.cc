@@ -46,8 +46,9 @@ namespace afc {
 namespace vm {
 template <>
 struct VMTypeMapper<editor::EditorState*> {
-  static editor::EditorState* get(Value* value) {
-    return static_cast<editor::EditorState*>(value->user_value.get());
+  static editor::EditorState* get(Value& value) {
+    CHECK_EQ(value.type, vmtype);
+    return static_cast<editor::EditorState*>(value.user_value.get());
   }
 
   static const VMType vmtype;
@@ -258,7 +259,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
           [](std::vector<NonNull<std::unique_ptr<Value>>> input,
              Trampoline& trampoline) {
             EditorState* editor =
-                VMTypeMapper<EditorState*>::get(input[0].get().get());
+                VMTypeMapper<EditorState*>::get(input[0].value());
             NonNull<std::shared_ptr<PossibleError>> output;
             return editor
                 ->ForEachActiveBuffer([callback = std::move(input[1]->callback),
@@ -292,7 +293,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
           [](std::vector<NonNull<std::unique_ptr<Value>>> input,
              Trampoline& trampoline) {
             EditorState* editor =
-                VMTypeMapper<EditorState*>::get(input[0].get().get());
+                VMTypeMapper<EditorState*>::get(input[0].value());
             return editor
                 ->ForEachActiveBufferWithRepetitions([callback = std::move(
                                                           input[1]->callback),

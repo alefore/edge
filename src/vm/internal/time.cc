@@ -28,11 +28,10 @@ struct Duration {
 
 template <>
 struct VMTypeMapper<Time> {
-  static Time get(Value* value) {
-    CHECK(value != nullptr);
-    CHECK_EQ(value->type, vmtype);
-    CHECK(value->user_value != nullptr);
-    return *static_cast<Time*>(value->user_value.get());
+  static Time get(Value& value) {
+    CHECK_EQ(value.type, vmtype);
+    CHECK(value.user_value != nullptr);
+    return *static_cast<Time*>(value.user_value.get());
   }
 
   static NonNull<Value::Ptr> New(Time value) {

@@ -69,8 +69,9 @@ struct BufferWrapper {
 };
 
 std::shared_ptr<editor::OpenBuffer>
-VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value* value) {
-  return static_cast<BufferWrapper*>(value->user_value.get())->buffer;
+VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value& value) {
+  CHECK_EQ(value.type, vmtype);
+  return static_cast<BufferWrapper*>(value.user_value.get())->buffer;
 }
 
 /* static */ NonNull<Value::Ptr>
@@ -311,7 +312,7 @@ using std::to_wstring;
             CHECK_EQ(args.size(), 2ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get().get());
+                    args[0].value());
             auto transformation = static_cast<editor::transformation::Variant*>(
                 args[1]->user_value.get());
             return buffer->ApplyToCursors(Pointer(transformation).Reference())
@@ -386,7 +387,7 @@ using std::to_wstring;
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get().get());
+                    args[0].value());
             CHECK(buffer != nullptr);
             return Value::NewBool(buffer->AddKeyboardTextTransformer(
                 std::move(args[1].get_unique())));
@@ -402,7 +403,7 @@ using std::to_wstring;
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get().get());
+                    args[0].value());
             CHECK(buffer != nullptr);
             buffer->set_filter(std::move(args[1].get_unique()));
             return Value::NewVoid();
@@ -440,7 +441,7 @@ using std::to_wstring;
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get().get());
+                    args[0].value());
             if (buffer->editor().structure() == StructureLine()) {
               auto target_buffer = buffer->GetBufferFromCurrentLine();
               if (target_buffer != nullptr) {
@@ -485,7 +486,7 @@ using std::to_wstring;
             CHECK_EQ(args[2]->type, VMType::VM_STRING);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get().get());
+                    args[0].value());
             CHECK(buffer != nullptr);
             buffer->default_commands_->Add(args[1]->str, args[2]->str,
                                            std::move(args[3]),
@@ -552,7 +553,7 @@ using std::to_wstring;
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].get().get());
+                    args[0].value());
             return buffer->WaitForEndOfFile().Transform([](EmptyValue) {
               return EvaluationOutput::Return(Value::NewVoid());
             });

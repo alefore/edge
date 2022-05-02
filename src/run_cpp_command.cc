@@ -214,8 +214,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                       output](ValueOrError<NonNull<std::unique_ptr<vm::Value>>>
                                   value) mutable {
           if (!value.IsError() && value.value()->type == BufferMapper::vmtype) {
-            // TODO(easy, 2022-05-02): Drop 2nd get.
-            output.context = BufferMapper::get(value.value().get().get());
+            output.context = BufferMapper::get(value.value().value());
           }
           consumer(output);
         });

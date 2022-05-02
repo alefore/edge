@@ -34,9 +34,9 @@ namespace afc::vm {
 //        std::function<std::unique_ptr<std::vector<T>>(std::vector<T>*)>(...));
 template <typename T>
 struct VMTypeMapper<std::vector<T>*> {
-  static std::vector<T>* get(Value* value) {
-    CHECK_EQ(value->type, vmtype);
-    return static_cast<std::vector<T>*>(value->user_value.get());
+  static std::vector<T>* get(Value& value) {
+    CHECK_EQ(value.type, vmtype);
+    return static_cast<std::vector<T>*>(value.user_value.get());
   }
 
   static const VMType vmtype;
@@ -66,8 +66,7 @@ struct VMTypeMapper<std::vector<T>*> {
             [](std::vector<language::NonNull<std::unique_ptr<Value>>> args,
                Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
               CHECK_EQ(args.size(), 2ul);
-              // TODO(easy, 2022-05-02): Drop the 2nd get?
-              auto* v = get(args[0].get().get());
+              auto* v = get(args[0].value());
               CHECK(args[1]->IsInteger());
               int index = args[1]->integer;
               if (index < 0 || static_cast<size_t>(index) >= v->size()) {

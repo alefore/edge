@@ -16,8 +16,9 @@ namespace afc {
 namespace vm {
 template <>
 struct VMTypeMapper<editor::Screen*> {
-  static editor::Screen* get(Value* value) {
-    return static_cast<editor::Screen*>(value->user_value.get());
+  static editor::Screen* get(Value& value) {
+    CHECK_EQ(value.type, vmtype);
+    return static_cast<editor::Screen*>(value.user_value.get());
   }
 
   static const VMType vmtype;

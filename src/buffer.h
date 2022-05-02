@@ -618,7 +618,7 @@ language::NonNull<std::shared_ptr<OpenBuffer>> NewBufferForTests();
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::OpenBuffer>> {
-  static std::shared_ptr<editor::OpenBuffer> get(Value* value);
+  static std::shared_ptr<editor::OpenBuffer> get(Value& value);
   static language::NonNull<Value::Ptr> New(
       std::shared_ptr<editor::OpenBuffer> value);
   static const VMType vmtype;

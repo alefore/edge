@@ -26,13 +26,12 @@ using language::NonNull;
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
-  static std::shared_ptr<editor::transformation::Delete> get(Value* value) {
-    CHECK(value != nullptr);
-    CHECK(value->type.type == VMType::OBJECT_TYPE);
-    CHECK(value->type.object_type == L"DeleteTransformationBuilder");
-    CHECK(value->user_value != nullptr);
+  static std::shared_ptr<editor::transformation::Delete> get(Value& value) {
+    CHECK(value.type.type == VMType::OBJECT_TYPE);
+    CHECK(value.type.object_type == L"DeleteTransformationBuilder");
+    CHECK(value.user_value != nullptr);
     return std::static_pointer_cast<editor::transformation::Delete>(
-        value->user_value);
+        value.user_value);
   }
   static NonNull<Value::Ptr> New(
       std::shared_ptr<editor::transformation::Delete> value) {

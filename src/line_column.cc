@@ -675,11 +675,10 @@ namespace fuzz {
 }  // namespace editor
 namespace vm {
 /* static */
-editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value* value) {
-  CHECK(value != nullptr);
-  CHECK_EQ(value->type, vmtype);
-  CHECK(value->user_value != nullptr);
-  return *static_cast<editor::LineColumn*>(value->user_value.get());
+editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
+  CHECK_EQ(value.type, vmtype);
+  CHECK(value.user_value != nullptr);
+  return *static_cast<editor::LineColumn*>(value.user_value.get());
 }
 
 /* static */
@@ -697,11 +696,10 @@ const VMType VMTypeMapper<editor::LineColumn>::vmtype =
 
 /* static */
 editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
-    Value* value) {
-  CHECK(value != nullptr);
-  CHECK_EQ(value->type, vmtype);
-  CHECK(value->user_value != nullptr);
-  return *static_cast<editor::LineColumnDelta*>(value->user_value.get());
+    Value& value) {
+  CHECK_EQ(value.type, vmtype);
+  CHECK(value.user_value != nullptr);
+  return *static_cast<editor::LineColumnDelta*>(value.user_value.get());
 }
 
 /* static */
@@ -718,11 +716,10 @@ const VMType VMTypeMapper<editor::LineColumnDelta>::vmtype =
     VMType::ObjectType(L"LineColumnDelta");
 
 /* static */
-editor::Range VMTypeMapper<editor::Range>::get(Value* value) {
-  CHECK(value != nullptr);
-  CHECK_EQ(value->type, VMTypeMapper<editor::Range>::vmtype);
-  CHECK(value->user_value != nullptr);
-  return *static_cast<editor::Range*>(value->user_value.get());
+editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
+  CHECK_EQ(value.type, vmtype);
+  CHECK(value.user_value != nullptr);
+  return *static_cast<editor::Range*>(value.user_value.get());
 }
 
 /* static */

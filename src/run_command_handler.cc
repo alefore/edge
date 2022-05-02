@@ -502,12 +502,11 @@ class ForkEditorCommand : public Command {
 }  // namespace editor
 namespace vm {
 /* static */ editor::ForkCommandOptions*
-VMTypeMapper<editor::ForkCommandOptions*>::get(Value* value) {
-  CHECK(value != nullptr);
-  CHECK(value->type.type == VMType::OBJECT_TYPE);
-  CHECK(value->type.object_type == L"ForkCommandOptions");
-  CHECK(value->user_value != nullptr);
-  return static_cast<editor::ForkCommandOptions*>(value->user_value.get());
+VMTypeMapper<editor::ForkCommandOptions*>::get(Value& value) {
+  CHECK(value.type.type == VMType::OBJECT_TYPE);
+  CHECK(value.type.object_type == L"ForkCommandOptions");
+  CHECK(value.user_value != nullptr);
+  return static_cast<editor::ForkCommandOptions*>(value.user_value.get());
 }
 
 /* static */ NonNull<Value::Ptr> VMTypeMapper<editor::ForkCommandOptions*>::New(

@@ -78,7 +78,7 @@ namespace afc::vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>> {
   static std::shared_ptr<editor::CompositeTransformation::Output> get(
-      Value* value);
+      Value& value);
   static language::NonNull<Value::Ptr> New(
       std::shared_ptr<editor::CompositeTransformation::Output> value);
   static const VMType vmtype;
@@ -86,7 +86,7 @@ struct VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>> {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>> {
   static std::shared_ptr<editor::CompositeTransformation::Input> get(
-      Value* value);
+      Value& value);
   static language::NonNull<Value::Ptr> New(
       std::shared_ptr<editor::CompositeTransformation::Input> value);
   static const VMType vmtype;

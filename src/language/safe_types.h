@@ -134,7 +134,9 @@ class NonNull<std::unique_ptr<T>> {
   template <typename... Arg>
   explicit NonNull(Arg&&... arg) : value_(std::make_unique<T>(arg...)) {}
 
+  T& value() const { return *value_; }
   T* operator->() const { return value_.get(); }
+  // TODO(easy, 2022-05-02): Remove. Force use of `value`.
   T& operator*() const { return *value_; }
   NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
 
@@ -194,6 +196,7 @@ class NonNull<std::shared_ptr<T>> {
 
   T& value() const { return *value_; }
   T* operator->() const { return value_.get(); }
+  // TODO(easy, 2022-05-02): Remove. Force use of `value`.
   T& operator*() const { return *value_; }
   NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
 
