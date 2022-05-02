@@ -210,6 +210,8 @@ Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   return Line(std::move(line_options));
 }
 
+GHOST_TYPE_SIZE_T(Rows);
+
 Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                             LineNumber line) {
   static Tracker tracker(L"BufferMetadataOutput::ComputeScrollBarSuffix");
@@ -223,21 +225,19 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
       << ", which exceeds lines_shown_ of " << lines_shown;
   DCHECK_LT(initial_line(options), LineNumber(0) + lines_size);
 
-  using Rows = size_t;  // TODO(easy, 2022-04-28): Use a ghost type.
-
-  static const Rows kRowsPerScreenLine = 3;
-  Rows total_rows = lines_shown.line_delta * kRowsPerScreenLine;
+  static const Rows kRowsPerScreenLine(3);
+  Rows total_rows = size_t(lines_shown.line_delta) * kRowsPerScreenLine;
 
   // Number of rows the bar should take.
-  Rows bar_size = max(
-      size_t(1), size_t(std::round(total_rows *
-                                   static_cast<double>(lines_shown.line_delta) /
-                                   lines_size.line_delta)));
+  Rows bar_size = std::max(
+      Rows(1), Rows(std::round(static_cast<double>(total_rows.read()) *
+                               static_cast<double>(lines_shown.line_delta) /
+                               lines_size.line_delta)));
 
   // Bar will be shown in lines in interval [start, end] (units are rows).
-  Rows start =
-      std::round(total_rows * static_cast<double>(initial_line(options).line) /
-                 lines_size.line_delta);
+  Rows start = Rows(std::round(static_cast<double>(total_rows.read()) *
+                               static_cast<double>(initial_line(options).line) /
+                               lines_size.line_delta));
   Rows end = start + bar_size;
 
   LineModifierSet modifiers;
@@ -295,9 +295,10 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
         total_rows;
     bool active_marks = false;
     for (size_t row = 0; row < 3; row++) {
-      LineColumn begin_line(LineNumber((current + row) * buffer_lines_per_row));
+      LineColumn begin_line(
+          LineNumber((current + row).read() * buffer_lines_per_row));
       LineColumn end_line(
-          LineNumber((current + row + 1) * buffer_lines_per_row));
+          LineNumber((current + row + 1).read() * buffer_lines_per_row));
       if (begin_line == end_line) continue;
       if (marks.lower_bound(begin_line) != marks.lower_bound(end_line)) {
         active_marks = true;

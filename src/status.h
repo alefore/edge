@@ -25,7 +25,7 @@ class StatusPromptExtraInformationKey {
  public:
   GHOST_TYPE_CONSTRUCTOR(StatusPromptExtraInformationKey, std::wstring, value);
   GHOST_TYPE_EQ(StatusPromptExtraInformationKey, value);
-  GHOST_TYPE_LT(StatusPromptExtraInformationKey, value);
+  GHOST_TYPE_ORDER(StatusPromptExtraInformationKey, value);
   GHOST_TYPE_OUTPUT_FRIEND(StatusPromptExtraInformationKey, value);
   GHOST_TYPE_HASH_FRIEND(StatusPromptExtraInformationKey, value);
 

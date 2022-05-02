@@ -82,7 +82,7 @@
    public:                                                  \
     GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
     GHOST_TYPE_EQ(ClassName, value);                        \
-    GHOST_TYPE_LT(ClassName, value);                        \
+    GHOST_TYPE_ORDER(ClassName, value);                     \
                                                             \
     const VariableType& read() const { return value; }      \
                                                             \
@@ -96,23 +96,30 @@
 
 #define GHOST_TYPE_TOP_LEVEL(ClassName) GHOST_TYPE_HASH(ClassName);
 
-#define GHOST_TYPE_DOUBLE(ClassName)                  \
-  class ClassName {                                   \
-   public:                                            \
-    GHOST_TYPE_CONSTRUCTOR(ClassName, double, value); \
-    GHOST_TYPE_EQ(ClassName, value);                  \
-    GHOST_TYPE_LT(ClassName, value);                  \
-                                                      \
-    const double& read() const { return value; }      \
-                                                      \
-   private:                                           \
-    GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);       \
-    GHOST_TYPE_HASH_FRIEND(ClassName, value);         \
-    double value;                                     \
-  };                                                  \
-                                                      \
-  GHOST_TYPE_DOUBLE_OPERATORS(ClassName);             \
+#define GHOST_TYPE_NUMBER(ClassName, VariableType)          \
+  class ClassName {                                         \
+   public:                                                  \
+    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
+    GHOST_TYPE_EQ(ClassName, value);                        \
+    GHOST_TYPE_ORDER(ClassName, value)                      \
+                                                            \
+    const auto& read() const { return value; }              \
+                                                            \
+   private:                                                 \
+    GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);             \
+    GHOST_TYPE_HASH_FRIEND(ClassName, value);               \
+    VariableType value;                                     \
+  };                                                        \
+                                                            \
   GHOST_TYPE_OUTPUT(ClassName, value);
+
+#define GHOST_TYPE_DOUBLE(ClassName)   \
+  GHOST_TYPE_NUMBER(ClassName, double) \
+  GHOST_TYPE_NUMBER_OPERATORS(ClassName, double);
+
+#define GHOST_TYPE_SIZE_T(ClassName)   \
+  GHOST_TYPE_NUMBER(ClassName, size_t) \
+  GHOST_TYPE_NUMBER_OPERATORS(ClassName, size_t);
 
 #define GHOST_TYPE_CONTAINER(ClassName, VariableType)       \
   class ClassName {                                         \
@@ -134,12 +141,12 @@
 
 #define GHOST_TYPE_CONSTRUCTOR_EMPTY(ClassName) ClassName() = default;
 
-#define GHOST_TYPE_DOUBLE_OPERATORS(ClassName)                         \
-  inline ClassName operator+(const ClassName& a, double other) {       \
+#define GHOST_TYPE_NUMBER_OPERATORS(ClassName, VariableType)           \
+  inline ClassName operator+(const ClassName& a, VariableType other) { \
     return ClassName(a.read() + other);                                \
   }                                                                    \
                                                                        \
-  inline ClassName operator+(double other, const ClassName& a) {       \
+  inline ClassName operator+(VariableType other, const ClassName& a) { \
     return a + other;                                                  \
   }                                                                    \
                                                                        \
@@ -147,11 +154,11 @@
     return ClassName(a.read() + b.read());                             \
   }                                                                    \
                                                                        \
-  inline ClassName operator-(const ClassName& a, double other) {       \
+  inline ClassName operator-(const ClassName& a, VariableType other) { \
     return ClassName(a.read() - other);                                \
   }                                                                    \
                                                                        \
-  inline ClassName operator-(double other, const ClassName& a) {       \
+  inline ClassName operator-(VariableType other, const ClassName& a) { \
     return a - other;                                                  \
   }                                                                    \
                                                                        \
@@ -159,11 +166,11 @@
     return ClassName(a.read() - b.read());                             \
   }                                                                    \
                                                                        \
-  inline ClassName operator*(const ClassName& a, double other) {       \
+  inline ClassName operator*(const ClassName& a, VariableType other) { \
     return ClassName(a.read() * other);                                \
   }                                                                    \
                                                                        \
-  inline ClassName operator*(double other, const ClassName& a) {       \
+  inline ClassName operator*(VariableType other, const ClassName& a) { \
     return a * other;                                                  \
   }                                                                    \
                                                                        \
@@ -171,8 +178,12 @@
     return ClassName(a.read() * b.read());                             \
   }                                                                    \
                                                                        \
-  inline ClassName operator/(const ClassName& a, double other) {       \
+  inline ClassName operator/(const ClassName& a, VariableType other) { \
     return ClassName(a.read() / other);                                \
+  }                                                                    \
+                                                                       \
+  inline double operator/(double other, const ClassName& a) {          \
+    return other / a.read();                                           \
   }
 
 #define GHOST_TYPE_EQ(ClassName, variable)        \
@@ -181,9 +192,18 @@
   }                                               \
   bool operator!=(const ClassName& other) const { return !(*this == other); }
 
-#define GHOST_TYPE_LT(ClassName, variable)       \
-  bool operator<(const ClassName& other) const { \
-    return variable < other.variable;            \
+#define GHOST_TYPE_ORDER(ClassName, variable)     \
+  bool operator<(const ClassName& other) const {  \
+    return variable < other.variable;             \
+  }                                               \
+  bool operator<=(const ClassName& other) const { \
+    return variable <= other.variable;            \
+  }                                               \
+  bool operator>(const ClassName& other) const {  \
+    return variable > other.variable;             \
+  }                                               \
+  bool operator>=(const ClassName& other) const { \
+    return variable >= other.variable;            \
   }
 
 // GHOST_TYPE_BEGIN_END declares `begin` and `end` methods for the ghost type.

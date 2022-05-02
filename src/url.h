@@ -14,7 +14,7 @@ class URL {
   static URL FromPath(infrastructure::Path path);
 
   GHOST_TYPE_EQ(URL, value_);
-  GHOST_TYPE_LT(URL, value_);
+  GHOST_TYPE_ORDER(URL, value_);
 
   enum class Schema { kFile, kHttp, kHttps };
   std::optional<Schema> schema() const;

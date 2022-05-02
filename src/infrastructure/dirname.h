@@ -29,7 +29,7 @@ class PathComponent {
   size_t size() const;
 
   GHOST_TYPE_EQ(PathComponent, component_);
-  GHOST_TYPE_LT(PathComponent, component_);
+  GHOST_TYPE_ORDER(PathComponent, component_);
 
   // Can fail for ".md".
   language::ValueOrError<PathComponent> remove_extension() const;
@@ -83,7 +83,7 @@ class Path {
   Path& operator=(Path path);
 
   GHOST_TYPE_EQ(Path, path_);
-  GHOST_TYPE_LT(Path, path_);
+  GHOST_TYPE_ORDER(Path, path_);
   GHOST_TYPE_HASH_FRIEND(Path, path_);
 
  protected:

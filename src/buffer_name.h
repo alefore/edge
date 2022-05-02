@@ -23,7 +23,7 @@ class BufferName {
 
   GHOST_TYPE_CONSTRUCTOR(BufferName, std::wstring, value);
   GHOST_TYPE_EQ(BufferName, value);
-  GHOST_TYPE_LT(BufferName, value);
+  GHOST_TYPE_ORDER(BufferName, value);
   GHOST_TYPE_OUTPUT_FRIEND(BufferName, value);
   GHOST_TYPE_HASH_FRIEND(BufferName, value);
 
