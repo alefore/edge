@@ -1146,20 +1146,9 @@ void EditorState::ProcessSignals() {
 }
 
 bool EditorState::handling_stop_signals() const {
-  std::vector<NonNull<std::shared_ptr<OpenBuffer>>> buffers = active_buffers();
-  return futures::ForEachWithCopy(
-             buffers.begin(), buffers.end(),
-             [](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-               return futures::Past(
-                   buffer->Read(buffer_variables::pts)
-                       ? futures::IterationControlCommand::kStop
-                       : futures::IterationControlCommand::kContinue);
-             })
-      .Transform([](futures::IterationControlCommand c) {
-        return c == futures::IterationControlCommand::kStop;
-      })
-      .Get()
-      .value();
+  for (auto& buffer : active_buffers())
+    if (buffer->Read(buffer_variables::pts)) return true;
+  return false;
 }
 
 }  // namespace editor
