@@ -544,9 +544,9 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
           for (size_t i = 0; i < options->buffers_per_line &&
                              index + i < options->buffers.size();
                i++) {
-            // TODO(easy, 2022-05-02): Keep just a ref?
-            NonNull<std::shared_ptr<OpenBuffer>> buffer =
-                options->buffers.at(index + i);
+            // TODO(easy, 2022-05-02): Make this const. Requires adjusting calls
+            // to `find` below.
+            OpenBuffer& buffer = *options->buffers.at(index + i);
             auto number_prefix = std::to_wstring(index + i + 1);
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
@@ -557,13 +557,13 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             FilterResult filter_result =
                 (!options->filter.has_value() ||
-                 options->filter.value().find(buffer.get().get()) !=
+                 options->filter.value().find(&buffer) !=
                      options->filter.value().end())
                     ? FilterResult::kIncluded
                     : FilterResult::kExcluded;
 
             LineModifierSet number_modifiers =
-                GetNumberModifiers(*options, *buffer, filter_result);
+                GetNumberModifiers(*options, buffer, filter_result);
 
             start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
             output.AppendString(
@@ -575,17 +575,16 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             wstring progress;
             LineModifierSet progress_modifier;
-            if (!buffer->GetLineMarks().empty()) {
+            if (!buffer.GetLineMarks().empty()) {
               progress = L"!";
               progress_modifier.insert(LineModifier::RED);
-            } else if (!buffer->GetExpiredLineMarks().empty()) {
+            } else if (!buffer.GetExpiredLineMarks().empty()) {
               progress = L"!";
-            } else if (buffer->ShouldDisplayProgress()) {
-              progress =
-                  ProgressString(buffer->Read(buffer_variables::progress),
-                                 OverflowBehavior::kModulo);
+            } else if (buffer.ShouldDisplayProgress()) {
+              progress = ProgressString(buffer.Read(buffer_variables::progress),
+                                        OverflowBehavior::kModulo);
             } else {
-              progress = ProgressStringFillUp(buffer->lines_size().line_delta,
+              progress = ProgressStringFillUp(buffer.lines_size().line_delta,
                                               OverflowBehavior::kModulo);
               progress_modifier.insert(LineModifier::DIM);
             }
@@ -603,16 +602,15 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                 selection_state = SelectionState::kExcludedByFilter;
                 break;
               case FilterResult::kIncluded:
-                selection_state =
-                    options->active_buffers.find(buffer.get().get()) !=
-                            options->active_buffers.end()
-                        ? SelectionState::kReceivingInput
-                        : SelectionState::kIdle;
+                selection_state = options->active_buffers.find(&buffer) !=
+                                          options->active_buffers.end()
+                                      ? SelectionState::kReceivingInput
+                                      : SelectionState::kIdle;
             }
             AppendBufferPath(
-                columns_per_buffer, *buffer,
-                buffer->dirty() ? LineModifierSet{LineModifier::ITALIC}
-                                : LineModifierSet{},
+                columns_per_buffer, buffer,
+                buffer.dirty() ? LineModifierSet{LineModifier::ITALIC}
+                               : LineModifierSet{},
                 selection_state, path_components[index + i], &output);
           }
           return LineWithCursor{.line =
