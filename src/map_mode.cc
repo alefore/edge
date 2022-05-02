@@ -49,10 +49,9 @@ NonNull<std::unique_ptr<Command>> MakeCommandFromFunction(Callback callback,
 }
 }  // namespace
 
-class EditorState;
 MapModeCommands::MapModeCommands(EditorState& editor_state)
     : editor_state_(editor_state), frames_(1) {
-  Add(L"?", NewHelpCommand(editor_state_, this, L"command mode"));
+  Add(L"?", NewHelpCommand(editor_state_, *this, L"command mode"));
 }
 
 NonNull<std::unique_ptr<MapModeCommands>> MapModeCommands::NewChild() {
@@ -62,10 +61,7 @@ NonNull<std::unique_ptr<MapModeCommands>> MapModeCommands::NewChild() {
 
   // Override the parent's help command, so that bindings added to the child are
   // visible.
-  //
-  // TODO(easy, 2022-05-02): Drop the 2nd get.
-  output->Add(
-      L"?", NewHelpCommand(editor_state_, output.get().get(), L"command mode"));
+  output->Add(L"?", NewHelpCommand(editor_state_, *output, L"command mode"));
   return output;
 }
 

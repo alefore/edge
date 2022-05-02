@@ -92,7 +92,7 @@ wstring DescribeSequence(wstring input) {
 
 class HelpCommand : public Command {
  public:
-  HelpCommand(EditorState& editor_state, const MapModeCommands* commands,
+  HelpCommand(EditorState& editor_state, const MapModeCommands& commands,
               const wstring& mode_description)
       : editor_state_(editor_state),
         commands_(commands),
@@ -110,7 +110,7 @@ class HelpCommand : public Command {
     buffer->Set(buffer_variables::wrap_from_content, true);
     buffer->Set(buffer_variables::allow_dirty_delete, true);
 
-    buffer->InsertInPosition(GenerateContents(*commands_, *original_buffer),
+    buffer->InsertInPosition(GenerateContents(commands_, *original_buffer),
                              LineColumn(), {});
     buffer->set_current_position_line(LineNumber(0));
     buffer->ResetMode();
@@ -287,7 +287,7 @@ class HelpCommand : public Command {
   }
 
   EditorState& editor_state_;
-  const MapModeCommands* const commands_;
+  const MapModeCommands& commands_;
   const wstring mode_description_;
 };
 
@@ -305,7 +305,7 @@ const bool buffer_registration =
 }  // namespace
 
 NonNull<std::unique_ptr<Command>> NewHelpCommand(
-    EditorState& editor_state, const MapModeCommands* commands,
+    EditorState& editor_state, const MapModeCommands& commands,
     const wstring& mode_description) {
   return MakeNonNullUnique<HelpCommand>(editor_state, commands,
                                         mode_description);
