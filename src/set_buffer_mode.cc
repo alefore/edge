@@ -10,6 +10,7 @@ using language::EmptyValue;
 using language::Error;
 using language::NonNull;
 using language::Success;
+using language::VisitPointer;
 
 namespace {
 struct Operation {
@@ -382,7 +383,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
     state.index %= state.indices.size();
     NonNull<std::shared_ptr<OpenBuffer>> buffer =
         buffers_list.GetBuffer(state.indices[state.index]);
-    editor.set_current_buffer(buffer.get_shared(), mode);
+    editor.set_current_buffer(buffer, mode);
     switch (mode) {
       case CommandArgumentModeApplyMode::kFinal:
         editor.buffer_tree().set_filter(std::nullopt);
@@ -410,10 +411,9 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
   Data initial_value;
   if (editor.modifiers().repetitions.has_value()) {
     editor.set_current_buffer(
-        buffers_list
-            .GetBuffer((max(editor.modifiers().repetitions.value(), 1ul) - 1) %
-                       buffers_list.BuffersCount())
-            .get_shared(),
+        buffers_list.GetBuffer(
+            (max(editor.modifiers().repetitions.value(), 1ul) - 1) %
+            buffers_list.BuffersCount()),
         CommandArgumentModeApplyMode::kFinal);
     editor.ResetRepetitions();
     return nullptr;
@@ -425,8 +425,13 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
       .status_factory = &BuildStatus,
       .undo =
           [&editor, initial_buffer = editor.buffer_tree().active_buffer()]() {
-            editor.set_current_buffer(initial_buffer,
-                                      CommandArgumentModeApplyMode::kFinal);
+            VisitPointer(
+                initial_buffer,
+                [&editor](NonNull<std::shared_ptr<OpenBuffer>> initial_buffer) {
+                  editor.set_current_buffer(
+                      initial_buffer, CommandArgumentModeApplyMode::kFinal);
+                },
+                [] {});
             editor.buffer_tree().set_filter(std::nullopt);
             return futures::Past(EmptyValue());
           },

@@ -191,8 +191,10 @@ class ListBuffersCommand : public Command {
       it.first->second = std::move(buffer.get_shared());
       editor_state_.StartHandlingInterrupts();
     }
-    editor_state_.set_current_buffer(it.first->second,
-                                     CommandArgumentModeApplyMode::kFinal);
+    // TODO(easy, 2022-05-02): Get rid of Unsafe.
+    editor_state_.set_current_buffer(
+        NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it.first->second),
+        CommandArgumentModeApplyMode::kFinal);
     editor_state_.status().Reset();
     it.first->second->Reload();
     editor_state_.PushCurrentPosition();

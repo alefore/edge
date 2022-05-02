@@ -235,8 +235,10 @@ class GotoPreviousPositionCommand : public Command {
         LOG(INFO) << "Jumping to position: "
                   << it->second->Read(buffer_variables::name) << " "
                   << pos.position;
-        editor_state_.set_current_buffer(it->second,
-                                         CommandArgumentModeApplyMode::kFinal);
+        // TODO(easy, 2022-05-02): Get rid of Unsafe.
+        editor_state_.set_current_buffer(
+            NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second),
+            CommandArgumentModeApplyMode::kFinal);
         it->second->set_position(pos.position);
         editor_state_.set_repetitions(editor_state_.repetitions().value_or(1) -
                                       1);
@@ -526,8 +528,10 @@ class ActivateLink : public Command {
       LOG(INFO) << "Visiting buffer: " << target->Read(buffer_variables::name);
       editor_state_.status().Reset();
       buffer->status().Reset();
-      editor_state_.set_current_buffer(target,
-                                       CommandArgumentModeApplyMode::kFinal);
+      editor_state_.set_current_buffer(
+          // TODO(2022-05-02): Get rid of Unsafe?
+          NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(target),
+          CommandArgumentModeApplyMode::kFinal);
       auto target_position = buffer->current_line()->environment()->Lookup(
           Environment::Namespace(), L"buffer_position",
           vm::VMTypeMapper<LineColumn>::vmtype);

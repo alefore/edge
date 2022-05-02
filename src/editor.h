@@ -82,7 +82,7 @@ class EditorState {
   BuffersList& buffer_tree() { return buffer_tree_; }
   const BuffersList& buffer_tree() const { return buffer_tree_; }
 
-  void set_current_buffer(shared_ptr<OpenBuffer> buffer,
+  void set_current_buffer(language::NonNull<std::shared_ptr<OpenBuffer>> buffer,
                           CommandArgumentModeApplyMode apply_mode);
   void AddHorizontalSplit();
   void AddVerticalSplit();

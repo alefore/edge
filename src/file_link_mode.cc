@@ -310,8 +310,7 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
                   buffer->Set(buffer_variables::show_in_buffers_list, false);
                   if (!editor_state.has_current_buffer()) {
                     editor_state.set_current_buffer(
-                        buffer.get_shared(),
-                        CommandArgumentModeApplyMode::kFinal);
+                        buffer, CommandArgumentModeApplyMode::kFinal);
                   }
                   return buffer;
                 });

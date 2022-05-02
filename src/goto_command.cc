@@ -83,9 +83,12 @@ class GotoCommand : public Command {
       CHECK_LT(position, editor_state_.buffers()->size());
       auto it = editor_state_.buffers()->begin();
       advance(it, position);
-      if (it->second != editor_state_.current_buffer()) {
-        editor_state_.set_current_buffer(it->second,
-                                         CommandArgumentModeApplyMode::kFinal);
+      if (it->second != editor_state_.current_buffer() &&
+          it->second != nullptr) {
+        // TODO(easy, 2022-05-02): Get rid of Unsafe.
+        editor_state_.set_current_buffer(
+            NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second),
+            CommandArgumentModeApplyMode::kFinal);
       }
     }
 

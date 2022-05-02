@@ -168,8 +168,10 @@ class NavigationBufferCommand : public Command {
       it->second = buffer.get_shared();
     } else {
       CHECK(it->second != nullptr);
-      editor_state_.set_current_buffer(it->second,
-                                       CommandArgumentModeApplyMode::kFinal);
+      // TODO(easy, 2022-05-02): Get rid of Unsafe.
+      editor_state_.set_current_buffer(
+          NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second),
+          CommandArgumentModeApplyMode::kFinal);
     }
     editor_state_.status().Reset();
     editor_state_.PushCurrentPosition();

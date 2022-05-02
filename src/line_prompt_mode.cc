@@ -220,7 +220,7 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetHistoryBuffer(
         buffer->Set(buffer_variables::close_after_idle_seconds, 20.0);
         if (!editor_state.has_current_buffer()) {
           // Seems lame, but what can we do?
-          editor_state.set_current_buffer(buffer.get_shared(),
+          editor_state.set_current_buffer(buffer,
                                           CommandArgumentModeApplyMode::kFinal);
         }
         return buffer;
@@ -993,8 +993,11 @@ void Prompt(PromptOptions options) {
                         if (auto it = buffers->find(name);
                             it != buffers->end()) {
                           it->second->set_current_position_line(LineNumber(0));
+                          // TODO(easy, 2022-05-02): Get rid of Unsafe.
                           editor_state.set_current_buffer(
-                              it->second, CommandArgumentModeApplyMode::kFinal);
+                              NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
+                                  it->second),
+                              CommandArgumentModeApplyMode::kFinal);
                           if (editor_state.status().prompt_buffer() ==
                               nullptr) {
                             it->second->status().CopyFrom(

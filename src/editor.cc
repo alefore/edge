@@ -657,24 +657,21 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
       });
 }
 
-// TODO(2022-05-02, easy): Receive as non-null?
-void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer,
-                                     CommandArgumentModeApplyMode apply_mode) {
-  if (buffer != nullptr) {
-    if (apply_mode == CommandArgumentModeApplyMode::kFinal) {
-      buffer->Visit();
-    } else {
-      buffer->Enter();
-    }
+void EditorState::set_current_buffer(
+    NonNull<std::shared_ptr<OpenBuffer>> buffer,
+    CommandArgumentModeApplyMode apply_mode) {
+  if (apply_mode == CommandArgumentModeApplyMode::kFinal) {
+    buffer->Visit();
+  } else {
+    buffer->Enter();
   }
-  buffer_tree_.GetActiveLeaf().SetBuffer(buffer);
+  buffer_tree_.GetActiveLeaf().SetBuffer(buffer.get_shared());
   AdjustWidgets();
 }
 
 void EditorState::SetActiveBuffer(size_t position) {
   set_current_buffer(
-      buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount())
-          .get_shared(),
+      buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()),
       CommandArgumentModeApplyMode::kFinal);
 }
 
@@ -687,7 +684,7 @@ void EditorState::AdvanceActiveBuffer(int delta) {
   } else {
     delta %= total;
   }
-  set_current_buffer(buffer_tree_.GetBuffer(delta % total).get_shared(),
+  set_current_buffer(buffer_tree_.GetBuffer(delta % total),
                      CommandArgumentModeApplyMode::kFinal);
 }
 
@@ -917,8 +914,7 @@ futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
       [this, c](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
         if (!has_current_buffer()) {
           buffer_tree_.AddBuffer(buffer, BuffersList::AddBufferType::kOnlyList);
-          set_current_buffer(buffer.get_shared(),
-                             CommandArgumentModeApplyMode::kFinal);
+          set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
           CHECK(has_current_buffer());
           CHECK(current_buffer() == buffer.get_shared());
         }
@@ -949,7 +945,9 @@ void EditorState::MoveBufferForwards(size_t times) {
       it = buffers_.begin();
     }
   }
-  set_current_buffer(it->second, CommandArgumentModeApplyMode::kFinal);
+  // TODO(easy, 2022-05-02): Avoid unsafe?
+  set_current_buffer(NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second),
+                     CommandArgumentModeApplyMode::kFinal);
   PushCurrentPosition();
 }
 
@@ -974,7 +972,9 @@ void EditorState::MoveBufferBackwards(size_t times) {
     }
     --it;
   }
-  set_current_buffer(it->second, CommandArgumentModeApplyMode::kFinal);
+  // TODO(easy, 2022-05-02: Avoid Unsafe?
+  set_current_buffer(NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second),
+                     CommandArgumentModeApplyMode::kFinal);
   PushCurrentPosition();
 }
 
