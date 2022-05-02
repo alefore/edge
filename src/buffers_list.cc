@@ -26,6 +26,7 @@ using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::ValueOrError;
+using language::VisitPointer;
 
 namespace {
 struct ProcessedPathComponent {
@@ -250,17 +251,20 @@ const bool get_output_components_tests_registration = tests::Register(
 // `std::unordered_set` for faster access. For convenience, also takes care of
 // resolving the `weak_ptr` buffers to their actual addresses (skipping
 // expired buffers).
-std::optional<std::unordered_set<OpenBuffer*>> OptimizeFilter(
+std::optional<std::unordered_set<const OpenBuffer*>> OptimizeFilter(
     const std::optional<std::vector<std::weak_ptr<OpenBuffer>>> input) {
   if (!input.has_value()) {
     return std::nullopt;
   }
 
-  std::unordered_set<OpenBuffer*> output;
+  std::unordered_set<const OpenBuffer*> output;
   for (auto& weak_buffer : input.value()) {
-    if (auto buffer = weak_buffer.lock(); buffer != nullptr) {
-      output.insert(buffer.get());
-    }
+    VisitPointer(
+        weak_buffer,
+        [&](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
+          output.insert(buffer.get().get());
+        },
+        [] {});
   }
   return output;
 }
@@ -268,10 +272,10 @@ std::optional<std::unordered_set<OpenBuffer*>> OptimizeFilter(
 struct BuffersListOptions {
   const std::vector<NonNull<std::shared_ptr<OpenBuffer>>>& buffers;
   std::shared_ptr<OpenBuffer> active_buffer;
-  std::set<OpenBuffer*> active_buffers;
+  std::set<const OpenBuffer*> active_buffers;
   size_t buffers_per_line;
   LineColumnDelta size;
-  std::optional<std::unordered_set<OpenBuffer*>> filter;
+  std::optional<std::unordered_set<const OpenBuffer*>> filter;
 };
 
 enum class FilterResult { kExcluded, kIncluded };
@@ -544,9 +548,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
           for (size_t i = 0; i < options->buffers_per_line &&
                              index + i < options->buffers.size();
                i++) {
-            // TODO(easy, 2022-05-02): Make this const. Requires adjusting calls
-            // to `find` below.
-            OpenBuffer& buffer = *options->buffers.at(index + i);
+            const OpenBuffer& buffer = *options->buffers.at(index + i);
             auto number_prefix = std::to_wstring(index + i + 1);
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
@@ -847,7 +849,7 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
           << ", from: " << buffers_.size()
           << " buffers with lines: " << layout.lines;
 
-  std::set<OpenBuffer*> active_buffers;
+  std::set<const OpenBuffer*> active_buffers;
   for (auto& b : editor_state_.active_buffers()) {
     // TODO(easy, 2022-05-02): Drop the 2nd get.
     active_buffers.insert(b.get().get());
