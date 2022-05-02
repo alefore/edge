@@ -122,7 +122,7 @@ void RegisterBufferFields(
     const FieldValue& (OpenBuffer::*reader)(const EdgeVariable<FieldValue>*)
         const,
     void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
-  VMType buffer_type = VMType::ObjectType(&object_type);
+  VMType buffer_type = object_type.type();
 
   vector<wstring> variable_names;
   edge_struct->RegisterVariableNames(&variable_names);
@@ -305,8 +305,7 @@ using std::to_wstring;
   buffer->AddField(
       L"ApplyTransformation",
       Value::NewFunction(
-          // TODO(easy, 2022-05-02): Drop the 2nd get.
-          {VMType::Void(), VMType::ObjectType(buffer.get().get()),
+          {VMType::Void(), buffer->type(),
            vm::VMTypeMapper<editor::transformation::Variant*>::vmtype},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2ul);
@@ -325,7 +324,7 @@ using std::to_wstring;
   buffer->AddField(
       L"GetRegion",
       Value::NewFunction(
-          {VMType::ObjectType(L"Range"), VMType::ObjectType(buffer.get()),
+          {VMType::ObjectType(L"Range"), buffer->type(),
            VMType::String()},
           [](vector<Value::Ptr> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2u);
@@ -380,7 +379,7 @@ using std::to_wstring;
   buffer->AddField(
       L"AddKeyboardTextTransformer",
       Value::NewFunction(
-          {VMType::Bool(), VMType::ObjectType(buffer.get().get()),
+          {VMType::Bool(), buffer->type(),
            VMType::Function({VMType::String(), VMType::String()})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), size_t(2));
@@ -396,7 +395,7 @@ using std::to_wstring;
   buffer->AddField(
       L"Filter",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(buffer.get().get()),
+          {VMType::Void(), buffer->type(),
            VMType::Function({VMType::Bool(), VMType::String()})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), size_t(2));
@@ -436,7 +435,7 @@ using std::to_wstring;
   buffer->AddField(
       L"Save",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(buffer.get().get())},
+          {VMType::Void(), buffer->type()},
           [](std::vector<NonNull<Value::Ptr>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
@@ -477,8 +476,7 @@ using std::to_wstring;
   buffer->AddField(
       L"AddBinding",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(buffer.get().get()),
-           VMType::String(), VMType::String(),
+          {VMType::Void(), buffer->type(), VMType::String(), VMType::String(),
            VMType::Function({VMType::Void()})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), 4u);
@@ -549,7 +547,7 @@ using std::to_wstring;
   buffer->AddField(
       L"WaitForEndOfFile",
       Value::NewFunction(
-          {VMType::Void(), VMType::ObjectType(buffer.get().get())},
+          {VMType::Void(), buffer->type()},
           [](vector<NonNull<Value::Ptr>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =

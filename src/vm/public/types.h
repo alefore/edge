@@ -43,8 +43,6 @@ struct VMType {
   static const VMType& String();
   static const VMType& Double();
 
-  // TODO(easy, 2022-05-02): NonNull or const ref?
-  static VMType ObjectType(ObjectType* type);
   static VMType ObjectType(const wstring& name);
 
   static VMType Function(vector<VMType> arguments,

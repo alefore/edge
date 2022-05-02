@@ -88,8 +88,7 @@ void RegisterBufferMethod(ObjectType& editor_type, const wstring& name,
                           MethodReturnType (OpenBuffer::*method)(void)) {
   auto callback = MakeNonNullUnique<Value>(VMType::FUNCTION);
   // Returns nothing.
-  callback->type.type_arguments = {VMType(VMType::VM_VOID),
-                                   VMType::ObjectType(&editor_type)};
+  callback->type.type_arguments = {VMType(VMType::VM_VOID), editor_type.type()};
   callback->callback =
       [method](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
         CHECK_EQ(args.size(), size_t(1));
