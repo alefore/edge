@@ -18,8 +18,7 @@ std::wstring TreeNavigate::Serialize() const { return L"TreeNavigate()"; }
 futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
     Input input) const {
   NonNull<std::shared_ptr<const ParseTree>> root = input.buffer.parse_tree();
-  // TODO(easy, 2022-05-02): Switch ParseTree to NonNull.
-  const ParseTree* tree = root.get().get();
+  NonNull<const ParseTree*> tree = root.get();
   auto next_position = input.position;
   Seek(input.buffer.contents(), &next_position).Once();
 
@@ -36,7 +35,8 @@ futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
       break;
     }
 
-    auto candidate = &tree->children()[child];
+    auto candidate =
+        NonNull<const ParseTree*>::AddressOf(tree->children()[child]);
     if (tree->range().begin >= input.position &&
         (tree->range().end != next_position ||
          candidate->range().end != next_position)) {
