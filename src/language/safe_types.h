@@ -82,6 +82,11 @@ class NonNull<T*> {
   template <typename Other>
   NonNull(NonNull<Other*> value) : value_(value.get()) {}
 
+  template <typename Other>
+  static NonNull<T*> AddressOf(Other& value) {
+    return NonNull<T*>(&value);
+  }
+
   T* operator->() const { return value_; }
   T& operator*() const { return *value_; }
   T* get() const { return value_; }
@@ -95,9 +100,14 @@ class NonNull<T*> {
   T* value_;
 };
 
-template <typename A, typename B>
-bool operator==(const NonNull<A*>& a, const NonNull<B*>& b) {
+template <typename T>
+bool operator==(const NonNull<T*>& a, const NonNull<T*>& b) {
   return a.get() == b.get();
+}
+
+template <typename A>
+bool operator<(const NonNull<A*>& a, const NonNull<A*>& b) {
+  return a.get() < b.get();
 }
 
 template <typename T>
