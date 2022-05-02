@@ -681,24 +681,23 @@ const NonNull<std::shared_ptr<OpenBuffer>>& BuffersList::GetBuffer(
   return buffers_[index];
 }
 
-// TODO(easy, 2022-05-02): Adopt NonNull for buffer argument? Or by ref?
 std::optional<size_t> BuffersList::GetBufferIndex(
-    const OpenBuffer* buffer) const {
+    const OpenBuffer& buffer) const {
   auto it = std::find_if(
       buffers_.begin(), buffers_.end(),
-      [buffer](const NonNull<std::shared_ptr<OpenBuffer>>& candidate) {
-        return candidate.get().get() == buffer;
+      [&buffer](const NonNull<std::shared_ptr<OpenBuffer>>& candidate) {
+        return candidate.get().get() == &buffer;
       });
   return it == buffers_.end() ? std::optional<size_t>()
                               : std::distance(buffers_.begin(), it);
 }
 
 size_t BuffersList::GetCurrentIndex() {
-  auto buffer = active_buffer();
+  std::shared_ptr<OpenBuffer> buffer = active_buffer();
   if (buffer == nullptr) {
     return 0;
   }
-  return GetBufferIndex(buffer.get()).value();
+  return GetBufferIndex(*buffer).value();
 }
 
 size_t BuffersList::BuffersCount() const { return buffers_.size(); }

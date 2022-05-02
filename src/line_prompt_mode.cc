@@ -56,7 +56,7 @@ GetCurrentFeatures(EditorState& editor) {
     // the buffer has actually been created.
     if (buffer != nullptr &&
         buffer->Read(buffer_variables::show_in_buffers_list) &&
-        editor.buffer_tree().GetBufferIndex(buffer.get()).has_value()) {
+        editor.buffer_tree().GetBufferIndex(*buffer).has_value()) {
       output.insert(
           {L"name", NewLazyString(buffer->Read(buffer_variables::name))});
     }

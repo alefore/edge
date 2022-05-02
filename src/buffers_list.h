@@ -24,7 +24,7 @@ class BuffersList {
       const;
   const language::NonNull<std::shared_ptr<OpenBuffer>>& GetBuffer(
       size_t index) const;
-  std::optional<size_t> GetBufferIndex(const OpenBuffer* buffer) const;
+  std::optional<size_t> GetBufferIndex(const OpenBuffer& buffer) const;
   size_t GetCurrentIndex();
   size_t BuffersCount() const;
 
