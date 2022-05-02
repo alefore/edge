@@ -334,16 +334,14 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
           using Control = futures::IterationControlCommand;
           std::vector<futures::Value<Control>> search_futures;
           for (auto& index : state.indices) {
-            // TODO(easy, 2022-05-02): Keey by ref only?
-            NonNull<std::shared_ptr<OpenBuffer>> buffer =
-                buffers_list.GetBuffer(index);
+            OpenBuffer& buffer = *buffers_list.GetBuffer(index);
             // TODO: Pass SearchOptions::abort_notification to allow
             // aborting as the user continues to type?
             search_futures.push_back(
                 editor.thread_pool()
                     .Run(BackgroundSearchCallback(
                         {.search_query = text_input, .required_positions = 1},
-                        *buffer, *progress_channel))
+                        buffer, *progress_channel))
                     .Transform([new_state, progress_channel,
                                 index](SearchResultsSummary search_output) {
                       if (search_output.matches > 0) {
