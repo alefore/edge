@@ -177,6 +177,8 @@ void RegisterCompositeTransformation(vm::Environment* environment) {
       L"push", vm::NewCallback(
                    [](std::shared_ptr<CompositeTransformation::Output> output,
                       transformation::Variant* transformation) {
+                     // TODO(2022-05-02, easy): Receive transformation as
+                     // NonNull.
                      output->Push(*transformation);
                      return output;
                    }));
