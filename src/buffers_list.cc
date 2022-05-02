@@ -276,24 +276,23 @@ struct BuffersListOptions {
 
 enum class FilterResult { kExcluded, kIncluded };
 
-// TODO(easy, 2022-05-02): Pass buffer by ref.
 LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
-                                   OpenBuffer* buffer,
+                                   const OpenBuffer& buffer,
                                    FilterResult filter_result) {
   LineModifierSet output;
-  if (buffer->status().GetType() == Status::Type::kWarning) {
+  if (buffer.status().GetType() == Status::Type::kWarning) {
     output.insert(LineModifier::RED);
     const double kSecondsWarningHighlight = 5;
-    if (GetElapsedSecondsSince(buffer->status().last_change_time()) <
+    if (GetElapsedSecondsSince(buffer.status().last_change_time()) <
         kSecondsWarningHighlight) {
       output.insert(LineModifier::REVERSE);
     }
   } else if (filter_result == FilterResult::kExcluded) {
     output.insert(LineModifier::DIM);
-  } else if (buffer->child_pid() != -1) {
+  } else if (buffer.child_pid() != -1) {
     output.insert(LineModifier::YELLOW);
-  } else if (buffer->child_exit_status().has_value()) {
-    auto status = buffer->child_exit_status().value();
+  } else if (buffer.child_exit_status().has_value()) {
+    auto status = buffer.child_exit_status().value();
     if (!WIFEXITED(status)) {
       output.insert(LineModifier::RED);
       output.insert(LineModifier::BOLD);
@@ -302,16 +301,16 @@ LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
     } else {
       output.insert(LineModifier::RED);
     }
-    if (GetElapsedSecondsSince(buffer->time_last_exit()) < 5.0) {
+    if (GetElapsedSecondsSince(buffer.time_last_exit()) < 5.0) {
       output.insert({LineModifier::REVERSE});
     }
   } else {
-    if (buffer->dirty()) {
+    if (buffer.dirty()) {
       output.insert(LineModifier::ITALIC);
     }
     output.insert(LineModifier::CYAN);
   }
-  if (buffer == options.active_buffer.get()) {
+  if (&buffer == options.active_buffer.get()) {
     output.insert(LineModifier::BOLD);
     output.insert(LineModifier::REVERSE);
   }
@@ -564,7 +563,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                     : FilterResult::kExcluded;
 
             LineModifierSet number_modifiers =
-                GetNumberModifiers(*options, buffer.get().get(), filter_result);
+                GetNumberModifiers(*options, *buffer, filter_result);
 
             start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
             output.AppendString(
@@ -626,10 +625,14 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 }  // namespace
 
 BuffersList::BuffersList(const EditorState& editor_state)
+    : BuffersList(editor_state,
+                  MakeNonNullUnique<BufferWidget>(BufferWidget::Options{})) {}
+
+BuffersList::BuffersList(const EditorState& editor_state,
+                         NonNull<std::unique_ptr<BufferWidget>> widget)
     : editor_state_(editor_state),
-      widget_(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{})),
-      // TODO(easy, 2022-05-02): Drop 2nd get, make NonNull.
-      active_buffer_widget_(static_cast<BufferWidget*>(widget_.get().get())) {}
+      active_buffer_widget_(widget.get()),
+      widget_(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{})) {}
 
 void BuffersList::AddBuffer(NonNull<std::shared_ptr<OpenBuffer>> buffer,
                             AddBufferType add_buffer_type) {
@@ -712,8 +715,9 @@ BufferWidget* BuffersList::GetActiveLeaf() {
       const_cast<const BuffersList*>(this)->GetActiveLeaf());
 }
 
+// TODO(easy, 2022-05-02): Add NonNull.
 const BufferWidget* BuffersList::GetActiveLeaf() const {
-  return active_buffer_widget_;
+  return active_buffer_widget_.get();
 }
 
 namespace {
@@ -945,13 +949,14 @@ void BuffersList::Update() {
   }
 
   if (buffers.empty()) {
-    widget_ = MakeNonNullUnique<BufferWidget>(BufferWidget::Options{});
-    // TODO(easy, 2022-05-02): Drop 2nd get.
-    active_buffer_widget_ = static_cast<BufferWidget*>(widget_.get().get());
+    NonNull<std::unique_ptr<BufferWidget>> buffer_widget =
+        MakeNonNullUnique<BufferWidget>(BufferWidget::Options{});
+    active_buffer_widget_ = buffer_widget.get();
+    widget_ = std::move(buffer_widget);
     return;
   }
 
-  std::vector<NonNull<std::unique_ptr<Widget>>> widgets;
+  std::vector<NonNull<std::unique_ptr<BufferWidget>>> widgets;
   widgets.reserve(buffers.size());
   for (auto& buffer : buffers) {
     widgets.push_back(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{
@@ -963,14 +968,14 @@ void BuffersList::Update() {
   }
 
   CHECK_LT(index_active, widgets.size());
-  // TODO(easy, 2022-05-02): Drop 2nd get.
-  active_buffer_widget_ =
-      static_cast<BufferWidget*>(widgets[index_active].get().get());
+  active_buffer_widget_ = widgets[index_active].get();
 
   if (widgets.size() == 1) {
     widget_ = std::move(widgets[index_active]);
   } else {
-    widget_ = MakeNonNullUnique<WidgetListHorizontal>(std::move(widgets),
+    std::vector<NonNull<std::unique_ptr<Widget>>> widgets_base;
+    for (auto& widget : widgets) widgets_base.push_back(std::move(widget));
+    widget_ = MakeNonNullUnique<WidgetListHorizontal>(std::move(widgets_base),
                                                       index_active);
   }
 }

@@ -47,12 +47,17 @@ class BuffersList {
   void Update();
 
  private:
+  BuffersList(const EditorState& editor_state,
+              language::NonNull<std::unique_ptr<BufferWidget>> buffer_widget);
+
   const EditorState& editor_state_;
   std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> buffers_;
+
+  // Points to the BufferWidget that corresponds to the active buffer.
+  language::NonNull<BufferWidget*> active_buffer_widget_;
+
   // Contains the whole hierarchy of widgets.
   language::NonNull<std::unique_ptr<Widget>> widget_;
-  // Points to the BufferWidget that corresponds to the active buffer.
-  BufferWidget* active_buffer_widget_ = nullptr;
 
   // If it has a value, buffers not included will be dimmed (disabled).
   std::optional<std::vector<std::weak_ptr<OpenBuffer>>> filter_;
