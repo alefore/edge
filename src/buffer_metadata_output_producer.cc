@@ -333,12 +333,11 @@ NonNull<std::shared_ptr<Line>> GetDefaultInformation(
       line_options.Append(ComputeCursorsSuffix(options, line));
       line_options.Append(ComputeScrollBarSuffix(options, line));
     }
-    if (options.zoomed_out_tree != nullptr &&
-        !options.zoomed_out_tree->children().empty()) {
+    if (!options.zoomed_out_tree.children().empty()) {
       line_options.AppendString(
           DrawTree(line - initial_line(options).ToDelta(),
                    LineNumberDelta(options.screen_lines.size()),
-                   *options.zoomed_out_tree),
+                   options.zoomed_out_tree),
           std::nullopt);
     }
   }

@@ -6,12 +6,14 @@
 #include "src/line_with_cursor.h"
 
 namespace afc::editor {
-class Buffer;
+class OpenBuffer;
 
+// It is OK for all referenced objects to be deleted after BufferMetadataOutput
+// has returned.
 struct BufferMetadataOutputOptions {
   const OpenBuffer& buffer;
   const std::vector<BufferContentsWindow::Line>& screen_lines;
-  const ParseTree* zoomed_out_tree;
+  const ParseTree& zoomed_out_tree;
 };
 
 // OutputProducer that prints the metadata that is usually shown right after the
