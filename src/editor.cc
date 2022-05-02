@@ -910,7 +910,7 @@ futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
   }
 
   if (has_current_buffer()) {
-    current_buffer()->mode()->ProcessInput(c);
+    current_buffer()->mode().ProcessInput(c);
     return futures::Past(EmptyValue());
   }
 
@@ -923,7 +923,7 @@ futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
           CHECK(has_current_buffer());
           CHECK(current_buffer() == buffer.get_shared());
         }
-        buffer->mode()->ProcessInput(c);
+        buffer->mode().ProcessInput(c);
         return EmptyValue();
       });
 }

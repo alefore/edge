@@ -194,9 +194,9 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   LineNumberDelta lines_size() const;
   LineNumber EndLine() const;
 
-  EditorMode* mode() const { return mode_.get(); }
+  EditorMode& mode() const { return *mode_; }
   language::NonNull<std::shared_ptr<EditorMode>> ResetMode() {
-    auto copy = std::move(mode_);
+    language::NonNull<std::shared_ptr<EditorMode>> copy = std::move(mode_);
     mode_ = language::MakeNonNullShared<MapMode>(default_commands_);
     return copy;
   }

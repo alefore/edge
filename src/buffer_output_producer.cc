@@ -256,7 +256,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
             MakeWithHash(line_contents, compute_hash(*line_contents)),
             screen_line, buffer.Read(buffer_variables::atomic_lines),
             buffer.Read(buffer_variables::multiple_cursors), buffer.position(),
-            (editor_keyboard_redirect == nullptr ? *buffer.mode()
+            (editor_keyboard_redirect == nullptr ? buffer.mode()
                                                  : *editor_keyboard_redirect)
                 .cursor_mode()));
 
