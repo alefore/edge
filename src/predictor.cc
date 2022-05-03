@@ -111,7 +111,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   if (auto value = predictions_buffer.environment()->Lookup(
           Environment::Namespace(), kLongestPrefixEnvironmentVariable,
-          VMType::VM_INTEGER);
+          VMType(VMType::VM_INTEGER));
       value != nullptr) {
     LOG(INFO) << "Setting " << kLongestPrefixEnvironmentVariable << ": "
               << value->integer;
@@ -121,7 +121,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   if (auto value = predictions_buffer.environment()->Lookup(
           Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
-          VMType::VM_INTEGER);
+          VMType(VMType::VM_INTEGER));
       value != nullptr) {
     CHECK(value->IsInteger());
     predict_results.longest_directory_match = ColumnNumberDelta(value->integer);
@@ -129,7 +129,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   if (auto value = predictions_buffer.environment()->Lookup(
           Environment::Namespace(), kExactMatchEnvironmentVariable,
-          VMType::VM_BOOLEAN);
+          VMType(VMType::VM_BOOLEAN));
       value != nullptr) {
     CHECK(value->IsBool());
     predict_results.found_exact_match = value->boolean;
@@ -241,7 +241,7 @@ struct DescendDirectoryTreeOutput {
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
   auto value = buffer.environment()->Lookup(
       Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
-      VMType::VM_INTEGER);
+      VMType(VMType::VM_INTEGER));
   if (value == nullptr) return;
   buffer.environment()->Assign(
       kLongestDirectoryMatchEnvironmentVariable,
@@ -252,7 +252,7 @@ void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
 void RegisterPredictorExactMatch(OpenBuffer& buffer) {
   auto value = buffer.environment()->Lookup(Environment::Namespace(),
                                             kExactMatchEnvironmentVariable,
-                                            VMType::VM_BOOLEAN);
+                                            VMType(VMType::VM_BOOLEAN));
   if (value == nullptr) return;
   buffer.environment()->Assign(kExactMatchEnvironmentVariable,
                                vm::Value::NewBool(true));
@@ -638,7 +638,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
   auto value = buffer.environment()->Lookup(Environment::Namespace(),
                                             kLongestPrefixEnvironmentVariable,
-                                            VMType::VM_INTEGER);
+                                            VMType(VMType::VM_INTEGER));
   if (value == nullptr) return;
   buffer.environment()->Assign(
       kLongestPrefixEnvironmentVariable,
