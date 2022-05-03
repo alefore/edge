@@ -248,8 +248,8 @@ assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
 
 function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
     function_declaration_arguments(ARGS) RPAREN . {
-  CHECK_EQ(RETURN_TYPE->type, VMType::VM_SYMBOL);
-  CHECK_EQ(NAME->type, VMType::VM_SYMBOL);
+  CHECK(RETURN_TYPE->IsSymbol());
+  CHECK(NAME->IsSymbol());
   OUT = UserFunction::New(compilation, RETURN_TYPE->str, NAME->str, ARGS)
             .release();
   delete RETURN_TYPE;
@@ -316,7 +316,7 @@ non_empty_function_declaration_arguments(OUT) ::=
 lambda_declaration_params(OUT) ::= LBRACE RBRACE
     LPAREN function_declaration_arguments(ARGS) RPAREN
     MINUS GREATER_THAN SYMBOL(RETURN_TYPE) . {
-  CHECK_EQ(RETURN_TYPE->type, VMType::VM_SYMBOL);
+  CHECK(RETURN_TYPE->IsSymbol());
   OUT = UserFunction::New(compilation, RETURN_TYPE->str, std::nullopt, ARGS)
             .release();
   delete RETURN_TYPE;
