@@ -482,8 +482,8 @@ using std::to_wstring;
           [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
-            CHECK_EQ(args[1]->type, VMType::VM_STRING);
-            CHECK_EQ(args[2]->type, VMType::VM_STRING);
+            CHECK(args[1]->IsString());
+            CHECK(args[2]->IsString());
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].value());
