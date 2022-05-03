@@ -139,7 +139,7 @@ using language::NonNull;
 /* static */
 std::shared_ptr<editor::Modifiers>
 VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value& value) {
-  CHECK_EQ(value.type.type, vmtype);
+  CHECK_EQ(value.type, vmtype);
   CHECK(value.user_value != nullptr);
   return std::static_pointer_cast<editor::Modifiers>(value.user_value);
 }
