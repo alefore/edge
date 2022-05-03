@@ -534,8 +534,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
     }
     if (token == SYMBOL || token == STRING) {
       CHECK(input != nullptr) << "No input with token: " << token;
-      CHECK(input->type == VMType::VM_SYMBOL ||
-            input->type == VMType::VM_STRING);
+      CHECK(input->IsSymbol() || input->IsString());
       compilation.last_token = input->str;
     }
     Cpp(parser, token, input.release(), &compilation);
