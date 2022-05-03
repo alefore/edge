@@ -330,7 +330,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
              Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
-            CHECK_EQ(args[1]->type, VMType::VM_STRING);
+            CHECK(args[1]->IsString());
             auto editor = static_cast<EditorState*>(args[0]->user_value.get());
             CHECK(editor != nullptr);
             auto target_path = Path::FromString(args[1]->str);
