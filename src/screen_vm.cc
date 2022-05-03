@@ -118,7 +118,7 @@ void RegisterScreenType(Environment* environment) {
           [](std::vector<NonNull<std::unique_ptr<Value>>> args,
              Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
-            CHECK_EQ(args[0]->type, VMType::VM_STRING);
+            CHECK(args[0]->IsString());
             auto path = Path::FromString(args[0]->str);
             if (path.IsError()) {
               LOG(ERROR) << "RemoteScreen: " << path.error();
