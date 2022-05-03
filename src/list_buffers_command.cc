@@ -62,7 +62,8 @@ futures::Value<PossibleError> GenerateContents(EditorState& editor_state,
   LineNumberDelta screen_lines;
   auto screen_value = target.environment()->Lookup(
       Environment::Namespace(), L"screen", GetScreenVmType());
-  if (screen_value != nullptr && screen_value->type == VMType::OBJECT_TYPE &&
+  if (screen_value != nullptr &&
+      screen_value->type.type == VMType::OBJECT_TYPE &&
       screen_value->user_value != nullptr) {
     auto screen = static_cast<Screen*>(screen_value->user_value.get());
     const LineNumberDelta reserved_lines(1);  // For the status.
