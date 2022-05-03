@@ -89,7 +89,7 @@ void RegisterBufferMethod(ObjectType& editor_type, const wstring& name,
                           MethodReturnType (OpenBuffer::*method)(void)) {
   auto callback = MakeNonNullUnique<Value>(VMType::FUNCTION);
   // Returns nothing.
-  callback->type.type_arguments = {VMType(VMType::VM_VOID), editor_type.type()};
+  callback->type.type_arguments = {VMType::Void(), editor_type.type()};
   callback->callback =
       [method](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
         CHECK_EQ(args.size(), size_t(1));
@@ -325,7 +325,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       L"ConnectTo",
       Value::NewFunction(
           {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
-           VMType::VM_STRING},
+           VMType::String()},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args,
              Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
@@ -433,7 +433,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
       L"OpenFile",
       Value::NewFunction(
           {VMType::ObjectType(L"Buffer"), VMTypeMapper<EditorState*>::vmtype,
-           VMType::VM_STRING, VMType::VM_BOOLEAN},
+           VMType::String(), VMType::Bool()},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
@@ -464,8 +464,8 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
           [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
-            CHECK_EQ(args[1]->type, VMType::VM_STRING);
-            CHECK_EQ(args[2]->type, VMType::VM_STRING);
+            CHECK(args[1]->IsString());
+            CHECK(args[2]->IsString());
             EditorState* editor =
                 static_cast<EditorState*>(args[0]->user_value.get());
             CHECK(editor != nullptr);
