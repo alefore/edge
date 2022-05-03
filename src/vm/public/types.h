@@ -35,7 +35,7 @@ struct VMType {
   enum class PurityType { kPure, kUnknown };
 
   VMType() : type(VM_VOID) {}
-  VMType(const Type& t) : type(t) {}
+  explicit VMType(const Type& t) : type(t) {}
 
   static const VMType& Void();
   static const VMType& Bool();
