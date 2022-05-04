@@ -22,6 +22,12 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
          lhs.object_type == rhs.object_type;
 }
 
+std::ostream& operator<<(std::ostream& os, const VMType& type) {
+  using ::operator<<;
+  os << type.ToString();
+  return os;
+}
+
 /* static */ const VMType& VMType::Void() {
   static VMType type(VMType::VM_VOID);
   return type;

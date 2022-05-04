@@ -64,6 +64,7 @@ wstring TypesToString(const std::vector<VMType>& types);
 wstring TypesToString(const std::unordered_set<VMType>& types);
 
 bool operator==(const VMType& lhs, const VMType& rhs);
+std::ostream& operator<<(std::ostream& os, const VMType& value);
 
 struct Value;
 

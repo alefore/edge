@@ -27,8 +27,8 @@ std::optional<std::wstring> CppUnescapeString(std::wstring input);
 struct Value {
   using Ptr = std::unique_ptr<Value>;
 
-  Value(const VMType::Type& t) : type(t) {}
-  Value(const VMType& t) : type(t) {}
+  explicit Value(const VMType::Type& t) : type(t) {}
+  explicit Value(const VMType& t) : type(t) {}
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
       std::vector<language::NonNull<Ptr>>, Trampoline&)>;
