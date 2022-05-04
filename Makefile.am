@@ -102,6 +102,8 @@ src/infrastructure/tracker.h \
 src/insert_mode.cc \
 src/language/function_traits.h \
 src/language/ghost_type.h \
+src/language/gc.cc \
+src/language/gc.h \
 src/language/hash.cc \
 src/language/hash.h \
 src/language/observers.h \
