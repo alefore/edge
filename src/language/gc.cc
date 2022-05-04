@@ -285,4 +285,4 @@ bool tests_registration = tests::Register(
         CHECK_EQ(stats.end_total, 5ul);
       }}});
 }  // namespace
-};  // namespace afc::language
+}  // namespace afc::language
