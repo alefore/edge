@@ -137,7 +137,8 @@ class Ptr {
   }
 #endif
 
-  T* value() { return value_.lock().get(); }
+  T* operator->() const { return value_.get(); }
+  T* value() const { return value_.lock().get(); }
 
   // This is only exposed in order to allow implementation of `Expand`
   // functions.
@@ -176,6 +177,7 @@ class Root {
   ~Root() { pool_.EraseRoot(registration_); }
 
   Ptr<T>& value() { return *ptr_; }
+  const Ptr<T>& value() const { return *ptr_; }
 
   void Set(Ptr<T> ptr) {
     ptr_ = std::make_unique<Ptr<T>>(std::move(ptr));
