@@ -178,6 +178,19 @@ class Root {
  public:
   ~Root() { pool_.EraseRoot(registration_); }
 
+  Root(Root<T>&& other)
+      : pool_(other.pool_),
+        ptr_(std::move(other.ptr_)),
+        registration_(pool_.AddRoot(ptr_->control_frame_.get_shared())) {}
+
+  Root<T>& operator=(Root<T>&& other) {
+    CHECK_EQ(&pool_, &other.pool_);
+    ptr_ = std::move(other.ptr_);
+    pool_.EraseRoot(registration_);
+    registration_ = pool_.AddRoot(ptr_->control_frame_.get_shared());
+    return *this;
+  }
+
   Ptr<T>& value() { return *ptr_; }
   const Ptr<T>& value() const { return *ptr_; }
 
