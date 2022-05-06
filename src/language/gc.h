@@ -107,6 +107,8 @@ class Ptr {
                    }));
   }
 
+  Root<T> ToRoot() { return pool_.NewRoot(*this); }
+
   Ptr(const Ptr<T>& other)
       : pool_(other.pool_),
         value_(other.value_),
@@ -137,7 +139,7 @@ class Ptr {
   }
 #endif
 
-  T* operator->() const { return value_.get(); }
+  T* operator->() const { return value_.lock().get(); }
   T* value() const { return value_.lock().get(); }
 
   // This is only exposed in order to allow implementation of `Expand`
