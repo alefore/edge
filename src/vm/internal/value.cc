@@ -140,6 +140,11 @@ bool cpp_unescape_string_tests_registration =
       });
 }
 
+Value::Callback Value::LockCallback() {
+  CHECK(IsFunction());
+  return callback;
+}
+
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   if (value.IsInteger()) {
     os << value.integer;

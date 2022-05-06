@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/futures/futures.h"
+#include "src/language/gc.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/vm.h"
 
@@ -32,6 +33,10 @@ struct Value {
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
       std::vector<language::NonNull<Ptr>>, Trampoline&)>;
+  using DependenciesCallback =
+      std::function<void(std::vector<language::NonNull<
+                             std::shared_ptr<language::gc::ControlFrame>>>&)>;
+
   static language::NonNull<std::unique_ptr<Value>> NewVoid();
   static language::NonNull<std::unique_ptr<Value>> NewBool(bool value);
   static language::NonNull<std::unique_ptr<Value>> NewInteger(int value);
@@ -61,9 +66,14 @@ struct Value {
   bool boolean;
   int integer;
   double double_value;
-  wstring str;
+  std::wstring str;
+  std::shared_ptr<void> user_value;
+
+  Callback LockCallback();
+
+ private:
   Callback callback;
-  shared_ptr<void> user_value;
+  DependenciesCallback dependencies_callback;
 };
 
 std::ostream& operator<<(std::ostream& os, const Value& value);

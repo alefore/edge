@@ -115,12 +115,11 @@ class FunctionCall : public Expression {
             return futures::Past(Success(std::move(callback)));
           DVLOG(6) << "Got function: " << *callback.value;
           CHECK_EQ(callback.value->type.type, VMType::FUNCTION);
-          CHECK(callback.value->callback != nullptr);
           futures::Future<ValueOrError<EvaluationOutput>> output;
           CaptureArgs(
               trampoline, std::move(output.consumer), args_types,
               std::make_shared<std::vector<NonNull<std::unique_ptr<Value>>>>(),
-              std::move(callback.value));
+              callback.value->LockCallback());
           return std::move(output.value);
         });
   }
@@ -137,16 +136,14 @@ class FunctionCall : public Expression {
           std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
           args_types,
       std::shared_ptr<std::vector<NonNull<unique_ptr<Value>>>> values,
-      NonNull<std::shared_ptr<Value>> callback) {
+      Value::Callback callback) {
     CHECK(values != nullptr);
-    CHECK_EQ(callback->type.type, VMType::FUNCTION);
-    CHECK(callback->callback != nullptr);
 
     DVLOG(5) << "Evaluating function parameters, args: " << values->size()
              << " of " << args_types->size();
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
-      callback->callback(std::move(*values), trampoline)
+      callback(std::move(*values), trampoline)
           .SetConsumer([consumer,
                         callback](ValueOrError<EvaluationOutput> return_value) {
             if (return_value.IsError()) {
@@ -297,29 +294,29 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
           Trampoline& trampoline, const VMType& type) override {
         return trampoline.Bounce(*obj_expr_, obj_expr_->Types()[0])
-            .Transform([type, shared_type = type_,
-                        shared_delegate = delegate_](EvaluationOutput output)
-                           -> ValueOrError<EvaluationOutput> {
-              switch (output.type) {
-                case EvaluationOutput::OutputType::kReturn:
-                  return Success(std::move(output));
-                case EvaluationOutput::OutputType::kContinue:
-                  return Success(EvaluationOutput::New(Value::NewFunction(
-                      shared_type->type_arguments,
-                      [obj = NonNull<std::shared_ptr<Value>>(
-                           std::move(output.value)),
-                       shared_delegate](std::vector<NonNull<Value::Ptr>> args,
-                                        Trampoline& trampoline) {
-                        args.emplace(args.begin(), MakeNonNullUnique<Value>(
-                                                       *obj.get_shared()));
-                        return shared_delegate->callback(std::move(args),
-                                                         trampoline);
-                      })));
-              }
-              language::Error error(L"Unhandled OutputType case.");
-              LOG(FATAL) << error;
-              return error;
-            });
+            .Transform(
+                [type, shared_type = type_,
+                 callback = delegate_->LockCallback()](
+                    EvaluationOutput output) -> ValueOrError<EvaluationOutput> {
+                  switch (output.type) {
+                    case EvaluationOutput::OutputType::kReturn:
+                      return Success(std::move(output));
+                    case EvaluationOutput::OutputType::kContinue:
+                      return Success(EvaluationOutput::New(Value::NewFunction(
+                          shared_type->type_arguments,
+                          [obj = NonNull<std::shared_ptr<Value>>(
+                               std::move(output.value)),
+                           callback](std::vector<NonNull<Value::Ptr>> args,
+                                     Trampoline& trampoline) {
+                            args.emplace(args.begin(), MakeNonNullUnique<Value>(
+                                                           *obj.get_shared()));
+                            return callback(std::move(args), trampoline);
+                          })));
+                  }
+                  language::Error error(L"Unhandled OutputType case.");
+                  LOG(FATAL) << error;
+                  return error;
+                });
       }
 
      private:
@@ -349,8 +346,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
     args_expr.push_back(NewConstantExpression(std::move(a)));
   }
   NonNull<std::unique_ptr<Expression>> expr =
-      NewFunctionCall(NewConstantExpression(Value::NewFunction(
-                          func.type.type_arguments, func.callback)),
+      NewFunctionCall(NewConstantExpression(MakeNonNullUnique<Value>(func)),
                       std::move(args_expr));
   return Evaluate(*expr, nullptr, yield_callback);
 }

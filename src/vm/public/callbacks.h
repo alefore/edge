@@ -136,19 +136,21 @@ language::NonNull<Value::Ptr> NewCallback(
     Callable callback,
     VMType::PurityType purity = VMType::PurityType::kUnknown) {
   using ft = function_traits<Callable>;
-  auto callback_wrapper = language::MakeNonNullUnique<Value>(VMType::FUNCTION);
+  std::vector<VMType> type_arguments;
+  type_arguments.push_back(VMTypeMapper<typename ft::ReturnType>().vmtype);
+  AddArgs<typename ft::ArgTuple, 0>(&type_arguments);
+
+  auto callback_wrapper = Value::NewFunction(
+      std::move(type_arguments),
+      [callback = std::move(callback)](
+          vector<language::NonNull<Value::Ptr>> args, Trampoline&) {
+        return futures::Past(
+            language::Success(EvaluationOutput::New(RunCallback(
+                callback, std::move(args),
+                std::make_index_sequence<
+                    std::tuple_size<typename ft::ArgTuple>::value>()))));
+      });
   callback_wrapper->type.function_purity = purity;
-  callback_wrapper->type.type_arguments.push_back(
-      VMTypeMapper<typename ft::ReturnType>().vmtype);
-  AddArgs<typename ft::ArgTuple, 0>(&callback_wrapper->type.type_arguments);
-  callback_wrapper->callback = [callback = std::move(callback)](
-                                   vector<language::NonNull<Value::Ptr>> args,
-                                   Trampoline&) {
-    return futures::Past(language::Success(EvaluationOutput::New(
-        RunCallback(callback, std::move(args),
-                    std::make_index_sequence<
-                        std::tuple_size<typename ft::ArgTuple>::value>()))));
-  };
   return callback_wrapper;
 }
 

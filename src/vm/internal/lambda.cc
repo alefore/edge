@@ -81,10 +81,8 @@ class LambdaExpression : public Expression {
   NonNull<std::unique_ptr<Value>> BuildValue(
       std::shared_ptr<Environment> parent_environment) {
     CHECK(parent_environment != nullptr);
-    NonNull<std::unique_ptr<Value>> output =
-        MakeNonNullUnique<Value>(VMType::FUNCTION);
-    output->type = type_;
-    output->callback =
+    return Value::NewFunction(
+        type_.type_arguments,
         [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
             vector<NonNull<unique_ptr<Value>>> args, Trampoline& trampoline) {
@@ -103,8 +101,7 @@ class LambdaExpression : public Expression {
                 return Success(EvaluationOutput::New(
                     promotion_function(std::move(body_output.value))));
               });
-        };
-    return output;
+        });
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {

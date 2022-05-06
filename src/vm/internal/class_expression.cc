@@ -31,46 +31,48 @@ namespace {
 NonNull<std::unique_ptr<Value>> BuildSetter(VMType class_type,
                                             VMType field_type,
                                             std::wstring field_name) {
-  auto output = MakeNonNullUnique<Value>(VMType::FUNCTION);
+  auto output = Value::NewFunction(
+      {class_type, class_type, field_type},
+      [field_name, field_type](
+          std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
+        CHECK_EQ(args.size(), 2u);
+        auto instance = static_cast<Instance*>(args[0]->user_value.get());
+        CHECK(instance != nullptr);
+
+        CHECK_EQ(args[1]->type, field_type);
+        instance->environment->Assign(field_name, std::move(args[1]));
+
+        return futures::Past(
+            Success(EvaluationOutput::New(std::move(args[0]))));
+      });
+
   output->type.function_purity = Expression::PurityType::kUnknown;
-  output->type.type_arguments = {class_type, class_type, field_type};
-  output->callback = [field_name, field_type](
-                         std::vector<NonNull<std::unique_ptr<Value>>> args,
-                         Trampoline&) {
-    CHECK_EQ(args.size(), 2u);
-    auto instance = static_cast<Instance*>(args[0]->user_value.get());
-    CHECK(instance != nullptr);
-
-    CHECK_EQ(args[1]->type, field_type);
-    instance->environment->Assign(field_name, std::move(args[1]));
-
-    return futures::Past(Success(EvaluationOutput::New(std::move(args[0]))));
-  };
   return output;
 }
 
 NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
                                             VMType field_type,
                                             std::wstring field_name) {
-  auto output = MakeNonNullUnique<Value>(VMType::FUNCTION);
+  auto output = Value::NewFunction(
+      {field_type, class_type},
+      [field_name, field_type](
+          std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
+        CHECK_EQ(args.size(), 1u);
+        auto instance = static_cast<Instance*>(args[0]->user_value.get());
+        CHECK(instance != nullptr);
+        static Environment::Namespace empty_namespace;
+        return futures::Past(VisitPointer(
+            instance->environment->Lookup(empty_namespace, field_name,
+                                          field_type),
+            [](NonNull<std::unique_ptr<Value>> value) {
+              return Success(EvaluationOutput::New(std::move(value)));
+            },
+            [&]() {
+              return Error(L"Unexpected: variable value is null: " +
+                           field_name);
+            }));
+      });
   output->type.function_purity = Expression::PurityType::kPure;
-  output->type.type_arguments = {field_type, class_type};
-  output->callback = [field_name, field_type](
-                         std::vector<NonNull<std::unique_ptr<Value>>> args,
-                         Trampoline&) {
-    CHECK_EQ(args.size(), 1u);
-    auto instance = static_cast<Instance*>(args[0]->user_value.get());
-    CHECK(instance != nullptr);
-    static Environment::Namespace empty_namespace;
-    return futures::Past(VisitPointer(
-        instance->environment->Lookup(empty_namespace, field_name, field_type),
-        [](NonNull<std::unique_ptr<Value>> value) {
-          return Success(EvaluationOutput::New(std::move(value)));
-        },
-        [&]() {
-          return Error(L"Unexpected: variable value is null: " + field_name);
-        }));
-  };
   return output;
 }
 }  // namespace
@@ -104,39 +106,40 @@ void FinishClassDeclaration(
       });
   compilation->environment->DefineType(class_type.object_type,
                                        std::move(class_object_type));
-  auto constructor = MakeNonNullUnique<Value>(VMType::FUNCTION);
+  auto constructor = Value::NewFunction(
+      {class_type},
+      [constructor_expression_shared = NonNull<std::shared_ptr<Expression>>(
+           std::move(constructor_expression.value())),
+       class_environment, class_type,
+       values](std::vector<NonNull<std::unique_ptr<Value>>>,
+               Trampoline& trampoline) {
+        auto instance_environment = std::make_shared<Environment>(
+            class_environment->parent_environment());
+        auto original_environment = trampoline.environment();
+        trampoline.SetEnvironment(instance_environment);
+        return trampoline.Bounce(*constructor_expression_shared, VMType::Void())
+            .Transform([constructor_expression_shared, original_environment,
+                        class_type, instance_environment,
+                        &trampoline](EvaluationOutput constructor_evaluation)
+                           -> language::ValueOrError<EvaluationOutput> {
+              trampoline.SetEnvironment(original_environment);
+              switch (constructor_evaluation.type) {
+                case EvaluationOutput::OutputType::kReturn:
+                  return Error(
+                      L"Unexpected: return (inside class declaration).");
+                case EvaluationOutput::OutputType::kContinue:
+                  return Success(EvaluationOutput::New(Value::NewObject(
+                      class_type.object_type,
+                      std::make_shared<Instance>(
+                          Instance{.environment = instance_environment}))));
+              }
+              language::Error error(L"Unhandled OutputType case.");
+              LOG(FATAL) << error;
+              return error;
+            });
+      });
   constructor->type.function_purity = constructor_expression.value()->purity();
-  constructor->type.type_arguments.push_back(class_type);
-  constructor->callback = [constructor_expression_shared =
-                               NonNull<std::shared_ptr<Expression>>(
-                                   std::move(constructor_expression.value())),
-                           class_environment, class_type,
-                           values](std::vector<NonNull<std::unique_ptr<Value>>>,
-                                   Trampoline& trampoline) {
-    auto instance_environment =
-        std::make_shared<Environment>(class_environment->parent_environment());
-    auto original_environment = trampoline.environment();
-    trampoline.SetEnvironment(instance_environment);
-    return trampoline.Bounce(*constructor_expression_shared, VMType::Void())
-        .Transform([constructor_expression_shared, original_environment,
-                    class_type, instance_environment,
-                    &trampoline](EvaluationOutput constructor_evaluation)
-                       -> language::ValueOrError<EvaluationOutput> {
-          trampoline.SetEnvironment(original_environment);
-          switch (constructor_evaluation.type) {
-            case EvaluationOutput::OutputType::kReturn:
-              return Error(L"Unexpected: return (inside class declaration).");
-            case EvaluationOutput::OutputType::kContinue:
-              return Success(EvaluationOutput::New(Value::NewObject(
-                  class_type.object_type,
-                  std::make_shared<Instance>(
-                      Instance{.environment = instance_environment}))));
-          }
-          language::Error error(L"Unhandled OutputType case.");
-          LOG(FATAL) << error;
-          return error;
-        });
-  };
+
   compilation->environment->Define(class_type.object_type,
                                    std::move(constructor));
 }

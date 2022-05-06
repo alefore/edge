@@ -87,27 +87,28 @@ using std::wstring;
 template <typename MethodReturnType>
 void RegisterBufferMethod(ObjectType& editor_type, const wstring& name,
                           MethodReturnType (OpenBuffer::*method)(void)) {
-  auto callback = MakeNonNullUnique<Value>(VMType::FUNCTION);
-  // Returns nothing.
-  callback->type.type_arguments = {VMType::Void(), editor_type.type()};
-  callback->callback =
-      [method](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
-        CHECK_EQ(args.size(), size_t(1));
-        CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
+  editor_type.AddField(
+      name, Value::NewFunction(
+                // Returns nothing.
+                {VMType::Void(), editor_type.type()},
+                [method](std::vector<NonNull<std::unique_ptr<Value>>> args,
+                         Trampoline&) {
+                  CHECK_EQ(args.size(), size_t(1));
+                  CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
 
-        auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-        CHECK(editor != nullptr);
-        return editor
-            ->ForEachActiveBuffer([method](OpenBuffer& buffer) {
-              (buffer.*method)();
-              return futures::Past(EmptyValue());
-            })
-            .Transform([editor](EmptyValue) {
-              editor->ResetModifiers();
-              return EvaluationOutput::New(Value::NewVoid());
-            });
-      };
-  editor_type.AddField(name, std::move(callback));
+                  auto editor =
+                      static_cast<EditorState*>(args[0]->user_value.get());
+                  CHECK(editor != nullptr);
+                  return editor
+                      ->ForEachActiveBuffer([method](OpenBuffer& buffer) {
+                        (buffer.*method)();
+                        return futures::Past(EmptyValue());
+                      })
+                      .Transform([editor](EmptyValue) {
+                        editor->ResetModifiers();
+                        return EvaluationOutput::New(Value::NewVoid());
+                      });
+                }));
 }
 }  // namespace
 
@@ -262,7 +263,7 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                 VMTypeMapper<EditorState*>::get(input[0].value());
             NonNull<std::shared_ptr<PossibleError>> output;
             return editor
-                ->ForEachActiveBuffer([callback = std::move(input[1]->callback),
+                ->ForEachActiveBuffer([callback = input[1]->LockCallback(),
                                        &trampoline,
                                        output](OpenBuffer& buffer) {
                   std::vector<NonNull<std::unique_ptr<Value>>> args;
@@ -295,8 +296,9 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
             EditorState* editor =
                 VMTypeMapper<EditorState*>::get(input[0].value());
             return editor
-                ->ForEachActiveBufferWithRepetitions([callback = std::move(
-                                                          input[1]->callback),
+                ->ForEachActiveBufferWithRepetitions([callback =
+                                                          input[1]
+                                                              ->LockCallback(),
                                                       &trampoline](
                                                          OpenBuffer& buffer) {
                   std::vector<NonNull<std::unique_ptr<Value>>> args;
