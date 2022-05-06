@@ -178,6 +178,11 @@ class Root {
  public:
   ~Root() { pool_.EraseRoot(registration_); }
 
+  Root(const Root<T>& other)
+      : pool_(other.pool),
+        ptr_(std::make_unique<Ptr<T>>(*other.ptr_)),
+        registration_(pool_.AddRoot(ptr_->control_frame_.get_shared())) {}
+
   Root(Root<T>&& other)
       : pool_(other.pool_),
         ptr_(std::move(other.ptr_)),
