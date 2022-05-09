@@ -95,7 +95,7 @@ class Line {
    private:
     friend Line;
 
-    std::optional<MetadataEntry> metadata = std::nullopt;
+    std::optional<MetadataEntry> metadata;
     std::shared_ptr<vm::Environment> environment;
     void ValidateInvariants();
   };
