@@ -62,7 +62,7 @@ void CppMode() {
       "return "
       // Types
       "void const mutable auto "
-      "unique_ptr shared_ptr "
+      "unique_ptr shared_ptr optional "
       "std function vector list "
       "map unordered_map set unordered_set "
       "int double float string wstring bool char "
