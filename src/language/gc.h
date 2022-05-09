@@ -32,8 +32,8 @@ class Pool {
   }
 
   template <typename T>
-  Root<T> NewRoot(Ptr<T> value) {
-    return Root<T>(*this, std::move(value));
+  Root<T> NewRoot(const Ptr<T>& value) {
+    return Root<T>(*this, value);
   }
 
   struct ReclaimObjectsStats {
@@ -88,6 +88,9 @@ struct ControlFrame {
   bool reached_ = false;
 };
 
+template <typename T>
+std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(const T&);
+
 // A mutable pointer with shared ownership of a managed object. Behaves very
 // much like `std::shared_ptr<T>`: When the number of references drops to 0, the
 // object is reclaimed. The object will also be reclaimed by Pool::Reclaim when
@@ -107,7 +110,7 @@ class Ptr {
                    }));
   }
 
-  Root<T> ToRoot() { return pool_.NewRoot(*this); }
+  Root<T> ToRoot() const { return pool_.NewRoot<T>(*this); }
 
   Ptr(const Ptr<T>& other)
       : pool_(other.pool_),
@@ -138,6 +141,8 @@ class Ptr {
     return *this;
   }
 #endif
+
+  Pool& pool() { return pool_; }
 
   T* operator->() const { return value_.lock().get(); }
   T* value() const { return value_.lock().get(); }
@@ -179,7 +184,7 @@ class Root {
   ~Root() { pool_.EraseRoot(registration_); }
 
   Root(const Root<T>& other)
-      : pool_(other.pool),
+      : pool_(other.pool()),
         ptr_(std::make_unique<Ptr<T>>(*other.ptr_)),
         registration_(pool_.AddRoot(ptr_->control_frame_.get_shared())) {}
 
@@ -196,6 +201,8 @@ class Root {
     return *this;
   }
 
+  Pool& pool() const { return pool_; }
+
   Ptr<T>& value() { return *ptr_; }
   const Ptr<T>& value() const { return *ptr_; }
 
@@ -211,10 +218,17 @@ class Root {
   Root(Pool& pool, std::unique_ptr<T> value)
       : Root(pool, pool.NewPtr(std::move(value))) {}
 
+  Root(Pool& pool, const Ptr<T>& ptr)
+      : pool_(pool),
+        ptr_(std::make_unique<Ptr<T>>(ptr)),
+        registration_(pool.AddRoot(ptr_->control_frame_.get_shared())) {}
+
+#if 0
   Root(Pool& pool, Ptr<T> ptr)
       : pool_(pool),
         ptr_(std::make_unique<Ptr<T>>(std::move(ptr))),
         registration_(pool.AddRoot(ptr_->control_frame_.get_shared())) {}
+#endif
 
   Pool& pool_;
   std::unique_ptr<Ptr<T>> ptr_;
