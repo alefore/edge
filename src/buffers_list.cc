@@ -634,7 +634,7 @@ BuffersList::BuffersList(const EditorState& editor_state,
                          NonNull<std::unique_ptr<BufferWidget>> widget)
     : editor_state_(editor_state),
       active_buffer_widget_(widget.get()),
-      widget_(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{})) {}
+      widget_(std::move(widget)) {}
 
 void BuffersList::AddBuffer(NonNull<std::shared_ptr<OpenBuffer>> buffer,
                             AddBufferType add_buffer_type) {
