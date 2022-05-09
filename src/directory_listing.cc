@@ -60,33 +60,11 @@ BackgroundReadDirOutput ReadDir(Path path, std::wregex noise_regex) {
   return output;
 }
 
-void StartDeleteFile(EditorState& editor_state, wstring path) {
-  Prompt({.editor_state = editor_state,
-          .prompt = L"unlink " + path + L"? [yes/no] ",
-          .history_file = HistoryFile(L"confirmation"),
-          .handler =
-              [&editor_state, path](const wstring input) {
-                auto buffer = editor_state.current_buffer();
-                Status& status = buffer == nullptr ? editor_state.status()
-                                                   : buffer->status();
-                if (input == L"yes") {
-                  int result = unlink(ToByteString(path).c_str());
-                  status.SetInformationText(
-                      path + L": unlink: " +
-                      (result == 0
-                           ? L"done"
-                           : L"ERROR: " + FromByteString(strerror(errno))));
-                } else {
-                  // TODO: insert it again?  Actually, only let it be erased
-                  // in the other case.
-                  status.SetInformationText(L"Ignored.");
-                }
-                if (buffer != nullptr) {
-                  buffer->ResetMode();
-                }
-                return futures::Past(EmptyValue());
-              },
-          .predictor = PrecomputedPredictor({L"no", L"yes"}, '/')});
+void StartDeleteFile(EditorState& editor_state, std::wstring path) {
+  int result = unlink(ToByteString(path).c_str());
+  editor_state.status().SetInformationText(
+      path + L": unlink: " +
+      (result == 0 ? L"done" : L"ERROR: " + FromByteString(strerror(errno))));
 }
 
 Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
@@ -154,10 +132,11 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
   }
 
   line_options.SetMetadata(GetMetadata(target, path));
+  line_options.SetExplicitDeleteObserver(
+      [&editor = target.editor(), path] { StartDeleteFile(editor, path); });
+
   NonNull<std::shared_ptr<Line>> line =
       MakeNonNullShared<Line>(std::move(line_options));
-  line->explicit_delete_observers().Add(Observers::Once(
-      [&editor = target.editor(), path]() { StartDeleteFile(editor, path); }));
   target.AppendRawLine(line);
 }
 

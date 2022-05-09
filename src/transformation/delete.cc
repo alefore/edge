@@ -7,8 +7,10 @@
 #include "src/direction.h"
 #include "src/editor.h"
 #include "src/language/safe_types.h"
+#include "src/language/value_or_error.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
+#include "src/line_prompt_mode.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
 #include "src/transformation/insert.h"
@@ -22,6 +24,7 @@
 #include "src/vm_transformation.h"
 
 namespace afc {
+using language::EmptyValue;
 using language::NonNull;
 namespace vm {
 template <>
@@ -82,24 +85,56 @@ NonNull<std::shared_ptr<OpenBuffer>> GetDeletedTextBuffer(
   return delete_buffer;
 }
 
-// Calls the callbacks in the line (EdgeLineDeleteHandler).
-void HandleLineDeletion(LineColumn position, OpenBuffer& buffer) {
-  position = buffer.AdjustLineColumn(position);
-  CHECK_GE(buffer.contents().size(), position.line.ToDelta());
+void HandleLineDeletion(Range range, OpenBuffer& buffer) {
+  std::vector<std::function<void()>> observers;
+  std::shared_ptr<const Line> first_line_contents;
+  for (LineColumn delete_position = range.begin;
+       delete_position.line < range.end.line;
+       delete_position = LineColumn(delete_position.line.next())) {
+    LineColumn position = buffer.AdjustLineColumn(delete_position);
+    if (position.line != delete_position.line || !position.column.IsZero())
+      continue;
 
-  LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
-            << buffer.contents().size();
+    CHECK_GE(buffer.contents().size(), position.line.ToDelta());
 
-  NonNull<std::shared_ptr<const Line>> contents =
-      buffer.contents().at(position.line);
-  DVLOG(5) << "Erasing line: " << contents->ToString();
-  if (!position.column.IsZero()) return;
-  auto target_buffer = buffer.GetBufferFromCurrentLine();
-  if (target_buffer.get() != &buffer && target_buffer != nullptr) {
-    target_buffer->editor().CloseBuffer(*target_buffer);
+    LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
+              << buffer.contents().size();
+
+    NonNull<std::shared_ptr<const Line>> line_contents =
+        buffer.contents().at(position.line);
+    DVLOG(5) << "Erasing line: " << line_contents->ToString();
+    auto target_buffer = buffer.GetBufferFromCurrentLine();
+    if (target_buffer.get() != &buffer && target_buffer != nullptr) {
+      target_buffer->editor().CloseBuffer(*target_buffer);
+    }
+
+    std::function<void()> f = line_contents->explicit_delete_observer();
+    if (f == nullptr) continue;
+    observers.push_back(f);
+    if (first_line_contents == nullptr)
+      first_line_contents = line_contents.get_shared();
   }
-
-  contents->explicit_delete_observers().Notify();
+  if (observers.empty()) return;
+  std::wstring details = observers.size() == 1
+                             ? first_line_contents->ToString()
+                             : L" files: " + std::to_wstring(observers.size());
+  Prompt(
+      PromptOptions{.editor_state = buffer.editor(),
+                    .prompt = L"unlink " + details + L"? [yes/no] ",
+                    .history_file = HistoryFile(L"confirmation"),
+                    .handler =
+                        [buffer = buffer.shared_from_this(),
+                         observers](const wstring& input) {
+                          if (input == L"yes") {
+                            for (auto& o : observers) o();
+                          } else {
+                            // TODO: insert it again?  Actually, only let it be
+                            // erased in the other case?
+                            buffer->status().SetInformationText(L"Ignored.");
+                          }
+                          return futures::Past(EmptyValue());
+                        },
+                    .predictor = PrecomputedPredictor({L"no", L"yes"}, '/')});
 }
 }  // namespace
 namespace transformation {
@@ -141,11 +176,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
           Modifiers::TextDeleteBehavior::kDelete &&
       input.mode == Input::Mode::kFinal) {
     LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
-    for (LineColumn delete_position = range.begin;
-         delete_position.line < range.end.line;
-         delete_position = LineColumn(delete_position.line.next())) {
-      HandleLineDeletion(delete_position, input.buffer);
-    }
+    HandleLineDeletion(range, input.buffer);
   }
 
   output->success = true;

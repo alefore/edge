@@ -354,6 +354,11 @@ NonNull<std::shared_ptr<vm::Environment>> Line::environment() const {
       data_.lock([](const Data& data) { return data.options.environment; }));
 }
 
+std::function<void()> Line::explicit_delete_observer() const {
+  return data_.lock(
+      [](const Data& data) { return data.options.explicit_delete_observer_; });
+}
+
 LineWithCursor Line::Output(const OutputOptions& options) const {
   static Tracker tracker(L"Line::Output");
   auto tracker_call = tracker.Call();

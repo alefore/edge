@@ -67,6 +67,14 @@ class Line {
                       std::optional<LineModifierSet> modifier);
     void Append(Line line);
 
+    void SetExplicitDeleteObserver(std::function<void()> observer) {
+      explicit_delete_observer_ = std::move(observer);
+    }
+
+    std::function<void()>& explicit_delete_observer() {
+      return explicit_delete_observer_;
+    }
+
     Options& SetMetadata(std::optional<MetadataEntry> metadata);
 
     // Delete characters in [position, position + amount).
@@ -98,6 +106,7 @@ class Line {
 
     std::optional<MetadataEntry> metadata;
     std::shared_ptr<vm::Environment> environment;
+    std::function<void()> explicit_delete_observer_;
     void ValidateInvariants();
   };
 
@@ -161,6 +170,8 @@ class Line {
     });
   }
 
+  std::function<void()> explicit_delete_observer() const;
+
   struct OutputOptions {
     ColumnNumber initial_column;
     // Total number of screen characters to consume. If the input has wide
@@ -178,10 +189,6 @@ class Line {
     LineModifierSet modifiers_inactive_cursors = {};
   };
   LineWithCursor Output(const OutputOptions& options) const;
-
-  language::Observers& explicit_delete_observers() const {
-    return explicit_delete_observers_;
-  }
 
  private:
   friend class std::hash<Line>;
@@ -203,7 +210,6 @@ class Line {
   friend class Options;
 
   concurrent::Protected<Data, decltype(&Line::ValidateInvariants)> data_;
-  mutable language::Observers explicit_delete_observers_;
 };
 
 }  // namespace afc::editor
