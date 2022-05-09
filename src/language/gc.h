@@ -71,11 +71,9 @@ struct ControlFrame {
   ControlFrame(ConstructorAccessKey, Pool& pool, ExpandCallback expand_callback)
       : pool_(pool), expand_callback_(std::move(expand_callback)) {}
 
+ private:
   Pool& pool() { return pool_; }
 
-  // ControlFrame(const ControlFrame&) = default;
-
- private:
   Pool& pool_;
   ExpandCallback expand_callback_;
   bool reached_ = false;
@@ -169,10 +167,8 @@ class Root {
         registration_(pool().AddRoot(ptr_->control_frame_.get_shared())) {}
 
   Root<T>& operator=(Root<T>&& other) {
-    pool().EraseRoot(registration_);
-
-    ptr_ = std::move(other.ptr_);
-    registration_ = pool().AddRoot(ptr_->control_frame_.get_shared());
+    std::swap(ptr_, other.ptr_);
+    std::swap(registration_, other.registration_);
     return *this;
   }
 
