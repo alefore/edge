@@ -22,18 +22,8 @@ class Root;
 class Pool {
  public:
   template <typename T>
-  Ptr<T> NewPtr(std::unique_ptr<T> value) {
-    return Ptr<T>::New(*this, std::move(value));
-  }
-
-  template <typename T>
   Root<T> NewRoot(std::unique_ptr<T> value) {
     return Root<T>(*this, std::move(value));
-  }
-
-  template <typename T>
-  Root<T> NewRoot(const Ptr<T>& value) {
-    return Root<T>(*this, value);
   }
 
   struct ReclaimObjectsStats {
@@ -98,19 +88,7 @@ std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(const T&);
 template <typename T>
 class Ptr {
  public:
-  static Ptr<T> New(Pool& pool, std::unique_ptr<T> value) {
-    std::shared_ptr<T> shared_value = std::move(value);
-    return Ptr(pool, shared_value,
-               language::MakeNonNullShared<ControlFrame>(
-                   ControlFrame::ConstructorAccessKey(), [shared_value] {
-                     return shared_value == nullptr
-                                ? std::vector<language::NonNull<
-                                      std::shared_ptr<ControlFrame>>>()
-                                : Expand(*shared_value);
-                   }));
-  }
-
-  Root<T> ToRoot() const { return pool_.NewRoot<T>(*this); }
+  Root<T> ToRoot() const { return Root<T>(*this, value); }
 
   Ptr(const Ptr<T>& other)
       : pool_(other.pool_),
@@ -154,6 +132,18 @@ class Ptr {
   }
 
  private:
+  static Ptr<T> New(Pool& pool, std::unique_ptr<T> value) {
+    std::shared_ptr<T> shared_value = std::move(value);
+    return Ptr(pool, shared_value,
+               language::MakeNonNullShared<ControlFrame>(
+                   ControlFrame::ConstructorAccessKey(), [shared_value] {
+                     return shared_value == nullptr
+                                ? std::vector<language::NonNull<
+                                      std::shared_ptr<ControlFrame>>>()
+                                : Expand(*shared_value);
+                   }));
+  }
+
   friend class Root<T>;
 
   Ptr(Pool& pool, std::shared_ptr<T> value,
@@ -215,8 +205,10 @@ class Root {
  private:
   friend class Pool;
 
+  friend class Ptr<T>;
+
   Root(Pool& pool, std::unique_ptr<T> value)
-      : Root(pool, pool.NewPtr(std::move(value))) {}
+      : Root(pool, Ptr<T>::New(pool, std::move(value))) {}
 
   Root(Pool& pool, const Ptr<T>& ptr)
       : pool_(pool),

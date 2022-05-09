@@ -107,15 +107,15 @@ std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>> Expand(Node& node) {
   return output;
 }
 
-gc::Ptr<Node> MakeLoop(gc::Pool& pool, int size) {
-  gc::Ptr<Node> start = pool.NewPtr(std::make_unique<Node>());
-  Node* last = start.value();
+gc::Root<Node> MakeLoop(gc::Pool& pool, int size) {
+  gc::Root<Node> start = pool.NewRoot(std::make_unique<Node>());
+  gc::Ptr<Node> last = start.value();
   for (int i = 1; i < size; i++) {
-    gc::Ptr<Node> child = pool.NewPtr(std::make_unique<Node>());
-    last->children.push_back(child);
-    last = child.value();
+    gc::Root<Node> child = pool.NewRoot(std::make_unique<Node>());
+    last->children.push_back(child.value());
+    last = last->children.back();
   }
-  last->children.push_back(start);
+  last->children.push_back(start.value());
   return start;
 }
 
@@ -157,7 +157,7 @@ bool tests_registration = tests::Register(
                   pool.Reclaim();
                   CHECK(!delete_notification_0->HasBeenNotified());
 
-                  root.Set(pool.NewPtr(std::make_unique<Node>()));
+                  root = pool.NewRoot(std::make_unique<Node>());
 
                   auto delete_notification_1 =
                       root.value().value()->delete_notification;
@@ -199,7 +199,8 @@ bool tests_registration = tests::Register(
 
                   auto child_notification = [&] {
                     LOG(INFO) << "Creating child.";
-                    auto child = pool.NewPtr(std::make_unique<Node>());
+                    gc::Ptr<Node> child =
+                        pool.NewRoot(std::make_unique<Node>()).value();
 
                     LOG(INFO) << "Storing root in child.";
                     child.value()->children.push_back(root.value());
@@ -223,7 +224,7 @@ bool tests_registration = tests::Register(
                   CHECK(!child_notification->HasBeenNotified());
 
                   LOG(INFO) << "Override root value.";
-                  root.Set(pool.NewPtr(std::make_unique<Node>()));
+                  root = pool.NewRoot(std::make_unique<Node>());
 
                   auto delete_notification_1 =
                       root.value().value()->delete_notification;
@@ -246,7 +247,7 @@ bool tests_registration = tests::Register(
       .callback =
           [] {
             gc::Pool pool;
-            gc::Root root = pool.NewRoot(MakeLoop(pool, 10));
+            gc::Root root = MakeLoop(pool, 10);
             auto old_notification = root.value().value()->delete_notification;
 
             {
@@ -257,7 +258,7 @@ bool tests_registration = tests::Register(
             }
 
             LOG(INFO) << "Replacing loop.";
-            root.Set(MakeLoop(pool, 5));
+            root = MakeLoop(pool, 5);
             CHECK(!old_notification->HasBeenNotified());
             {
               auto stats = pool.Reclaim();
@@ -267,7 +268,7 @@ bool tests_registration = tests::Register(
           }},
      {.name = L"BreakLoopHalfway", .callback = [] {
         gc::Pool pool;
-        gc::Root root = pool.NewRoot(MakeLoop(pool, 7));
+        gc::Root root = MakeLoop(pool, 7);
         {
           gc::Ptr<Node> split = root.value();
           for (int i = 0; i < 4; i++) split = split.value()->children[0];
