@@ -12,6 +12,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
+#include "src/language/observers.h"
 #include "src/language/safe_types.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
@@ -178,6 +179,10 @@ class Line {
   };
   LineWithCursor Output(const OutputOptions& options) const;
 
+  language::Observers& explicit_delete_observers() const {
+    return explicit_delete_observers_;
+  }
+
  private:
   friend class std::hash<Line>;
 
@@ -198,6 +203,7 @@ class Line {
   friend class Options;
 
   concurrent::Protected<Data, decltype(&Line::ValidateInvariants)> data_;
+  mutable language::Observers explicit_delete_observers_;
 };
 
 }  // namespace afc::editor
