@@ -29,7 +29,6 @@
 #include "src/lazy_string_append.h"
 #include "src/line_column.h"
 #include "src/line_prompt_mode.h"
-#include "src/list_buffers_command.h"
 #include "src/map_mode.h"
 #include "src/navigate_command.h"
 #include "src/navigation_buffer.h"
@@ -532,14 +531,6 @@ class ActivateLink : public Command {
           // TODO(2022-05-02): Get rid of Unsafe?
           NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(target),
           CommandArgumentModeApplyMode::kFinal);
-      auto target_position = buffer->current_line()->environment()->Lookup(
-          Environment::Namespace(), L"buffer_position",
-          vm::VMTypeMapper<LineColumn>::vmtype);
-      if (target_position != nullptr &&
-          target_position->type == VMType::ObjectType(L"LineColumn")) {
-        target->set_position(
-            *static_cast<LineColumn*>(target_position->user_value.get()));
-      }
       editor_state_.PushCurrentPosition();
       buffer->ResetMode();
       target->ResetMode();
@@ -752,7 +743,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 NewRunCppCommand(editor_state, CppCommandMode::kLiteral));
   commands->Add(L":", NewRunCppCommand(editor_state, CppCommandMode::kShell));
   commands->Add(L"a.", NewOpenDirectoryCommand(editor_state));
-  commands->Add(L"aL", NewListBuffersCommand(editor_state));
   commands->Add(L"ao", NewOpenFileCommand(editor_state));
   commands->Add(
       L"aF",

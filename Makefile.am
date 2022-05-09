@@ -136,7 +136,6 @@ src/line_number_output_producer.cc \
 src/line_prompt_mode.cc \
 src/line_scroll_control.h \
 src/line_scroll_control.cc \
-src/list_buffers_command.cc \
 src/log.cc \
 src/log.h \
 src/lowercase.cc \
