@@ -145,7 +145,7 @@ class Line {
 
   void Append(const Line& line);
 
-  std::shared_ptr<vm::Environment> environment() const;
+  language::NonNull<std::shared_ptr<vm::Environment>> environment() const;
 
   bool filtered() const {
     return data_.lock([](const Data& data) { return data.filtered; });

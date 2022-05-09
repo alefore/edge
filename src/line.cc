@@ -348,11 +348,10 @@ void Line::Append(const Line& line) {
   });
 }
 
-std::shared_ptr<vm::Environment> Line::environment() const {
-  std::shared_ptr<vm::Environment> environment =
-      data_.lock([](const Data& data) { return data.options.environment; });
-  CHECK(environment != nullptr);
-  return environment;
+NonNull<std::shared_ptr<vm::Environment>> Line::environment() const {
+  // Call to Unsafe is fine: the constructor ensures that this is set.
+  return NonNull<std::shared_ptr<vm::Environment>>::Unsafe(
+      data_.lock([](const Data& data) { return data.options.environment; }));
 }
 
 LineWithCursor Line::Output(const OutputOptions& options) const {
