@@ -34,13 +34,11 @@ class Pool {
   };
   ReclaimObjectsStats Reclaim();
 
-  using RootRegistration = std::list<std::weak_ptr<ControlFrame>>::iterator;
+  using RootRegistration = std::unique_ptr<bool, std::function<void(bool*)>>;
 
   RootRegistration AddRoot(std::weak_ptr<ControlFrame> control_frame);
 
   void AddObj(language::NonNull<std::shared_ptr<ControlFrame>> control_frame);
-
-  void EraseRoot(RootRegistration registration);
 
  private:
   // All the control frames for all the objects allocated into this pool.
@@ -156,8 +154,6 @@ class Ptr {
 template <typename T>
 class Root {
  public:
-  ~Root() { pool().EraseRoot(registration_); }
-
   Root(const Root<T>& other)
       : ptr_(MakeNonNullUnique<Ptr<T>>(*other.ptr_)),
         registration_(pool().AddRoot(ptr_->control_frame_.get_shared())) {}
@@ -189,12 +185,8 @@ class Root {
         registration_(pool.AddRoot(ptr_->control_frame_.get_shared())) {}
 
   language::NonNull<std::unique_ptr<Ptr<T>>> ptr_;
-  std::list<std::weak_ptr<ControlFrame>>::iterator registration_;
+  Pool::RootRegistration registration_;
 };
-
-////////////////////////////////////////////////////////////////////////////////
-// Internal Implementation details.
-////////////////////////////////////////////////////////////////////////////////
 
 };  // namespace afc::language::gc
 #endif

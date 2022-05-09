@@ -67,7 +67,12 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
 Pool::RootRegistration Pool::AddRoot(
     std::weak_ptr<ControlFrame> control_frame) {
   roots_.push_back(control_frame);
-  return --roots_.end();
+  std::list<std::weak_ptr<ControlFrame>>::iterator it = --roots_.end();
+  return RootRegistration(new bool(false), [this, it](bool* value) {
+    delete value;
+    LOG(INFO) << "Erasing root: " << it->lock();
+    roots_.erase(it);
+  });
 }
 
 void Pool::AddObj(
@@ -75,11 +80,6 @@ void Pool::AddObj(
   objects_.push_back(control_frame.get_shared());
   LOG(INFO) << "Added object: " << control_frame.get_shared()
             << " (total: " << objects_.size() << ")";
-}
-
-void Pool::EraseRoot(RootRegistration registration) {
-  LOG(INFO) << "Erasing root: " << registration->lock();
-  roots_.erase(registration);
 }
 }  // namespace gc
 
