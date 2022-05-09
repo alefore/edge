@@ -232,9 +232,17 @@ class State {
   void RunUndoCallback() {
     static Tracker tracker(L"State::RunUndoCallback");
     auto call = tracker.Call();
+    const EditorState& editor = editor_state_;
+    const std::shared_ptr<EditorMode> keyboard_redirect =
+        editor.keyboard_redirect();
     serializer_.Push([callback = std::move(undo_callback_)]() {
       return Pointer(callback).Reference()();
     });
+    CHECK_EQ(keyboard_redirect, editor.keyboard_redirect())
+        << "Internal error: undo callback has changed the keyboard redirector, "
+           "probably causing us to be deleted. This isn't supported (as this "
+           "code assumes survival of various now-deleted objects).";
+
     undo_callback_ = std::make_shared<UndoCallback>(
         []() -> futures::Value<EmptyValue> { return Past(EmptyValue()); });
   }
