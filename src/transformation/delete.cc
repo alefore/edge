@@ -174,7 +174,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
 
   if (options.modifiers.text_delete_behavior ==
           Modifiers::TextDeleteBehavior::kDelete &&
-      input.mode == Input::Mode::kFinal) {
+      input.mode == Input::Mode::kFinal &&
+      options.initiator == Delete::Initiator::kUser) {
     LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
     HandleLineDeletion(range, input.buffer);
   }

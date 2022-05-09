@@ -46,7 +46,8 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
       .modifiers = {.repetitions = contents_to_insert->CountCharacters(),
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::kDoNothing},
-      .mode = transformation::Input::Mode::kFinal});
+      .mode = transformation::Input::Mode::kFinal,
+      .initiator = transformation::Delete::Initiator::kInternal});
 
   output.Push(transformation::Insert{
       .contents_to_insert = std::move(contents_to_insert),

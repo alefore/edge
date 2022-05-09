@@ -290,7 +290,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             .modifiers = {.direction = input.position < output->position
                                            ? Direction::kForwards
                                            : Direction::kBackwards},
-            .range = range};
+            .range = range,
+            .initiator = transformation::Delete::Initiator::kInternal};
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone: {
             NonNull<std::shared_ptr<BufferContents>> contents =
@@ -314,6 +315,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                 });
           }
           case Stack::PostTransformationBehavior::kDeleteRegion:
+            delete_transformation.initiator =
+                transformation::Delete::Initiator::kUser;
             return Apply(delete_transformation,
                          input.NewChild(delete_transformation.range->begin));
           case Stack::PostTransformationBehavior::kCopyRegion:

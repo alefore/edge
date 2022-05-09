@@ -637,11 +637,12 @@ class HistoryScrollBehavior : public ScrollBehavior {
     }
 
     buffer.ApplyToCursors(transformation::Delete{
-        .modifiers = {
-            .structure = StructureLine(),
-            .paste_buffer_behavior = Modifiers::PasteBufferBehavior::kDoNothing,
-            .boundary_begin = Modifiers::LIMIT_CURRENT,
-            .boundary_end = Modifiers::LIMIT_CURRENT}});
+        .modifiers = {.structure = StructureLine(),
+                      .paste_buffer_behavior =
+                          Modifiers::PasteBufferBehavior::kDoNothing,
+                      .boundary_begin = Modifiers::LIMIT_CURRENT,
+                      .boundary_end = Modifiers::LIMIT_CURRENT},
+        .initiator = transformation::Delete::Initiator::kInternal});
 
     buffer.ApplyToCursors(transformation::Insert{
         .contents_to_insert = std::move(contents_to_insert)});
@@ -939,12 +940,15 @@ void Prompt(PromptOptions options) {
                                     << " to " << results.value();
 
                           buffer->ApplyToCursors(transformation::Delete{
-                              .modifiers = {
-                                  .structure = StructureLine(),
-                                  .paste_buffer_behavior = Modifiers::
-                                      PasteBufferBehavior::kDoNothing,
-                                  .boundary_begin = Modifiers::LIMIT_CURRENT,
-                                  .boundary_end = Modifiers::LIMIT_CURRENT}});
+                              .modifiers = {.structure = StructureLine(),
+                                            .paste_buffer_behavior = Modifiers::
+                                                PasteBufferBehavior::kDoNothing,
+                                            .boundary_begin =
+                                                Modifiers::LIMIT_CURRENT,
+                                            .boundary_end =
+                                                Modifiers::LIMIT_CURRENT},
+                              .initiator = transformation::Delete::Initiator::
+                                  kInternal});
 
                           NonNull<std::shared_ptr<LazyString>> line =
                               NewLazyString(

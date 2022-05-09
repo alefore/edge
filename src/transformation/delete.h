@@ -30,6 +30,16 @@ struct Delete {
   std::optional<Input::Mode> mode = std::nullopt;
 
   std::optional<Range> range = std::nullopt;
+
+  enum class Initiator {
+    // The delete transformation was directly initiated by the user, requesting
+    // the deletion of some contents.
+    kUser,
+    // The delete transformation was initiated by some other transformation, in
+    // a way that doesn't fully represent that the user is deleting contents.
+    kInternal
+  };
+  Initiator initiator;
 };
 
 std::ostream& operator<<(std::ostream& os, const Delete& options);

@@ -317,12 +317,13 @@ class InsertMode : public EditorMode {
               return CallModifyHandler(
                   options, *buffer,
                   buffer->ApplyToCursors(transformation::Delete{
-                      .modifiers = {
-                          .structure = StructureLine(),
-                          .paste_buffer_behavior =
-                              Modifiers::PasteBufferBehavior::kDoNothing,
-                          .boundary_begin = Modifiers::CURRENT_POSITION,
-                          .boundary_end = Modifiers::LIMIT_CURRENT}}));
+                      .modifiers =
+                          {.structure = StructureLine(),
+                           .paste_buffer_behavior =
+                               Modifiers::PasteBufferBehavior::kDoNothing,
+                           .boundary_begin = Modifiers::CURRENT_POSITION,
+                           .boundary_end = Modifiers::LIMIT_CURRENT},
+                      .initiator = transformation::Delete::Initiator::kUser}));
             });
         return;
       }
@@ -401,7 +402,9 @@ class InsertMode : public EditorMode {
                          .modifiers =
                              {.direction = direction,
                               .paste_buffer_behavior =
-                                  Modifiers::PasteBufferBehavior::kDoNothing}}))
+                                  Modifiers::PasteBufferBehavior::kDoNothing},
+                         .initiator =
+                             transformation::Delete::Initiator::kUser}))
               .Transform([options, direction, buffer](EmptyValue) {
                 if (options.editor_state.modifiers().insertion !=
                     Modifiers::ModifyMode::kOverwrite)

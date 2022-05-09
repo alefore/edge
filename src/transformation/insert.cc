@@ -39,9 +39,10 @@ using language::MakeNonNullUnique;
 
 transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
   return transformation::Delete{
-      .modifiers = {
-          .repetitions = repetitions,
-          .paste_buffer_behavior = Modifiers::PasteBufferBehavior::kDoNothing}};
+      .modifiers = {.repetitions = repetitions,
+                    .paste_buffer_behavior =
+                        Modifiers::PasteBufferBehavior::kDoNothing},
+      .initiator = transformation::Delete::Initiator::kInternal};
 }
 
 futures::Value<transformation::Result> ApplyBase(const Insert& options,
