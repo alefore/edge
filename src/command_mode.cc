@@ -522,27 +522,28 @@ class ActivateLink : public Command {
       return;
     }
 
-    auto target = buffer->GetBufferFromCurrentLine();
-    if (target != nullptr && target != buffer) {
-      LOG(INFO) << "Visiting buffer: " << target->Read(buffer_variables::name);
-      editor_state_.status().Reset();
-      buffer->status().Reset();
-      editor_state_.set_current_buffer(
-          // TODO(2022-05-02): Get rid of Unsafe?
-          NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(target),
-          CommandArgumentModeApplyMode::kFinal);
-      auto target_position = buffer->current_line()->environment()->Lookup(
-          Environment::Namespace(), L"buffer_position",
-          vm::VMTypeMapper<LineColumn>::vmtype);
-      if (target_position != nullptr &&
-          target_position->type == VMType::ObjectType(L"LineColumn")) {
-        target->set_position(
-            *static_cast<LineColumn*>(target_position->user_value.get()));
+    std::optional<Line::BufferLineColumn> line_buffer =
+        buffer->current_line()->buffer_line_column();
+    if (line_buffer.has_value()) {
+      if (auto target = line_buffer->buffer.lock();
+          target != nullptr && target != buffer) {
+        LOG(INFO) << "Visiting buffer: "
+                  << target->Read(buffer_variables::name);
+        editor_state_.status().Reset();
+        buffer->status().Reset();
+        editor_state_.set_current_buffer(
+            // TODO(2022-05-02): Get rid of Unsafe?
+            NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(target),
+            CommandArgumentModeApplyMode::kFinal);
+        std::optional<LineColumn> target_position = line_buffer->position;
+        if (target_position.has_value()) {
+          target->set_position(*target_position);
+        }
+        editor_state_.PushCurrentPosition();
+        buffer->ResetMode();
+        target->ResetMode();
+        return;
       }
-      editor_state_.PushCurrentPosition();
-      buffer->ResetMode();
-      target->ResetMode();
-      return;
     }
 
     buffer->MaybeAdjustPositionCol();

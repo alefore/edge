@@ -17,7 +17,6 @@
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
-#include "src/vm/public/environment.h"
 
 namespace afc::editor {
 class EditorMode;
@@ -40,6 +39,11 @@ class Line {
     language::NonNull<std::shared_ptr<LazyString>> initial_value;
     futures::ListenableValue<language::NonNull<std::shared_ptr<LazyString>>>
         value;
+  };
+
+  struct BufferLineColumn {
+    std::weak_ptr<OpenBuffer> buffer;
+    std::optional<LineColumn> position;
   };
 
   class Options {
@@ -75,6 +79,9 @@ class Line {
       return explicit_delete_observer_;
     }
 
+    void SetBufferLineColumn(BufferLineColumn buffer_line_column);
+    std::optional<BufferLineColumn> buffer_line_column() const;
+
     Options& SetMetadata(std::optional<MetadataEntry> metadata);
 
     // Delete characters in [position, position + amount).
@@ -105,8 +112,8 @@ class Line {
     friend Line;
 
     std::optional<MetadataEntry> metadata;
-    std::shared_ptr<vm::Environment> environment;
     std::function<void()> explicit_delete_observer_;
+    std::optional<BufferLineColumn> buffer_line_column_;
     void ValidateInvariants();
   };
 
@@ -155,8 +162,6 @@ class Line {
 
   void Append(const Line& line);
 
-  language::NonNull<std::shared_ptr<vm::Environment>> environment() const;
-
   bool filtered() const {
     return data_.lock([](const Data& data) { return data.filtered; });
   }
@@ -171,6 +176,8 @@ class Line {
   }
 
   std::function<void()> explicit_delete_observer() const;
+
+  std::optional<BufferLineColumn> buffer_line_column() const;
 
   struct OutputOptions {
     ColumnNumber initial_column;

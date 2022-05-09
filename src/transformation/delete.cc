@@ -26,6 +26,7 @@
 namespace afc {
 using language::EmptyValue;
 using language::NonNull;
+using language::VisitPointer;
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
@@ -103,11 +104,17 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
     NonNull<std::shared_ptr<const Line>> line_contents =
         buffer.contents().at(position.line);
     DVLOG(5) << "Erasing line: " << line_contents->ToString();
-    auto target_buffer = buffer.GetBufferFromCurrentLine();
-    if (target_buffer.get() != &buffer && target_buffer != nullptr) {
-      target_buffer->editor().CloseBuffer(*target_buffer);
+    auto line_buffer = buffer.current_line()->buffer_line_column();
+    if (line_buffer.has_value()) {
+      VisitPointer(
+          line_buffer->buffer,
+          [&buffer](NonNull<std::shared_ptr<OpenBuffer>> target_buffer) {
+            if (target_buffer.get().get() != &buffer) {
+              target_buffer->editor().CloseBuffer(*target_buffer);
+            }
+          },
+          [] {});
     }
-
     std::function<void()> f = line_contents->explicit_delete_observer();
     if (f == nullptr) continue;
     observers.push_back(f);
@@ -128,8 +135,8 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
                           if (input == L"yes") {
                             for (auto& o : observers) o();
                           } else {
-                            // TODO: insert it again?  Actually, only let it be
-                            // erased in the other case?
+                            // TODO: insert it again?  Actually, only let it
+                            // be erased in the other case?
                             buffer->status().SetInformationText(L"Ignored.");
                           }
                           return futures::Past(EmptyValue());

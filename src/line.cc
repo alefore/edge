@@ -205,6 +205,15 @@ void Line::Options::Append(Line line) {
   ValidateInvariants();
 }
 
+void Line::Options::SetBufferLineColumn(
+    Line::BufferLineColumn buffer_line_column) {
+  buffer_line_column_ = buffer_line_column;
+}
+std::optional<Line::BufferLineColumn> Line::Options::buffer_line_column()
+    const {
+  return buffer_line_column_;
+}
+
 Line::Options& Line::Options::SetMetadata(
     std::optional<MetadataEntry> metadata) {
   this->metadata = std::move(metadata);
@@ -263,13 +272,7 @@ void Line::Options::ValidateInvariants() {}
 Line::Line(wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}
 
 Line::Line(Options options)
-    : data_(Data{.options =
-                     [](Options options) {
-                       if (options.environment == nullptr)
-                         options.environment = std::make_shared<Environment>();
-                       return options;
-                     }(std::move(options))},
-            Line::ValidateInvariants) {}
+    : data_(Data{.options = std::move(options)}, Line::ValidateInvariants) {}
 
 Line::Line(const Line& line) : data_(Data{}, Line::ValidateInvariants) {
   data_.lock([&line](Data& data) {
@@ -348,15 +351,14 @@ void Line::Append(const Line& line) {
   });
 }
 
-NonNull<std::shared_ptr<vm::Environment>> Line::environment() const {
-  // Call to Unsafe is fine: the constructor ensures that this is set.
-  return NonNull<std::shared_ptr<vm::Environment>>::Unsafe(
-      data_.lock([](const Data& data) { return data.options.environment; }));
-}
-
 std::function<void()> Line::explicit_delete_observer() const {
   return data_.lock(
       [](const Data& data) { return data.options.explicit_delete_observer_; });
+}
+
+std::optional<Line::BufferLineColumn> Line::buffer_line_column() const {
+  return data_.lock(
+      [](const Data& data) { return data.options.buffer_line_column_; });
 }
 
 LineWithCursor Line::Output(const OutputOptions& options) const {

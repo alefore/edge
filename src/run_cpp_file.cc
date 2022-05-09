@@ -64,9 +64,12 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
     return futures::Past(ValueOrError<EmptyValue>(Error(L"No current buffer")));
   }
   if (editor_state.structure() == StructureLine()) {
-    auto target = buffer->GetBufferFromCurrentLine();
-    if (target != nullptr) {
-      buffer = target;
+    std::optional<Line::BufferLineColumn> line_buffer =
+        buffer->current_line()->buffer_line_column();
+    if (line_buffer.has_value()) {
+      if (auto target = line_buffer->buffer.lock(); target != nullptr) {
+        buffer = target;
+      }
     }
     editor_state.ResetModifiers();
   }

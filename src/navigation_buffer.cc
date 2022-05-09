@@ -26,15 +26,6 @@ using language::Success;
 
 const wstring kDepthSymbol = L"navigation_buffer_depth";
 
-void AdjustLastLine(OpenBuffer& buffer, std::shared_ptr<OpenBuffer> link_to,
-                    LineColumn position) {
-  auto line_environment = buffer.contents().back()->environment();
-  line_environment->Define(L"buffer", Value::NewObject(L"Buffer", link_to));
-  line_environment->Define(
-      L"buffer_position",
-      Value::NewObject(L"LineColumn", std::make_shared<LineColumn>(position)));
-}
-
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
                  Line::Options* line_options) {
@@ -58,9 +49,9 @@ void AppendLine(const std::shared_ptr<OpenBuffer>& source,
                 LineColumn position, OpenBuffer& target) {
   Line::Options options;
   options.contents = padding;
+  options.SetBufferLineColumn(Line::BufferLineColumn{source, position});
   AddContents(*source, *source->LineAt(position.line), &options);
   target.AppendRawLine(MakeNonNullShared<Line>(options));
-  AdjustLastLine(target, source, position);
 }
 
 void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
@@ -87,8 +78,10 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
           child.range().end.line != tree.children()[i + 1].range().begin.line) {
         AddContents(*source, *source->LineAt(child.range().end.line), &options);
       }
+      options.SetBufferLineColumn(
+          Line::BufferLineColumn{source, child.range().begin});
+
       target.AppendRawLine(MakeNonNullShared<Line>(options));
-      AdjustLastLine(target, source, child.range().begin);
       continue;
     }
 

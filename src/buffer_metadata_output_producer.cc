@@ -369,14 +369,14 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
 
   std::list<MetadataLine> output;
   const Line& contents = *options.buffer.contents().at(range.begin.line);
-  auto target_buffer_value = contents.environment()->Lookup(
-      Environment::Namespace(), L"buffer",
-      vm::VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype);
-  const auto target_buffer =
-      (target_buffer_value != nullptr &&
-       target_buffer_value->user_value != nullptr)
-          ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
-          : &options.buffer;
+  std::shared_ptr<OpenBuffer> target_buffer_dummy;
+  const OpenBuffer* target_buffer = &options.buffer;
+  if (auto line_buffer = contents.buffer_line_column();
+      line_buffer.has_value()) {
+    target_buffer_dummy = line_buffer->buffer.lock();
+    if (target_buffer_dummy != nullptr)
+      target_buffer = target_buffer_dummy.get();
+  }
 
   auto info_char = L'•';
   auto info_char_modifier = LineModifier::DIM;

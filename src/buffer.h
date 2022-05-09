@@ -280,11 +280,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   Range FindPartialRange(const Modifiers& modifiers, LineColumn position) const;
 
-  // If there's a buffer associated with the current line (looking up the
-  // "buffer" variable in the line's environment), returns it. Returns nullptr
-  // otherwise.
-  std::shared_ptr<OpenBuffer> GetBufferFromCurrentLine();
-
   // Serializes the buffer into a string.  This is not particularly fast (it's
   // meant more for debugging/testing rather than for real use).
   wstring ToString() const;

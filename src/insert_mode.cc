@@ -620,12 +620,15 @@ void EnterInsertMode(InsertModeOptions options) {
 
   anonymous_buffer_future.Transform([shared_options](EmptyValue) {
     for (auto& buffer : shared_options->buffers.value()) {
-      VisitPointer(
-          buffer->GetBufferFromCurrentLine(),
-          [&](NonNull<std::shared_ptr<OpenBuffer>> target_buffer) {
-            buffer = target_buffer;
-          },
-          [] {});
+      if (std::optional<Line::BufferLineColumn> line_buffer =
+              buffer->current_line()->buffer_line_column();
+          line_buffer.has_value())
+        VisitPointer(
+            line_buffer->buffer,
+            [&](NonNull<std::shared_ptr<OpenBuffer>> target_buffer) {
+              buffer = target_buffer;
+            },
+            [] {});
     }
 
     if (shared_options->modify_handler == nullptr) {

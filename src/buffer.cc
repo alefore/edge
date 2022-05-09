@@ -409,29 +409,34 @@ using std::to_wstring;
             return Value::NewVoid();
           }));
 
-  buffer->AddField(L"Reload",
-                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     if (buffer->editor().structure() == StructureLine()) {
-                       auto target_buffer = buffer->GetBufferFromCurrentLine();
-                       if (target_buffer != nullptr) {
-                         buffer = target_buffer;
-                       }
-                     }
-                     buffer->Reload();
-                     buffer->editor().ResetModifiers();
-                   }));
+  buffer->AddField(
+      L"Reload", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+        if (buffer->editor().structure() == StructureLine()) {
+          auto target_buffer = buffer->current_line()->buffer_line_column();
+          if (target_buffer.has_value()) {
+            if (auto locked = target_buffer->buffer.lock(); locked != nullptr) {
+              buffer = locked;
+            }
+          }
+        }
+        buffer->Reload();
+        buffer->editor().ResetModifiers();
+      }));
 
-  buffer->AddField(L"SendEndOfFileToProcess",
-                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     if (buffer->editor().structure() == StructureLine()) {
-                       auto target_buffer = buffer->GetBufferFromCurrentLine();
-                       if (target_buffer != nullptr) {
-                         buffer = target_buffer;
-                       }
-                     }
-                     buffer->SendEndOfFileToProcess();
-                     buffer->editor().ResetModifiers();
-                   }));
+  buffer->AddField(
+      L"SendEndOfFileToProcess",
+      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+        if (buffer->editor().structure() == StructureLine()) {
+          auto target_buffer = buffer->current_line()->buffer_line_column();
+          if (target_buffer.has_value()) {
+            if (auto locked = target_buffer->buffer.lock(); locked != nullptr) {
+              buffer = locked;
+            }
+          }
+        }
+        buffer->SendEndOfFileToProcess();
+        buffer->editor().ResetModifiers();
+      }));
 
   buffer->AddField(
       L"Save",
@@ -443,9 +448,12 @@ using std::to_wstring;
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].value());
             if (buffer->editor().structure() == StructureLine()) {
-              auto target_buffer = buffer->GetBufferFromCurrentLine();
-              if (target_buffer != nullptr) {
-                buffer = target_buffer;
+              auto target_buffer = buffer->current_line()->buffer_line_column();
+              if (target_buffer.has_value()) {
+                if (auto locked = target_buffer->buffer.lock();
+                    locked != nullptr) {
+                  buffer = locked;
+                }
               }
             }
 
@@ -461,18 +469,20 @@ using std::to_wstring;
             return std::move(future.value);
           }));
 
-  buffer->AddField(L"Close",
-                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     CHECK(buffer != nullptr);
-                     if (buffer->editor().structure() == StructureLine()) {
-                       auto target_buffer = buffer->GetBufferFromCurrentLine();
-                       if (target_buffer != nullptr) {
-                         buffer = target_buffer;
-                       }
-                     }
-                     buffer->editor().CloseBuffer(*buffer);
-                     buffer->editor().ResetModifiers();
-                   }));
+  buffer->AddField(
+      L"Close", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+        CHECK(buffer != nullptr);
+        if (buffer->editor().structure() == StructureLine()) {
+          auto target_buffer = buffer->current_line()->buffer_line_column();
+          if (target_buffer.has_value()) {
+            if (auto locked = target_buffer->buffer.lock(); locked != nullptr) {
+              buffer = locked;
+            }
+          }
+        }
+        buffer->editor().CloseBuffer(*buffer);
+        buffer->editor().ResetModifiers();
+      }));
 
   buffer->AddField(
       L"AddBinding",
@@ -1788,19 +1798,6 @@ std::shared_ptr<const Line> OpenBuffer::LineAt(LineNumber line_number) const {
     return nullptr;
   }
   return contents_.at(line_number).get_shared();
-}
-
-std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
-  if (current_line() == nullptr) {
-    return nullptr;
-  }
-  auto target = current_line()->environment()->Lookup(
-      Environment::Namespace(), L"buffer",
-      vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype);
-  if (target == nullptr) {
-    return nullptr;
-  }
-  return std::static_pointer_cast<OpenBuffer>(target->user_value);
 }
 
 wstring OpenBuffer::ToString() const { return contents_.ToString(); }
