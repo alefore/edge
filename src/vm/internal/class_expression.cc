@@ -107,7 +107,7 @@ void FinishClassDeclaration(
   compilation->environment->DefineType(class_type.object_type,
                                        std::move(class_object_type));
   auto purity = constructor_expression.value()->purity();
-  std::unique_ptr<Value> constructor = Value::NewFunction(
+  NonNull<std::unique_ptr<Value>> constructor = Value::NewFunction(
       {class_type},
       [constructor_expression_shared = NonNull<std::shared_ptr<Expression>>(
            std::move(constructor_expression.value())),
