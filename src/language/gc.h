@@ -70,7 +70,7 @@ struct ControlFrame {
       : pool_(pool), expand_callback_(std::move(expand_callback)) {}
 
  private:
-  Pool& pool() { return pool_; }
+  Pool& pool() const { return pool_; }
 
   Pool& pool_;
   ExpandCallback expand_callback_;
@@ -104,7 +104,7 @@ class Ptr {
     return *this;
   }
 
-  Pool& pool() { return control_frame_->pool(); }
+  Pool& pool() const { return control_frame_->pool(); }
 
   T* operator->() const { return value_.lock().get(); }
   T* value() const { return value_.lock().get(); }
@@ -156,22 +156,23 @@ class Root {
  public:
   Root(const Root<T>& other)
       : ptr_(MakeNonNullUnique<Ptr<T>>(*other.ptr_)),
-        registration_(pool().AddRoot(ptr_->control_frame_.get_shared())) {}
+        registration_(pool().AddRoot(ptr_.control_frame_.get_shared())) {}
 
   Root(Root<T>&& other)
       : ptr_(std::move(other.ptr_)),
-        registration_(pool().AddRoot(ptr_->control_frame_.get_shared())) {}
+        registration_(pool().AddRoot(ptr_.control_frame_.get_shared())) {}
 
   Root<T>& operator=(Root<T>&& other) {
-    std::swap(ptr_, other.ptr_);
+    std::swap(ptr_.value_, other.ptr_.value_);
+    std::swap(ptr_.control_frame_, other.ptr_.control_frame_);
     std::swap(registration_, other.registration_);
     return *this;
   }
 
-  Pool& pool() const { return ptr_->pool(); }
+  Pool& pool() const { return ptr_.pool(); }
 
-  Ptr<T>& value() { return *ptr_; }
-  const Ptr<T>& value() const { return *ptr_; }
+  Ptr<T>& value() { return ptr_; }
+  const Ptr<T>& value() const { return ptr_; }
 
  private:
   friend class Pool;
@@ -181,10 +182,10 @@ class Root {
       : Root(pool, Ptr<T>::New(pool, std::move(value))) {}
 
   Root(Pool& pool, const Ptr<T>& ptr)
-      : ptr_(MakeNonNullUnique<Ptr<T>>(ptr)),
-        registration_(pool.AddRoot(ptr_->control_frame_.get_shared())) {}
+      : ptr_(ptr),
+        registration_(pool.AddRoot(ptr_.control_frame_.get_shared())) {}
 
-  language::NonNull<std::unique_ptr<Ptr<T>>> ptr_;
+  Ptr<T> ptr_;
   Pool::RootRegistration registration_;
 };
 
