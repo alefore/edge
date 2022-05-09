@@ -20,6 +20,7 @@ using language::FromByteString;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::Observers;
 using language::ToByteString;
 namespace {
 struct BackgroundReadDirOutput {
@@ -153,12 +154,11 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
   }
 
   line_options.SetMetadata(GetMetadata(target, path));
-  target.AppendRawLine(MakeNonNullShared<Line>(std::move(line_options)));
-  target.contents().back()->environment()->Define(
-      L"EdgeLineDeleteHandler",
-      vm::NewCallback([&editor = target.editor(), path]() {
-        StartDeleteFile(editor, path);
-      }));
+  NonNull<std::shared_ptr<Line>> line =
+      MakeNonNullShared<Line>(std::move(line_options));
+  line->explicit_delete_observers().Add(Observers::Once(
+      [&editor = target.editor(), path]() { StartDeleteFile(editor, path); }));
+  target.AppendRawLine(line);
 }
 
 void ShowFiles(wstring name, std::vector<dirent> entries, OpenBuffer& target) {

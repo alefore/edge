@@ -90,7 +90,8 @@ void HandleLineDeletion(LineColumn position, OpenBuffer& buffer) {
   LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
             << buffer.contents().size();
 
-  const auto contents = buffer.LineAt(position.line);
+  NonNull<std::shared_ptr<const Line>> contents =
+      buffer.contents().at(position.line);
   DVLOG(5) << "Erasing line: " << contents->ToString();
   if (!position.column.IsZero()) return;
   auto target_buffer = buffer.GetBufferFromCurrentLine();
@@ -98,22 +99,7 @@ void HandleLineDeletion(LineColumn position, OpenBuffer& buffer) {
     target_buffer->editor().CloseBuffer(*target_buffer);
   }
 
-  if (contents == nullptr) return;
-  VisitPointer(
-      contents->environment()->Lookup(Environment::Namespace(),
-                                      L"EdgeLineDeleteHandler",
-                                      VMType::Function({VMType::Void()})),
-      [&](NonNull<std::unique_ptr<Value>> callback) {
-        LOG(INFO) << "Running EdgeLineDeleteHandler.";
-        NonNull<std::unique_ptr<Expression>> expr = vm::NewFunctionCall(
-            vm::NewConstantExpression(std::move(callback)), {});
-        Evaluate(*expr, buffer.environment(),
-                 [work_queue = target_buffer->work_queue()](
-                     std::function<void()> callback) {
-                   work_queue->Schedule(callback);
-                 });
-      },
-      [] {});
+  contents->explicit_delete_observers().Notify();
 }
 }  // namespace
 namespace transformation {
