@@ -68,12 +68,15 @@ struct ControlFrame {
       std::vector<language::NonNull<std::shared_ptr<ControlFrame>>>()>;
 
  public:
-  ControlFrame(ConstructorAccessKey, ExpandCallback expand_callback)
-      : expand_callback_(std::move(expand_callback)) {}
+  ControlFrame(ConstructorAccessKey, Pool& pool, ExpandCallback expand_callback)
+      : pool_(pool), expand_callback_(std::move(expand_callback)) {}
+
+  Pool& pool() { return pool_; }
 
   // ControlFrame(const ControlFrame&) = default;
 
  private:
+  Pool& pool_;
   ExpandCallback expand_callback_;
   bool reached_ = false;
 };
@@ -91,36 +94,21 @@ class Ptr {
   Root<T> ToRoot() const { return Root<T>(*this, value); }
 
   Ptr(const Ptr<T>& other)
-      : pool_(other.pool_),
-        value_(other.value_),
-        control_frame_(other.control_frame_) {}
+      : value_(other.value_), control_frame_(other.control_frame_) {}
 
   Ptr<T>& operator=(const Ptr<T>& other) {
-    CHECK_EQ(&pool_, &other.pool_);
     value_ = other.value_;
     control_frame_ = other.control_frame_;
     return *this;
   }
 
   Ptr<T>& operator=(Ptr<T>&& other) {
-    CHECK_EQ(&pool_, &other.pool_);
     value_ = std::move(other.value_);
     control_frame_ = std::move(other.control_frame_);
     return *this;
   }
 
-#if 0
-  Ptr<T>& operator=(std::unique_ptr<T> value) {
-    LOG(INFO) << "Operator= into: " << base_.get_shared()
-              << " (value: " << value << ")";
-    std::shared_ptr<T> shared_value = std::move(value);
-    base_->expand_callback_ = [shared_value] { return Expand(*shared_value); };
-    value_ = shared_value;
-    return *this;
-  }
-#endif
-
-  Pool& pool() { return pool_; }
+  Pool& pool() { return control_frame_->pool(); }
 
   T* operator->() const { return value_.lock().get(); }
   T* value() const { return value_.lock().get(); }
@@ -134,9 +122,9 @@ class Ptr {
  private:
   static Ptr<T> New(Pool& pool, std::unique_ptr<T> value) {
     std::shared_ptr<T> shared_value = std::move(value);
-    return Ptr(pool, shared_value,
+    return Ptr(shared_value,
                language::MakeNonNullShared<ControlFrame>(
-                   ControlFrame::ConstructorAccessKey(), [shared_value] {
+                   ControlFrame::ConstructorAccessKey(), pool, [shared_value] {
                      return shared_value == nullptr
                                 ? std::vector<language::NonNull<
                                       std::shared_ptr<ControlFrame>>>()
@@ -146,15 +134,14 @@ class Ptr {
 
   friend class Root<T>;
 
-  Ptr(Pool& pool, std::shared_ptr<T> value,
+  Ptr(std::shared_ptr<T> value,
       language::NonNull<std::shared_ptr<ControlFrame>> control_frame)
-      : pool_(pool), value_(value), control_frame_(control_frame) {
+      : value_(value), control_frame_(control_frame) {
     VLOG(5) << "Ptr(pool, value): " << control_frame.get_shared()
             << " (value: " << value << ")";
-    pool_.AddObj(control_frame);
+    pool().AddObj(control_frame);
   }
 
-  Pool& pool_;
   // We keep only a weak reference to the value here, locking it each time. The
   // real reference is kept inside ControlFrame::expand_callback_. The ownership
   // is shared through the shared ownership of the control frame.
@@ -171,27 +158,25 @@ class Ptr {
 template <typename T>
 class Root {
  public:
-  ~Root() { pool_.EraseRoot(registration_); }
+  ~Root() { pool().EraseRoot(registration_); }
 
   Root(const Root<T>& other)
-      : pool_(other.pool()),
-        ptr_(std::make_unique<Ptr<T>>(*other.ptr_)),
-        registration_(pool_.AddRoot(ptr_->control_frame_.get_shared())) {}
+      : ptr_(MakeNonNullUnique<Ptr<T>>(*other.ptr_)),
+        registration_(pool().AddRoot(ptr_->control_frame_.get_shared())) {}
 
   Root(Root<T>&& other)
-      : pool_(other.pool_),
-        ptr_(std::move(other.ptr_)),
-        registration_(pool_.AddRoot(ptr_->control_frame_.get_shared())) {}
+      : ptr_(std::move(other.ptr_)),
+        registration_(pool().AddRoot(ptr_->control_frame_.get_shared())) {}
 
   Root<T>& operator=(Root<T>&& other) {
-    CHECK_EQ(&pool_, &other.pool_);
+    pool().EraseRoot(registration_);
+
     ptr_ = std::move(other.ptr_);
-    pool_.EraseRoot(registration_);
-    registration_ = pool_.AddRoot(ptr_->control_frame_.get_shared());
+    registration_ = pool().AddRoot(ptr_->control_frame_.get_shared());
     return *this;
   }
 
-  Pool& pool() const { return pool_; }
+  Pool& pool() const { return ptr_->pool(); }
 
   Ptr<T>& value() { return *ptr_; }
   const Ptr<T>& value() const { return *ptr_; }
@@ -204,19 +189,10 @@ class Root {
       : Root(pool, Ptr<T>::New(pool, std::move(value))) {}
 
   Root(Pool& pool, const Ptr<T>& ptr)
-      : pool_(pool),
-        ptr_(std::make_unique<Ptr<T>>(ptr)),
+      : ptr_(MakeNonNullUnique<Ptr<T>>(ptr)),
         registration_(pool.AddRoot(ptr_->control_frame_.get_shared())) {}
 
-#if 0
-  Root(Pool& pool, Ptr<T> ptr)
-      : pool_(pool),
-        ptr_(std::make_unique<Ptr<T>>(std::move(ptr))),
-        registration_(pool.AddRoot(ptr_->control_frame_.get_shared())) {}
-#endif
-
-  Pool& pool_;
-  std::unique_ptr<Ptr<T>> ptr_;
+  language::NonNull<std::unique_ptr<Ptr<T>>> ptr_;
   std::list<std::weak_ptr<ControlFrame>>::iterator registration_;
 };
 
