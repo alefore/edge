@@ -43,7 +43,8 @@ class Line {
 
   class Options {
    public:
-    Options() : contents(EmptyString()) {}
+    Options() : Options(EmptyString()) {}
+
     Options(language::NonNull<std::shared_ptr<LazyString>> input_contents)
         : contents(std::move(input_contents)) {}
 
@@ -95,7 +96,7 @@ class Line {
     friend Line;
 
     std::optional<MetadataEntry> metadata = std::nullopt;
-    std::shared_ptr<vm::Environment> environment = nullptr;
+    std::shared_ptr<vm::Environment> environment;
     void ValidateInvariants();
   };
 
