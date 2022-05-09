@@ -196,15 +196,8 @@ class Root {
   Ptr<T>& value() { return *ptr_; }
   const Ptr<T>& value() const { return *ptr_; }
 
-  void Set(Ptr<T> ptr) {
-    ptr_ = std::make_unique<Ptr<T>>(std::move(ptr));
-    pool_.EraseRoot(registration_);
-    registration_ = pool_.AddRoot(ptr_->control_frame_.get_shared());
-  }
-
  private:
   friend class Pool;
-
   friend class Ptr<T>;
 
   Root(Pool& pool, std::unique_ptr<T> value)
