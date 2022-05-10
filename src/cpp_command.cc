@@ -13,6 +13,7 @@ namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::ValueOrError;
+namespace gc = language::gc;
 
 using std::wstring;
 
@@ -78,8 +79,8 @@ class CppCommand : public Command {
 }  // namespace
 
 ValueOrError<NonNull<std::unique_ptr<Command>>> NewCppCommand(
-    EditorState& editor_state,
-    std::shared_ptr<afc::vm::Environment> environment, wstring code) {
+    EditorState& editor_state, gc::Root<afc::vm::Environment> environment,
+    wstring code) {
   auto result = vm::CompileString(code, std::move(environment));
   if (result.IsError()) {
     LOG(ERROR) << "Failed compilation of command: " << code << ": "

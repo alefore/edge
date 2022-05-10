@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 
 namespace afc::vm {
@@ -23,23 +24,24 @@ class Environment {
   using Namespace = std::vector<std::wstring>;
 
   Environment();
-  explicit Environment(std::shared_ptr<Environment> parent_environment);
+  explicit Environment(language::gc::Root<Environment> parent_environment);
 
   // Creates or returns an existing namespace inside parent with a given name.
-  static std::shared_ptr<Environment> NewNamespace(
-      std::shared_ptr<Environment> parent, std::wstring name);
-  static std::shared_ptr<Environment> LookupNamespace(
-      std::shared_ptr<Environment> source, const Namespace& name);
+  static language::gc::Root<Environment> NewNamespace(
+      language::gc::Pool& pool, language::gc::Root<Environment> parent,
+      std::wstring name);
+  static language::gc::Root<Environment> LookupNamespace(
+      language::gc::Root<Environment> source, const Namespace& name);
 
   // TODO: Implement proper garbage collection for the environment and get rid
   // of this method.
   void Clear();
 
-  const std::shared_ptr<Environment>& parent_environment() const {
+  language::gc::Root<Environment> parent_environment() const {
     return parent_environment_;
   }
 
-  static const std::shared_ptr<Environment>& GetDefault();
+  static language::gc::Root<Environment> NewDefault(language::gc::Pool& pool);
 
   const ObjectType* LookupObjectType(const wstring& symbol);
   const VMType* LookupType(const wstring& symbol);
@@ -78,12 +80,17 @@ class Environment {
                              VMType, language::NonNull<std::unique_ptr<Value>>>>
       table_;
 
-  std::map<std::wstring, std::shared_ptr<Environment>> namespaces_;
+  std::map<std::wstring, language::gc::Root<Environment>> namespaces_;
 
   // TODO: Consider whether the parent environment should itself be const?
-  const std::shared_ptr<Environment> parent_environment_;
+  const language::gc::Root<Environment> parent_environment_ =
+      language::gc::Ptr<Environment>().ToRoot();
 };
 
 }  // namespace afc::vm
+namespace afc::language::gc {
+std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
+    const afc::vm::Environment&);
+}  // namespace afc::language::gc
 
 #endif

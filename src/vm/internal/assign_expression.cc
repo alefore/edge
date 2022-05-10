@@ -46,9 +46,11 @@ class AssignExpression : public Expression {
                   DVLOG(4) << "Value: " << *value_output.value;
                   auto copy = MakeNonNullUnique<Value>(*value_output.value);
                   if (assignment_type == AssignmentType::kDefine) {
-                    trampoline.environment()->Define(symbol, std::move(copy));
+                    trampoline.environment().value()->Define(symbol,
+                                                             std::move(copy));
                   } else {
-                    trampoline.environment()->Assign(symbol, std::move(copy));
+                    trampoline.environment().value()->Assign(symbol,
+                                                             std::move(copy));
                   }
                   return Success(
                       EvaluationOutput::New(std::move(value_output.value)));
@@ -82,7 +84,7 @@ std::optional<VMType> NewDefineTypeExpression(
     }
     type_def = default_type.value();
   } else {
-    auto type_ptr = compilation->environment->LookupType(type);
+    auto type_ptr = compilation->environment.value()->LookupType(type);
     if (type_ptr == nullptr) {
       compilation->errors.push_back(L"Unknown type: `" + type +
                                     L"` for symbol `" + symbol + L"`.");
@@ -90,7 +92,8 @@ std::optional<VMType> NewDefineTypeExpression(
     }
     type_def = *type_ptr;
   }
-  compilation->environment->Define(symbol, MakeNonNullUnique<Value>(type_def));
+  compilation->environment.value()->Define(symbol,
+                                           MakeNonNullUnique<Value>(type_def));
   return type_def;
 }
 
@@ -132,7 +135,7 @@ std::unique_ptr<Expression> NewAssignExpression(
     return nullptr;
   }
   std::vector<Value*> variables;
-  compilation->environment->PolyLookup(symbol, &variables);
+  compilation->environment.value()->PolyLookup(symbol, &variables);
   for (auto& v : variables) {
     if (value->SupportsType(v->type)) {
       return std::make_unique<AssignExpression>(

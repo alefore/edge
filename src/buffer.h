@@ -342,19 +342,19 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   /////////////////////////////////////////////////////////////////////////////
   // Extensions
 
-  const std::shared_ptr<Environment>& environment() const {
+  const language::gc::Root<Environment>& environment() const {
     return environment_;
   }
 
   language::ValueOrError<
       std::pair<language::NonNull<std::unique_ptr<Expression>>,
-                std::shared_ptr<Environment>>>
+                language::gc::Root<Environment>>>
   CompileString(const wstring& str);
 
   // `expr` can be deleted as soon as we return.
   futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>>
   EvaluateExpression(Expression& expr,
-                     std::shared_ptr<Environment> environment);
+                     language::gc::Root<Environment> environment);
 
   futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>>
   EvaluateString(const wstring& str);
@@ -562,7 +562,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
       undo_future_;
 
   std::list<unique_ptr<Value>> keyboard_text_transformers_;
-  const std::shared_ptr<Environment> environment_;
+  const language::gc::Root<Environment> environment_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be

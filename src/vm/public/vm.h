@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/futures/futures.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 #include "types.h"
@@ -37,14 +38,15 @@ struct EvaluationOutput;
 class Trampoline {
  public:
   struct Options {
-    std::shared_ptr<Environment> environment;
+    language::gc::Pool& pool;
+    language::gc::Root<Environment> environment;
     std::function<void(std::function<void()>)> yield_callback;
   };
 
   Trampoline(Options options);
 
-  void SetEnvironment(std::shared_ptr<Environment> environment);
-  const std::shared_ptr<Environment>& environment() const;
+  void SetEnvironment(language::gc::Root<Environment> environment);
+  const language::gc::Root<Environment>& environment() const;
 
   // Expression can be deleted as soon as this returns (even before a value is
   // given to the returned future).
@@ -54,9 +56,14 @@ class Trampoline {
   futures::ValueOrError<EvaluationOutput> Bounce(Expression& expression,
                                                  VMType expression_type);
 
+  language::gc::Pool& pool() const;
+
  private:
+  // We keep it by pointer (rather than by ref) to enable the assignment
+  // operator.
+  language::NonNull<language::gc::Pool*> pool_;
   std::list<std::wstring> namespace_;
-  std::shared_ptr<Environment> environment_;
+  language::gc::Root<Environment> environment_;
 
   std::function<void(std::function<void()>)> yield_callback_;
   size_t jumps_ = 0;
@@ -128,11 +135,11 @@ language::ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
     std::unordered_set<VMType> a, std::unordered_set<VMType> b);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-CompileFile(const string& path, std::shared_ptr<Environment> environment);
+CompileFile(const string& path, language::gc::Root<Environment> environment);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
 CompileString(const std::wstring& str,
-              std::shared_ptr<Environment> environment);
+              language::gc::Root<Environment> environment);
 
 // `yield_callback` is an optional function that must ensure that the callback
 // it receives will run in the future.
@@ -140,7 +147,7 @@ CompileString(const std::wstring& str,
 // `expr` can be deleted as soon as this returns (even before a value is given
 // to the returned future).
 futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Evaluate(
-    Expression& expr, std::shared_ptr<Environment> environment,
+    Expression& expr, language::gc::Root<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback);
 
 }  // namespace vm

@@ -109,7 +109,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
     predict_results.common_prefix = common_prefix;
   }
 
-  if (auto value = predictions_buffer.environment()->Lookup(
+  if (auto value = predictions_buffer.environment().value()->Lookup(
           Environment::Namespace(), kLongestPrefixEnvironmentVariable,
           VMType(VMType::VM_INTEGER));
       value != nullptr) {
@@ -119,7 +119,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
     predict_results.longest_prefix = ColumnNumberDelta(value->integer);
   }
 
-  if (auto value = predictions_buffer.environment()->Lookup(
+  if (auto value = predictions_buffer.environment().value()->Lookup(
           Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
           VMType(VMType::VM_INTEGER));
       value != nullptr) {
@@ -127,7 +127,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
     predict_results.longest_directory_match = ColumnNumberDelta(value->integer);
   }
 
-  if (auto value = predictions_buffer.environment()->Lookup(
+  if (auto value = predictions_buffer.environment().value()->Lookup(
           Environment::Namespace(), kExactMatchEnvironmentVariable,
           VMType(VMType::VM_BOOLEAN));
       value != nullptr) {
@@ -197,12 +197,12 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                                       input,
                                       consumer = std::move(output.consumer)](
                                          OpenBuffer& buffer) {
-    buffer.environment()->Define(kLongestPrefixEnvironmentVariable,
-                                 vm::Value::NewInteger(0));
-    buffer.environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
-                                 vm::Value::NewInteger(0));
-    buffer.environment()->Define(kExactMatchEnvironmentVariable,
-                                 vm::Value::NewBool(false));
+    buffer.environment().value()->Define(kLongestPrefixEnvironmentVariable,
+                                         vm::Value::NewInteger(0));
+    buffer.environment().value()->Define(
+        kLongestDirectoryMatchEnvironmentVariable, vm::Value::NewInteger(0));
+    buffer.environment().value()->Define(kExactMatchEnvironmentVariable,
+                                         vm::Value::NewBool(false));
 
     return shared_options
         ->predictor({.editor = shared_options->editor_state,
@@ -239,23 +239,23 @@ struct DescendDirectoryTreeOutput {
 };
 
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
-  auto value = buffer.environment()->Lookup(
+  auto value = buffer.environment().value()->Lookup(
       Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
       VMType(VMType::VM_INTEGER));
   if (value == nullptr) return;
-  buffer.environment()->Assign(
+  buffer.environment().value()->Assign(
       kLongestDirectoryMatchEnvironmentVariable,
       vm::Value::NewInteger(
           std::max(value->integer, static_cast<int>(new_value))));
 }
 
 void RegisterPredictorExactMatch(OpenBuffer& buffer) {
-  auto value = buffer.environment()->Lookup(Environment::Namespace(),
-                                            kExactMatchEnvironmentVariable,
-                                            VMType(VMType::VM_BOOLEAN));
+  auto value = buffer.environment().value()->Lookup(
+      Environment::Namespace(), kExactMatchEnvironmentVariable,
+      VMType(VMType::VM_BOOLEAN));
   if (value == nullptr) return;
-  buffer.environment()->Assign(kExactMatchEnvironmentVariable,
-                               vm::Value::NewBool(true));
+  buffer.environment().value()->Assign(kExactMatchEnvironmentVariable,
+                                       vm::Value::NewBool(true));
 }
 
 // TODO(easy): Receive Paths rather than wstrings.
@@ -636,11 +636,11 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
 }
 
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
-  auto value = buffer.environment()->Lookup(Environment::Namespace(),
-                                            kLongestPrefixEnvironmentVariable,
-                                            VMType(VMType::VM_INTEGER));
+  std::unique_ptr<Value> value = buffer.environment().value()->Lookup(
+      Environment::Namespace(), kLongestPrefixEnvironmentVariable,
+      VMType(VMType::VM_INTEGER));
   if (value == nullptr) return;
-  buffer.environment()->Assign(
+  buffer.environment().value()->Assign(
       kLongestPrefixEnvironmentVariable,
       vm::Value::NewInteger(
           std::max(value->integer, static_cast<int>(new_value))));

@@ -30,10 +30,11 @@ class NamespaceExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(
       Trampoline& trampoline, const VMType& type) override {
-    auto original_environment = trampoline.environment();
-    auto namespace_environment =
+    language::gc::Root<Environment> original_environment =
+        trampoline.environment();
+    language::gc::Root<Environment> namespace_environment =
         Environment::LookupNamespace(original_environment, namespace_);
-    CHECK(namespace_environment != nullptr);
+    CHECK(namespace_environment.value().value() != nullptr);
     trampoline.SetEnvironment(namespace_environment);
 
     return OnError(trampoline.Bounce(*body_, type)
@@ -61,16 +62,19 @@ class NamespaceExpression : public Expression {
 
 void StartNamespaceDeclaration(Compilation* compilation,
                                const std::wstring& name) {
+  // TODO(easy, 2022-05-10): Get rid of this check.
+  CHECK(compilation != nullptr);
   compilation->current_namespace.push_back(name);
-  compilation->environment =
-      Environment::NewNamespace(std::move(compilation->environment), name);
+  compilation->environment = Environment::NewNamespace(
+      compilation->pool, std::move(compilation->environment), name);
 }
 
 std::unique_ptr<Expression> NewNamespaceExpression(
     Compilation* compilation, std::unique_ptr<Expression> body) {
   auto current_namespace = compilation->current_namespace;
   compilation->current_namespace.pop_back();
-  compilation->environment = compilation->environment->parent_environment();
+  compilation->environment =
+      compilation->environment.value()->parent_environment();
   return VisitPointer(
       std::move(body),
       [&](NonNull<std::unique_ptr<Expression>> body)

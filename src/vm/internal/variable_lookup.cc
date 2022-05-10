@@ -34,9 +34,11 @@ class VariableLookup : public Expression {
       Trampoline& trampoline, const VMType& type) override {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
-    CHECK(trampoline.environment() != nullptr);
+    // TODO(easy, 2022-05-10): Get rid of this check.
+    CHECK(trampoline.environment().value().value() != nullptr);
     return futures::Past(VisitPointer(
-        trampoline.environment()->Lookup(symbol_namespace_, symbol_, type),
+        trampoline.environment().value()->Lookup(symbol_namespace_, symbol_,
+                                                 type),
         [](NonNull<std::unique_ptr<Value>> value) {
           DVLOG(5) << "Variable lookup: " << *value;
           return Success(EvaluationOutput::New(std::move(value)));
@@ -72,7 +74,8 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   // We don't need to switch namespaces (i.e., we can use
   // `compilation->environment` directly) because during compilation, we know
   // that we'll be in the right environment.
-  compilation->environment->PolyLookup(symbol_namespace, symbol, &result);
+  compilation->environment.value()->PolyLookup(symbol_namespace, symbol,
+                                               &result);
   if (result.empty()) {
     compilation->AddError(L"Variable not found: `" + symbol + L"`");
     return nullptr;

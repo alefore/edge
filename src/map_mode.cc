@@ -22,6 +22,8 @@ using vm::Expression;
 using vm::Value;
 using vm::VMType;
 
+namespace gc = language::gc;
+
 namespace {
 template <typename Callback>
 class CommandFromFunction : public Command {
@@ -87,7 +89,7 @@ void MapModeCommands::Add(wstring name,
 
 void MapModeCommands::Add(wstring name, wstring description,
                           NonNull<std::unique_ptr<Value>> value,
-                          std::shared_ptr<vm::Environment> environment) {
+                          gc::Root<vm::Environment> environment) {
   CHECK_EQ(value->type.type, VMType::FUNCTION);
   CHECK(value->type.type_arguments == std::vector<VMType>({VMType::Void()}));
 

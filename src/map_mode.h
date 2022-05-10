@@ -11,6 +11,7 @@
 
 #include "command.h"
 #include "editor_mode.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "vm/public/environment.h"
 #include "vm/public/value.h"
@@ -35,7 +36,7 @@ class MapModeCommands {
            language::NonNull<std::unique_ptr<Command>> value);
   void Add(std::wstring name, std::wstring description,
            language::NonNull<std::unique_ptr<vm::Value>> value,
-           std::shared_ptr<vm::Environment> environment);
+           language::gc::Root<vm::Environment> environment);
   void Add(std::wstring name, std::function<void()> value,
            std::wstring description);
 

@@ -113,7 +113,7 @@ futures::Value<PossibleError> GenerateContents(
 
   auto tree = source->simplified_parse_tree();
   target.AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
-  auto depth_value = target.environment()->Lookup(
+  auto depth_value = target.environment().value()->Lookup(
       Environment::Namespace(), kDepthSymbol, VMType::Integer());
   int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
   DisplayTree(source, depth, *tree, EmptyString(), target);
@@ -153,7 +153,7 @@ class NavigationBufferCommand : public Command {
       buffer->Set(buffer_variables::show_in_buffers_list, false);
       buffer->Set(buffer_variables::push_positions_to_history, false);
       buffer->Set(buffer_variables::allow_dirty_delete, true);
-      buffer->environment()->Define(kDepthSymbol, Value::NewInteger(3));
+      buffer->environment().value()->Define(kDepthSymbol, Value::NewInteger(3));
       buffer->Set(buffer_variables::reload_on_enter, true);
       editor_state_.StartHandlingInterrupts();
       editor_state_.AddBuffer(buffer, BuffersList::AddBufferType::kVisit);

@@ -77,6 +77,9 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 
+namespace gc = language::gc;
+
+// TODO(easy, 2022-05-10): Get rid of these declarations.
 using std::make_pair;
 using std::string;
 using std::stringstream;
@@ -182,22 +185,23 @@ void RegisterVariableFields(
   }
 }
 
-std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
-  auto environment =
-      std::make_shared<Environment>(afc::vm::Environment::GetDefault());
+gc::Root<Environment> EditorState::BuildEditorEnvironment() {
+  gc::Root<Environment> environment =
+      gc_pool_.NewRoot(std::make_unique<Environment>(
+          afc::vm::Environment::NewDefault(gc_pool_)));
 
-  environment->Define(L"terminal_backspace",
-                      Value::NewString({Terminal::BACKSPACE}));
-  environment->Define(L"terminal_control_a",
-                      Value::NewString({Terminal::CTRL_A}));
-  environment->Define(L"terminal_control_e",
-                      Value::NewString({Terminal::CTRL_E}));
-  environment->Define(L"terminal_control_d",
-                      Value::NewString({Terminal::CTRL_D}));
-  environment->Define(L"terminal_control_k",
-                      Value::NewString({Terminal::CTRL_K}));
-  environment->Define(L"terminal_control_u",
-                      Value::NewString({Terminal::CTRL_U}));
+  environment.value()->Define(L"terminal_backspace",
+                              Value::NewString({Terminal::BACKSPACE}));
+  environment.value()->Define(L"terminal_control_a",
+                              Value::NewString({Terminal::CTRL_A}));
+  environment.value()->Define(L"terminal_control_e",
+                              Value::NewString({Terminal::CTRL_E}));
+  environment.value()->Define(L"terminal_control_d",
+                              Value::NewString({Terminal::CTRL_D}));
+  environment.value()->Define(L"terminal_control_k",
+                              Value::NewString({Terminal::CTRL_K}));
+  environment.value()->Define(L"terminal_control_u",
+                              Value::NewString({Terminal::CTRL_U}));
 
   auto editor_type = MakeNonNullUnique<ObjectType>(L"Editor");
 
@@ -493,20 +497,20 @@ std::shared_ptr<Environment> EditorState::BuildEditorEnvironment() {
                        &OpenBuffer::DestroyOtherCursors);
   RegisterBufferMethod(*editor_type, L"RepeatLastTransformation",
                        &OpenBuffer::RepeatLastTransformation);
-  environment->DefineType(L"Editor", std::move(editor_type));
+  environment.value()->DefineType(L"Editor", std::move(editor_type));
 
-  environment->Define(
+  environment.value()->Define(
       L"editor",
       Value::NewObject(L"Editor", shared_ptr<void>(this, [](void*) {})));
 
-  OpenBuffer::RegisterBufferType(*this, environment.get());
+  OpenBuffer::RegisterBufferType(*this, environment.value().value());
 
-  InitShapes(environment.get());
-  RegisterTransformations(this, environment.get());
-  Modifiers::Register(environment.get());
-  ForkCommandOptions::Register(environment.get());
-  LineColumn::Register(environment.get());
-  Range::Register(environment.get());
+  InitShapes(environment.value().value());
+  RegisterTransformations(this, environment.value().value());
+  Modifiers::Register(environment.value().value());
+  ForkCommandOptions::Register(environment.value().value());
+  LineColumn::Register(environment.value().value());
+  Range::Register(environment.value().value());
   return environment;
 }
 
@@ -588,7 +592,9 @@ EditorState::~EditorState() {
     buffer.second->Close();
   }
 
-  environment_->Clear();  // We may have loops. This helps break them.
+  environment_.value()->Clear();  // We may have loops. This helps break them.
+
+  gc_pool_.Reclaim();
 }
 
 const bool& EditorState::Read(const EdgeVariable<bool>* variable) const {

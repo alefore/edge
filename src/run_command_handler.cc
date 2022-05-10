@@ -395,12 +395,14 @@ class ForkEditorCommand : public Command {
   void ProcessInput(wint_t) {
     if (editor_state_.structure() == StructureChar()) {
       auto original_buffer = editor_state_.current_buffer();
-      auto prompt_state = MakeNonNullShared<PromptState>(PromptState{
-          .original_buffer = original_buffer,
-          .base_command = std::nullopt,
-          .context_command_callback = original_buffer->environment()->Lookup(
-              Environment::Namespace(), L"GetShellPromptContextProgram",
-              VMType::Function({VMType::String(), VMType::String()}))});
+      NonNull<std::shared_ptr<PromptState>> prompt_state =
+          MakeNonNullShared<PromptState>(PromptState{
+              .original_buffer = original_buffer,
+              .base_command = std::nullopt,
+              .context_command_callback =
+                  original_buffer->environment().value()->Lookup(
+                      Environment::Namespace(), L"GetShellPromptContextProgram",
+                      VMType::Function({VMType::String(), VMType::String()}))});
 
       auto children_path = GetChildrenPath(editor_state_);
       Prompt(

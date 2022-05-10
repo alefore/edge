@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 #include "vm/public/vm.h"
@@ -14,7 +15,7 @@ class Command;
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Command>>>
 NewCppCommand(EditorState& editor_state,
-              std::shared_ptr<afc::vm::Environment> environment,
+              language::gc::Root<afc::vm::Environment> environment,
               const std::wstring code);
 }  // namespace afc::editor
 

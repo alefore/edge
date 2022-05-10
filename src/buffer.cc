@@ -63,6 +63,7 @@ extern "C" {
 
 namespace afc {
 using language::NonNull;
+namespace gc = language::gc;
 namespace vm {
 struct BufferWrapper {
   std::shared_ptr<editor::OpenBuffer> buffer;
@@ -589,8 +590,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
       line_column_variables_(
           buffer_variables::LineColumnStruct()->NewInstance()),
-      environment_(
-          std::make_shared<Environment>(options_.editor.environment())),
+      environment_(editor().gc_pool().NewRoot(
+          std::make_unique<Environment>(options_.editor.environment()))),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor.default_commands()->NewChild()),
@@ -614,7 +615,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
 
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Start destructor: " << name();
-  environment_->Clear();
+  environment_.value()->Clear();
 }
 
 EditorState& OpenBuffer::editor() const { return options_.editor; }
@@ -950,12 +951,12 @@ void OpenBuffer::Initialize() {
 
   // We use the aliasing constructor or else ... we'll never actually be
   // reclaimed.
-  environment_->Define(
+  environment_.value()->Define(
       L"buffer",
       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
           std::shared_ptr<OpenBuffer>(std::shared_ptr<OpenBuffer>(), this)));
 
-  environment_->Define(
+  environment_.value()->Define(
       L"sleep", Value::NewFunction(
                     {VMType::Void(), VMType::Double()},
                     [weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
@@ -1340,10 +1341,11 @@ void OpenBuffer::AppendToLastLine(Line line) {
                        BufferContents::CursorsBehavior::kUnmodified);
 }
 
-ValueOrError<std::pair<NonNull<std::unique_ptr<Expression>>,
-                       std::shared_ptr<Environment>>>
+ValueOrError<
+    std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
 OpenBuffer::CompileString(const std::wstring& code) {
-  auto sub_environment = std::make_shared<Environment>(environment_);
+  gc::Root<Environment> sub_environment =
+      editor().gc_pool().NewRoot(std::make_unique<Environment>(environment_));
   auto compilation_result = afc::vm::CompileString(code, sub_environment);
   if (compilation_result.IsError()) return compilation_result.error();
   return std::make_pair(std::move(compilation_result.value()), sub_environment);
@@ -1351,7 +1353,7 @@ OpenBuffer::CompileString(const std::wstring& code) {
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>>
 OpenBuffer::EvaluateExpression(Expression& expr,
-                               std::shared_ptr<Environment> environment) {
+                               gc::Root<Environment> environment) {
   return Evaluate(expr, environment,
                   [work_queue = work_queue(), shared_this = shared_from_this()](
                       std::function<void()> callback) {

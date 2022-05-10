@@ -26,6 +26,8 @@ class Pool {
     return Root<T>(*this, std::move(value));
   }
 
+  ~Pool();
+
   struct ReclaimObjectsStats {
     size_t roots = 0;
     size_t begin_total = 0;
@@ -34,7 +36,7 @@ class Pool {
   };
   ReclaimObjectsStats Reclaim();
 
-  using RootRegistration = std::unique_ptr<bool, std::function<void(bool*)>>;
+  using RootRegistration = std::shared_ptr<bool>;
 
   RootRegistration AddRoot(std::weak_ptr<ControlFrame> control_frame);
 
@@ -47,6 +49,9 @@ class Pool {
   // Weak ownership of the control frames for all the roots.
   std::list<std::weak_ptr<ControlFrame>> roots_;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const Pool::ReclaimObjectsStats& stats);
 
 // The control frame, allocated once per object managed. This is an internal
 // class; the reason we expose it here is to allow implementation of the
@@ -72,13 +77,12 @@ struct ControlFrame {
  private:
   Pool& pool() const { return pool_; }
 
+  static language::NonNull<std::shared_ptr<ControlFrame>> NullControlFrame();
+
   Pool& pool_;
   ExpandCallback expand_callback_;
   bool reached_ = false;
 };
-
-template <typename T>
-std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(const T&);
 
 // A mutable pointer with shared ownership of a managed object. Behaves very
 // much like `std::shared_ptr<T>`: When the number of references drops to 0, the
@@ -87,7 +91,9 @@ std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(const T&);
 template <typename T>
 class Ptr {
  public:
-  Root<T> ToRoot() const { return Root<T>(*this, value); }
+  Root<T> ToRoot() const { return Root<T>(*this); }
+
+  Ptr() : Ptr(std::shared_ptr<T>(), ControlFrame::NullControlFrame()) {}
 
   Ptr(const Ptr<T>& other)
       : value_(other.value_), control_frame_(other.control_frame_) {}
@@ -111,13 +117,15 @@ class Ptr {
 
   // This is only exposed in order to allow implementation of `Expand`
   // functions.
-  language::NonNull<std::shared_ptr<ControlFrame>> control_frame() {
+  language::NonNull<std::shared_ptr<ControlFrame>> control_frame() const {
     return control_frame_;
   }
 
  private:
   static Ptr<T> New(Pool& pool, std::unique_ptr<T> value) {
     std::shared_ptr<T> shared_value = std::move(value);
+    std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
+        const T&);
     return Ptr(shared_value,
                language::MakeNonNullShared<ControlFrame>(
                    ControlFrame::ConstructorAccessKey(), pool, [shared_value] {
@@ -154,20 +162,21 @@ class Ptr {
 template <typename T>
 class Root {
  public:
-  Root(const Root<T>& other)
-      : ptr_(other.ptr_),
-        registration_(pool().AddRoot(ptr_.control_frame_.get_shared())) {}
+  Root(const Root<T>& other) : Root(other.ptr_) {}
 
   Root(Root<T>&& other)
       : ptr_(std::move(other.ptr_)),
         registration_(pool().AddRoot(ptr_.control_frame_.get_shared())) {}
 
   Root<T>& operator=(Root<T>&& other) {
+    CHECK(this != &other);
     std::swap(ptr_.value_, other.ptr_.value_);
     std::swap(ptr_.control_frame_, other.ptr_.control_frame_);
     std::swap(registration_, other.registration_);
     return *this;
   }
+
+  Root<T>& operator=(const Root<T>& other) = default;
 
   Pool& pool() const { return ptr_.pool(); }
 
@@ -179,11 +188,11 @@ class Root {
   friend class Ptr<T>;
 
   Root(Pool& pool, std::unique_ptr<T> value)
-      : Root(pool, Ptr<T>::New(pool, std::move(value))) {}
+      : Root(Ptr<T>::New(pool, std::move(value))) {}
 
-  Root(Pool& pool, const Ptr<T>& ptr)
+  Root(const Ptr<T>& ptr)
       : ptr_(ptr),
-        registration_(pool.AddRoot(ptr_.control_frame_.get_shared())) {}
+        registration_(ptr_.pool().AddRoot(ptr_.control_frame_.get_shared())) {}
 
   Ptr<T> ptr_;
   Pool::RootRegistration registration_;

@@ -13,6 +13,7 @@ namespace {
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
+namespace gc = language::gc;
 
 class LambdaExpression : public Expression {
  public:
@@ -79,8 +80,9 @@ class LambdaExpression : public Expression {
   }
 
   NonNull<std::unique_ptr<Value>> BuildValue(
-      std::shared_ptr<Environment> parent_environment) {
-    CHECK(parent_environment != nullptr);
+      gc::Root<Environment> parent_environment) {
+    // TODO(easy, 2022-05-10): Get rid of check below? Use types?
+    CHECK(parent_environment.value().value() != nullptr);
     return Value::NewFunction(
         type_.type_arguments,
         [body = body_, parent_environment, argument_names = argument_names_,
@@ -88,9 +90,11 @@ class LambdaExpression : public Expression {
             vector<NonNull<unique_ptr<Value>>> args, Trampoline& trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
-          auto environment = std::make_shared<Environment>(parent_environment);
+          gc::Root<Environment> environment = trampoline.pool().NewRoot(
+              std::make_unique<Environment>(parent_environment));
           for (size_t i = 0; i < args.size(); i++) {
-            environment->Define(argument_names->at(i), std::move(args.at(i)));
+            environment.value()->Define(argument_names->at(i),
+                                        std::move(args.at(i)));
           }
           auto original_trampoline = trampoline;
           trampoline.SetEnvironment(environment);
@@ -127,7 +131,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
     return nullptr;
   }
   const VMType* return_type_def =
-      compilation->environment->LookupType(return_type);
+      compilation->environment.value()->LookupType(return_type);
   if (return_type_def == nullptr) {
     compilation->errors.push_back(L"Unknown return type: \"" + return_type +
                                   L"\"");
@@ -143,14 +147,14 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
   if (name.has_value()) {
     output->name = name.value();
-    compilation->environment->Define(name.value(),
-                                     MakeNonNullUnique<Value>(output->type));
+    compilation->environment.value()->Define(
+        name.value(), MakeNonNullUnique<Value>(output->type));
   }
-  compilation->environment =
-      std::make_shared<Environment>(compilation->environment);
+  compilation->environment = compilation->pool.NewRoot(
+      std::make_unique<Environment>(compilation->environment));
   for (pair<VMType, wstring> arg : *args) {
-    compilation->environment->Define(arg.second,
-                                     MakeNonNullUnique<Value>(arg.first));
+    compilation->environment.value()->Define(
+        arg.second, MakeNonNullUnique<Value>(arg.first));
   }
   return output;
 }
@@ -158,8 +162,9 @@ std::unique_ptr<UserFunction> UserFunction::New(
 std::unique_ptr<Value> UserFunction::BuildValue(
     Compilation* compilation, NonNull<std::unique_ptr<Expression>> body,
     std::wstring* error) {
-  std::shared_ptr<Environment> environment = compilation->environment;
-  compilation->environment = compilation->environment->parent_environment();
+  gc::Root<Environment> environment = compilation->environment;
+  compilation->environment =
+      compilation->environment.value()->parent_environment();
   auto expression = LambdaExpression::New(
       std::move(type), std::move(argument_names), std::move(body), error);
   return expression == nullptr
@@ -174,7 +179,9 @@ std::unique_ptr<Expression> UserFunction::BuildExpression(
   // We ignore the environment used during the compilation. Instead, each time
   // the expression is evaluated, it will use the environment from the
   // trampoline, correctly receiving the actual values in that environment.
-  compilation->environment = compilation->environment->parent_environment();
+  CHECK(compilation->environment.value().value() != nullptr);
+  compilation->environment =
+      compilation->environment.value()->parent_environment();
 
   return LambdaExpression::New(std::move(type), std::move(argument_names),
                                std::move(body), error);
@@ -183,11 +190,12 @@ std::unique_ptr<Expression> UserFunction::BuildExpression(
 void UserFunction::Abort(Compilation* compilation) {
   Done(compilation);
   if (name.has_value()) {
-    compilation->environment->Remove(name.value(), type);
+    compilation->environment.value()->Remove(name.value(), type);
   }
 }
 
 void UserFunction::Done(Compilation* compilation) {
-  compilation->environment = compilation->environment->parent_environment();
+  compilation->environment =
+      compilation->environment.value()->parent_environment();
 }
 }  // namespace afc::vm

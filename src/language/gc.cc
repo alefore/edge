@@ -6,10 +6,26 @@
 
 namespace afc::language {
 namespace gc {
+using language::NonNull;
+
+Pool::~Pool() {
+  // TODO(gc, 2022-05-11): Enable this validation:
+  // CHECK(roots_.empty());
+  Reclaim();
+}
+
+/* static */ NonNull<std::shared_ptr<ControlFrame>>
+ControlFrame::NullControlFrame() {
+  static Pool* const null_pool = new Pool();
+  return MakeNonNullShared<ControlFrame>(
+      ConstructorAccessKey(), *null_pool,
+      [] { return std::vector<NonNull<std::shared_ptr<ControlFrame>>>{}; });
+}
+
 Pool::ReclaimObjectsStats Pool::Reclaim() {
   ReclaimObjectsStats stats;
 
-  LOG(INFO) << "Marking reachability and counting initial dead.";
+  VLOG(5) << "Marking reachability and counting initial dead.";
   stats.begin_total = objects_.size();
   for (auto& obj_weak : objects_)
     if (auto obj = obj_weak.lock(); obj != nullptr)
@@ -17,7 +33,7 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
     else
       stats.begin_dead++;
 
-  LOG(INFO) << "Registering roots.";
+  VLOG(5) << "Registering roots.";
   stats.roots = roots_.size();
   std::list<language::NonNull<std::shared_ptr<ControlFrame>>> expand;
   for (const std::weak_ptr<ControlFrame>& root_weak : roots_) {
@@ -30,7 +46,7 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
         [] { LOG(FATAL) << "Root was dead. Should never happen."; });
   }
 
-  LOG(INFO) << "Starting recursive expansion.";
+  VLOG(5) << "Starting recursive expansion.";
   while (!expand.empty()) {
     language::NonNull<std::shared_ptr<ControlFrame>> front =
         std::move(expand.front());
@@ -53,24 +69,28 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
       obj->reached_ = false;
       survivers.push_back(std::move(obj_weak));
     } else {
-      LOG(INFO) << "Allowing object to be deleted.";
+      VLOG(5) << "Allowing object to be deleted.";
       obj->expand_callback_ = nullptr;
     }
   }
-  LOG(INFO) << "Survivers: " << survivers.size() << " (of " << objects_.size()
-            << ")";
+  VLOG(5) << "Survivers: " << survivers.size() << " (of " << objects_.size()
+          << ")";
   survivers.swap(objects_);
   stats.end_total = objects_.size();
+
+  LOG(INFO) << "Garbage collection results: " << stats;
   return stats;
 }
 
 Pool::RootRegistration Pool::AddRoot(
     std::weak_ptr<ControlFrame> control_frame) {
+  VLOG(5) << "Adding root: " << control_frame.lock();
   roots_.push_back(control_frame);
   std::list<std::weak_ptr<ControlFrame>>::iterator it = --roots_.end();
   return RootRegistration(new bool(false), [this, it](bool* value) {
     delete value;
-    LOG(INFO) << "Erasing root: " << it->lock();
+    VLOG(5) << "Erasing root: " << it->lock();
+    VLOG(5) << "Roots size: " << roots_.size();
     roots_.erase(it);
   });
 }
@@ -78,9 +98,18 @@ Pool::RootRegistration Pool::AddRoot(
 void Pool::AddObj(
     language::NonNull<std::shared_ptr<ControlFrame>> control_frame) {
   objects_.push_back(control_frame.get_shared());
-  LOG(INFO) << "Added object: " << control_frame.get_shared()
-            << " (total: " << objects_.size() << ")";
+  VLOG(5) << "Added object: " << control_frame.get_shared()
+          << " (total: " << objects_.size() << ")";
 }
+
+std::ostream& operator<<(std::ostream& os,
+                         const Pool::ReclaimObjectsStats& stats) {
+  os << "[roots: " << stats.roots << ", begin_total: " << stats.begin_total
+     << ", begin_dead: " << stats.begin_dead
+     << ", end_total: " << stats.end_total << "]";
+  return os;
+}
+
 }  // namespace gc
 
 namespace {
@@ -89,7 +118,7 @@ using gc::Pool;
 
 struct Node {
   ~Node() {
-    LOG(INFO) << "Deleting Node: " << this;
+    VLOG(5) << "Deleting Node: " << this;
     delete_notification->Notify();
   }
 
@@ -97,16 +126,20 @@ struct Node {
 
   NonNull<std::shared_ptr<Notification>> delete_notification;
 };
+}  // namespace
 
-std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>> Expand(Node& node) {
-  std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>> output;
+namespace gc {
+std::vector<NonNull<std::shared_ptr<ControlFrame>>> Expand(const Node& node) {
+  std::vector<NonNull<std::shared_ptr<ControlFrame>>> output;
   for (auto& child : node.children) {
     output.push_back(child.control_frame());
   }
-  LOG(INFO) << "Generated expansion of node " << &node << ": " << output.size();
+  VLOG(5) << "Generated expansion of node " << &node << ": " << output.size();
   return output;
 }
+}  // namespace gc
 
+namespace {
 gc::Root<Node> MakeLoop(gc::Pool& pool, int size) {
   gc::Root<Node> start = pool.NewRoot(std::make_unique<Node>());
   gc::Ptr<Node> last = start.value();
@@ -165,7 +198,7 @@ bool tests_registration = tests::Register(
                   CHECK(delete_notification_0->HasBeenNotified());
                   CHECK(!delete_notification_1->HasBeenNotified());
 
-                  LOG(INFO) << "Start reclaim.";
+                  VLOG(5) << "Start reclaim.";
                   auto stats = pool.Reclaim();
                   CHECK_EQ(stats.begin_total, 2ul);
                   CHECK_EQ(stats.begin_dead, 1ul);
@@ -198,32 +231,32 @@ bool tests_registration = tests::Register(
                   CHECK(!delete_notification_0->HasBeenNotified());
 
                   auto child_notification = [&] {
-                    LOG(INFO) << "Creating child.";
+                    VLOG(5) << "Creating child.";
                     gc::Ptr<Node> child =
                         pool.NewRoot(std::make_unique<Node>()).value();
 
-                    LOG(INFO) << "Storing root in child.";
+                    VLOG(5) << "Storing root in child.";
                     child.value()->children.push_back(root.value());
                     CHECK_EQ(child.value()->children[0].value(),
                              root.value().value());
 
-                    LOG(INFO) << "Storing child in root.";
+                    VLOG(5) << "Storing child in root.";
                     root.value().value()->children.push_back(child);
 
-                    LOG(INFO) << "Returning (deleting child pointer).";
+                    VLOG(5) << "Returning (deleting child pointer).";
                     return child.value()->delete_notification;
                   }();
 
                   CHECK(!delete_notification_0->HasBeenNotified());
                   CHECK(!child_notification->HasBeenNotified());
 
-                  LOG(INFO) << "Trigger Reclaim.";
+                  VLOG(5) << "Trigger Reclaim.";
                   pool.Reclaim();
 
                   CHECK(!delete_notification_0->HasBeenNotified());
                   CHECK(!child_notification->HasBeenNotified());
 
-                  LOG(INFO) << "Override root value.";
+                  VLOG(5) << "Override root value.";
                   root = pool.NewRoot(std::make_unique<Node>());
 
                   auto delete_notification_1 =
@@ -257,7 +290,7 @@ bool tests_registration = tests::Register(
               CHECK(!old_notification->HasBeenNotified());
             }
 
-            LOG(INFO) << "Replacing loop.";
+            VLOG(5) << "Replacing loop.";
             root = MakeLoop(pool, 5);
             CHECK(!old_notification->HasBeenNotified());
             {
@@ -266,24 +299,39 @@ bool tests_registration = tests::Register(
               CHECK_EQ(stats.end_total, 5ul);
             }
           }},
-     {.name = L"BreakLoopHalfway", .callback = [] {
+     {.name = L"BreakLoopHalfway",
+      .callback =
+          [] {
+            gc::Pool pool;
+            gc::Root root = MakeLoop(pool, 7);
+            {
+              gc::Ptr<Node> split = root.value();
+              for (int i = 0; i < 4; i++) split = split.value()->children[0];
+              auto notification =
+                  split.value()->children[0].value()->delete_notification;
+              CHECK(!notification->HasBeenNotified());
+              split.value()->children.clear();
+              CHECK(notification->HasBeenNotified());
+            }
+            CHECK(
+                !root.value().value()->delete_notification->HasBeenNotified());
+            Pool::ReclaimObjectsStats stats = pool.Reclaim();
+            CHECK_EQ(stats.begin_total, 7ul);
+            CHECK_EQ(stats.begin_dead, 2ul);
+            CHECK_EQ(stats.roots, 1ul);
+            CHECK_EQ(stats.end_total, 5ul);
+          }},
+     {.name = L"ReclaimWithNullRefs", .callback = [] {
         gc::Pool pool;
-        gc::Root root = MakeLoop(pool, 7);
-        {
-          gc::Ptr<Node> split = root.value();
-          for (int i = 0; i < 4; i++) split = split.value()->children[0];
-          auto notification =
-              split.value()->children[0].value()->delete_notification;
-          CHECK(!notification->HasBeenNotified());
-          split.value()->children.clear();
-          CHECK(notification->HasBeenNotified());
-        }
-        CHECK(!root.value().value()->delete_notification->HasBeenNotified());
+        gc::Root root = MakeLoop(pool, 3);
+        for (int i = 0; i < 5; i++)
+          root.value()->children.push_back(gc::Ptr<Node>());
+        gc::Root other_root = gc::Ptr<Node>().ToRoot();
         Pool::ReclaimObjectsStats stats = pool.Reclaim();
-        CHECK_EQ(stats.begin_total, 7ul);
-        CHECK_EQ(stats.begin_dead, 2ul);
+        CHECK_EQ(stats.begin_total, 3ul);
+        CHECK_EQ(stats.begin_dead, 0ul);
         CHECK_EQ(stats.roots, 1ul);
-        CHECK_EQ(stats.end_total, 5ul);
+        CHECK_EQ(stats.end_total, 3ul);
       }}});
 }  // namespace
 }  // namespace afc::language

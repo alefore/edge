@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "src/language/gc.h"
+
 namespace afc {
 namespace vm {
 
@@ -28,6 +30,8 @@ struct Compilation {
     errors.push_back(std::move(error));
   }
 
+  language::gc::Pool& pool;
+
   // The directory containing the file currently being compiled. Used for
   // resolving relative paths (that are relative to this directory, rather than
   // to cwd).
@@ -38,7 +42,7 @@ struct Compilation {
 
   std::vector<std::wstring> current_namespace = {};
   std::vector<VMType> current_class = {};
-  std::shared_ptr<Environment> environment;
+  language::gc::Root<Environment> environment;
   std::wstring last_token = L"";
 };
 

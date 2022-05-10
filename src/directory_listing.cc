@@ -69,7 +69,7 @@ void StartDeleteFile(EditorState& editor_state, std::wstring path) {
 
 Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   VLOG(6) << "Get metadata for: " << path;
-  std::shared_ptr<Value> callback = target.environment()->Lookup(
+  std::shared_ptr<Value> callback = target.environment().value()->Lookup(
       Environment::Namespace(), L"GetPathMetadata",
       VMType::Function({VMType::String(), VMType::String()}));
   if (callback == nullptr) {

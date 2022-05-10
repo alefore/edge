@@ -21,6 +21,8 @@ using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
+namespace gc = language::gc;
+
 bool TypeMatchesArguments(
     const VMType& type,
     const std::vector<NonNull<std::unique_ptr<Expression>>>& args,
@@ -249,7 +251,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
     }
 
     const ObjectType* object_type =
-        compilation->environment->LookupObjectType(object_type_name);
+        compilation->environment.value()->LookupObjectType(object_type_name);
 
     if (object_type == nullptr) {
       errors.push_back(L"Unknown type: \"" + type.ToString() + L"\"");
@@ -348,7 +350,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
   NonNull<std::unique_ptr<Expression>> expr =
       NewFunctionCall(NewConstantExpression(MakeNonNullUnique<Value>(func)),
                       std::move(args_expr));
-  return Evaluate(*expr, nullptr, yield_callback);
+  return Evaluate(*expr, gc::Ptr<Environment>().ToRoot(), yield_callback);
 }
 
 }  // namespace afc::vm

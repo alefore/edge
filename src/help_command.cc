@@ -20,6 +20,9 @@ using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 
+namespace gc = language::gc;
+
+// TODO(easy, 2022-05-10): Get rid of these using declarations.
 using std::map;
 using std::shared_ptr;
 using std::unique_ptr;
@@ -177,9 +180,8 @@ class HelpCommand : public Command {
                               BufferContents& output) {
     StartSection(L"## Environment", output);
 
-    const std::shared_ptr<Environment>& environment =
-        original_buffer.environment();
-    CHECK(environment != nullptr);
+    const gc::Root<Environment> environment = original_buffer.environment();
+    CHECK(environment.value().value() != nullptr);
 
     StartSection(L"### Types & methods", output);
 
@@ -189,23 +191,24 @@ class HelpCommand : public Command {
         L"available methods is given.");
     output.push_back(L"");
 
-    environment->ForEachType([&](const wstring& name, ObjectType& type) {
-      StartSection(L"#### " + name, output);
-      type.ForEachField([&](const wstring& field_name, Value& value) {
-        std::stringstream value_stream;
-        value_stream << value;
-        const static int kPaddingSize = 40;
-        wstring padding(field_name.size() > kPaddingSize
-                            ? 0
-                            : kPaddingSize - field_name.size(),
-                        L' ');
-        output.push_back(MakeNonNullShared<Line>(StringAppend(
-            NewLazyString(L"* `"), NewLazyString(field_name),
-            NewLazyString(L"`" + std::move(padding) + L"`"),
-            NewLazyString(FromByteString(value_stream.str()) + L"`"))));
-      });
-      output.push_back(L"");
-    });
+    environment.value()->ForEachType(
+        [&](const wstring& name, ObjectType& type) {
+          StartSection(L"#### " + name, output);
+          type.ForEachField([&](const wstring& field_name, Value& value) {
+            std::stringstream value_stream;
+            value_stream << value;
+            const static int kPaddingSize = 40;
+            wstring padding(field_name.size() > kPaddingSize
+                                ? 0
+                                : kPaddingSize - field_name.size(),
+                            L' ');
+            output.push_back(MakeNonNullShared<Line>(StringAppend(
+                NewLazyString(L"* `"), NewLazyString(field_name),
+                NewLazyString(L"`" + std::move(padding) + L"`"),
+                NewLazyString(FromByteString(value_stream.str()) + L"`"))));
+          });
+          output.push_back(L"");
+        });
     output.push_back(L"");
 
     StartSection(L"### Variables", output);
@@ -215,7 +218,7 @@ class HelpCommand : public Command {
         L"associated with your buffer, and thus available to extensions.");
     output.push_back(L"");
 
-    environment->ForEach([&output](const wstring& name, Value& value) {
+    environment.value()->ForEach([&output](const wstring& name, Value& value) {
       const static int kPaddingSize = 40;
       wstring padding(
           name.size() >= kPaddingSize ? 1 : kPaddingSize - name.size(), L' ');

@@ -130,7 +130,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
       OUT = nullptr;
     } else {
       CHECK(FUNC->name.has_value());
-      compilation->environment->Define(
+      compilation->environment.value()->Define(
           FUNC->name.value(),
           NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)));
       OUT = NewVoidExpression().get_unique().release();
@@ -277,7 +277,8 @@ function_declaration_arguments(OUT) ::=
 %destructor non_empty_function_declaration_arguments { delete $$; }
 
 non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
-  const VMType* type_def = compilation->environment->LookupType(TYPE->str);
+  const VMType* type_def =
+      compilation->environment.value()->LookupType(TYPE->str);
   if (type_def == nullptr) {
     compilation->errors.push_back(L"Unknown type: \"" + TYPE->str + L"\"");
     OUT = nullptr;
@@ -295,7 +296,8 @@ non_empty_function_declaration_arguments(OUT) ::=
   if (LIST == nullptr) {
     OUT = nullptr;
   } else {
-    const VMType* type_def = compilation->environment->LookupType(TYPE->str);
+    const VMType* type_def =
+        compilation->environment.value()->LookupType(TYPE->str);
     if (type_def == nullptr) {
       compilation->errors.push_back(L"Unknown type: \"" + TYPE->str + L"\"");
       OUT = nullptr;

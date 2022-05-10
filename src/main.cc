@@ -262,7 +262,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
   }
   VLOG(5) << "Updating remote screens.";
   for (auto& buffer : *editor_state().buffers()) {
-    auto value = buffer.second->environment()->Lookup(
+    auto value = buffer.second->environment().value()->Lookup(
         Environment::Namespace(), L"screen", GetScreenVmType());
     if (value->type.type != VMType::OBJECT_TYPE ||
         value->type.object_type != L"Screen") {
@@ -347,8 +347,8 @@ int main(int argc, const char** argv) {
     LOG(INFO) << "Creating curses screen.";
     screen_curses = std::move(NewScreenCurses().get_unique());
   }
-  RegisterScreenType(editor_state().environment().get());
-  editor_state().environment()->Define(
+  RegisterScreenType(editor_state().environment().value().value());
+  editor_state().environment().value()->Define(
       L"screen", afc::vm::Value::NewObject(L"Screen", screen_curses));
 
   LOG(INFO) << "Starting server.";

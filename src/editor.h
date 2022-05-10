@@ -198,7 +198,9 @@ class EditorState {
   const infrastructure::Path& home_directory() const { return home_directory_; }
   const vector<infrastructure::Path>& edge_path() const { return edge_path_; }
 
-  std::shared_ptr<Environment> environment() { return environment_; }
+  language::gc::Pool& gc_pool() { return gc_pool_; }
+
+  language::gc::Root<Environment> environment() { return environment_; }
 
   infrastructure::Path expand_path(infrastructure::Path path) const;
 
@@ -237,7 +239,9 @@ class EditorState {
  private:
   void NotifyInternalEvent();
 
-  std::shared_ptr<Environment> BuildEditorEnvironment();
+  language::gc::Root<Environment> BuildEditorEnvironment();
+
+  language::gc::Pool gc_pool_;
 
   EdgeStructInstance<wstring> string_variables_;
   EdgeStructInstance<bool> bool_variables_;
@@ -255,7 +259,7 @@ class EditorState {
 
   double frames_per_second_;
 
-  const std::shared_ptr<Environment> environment_;
+  const language::gc::Root<Environment> environment_;
 
   // Should only be directly used when the editor has no buffer.
   std::shared_ptr<MapModeCommands> default_commands_;
