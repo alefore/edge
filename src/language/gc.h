@@ -155,7 +155,7 @@ template <typename T>
 class Root {
  public:
   Root(const Root<T>& other)
-      : ptr_(MakeNonNullUnique<Ptr<T>>(*other.ptr_)),
+      : ptr_(other.ptr_),
         registration_(pool().AddRoot(ptr_.control_frame_.get_shared())) {}
 
   Root(Root<T>&& other)
