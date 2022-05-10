@@ -23,7 +23,7 @@ class Environment {
   using Namespace = std::vector<std::wstring>;
 
   Environment();
-  Environment(std::shared_ptr<Environment> parent_environment);
+  explicit Environment(std::shared_ptr<Environment> parent_environment);
 
   // Creates or returns an existing namespace inside parent with a given name.
   static std::shared_ptr<Environment> NewNamespace(
