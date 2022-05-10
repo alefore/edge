@@ -37,9 +37,7 @@ class Environment {
   // of this method.
   void Clear();
 
-  language::gc::Root<Environment> parent_environment() const {
-    return parent_environment_;
-  }
+  language::gc::Ptr<Environment> parent_environment() const;
 
   static language::gc::Root<Environment> NewDefault(language::gc::Pool& pool);
 
@@ -83,8 +81,7 @@ class Environment {
   std::map<std::wstring, language::gc::Root<Environment>> namespaces_;
 
   // TODO: Consider whether the parent environment should itself be const?
-  const language::gc::Root<Environment> parent_environment_ =
-      language::gc::Ptr<Environment>().ToRoot();
+  const language::gc::Ptr<Environment> parent_environment_;
 };
 
 }  // namespace afc::vm

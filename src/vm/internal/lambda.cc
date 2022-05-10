@@ -164,7 +164,7 @@ std::unique_ptr<Value> UserFunction::BuildValue(
     std::wstring* error) {
   gc::Root<Environment> environment = compilation->environment;
   compilation->environment =
-      compilation->environment.value()->parent_environment();
+      compilation->environment.value()->parent_environment().ToRoot();
   auto expression = LambdaExpression::New(
       std::move(type), std::move(argument_names), std::move(body), error);
   return expression == nullptr
@@ -181,7 +181,7 @@ std::unique_ptr<Expression> UserFunction::BuildExpression(
   // trampoline, correctly receiving the actual values in that environment.
   CHECK(compilation->environment.value().value() != nullptr);
   compilation->environment =
-      compilation->environment.value()->parent_environment();
+      compilation->environment.value()->parent_environment().ToRoot();
 
   return LambdaExpression::New(std::move(type), std::move(argument_names),
                                std::move(body), error);
@@ -196,6 +196,6 @@ void UserFunction::Abort(Compilation* compilation) {
 
 void UserFunction::Done(Compilation* compilation) {
   compilation->environment =
-      compilation->environment.value()->parent_environment();
+      compilation->environment.value()->parent_environment().ToRoot();
 }
 }  // namespace afc::vm

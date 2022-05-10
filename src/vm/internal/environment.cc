@@ -76,12 +76,16 @@ void Environment::Clear() {
   table_.clear();
 }
 
+language::gc::Ptr<Environment> Environment::parent_environment() const {
+  return parent_environment_;
+}
+
 const ObjectType* Environment::LookupObjectType(const wstring& symbol) {
   if (auto it = object_types_.find(symbol); it != object_types_.end()) {
     return it->second.get().get();
   }
-  if (parent_environment_.value().value() != nullptr) {
-    return parent_environment_.value()->LookupObjectType(symbol);
+  if (parent_environment_.value() != nullptr) {
+    return parent_environment_->LookupObjectType(symbol);
   }
   return nullptr;
 }
@@ -104,7 +108,7 @@ const VMType* Environment::LookupType(const wstring& symbol) {
 Environment::Environment() = default;
 
 Environment::Environment(gc::Root<Environment> parent_environment)
-    : parent_environment_(std::move(parent_environment)) {}
+    : parent_environment_(std::move(parent_environment.value())) {}
 
 /* static */ gc::Root<Environment> Environment::NewNamespace(
     gc::Pool& pool, gc::Root<Environment> parent, std::wstring name) {
@@ -141,7 +145,7 @@ Environment::Environment(gc::Root<Environment> parent_environment)
   if (output.value().value() != nullptr) {
     return output;
   }
-  return LookupNamespace(source.value()->parent_environment(), name);
+  return LookupNamespace(source.value()->parent_environment().ToRoot(), name);
 }
 
 void Environment::DefineType(const wstring& name,
@@ -192,8 +196,8 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
     }
   }
   // Deliverately ignoring `environment`:
-  if (parent_environment_.value().value() != nullptr) {
-    parent_environment_.value()->PolyLookup(symbol_namespace, symbol, output);
+  if (parent_environment_.value() != nullptr) {
+    parent_environment_->PolyLookup(symbol_namespace, symbol, output);
   }
 }
 
@@ -220,9 +224,9 @@ void Environment::CaseInsensitiveLookup(
     }
   }
   // Deliverately ignoring `environment`:
-  if (parent_environment_.value().value() != nullptr) {
-    parent_environment_.value()->CaseInsensitiveLookup(symbol_namespace, symbol,
-                                                       output);
+  if (parent_environment_.value() != nullptr) {
+    parent_environment_->CaseInsensitiveLookup(symbol_namespace, symbol,
+                                               output);
   }
 }
 
@@ -236,12 +240,12 @@ void Environment::Assign(const wstring& symbol,
   auto it = table_.find(symbol);
   if (it == table_.end()) {
     // TODO: Show the symbol.
-    CHECK(parent_environment_.value().value() != nullptr)
+    CHECK(parent_environment_.value() != nullptr)
         << "Environment::parent_environment_ is nullptr while trying to "
            "assign a new value to a symbol `...`. This likely means that the "
            "symbol is undefined (which the caller should have validated as "
            "part of the compilation process).";
-    parent_environment_.value()->Assign(symbol, std::move(value));
+    parent_environment_->Assign(symbol, std::move(value));
     return;
   }
   it->second.insert_or_assign(value->type, std::move(value));
@@ -255,8 +259,8 @@ void Environment::Remove(const wstring& symbol, VMType type) {
 
 void Environment::ForEachType(
     std::function<void(const std::wstring&, ObjectType&)> callback) {
-  if (parent_environment_.value().value() != nullptr) {
-    parent_environment_.value()->ForEachType(callback);
+  if (parent_environment_.value() != nullptr) {
+    parent_environment_->ForEachType(callback);
   }
   for (const std::pair<const std::wstring,
                        NonNull<std::unique_ptr<ObjectType>>>& entry :
@@ -267,8 +271,8 @@ void Environment::ForEachType(
 
 void Environment::ForEach(
     std::function<void(const wstring&, Value&)> callback) {
-  if (parent_environment_.value().value() != nullptr) {
-    parent_environment_.value()->ForEach(callback);
+  if (parent_environment_.value() != nullptr) {
+    parent_environment_->ForEach(callback);
   }
   ForEachNonRecursive(callback);
 }
@@ -287,7 +291,9 @@ void Environment::ForEachNonRecursive(
 }  // namespace afc::vm
 namespace afc::language::gc {
 std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
-    const afc::vm::Environment&) {
-  return {};
+    const afc::vm::Environment& environment) {
+  std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> output;
+  output.push_back(environment.parent_environment().control_frame());
+  return output;
 }
 }  // namespace afc::language::gc

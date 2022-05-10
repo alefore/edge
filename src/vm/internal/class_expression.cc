@@ -96,7 +96,7 @@ void FinishClassDeclaration(
 
   gc::Root<Environment> class_environment = compilation->environment;
   compilation->environment =
-      compilation->environment.value()->parent_environment();
+      compilation->environment.value()->parent_environment().ToRoot();
 
   std::map<std::wstring, Value> values;
   class_environment.value()->ForEachNonRecursive(
@@ -119,7 +119,7 @@ void FinishClassDeclaration(
                Trampoline& trampoline) {
         gc::Root<Environment> instance_environment =
             trampoline.pool().NewRoot(std::make_unique<Environment>(
-                class_environment.value()->parent_environment()));
+                class_environment.value()->parent_environment().ToRoot()));
         auto original_environment = trampoline.environment();
         trampoline.SetEnvironment(instance_environment);
         return trampoline.Bounce(*constructor_expression_shared, VMType::Void())
