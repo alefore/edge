@@ -104,14 +104,14 @@ class ScreenVm : public Screen {
 };
 }  // namespace
 
-void RegisterScreenType(Environment* environment) {
+void RegisterScreenType(Environment& environment) {
   using vm::EvaluationOutput;
   using vm::Trampoline;
 
   auto screen_type = MakeNonNullUnique<ObjectType>(L"Screen");
 
   // Constructors.
-  environment->Define(
+  environment.Define(
       L"RemoteScreen",
       Value::NewFunction(
           {screen_type->type(), VMType::String()},
@@ -195,7 +195,7 @@ void RegisterScreenType(Environment* environment) {
                           return screen->size();
                         }));
 
-  environment->DefineType(L"Screen", std::move(screen_type));
+  environment.DefineType(L"Screen", std::move(screen_type));
 }
 
 std::unique_ptr<Screen> NewScreenVm(int fd) {

@@ -347,8 +347,7 @@ int main(int argc, const char** argv) {
     LOG(INFO) << "Creating curses screen.";
     screen_curses = std::move(NewScreenCurses().get_unique());
   }
-  // TODO(easy, 2022-05-11): Pass by ref.
-  RegisterScreenType(&editor_state().environment().value().value());
+  RegisterScreenType(editor_state().environment().value().value());
   editor_state().environment().value()->Define(
       L"screen", afc::vm::Value::NewObject(L"Screen", screen_curses));
 
