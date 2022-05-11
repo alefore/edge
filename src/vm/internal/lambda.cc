@@ -165,7 +165,7 @@ std::unique_ptr<Value> UserFunction::BuildValue(
   gc::Root<Environment> environment = compilation->environment;
   compilation->environment =
       compilation->environment.value()->parent_environment().ToRoot();
-  std::unique_ptr<Value> expression = LambdaExpression::New(
+  std::unique_ptr<LambdaExpression> expression = LambdaExpression::New(
       std::move(type), std::move(argument_names), std::move(body), error);
   return expression == nullptr
              ? nullptr
