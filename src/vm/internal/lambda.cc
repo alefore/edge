@@ -122,17 +122,17 @@ class LambdaExpression : public Expression {
 }  // namespace
 
 std::unique_ptr<UserFunction> UserFunction::New(
-    Compilation* compilation, std::wstring return_type,
+    Compilation& compilation, std::wstring return_type,
     std::optional<std::wstring> name,
     std::vector<std::pair<VMType, wstring>>* args) {
   if (args == nullptr) {
     return nullptr;
   }
   const VMType* return_type_def =
-      compilation->environment.value()->LookupType(return_type);
+      compilation.environment.value()->LookupType(return_type);
   if (return_type_def == nullptr) {
-    compilation->errors.push_back(L"Unknown return type: \"" + return_type +
-                                  L"\"");
+    compilation.errors.push_back(L"Unknown return type: \"" + return_type +
+                                 L"\"");
     return nullptr;
   }
 
@@ -145,13 +145,13 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
   if (name.has_value()) {
     output->name = name.value();
-    compilation->environment.value()->Define(
+    compilation.environment.value()->Define(
         name.value(), MakeNonNullUnique<Value>(output->type));
   }
-  compilation->environment = compilation->pool.NewRoot(
-      MakeNonNullUnique<Environment>(compilation->environment.value()));
+  compilation.environment = compilation.pool.NewRoot(
+      MakeNonNullUnique<Environment>(compilation.environment.value()));
   for (pair<VMType, wstring> arg : *args) {
-    compilation->environment.value()->Define(
+    compilation.environment.value()->Define(
         arg.second, MakeNonNullUnique<Value>(arg.first));
   }
   return output;
@@ -166,36 +166,35 @@ gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
 }
 
 std::unique_ptr<Value> UserFunction::BuildValue(
-    Compilation* compilation, NonNull<std::unique_ptr<Expression>> body,
+    Compilation& compilation, NonNull<std::unique_ptr<Expression>> body,
     std::wstring* error) {
   std::unique_ptr<LambdaExpression> expression = LambdaExpression::New(
       std::move(type), std::move(argument_names), std::move(body), error);
   if (expression == nullptr) return nullptr;
-  gc::Root<Environment> environment = compilation->environment;
-  compilation->environment = GetOrCreateParentEnvironment(*compilation);
+  gc::Root<Environment> environment = compilation.environment;
+  compilation.environment = GetOrCreateParentEnvironment(compilation);
   return std::move(expression->BuildValue(std::move(environment)).get_unique());
 }
 
 std::unique_ptr<Expression> UserFunction::BuildExpression(
-    Compilation* compilation, NonNull<std::unique_ptr<Expression>> body,
+    Compilation& compilation, NonNull<std::unique_ptr<Expression>> body,
     std::wstring* error) {
   // We ignore the environment used during the compilation. Instead, each time
   // the expression is evaluated, it will use the environment from the
   // trampoline, correctly receiving the actual values in that environment.
-  compilation->environment = GetOrCreateParentEnvironment(*compilation);
+  compilation.environment = GetOrCreateParentEnvironment(compilation);
   return LambdaExpression::New(std::move(type), std::move(argument_names),
                                std::move(body), error);
 }
 
-void UserFunction::Abort(Compilation* compilation) {
+void UserFunction::Abort(Compilation& compilation) {
   Done(compilation);
   if (name.has_value()) {
-    compilation->environment.value()->Remove(name.value(), type);
+    compilation.environment.value()->Remove(name.value(), type);
   }
 }
 
-// TODO(easy, 2022-05-11): Pass Compilation by ref.
-void UserFunction::Done(Compilation* compilation) {
-  compilation->environment = GetOrCreateParentEnvironment(*compilation);
+void UserFunction::Done(Compilation& compilation) {
+  compilation.environment = GetOrCreateParentEnvironment(compilation);
 }
 }  // namespace afc::vm

@@ -115,12 +115,12 @@ statement(OUT) ::= function_declaration_params(FUNC)
     OUT = nullptr;
   } else if (BODY == nullptr) {
     // Compilation of the body failed. We should try to restore the environment.
-    FUNC->Abort(compilation);
+    FUNC->Abort(*compilation);
     OUT = nullptr;
   } else {
     std::wstring error;
     auto value = FUNC->BuildValue(
-        compilation,
+        *compilation,
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(BODY)),
         &error);
@@ -214,10 +214,10 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
         compilation, L"auto", *FUNC->name, FUNC->type);
     if (result == std::nullopt) {
       OUT = nullptr;
-      FUNC->Abort(compilation);
+      FUNC->Abort(*compilation);
     } else {
       OUT = NewVoidExpression().get_unique().release();
-      FUNC->Done(compilation);
+      FUNC->Done(*compilation);
     }
   }
 }
@@ -250,7 +250,7 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
     function_declaration_arguments(ARGS) RPAREN . {
   CHECK(RETURN_TYPE->IsSymbol());
   CHECK(NAME->IsSymbol());
-  OUT = UserFunction::New(compilation, RETURN_TYPE->str, NAME->str, ARGS)
+  OUT = UserFunction::New(*compilation, RETURN_TYPE->str, NAME->str, ARGS)
             .release();
   delete RETURN_TYPE;
   delete NAME;
@@ -319,7 +319,7 @@ lambda_declaration_params(OUT) ::= LBRACE RBRACE
     LPAREN function_declaration_arguments(ARGS) RPAREN
     MINUS GREATER_THAN SYMBOL(RETURN_TYPE) . {
   CHECK(RETURN_TYPE->IsSymbol());
-  OUT = UserFunction::New(compilation, RETURN_TYPE->str, std::nullopt, ARGS)
+  OUT = UserFunction::New(*compilation, RETURN_TYPE->str, std::nullopt, ARGS)
             .release();
   delete RETURN_TYPE;
 }
@@ -352,12 +352,12 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
   if (FUNC == nullptr) {
     OUT = nullptr;
   } else if (BODY == nullptr) {
-    FUNC->Abort(compilation);
+    FUNC->Abort(*compilation);
     OUT = nullptr;
   } else {
     std::wstring error;
     auto value = FUNC->BuildExpression(
-        compilation,
+        *compilation,
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(BODY)),
         &error);

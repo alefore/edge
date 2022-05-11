@@ -13,19 +13,19 @@ class Compilation;
 // `Build` once the body of the expression becomes known.
 struct UserFunction {
   static std::unique_ptr<UserFunction> New(
-      Compilation* compilation, std::wstring return_type,
+      Compilation& compilation, std::wstring return_type,
       std::optional<std::wstring> name,
       std::vector<std::pair<VMType, wstring>>* args);
 
   std::unique_ptr<Expression> BuildExpression(
-      Compilation* compilation,
+      Compilation& compilation,
       language::NonNull<std::unique_ptr<Expression>> body, std::wstring* error);
 
   std::unique_ptr<Value> BuildValue(
-      Compilation* compilation,
+      Compilation& compilation,
       language::NonNull<std::unique_ptr<Expression>> body, std::wstring* error);
-  void Abort(Compilation* compilation);
-  void Done(Compilation* compilation);
+  void Abort(Compilation& compilation);
+  void Done(Compilation& compilation);
 
   std::optional<std::wstring> name;
   VMType type;
