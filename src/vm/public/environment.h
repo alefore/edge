@@ -52,14 +52,15 @@ class Environment {
 
   // TODO(easy): Remove; switch all callers to the version that takes the
   // namespace.
-  void PolyLookup(const wstring& symbol, std::vector<Value*>* output);
+  void PolyLookup(const wstring& symbol,
+                  std::vector<language::NonNull<Value*>>* output);
   void PolyLookup(const Namespace& symbol_namespace, const wstring& symbol,
-                  std::vector<Value*>* output);
+                  std::vector<language::NonNull<Value*>>* output);
   // Same as `PolyLookup` but ignores case and thus is much slower (runtime
   // complexity is linear to the total number of symbols defined);
   void CaseInsensitiveLookup(const Namespace& symbol_namespace,
                              const wstring& symbol,
-                             std::vector<Value*>* output);
+                             std::vector<language::NonNull<Value*>>* output);
   void Define(const wstring& symbol,
               language::NonNull<std::unique_ptr<Value>> value);
   void Assign(const wstring& symbol,

@@ -83,7 +83,7 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   CHECK(!search_namespaces.namespaces.empty());
-  std::vector<Value*> functions;
+  std::vector<NonNull<Value*>> functions;
   for (const auto& n : search_namespaces.namespaces) {
     environment.CaseInsensitiveLookup(
         n,
@@ -99,7 +99,7 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   // Filter functions that match our type expectations.
-  std::vector<Value*> type_match_functions;
+  std::vector<NonNull<Value*>> type_match_functions;
   Value* function_vector = nullptr;
   for (auto& candidate : functions) {
     if (!candidate->IsFunction()) {
@@ -121,7 +121,7 @@ ValueOrError<ParsedCommand> Parse(
     } else if (arguments.size() == 2 &&
                arguments[1] ==
                    VMTypeMapper<std::vector<std::wstring>*>::vmtype) {
-      function_vector = candidate;
+      function_vector = candidate.get();
     }
   }
 
@@ -136,7 +136,7 @@ ValueOrError<ParsedCommand> Parse(
             std::move(argument_values))));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
-    output.function = type_match_functions[0];
+    output.function = type_match_functions[0].get();
     CHECK_GE(output.function->type.type_arguments.size(),
              1ul /* return type */);
     size_t expected_arguments = output.function->type.type_arguments.size() - 1;

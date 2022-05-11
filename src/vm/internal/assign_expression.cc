@@ -134,7 +134,7 @@ std::unique_ptr<Expression> NewAssignExpression(
   if (value == nullptr) {
     return nullptr;
   }
-  std::vector<Value*> variables;
+  std::vector<NonNull<Value*>> variables;
   compilation->environment.value()->PolyLookup(symbol, &variables);
   for (auto& v : variables) {
     if (value->SupportsType(v->type)) {

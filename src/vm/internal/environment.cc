@@ -161,7 +161,7 @@ void Environment::DefineType(const wstring& name,
 std::unique_ptr<Value> Environment::Lookup(const Namespace& symbol_namespace,
                                            const wstring& symbol,
                                            VMType expected_type) {
-  std::vector<Value*> values;
+  std::vector<NonNull<Value*>> values;
   PolyLookup(symbol_namespace, symbol, &values);
   for (auto& value : values) {
     if (auto callback = GetImplicitPromotion(value->type, expected_type);
@@ -173,15 +173,14 @@ std::unique_ptr<Value> Environment::Lookup(const Namespace& symbol_namespace,
 }
 
 void Environment::PolyLookup(const wstring& symbol,
-                             std::vector<Value*>* output) {
+                             std::vector<NonNull<Value*>>* output) {
   static const auto* empty_namespace = new Environment::Namespace();
   PolyLookup(*empty_namespace, symbol, output);
 }
 
-// TODO(easy, 2022-05-02): Make the vector contain NonNull pointers.
 void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
                              const wstring& symbol,
-                             std::vector<Value*>* output) {
+                             std::vector<NonNull<Value*>>* output) {
   Environment* environment = this;
   for (auto& n : symbol_namespace) {
     auto it = environment->namespaces_.find(n);
@@ -195,8 +194,7 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
     if (auto it = environment->table_.find(symbol);
         it != environment->table_.end()) {
       for (auto& entry : it->second) {
-        // TODO(easy, 2022-05-02): Get rid of 2nd get.
-        output->push_back(entry.second.get().get());
+        output->push_back(entry.second.get());
       }
     }
   }
@@ -208,7 +206,7 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
 
 void Environment::CaseInsensitiveLookup(
     const Environment::Namespace& symbol_namespace, const wstring& symbol,
-    std::vector<Value*>* output) {
+    std::vector<NonNull<Value*>>* output) {
   Environment* environment = this;
   for (auto& n : symbol_namespace) {
     auto it = environment->namespaces_.find(n);
@@ -222,8 +220,7 @@ void Environment::CaseInsensitiveLookup(
     for (auto& item : environment->table_) {
       if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
         for (auto& entry : item.second) {
-          // TODO(easy, 2022-05-02): Get rid of 2nd get. Change output type.
-          output->push_back(entry.second.get().get());
+          output->push_back(entry.second.get());
         }
       }
     }

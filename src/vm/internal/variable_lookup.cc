@@ -63,7 +63,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
                                               std::list<std::wstring> symbols) {
   CHECK(!symbols.empty());
 
-  std::vector<Value*> result;
+  std::vector<NonNull<Value*>> result;
 
   auto symbol = std::move(symbols.back());
   symbols.pop_back();
