@@ -350,7 +350,8 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
   NonNull<std::unique_ptr<Expression>> expr =
       NewFunctionCall(NewConstantExpression(MakeNonNullUnique<Value>(func)),
                       std::move(args_expr));
-  return Evaluate(*expr, pool, gc::Ptr<Environment>().ToRoot(), yield_callback);
+  return Evaluate(*expr, pool, pool.NewRoot(std::make_unique<Environment>()),
+                  yield_callback);
 }
 
 }  // namespace afc::vm

@@ -95,8 +95,10 @@ void FinishClassDeclaration(
   auto class_object_type = MakeNonNullUnique<ObjectType>(class_type);
 
   gc::Root<Environment> class_environment = compilation->environment;
+  // This is safe because StartClassDeclaration creates a sub-environment.
+  CHECK(class_environment.value()->parent_environment().has_value());
   compilation->environment =
-      compilation->environment.value()->parent_environment().ToRoot();
+      class_environment.value()->parent_environment()->ToRoot();
 
   std::map<std::wstring, Value> values;
   class_environment.value()->ForEachNonRecursive(

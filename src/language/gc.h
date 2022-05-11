@@ -77,8 +77,6 @@ struct ControlFrame {
  private:
   Pool& pool() const { return pool_; }
 
-  static language::NonNull<std::shared_ptr<ControlFrame>> NullControlFrame();
-
   Pool& pool_;
   ExpandCallback expand_callback_;
   bool reached_ = false;
@@ -92,8 +90,6 @@ template <typename T>
 class Ptr {
  public:
   Root<T> ToRoot() const { return Root<T>(*this); }
-
-  Ptr() : Ptr(std::shared_ptr<T>(), ControlFrame::NullControlFrame()) {}
 
   Ptr(const Ptr<T>& other)
       : value_(other.value_), control_frame_(other.control_frame_) {}

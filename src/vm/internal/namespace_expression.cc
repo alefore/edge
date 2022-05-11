@@ -32,10 +32,10 @@ class NamespaceExpression : public Expression {
       Trampoline& trampoline, const VMType& type) override {
     language::gc::Root<Environment> original_environment =
         trampoline.environment();
-    language::gc::Root<Environment> namespace_environment =
+    std::optional<language::gc::Root<Environment>> namespace_environment =
         Environment::LookupNamespace(original_environment, namespace_);
-    CHECK(namespace_environment.value().value() != nullptr);
-    trampoline.SetEnvironment(namespace_environment);
+    CHECK(namespace_environment.has_value());
+    trampoline.SetEnvironment(*namespace_environment);
 
     return OnError(trampoline.Bounce(*body_, type)
                        .Transform([&trampoline, original_environment](
@@ -73,8 +73,9 @@ std::unique_ptr<Expression> NewNamespaceExpression(
     Compilation* compilation, std::unique_ptr<Expression> body) {
   auto current_namespace = compilation->current_namespace;
   compilation->current_namespace.pop_back();
+  CHECK(compilation->environment.value()->parent_environment().has_value());
   compilation->environment =
-      compilation->environment.value()->parent_environment().ToRoot();
+      compilation->environment.value()->parent_environment()->ToRoot();
   return VisitPointer(
       std::move(body),
       [&](NonNull<std::unique_ptr<Expression>> body)

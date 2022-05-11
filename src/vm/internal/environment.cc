@@ -76,7 +76,8 @@ void Environment::Clear() {
   table_.clear();
 }
 
-language::gc::Ptr<Environment> Environment::parent_environment() const {
+std::optional<language::gc::Ptr<Environment>> Environment::parent_environment()
+    const {
   return parent_environment_;
 }
 
@@ -84,8 +85,8 @@ const ObjectType* Environment::LookupObjectType(const wstring& symbol) {
   if (auto it = object_types_.find(symbol); it != object_types_.end()) {
     return it->second.get().get();
   }
-  if (parent_environment_.value() != nullptr) {
-    return parent_environment_->LookupObjectType(symbol);
+  if (parent_environment_.has_value()) {
+    return (*parent_environment_)->LookupObjectType(symbol);
   }
   return nullptr;
 }
@@ -107,14 +108,15 @@ const VMType* Environment::LookupType(const wstring& symbol) {
 
 Environment::Environment() = default;
 
-Environment::Environment(gc::Ptr<Environment> parent_environment)
+Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
     : parent_environment_(std::move(parent_environment)) {}
 
 /* static */ gc::Root<Environment> Environment::NewNamespace(
     gc::Pool& pool, gc::Root<Environment> parent, std::wstring name) {
-  if (auto previous = LookupNamespace(parent, {name});
-      previous.value().value() != nullptr) {
-    return previous;
+  if (std::optional<gc::Root<Environment>> previous =
+          LookupNamespace(parent, {name});
+      previous.has_value()) {
+    return *previous;
   }
   if (auto result = parent.value()->namespaces_.find(name);
       result != parent.value()->namespaces_.end()) {
@@ -129,23 +131,27 @@ Environment::Environment(gc::Ptr<Environment> parent_environment)
   return namespace_env;
 }
 
-/* static */ gc::Root<Environment> Environment::LookupNamespace(
+/* static */ std::optional<gc::Root<Environment>> Environment::LookupNamespace(
     gc::Root<Environment> source, const Namespace& name) {
-  if (source.value().value() == nullptr) return gc::Ptr<Environment>().ToRoot();
-  gc::Ptr<Environment> output = source.value();
+  if (source.value().value() == nullptr) return std::nullopt;
+  std::optional<gc::Ptr<Environment>> output = source.value();
   for (auto& n : name) {
     if (auto it = output.value()->namespaces_.find(n);
         it != output.value()->namespaces_.end()) {
       output = it->second;
       continue;
     }
-    output = gc::Ptr<Environment>();
+    output = std::nullopt;
     break;
   }
-  if (output.value() != nullptr) {
-    return output.ToRoot();
+  if (output.has_value()) {
+    return output->ToRoot();
   }
-  return LookupNamespace(source.value()->parent_environment().ToRoot(), name);
+  if (auto parent_environment = source.value()->parent_environment();
+      parent_environment.has_value()) {
+    return LookupNamespace(parent_environment->ToRoot(), name);
+  }
+  return std::nullopt;
 }
 
 void Environment::DefineType(const wstring& name,
@@ -196,8 +202,8 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
     }
   }
   // Deliverately ignoring `environment`:
-  if (parent_environment_.value() != nullptr) {
-    parent_environment_->PolyLookup(symbol_namespace, symbol, output);
+  if (parent_environment_.has_value()) {
+    (*parent_environment_)->PolyLookup(symbol_namespace, symbol, output);
   }
 }
 
@@ -224,9 +230,9 @@ void Environment::CaseInsensitiveLookup(
     }
   }
   // Deliverately ignoring `environment`:
-  if (parent_environment_.value() != nullptr) {
-    parent_environment_->CaseInsensitiveLookup(symbol_namespace, symbol,
-                                               output);
+  if (parent_environment_.has_value()) {
+    (*parent_environment_)
+        ->CaseInsensitiveLookup(symbol_namespace, symbol, output);
   }
 }
 
@@ -240,12 +246,12 @@ void Environment::Assign(const wstring& symbol,
   auto it = table_.find(symbol);
   if (it == table_.end()) {
     // TODO: Show the symbol.
-    CHECK(parent_environment_.value() != nullptr)
+    CHECK(parent_environment_.has_value())
         << "Environment::parent_environment_ is nullptr while trying to "
            "assign a new value to a symbol `...`. This likely means that the "
            "symbol is undefined (which the caller should have validated as "
            "part of the compilation process).";
-    parent_environment_->Assign(symbol, std::move(value));
+    (*parent_environment_)->Assign(symbol, std::move(value));
     return;
   }
   it->second.insert_or_assign(value->type, std::move(value));
@@ -259,8 +265,8 @@ void Environment::Remove(const wstring& symbol, VMType type) {
 
 void Environment::ForEachType(
     std::function<void(const std::wstring&, ObjectType&)> callback) {
-  if (parent_environment_.value() != nullptr) {
-    parent_environment_->ForEachType(callback);
+  if (parent_environment_.has_value()) {
+    (*parent_environment_)->ForEachType(callback);
   }
   for (const std::pair<const std::wstring,
                        NonNull<std::unique_ptr<ObjectType>>>& entry :
@@ -271,8 +277,8 @@ void Environment::ForEachType(
 
 void Environment::ForEach(
     std::function<void(const wstring&, Value&)> callback) {
-  if (parent_environment_.value() != nullptr) {
-    parent_environment_->ForEach(callback);
+  if (parent_environment_.has_value()) {
+    (*parent_environment_)->ForEach(callback);
   }
   ForEachNonRecursive(callback);
 }
@@ -293,7 +299,9 @@ namespace afc::language::gc {
 std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
     const afc::vm::Environment& environment) {
   std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> output;
-  output.push_back(environment.parent_environment().control_frame());
+  if (environment.parent_environment().has_value()) {
+    output.push_back(environment.parent_environment()->control_frame());
+  }
   return output;
 }
 }  // namespace afc::language::gc

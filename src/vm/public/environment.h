@@ -24,20 +24,21 @@ class Environment {
   using Namespace = std::vector<std::wstring>;
 
   Environment();
-  explicit Environment(language::gc::Ptr<Environment> parent_environment);
+  explicit Environment(
+      std::optional<language::gc::Ptr<Environment>> parent_environment);
 
   // Creates or returns an existing namespace inside parent with a given name.
   static language::gc::Root<Environment> NewNamespace(
       language::gc::Pool& pool, language::gc::Root<Environment> parent,
       std::wstring name);
-  static language::gc::Root<Environment> LookupNamespace(
+  static std::optional<language::gc::Root<Environment>> LookupNamespace(
       language::gc::Root<Environment> source, const Namespace& name);
 
   // TODO: Implement proper garbage collection for the environment and get rid
   // of this method.
   void Clear();
 
-  language::gc::Ptr<Environment> parent_environment() const;
+  std::optional<language::gc::Ptr<Environment>> parent_environment() const;
 
   static language::gc::Root<Environment> NewDefault(language::gc::Pool& pool);
 
@@ -81,7 +82,8 @@ class Environment {
   std::map<std::wstring, language::gc::Ptr<Environment>> namespaces_;
 
   // TODO: Consider whether the parent environment should itself be const?
-  const language::gc::Ptr<Environment> parent_environment_;
+  const std::optional<language::gc::Ptr<Environment>> parent_environment_ =
+      std::nullopt;
 };
 
 }  // namespace afc::vm

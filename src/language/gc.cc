@@ -14,14 +14,6 @@ Pool::~Pool() {
   Reclaim();
 }
 
-/* static */ NonNull<std::shared_ptr<ControlFrame>>
-ControlFrame::NullControlFrame() {
-  static Pool* const null_pool = new Pool();
-  return MakeNonNullShared<ControlFrame>(
-      ConstructorAccessKey(), *null_pool,
-      [] { return std::vector<NonNull<std::shared_ptr<ControlFrame>>>{}; });
-}
-
 Pool::ReclaimObjectsStats Pool::Reclaim() {
   ReclaimObjectsStats stats;
 
@@ -299,39 +291,24 @@ bool tests_registration = tests::Register(
               CHECK_EQ(stats.end_total, 5ul);
             }
           }},
-     {.name = L"BreakLoopHalfway",
-      .callback =
-          [] {
-            gc::Pool pool;
-            gc::Root root = MakeLoop(pool, 7);
-            {
-              gc::Ptr<Node> split = root.value();
-              for (int i = 0; i < 4; i++) split = split.value()->children[0];
-              auto notification =
-                  split.value()->children[0].value()->delete_notification;
-              CHECK(!notification->HasBeenNotified());
-              split.value()->children.clear();
-              CHECK(notification->HasBeenNotified());
-            }
-            CHECK(
-                !root.value().value()->delete_notification->HasBeenNotified());
-            Pool::ReclaimObjectsStats stats = pool.Reclaim();
-            CHECK_EQ(stats.begin_total, 7ul);
-            CHECK_EQ(stats.begin_dead, 2ul);
-            CHECK_EQ(stats.roots, 1ul);
-            CHECK_EQ(stats.end_total, 5ul);
-          }},
-     {.name = L"ReclaimWithNullRefs", .callback = [] {
+     {.name = L"BreakLoopHalfway", .callback = [] {
         gc::Pool pool;
-        gc::Root root = MakeLoop(pool, 3);
-        for (int i = 0; i < 5; i++)
-          root.value()->children.push_back(gc::Ptr<Node>());
-        gc::Root other_root = gc::Ptr<Node>().ToRoot();
+        gc::Root root = MakeLoop(pool, 7);
+        {
+          gc::Ptr<Node> split = root.value();
+          for (int i = 0; i < 4; i++) split = split.value()->children[0];
+          auto notification =
+              split.value()->children[0].value()->delete_notification;
+          CHECK(!notification->HasBeenNotified());
+          split.value()->children.clear();
+          CHECK(notification->HasBeenNotified());
+        }
+        CHECK(!root.value().value()->delete_notification->HasBeenNotified());
         Pool::ReclaimObjectsStats stats = pool.Reclaim();
-        CHECK_EQ(stats.begin_total, 3ul);
-        CHECK_EQ(stats.begin_dead, 0ul);
+        CHECK_EQ(stats.begin_total, 7ul);
+        CHECK_EQ(stats.begin_dead, 2ul);
         CHECK_EQ(stats.roots, 1ul);
-        CHECK_EQ(stats.end_total, 3ul);
+        CHECK_EQ(stats.end_total, 5ul);
       }}});
 }  // namespace
 }  // namespace afc::language

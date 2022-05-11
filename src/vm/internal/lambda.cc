@@ -159,18 +159,23 @@ std::unique_ptr<UserFunction> UserFunction::New(
   return output;
 }
 
+gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
+  if (std::optional<gc::Ptr<Environment>> parent_environment =
+          compilation.environment.value()->parent_environment();
+      parent_environment.has_value())
+    return parent_environment->ToRoot();
+  return compilation.pool.NewRoot(std::make_unique<Environment>());
+}
+
 std::unique_ptr<Value> UserFunction::BuildValue(
     Compilation* compilation, NonNull<std::unique_ptr<Expression>> body,
     std::wstring* error) {
-  gc::Root<Environment> environment = compilation->environment;
-  compilation->environment =
-      compilation->environment.value()->parent_environment().ToRoot();
   std::unique_ptr<LambdaExpression> expression = LambdaExpression::New(
       std::move(type), std::move(argument_names), std::move(body), error);
-  return expression == nullptr
-             ? nullptr
-             : std::move(
-                   expression->BuildValue(std::move(environment)).get_unique());
+  if (expression == nullptr) return nullptr;
+  gc::Root<Environment> environment = compilation->environment;
+  compilation->environment = GetOrCreateParentEnvironment(*compilation);
+  return std::move(expression->BuildValue(std::move(environment)).get_unique());
 }
 
 std::unique_ptr<Expression> UserFunction::BuildExpression(
@@ -179,10 +184,7 @@ std::unique_ptr<Expression> UserFunction::BuildExpression(
   // We ignore the environment used during the compilation. Instead, each time
   // the expression is evaluated, it will use the environment from the
   // trampoline, correctly receiving the actual values in that environment.
-  CHECK(compilation->environment.value().value() != nullptr);
-  compilation->environment =
-      compilation->environment.value()->parent_environment().ToRoot();
-
+  compilation->environment = GetOrCreateParentEnvironment(*compilation);
   return LambdaExpression::New(std::move(type), std::move(argument_names),
                                std::move(body), error);
 }
@@ -194,8 +196,8 @@ void UserFunction::Abort(Compilation* compilation) {
   }
 }
 
+// TODO(easy, 2022-05-11): Pass Compilation by ref.
 void UserFunction::Done(Compilation* compilation) {
-  compilation->environment =
-      compilation->environment.value()->parent_environment().ToRoot();
+  compilation->environment = GetOrCreateParentEnvironment(*compilation);
 }
 }  // namespace afc::vm
