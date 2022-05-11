@@ -22,11 +22,6 @@ using language::NonNull;
 
 namespace gc = language::gc;
 
-// TODO(easy, 2022-05-10): Get rid of these using declarations.
-using std::map;
-using std::shared_ptr;
-using std::unique_ptr;
-
 namespace {
 wstring DescribeSequence(wstring input) {
   wstring output = L"`";
