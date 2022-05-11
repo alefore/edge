@@ -43,22 +43,6 @@ extern "C" {
 #include "src/widget_list.h"
 
 namespace afc {
-namespace vm {
-template <>
-struct VMTypeMapper<editor::EditorState*> {
-  static editor::EditorState* get(Value& value) {
-    CHECK_EQ(value.type, vmtype);
-    return static_cast<editor::EditorState*>(value.user_value.get());
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType VMTypeMapper<editor::EditorState*>::vmtype =
-    VMType::ObjectType(L"Editor");
-}  // namespace vm
-namespace editor {
-namespace {
 using concurrent::ThreadPool;
 using concurrent::WorkQueue;
 using infrastructure::AddSeconds;
@@ -72,12 +56,30 @@ using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Observers;
+using language::Pointer;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 
 namespace gc = language::gc;
+namespace vm {
+template <>
+struct VMTypeMapper<editor::EditorState&> {
+  static editor::EditorState& get(Value& value) {
+    CHECK_EQ(value.type, vmtype);
+    return Pointer(static_cast<editor::EditorState*>(value.user_value.get()))
+        .Reference();
+  }
+
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<editor::EditorState&>::vmtype =
+    VMType::ObjectType(L"Editor");
+}  // namespace vm
+namespace editor {
+namespace {
 
 template <typename MethodReturnType>
 void RegisterBufferMethod(ObjectType& editor_type, const wstring& name,
@@ -164,15 +166,15 @@ void RegisterVariableFields(
     // Getter.
     editor_type.AddField(
         variable->name(),
-        vm::NewCallback([reader, variable](EditorState* editor) {
-          return (editor->*reader)(variable);
+        vm::NewCallback([reader, variable](EditorState& editor) {
+          return (editor.*reader)(variable);
         }));
 
     // Setter.
     editor_type.AddField(L"set_" + variable->name(),
-                         vm::NewCallback([variable, setter](EditorState* editor,
+                         vm::NewCallback([variable, setter](EditorState& editor,
                                                             FieldValue value) {
-                           (editor->*setter)(variable, value);
+                           (editor.*setter)(variable, value);
                          }));
   }
 }
@@ -211,57 +213,54 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
                                                &EditorState::Set);
 
   editor_type->AddField(
-      L"EnterSetBufferMode", vm::NewCallback([](EditorState* editor) {
-        CHECK(editor != nullptr);
-        editor->set_keyboard_redirect(NewSetBufferMode(*editor));
+      L"EnterSetBufferMode", vm::NewCallback([](EditorState& editor) {
+        editor.set_keyboard_redirect(NewSetBufferMode(editor));
       }));
 
   editor_type->AddField(L"SetActiveBuffer",
-                        vm::NewCallback([](EditorState* editor, int delta) {
-                          editor->SetActiveBuffer(delta);
+                        vm::NewCallback([](EditorState& editor, int delta) {
+                          editor.SetActiveBuffer(delta);
                         }));
 
   editor_type->AddField(L"AdvanceActiveBuffer",
-                        vm::NewCallback([](EditorState* editor, int delta) {
-                          editor->AdvanceActiveBuffer(delta);
+                        vm::NewCallback([](EditorState& editor, int delta) {
+                          editor.AdvanceActiveBuffer(delta);
                         }));
 
-  editor_type->AddField(L"ZoomToLeaf", vm::NewCallback([](EditorState*) {}));
+  editor_type->AddField(L"ZoomToLeaf", vm::NewCallback([](EditorState&) {}));
 
   editor_type->AddField(
       L"SetVariablePrompt",
-      vm::NewCallback([](EditorState* editor, std::wstring variable) {
-        CHECK(editor != nullptr);
-        SetVariableCommandHandler(variable, *editor);
+      vm::NewCallback([](EditorState& editor, std::wstring variable) {
+        SetVariableCommandHandler(variable, editor);
       }));
 
-  editor_type->AddField(L"home", vm::NewCallback([](EditorState* editor) {
-                          return editor->home_directory().read();
+  editor_type->AddField(L"home", vm::NewCallback([](EditorState& editor) {
+                          return editor.home_directory().read();
                         }));
 
   editor_type->AddField(
-      L"pop_repetitions", vm::NewCallback([](EditorState* editor) {
-        auto value = static_cast<int>(editor->repetitions().value_or(1));
-        editor->ResetRepetitions();
+      L"pop_repetitions", vm::NewCallback([](EditorState& editor) {
+        auto value = static_cast<int>(editor.repetitions().value_or(1));
+        editor.ResetRepetitions();
         return value;
       }));
 
   editor_type->AddField(
       L"ForEachActiveBuffer",
       Value::NewFunction(
-          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
+          {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::Function(
                {VMType::Void(),
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> input,
              Trampoline& trampoline) {
-            EditorState* editor =
-                VMTypeMapper<EditorState*>::get(input[0].value());
+            EditorState& editor =
+                VMTypeMapper<EditorState&>::get(input[0].value());
             NonNull<std::shared_ptr<PossibleError>> output;
             return editor
-                ->ForEachActiveBuffer([callback = input[1]->LockCallback(),
-                                       &trampoline,
-                                       output](OpenBuffer& buffer) {
+                .ForEachActiveBuffer([callback = input[1]->LockCallback(),
+                                      &trampoline, output](OpenBuffer& buffer) {
                   std::vector<NonNull<std::unique_ptr<Value>>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
@@ -283,20 +282,20 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(
       L"ForEachActiveBufferWithRepetitions",
       Value::NewFunction(
-          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
+          {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::Function(
                {VMType::Void(),
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> input,
              Trampoline& trampoline) {
-            EditorState* editor =
-                VMTypeMapper<EditorState*>::get(input[0].value());
+            EditorState& editor =
+                VMTypeMapper<EditorState&>::get(input[0].value());
             return editor
-                ->ForEachActiveBufferWithRepetitions([callback =
-                                                          input[1]
-                                                              ->LockCallback(),
-                                                      &trampoline](
-                                                         OpenBuffer& buffer) {
+                .ForEachActiveBufferWithRepetitions([callback =
+                                                         input[1]
+                                                             ->LockCallback(),
+                                                     &trampoline](
+                                                        OpenBuffer& buffer) {
                   std::vector<NonNull<std::unique_ptr<Value>>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
@@ -314,37 +313,36 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
           }));
 
   editor_type->AddField(L"ProcessInput",
-                        vm::NewCallback([](EditorState* editor, int c) {
-                          CHECK(editor != nullptr);
-                          editor->ProcessInput(c);
+                        vm::NewCallback([](EditorState& editor, int c) {
+                          editor.ProcessInput(c);
                         }));
 
   editor_type->AddField(
       L"ConnectTo",
       Value::NewFunction(
-          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
+          {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::String()},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args,
              Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
-            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
+            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState&>::vmtype);
             CHECK(args[1]->IsString());
-            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-            CHECK(editor != nullptr);
+            EditorState& editor =
+                VMTypeMapper<EditorState&>::get(args[0].value());
             auto target_path = Path::FromString(args[1]->str);
             if (target_path.IsError()) {
-              editor->status().SetWarningText(L"ConnectTo error: " +
-                                              target_path.error().description);
+              editor.status().SetWarningText(L"ConnectTo error: " +
+                                             target_path.error().description);
               return futures::Past(target_path.error());
             }
-            OpenServerBuffer(*editor, target_path.value());
+            OpenServerBuffer(editor, target_path.value());
             return futures::Past(EvaluationOutput::Return(Value::NewVoid()));
           }));
 
   editor_type->AddField(
       L"WaitForClose",
       Value::NewFunction(
-          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype,
+          {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::ObjectType(L"SetString")},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2u);
@@ -375,66 +373,64 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
           }));
 
   editor_type->AddField(L"SendExitTo",
-                        vm::NewCallback([](EditorState*, wstring args) {
+                        vm::NewCallback([](EditorState&, wstring args) {
                           int fd = open(ToByteString(args).c_str(), O_WRONLY);
                           string command = "editor.Exit(0);\n";
                           write(fd, command.c_str(), command.size());
                           close(fd);
                         }));
 
-  editor_type->AddField(L"Exit", vm::NewCallback([](EditorState*, int status) {
+  editor_type->AddField(L"Exit", vm::NewCallback([](EditorState&, int status) {
                           LOG(INFO) << "Exit: " << status;
                           exit(status);
                         }));
 
   editor_type->AddField(L"SetStatus",
-                        vm::NewCallback([](EditorState* editor, wstring s) {
-                          editor->status_.SetInformationText(s);
+                        vm::NewCallback([](EditorState& editor, wstring s) {
+                          editor.status_.SetInformationText(s);
                         }));
 
   editor_type->AddField(L"PromptAndOpenFile",
-                        vm::NewCallback([](EditorState* editor) {
-                          CHECK(editor != nullptr);
-                          NewOpenFileCommand(*editor)->ProcessInput(0);
+                        vm::NewCallback([](EditorState& editor) {
+                          NewOpenFileCommand(editor)->ProcessInput(0);
                         }));
 
   editor_type->AddField(L"set_screen_needs_hard_redraw",
-                        vm::NewCallback([](EditorState* editor, bool value) {
-                          editor->set_screen_needs_hard_redraw(value);
+                        vm::NewCallback([](EditorState& editor, bool value) {
+                          editor.set_screen_needs_hard_redraw(value);
                         }));
 
   editor_type->AddField(
       L"set_exit_value",
-      vm::NewCallback([](EditorState* editor, int exit_value) {
-        editor->exit_value_ = exit_value;
+      vm::NewCallback([](EditorState& editor, int exit_value) {
+        editor.exit_value_ = exit_value;
       }));
 
   editor_type->AddField(
       L"ForkCommand",
-      vm::NewCallback([](EditorState* editor, ForkCommandOptions* options) {
-        CHECK(editor != nullptr);
-        return std::move(ForkCommand(*editor, *options).get_shared());
+      vm::NewCallback([](EditorState& editor, ForkCommandOptions* options) {
+        return std::move(ForkCommand(editor, *options).get_shared());
       }));
 
   editor_type->AddField(
-      L"repetitions", vm::NewCallback([](EditorState* editor) {
+      L"repetitions", vm::NewCallback([](EditorState& editor) {
         // TODO: Somehow expose the optional to the VM.
-        return static_cast<int>(editor->repetitions().value_or(1));
+        return static_cast<int>(editor.repetitions().value_or(1));
       }));
 
   editor_type->AddField(L"set_repetitions",
-                        vm::NewCallback([](EditorState* editor, int times) {
-                          editor->set_repetitions(times);
+                        vm::NewCallback([](EditorState& editor, int times) {
+                          editor.set_repetitions(times);
                         }));
 
   editor_type->AddField(
       L"OpenFile",
       Value::NewFunction(
-          {VMType::ObjectType(L"Buffer"), VMTypeMapper<EditorState*>::vmtype,
+          {VMType::ObjectType(L"Buffer"), VMTypeMapper<EditorState&>::vmtype,
            VMType::String(), VMType::Bool()},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
-            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
+            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState&>::vmtype);
             auto editor_state =
                 static_cast<EditorState*>(args[0]->user_value.get());
             CHECK(args[1]->IsString());
@@ -457,11 +453,11 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(
       L"AddBinding",
       Value::NewFunction(
-          {VMType::Void(), VMTypeMapper<EditorState*>::vmtype, VMType::String(),
+          {VMType::Void(), VMTypeMapper<EditorState&>::vmtype, VMType::String(),
            VMType::String(), VMType::Function({VMType::Void()})},
           [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), 4u);
-            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState*>::vmtype);
+            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState&>::vmtype);
             CHECK(args[1]->IsString());
             CHECK(args[2]->IsString());
             EditorState* editor =
