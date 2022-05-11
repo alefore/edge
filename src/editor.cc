@@ -79,14 +79,6 @@ using language::ValueOrError;
 
 namespace gc = language::gc;
 
-// TODO(easy, 2022-05-10): Get rid of these declarations.
-using std::make_pair;
-using std::string;
-using std::stringstream;
-using std::to_string;
-using std::vector;
-using std::wstring;
-
 template <typename MethodReturnType>
 void RegisterBufferMethod(ObjectType& editor_type, const wstring& name,
                           MethodReturnType (OpenBuffer::*method)(void)) {
