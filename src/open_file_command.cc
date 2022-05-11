@@ -35,9 +35,6 @@ futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
 }
 
 // Returns the buffer to show for context, or nullptr.
-//
-// TODO(easy, 2022-05-01): Change PredictResults to make predictions_buffer
-// non-null.
 futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
     EditorState& editor, const PredictResults& results,
     const LazyString& line) {
@@ -66,7 +63,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
     }
     LOG(INFO) << "Setting context: "
               << results.predictions_buffer->Read(buffer_variables::name);
-    return results.predictions_buffer;
+    return results.predictions_buffer.get_shared();
   });
 }
 

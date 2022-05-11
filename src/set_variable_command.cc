@@ -218,9 +218,10 @@ NonNull<unique_ptr<Command>> NewSetVariableCommand(EditorState& editor_state) {
                           .abort_notification = std::move(abort_notification)})
                   .Transform([line](std::optional<PredictResults> results) {
                     return ColorizePromptOptions{
-                        .context = results.has_value()
-                                       ? results->predictions_buffer
-                                       : nullptr};
+                        .context =
+                            results.has_value()
+                                ? results->predictions_buffer.get_shared()
+                                : nullptr};
                   });
             },
             .handler =

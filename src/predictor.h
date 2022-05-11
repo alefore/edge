@@ -88,18 +88,18 @@ struct PredictResults {
   std::optional<wstring> common_prefix;
 
   // The buffer holding all the predictions.
-  std::shared_ptr<OpenBuffer> predictions_buffer;
+  language::NonNull<std::shared_ptr<OpenBuffer>> predictions_buffer;
 
   int matches = 0;
 
   // The size of the longest prefix in the input that matched at least one item.
   // Typically, when the input matches at least one item, this will be the size
   // of the input.
-  ColumnNumberDelta longest_prefix;
+  ColumnNumberDelta longest_prefix = {};
   // The size of the longest prefix in the input that matched a directory and
   // that is shorter than the entire input (i.e., if the input is `foo/bar` and
   // that directory exists, the longest directory will be `foo`).
-  ColumnNumberDelta longest_directory_match;
+  ColumnNumberDelta longest_directory_match = {};
 
   // Did the input match a file exactly?
   bool found_exact_match = false;

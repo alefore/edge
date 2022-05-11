@@ -78,7 +78,6 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   wstring common_prefix =
       predictions_buffer.contents().front()->contents()->ToString();
-  PredictResults predict_results;
   if (predictions_buffer.contents().EveryLine(
           [&common_prefix](LineNumber, const Line& line) {
             if (line.empty()) {
@@ -106,8 +105,12 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
             }
             return true;
           })) {
-    predict_results.common_prefix = common_prefix;
   }
+
+  PredictResults predict_results{
+      .common_prefix = common_prefix,
+      .predictions_buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
+          predictions_buffer.shared_from_this())};
 
   if (auto value = predictions_buffer.environment().value()->Lookup(
           Environment::Namespace(), kLongestPrefixEnvironmentVariable,
@@ -136,7 +139,6 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
   }
 
   predict_results.matches = predictions_buffer.lines_size().line_delta - 1;
-  predict_results.predictions_buffer = predictions_buffer.shared_from_this();
   return predict_results;
 }
 
