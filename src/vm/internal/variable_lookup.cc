@@ -34,8 +34,6 @@ class VariableLookup : public Expression {
       Trampoline& trampoline, const VMType& type) override {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
-    // TODO(easy, 2022-05-10): Get rid of this check.
-    CHECK(trampoline.environment().value().value() != nullptr);
     return futures::Past(VisitPointer(
         trampoline.environment().value()->Lookup(symbol_namespace_, symbol_,
                                                  type),

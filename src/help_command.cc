@@ -181,7 +181,6 @@ class HelpCommand : public Command {
     StartSection(L"## Environment", output);
 
     const gc::Root<Environment> environment = original_buffer.environment();
-    CHECK(environment.value().value() != nullptr);
 
     StartSection(L"### Types & methods", output);
 

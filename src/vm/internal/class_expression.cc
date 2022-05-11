@@ -26,7 +26,7 @@ struct Instance {
 void StartClassDeclaration(Compilation* compilation, const std::wstring& name) {
   compilation->current_class.push_back(VMType::ObjectType(name));
   compilation->environment = compilation->pool.NewRoot<Environment>(
-      std::make_unique<Environment>(compilation->environment.value()));
+      MakeNonNullUnique<Environment>(compilation->environment.value()));
 }
 
 namespace {
@@ -120,7 +120,7 @@ void FinishClassDeclaration(
        values](std::vector<NonNull<std::unique_ptr<Value>>>,
                Trampoline& trampoline) {
         gc::Root<Environment> instance_environment =
-            trampoline.pool().NewRoot(std::make_unique<Environment>(
+            trampoline.pool().NewRoot(MakeNonNullUnique<Environment>(
                 class_environment.value()->parent_environment()));
         auto original_environment = trampoline.environment();
         trampoline.SetEnvironment(instance_environment);

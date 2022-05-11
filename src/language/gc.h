@@ -22,7 +22,7 @@ class Root;
 class Pool {
  public:
   template <typename T>
-  Root<T> NewRoot(std::unique_ptr<T> value) {
+  Root<T> NewRoot(language::NonNull<std::unique_ptr<T>> value) {
     return Root<T>(*this, std::move(value));
   }
 
@@ -83,9 +83,13 @@ struct ControlFrame {
 };
 
 // A mutable pointer with shared ownership of a managed object. Behaves very
-// much like `std::shared_ptr<T>`: When the number of references drops to 0, the
+// much like `std::shared_ptr<T>`: when the number of references drops to 0, the
 // object is reclaimed. The object will also be reclaimed by Pool::Reclaim when
 // it's not reachable from a root.
+//
+// One notable difference with `std::shared_ptr` is that we deliberately don't
+// support null ptr. If a customer needs some "ocassionally null" pointers, they
+// can wrap `Ptr` in `std::optional` instead (e.g., `std::optional<Ptr<T>>`).
 template <typename T>
 class Ptr {
  public:
@@ -109,7 +113,7 @@ class Ptr {
   Pool& pool() const { return control_frame_->pool(); }
 
   T* operator->() const { return value_.lock().get(); }
-  T* value() const { return value_.lock().get(); }
+  T& value() const { return language::Pointer(value_.lock()).Reference(); }
 
   // This is only exposed in order to allow implementation of `Expand`
   // functions.
@@ -118,18 +122,14 @@ class Ptr {
   }
 
  private:
-  static Ptr<T> New(Pool& pool, std::unique_ptr<T> value) {
-    std::shared_ptr<T> shared_value = std::move(value);
+  static Ptr<T> New(Pool& pool, language::NonNull<std::unique_ptr<T>> value) {
+    language::NonNull<std::shared_ptr<T>> shared_value = std::move(value);
     std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
         const T&);
-    return Ptr(shared_value,
+    return Ptr(shared_value.get_shared(),
                language::MakeNonNullShared<ControlFrame>(
-                   ControlFrame::ConstructorAccessKey(), pool, [shared_value] {
-                     return shared_value == nullptr
-                                ? std::vector<language::NonNull<
-                                      std::shared_ptr<ControlFrame>>>()
-                                : Expand(*shared_value);
-                   }));
+                   ControlFrame::ConstructorAccessKey(), pool,
+                   [shared_value] { return Expand(*shared_value); }));
   }
 
   friend class Root<T>;
@@ -183,7 +183,7 @@ class Root {
   friend class Pool;
   friend class Ptr<T>;
 
-  Root(Pool& pool, std::unique_ptr<T> value)
+  Root(Pool& pool, language::NonNull<std::unique_ptr<T>> value)
       : Root(Ptr<T>::New(pool, std::move(value))) {}
 
   Root(const Ptr<T>& ptr)

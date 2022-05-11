@@ -350,7 +350,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
   NonNull<std::unique_ptr<Expression>> expr =
       NewFunctionCall(NewConstantExpression(MakeNonNullUnique<Value>(func)),
                       std::move(args_expr));
-  return Evaluate(*expr, pool, pool.NewRoot(std::make_unique<Environment>()),
+  return Evaluate(*expr, pool, pool.NewRoot(MakeNonNullUnique<Environment>()),
                   yield_callback);
 }
 

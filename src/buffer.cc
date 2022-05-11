@@ -590,7 +590,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
       line_column_variables_(
           buffer_variables::LineColumnStruct()->NewInstance()),
-      environment_(editor().gc_pool().NewRoot(std::make_unique<Environment>(
+      environment_(editor().gc_pool().NewRoot(MakeNonNullUnique<Environment>(
           options_.editor.environment().value()))),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
@@ -1345,7 +1345,7 @@ ValueOrError<
     std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
 OpenBuffer::CompileString(const std::wstring& code) {
   gc::Root<Environment> sub_environment = editor().gc_pool().NewRoot(
-      std::make_unique<Environment>(environment_.value()));
+      MakeNonNullUnique<Environment>(environment_.value()));
   auto compilation_result = afc::vm::CompileString(code, sub_environment);
   if (compilation_result.IsError()) return compilation_result.error();
   return std::make_pair(std::move(compilation_result.value()), sub_environment);

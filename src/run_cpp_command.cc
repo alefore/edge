@@ -70,6 +70,7 @@ struct ParsedCommand {
   std::vector<NonNull<std::unique_ptr<Expression>>> inputs;
 };
 
+// TODO(easy, 2022-05-11): Pass Environment by ref.
 ValueOrError<ParsedCommand> Parse(
     NonNull<std::shared_ptr<LazyString>> command, Environment* environment,
     NonNull<std::shared_ptr<LazyString>> function_name_prefix,
@@ -197,7 +198,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   gc::Root<Environment> environment =
       (buffer == nullptr ? editor.environment() : buffer->environment());
   if (auto parsed_command =
-          Parse(line, environment.value().value(), search_namespaces);
+          Parse(line, &environment.value().value(), search_namespaces);
       !parsed_command.IsError()) {
     output.tokens.push_back({.token = {.value = L"",
                                        .begin = ColumnNumber(0),
@@ -208,7 +209,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   using BufferMapper = vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>;
   futures::Future<ColorizePromptOptions> output_future;
   if (auto command =
-          Parse(line, environment.value().value(), NewLazyString(L"Preview"),
+          Parse(line, &environment.value().value(), NewLazyString(L"Preview"),
                 {BufferMapper::vmtype}, search_namespaces);
       buffer != nullptr && !command.IsError()) {
     Execute(buffer, std::move(command.value()))
@@ -241,7 +242,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<vm::Value>>> RunCppCommandShell(
   SearchNamespaces search_namespaces(*buffer);
   auto parsed_command =
       Parse(NewLazyString(std::move(command)),
-            buffer->environment().value().value(), search_namespaces);
+            &buffer->environment().value().value(), search_namespaces);
   if (parsed_command.IsError()) {
     if (!parsed_command.error().description.empty()) {
       buffer->status().SetWarningText(parsed_command.error().description);

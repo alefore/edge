@@ -33,10 +33,10 @@ const VMType VMTypeMapper<std::set<int>*>::vmtype =
 language::gc::Root<Environment> Environment::NewDefault(
     language::gc::Pool& pool) {
   gc::Root<Environment> environment =
-      pool.NewRoot(std::make_unique<Environment>());
-  RegisterStringType(environment.value().value());
-  RegisterNumberFunctions(environment.value().value());
-  RegisterTimeType(environment.value().value());
+      pool.NewRoot(MakeNonNullUnique<Environment>());
+  RegisterStringType(&environment.value().value());
+  RegisterNumberFunctions(&environment.value().value());
+  RegisterTimeType(&environment.value().value());
   auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool());
   bool_type->AddField(L"tostring",
                       NewCallback(std::function<wstring(bool)>([](bool v) {
@@ -66,8 +66,8 @@ language::gc::Root<Environment> Environment::NewDefault(
                             VMType::PurityType::kPure));
   environment.value()->DefineType(L"double", std::move(double_type));
 
-  VMTypeMapper<std::vector<int>*>::Export(environment.value().value());
-  VMTypeMapper<std::set<int>*>::Export(environment.value().value());
+  VMTypeMapper<std::vector<int>*>::Export(&environment.value().value());
+  VMTypeMapper<std::set<int>*>::Export(&environment.value().value());
   return environment;
 }
 
@@ -124,7 +124,7 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
   }
 
   gc::Root<Environment> namespace_env =
-      pool.NewRoot(std::make_unique<Environment>(parent.value()));
+      pool.NewRoot(MakeNonNullUnique<Environment>(parent.value()));
   auto [_, inserted] =
       parent.value()->namespaces_.insert({name, namespace_env.value()});
   CHECK(inserted);
@@ -133,8 +133,7 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
 
 /* static */ std::optional<gc::Root<Environment>> Environment::LookupNamespace(
     gc::Root<Environment> source, const Namespace& name) {
-  if (source.value().value() == nullptr) return std::nullopt;
-  std::optional<gc::Ptr<Environment>> output = source.value();
+  std::optional<gc::Ptr<Environment>> output = {source.value()};
   for (auto& n : name) {
     if (auto it = output.value()->namespaces_.find(n);
         it != output.value()->namespaces_.end()) {
@@ -190,7 +189,7 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
       environment = nullptr;
       break;
     }
-    environment = it->second.value();
+    environment = &it->second.value();
   }
   if (environment != nullptr) {
     if (auto it = environment->table_.find(symbol);
@@ -217,7 +216,7 @@ void Environment::CaseInsensitiveLookup(
       environment = nullptr;
       break;
     }
-    environment = it->second.value();
+    environment = &it->second.value();
   }
   if (environment != nullptr) {
     for (auto& item : environment->table_) {

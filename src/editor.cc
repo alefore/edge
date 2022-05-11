@@ -187,7 +187,7 @@ void RegisterVariableFields(
 
 gc::Root<Environment> EditorState::BuildEditorEnvironment() {
   gc::Root<Environment> environment =
-      gc_pool_.NewRoot(std::make_unique<Environment>(
+      gc_pool_.NewRoot(MakeNonNullUnique<Environment>(
           afc::vm::Environment::NewDefault(gc_pool_).value()));
 
   environment.value()->Define(L"terminal_backspace",
@@ -503,14 +503,14 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
       L"editor",
       Value::NewObject(L"Editor", shared_ptr<void>(this, [](void*) {})));
 
-  OpenBuffer::RegisterBufferType(*this, environment.value().value());
+  OpenBuffer::RegisterBufferType(*this, &environment.value().value());
 
-  InitShapes(environment.value().value());
-  RegisterTransformations(this, environment.value().value());
-  Modifiers::Register(environment.value().value());
-  ForkCommandOptions::Register(environment.value().value());
-  LineColumn::Register(environment.value().value());
-  Range::Register(environment.value().value());
+  InitShapes(&environment.value().value());
+  RegisterTransformations(this, &environment.value().value());
+  Modifiers::Register(&environment.value().value());
+  ForkCommandOptions::Register(&environment.value().value());
+  LineColumn::Register(&environment.value().value());
+  Range::Register(&environment.value().value());
   return environment;
 }
 

@@ -81,8 +81,6 @@ class LambdaExpression : public Expression {
 
   NonNull<std::unique_ptr<Value>> BuildValue(
       gc::Root<Environment> parent_environment) {
-    // TODO(easy, 2022-05-10): Get rid of check below? Use types?
-    CHECK(parent_environment.value().value() != nullptr);
     return Value::NewFunction(
         type_.type_arguments,
         [body = body_, parent_environment, argument_names = argument_names_,
@@ -91,7 +89,7 @@ class LambdaExpression : public Expression {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
           gc::Root<Environment> environment = trampoline.pool().NewRoot(
-              std::make_unique<Environment>(parent_environment.value()));
+              MakeNonNullUnique<Environment>(parent_environment.value()));
           for (size_t i = 0; i < args.size(); i++) {
             environment.value()->Define(argument_names->at(i),
                                         std::move(args.at(i)));
@@ -151,7 +149,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
         name.value(), MakeNonNullUnique<Value>(output->type));
   }
   compilation->environment = compilation->pool.NewRoot(
-      std::make_unique<Environment>(compilation->environment.value()));
+      MakeNonNullUnique<Environment>(compilation->environment.value()));
   for (pair<VMType, wstring> arg : *args) {
     compilation->environment.value()->Define(
         arg.second, MakeNonNullUnique<Value>(arg.first));
@@ -164,7 +162,7 @@ gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
           compilation.environment.value()->parent_environment();
       parent_environment.has_value())
     return parent_environment->ToRoot();
-  return compilation.pool.NewRoot(std::make_unique<Environment>());
+  return compilation.pool.NewRoot(MakeNonNullUnique<Environment>());
 }
 
 std::unique_ptr<Value> UserFunction::BuildValue(
