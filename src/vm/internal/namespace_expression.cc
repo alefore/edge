@@ -1,4 +1,4 @@
-#include "namespace_expression.h"
+#include "src/vm/internal/namespace_expression.h"
 
 #include <glog/logging.h>
 
@@ -60,22 +60,20 @@ class NamespaceExpression : public Expression {
 
 }  // namespace
 
-void StartNamespaceDeclaration(Compilation* compilation,
+void StartNamespaceDeclaration(Compilation& compilation,
                                const std::wstring& name) {
-  // TODO(easy, 2022-05-10): Get rid of this check.
-  CHECK(compilation != nullptr);
-  compilation->current_namespace.push_back(name);
-  compilation->environment = Environment::NewNamespace(
-      compilation->pool, std::move(compilation->environment), name);
+  compilation.current_namespace.push_back(name);
+  compilation.environment = Environment::NewNamespace(
+      compilation.pool, std::move(compilation.environment), name);
 }
 
 std::unique_ptr<Expression> NewNamespaceExpression(
-    Compilation* compilation, std::unique_ptr<Expression> body) {
-  auto current_namespace = compilation->current_namespace;
-  compilation->current_namespace.pop_back();
-  CHECK(compilation->environment.value()->parent_environment().has_value());
-  compilation->environment =
-      compilation->environment.value()->parent_environment()->ToRoot();
+    Compilation& compilation, std::unique_ptr<Expression> body) {
+  auto current_namespace = compilation.current_namespace;
+  compilation.current_namespace.pop_back();
+  CHECK(compilation.environment.value()->parent_environment().has_value());
+  compilation.environment =
+      compilation.environment.value()->parent_environment()->ToRoot();
   return VisitPointer(
       std::move(body),
       [&](NonNull<std::unique_ptr<Expression>> body)

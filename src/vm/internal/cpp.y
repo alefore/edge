@@ -74,12 +74,12 @@ statement(A) ::= assignment_statement(B) SEMICOLON . {
 statement(OUT) ::= namespace_declaration
     LBRACKET statement_list(A) RBRACKET. {
   OUT = NewNamespaceExpression(
-      compilation, std::unique_ptr<Expression>(A)).release();
+      *compilation, std::unique_ptr<Expression>(A)).release();
   A = nullptr;
 }
 
 namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
-  StartNamespaceDeclaration(compilation, NAME->str);
+  StartNamespaceDeclaration(*compilation, NAME->str);
 }
 
 statement(OUT) ::= class_declaration
