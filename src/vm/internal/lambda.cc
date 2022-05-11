@@ -91,7 +91,7 @@ class LambdaExpression : public Expression {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
           gc::Root<Environment> environment = trampoline.pool().NewRoot(
-              std::make_unique<Environment>(parent_environment));
+              std::make_unique<Environment>(parent_environment.value()));
           for (size_t i = 0; i < args.size(); i++) {
             environment.value()->Define(argument_names->at(i),
                                         std::move(args.at(i)));
@@ -151,7 +151,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
         name.value(), MakeNonNullUnique<Value>(output->type));
   }
   compilation->environment = compilation->pool.NewRoot(
-      std::make_unique<Environment>(compilation->environment));
+      std::make_unique<Environment>(compilation->environment.value()));
   for (pair<VMType, wstring> arg : *args) {
     compilation->environment.value()->Define(
         arg.second, MakeNonNullUnique<Value>(arg.first));
@@ -165,7 +165,7 @@ std::unique_ptr<Value> UserFunction::BuildValue(
   gc::Root<Environment> environment = compilation->environment;
   compilation->environment =
       compilation->environment.value()->parent_environment().ToRoot();
-  auto expression = LambdaExpression::New(
+  std::unique_ptr<Value> expression = LambdaExpression::New(
       std::move(type), std::move(argument_names), std::move(body), error);
   return expression == nullptr
              ? nullptr

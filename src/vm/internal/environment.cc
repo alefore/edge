@@ -107,8 +107,8 @@ const VMType* Environment::LookupType(const wstring& symbol) {
 
 Environment::Environment() = default;
 
-Environment::Environment(gc::Root<Environment> parent_environment)
-    : parent_environment_(std::move(parent_environment.value())) {}
+Environment::Environment(gc::Ptr<Environment> parent_environment)
+    : parent_environment_(std::move(parent_environment)) {}
 
 /* static */ gc::Root<Environment> Environment::NewNamespace(
     gc::Pool& pool, gc::Root<Environment> parent, std::wstring name) {
@@ -118,13 +118,13 @@ Environment::Environment(gc::Root<Environment> parent_environment)
   }
   if (auto result = parent.value()->namespaces_.find(name);
       result != parent.value()->namespaces_.end()) {
-    return result->second;
+    return result->second.ToRoot();
   }
 
   gc::Root<Environment> namespace_env =
-      pool.NewRoot(std::make_unique<Environment>(parent));
+      pool.NewRoot(std::make_unique<Environment>(parent.value()));
   auto [_, inserted] =
-      parent.value()->namespaces_.insert({name, namespace_env});
+      parent.value()->namespaces_.insert({name, namespace_env.value()});
   CHECK(inserted);
   return namespace_env;
 }
@@ -132,18 +132,18 @@ Environment::Environment(gc::Root<Environment> parent_environment)
 /* static */ gc::Root<Environment> Environment::LookupNamespace(
     gc::Root<Environment> source, const Namespace& name) {
   if (source.value().value() == nullptr) return gc::Ptr<Environment>().ToRoot();
-  gc::Root<Environment> output = source;
+  gc::Ptr<Environment> output = source.value();
   for (auto& n : name) {
     if (auto it = output.value()->namespaces_.find(n);
         it != output.value()->namespaces_.end()) {
       output = it->second;
       continue;
     }
-    output = gc::Ptr<Environment>().ToRoot();
+    output = gc::Ptr<Environment>();
     break;
   }
-  if (output.value().value() != nullptr) {
-    return output;
+  if (output.value() != nullptr) {
+    return output.ToRoot();
   }
   return LookupNamespace(source.value()->parent_environment().ToRoot(), name);
 }
@@ -184,7 +184,7 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
       environment = nullptr;
       break;
     }
-    environment = it->second.value().value();
+    environment = it->second.value();
   }
   if (environment != nullptr) {
     if (auto it = environment->table_.find(symbol);
@@ -211,7 +211,7 @@ void Environment::CaseInsensitiveLookup(
       environment = nullptr;
       break;
     }
-    environment = it->second.value().value();
+    environment = it->second.value();
   }
   if (environment != nullptr) {
     for (auto& item : environment->table_) {

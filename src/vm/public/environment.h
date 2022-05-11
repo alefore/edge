@@ -24,7 +24,7 @@ class Environment {
   using Namespace = std::vector<std::wstring>;
 
   Environment();
-  explicit Environment(language::gc::Root<Environment> parent_environment);
+  explicit Environment(language::gc::Ptr<Environment> parent_environment);
 
   // Creates or returns an existing namespace inside parent with a given name.
   static language::gc::Root<Environment> NewNamespace(
@@ -78,7 +78,7 @@ class Environment {
                              VMType, language::NonNull<std::unique_ptr<Value>>>>
       table_;
 
-  std::map<std::wstring, language::gc::Root<Environment>> namespaces_;
+  std::map<std::wstring, language::gc::Ptr<Environment>> namespaces_;
 
   // TODO: Consider whether the parent environment should itself be const?
   const language::gc::Ptr<Environment> parent_environment_;

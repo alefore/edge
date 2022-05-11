@@ -188,7 +188,7 @@ void RegisterVariableFields(
 gc::Root<Environment> EditorState::BuildEditorEnvironment() {
   gc::Root<Environment> environment =
       gc_pool_.NewRoot(std::make_unique<Environment>(
-          afc::vm::Environment::NewDefault(gc_pool_)));
+          afc::vm::Environment::NewDefault(gc_pool_).value()));
 
   environment.value()->Define(L"terminal_backspace",
                               Value::NewString({Terminal::BACKSPACE}));
