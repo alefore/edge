@@ -1354,7 +1354,7 @@ OpenBuffer::CompileString(const std::wstring& code) {
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>>
 OpenBuffer::EvaluateExpression(Expression& expr,
                                gc::Root<Environment> environment) {
-  return Evaluate(expr, environment,
+  return Evaluate(expr, editor().gc_pool(), environment,
                   [work_queue = work_queue(), shared_this = shared_from_this()](
                       std::function<void()> callback) {
                     work_queue->Schedule(std::move(callback));
@@ -1390,7 +1390,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> OpenBuffer::EvaluateFile(
   LOG(INFO) << Read(buffer_variables::path) << " ("
             << Read(buffer_variables::name) << "): Evaluating file: " << path;
   return Evaluate(
-      *expression.value(), environment_,
+      *expression.value(), editor().gc_pool(), environment_,
       [path, work_queue = work_queue()](std::function<void()> resume) {
         LOG(INFO) << "Evaluation of file yields: " << path;
         work_queue->Schedule(std::move(resume));
@@ -1856,7 +1856,7 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
                CHECK(t != nullptr);
                std::vector<NonNull<Value::Ptr>> args;
                args.push_back(Value::NewString(std::move(*input_shared)));
-               return Call(*t, std::move(args),
+               return Call(editor().gc_pool(), *t, std::move(args),
                            [work_queue =
                                 work_queue()](std::function<void()> callback) {
                              work_queue->Schedule(std::move(callback));

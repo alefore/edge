@@ -340,7 +340,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 }
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
-    const Value& func, std::vector<NonNull<Value::Ptr>> args,
+    gc::Pool& pool, const Value& func, std::vector<NonNull<Value::Ptr>> args,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK_EQ(func.type.type, VMType::FUNCTION);
   std::vector<NonNull<std::unique_ptr<Expression>>> args_expr;
@@ -350,7 +350,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
   NonNull<std::unique_ptr<Expression>> expr =
       NewFunctionCall(NewConstantExpression(MakeNonNullUnique<Value>(func)),
                       std::move(args_expr));
-  return Evaluate(*expr, gc::Ptr<Environment>().ToRoot(), yield_callback);
+  return Evaluate(*expr, pool, gc::Ptr<Environment>().ToRoot(), yield_callback);
 }
 
 }  // namespace afc::vm

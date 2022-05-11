@@ -562,7 +562,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
     }
     LOG(INFO) << "Evaluating file: " << path;
     return Evaluate(
-               *expression.value(), environment_,
+               *expression.value(), gc_pool_, environment_,
                [path, work_queue = work_queue()](std::function<void()> resume) {
                  LOG(INFO) << "Evaluation of file yields: " << path;
                  work_queue->Schedule(std::move(resume));

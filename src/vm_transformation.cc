@@ -5,6 +5,8 @@
 
 #include "src/buffer.h"
 #include "src/char_buffer.h"
+#include "src/editor.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
@@ -21,6 +23,8 @@
 
 namespace afc {
 using language::NonNull;
+
+namespace gc = language::gc;
 namespace vm {
 const VMType VMTypeMapper<editor::transformation::Variant*>::vmtype =
     VMType::ObjectType(L"Transformation");
@@ -49,8 +53,9 @@ using language::Success;
 
 class FunctionTransformation : public CompositeTransformation {
  public:
-  FunctionTransformation(NonNull<std::unique_ptr<vm::Value>> function)
-      : function_(std::move(function)) {}
+  FunctionTransformation(gc::Pool& pool,
+                         NonNull<std::unique_ptr<vm::Value>> function)
+      : pool_(pool), function_(std::move(function)) {}
 
   std::wstring Serialize() const override {
     return L"FunctionTransformation()";
@@ -61,7 +66,7 @@ class FunctionTransformation : public CompositeTransformation {
     args.emplace_back(
         VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::
             New(std::make_shared<Input>(input)));
-    return vm::Call(*function_, std::move(args),
+    return vm::Call(pool_, *function_, std::move(args),
                     [work_queue = input.buffer.work_queue()](
                         std::function<void()> callback) {
                       work_queue->Schedule(std::move(callback));
@@ -74,6 +79,7 @@ class FunctionTransformation : public CompositeTransformation {
   }
 
  private:
+  gc::Pool& pool_;
   const NonNull<std::unique_ptr<vm::Value>> function_;
 };
 }  // namespace
@@ -91,12 +97,12 @@ void RegisterTransformations(EditorState* editor,
                     std::shared_ptr<CompositeTransformation::Output>>::vmtype,
                 VMTypeMapper<
                     std::shared_ptr<CompositeTransformation::Input>>::vmtype})},
-          [](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
+          [editor](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
             CHECK_EQ(args.size(), 1ul);
             return VMTypeMapper<editor::transformation::Variant*>::New(
                 std::make_unique<transformation::Variant>(
                     MakeNonNullUnique<FunctionTransformation>(
-                        std::move(args[0])))
+                        editor->gc_pool(), std::move(args[0])))
                     .release());
           }));
   transformation::RegisterInsert(editor, environment);

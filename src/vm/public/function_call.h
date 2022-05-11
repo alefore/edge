@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "src/futures/futures.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "value.h"
 
@@ -26,7 +27,8 @@ std::unique_ptr<Expression> NewFunctionCall(
     std::vector<language::NonNull<std::unique_ptr<Expression>>> args);
 
 futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Call(
-    const Value& func, std::vector<language::NonNull<Value::Ptr>> args,
+    language::gc::Pool& pool, const Value& func,
+    std::vector<language::NonNull<Value::Ptr>> args,
     std::function<void(std::function<void()>)> yield_callback);
 
 std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,

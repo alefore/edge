@@ -147,7 +147,8 @@ CompileString(const std::wstring& str,
 // `expr` can be deleted as soon as this returns (even before a value is given
 // to the returned future).
 futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Evaluate(
-    Expression& expr, language::gc::Root<Environment> environment,
+    Expression& expr, language::gc::Pool& pool,
+    language::gc::Root<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback);
 
 }  // namespace vm

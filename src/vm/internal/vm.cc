@@ -652,10 +652,8 @@ bool Expression::SupportsType(const VMType& type) {
 }
 
 futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
-    Expression& expr, gc::Root<Environment> environment,
+    Expression& expr, gc::Pool& pool, gc::Root<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
-  // TODO(easy, 2022-05-10): Pass the pool explicitly.
-  gc::Pool& pool = environment.pool();
   NonNull<std::shared_ptr<Trampoline>> trampoline =
       MakeNonNullShared<Trampoline>(
           Trampoline::Options{.pool = pool,

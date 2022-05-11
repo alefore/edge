@@ -99,7 +99,7 @@ void MapModeCommands::Add(wstring name, wstring description,
               [&editor_state = editor_state_, environment](
                   NonNull<std::unique_ptr<vm::Expression>>& expression) {
                 LOG(INFO) << "Evaluating expression from Value::Ptr...";
-                Evaluate(*expression, environment,
+                Evaluate(*expression, environment.pool(), environment,
                          [&editor_state](std::function<void()> callback) {
                            editor_state.work_queue()->Schedule(callback);
                          });
