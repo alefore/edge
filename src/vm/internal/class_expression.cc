@@ -104,12 +104,12 @@ void FinishClassDeclaration(
 
   std::map<std::wstring, Value> values;
   class_environment.value()->ForEachNonRecursive(
-      [&values, &class_object_type, class_type, &pool](std::wstring name,
-                                                       Value& value) {
+      [&values, &class_object_type, class_type, &pool](
+          std::wstring name, const gc::Ptr<Value>& value) {
         class_object_type->AddField(
-            name, BuildGetter(pool, class_type, value.type, name));
+            name, BuildGetter(pool, class_type, value->type, name));
         class_object_type->AddField(
-            L"set_" + name, BuildSetter(pool, class_type, value.type, name));
+            L"set_" + name, BuildSetter(pool, class_type, value->type, name));
       });
   compilation->environment.value()->DefineType(class_type.object_type,
                                                std::move(class_object_type));

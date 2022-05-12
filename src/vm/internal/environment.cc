@@ -199,7 +199,7 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
     if (auto it = environment->table_.find(symbol);
         it != environment->table_.end()) {
       for (auto& entry : it->second) {
-        output->push_back(entry.second);
+        output->push_back(entry.second.ToRoot());
       }
     }
   }
@@ -225,7 +225,7 @@ void Environment::CaseInsensitiveLookup(
     for (auto& item : environment->table_) {
       if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
         for (auto& entry : item.second) {
-          output->push_back(entry.second);
+          output->push_back(entry.second.ToRoot());
         }
       }
     }
@@ -238,7 +238,8 @@ void Environment::CaseInsensitiveLookup(
 }
 
 void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
-  table_[symbol].insert_or_assign(value.value()->type, std::move(value));
+  VMType type = value.value()->type;
+  table_[symbol].insert_or_assign(type, std::move(value.value()));
 }
 
 void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
@@ -253,7 +254,7 @@ void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
     (*parent_environment_)->Assign(symbol, std::move(value));
     return;
   }
-  it->second.insert_or_assign(value.value()->type, std::move(value));
+  it->second.insert_or_assign(value.value()->type, value.value());
 }
 
 void Environment::Remove(const wstring& symbol, VMType type) {
@@ -275,7 +276,7 @@ void Environment::ForEachType(
 }
 
 void Environment::ForEach(
-    std::function<void(const wstring&, Value&)> callback) {
+    std::function<void(const wstring&, const gc::Ptr<Value>&)> callback) const {
   if (parent_environment_.has_value()) {
     (*parent_environment_)->ForEach(callback);
   }
@@ -283,11 +284,12 @@ void Environment::ForEach(
 }
 
 void Environment::ForEachNonRecursive(
-    std::function<void(const std::wstring&, Value&)> callback) {
-  for (auto& symbol_entry : table_) {
-    for (const std::pair<const VMType, gc::Root<Value>>& type_entry :
+    std::function<void(const std::wstring&, const gc::Ptr<Value>&)> callback)
+    const {
+  for (const auto& symbol_entry : table_) {
+    for (const std::pair<const VMType, gc::Ptr<Value>>& type_entry :
          symbol_entry.second) {
-      callback(symbol_entry.first, type_entry.second.value().value());
+      callback(symbol_entry.first, type_entry.second);
     }
   }
 }
@@ -300,6 +302,10 @@ std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
   if (environment.parent_environment().has_value()) {
     output.push_back(environment.parent_environment()->control_frame());
   }
+  environment.ForEachNonRecursive(
+      [&output](const std::wstring&, const gc::Ptr<vm::Value>& value) {
+        output.push_back(value.control_frame());
+      });
   return output;
 }
 }  // namespace afc::language::gc

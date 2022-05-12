@@ -67,15 +67,18 @@ class Environment {
   void Remove(const wstring& symbol, VMType type);
 
   void ForEachType(std::function<void(const wstring&, ObjectType&)> callback);
-  void ForEach(std::function<void(const wstring&, Value&)> callback);
+  void ForEach(
+      std::function<void(const wstring&, const language::gc::Ptr<Value>&)>
+          callback) const;
   void ForEachNonRecursive(
-      std::function<void(const wstring&, Value&)> callback);
+      std::function<void(const wstring&, const language::gc::Ptr<Value>&)>
+          callback) const;
 
  private:
   std::map<std::wstring, language::NonNull<std::unique_ptr<ObjectType>>>
       object_types_;
 
-  std::map<std::wstring, std::unordered_map<VMType, language::gc::Root<Value>>>
+  std::map<std::wstring, std::unordered_map<VMType, language::gc::Ptr<Value>>>
       table_;
 
   std::map<std::wstring, language::gc::Ptr<Environment>> namespaces_;

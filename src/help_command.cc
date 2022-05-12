@@ -212,13 +212,14 @@ class HelpCommand : public Command {
         L"associated with your buffer, and thus available to extensions.");
     output.push_back(L"");
 
-    environment.value()->ForEach([&output](const wstring& name, Value& value) {
+    environment.value()->ForEach([&output](const wstring& name,
+                                           const gc::Ptr<Value>& value) {
       const static int kPaddingSize = 40;
       wstring padding(
           name.size() >= kPaddingSize ? 1 : kPaddingSize - name.size(), L' ');
 
       std::stringstream value_stream;
-      value_stream << value;
+      value_stream << value.value();
 
       output.push_back(MakeNonNullShared<Line>(StringAppend(
           NewLazyString(L"* `"), NewLazyString(name),
