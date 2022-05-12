@@ -18,7 +18,7 @@ class Noop : public CompositeTransformation {
         L"NoopTransformation",
         vm::Value::NewFunction(
             pool, {vm::VMType::Void()},
-            [&pool](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
+            [&pool](std::vector<gc::Root<vm::Value>> args) {
               CHECK(args.empty());
               return vm::VMTypeMapper<editor::transformation::Variant*>::New(
                   pool, std::make_unique<transformation::Variant>(

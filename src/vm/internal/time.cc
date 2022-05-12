@@ -36,7 +36,7 @@ struct VMTypeMapper<Time> {
     return *static_cast<Time*>(value.user_value.get());
   }
 
-  static NonNull<Value::Ptr> New(language::gc::Pool& pool, Time value) {
+  static gc::Root<Value> New(language::gc::Pool& pool, Time value) {
     return Value::NewObject(pool, vmtype.object_type,
                             shared_ptr<void>(new Time(value), [](void* v) {
                               delete static_cast<Time*>(v);
@@ -55,7 +55,7 @@ struct VMTypeMapper<Duration> {
     return *static_cast<Duration*>(value->user_value.get());
   }
 
-  static NonNull<Value::Ptr> New(language::gc::Pool& pool, Duration value) {
+  static gc::Root<Value> New(language::gc::Pool& pool, Duration value) {
     return Value::NewObject(pool, vmtype.object_type,
                             shared_ptr<void>(new Duration(value), [](void* v) {
                               delete static_cast<Time*>(v);
@@ -99,19 +99,20 @@ void RegisterTimeType(gc::Pool& pool, Environment* environment) {
       L"format",
       Value::NewFunction(
           pool, {VMType::String(), time_type->type(), VMType::String()},
-          [](std::vector<NonNull<Value::Ptr>> args, Trampoline& trampoline)
+          [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
-            CHECK(args[0]->IsObject());
+            CHECK(args[0].value()->IsObject());
             Time input =
-                language::Pointer(static_cast<Time*>(args[0]->user_value.get()))
+                language::Pointer(
+                    static_cast<Time*>(args[0].value()->user_value.get()))
                     .Reference();
-            CHECK(args[1]->IsString());
+            CHECK(args[1].value()->IsString());
             struct tm t;
             localtime_r(&(input.tv_sec), &t);
             char buffer[2048];
             if (strftime(buffer, sizeof(buffer),
-                         ToByteString(std::move(args[1]->str)).c_str(),
+                         ToByteString(std::move(args[1].value()->str)).c_str(),
                          &t) == 0) {
               return futures::Past(language::Error(L"strftime error"));
             }

@@ -48,6 +48,7 @@ using afc::language::FromByteString;
 using afc::language::NonNull;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+namespace gc = afc::language::gc;
 
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
 static std::unique_ptr<EditorState> global_editor_state;
@@ -262,14 +263,17 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
   }
   VLOG(5) << "Updating remote screens.";
   for (auto& buffer : *editor_state().buffers()) {
-    auto value = buffer.second->environment().value()->Lookup(
-        editor_state().gc_pool(), Environment::Namespace(), L"screen",
-        GetScreenVmType());
-    if (value->type.type != VMType::OBJECT_TYPE ||
-        value->type.object_type != L"Screen") {
+    std::optional<gc::Root<Value>> value =
+        buffer.second->environment().value()->Lookup(
+            editor_state().gc_pool(), Environment::Namespace(), L"screen",
+            GetScreenVmType());
+    if (!value.has_value() ||
+        value.value().value()->type.type != VMType::OBJECT_TYPE ||
+        value.value().value()->type.object_type != L"Screen") {
       continue;
     }
-    auto buffer_screen = static_cast<Screen*>(value->user_value.get());
+    auto buffer_screen =
+        static_cast<Screen*>(value.value().value()->user_value.get());
     if (buffer_screen == nullptr) {
       continue;
     }

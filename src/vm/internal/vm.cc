@@ -45,6 +45,7 @@ using std::to_wstring;
 namespace {
 using language::Error;
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
@@ -157,7 +158,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
   int token;
   while (compilation.errors.empty() && pos < str.size()) {
     VLOG(5) << L"Compiling from character: " << std::wstring(1, str.at(pos));
-    std::unique_ptr<Value> input;
+    std::optional<gc::Root<Value>> input;
     switch (str.at(pos)) {
       case '/':
         if (pos + 1 < str.size() && str.at(pos + 1) == '/') {
@@ -365,26 +366,23 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
             value *= pow(10, signal * ConsumeDecimal(str, &pos));
           }
           token = DOUBLE;
-          input =
-              std::move(Value::NewDouble(compilation.pool, value).get_unique());
+          input = Value::NewDouble(compilation.pool, value);
         } else {
           token = INTEGER;
-          input = std::move(
-              Value::NewInteger(compilation.pool, decimal).get_unique());
+          input = Value::NewInteger(compilation.pool, decimal);
         }
       } break;
 
       case '"': {
         token = STRING;
-        input = std::make_unique<Value>(VMType::VM_STRING);
+        input = Value::NewString(compilation.pool, L"");
         pos++;
-        input->str = L"";
         for (; pos < str.size(); pos++) {
           if (str.at(pos) == '"') {
             break;
           }
           if (str.at(pos) != '\\') {
-            input->str.push_back(str.at(pos));
+            input.value().value()->str.push_back(str.at(pos));
             ;
             continue;
           }
@@ -394,16 +392,16 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           }
           switch (str.at(pos)) {
             case 'n':
-              input->str.push_back('\n');
+              input.value().value()->str.push_back('\n');
               break;
             case 't':
-              input->str.push_back('\t');
+              input.value().value()->str.push_back('\t');
               break;
             case '"':
-              input->str.push_back('"');
+              input.value().value()->str.push_back('"');
               break;
             default:
-              input->str.push_back(str.at(pos));
+              input.value().value()->str.push_back(str.at(pos));
           }
         }
         if (pos == str.size()) {
@@ -482,8 +480,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
         wstring symbol = str.substr(start, pos - start);
         struct Keyword {
           int token;
-          std::function<NonNull<std::unique_ptr<Value>>()> value_supplier =
-              nullptr;
+          std::function<gc::Root<Value>()> value_supplier = nullptr;
         };
         static const auto* const keywords =
             new std::unordered_map<std::wstring, Keyword>(
@@ -509,12 +506,13 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
         if (auto it = keywords->find(symbol); it != keywords->end()) {
           token = it->second.token;
           if (auto supplier = it->second.value_supplier; supplier != nullptr) {
-            input = std::move(supplier().get_unique());
+            input = supplier();
           }
         } else {
           token = SYMBOL;
-          input = std::make_unique<Value>(VMType::VM_SYMBOL);
-          input->str = symbol;
+          input = compilation.pool.NewRoot(
+              MakeNonNullUnique<Value>(VMType::VM_SYMBOL));
+          input.value().value()->str = symbol;
         }
       } break;
 
@@ -544,11 +542,14 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
         return;
     }
     if (token == SYMBOL || token == STRING) {
-      CHECK(input != nullptr) << "No input with token: " << token;
-      CHECK(input->IsSymbol() || input->IsString());
-      compilation.last_token = input->str;
+      CHECK(input.has_value()) << "No input with token: " << token;
+      CHECK(input.value().value()->IsSymbol() ||
+            input.value().value()->IsString());
+      compilation.last_token = input.value().value()->str;
     }
-    Cpp(parser, token, input.release(), &compilation);
+    Cpp(parser, token,
+        std::make_unique<std::optional<gc::Root<Value>>>(input).release(),
+        &compilation);
   }
 }
 
@@ -660,7 +661,7 @@ bool Expression::SupportsType(const VMType& type) {
   return false;
 }
 
-futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
+futures::ValueOrError<gc::Root<Value>> Evaluate(
     Expression& expr, gc::Pool& pool, gc::Root<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
   NonNull<std::shared_ptr<Trampoline>> trampoline =
@@ -668,18 +669,17 @@ futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Evaluate(
           Trampoline::Options{.pool = pool,
                               .environment = std::move(environment),
                               .yield_callback = std::move(yield_callback)});
-  return OnError(
-      trampoline->Bounce(expr, expr.Types()[0])
-          .Transform(
-              [trampoline](EvaluationOutput value)
-                  -> language::ValueOrError<NonNull<std::unique_ptr<Value>>> {
-                DVLOG(5) << "Evaluation done: " << *value.value;
-                return Success(std::move(value.value));
-              }),
-      [](Error error) {
-        LOG(INFO) << "Evaluation error: " << error;
-        return futures::Past(error);
-      });
+  return OnError(trampoline->Bounce(expr, expr.Types()[0])
+                     .Transform([trampoline](EvaluationOutput value)
+                                    -> language::ValueOrError<gc::Root<Value>> {
+                       DVLOG(5) << "Evaluation done: "
+                                << value.value.value().value();
+                       return Success(std::move(value.value));
+                     }),
+                 [](Error error) {
+                   LOG(INFO) << "Evaluation error: " << error;
+                   return futures::Past(error);
+                 });
 }
 
 }  // namespace vm

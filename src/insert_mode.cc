@@ -49,6 +49,8 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::VisitPointer;
 
+namespace gc = language::gc;
+
 namespace {
 class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }
@@ -259,14 +261,14 @@ class InsertMode : public EditorMode {
       case Terminal::CTRL_U: {
         ResetScrollBehavior();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
-        std::shared_ptr<Value> callback =
+        std::optional<gc::Root<Value>> callback =
             options_.editor_state.environment().value()->Lookup(
                 options_.editor_state.gc_pool(), Environment::Namespace(),
                 L"HandleKeyboardControlU",
                 VMType::Function(
                     {VMType::Void(),
                      VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype}));
-        if (callback == nullptr) {
+        if (!callback.has_value()) {
           LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
           return;
         }
@@ -280,8 +282,7 @@ class InsertMode : public EditorMode {
                       buffer->editor().gc_pool(), buffer.get_shared())}));
               NonNull<std::unique_ptr<Expression>> expression =
                   vm::NewFunctionCall(
-                      vm::NewConstantExpression(
-                          MakeNonNullUnique<vm::Value>(*callback)),
+                      vm::NewConstantExpression(callback.value()),
                       std::move(args));
               if (expression->Types().empty()) {
                 buffer->status().SetWarningText(

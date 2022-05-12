@@ -17,6 +17,8 @@ using language::NonNull;
 using language::Success;
 using language::VisitPointer;
 
+namespace gc = language::gc;
+
 class VariableLookup : public Expression {
  public:
   VariableLookup(Environment::Namespace symbol_namespace, std::wstring symbol,
@@ -37,8 +39,8 @@ class VariableLookup : public Expression {
     return futures::Past(VisitPointer(
         trampoline.environment().value()->Lookup(
             trampoline.pool(), symbol_namespace_, symbol_, type),
-        [](NonNull<std::unique_ptr<Value>> value) {
-          DVLOG(5) << "Variable lookup: " << *value;
+        [](gc::Root<Value> value) {
+          DVLOG(5) << "Variable lookup: " << value.value().value();
           return Success(EvaluationOutput::New(std::move(value)));
         },
         [this]() {
@@ -63,7 +65,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
                                               std::list<std::wstring> symbols) {
   CHECK(!symbols.empty());
 
-  std::vector<NonNull<Value*>> result;
+  std::vector<gc::Root<Value>> result;
 
   auto symbol = std::move(symbols.back());
   symbols.pop_back();
@@ -81,9 +83,9 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   std::vector<VMType> types;
   std::unordered_set<VMType> types_already_seen;
 
-  for (auto& v : result) {
-    if (types_already_seen.insert(v->type).second) {
-      types.push_back(v->type);
+  for (gc::Root<Value>& v : result) {
+    if (types_already_seen.insert(v.value()->type).second) {
+      types.push_back(v.value()->type);
     }
   }
   return std::make_unique<VariableLookup>(std::move(symbol_namespace),

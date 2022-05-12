@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "../public/vm.h"
+#include "src/language/gc.h"
 
 namespace afc::vm {
 class Compilation;
@@ -21,7 +22,7 @@ struct UserFunction {
       Compilation& compilation,
       language::NonNull<std::unique_ptr<Expression>> body, std::wstring* error);
 
-  std::unique_ptr<Value> BuildValue(
+  std::optional<language::gc::Root<Value>> BuildValue(
       Compilation& compilation,
       language::NonNull<std::unique_ptr<Expression>> body, std::wstring* error);
   void Abort(Compilation& compilation);

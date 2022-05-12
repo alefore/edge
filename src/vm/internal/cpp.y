@@ -2,7 +2,7 @@
 
 %extra_argument { Compilation* compilation }
 
-%token_type { Value* }
+%token_type { std::optional<gc::Root<Value>>* }
 
 %left COMMA.
 %left QUESTION_MARK.
@@ -79,7 +79,9 @@ statement(OUT) ::= namespace_declaration
 }
 
 namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
-  StartNamespaceDeclaration(*compilation, NAME->str);
+  CHECK(NAME != nullptr);
+  CHECK(NAME->has_value());
+  StartNamespaceDeclaration(*compilation, NAME->value().value()->str);
 }
 
 statement(OUT) ::= class_declaration
@@ -96,7 +98,7 @@ statement(OUT) ::= class_declaration
 }
 
 class_declaration ::= CLASS SYMBOL(NAME) . {
-  StartClassDeclaration(compilation, NAME->str);
+  StartClassDeclaration(compilation, NAME->value().value()->str);
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
@@ -119,20 +121,19 @@ statement(OUT) ::= function_declaration_params(FUNC)
     OUT = nullptr;
   } else {
     std::wstring error;
-    auto value = FUNC->BuildValue(
+    std::optional<gc::Root<Value>> value = FUNC->BuildValue(
         *compilation,
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(BODY)),
         &error);
     BODY = nullptr;
-    if (value == nullptr) {
+    if (!value.has_value()) {
       compilation->errors.push_back(error);
       OUT = nullptr;
     } else {
       CHECK(FUNC->name.has_value());
       compilation->environment.value()->Define(
-          FUNC->name.value(),
-          NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)));
+          FUNC->name.value(), std::move(value.value()));
       OUT = NewVoidExpression(compilation->pool).get_unique().release();
     }
   }
@@ -226,7 +227,8 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
 }
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
-  auto result = NewDefineTypeExpression(compilation, TYPE->str, NAME->str, {});
+  auto result = NewDefineTypeExpression(
+      compilation, TYPE->value().value()->str, NAME->value().value()->str, {});
   delete TYPE;
   delete NAME;
   A = result == std::nullopt
@@ -235,7 +237,8 @@ assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
 }
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
-  A = NewDefineExpression(compilation, TYPE->str, NAME->str,
+  A = NewDefineExpression(compilation, TYPE->value().value()->str,
+                          NAME->value().value()->str,
                           unique_ptr<Expression>(VALUE)).release();
   delete TYPE;
   delete NAME;
@@ -251,9 +254,10 @@ assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
 
 function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
     function_declaration_arguments(ARGS) RPAREN . {
-  CHECK(RETURN_TYPE->IsSymbol());
-  CHECK(NAME->IsSymbol());
-  OUT = UserFunction::New(*compilation, RETURN_TYPE->str, NAME->str, ARGS)
+  CHECK(RETURN_TYPE->value().value()->IsSymbol());
+  CHECK(NAME->value().value()->IsSymbol());
+  OUT = UserFunction::New(*compilation, RETURN_TYPE->value().value()->str,
+                          NAME->value().value()->str, ARGS)
             .release();
   delete RETURN_TYPE;
   delete NAME;
@@ -281,13 +285,14 @@ function_declaration_arguments(OUT) ::=
 
 non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
   const VMType* type_def =
-      compilation->environment.value()->LookupType(TYPE->str);
+      compilation->environment.value()->LookupType(TYPE->value().value()->str);
   if (type_def == nullptr) {
-    compilation->errors.push_back(L"Unknown type: \"" + TYPE->str + L"\"");
+    compilation->errors.push_back(
+        L"Unknown type: \"" + TYPE->value().value()->str + L"\"");
     OUT = nullptr;
   } else {
-    OUT = new vector<pair<VMType, wstring>>;
-    OUT->push_back(make_pair(*type_def, NAME->str));
+    OUT = new std::vector<std::pair<VMType, wstring>>;
+    OUT->push_back(std::make_pair(*type_def, NAME->value().value()->str));
   }
   delete TYPE;
   delete NAME;
@@ -300,13 +305,15 @@ non_empty_function_declaration_arguments(OUT) ::=
     OUT = nullptr;
   } else {
     const VMType* type_def =
-        compilation->environment.value()->LookupType(TYPE->str);
+        compilation->environment.value()->LookupType(
+            TYPE->value().value()->str);
     if (type_def == nullptr) {
-      compilation->errors.push_back(L"Unknown type: \"" + TYPE->str + L"\"");
+      compilation->errors.push_back(
+          L"Unknown type: \"" + TYPE->value().value()->str + L"\"");
       OUT = nullptr;
     } else {
       OUT = LIST;
-      OUT->push_back(make_pair(*type_def, NAME->str));
+      OUT->push_back(std::make_pair(*type_def, NAME->value().value()->str));
       LIST = nullptr;
     }
   }
@@ -321,8 +328,9 @@ non_empty_function_declaration_arguments(OUT) ::=
 lambda_declaration_params(OUT) ::= LBRACE RBRACE
     LPAREN function_declaration_arguments(ARGS) RPAREN
     MINUS GREATER_THAN SYMBOL(RETURN_TYPE) . {
-  CHECK(RETURN_TYPE->IsSymbol());
-  OUT = UserFunction::New(*compilation, RETURN_TYPE->str, std::nullopt, ARGS)
+  CHECK(RETURN_TYPE->value().value()->IsSymbol());
+  OUT = UserFunction::New(*compilation, RETURN_TYPE->value().value()->str,
+                          std::nullopt, ARGS)
             .release();
   delete RETURN_TYPE;
 }
@@ -376,7 +384,7 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
 }
 
 expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
-  OUT = NewAssignExpression(compilation, NAME->str,
+  OUT = NewAssignExpression(compilation, NAME->value().value()->str,
                             unique_ptr<Expression>(VALUE)).release();
   VALUE = nullptr;
   delete NAME;
@@ -384,9 +392,9 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
 
 expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
-            compilation, NAME->str, NewBinaryExpression(
+            compilation, NAME->value().value()->str, NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, {NAME->str}),
+                NewVariableLookup(compilation, {NAME->value().value()->str}),
                 std::unique_ptr<Expression>(VALUE),
                 [](wstring a, wstring b) { return Success(a + b); },
                 [](int a, int b) { return Success(a + b); },
@@ -398,9 +406,9 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
 
 expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
-            compilation, NAME->str, NewBinaryExpression(
+            compilation, NAME->value().value()->str, NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, {NAME->str}),
+                NewVariableLookup(compilation, {NAME->value().value()->str}),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return Success(a - b); },
@@ -412,9 +420,9 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
 
 expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
   OUT = NewAssignExpression(
-            compilation, NAME->str, NewBinaryExpression(
+            compilation, NAME->value().value()->str, NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, {NAME->str}),
+                NewVariableLookup(compilation, {NAME->value().value()->str}),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return Success(a * b); },
@@ -440,9 +448,9 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
 
 expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
   OUT = NewAssignExpression(
-            compilation, NAME->str, NewBinaryExpression(
+            compilation, NAME->value().value()->str, NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, {NAME->str}),
+                NewVariableLookup(compilation, {NAME->value().value()->str}),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) {
@@ -457,13 +465,13 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
 }
 
 expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
-  auto var = NewVariableLookup(compilation, {NAME->str});
+  auto var = NewVariableLookup(compilation, {NAME->value().value()->str});
   if (var == nullptr) {
     OUT = nullptr;
   } else if (var->IsInteger() || var->IsDouble()) {
     auto type = var->IsInteger() ? VMType::Integer() : VMType::Double();
     OUT = NewAssignExpression(
-              compilation, NAME->str,
+              compilation, NAME->value().value()->str,
               std::make_unique<BinaryOperator>(
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
@@ -486,13 +494,13 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
 }
 
 expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
-  auto var = NewVariableLookup(compilation, {NAME->str});
+  auto var = NewVariableLookup(compilation, {NAME->value().value()->str});
   if (var == nullptr) {
     OUT = nullptr;
   } else if (var->IsInteger() || var->IsDouble()) {
     auto type = var->IsInteger() ? VMType::Integer() : VMType::Double();
     OUT = NewAssignExpression(
-              compilation, NAME->str,
+              compilation, NAME->value().value()->str,
               std::make_unique<BinaryOperator>(
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
@@ -922,43 +930,48 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 ////////////////////////////////////////////////////////////////////////////////
 
 expr(OUT) ::= BOOL(B). {
-  OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
-      std::unique_ptr<Value>(B))).get_unique().release();
+  OUT = NewConstantExpression(B->value()).get_unique().release();
   B = nullptr;
 }
 
 expr(OUT) ::= INTEGER(I). {
-  OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
-      std::unique_ptr<Value>(I))).get_unique().release();
+  language::NonNull<std::unique_ptr<Value>> value =
+      MakeNonNullUnique<Value>(I->value().value().value());
+  OUT = NewConstantExpression(compilation->pool.NewRoot(std::move(value)))
+      .get_unique().release();
   I = nullptr;
 }
 
 expr(OUT) ::= DOUBLE(I). {
-  OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
-      std::unique_ptr<Value>(I))).get_unique().release();
+  language::NonNull<std::unique_ptr<Value>> value =
+      MakeNonNullUnique<Value>(I->value().value().value());
+  OUT = NewConstantExpression(compilation->pool.NewRoot(std::move(value)))
+            .get_unique().release();
   I = nullptr;
 }
 
-%type string { Value* }
+%type string { gc::Root<Value>* }
 %destructor string { delete $$; }
 
 expr(OUT) ::= string(S). {
-  OUT = NewConstantExpression(NonNull<std::unique_ptr<Value>>::Unsafe(
-      std::unique_ptr<Value>(S))).get_unique().release();
+  language::NonNull<std::unique_ptr<Value>> value =
+      MakeNonNullUnique<Value>(S->value().value());
+  OUT = NewConstantExpression(compilation->pool.NewRoot(std::move(value)))
+            .get_unique().release();
   S = nullptr;
 }
 
 string(OUT) ::= STRING(S). {
-  assert(S->type.type == VMType::VM_STRING);
-  OUT = S;
+  assert(S->value().value()->type.type == VMType::VM_STRING);
+  OUT = std::make_unique<gc::Root<Value>>(S->value()).release();
   S = nullptr;
 }
 
 string(OUT) ::= string(A) STRING(B). {
-  assert(A->type.type == VMType::VM_STRING);
-  assert(B->type.type == VMType::VM_STRING);
-  OUT = A;
-  OUT->str = A->str + B->str;
+  assert(A->value()->type.type == VMType::VM_STRING);
+  assert(B->value().value()->type.type == VMType::VM_STRING);
+  OUT = std::make_unique<gc::Root<Value>>(Value::NewString(compilation->pool,
+      A->value()->str + B->value().value()->str)).release();
   A = nullptr;
 }
 
@@ -970,15 +983,15 @@ expr(OUT) ::= non_empty_symbols_list(N) . {
 %destructor non_empty_symbols_list { delete $$; }
 
 non_empty_symbols_list(OUT) ::= SYMBOL(S). {
-  CHECK_EQ(S->type.type, VMType::VM_SYMBOL);
-  OUT = new std::list<std::wstring>({std::move(S->str)});
+  CHECK_EQ(S->value().value()->type.type, VMType::VM_SYMBOL);
+  OUT = new std::list<std::wstring>({std::move(S->value().value()->str)});
 }
 
 non_empty_symbols_list(OUT) ::=
     SYMBOL(S) DOUBLECOLON non_empty_symbols_list(L). {
   CHECK_NE(L, nullptr);
-  CHECK_EQ(S->type.type, VMType::VM_SYMBOL);
-  L->push_front(S->str);
+  CHECK_EQ(S->value().value()->type.type, VMType::VM_SYMBOL);
+  L->push_front(S->value().value()->str);
   OUT = std::move(L);
 }
 
@@ -987,7 +1000,7 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
     OUT = nullptr;
   } else {
     OUT = NewMethodLookup(compilation, std::unique_ptr<Expression>(OBJ),
-                          FIELD->str).release();
+                          FIELD->value().value()->str).release();
     OBJ = nullptr;
   }
   delete FIELD;

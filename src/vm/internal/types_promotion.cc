@@ -6,20 +6,19 @@ using language::Success;
 
 namespace gc = language::gc;
 
-using PromotionCallback = std::function<NonNull<std::unique_ptr<Value>>(
-    gc::Pool&, NonNull<std::unique_ptr<Value>>)>;
+using PromotionCallback =
+    std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>;
 
 PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
   if (original == desired)
-    return
-        [](gc::Pool&, NonNull<std::unique_ptr<Value>> value) { return value; };
+    return [](gc::Pool&, gc::Root<Value> value) { return value; };
   switch (original.type) {
     case VMType::VM_INTEGER:
       switch (desired.type) {
         case VMType::VM_DOUBLE:
-          return [](gc::Pool& pool, NonNull<std::unique_ptr<Value>> value) {
-            CHECK(value->IsInteger());
-            return Value::NewDouble(pool, value->integer);
+          return [](gc::Pool& pool, gc::Root<Value> value) {
+            CHECK(value.value()->IsInteger());
+            return Value::NewDouble(pool, value.value()->integer);
           };
         default:
           return nullptr;
@@ -48,21 +47,21 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
           }
 
           return [argument_callbacks, purity = desired.function_purity](
-                     gc::Pool& pool, NonNull<std::unique_ptr<Value>> value) {
-            std::vector<VMType> type_arguments = value->type.type_arguments;
-            NonNull<std::unique_ptr<Value>> output = Value::NewFunction(
+                     gc::Pool& pool, gc::Root<Value> value) {
+            std::vector<VMType> type_arguments =
+                value.value()->type.type_arguments;
+            gc::Root<Value> output = Value::NewFunction(
                 pool, type_arguments,
                 std::bind_front(
-                    [argument_callbacks](
-                        NonNull<std::shared_ptr<Value>>& original_callback,
-                        std::vector<NonNull<std::unique_ptr<Value>>> arguments,
-                        Trampoline& trampoline) {
+                    [argument_callbacks](gc::Root<Value> original_callback,
+                                         std::vector<gc::Root<Value>> arguments,
+                                         Trampoline& trampoline) {
                       CHECK_EQ(argument_callbacks.size(), arguments.size() + 1);
                       for (size_t i = 0; i < arguments.size(); ++i) {
                         arguments[i] = argument_callbacks[i + 1](
                             trampoline.pool(), std::move(arguments[i]));
                       }
-                      return original_callback
+                      return original_callback.value()
                           ->LockCallback()(std::move(arguments), trampoline)
                           .Transform([return_callback = argument_callbacks[0],
                                       &pool = trampoline.pool()](
@@ -72,8 +71,8 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
                             return Success(std::move(output));
                           });
                     },
-                    NonNull<std::shared_ptr<Value>>(std::move(value))));
-            output->type.function_purity = purity;
+                    std::move(value)));
+            output.value()->type.function_purity = purity;
             return output;
           };
         }

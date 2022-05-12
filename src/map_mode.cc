@@ -88,17 +88,18 @@ void MapModeCommands::Add(wstring name,
 }
 
 void MapModeCommands::Add(wstring name, wstring description,
-                          NonNull<std::unique_ptr<Value>> value,
+                          gc::Root<Value> value,
                           gc::Root<vm::Environment> environment) {
-  CHECK_EQ(value->type.type, VMType::FUNCTION);
-  CHECK(value->type.type_arguments == std::vector<VMType>({VMType::Void()}));
+  CHECK_EQ(value.value()->type.type, VMType::FUNCTION);
+  CHECK(value.value()->type.type_arguments ==
+        std::vector<VMType>({VMType::Void()}));
 
   Add(name,
       MakeCommandFromFunction(
           std::bind_front(
               [&editor_state = editor_state_, environment](
                   NonNull<std::unique_ptr<vm::Expression>>& expression) {
-                LOG(INFO) << "Evaluating expression from Value::Ptr...";
+                LOG(INFO) << "Evaluating expression from Value...";
                 Evaluate(*expression, environment.pool(), environment,
                          [&editor_state](std::function<void()> callback) {
                            editor_state.work_queue()->Schedule(callback);

@@ -5,8 +5,8 @@
 #include "../public/constant_expression.h"
 #include "../public/environment.h"
 #include "../public/value.h"
-#include "compilation.h"
-#include "types_promotion.h"
+#include "src/vm/internal/compilation.h"
+#include "src/vm/internal/types_promotion.h"
 
 namespace afc::vm {
 namespace {
@@ -36,8 +36,7 @@ class LambdaExpression : public Expression {
       }
       return nullptr;
     }
-    std::function<NonNull<std::unique_ptr<Value>>(
-        gc::Pool&, NonNull<std::unique_ptr<Value>>)>
+    std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
         promotion_function =
             GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
     if (promotion_function == nullptr) {
@@ -55,8 +54,7 @@ class LambdaExpression : public Expression {
       VMType type,
       NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body,
-      std::function<NonNull<std::unique_ptr<Value>>(
-          gc::Pool&, NonNull<std::unique_ptr<Value>>)>
+      std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
           promotion_function)
       : type_(std::move(type)),
         argument_names_(std::move(argument_names)),
@@ -80,13 +78,13 @@ class LambdaExpression : public Expression {
         BuildValue(trampoline.pool(), trampoline.environment())))));
   }
 
-  NonNull<std::unique_ptr<Value>> BuildValue(
-      gc::Pool& pool, gc::Root<Environment> parent_environment) {
+  gc::Root<Value> BuildValue(gc::Pool& pool,
+                             gc::Root<Environment> parent_environment) {
     return Value::NewFunction(
         pool, type_.type_arguments,
         [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
-            vector<NonNull<unique_ptr<Value>>> args, Trampoline& trampoline) {
+            std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
           gc::Root<Environment> environment = trampoline.pool().NewRoot(
@@ -116,8 +114,7 @@ class LambdaExpression : public Expression {
   VMType type_;
   const NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names_;
   const NonNull<std::shared_ptr<Expression>> body_;
-  const std::function<NonNull<std::unique_ptr<Value>>(
-      gc::Pool&, NonNull<std::unique_ptr<Value>>)>
+  const std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
       promotion_function_;
 };
 }  // namespace
@@ -147,13 +144,15 @@ std::unique_ptr<UserFunction> UserFunction::New(
   if (name.has_value()) {
     output->name = name.value();
     compilation.environment.value()->Define(
-        name.value(), MakeNonNullUnique<Value>(output->type));
+        name.value(),
+        compilation.pool.NewRoot(MakeNonNullUnique<Value>(output->type)));
   }
   compilation.environment = compilation.pool.NewRoot(
       MakeNonNullUnique<Environment>(compilation.environment.value()));
   for (pair<VMType, wstring> arg : *args) {
     compilation.environment.value()->Define(
-        arg.second, MakeNonNullUnique<Value>(arg.first));
+        arg.second,
+        compilation.pool.NewRoot(MakeNonNullUnique<Value>(arg.first)));
   }
   return output;
 }
@@ -166,17 +165,15 @@ gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
   return compilation.pool.NewRoot(MakeNonNullUnique<Environment>());
 }
 
-std::unique_ptr<Value> UserFunction::BuildValue(
+std::optional<gc::Root<Value>> UserFunction::BuildValue(
     Compilation& compilation, NonNull<std::unique_ptr<Expression>> body,
     std::wstring* error) {
   std::unique_ptr<LambdaExpression> expression = LambdaExpression::New(
       std::move(type), std::move(argument_names), std::move(body), error);
-  if (expression == nullptr) return nullptr;
+  if (expression == nullptr) return std::nullopt;
   gc::Root<Environment> environment = compilation.environment;
   compilation.environment = GetOrCreateParentEnvironment(compilation);
-  return std::move(
-      expression->BuildValue(compilation.pool, std::move(environment))
-          .get_unique());
+  return expression->BuildValue(compilation.pool, std::move(environment));
 }
 
 std::unique_ptr<Expression> UserFunction::BuildExpression(

@@ -18,20 +18,18 @@ namespace gc = language::gc;
 
 class ConstantExpression : public Expression {
  public:
-  ConstantExpression(NonNull<std::shared_ptr<Value>> value)
-      : value_(std::move(value)) {}
+  ConstantExpression(gc::Root<Value> value) : value_(std::move(value)) {}
 
-  std::vector<VMType> Types() { return {value_->type}; }
+  std::vector<VMType> Types() { return {value_.value()->type}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
   PurityType purity() override { return PurityType::kPure; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline&,
                                                    const VMType& type) {
-    CHECK_EQ(type, value_->type);
-    DVLOG(5) << "Evaluating constant value: " << *value_;
-    return futures::Past(
-        EvaluationOutput::New(MakeNonNullUnique<Value>(*value_)));
+    CHECK_EQ(type, value_.value()->type);
+    DVLOG(5) << "Evaluating constant value: " << value_.value().value();
+    return futures::Past(EvaluationOutput::New(value_));
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {
@@ -39,7 +37,7 @@ class ConstantExpression : public Expression {
   }
 
  private:
-  const NonNull<std::shared_ptr<Value>> value_;
+  const gc::Root<Value> value_;
 };
 
 }  // namespace
@@ -49,7 +47,7 @@ NonNull<std::unique_ptr<Expression>> NewVoidExpression(gc::Pool& pool) {
 }
 
 NonNull<std::unique_ptr<Expression>> NewConstantExpression(
-    NonNull<std::unique_ptr<Value>> value) {
+    gc::Root<Value> value) {
   return MakeNonNullUnique<ConstantExpression>(std::move(value));
 }
 }  // namespace afc::vm

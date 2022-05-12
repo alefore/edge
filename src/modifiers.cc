@@ -4,6 +4,7 @@
 
 namespace afc::editor {
 using language::MakeNonNullUnique;
+namespace gc = language::gc;
 
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
   os << "[" << bp.buffer_name << ":" << bp.position << "]";
@@ -63,8 +64,9 @@ void Modifiers::Register(language::gc::Pool& pool,
                          vm::Environment* environment) {
   auto modifiers_type = MakeNonNullUnique<vm::ObjectType>(L"Modifiers");
 
-  environment->Define(L"Modifiers",
-                      vm::NewCallback(pool, std::make_shared<Modifiers>));
+  environment->Define(L"Modifiers", vm::NewCallback(pool, []() {
+                        return std::make_shared<Modifiers>();
+                      }));
 
   modifiers_type->AddField(
       L"set_backwards",
@@ -139,6 +141,7 @@ std::wstring Modifiers::Serialize() const {
 }  // namespace afc::editor
 namespace afc::vm {
 using language::NonNull;
+namespace gc = language::gc;
 
 /* static */
 std::shared_ptr<editor::Modifiers>
@@ -149,7 +152,7 @@ VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value& value) {
 }
 
 /* static */
-NonNull<Value::Ptr> VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
+gc::Root<Value> VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
     language::gc::Pool& pool, std::shared_ptr<editor::Modifiers> value) {
   return Value::NewObject(pool, L"Modifiers",
                           std::shared_ptr<void>(value, value.get()));

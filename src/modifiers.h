@@ -140,7 +140,7 @@ namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::Modifiers>> {
   static std::shared_ptr<editor::Modifiers> get(Value& value);
-  static language::NonNull<Value::Ptr> New(
+  static language::gc::Root<Value> New(
       language::gc::Pool& pool, std::shared_ptr<editor::Modifiers> value);
   static const VMType vmtype;
 };

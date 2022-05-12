@@ -247,5 +247,19 @@ auto VisitPointer(std::weak_ptr<T> t, Callable callable,
                   NullCallable null_callable) {
   return VisitPointer(t.lock(), std::move(callable), std::move(null_callable));
 }
+
+template <typename T, typename Callable, typename NullCallable>
+decltype(std::declval<Callable>()(std::declval<T>())) VisitPointer(
+    std::optional<T> t, Callable callable, NullCallable null_callable) {
+  // Most of the time the non-null case returns a more generic type (typically a
+  // ValueOrError vs an Error), so we assume that VisitPointer will return the
+  // type of the `callable` (and let the return value of `null_callable` be
+  // converted).
+  if (t.has_value()) {
+    return callable(std::move(t.value()));
+  } else {
+    return null_callable();
+  }
+}
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_SAFE_TYPES_H__

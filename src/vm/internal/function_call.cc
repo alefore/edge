@@ -111,19 +111,18 @@ class FunctionCall : public Expression {
 
     return trampoline
         .Bounce(*func_, VMType::Function(std::move(type_arguments), purity()))
-        .Transform([&trampoline,
-                    args_types = args_](EvaluationOutput callback) {
-          if (callback.type == EvaluationOutput::OutputType::kReturn)
-            return futures::Past(Success(std::move(callback)));
-          DVLOG(6) << "Got function: " << *callback.value;
-          CHECK_EQ(callback.value->type.type, VMType::FUNCTION);
-          futures::Future<ValueOrError<EvaluationOutput>> output;
-          CaptureArgs(
-              trampoline, std::move(output.consumer), args_types,
-              std::make_shared<std::vector<NonNull<std::unique_ptr<Value>>>>(),
-              callback.value->LockCallback());
-          return std::move(output.value);
-        });
+        .Transform(
+            [&trampoline, args_types = args_](EvaluationOutput callback) {
+              if (callback.type == EvaluationOutput::OutputType::kReturn)
+                return futures::Past(Success(std::move(callback)));
+              DVLOG(6) << "Got function: " << callback.value.value().value();
+              CHECK_EQ(callback.value.value()->type.type, VMType::FUNCTION);
+              futures::Future<ValueOrError<EvaluationOutput>> output;
+              CaptureArgs(trampoline, std::move(output.consumer), args_types,
+                          std::make_shared<std::vector<gc::Root<Value>>>(),
+                          callback.value.value()->LockCallback());
+              return std::move(output.value);
+            });
   }
 
   NonNull<std::unique_ptr<Expression>> Clone() override {
@@ -137,7 +136,7 @@ class FunctionCall : public Expression {
       NonNull<
           std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
           args_types,
-      std::shared_ptr<std::vector<NonNull<unique_ptr<Value>>>> values,
+      std::shared_ptr<std::vector<gc::Root<Value>>> values,
       Value::Callback callback) {
     CHECK(values != nullptr);
 
@@ -152,9 +151,9 @@ class FunctionCall : public Expression {
               DVLOG(3) << "Function call aborted: " << return_value.error();
               return consumer(std::move(return_value.error()));
             }
-            NonNull<std::unique_ptr<Value>> result =
-                std::move(return_value.value().value);
-            DVLOG(5) << "Function call consumer gets value: " << *result;
+            gc::Root<Value> result = std::move(return_value.value().value);
+            DVLOG(5) << "Function call consumer gets value: "
+                     << result.value().value();
             consumer(Success(EvaluationOutput::New(std::move(result))));
           });
       return;
@@ -171,7 +170,7 @@ class FunctionCall : public Expression {
             case EvaluationOutput::OutputType::kContinue:
               DVLOG(5) << "Received results of parameter " << values->size() + 1
                        << " (of " << args_types->size()
-                       << "): " << *value.value().value;
+                       << "): " << value.value().value.value().value();  // Lol!
               values->push_back(std::move(value.value().value));
               DVLOG(6) << "Recursive call.";
               CaptureArgs(trampoline, consumer, args_types, values, callback);
@@ -306,12 +305,10 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                 case EvaluationOutput::OutputType::kContinue:
                   return Success(EvaluationOutput::New(Value::NewFunction(
                       pool, shared_type->type_arguments,
-                      [obj = NonNull<std::shared_ptr<Value>>(
-                           std::move(output.value)),
-                       callback](std::vector<NonNull<Value::Ptr>> args,
-                                 Trampoline& trampoline) {
-                        args.emplace(args.begin(), MakeNonNullUnique<Value>(
-                                                       *obj.get_shared()));
+                      [obj = std::move(output.value), callback](
+                          std::vector<gc::Root<Value>> args,
+                          Trampoline& trampoline) {
+                        args.emplace(args.begin(), obj);
                         return callback(std::move(args), trampoline);
                       })));
               }
@@ -339,17 +336,17 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
   return nullptr;
 }
 
-futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Call(
-    gc::Pool& pool, const Value& func, std::vector<NonNull<Value::Ptr>> args,
+futures::ValueOrError<gc::Root<Value>> Call(
+    gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK_EQ(func.type.type, VMType::FUNCTION);
   std::vector<NonNull<std::unique_ptr<Expression>>> args_expr;
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));
   }
-  NonNull<std::unique_ptr<Expression>> expr =
-      NewFunctionCall(NewConstantExpression(MakeNonNullUnique<Value>(func)),
-                      std::move(args_expr));
+  NonNull<std::unique_ptr<Expression>> expr = NewFunctionCall(
+      NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
+      std::move(args_expr));
   return Evaluate(*expr, pool, pool.NewRoot(MakeNonNullUnique<Environment>()),
                   yield_callback);
 }

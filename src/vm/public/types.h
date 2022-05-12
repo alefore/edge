@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 
 namespace afc::vm {
@@ -77,19 +78,18 @@ class ObjectType {
   const VMType& type() const { return type_; }
   wstring ToString() const { return type_.ToString(); }
 
-  void AddField(const wstring& name,
-                language::NonNull<std::unique_ptr<Value>> field);
+  void AddField(const wstring& name, language::gc::Root<Value> field);
 
   Value* LookupField(const wstring& name) const {
     auto it = fields_.find(name);
-    return it == fields_.end() ? nullptr : it->second.get().get();
+    return it == fields_.end() ? nullptr : &it->second.value().value();
   }
 
   void ForEachField(std::function<void(const wstring&, Value&)> callback);
 
  private:
   VMType type_;
-  std::map<std::wstring, language::NonNull<std::unique_ptr<Value>>> fields_;
+  std::map<std::wstring, language::gc::Root<Value>> fields_;
 };
 
 }  // namespace afc::vm

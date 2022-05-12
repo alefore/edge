@@ -25,6 +25,7 @@ using language::NonNull;
 using language::PossibleError;
 using language::Success;
 
+namespace gc = language::gc;
 namespace {
 void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
                const Value& value) {
@@ -52,8 +53,8 @@ futures::Value<PossibleError> PreviewCppExpression(
   switch (expression->purity()) {
     case vm::Expression::PurityType::kPure: {
       return buffer.EvaluateExpression(*expression, environment)
-          .Transform([&buffer](NonNull<std::unique_ptr<Value>> value) {
-            ShowValue(buffer, nullptr, *value);
+          .Transform([&buffer](gc::Root<Value> value) {
+            ShowValue(buffer, nullptr, value.value().value());
             return Success();
           })
           .ConsumeErrors([&buffer](Error error) {
@@ -93,8 +94,8 @@ futures::Value<Result> HandleCommandCpp(Input input,
         });
   }
   return input.buffer.EvaluateString(contents->ToString())
-      .Transform([input](NonNull<std::unique_ptr<Value>> value) {
-        ShowValue(input.buffer, input.delete_buffer, *value);
+      .Transform([input](gc::Root<Value> value) {
+        ShowValue(input.buffer, input.delete_buffer, value.value().value());
         Result output(input.position);
         output.added_to_paste_buffer = true;
         return Success(std::move(output));

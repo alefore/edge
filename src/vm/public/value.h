@@ -32,30 +32,31 @@ struct Value {
   explicit Value(const VMType& t) : type(t) {}
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
-      std::vector<language::NonNull<Ptr>>, Trampoline&)>;
+      std::vector<language::gc::Root<Value>>, Trampoline&)>;
   using DependenciesCallback =
       std::function<void(std::vector<language::NonNull<
                              std::shared_ptr<language::gc::ControlFrame>>>&)>;
 
-  static language::NonNull<std::unique_ptr<Value>> NewVoid(
-      language::gc::Pool& pool);
-  static language::NonNull<std::unique_ptr<Value>> NewBool(
-      language::gc::Pool& pool, bool value);
-  static language::NonNull<std::unique_ptr<Value>> NewInteger(
-      language::gc::Pool& pool, int value);
-  static language::NonNull<std::unique_ptr<Value>> NewDouble(
-      language::gc::Pool& pool, double value);
-  static language::NonNull<std::unique_ptr<Value>> NewString(
-      language::gc::Pool& pool, wstring value);
-  static language::NonNull<std::unique_ptr<Value>> NewObject(
-      language::gc::Pool& pool, std::wstring name, std::shared_ptr<void> value);
-  static language::NonNull<std::unique_ptr<Value>> NewFunction(
-      language::gc::Pool& pool, std::vector<VMType> arguments,
-      Callback callback);
+  static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
+  static language::gc::Root<Value> NewBool(language::gc::Pool& pool,
+                                           bool value);
+  static language::gc::Root<Value> NewInteger(language::gc::Pool& pool,
+                                              int value);
+  static language::gc::Root<Value> NewDouble(language::gc::Pool& pool,
+                                             double value);
+  static language::gc::Root<Value> NewString(language::gc::Pool& pool,
+                                             wstring value);
+  static language::gc::Root<Value> NewObject(language::gc::Pool& pool,
+                                             std::wstring name,
+                                             std::shared_ptr<void> value);
+  static language::gc::Root<Value> NewFunction(language::gc::Pool& pool,
+                                               std::vector<VMType> arguments,
+                                               Callback callback);
   // Convenience wrapper.
-  static language::NonNull<std::unique_ptr<Value>> NewFunction(
+  static language::gc::Root<Value> NewFunction(
       language::gc::Pool& pool, std::vector<VMType> arguments,
-      std::function<language::NonNull<Ptr>(std::vector<language::NonNull<Ptr>>)>
+      std::function<
+          language::gc::Root<Value>(std::vector<language::gc::Root<Value>>)>
           callback);
 
   bool IsVoid() const { return type.type == VMType::VM_VOID; };

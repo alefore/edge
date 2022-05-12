@@ -22,7 +22,7 @@ struct VMTypeMapper {};
 
 template <>
 struct VMTypeMapper<void> {
-  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool) {
+  static language::gc::Root<Value> New(language::gc::Pool& pool) {
     return Value::NewVoid(pool);
   }
   static const VMType vmtype;
@@ -34,8 +34,7 @@ struct VMTypeMapper<bool> {
     CHECK(value.IsBool());
     return value.boolean;
   }
-  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
-                                           bool value) {
+  static language::gc::Root<Value> New(language::gc::Pool& pool, bool value) {
     return Value::NewBool(pool, value);
   }
   static const VMType vmtype;
@@ -47,8 +46,7 @@ struct VMTypeMapper<int> {
     CHECK(value.IsInteger());
     return value.integer;
   }
-  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
-                                           int value) {
+  static language::gc::Root<Value> New(language::gc::Pool& pool, int value) {
     return Value::NewInteger(pool, value);
   }
   static const VMType vmtype;
@@ -60,8 +58,7 @@ struct VMTypeMapper<double> {
     CHECK(value.IsDouble());
     return value.double_value;
   }
-  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
-                                           double value) {
+  static language::gc::Root<Value> New(language::gc::Pool& pool, double value) {
     return Value::NewDouble(pool, value);
   }
   static const VMType vmtype;
@@ -73,8 +70,8 @@ struct VMTypeMapper<wstring> {
     CHECK(value.IsString());
     return std::move(value.str);
   }
-  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
-                                           wstring value) {
+  static language::gc::Root<Value> New(language::gc::Pool& pool,
+                                       wstring value) {
     return Value::NewString(pool, value);
   }
   static const VMType vmtype;
@@ -121,27 +118,27 @@ struct function_traits<R (*const)(Args...)> {
 };
 
 template <typename Callable, size_t... I>
-language::NonNull<Value::Ptr> RunCallback(
+language::gc::Root<Value> RunCallback(
     language::gc::Pool& pool, Callable& callback,
-    std::vector<language::NonNull<Value::Ptr>> args,
-    std::index_sequence<I...>) {
+    std::vector<language::gc::Root<Value>> args, std::index_sequence<I...>) {
   using ft = function_traits<Callable>;
   CHECK_EQ(args.size(), std::tuple_size<typename ft::ArgTuple>::value);
   if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
-    callback(VMTypeMapper<typename std::tuple_element<
-                 I, typename ft::ArgTuple>::type>::get(args.at(I).value())...);
+    callback(
+        VMTypeMapper<typename std::tuple_element<I, typename ft::ArgTuple>::
+                         type>::get(args.at(I).value().value())...);
     return Value::NewVoid(pool);
   } else {
     return VMTypeMapper<typename ft::ReturnType>::New(
         pool,
         callback(
-            VMTypeMapper<typename std::tuple_element<
-                I, typename ft::ArgTuple>::type>::get(args.at(I).value())...));
+            VMTypeMapper<typename std::tuple_element<I, typename ft::ArgTuple>::
+                             type>::get(args.at(I).value().value())...));
   }
 }
 
 template <typename Callable>
-language::NonNull<Value::Ptr> NewCallback(
+language::gc::Root<Value> NewCallback(
     language::gc::Pool& pool, Callable callback,
     VMType::PurityType purity = VMType::PurityType::kUnknown) {
   using ft = function_traits<Callable>;
@@ -149,17 +146,18 @@ language::NonNull<Value::Ptr> NewCallback(
   type_arguments.push_back(VMTypeMapper<typename ft::ReturnType>().vmtype);
   AddArgs<typename ft::ArgTuple, 0>(&type_arguments);
 
-  auto callback_wrapper = Value::NewFunction(
+  language::gc::Root<Value> callback_wrapper = Value::NewFunction(
       pool, std::move(type_arguments),
       [callback = std::move(callback), &pool](
-          vector<language::NonNull<Value::Ptr>> args, Trampoline&) {
+          vector<language::gc::Root<Value>> args, Trampoline&) {
+        language::gc::Root<Value> result =
+            RunCallback(pool, callback, std::move(args),
+                        std::make_index_sequence<
+                            std::tuple_size<typename ft::ArgTuple>::value>());
         return futures::Past(
-            language::Success(EvaluationOutput::New(RunCallback(
-                pool, callback, std::move(args),
-                std::make_index_sequence<
-                    std::tuple_size<typename ft::ArgTuple>::value>()))));
+            language::Success(EvaluationOutput::New(std::move(result))));
       });
-  callback_wrapper->type.function_purity = purity;
+  callback_wrapper.value()->type.function_purity = purity;
   return callback_wrapper;
 }
 

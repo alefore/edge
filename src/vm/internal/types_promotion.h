@@ -14,8 +14,8 @@ class Pool;
 namespace afc::vm {
 // If a value of `original` type can be promoted implicitly to a value of
 // `desired` type, returns a function that executes the promotion.
-std::function<language::NonNull<std::unique_ptr<Value>>(
-    language::gc::Pool&, language::NonNull<std::unique_ptr<Value>>)>
+std::function<language::gc::Root<Value>(language::gc::Pool&,
+                                        language::gc::Root<Value>)>
 GetImplicitPromotion(VMType original, VMType desired);
 }  // namespace afc::vm
 

@@ -37,7 +37,7 @@ VMTypeMapper<editor::transformation::Variant*>::get(Value& value) {
   return static_cast<editor::transformation::Variant*>(value.user_value.get());
 }
 
-NonNull<Value::Ptr> VMTypeMapper<editor::transformation::Variant*>::New(
+gc::Root<Value> VMTypeMapper<editor::transformation::Variant*>::New(
     gc::Pool& pool, editor::transformation::Variant* value) {
   return Value::NewObject(
       pool, L"Transformation", shared_ptr<void>(value, [](void* v) {
@@ -53,8 +53,7 @@ using language::Success;
 
 class FunctionTransformation : public CompositeTransformation {
  public:
-  FunctionTransformation(gc::Pool& pool,
-                         NonNull<std::unique_ptr<vm::Value>> function)
+  FunctionTransformation(gc::Pool& pool, gc::Root<vm::Value> function)
       : pool_(pool), function_(std::move(function)) {}
 
   std::wstring Serialize() const override {
@@ -62,25 +61,25 @@ class FunctionTransformation : public CompositeTransformation {
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    std::vector<NonNull<std::unique_ptr<vm::Value>>> args;
+    std::vector<gc::Root<vm::Value>> args;
     args.emplace_back(
         VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::
             New(pool_, std::make_shared<Input>(input)));
-    return vm::Call(pool_, *function_, std::move(args),
+    return vm::Call(pool_, function_.value().value(), std::move(args),
                     [work_queue = input.buffer.work_queue()](
                         std::function<void()> callback) {
                       work_queue->Schedule(std::move(callback));
                     })
-        .Transform([](NonNull<std::unique_ptr<Value>> value) {
-          return Success(std::move(
-              *VMTypeMapper<std::shared_ptr<Output>>::get(value.value())));
+        .Transform([](gc::Root<Value> value) {
+          return Success(std::move(*VMTypeMapper<std::shared_ptr<Output>>::get(
+              value.value().value())));
         })
         .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }
 
  private:
   gc::Pool& pool_;
-  const NonNull<std::unique_ptr<vm::Value>> function_;
+  const gc::Root<vm::Value> function_;
 };
 }  // namespace
 // TODO(easy, 2022-05-12): Receive editor/environment by ref.
@@ -99,7 +98,7 @@ void RegisterTransformations(EditorState* editor,
                     std::shared_ptr<CompositeTransformation::Output>>::vmtype,
                 VMTypeMapper<
                     std::shared_ptr<CompositeTransformation::Input>>::vmtype})},
-          [editor](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
+          [editor](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
             return VMTypeMapper<editor::transformation::Variant*>::New(
                 editor->gc_pool(),

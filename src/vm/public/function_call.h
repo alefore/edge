@@ -26,9 +26,9 @@ std::unique_ptr<Expression> NewFunctionCall(
     language::NonNull<std::unique_ptr<Expression>> func,
     std::vector<language::NonNull<std::unique_ptr<Expression>>> args);
 
-futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Call(
+futures::ValueOrError<language::gc::Root<Value>> Call(
     language::gc::Pool& pool, const Value& func,
-    std::vector<language::NonNull<Value::Ptr>> args,
+    std::vector<language::gc::Root<Value>> args,
     std::function<void(std::function<void()>)> yield_callback);
 
 std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,

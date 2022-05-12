@@ -27,7 +27,7 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::get(
       value.user_value);
 }
 
-NonNull<Value::Ptr>
+gc::Root<Value>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::New(
     gc::Pool& pool,
     std::shared_ptr<editor::CompositeTransformation::Output> value) {
@@ -49,7 +49,7 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::get(
       value.user_value);
 }
 
-NonNull<Value::Ptr>
+gc::Root<Value>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
     gc::Pool& pool,
     std::shared_ptr<editor::CompositeTransformation::Input> value) {

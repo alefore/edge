@@ -118,28 +118,30 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
   if (auto value = predictions_buffer.environment().value()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
           kLongestPrefixEnvironmentVariable, VMType(VMType::VM_INTEGER));
-      value != nullptr) {
+      value.has_value()) {
     LOG(INFO) << "Setting " << kLongestPrefixEnvironmentVariable << ": "
-              << value->integer;
-    CHECK(value->IsInteger());
-    predict_results.longest_prefix = ColumnNumberDelta(value->integer);
+              << value.value().value()->integer;
+    CHECK(value.value().value()->IsInteger());
+    predict_results.longest_prefix =
+        ColumnNumberDelta(value.value().value()->integer);
   }
 
   if (auto value = predictions_buffer.environment().value()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
           kLongestDirectoryMatchEnvironmentVariable,
           VMType(VMType::VM_INTEGER));
-      value != nullptr) {
-    CHECK(value->IsInteger());
-    predict_results.longest_directory_match = ColumnNumberDelta(value->integer);
+      value.has_value()) {
+    CHECK(value.value().value()->IsInteger());
+    predict_results.longest_directory_match =
+        ColumnNumberDelta(value.value().value()->integer);
   }
 
   if (auto value = predictions_buffer.environment().value()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
           kExactMatchEnvironmentVariable, VMType(VMType::VM_BOOLEAN));
-      value != nullptr) {
-    CHECK(value->IsBool());
-    predict_results.found_exact_match = value->boolean;
+      value.has_value()) {
+    CHECK(value.value().value()->IsBool());
+    predict_results.found_exact_match = value.value().value()->boolean;
   }
 
   predict_results.matches = predictions_buffer.lines_size().line_delta - 1;
@@ -249,22 +251,22 @@ struct DescendDirectoryTreeOutput {
 
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
-  auto value = buffer.environment().value()->Lookup(
+  std::optional<gc::Root<Value>> value = buffer.environment().value()->Lookup(
       pool, Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
       VMType(VMType::VM_INTEGER));
-  if (value == nullptr) return;
+  if (!value.has_value()) return;
   buffer.environment().value()->Assign(
       kLongestDirectoryMatchEnvironmentVariable,
-      vm::Value::NewInteger(
-          pool, std::max(value->integer, static_cast<int>(new_value))));
+      vm::Value::NewInteger(pool, std::max(value->value()->integer,
+                                           static_cast<int>(new_value))));
 }
 
 void RegisterPredictorExactMatch(OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
-  auto value = buffer.environment().value()->Lookup(
+  std::optional<gc::Root<Value>> value = buffer.environment().value()->Lookup(
       pool, Environment::Namespace(), kExactMatchEnvironmentVariable,
       VMType(VMType::VM_BOOLEAN));
-  if (value == nullptr) return;
+  if (!value.has_value()) return;
   buffer.environment().value()->Assign(kExactMatchEnvironmentVariable,
                                        vm::Value::NewBool(pool, true));
 }
@@ -648,14 +650,14 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
 
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
-  std::unique_ptr<Value> value = buffer.environment().value()->Lookup(
+  std::optional<gc::Root<Value>> value = buffer.environment().value()->Lookup(
       pool, Environment::Namespace(), kLongestPrefixEnvironmentVariable,
       VMType(VMType::VM_INTEGER));
-  if (value == nullptr) return;
+  if (!value.has_value()) return;
   buffer.environment().value()->Assign(
       kLongestPrefixEnvironmentVariable,
-      vm::Value::NewInteger(
-          pool, std::max(value->integer, static_cast<int>(new_value))));
+      vm::Value::NewInteger(pool, std::max(value.value().value()->integer,
+                                           static_cast<int>(new_value))));
 }
 
 }  // namespace afc::editor

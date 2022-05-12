@@ -7,6 +7,7 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/language/gc.h"
 #include "src/line_prompt_mode.h"
 
 namespace afc::editor {
@@ -18,6 +19,8 @@ using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
+
+namespace gc = language::gc;
 
 namespace {
 class RunCppFileCommand : public Command {
@@ -95,7 +98,7 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                    return futures::Past(IterationControlCommand::kStop);
                  ++*index;
                  return buffer->EvaluateFile(adjusted_input)
-                     .Transform([](NonNull<std::unique_ptr<Value>>) {
+                     .Transform([](gc::Root<Value>) {
                        return Success(IterationControlCommand::kContinue);
                      })
                      .ConsumeErrors([](Error) {

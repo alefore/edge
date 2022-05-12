@@ -35,7 +35,7 @@ class MapModeCommands {
   void Add(std::wstring name,
            language::NonNull<std::unique_ptr<Command>> value);
   void Add(std::wstring name, std::wstring description,
-           language::NonNull<std::unique_ptr<vm::Value>> value,
+           language::gc::Root<vm::Value> value,
            language::gc::Root<vm::Environment> environment);
   void Add(std::wstring name, std::function<void()> value,
            std::wstring description);

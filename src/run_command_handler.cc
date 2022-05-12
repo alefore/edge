@@ -383,7 +383,7 @@ class ForkEditorCommand : public Command {
   struct PromptState {
     const std::shared_ptr<OpenBuffer> original_buffer;
     std::optional<std::wstring> base_command;
-    std::unique_ptr<const afc::vm::Value> context_command_callback;
+    std::optional<gc::Root<afc::vm::Value>> context_command_callback;
   };
 
  public:
@@ -416,14 +416,14 @@ class ForkEditorCommand : public Command {
                L"$ ",
            .history_file = HistoryFileCommands(),
            .colorize_options_provider =
-               prompt_state->context_command_callback == nullptr
-                   ? PromptOptions::ColorizeFunction(nullptr)
-                   : ([prompt_state](
+               prompt_state->context_command_callback.has_value()
+                   ? ([prompt_state](
                           const NonNull<std::shared_ptr<LazyString>>& line,
                           std::unique_ptr<ProgressChannel>,
                           NonNull<std::shared_ptr<Notification>>) {
                        return PromptChange(*prompt_state, line);
-                     }),
+                     })
+                   : PromptOptions::ColorizeFunction(nullptr),
            .handler = ([&editor_state = editor_state_,
                         children_path](const wstring& name) {
              return RunCommandHandler(name, editor_state, 0, 1,
@@ -453,7 +453,7 @@ class ForkEditorCommand : public Command {
   static futures::Value<ColorizePromptOptions> PromptChange(
       PromptState& prompt_state,
       const NonNull<std::shared_ptr<LazyString>>& line) {
-    CHECK(prompt_state.context_command_callback);
+    CHECK(prompt_state.context_command_callback.has_value());
     EditorState& editor = prompt_state.original_buffer->editor();
     language::gc::Pool& pool = editor.gc_pool();
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
@@ -461,8 +461,7 @@ class ForkEditorCommand : public Command {
     arguments.push_back(vm::NewConstantExpression(
         vm::Value::NewString(pool, line->ToString())));
     NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
-        vm::NewConstantExpression(
-            MakeNonNullUnique<Value>(*prompt_state.context_command_callback)),
+        vm::NewConstantExpression(*prompt_state.context_command_callback),
         std::move(arguments));
     if (expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
@@ -473,31 +472,30 @@ class ForkEditorCommand : public Command {
     return prompt_state.original_buffer
         ->EvaluateExpression(*expression,
                              prompt_state.original_buffer->environment())
-        .Transform(
-            [&prompt_state, &editor](NonNull<std::unique_ptr<Value>> value)
-                -> ValueOrError<ColorizePromptOptions> {
-              CHECK(value->IsString());
-              auto base_command = value->str;
-              if (prompt_state.base_command == base_command) {
-                return ColorizePromptOptions{};
-              }
+        .Transform([&prompt_state, &editor](gc::Root<Value> value)
+                       -> ValueOrError<ColorizePromptOptions> {
+          CHECK(value.value()->IsString());
+          auto base_command = value.value()->str;
+          if (prompt_state.base_command == base_command) {
+            return ColorizePromptOptions{};
+          }
 
-              if (base_command.empty()) {
-                prompt_state.base_command = std::nullopt;
-                return ColorizePromptOptions{.context = nullptr};
-              }
+          if (base_command.empty()) {
+            prompt_state.base_command = std::nullopt;
+            return ColorizePromptOptions{.context = nullptr};
+          }
 
-              prompt_state.base_command = base_command;
-              ForkCommandOptions options;
-              options.command = base_command;
-              options.name = BufferName(L"- help: " + base_command);
-              options.insertion_type = BuffersList::AddBufferType::kIgnore;
-              auto help_buffer = ForkCommand(editor, options);
-              help_buffer->Set(buffer_variables::follow_end_of_file, false);
-              help_buffer->Set(buffer_variables::show_in_buffers_list, false);
-              help_buffer->set_position({});
-              return ColorizePromptOptions{.context = help_buffer.get_shared()};
-            })
+          prompt_state.base_command = base_command;
+          ForkCommandOptions options;
+          options.command = base_command;
+          options.name = BufferName(L"- help: " + base_command);
+          options.insertion_type = BuffersList::AddBufferType::kIgnore;
+          auto help_buffer = ForkCommand(editor, options);
+          help_buffer->Set(buffer_variables::follow_end_of_file, false);
+          help_buffer->Set(buffer_variables::show_in_buffers_list, false);
+          help_buffer->set_position({});
+          return ColorizePromptOptions{.context = help_buffer.get_shared()};
+        })
         .ConsumeErrors(
             [](Error) { return futures::Past(ColorizePromptOptions{}); });
   }
@@ -517,7 +515,7 @@ VMTypeMapper<editor::ForkCommandOptions*>::get(Value& value) {
 }
 
 // TODO(easy, 2022-05-12): Receive options by ref.
-/* static */ NonNull<Value::Ptr> VMTypeMapper<editor::ForkCommandOptions*>::New(
+/* static */ gc::Root<Value> VMTypeMapper<editor::ForkCommandOptions*>::New(
     language::gc::Pool& pool, editor::ForkCommandOptions* value) {
   CHECK(value != nullptr);
   return Value::NewObject(pool, L"ForkCommandOptions",

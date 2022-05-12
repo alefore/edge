@@ -47,25 +47,23 @@ class Environment {
   void DefineType(const std::wstring& name,
                   language::NonNull<std::unique_ptr<ObjectType>> value);
 
-  std::unique_ptr<Value> Lookup(language::gc::Pool& pool,
-                                const Namespace& symbol_namespace,
-                                const wstring& symbol, VMType expected_type);
+  std::optional<language::gc::Root<Value>> Lookup(
+      language::gc::Pool& pool, const Namespace& symbol_namespace,
+      const wstring& symbol, VMType expected_type);
 
   // TODO(easy): Remove; switch all callers to the version that takes the
   // namespace.
   void PolyLookup(const wstring& symbol,
-                  std::vector<language::NonNull<Value*>>* output);
+                  std::vector<language::gc::Root<Value>>* output);
   void PolyLookup(const Namespace& symbol_namespace, const wstring& symbol,
-                  std::vector<language::NonNull<Value*>>* output);
+                  std::vector<language::gc::Root<Value>>* output);
   // Same as `PolyLookup` but ignores case and thus is much slower (runtime
   // complexity is linear to the total number of symbols defined);
   void CaseInsensitiveLookup(const Namespace& symbol_namespace,
                              const wstring& symbol,
-                             std::vector<language::NonNull<Value*>>* output);
-  void Define(const wstring& symbol,
-              language::NonNull<std::unique_ptr<Value>> value);
-  void Assign(const wstring& symbol,
-              language::NonNull<std::unique_ptr<Value>> value);
+                             std::vector<language::gc::Root<Value>>* output);
+  void Define(const wstring& symbol, language::gc::Root<Value> value);
+  void Assign(const wstring& symbol, language::gc::Root<Value> value);
   void Remove(const wstring& symbol, VMType type);
 
   void ForEachType(std::function<void(const wstring&, ObjectType&)> callback);
@@ -77,8 +75,7 @@ class Environment {
   std::map<std::wstring, language::NonNull<std::unique_ptr<ObjectType>>>
       object_types_;
 
-  std::map<std::wstring, std::unordered_map<
-                             VMType, language::NonNull<std::unique_ptr<Value>>>>
+  std::map<std::wstring, std::unordered_map<VMType, language::gc::Root<Value>>>
       table_;
 
   std::map<std::wstring, language::gc::Ptr<Environment>> namespaces_;

@@ -689,7 +689,7 @@ editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
 }
 
 /* static */
-NonNull<Value::Ptr> VMTypeMapper<editor::LineColumn>::New(
+gc::Root<Value> VMTypeMapper<editor::LineColumn>::New(
     gc::Pool& pool, editor::LineColumn value) {
   return Value::NewObject(
       pool, vmtype.object_type,
@@ -710,7 +710,7 @@ editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
 }
 
 /* static */
-NonNull<Value::Ptr> VMTypeMapper<editor::LineColumnDelta>::New(
+gc::Root<Value> VMTypeMapper<editor::LineColumnDelta>::New(
     gc::Pool& pool, editor::LineColumnDelta value) {
   return Value::NewObject(
       pool, vmtype.object_type,
@@ -730,8 +730,8 @@ editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
 }
 
 /* static */
-NonNull<Value::Ptr> VMTypeMapper<editor::Range>::New(gc::Pool& pool,
-                                                     editor::Range range) {
+gc::Root<Value> VMTypeMapper<editor::Range>::New(gc::Pool& pool,
+                                                 editor::Range range) {
   return Value::NewObject(
       pool, L"Range", shared_ptr<void>(new editor::Range(range), [](void* v) {
         delete static_cast<editor::Range*>(v);

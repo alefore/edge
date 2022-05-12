@@ -41,7 +41,7 @@ class LogicalExpression : public Expression {
             case EvaluationOutput::OutputType::kReturn:
               return futures::Past(Success(std::move(a_output)));
             case EvaluationOutput::OutputType::kContinue:
-              return a_output.value->boolean == identity
+              return a_output.value.value()->boolean == identity
                          ? trampoline.Bounce(*expr_b, type)
                          : futures::Past(Success(std::move(a_output)));
           }

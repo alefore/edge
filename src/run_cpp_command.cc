@@ -54,10 +54,10 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
   }
   buffer->ResetMode();
   return buffer->EvaluateString(name)
-      .Transform([buffer](NonNull<std::unique_ptr<Value>> value) {
-        if (value->IsVoid()) return Success();
+      .Transform([buffer](gc::Root<Value> value) {
+        if (value.value()->IsVoid()) return Success();
         std::ostringstream oss;
-        oss << "Evaluation result: " << *value;
+        oss << "Evaluation result: " << value.value().value();
         buffer->status().SetInformationText(FromByteString(oss.str()));
         return Success();
       })
@@ -66,7 +66,8 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
 
 struct ParsedCommand {
   std::vector<Token> tokens;
-  vm::Value* function = nullptr;
+  // TODO(easy, 2022-05-12): Remove the optional here?
+  std::optional<gc::Root<vm::Value>> function;
   std::vector<NonNull<std::unique_ptr<Expression>>> inputs;
 };
 
@@ -84,7 +85,7 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   CHECK(!search_namespaces.namespaces.empty());
-  std::vector<NonNull<Value*>> functions;
+  std::vector<gc::Root<Value>> functions;
   for (const auto& n : search_namespaces.namespaces) {
     environment.CaseInsensitiveLookup(
         n,
@@ -100,13 +101,13 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   // Filter functions that match our type expectations.
-  std::vector<NonNull<Value*>> type_match_functions;
-  Value* function_vector = nullptr;
-  for (auto& candidate : functions) {
-    if (!candidate->IsFunction()) {
+  std::vector<gc::Root<Value>> type_match_functions;
+  std::optional<gc::Root<Value>> function_vector;
+  for (gc::Root<Value>& candidate : functions) {
+    if (!candidate.value()->IsFunction()) {
       continue;
     }
-    const auto& arguments = candidate->type.type_arguments;
+    const auto& arguments = candidate.value()->type.type_arguments;
     if (accepted_return_types.find(arguments[0]) ==
         accepted_return_types.end()) {
       continue;
@@ -122,12 +123,12 @@ ValueOrError<ParsedCommand> Parse(
     } else if (arguments.size() == 2 &&
                arguments[1] ==
                    VMTypeMapper<std::vector<std::wstring>*>::vmtype) {
-      function_vector = candidate.get();
+      function_vector = candidate;
     }
   }
 
-  if (function_vector != nullptr) {
-    output.function = function_vector;
+  if (!function_vector.has_value()) {
+    output.function = function_vector.value();
     auto argument_values = std::make_unique<std::vector<std::wstring>>();
     for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
       argument_values->push_back(it->value);
@@ -137,10 +138,11 @@ ValueOrError<ParsedCommand> Parse(
             pool, std::move(argument_values))));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
-    output.function = type_match_functions[0].get();
-    CHECK_GE(output.function->type.type_arguments.size(),
+    output.function = type_match_functions[0];
+    CHECK_GE(output.function.value().value()->type.type_arguments.size(),
              1ul /* return type */);
-    size_t expected_arguments = output.function->type.type_arguments.size() - 1;
+    size_t expected_arguments =
+        output.function.value().value()->type.type_arguments.size() - 1;
     if (output.tokens.size() - 1 > expected_arguments) {
       return Error(L"Too many arguments given for `" + output.tokens[0].value +
                    L"` (expected: " + std::to_wstring(expected_arguments) +
@@ -171,12 +173,12 @@ ValueOrError<ParsedCommand> Parse(gc::Pool& pool,
                {VMType::Void(), VMType::String()}, search_namespaces);
 }
 
-futures::ValueOrError<NonNull<std::unique_ptr<Value>>> Execute(
+futures::ValueOrError<gc::Root<Value>> Execute(
     std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
-  NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
-      vm::NewConstantExpression(
-          MakeNonNullUnique<vm::Value>(*parsed_command.function)),
-      std::move(parsed_command.inputs));
+  CHECK(parsed_command.function.has_value());
+  NonNull<std::unique_ptr<Expression>> expression =
+      vm::NewFunctionCall(vm::NewConstantExpression(*parsed_command.function),
+                          std::move(parsed_command.inputs));
   if (expression->Types().empty()) {
     // TODO: Show the error.
     return futures::Past(Error(L"Unable to compile (type mismatch)."));
@@ -216,10 +218,10 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
       buffer != nullptr && !command.IsError()) {
     Execute(buffer, std::move(command.value()))
         .SetConsumer([consumer = output_future.consumer, buffer,
-                      output](ValueOrError<NonNull<std::unique_ptr<vm::Value>>>
-                                  value) mutable {
-          if (!value.IsError() && value.value()->type == BufferMapper::vmtype) {
-            output.context = BufferMapper::get(value.value().value());
+                      output](ValueOrError<gc::Root<vm::Value>> value) mutable {
+          if (!value.IsError() &&
+              value.value().value()->type == BufferMapper::vmtype) {
+            output.context = BufferMapper::get(value.value().value().value());
           }
           consumer(output);
         });
@@ -231,13 +233,12 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 
 }  // namespace
 
-futures::ValueOrError<NonNull<std::unique_ptr<vm::Value>>> RunCppCommandShell(
+futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
     const std::wstring& command, EditorState& editor_state) {
   using futures::Past;
   auto buffer = editor_state.current_buffer();
   if (buffer == nullptr) {
-    return Past(ValueOrError<NonNull<std::unique_ptr<vm::Value>>>(
-        Error(L"No active buffer.")));
+    return Past(ValueOrError<gc::Root<vm::Value>>(Error(L"No active buffer.")));
   }
   buffer->ResetMode();
 
@@ -249,8 +250,8 @@ futures::ValueOrError<NonNull<std::unique_ptr<vm::Value>>> RunCppCommandShell(
     if (!parsed_command.error().description.empty()) {
       buffer->status().SetWarningText(parsed_command.error().description);
     }
-    return Past(ValueOrError<NonNull<std::unique_ptr<vm::Value>>>(
-        Error(L"Unable to parse command")));
+    return Past(
+        ValueOrError<gc::Root<vm::Value>>(Error(L"Unable to parse command")));
   }
 
   return futures::OnError(Execute(buffer, std::move(parsed_command.value())),

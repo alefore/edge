@@ -40,14 +40,13 @@ struct VMTypeMapper<std::set<T>*> {
 
     auto name = vmtype.object_type;
     environment->Define(
-        name,
-        Value::NewFunction(
-            pool, {set_type->type()},
-            [&pool, name](std::vector<language::NonNull<Value::Ptr>> args) {
-              CHECK(args.empty());
-              return Value::NewObject(pool, name,
-                                      std::make_shared<std::set<T>>());
-            }));
+        name, Value::NewFunction(
+                  pool, {set_type->type()},
+                  [&pool, name](std::vector<language::gc::Root<Value>> args) {
+                    CHECK(args.empty());
+                    return Value::NewObject(pool, name,
+                                            std::make_shared<std::set<T>>());
+                  }));
 
     set_type->AddField(
         L"size",

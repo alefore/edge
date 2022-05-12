@@ -5,6 +5,7 @@
 #include <string>
 
 #include "src/futures/futures.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 
 namespace afc {
@@ -31,8 +32,8 @@ class Command;
 // A command looks like this: build foo "bar hey".
 //
 // In this case, that'd run something like: build("foo", "bar hey");
-futures::ValueOrError<language::NonNull<std::unique_ptr<vm::Value>>>
-RunCppCommandShell(const std::wstring& command, EditorState& editor_state);
+futures::ValueOrError<language::gc::Root<vm::Value>> RunCppCommandShell(
+    const std::wstring& command, EditorState& editor_state);
 
 language::NonNull<std::unique_ptr<Command>> NewRunCppCommand(
     EditorState& editor_state, CppCommandMode mode);

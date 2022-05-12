@@ -25,7 +25,7 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
     return std::static_pointer_cast<editor::transformation::Repetitions>(
         value->user_value);
   }
-  static NonNull<Value::Ptr> New(
+  static gc::Root<Value> New(
       gc::Pool& pool,
       std::shared_ptr<editor::transformation::Repetitions> value) {
     return Value::NewObject(pool, L"RepetitionsTransformationBuilder",

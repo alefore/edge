@@ -41,13 +41,15 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
       .Transform([b = b_, type = type_, op = operator_,
                   &trampoline](EvaluationOutput a_value) {
         return trampoline.Bounce(*b, b->Types()[0])
-            .Transform([a_value =
-                            std::make_shared<Value>(std::move(*a_value.value)),
-                        type, op](EvaluationOutput b_value)
+            .Transform([&trampoline, a_value = std::move(a_value.value), type,
+                        op](EvaluationOutput b_value)
                            -> ValueOrError<EvaluationOutput> {
-              auto output = MakeNonNullUnique<Value>(type);
+              auto output =
+                  trampoline.pool().NewRoot(MakeNonNullUnique<Value>(type));
               // TODO(easy, 2022-05-02): Pass output by ref.
-              auto result = op(*a_value, *b_value.value, output.get().get());
+              auto result =
+                  op(a_value.value().value(), b_value.value.value().value(),
+                     &output.value().value());
               if (result.IsError()) return result.error();
               return Success(EvaluationOutput::New(std::move(output)));
             });

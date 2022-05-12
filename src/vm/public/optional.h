@@ -29,7 +29,7 @@ struct VMTypeMapper<std::optional<T>*> {
     return static_cast<std::optional<T>*>(value->user_value.get());
   }
 
-  static Value::Ptr New(std::optional<T>* value) {
+  static language::gc::Root<Value> New(std::optional<T>* value) {
     // TODO: It's lame that we have to copy the values. :-/ We should find a way
     // to avoid that.
     auto value_copy = std::make_shared<std::optional<T>>(*value);
@@ -44,13 +44,13 @@ struct VMTypeMapper<std::optional<T>*> {
 
     auto name = vmtype.object_type;
     environment->Define(
-        name, Value::NewFunction({VMType::ObjectType(optional_type.get())},
-                                 [name](std::vector<Value::Ptr> args) {
-                                   CHECK(args.empty());
-                                   return Value::NewObject(
-                                       name,
-                                       std::make_shared<std::optional<T>>());
-                                 }));
+        name, Value::NewFunction(
+                  {VMType::ObjectType(optional_type.get())},
+                  [name](std::vector < language::gc::Root<Value> args) {
+                    CHECK(args.empty());
+                    return Value::NewObject(
+                        name, std::make_shared<std::optional<T>>());
+                  }));
 
     optional_type->AddField(
         L"has_value", vm::NewCallback(std::function<bool(std::optional<T>*)>(

@@ -30,43 +30,42 @@ void StartClassDeclaration(Compilation* compilation, const std::wstring& name) {
 }
 
 namespace {
-NonNull<std::unique_ptr<Value>> BuildSetter(gc::Pool& pool, VMType class_type,
-                                            VMType field_type,
-                                            std::wstring field_name) {
-  auto output = Value::NewFunction(
+gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
+                            VMType field_type, std::wstring field_name) {
+  gc::Root<Value> output = Value::NewFunction(
       pool, {class_type, class_type, field_type},
-      [field_name, field_type](
-          std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
+      [field_name, field_type](std::vector<gc::Root<Value>> args, Trampoline&) {
         CHECK_EQ(args.size(), 2u);
-        auto instance = static_cast<Instance*>(args[0]->user_value.get());
+        auto instance =
+            static_cast<Instance*>(args[0].value()->user_value.get());
         CHECK(instance != nullptr);
 
-        CHECK_EQ(args[1]->type, field_type);
+        CHECK_EQ(args[1].value()->type, field_type);
         instance->environment.value()->Assign(field_name, std::move(args[1]));
 
         return futures::Past(
             Success(EvaluationOutput::New(std::move(args[0]))));
       });
 
-  output->type.function_purity = Expression::PurityType::kUnknown;
+  output.value()->type.function_purity = Expression::PurityType::kUnknown;
   return output;
 }
 
-NonNull<std::unique_ptr<Value>> BuildGetter(gc::Pool& pool, VMType class_type,
-                                            VMType field_type,
-                                            std::wstring field_name) {
-  auto output = Value::NewFunction(
+gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
+                            VMType field_type, std::wstring field_name) {
+  gc::Root<Value> output = Value::NewFunction(
       pool, {field_type, class_type},
-      [&pool, field_name, field_type](
-          std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
+      [&pool, field_name, field_type](std::vector<gc::Root<Value>> args,
+                                      Trampoline&) {
         CHECK_EQ(args.size(), 1u);
-        auto instance = static_cast<Instance*>(args[0]->user_value.get());
+        auto instance =
+            static_cast<Instance*>(args[0].value()->user_value.get());
         CHECK(instance != nullptr);
         static Environment::Namespace empty_namespace;
         return futures::Past(VisitPointer(
             instance->environment.value()->Lookup(pool, empty_namespace,
                                                   field_name, field_type),
-            [](NonNull<std::unique_ptr<Value>> value) {
+            [](gc::Root<Value> value) {
               return Success(EvaluationOutput::New(std::move(value)));
             },
             [&]() {
@@ -74,7 +73,7 @@ NonNull<std::unique_ptr<Value>> BuildGetter(gc::Pool& pool, VMType class_type,
                            field_name);
             }));
       });
-  output->type.function_purity = Expression::PurityType::kPure;
+  output.value()->type.function_purity = Expression::PurityType::kPure;
   return output;
 }
 }  // namespace
@@ -115,13 +114,12 @@ void FinishClassDeclaration(
   compilation->environment.value()->DefineType(class_type.object_type,
                                                std::move(class_object_type));
   auto purity = constructor_expression.value()->purity();
-  NonNull<std::unique_ptr<Value>> constructor = Value::NewFunction(
+  gc::Root<Value> constructor = Value::NewFunction(
       pool, {class_type},
       [constructor_expression_shared = NonNull<std::shared_ptr<Expression>>(
            std::move(constructor_expression.value())),
        class_environment, class_type,
-       values](std::vector<NonNull<std::unique_ptr<Value>>>,
-               Trampoline& trampoline) {
+       values](std::vector<gc::Root<Value>>, Trampoline& trampoline) {
         gc::Root<Environment> instance_environment =
             trampoline.pool().NewRoot(MakeNonNullUnique<Environment>(
                 class_environment.value()->parent_environment()));
@@ -148,7 +146,7 @@ void FinishClassDeclaration(
               return error;
             });
       });
-  constructor->type.function_purity = purity;
+  constructor.value()->type.function_purity = purity;
 
   compilation->environment.value()->Define(class_type.object_type,
                                            std::move(constructor));

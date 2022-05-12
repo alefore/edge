@@ -24,6 +24,8 @@ using language::MakeNonNullShared;
 using language::PossibleError;
 using language::Success;
 
+namespace gc = language::gc;
+
 const wstring kDepthSymbol = L"navigation_buffer_depth";
 
 // Modifles line_options.contents, appending to it from input.
@@ -113,10 +115,13 @@ futures::Value<PossibleError> GenerateContents(
 
   auto tree = source->simplified_parse_tree();
   target.AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
-  auto depth_value = target.environment().value()->Lookup(
-      editor_state.gc_pool(), Environment::Namespace(), kDepthSymbol,
-      VMType::Integer());
-  int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
+  std::optional<gc::Root<Value>> depth_value =
+      target.environment().value()->Lookup(editor_state.gc_pool(),
+                                           Environment::Namespace(),
+                                           kDepthSymbol, VMType::Integer());
+  int depth = depth_value.has_value()
+                  ? size_t(max(0, depth_value.value().value()->integer))
+                  : 3;
   DisplayTree(source, depth, *tree, EmptyString(), target);
   return futures::Past(Success());
 }

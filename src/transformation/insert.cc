@@ -12,6 +12,8 @@
 
 namespace afc {
 using language::NonNull;
+
+namespace gc = language::gc;
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
@@ -22,9 +24,8 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
     return std::static_pointer_cast<editor::transformation::Insert>(
         value.user_value);
   }
-  static NonNull<Value::Ptr> New(
-      language::gc::Pool& pool,
-      std::shared_ptr<editor::transformation::Insert> value) {
+  static gc::Root<Value> New(
+      gc::Pool& pool, std::shared_ptr<editor::transformation::Insert> value) {
     return Value::NewObject(pool, L"InsertTransformationBuilder",
                             std::shared_ptr<void>(value, value.get()));
   }

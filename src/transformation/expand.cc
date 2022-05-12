@@ -28,6 +28,8 @@ using language::MakeNonNullUnique;
 using language::Success;
 using language::VisitPointer;
 
+namespace gc = language::gc;
+
 std::wstring GetToken(const CompositeTransformation::Input& input,
                       EdgeVariable<wstring>* characters_variable) {
   if (input.position.column < ColumnNumber(2)) return L"";
@@ -240,13 +242,13 @@ class Execute : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     return RunCppCommandShell(command_, input.editor)
-        .Transform([command_size = command_.size(), &editor = input.editor](
-                       NonNull<std::unique_ptr<Value>> value) {
+        .Transform([command_size = command_.size(),
+                    &editor = input.editor](gc::Root<Value> value) {
           Output output;
-          if (value->IsString()) {
+          if (value.value()->IsString()) {
             output.Push(transformation::Insert{
                 .contents_to_insert = MakeNonNullShared<BufferContents>(
-                    MakeNonNullShared<Line>(value->str))});
+                    MakeNonNullShared<Line>(value.value()->str))});
           }
           return futures::Past(Success(std::move(output)));
         })

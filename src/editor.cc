@@ -91,13 +91,13 @@ void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
           pool,
           // Returns nothing.
           {VMType::Void(), editor_type.type()},
-          [method](std::vector<NonNull<std::unique_ptr<Value>>> args,
-                   Trampoline& trampoline) {
+          [method](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
+            CHECK_EQ(args[0].value()->type, VMType::ObjectType(L"Editor"));
 
             // TODO(easy, 2022-05-11): Use VMTypeMapper below.
-            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+            auto editor =
+                static_cast<EditorState*>(args[0].value()->user_value.get());
             CHECK(editor != nullptr);
             return editor
                 ->ForEachActiveBuffer([method](OpenBuffer& buffer) {
@@ -262,15 +262,16 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
            VMType::Function(
                {VMType::Void(),
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
-          [&pool = gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> input,
+          [&pool = gc_pool_](std::vector<gc::Root<Value>> input,
                              Trampoline& trampoline) {
             EditorState& editor =
-                VMTypeMapper<EditorState&>::get(input[0].value());
+                VMTypeMapper<EditorState&>::get(input[0].value().value());
             NonNull<std::shared_ptr<PossibleError>> output;
             return editor
-                .ForEachActiveBuffer([callback = input[1]->LockCallback(),
+                .ForEachActiveBuffer([callback =
+                                          input[1].value()->LockCallback(),
                                       &trampoline, output](OpenBuffer& buffer) {
-                  std::vector<NonNull<std::unique_ptr<Value>>> args;
+                  std::vector<gc::Root<Value>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
                           trampoline.pool(), buffer.shared_from_this()));
@@ -296,17 +297,18 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
            VMType::Function(
                {VMType::Void(),
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
-          [&pool = gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> input,
+          [&pool = gc_pool_](std::vector<gc::Root<Value>> input,
                              Trampoline& trampoline) {
             EditorState& editor =
-                VMTypeMapper<EditorState&>::get(input[0].value());
+                VMTypeMapper<EditorState&>::get(input[0].value().value());
             return editor
                 .ForEachActiveBufferWithRepetitions([callback =
                                                          input[1]
+                                                             .value()
                                                              ->LockCallback(),
                                                      &trampoline](
                                                         OpenBuffer& buffer) {
-                  std::vector<NonNull<std::unique_ptr<Value>>> args;
+                  std::vector<gc::Root<Value>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
                           trampoline.pool(), buffer.shared_from_this()));
@@ -334,15 +336,14 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
           gc_pool_,
           {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::String()},
-          [&pool = gc_pool_](
-              std::vector<NonNull<std::unique_ptr<Value>>> args,
-              Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
+          [&pool = gc_pool_](std::vector<gc::Root<Value>> args, Trampoline&)
+              -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
-            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState&>::vmtype);
-            CHECK(args[1]->IsString());
+            CHECK_EQ(args[0].value()->type, VMTypeMapper<EditorState&>::vmtype);
+            CHECK(args[1].value()->IsString());
             EditorState& editor =
-                VMTypeMapper<EditorState&>::get(args[0].value());
-            auto target_path = Path::FromString(args[1]->str);
+                VMTypeMapper<EditorState&>::get(args[0].value().value());
+            auto target_path = Path::FromString(args[1].value()->str);
             if (target_path.IsError()) {
               editor.status().SetWarningText(L"ConnectTo error: " +
                                              target_path.error().description);
@@ -359,12 +360,12 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
           gc_pool_,
           {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::ObjectType(L"SetString")},
-          [&pool = gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> args,
-                             Trampoline&) {
+          [&pool = gc_pool_](std::vector<gc::Root<Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2u);
-            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-            const auto& buffers_to_wait =
-                *static_cast<std::set<wstring>*>(args[1]->user_value.get());
+            auto editor =
+                static_cast<EditorState*>(args[0].value()->user_value.get());
+            const auto& buffers_to_wait = *static_cast<std::set<wstring>*>(
+                args[1].value()->user_value.get());
 
             auto values =
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
@@ -450,21 +451,21 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
           gc_pool_,
           {VMType::ObjectType(L"Buffer"), VMTypeMapper<EditorState&>::vmtype,
            VMType::String(), VMType::Bool()},
-          [&pool = gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> args,
-                             Trampoline&) {
+          [&pool = gc_pool_](std::vector<gc::Root<Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
-            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState&>::vmtype);
+            CHECK_EQ(args[0].value()->type, VMTypeMapper<EditorState&>::vmtype);
             auto editor_state =
-                static_cast<EditorState*>(args[0]->user_value.get());
-            CHECK(args[1]->IsString());
-            CHECK(args[2]->IsBool());
+                static_cast<EditorState*>(args[0].value()->user_value.get());
+            CHECK(args[1].value()->IsString());
+            CHECK(args[2].value()->IsBool());
             CHECK(editor_state != nullptr);
             return OpenOrCreateFile(
                        OpenFileOptions{
                            .editor_state = *editor_state,
-                           .path = Path::FromString(args[1]->str).AsOptional(),
+                           .path = Path::FromString(args[1].value()->str)
+                                       .AsOptional(),
                            .insertion_type =
-                               args[2]->boolean
+                               args[2].value()->boolean
                                    ? BuffersList::AddBufferType::kVisit
                                    : BuffersList::AddBufferType::kIgnore})
                 .Transform(
@@ -480,18 +481,17 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
           gc_pool_,
           {VMType::Void(), VMTypeMapper<EditorState&>::vmtype, VMType::String(),
            VMType::String(), VMType::Function({VMType::Void()})},
-          [&pool =
-               gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> args) {
+          [&pool = gc_pool_](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), 4u);
-            CHECK_EQ(args[0]->type, VMTypeMapper<EditorState&>::vmtype);
-            CHECK(args[1]->IsString());
-            CHECK(args[2]->IsString());
+            CHECK_EQ(args[0].value()->type, VMTypeMapper<EditorState&>::vmtype);
+            CHECK(args[1].value()->IsString());
+            CHECK(args[2].value()->IsString());
             EditorState* editor =
-                static_cast<EditorState*>(args[0]->user_value.get());
+                static_cast<EditorState*>(args[0].value()->user_value.get());
             CHECK(editor != nullptr);
-            editor->default_commands_->Add(args[1]->str, args[2]->str,
-                                           std::move(args[3]),
-                                           editor->environment_);
+            editor->default_commands_->Add(
+                args[1].value()->str, args[2].value()->str, std::move(args[3]),
+                editor->environment_);
             return Value::NewVoid(pool);
           }));
 
@@ -581,7 +581,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
                  LOG(INFO) << "Evaluation of file yields: " << path;
                  work_queue->Schedule(std::move(resume));
                })
-        .Transform([](NonNull<std::unique_ptr<Value>>) {
+        .Transform([](gc::Root<Value>) {
           // TODO(2022-04-26): Figure out a way to get rid of `Success`.
           return futures::Past(
               Success(futures::IterationControlCommand::kContinue));

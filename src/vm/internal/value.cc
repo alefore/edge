@@ -88,59 +88,57 @@ bool cpp_unescape_string_tests_registration =
     }());
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewVoid(gc::Pool&) {
-  return MakeNonNullUnique<Value>(VMType::VM_VOID);
+/* static */ gc::Root<Value> Value::NewVoid(gc::Pool& pool) {
+  return pool.NewRoot(MakeNonNullUnique<Value>(VMType::VM_VOID));
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewBool(gc::Pool&,
-                                                            bool value) {
-  auto output = MakeNonNullUnique<Value>(VMType::Bool());
-  output->boolean = value;
+/* static */ gc::Root<Value> Value::NewBool(gc::Pool& pool, bool value) {
+  auto output = pool.NewRoot(MakeNonNullUnique<Value>(VMType::Bool()));
+  output.value()->boolean = value;
   return output;
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewInteger(gc::Pool&,
-                                                               int value) {
-  auto output = MakeNonNullUnique<Value>(VMType::Integer());
-  output->integer = value;
+/* static */ gc::Root<Value> Value::NewInteger(gc::Pool& pool, int value) {
+  auto output = pool.NewRoot(MakeNonNullUnique<Value>(VMType::Integer()));
+  output.value()->integer = value;
   return output;
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewDouble(gc::Pool&,
-                                                              double value) {
-  auto output = MakeNonNullUnique<Value>(VMType::Double());
-  output->double_value = value;
+/* static */ gc::Root<Value> Value::NewDouble(gc::Pool& pool, double value) {
+  auto output = pool.NewRoot(MakeNonNullUnique<Value>(VMType::Double()));
+  output.value()->double_value = value;
   return output;
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewString(gc::Pool&,
-                                                              wstring value) {
-  auto output = MakeNonNullUnique<Value>(VMType::String());
-  output->str = std::move(value);
+/* static */ gc::Root<Value> Value::NewString(gc::Pool& pool, wstring value) {
+  auto output = pool.NewRoot(MakeNonNullUnique<Value>(VMType::String()));
+  output.value()->str = std::move(value);
   return output;
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewObject(
-    gc::Pool&, std::wstring name, std::shared_ptr<void> value) {
-  auto output = MakeNonNullUnique<Value>(VMType::ObjectType(std::move(name)));
-  output->user_value = std::move(value);
+/* static */ gc::Root<Value> Value::NewObject(gc::Pool& pool, std::wstring name,
+                                              std::shared_ptr<void> value) {
+  auto output = pool.NewRoot(
+      MakeNonNullUnique<Value>(VMType::ObjectType(std::move(name))));
+  output.value()->user_value = std::move(value);
   return output;
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewFunction(
-    gc::Pool&, std::vector<VMType> arguments, Value::Callback callback) {
-  auto output = MakeNonNullUnique<Value>(VMType::FUNCTION);
-  output->type.type_arguments = std::move(arguments);
-  output->callback = std::move(callback);
+/* static */ gc::Root<Value> Value::NewFunction(gc::Pool& pool,
+                                                std::vector<VMType> arguments,
+                                                Value::Callback callback) {
+  auto output = pool.NewRoot(MakeNonNullUnique<Value>(VMType::FUNCTION));
+  output.value()->type.type_arguments = std::move(arguments);
+  output.value()->callback = std::move(callback);
   return output;
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewFunction(
+/* static */ gc::Root<Value> Value::NewFunction(
     gc::Pool& pool, std::vector<VMType> arguments,
-    std::function<NonNull<Value::Ptr>(std::vector<NonNull<Value::Ptr>>)>
-        callback) {
+    std::function<gc::Root<Value>(std::vector<gc::Root<Value>>)> callback) {
   return NewFunction(
-      pool, arguments, [callback](std::vector<NonNull<Ptr>> args, Trampoline&) {
+      pool, arguments,
+      [callback](std::vector<gc::Root<Value>> args, Trampoline&) {
         return futures::Past(
             Success(EvaluationOutput::New(callback(std::move(args)))));
       });
@@ -167,3 +165,9 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
 }
 
 }  // namespace afc::vm
+namespace afc::language::gc {
+std::vector<NonNull<std::shared_ptr<ControlFrame>>> Expand(
+    const afc::vm::Value&) {
+  return {};
+}
+}  // namespace afc::language::gc

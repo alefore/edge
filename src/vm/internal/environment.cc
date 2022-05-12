@@ -161,31 +161,31 @@ void Environment::DefineType(const wstring& name,
   object_types_.insert_or_assign(name, std::move(value));
 }
 
-std::unique_ptr<Value> Environment::Lookup(gc::Pool& pool,
-                                           const Namespace& symbol_namespace,
-                                           const wstring& symbol,
-                                           VMType expected_type) {
-  std::vector<NonNull<Value*>> values;
+std::optional<gc::Root<Value>> Environment::Lookup(
+    gc::Pool& pool, const Namespace& symbol_namespace, const wstring& symbol,
+    VMType expected_type) {
+  std::vector<gc::Root<Value>> values;
   PolyLookup(symbol_namespace, symbol, &values);
-  for (auto& value : values) {
-    if (auto callback = GetImplicitPromotion(value->type, expected_type);
+  for (gc::Root<Value>& value : values) {
+    if (auto callback =
+            GetImplicitPromotion(value.value()->type, expected_type);
         callback != nullptr) {
-      return std::move(
-          callback(pool, MakeNonNullUnique<Value>(*value)).get_unique());
+      return std::move(callback(
+          pool, pool.NewRoot(MakeNonNullUnique<Value>(value.value().value()))));
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 void Environment::PolyLookup(const wstring& symbol,
-                             std::vector<NonNull<Value*>>* output) {
+                             std::vector<gc::Root<Value>>* output) {
   static const auto* empty_namespace = new Environment::Namespace();
   PolyLookup(*empty_namespace, symbol, output);
 }
 
 void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
                              const wstring& symbol,
-                             std::vector<NonNull<Value*>>* output) {
+                             std::vector<gc::Root<Value>>* output) {
   Environment* environment = this;
   for (auto& n : symbol_namespace) {
     auto it = environment->namespaces_.find(n);
@@ -199,7 +199,7 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
     if (auto it = environment->table_.find(symbol);
         it != environment->table_.end()) {
       for (auto& entry : it->second) {
-        output->push_back(entry.second.get());
+        output->push_back(entry.second);
       }
     }
   }
@@ -211,7 +211,7 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
 
 void Environment::CaseInsensitiveLookup(
     const Environment::Namespace& symbol_namespace, const wstring& symbol,
-    std::vector<NonNull<Value*>>* output) {
+    std::vector<gc::Root<Value>>* output) {
   Environment* environment = this;
   for (auto& n : symbol_namespace) {
     auto it = environment->namespaces_.find(n);
@@ -225,7 +225,7 @@ void Environment::CaseInsensitiveLookup(
     for (auto& item : environment->table_) {
       if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
         for (auto& entry : item.second) {
-          output->push_back(entry.second.get());
+          output->push_back(entry.second);
         }
       }
     }
@@ -237,13 +237,11 @@ void Environment::CaseInsensitiveLookup(
   }
 }
 
-void Environment::Define(const wstring& symbol,
-                         NonNull<std::unique_ptr<Value>> value) {
-  table_[symbol].insert_or_assign(value->type, std::move(value));
+void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
+  table_[symbol].insert_or_assign(value.value()->type, std::move(value));
 }
 
-void Environment::Assign(const wstring& symbol,
-                         NonNull<std::unique_ptr<Value>> value) {
+void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
   auto it = table_.find(symbol);
   if (it == table_.end()) {
     // TODO: Show the symbol.
@@ -255,7 +253,7 @@ void Environment::Assign(const wstring& symbol,
     (*parent_environment_)->Assign(symbol, std::move(value));
     return;
   }
-  it->second.insert_or_assign(value->type, std::move(value));
+  it->second.insert_or_assign(value.value()->type, std::move(value));
 }
 
 void Environment::Remove(const wstring& symbol, VMType type) {
@@ -287,10 +285,9 @@ void Environment::ForEach(
 void Environment::ForEachNonRecursive(
     std::function<void(const std::wstring&, Value&)> callback) {
   for (auto& symbol_entry : table_) {
-    for (const std::pair<const VMType,
-                         language::NonNull<std::unique_ptr<Value>>>&
-             type_entry : symbol_entry.second) {
-      callback(symbol_entry.first, *type_entry.second);
+    for (const std::pair<const VMType, gc::Root<Value>>& type_entry :
+         symbol_entry.second) {
+      callback(symbol_entry.first, type_entry.second.value().value());
     }
   }
 }

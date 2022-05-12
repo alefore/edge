@@ -3,11 +3,9 @@
 
 #include <memory>
 
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 
-namespace afc::language::gc {
-class Pool;
-}
 namespace afc::vm {
 class Expression;
 struct Value;
@@ -15,7 +13,7 @@ struct Value;
 language::NonNull<std::unique_ptr<Expression>> NewVoidExpression(
     language::gc::Pool& pool);
 language::NonNull<std::unique_ptr<Expression>> NewConstantExpression(
-    language::NonNull<std::unique_ptr<Value>> value);
+    language::gc::Root<Value> value);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_CONSTANT_EXPRESSION_H__

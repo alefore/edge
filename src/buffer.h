@@ -304,7 +304,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   static wstring FlagsToString(std::map<wstring, wstring> flags);
 
   futures::Value<std::wstring> TransformKeyboardText(std::wstring input);
-  bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
+  bool AddKeyboardTextTransformer(language::gc::Root<Value> transformer);
 
   futures::Value<language::EmptyValue> ApplyToCursors(
       transformation::Variant transformation);
@@ -330,7 +330,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   };
   futures::Value<language::EmptyValue> Undo(UndoMode undo_mode);
 
-  void set_filter(unique_ptr<Value> filter);
+  void set_filter(language::gc::Root<Value> filter);
 
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
@@ -352,13 +352,12 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   CompileString(const wstring& str);
 
   // `expr` can be deleted as soon as we return.
-  futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>>
-  EvaluateExpression(Expression& expr,
-                     language::gc::Root<Environment> environment);
+  futures::ValueOrError<language::gc::Root<Value>> EvaluateExpression(
+      Expression& expr, language::gc::Root<Environment> environment);
 
-  futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>>
-  EvaluateString(const wstring& str);
-  futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> EvaluateFile(
+  futures::ValueOrError<language::gc::Root<Value>> EvaluateString(
+      const wstring& str);
+  futures::ValueOrError<language::gc::Root<Value>> EvaluateFile(
       const infrastructure::Path& path);
 
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>>& work_queue()
@@ -561,14 +560,14 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   std::list<language::NonNull<std::shared_ptr<transformation::Stack>>>
       undo_future_;
 
-  std::list<unique_ptr<Value>> keyboard_text_transformers_;
+  std::list<language::gc::Root<Value>> keyboard_text_transformers_;
   const language::gc::Root<Environment> environment_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be
   // shown.  This does not remove any lines: it merely hides them (by setting
   // the Line::filtered field).
-  std::unique_ptr<Value> filter_;
+  std::optional<language::gc::Root<Value>> filter_;
   size_t filter_version_;
 
   transformation::Variant last_transformation_;
@@ -614,7 +613,7 @@ namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::OpenBuffer>> {
   static std::shared_ptr<editor::OpenBuffer> get(Value& value);
-  static language::NonNull<Value::Ptr> New(
+  static language::gc::Root<Value> New(
       language::gc::Pool& pool, std::shared_ptr<editor::OpenBuffer> value);
   static const VMType vmtype;
 };

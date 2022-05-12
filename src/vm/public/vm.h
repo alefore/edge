@@ -115,17 +115,16 @@ class Expression {
 struct EvaluationOutput {
   enum class OutputType { kReturn, kContinue };
 
-  static EvaluationOutput New(language::NonNull<std::unique_ptr<Value>> value) {
+  static EvaluationOutput New(language::gc::Root<Value> value) {
     return EvaluationOutput{.value = std::move(value)};
   }
 
-  static EvaluationOutput Return(
-      language::NonNull<std::unique_ptr<Value>> value) {
+  static EvaluationOutput Return(language::gc::Root<Value> value) {
     return EvaluationOutput{.value = std::move(value),
                             .type = OutputType::kReturn};
   }
 
-  language::NonNull<std::unique_ptr<Value>> value;
+  language::gc::Root<Value> value;
   OutputType type = OutputType::kContinue;
 };
 
@@ -146,7 +145,7 @@ CompileString(const std::wstring& str,
 //
 // `expr` can be deleted as soon as this returns (even before a value is given
 // to the returned future).
-futures::ValueOrError<language::NonNull<std::unique_ptr<Value>>> Evaluate(
+futures::ValueOrError<language::gc::Root<Value>> Evaluate(
     Expression& expr, language::gc::Pool& pool,
     language::gc::Root<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback);

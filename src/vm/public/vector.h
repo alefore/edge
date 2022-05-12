@@ -48,14 +48,13 @@ struct VMTypeMapper<std::vector<T>*> {
 
     auto name = vmtype.object_type;
     environment->Define(
-        name,
-        Value::NewFunction(
-            pool, {vmtype},
-            [&pool, name](std::vector<language::NonNull<Value::Ptr>> args) {
-              CHECK(args.empty());
-              return Value::NewObject(pool, name,
-                                      std::make_shared<std::vector<T>>());
-            }));
+        name, Value::NewFunction(
+                  pool, {vmtype},
+                  [&pool, name](std::vector<language::gc::Root<Value>> args) {
+                    CHECK(args.empty());
+                    return Value::NewObject(pool, name,
+                                            std::make_shared<std::vector<T>>());
+                  }));
 
     vector_type->AddField(
         L"empty",
@@ -67,13 +66,13 @@ struct VMTypeMapper<std::vector<T>*> {
         L"get",
         Value::NewFunction(
             pool, {VMTypeMapper<T>::vmtype, vmtype, VMType::Integer()},
-            [](std::vector<language::NonNull<std::unique_ptr<Value>>> args,
+            [](std::vector<language::gc::Root<Value>> args,
                Trampoline& trampoline)
                 -> futures::ValueOrError<EvaluationOutput> {
               CHECK_EQ(args.size(), 2ul);
-              auto* v = get(args[0].value());
-              CHECK(args[1]->IsInteger());
-              int index = args[1]->integer;
+              auto* v = get(args[0].value().value());
+              CHECK(args[1].value()->IsInteger());
+              int index = args[1].value()->integer;
               if (index < 0 || static_cast<size_t>(index) >= v->size()) {
                 return futures::Past(language::Error(
                     vmtype.ToString() + L": Index out of range " +
@@ -99,8 +98,8 @@ struct VMTypeMapper<std::vector<T>*> {
 // Allow safer construction than with VMTypeMapper<std::vector<T>>::New.
 template <typename T>
 struct VMTypeMapper<std::unique_ptr<std::vector<T>>> {
-  static language::NonNull<Value::Ptr> New(
-      language::gc::Pool& pool, std::unique_ptr<std::vector<T>> value) {
+  static language::gc::Root<Value> New(language::gc::Pool& pool,
+                                       std::unique_ptr<std::vector<T>> value) {
     std::shared_ptr<void> void_ptr(value.release(), [](void* value) {
       delete static_cast<std::vector<T>*>(value);
     });

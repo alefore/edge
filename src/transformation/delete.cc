@@ -27,6 +27,8 @@ namespace afc {
 using language::EmptyValue;
 using language::NonNull;
 using language::VisitPointer;
+
+namespace gc = language::gc;
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
@@ -37,7 +39,7 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
     return std::static_pointer_cast<editor::transformation::Delete>(
         value.user_value);
   }
-  static NonNull<Value::Ptr> New(
+  static gc::Root<Value> New(
       language::gc::Pool& pool,
       std::shared_ptr<editor::transformation::Delete> value) {
     return Value::NewObject(pool, L"DeleteTransformationBuilder",

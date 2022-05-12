@@ -14,6 +14,8 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 
+namespace gc = language::gc;
+
 class AssignExpression : public Expression {
  public:
   enum class AssignmentType { kDefine, kAssign };
@@ -43,14 +45,13 @@ class AssignExpression : public Expression {
                   return Success(std::move(value_output));
                 case EvaluationOutput::OutputType::kContinue:
                   DVLOG(3) << "Setting value for: " << symbol;
-                  DVLOG(4) << "Value: " << *value_output.value;
-                  auto copy = MakeNonNullUnique<Value>(*value_output.value);
+                  DVLOG(4) << "Value: " << value_output.value.value().value();
                   if (assignment_type == AssignmentType::kDefine) {
-                    trampoline.environment().value()->Define(symbol,
-                                                             std::move(copy));
+                    trampoline.environment().value()->Define(
+                        symbol, value_output.value);
                   } else {
-                    trampoline.environment().value()->Assign(symbol,
-                                                             std::move(copy));
+                    trampoline.environment().value()->Assign(
+                        symbol, value_output.value);
                   }
                   return Success(
                       EvaluationOutput::New(std::move(value_output.value)));
@@ -92,8 +93,8 @@ std::optional<VMType> NewDefineTypeExpression(
     }
     type_def = *type_ptr;
   }
-  compilation->environment.value()->Define(symbol,
-                                           MakeNonNullUnique<Value>(type_def));
+  compilation->environment.value()->Define(
+      symbol, compilation->pool.NewRoot(MakeNonNullUnique<Value>(type_def)));
   return type_def;
 }
 
@@ -134,10 +135,10 @@ std::unique_ptr<Expression> NewAssignExpression(
   if (value == nullptr) {
     return nullptr;
   }
-  std::vector<NonNull<Value*>> variables;
+  std::vector<gc::Root<Value>> variables;
   compilation->environment.value()->PolyLookup(symbol, &variables);
-  for (auto& v : variables) {
-    if (value->SupportsType(v->type)) {
+  for (gc::Root<Value>& v : variables) {
+    if (value->SupportsType(v.value()->type)) {
       return std::make_unique<AssignExpression>(
           AssignExpression::AssignmentType::kAssign, symbol,
           NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
@@ -150,8 +151,8 @@ std::unique_ptr<Expression> NewAssignExpression(
   }
 
   std::vector<VMType> variable_types;
-  for (auto& v : variables) {
-    variable_types.push_back(v->type);
+  for (gc::Root<Value>& v : variables) {
+    variable_types.push_back(v.value()->type);
   }
 
   compilation->errors.push_back(

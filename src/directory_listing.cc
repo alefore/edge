@@ -22,6 +22,9 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Observers;
 using language::ToByteString;
+
+namespace gc = language::gc;
+
 namespace {
 struct BackgroundReadDirOutput {
   std::optional<std::wstring> error_description;
@@ -69,10 +72,12 @@ void StartDeleteFile(EditorState& editor_state, std::wstring path) {
 
 Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   VLOG(6) << "Get metadata for: " << path;
-  std::shared_ptr<Value> callback = target.environment().value()->Lookup(
-      target.editor().gc_pool(), Environment::Namespace(), L"GetPathMetadata",
-      VMType::Function({VMType::String(), VMType::String()}));
-  if (callback == nullptr) {
+  std::optional<gc::Root<Value>> callback =
+      target.environment().value()->Lookup(
+          target.editor().gc_pool(), Environment::Namespace(),
+          L"GetPathMetadata",
+          VMType::Function({VMType::String(), VMType::String()}));
+  if (!callback.has_value()) {
     VLOG(5) << "Unable to find suitable GetPathMetadata definition";
     return {
         .initial_value = EmptyString(),
@@ -83,17 +88,17 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   args.push_back(vm::NewConstantExpression(
       {vm::Value::NewString(target.editor().gc_pool(), path)}));
   NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
-      vm::NewConstantExpression(MakeNonNullUnique<vm::Value>(*callback)),
-      std::move(args));
+      vm::NewConstantExpression(*callback), std::move(args));
   return {
       .initial_value = NewLazyString(L"…"),
       .value = target.EvaluateExpression(*expression, target.environment())
-                   .Transform([](NonNull<std::unique_ptr<Value>> value)
+                   .Transform([](gc::Root<Value> value)
                                   -> futures::ValueOrError<
                                       NonNull<std::shared_ptr<LazyString>>> {
-                     CHECK(value->IsString());
-                     VLOG(7) << "Evaluated result: " << value->str;
-                     return futures::Past(NewLazyString(std::move(value->str)));
+                     CHECK(value.value()->IsString());
+                     VLOG(7) << "Evaluated result: " << value.value()->str;
+                     return futures::Past(
+                         NewLazyString(std::move(value.value()->str)));
                    })
                    .ConsumeErrors([](Error error) {
                      VLOG(7) << "Evaluation error: " << error.description;

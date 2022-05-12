@@ -60,8 +60,8 @@ namespace vm {
 template <>
 struct VMTypeMapper<editor::ForkCommandOptions*> {
   static editor::ForkCommandOptions* get(Value& value);
-  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
-                                           editor::ForkCommandOptions* value);
+  static language::gc::Root<Value> New(language::gc::Pool& pool,
+                                       editor::ForkCommandOptions* value);
   static const VMType vmtype;
 };
 }  // namespace vm

@@ -16,6 +16,8 @@ size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
 namespace afc::vm {
 using language::NonNull;
 
+namespace gc = language::gc;
+
 bool operator==(const VMType& lhs, const VMType& rhs) {
   return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments &&
          lhs.function_purity == rhs.function_purity &&
@@ -122,14 +124,13 @@ ObjectType::ObjectType(const VMType& type) : type_(type) {}
 ObjectType::ObjectType(const wstring& type_name)
     : ObjectType(VMType::ObjectType(type_name)) {}
 
-void ObjectType::AddField(const wstring& name,
-                          NonNull<std::unique_ptr<Value>> field) {
+void ObjectType::AddField(const wstring& name, gc::Root<Value> field) {
   fields_.insert({name, std::move(field)});
 }
 
 void ObjectType::ForEachField(
     std::function<void(const wstring&, Value&)> callback) {
-  for (auto& it : fields_) callback(it.first, *it.second);
+  for (auto& it : fields_) callback(it.first, it.second.value().value());
 }
 
 }  // namespace afc::vm
