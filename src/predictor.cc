@@ -42,6 +42,9 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::Success;
 
+namespace gc = language::gc;
+
+// TODO(easy, 2022-05-11): Delete these using declarations.
 using std::cout;
 using std::function;
 using std::min;
@@ -113,8 +116,8 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
           predictions_buffer.shared_from_this())};
 
   if (auto value = predictions_buffer.environment().value()->Lookup(
-          Environment::Namespace(), kLongestPrefixEnvironmentVariable,
-          VMType(VMType::VM_INTEGER));
+          predictions_buffer.editor().gc_pool(), Environment::Namespace(),
+          kLongestPrefixEnvironmentVariable, VMType(VMType::VM_INTEGER));
       value != nullptr) {
     LOG(INFO) << "Setting " << kLongestPrefixEnvironmentVariable << ": "
               << value->integer;
@@ -123,7 +126,8 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
   }
 
   if (auto value = predictions_buffer.environment().value()->Lookup(
-          Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
+          predictions_buffer.editor().gc_pool(), Environment::Namespace(),
+          kLongestDirectoryMatchEnvironmentVariable,
           VMType(VMType::VM_INTEGER));
       value != nullptr) {
     CHECK(value->IsInteger());
@@ -131,8 +135,8 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
   }
 
   if (auto value = predictions_buffer.environment().value()->Lookup(
-          Environment::Namespace(), kExactMatchEnvironmentVariable,
-          VMType(VMType::VM_BOOLEAN));
+          predictions_buffer.editor().gc_pool(), Environment::Namespace(),
+          kExactMatchEnvironmentVariable, VMType(VMType::VM_BOOLEAN));
       value != nullptr) {
     CHECK(value->IsBool());
     predict_results.found_exact_match = value->boolean;
@@ -199,12 +203,15 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                                       input,
                                       consumer = std::move(output.consumer)](
                                          OpenBuffer& buffer) {
+    gc::Pool& pool = shared_options->editor_state.gc_pool();
+
     buffer.environment().value()->Define(kLongestPrefixEnvironmentVariable,
-                                         vm::Value::NewInteger(0));
+                                         vm::Value::NewInteger(pool, 0));
     buffer.environment().value()->Define(
-        kLongestDirectoryMatchEnvironmentVariable, vm::Value::NewInteger(0));
+        kLongestDirectoryMatchEnvironmentVariable,
+        vm::Value::NewInteger(pool, 0));
     buffer.environment().value()->Define(kExactMatchEnvironmentVariable,
-                                         vm::Value::NewBool(false));
+                                         vm::Value::NewBool(pool, false));
 
     return shared_options
         ->predictor({.editor = shared_options->editor_state,
@@ -241,23 +248,25 @@ struct DescendDirectoryTreeOutput {
 };
 
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
+  gc::Pool& pool = buffer.editor().gc_pool();
   auto value = buffer.environment().value()->Lookup(
-      Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
+      pool, Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
       VMType(VMType::VM_INTEGER));
   if (value == nullptr) return;
   buffer.environment().value()->Assign(
       kLongestDirectoryMatchEnvironmentVariable,
       vm::Value::NewInteger(
-          std::max(value->integer, static_cast<int>(new_value))));
+          pool, std::max(value->integer, static_cast<int>(new_value))));
 }
 
 void RegisterPredictorExactMatch(OpenBuffer& buffer) {
+  gc::Pool& pool = buffer.editor().gc_pool();
   auto value = buffer.environment().value()->Lookup(
-      Environment::Namespace(), kExactMatchEnvironmentVariable,
+      pool, Environment::Namespace(), kExactMatchEnvironmentVariable,
       VMType(VMType::VM_BOOLEAN));
   if (value == nullptr) return;
   buffer.environment().value()->Assign(kExactMatchEnvironmentVariable,
-                                       vm::Value::NewBool(true));
+                                       vm::Value::NewBool(pool, true));
 }
 
 // TODO(easy): Receive Paths rather than wstrings.
@@ -638,14 +647,15 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
 }
 
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
+  gc::Pool& pool = buffer.editor().gc_pool();
   std::unique_ptr<Value> value = buffer.environment().value()->Lookup(
-      Environment::Namespace(), kLongestPrefixEnvironmentVariable,
+      pool, Environment::Namespace(), kLongestPrefixEnvironmentVariable,
       VMType(VMType::VM_INTEGER));
   if (value == nullptr) return;
   buffer.environment().value()->Assign(
       kLongestPrefixEnvironmentVariable,
       vm::Value::NewInteger(
-          std::max(value->integer, static_cast<int>(new_value))));
+          pool, std::max(value->integer, static_cast<int>(new_value))));
 }
 
 }  // namespace afc::editor

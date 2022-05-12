@@ -37,18 +37,24 @@ struct Value {
       std::function<void(std::vector<language::NonNull<
                              std::shared_ptr<language::gc::ControlFrame>>>&)>;
 
-  static language::NonNull<std::unique_ptr<Value>> NewVoid();
-  static language::NonNull<std::unique_ptr<Value>> NewBool(bool value);
-  static language::NonNull<std::unique_ptr<Value>> NewInteger(int value);
-  static language::NonNull<std::unique_ptr<Value>> NewDouble(double value);
-  static language::NonNull<std::unique_ptr<Value>> NewString(wstring value);
+  static language::NonNull<std::unique_ptr<Value>> NewVoid(
+      language::gc::Pool& pool);
+  static language::NonNull<std::unique_ptr<Value>> NewBool(
+      language::gc::Pool& pool, bool value);
+  static language::NonNull<std::unique_ptr<Value>> NewInteger(
+      language::gc::Pool& pool, int value);
+  static language::NonNull<std::unique_ptr<Value>> NewDouble(
+      language::gc::Pool& pool, double value);
+  static language::NonNull<std::unique_ptr<Value>> NewString(
+      language::gc::Pool& pool, wstring value);
   static language::NonNull<std::unique_ptr<Value>> NewObject(
-      std::wstring name, std::shared_ptr<void> value);
+      language::gc::Pool& pool, std::wstring name, std::shared_ptr<void> value);
   static language::NonNull<std::unique_ptr<Value>> NewFunction(
-      std::vector<VMType> arguments, Callback callback);
+      language::gc::Pool& pool, std::vector<VMType> arguments,
+      Callback callback);
   // Convenience wrapper.
   static language::NonNull<std::unique_ptr<Value>> NewFunction(
-      std::vector<VMType> arguments,
+      language::gc::Pool& pool, std::vector<VMType> arguments,
       std::function<language::NonNull<Ptr>(std::vector<language::NonNull<Ptr>>)>
           callback);
 

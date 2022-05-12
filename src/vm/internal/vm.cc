@@ -37,6 +37,7 @@
 namespace afc {
 namespace vm {
 
+// TODO(easy, 2022-05-11): Get rid of these `using` declarations.
 using std::cerr;
 using std::pair;
 using std::to_wstring;
@@ -364,10 +365,12 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
             value *= pow(10, signal * ConsumeDecimal(str, &pos));
           }
           token = DOUBLE;
-          input = std::move(Value::NewDouble(value).get_unique());
+          input =
+              std::move(Value::NewDouble(compilation.pool, value).get_unique());
         } else {
           token = INTEGER;
-          input = std::move(Value::NewInteger(decimal).get_unique());
+          input = std::move(
+              Value::NewInteger(compilation.pool, decimal).get_unique());
         }
       } break;
 
@@ -486,10 +489,16 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
             new std::unordered_map<std::wstring, Keyword>(
                 {{L"true",
                   {.token = BOOL,
-                   .value_supplier = [] { return Value::NewBool(true); }}},
+                   .value_supplier =
+                       [&pool = compilation.pool] {
+                         return Value::NewBool(pool, true);
+                       }}},
                  {L"false",
                   {.token = BOOL,
-                   .value_supplier = [] { return Value::NewBool(false); }}},
+                   .value_supplier =
+                       [&pool = compilation.pool] {
+                         return Value::NewBool(pool, false);
+                       }}},
                  {L"while", {.token = WHILE}},
                  {L"for", {.token = FOR}},
                  {L"if", {.token = IF}},

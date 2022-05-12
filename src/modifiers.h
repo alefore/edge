@@ -14,6 +14,9 @@
 #include "src/vm/public/environment.h"
 
 namespace afc {
+namespace language::gc {
+class Pool;
+}
 namespace editor {
 
 using std::ostream;
@@ -28,7 +31,7 @@ struct BufferPosition {
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);
 
 struct Modifiers {
-  static void Register(vm::Environment* environment);
+  static void Register(language::gc::Pool& pool, vm::Environment* environment);
 
   std::wstring Serialize() const;
 
@@ -138,7 +141,7 @@ template <>
 struct VMTypeMapper<std::shared_ptr<editor::Modifiers>> {
   static std::shared_ptr<editor::Modifiers> get(Value& value);
   static language::NonNull<Value::Ptr> New(
-      std::shared_ptr<editor::Modifiers> value);
+      language::gc::Pool& pool, std::shared_ptr<editor::Modifiers> value);
   static const VMType vmtype;
 };
 }  // namespace vm

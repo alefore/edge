@@ -77,10 +77,10 @@ VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value& value) {
 
 /* static */ NonNull<Value::Ptr>
 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
-    std::shared_ptr<editor::OpenBuffer> value) {
+    gc::Pool& pool, std::shared_ptr<editor::OpenBuffer> value) {
   auto wrapper = std::make_shared<BufferWrapper>();
   wrapper->buffer = std::move(value);
-  return Value::NewObject(L"Buffer",
+  return Value::NewObject(pool, L"Buffer",
                           std::shared_ptr<void>(wrapper, wrapper.get()));
 }
 
@@ -120,7 +120,7 @@ using std::unordered_set;
 
 template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
-    EdgeStruct* edge_struct, afc::vm::ObjectType& object_type,
+    gc::Pool& pool, EdgeStruct* edge_struct, afc::vm::ObjectType& object_type,
     const FieldValue& (OpenBuffer::*reader)(const EdgeVariable<FieldValue>*)
         const,
     void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
@@ -134,18 +134,20 @@ void RegisterBufferFields(
     // Getter.
     object_type.AddField(
         variable->name(),
-        vm::NewCallback([reader, variable](std::shared_ptr<OpenBuffer> buffer) {
-          DVLOG(4) << "Buffer field reader is returning.";
-          return (buffer.get()->*reader)(variable);
-        }));
+        vm::NewCallback(pool,
+                        [reader, variable](std::shared_ptr<OpenBuffer> buffer) {
+                          DVLOG(4) << "Buffer field reader is returning.";
+                          return (buffer.get()->*reader)(variable);
+                        }));
 
     // Setter.
     object_type.AddField(
         L"set_" + variable->name(),
-        vm::NewCallback([variable, setter](std::shared_ptr<OpenBuffer> buffer,
+        vm::NewCallback(pool,
+                        [variable, setter](std::shared_ptr<OpenBuffer> buffer,
                                            FieldValue value) {
-          (buffer.get()->*setter)(variable, value);
-        }));
+                          (buffer.get()->*setter)(variable, value);
+                        }));
   }
 }
 
@@ -251,53 +253,57 @@ using std::to_wstring;
     EditorState& editor_state, afc::vm::Environment* environment) {
   auto buffer = MakeNonNullUnique<ObjectType>(L"Buffer");
 
-  RegisterBufferFields<EdgeStruct<bool>, bool>(buffer_variables::BoolStruct(),
-                                               *buffer, &OpenBuffer::Read,
-                                               &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<bool>, bool>(
+      editor_state.gc_pool(), buffer_variables::BoolStruct(), *buffer,
+      &OpenBuffer::Read, &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<wstring>, wstring>(
-      buffer_variables::StringStruct(), *buffer, &OpenBuffer::Read,
-      &OpenBuffer::Set);
-  RegisterBufferFields<EdgeStruct<int>, int>(buffer_variables::IntStruct(),
-                                             *buffer, &OpenBuffer::Read,
-                                             &OpenBuffer::Set);
+      editor_state.gc_pool(), buffer_variables::StringStruct(), *buffer,
+      &OpenBuffer::Read, &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<int>, int>(
+      editor_state.gc_pool(), buffer_variables::IntStruct(), *buffer,
+      &OpenBuffer::Read, &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<double>, double>(
-      buffer_variables::DoubleStruct(), *buffer, &OpenBuffer::Read,
-      &OpenBuffer::Set);
+      editor_state.gc_pool(), buffer_variables::DoubleStruct(), *buffer,
+      &OpenBuffer::Read, &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<LineColumn>, LineColumn>(
-      buffer_variables::LineColumnStruct(), *buffer, &OpenBuffer::Read,
-      &OpenBuffer::Set);
+      editor_state.gc_pool(), buffer_variables::LineColumnStruct(), *buffer,
+      &OpenBuffer::Read, &OpenBuffer::Set);
+
+  gc::Pool& pool = editor_state.gc_pool();
 
   buffer->AddField(
       L"SetStatus",
-      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, wstring s) {
+      vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer, wstring s) {
         buffer->status().SetInformationText(s);
       }));
 
-  buffer->AddField(
-      L"SetWarningStatus",
-      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, std::wstring s) {
-        buffer->status().SetWarningText(s);
-      }));
+  buffer->AddField(L"SetWarningStatus",
+                   vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer,
+                                            std::wstring s) {
+                     buffer->status().SetWarningText(s);
+                   }));
 
   buffer->AddField(
-      L"line_count", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+      L"line_count",
+      vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer) {
         return static_cast<int>(buffer->contents().size().line_delta);
       }));
 
   buffer->AddField(L"set_position",
-                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer,
-                                      LineColumn position) {
+                   vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer,
+                                            LineColumn position) {
                      buffer->set_position(position);
                    }));
 
-  buffer->AddField(L"position",
-                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     return LineColumn(buffer->position());
-                   }));
+  buffer->AddField(
+      L"position",
+      vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer) {
+        return LineColumn(buffer->position());
+      }));
 
   buffer->AddField(
-      L"line",
-      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, int line_input) {
+      L"line", vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer,
+                                        int line_input) {
         LineNumber line =
             min(LineNumber(max(line_input, 0)),
                 LineNumber(0) + buffer->lines_size() - LineNumberDelta(1));
@@ -307,9 +313,11 @@ using std::to_wstring;
   buffer->AddField(
       L"ApplyTransformation",
       Value::NewFunction(
+          pool,
           {VMType::Void(), buffer->type(),
            vm::VMTypeMapper<editor::transformation::Variant*>::vmtype},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
+          [&pool](std::vector<NonNull<std::unique_ptr<Value>>> args,
+                  Trampoline&) {
             CHECK_EQ(args.size(), 2ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
@@ -317,8 +325,8 @@ using std::to_wstring;
             auto transformation = static_cast<editor::transformation::Variant*>(
                 args[1]->user_value.get());
             return buffer->ApplyToCursors(Pointer(transformation).Reference())
-                .Transform([](EmptyValue) {
-                  return EvaluationOutput::Return(Value::NewVoid());
+                .Transform([&pool](EmptyValue) {
+                  return EvaluationOutput::Return(Value::NewVoid(pool));
                 });
           }));
 
@@ -368,38 +376,42 @@ using std::to_wstring;
           }));
 #endif
 
-  buffer->AddField(L"PushTransformationStack",
-                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     buffer->PushTransformationStack();
-                   }));
+  buffer->AddField(
+      L"PushTransformationStack",
+      vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer) {
+        buffer->PushTransformationStack();
+      }));
 
-  buffer->AddField(L"PopTransformationStack",
-                   vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
-                     buffer->PopTransformationStack();
-                   }));
+  buffer->AddField(
+      L"PopTransformationStack",
+      vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer) {
+        buffer->PopTransformationStack();
+      }));
 
   buffer->AddField(
       L"AddKeyboardTextTransformer",
       Value::NewFunction(
+          pool,
           {VMType::Bool(), buffer->type(),
            VMType::Function({VMType::String(), VMType::String()})},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
+          [&pool](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), size_t(2));
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].value());
-            CHECK(buffer != nullptr);
-            return Value::NewBool(buffer->AddKeyboardTextTransformer(
-                std::move(args[1].get_unique())));
+            CHECK(buffer != nullptr);  // TODO(easy, 2022-05-11): Use NonNull?
+            return Value::NewBool(pool, buffer->AddKeyboardTextTransformer(
+                                            std::move(args[1].get_unique())));
           }));
 
   buffer->AddField(
       L"Filter",
       Value::NewFunction(
+          pool,
           {VMType::Void(), buffer->type(),
            VMType::Function({VMType::Bool(), VMType::String()})},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
+          [&pool](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), size_t(2));
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
@@ -407,11 +419,11 @@ using std::to_wstring;
                     args[0].value());
             CHECK(buffer != nullptr);
             buffer->set_filter(std::move(args[1].get_unique()));
-            return Value::NewVoid();
+            return Value::NewVoid(pool);
           }));
 
   buffer->AddField(
-      L"Reload", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+      L"Reload", vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer) {
         if (buffer->editor().structure() == StructureLine()) {
           auto target_buffer = buffer->current_line()->buffer_line_column();
           if (target_buffer.has_value()) {
@@ -426,7 +438,7 @@ using std::to_wstring;
 
   buffer->AddField(
       L"SendEndOfFileToProcess",
-      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+      vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer) {
         if (buffer->editor().structure() == StructureLine()) {
           auto target_buffer = buffer->current_line()->buffer_line_column();
           if (target_buffer.has_value()) {
@@ -442,8 +454,8 @@ using std::to_wstring;
   buffer->AddField(
       L"Save",
       Value::NewFunction(
-          {VMType::Void(), buffer->type()},
-          [](std::vector<NonNull<Value::Ptr>> args, Trampoline&) {
+          pool, {VMType::Void(), buffer->type()},
+          [&pool](std::vector<NonNull<Value::Ptr>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
@@ -460,18 +472,19 @@ using std::to_wstring;
 
             futures::Future<ValueOrError<EvaluationOutput>> future;
             buffer->Save().SetConsumer(
-                [consumer = std::move(future.consumer)](PossibleError result) {
+                [&pool,
+                 consumer = std::move(future.consumer)](PossibleError result) {
                   if (result.IsError())
                     consumer(result.error());
                   else
-                    consumer(EvaluationOutput::Return(Value::NewVoid()));
+                    consumer(EvaluationOutput::Return(Value::NewVoid(pool)));
                 });
             buffer->editor().ResetModifiers();
             return std::move(future.value);
           }));
 
   buffer->AddField(
-      L"Close", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+      L"Close", vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer) {
         CHECK(buffer != nullptr);
         if (buffer->editor().structure() == StructureLine()) {
           auto target_buffer = buffer->current_line()->buffer_line_column();
@@ -488,9 +501,10 @@ using std::to_wstring;
   buffer->AddField(
       L"AddBinding",
       Value::NewFunction(
+          pool,
           {VMType::Void(), buffer->type(), VMType::String(), VMType::String(),
            VMType::Function({VMType::Void()})},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
+          [&pool](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
             CHECK(args[1]->IsString());
@@ -502,13 +516,13 @@ using std::to_wstring;
             buffer->default_commands_->Add(args[1]->str, args[2]->str,
                                            std::move(args[3]),
                                            buffer->environment_);
-            return Value::NewVoid();
+            return Value::NewVoid(pool);
           }));
 
   buffer->AddField(
       L"AddBindingToFile",
-      vm::NewCallback([&editor_state](std::shared_ptr<OpenBuffer> buffer,
-                                      wstring keys, wstring path) {
+      vm::NewCallback(pool, [&editor_state](std::shared_ptr<OpenBuffer> buffer,
+                                            wstring keys, wstring path) {
         LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
         buffer->default_commands_->Add(
             keys,
@@ -535,7 +549,8 @@ using std::to_wstring;
       }));
 
   buffer->AddField(
-      L"ShowTrackers", vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer) {
+      L"ShowTrackers",
+      vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer) {
         for (auto& data : Tracker::GetData()) {
           buffer->AppendLine(StringAppend(
               StringAppend(NewLazyString(data.name), NewLazyString(L": ")),
@@ -545,29 +560,30 @@ using std::to_wstring;
         }
       }));
 
-  buffer->AddField(
-      L"EvaluateFile",
-      vm::NewCallback([](std::shared_ptr<OpenBuffer> buffer, wstring path_str) {
-        auto path = Path::FromString(path_str);
-        if (path.IsError()) {
-          LOG(ERROR) << path.error().description;
-          return;
-        }
-        buffer->EvaluateFile(std::move(path.value()));
-      }));
+  buffer->AddField(L"EvaluateFile",
+                   vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer,
+                                            wstring path_str) {
+                     auto path = Path::FromString(path_str);
+                     if (path.IsError()) {
+                       LOG(ERROR) << path.error().description;
+                       return;
+                     }
+                     buffer->EvaluateFile(std::move(path.value()));
+                   }));
 
   buffer->AddField(
       L"WaitForEndOfFile",
       Value::NewFunction(
-          {VMType::Void(), buffer->type()},
-          [](vector<NonNull<Value::Ptr>> args, Trampoline&) {
+          pool, {VMType::Void(), buffer->type()},
+          [](vector<NonNull<Value::Ptr>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].value());
-            return buffer->WaitForEndOfFile().Transform([](EmptyValue) {
-              return EvaluationOutput::Return(Value::NewVoid());
-            });
+            return buffer->WaitForEndOfFile().Transform(
+                [&pool = trampoline.pool()](EmptyValue) {
+                  return EvaluationOutput::Return(Value::NewVoid(pool));
+                });
           }));
 
   environment->DefineType(L"Buffer", std::move(buffer));
@@ -954,31 +970,34 @@ void OpenBuffer::Initialize() {
   environment_.value()->Define(
       L"buffer",
       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
+          editor().gc_pool(),
           std::shared_ptr<OpenBuffer>(std::shared_ptr<OpenBuffer>(), this)));
 
   environment_.value()->Define(
-      L"sleep", Value::NewFunction(
-                    {VMType::Void(), VMType::Double()},
-                    [weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
-                        std::vector<NonNull<Value::Ptr>> args, Trampoline&) {
-                      CHECK_EQ(args.size(), 1ul);
-                      CHECK(args[0]->IsDouble());
-                      double delay_seconds = args[0]->double_value;
-                      auto shared_this = weak_this.lock();
-                      if (shared_this == nullptr)
-                        return futures::Past(Success(
-                            EvaluationOutput::Return(vm::Value::NewVoid())));
-                      futures::Future<ValueOrError<EvaluationOutput>> future;
-                      shared_this->work_queue()->ScheduleAt(
-                          AddSeconds(Now(), delay_seconds),
-                          [weak_this, consumer = std::move(future.consumer)] {
-                            auto shared_this = weak_this.lock();
-                            if (shared_this != nullptr)
-                              consumer(vm::EvaluationOutput::Return(
-                                  vm::Value::NewVoid()));
-                          });
-                      return std::move(future.value);
-                    }));
+      L"sleep",
+      Value::NewFunction(
+          editor().gc_pool(), {VMType::Void(), VMType::Double()},
+          [weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
+              std::vector<NonNull<Value::Ptr>> args, Trampoline& trampoline) {
+            CHECK_EQ(args.size(), 1ul);
+            CHECK(args[0]->IsDouble());
+            double delay_seconds = args[0]->double_value;
+            auto shared_this = weak_this.lock();
+            if (shared_this == nullptr)
+              return futures::Past(Success(EvaluationOutput::Return(
+                  vm::Value::NewVoid(trampoline.pool()))));
+            futures::Future<ValueOrError<EvaluationOutput>> future;
+            shared_this->work_queue()->ScheduleAt(
+                AddSeconds(Now(), delay_seconds),
+                [weak_this, consumer = std::move(future.consumer)] {
+                  // TODO(easy, 2022-05-11): Use VisitPointer?
+                  auto shared_this = weak_this.lock();
+                  if (shared_this != nullptr)
+                    consumer(vm::EvaluationOutput::Return(
+                        vm::Value::NewVoid(shared_this->editor().gc_pool())));
+                });
+            return std::move(future.value);
+          }));
 
   Set(buffer_variables::name, options_.name.read());
   if (options_.path.has_value()) {
@@ -1855,8 +1874,9 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
              [this, input_shared](const std::unique_ptr<Value>& t) {
                CHECK(t != nullptr);
                std::vector<NonNull<Value::Ptr>> args;
-               args.push_back(Value::NewString(std::move(*input_shared)));
-               return Call(editor().gc_pool(), *t, std::move(args),
+               gc::Pool& pool = editor().gc_pool();
+               args.push_back(Value::NewString(pool, std::move(*input_shared)));
+               return Call(pool, *t, std::move(args),
                            [work_queue =
                                 work_queue()](std::function<void()> callback) {
                              work_queue->Schedule(std::move(callback));

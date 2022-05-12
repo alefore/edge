@@ -1,12 +1,15 @@
 #ifndef __AFC_VM_INTERNAL_STRING_H__
 #define __AFC_VM_INTERNAL_STRING_H__
 
+namespace afc::language::gc {
+class Pool;
+}
 namespace afc {
 namespace vm {
 
 class Environment;
 
-void RegisterStringType(Environment* environment);
+void RegisterStringType(language::gc::Pool& pool, Environment* environment);
 
 }  // namespace vm
 }  // namespace afc

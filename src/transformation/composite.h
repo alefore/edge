@@ -10,6 +10,9 @@
 #include "src/transformation/type.h"
 #include "src/vm/public/environment.h"
 
+namespace afc::language::gc {
+class Pool;
+}
 namespace afc::editor {
 namespace transformation {
 class Stack;
@@ -50,7 +53,8 @@ class CompositeTransformation {
   virtual futures::Value<Output> Apply(Input input) const = 0;
 };
 
-void RegisterCompositeTransformation(vm::Environment* environment);
+void RegisterCompositeTransformation(language::gc::Pool& pool,
+                                     vm::Environment* environment);
 namespace transformation {
 struct ModifiersAndComposite {
   Modifiers modifiers = Modifiers();
@@ -80,6 +84,7 @@ struct VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>> {
   static std::shared_ptr<editor::CompositeTransformation::Output> get(
       Value& value);
   static language::NonNull<Value::Ptr> New(
+      language::gc::Pool& pool,
       std::shared_ptr<editor::CompositeTransformation::Output> value);
   static const VMType vmtype;
 };
@@ -88,6 +93,7 @@ struct VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>> {
   static std::shared_ptr<editor::CompositeTransformation::Input> get(
       Value& value);
   static language::NonNull<Value::Ptr> New(
+      language::gc::Pool& pool,
       std::shared_ptr<editor::CompositeTransformation::Input> value);
   static const VMType vmtype;
 };

@@ -47,7 +47,8 @@ class Environment {
   void DefineType(const std::wstring& name,
                   language::NonNull<std::unique_ptr<ObjectType>> value);
 
-  std::unique_ptr<Value> Lookup(const Namespace& symbol_namespace,
+  std::unique_ptr<Value> Lookup(language::gc::Pool& pool,
+                                const Namespace& symbol_namespace,
                                 const wstring& symbol, VMType expected_type);
 
   // TODO(easy): Remove; switch all callers to the version that takes the

@@ -38,9 +38,9 @@ VMTypeMapper<editor::transformation::Variant*>::get(Value& value) {
 }
 
 NonNull<Value::Ptr> VMTypeMapper<editor::transformation::Variant*>::New(
-    editor::transformation::Variant* value) {
+    gc::Pool& pool, editor::transformation::Variant* value) {
   return Value::NewObject(
-      L"Transformation", shared_ptr<void>(value, [](void* v) {
+      pool, L"Transformation", shared_ptr<void>(value, [](void* v) {
         delete static_cast<editor::transformation::Variant*>(v);
       }));
 }
@@ -65,7 +65,7 @@ class FunctionTransformation : public CompositeTransformation {
     std::vector<NonNull<std::unique_ptr<vm::Value>>> args;
     args.emplace_back(
         VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::
-            New(std::make_shared<Input>(input)));
+            New(pool_, std::make_shared<Input>(input)));
     return vm::Call(pool_, *function_, std::move(args),
                     [work_queue = input.buffer.work_queue()](
                         std::function<void()> callback) {
@@ -83,14 +83,16 @@ class FunctionTransformation : public CompositeTransformation {
   const NonNull<std::unique_ptr<vm::Value>> function_;
 };
 }  // namespace
+// TODO(easy, 2022-05-12): Receive editor/environment by ref.
 void RegisterTransformations(EditorState* editor,
                              vm::Environment* environment) {
   environment->DefineType(L"Transformation",
                           MakeNonNullUnique<vm::ObjectType>(L"Transformation"));
-
+  language::gc::Pool& pool = editor->gc_pool();
   environment->Define(
       L"FunctionTransformation",
       vm::Value::NewFunction(
+          pool,
           {VMTypeMapper<editor::transformation::Variant*>::vmtype,
            VMType::Function(
                {VMTypeMapper<
@@ -100,16 +102,17 @@ void RegisterTransformations(EditorState* editor,
           [editor](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
             CHECK_EQ(args.size(), 1ul);
             return VMTypeMapper<editor::transformation::Variant*>::New(
+                editor->gc_pool(),
                 std::make_unique<transformation::Variant>(
                     MakeNonNullUnique<FunctionTransformation>(
                         editor->gc_pool(), std::move(args[0])))
                     .release());
           }));
   transformation::RegisterInsert(editor, environment);
-  transformation::RegisterDelete(environment);
-  transformation::RegisterSetPosition(environment);
-  RegisterNoopTransformation(environment);
-  RegisterCompositeTransformation(environment);
+  transformation::RegisterDelete(pool, environment);
+  transformation::RegisterSetPosition(pool, environment);
+  RegisterNoopTransformation(pool, environment);
+  RegisterCompositeTransformation(pool, environment);
 }
 }  // namespace editor
 }  // namespace afc

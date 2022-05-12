@@ -6,14 +6,14 @@
 #include <set>
 
 #include "numbers.h"
+#include "src/vm/internal/string.h"
+#include "src/vm/internal/time.h"
+#include "src/vm/internal/types_promotion.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/set.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vector.h"
-#include "string.h"
-#include "time.h"
-#include "types_promotion.h"
 
 namespace afc::vm {
 namespace {
@@ -34,40 +34,43 @@ language::gc::Root<Environment> Environment::NewDefault(
     language::gc::Pool& pool) {
   gc::Root<Environment> environment =
       pool.NewRoot(MakeNonNullUnique<Environment>());
-  RegisterStringType(&environment.value().value());
-  RegisterNumberFunctions(&environment.value().value());
-  RegisterTimeType(&environment.value().value());
+  RegisterStringType(pool, &environment.value().value());
+  RegisterNumberFunctions(pool, &environment.value().value());
+  RegisterTimeType(pool, &environment.value().value());
   auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool());
-  bool_type->AddField(L"tostring",
-                      NewCallback(std::function<wstring(bool)>([](bool v) {
-                                    return v ? L"true" : L"false";
-                                  }),
-                                  VMType::PurityType::kPure));
+  bool_type->AddField(
+      L"tostring", NewCallback(pool, std::function<wstring(bool)>([](bool v) {
+                                 return v ? L"true" : L"false";
+                               }),
+                               VMType::PurityType::kPure));
   environment.value()->DefineType(L"bool", std::move(bool_type));
 
   auto int_type = MakeNonNullUnique<ObjectType>(VMType::Integer());
   int_type->AddField(
-      L"tostring", NewCallback(std::function<std::wstring(int)>([](int value) {
-                                 return std::to_wstring(value);
-                               }),
-                               VMType::PurityType::kPure));
+      L"tostring",
+      NewCallback(pool, std::function<std::wstring(int)>([](int value) {
+                    return std::to_wstring(value);
+                  }),
+                  VMType::PurityType::kPure));
   environment.value()->DefineType(L"int", std::move(int_type));
 
   auto double_type = MakeNonNullUnique<ObjectType>(VMType::Double());
   double_type->AddField(
       L"tostring",
-      NewCallback(std::function<std::wstring(double)>(
-                      [](double value) { return std::to_wstring(value); }),
+      NewCallback(pool, std::function<std::wstring(double)>([](double value) {
+                    return std::to_wstring(value);
+                  }),
                   VMType::PurityType::kPure));
   double_type->AddField(
-      L"round", NewCallback(std::function<int(double)>([](double value) {
+      L"round", NewCallback(pool, std::function<int(double)>([](double value) {
                               return static_cast<int>(value);
                             }),
                             VMType::PurityType::kPure));
   environment.value()->DefineType(L"double", std::move(double_type));
 
-  VMTypeMapper<std::vector<int>*>::Export(&environment.value().value());
-  VMTypeMapper<std::set<int>*>::Export(&environment.value().value());
+  // TODO(easy, 2022-05-11): Pass by reference.
+  VMTypeMapper<std::vector<int>*>::Export(pool, &environment.value().value());
+  VMTypeMapper<std::set<int>*>::Export(pool, &environment.value().value());
   return environment;
 }
 
@@ -158,7 +161,8 @@ void Environment::DefineType(const wstring& name,
   object_types_.insert_or_assign(name, std::move(value));
 }
 
-std::unique_ptr<Value> Environment::Lookup(const Namespace& symbol_namespace,
+std::unique_ptr<Value> Environment::Lookup(gc::Pool& pool,
+                                           const Namespace& symbol_namespace,
                                            const wstring& symbol,
                                            VMType expected_type) {
   std::vector<NonNull<Value*>> values;
@@ -166,7 +170,8 @@ std::unique_ptr<Value> Environment::Lookup(const Namespace& symbol_namespace,
   for (auto& value : values) {
     if (auto callback = GetImplicitPromotion(value->type, expected_type);
         callback != nullptr) {
-      return std::move(callback(MakeNonNullUnique<Value>(*value)).get_unique());
+      return std::move(
+          callback(pool, MakeNonNullUnique<Value>(*value)).get_unique());
     }
   }
   return nullptr;

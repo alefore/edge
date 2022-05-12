@@ -10,8 +10,11 @@
 #include "src/language/safe_types.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
-namespace afc::vm {
 
+namespace afc::language::gc {
+class Pool;
+}
+namespace afc::vm {
 // Defines a set type.
 //
 // To use it, define the vmtype of the std::set<MyType> type in your module:
@@ -32,42 +35,49 @@ struct VMTypeMapper<std::set<T>*> {
 
   static const VMType vmtype;
 
-  static void Export(Environment* environment) {
+  static void Export(language::gc::Pool& pool, Environment* environment) {
     auto set_type = language::MakeNonNullUnique<ObjectType>(vmtype);
 
     auto name = vmtype.object_type;
     environment->Define(
-        name, Value::NewFunction(
-                  {set_type->type()},
-                  [name](std::vector<language::NonNull<Value::Ptr>> args) {
-                    CHECK(args.empty());
-                    return Value::NewObject(name,
-                                            std::make_shared<std::set<T>>());
-                  }));
+        name,
+        Value::NewFunction(
+            pool, {set_type->type()},
+            [&pool, name](std::vector<language::NonNull<Value::Ptr>> args) {
+              CHECK(args.empty());
+              return Value::NewObject(pool, name,
+                                      std::make_shared<std::set<T>>());
+            }));
 
-    set_type->AddField(L"size",
-                       vm::NewCallback(std::function<int(std::set<T>*)>(
-                           [](std::set<T>* v) { return v->size(); })));
-    set_type->AddField(L"empty",
-                       vm::NewCallback(std::function<bool(std::set<T>*)>(
-                           [](std::set<T>* v) { return v->empty(); })));
     set_type->AddField(
-        L"contains", vm::NewCallback(std::function<bool(std::set<T>*, T)>(
-                         [](std::set<T>* v, T e) { return v->count(e) > 0; })));
-    set_type->AddField(L"get",
-                       vm::NewCallback(std::function<T(std::set<T>*, int)>(
-                           [](std::set<T>* v, int i) {
-                             auto it = v->begin();
-                             std::advance(it, i);
-                             return *it;
-                           })));
+        L"size",
+        vm::NewCallback(pool, std::function<int(std::set<T>*)>(
+                                  [](std::set<T>* v) { return v->size(); })));
+    set_type->AddField(
+        L"empty",
+        vm::NewCallback(pool, std::function<bool(std::set<T>*)>(
+                                  [](std::set<T>* v) { return v->empty(); })));
+    set_type->AddField(
+        L"contains", vm::NewCallback(pool, std::function<bool(std::set<T>*, T)>(
+                                               [](std::set<T>* v, T e) {
+                                                 return v->count(e) > 0;
+                                               })));
+    set_type->AddField(
+        L"get", vm::NewCallback(pool, std::function<T(std::set<T>*, int)>(
+                                          [](std::set<T>* v, int i) {
+                                            auto it = v->begin();
+                                            std::advance(it, i);
+                                            return *it;
+                                          })));
 
-    set_type->AddField(L"erase",
-                       vm::NewCallback(std::function<void(std::set<T>*, T)>(
-                           [](std::set<T>* v, T t) { v->erase(t); })));
-    set_type->AddField(L"insert",
-                       vm::NewCallback(std::function<void(std::set<T>*, T)>(
-                           [](std::set<T>* v, T e) { v->insert(e); })));
+    set_type->AddField(
+        L"erase",
+        vm::NewCallback(pool, std::function<void(std::set<T>*, T)>(
+                                  [](std::set<T>* v, T t) { v->erase(t); })));
+    set_type->AddField(
+        L"insert",
+        vm::NewCallback(pool, std::function<void(std::set<T>*, T)>(
+                                  [](std::set<T>* v, T e) { v->insert(e); })));
 
     environment->DefineType(name, std::move(set_type));
   }

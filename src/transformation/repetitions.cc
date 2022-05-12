@@ -11,6 +11,8 @@
 
 namespace afc {
 using language::NonNull;
+
+namespace gc = language::gc;
 namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
@@ -24,8 +26,9 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
         value->user_value);
   }
   static NonNull<Value::Ptr> New(
+      gc::Pool& pool,
       std::shared_ptr<editor::transformation::Repetitions> value) {
-    return Value::NewObject(L"RepetitionsTransformationBuilder",
+    return Value::NewObject(pool, L"RepetitionsTransformationBuilder",
                             std::shared_ptr<void>(value, value.get()));
   }
   static const VMType vmtype;

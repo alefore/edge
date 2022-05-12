@@ -2,6 +2,7 @@
 
 #include "src/buffer.h"
 #include "src/char_buffer.h"
+#include "src/editor.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
@@ -22,8 +23,9 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
         value.user_value);
   }
   static NonNull<Value::Ptr> New(
+      language::gc::Pool& pool,
       std::shared_ptr<editor::transformation::Insert> value) {
-    return Value::NewObject(L"InsertTransformationBuilder",
+    return Value::NewObject(pool, L"InsertTransformationBuilder",
                             std::shared_ptr<void>(value, value.get()));
   }
   static const VMType vmtype;
@@ -112,41 +114,44 @@ std::wstring ToStringBase(const Insert& options) {
 
 Insert OptimizeBase(Insert transformation) { return transformation; }
 
+// TODO(easy, 2022-05-12): Receive editor and environment by ref.
 void RegisterInsert(EditorState* editor, vm::Environment* environment) {
   auto builder = MakeNonNullUnique<ObjectType>(L"InsertTransformationBuilder");
-
-  environment->Define(L"InsertTransformationBuilder",
-                      vm::NewCallback(std::function<std::shared_ptr<Insert>()>(
-                          [] { return std::make_shared<Insert>(); })));
+  language::gc::Pool& pool = editor->gc_pool();
+  environment->Define(
+      L"InsertTransformationBuilder",
+      vm::NewCallback(pool, std::function<std::shared_ptr<Insert>()>(
+                                [] { return std::make_shared<Insert>(); })));
 
   builder->AddField(
       L"set_text",
-      vm::NewCallback([editor](std::shared_ptr<Insert> options, wstring text) {
-        CHECK(options != nullptr);
-        NonNull<std::shared_ptr<BufferContents>> buffer;
-        ColumnNumber line_start;
-        for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(text.size());
-             ++i) {
-          if (text[i.column] == L'\n') {
-            VLOG(8) << "Adding line from " << line_start << " to " << i;
-            buffer->push_back(MakeNonNullShared<Line>(
-                text.substr(line_start.column,
-                            (ColumnNumber(i) - line_start).column_delta)));
-            line_start = ColumnNumber(i) + ColumnNumberDelta(1);
-          }
-        }
-        buffer->push_back(
-            MakeNonNullShared<Line>(text.substr(line_start.column)));
-        buffer->EraseLines(LineNumber(), LineNumber(1),
-                           BufferContents::CursorsBehavior::kUnmodified);
-        options->contents_to_insert = std::move(buffer);
-        return options;
-      }));
+      vm::NewCallback(
+          pool, [editor](std::shared_ptr<Insert> options, wstring text) {
+            CHECK(options != nullptr);
+            NonNull<std::shared_ptr<BufferContents>> buffer;
+            ColumnNumber line_start;
+            for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(text.size());
+                 ++i) {
+              if (text[i.column] == L'\n') {
+                VLOG(8) << "Adding line from " << line_start << " to " << i;
+                buffer->push_back(MakeNonNullShared<Line>(
+                    text.substr(line_start.column,
+                                (ColumnNumber(i) - line_start).column_delta)));
+                line_start = ColumnNumber(i) + ColumnNumberDelta(1);
+              }
+            }
+            buffer->push_back(
+                MakeNonNullShared<Line>(text.substr(line_start.column)));
+            buffer->EraseLines(LineNumber(), LineNumber(1),
+                               BufferContents::CursorsBehavior::kUnmodified);
+            options->contents_to_insert = std::move(buffer);
+            return options;
+          }));
 
   builder->AddField(
       L"set_modifiers",
-      vm::NewCallback([editor](std::shared_ptr<Insert> options,
-                               std::shared_ptr<Modifiers> modifiers) {
+      vm::NewCallback(pool, [editor](std::shared_ptr<Insert> options,
+                                     std::shared_ptr<Modifiers> modifiers) {
         CHECK(options != nullptr);
         CHECK(modifiers != nullptr);
 
@@ -155,17 +160,17 @@ void RegisterInsert(EditorState* editor, vm::Environment* environment) {
       }));
 
   builder->AddField(L"set_position",
-                    NewCallback([editor](std::shared_ptr<Insert> options,
-                                         LineColumn position) {
+                    NewCallback(pool, [editor](std::shared_ptr<Insert> options,
+                                               LineColumn position) {
                       CHECK(options != nullptr);
                       options->position = position;
                       return options;
                     }));
 
-  builder->AddField(L"build",
-                    NewCallback([editor](std::shared_ptr<Insert> options) {
-                      return std::make_unique<Variant>(*options).release();
-                    }));
+  builder->AddField(
+      L"build", NewCallback(pool, [editor](std::shared_ptr<Insert> options) {
+        return std::make_unique<Variant>(*options).release();
+      }));
 
   environment->DefineType(L"InsertTransformationBuilder", std::move(builder));
 }

@@ -82,30 +82,33 @@ namespace editor {
 namespace {
 
 template <typename MethodReturnType>
-void RegisterBufferMethod(ObjectType& editor_type, const wstring& name,
+void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
+                          const wstring& name,
                           MethodReturnType (OpenBuffer::*method)(void)) {
   editor_type.AddField(
-      name, Value::NewFunction(
-                // Returns nothing.
-                {VMType::Void(), editor_type.type()},
-                [method](std::vector<NonNull<std::unique_ptr<Value>>> args,
-                         Trampoline&) {
-                  CHECK_EQ(args.size(), size_t(1));
-                  CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
+      name,
+      Value::NewFunction(
+          pool,
+          // Returns nothing.
+          {VMType::Void(), editor_type.type()},
+          [method](std::vector<NonNull<std::unique_ptr<Value>>> args,
+                   Trampoline& trampoline) {
+            CHECK_EQ(args.size(), size_t(1));
+            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Editor"));
 
-                  auto editor =
-                      static_cast<EditorState*>(args[0]->user_value.get());
-                  CHECK(editor != nullptr);
-                  return editor
-                      ->ForEachActiveBuffer([method](OpenBuffer& buffer) {
-                        (buffer.*method)();
-                        return futures::Past(EmptyValue());
-                      })
-                      .Transform([editor](EmptyValue) {
-                        editor->ResetModifiers();
-                        return EvaluationOutput::New(Value::NewVoid());
-                      });
-                }));
+            // TODO(easy, 2022-05-11): Use VMTypeMapper below.
+            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+            CHECK(editor != nullptr);
+            return editor
+                ->ForEachActiveBuffer([method](OpenBuffer& buffer) {
+                  (buffer.*method)();
+                  return futures::Past(EmptyValue());
+                })
+                .Transform([editor, &pool = trampoline.pool()](EmptyValue) {
+                  editor->ResetModifiers();
+                  return EvaluationOutput::New(Value::NewVoid(pool));
+                });
+          }));
 }
 }  // namespace
 
@@ -154,7 +157,7 @@ void EditorState::NotifyInternalEvent() {
 
 template <typename EdgeStruct, typename FieldValue>
 void RegisterVariableFields(
-    EdgeStruct* edge_struct, afc::vm::ObjectType& editor_type,
+    gc::Pool& pool, EdgeStruct* edge_struct, afc::vm::ObjectType& editor_type,
     const FieldValue& (EditorState::*reader)(const EdgeVariable<FieldValue>*)
         const,
     void (EditorState::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
@@ -166,16 +169,17 @@ void RegisterVariableFields(
     // Getter.
     editor_type.AddField(
         variable->name(),
-        vm::NewCallback([reader, variable](EditorState& editor) {
+        vm::NewCallback(pool, [reader, variable](EditorState& editor) {
           return (editor.*reader)(variable);
         }));
 
     // Setter.
-    editor_type.AddField(L"set_" + variable->name(),
-                         vm::NewCallback([variable, setter](EditorState& editor,
-                                                            FieldValue value) {
-                           (editor.*setter)(variable, value);
-                         }));
+    editor_type.AddField(
+        L"set_" + variable->name(),
+        vm::NewCallback(
+            pool, [variable, setter](EditorState& editor, FieldValue value) {
+              (editor.*setter)(variable, value);
+            }));
   }
 }
 
@@ -184,63 +188,67 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
       gc_pool_.NewRoot(MakeNonNullUnique<Environment>(
           afc::vm::Environment::NewDefault(gc_pool_).value()));
 
-  environment.value()->Define(L"terminal_backspace",
-                              Value::NewString({Terminal::BACKSPACE}));
+  environment.value()->Define(
+      L"terminal_backspace", Value::NewString(gc_pool_, {Terminal::BACKSPACE}));
   environment.value()->Define(L"terminal_control_a",
-                              Value::NewString({Terminal::CTRL_A}));
+                              Value::NewString(gc_pool_, {Terminal::CTRL_A}));
   environment.value()->Define(L"terminal_control_e",
-                              Value::NewString({Terminal::CTRL_E}));
+                              Value::NewString(gc_pool_, {Terminal::CTRL_E}));
   environment.value()->Define(L"terminal_control_d",
-                              Value::NewString({Terminal::CTRL_D}));
+                              Value::NewString(gc_pool_, {Terminal::CTRL_D}));
   environment.value()->Define(L"terminal_control_k",
-                              Value::NewString({Terminal::CTRL_K}));
+                              Value::NewString(gc_pool_, {Terminal::CTRL_K}));
   environment.value()->Define(L"terminal_control_u",
-                              Value::NewString({Terminal::CTRL_U}));
+                              Value::NewString(gc_pool_, {Terminal::CTRL_U}));
 
   auto editor_type = MakeNonNullUnique<ObjectType>(L"Editor");
 
   // Methods for Editor.
   RegisterVariableFields<EdgeStruct<bool>, bool>(
-      editor_variables::BoolStruct(), *editor_type, &EditorState::Read,
-      &EditorState::Set);
+      gc_pool_, editor_variables::BoolStruct(), *editor_type,
+      &EditorState::Read, &EditorState::Set);
 
   RegisterVariableFields<EdgeStruct<wstring>, wstring>(
-      editor_variables::StringStruct(), *editor_type, &EditorState::Read,
+      gc_pool_, editor_variables::StringStruct(), *editor_type,
+      &EditorState::Read, &EditorState::Set);
+
+  RegisterVariableFields<EdgeStruct<int>, int>(
+      gc_pool_, editor_variables::IntStruct(), *editor_type, &EditorState::Read,
       &EditorState::Set);
 
-  RegisterVariableFields<EdgeStruct<int>, int>(editor_variables::IntStruct(),
-                                               *editor_type, &EditorState::Read,
-                                               &EditorState::Set);
-
   editor_type->AddField(
-      L"EnterSetBufferMode", vm::NewCallback([](EditorState& editor) {
+      L"EnterSetBufferMode", vm::NewCallback(gc_pool_, [](EditorState& editor) {
         editor.set_keyboard_redirect(NewSetBufferMode(editor));
       }));
 
-  editor_type->AddField(L"SetActiveBuffer",
-                        vm::NewCallback([](EditorState& editor, int delta) {
-                          editor.SetActiveBuffer(delta);
-                        }));
+  editor_type->AddField(
+      L"SetActiveBuffer",
+      vm::NewCallback(gc_pool_, [](EditorState& editor, int delta) {
+        editor.SetActiveBuffer(delta);
+      }));
 
-  editor_type->AddField(L"AdvanceActiveBuffer",
-                        vm::NewCallback([](EditorState& editor, int delta) {
-                          editor.AdvanceActiveBuffer(delta);
-                        }));
+  editor_type->AddField(
+      L"AdvanceActiveBuffer",
+      vm::NewCallback(gc_pool_, [](EditorState& editor, int delta) {
+        editor.AdvanceActiveBuffer(delta);
+      }));
 
-  editor_type->AddField(L"ZoomToLeaf", vm::NewCallback([](EditorState&) {}));
+  editor_type->AddField(L"ZoomToLeaf",
+                        vm::NewCallback(gc_pool_, [](EditorState&) {}));
 
   editor_type->AddField(
       L"SetVariablePrompt",
-      vm::NewCallback([](EditorState& editor, std::wstring variable) {
+      vm::NewCallback(gc_pool_, [](EditorState& editor, std::wstring variable) {
         SetVariableCommandHandler(variable, editor);
       }));
 
-  editor_type->AddField(L"home", vm::NewCallback([](EditorState& editor) {
+  editor_type->AddField(L"home",
+                        vm::NewCallback(gc_pool_, [](EditorState& editor) {
                           return editor.home_directory().read();
                         }));
 
   editor_type->AddField(
-      L"pop_repetitions", vm::NewCallback([](EditorState& editor) {
+      L"pop_repetitions", vm::NewCallback(gc_pool_, [](EditorState& editor) {
         auto value = static_cast<int>(editor.repetitions().value_or(1));
         editor.ResetRepetitions();
         return value;
@@ -249,12 +257,13 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
   editor_type->AddField(
       L"ForEachActiveBuffer",
       Value::NewFunction(
+          gc_pool_,
           {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::Function(
                {VMType::Void(),
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> input,
-             Trampoline& trampoline) {
+          [&pool = gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> input,
+                             Trampoline& trampoline) {
             EditorState& editor =
                 VMTypeMapper<EditorState&>::get(input[0].value());
             NonNull<std::shared_ptr<PossibleError>> output;
@@ -264,7 +273,7 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
                   std::vector<NonNull<std::unique_ptr<Value>>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
-                          buffer.shared_from_this()));
+                          trampoline.pool(), buffer.shared_from_this()));
                   return callback(std::move(args), trampoline)
                       .Transform([](EvaluationOutput) { return Success(); })
                       .ConsumeErrors([output](Error error) {
@@ -272,22 +281,23 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
                         return futures::Past(EmptyValue());
                       });
                 })
-                .Transform(
-                    [output](EmptyValue) -> ValueOrError<EvaluationOutput> {
-                      if (output->IsError()) return output->error();
-                      return EvaluationOutput::Return(Value::NewVoid());
-                    });
+                .Transform([output, &pool](
+                               EmptyValue) -> ValueOrError<EvaluationOutput> {
+                  if (output->IsError()) return output->error();
+                  return EvaluationOutput::Return(Value::NewVoid(pool));
+                });
           }));
 
   editor_type->AddField(
       L"ForEachActiveBufferWithRepetitions",
       Value::NewFunction(
+          gc_pool_,
           {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::Function(
                {VMType::Void(),
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> input,
-             Trampoline& trampoline) {
+          [&pool = gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> input,
+                             Trampoline& trampoline) {
             EditorState& editor =
                 VMTypeMapper<EditorState&>::get(input[0].value());
             return editor
@@ -299,7 +309,7 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
                   std::vector<NonNull<std::unique_ptr<Value>>> args;
                   args.push_back(
                       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
-                          buffer.shared_from_this()));
+                          trampoline.pool(), buffer.shared_from_this()));
                   return callback(std::move(args), trampoline)
                       .Transform([](EvaluationOutput) { return Success(); })
                       // TODO(easy): Don't ConsumeErrors; change
@@ -307,23 +317,26 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
                       .ConsumeErrors(
                           [](Error) { return futures::Past(EmptyValue()); });
                 })
-                .Transform([](EmptyValue) {
-                  return EvaluationOutput::Return(Value::NewVoid());
+                .Transform([&pool](EmptyValue) {
+                  return EvaluationOutput::Return(Value::NewVoid(pool));
                 });
           }));
 
-  editor_type->AddField(L"ProcessInput",
-                        vm::NewCallback([](EditorState& editor, int c) {
-                          editor.ProcessInput(c);
-                        }));
+  editor_type->AddField(
+      L"ProcessInput",
+      vm::NewCallback(gc_pool_, [](EditorState& editor, int c) {
+        editor.ProcessInput(c);
+      }));
 
   editor_type->AddField(
       L"ConnectTo",
       Value::NewFunction(
+          gc_pool_,
           {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::String()},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args,
-             Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
+          [&pool = gc_pool_](
+              std::vector<NonNull<std::unique_ptr<Value>>> args,
+              Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState&>::vmtype);
             CHECK(args[1]->IsString());
@@ -336,15 +349,18 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
               return futures::Past(target_path.error());
             }
             OpenServerBuffer(editor, target_path.value());
-            return futures::Past(EvaluationOutput::Return(Value::NewVoid()));
+            return futures::Past(
+                EvaluationOutput::Return(Value::NewVoid(pool)));
           }));
 
   editor_type->AddField(
       L"WaitForClose",
       Value::NewFunction(
+          gc_pool_,
           {VMType::Void(), VMTypeMapper<EditorState&>::vmtype,
            VMType::ObjectType(L"SetString")},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
+          [&pool = gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> args,
+                             Trampoline&) {
             CHECK_EQ(args.size(), 2u);
             auto editor = static_cast<EditorState*>(args[0]->user_value.get());
             const auto& buffers_to_wait =
@@ -367,68 +383,75 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
                            return futures::IterationControlCommand::kContinue;
                          });
                        })
-                .Transform([](futures::IterationControlCommand) {
-                  return EvaluationOutput::Return(Value::NewVoid());
+                .Transform([&pool](futures::IterationControlCommand) {
+                  return EvaluationOutput::Return(Value::NewVoid(pool));
                 });
           }));
 
-  editor_type->AddField(L"SendExitTo",
-                        vm::NewCallback([](EditorState&, wstring args) {
-                          int fd = open(ToByteString(args).c_str(), O_WRONLY);
-                          string command = "editor.Exit(0);\n";
-                          write(fd, command.c_str(), command.size());
-                          close(fd);
-                        }));
+  editor_type->AddField(
+      L"SendExitTo", vm::NewCallback(gc_pool_, [](EditorState&, wstring args) {
+        int fd = open(ToByteString(args).c_str(), O_WRONLY);
+        string command = "editor.Exit(0);\n";
+        write(fd, command.c_str(), command.size());
+        close(fd);
+      }));
 
-  editor_type->AddField(L"Exit", vm::NewCallback([](EditorState&, int status) {
+  editor_type->AddField(L"Exit",
+                        vm::NewCallback(gc_pool_, [](EditorState&, int status) {
                           LOG(INFO) << "Exit: " << status;
                           exit(status);
                         }));
 
-  editor_type->AddField(L"SetStatus",
-                        vm::NewCallback([](EditorState& editor, wstring s) {
-                          editor.status_.SetInformationText(s);
-                        }));
+  editor_type->AddField(
+      L"SetStatus",
+      vm::NewCallback(gc_pool_, [](EditorState& editor, wstring s) {
+        editor.status_.SetInformationText(s);
+      }));
 
   editor_type->AddField(L"PromptAndOpenFile",
-                        vm::NewCallback([](EditorState& editor) {
+                        vm::NewCallback(gc_pool_, [](EditorState& editor) {
                           NewOpenFileCommand(editor)->ProcessInput(0);
                         }));
 
-  editor_type->AddField(L"set_screen_needs_hard_redraw",
-                        vm::NewCallback([](EditorState& editor, bool value) {
-                          editor.set_screen_needs_hard_redraw(value);
-                        }));
+  editor_type->AddField(
+      L"set_screen_needs_hard_redraw",
+      vm::NewCallback(gc_pool_, [](EditorState& editor, bool value) {
+        editor.set_screen_needs_hard_redraw(value);
+      }));
 
   editor_type->AddField(
       L"set_exit_value",
-      vm::NewCallback([](EditorState& editor, int exit_value) {
+      vm::NewCallback(gc_pool_, [](EditorState& editor, int exit_value) {
         editor.exit_value_ = exit_value;
       }));
 
   editor_type->AddField(
       L"ForkCommand",
-      vm::NewCallback([](EditorState& editor, ForkCommandOptions* options) {
-        return std::move(ForkCommand(editor, *options).get_shared());
-      }));
+      vm::NewCallback(
+          gc_pool_, [](EditorState& editor, ForkCommandOptions* options) {
+            return std::move(ForkCommand(editor, *options).get_shared());
+          }));
 
   editor_type->AddField(
-      L"repetitions", vm::NewCallback([](EditorState& editor) {
+      L"repetitions", vm::NewCallback(gc_pool_, [](EditorState& editor) {
         // TODO: Somehow expose the optional to the VM.
         return static_cast<int>(editor.repetitions().value_or(1));
       }));
 
-  editor_type->AddField(L"set_repetitions",
-                        vm::NewCallback([](EditorState& editor, int times) {
-                          editor.set_repetitions(times);
-                        }));
+  editor_type->AddField(
+      L"set_repetitions",
+      vm::NewCallback(gc_pool_, [](EditorState& editor, int times) {
+        editor.set_repetitions(times);
+      }));
 
   editor_type->AddField(
       L"OpenFile",
       Value::NewFunction(
+          gc_pool_,
           {VMType::ObjectType(L"Buffer"), VMTypeMapper<EditorState&>::vmtype,
            VMType::String(), VMType::Bool()},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
+          [&pool = gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> args,
+                             Trampoline&) {
             CHECK_EQ(args.size(), 3u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState&>::vmtype);
             auto editor_state =
@@ -444,18 +467,21 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
                                args[2]->boolean
                                    ? BuffersList::AddBufferType::kVisit
                                    : BuffersList::AddBufferType::kIgnore})
-                .Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-                  return EvaluationOutput::Return(
-                      Value::NewObject(L"Buffer", buffer.get_shared()));
-                });
+                .Transform(
+                    [&pool](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
+                      return EvaluationOutput::Return(Value::NewObject(
+                          pool, L"Buffer", buffer.get_shared()));
+                    });
           }));
 
   editor_type->AddField(
       L"AddBinding",
       Value::NewFunction(
+          gc_pool_,
           {VMType::Void(), VMTypeMapper<EditorState&>::vmtype, VMType::String(),
            VMType::String(), VMType::Function({VMType::Void()})},
-          [](std::vector<NonNull<std::unique_ptr<Value>>> args) {
+          [&pool =
+               gc_pool_](std::vector<NonNull<std::unique_ptr<Value>>> args) {
             CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0]->type, VMTypeMapper<EditorState&>::vmtype);
             CHECK(args[1]->IsString());
@@ -466,39 +492,39 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
             editor->default_commands_->Add(args[1]->str, args[2]->str,
                                            std::move(args[3]),
                                            editor->environment_);
-            return Value::NewVoid();
+            return Value::NewVoid(pool);
           }));
 
-  RegisterBufferMethod(*editor_type, L"ToggleActiveCursors",
+  RegisterBufferMethod(gc_pool_, *editor_type, L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
-  RegisterBufferMethod(*editor_type, L"PushActiveCursors",
+  RegisterBufferMethod(gc_pool_, *editor_type, L"PushActiveCursors",
                        &OpenBuffer::PushActiveCursors);
-  RegisterBufferMethod(*editor_type, L"PopActiveCursors",
+  RegisterBufferMethod(gc_pool_, *editor_type, L"PopActiveCursors",
                        &OpenBuffer::PopActiveCursors);
-  RegisterBufferMethod(*editor_type, L"SetActiveCursorsToMarks",
+  RegisterBufferMethod(gc_pool_, *editor_type, L"SetActiveCursorsToMarks",
                        &OpenBuffer::SetActiveCursorsToMarks);
-  RegisterBufferMethod(*editor_type, L"CreateCursor",
+  RegisterBufferMethod(gc_pool_, *editor_type, L"CreateCursor",
                        &OpenBuffer::CreateCursor);
-  RegisterBufferMethod(*editor_type, L"DestroyCursor",
+  RegisterBufferMethod(gc_pool_, *editor_type, L"DestroyCursor",
                        &OpenBuffer::DestroyCursor);
-  RegisterBufferMethod(*editor_type, L"DestroyOtherCursors",
+  RegisterBufferMethod(gc_pool_, *editor_type, L"DestroyOtherCursors",
                        &OpenBuffer::DestroyOtherCursors);
-  RegisterBufferMethod(*editor_type, L"RepeatLastTransformation",
+  RegisterBufferMethod(gc_pool_, *editor_type, L"RepeatLastTransformation",
                        &OpenBuffer::RepeatLastTransformation);
   environment.value()->DefineType(L"Editor", std::move(editor_type));
 
   environment.value()->Define(
-      L"editor",
-      Value::NewObject(L"Editor", shared_ptr<void>(this, [](void*) {})));
+      L"editor", Value::NewObject(gc_pool_, L"Editor",
+                                  shared_ptr<void>(this, [](void*) {})));
 
   OpenBuffer::RegisterBufferType(*this, &environment.value().value());
 
-  InitShapes(&environment.value().value());
+  InitShapes(gc_pool_, &environment.value().value());
   RegisterTransformations(this, &environment.value().value());
-  Modifiers::Register(&environment.value().value());
-  ForkCommandOptions::Register(&environment.value().value());
-  LineColumn::Register(&environment.value().value());
-  Range::Register(&environment.value().value());
+  Modifiers::Register(gc_pool_, &environment.value().value());
+  ForkCommandOptions::Register(gc_pool_, &environment.value().value());
+  LineColumn::Register(gc_pool_, &environment.value().value());
+  Range::Register(gc_pool_, &environment.value().value());
   return environment;
 }
 

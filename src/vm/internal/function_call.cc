@@ -296,29 +296,29 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
           Trampoline& trampoline, const VMType& type) override {
         return trampoline.Bounce(*obj_expr_, obj_expr_->Types()[0])
-            .Transform(
-                [type, shared_type = type_,
-                 callback = delegate_->LockCallback()](
-                    EvaluationOutput output) -> ValueOrError<EvaluationOutput> {
-                  switch (output.type) {
-                    case EvaluationOutput::OutputType::kReturn:
-                      return Success(std::move(output));
-                    case EvaluationOutput::OutputType::kContinue:
-                      return Success(EvaluationOutput::New(Value::NewFunction(
-                          shared_type->type_arguments,
-                          [obj = NonNull<std::shared_ptr<Value>>(
-                               std::move(output.value)),
-                           callback](std::vector<NonNull<Value::Ptr>> args,
-                                     Trampoline& trampoline) {
-                            args.emplace(args.begin(), MakeNonNullUnique<Value>(
-                                                           *obj.get_shared()));
-                            return callback(std::move(args), trampoline);
-                          })));
-                  }
-                  language::Error error(L"Unhandled OutputType case.");
-                  LOG(FATAL) << error;
-                  return error;
-                });
+            .Transform([type, shared_type = type_,
+                        callback = delegate_->LockCallback(),
+                        &pool = trampoline.pool()](EvaluationOutput output)
+                           -> ValueOrError<EvaluationOutput> {
+              switch (output.type) {
+                case EvaluationOutput::OutputType::kReturn:
+                  return Success(std::move(output));
+                case EvaluationOutput::OutputType::kContinue:
+                  return Success(EvaluationOutput::New(Value::NewFunction(
+                      pool, shared_type->type_arguments,
+                      [obj = NonNull<std::shared_ptr<Value>>(
+                           std::move(output.value)),
+                       callback](std::vector<NonNull<Value::Ptr>> args,
+                                 Trampoline& trampoline) {
+                        args.emplace(args.begin(), MakeNonNullUnique<Value>(
+                                                       *obj.get_shared()));
+                        return callback(std::move(args), trampoline);
+                      })));
+              }
+              language::Error error(L"Unhandled OutputType case.");
+              LOG(FATAL) << error;
+              return error;
+            });
       }
 
      private:

@@ -35,8 +35,8 @@ class VariableLookup : public Expression {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
     return futures::Past(VisitPointer(
-        trampoline.environment().value()->Lookup(symbol_namespace_, symbol_,
-                                                 type),
+        trampoline.environment().value()->Lookup(
+            trampoline.pool(), symbol_namespace_, symbol_, type),
         [](NonNull<std::unique_ptr<Value>> value) {
           DVLOG(5) << "Variable lookup: " << *value;
           return Success(EvaluationOutput::New(std::move(value)));

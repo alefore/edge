@@ -17,6 +17,8 @@ namespace afc {
 using language::MakeNonNullUnique;
 using language::NonNull;
 
+namespace gc = language::gc;
+
 namespace vm {
 template <>
 const VMType VMTypeMapper<std::vector<editor::LineColumn>*>::vmtype =
@@ -620,7 +622,8 @@ namespace fuzz {
 }
 }  // namespace fuzz
 
-/* static */ void LineColumn::Register(vm::Environment* environment) {
+/* static */ void LineColumn::Register(language::gc::Pool& pool,
+                                       vm::Environment* environment) {
   using vm::ObjectType;
   using vm::Value;
   using vm::VMType;
@@ -628,20 +631,23 @@ namespace fuzz {
 
   // Methods for LineColumn.
   environment->Define(
-      L"LineColumn", vm::NewCallback([](int line_number, int column_number) {
+      L"LineColumn",
+      vm::NewCallback(pool, [](int line_number, int column_number) {
         return LineColumn(LineNumber(line_number), ColumnNumber(column_number));
       }));
 
-  line_column->AddField(L"line", vm::NewCallback([](LineColumn line_column) {
+  line_column->AddField(L"line",
+                        vm::NewCallback(pool, [](LineColumn line_column) {
                           return static_cast<int>(line_column.line.line);
                         }));
 
-  line_column->AddField(L"column", vm::NewCallback([](LineColumn line_column) {
+  line_column->AddField(L"column",
+                        vm::NewCallback(pool, [](LineColumn line_column) {
                           return static_cast<int>(line_column.column.column);
                         }));
 
   line_column->AddField(
-      L"tostring", vm::NewCallback([](LineColumn line_column) {
+      L"tostring", vm::NewCallback(pool, [](LineColumn line_column) {
         return std::to_wstring(line_column.line.line) + L", " +
                std::to_wstring(line_column.column.column);
       }));
@@ -649,27 +655,28 @@ namespace fuzz {
   environment->DefineType(L"LineColumn", std::move(line_column));
 }
 
-/* static */ void Range::Register(vm::Environment* environment) {
+/* static */ void Range::Register(language::gc::Pool& pool,
+                                  vm::Environment* environment) {
   using vm::ObjectType;
   using vm::Value;
   using vm::VMType;
   auto range = MakeNonNullUnique<ObjectType>(L"Range");
 
   // Methods for Range.
-  environment->Define(L"Range",
-                      vm::NewCallback([](LineColumn begin, LineColumn end) {
-                        return Range(begin, end);
-                      }));
+  environment->Define(
+      L"Range", vm::NewCallback(pool, [](LineColumn begin, LineColumn end) {
+        return Range(begin, end);
+      }));
 
-  range->AddField(L"begin",
-                  vm::NewCallback([](Range range) { return range.begin; }));
+  range->AddField(
+      L"begin", vm::NewCallback(pool, [](Range range) { return range.begin; }));
 
   range->AddField(L"end",
-                  vm::NewCallback([](Range range) { return range.end; }));
+                  vm::NewCallback(pool, [](Range range) { return range.end; }));
 
   environment->DefineType(L"Range", std::move(range));
-  vm::VMTypeMapper<std::vector<LineColumn>*>::Export(environment);
-  vm::VMTypeMapper<std::set<LineColumn>*>::Export(environment);
+  vm::VMTypeMapper<std::vector<LineColumn>*>::Export(pool, environment);
+  vm::VMTypeMapper<std::set<LineColumn>*>::Export(pool, environment);
 }
 
 }  // namespace editor
@@ -683,9 +690,9 @@ editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
 
 /* static */
 NonNull<Value::Ptr> VMTypeMapper<editor::LineColumn>::New(
-    editor::LineColumn value) {
+    gc::Pool& pool, editor::LineColumn value) {
   return Value::NewObject(
-      vmtype.object_type,
+      pool, vmtype.object_type,
       shared_ptr<void>(new editor::LineColumn(value), [](void* v) {
         delete static_cast<editor::LineColumn*>(v);
       }));
@@ -704,9 +711,9 @@ editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
 
 /* static */
 NonNull<Value::Ptr> VMTypeMapper<editor::LineColumnDelta>::New(
-    editor::LineColumnDelta value) {
+    gc::Pool& pool, editor::LineColumnDelta value) {
   return Value::NewObject(
-      vmtype.object_type,
+      pool, vmtype.object_type,
       shared_ptr<void>(new editor::LineColumnDelta(value), [](void* v) {
         delete static_cast<editor::LineColumnDelta*>(v);
       }));
@@ -723,9 +730,10 @@ editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
 }
 
 /* static */
-NonNull<Value::Ptr> VMTypeMapper<editor::Range>::New(editor::Range range) {
+NonNull<Value::Ptr> VMTypeMapper<editor::Range>::New(gc::Pool& pool,
+                                                     editor::Range range) {
   return Value::NewObject(
-      L"Range", shared_ptr<void>(new editor::Range(range), [](void* v) {
+      pool, L"Range", shared_ptr<void>(new editor::Range(range), [](void* v) {
         delete static_cast<editor::Range*>(v);
       }));
 }

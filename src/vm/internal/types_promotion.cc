@@ -4,19 +4,22 @@ namespace afc::vm {
 using language::NonNull;
 using language::Success;
 
+namespace gc = language::gc;
+
 using PromotionCallback = std::function<NonNull<std::unique_ptr<Value>>(
-    NonNull<std::unique_ptr<Value>>)>;
+    gc::Pool&, NonNull<std::unique_ptr<Value>>)>;
 
 PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
   if (original == desired)
-    return [](NonNull<std::unique_ptr<Value>> value) { return value; };
+    return
+        [](gc::Pool&, NonNull<std::unique_ptr<Value>> value) { return value; };
   switch (original.type) {
     case VMType::VM_INTEGER:
       switch (desired.type) {
         case VMType::VM_DOUBLE:
-          return [](NonNull<std::unique_ptr<Value>> value) {
+          return [](gc::Pool& pool, NonNull<std::unique_ptr<Value>> value) {
             CHECK(value->IsInteger());
-            return Value::NewDouble(value->integer);
+            return Value::NewDouble(pool, value->integer);
           };
         default:
           return nullptr;
@@ -45,10 +48,10 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
           }
 
           return [argument_callbacks, purity = desired.function_purity](
-                     NonNull<std::unique_ptr<Value>> value) {
+                     gc::Pool& pool, NonNull<std::unique_ptr<Value>> value) {
             std::vector<VMType> type_arguments = value->type.type_arguments;
             NonNull<std::unique_ptr<Value>> output = Value::NewFunction(
-                type_arguments,
+                pool, type_arguments,
                 std::bind_front(
                     [argument_callbacks](
                         NonNull<std::shared_ptr<Value>>& original_callback,
@@ -56,15 +59,16 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
                         Trampoline& trampoline) {
                       CHECK_EQ(argument_callbacks.size(), arguments.size() + 1);
                       for (size_t i = 0; i < arguments.size(); ++i) {
-                        arguments[i] =
-                            argument_callbacks[i + 1](std::move(arguments[i]));
+                        arguments[i] = argument_callbacks[i + 1](
+                            trampoline.pool(), std::move(arguments[i]));
                       }
                       return original_callback
                           ->LockCallback()(std::move(arguments), trampoline)
-                          .Transform([return_callback = argument_callbacks[0]](
+                          .Transform([return_callback = argument_callbacks[0],
+                                      &pool = trampoline.pool()](
                                          EvaluationOutput output) {
                             output.value =
-                                return_callback(std::move(output.value));
+                                return_callback(pool, std::move(output.value));
                             return Success(std::move(output));
                           });
                     },

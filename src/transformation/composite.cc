@@ -10,6 +10,9 @@
 namespace afc {
 using language::MakeNonNullUnique;
 using language::NonNull;
+
+namespace gc = language::gc;
+
 namespace vm {
 const VMType VMTypeMapper<
     std::shared_ptr<editor::CompositeTransformation::Output>>::vmtype =
@@ -26,9 +29,10 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::get(
 
 NonNull<Value::Ptr>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::New(
+    gc::Pool& pool,
     std::shared_ptr<editor::CompositeTransformation::Output> value) {
   CHECK(value != nullptr);
-  return Value::NewObject(L"TransformationOutput",
+  return Value::NewObject(pool, L"TransformationOutput",
                           std::shared_ptr<void>(value, value.get()));
 }
 
@@ -47,9 +51,10 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::get(
 
 NonNull<Value::Ptr>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
+    gc::Pool& pool,
     std::shared_ptr<editor::CompositeTransformation::Input> value) {
   CHECK(value != nullptr);
-  return Value::NewObject(L"TransformationInput",
+  return Value::NewObject(pool, L"TransformationInput",
                           std::shared_ptr<void>(value, value.get()));
 }
 
@@ -140,44 +145,47 @@ void CompositeTransformation::Output::Push(
   stack->PushBack(std::move(transformation));
 }
 
-void RegisterCompositeTransformation(vm::Environment* environment) {
+void RegisterCompositeTransformation(language::gc::Pool& pool,
+                                     vm::Environment* environment) {
   auto input_type = MakeNonNullUnique<ObjectType>(L"TransformationInput");
 
   input_type->AddField(
       L"position",
       vm::NewCallback(
-          [](std::shared_ptr<CompositeTransformation::Input> input) {
+          pool, [](std::shared_ptr<CompositeTransformation::Input> input) {
             return input->position;
           }));
   input_type->AddField(
-      L"range", vm::NewCallback(
-                    [](std::shared_ptr<CompositeTransformation::Input> input) {
-                      return input->range;
-                    }));
+      L"range",
+      vm::NewCallback(
+          pool, [](std::shared_ptr<CompositeTransformation::Input> input) {
+            return input->range;
+          }));
 
   input_type->AddField(
       L"final_mode",
       vm::NewCallback(
-          [](std::shared_ptr<CompositeTransformation::Input> input) {
+          pool, [](std::shared_ptr<CompositeTransformation::Input> input) {
             return input->mode == transformation::Input::Mode::kFinal;
           }));
   environment->DefineType(L"TransformationInput", std::move(input_type));
 
   auto output_type = MakeNonNullUnique<ObjectType>(L"TransformationOutput");
   environment->Define(
-      L"TransformationOutput", vm::NewCallback([] {
+      L"TransformationOutput", vm::NewCallback(pool, [] {
         return std::make_shared<CompositeTransformation::Output>();
       }));
 
   output_type->AddField(
-      L"push", vm::NewCallback(
-                   [](std::shared_ptr<CompositeTransformation::Output> output,
-                      transformation::Variant* transformation) {
-                     // TODO(2022-05-02, easy): Receive transformation as
-                     // NonNull.
-                     output->Push(*transformation);
-                     return output;
-                   }));
+      L"push",
+      vm::NewCallback(
+          pool, [](std::shared_ptr<CompositeTransformation::Output> output,
+                   transformation::Variant* transformation) {
+            // TODO(2022-05-02, easy): Receive transformation as
+            // NonNull.
+            output->Push(*transformation);
+            return output;
+          }));
 
   environment->DefineType(L"TransformationOutput", std::move(output_type));
 }

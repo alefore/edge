@@ -9,6 +9,8 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 
+namespace gc = language::gc;
+
 std::wstring CppEscapeString(std::wstring input) {
   std::wstring output;
   output.reserve(input.size() * 2);
@@ -86,43 +88,47 @@ bool cpp_unescape_string_tests_registration =
     }());
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewVoid() {
+/* static */ NonNull<std::unique_ptr<Value>> Value::NewVoid(gc::Pool&) {
   return MakeNonNullUnique<Value>(VMType::VM_VOID);
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewBool(bool value) {
+/* static */ NonNull<std::unique_ptr<Value>> Value::NewBool(gc::Pool&,
+                                                            bool value) {
   auto output = MakeNonNullUnique<Value>(VMType::Bool());
   output->boolean = value;
   return output;
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewInteger(int value) {
+/* static */ NonNull<std::unique_ptr<Value>> Value::NewInteger(gc::Pool&,
+                                                               int value) {
   auto output = MakeNonNullUnique<Value>(VMType::Integer());
   output->integer = value;
   return output;
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewDouble(double value) {
+/* static */ NonNull<std::unique_ptr<Value>> Value::NewDouble(gc::Pool&,
+                                                              double value) {
   auto output = MakeNonNullUnique<Value>(VMType::Double());
   output->double_value = value;
   return output;
 }
 
-/* static */ NonNull<std::unique_ptr<Value>> Value::NewString(wstring value) {
+/* static */ NonNull<std::unique_ptr<Value>> Value::NewString(gc::Pool&,
+                                                              wstring value) {
   auto output = MakeNonNullUnique<Value>(VMType::String());
   output->str = std::move(value);
   return output;
 }
 
 /* static */ NonNull<std::unique_ptr<Value>> Value::NewObject(
-    std::wstring name, std::shared_ptr<void> value) {
+    gc::Pool&, std::wstring name, std::shared_ptr<void> value) {
   auto output = MakeNonNullUnique<Value>(VMType::ObjectType(std::move(name)));
   output->user_value = std::move(value);
   return output;
 }
 
 /* static */ NonNull<std::unique_ptr<Value>> Value::NewFunction(
-    std::vector<VMType> arguments, Value::Callback callback) {
+    gc::Pool&, std::vector<VMType> arguments, Value::Callback callback) {
   auto output = MakeNonNullUnique<Value>(VMType::FUNCTION);
   output->type.type_arguments = std::move(arguments);
   output->callback = std::move(callback);
@@ -130,11 +136,11 @@ bool cpp_unescape_string_tests_registration =
 }
 
 /* static */ NonNull<std::unique_ptr<Value>> Value::NewFunction(
-    std::vector<VMType> arguments,
+    gc::Pool& pool, std::vector<VMType> arguments,
     std::function<NonNull<Value::Ptr>(std::vector<NonNull<Value::Ptr>>)>
         callback) {
   return NewFunction(
-      arguments, [callback](std::vector<NonNull<Ptr>> args, Trampoline&) {
+      pool, arguments, [callback](std::vector<NonNull<Ptr>> args, Trampoline&) {
         return futures::Past(
             Success(EvaluationOutput::New(callback(std::move(args)))));
       });

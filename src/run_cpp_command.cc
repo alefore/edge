@@ -71,7 +71,8 @@ struct ParsedCommand {
 };
 
 ValueOrError<ParsedCommand> Parse(
-    NonNull<std::shared_ptr<LazyString>> command, Environment& environment,
+    gc::Pool& pool, NonNull<std::shared_ptr<LazyString>> command,
+    Environment& environment,
     NonNull<std::shared_ptr<LazyString>> function_name_prefix,
     std::unordered_set<VMType> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
@@ -133,7 +134,7 @@ ValueOrError<ParsedCommand> Parse(
     }
     output.inputs.push_back(vm::NewConstantExpression(
         VMTypeMapper<std::unique_ptr<std::vector<std::wstring>>>::New(
-            std::move(argument_values))));
+            pool, std::move(argument_values))));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output.function = type_match_functions[0].get();
@@ -148,12 +149,12 @@ ValueOrError<ParsedCommand> Parse(
 
     for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
       output.inputs.push_back(
-          vm::NewConstantExpression(vm::Value::NewString(it->value)));
+          vm::NewConstantExpression(vm::Value::NewString(pool, it->value)));
     }
 
     while (output.inputs.size() < expected_arguments) {
       output.inputs.push_back(
-          vm::NewConstantExpression(vm::Value::NewString(L"")));
+          vm::NewConstantExpression(vm::Value::NewString(pool, L"")));
     }
   } else {
     return Error(L"No suitable definition found: " + output.tokens[0].value);
@@ -162,10 +163,11 @@ ValueOrError<ParsedCommand> Parse(
   return output;
 }
 
-ValueOrError<ParsedCommand> Parse(NonNull<std::shared_ptr<LazyString>> command,
+ValueOrError<ParsedCommand> Parse(gc::Pool& pool,
+                                  NonNull<std::shared_ptr<LazyString>> command,
                                   Environment& environment,
                                   const SearchNamespaces& search_namespaces) {
-  return Parse(std::move(command), environment, EmptyString(),
+  return Parse(pool, std::move(command), environment, EmptyString(),
                {VMType::Void(), VMType::String()}, search_namespaces);
 }
 
@@ -197,7 +199,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   gc::Root<Environment> environment =
       (buffer == nullptr ? editor.environment() : buffer->environment());
   if (auto parsed_command =
-          Parse(line, environment.value().value(), search_namespaces);
+          Parse(editor.gc_pool(), line, environment.value().value(),
+                search_namespaces);
       !parsed_command.IsError()) {
     output.tokens.push_back({.token = {.value = L"",
                                        .begin = ColumnNumber(0),
@@ -207,9 +210,9 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 
   using BufferMapper = vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>;
   futures::Future<ColorizePromptOptions> output_future;
-  if (auto command =
-          Parse(line, environment.value().value(), NewLazyString(L"Preview"),
-                {BufferMapper::vmtype}, search_namespaces);
+  if (auto command = Parse(editor.gc_pool(), line, environment.value().value(),
+                           NewLazyString(L"Preview"), {BufferMapper::vmtype},
+                           search_namespaces);
       buffer != nullptr && !command.IsError()) {
     Execute(buffer, std::move(command.value()))
         .SetConsumer([consumer = output_future.consumer, buffer,
@@ -240,7 +243,7 @@ futures::ValueOrError<NonNull<std::unique_ptr<vm::Value>>> RunCppCommandShell(
 
   SearchNamespaces search_namespaces(*buffer);
   auto parsed_command =
-      Parse(NewLazyString(std::move(command)),
+      Parse(editor_state.gc_pool(), NewLazyString(std::move(command)),
             buffer->environment().value().value(), search_namespaces);
   if (parsed_command.IsError()) {
     if (!parsed_command.error().description.empty()) {

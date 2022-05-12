@@ -58,38 +58,41 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary) {
   return Modifiers::CURRENT_POSITION;  // Silence warning.
 }
 
-void Modifiers::Register(vm::Environment* environment) {
+// TODO(easy, 2022-05-11): Receive environment by ref.
+void Modifiers::Register(language::gc::Pool& pool,
+                         vm::Environment* environment) {
   auto modifiers_type = MakeNonNullUnique<vm::ObjectType>(L"Modifiers");
 
   environment->Define(L"Modifiers",
-                      vm::NewCallback(std::make_shared<Modifiers>));
+                      vm::NewCallback(pool, std::make_shared<Modifiers>));
 
   modifiers_type->AddField(
-      L"set_backwards", vm::NewCallback([](std::shared_ptr<Modifiers> output) {
+      L"set_backwards",
+      vm::NewCallback(pool, [](std::shared_ptr<Modifiers> output) {
         output->direction = Direction::kBackwards;
         return output;
       }));
 
   modifiers_type->AddField(
-      L"set_line", vm::NewCallback([](std::shared_ptr<Modifiers> output) {
+      L"set_line", vm::NewCallback(pool, [](std::shared_ptr<Modifiers> output) {
         output->structure = StructureLine();
         return output;
       }));
 
-  modifiers_type->AddField(L"set_delete_behavior",
-                           vm::NewCallback([](std::shared_ptr<Modifiers> output,
-                                              bool delete_behavior) {
-                             output->text_delete_behavior =
-                                 delete_behavior
-                                     ? Modifiers::TextDeleteBehavior::kDelete
-                                     : Modifiers::TextDeleteBehavior::kKeep;
-                             return output;
-                           }));
+  modifiers_type->AddField(
+      L"set_delete_behavior",
+      vm::NewCallback(
+          pool, [](std::shared_ptr<Modifiers> output, bool delete_behavior) {
+            output->text_delete_behavior =
+                delete_behavior ? Modifiers::TextDeleteBehavior::kDelete
+                                : Modifiers::TextDeleteBehavior::kKeep;
+            return output;
+          }));
 
   modifiers_type->AddField(
       L"set_paste_buffer_behavior",
-      vm::NewCallback([](std::shared_ptr<Modifiers> output,
-                         bool paste_buffer_behavior) {
+      vm::NewCallback(pool, [](std::shared_ptr<Modifiers> output,
+                               bool paste_buffer_behavior) {
         output->paste_buffer_behavior =
             paste_buffer_behavior ? Modifiers::PasteBufferBehavior::kDeleteInto
                                   : Modifiers::PasteBufferBehavior::kDoNothing;
@@ -98,14 +101,15 @@ void Modifiers::Register(vm::Environment* environment) {
 
   modifiers_type->AddField(
       L"set_repetitions",
-      vm::NewCallback([](std::shared_ptr<Modifiers> output, int repetitions) {
-        output->repetitions = repetitions;
-        return output;
-      }));
+      vm::NewCallback(pool,
+                      [](std::shared_ptr<Modifiers> output, int repetitions) {
+                        output->repetitions = repetitions;
+                        return output;
+                      }));
 
   modifiers_type->AddField(
       L"set_boundary_end_neighbor",
-      vm::NewCallback([](std::shared_ptr<Modifiers> output) {
+      vm::NewCallback(pool, [](std::shared_ptr<Modifiers> output) {
         output->boundary_end = LIMIT_NEIGHBOR;
         return output;
       }));
@@ -146,8 +150,8 @@ VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value& value) {
 
 /* static */
 NonNull<Value::Ptr> VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
-    std::shared_ptr<editor::Modifiers> value) {
-  return Value::NewObject(L"Modifiers",
+    language::gc::Pool& pool, std::shared_ptr<editor::Modifiers> value) {
+  return Value::NewObject(pool, L"Modifiers",
                           std::shared_ptr<void>(value, value.get()));
 }
 

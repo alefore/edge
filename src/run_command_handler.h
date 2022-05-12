@@ -11,6 +11,9 @@
 #include "src/futures/futures.h"
 #include "src/widget_list.h"
 
+namespace afc::language::gc {
+class Pool;
+}
 namespace afc {
 namespace editor {
 
@@ -22,7 +25,7 @@ using std::wstring;
 class EditorState;
 
 struct ForkCommandOptions {
-  static void Register(vm::Environment* environment);
+  static void Register(language::gc::Pool& pool, vm::Environment* environment);
 
   // The command to run.
   wstring command;
@@ -57,7 +60,8 @@ namespace vm {
 template <>
 struct VMTypeMapper<editor::ForkCommandOptions*> {
   static editor::ForkCommandOptions* get(Value& value);
-  static language::NonNull<Value::Ptr> New(editor::ForkCommandOptions* value);
+  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
+                                           editor::ForkCommandOptions* value);
   static const VMType vmtype;
 };
 }  // namespace vm

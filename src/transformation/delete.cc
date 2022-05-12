@@ -38,8 +38,9 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
         value.user_value);
   }
   static NonNull<Value::Ptr> New(
+      language::gc::Pool& pool,
       std::shared_ptr<editor::transformation::Delete> value) {
-    return Value::NewObject(L"DeleteTransformationBuilder",
+    return Value::NewObject(pool, L"DeleteTransformationBuilder",
                             std::shared_ptr<void>(value, value.get()));
   }
   static const VMType vmtype;
@@ -247,42 +248,47 @@ std::wstring ToStringBase(const Delete&) { return L"Delete(...);"; }
 
 Delete OptimizeBase(Delete transformation) { return transformation; }
 
-void RegisterDelete(vm::Environment* environment) {
+void RegisterDelete(language::gc::Pool& pool, vm::Environment* environment) {
   auto builder = MakeNonNullUnique<ObjectType>(L"DeleteTransformationBuilder");
 
   environment->Define(
       L"DeleteTransformationBuilder",
-      vm::NewCallback(std::function<std::shared_ptr<Delete>()>(
-          []() { return std::make_shared<transformation::Delete>(); })));
+      vm::NewCallback(pool, std::function<std::shared_ptr<Delete>()>([]() {
+                        return std::make_shared<transformation::Delete>();
+                      })));
 
   builder->AddField(
       L"set_modifiers",
-      NewCallback(std::function<std::shared_ptr<Delete>(
+      NewCallback(pool,
+                  std::function<std::shared_ptr<Delete>(
                       std::shared_ptr<Delete>, std::shared_ptr<Modifiers>)>(
-          [](std::shared_ptr<Delete> options,
-             std::shared_ptr<Modifiers> modifiers) {
-            CHECK(options != nullptr);
-            CHECK(modifiers != nullptr);
-            options->modifiers = *modifiers;
-            return options;
-          })));
+                      [](std::shared_ptr<Delete> options,
+                         std::shared_ptr<Modifiers> modifiers) {
+                        CHECK(options != nullptr);
+                        CHECK(modifiers != nullptr);
+                        options->modifiers = *modifiers;
+                        return options;
+                      })));
 
   builder->AddField(
       L"set_line_end_behavior",
-      vm::NewCallback(std::function<std::shared_ptr<Delete>(
-                          std::shared_ptr<Delete>, std::wstring)>(
-          [](std::shared_ptr<Delete> options, std::wstring value) {
-            CHECK(options != nullptr);
-            if (value == L"stop") {
-              options->line_end_behavior = Delete::LineEndBehavior::kStop;
-            } else if (value == L"delete") {
-              options->line_end_behavior = Delete::LineEndBehavior::kDelete;
-            }
-            return options;
-          })));
+      vm::NewCallback(
+          pool, std::function<std::shared_ptr<Delete>(std::shared_ptr<Delete>,
+                                                      std::wstring)>(
+                    [](std::shared_ptr<Delete> options, std::wstring value) {
+                      CHECK(options != nullptr);
+                      if (value == L"stop") {
+                        options->line_end_behavior =
+                            Delete::LineEndBehavior::kStop;
+                      } else if (value == L"delete") {
+                        options->line_end_behavior =
+                            Delete::LineEndBehavior::kDelete;
+                      }
+                      return options;
+                    })));
 
   builder->AddField(L"build",
-                    vm::NewCallback([](std::shared_ptr<Delete> options) {
+                    vm::NewCallback(pool, [](std::shared_ptr<Delete> options) {
                       CHECK(options != nullptr);
                       return std::make_unique<Variant>(*options).release();
                     }));

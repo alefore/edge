@@ -49,7 +49,7 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
 %destructor statement_list { delete $$; }
 
 statement_list(L) ::= . {
-  L = NewVoidExpression().get_unique().release();
+  L = NewVoidExpression(compilation->pool).get_unique().release();
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
@@ -91,7 +91,7 @@ statement(OUT) ::= class_declaration
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(A)));
     A = nullptr;
-    OUT = NewVoidExpression().get_unique().release();
+    OUT = NewVoidExpression(compilation->pool).get_unique().release();
   }
 }
 
@@ -106,7 +106,7 @@ statement(OUT) ::= RETURN expr(A) SEMICOLON . {
 
 statement(OUT) ::= RETURN SEMICOLON . {
   OUT = NewReturnExpression(compilation,
-      std::move(NewVoidExpression().get_unique())).release();
+      std::move(NewVoidExpression(compilation->pool).get_unique())).release();
 }
 
 statement(OUT) ::= function_declaration_params(FUNC)
@@ -133,13 +133,13 @@ statement(OUT) ::= function_declaration_params(FUNC)
       compilation->environment.value()->Define(
           FUNC->name.value(),
           NonNull<std::unique_ptr<Value>>::Unsafe(std::move(value)));
-      OUT = NewVoidExpression().get_unique().release();
+      OUT = NewVoidExpression(compilation->pool).get_unique().release();
     }
   }
 }
 
 statement(A) ::= SEMICOLON . {
-  A = NewVoidExpression().get_unique().release();
+  A = NewVoidExpression(compilation->pool).get_unique().release();
 }
 
 statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
@@ -175,9 +175,11 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
       compilation,
       unique_ptr<Expression>(CONDITION),
       NewAppendExpression(compilation, unique_ptr<Expression>(TRUE_CASE),
-                          std::move(NewVoidExpression().get_unique())),
+                          std::move(NewVoidExpression(compilation->pool)
+                                        .get_unique())),
       NewAppendExpression(compilation, unique_ptr<Expression>(FALSE_CASE),
-                          std::move(NewVoidExpression().get_unique())))
+                          std::move(NewVoidExpression(compilation->pool)
+                                        .get_unique())))
       .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;
@@ -189,8 +191,9 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
       compilation,
       unique_ptr<Expression>(CONDITION),
       NewAppendExpression(compilation, unique_ptr<Expression>(TRUE_CASE),
-                          std::move(NewVoidExpression().get_unique())),
-      std::move(NewVoidExpression().get_unique()))
+                          std::move(NewVoidExpression(compilation->pool)
+                                        .get_unique())),
+      std::move(NewVoidExpression(compilation->pool).get_unique()))
       .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;
@@ -216,7 +219,7 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
       OUT = nullptr;
       FUNC->Abort(*compilation);
     } else {
-      OUT = NewVoidExpression().get_unique().release();
+      OUT = NewVoidExpression(compilation->pool).get_unique().release();
       FUNC->Done(*compilation);
     }
   }
@@ -228,7 +231,7 @@ assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
   delete NAME;
   A = result == std::nullopt
       ? nullptr
-      : NewVoidExpression().get_unique().release();
+      : NewVoidExpression(compilation->pool).get_unique().release();
 }
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
@@ -462,7 +465,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
     OUT = NewAssignExpression(
               compilation, NAME->str,
               std::make_unique<BinaryOperator>(
-                  NewVoidExpression(),
+                  NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
                   var->IsInteger()
@@ -491,7 +494,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
     OUT = NewAssignExpression(
               compilation, NAME->str,
               std::make_unique<BinaryOperator>(
-                  NewVoidExpression(),
+                  NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
                   var->IsInteger()

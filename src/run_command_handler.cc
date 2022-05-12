@@ -34,6 +34,8 @@ extern "C" {
 
 namespace afc {
 using language::NonNull;
+
+namespace gc = language::gc;
 namespace editor {
 namespace {
 using concurrent::Notification;
@@ -393,6 +395,7 @@ class ForkEditorCommand : public Command {
   wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t) {
+    gc::Pool& pool = editor_state_.gc_pool();
     if (editor_state_.structure() == StructureChar()) {
       auto original_buffer = editor_state_.current_buffer();
       NonNull<std::shared_ptr<PromptState>> prompt_state =
@@ -401,7 +404,8 @@ class ForkEditorCommand : public Command {
               .base_command = std::nullopt,
               .context_command_callback =
                   original_buffer->environment().value()->Lookup(
-                      Environment::Namespace(), L"GetShellPromptContextProgram",
+                      pool, Environment::Namespace(),
+                      L"GetShellPromptContextProgram",
                       VMType::Function({VMType::String(), VMType::String()}))});
 
       auto children_path = GetChildrenPath(editor_state_);
@@ -450,11 +454,12 @@ class ForkEditorCommand : public Command {
       PromptState& prompt_state,
       const NonNull<std::shared_ptr<LazyString>>& line) {
     CHECK(prompt_state.context_command_callback);
-    auto& editor = prompt_state.original_buffer->editor();
+    EditorState& editor = prompt_state.original_buffer->editor();
+    language::gc::Pool& pool = editor.gc_pool();
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
     std::vector<NonNull<std::unique_ptr<Expression>>> arguments;
-    arguments.push_back(
-        vm::NewConstantExpression(vm::Value::NewString(line->ToString())));
+    arguments.push_back(vm::NewConstantExpression(
+        vm::Value::NewString(pool, line->ToString())));
     NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
         vm::NewConstantExpression(
             MakeNonNullUnique<Value>(*prompt_state.context_command_callback)),
@@ -511,10 +516,11 @@ VMTypeMapper<editor::ForkCommandOptions*>::get(Value& value) {
   return static_cast<editor::ForkCommandOptions*>(value.user_value.get());
 }
 
+// TODO(easy, 2022-05-12): Receive options by ref.
 /* static */ NonNull<Value::Ptr> VMTypeMapper<editor::ForkCommandOptions*>::New(
-    editor::ForkCommandOptions* value) {
+    language::gc::Pool& pool, editor::ForkCommandOptions* value) {
   CHECK(value != nullptr);
-  return Value::NewObject(L"ForkCommandOptions",
+  return Value::NewObject(pool, L"ForkCommandOptions",
                           std::shared_ptr<void>(value, [](void* v) {
                             delete static_cast<editor::ForkCommandOptions*>(v);
                           }));
@@ -525,55 +531,63 @@ const VMType VMTypeMapper<editor::ForkCommandOptions*>::vmtype =
 }  // namespace vm
 namespace editor {
 /* static */
-void ForkCommandOptions::Register(vm::Environment* environment) {
+void ForkCommandOptions::Register(gc::Pool& pool,
+                                  vm::Environment* environment) {
   using vm::ObjectType;
   using vm::Value;
   using vm::VMType;
   auto fork_command_options =
       MakeNonNullUnique<ObjectType>(L"ForkCommandOptions");
 
-  environment->Define(L"ForkCommandOptions",
-                      NewCallback(std::function<ForkCommandOptions*()>(
-                          []() { return new ForkCommandOptions(); })));
+  environment->Define(
+      L"ForkCommandOptions",
+      NewCallback(pool, std::function<ForkCommandOptions*()>(
+                            []() { return new ForkCommandOptions(); })));
 
   fork_command_options->AddField(
       L"set_command",
-      NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
-          [](ForkCommandOptions* options, wstring command) {
-            CHECK(options != nullptr);
-            options->command = std::move(command);
-          })));
+      NewCallback(pool, std::function<void(ForkCommandOptions*, wstring)>(
+                            [](ForkCommandOptions* options, wstring command) {
+                              CHECK(options != nullptr);
+                              options->command = std::move(command);
+                            })));
 
   fork_command_options->AddField(
       L"set_name",
-      NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
-          [](ForkCommandOptions* options, wstring name) {
-            CHECK(options != nullptr);
-            options->name = BufferName(std::move(name));
-          })));
+      NewCallback(pool, std::function<void(ForkCommandOptions*, wstring)>(
+                            [](ForkCommandOptions* options, wstring name) {
+                              CHECK(options != nullptr);
+                              options->name = BufferName(std::move(name));
+                            })));
 
   fork_command_options->AddField(
       L"set_insertion_type",
-      NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
-          [](ForkCommandOptions* options, wstring insertion_type) {
-            CHECK(options != nullptr);
-            if (insertion_type == L"visit") {
-              options->insertion_type = BuffersList::AddBufferType::kVisit;
-            } else if (insertion_type == L"only_list") {
-              options->insertion_type = BuffersList::AddBufferType::kOnlyList;
-            } else if (insertion_type == L"ignore") {
-              options->insertion_type = BuffersList::AddBufferType::kIgnore;
-            }
-          })));
+      NewCallback(pool,
+                  std::function<void(ForkCommandOptions*, wstring)>(
+                      [](ForkCommandOptions* options, wstring insertion_type) {
+                        CHECK(options != nullptr);
+                        if (insertion_type == L"visit") {
+                          options->insertion_type =
+                              BuffersList::AddBufferType::kVisit;
+                        } else if (insertion_type == L"only_list") {
+                          options->insertion_type =
+                              BuffersList::AddBufferType::kOnlyList;
+                        } else if (insertion_type == L"ignore") {
+                          options->insertion_type =
+                              BuffersList::AddBufferType::kIgnore;
+                        }
+                      })));
 
   fork_command_options->AddField(
       L"set_children_path",
-      NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
-          [](ForkCommandOptions* options, wstring children_path) {
-            CHECK(options != nullptr);
-            options->children_path =
-                Path::FromString(std::move(children_path)).AsOptional();
-          })));
+      NewCallback(
+          pool,
+          std::function<void(ForkCommandOptions*, wstring)>(
+              [](ForkCommandOptions* options, wstring children_path) {
+                CHECK(options != nullptr);
+                options->children_path =
+                    Path::FromString(std::move(children_path)).AsOptional();
+              })));
 
   environment->DefineType(L"ForkCommandOptions",
                           std::move(fork_command_options));

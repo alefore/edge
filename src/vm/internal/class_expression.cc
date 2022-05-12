@@ -30,11 +30,11 @@ void StartClassDeclaration(Compilation* compilation, const std::wstring& name) {
 }
 
 namespace {
-NonNull<std::unique_ptr<Value>> BuildSetter(VMType class_type,
+NonNull<std::unique_ptr<Value>> BuildSetter(gc::Pool& pool, VMType class_type,
                                             VMType field_type,
                                             std::wstring field_name) {
   auto output = Value::NewFunction(
-      {class_type, class_type, field_type},
+      pool, {class_type, class_type, field_type},
       [field_name, field_type](
           std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
         CHECK_EQ(args.size(), 2u);
@@ -52,20 +52,20 @@ NonNull<std::unique_ptr<Value>> BuildSetter(VMType class_type,
   return output;
 }
 
-NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
+NonNull<std::unique_ptr<Value>> BuildGetter(gc::Pool& pool, VMType class_type,
                                             VMType field_type,
                                             std::wstring field_name) {
   auto output = Value::NewFunction(
-      {field_type, class_type},
-      [field_name, field_type](
+      pool, {field_type, class_type},
+      [&pool, field_name, field_type](
           std::vector<NonNull<std::unique_ptr<Value>>> args, Trampoline&) {
         CHECK_EQ(args.size(), 1u);
         auto instance = static_cast<Instance*>(args[0]->user_value.get());
         CHECK(instance != nullptr);
         static Environment::Namespace empty_namespace;
         return futures::Past(VisitPointer(
-            instance->environment.value()->Lookup(empty_namespace, field_name,
-                                                  field_type),
+            instance->environment.value()->Lookup(pool, empty_namespace,
+                                                  field_name, field_type),
             [](NonNull<std::unique_ptr<Value>> value) {
               return Success(EvaluationOutput::New(std::move(value)));
             },
@@ -79,13 +79,14 @@ NonNull<std::unique_ptr<Value>> BuildGetter(VMType class_type,
 }
 }  // namespace
 
+// TODO(easy, 2022-05-11): Receive compilation by ref.
 void FinishClassDeclaration(
     Compilation* compilation,
     NonNull<std::unique_ptr<Expression>> constructor_expression_input) {
   CHECK(compilation != nullptr);
   ValueOrError<NonNull<std::unique_ptr<Expression>>> constructor_expression =
       NewAppendExpression(std::move(constructor_expression_input),
-                          NewVoidExpression());
+                          NewVoidExpression(compilation->pool));
   if (constructor_expression.IsError()) {
     compilation->errors.push_back(constructor_expression.error().description);
     return;
@@ -100,20 +101,22 @@ void FinishClassDeclaration(
   compilation->environment =
       class_environment.value()->parent_environment()->ToRoot();
 
+  gc::Pool& pool = compilation->pool;
+
   std::map<std::wstring, Value> values;
   class_environment.value()->ForEachNonRecursive(
-      [&values, &class_object_type, class_type](std::wstring name,
-                                                Value& value) {
-        class_object_type->AddField(name,
-                                    BuildGetter(class_type, value.type, name));
-        class_object_type->AddField(L"set_" + name,
-                                    BuildSetter(class_type, value.type, name));
+      [&values, &class_object_type, class_type, &pool](std::wstring name,
+                                                       Value& value) {
+        class_object_type->AddField(
+            name, BuildGetter(pool, class_type, value.type, name));
+        class_object_type->AddField(
+            L"set_" + name, BuildSetter(pool, class_type, value.type, name));
       });
   compilation->environment.value()->DefineType(class_type.object_type,
                                                std::move(class_object_type));
   auto purity = constructor_expression.value()->purity();
   NonNull<std::unique_ptr<Value>> constructor = Value::NewFunction(
-      {class_type},
+      pool, {class_type},
       [constructor_expression_shared = NonNull<std::shared_ptr<Expression>>(
            std::move(constructor_expression.value())),
        class_environment, class_type,
@@ -136,7 +139,7 @@ void FinishClassDeclaration(
                       L"Unexpected: return (inside class declaration).");
                 case EvaluationOutput::OutputType::kContinue:
                   return Success(EvaluationOutput::New(Value::NewObject(
-                      class_type.object_type,
+                      trampoline.pool(), class_type.object_type,
                       std::make_shared<Instance>(
                           Instance{.environment = instance_environment}))));
               }

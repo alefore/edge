@@ -64,7 +64,8 @@ class WhileExpression : public Expression {
               CHECK(condition_output.value().value->IsBool());
               if (!condition_output.value().value->boolean) {
                 DVLOG(3) << "Iteration is done.";
-                consumer(Success(EvaluationOutput::New(Value::NewVoid())));
+                consumer(Success(
+                    EvaluationOutput::New(Value::NewVoid(trampoline.pool()))));
                 return;
               }
 

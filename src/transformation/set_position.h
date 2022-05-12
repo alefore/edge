@@ -20,7 +20,8 @@ struct SetPosition {
   ColumnNumber column;
 };
 
-void RegisterSetPosition(vm::Environment* environment);
+void RegisterSetPosition(language::gc::Pool& pool,
+                         vm::Environment* environment);
 
 futures::Value<Result> ApplyBase(const SetPosition& parameters, Input input);
 std::wstring ToStringBase(const SetPosition& parameters);

@@ -261,7 +261,8 @@ class InsertMode : public EditorMode {
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
         std::shared_ptr<Value> callback =
             options_.editor_state.environment().value()->Lookup(
-                Environment::Namespace(), L"HandleKeyboardControlU",
+                options_.editor_state.gc_pool(), Environment::Namespace(),
+                L"HandleKeyboardControlU",
                 VMType::Function(
                     {VMType::Void(),
                      VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype}));
@@ -276,7 +277,7 @@ class InsertMode : public EditorMode {
               std::vector<NonNull<std::unique_ptr<vm::Expression>>> args;
               args.push_back(vm::NewConstantExpression(
                   {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(
-                      buffer.get_shared())}));
+                      buffer->editor().gc_pool(), buffer.get_shared())}));
               NonNull<std::unique_ptr<Expression>> expression =
                   vm::NewFunctionCall(
                       vm::NewConstantExpression(
@@ -290,9 +291,10 @@ class InsertMode : public EditorMode {
               return CallModifyHandler(
                   options, *buffer,
                   buffer->EvaluateExpression(*expression, buffer->environment())
-                      .ConsumeErrors([](Error) {
-                        return futures::Past(vm::Value::NewVoid());
-                      }));
+                      .ConsumeErrors(
+                          [&pool = buffer->editor().gc_pool()](Error) {
+                            return futures::Past(vm::Value::NewVoid(pool));
+                          }));
             });
         return;
       }

@@ -13,6 +13,9 @@
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 
+namespace afc::language::gc {
+class Pool;
+}
 namespace afc {
 namespace editor {
 
@@ -224,7 +227,7 @@ namespace afc {
 namespace editor {
 // A position in a text buffer.
 struct LineColumn {
-  static void Register(vm::Environment* environment);
+  static void Register(language::gc::Pool& pool, vm::Environment* environment);
 
   LineColumn() = default;
   explicit LineColumn(LineNumber l) : LineColumn(l, ColumnNumber(0)) {}
@@ -285,7 +288,7 @@ struct Reader<LineColumn> {
 
 // A range that contains every position i such that begin <= i < end.
 struct Range {
-  static void Register(vm::Environment* environment);
+  static void Register(language::gc::Pool& pool, vm::Environment* environment);
 
   Range() = default;
   Range(LineColumn begin, LineColumn end) : begin(begin), end(end) {}
@@ -345,19 +348,22 @@ namespace vm {
 template <>
 struct VMTypeMapper<editor::LineColumn> {
   static editor::LineColumn get(Value& value);
-  static language::NonNull<Value::Ptr> New(editor::LineColumn value);
+  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
+                                           editor::LineColumn value);
   static const VMType vmtype;
 };
 template <>
 struct VMTypeMapper<editor::LineColumnDelta> {
   static editor::LineColumnDelta get(Value& value);
-  static language::NonNull<Value::Ptr> New(editor::LineColumnDelta value);
+  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
+                                           editor::LineColumnDelta value);
   static const VMType vmtype;
 };
 template <>
 struct VMTypeMapper<editor::Range> {
   static editor::Range get(Value& value);
-  static language::NonNull<Value::Ptr> New(editor::Range value);
+  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
+                                           editor::Range value);
   static const VMType vmtype;
 };
 }  // namespace vm

@@ -22,7 +22,9 @@ struct VMTypeMapper {};
 
 template <>
 struct VMTypeMapper<void> {
-  static language::NonNull<Value::Ptr> New() { return Value::NewVoid(); }
+  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool) {
+    return Value::NewVoid(pool);
+  }
   static const VMType vmtype;
 };
 
@@ -32,8 +34,9 @@ struct VMTypeMapper<bool> {
     CHECK(value.IsBool());
     return value.boolean;
   }
-  static language::NonNull<Value::Ptr> New(bool value) {
-    return Value::NewBool(value);
+  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
+                                           bool value) {
+    return Value::NewBool(pool, value);
   }
   static const VMType vmtype;
 };
@@ -44,8 +47,9 @@ struct VMTypeMapper<int> {
     CHECK(value.IsInteger());
     return value.integer;
   }
-  static language::NonNull<Value::Ptr> New(int value) {
-    return Value::NewInteger(value);
+  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
+                                           int value) {
+    return Value::NewInteger(pool, value);
   }
   static const VMType vmtype;
 };
@@ -56,8 +60,9 @@ struct VMTypeMapper<double> {
     CHECK(value.IsDouble());
     return value.double_value;
   }
-  static language::NonNull<Value::Ptr> New(double value) {
-    return Value::NewDouble(value);
+  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
+                                           double value) {
+    return Value::NewDouble(pool, value);
   }
   static const VMType vmtype;
 };
@@ -68,8 +73,9 @@ struct VMTypeMapper<wstring> {
     CHECK(value.IsString());
     return std::move(value.str);
   }
-  static language::NonNull<Value::Ptr> New(wstring value) {
-    return Value::NewString(value);
+  static language::NonNull<Value::Ptr> New(language::gc::Pool& pool,
+                                           wstring value) {
+    return Value::NewString(pool, value);
   }
   static const VMType vmtype;
 };
@@ -116,24 +122,27 @@ struct function_traits<R (*const)(Args...)> {
 
 template <typename Callable, size_t... I>
 language::NonNull<Value::Ptr> RunCallback(
-    Callable& callback, std::vector<language::NonNull<Value::Ptr>> args,
+    language::gc::Pool& pool, Callable& callback,
+    std::vector<language::NonNull<Value::Ptr>> args,
     std::index_sequence<I...>) {
   using ft = function_traits<Callable>;
   CHECK_EQ(args.size(), std::tuple_size<typename ft::ArgTuple>::value);
   if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
     callback(VMTypeMapper<typename std::tuple_element<
                  I, typename ft::ArgTuple>::type>::get(args.at(I).value())...);
-    return Value::NewVoid();
+    return Value::NewVoid(pool);
   } else {
-    return VMTypeMapper<typename ft::ReturnType>::New(callback(
-        VMTypeMapper<typename std::tuple_element<
-            I, typename ft::ArgTuple>::type>::get(args.at(I).value())...));
+    return VMTypeMapper<typename ft::ReturnType>::New(
+        pool,
+        callback(
+            VMTypeMapper<typename std::tuple_element<
+                I, typename ft::ArgTuple>::type>::get(args.at(I).value())...));
   }
 }
 
 template <typename Callable>
 language::NonNull<Value::Ptr> NewCallback(
-    Callable callback,
+    language::gc::Pool& pool, Callable callback,
     VMType::PurityType purity = VMType::PurityType::kUnknown) {
   using ft = function_traits<Callable>;
   std::vector<VMType> type_arguments;
@@ -141,12 +150,12 @@ language::NonNull<Value::Ptr> NewCallback(
   AddArgs<typename ft::ArgTuple, 0>(&type_arguments);
 
   auto callback_wrapper = Value::NewFunction(
-      std::move(type_arguments),
-      [callback = std::move(callback)](
+      pool, std::move(type_arguments),
+      [callback = std::move(callback), &pool](
           vector<language::NonNull<Value::Ptr>> args, Trampoline&) {
         return futures::Past(
             language::Success(EvaluationOutput::New(RunCallback(
-                callback, std::move(args),
+                pool, callback, std::move(args),
                 std::make_index_sequence<
                     std::tuple_size<typename ft::ArgTuple>::value>()))));
       });

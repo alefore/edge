@@ -204,12 +204,12 @@ void FindBoundariesBezier(std::vector<LineColumn>* positions,
   }
 }
 
-void InitShapes(vm::Environment* environment) {
-  environment->Define(L"ShapesReflow", vm::NewCallback(Justify));
+void InitShapes(language::gc::Pool& pool, vm::Environment* environment) {
+  environment->Define(L"ShapesReflow", vm::NewCallback(pool, Justify));
   environment->Define(L"FindBoundariesLine",
-                      vm::NewCallback(FindBoundariesLine));
+                      vm::NewCallback(pool, FindBoundariesLine));
   environment->Define(L"FindBoundariesBezier",
-                      vm::NewCallback(FindBoundariesBezier));
+                      vm::NewCallback(pool, FindBoundariesBezier));
 }
 
 }  // namespace editor

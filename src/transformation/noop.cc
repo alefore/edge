@@ -9,19 +9,21 @@ namespace {
 using language::MakeNonNullUnique;
 using language::NonNull;
 
+namespace gc = language::gc;
+
 class Noop : public CompositeTransformation {
  public:
-  static void Register(vm::Environment* environment) {
+  static void Register(language::gc::Pool& pool, vm::Environment* environment) {
     environment->Define(
         L"NoopTransformation",
         vm::Value::NewFunction(
-            {vm::VMType::Void()},
-            [](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
+            pool, {vm::VMType::Void()},
+            [&pool](std::vector<NonNull<std::unique_ptr<vm::Value>>> args) {
               CHECK(args.empty());
               return vm::VMTypeMapper<editor::transformation::Variant*>::New(
-                  std::make_unique<transformation::Variant>(
-                      transformation::Variant(NewNoopTransformation()))
-                      .release());
+                  pool, std::make_unique<transformation::Variant>(
+                            transformation::Variant(NewNoopTransformation()))
+                            .release());
             }));
   }
 
@@ -36,7 +38,7 @@ NonNull<std::unique_ptr<CompositeTransformation>> NewNoopTransformation() {
   return NonNull<std::unique_ptr<Noop>>();
 }
 
-void RegisterNoopTransformation(vm::Environment* environment) {
-  Noop::Register(environment);
+void RegisterNoopTransformation(gc::Pool& pool, vm::Environment* environment) {
+  Noop::Register(pool, environment);
 }
 }  // namespace afc::editor

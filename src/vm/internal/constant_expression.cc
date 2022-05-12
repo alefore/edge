@@ -5,11 +5,16 @@
 #include "../public/value.h"
 #include "../public/vm.h"
 
+namespace afc::language::gc {
+class Pool;
+}
 namespace afc::vm {
 namespace {
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
+
+namespace gc = language::gc;
 
 class ConstantExpression : public Expression {
  public:
@@ -39,8 +44,8 @@ class ConstantExpression : public Expression {
 
 }  // namespace
 
-NonNull<std::unique_ptr<Expression>> NewVoidExpression() {
-  return NewConstantExpression(Value::NewVoid());
+NonNull<std::unique_ptr<Expression>> NewVoidExpression(gc::Pool& pool) {
+  return NewConstantExpression(Value::NewVoid(pool));
 }
 
 NonNull<std::unique_ptr<Expression>> NewConstantExpression(

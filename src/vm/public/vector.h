@@ -10,8 +10,10 @@
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
+namespace afc::language::gc {
+class Pool;
+}
 namespace afc::vm {
-
 // Defines a vector type.
 //
 // To use it, define the vmtypes in your module:
@@ -41,30 +43,33 @@ struct VMTypeMapper<std::vector<T>*> {
 
   static const VMType vmtype;
 
-  static void Export(Environment* environment) {
+  static void Export(language::gc::Pool& pool, Environment* environment) {
     auto vector_type = language::MakeNonNullUnique<ObjectType>(vmtype);
 
     auto name = vmtype.object_type;
     environment->Define(
         name,
         Value::NewFunction(
-            {vmtype}, [name](std::vector<language::NonNull<Value::Ptr>> args) {
+            pool, {vmtype},
+            [&pool, name](std::vector<language::NonNull<Value::Ptr>> args) {
               CHECK(args.empty());
-              return Value::NewObject(name, std::make_shared<std::vector<T>>());
+              return Value::NewObject(pool, name,
+                                      std::make_shared<std::vector<T>>());
             }));
 
-    vector_type->AddField(L"empty", vm::NewCallback([](std::vector<T>* v) {
-                            return v->empty();
-                          }));
-    vector_type->AddField(L"size", vm::NewCallback([](std::vector<T>* v) {
+    vector_type->AddField(
+        L"empty",
+        vm::NewCallback(pool, [](std::vector<T>* v) { return v->empty(); }));
+    vector_type->AddField(L"size", vm::NewCallback(pool, [](std::vector<T>* v) {
                             return static_cast<int>(v->size());
                           }));
     vector_type->AddField(
         L"get",
         Value::NewFunction(
-            {VMTypeMapper<T>::vmtype, vmtype, VMType::Integer()},
+            pool, {VMTypeMapper<T>::vmtype, vmtype, VMType::Integer()},
             [](std::vector<language::NonNull<std::unique_ptr<Value>>> args,
-               Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
+               Trampoline& trampoline)
+                -> futures::ValueOrError<EvaluationOutput> {
               CHECK_EQ(args.size(), 2ul);
               auto* v = get(args[0].value());
               CHECK(args[1]->IsInteger());
@@ -75,16 +80,17 @@ struct VMTypeMapper<std::vector<T>*> {
                     std::to_wstring(index) + L" (size: " +
                     std::to_wstring(v->size()) + L")"));
               }
-              return futures::Past(language::Success(
-                  EvaluationOutput::New(VMTypeMapper<T>::New(v->at(index)))));
+              return futures::Past(language::Success(EvaluationOutput::New(
+                  VMTypeMapper<T>::New(trampoline.pool(), v->at(index)))));
             }));
     vector_type->AddField(L"erase",
-                          vm::NewCallback([](std::vector<T>* v, int i) {
+                          vm::NewCallback(pool, [](std::vector<T>* v, int i) {
                             v->erase(v->begin() + i);
                           }));
-    vector_type->AddField(
-        L"push_back",
-        vm::NewCallback([](std::vector<T>* v, T e) { v->emplace_back(e); }));
+    vector_type->AddField(L"push_back",
+                          vm::NewCallback(pool, [](std::vector<T>* v, T e) {
+                            v->emplace_back(e);
+                          }));
 
     environment->DefineType(name, std::move(vector_type));
   }
@@ -94,11 +100,11 @@ struct VMTypeMapper<std::vector<T>*> {
 template <typename T>
 struct VMTypeMapper<std::unique_ptr<std::vector<T>>> {
   static language::NonNull<Value::Ptr> New(
-      std::unique_ptr<std::vector<T>> value) {
+      language::gc::Pool& pool, std::unique_ptr<std::vector<T>> value) {
     std::shared_ptr<void> void_ptr(value.release(), [](void* value) {
       delete static_cast<std::vector<T>*>(value);
     });
-    return Value::NewObject(vmtype.object_type, void_ptr);
+    return Value::NewObject(pool, vmtype.object_type, void_ptr);
   }
 
   static const VMType vmtype;

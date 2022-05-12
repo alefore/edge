@@ -37,7 +37,7 @@ class LambdaExpression : public Expression {
       return nullptr;
     }
     std::function<NonNull<std::unique_ptr<Value>>(
-        NonNull<std::unique_ptr<Value>>)>
+        gc::Pool&, NonNull<std::unique_ptr<Value>>)>
         promotion_function =
             GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
     if (promotion_function == nullptr) {
@@ -55,8 +55,8 @@ class LambdaExpression : public Expression {
       VMType type,
       NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body,
-      std::function<
-          NonNull<std::unique_ptr<Value>>(NonNull<std::unique_ptr<Value>>)>
+      std::function<NonNull<std::unique_ptr<Value>>(
+          gc::Pool&, NonNull<std::unique_ptr<Value>>)>
           promotion_function)
       : type_(std::move(type)),
         argument_names_(std::move(argument_names)),
@@ -75,14 +75,15 @@ class LambdaExpression : public Expression {
                                                    const VMType& type) {
     auto promotion_function = GetImplicitPromotion(type_, type);
     CHECK(promotion_function != nullptr);
-    return futures::Past(Success(EvaluationOutput::New(
-        promotion_function(BuildValue(trampoline.environment())))));
+    return futures::Past(Success(EvaluationOutput::New(promotion_function(
+        trampoline.pool(),
+        BuildValue(trampoline.pool(), trampoline.environment())))));
   }
 
   NonNull<std::unique_ptr<Value>> BuildValue(
-      gc::Root<Environment> parent_environment) {
+      gc::Pool& pool, gc::Root<Environment> parent_environment) {
     return Value::NewFunction(
-        type_.type_arguments,
+        pool, type_.type_arguments,
         [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
             vector<NonNull<unique_ptr<Value>>> args, Trampoline& trampoline) {
@@ -100,8 +101,8 @@ class LambdaExpression : public Expression {
               .Transform([original_trampoline, &trampoline, body,
                           promotion_function](EvaluationOutput body_output) {
                 trampoline = original_trampoline;
-                return Success(EvaluationOutput::New(
-                    promotion_function(std::move(body_output.value))));
+                return Success(EvaluationOutput::New(promotion_function(
+                    trampoline.pool(), std::move(body_output.value))));
               });
         });
   }
@@ -116,7 +117,7 @@ class LambdaExpression : public Expression {
   const NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names_;
   const NonNull<std::shared_ptr<Expression>> body_;
   const std::function<NonNull<std::unique_ptr<Value>>(
-      NonNull<std::unique_ptr<Value>>)>
+      gc::Pool&, NonNull<std::unique_ptr<Value>>)>
       promotion_function_;
 };
 }  // namespace
@@ -173,7 +174,9 @@ std::unique_ptr<Value> UserFunction::BuildValue(
   if (expression == nullptr) return nullptr;
   gc::Root<Environment> environment = compilation.environment;
   compilation.environment = GetOrCreateParentEnvironment(compilation);
-  return std::move(expression->BuildValue(std::move(environment)).get_unique());
+  return std::move(
+      expression->BuildValue(compilation.pool, std::move(environment))
+          .get_unique());
 }
 
 std::unique_ptr<Expression> UserFunction::BuildExpression(
