@@ -49,9 +49,10 @@ class IfExpression : public Expression {
             case EvaluationOutput::OutputType::kReturn:
               return futures::Past(Success(std::move(cond_output)));
             case EvaluationOutput::OutputType::kContinue:
-              return trampoline.Bounce(
-                  cond_output.value.value()->boolean ? *true_case : *false_case,
-                  type);
+              return trampoline.Bounce(cond_output.value.value()->get_bool()
+                                           ? *true_case
+                                           : *false_case,
+                                       type);
           }
           language::Error error(L"Unhandled OutputType case.");
           LOG(FATAL) << error;

@@ -98,8 +98,7 @@ const bool buffer_tests_registration = tests::Register(
                     .Get()
                     .value()
                     .value();
-            CHECK(result.value()->IsBool());
-            CHECK(result.value()->boolean);
+            CHECK(result.value()->get_bool());
           }},
      {.name = L"NoLeaks", .callback = [] {
         auto buffer = NewBufferForTests();

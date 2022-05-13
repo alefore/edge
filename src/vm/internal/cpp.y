@@ -476,14 +476,12 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
-                  var->IsInteger()
-                      ? [](const Value&, const Value& a, Value* output) {
-                          output->integer = a.integer + 1;
-                          return Success();
+                  type == VMType::Integer()
+                      ? [](gc::Pool& pool, const Value&, const Value& a) {
+                          return Value::NewInteger(pool, a.get_int() + 1);
                         }
-                      : [](const Value&, const Value& a, Value* output) {
-                          output->double_value = a.double_value + 1.0;
-                          return Success();
+                      : [](gc::Pool& pool, const Value&, const Value& a) {
+                          return Value::NewDouble(pool, a.get_double() + 1.0);
                         })).release();
   } else {
     compilation->errors.push_back(
@@ -505,14 +503,12 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
-                  var->IsInteger()
-                      ? [](const Value&, const Value& a, Value* output) {
-                          output->integer = a.integer - 1;
-                          return Success();
+                  type == VMType::Integer()
+                      ? [](gc::Pool& pool, const Value&, const Value& a) {
+                          return Value::NewInteger(pool, a.get_int() - 1);
                         }
-                      : [](const Value&, const Value& a, Value* output) {
-                          output->double_value = a.double_value - 1.0;
-                          return Success();
+                      : [](gc::Pool& pool, const Value&, const Value& a) {
+                          return Value::NewDouble(pool, a.get_double() - 1.0);
                         })).release();
   } else {
     compilation->errors.push_back(
@@ -583,10 +579,8 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 // Basic operators
 
 expr(OUT) ::= NOT expr(A). {
-  OUT = NewNegateExpression(
-      [](Value& value) { value.boolean = !value.boolean; },
-      VMType::Bool(),
-      compilation, unique_ptr<Expression>(A)).release();
+  OUT = NewNegateExpressionBool(*compilation, unique_ptr<Expression>(A))
+                .release();
   A = nullptr;
 }
 
@@ -600,9 +594,8 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
         VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.str == b.str;
-          return Success();
+        [](gc::Pool& pool, const Value& a, const Value& b) {
+          return Value::NewBool(pool, a.str == b.str);
         });
     A = nullptr;
     B = nullptr;
@@ -613,9 +606,8 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
         VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.integer == b.integer;
-          return Success();
+        [](gc::Pool& pool, const Value& a, const Value& b) {
+          return Value::NewBool(pool, a.get_int() == b.get_int());
         });
     A = nullptr;
     B = nullptr;
@@ -637,9 +629,8 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
         VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.str != b.str;
-          return Success();
+        [](gc::Pool& pool, const Value& a, const Value& b) {
+          return Value::NewBool(pool, a.str != b.str);
         });
     A = nullptr;
     B = nullptr;
@@ -650,9 +641,8 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
         VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.integer != b.integer;
-          return Success();
+        [](gc::Pool& pool, const Value& a, const Value& b) {
+          return Value::NewBool(pool, a.get_int() != b.get_int());
         });
     A = nullptr;
     B = nullptr;
@@ -675,24 +665,22 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
         VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
+        [](gc::Pool& pool, const Value& a, const Value& b) {
           if (a.type.type == VMType::VM_INTEGER
               && b.type.type == VMType::VM_INTEGER) {
-            output->boolean = a.integer < b.integer;
-            return Success();
+            return Value::NewBool(pool, a.get_int() < b.get_int());
           }
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
+              return static_cast<double>(x.get_int());
             } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
+              return x.get_double();
             } else {
               LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
               return 0.0;
             }
           };
-          output->boolean = to_double(a) < to_double(b);
-          return Success();
+          return Value::NewBool(pool, to_double(a) < to_double(b));
         });
     A = nullptr;
     B = nullptr;
@@ -715,24 +703,22 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             unique_ptr<Expression>(B)),
         VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
+        [](gc::Pool& pool, const Value& a, const Value& b) {
           if (a.type.type == VMType::VM_INTEGER
               && b.type.type == VMType::VM_INTEGER) {
-            output->boolean = a.integer <= b.integer;
-            return Success();
+            return Value::NewBool(pool, a.get_int() <= b.get_int());
           }
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
+              return static_cast<double>(x.get_int());
             } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
+              return x.get_double();
             } else {
               LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
               return 0.0;
             }
           };
-          output->boolean = to_double(a) <= to_double(b);
-          return Success();
+          return Value::NewBool(pool, to_double(a) <= to_double(b));
         });
     A = nullptr;
     B = nullptr;
@@ -755,24 +741,22 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             unique_ptr<Expression>(B)),
         VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
+        [](gc::Pool& pool, const Value& a, const Value& b) {
           if (a.type.type == VMType::VM_INTEGER
               && b.type.type == VMType::VM_INTEGER) {
-            output->boolean = a.integer > b.integer;
-            return Success();
+            return Value::NewBool(pool, a.get_int() > b.get_int());
           }
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
+              return static_cast<double>(x.get_int());
             } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
+              return x.get_double();
             } else {
               LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
               return 0.0;
             }
           };
-          output->boolean = to_double(a) > to_double(b);
-          return Success();
+          return Value::NewBool(pool, to_double(a) > to_double(b));
         });
     A = nullptr;
     B = nullptr;
@@ -795,23 +779,22 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             unique_ptr<Expression>(B)),
         VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
-          if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {
-            output->boolean = a.integer >= b.integer;
-            return Success();
+        [](gc::Pool& pool, const Value& a, const Value& b) {
+          if (a.type.type == VMType::VM_INTEGER
+              && b.type.type == VMType::VM_INTEGER) {
+            return Value::NewBool(pool, a.get_int() >= b.get_int());
           }
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
+              return static_cast<double>(x.get_int());
             } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
+              return x.get_double();
             } else {
               LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
               return 0.0;
             }
           };
-          output->boolean = to_double(a) >= to_double(b);
-          return Success();
+          return Value::NewBool(pool, to_double(a) >= to_double(b));
         });
     A = nullptr;
     B = nullptr;
@@ -851,7 +834,6 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
   B = nullptr;
 }
 
-
 expr(OUT) ::= expr(A) MINUS expr(B). {
   OUT = NewBinaryExpression(
             compilation, std::unique_ptr<Expression>(A),
@@ -867,16 +849,12 @@ expr(OUT) ::= MINUS expr(A). {
   if (A == nullptr) {
     OUT = nullptr;
   } else if (A->IsInteger()) {
-    OUT = NewNegateExpression(
-        [](Value& value) { value.integer = -value.integer; },
-        VMType::Integer(),
-        compilation, unique_ptr<Expression>(A)).release();
+    OUT = NewNegateExpressionInt(*compilation, unique_ptr<Expression>(A))
+                  .release();
     A = nullptr;
   } else if (A->IsDouble()) {
-    OUT = NewNegateExpression(
-        [](Value& value) { value.double_value = -value.double_value; },
-        VMType::Double(),
-        compilation, unique_ptr<Expression>(A)).release();
+    OUT = NewNegateExpressionDouble(*compilation, unique_ptr<Expression>(A))
+              .release();
     A = nullptr;
   } else {
     compilation->errors.push_back(

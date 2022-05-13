@@ -21,6 +21,7 @@ using std::wstring;
 class ObjectType;
 
 struct VMType {
+  // TODO(easy, 2022-05-13): Turn into an enum class.
   enum Type {
     VM_VOID,
     VM_BOOLEAN,

@@ -16,10 +16,12 @@ using language::ValueOrError;
 
 namespace gc = language::gc;
 
-BinaryOperator::BinaryOperator(
-    NonNull<std::shared_ptr<Expression>> a,
-    NonNull<std::shared_ptr<Expression>> b, const VMType type,
-    function<PossibleError(const Value&, const Value&, Value*)> callback)
+BinaryOperator::BinaryOperator(NonNull<std::shared_ptr<Expression>> a,
+                               NonNull<std::shared_ptr<Expression>> b,
+                               const VMType type,
+                               function<ValueOrError<gc::Root<Value>>(
+                                   gc::Pool& pool, const Value&, const Value&)>
+                                   callback)
     : a_(std::move(a)), b_(std::move(b)), type_(type), operator_(callback) {}
 
 std::vector<VMType> BinaryOperator::Types() { return {type_}; }
@@ -46,13 +48,11 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
             .Transform([&trampoline, a_value = std::move(a_value.value), type,
                         op](EvaluationOutput b_value)
                            -> ValueOrError<EvaluationOutput> {
-              gc::Root<Value> output = Value::New(trampoline.pool(), type);
-              // TODO(easy, 2022-05-02): Pass output by ref.
-              auto result =
-                  op(a_value.value().value(), b_value.value.value().value(),
-                     &output.value().value());
+              ValueOrError<gc::Root<Value>> result =
+                  op(trampoline.pool(), a_value.value().value(),
+                     b_value.value.value().value());
               if (result.IsError()) return result.error();
-              return Success(EvaluationOutput::New(std::move(output)));
+              return Success(EvaluationOutput::New(std::move(result.value())));
             });
       });
 }
@@ -78,24 +78,22 @@ std::unique_ptr<Expression> NewBinaryExpression(
   if (str_operator != nullptr && a->IsString() && b->IsString()) {
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::String(),
-        [str_operator](const Value& value_a, const Value& value_b,
-                       Value* output) -> PossibleError {
-          auto result = str_operator(value_a.str, value_b.str);
-          if (result.IsError()) return result.error();
-          output->str = std::move(result.value());
-          return Success();
+        [str_operator](gc::Pool& pool, const Value& value_a,
+                       const Value& value_b) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(std::wstring value,
+                           str_operator(value_a.str, value_b.str));
+          return Value::NewString(pool, std::move(value));
         });
   }
 
   if (int_operator != nullptr && a->IsInteger() && b->IsInteger()) {
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::Integer(),
-        [int_operator](const Value& value_a, const Value& value_b,
-                       Value* output) -> PossibleError {
-          auto result = int_operator(value_a.integer, value_b.integer);
-          if (result.IsError()) return result.error();
-          output->integer = std::move(result.value());
-          return Success();
+        [int_operator](gc::Pool& pool, const Value& value_a,
+                       const Value& value_b) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(int value,
+                           int_operator(value_a.get_int(), value_b.get_int()));
+          return Value::NewInteger(pool, value);
         });
   }
 
@@ -103,34 +101,33 @@ std::unique_ptr<Expression> NewBinaryExpression(
       (b->IsInteger() || b->IsDouble())) {
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::Double(),
-        [double_operator](const Value& a, const Value& b,
-                          Value* output) -> PossibleError {
+        [double_operator](gc::Pool& pool, const Value& a,
+                          const Value& b) -> ValueOrError<gc::Root<Value>> {
           auto to_double = [](const Value& x) {
             if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
+              return static_cast<double>(x.get_int());
             } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
+              return x.get_double();
             } else {
               CHECK(false) << "Unexpected type: " << x.type;
               return 0.0;  // Silence warning: no return.
             }
           };
-          auto result = double_operator(to_double(a), to_double(b));
-          if (result.IsError()) return result.error();
-          output->double_value = result.value();
-          return Success();
+          ASSIGN_OR_RETURN(double value,
+                           double_operator(to_double(a), to_double(b)));
+          return Value::NewDouble(pool, value);
         });
   }
 
   if (str_int_operator != nullptr && a->IsString() && b->IsInteger()) {
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::String(),
-        [str_int_operator](const Value& value_a, const Value& value_b,
-                           Value* output) -> PossibleError {
-          auto result = str_int_operator(value_a.str, value_b.integer);
-          if (result.IsError()) return result.error();
-          output->str = std::move(result.value());
-          return Success();
+        [str_int_operator](
+            gc::Pool& pool, const Value& value_a,
+            const Value& value_b) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(std::wstring value,
+                           str_int_operator(value_a.str, value_b.get_int()));
+          return Value::NewString(pool, std::move(value));
         });
   }
 

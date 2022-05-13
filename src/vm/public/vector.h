@@ -71,8 +71,7 @@ struct VMTypeMapper<std::vector<T>*> {
                 -> futures::ValueOrError<EvaluationOutput> {
               CHECK_EQ(args.size(), 2ul);
               auto* v = get(args[0].value().value());
-              CHECK(args[1].value()->IsInteger());
-              int index = args[1].value()->integer;
+              int index = args[1].value()->get_int();
               if (index < 0 || static_cast<size_t>(index) >= v->size()) {
                 return futures::Past(language::Error(
                     vmtype.ToString() + L": Index out of range " +

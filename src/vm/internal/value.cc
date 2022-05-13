@@ -99,19 +99,19 @@ bool cpp_unescape_string_tests_registration =
 
 /* static */ gc::Root<Value> Value::NewBool(gc::Pool& pool, bool value) {
   gc::Root<Value> output = New(pool, VMType::Bool());
-  output.value()->boolean = value;
+  output.value()->value_ = value;
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewInteger(gc::Pool& pool, int value) {
   gc::Root<Value> output = New(pool, VMType::Integer());
-  output.value()->integer = value;
+  output.value()->value_ = value;
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewDouble(gc::Pool& pool, double value) {
   gc::Root<Value> output = New(pool, VMType::Double());
-  output.value()->double_value = value;
+  output.value()->value_ = value;
   return output;
 }
 
@@ -156,22 +156,42 @@ bool cpp_unescape_string_tests_registration =
       });
 }
 
+bool Value::get_bool() const {
+  CHECK_EQ(type.type, VMType::VM_BOOLEAN);
+  return std::get<bool>(value_);
+}
+
+int Value::get_int() const {
+  CHECK_EQ(type.type, VMType::VM_INTEGER);
+  return std::get<int>(value_);
+}
+
+double Value::get_double() const {
+  CHECK_EQ(type.type, VMType::VM_DOUBLE);
+  return std::get<double>(value_);
+}
+
 Value::Callback Value::LockCallback() {
   CHECK(IsFunction());
   return callback;
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
-  if (value.IsInteger()) {
-    os << value.integer;
-  } else if (value.IsString()) {
-    os << '"' << CppEscapeString(value.str) << '"';
-  } else if (value.IsBool()) {
-    os << (value.boolean ? "true" : "false");
-  } else if (value.IsDouble()) {
-    os << value.double_value;
-  } else {
-    os << value.type.ToString();
+  switch (value.type.type) {
+    case VMType::VM_INTEGER:
+      os << value.get_int();
+      break;
+    case VMType::VM_STRING:
+      os << '"' << CppEscapeString(value.str) << '"';
+      break;
+    case VMType::VM_BOOLEAN:
+      os << (value.get_bool() ? "true" : "false");
+      break;
+    case VMType::VM_DOUBLE:
+      os << value.get_double();
+      break;
+    default:
+      os << value.type.ToString();
   }
   return os;
 }

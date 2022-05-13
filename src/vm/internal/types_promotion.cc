@@ -17,8 +17,7 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
       switch (desired.type) {
         case VMType::VM_DOUBLE:
           return [](gc::Pool& pool, gc::Root<Value> value) {
-            CHECK(value.value()->IsInteger());
-            return Value::NewDouble(pool, value.value()->integer);
+            return Value::NewDouble(pool, value.value()->get_int());
           };
         default:
           return nullptr;

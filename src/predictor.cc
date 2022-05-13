@@ -120,10 +120,9 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
           kLongestPrefixEnvironmentVariable, VMType(VMType::VM_INTEGER));
       value.has_value()) {
     LOG(INFO) << "Setting " << kLongestPrefixEnvironmentVariable << ": "
-              << value.value().value()->integer;
-    CHECK(value.value().value()->IsInteger());
+              << value.value().value()->get_int();
     predict_results.longest_prefix =
-        ColumnNumberDelta(value.value().value()->integer);
+        ColumnNumberDelta(value.value().value()->get_int());
   }
 
   if (auto value = predictions_buffer.environment().value()->Lookup(
@@ -131,17 +130,15 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
           kLongestDirectoryMatchEnvironmentVariable,
           VMType(VMType::VM_INTEGER));
       value.has_value()) {
-    CHECK(value.value().value()->IsInteger());
     predict_results.longest_directory_match =
-        ColumnNumberDelta(value.value().value()->integer);
+        ColumnNumberDelta(value.value().value()->get_int());
   }
 
   if (auto value = predictions_buffer.environment().value()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
           kExactMatchEnvironmentVariable, VMType(VMType::VM_BOOLEAN));
       value.has_value()) {
-    CHECK(value.value().value()->IsBool());
-    predict_results.found_exact_match = value.value().value()->boolean;
+    predict_results.found_exact_match = value.value().value()->get_bool();
   }
 
   predict_results.matches = predictions_buffer.lines_size().line_delta - 1;
@@ -257,7 +254,7 @@ void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
   if (!value.has_value()) return;
   buffer.environment().value()->Assign(
       kLongestDirectoryMatchEnvironmentVariable,
-      vm::Value::NewInteger(pool, std::max(value->value()->integer,
+      vm::Value::NewInteger(pool, std::max(value->value()->get_int(),
                                            static_cast<int>(new_value))));
 }
 
@@ -656,7 +653,7 @@ void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
   if (!value.has_value()) return;
   buffer.environment().value()->Assign(
       kLongestPrefixEnvironmentVariable,
-      vm::Value::NewInteger(pool, std::max(value.value().value()->integer,
+      vm::Value::NewInteger(pool, std::max(value.value().value()->get_int(),
                                            static_cast<int>(new_value))));
 }
 

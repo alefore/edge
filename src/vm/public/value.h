@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "src/futures/futures.h"
@@ -69,9 +70,6 @@ struct Value {
           callback);
 
   bool IsVoid() const { return type.type == VMType::VM_VOID; };
-  bool IsBool() const { return type.type == VMType::VM_BOOLEAN; };
-  bool IsInteger() const { return type.type == VMType::VM_INTEGER; };
-  bool IsDouble() const { return type.type == VMType::VM_DOUBLE; };
   bool IsString() const { return type.type == VMType::VM_STRING; };
   bool IsSymbol() const { return type.type == VMType::VM_SYMBOL; };
   bool IsFunction() const { return type.type == VMType::FUNCTION; };
@@ -79,17 +77,19 @@ struct Value {
 
   VMType type;
 
+  bool get_bool() const;
+  int get_int() const;
+  double get_double() const;
   // TODO(easy, 2022-05-13): Make these private; provide accessors that check
   // type.
-  bool boolean;
-  int integer;
-  double double_value;
   std::wstring str;
   std::shared_ptr<void> user_value;
 
   Callback LockCallback();
 
  private:
+  std::variant<bool, int, double> value_;
+
   Callback callback;
   DependenciesCallback dependencies_callback;
 };

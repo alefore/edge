@@ -11,6 +11,7 @@
 #include "src/direction.h"
 #include "src/line_column.h"
 #include "src/structure.h"
+#include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 
 namespace afc {

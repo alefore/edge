@@ -7,6 +7,7 @@
 #include "src/line_column.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
+#include "src/vm/public/environment.h"
 
 namespace afc::editor::transformation {
 struct SetPosition {

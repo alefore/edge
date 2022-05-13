@@ -980,8 +980,7 @@ void OpenBuffer::Initialize() {
           [weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
               std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);
-            CHECK(args[0].value()->IsDouble());
-            double delay_seconds = args[0].value()->double_value;
+            double delay_seconds = args[0].value()->get_double();
             auto shared_this = weak_this.lock();
             if (shared_this == nullptr)
               return futures::Past(Success(EvaluationOutput::Return(

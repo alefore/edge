@@ -1,25 +1,19 @@
 #ifndef __AFC_VM_NEGATE_EXPRESSION_H__
 #define __AFC_VM_NEGATE_EXPRESSION_H__
 
-#include <functional>
 #include <memory>
 
-namespace afc {
-namespace vm {
-
-using std::unique_ptr;
-
+namespace afc::vm {
 class Compilation;
 class Expression;
-class Value;
-class VMType;
 
-unique_ptr<Expression> NewNegateExpression(std::function<void(Value&)> negate,
-                                           const VMType& expected_type,
-                                           Compilation* compilation,
-                                           unique_ptr<Expression> expr);
+std::unique_ptr<Expression> NewNegateExpressionBool(
+    Compilation& compilation, std::unique_ptr<Expression> expr);
+std::unique_ptr<Expression> NewNegateExpressionInt(
+    Compilation& compilation, std::unique_ptr<Expression> expr);
+std::unique_ptr<Expression> NewNegateExpressionDouble(
+    Compilation& compilation, std::unique_ptr<Expression> expr);
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm
 
 #endif  // __AFC_VM_NEGATE_EXPRESSION_H__

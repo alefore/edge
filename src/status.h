@@ -1,12 +1,12 @@
 #ifndef __AFC_EDITOR_STATUS_H__
 #define __AFC_EDITOR_STATUS_H__
 
+#include <map>
 #include <memory>
 
 #include "src/audio.h"
 #include "src/infrastructure/time.h"
 #include "src/language/ghost_type.h"
-#include "src/line_column.h"
 
 namespace afc::editor {
 

@@ -457,7 +457,6 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
             auto editor_state =
                 static_cast<EditorState*>(args[0].value()->user_value.get());
             CHECK(args[1].value()->IsString());
-            CHECK(args[2].value()->IsBool());
             CHECK(editor_state != nullptr);
             return OpenOrCreateFile(
                        OpenFileOptions{
@@ -465,7 +464,7 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
                            .path = Path::FromString(args[1].value()->str)
                                        .AsOptional(),
                            .insertion_type =
-                               args[2].value()->boolean
+                               args[2].value()->get_bool()
                                    ? BuffersList::AddBufferType::kVisit
                                    : BuffersList::AddBufferType::kIgnore})
                 .Transform(

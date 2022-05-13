@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "../public/vm.h"
+#include "src/language/gc.h"
 #include "src/language/value_or_error.h"
 
 namespace afc {
@@ -16,11 +17,12 @@ class Compilation;
 
 class BinaryOperator : public Expression {
  public:
-  BinaryOperator(
-      language::NonNull<std::shared_ptr<Expression>> a,
-      language::NonNull<std::shared_ptr<Expression>> b, const VMType type,
-      function<language::PossibleError(const Value&, const Value&, Value*)>
-          callback);
+  BinaryOperator(language::NonNull<std::shared_ptr<Expression>> a,
+                 language::NonNull<std::shared_ptr<Expression>> b,
+                 const VMType type,
+                 function<language::ValueOrError<language::gc::Root<Value>>(
+                     language::gc::Pool& pool, const Value&, const Value&)>
+                     callback);
 
   std::vector<VMType> Types() override;
   std::unordered_set<VMType> ReturnTypes() const override;
@@ -36,7 +38,8 @@ class BinaryOperator : public Expression {
   const language::NonNull<std::shared_ptr<Expression>> a_;
   const language::NonNull<std::shared_ptr<Expression>> b_;
   VMType type_;
-  std::function<language::PossibleError(const Value&, const Value&, Value*)>
+  std::function<language::ValueOrError<language::gc::Root<Value>>(
+      language::gc::Pool&, const Value&, const Value&)>
       operator_;
 };
 

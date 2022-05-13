@@ -10,7 +10,6 @@
 #include "src/language/hash.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
-#include "src/vm/public/callbacks.h"
 
 namespace afc::language::gc {
 class Pool;

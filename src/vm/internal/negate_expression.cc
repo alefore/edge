@@ -10,10 +10,13 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 
+namespace gc = language::gc;
+
 class NegateExpression : public Expression {
  public:
-  NegateExpression(std::function<void(Value&)> negate,
-                   NonNull<std::shared_ptr<Expression>> expr)
+  NegateExpression(
+      std::function<gc::Root<Value>(gc::Pool& pool, Value&)> negate,
+      NonNull<std::shared_ptr<Expression>> expr)
       : negate_(negate), expr_(std::move(expr)) {}
 
   std::vector<VMType> Types() override { return expr_->Types(); }
@@ -26,9 +29,10 @@ class NegateExpression : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const VMType&) override {
     return trampoline.Bounce(*expr_, expr_->Types()[0])
-        .Transform([negate = negate_](EvaluationOutput expr_output) {
-          negate(expr_output.value.value().value());
-          return Success(EvaluationOutput::New(std::move(expr_output.value)));
+        .Transform([&pool = trampoline.pool(),
+                    negate = negate_](EvaluationOutput expr_output) {
+          return Success(EvaluationOutput::New(
+              negate(pool, expr_output.value.value().value())));
         });
   }
 
@@ -37,25 +41,55 @@ class NegateExpression : public Expression {
   }
 
  private:
-  const std::function<void(Value&)> negate_;
+  const std::function<gc::Root<Value>(gc::Pool& pool, Value&)> negate_;
   const NonNull<std::shared_ptr<Expression>> expr_;
 };
 
-}  // namespace
-
 std::unique_ptr<Expression> NewNegateExpression(
-    std::function<void(Value&)> negate, const VMType& expected_type,
-    Compilation* compilation, std::unique_ptr<Expression> expr) {
+    Compilation& compilation, std::unique_ptr<Expression> expr,
+    std::function<gc::Root<Value>(gc::Pool& pool, Value&)> negate,
+    const VMType& expected_type) {
   if (expr == nullptr) {
     return nullptr;
   }
   if (!expr->SupportsType(expected_type)) {
-    compilation->errors.push_back(L"Can't negate an expression of type: \"" +
-                                  TypesToString(expr->Types()) + L"\"");
+    compilation.errors.push_back(L"Can't negate an expression of type: \"" +
+                                 TypesToString(expr->Types()) + L"\"");
     return nullptr;
   }
   return std::make_unique<NegateExpression>(
       negate, NonNull<std::shared_ptr<Expression>>::Unsafe(std::move(expr)));
+}
+}  // namespace
+
+std::unique_ptr<Expression> NewNegateExpressionBool(
+    Compilation& compilation, std::unique_ptr<Expression> expr) {
+  return NewNegateExpression(
+      compilation, std::move(expr),
+      [](gc::Pool& pool, Value& value) {
+        return Value::NewBool(pool, !value.get_bool());
+      },
+      VMType::Bool());
+}
+
+std::unique_ptr<Expression> NewNegateExpressionInt(
+    Compilation& compilation, std::unique_ptr<Expression> expr) {
+  return NewNegateExpression(
+      compilation, std::move(expr),
+      [](gc::Pool& pool, Value& value) {
+        return Value::NewInteger(pool, -value.get_int());
+      },
+      VMType::Integer());
+}
+
+std::unique_ptr<Expression> NewNegateExpressionDouble(
+    Compilation& compilation, std::unique_ptr<Expression> expr) {
+  return NewNegateExpression(
+      compilation, std::move(expr),
+      [](gc::Pool& pool, Value& value) {
+        return Value::NewDouble(pool, -value.get_double());
+      },
+      VMType::Double());
 }
 
 }  // namespace afc::vm

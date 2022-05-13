@@ -30,10 +30,7 @@ struct VMTypeMapper<void> {
 
 template <>
 struct VMTypeMapper<bool> {
-  static int get(Value& value) {
-    CHECK(value.IsBool());
-    return value.boolean;
-  }
+  static int get(Value& value) { return value.get_bool(); }
   static language::gc::Root<Value> New(language::gc::Pool& pool, bool value) {
     return Value::NewBool(pool, value);
   }
@@ -42,10 +39,7 @@ struct VMTypeMapper<bool> {
 
 template <>
 struct VMTypeMapper<int> {
-  static int get(Value& value) {
-    CHECK(value.IsInteger());
-    return value.integer;
-  }
+  static int get(Value& value) { return value.get_int(); }
   static language::gc::Root<Value> New(language::gc::Pool& pool, int value) {
     return Value::NewInteger(pool, value);
   }
@@ -54,10 +48,7 @@ struct VMTypeMapper<int> {
 
 template <>
 struct VMTypeMapper<double> {
-  static double get(Value& value) {
-    CHECK(value.IsDouble());
-    return value.double_value;
-  }
+  static double get(Value& value) { return value.get_double(); }
   static language::gc::Root<Value> New(language::gc::Pool& pool, double value) {
     return Value::NewDouble(pool, value);
   }
