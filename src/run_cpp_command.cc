@@ -6,6 +6,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
+#include "src/buffer_vm.h"
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/editor.h"

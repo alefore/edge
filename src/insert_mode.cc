@@ -11,6 +11,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/buffer_variables.h"
+#include "src/buffer_vm.h"
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/command_mode.h"

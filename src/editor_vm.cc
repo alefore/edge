@@ -1,5 +1,6 @@
 #include "src/editor_vm.h"
 
+#include "src/buffer_vm.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
@@ -432,7 +433,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                Value::NewObject(pool, L"Editor",
                                 shared_ptr<void>(&editor, [](void*) {})));
 
-  OpenBuffer::RegisterBufferType(pool, &value);
+  value.DefineType(L"Buffer", BuildBufferType(pool));
 
   InitShapes(pool, value);
   RegisterTransformations(pool, value);

@@ -61,9 +61,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   struct ConstructorAccessTag {};
 
  public:
-  static void RegisterBufferType(language::gc::Pool& pool,
-                                 Environment* environment);
-
   struct Options {
     EditorState& editor;
     BufferName name = BufferName(L"");
@@ -200,6 +197,8 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
     mode_ = language::MakeNonNullShared<MapMode>(default_commands_);
     return copy;
   }
+
+  language::NonNull<std::shared_ptr<MapModeCommands>> default_commands();
 
   // Erases all lines in range [first, last).
   void EraseLines(LineNumber first, LineNumber last);
@@ -609,15 +608,6 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 EditorState& EditorForTests();
 language::NonNull<std::shared_ptr<OpenBuffer>> NewBufferForTests();
 }  // namespace editor
-namespace vm {
-template <>
-struct VMTypeMapper<std::shared_ptr<editor::OpenBuffer>> {
-  static std::shared_ptr<editor::OpenBuffer> get(Value& value);
-  static language::gc::Root<Value> New(
-      language::gc::Pool& pool, std::shared_ptr<editor::OpenBuffer> value);
-  static const VMType vmtype;
-};
-}  // namespace vm
 }  // namespace afc
 
 #endif

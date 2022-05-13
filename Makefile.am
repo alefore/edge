@@ -37,6 +37,8 @@ src/buffer_syntax_parser.cc \
 src/buffer_syntax_parser.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
+src/buffer_vm.cc \
+src/buffer_vm.h \
 src/buffer_widget.cc \
 src/buffer_widget.h \
 src/buffers_list.cc \
