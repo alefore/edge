@@ -360,8 +360,8 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
            VMType::ObjectType(L"SetString")},
           [&pool = gc_pool_](std::vector<gc::Root<Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2u);
-            auto editor =
-                static_cast<EditorState*>(args[0].value()->user_value.get());
+            EditorState& editor =
+                VMTypeMapper<EditorState>::get(args[0].value().value());
             const auto& buffers_to_wait = *static_cast<std::set<wstring>*>(
                 args[1].value()->user_value.get());
 
@@ -369,8 +369,8 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
             for (const auto& buffer_name_str : buffers_to_wait) {
               if (auto buffer_it =
-                      editor->buffers()->find(BufferName(buffer_name_str));
-                  buffer_it != editor->buffers()->end()) {
+                      editor.buffers()->find(BufferName(buffer_name_str));
+                  buffer_it != editor.buffers()->end()) {
                 CHECK(buffer_it->second != nullptr);
                 values->push_back(buffer_it->second->NewCloseFuture());
               }
