@@ -521,16 +521,17 @@ using std::to_wstring;
 
   buffer->AddField(
       L"AddBindingToFile",
-      vm::NewCallback(pool, [&editor_state](std::shared_ptr<OpenBuffer> buffer,
-                                            wstring keys, wstring path) {
+      vm::NewCallback(pool, [](std::shared_ptr<OpenBuffer> buffer, wstring keys,
+                               wstring path) {
+        CHECK(buffer != nullptr);
         LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
         buffer->default_commands_->Add(
             keys,
-            [&editor_state, buffer, path]() {
+            [buffer, path]() {
               wstring resolved_path;
               auto options = ResolvePathOptions::New(
-                  editor_state, std::make_shared<FileSystemDriver>(
-                                    editor_state.thread_pool()));
+                  buffer->editor(), std::make_shared<FileSystemDriver>(
+                                        buffer->editor().thread_pool()));
               options.path = path;
               futures::OnError(
                   ResolvePath(std::move(options))
