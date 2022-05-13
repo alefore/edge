@@ -71,7 +71,7 @@ struct VMTypeMapper<wstring> {
     return value.str;
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool,
-                                       wstring value) {
+                                       const wstring& value) {
     return Value::NewString(pool, value);
   }
   static const VMType vmtype;
@@ -81,7 +81,8 @@ template <typename Tuple, size_t N>
 void AddArgs(std::vector<VMType>* output) {
   if constexpr (N < std::tuple_size<Tuple>::value) {
     output->push_back(
-        VMTypeMapper<typename std::tuple_element<N, Tuple>::type>::vmtype);
+        VMTypeMapper<typename std::remove_const<typename std::remove_reference<
+            typename std::tuple_element<N, Tuple>::type>::type>::type>::vmtype);
     AddArgs<Tuple, N + 1>(output);
   }
 };
@@ -128,15 +129,17 @@ language::gc::Root<Value> RunCallback(
   // modify the objects.
   if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
     callback(
-        VMTypeMapper<typename std::tuple_element<I, typename ft::ArgTuple>::
-                         type>::get(args.at(I).value().value())...);
+        VMTypeMapper<typename std::remove_const<typename std::remove_reference<
+            typename std::tuple_element<I, typename ft::ArgTuple>::
+                type>::type>::type>::get(args.at(I).value().value())...);
     return Value::NewVoid(pool);
   } else {
     return VMTypeMapper<typename ft::ReturnType>::New(
         pool,
-        callback(
-            VMTypeMapper<typename std::tuple_element<I, typename ft::ArgTuple>::
-                             type>::get(args.at(I).value().value())...));
+        callback(VMTypeMapper<typename std::remove_const<
+                     typename std::remove_reference<typename std::tuple_element<
+                         I, typename ft::ArgTuple>::type>::type>::type>::
+                     get(args.at(I).value().value())...));
   }
 }
 

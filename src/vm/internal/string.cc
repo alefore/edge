@@ -32,18 +32,19 @@ const VMType VMTypeMapper<std::set<wstring>*>::vmtype =
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name, language::gc::Pool& pool,
-               std::function<ReturnType(wstring, Args...)> callback,
+               std::function<ReturnType(const wstring&, Args...)> callback,
                ObjectType& string_type) {
   string_type.AddField(name, NewCallback(pool, callback));
 }
 
 void RegisterStringType(gc::Pool& pool, Environment* environment) {
   auto string_type = MakeNonNullUnique<ObjectType>(VMType::String());
-  AddMethod<int>(L"size", pool, std::function<int(wstring)>([](wstring str) {
-                   return str.size();
-                 }),
+  AddMethod<int>(L"size", pool,
+                 std::function<int(const wstring&)>(
+                     [](const wstring& str) { return str.size(); }),
                  *string_type);
-  AddMethod<int>(L"toint", pool, std::function<int(wstring)>([](wstring str) {
+  AddMethod<int>(L"toint", pool,
+                 std::function<int(const wstring&)>([](const wstring& str) {
                    try {
                      return std::stoi(str);
                    } catch (const std::invalid_argument& ia) {
@@ -51,12 +52,12 @@ void RegisterStringType(gc::Pool& pool, Environment* environment) {
                    }
                  }),
                  *string_type);
-  AddMethod<bool>(L"empty", pool, std::function<bool(wstring)>([](wstring str) {
-                    return str.empty();
-                  }),
+  AddMethod<bool>(L"empty", pool,
+                  std::function<bool(const wstring&)>(
+                      [](const wstring& str) { return str.empty(); }),
                   *string_type);
   AddMethod<wstring>(L"tolower", pool,
-                     std::function<wstring(wstring)>([](wstring str) {
+                     std::function<wstring(const wstring&)>([](wstring str) {
                        for (auto& i : str) {
                          i = std::tolower(i, std::locale(""));
                        }
@@ -64,7 +65,7 @@ void RegisterStringType(gc::Pool& pool, Environment* environment) {
                      }),
                      *string_type);
   AddMethod<wstring>(L"toupper", pool,
-                     std::function<wstring(wstring)>([](wstring str) {
+                     std::function<wstring(const wstring&)>([](wstring str) {
                        for (auto& i : str) {
                          i = std::toupper(i, std::locale(""));
                        }
@@ -72,13 +73,13 @@ void RegisterStringType(gc::Pool& pool, Environment* environment) {
                      }),
                      *string_type);
   AddMethod<wstring>(L"shell_escape", pool,
-                     std::function<wstring(wstring)>([](wstring str) {
-                       return language::ShellEscape(std::move(str));
+                     std::function<wstring(const wstring&)>([](wstring str) {
+                       return language::ShellEscape(str);
                      }),
                      *string_type);
   AddMethod<wstring, int, int>(
       L"substr", pool,
-      std::function<wstring(wstring, int, int)>(
+      std::function<wstring(const wstring&, int, int)>(
           [](const wstring& str, int pos, int len) -> wstring {
             if (pos < 0 || len < 0 ||
                 (static_cast<size_t>(pos + len) > str.size())) {
@@ -87,50 +88,51 @@ void RegisterStringType(gc::Pool& pool, Environment* environment) {
             return str.substr(pos, len);
           }),
       *string_type);
-  AddMethod<bool, wstring>(
+  AddMethod<bool, const wstring&>(
       L"starts_with", pool,
-      std::function<bool(wstring, wstring)>([](wstring str, wstring prefix) {
-        return prefix.size() <= str.size() &&
-               (std::mismatch(prefix.begin(), prefix.end(), str.begin())
-                    .first == prefix.end());
-      }),
+      std::function<bool(const wstring&, const wstring&)>(
+          [](const wstring& str, const wstring& prefix) {
+            return prefix.size() <= str.size() &&
+                   (std::mismatch(prefix.begin(), prefix.end(), str.begin())
+                        .first == prefix.end());
+          }),
       *string_type);
-  AddMethod<int, wstring, int>(
+  AddMethod<int, const wstring&, int>(
       L"find", pool,
-      std::function<int(wstring, wstring, int)>(
-          [](wstring str, wstring pattern, int start_pos) {
+      std::function<int(const wstring&, const wstring&, int)>(
+          [](const wstring& str, const wstring& pattern, int start_pos) {
             size_t pos = str.find(pattern, start_pos);
             return pos == wstring::npos ? -1 : pos;
           }),
       *string_type);
-  AddMethod<int, wstring, int>(
+  AddMethod<int, const wstring&, int>(
       L"find_last_of", pool,
-      std::function<int(wstring, wstring, int)>(
-          [](wstring str, wstring pattern, int start_pos) {
+      std::function<int(const wstring&, const wstring&, int)>(
+          [](const wstring& str, const wstring& pattern, int start_pos) {
             size_t pos = str.find_last_of(pattern, start_pos);
             return pos == wstring::npos ? -1 : pos;
           }),
       *string_type);
-  AddMethod<int, wstring, int>(
+  AddMethod<int, const wstring&, int>(
       L"find_last_not_of", pool,
-      std::function<int(wstring, wstring, int)>(
-          [](wstring str, wstring pattern, int start_pos) {
+      std::function<int(const wstring&, const wstring&, int)>(
+          [](const wstring& str, const wstring& pattern, int start_pos) {
             size_t pos = str.find_last_not_of(pattern, start_pos);
             return pos == wstring::npos ? -1 : pos;
           }),
       *string_type);
-  AddMethod<int, wstring, int>(
+  AddMethod<int, const wstring&, int>(
       L"find_first_of", pool,
-      std::function<int(wstring, wstring, int)>(
-          [](wstring str, wstring pattern, int start_pos) {
+      std::function<int(const wstring&, const wstring&, int)>(
+          [](const wstring& str, const wstring& pattern, int start_pos) {
             size_t pos = str.find_first_of(pattern, start_pos);
             return pos == wstring::npos ? -1 : pos;
           }),
       *string_type);
-  AddMethod<int, wstring, int>(
+  AddMethod<int, const wstring&, int>(
       L"find_first_not_of", pool,
-      std::function<int(wstring, wstring, int)>(
-          [](wstring str, wstring pattern, int start_pos) {
+      std::function<int(const wstring&, const wstring&, int)>(
+          [](const wstring& str, const wstring& pattern, int start_pos) {
             size_t pos = str.find_first_not_of(pattern, start_pos);
             return pos == wstring::npos ? -1 : pos;
           }),
