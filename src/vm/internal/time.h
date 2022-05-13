@@ -6,7 +6,7 @@ class Pool;
 }
 namespace afc::vm {
 class Environment;
-void RegisterTimeType(language::gc::Pool& pool, Environment* environment);
+void RegisterTimeType(language::gc::Pool& pool, Environment& environment);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_INTERNAL_TIME_H__

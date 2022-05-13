@@ -37,7 +37,7 @@ language::gc::Root<Environment> Environment::NewDefault(
   Environment& value = environment.ptr().value();
   RegisterStringType(pool, &value);
   RegisterNumberFunctions(pool, &value);
-  RegisterTimeType(pool, &value);
+  RegisterTimeType(pool, value);
   auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool());
   bool_type->AddField(
       L"tostring", NewCallback(pool, std::function<wstring(bool)>([](bool v) {

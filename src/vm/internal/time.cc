@@ -76,7 +76,7 @@ void AddMethod(const wstring& name, gc::Pool& pool,
 }
 
 // TODO(2022-05-11, easy): Pass environment by ref.
-void RegisterTimeType(gc::Pool& pool, Environment* environment) {
+void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   auto time_type = MakeNonNullUnique<ObjectType>(L"Time");
   time_type->AddField(
       L"tostring",
@@ -125,13 +125,13 @@ void RegisterTimeType(gc::Pool& pool, Environment* environment) {
                                  localtime_r(&(input.tv_sec), &t);
                                  return t.tm_year;
                                })));
-  environment->DefineType(L"Time", std::move(time_type));
-  environment->Define(L"Now", vm::NewCallback(pool, []() {
-                        Time output;
-                        CHECK_NE(clock_gettime(0, &output), -1);
-                        return output;
-                      }));
-  environment->Define(
+  environment.DefineType(L"Time", std::move(time_type));
+  environment.Define(L"Now", vm::NewCallback(pool, []() {
+                       Time output;
+                       CHECK_NE(clock_gettime(0, &output), -1);
+                       return output;
+                     }));
+  environment.Define(
       L"ParseTime",
       vm::NewCallback(pool, [](std::wstring value, std::wstring format) {
         struct tm t = {};
@@ -149,10 +149,10 @@ void RegisterTimeType(gc::Pool& pool, Environment* environment) {
       }));
 
   auto duration_type = MakeNonNullUnique<ObjectType>(L"Duration");
-  environment->DefineType(L"Duration", std::move(duration_type));
-  environment->Define(L"Seconds", vm::NewCallback(pool, [](int input) {
-                        return Duration{.value{.tv_sec = input, .tv_nsec = 0}};
-                      }));
+  environment.DefineType(L"Duration", std::move(duration_type));
+  environment.Define(L"Seconds", vm::NewCallback(pool, [](int input) {
+                       return Duration{.value{.tv_sec = input, .tv_nsec = 0}};
+                     }));
 }
 
 }  // namespace afc::vm
