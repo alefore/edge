@@ -59,14 +59,13 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary) {
   return Modifiers::CURRENT_POSITION;  // Silence warning.
 }
 
-// TODO(easy, 2022-05-11): Receive environment by ref.
 void Modifiers::Register(language::gc::Pool& pool,
-                         vm::Environment* environment) {
+                         vm::Environment& environment) {
   auto modifiers_type = MakeNonNullUnique<vm::ObjectType>(L"Modifiers");
 
-  environment->Define(L"Modifiers", vm::NewCallback(pool, []() {
-                        return std::make_shared<Modifiers>();
-                      }));
+  environment.Define(L"Modifiers", vm::NewCallback(pool, []() {
+                       return std::make_shared<Modifiers>();
+                     }));
 
   modifiers_type->AddField(
       L"set_backwards",
@@ -116,7 +115,7 @@ void Modifiers::Register(language::gc::Pool& pool,
         return output;
       }));
 
-  environment->DefineType(L"Modifiers", std::move(modifiers_type));
+  environment.DefineType(L"Modifiers", std::move(modifiers_type));
 }
 
 std::wstring Modifiers::Serialize() const {

@@ -32,7 +32,7 @@ struct BufferPosition {
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);
 
 struct Modifiers {
-  static void Register(language::gc::Pool& pool, vm::Environment* environment);
+  static void Register(language::gc::Pool& pool, vm::Environment& environment);
 
   std::wstring Serialize() const;
 
