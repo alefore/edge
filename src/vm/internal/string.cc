@@ -139,7 +139,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       *string_type);
   environment.DefineType(L"string", std::move(string_type));
 
-  VMTypeMapper<std::vector<wstring>*>::Export(pool, &environment);
-  VMTypeMapper<std::set<wstring>*>::Export(pool, &environment);
+  VMTypeMapper<std::vector<wstring>*>::Export(pool, environment);
+  VMTypeMapper<std::set<wstring>*>::Export(pool, environment);
 }
 }  // namespace afc::vm

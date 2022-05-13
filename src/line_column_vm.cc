@@ -114,6 +114,7 @@ void LineColumnRegister(gc::Pool& pool, Environment* environment) {
   environment->DefineType(L"LineColumn", std::move(line_column));
 }
 
+// TODO(easy, 2022-05-13): Receive environment by ref.
 void RangeRegister(gc::Pool& pool, Environment* environment) {
   auto range = MakeNonNullUnique<ObjectType>(L"Range");
 
@@ -130,7 +131,7 @@ void RangeRegister(gc::Pool& pool, Environment* environment) {
                   NewCallback(pool, [](Range range) { return range.end; }));
 
   environment->DefineType(L"Range", std::move(range));
-  vm::VMTypeMapper<std::vector<LineColumn>*>::Export(pool, environment);
-  vm::VMTypeMapper<std::set<LineColumn>*>::Export(pool, environment);
+  vm::VMTypeMapper<std::vector<LineColumn>*>::Export(pool, *environment);
+  vm::VMTypeMapper<std::set<LineColumn>*>::Export(pool, *environment);
 }
 }  // namespace afc::editor

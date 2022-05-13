@@ -43,11 +43,11 @@ struct VMTypeMapper<std::vector<T>*> {
 
   static const VMType vmtype;
 
-  static void Export(language::gc::Pool& pool, Environment* environment) {
+  static void Export(language::gc::Pool& pool, Environment& environment) {
     auto vector_type = language::MakeNonNullUnique<ObjectType>(vmtype);
 
     auto name = vmtype.object_type;
-    environment->Define(
+    environment.Define(
         name, Value::NewFunction(
                   pool, {vmtype},
                   [&pool, name](std::vector<language::gc::Root<Value>> args) {
@@ -90,7 +90,7 @@ struct VMTypeMapper<std::vector<T>*> {
                             v->emplace_back(e);
                           }));
 
-    environment->DefineType(name, std::move(vector_type));
+    environment.DefineType(name, std::move(vector_type));
   }
 };
 

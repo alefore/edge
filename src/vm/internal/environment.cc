@@ -69,9 +69,8 @@ language::gc::Root<Environment> Environment::NewDefault(
                             VMType::PurityType::kPure));
   value.DefineType(L"double", std::move(double_type));
 
-  // TODO(easy, 2022-05-11): Pass by reference.
-  VMTypeMapper<std::vector<int>*>::Export(pool, &value);
-  VMTypeMapper<std::set<int>*>::Export(pool, &value);
+  VMTypeMapper<std::vector<int>*>::Export(pool, value);
+  VMTypeMapper<std::set<int>*>::Export(pool, value);
   return environment;
 }
 

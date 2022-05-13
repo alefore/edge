@@ -35,11 +35,11 @@ struct VMTypeMapper<std::set<T>*> {
 
   static const VMType vmtype;
 
-  static void Export(language::gc::Pool& pool, Environment* environment) {
+  static void Export(language::gc::Pool& pool, Environment& environment) {
     auto set_type = language::MakeNonNullUnique<ObjectType>(vmtype);
 
     auto name = vmtype.object_type;
-    environment->Define(
+    environment.Define(
         name, Value::NewFunction(
                   pool, {set_type->type()},
                   [&pool, name](std::vector<language::gc::Root<Value>> args) {
@@ -78,7 +78,7 @@ struct VMTypeMapper<std::set<T>*> {
         vm::NewCallback(pool, std::function<void(std::set<T>*, T)>(
                                   [](std::set<T>* v, T e) { v->insert(e); })));
 
-    environment->DefineType(name, std::move(set_type));
+    environment.DefineType(name, std::move(set_type));
   }
 };
 
