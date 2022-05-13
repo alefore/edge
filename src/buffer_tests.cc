@@ -85,19 +85,46 @@ const bool buffer_tests_registration = tests::Register(
                       .Reference()
                       .ToString() == L"quux");
           }},
-     {.name = L"PassingParametersPreservesThem", .callback = [] {
+     {.name = L"PassingParametersPreservesThem",
+      .callback =
+          [] {
+            auto buffer = NewBufferForTests();
+
+            language::gc::Root<Value> result =
+                buffer
+                    ->EvaluateString(
+                        L"int F() { return \"foo\".find_last_of(\"o\", 3); }"
+                        L" F() == F();")
+                    .Get()
+                    .value()
+                    .value();
+            CHECK(result.value()->IsBool());
+            CHECK(result.value()->boolean);
+          }},
+     {.name = L"NoLeaks", .callback = [] {
         auto buffer = NewBufferForTests();
+
+        auto stats_0 = buffer->editor().gc_pool().Reclaim();
+        LOG(INFO) << "Start: " << stats_0;
 
         language::gc::Root<Value> result =
             buffer
                 ->EvaluateString(
-                    L"int F() { return \"foo\".find_last_of(\"o\", 3); }"
-                    L" F() == F();")
+                    L"if (true) { "
+                    L"auto foo = [](int x) -> int { return 5 * x; };"
+                    L" }")
                 .Get()
                 .value()
                 .value();
-        CHECK(result.value()->IsBool());
-        CHECK(result.value()->boolean);
+        CHECK(result.value()->IsVoid());
+
+        auto stats_1 = buffer->editor().gc_pool().Reclaim();
+        LOG(INFO) << "Start: " << stats_1;
+        // TODO(2022-05-13, bug): Enable the following checks. Requires fixing
+        // `if` expression to create a sub-environment.
+        //
+        // CHECK_EQ(stats_0.roots, stats_1.roots);
+        // CHECK_EQ(stats_0.end_total, stats_1.end_total);
       }}});
 
 const bool buffer_work_queue_tests_registration = tests::Register(
