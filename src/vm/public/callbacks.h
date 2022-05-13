@@ -66,9 +66,9 @@ struct VMTypeMapper<double> {
 
 template <>
 struct VMTypeMapper<wstring> {
-  static wstring get(Value& value) {
+  static const wstring& get(const Value& value) {
     CHECK(value.IsString());
-    return std::move(value.str);
+    return value.str;
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool,
                                        wstring value) {
@@ -123,6 +123,9 @@ language::gc::Root<Value> RunCallback(
     std::vector<language::gc::Root<Value>> args, std::index_sequence<I...>) {
   using ft = function_traits<Callable>;
   CHECK_EQ(args.size(), std::tuple_size<typename ft::ArgTuple>::value);
+  // TODO(easy, 2022-05-13): Take a const ref to args.at(I).value().value() and
+  // pass that to the VMTypeMapper<>::get functions, to ensure that they won't
+  // modify the objects.
   if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
     callback(
         VMTypeMapper<typename std::tuple_element<I, typename ft::ArgTuple>::
