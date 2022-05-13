@@ -44,7 +44,7 @@ struct Delete {
 
 std::ostream& operator<<(std::ostream& os, const Delete& options);
 
-void RegisterDelete(language::gc::Pool& pool, vm::Environment* environment);
+void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment);
 
 futures::Value<Result> ApplyBase(const Delete& parameters, Input input);
 std::wstring ToStringBase(const Delete& v);

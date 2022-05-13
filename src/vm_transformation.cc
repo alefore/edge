@@ -82,13 +82,10 @@ class FunctionTransformation : public CompositeTransformation {
   const gc::Root<vm::Value> function_;
 };
 }  // namespace
-// TODO(easy, 2022-05-12): Receive editor/environment by ref.
-void RegisterTransformations(EditorState* editor,
-                             vm::Environment* environment) {
-  environment->DefineType(L"Transformation",
-                          MakeNonNullUnique<vm::ObjectType>(L"Transformation"));
-  language::gc::Pool& pool = editor->gc_pool();
-  environment->Define(
+void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
+  environment.DefineType(L"Transformation",
+                         MakeNonNullUnique<vm::ObjectType>(L"Transformation"));
+  environment.Define(
       L"FunctionTransformation",
       vm::Value::NewFunction(
           pool,
@@ -98,20 +95,20 @@ void RegisterTransformations(EditorState* editor,
                     std::shared_ptr<CompositeTransformation::Output>>::vmtype,
                 VMTypeMapper<
                     std::shared_ptr<CompositeTransformation::Input>>::vmtype})},
-          [editor](std::vector<gc::Root<vm::Value>> args) {
+          [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
             return VMTypeMapper<editor::transformation::Variant*>::New(
-                editor->gc_pool(),
-                std::make_unique<transformation::Variant>(
-                    MakeNonNullUnique<FunctionTransformation>(
-                        editor->gc_pool(), std::move(args[0])))
-                    .release());
+                pool, std::make_unique<transformation::Variant>(
+                          MakeNonNullUnique<FunctionTransformation>(
+                              pool, std::move(args[0])))
+                          .release());
           }));
-  transformation::RegisterInsert(editor, environment);
+  transformation::RegisterInsert(pool, environment);
   transformation::RegisterDelete(pool, environment);
   transformation::RegisterSetPosition(pool, environment);
-  RegisterNoopTransformation(pool, environment);
-  RegisterCompositeTransformation(pool, environment);
+  // TODO(easy, 2022-05-13): Pass env by ref below.
+  RegisterNoopTransformation(pool, &environment);
+  RegisterCompositeTransformation(pool, &environment);
 }
 }  // namespace editor
 }  // namespace afc

@@ -250,10 +250,10 @@ std::wstring ToStringBase(const Delete&) { return L"Delete(...);"; }
 
 Delete OptimizeBase(Delete transformation) { return transformation; }
 
-void RegisterDelete(language::gc::Pool& pool, vm::Environment* environment) {
+void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
   auto builder = MakeNonNullUnique<ObjectType>(L"DeleteTransformationBuilder");
 
-  environment->Define(
+  environment.Define(
       L"DeleteTransformationBuilder",
       vm::NewCallback(pool, std::function<std::shared_ptr<Delete>()>([]() {
                         return std::make_shared<transformation::Delete>();
@@ -295,7 +295,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment* environment) {
                       return std::make_unique<Variant>(*options).release();
                     }));
 
-  environment->DefineType(L"DeleteTransformationBuilder", std::move(builder));
+  environment.DefineType(L"DeleteTransformationBuilder", std::move(builder));
 }
 }  // namespace transformation
 }  // namespace editor

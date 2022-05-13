@@ -435,7 +435,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   OpenBuffer::RegisterBufferType(editor, &value);
 
   InitShapes(pool, value);
-  RegisterTransformations(&editor, &value);
+  RegisterTransformations(pool, value);
   Modifiers::Register(pool, &value);
   ForkCommandOptions::Register(pool, value);
   LineColumnRegister(pool, value);

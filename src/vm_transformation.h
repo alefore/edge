@@ -25,7 +25,8 @@ struct VMTypeMapper<editor::transformation::Variant*> {
 };
 }  // namespace afc::vm
 namespace afc::editor {
-void RegisterTransformations(EditorState* editor, vm::Environment* environment);
+void RegisterTransformations(language::gc::Pool& pool,
+                             vm::Environment& environment);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_VM_TRANSFORMATION_H__

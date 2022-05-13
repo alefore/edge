@@ -42,7 +42,7 @@ struct Insert {
   std::optional<LineColumn> position = std::nullopt;
 };
 
-void RegisterInsert(editor::EditorState* editor, vm::Environment* environment);
+void RegisterInsert(language::gc::Pool& pool, vm::Environment& environment);
 futures::Value<Result> ApplyBase(const Insert& parameters, Input input);
 std::wstring ToStringBase(const Insert& v);
 Insert OptimizeBase(Insert transformation);

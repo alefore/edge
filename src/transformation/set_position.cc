@@ -11,8 +11,8 @@ namespace afc::editor::transformation {
 using language::MakeNonNullUnique;
 
 void RegisterSetPosition(language::gc::Pool& pool,
-                         vm::Environment* environment) {
-  environment->Define(
+                         vm::Environment& environment) {
+  environment.Define(
       L"SetColumnTransformation",
       vm::NewCallback(pool, std::function<Variant*(int)>([](int column) {
                         return MakeNonNullUnique<Variant>(
@@ -21,7 +21,7 @@ void RegisterSetPosition(language::gc::Pool& pool,
                             .release();
                       })));
 
-  environment->Define(
+  environment.Define(
       L"SetPositionTransformation",
       vm::NewCallback(
           pool, std::function<Variant*(LineColumn)>([](LineColumn position) {
