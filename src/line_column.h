@@ -11,7 +11,6 @@
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 #include "src/vm/public/callbacks.h"
-#include "src/vm/public/environment.h"
 
 namespace afc::language::gc {
 class Pool;
@@ -226,8 +225,6 @@ class numeric_limits<afc::editor::ColumnNumber> {
 namespace afc::editor {
 // A position in a text buffer.
 struct LineColumn {
-  static void Register(language::gc::Pool& pool, vm::Environment* environment);
-
   LineColumn() = default;
   explicit LineColumn(LineNumber l) : LineColumn(l, ColumnNumber(0)) {}
   LineColumn(LineNumber l, ColumnNumber c) : line(l), column(c) {}
@@ -287,8 +284,6 @@ struct Reader<LineColumn> {
 
 // A range that contains every position i such that begin <= i < end.
 struct Range {
-  static void Register(language::gc::Pool& pool, vm::Environment* environment);
-
   Range() = default;
   Range(LineColumn begin, LineColumn end) : begin(begin), end(end) {}
 

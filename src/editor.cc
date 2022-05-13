@@ -25,6 +25,7 @@ extern "C" {
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
 #include "src/language/wstring.h"
+#include "src/line_column_vm.h"
 #include "src/open_file_command.h"
 #include "src/run_command_handler.h"
 #include "src/server.h"
@@ -522,8 +523,8 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
   RegisterTransformations(this, &environment.value().value());
   Modifiers::Register(gc_pool_, &environment.value().value());
   ForkCommandOptions::Register(gc_pool_, &environment.value().value());
-  LineColumn::Register(gc_pool_, &environment.value().value());
-  Range::Register(gc_pool_, &environment.value().value());
+  LineColumnRegister(gc_pool_, &environment.value().value());
+  RangeRegister(gc_pool_, &environment.value().value());
   return environment;
 }
 
