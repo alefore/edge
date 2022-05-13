@@ -87,11 +87,11 @@ namespace afc::editor {
 using vm::Environment;
 using vm::NewCallback;
 using vm::ObjectType;
-void LineColumnRegister(gc::Pool& pool, Environment* environment) {
+void LineColumnRegister(gc::Pool& pool, Environment& environment) {
   auto line_column = MakeNonNullUnique<ObjectType>(L"LineColumn");
 
   // Methods for LineColumn.
-  environment->Define(
+  environment.Define(
       L"LineColumn", NewCallback(pool, [](int line_number, int column_number) {
         return LineColumn(LineNumber(line_number), ColumnNumber(column_number));
       }));
@@ -111,18 +111,17 @@ void LineColumnRegister(gc::Pool& pool, Environment* environment) {
                std::to_wstring(line_column.column.column);
       }));
 
-  environment->DefineType(L"LineColumn", std::move(line_column));
+  environment.DefineType(L"LineColumn", std::move(line_column));
 }
 
-// TODO(easy, 2022-05-13): Receive environment by ref.
-void RangeRegister(gc::Pool& pool, Environment* environment) {
+void RangeRegister(gc::Pool& pool, Environment& environment) {
   auto range = MakeNonNullUnique<ObjectType>(L"Range");
 
   // Methods for Range.
-  environment->Define(L"Range",
-                      NewCallback(pool, [](LineColumn begin, LineColumn end) {
-                        return Range(begin, end);
-                      }));
+  environment.Define(L"Range",
+                     NewCallback(pool, [](LineColumn begin, LineColumn end) {
+                       return Range(begin, end);
+                     }));
 
   range->AddField(L"begin",
                   NewCallback(pool, [](Range range) { return range.begin; }));
@@ -130,8 +129,8 @@ void RangeRegister(gc::Pool& pool, Environment* environment) {
   range->AddField(L"end",
                   NewCallback(pool, [](Range range) { return range.end; }));
 
-  environment->DefineType(L"Range", std::move(range));
-  vm::VMTypeMapper<std::vector<LineColumn>*>::Export(pool, *environment);
-  vm::VMTypeMapper<std::set<LineColumn>*>::Export(pool, *environment);
+  environment.DefineType(L"Range", std::move(range));
+  vm::VMTypeMapper<std::vector<LineColumn>*>::Export(pool, environment);
+  vm::VMTypeMapper<std::set<LineColumn>*>::Export(pool, environment);
 }
 }  // namespace afc::editor

@@ -38,8 +38,8 @@ struct VMTypeMapper<editor::Range> {
 };
 }  // namespace afc::vm
 namespace afc::editor {
-void LineColumnRegister(language::gc::Pool& pool, vm::Environment* environment);
-void RangeRegister(language::gc::Pool& pool, vm::Environment* environment);
+void LineColumnRegister(language::gc::Pool& pool, vm::Environment& environment);
+void RangeRegister(language::gc::Pool& pool, vm::Environment& environment);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_LINE_COLUMN_VM_H__

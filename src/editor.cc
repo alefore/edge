@@ -518,8 +518,8 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
   RegisterTransformations(this, &value);
   Modifiers::Register(gc_pool_, &value);
   ForkCommandOptions::Register(gc_pool_, &value);
-  LineColumnRegister(gc_pool_, &value);
-  RangeRegister(gc_pool_, &value);
+  LineColumnRegister(gc_pool_, value);
+  RangeRegister(gc_pool_, value);
   return environment;
 }
 
