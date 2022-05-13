@@ -117,13 +117,15 @@ bool cpp_unescape_string_tests_registration =
   return output;
 }
 
-/* static */ gc::Root<Value> Value::NewString(gc::Pool& pool, wstring value) {
+/* static */ gc::Root<Value> Value::NewString(gc::Pool& pool,
+                                              std::wstring value) {
   gc::Root<Value> output = New(pool, VMType::String());
   output.ptr()->value_ = std::move(value);
   return output;
 }
 
-/* static */ gc::Root<Value> Value::NewSymbol(gc::Pool& pool, wstring value) {
+/* static */ gc::Root<Value> Value::NewSymbol(gc::Pool& pool,
+                                              std::wstring value) {
   gc::Root<Value> output = New(pool, VMType::Symbol());
   output.ptr()->value_ = Symbol{.symbol_value = std::move(value)};
   return output;

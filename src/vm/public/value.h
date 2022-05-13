@@ -14,12 +14,6 @@
 #include "src/vm/public/vm.h"
 
 namespace afc::vm {
-
-using std::function;
-using std::shared_ptr;
-using std::string;
-using std::vector;
-
 class Trampoline;
 struct EvaluationOutput;
 
@@ -50,9 +44,9 @@ class Value {
   static language::gc::Root<Value> NewDouble(language::gc::Pool& pool,
                                              double value);
   static language::gc::Root<Value> NewString(language::gc::Pool& pool,
-                                             wstring value);
+                                             std::wstring value);
   static language::gc::Root<Value> NewSymbol(language::gc::Pool& pool,
-                                             wstring value);
+                                             std::wstring value);
   static language::gc::Root<Value> NewObject(language::gc::Pool& pool,
                                              std::wstring name,
                                              std::shared_ptr<void> value);
