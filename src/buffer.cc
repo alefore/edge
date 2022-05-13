@@ -1015,7 +1015,9 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
     const wstring& code) {
   LOG(INFO) << "Compiling code.";
-  auto compilation_result = CompileString(code);
+  ValueOrError<
+      std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
+      compilation_result = CompileString(code);
   if (compilation_result.IsError()) {
     Error error =
         Error::Augment(L"🐜Compilation error", compilation_result.error());
