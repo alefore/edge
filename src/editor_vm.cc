@@ -15,6 +15,7 @@
 #include "src/shapes.h"
 #include "src/terminal.h"
 #include "src/vm/public/callbacks.h"
+#include "src/vm/public/set.h"
 #include "src/vm_transformation.h"
 
 using afc::language::Pointer;
@@ -283,8 +284,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
             CHECK_EQ(args.size(), 2u);
             EditorState& editor =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            const auto& buffers_to_wait = *static_cast<std::set<wstring>*>(
-                args[1].ptr()->user_value.get());
+            const auto& buffers_to_wait =
+                *VMTypeMapper<std::set<wstring>*>::get(args[1].ptr().value());
 
             auto values =
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
@@ -398,16 +399,13 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
            VMType::String(), VMType::Function({VMType::Void()})},
           [&pool = pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), 4u);
-            CHECK_EQ(args[0].ptr()->type, VMTypeMapper<EditorState>::vmtype);
             CHECK(args[1].ptr()->IsString());
             CHECK(args[2].ptr()->IsString());
-            // TODO(easy, 2022-05-13): Use VMTypeMapper.
-            EditorState* editor =
-                static_cast<EditorState*>(args[0].ptr()->user_value.get());
-            CHECK(editor != nullptr);
-            editor->default_commands()->Add(
+            EditorState& editor =
+                VMTypeMapper<EditorState>::get(args[0].ptr().value());
+            editor.default_commands()->Add(
                 args[1].ptr()->str, args[2].ptr()->str, std::move(args[3]),
-                editor->environment());
+                editor.environment());
             return Value::NewVoid(pool);
           }));
 

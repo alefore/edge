@@ -90,7 +90,7 @@ void MapModeCommands::Add(wstring name,
 void MapModeCommands::Add(wstring name, wstring description,
                           gc::Root<Value> value,
                           gc::Root<vm::Environment> environment) {
-  CHECK_EQ(value.ptr()->type.type, VMType::FUNCTION);
+  CHECK(value.ptr()->type.type == VMType::Type::kFunction);
   CHECK(value.ptr()->type.type_arguments ==
         std::vector<VMType>({VMType::Void()}));
 

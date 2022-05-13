@@ -1527,10 +1527,10 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
 }
 
 bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
-  if (transformer.ptr()->type.type != VMType::FUNCTION ||
-      transformer.ptr()->type.type_arguments.size() != 2 ||
-      transformer.ptr()->type.type_arguments[0].type != VMType::VM_STRING ||
-      transformer.ptr()->type.type_arguments[1].type != VMType::VM_STRING) {
+  VMType& type = transformer.ptr()->type;
+  if (type.type != VMType::Type::kFunction || type.type_arguments.size() != 2 ||
+      type.type_arguments[0] != VMType::String() ||
+      type.type_arguments[1] != VMType::String()) {
     status_.SetWarningText(
         L": Unexpected type for keyboard text transformer: " +
         transformer.ptr()->type.ToString());

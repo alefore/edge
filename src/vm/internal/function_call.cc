@@ -32,7 +32,7 @@ bool TypeMatchesArguments(
     error = &dummy_error;
   }
 
-  if (type.type != VMType::FUNCTION) {
+  if (type.type != VMType::Type::kFunction) {
     *error = L"Expected function but found: `" + type.ToString() + L"`.";
     return false;
   }
@@ -93,7 +93,7 @@ class FunctionCall : public Expression {
       }
     }
     for (const auto& callback_type : func_->Types()) {
-      CHECK_EQ(callback_type.type, VMType::FUNCTION);
+      CHECK(callback_type.type == VMType::Type::kFunction);
       if (callback_type.function_purity == PurityType::kPure) {
         return PurityType::kPure;
       }
@@ -116,7 +116,7 @@ class FunctionCall : public Expression {
               if (callback.type == EvaluationOutput::OutputType::kReturn)
                 return futures::Past(Success(std::move(callback)));
               DVLOG(6) << "Got function: " << callback.value.ptr().value();
-              CHECK_EQ(callback.value.ptr()->type.type, VMType::FUNCTION);
+              CHECK(callback.value.ptr()->type.type == VMType::Type::kFunction);
               futures::Future<ValueOrError<EvaluationOutput>> output;
               CaptureArgs(trampoline, std::move(output.consumer), args_types,
                           std::make_shared<std::vector<gc::Root<Value>>>(),
@@ -225,19 +225,19 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
   for (const auto& type : object->Types()) {
     wstring object_type_name;
     switch (type.type) {
-      case VMType::VM_STRING:
+      case VMType::Type::kString:
         object_type_name = L"string";
         break;
-      case VMType::VM_BOOLEAN:
+      case VMType::Type::kBool:
         object_type_name = L"bool";
         break;
-      case VMType::VM_DOUBLE:
+      case VMType::Type::kDouble:
         object_type_name = L"double";
         break;
-      case VMType::VM_INTEGER:
+      case VMType::Type::kInt:
         object_type_name = L"int";
         break;
-      case VMType::OBJECT_TYPE:
+      case VMType::Type::kObject:
         object_type_name = type.object_type;
         break;
       default:
@@ -324,7 +324,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       Value* const delegate_;
     };
 
-    CHECK(field->type.type == VMType::FUNCTION);
+    CHECK(field->type.type == VMType::Type::kFunction);
     CHECK_GE(field->type.type_arguments.size(), 2ul);
     CHECK_EQ(field->type.type_arguments[1], type);
 
@@ -339,7 +339,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 futures::ValueOrError<gc::Root<Value>> Call(
     gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
     std::function<void(std::function<void()>)> yield_callback) {
-  CHECK_EQ(func.type.type, VMType::FUNCTION);
+  CHECK(func.type.type == VMType::Type::kFunction);
   std::vector<NonNull<std::unique_ptr<Expression>>> args_expr;
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));

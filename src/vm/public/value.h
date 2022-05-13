@@ -69,12 +69,13 @@ struct Value {
           language::gc::Root<Value>(std::vector<language::gc::Root<Value>>)>
           callback);
 
-  bool IsVoid() const { return type.type == VMType::VM_VOID; };
-  bool IsInteger() const { return type.type == VMType::VM_INTEGER; };
-  bool IsString() const { return type.type == VMType::VM_STRING; };
-  bool IsSymbol() const { return type.type == VMType::VM_SYMBOL; };
-  bool IsFunction() const { return type.type == VMType::FUNCTION; };
-  bool IsObject() const { return type.type == VMType::OBJECT_TYPE; };
+  bool IsVoid() const;
+  // TODO(easy, 2022-05-13): Rename to IsInt.
+  bool IsInteger() const;
+  bool IsString() const;
+  bool IsSymbol() const;
+  bool IsFunction() const;
+  bool IsObject() const;
 
   VMType type;
 

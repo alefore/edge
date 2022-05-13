@@ -268,7 +268,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
             editor_state().gc_pool(), Environment::Namespace(), L"screen",
             GetScreenVmType());
     if (!value.has_value() ||
-        value.value().ptr()->type.type != VMType::OBJECT_TYPE ||
+        value.value().ptr()->type.type != VMType::Type::kObject ||
         value.value().ptr()->type.object_type != L"Screen") {
       continue;
     }

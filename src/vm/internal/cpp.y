@@ -900,14 +900,14 @@ expr(OUT) ::= string(S). {
 }
 
 string(OUT) ::= STRING(S). {
-  assert(S->value().ptr()->type.type == VMType::VM_STRING);
+  assert(S->value().ptr()->type == VMType::String());
   OUT = std::make_unique<gc::Root<Value>>(S->value()).release();
   S = nullptr;
 }
 
 string(OUT) ::= string(A) STRING(B). {
-  assert(A->ptr()->type.type == VMType::VM_STRING);
-  assert(B->value().ptr()->type.type == VMType::VM_STRING);
+  assert(A->ptr()->type == VMType::String());
+  assert(B->value().ptr()->type == VMType::String());
   OUT = std::make_unique<gc::Root<Value>>(Value::NewString(compilation->pool,
       A->ptr()->str + B->value().ptr()->str)).release();
   A = nullptr;
@@ -921,14 +921,14 @@ expr(OUT) ::= non_empty_symbols_list(N) . {
 %destructor non_empty_symbols_list { delete $$; }
 
 non_empty_symbols_list(OUT) ::= SYMBOL(S). {
-  CHECK_EQ(S->value().ptr()->type.type, VMType::VM_SYMBOL);
+  CHECK_EQ(S->value().ptr()->type, VMType::Symbol());
   OUT = new std::list<std::wstring>({std::move(S->value().ptr()->str)});
 }
 
 non_empty_symbols_list(OUT) ::=
     SYMBOL(S) DOUBLECOLON non_empty_symbols_list(L). {
   CHECK_NE(L, nullptr);
-  CHECK_EQ(S->value().ptr()->type.type, VMType::VM_SYMBOL);
+  CHECK_EQ(S->value().ptr()->type, VMType::Symbol());
   L->push_front(S->value().ptr()->str);
   OUT = std::move(L);
 }

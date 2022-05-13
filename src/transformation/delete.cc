@@ -33,8 +33,7 @@ namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
   static std::shared_ptr<editor::transformation::Delete> get(Value& value) {
-    CHECK(value.type.type == VMType::OBJECT_TYPE);
-    CHECK(value.type.object_type == L"DeleteTransformationBuilder");
+    CHECK_EQ(value.type, vmtype);
     CHECK(value.user_value != nullptr);
     return std::static_pointer_cast<editor::transformation::Delete>(
         value.user_value);

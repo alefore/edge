@@ -19,8 +19,7 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
   static std::shared_ptr<editor::transformation::Repetitions> get(
       Value* value) {
     CHECK(value != nullptr);
-    CHECK(value->type.type == VMType::OBJECT_TYPE);
-    CHECK(value->type.object_type == L"RepetitionsTransformationBuilder");
+    CHECK_EQ(value->type, vmtype);
     CHECK(value->user_value != nullptr);
     return std::static_pointer_cast<editor::transformation::Repetitions>(
         value->user_value);

@@ -158,18 +158,25 @@ bool cpp_unescape_string_tests_registration =
       });
 }
 
+bool Value::IsVoid() const { return type == VMType::Void(); };
+bool Value::IsInteger() const { return type == VMType::Integer(); };
+bool Value::IsString() const { return type == VMType::String(); };
+bool Value::IsSymbol() const { return type == VMType::Symbol(); };
+bool Value::IsFunction() const { return type.type == VMType::Type::kFunction; };
+bool Value::IsObject() const { return type.type == VMType::Type::kObject; };
+
 bool Value::get_bool() const {
-  CHECK_EQ(type.type, VMType::VM_BOOLEAN);
+  CHECK_EQ(type, VMType::Bool());
   return std::get<bool>(value_);
 }
 
 int Value::get_int() const {
-  CHECK_EQ(type.type, VMType::VM_INTEGER);
+  CHECK_EQ(type, VMType::Integer());
   return std::get<int>(value_);
 }
 
 double Value::get_double() const {
-  CHECK_EQ(type.type, VMType::VM_DOUBLE);
+  CHECK_EQ(type, VMType::Double());
   return std::get<double>(value_);
 }
 
@@ -180,9 +187,9 @@ Value::Callback Value::LockCallback() {
 
 ValueOrError<double> Value::ToDouble() const {
   switch (type.type) {
-    case VMType::VM_INTEGER:
+    case VMType::Type::kInt:
       return get_int();
-    case VMType::VM_DOUBLE:
+    case VMType::Type::kDouble:
       return get_double();
     default:
       return Error(L"Unexpected value of type: " + type.ToString());
@@ -191,16 +198,16 @@ ValueOrError<double> Value::ToDouble() const {
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   switch (value.type.type) {
-    case VMType::VM_INTEGER:
+    case VMType::Type::kInt:
       os << value.get_int();
       break;
-    case VMType::VM_STRING:
+    case VMType::Type::kString:
       os << '"' << CppEscapeString(value.str) << '"';
       break;
-    case VMType::VM_BOOLEAN:
+    case VMType::Type::kBool:
       os << (value.get_bool() ? "true" : "false");
       break;
-    case VMType::VM_DOUBLE:
+    case VMType::Type::kDouble:
       os << value.get_double();
       break;
     default:

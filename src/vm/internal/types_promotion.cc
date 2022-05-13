@@ -13,9 +13,9 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
   if (original == desired)
     return [](gc::Pool&, gc::Root<Value> value) { return value; };
   switch (original.type) {
-    case VMType::VM_INTEGER:
+    case VMType::Type::kInt:
       switch (desired.type) {
-        case VMType::VM_DOUBLE:
+        case VMType::Type::kDouble:
           return [](gc::Pool& pool, gc::Root<Value> value) {
             return Value::NewDouble(pool, value.ptr()->get_int());
           };
@@ -24,9 +24,9 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
       }
       return nullptr;
 
-    case VMType::FUNCTION:
+    case VMType::Type::kFunction:
       switch (desired.type) {
-        case VMType::FUNCTION: {
+        case VMType::Type::kFunction: {
           if (original.type_arguments.size() != desired.type_arguments.size())
             return nullptr;
           std::vector<PromotionCallback> argument_callbacks;

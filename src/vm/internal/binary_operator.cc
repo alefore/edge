@@ -105,9 +105,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
         [double_operator](gc::Pool& pool, const Value& a,
                           const Value& b) -> ValueOrError<gc::Root<Value>> {
           auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
+            if (x.type == VMType::Integer()) {
               return static_cast<double>(x.get_int());
-            } else if (x.type.type == VMType::VM_DOUBLE) {
+            } else if (x.type == VMType::Double()) {
               return x.get_double();
             } else {
               CHECK(false) << "Unexpected type: " << x.type;

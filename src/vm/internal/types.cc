@@ -6,7 +6,8 @@
 
 namespace std {
 size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
-  size_t output = hash<int>()(x.type) ^ hash<wstring>()(x.object_type);
+  size_t output = hash<size_t>()(static_cast<size_t>(x.type)) ^
+                  hash<wstring>()(x.object_type);
   for (const auto& a : x.type_arguments) {
     output ^= hash()(a);
   }
@@ -31,32 +32,32 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::Void() {
-  static VMType type(VMType::VM_VOID);
+  static VMType type(VMType::Type::kVoid);
   return type;
 }
 
 /* static */ const VMType& VMType::Bool() {
-  static VMType type(VMType::VM_BOOLEAN);
+  static VMType type(VMType::Type::kBool);
   return type;
 }
 
 /* static */ const VMType& VMType::Integer() {
-  static VMType type(VMType::VM_INTEGER);
+  static VMType type(VMType::Type::kInt);
   return type;
 }
 
 /* static */ const VMType& VMType::String() {
-  static VMType type(VMType::VM_STRING);
+  static VMType type(VMType::Type::kString);
   return type;
 }
 
 /* static */ const VMType& VMType::Symbol() {
-  static VMType type(VMType::VM_SYMBOL);
+  static VMType type(VMType::Type::kSymbol);
   return type;
 }
 
 /* static */ const VMType& VMType::Double() {
-  static VMType type(VMType::VM_DOUBLE);
+  static VMType type(VMType::Type::kDouble);
   return type;
 }
 
@@ -75,28 +76,26 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
 }
 
 /* static */ VMType VMType::ObjectType(const wstring& name) {
-  VMType output(VMType::OBJECT_TYPE);
+  VMType output(VMType::Type::kObject);
   output.object_type = name;
   return output;
 }
 
 wstring VMType::ToString() const {
   switch (type) {
-    case VM_VOID:
+    case Type::kVoid:
       return L"void";
-    case VM_BOOLEAN:
+    case Type::kBool:
       return L"bool";
-    case VM_INTEGER:
+    case Type::kInt:
       return L"int";
-    case VM_STRING:
+    case Type::kString:
       return L"string";
-    case VM_SYMBOL:
+    case Type::kSymbol:
       return L"symbol";
-    case VM_DOUBLE:
+    case Type::kDouble:
       return L"double";
-    case ENVIRONMENT:
-      return L"environment";
-    case FUNCTION: {
+    case Type::kFunction: {
       CHECK(!type_arguments.empty());
       wstring output =
           wstring(function_purity == PurityType::kPure ? L"function"
@@ -110,7 +109,7 @@ wstring VMType::ToString() const {
       output += L")>";
       return output;
     }
-    case OBJECT_TYPE:
+    case Type::kObject:
       return object_type;
   }
   return L"unknown";
@@ -118,7 +117,7 @@ wstring VMType::ToString() const {
 
 /* static */ VMType VMType::Function(vector<VMType> arguments,
                                      PurityType function_purity) {
-  VMType output(VMType::FUNCTION);
+  VMType output(VMType::Type::kFunction);
   output.type_arguments = arguments;
   output.function_purity = function_purity;
   return output;

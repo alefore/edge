@@ -21,22 +21,20 @@ using std::wstring;
 class ObjectType;
 
 struct VMType {
-  // TODO(easy, 2022-05-13): Turn into an enum class.
-  enum Type {
-    VM_VOID,
-    VM_BOOLEAN,
-    VM_INTEGER,
-    VM_STRING,
-    VM_SYMBOL,
-    VM_DOUBLE,
-    ENVIRONMENT,
-    FUNCTION,
-    OBJECT_TYPE,
+  enum class Type {
+    kVoid,
+    kBool,
+    kInt,
+    kString,
+    kSymbol,
+    kDouble,
+    kFunction,
+    kObject
   };
 
   enum class PurityType { kPure, kUnknown };
 
-  VMType() : type(VM_VOID) {}
+  VMType() = default;
   explicit VMType(const Type& t) : type(t) {}
 
   static const VMType& Void();
@@ -53,7 +51,7 @@ struct VMType {
 
   wstring ToString() const;
 
-  Type type;
+  Type type = Type::kVoid;
   // When type is FUNCTION, this contains the types. The first element is the
   // return type of the callback. Subsequent elements are the types of the
   // elements expected by the callback.

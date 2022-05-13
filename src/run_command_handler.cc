@@ -508,8 +508,7 @@ class ForkEditorCommand : public Command {
 namespace vm {
 /* static */ editor::ForkCommandOptions*
 VMTypeMapper<editor::ForkCommandOptions*>::get(Value& value) {
-  CHECK(value.type.type == VMType::OBJECT_TYPE);
-  CHECK(value.type.object_type == L"ForkCommandOptions");
+  CHECK_EQ(value.type, vmtype);
   CHECK(value.user_value != nullptr);
   return static_cast<editor::ForkCommandOptions*>(value.user_value.get());
 }

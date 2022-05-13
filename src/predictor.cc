@@ -117,7 +117,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   if (auto value = predictions_buffer.environment().ptr()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
-          kLongestPrefixEnvironmentVariable, VMType(VMType::VM_INTEGER));
+          kLongestPrefixEnvironmentVariable, VMType::Integer());
       value.has_value()) {
     LOG(INFO) << "Setting " << kLongestPrefixEnvironmentVariable << ": "
               << value.value().ptr()->get_int();
@@ -127,8 +127,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   if (auto value = predictions_buffer.environment().ptr()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
-          kLongestDirectoryMatchEnvironmentVariable,
-          VMType(VMType::VM_INTEGER));
+          kLongestDirectoryMatchEnvironmentVariable, VMType::Integer());
       value.has_value()) {
     predict_results.longest_directory_match =
         ColumnNumberDelta(value.value().ptr()->get_int());
@@ -136,7 +135,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   if (auto value = predictions_buffer.environment().ptr()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
-          kExactMatchEnvironmentVariable, VMType(VMType::VM_BOOLEAN));
+          kExactMatchEnvironmentVariable, VMType::Bool());
       value.has_value()) {
     predict_results.found_exact_match = value.value().ptr()->get_bool();
   }
@@ -250,7 +249,7 @@ void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
   std::optional<gc::Root<Value>> value = buffer.environment().ptr()->Lookup(
       pool, Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
-      VMType(VMType::VM_INTEGER));
+      VMType::Integer());
   if (!value.has_value()) return;
   buffer.environment().ptr()->Assign(
       kLongestDirectoryMatchEnvironmentVariable,
@@ -262,7 +261,7 @@ void RegisterPredictorExactMatch(OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
   std::optional<gc::Root<Value>> value = buffer.environment().ptr()->Lookup(
       pool, Environment::Namespace(), kExactMatchEnvironmentVariable,
-      VMType(VMType::VM_BOOLEAN));
+      VMType::Bool());
   if (!value.has_value()) return;
   buffer.environment().ptr()->Assign(kExactMatchEnvironmentVariable,
                                      vm::Value::NewBool(pool, true));
@@ -649,7 +648,7 @@ void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
   std::optional<gc::Root<Value>> value = buffer.environment().ptr()->Lookup(
       pool, Environment::Namespace(), kLongestPrefixEnvironmentVariable,
-      VMType(VMType::VM_INTEGER));
+      VMType::Integer());
   if (!value.has_value()) return;
   buffer.environment().ptr()->Assign(
       kLongestPrefixEnvironmentVariable,

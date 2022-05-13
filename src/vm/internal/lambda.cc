@@ -60,7 +60,7 @@ class LambdaExpression : public Expression {
         argument_names_(std::move(argument_names)),
         body_(std::move(body)),
         promotion_function_(std::move(promotion_function)) {
-    CHECK_EQ(type_.type, VMType::FUNCTION);
+    CHECK(type_.type == VMType::Type::kFunction);
     CHECK(type_.function_purity == body_->purity());
   }
 
@@ -135,7 +135,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
 
   auto output = std::make_unique<UserFunction>();
-  output->type.type = VMType::FUNCTION;
+  output->type.type = VMType::Type::kFunction;
   output->type.type_arguments.push_back(*return_type_def);
   for (pair<VMType, wstring> arg : *args) {
     output->type.type_arguments.push_back(arg.first);
