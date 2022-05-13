@@ -126,6 +126,9 @@ src/line_output.h \
 src/line_with_cursor.cc \
 src/line_with_cursor.h \
 src/line_column.cc \
+src/line_column.h \
+src/line_column_vm.cc \
+src/line_column_vm.h \
 src/line_marks.cc \
 src/line_marks.h \
 src/line_marks_test.cc \

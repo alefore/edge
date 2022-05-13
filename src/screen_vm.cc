@@ -6,6 +6,7 @@
 
 #include "src/char_buffer.h"
 #include "src/language/wstring.h"
+#include "src/line_column_vm.h"
 #include "src/screen.h"
 #include "src/server.h"
 #include "src/vm/public/callbacks.h"

@@ -3,6 +3,7 @@
 #include "src/buffer.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/line_column_vm.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"

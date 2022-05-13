@@ -223,8 +223,7 @@ class numeric_limits<afc::editor::ColumnNumber> {
   };
 };
 }  // namespace std
-namespace afc {
-namespace editor {
+namespace afc::editor {
 // A position in a text buffer.
 struct LineColumn {
   static void Register(language::gc::Pool& pool, vm::Environment* environment);
@@ -343,32 +342,7 @@ std::ostream& operator<<(std::ostream& os, const Range& range);
 
 bool operator<(const Range& a, const Range& b);
 
-}  // namespace editor
-namespace vm {
-template <>
-struct VMTypeMapper<editor::LineColumn> {
-  static editor::LineColumn get(Value& value);
-  static language::gc::Root<Value> New(language::gc::Pool& pool,
-                                       editor::LineColumn value);
-  static const VMType vmtype;
-};
-template <>
-struct VMTypeMapper<editor::LineColumnDelta> {
-  static editor::LineColumnDelta get(Value& value);
-  static language::gc::Root<Value> New(language::gc::Pool& pool,
-                                       editor::LineColumnDelta value);
-  static const VMType vmtype;
-};
-template <>
-struct VMTypeMapper<editor::Range> {
-  static editor::Range get(Value& value);
-  static language::gc::Root<Value> New(language::gc::Pool& pool,
-                                       editor::Range value);
-  static const VMType vmtype;
-};
-}  // namespace vm
-}  // namespace afc
-
+}  // namespace afc::editor
 namespace std {
 template <>
 struct hash<afc::editor::ColumnNumberDelta> {

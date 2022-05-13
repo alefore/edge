@@ -5,6 +5,7 @@
 #include <set>
 
 #include "src/line_column.h"
+#include "src/line_column_vm.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/set.h"
 #include "src/vm/public/types.h"

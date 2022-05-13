@@ -35,6 +35,7 @@ extern "C" {
 #include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_functional.h"
+#include "src/line_column_vm.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
 #include "src/run_command_handler.h"
