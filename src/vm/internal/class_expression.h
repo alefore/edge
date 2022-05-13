@@ -8,9 +8,9 @@
 
 namespace afc::vm {
 class Compilation;
-void StartClassDeclaration(Compilation* compilation, const std::wstring& name);
+void StartClassDeclaration(Compilation& compilation, const std::wstring& name);
 void FinishClassDeclaration(
-    Compilation* compilation,
+    Compilation& compilation,
     language::NonNull<std::unique_ptr<Expression>> body);
 }  // namespace afc::vm
 

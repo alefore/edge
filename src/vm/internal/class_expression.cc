@@ -1,4 +1,4 @@
-#include "class_expression.h"
+#include "src/vm/internal/class_expression.h"
 
 #include <glog/logging.h>
 
@@ -23,10 +23,10 @@ struct Instance {
   language::gc::Root<Environment> environment;
 };
 
-void StartClassDeclaration(Compilation* compilation, const std::wstring& name) {
-  compilation->current_class.push_back(VMType::ObjectType(name));
-  compilation->environment = compilation->pool.NewRoot<Environment>(
-      MakeNonNullUnique<Environment>(compilation->environment.ptr()));
+void StartClassDeclaration(Compilation& compilation, const std::wstring& name) {
+  compilation.current_class.push_back(VMType::ObjectType(name));
+  compilation.environment = compilation.pool.NewRoot<Environment>(
+      MakeNonNullUnique<Environment>(compilation.environment.ptr()));
 }
 
 namespace {
@@ -76,29 +76,27 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
 }
 }  // namespace
 
-// TODO(easy, 2022-05-11): Receive compilation by ref.
 void FinishClassDeclaration(
-    Compilation* compilation,
+    Compilation& compilation,
     NonNull<std::unique_ptr<Expression>> constructor_expression_input) {
-  CHECK(compilation != nullptr);
   ValueOrError<NonNull<std::unique_ptr<Expression>>> constructor_expression =
       NewAppendExpression(std::move(constructor_expression_input),
-                          NewVoidExpression(compilation->pool));
+                          NewVoidExpression(compilation.pool));
   if (constructor_expression.IsError()) {
-    compilation->errors.push_back(constructor_expression.error().description);
+    compilation.errors.push_back(constructor_expression.error().description);
     return;
   }
-  auto class_type = std::move(compilation->current_class.back());
-  compilation->current_class.pop_back();
+  auto class_type = std::move(compilation.current_class.back());
+  compilation.current_class.pop_back();
   auto class_object_type = MakeNonNullUnique<ObjectType>(class_type);
 
-  gc::Root<Environment> class_environment = compilation->environment;
+  gc::Root<Environment> class_environment = compilation.environment;
   // This is safe because StartClassDeclaration creates a sub-environment.
   CHECK(class_environment.ptr()->parent_environment().has_value());
-  compilation->environment =
+  compilation.environment =
       class_environment.ptr()->parent_environment()->ToRoot();
 
-  gc::Pool& pool = compilation->pool;
+  gc::Pool& pool = compilation.pool;
 
   std::map<std::wstring, Value> values;
   class_environment.ptr()->ForEachNonRecursive(
@@ -109,8 +107,8 @@ void FinishClassDeclaration(
         class_object_type->AddField(
             L"set_" + name, BuildSetter(pool, class_type, value->type, name));
       });
-  compilation->environment.ptr()->DefineType(class_type.object_type,
-                                             std::move(class_object_type));
+  compilation.environment.ptr()->DefineType(class_type.object_type,
+                                            std::move(class_object_type));
   auto purity = constructor_expression.value()->purity();
   gc::Root<Value> constructor = Value::NewFunction(
       pool, {class_type},
@@ -146,8 +144,8 @@ void FinishClassDeclaration(
       });
   constructor.ptr()->type.function_purity = purity;
 
-  compilation->environment.ptr()->Define(class_type.object_type,
-                                         std::move(constructor));
+  compilation.environment.ptr()->Define(class_type.object_type,
+                                        std::move(constructor));
 }
 
 }  // namespace afc::vm

@@ -89,7 +89,7 @@ statement(OUT) ::= class_declaration
   if (A == nullptr) {
     OUT = nullptr;
   } else {
-    FinishClassDeclaration(compilation,
+    FinishClassDeclaration(*compilation,
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(A)));
     A = nullptr;
@@ -98,7 +98,7 @@ statement(OUT) ::= class_declaration
 }
 
 class_declaration ::= CLASS SYMBOL(NAME) . {
-  StartClassDeclaration(compilation, NAME->value().ptr()->str);
+  StartClassDeclaration(*compilation, NAME->value().ptr()->str);
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
