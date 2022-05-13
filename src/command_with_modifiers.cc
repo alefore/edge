@@ -220,7 +220,7 @@ NonNull<std::unique_ptr<Command>> NewCommandWithModifiers(
              [](const Modifiers& modifiers) {
                return modifiers.cursors_affected;
              },
-             &options);
+             options);
          return std::make_unique<CommandArgumentMode<Modifiers>>(
              std::move(options));
        }});

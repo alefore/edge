@@ -120,13 +120,11 @@ void SetOptionsForBufferTransformation(
     std::function<transformation::Variant(Argument)> transformation_factory,
     std::function<std::optional<Modifiers::CursorsAffected>(const Argument&)>
         cursors_affected_factory,
-    typename CommandArgumentMode<Argument>::Options* options) {
+    typename CommandArgumentMode<Argument>::Options& options) {
   using language::NonNull;
-  // TODO(easy, 2022-05-01): Use NonNull.
-  CHECK(options != nullptr);
   auto buffers =
       std::make_shared<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>(
-          options->editor_state.active_buffers());
+          options.editor_state.active_buffers());
   auto for_each_buffer =
       [buffers](
           const std::function<futures::Value<futures::IterationControlCommand>(
@@ -137,7 +135,7 @@ void SetOptionsForBufferTransformation(
             });
       };
 
-  options->undo = [for_each_buffer] {
+  options.undo = [for_each_buffer] {
     return for_each_buffer(
         [](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
           return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
@@ -146,9 +144,9 @@ void SetOptionsForBufferTransformation(
               });
         });
   };
-  options->apply = [transformation_factory, cursors_affected_factory,
-                    for_each_buffer](CommandArgumentModeApplyMode mode,
-                                     Argument argument) {
+  options.apply = [transformation_factory, cursors_affected_factory,
+                   for_each_buffer](CommandArgumentModeApplyMode mode,
+                                    Argument argument) {
     return for_each_buffer(
         [transformation_factory, cursors_affected_factory, mode,
          argument = std::move(argument)](
@@ -169,7 +167,6 @@ void SetOptionsForBufferTransformation(
         });
   };
 }
-
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_COMMAND_ARGUMENT_MODE_H__

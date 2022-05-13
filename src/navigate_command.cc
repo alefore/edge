@@ -316,7 +316,7 @@ NonNull<std::unique_ptr<Command>> NewNavigateCommand(
              [](const NavigateState&) {
                return std::optional<Modifiers::CursorsAffected>();
              },
-             &options);
+             options);
          return std::make_unique<CommandArgumentMode<NavigateState>>(
              std::move(options));
        }});
