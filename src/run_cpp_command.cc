@@ -12,6 +12,7 @@
 #include "src/lazy_string_append.h"
 #include "src/line_prompt_mode.h"
 #include "src/substring.h"
+#include "src/tests/tests.h"
 #include "src/tokenize.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
@@ -127,7 +128,7 @@ ValueOrError<ParsedCommand> Parse(
     }
   }
 
-  if (!function_vector.has_value()) {
+  if (function_vector.has_value()) {
     output.function = function_vector.value();
     auto argument_values = std::make_unique<std::vector<std::wstring>>();
     for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
@@ -171,6 +172,50 @@ ValueOrError<ParsedCommand> Parse(gc::Pool& pool,
                                   const SearchNamespaces& search_namespaces) {
   return Parse(pool, std::move(command), environment, EmptyString(),
                {VMType::Void(), VMType::String()}, search_namespaces);
+}
+
+namespace {
+bool tests_parse_registration = tests::Register(
+    L"RunCppCommand::Parse",
+    {{.name = L"EmptyCommand",
+      .callback =
+          [] {
+            NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
+            gc::Pool pool;
+            vm::Environment environment;
+            auto output = Parse(pool, EmptyString(), environment, EmptyString(),
+                                std::unordered_set<VMType>({VMType::String()}),
+                                SearchNamespaces(buffer.value()));
+            CHECK(output.IsError());
+            CHECK(output.error().description.empty());
+          }},
+     {.name = L"NonEmptyCommandNoMatch",
+      .callback =
+          [] {
+            NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
+            gc::Pool pool;
+            vm::Environment environment;
+            auto output =
+                Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
+                      std::unordered_set<VMType>({VMType::String()}),
+                      SearchNamespaces(buffer.value()));
+            CHECK(output.IsError());
+            LOG(INFO) << "Error: " << output.error();
+            CHECK_GT(output.error().description.size(), sizeof("Unknown "));
+            CHECK(output.error().description.substr(
+                      0, sizeof("Unknown ") - 1) == L"Unknown ");
+          }},
+     {.name = L"CommandMatch", .callback = [] {
+        NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
+        gc::Pool pool;
+        vm::Environment environment;
+        environment.Define(L"foo", Value::NewString(pool, L"bar"));
+        auto output =
+            Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
+                  std::unordered_set<VMType>({VMType::String()}),
+                  SearchNamespaces(buffer.value()));
+        CHECK(output.IsError());
+      }}});
 }
 
 futures::ValueOrError<gc::Root<Value>> Execute(
