@@ -105,9 +105,8 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
   transformation::RegisterInsert(pool, environment);
   transformation::RegisterDelete(pool, environment);
   transformation::RegisterSetPosition(pool, environment);
-  // TODO(easy, 2022-05-13): Pass env by ref below.
-  RegisterNoopTransformation(pool, &environment);
-  RegisterCompositeTransformation(pool, &environment);
+  RegisterNoopTransformation(pool, environment);
+  RegisterCompositeTransformation(pool, environment);
 }
 }  // namespace editor
 }  // namespace afc

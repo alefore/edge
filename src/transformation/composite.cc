@@ -147,7 +147,7 @@ void CompositeTransformation::Output::Push(
 }
 
 void RegisterCompositeTransformation(language::gc::Pool& pool,
-                                     vm::Environment* environment) {
+                                     vm::Environment& environment) {
   auto input_type = MakeNonNullUnique<ObjectType>(L"TransformationInput");
 
   input_type->AddField(
@@ -169,10 +169,10 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
           pool, [](std::shared_ptr<CompositeTransformation::Input> input) {
             return input->mode == transformation::Input::Mode::kFinal;
           }));
-  environment->DefineType(L"TransformationInput", std::move(input_type));
+  environment.DefineType(L"TransformationInput", std::move(input_type));
 
   auto output_type = MakeNonNullUnique<ObjectType>(L"TransformationOutput");
-  environment->Define(
+  environment.Define(
       L"TransformationOutput", vm::NewCallback(pool, [] {
         return std::make_shared<CompositeTransformation::Output>();
       }));
@@ -188,7 +188,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
             return output;
           }));
 
-  environment->DefineType(L"TransformationOutput", std::move(output_type));
+  environment.DefineType(L"TransformationOutput", std::move(output_type));
 }
 }  // namespace editor
 }  // namespace afc

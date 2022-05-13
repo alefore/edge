@@ -13,8 +13,8 @@ namespace gc = language::gc;
 
 class Noop : public CompositeTransformation {
  public:
-  static void Register(language::gc::Pool& pool, vm::Environment* environment) {
-    environment->Define(
+  static void Register(language::gc::Pool& pool, vm::Environment& environment) {
+    environment.Define(
         L"NoopTransformation",
         vm::Value::NewFunction(
             pool, {vm::VMType::Void()},
@@ -38,7 +38,7 @@ NonNull<std::unique_ptr<CompositeTransformation>> NewNoopTransformation() {
   return NonNull<std::unique_ptr<Noop>>();
 }
 
-void RegisterNoopTransformation(gc::Pool& pool, vm::Environment* environment) {
+void RegisterNoopTransformation(gc::Pool& pool, vm::Environment& environment) {
   Noop::Register(pool, environment);
 }
 }  // namespace afc::editor

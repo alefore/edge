@@ -54,7 +54,7 @@ class CompositeTransformation {
 };
 
 void RegisterCompositeTransformation(language::gc::Pool& pool,
-                                     vm::Environment* environment);
+                                     vm::Environment& environment);
 namespace transformation {
 struct ModifiersAndComposite {
   Modifiers modifiers = Modifiers();
