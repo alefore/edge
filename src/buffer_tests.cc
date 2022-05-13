@@ -113,28 +113,39 @@ const bool buffer_tests_registration = tests::Register(
           }},
      {.name = L"NoLeaks", .callback = [] {
         auto buffer = NewBufferForTests();
-
+        // We call Reclaim more than once because the first call enables
+        // additional symbols to be removed by the 2nd call (because the first
+        // call only removes some roots after it has traversed them).
+        buffer->editor().gc_pool().Reclaim();
         auto stats_0 = buffer->editor().gc_pool().Reclaim();
         LOG(INFO) << "Start: " << stats_0;
 
-        gc::Root<Value> result =
-            buffer
-                ->EvaluateString(
-                    L"if (true) { "
-                    L"auto foo = [](int x) -> int { return 5 * x; };"
-                    L" }")
-                .Get()
-                .value()
-                .value();
-        CHECK(result.ptr()->IsVoid());
+        CHECK(!buffer->editor().work_queue()->NextExecution().has_value());
 
+        buffer
+            ->EvaluateString(
+                L"{"
+                L"auto foo = [](int x) -> int { return x * 5; };"
+                L"foo(3) * 2;"
+                L"\"text\" * 2;"
+                L"foo((\"xyz\").size() + 1) - 5;"
+                L"}")
+            .Get()
+            .value()
+            .value()
+            .ptr();
+
+        CHECK(!buffer->editor().work_queue()->NextExecution().has_value());
+
+        buffer->editor().gc_pool().Reclaim();
+        buffer->editor().gc_pool().Reclaim();
+        buffer->editor().gc_pool().Reclaim();
         auto stats_1 = buffer->editor().gc_pool().Reclaim();
         LOG(INFO) << "Start: " << stats_1;
-        // TODO(2022-05-13, bug): Enable the following checks. Requires fixing
-        // `if` expression to create a sub-environment.
-        //
-        // CHECK_EQ(stats_0.roots, stats_1.roots);
-        // CHECK_EQ(stats_0.end_total, stats_1.end_total);
+
+        // The real assertions of this test are these:
+        CHECK_EQ(stats_0.roots, stats_1.roots);
+        CHECK_EQ(stats_0.end_total, stats_1.end_total);
       }}});
 
 const bool buffer_work_queue_tests_registration = tests::Register(

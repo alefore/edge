@@ -83,7 +83,8 @@ statement(OUT) ::= namespace_declaration
 namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
   CHECK(NAME != nullptr);
   CHECK(NAME->has_value());
-  StartNamespaceDeclaration(*compilation, NAME->value().ptr()->str);
+  StartNamespaceDeclaration(*compilation, std::move(NAME->value().ptr()->str));
+  delete NAME;
 }
 
 statement(OUT) ::= class_declaration
@@ -101,7 +102,8 @@ statement(OUT) ::= class_declaration
 
 class_declaration ::= CLASS SYMBOL(NAME) . {
   CHECK(NAME->value().ptr()->IsString());
-  StartClassDeclaration(*compilation, NAME->value().ptr()->str);
+  StartClassDeclaration(*compilation, std::move(NAME->value().ptr()->str));
+  delete NAME;
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
@@ -417,7 +419,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
                 [](int a, int b) { return Success(a + b); },
                 [](double a, double b) { return Success(a + b); },
                 nullptr)).release();
-  NAME = nullptr;
+  delete NAME;
   VALUE = nullptr;
 }
 
@@ -431,7 +433,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
                 [](int a, int b) { return Success(a - b); },
                 [](double a, double b) { return Success(a - b); },
                 nullptr)).release();
-  NAME = nullptr;
+  delete NAME;
   VALUE = nullptr;
 }
 
@@ -459,7 +461,7 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
                   }
                   return Success(output);
                 })).release();
-  NAME = nullptr;
+  delete NAME;
   VALUE = nullptr;
 }
 
@@ -477,7 +479,7 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
                   return b == 0 ? Error(L"Division by zero") : Success(a / b);
                 },
                 nullptr)).release();
-  NAME = nullptr;
+  delete NAME;
   VALUE = nullptr;
 }
 
@@ -505,7 +507,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
         L"++: Type not supported: " + TypesToString(var->Types()));
     OUT = nullptr;
   }
-  NAME = nullptr;
+  delete NAME;
 }
 
 expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
@@ -532,7 +534,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
         L"--: Type not supported: " + TypesToString(var->Types()));
     OUT = nullptr;
   }
-  NAME = nullptr;
+  delete NAME;
 }
 
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
@@ -916,13 +918,15 @@ expr(OUT) ::= string(S). {
 string(OUT) ::= STRING(S). {
   CHECK(S->value().ptr()->IsString());
   OUT = std::make_unique<gc::Root<Value>>(std::move(S->value())).release();
+  delete S;
 }
 
 string(OUT) ::= string(A) STRING(B). {
   assert(A->ptr()->type == VMType::String());
   assert(B->value().ptr()->type == VMType::String());
   OUT = std::make_unique<gc::Root<Value>>(Value::NewString(compilation->pool,
-      A->ptr()->str + std::move(B->value().ptr()->str))).release();
+      std::move(A->ptr()->str) + std::move(B->value().ptr()->str))).release();
+  delete A;
   delete B;
 }
 
@@ -936,14 +940,16 @@ expr(OUT) ::= non_empty_symbols_list(N) . {
 non_empty_symbols_list(OUT) ::= SYMBOL(S). {
   CHECK_EQ(S->value().ptr()->type, VMType::Symbol());
   OUT = new std::list<std::wstring>({std::move(S->value().ptr()->str)});
+  delete S;
 }
 
 non_empty_symbols_list(OUT) ::=
     SYMBOL(S) DOUBLECOLON non_empty_symbols_list(L). {
   CHECK_NE(L, nullptr);
   CHECK_EQ(S->value().ptr()->type, VMType::Symbol());
-  L->push_front(S->value().ptr()->str);
+  L->push_front(std::move(S->value().ptr()->str));
   OUT = std::move(L);
+  delete S;
 }
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
