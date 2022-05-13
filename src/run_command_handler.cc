@@ -530,14 +530,14 @@ const VMType VMTypeMapper<editor::ForkCommandOptions*>::vmtype =
 namespace editor {
 /* static */
 void ForkCommandOptions::Register(gc::Pool& pool,
-                                  vm::Environment* environment) {
+                                  vm::Environment& environment) {
   using vm::ObjectType;
   using vm::Value;
   using vm::VMType;
   auto fork_command_options =
       MakeNonNullUnique<ObjectType>(L"ForkCommandOptions");
 
-  environment->Define(
+  environment.Define(
       L"ForkCommandOptions",
       NewCallback(pool, std::function<ForkCommandOptions*()>(
                             []() { return new ForkCommandOptions(); })));
@@ -587,8 +587,8 @@ void ForkCommandOptions::Register(gc::Pool& pool,
                     Path::FromString(std::move(children_path)).AsOptional();
               })));
 
-  environment->DefineType(L"ForkCommandOptions",
-                          std::move(fork_command_options));
+  environment.DefineType(L"ForkCommandOptions",
+                         std::move(fork_command_options));
 }
 
 NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(

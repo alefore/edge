@@ -437,7 +437,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   InitShapes(pool, value);
   RegisterTransformations(&editor, &value);
   Modifiers::Register(pool, &value);
-  ForkCommandOptions::Register(pool, &value);
+  ForkCommandOptions::Register(pool, value);
   LineColumnRegister(pool, value);
   RangeRegister(pool, value);
   return environment;

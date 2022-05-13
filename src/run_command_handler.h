@@ -25,7 +25,7 @@ using std::wstring;
 class EditorState;
 
 struct ForkCommandOptions {
-  static void Register(language::gc::Pool& pool, vm::Environment* environment);
+  static void Register(language::gc::Pool& pool, vm::Environment& environment);
 
   // The command to run.
   wstring command;
