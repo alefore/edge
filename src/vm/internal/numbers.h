@@ -7,7 +7,7 @@ class Pool;
 namespace afc::vm {
 class Environment;
 void RegisterNumberFunctions(language::gc::Pool& pool,
-                             Environment* environment);
+                             Environment& environment);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_INTERNAL_NUMBERS_H__
