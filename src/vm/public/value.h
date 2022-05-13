@@ -34,8 +34,6 @@ class Value {
   };
 
  public:
-  using Ptr = std::unique_ptr<Value>;
-
   explicit Value(ConstructorAccessTag, const VMType& t) : type(t) {}
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
