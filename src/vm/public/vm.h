@@ -93,7 +93,7 @@ class Expression {
   bool SupportsType(const VMType& type);
 
   bool IsBool() { return SupportsType(VMType::Bool()); }
-  bool IsInteger() { return SupportsType(VMType::Integer()); };
+  bool IsInt() { return SupportsType(VMType::Int()); };
   bool IsDouble() { return SupportsType(VMType::Double()); };
   bool IsString() { return SupportsType(VMType::String()); };
 

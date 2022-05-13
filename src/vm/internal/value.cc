@@ -105,8 +105,8 @@ bool cpp_unescape_string_tests_registration =
   return output;
 }
 
-/* static */ gc::Root<Value> Value::NewInteger(gc::Pool& pool, int value) {
-  gc::Root<Value> output = New(pool, VMType::Integer());
+/* static */ gc::Root<Value> Value::NewInt(gc::Pool& pool, int value) {
+  gc::Root<Value> output = New(pool, VMType::Int());
   output.ptr()->value_ = value;
   return output;
 }
@@ -160,7 +160,7 @@ bool cpp_unescape_string_tests_registration =
 }
 
 bool Value::IsVoid() const { return type == VMType::Void(); };
-bool Value::IsInteger() const { return type == VMType::Integer(); };
+bool Value::IsInt() const { return type == VMType::Int(); };
 bool Value::IsString() const { return type == VMType::String(); };
 bool Value::IsSymbol() const { return type == VMType::Symbol(); };
 bool Value::IsFunction() const { return type.type == VMType::Type::kFunction; };
@@ -172,7 +172,7 @@ bool Value::get_bool() const {
 }
 
 int Value::get_int() const {
-  CHECK_EQ(type, VMType::Integer());
+  CHECK_EQ(type, VMType::Int());
   return std::get<int>(value_);
 }
 

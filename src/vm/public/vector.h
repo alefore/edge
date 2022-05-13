@@ -65,7 +65,7 @@ struct VMTypeMapper<std::vector<T>*> {
     vector_type->AddField(
         L"get",
         Value::NewFunction(
-            pool, {VMTypeMapper<T>::vmtype, vmtype, VMType::Integer()},
+            pool, {VMTypeMapper<T>::vmtype, vmtype, VMType::Int()},
             [](std::vector<language::gc::Root<Value>> args,
                Trampoline& trampoline)
                 -> futures::ValueOrError<EvaluationOutput> {

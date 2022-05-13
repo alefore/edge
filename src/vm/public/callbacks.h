@@ -41,7 +41,7 @@ template <>
 struct VMTypeMapper<int> {
   static int get(Value& value) { return value.get_int(); }
   static language::gc::Root<Value> New(language::gc::Pool& pool, int value) {
-    return Value::NewInteger(pool, value);
+    return Value::NewInt(pool, value);
   }
   static const VMType vmtype;
 };

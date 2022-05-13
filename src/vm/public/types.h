@@ -39,7 +39,7 @@ struct VMType {
 
   static const VMType& Void();
   static const VMType& Bool();
-  static const VMType& Integer();
+  static const VMType& Int();
   static const VMType& String();
   static const VMType& Symbol();
   static const VMType& Double();

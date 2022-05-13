@@ -77,9 +77,9 @@ std::unique_ptr<Expression> NewNegateExpressionInt(
   return NewNegateExpression(
       compilation, std::move(expr),
       [](gc::Pool& pool, Value& value) {
-        return Value::NewInteger(pool, -value.get_int());
+        return Value::NewInt(pool, -value.get_int());
       },
-      VMType::Integer());
+      VMType::Int());
 }
 
 std::unique_ptr<Expression> NewNegateExpressionDouble(

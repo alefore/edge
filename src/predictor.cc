@@ -117,7 +117,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   if (auto value = predictions_buffer.environment().ptr()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
-          kLongestPrefixEnvironmentVariable, VMType::Integer());
+          kLongestPrefixEnvironmentVariable, VMType::Int());
       value.has_value()) {
     LOG(INFO) << "Setting " << kLongestPrefixEnvironmentVariable << ": "
               << value.value().ptr()->get_int();
@@ -127,7 +127,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   if (auto value = predictions_buffer.environment().ptr()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
-          kLongestDirectoryMatchEnvironmentVariable, VMType::Integer());
+          kLongestDirectoryMatchEnvironmentVariable, VMType::Int());
       value.has_value()) {
     predict_results.longest_directory_match =
         ColumnNumberDelta(value.value().ptr()->get_int());
@@ -204,10 +204,9 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
     gc::Pool& pool = shared_options->editor_state.gc_pool();
 
     buffer.environment().ptr()->Define(kLongestPrefixEnvironmentVariable,
-                                       vm::Value::NewInteger(pool, 0));
+                                       vm::Value::NewInt(pool, 0));
     buffer.environment().ptr()->Define(
-        kLongestDirectoryMatchEnvironmentVariable,
-        vm::Value::NewInteger(pool, 0));
+        kLongestDirectoryMatchEnvironmentVariable, vm::Value::NewInt(pool, 0));
     buffer.environment().ptr()->Define(kExactMatchEnvironmentVariable,
                                        vm::Value::NewBool(pool, false));
 
@@ -249,12 +248,12 @@ void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
   std::optional<gc::Root<Value>> value = buffer.environment().ptr()->Lookup(
       pool, Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
-      VMType::Integer());
+      VMType::Int());
   if (!value.has_value()) return;
   buffer.environment().ptr()->Assign(
       kLongestDirectoryMatchEnvironmentVariable,
-      vm::Value::NewInteger(pool, std::max(value->ptr()->get_int(),
-                                           static_cast<int>(new_value))));
+      vm::Value::NewInt(pool, std::max(value->ptr()->get_int(),
+                                       static_cast<int>(new_value))));
 }
 
 void RegisterPredictorExactMatch(OpenBuffer& buffer) {
@@ -648,12 +647,12 @@ void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
   std::optional<gc::Root<Value>> value = buffer.environment().ptr()->Lookup(
       pool, Environment::Namespace(), kLongestPrefixEnvironmentVariable,
-      VMType::Integer());
+      VMType::Int());
   if (!value.has_value()) return;
   buffer.environment().ptr()->Assign(
       kLongestPrefixEnvironmentVariable,
-      vm::Value::NewInteger(pool, std::max(value.value().ptr()->get_int(),
-                                           static_cast<int>(new_value))));
+      vm::Value::NewInt(pool, std::max(value.value().ptr()->get_int(),
+                                       static_cast<int>(new_value))));
 }
 
 }  // namespace afc::editor

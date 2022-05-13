@@ -87,25 +87,25 @@ std::unique_ptr<Expression> NewBinaryExpression(
         });
   }
 
-  if (int_operator != nullptr && a->IsInteger() && b->IsInteger()) {
+  if (int_operator != nullptr && a->IsInt() && b->IsInt()) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), VMType::Integer(),
+        std::move(a), std::move(b), VMType::Int(),
         [int_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
           ASSIGN_OR_RETURN(int value,
                            int_operator(value_a.get_int(), value_b.get_int()));
-          return Value::NewInteger(pool, value);
+          return Value::NewInt(pool, value);
         });
   }
 
-  if (double_operator != nullptr && (a->IsInteger() || a->IsDouble()) &&
-      (b->IsInteger() || b->IsDouble())) {
+  if (double_operator != nullptr && (a->IsInt() || a->IsDouble()) &&
+      (b->IsInt() || b->IsDouble())) {
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::Double(),
         [double_operator](gc::Pool& pool, const Value& a,
                           const Value& b) -> ValueOrError<gc::Root<Value>> {
           auto to_double = [](const Value& x) {
-            if (x.type == VMType::Integer()) {
+            if (x.type == VMType::Int()) {
               return static_cast<double>(x.get_int());
             } else if (x.type == VMType::Double()) {
               return x.get_double();
@@ -120,7 +120,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
         });
   }
 
-  if (str_int_operator != nullptr && a->IsString() && b->IsInteger()) {
+  if (str_int_operator != nullptr && a->IsString() && b->IsInt()) {
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::String(),
         [str_int_operator](

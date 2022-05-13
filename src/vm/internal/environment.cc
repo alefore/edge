@@ -46,7 +46,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                                VMType::PurityType::kPure));
   value.DefineType(L"bool", std::move(bool_type));
 
-  auto int_type = MakeNonNullUnique<ObjectType>(VMType::Integer());
+  auto int_type = MakeNonNullUnique<ObjectType>(VMType::Int());
   int_type->AddField(
       L"tostring",
       NewCallback(pool, std::function<std::wstring(int)>([](int value) {
@@ -100,7 +100,7 @@ const VMType* Environment::LookupType(const wstring& symbol) {
   } else if (symbol == L"bool") {
     return &VMType::Bool();
   } else if (symbol == L"int") {
-    return &VMType::Integer();
+    return &VMType::Int();
   } else if (symbol == L"string") {
     return &VMType::String();
   }

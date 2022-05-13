@@ -48,8 +48,7 @@ struct Value {
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
   static language::gc::Root<Value> NewBool(language::gc::Pool& pool,
                                            bool value);
-  static language::gc::Root<Value> NewInteger(language::gc::Pool& pool,
-                                              int value);
+  static language::gc::Root<Value> NewInt(language::gc::Pool& pool, int value);
   static language::gc::Root<Value> NewDouble(language::gc::Pool& pool,
                                              double value);
   static language::gc::Root<Value> NewString(language::gc::Pool& pool,
@@ -74,8 +73,7 @@ struct Value {
           callback);
 
   bool IsVoid() const;
-  // TODO(easy, 2022-05-13): Rename to IsInt.
-  bool IsInteger() const;
+  bool IsInt() const;
   bool IsString() const;
   bool IsSymbol() const;
   bool IsFunction() const;

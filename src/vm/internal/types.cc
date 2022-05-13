@@ -41,7 +41,7 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
   return type;
 }
 
-/* static */ const VMType& VMType::Integer() {
+/* static */ const VMType& VMType::Int() {
   static VMType type(VMType::Type::kInt);
   return type;
 }

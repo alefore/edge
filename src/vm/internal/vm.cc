@@ -364,7 +364,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           input = Value::NewDouble(compilation.pool, value);
         } else {
           token = INTEGER;
-          input = Value::NewInteger(compilation.pool, decimal);
+          input = Value::NewInt(compilation.pool, decimal);
         }
       } break;
 
