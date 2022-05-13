@@ -50,6 +50,11 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
   return type;
 }
 
+/* static */ const VMType& VMType::Symbol() {
+  static VMType type(VMType::VM_SYMBOL);
+  return type;
+}
+
 /* static */ const VMType& VMType::Double() {
   static VMType type(VMType::VM_DOUBLE);
   return type;

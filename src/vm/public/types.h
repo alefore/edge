@@ -42,6 +42,7 @@ struct VMType {
   static const VMType& Bool();
   static const VMType& Integer();
   static const VMType& String();
+  static const VMType& Symbol();
   static const VMType& Double();
 
   static VMType ObjectType(const wstring& name);
