@@ -314,15 +314,13 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
           [&pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0].ptr()->type, VMType::ObjectType(L"Buffer"));
-            CHECK(args[1].ptr()->IsString());
-            CHECK(args[2].ptr()->IsString());
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].ptr().value());
             CHECK(buffer != nullptr);
             buffer->default_commands()->Add(
-                args[1].ptr()->str, args[2].ptr()->str, std::move(args[3]),
-                buffer->environment());
+                args[1].ptr()->get_string(), args[2].ptr()->get_string(),
+                std::move(args[3]), buffer->environment());
             return Value::NewVoid(pool);
           }));
 

@@ -474,8 +474,7 @@ class ForkEditorCommand : public Command {
                              prompt_state.original_buffer->environment())
         .Transform([&prompt_state, &editor](gc::Root<Value> value)
                        -> ValueOrError<ColorizePromptOptions> {
-          CHECK(value.ptr()->IsString());
-          auto base_command = value.ptr()->str;
+          const std::wstring& base_command = value.ptr()->get_string();
           if (prompt_state.base_command == base_command) {
             return ColorizePromptOptions{};
           }

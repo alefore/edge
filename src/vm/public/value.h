@@ -84,9 +84,10 @@ struct Value {
   bool get_bool() const;
   int get_int() const;
   double get_double() const;
+  const std::wstring& get_string() const;
+  const std::wstring& get_symbol() const;
   // TODO(easy, 2022-05-13): Make these private; provide accessors that check
   // type.
-  std::wstring str;
   std::shared_ptr<void> user_value;
 
   Callback LockCallback();
@@ -96,7 +97,10 @@ struct Value {
   language::ValueOrError<double> ToDouble() const;
 
  private:
-  std::variant<bool, int, double> value_;
+  struct Symbol {
+    std::wstring symbol_value;
+  };
+  std::variant<bool, int, double, std::wstring, Symbol> value_;
 
   Callback callback;
   DependenciesCallback dependencies_callback;

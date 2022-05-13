@@ -259,11 +259,9 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           [&pool = pool](std::vector<gc::Root<Value>> args, Trampoline&)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
-            CHECK_EQ(args[0].ptr()->type, VMTypeMapper<EditorState>::vmtype);
-            CHECK(args[1].ptr()->IsString());
             EditorState& editor =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            auto target_path = Path::FromString(args[1].ptr()->str);
+            auto target_path = Path::FromString(args[1].ptr()->get_string());
             if (target_path.IsError()) {
               editor.status().SetWarningText(L"ConnectTo error: " +
                                              target_path.error().description);
@@ -371,14 +369,12 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
            VMType::String(), VMType::Bool()},
           [&pool = pool](std::vector<gc::Root<Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
-            CHECK_EQ(args[0].ptr()->type, VMTypeMapper<EditorState>::vmtype);
             EditorState& editor_state =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            CHECK(args[1].ptr()->IsString());
             return OpenOrCreateFile(
                        OpenFileOptions{
                            .editor_state = editor_state,
-                           .path = Path::FromString(args[1].ptr()->str)
+                           .path = Path::FromString(args[1].ptr()->get_string())
                                        .AsOptional(),
                            .insertion_type =
                                args[2].ptr()->get_bool()
@@ -399,13 +395,11 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
            VMType::String(), VMType::Function({VMType::Void()})},
           [&pool = pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), 4u);
-            CHECK(args[1].ptr()->IsString());
-            CHECK(args[2].ptr()->IsString());
             EditorState& editor =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             editor.default_commands()->Add(
-                args[1].ptr()->str, args[2].ptr()->str, std::move(args[3]),
-                editor.environment());
+                args[1].ptr()->get_string(), args[2].ptr()->get_string(),
+                std::move(args[3]), editor.environment());
             return Value::NewVoid(pool);
           }));
 

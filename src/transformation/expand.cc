@@ -248,7 +248,7 @@ class Execute : public CompositeTransformation {
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
                 .contents_to_insert = MakeNonNullShared<BufferContents>(
-                    MakeNonNullShared<Line>(value.ptr()->str))});
+                    MakeNonNullShared<Line>(value.ptr()->get_string()))});
           }
           return futures::Past(Success(std::move(output)));
         })

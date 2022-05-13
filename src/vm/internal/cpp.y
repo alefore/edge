@@ -83,7 +83,8 @@ statement(OUT) ::= namespace_declaration
 namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
   CHECK(NAME != nullptr);
   CHECK(NAME->has_value());
-  StartNamespaceDeclaration(*compilation, std::move(NAME->value().ptr()->str));
+  StartNamespaceDeclaration(*compilation,
+      std::move(NAME->value().ptr()->get_symbol()));
   delete NAME;
 }
 
@@ -102,7 +103,8 @@ statement(OUT) ::= class_declaration
 
 class_declaration ::= CLASS SYMBOL(NAME) . {
   CHECK(NAME->value().ptr()->IsString());
-  StartClassDeclaration(*compilation, std::move(NAME->value().ptr()->str));
+  StartClassDeclaration(
+      *compilation, std::move(NAME->value().ptr()->get_symbol()));
   delete NAME;
 }
 
@@ -247,7 +249,8 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
   auto result = NewDefineTypeExpression(
-      compilation, TYPE->value().ptr()->str, NAME->value().ptr()->str, {});
+      compilation, TYPE->value().ptr()->get_symbol(),
+      NAME->value().ptr()->get_symbol(), {});
   delete TYPE;
   delete NAME;
   A = result == std::nullopt
@@ -256,8 +259,8 @@ assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
 }
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
-  A = NewDefineExpression(compilation, TYPE->value().ptr()->str,
-                          NAME->value().ptr()->str,
+  A = NewDefineExpression(compilation, TYPE->value().ptr()->get_symbol(),
+                          NAME->value().ptr()->get_symbol(),
                           unique_ptr<Expression>(VALUE)).release();
   delete TYPE;
   delete NAME;
@@ -275,8 +278,9 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
     function_declaration_arguments(ARGS) RPAREN . {
   CHECK(RETURN_TYPE->value().ptr()->IsSymbol());
   CHECK(NAME->value().ptr()->IsSymbol());
-  OUT = UserFunction::New(*compilation, RETURN_TYPE->value().ptr()->str,
-                          NAME->value().ptr()->str, ARGS)
+  OUT = UserFunction::New(
+                *compilation, RETURN_TYPE->value().ptr()->get_symbol(),
+                NAME->value().ptr()->get_symbol(), ARGS)
             .release();
   delete RETURN_TYPE;
   delete NAME;
@@ -303,15 +307,16 @@ function_declaration_arguments(OUT) ::=
 %destructor non_empty_function_declaration_arguments { delete $$; }
 
 non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
-  const VMType* type_def =
-      compilation->environment.ptr()->LookupType(TYPE->value().ptr()->str);
+  const VMType* type_def = compilation->environment.ptr()->LookupType(
+      TYPE->value().ptr()->get_symbol());
   if (type_def == nullptr) {
     compilation->errors.push_back(
-        L"Unknown type: \"" + TYPE->value().ptr()->str + L"\"");
+        L"Unknown type: \"" + TYPE->value().ptr()->get_symbol() + L"\"");
     OUT = nullptr;
   } else {
-    OUT = new std::vector<std::pair<VMType, wstring>>;
-    OUT->push_back(std::make_pair(*type_def, NAME->value().ptr()->str));
+    OUT = new std::vector<std::pair<VMType, std::wstring>>();
+    OUT->push_back(
+        std::make_pair(*type_def, NAME->value().ptr()->get_symbol()));
   }
   delete TYPE;
   delete NAME;
@@ -325,14 +330,15 @@ non_empty_function_declaration_arguments(OUT) ::=
   } else {
     const VMType* type_def =
         compilation->environment.ptr()->LookupType(
-            TYPE->value().ptr()->str);
+            TYPE->value().ptr()->get_symbol());
     if (type_def == nullptr) {
       compilation->errors.push_back(
-          L"Unknown type: \"" + TYPE->value().ptr()->str + L"\"");
+          L"Unknown type: \"" + TYPE->value().ptr()->get_symbol() + L"\"");
       OUT = nullptr;
     } else {
       OUT = LIST;
-      OUT->push_back(std::make_pair(*type_def, NAME->value().ptr()->str));
+      OUT->push_back(
+          std::make_pair(*type_def, NAME->value().ptr()->get_symbol()));
       LIST = nullptr;
     }
   }
@@ -348,8 +354,9 @@ lambda_declaration_params(OUT) ::= LBRACE RBRACE
     LPAREN function_declaration_arguments(ARGS) RPAREN
     MINUS GREATER_THAN SYMBOL(RETURN_TYPE) . {
   CHECK(RETURN_TYPE->value().ptr()->IsSymbol());
-  OUT = UserFunction::New(*compilation, RETURN_TYPE->value().ptr()->str,
-                          std::nullopt, ARGS)
+  OUT = UserFunction::New(
+                *compilation, RETURN_TYPE->value().ptr()->get_symbol(),
+                std::nullopt, ARGS)
             .release();
   delete RETURN_TYPE;
 }
@@ -403,7 +410,7 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
 }
 
 expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
-  OUT = NewAssignExpression(compilation, NAME->value().ptr()->str,
+  OUT = NewAssignExpression(compilation, NAME->value().ptr()->get_symbol(),
                             unique_ptr<Expression>(VALUE)).release();
   VALUE = nullptr;
   delete NAME;
@@ -411,9 +418,11 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
 
 expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
-            compilation, NAME->value().ptr()->str, NewBinaryExpression(
+            compilation, NAME->value().ptr()->get_symbol(),
+            NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, {NAME->value().ptr()->str}),
+                NewVariableLookup(compilation,
+                                  {NAME->value().ptr()->get_symbol()}),
                 std::unique_ptr<Expression>(VALUE),
                 [](wstring a, wstring b) { return Success(a + b); },
                 [](int a, int b) { return Success(a + b); },
@@ -425,9 +434,11 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
 
 expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
-            compilation, NAME->value().ptr()->str, NewBinaryExpression(
+            compilation, NAME->value().ptr()->get_symbol(),
+            NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, {NAME->value().ptr()->str}),
+                NewVariableLookup(compilation,
+                                  {NAME->value().ptr()->get_symbol()}),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return Success(a - b); },
@@ -439,9 +450,11 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
 
 expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
   OUT = NewAssignExpression(
-            compilation, NAME->value().ptr()->str, NewBinaryExpression(
+            compilation, NAME->value().ptr()->get_symbol(),
+            NewBinaryExpression(
                 compilation,
-                NewVariableLookup(compilation, {NAME->value().ptr()->str}),
+                NewVariableLookup(compilation,
+                                  {NAME->value().ptr()->get_symbol()}),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return Success(a * b); },
@@ -467,37 +480,42 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
 
 expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
   OUT = NewAssignExpression(
-            compilation, NAME->value().ptr()->str, NewBinaryExpression(
-                compilation,
-                NewVariableLookup(compilation, {NAME->value().ptr()->str}),
-                std::unique_ptr<Expression>(VALUE),
-                nullptr,
-                [](int a, int b) {
-                  return b == 0 ? Error(L"Division by zero") : Success(a / b);
-                },
-                [](double a, double b) {
-                  return b == 0 ? Error(L"Division by zero") : Success(a / b);
-                },
-                nullptr)).release();
+            compilation, NAME->value().ptr()->get_symbol(),
+                NewBinaryExpression(
+                    compilation,
+                    NewVariableLookup(compilation,
+                                      {NAME->value().ptr()->get_symbol()}),
+                    std::unique_ptr<Expression>(VALUE),
+                    nullptr,
+                    [](int a, int b) {
+                      return b == 0
+                          ? Error(L"Division by zero")
+                          : Success(a / b);
+                    },
+                    [](double a, double b) {
+                      return b == 0 ? Error(L"Division by zero") : Success(a / b);
+                    },
+                    nullptr)).release();
   delete NAME;
   VALUE = nullptr;
 }
 
 expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
-  auto var = NewVariableLookup(compilation, {NAME->value().ptr()->str});
+  auto var =
+      NewVariableLookup(compilation, {NAME->value().ptr()->get_symbol()});
   if (var == nullptr) {
     OUT = nullptr;
-  } else if (var->IsInteger() || var->IsDouble()) {
-    auto type = var->IsInteger() ? VMType::Integer() : VMType::Double();
+  } else if (var->IsInt() || var->IsDouble()) {
+    auto type = var->IsInt() ? VMType::Int() : VMType::Double();
     OUT = NewAssignExpression(
-              compilation, NAME->value().ptr()->str,
+              compilation, NAME->value().ptr()->get_symbol(),
               std::make_unique<BinaryOperator>(
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
-                  type == VMType::Integer()
+                  type == VMType::Int()
                       ? [](gc::Pool& pool, const Value&, const Value& a) {
-                          return Value::NewInteger(pool, a.get_int() + 1);
+                          return Value::NewInt(pool, a.get_int() + 1);
                         }
                       : [](gc::Pool& pool, const Value&, const Value& a) {
                           return Value::NewDouble(pool, a.get_double() + 1.0);
@@ -511,20 +529,21 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
 }
 
 expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
-  auto var = NewVariableLookup(compilation, {NAME->value().ptr()->str});
+  auto var =
+      NewVariableLookup(compilation, {NAME->value().ptr()->get_symbol()});
   if (var == nullptr) {
     OUT = nullptr;
-  } else if (var->IsInteger() || var->IsDouble()) {
-    auto type = var->IsInteger() ? VMType::Integer() : VMType::Double();
+  } else if (var->IsInt() || var->IsDouble()) {
+    auto type = var->IsInt() ? VMType::Int() : VMType::Double();
     OUT = NewAssignExpression(
-              compilation, NAME->value().ptr()->str,
+              compilation, NAME->value().ptr()->get_symbol(),
               std::make_unique<BinaryOperator>(
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
-                  type == VMType::Integer()
+                  type == VMType::Int()
                       ? [](gc::Pool& pool, const Value&, const Value& a) {
-                          return Value::NewInteger(pool, a.get_int() - 1);
+                          return Value::NewInt(pool, a.get_int() - 1);
                         }
                       : [](gc::Pool& pool, const Value&, const Value& a) {
                           return Value::NewDouble(pool, a.get_double() - 1.0);
@@ -614,11 +633,11 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
             std::unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.str == b.str);
+          return Value::NewBool(pool, a.get_string() == b.get_string());
         });
     A = nullptr;
     B = nullptr;
-  } else if (A->IsInteger() && B->IsInteger()) {
+  } else if (A->IsInt() && B->IsInt()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(A)),
@@ -649,11 +668,11 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
             std::unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.str != b.str);
+          return Value::NewBool(pool, a.get_string() != b.get_string());
         });
     A = nullptr;
     B = nullptr;
-  } else if (A->IsInteger() && B->IsInteger()) {
+  } else if (A->IsInt() && B->IsInt()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(A)),
@@ -676,8 +695,8 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
 expr(OUT) ::= expr(A) LESS_THAN expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if ((A->IsInteger() || A->IsDouble())
-             && (B->IsInteger() || B->IsDouble())) {
+  } else if ((A->IsInt() || A->IsDouble())
+             && (B->IsInt() || B->IsDouble())) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(A)),
@@ -687,7 +706,7 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(
               pool,
-              a.IsInteger() && b.IsInteger()
+              a.IsInt() && b.IsInt()
                   ? a.get_int() < b.get_int()
                   : a.ToDouble().value() < b.ToDouble().value());
         });
@@ -704,8 +723,8 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
 expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if ((A->IsInteger() || A->IsDouble())
-             && (B->IsInteger() || B->IsDouble())) {
+  } else if ((A->IsInt() || A->IsDouble())
+             && (B->IsInt() || B->IsDouble())) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             unique_ptr<Expression>(A)),
@@ -715,7 +734,7 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(
               pool,
-              a.IsInteger() && b.IsInteger()
+              a.IsInt() && b.IsInt()
                   ? a.get_int() <= b.get_int()
                   : a.ToDouble().value() <= b.ToDouble().value());
         });
@@ -732,8 +751,8 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
 expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if ((A->IsInteger() || A->IsDouble())
-             && (B->IsInteger() || B->IsDouble())) {
+  } else if ((A->IsInt() || A->IsDouble())
+             && (B->IsInt() || B->IsDouble())) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             unique_ptr<Expression>(A)),
@@ -743,7 +762,7 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(
               pool,
-              a.IsInteger() && b.IsInteger()
+              a.IsInt() && b.IsInt()
                   ? a.get_int() > b.get_int()
                   : a.ToDouble().value() > b.ToDouble().value());
         });
@@ -760,8 +779,8 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
 expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if ((A->IsInteger() || A->IsDouble())
-             && (B->IsInteger() || B->IsDouble())) {
+  } else if ((A->IsInt() || A->IsDouble())
+             && (B->IsInt() || B->IsDouble())) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             unique_ptr<Expression>(A)),
@@ -771,7 +790,7 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(
               pool,
-              a.IsInteger() && b.IsInteger()
+              a.IsInt() && b.IsInt()
                   ? a.get_int() >= b.get_int()
                   : a.ToDouble().value() >= b.ToDouble().value());
         });
@@ -827,7 +846,7 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
 expr(OUT) ::= MINUS expr(A). {
   if (A == nullptr) {
     OUT = nullptr;
-  } else if (A->IsInteger()) {
+  } else if (A->IsInt()) {
     OUT = NewNegateExpressionInt(*compilation, unique_ptr<Expression>(A))
                   .release();
     A = nullptr;
@@ -894,7 +913,7 @@ expr(OUT) ::= BOOL(B). {
 }
 
 expr(OUT) ::= INTEGER(I). {
-  CHECK(I->value().ptr()->IsInteger());
+  CHECK(I->value().ptr()->IsInt());
   OUT = NewConstantExpression(std::move(I->value())).get_unique().release();
   delete I;
 }
@@ -925,7 +944,8 @@ string(OUT) ::= string(A) STRING(B). {
   assert(A->ptr()->type == VMType::String());
   assert(B->value().ptr()->type == VMType::String());
   OUT = std::make_unique<gc::Root<Value>>(Value::NewString(compilation->pool,
-      std::move(A->ptr()->str) + std::move(B->value().ptr()->str))).release();
+      std::move(A->ptr()->get_string())
+      + std::move(B->value().ptr()->get_string()))).release();
   delete A;
   delete B;
 }
@@ -939,7 +959,8 @@ expr(OUT) ::= non_empty_symbols_list(N) . {
 
 non_empty_symbols_list(OUT) ::= SYMBOL(S). {
   CHECK_EQ(S->value().ptr()->type, VMType::Symbol());
-  OUT = new std::list<std::wstring>({std::move(S->value().ptr()->str)});
+  OUT = new std::list<std::wstring>(
+      {std::move(S->value().ptr()->get_symbol())});
   delete S;
 }
 
@@ -947,7 +968,7 @@ non_empty_symbols_list(OUT) ::=
     SYMBOL(S) DOUBLECOLON non_empty_symbols_list(L). {
   CHECK_NE(L, nullptr);
   CHECK_EQ(S->value().ptr()->type, VMType::Symbol());
-  L->push_front(std::move(S->value().ptr()->str));
+  L->push_front(std::move(S->value().ptr()->get_symbol()));
   OUT = std::move(L);
   delete S;
 }
@@ -957,7 +978,7 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
     OUT = nullptr;
   } else {
     OUT = NewMethodLookup(compilation, std::unique_ptr<Expression>(OBJ),
-                          FIELD->value().ptr()->str).release();
+                          FIELD->value().ptr()->get_symbol()).release();
     OBJ = nullptr;
   }
   delete FIELD;

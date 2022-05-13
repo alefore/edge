@@ -370,14 +370,14 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
 
       case '"': {
         token = STRING;
-        input = Value::NewString(compilation.pool, L"");
+        std::wstring output_string;
         pos++;
         for (; pos < str.size(); pos++) {
           if (str.at(pos) == '"') {
             break;
           }
           if (str.at(pos) != '\\') {
-            input.value().ptr()->str.push_back(str.at(pos));
+            output_string.push_back(str.at(pos));
             ;
             continue;
           }
@@ -387,22 +387,23 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           }
           switch (str.at(pos)) {
             case 'n':
-              input.value().ptr()->str.push_back('\n');
+              output_string.push_back('\n');
               break;
             case 't':
-              input.value().ptr()->str.push_back('\t');
+              output_string.push_back('\t');
               break;
             case '"':
-              input.value().ptr()->str.push_back('"');
+              output_string.push_back('"');
               break;
             default:
-              input.value().ptr()->str.push_back(str.at(pos));
+              output_string.push_back(str.at(pos));
           }
         }
         if (pos == str.size()) {
           compilation.AddError(L"Missing terminating \" character.");
           return;
         }
+        input = Value::NewString(compilation.pool, std::move(output_string));
         pos++;
       } break;
 
@@ -536,8 +537,12 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
     }
     if (token == SYMBOL || token == STRING) {
       CHECK(input.has_value()) << "No input with token: " << token;
-      CHECK(input.value().ptr()->IsSymbol() || input.value().ptr()->IsString());
-      compilation.last_token = input.value().ptr()->str;
+      if (input.value().ptr()->IsSymbol())
+        compilation.last_token = input.value().ptr()->get_symbol();
+      else if (input.value().ptr()->IsString())
+        compilation.last_token = input.value().ptr()->get_string();
+      else
+        LOG(FATAL) << "Invalid input.";
     }
     Cpp(parser, token,
         std::make_unique<std::optional<gc::Root<Value>>>(input).release(),

@@ -89,20 +89,19 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
       vm::NewConstantExpression(*callback), std::move(args));
   return {
       .initial_value = NewLazyString(L"…"),
-      .value = target.EvaluateExpression(*expression, target.environment())
-                   .Transform([](gc::Root<Value> value)
-                                  -> futures::ValueOrError<
-                                      NonNull<std::shared_ptr<LazyString>>> {
-                     CHECK(value.ptr()->IsString());
-                     VLOG(7) << "Evaluated result: " << value.ptr()->str;
-                     return futures::Past(
-                         NewLazyString(std::move(value.ptr()->str)));
-                   })
-                   .ConsumeErrors([](Error error) {
-                     VLOG(7) << "Evaluation error: " << error.description;
-                     return futures::Past(
-                         NewLazyString(L"E: " + std::move(error.description)));
-                   })};
+      .value =
+          target.EvaluateExpression(*expression, target.environment())
+              .Transform([](gc::Root<Value> value)
+                             -> futures::ValueOrError<
+                                 NonNull<std::shared_ptr<LazyString>>> {
+                VLOG(7) << "Evaluated result: " << value.ptr()->get_string();
+                return futures::Past(NewLazyString(value.ptr()->get_string()));
+              })
+              .ConsumeErrors([](Error error) {
+                VLOG(7) << "Evaluation error: " << error.description;
+                return futures::Past(
+                    NewLazyString(L"E: " + std::move(error.description)));
+              })};
 }
 
 void AddLine(OpenBuffer& target, const dirent& entry) {

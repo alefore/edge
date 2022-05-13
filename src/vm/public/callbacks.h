@@ -57,10 +57,7 @@ struct VMTypeMapper<double> {
 
 template <>
 struct VMTypeMapper<wstring> {
-  static const wstring& get(const Value& value) {
-    CHECK(value.IsString());
-    return value.str;
-  }
+  static const wstring& get(const Value& value) { return value.get_string(); }
   static language::gc::Root<Value> New(language::gc::Pool& pool,
                                        const wstring& value) {
     return Value::NewString(pool, value);

@@ -119,13 +119,13 @@ bool cpp_unescape_string_tests_registration =
 
 /* static */ gc::Root<Value> Value::NewString(gc::Pool& pool, wstring value) {
   gc::Root<Value> output = New(pool, VMType::String());
-  output.ptr()->str = std::move(value);
+  output.ptr()->value_ = std::move(value);
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewSymbol(gc::Pool& pool, wstring value) {
   gc::Root<Value> output = New(pool, VMType::Symbol());
-  output.ptr()->str = std::move(value);
+  output.ptr()->value_ = Symbol{.symbol_value = std::move(value)};
   return output;
 }
 
@@ -181,6 +181,16 @@ double Value::get_double() const {
   return std::get<double>(value_);
 }
 
+const std::wstring& Value::get_string() const {
+  CHECK_EQ(type, VMType::String());
+  return std::get<std::wstring>(value_);
+}
+
+const std::wstring& Value::get_symbol() const {
+  CHECK_EQ(type, VMType::Symbol());
+  return std::get<Symbol>(value_).symbol_value;
+}
+
 Value::Callback Value::LockCallback() {
   CHECK(IsFunction());
   // TODO(gc, 2022-05-13): Run dependencies callback and somehow capture the
@@ -205,7 +215,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
       os << value.get_int();
       break;
     case VMType::Type::kString:
-      os << '"' << CppEscapeString(value.str) << '"';
+      os << '"' << CppEscapeString(value.get_string()) << '"';
       break;
     case VMType::Type::kBool:
       os << (value.get_bool() ? "true" : "false");

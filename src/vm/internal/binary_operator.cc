@@ -81,8 +81,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
         std::move(a), std::move(b), VMType::String(),
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(std::wstring value,
-                           str_operator(value_a.str, value_b.str));
+          ASSIGN_OR_RETURN(
+              std::wstring value,
+              str_operator(value_a.get_string(), value_b.get_string()));
           return Value::NewString(pool, std::move(value));
         });
   }
@@ -126,8 +127,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
         [str_int_operator](
             gc::Pool& pool, const Value& value_a,
             const Value& value_b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(std::wstring value,
-                           str_int_operator(value_a.str, value_b.get_int()));
+          ASSIGN_OR_RETURN(
+              std::wstring value,
+              str_int_operator(value_a.get_string(), value_b.get_int()));
           return Value::NewString(pool, std::move(value));
         });
   }

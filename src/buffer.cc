@@ -1514,8 +1514,7 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
                              work_queue->Schedule(std::move(callback));
                            })
                    .Transform([input_shared](const gc::Root<Value>& value) {
-                     CHECK(value.ptr()->IsString());
-                     *input_shared = std::move(value.ptr()->str);
+                     *input_shared = value.ptr()->get_string();
                      return Success(IterationControlCommand::kContinue);
                    })
                    .ConsumeErrors([](Error) {
