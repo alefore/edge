@@ -37,7 +37,7 @@ void AddMethod(const wstring& name, language::gc::Pool& pool,
   string_type.AddField(name, NewCallback(pool, callback));
 }
 
-void RegisterStringType(gc::Pool& pool, Environment* environment) {
+void RegisterStringType(gc::Pool& pool, Environment& environment) {
   auto string_type = MakeNonNullUnique<ObjectType>(VMType::String());
   AddMethod<int>(L"size", pool,
                  std::function<int(const wstring&)>(
@@ -137,10 +137,9 @@ void RegisterStringType(gc::Pool& pool, Environment* environment) {
             return pos == wstring::npos ? -1 : pos;
           }),
       *string_type);
-  environment->DefineType(L"string", std::move(string_type));
+  environment.DefineType(L"string", std::move(string_type));
 
-  VMTypeMapper<std::vector<wstring>*>::Export(pool, environment);
-  VMTypeMapper<std::set<wstring>*>::Export(pool, environment);
+  VMTypeMapper<std::vector<wstring>*>::Export(pool, &environment);
+  VMTypeMapper<std::set<wstring>*>::Export(pool, &environment);
 }
-
 }  // namespace afc::vm

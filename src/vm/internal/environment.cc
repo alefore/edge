@@ -35,7 +35,7 @@ language::gc::Root<Environment> Environment::NewDefault(
   gc::Root<Environment> environment =
       pool.NewRoot(MakeNonNullUnique<Environment>());
   Environment& value = environment.ptr().value();
-  RegisterStringType(pool, &value);
+  RegisterStringType(pool, value);
   RegisterNumberFunctions(pool, &value);
   RegisterTimeType(pool, value);
   auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool());
