@@ -37,11 +37,6 @@
 namespace afc {
 namespace vm {
 
-// TODO(easy, 2022-05-11): Get rid of these `using` declarations.
-using std::cerr;
-using std::pair;
-using std::to_wstring;
-
 namespace {
 using language::Error;
 using language::MakeNonNullShared;
@@ -536,7 +531,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
 
       default:
         compilation.AddError(L"Unhandled character at position: " +
-                             to_wstring(pos) + L" in line: " + str);
+                             std::to_wstring(pos) + L" in line: " + str);
         return;
     }
     if (token == SYMBOL || token == STRING) {
