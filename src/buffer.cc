@@ -251,10 +251,8 @@ using std::to_wstring;
     BufferName(L"- future paste buffer");
 
 /* static */ void OpenBuffer::RegisterBufferType(
-    EditorState& editor_state, afc::vm::Environment* environment) {
+    gc::Pool& pool, afc::vm::Environment* environment) {
   auto buffer = MakeNonNullUnique<ObjectType>(L"Buffer");
-
-  gc::Pool& pool = editor_state.gc_pool();
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(
       pool, buffer_variables::BoolStruct(), *buffer, &OpenBuffer::Read,

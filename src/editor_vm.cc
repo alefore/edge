@@ -432,7 +432,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                Value::NewObject(pool, L"Editor",
                                 shared_ptr<void>(&editor, [](void*) {})));
 
-  OpenBuffer::RegisterBufferType(editor, &value);
+  OpenBuffer::RegisterBufferType(pool, &value);
 
   InitShapes(pool, value);
   RegisterTransformations(pool, value);

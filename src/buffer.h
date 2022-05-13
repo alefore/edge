@@ -61,7 +61,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   struct ConstructorAccessTag {};
 
  public:
-  static void RegisterBufferType(EditorState& editor_state,
+  static void RegisterBufferType(language::gc::Pool& pool,
                                  Environment* environment);
 
   struct Options {
