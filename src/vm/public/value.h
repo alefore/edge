@@ -79,6 +79,8 @@ struct Value {
 
   VMType type;
 
+  // TODO(easy, 2022-05-13): Make these private; provide accessors that check
+  // type.
   bool boolean;
   int integer;
   double double_value;
