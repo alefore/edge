@@ -14,6 +14,8 @@ using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
 
+namespace gc = language::gc;
+
 BinaryOperator::BinaryOperator(
     NonNull<std::shared_ptr<Expression>> a,
     NonNull<std::shared_ptr<Expression>> b, const VMType type,
@@ -44,8 +46,7 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
             .Transform([&trampoline, a_value = std::move(a_value.value), type,
                         op](EvaluationOutput b_value)
                            -> ValueOrError<EvaluationOutput> {
-              auto output =
-                  trampoline.pool().NewRoot(MakeNonNullUnique<Value>(type));
+              gc::Root<Value> output = Value::New(trampoline.pool(), type);
               // TODO(easy, 2022-05-02): Pass output by ref.
               auto result =
                   op(a_value.value().value(), b_value.value.value().value(),

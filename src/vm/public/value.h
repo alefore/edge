@@ -26,9 +26,16 @@ std::wstring CppEscapeString(std::wstring input);
 std::optional<std::wstring> CppUnescapeString(std::wstring input);
 
 struct Value {
+ private:
+  class ConstructorAccessTag {
+    ConstructorAccessTag(){};
+    friend Value;
+  };
+
+ public:
   using Ptr = std::unique_ptr<Value>;
 
-  explicit Value(const VMType& t) : type(t) {}
+  explicit Value(ConstructorAccessTag, const VMType& t) : type(t) {}
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
       std::vector<language::gc::Root<Value>>, Trampoline&)>;
@@ -36,6 +43,7 @@ struct Value {
       std::function<void(std::vector<language::NonNull<
                              std::shared_ptr<language::gc::ControlFrame>>>&)>;
 
+  static language::gc::Root<Value> New(language::gc::Pool& pool, const VMType&);
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
   static language::gc::Root<Value> NewBool(language::gc::Pool& pool,
                                            bool value);

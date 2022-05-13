@@ -144,15 +144,13 @@ std::unique_ptr<UserFunction> UserFunction::New(
   if (name.has_value()) {
     output->name = name.value();
     compilation.environment.value()->Define(
-        name.value(),
-        compilation.pool.NewRoot(MakeNonNullUnique<Value>(output->type)));
+        name.value(), Value::New(compilation.pool, output->type));
   }
   compilation.environment = compilation.pool.NewRoot(
       MakeNonNullUnique<Environment>(compilation.environment.value()));
-  for (pair<VMType, wstring> arg : *args) {
+  for (const pair<VMType, wstring>& arg : *args) {
     compilation.environment.value()->Define(
-        arg.second,
-        compilation.pool.NewRoot(MakeNonNullUnique<Value>(arg.first)));
+        arg.second, Value::New(compilation.pool, arg.first));
   }
   return output;
 }

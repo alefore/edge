@@ -94,7 +94,7 @@ std::optional<VMType> NewDefineTypeExpression(
     type_def = *type_ptr;
   }
   compilation->environment.value()->Define(
-      symbol, compilation->pool.NewRoot(MakeNonNullUnique<Value>(type_def)));
+      symbol, Value::New(compilation->pool, type_def));
   return type_def;
 }
 
