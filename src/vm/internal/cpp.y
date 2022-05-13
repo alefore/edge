@@ -143,9 +143,23 @@ statement(A) ::= SEMICOLON . {
   A = NewVoidExpression(compilation->pool).get_unique().release();
 }
 
-statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
+statement(A) ::= nesting_lbracket statement_list(L) nesting_rbracket. {
   A = L;
   L = nullptr;
+}
+
+nesting_lbracket ::= LBRACKET. {
+  LOG(INFO) << "Nesting.";
+  compilation->environment = compilation->pool.NewRoot(
+      MakeNonNullUnique<Environment>(compilation->environment.ptr()));
+}
+
+nesting_rbracket ::= RBRACKET. {
+  // This is safe: This RBRACKET always follows a corresponding LBRACKET.
+  CHECK(compilation->environment.ptr()->parent_environment().has_value());
+  LOG(INFO) << "Restoring.";
+  compilation->environment =
+      compilation->environment.ptr()->parent_environment()->ToRoot();
 }
 
 statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {

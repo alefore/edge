@@ -10,6 +10,9 @@ using concurrent::WorkQueue;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::Pointer;
+using language::ValueOrError;
+
+namespace gc = language::gc;
 namespace {
 std::wstring GetMetadata(std::wstring line) {
   auto buffer = NewBufferForTests();
@@ -90,7 +93,7 @@ const bool buffer_tests_registration = tests::Register(
           [] {
             auto buffer = NewBufferForTests();
 
-            language::gc::Root<Value> result =
+            gc::Root<Value> result =
                 buffer
                     ->EvaluateString(
                         L"int F() { return \"foo\".find_last_of(\"o\", 3); }"
@@ -100,13 +103,21 @@ const bool buffer_tests_registration = tests::Register(
                     .value();
             CHECK(result.ptr()->get_bool());
           }},
+     {.name = L"NestedStatements",
+      .callback =
+          [] {
+            auto buffer = NewBufferForTests();
+            ValueOrError<gc::Root<Value>> result =
+                buffer->EvaluateString(L"{ int v = 5; } v").Get().value();
+            CHECK(result.IsError());
+          }},
      {.name = L"NoLeaks", .callback = [] {
         auto buffer = NewBufferForTests();
 
         auto stats_0 = buffer->editor().gc_pool().Reclaim();
         LOG(INFO) << "Start: " << stats_0;
 
-        language::gc::Root<Value> result =
+        gc::Root<Value> result =
             buffer
                 ->EvaluateString(
                     L"if (true) { "
