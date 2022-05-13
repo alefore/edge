@@ -52,6 +52,7 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
                   op(trampoline.pool(), a_value.ptr().value(),
                      b_value.value.ptr().value());
               if (result.IsError()) return result.error();
+              CHECK_EQ(result.value().ptr()->type, type);
               return Success(EvaluationOutput::New(std::move(result.value())));
             });
       });
