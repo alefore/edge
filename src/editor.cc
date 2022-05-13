@@ -452,13 +452,12 @@ gc::Root<Environment> EditorState::BuildEditorEnvironment() {
           [&pool = gc_pool_](std::vector<gc::Root<Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
             CHECK_EQ(args[0].value()->type, VMTypeMapper<EditorState>::vmtype);
-            auto editor_state =
-                static_cast<EditorState*>(args[0].value()->user_value.get());
+            EditorState& editor_state =
+                VMTypeMapper<EditorState>::get(args[0].value().value());
             CHECK(args[1].value()->IsString());
-            CHECK(editor_state != nullptr);
             return OpenOrCreateFile(
                        OpenFileOptions{
-                           .editor_state = *editor_state,
+                           .editor_state = editor_state,
                            .path = Path::FromString(args[1].value()->str)
                                        .AsOptional(),
                            .insertion_type =
