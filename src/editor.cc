@@ -96,17 +96,15 @@ void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
             CHECK_EQ(args.size(), size_t(1));
             CHECK_EQ(args[0].value()->type, VMType::ObjectType(L"Editor"));
 
-            // TODO(easy, 2022-05-11): Use VMTypeMapper below.
-            auto editor =
-                static_cast<EditorState*>(args[0].value()->user_value.get());
-            CHECK(editor != nullptr);
+            EditorState& editor =
+                VMTypeMapper<EditorState>::get(args[0].value().value());
             return editor
-                ->ForEachActiveBuffer([method](OpenBuffer& buffer) {
+                .ForEachActiveBuffer([method](OpenBuffer& buffer) {
                   (buffer.*method)();
                   return futures::Past(EmptyValue());
                 })
-                .Transform([editor, &pool = trampoline.pool()](EmptyValue) {
-                  editor->ResetModifiers();
+                .Transform([&editor, &pool = trampoline.pool()](EmptyValue) {
+                  editor.ResetModifiers();
                   return EvaluationOutput::New(Value::NewVoid(pool));
                 });
           }));
