@@ -70,6 +70,8 @@ src/directory_listing.h \
 src/directory_listing.cc \
 src/editor.cc \
 src/editor.h \
+src/editor_vm.cc \
+src/editor_vm.h \
 src/editor_variables.cc \
 src/editor_variables.h \
 src/frame_output_producer.cc \

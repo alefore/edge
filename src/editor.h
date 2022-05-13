@@ -113,6 +113,7 @@ class EditorState {
       transformation::Variant transformation);
 
   BufferName GetUnusedBufferName(const wstring& prefix);
+  void set_exit_value(int exit_value);
   std::optional<int> exit_value() const { return exit_value_; }
 
   enum class TerminationType { kWhenClean, kIgnoringErrors };
@@ -238,8 +239,6 @@ class EditorState {
 
  private:
   void NotifyInternalEvent();
-
-  language::gc::Root<Environment> BuildEditorEnvironment();
 
   language::gc::Pool gc_pool_;
 
