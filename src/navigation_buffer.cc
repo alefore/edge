@@ -122,7 +122,7 @@ futures::Value<PossibleError> GenerateContents(
   int depth = depth_value.has_value()
                   ? size_t(max(0, depth_value.value().ptr()->get_int()))
                   : 3;
-  DisplayTree(source, depth, *tree, EmptyString(), target);
+  DisplayTree(source, depth, tree.value(), EmptyString(), target);
   return futures::Past(Success());
 }
 

@@ -222,7 +222,8 @@ class SearchCommand : public Command {
                               return futures::Past(Control::kContinue);
                             }
                             auto search_options = BuildPromptSearchOptions(
-                                line->ToString(), *buffer, abort_notification);
+                                line->ToString(), buffer.value(),
+                                abort_notification);
                             if (!search_options.has_value()) {
                               VLOG(6) << "search_options has no value.";
                               return futures::Past(Control::kContinue);
@@ -231,7 +232,7 @@ class SearchCommand : public Command {
                                     << buffer->Read(buffer_variables::name);
                             return editor_state.thread_pool()
                                 .Run(BackgroundSearchCallback(
-                                    search_options.value(), *buffer,
+                                    search_options.value(), buffer.value(),
                                     *progress_channel))
                                 .Transform(
                                     [results, abort_notification, line, buffer,

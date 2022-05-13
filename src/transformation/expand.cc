@@ -221,7 +221,7 @@ const bool read_and_insert_tests_registration = tests::Register(
                      return futures::Past(Error(L"File does not exist."));
                    })
                    .Apply(CompositeTransformation::Input{
-                       .editor = buffer->editor(), .buffer = *buffer})
+                       .editor = buffer->editor(), .buffer = buffer.value()})
                    .SetConsumer([&](CompositeTransformation::Output) {
                      transformation_done = true;
                    });

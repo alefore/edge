@@ -142,7 +142,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
   columns_vector.push_back(BufferMetadataOutput(
       BufferMetadataOutputOptions{.buffer = buffer,
                                   .screen_lines = screen_lines,
-                                  .zoomed_out_tree = *zoomed_out_tree}));
+                                  .zoomed_out_tree = zoomed_out_tree.value()}));
   return OutputFromColumnsVector(std::move(columns_vector));
 }
 
@@ -409,7 +409,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
         if (buffer->Read(buffer_variables::reload_on_display)) buffer->Reload();
 
         BufferOutputProducerInput input{.output_producer_options = options,
-                                        .buffer = *buffer,
+                                        .buffer = buffer.value(),
                                         .view_start = view_start()};
         if (options_.position_in_parent.has_value()) {
           input.output_producer_options.size.line =

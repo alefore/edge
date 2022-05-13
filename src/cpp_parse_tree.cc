@@ -58,7 +58,7 @@ class CppTreeParser : public TreeParser {
     std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
     std::vector<ParseTree> trees = {ParseTree(range)};
     range.ForEachLine([&](LineNumber i) {
-      size_t hash = GetLineHash(*buffer.at(i)->contents(), states_stack);
+      size_t hash = GetLineHash(buffer.at(i)->contents().value(), states_stack);
       auto parse_results = cache_.Get(hash, [&] {
         static Tracker tracker(L"CppTreeParser::FindChildren::Parse");
         auto call = tracker.Call();

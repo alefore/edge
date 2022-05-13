@@ -271,7 +271,7 @@ void Environment::ForEachType(
   for (const std::pair<const std::wstring,
                        NonNull<std::unique_ptr<ObjectType>>>& entry :
        object_types_) {
-    callback(entry.first, *entry.second);
+    callback(entry.first, entry.second.value());
   }
 }
 

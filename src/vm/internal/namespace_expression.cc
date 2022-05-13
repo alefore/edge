@@ -37,7 +37,7 @@ class NamespaceExpression : public Expression {
     CHECK(namespace_environment.has_value());
     trampoline.SetEnvironment(*namespace_environment);
 
-    return OnError(trampoline.Bounce(*body_, type)
+    return OnError(trampoline.Bounce(body_.value(), type)
                        .Transform([&trampoline, original_environment](
                                       EvaluationOutput output) {
                          trampoline.SetEnvironment(original_environment);

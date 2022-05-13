@@ -28,7 +28,7 @@ class ReturnExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const VMType&) override {
-    return trampoline.Bounce(*expr_, expr_->Types()[0])
+    return trampoline.Bounce(expr_.value(), expr_->Types()[0])
         .Transform([](EvaluationOutput expr_output) {
           return Success(
               EvaluationOutput::Return(std::move(expr_output.value)));

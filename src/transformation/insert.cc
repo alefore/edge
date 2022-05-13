@@ -63,8 +63,9 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
 
   LineColumn start_position = result->position;
   for (size_t i = 0; i < options.modifiers.repetitions.value_or(1); i++) {
-    result->position = input.buffer.InsertInPosition(
-        *options.contents_to_insert, result->position, options.modifiers_set);
+    result->position =
+        input.buffer.InsertInPosition(options.contents_to_insert.value(),
+                                      result->position, options.modifiers_set);
   }
   LineColumn final_position = result->position;
 

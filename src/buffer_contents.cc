@@ -430,7 +430,7 @@ void BufferContents::insert(LineNumber position_line,
     VLOG(6) << "Insert line: " << line->EndColumn() << " modifiers: "
             << (modifiers.has_value() ? modifiers->size() : -1);
     if (modifiers.has_value()) {
-      auto replacement = MakeNonNullShared<Line>(*line);
+      auto replacement = MakeNonNullShared<Line>(line.value());
       replacement->SetAllModifiers(modifiers.value());
       line = std::move(replacement);
     }
@@ -448,7 +448,7 @@ bool BufferContents::EveryLine(
   LineNumber line_number;
   return Lines::Every(lines_,
                       [&](const NonNull<std::shared_ptr<const Line>>& line) {
-                        return callback(line_number++, *line);
+                        return callback(line_number++, line.value());
                       });
 }
 
@@ -602,7 +602,7 @@ void BufferContents::FoldNextLine(LineNumber position) {
 
   ColumnNumberDelta initial_size = at(position)->EndColumn().ToDelta();
   // TODO: Can maybe combine this with next for fewer updates.
-  AppendToLine(position, *at(next_line));
+  AppendToLine(position, at(next_line).value());
   update_listener_(CursorsTracker::Transformation()
                        .WithLineEq(position + LineNumberDelta(1))
                        .LineDelta(LineNumberDelta(-1))

@@ -87,8 +87,8 @@ class NonNull<T*> {
     return NonNull<T*>(&value);
   }
 
+  T& value() const { return *value_; }
   T* operator->() const { return value_; }
-  T& operator*() const { return *value_; }
   T* get() const { return value_; }
 
  private:
@@ -136,8 +136,6 @@ class NonNull<std::unique_ptr<T>> {
 
   T& value() const { return *value_; }
   T* operator->() const { return value_.get(); }
-  // TODO(easy, 2022-05-02): Remove. Force use of `value`.
-  T& operator*() const { return *value_; }
   NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
 
   std::unique_ptr<T>& get_unique() { return value_; }
@@ -196,8 +194,6 @@ class NonNull<std::shared_ptr<T>> {
 
   T& value() const { return *value_; }
   T* operator->() const { return value_.get(); }
-  // TODO(easy, 2022-05-02): Remove. Force use of `value`.
-  T& operator*() const { return *value_; }
   NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
 
   const std::shared_ptr<T>& get_shared() const { return value_; }

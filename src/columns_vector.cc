@@ -147,7 +147,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
             auto str = column_data.line->ToString();
             columns_shown += ColumnNumberDelta(
                 std::max(0, wcswidth(str.c_str(), str.size())));
-            options.Append(std::move(*column_data.line));
+            options.Append(std::move(column_data.line.value()));
           }
           return LineWithCursor{
               .line = MakeNonNullShared<Line>(std::move(options)),

@@ -500,7 +500,7 @@ std::size_t hash<afc::editor::Line>::operator()(
   return line.data_.lock([](const Line::Data& data) {
     if (data.hash.has_value()) return *data.hash;
     data.hash = compute_hash(
-        *data.options.contents,
+        data.options.contents.value(),
         MakeHashableIteratorRange(data.options.end_of_line_modifiers),
         MakeHashableIteratorRange(
             data.options.modifiers.begin(), data.options.modifiers.end(),

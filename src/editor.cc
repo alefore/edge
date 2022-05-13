@@ -148,7 +148,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
     }
     LOG(INFO) << "Evaluating file: " << path;
     return Evaluate(
-               *expression.value(), gc_pool_, environment_,
+               expression.value().value(), gc_pool_, environment_,
                [path, work_queue = work_queue()](std::function<void()> resume) {
                  LOG(INFO) << "Evaluation of file yields: " << path;
                  work_queue->Schedule(std::move(resume));
@@ -346,7 +346,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
   return futures::ForEachWithCopy(
              buffers.begin(), buffers.end(),
              [callback](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-               return callback(*buffer).Transform([](EmptyValue) {
+               return callback(buffer.value()).Transform([](EmptyValue) {
                  return futures::IterationControlCommand::kContinue;
                });
              })
@@ -362,7 +362,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
     NonNull<std::shared_ptr<OpenBuffer>> buffer = buffer_tree().GetBuffer(
         (max(modifiers().repetitions.value(), 1ul) - 1) %
         buffer_tree().BuffersCount());
-    value = callback(*buffer);
+    value = callback(buffer.value());
   }
   return value.Transform([this](EmptyValue) {
     ResetModifiers();

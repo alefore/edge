@@ -12,10 +12,10 @@ NonNull<std::shared_ptr<LazyString>> StringTrimLeft(
     NonNull<std::shared_ptr<LazyString>> source,
     std::wstring space_characters) {
   return Substring(
-      source,
-      FindFirstColumnWithPredicate(*source, [&](ColumnNumber, wchar_t c) {
-        return space_characters.find(c) == std::wstring::npos;
-      }).value_or(ColumnNumber(0) + source->size()));
+      source, FindFirstColumnWithPredicate(source.value(), [&](ColumnNumber,
+                                                               wchar_t c) {
+                return space_characters.find(c) == std::wstring::npos;
+              }).value_or(ColumnNumber(0) + source->size()));
 }
 
 }  // namespace afc::editor

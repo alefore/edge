@@ -472,7 +472,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                                 }
                               }
                               auto resolved = path_with_prefix.Resolve();
-                              *output = ResolvePathOutput{
+                              output.value() = ResolvePathOutput{
                                   .path = resolved.IsError() ? path_with_prefix
                                                              : resolved.value(),
                                   .position = output_position,
@@ -600,7 +600,7 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
               output->buffer->set_position(input.position.value());
             }
             // TODO: Apply pattern.
-            return futures::Past(Success(std::move(*output)));
+            return futures::Past(Success(std::move(output.value())));
           }),
       [&editor_state, path, output, resolve_path_options, search_paths,
        file_system_driver](

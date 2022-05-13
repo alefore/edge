@@ -146,7 +146,7 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
         [buffer = buffer.shared_from_this(),
          expr = NonNull<std::shared_ptr<Expression>>(std::move(expr)),
          sub_environment, consumer = metadata_future.consumer] {
-          buffer->EvaluateExpression(*expr, sub_environment)
+          buffer->EvaluateExpression(expr.value(), sub_environment)
               .Transform([](gc::Root<Value> value) {
                 std::ostringstream oss;
                 oss << value.ptr().value();
@@ -189,12 +189,12 @@ Observers::State MaybeScheduleNextWorkQueueExecution(
   auto work_queue = work_queue_weak.lock();
   if (work_queue == nullptr) return Observers::State::kExpired;
   if (auto next = work_queue->NextExecution();
-      next.has_value() && next != *next_scheduled_execution) {
-    *next_scheduled_execution = next;
+      next.has_value() && next != next_scheduled_execution.value()) {
+    next_scheduled_execution.value() = next;
     parent_work_queue->ScheduleAt(
         next.value(),
         [work_queue, parent_work_queue, next_scheduled_execution]() mutable {
-          *next_scheduled_execution = std::nullopt;
+          next_scheduled_execution.value() = std::nullopt;
           work_queue->Execute();
           MaybeScheduleNextWorkQueueExecution(work_queue, parent_work_queue,
                                               next_scheduled_execution);
@@ -885,7 +885,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
       });
 }
 
-Log& OpenBuffer::log() const { return *log_; }
+Log& OpenBuffer::log() const { return log_.value(); }
 
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
@@ -899,7 +899,7 @@ void OpenBuffer::UpdateBackup() {
 
 void OpenBuffer::AppendLazyString(NonNull<std::shared_ptr<LazyString>> input) {
   ColumnNumber start;
-  ForEachColumn(*input, [&](ColumnNumber i, wchar_t c) {
+  ForEachColumn(input.value(), [&](ColumnNumber i, wchar_t c) {
     CHECK_GE(i, start);
     if (c == '\n') {
       AppendLine(Substring(input, start, i - start));
@@ -926,6 +926,8 @@ void OpenBuffer::SortContents(
 LineNumberDelta OpenBuffer::lines_size() const { return contents_.size(); }
 
 LineNumber OpenBuffer::EndLine() const { return contents_.EndLine(); }
+
+EditorMode& OpenBuffer::mode() const { return mode_.value(); }
 
 language::NonNull<std::shared_ptr<MapModeCommands>>
 OpenBuffer::default_commands() {
@@ -1026,7 +1028,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
   }
   auto [expression, environment] = std::move(compilation_result.value());
   LOG(INFO) << "Code compiled, evaluating.";
-  return EvaluateExpression(*expression, environment);
+  return EvaluateExpression(expression.value(), environment);
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
@@ -1042,7 +1044,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
   LOG(INFO) << Read(buffer_variables::path) << " ("
             << Read(buffer_variables::name) << "): Evaluating file: " << path;
   return Evaluate(
-      *expression.value(), editor().gc_pool(), environment_,
+      expression.value().value(), editor().gc_pool(), environment_,
       [path, work_queue = work_queue()](std::function<void()> resume) {
         LOG(INFO) << "Evaluation of file yields: " << path;
         work_queue->Schedule(std::move(resume));
@@ -1128,7 +1130,7 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
   CHECK_LE(position.line, contents_.EndLine());
-  auto line = MakeNonNullShared<Line>(*contents_.at(position.line));
+  auto line = MakeNonNullShared<Line>(contents_.at(position.line).value());
   if (line->EndColumn() > position.column + ColumnNumberDelta(1)) {
     return;
   }
@@ -1614,7 +1616,8 @@ std::vector<URL> GetURLsWithExtensionsForContext(const OpenBuffer& buffer,
   ValueOrError<Path> path = original_url.GetLocalFilePath();
   if (path.IsError()) return output;
   auto extensions = TokenizeBySpaces(
-      *NewLazyString(buffer.Read(buffer_variables::file_context_extensions)));
+      NewLazyString(buffer.Read(buffer_variables::file_context_extensions))
+          .value());
   for (auto& extension_token : extensions) {
     CHECK(!extension_token.value.empty());
     output.push_back(URL::FromPath(
@@ -1643,8 +1646,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   std::optional<URL> initial_url;
 
   NonNull<std::shared_ptr<const ParseTree>> tree = buffer.parse_tree();
-  ParseTree::Route route = FindRouteToPosition(*tree, adjusted_position);
-  for (const ParseTree* subtree : MapRoute(*tree, route)) {
+  ParseTree::Route route = FindRouteToPosition(tree.value(), adjusted_position);
+  for (const ParseTree* subtree : MapRoute(tree.value(), route)) {
     if (subtree->properties().find(ParseTreeProperty::Link()) !=
         subtree->properties().end()) {
       if (auto target = FindLinkTarget(buffer, *subtree); !target.IsError()) {
@@ -2104,7 +2107,7 @@ void OpenBuffer::PopTransformationStack() {
     // buffer is reloaded ... that will discard the transformation stack.
     return;
   }
-  last_transformation_ = std::move(*last_transformation_stack_.back());
+  last_transformation_ = std::move(last_transformation_stack_.back().value());
   last_transformation_stack_.pop_back();
   if (!last_transformation_stack_.empty()) {
     last_transformation_stack_.back()->PushBack(last_transformation_);
@@ -2135,8 +2138,8 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
            // We've undone the entire changes, so...
            last_transformation_stack_.clear();
            VLOG(5) << "Undo transformation: "
-                   << ToStringBase(*data->source->back());
-           return transformation::Apply(*data->source->back(), input)
+                   << ToStringBase(data->source->back().value());
+           return transformation::Apply(data->source->back().value(), input)
                .Transform(
                    [this, undo_mode, data](transformation::Result result) {
                      data->target->push_back(std::move(result.undo_stack));

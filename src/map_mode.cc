@@ -63,7 +63,8 @@ NonNull<std::unique_ptr<MapModeCommands>> MapModeCommands::NewChild() {
 
   // Override the parent's help command, so that bindings added to the child are
   // visible.
-  output->Add(L"?", NewHelpCommand(editor_state_, *output, L"command mode"));
+  output->Add(L"?",
+              NewHelpCommand(editor_state_, output.value(), L"command mode"));
   return output;
 }
 
@@ -100,7 +101,7 @@ void MapModeCommands::Add(wstring name, wstring description,
               [&editor_state = editor_state_, environment](
                   NonNull<std::unique_ptr<vm::Expression>>& expression) {
                 LOG(INFO) << "Evaluating expression from Value...";
-                Evaluate(*expression, environment.pool(), environment,
+                Evaluate(expression.value(), environment.pool(), environment,
                          [&editor_state](std::function<void()> callback) {
                            editor_state.work_queue()->Schedule(callback);
                          });

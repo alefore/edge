@@ -91,6 +91,6 @@ LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
 namespace std {
 std::size_t hash<afc::editor::LineWithCursor>::operator()(
     const afc::editor::LineWithCursor& line) const {
-  return afc::language::compute_hash(*line.line, line.cursor);
+  return afc::language::compute_hash(line.line.value(), line.cursor);
 }
 }  // namespace std

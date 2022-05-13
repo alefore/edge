@@ -13,11 +13,13 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
     L"TokenizeBySpaces",
     {{.name = L"EmptyString",
       .callback =
-          [] { CHECK_EQ(TokenizeBySpaces(*EmptyString()).size(), 0ul); }},
+          [] {
+            CHECK_EQ(TokenizeBySpaces(EmptyString().value()).size(), 0ul);
+          }},
      {.name = L"SingleToken",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(*NewLazyString(L"alejandro"));
+            auto value = TokenizeBySpaces(NewLazyString(L"alejandro").value());
             CHECK_EQ(value.size(), 1ul);
             // TODO: Why can't we use CHECK_EQ? Why can't the compiler find
             // the operator<<?
@@ -28,8 +30,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"ThreeSimpleTokens",
       .callback =
           [] {
-            auto value =
-                TokenizeBySpaces(*NewLazyString(L"alejandro forero cuervo"));
+            auto value = TokenizeBySpaces(
+                NewLazyString(L"alejandro forero cuervo").value());
             CHECK_EQ(value.size(), 3ul);
 
             CHECK(value[0].value == L"alejandro");
@@ -47,7 +49,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SpaceSurroundedSingleToken",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(*NewLazyString(L"  alejandro  "));
+            auto value =
+                TokenizeBySpaces(NewLazyString(L"  alejandro  ").value());
             CHECK_EQ(value.size(), 1ul);
             CHECK(value[0].value == L"alejandro");
             CHECK_EQ(value[0].begin, ColumnNumber(2));
@@ -57,7 +60,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
       .callback =
           [] {
             auto value = TokenizeBySpaces(
-                *NewLazyString(L"  alejandro   forero   cuervo   "));
+                NewLazyString(L"  alejandro   forero   cuervo   ").value());
             CHECK_EQ(value.size(), 3ul);
 
             CHECK(value[0].value == L"alejandro");
@@ -75,7 +78,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SingleQuotedString",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(*NewLazyString(L"\"alejandro\""));
+            auto value =
+                TokenizeBySpaces(NewLazyString(L"\"alejandro\"").value());
             CHECK_EQ(value.size(), 1ul);
 
             CHECK(value[0].value == L"alejandro");
@@ -85,7 +89,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SpaceSurroundedSingleQuotedString",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(*NewLazyString(L"  \"alejandro\"  "));
+            auto value =
+                TokenizeBySpaces(NewLazyString(L"  \"alejandro\"  ").value());
             CHECK_EQ(value.size(), 1ul);
 
             CHECK(value[0].value == L"alejandro");
@@ -96,7 +101,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
       .callback =
           [] {
             auto value = TokenizeBySpaces(
-                *NewLazyString(L"\"alejandro forero cuervo\""));
+                NewLazyString(L"\"alejandro forero cuervo\"").value());
             CHECK_EQ(value.size(), 1ul);
 
             CHECK(value[0].value == L"alejandro forero cuervo");
@@ -106,8 +111,9 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SeveralQuotedStrings",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(*NewLazyString(
-                L"\"a l e j a n d r o\"   \"f o r e r o\" cuervo"));
+            auto value = TokenizeBySpaces(
+                NewLazyString(L"\"a l e j a n d r o\"   \"f o r e r o\" cuervo")
+                    .value());
             CHECK_EQ(value.size(), 3ul);
 
             CHECK(value[0].value == L"a l e j a n d r o");
@@ -123,7 +129,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
             CHECK_EQ(value[2].end, ColumnNumber(42));
           }},
      {.name = L"RunawayQuote", .callback = [] {
-        auto value = TokenizeBySpaces(*NewLazyString(L"alejandro for\"ero"));
+        auto value =
+            TokenizeBySpaces(NewLazyString(L"alejandro for\"ero").value());
         CHECK_EQ(value.size(), 2ul);
 
         CHECK(value[0].value == L"alejandro");

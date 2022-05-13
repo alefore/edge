@@ -77,7 +77,7 @@ class FunctionCall : public Expression {
           args)
       : func_(std::move(func)),
         args_(std::move(args)),
-        types_(DeduceTypes(*func_, *args_)) {}
+        types_(DeduceTypes(func_.value(), args_.value())) {}
 
   std::vector<VMType> Types() override { return types_; }
 
@@ -87,7 +87,7 @@ class FunctionCall : public Expression {
     if (func_->purity() != PurityType::kPure) {
       return PurityType::kUnknown;
     }
-    for (const auto& a : *args_) {
+    for (const auto& a : args_.value()) {
       if (a->purity() != PurityType::kPure) {
         return PurityType::kUnknown;
       }
@@ -105,12 +105,13 @@ class FunctionCall : public Expression {
       Trampoline& trampoline, const VMType& type) {
     DVLOG(3) << "Function call evaluation starts.";
     std::vector<VMType> type_arguments = {type};
-    for (auto& arg : *args_) {
+    for (auto& arg : args_.value()) {
       type_arguments.push_back(arg->Types()[0]);
     }
 
     return trampoline
-        .Bounce(*func_, VMType::Function(std::move(type_arguments), purity()))
+        .Bounce(func_.value(),
+                VMType::Function(std::move(type_arguments), purity()))
         .Transform(
             [&trampoline, args_types = args_](EvaluationOutput callback) {
               if (callback.type == EvaluationOutput::OutputType::kReturn)
@@ -159,7 +160,7 @@ class FunctionCall : public Expression {
       return;
     }
     NonNull<std::unique_ptr<Expression>>& arg = args_types->at(values->size());
-    trampoline.Bounce(*arg, arg->Types()[0])
+    trampoline.Bounce(arg.value(), arg->Types()[0])
         .SetConsumer([&trampoline, consumer, args_types, values,
                       callback](ValueOrError<EvaluationOutput> value) {
           CHECK(values != nullptr);
@@ -294,7 +295,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
       futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
           Trampoline& trampoline, const VMType& type) override {
-        return trampoline.Bounce(*obj_expr_, obj_expr_->Types()[0])
+        return trampoline.Bounce(obj_expr_.value(), obj_expr_->Types()[0])
             .Transform([type, shared_type = type_,
                         callback = delegate_->LockCallback(),
                         &pool = trampoline.pool()](EvaluationOutput output)
@@ -347,7 +348,8 @@ futures::ValueOrError<gc::Root<Value>> Call(
   NonNull<std::unique_ptr<Expression>> expr = NewFunctionCall(
       NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
       std::move(args_expr));
-  return Evaluate(*expr, pool, pool.NewRoot(MakeNonNullUnique<Environment>()),
+  return Evaluate(expr.value(), pool,
+                  pool.NewRoot(MakeNonNullUnique<Environment>()),
                   yield_callback);
 }
 

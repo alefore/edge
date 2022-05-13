@@ -94,10 +94,12 @@ Structure* StructureChar() {
       const auto& line = buffer.LineAt(position.line);
       if (line == nullptr) return std::nullopt;
       ColumnNumber start =
-          FindFirstColumnWithPredicate(*line->contents(), [&](ColumnNumber,
-                                                              wchar_t c) {
-            return line_prefix_characters.find(c) == string::npos;
-          }).value_or(line->EndColumn());
+          FindFirstColumnWithPredicate(
+              line->contents().value(),
+              [&](ColumnNumber, wchar_t c) {
+                return line_prefix_characters.find(c) == string::npos;
+              })
+              .value_or(line->EndColumn());
       ColumnNumber end = line->EndColumn();
       while (start + ColumnNumberDelta(1) < end &&
              (line_prefix_characters.find(

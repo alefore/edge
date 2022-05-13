@@ -36,7 +36,7 @@ void Result::MergeFrom(Result sub_result) {
   success &= sub_result.success;
   made_progress |= sub_result.made_progress;
   modified_buffer |= sub_result.modified_buffer;
-  undo_stack->PushFront(std::move(*sub_result.undo_stack));
+  undo_stack->PushFront(std::move(sub_result.undo_stack.value()));
   added_to_paste_buffer |= sub_result.added_to_paste_buffer;
   position = sub_result.position;
 }

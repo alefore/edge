@@ -548,7 +548,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
           for (size_t i = 0; i < options->buffers_per_line &&
                              index + i < options->buffers.size();
                i++) {
-            const OpenBuffer& buffer = *options->buffers.at(index + i);
+            const OpenBuffer& buffer = options->buffers.at(index + i).value();
             auto number_prefix = std::to_wstring(index + i + 1);
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
@@ -717,7 +717,7 @@ BufferWidget& BuffersList::GetActiveLeaf() {
 }
 
 const BufferWidget& BuffersList::GetActiveLeaf() const {
-  return *active_buffer_widget_;
+  return active_buffer_widget_.value();
 }
 
 namespace {

@@ -70,7 +70,7 @@ futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
 futures::Value<ColorizePromptOptions> DrawPath(
     EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
     PredictResults results) {
-  return StatusContext(editor, results, *line)
+  return StatusContext(editor, results, line.value())
       .Transform([line, results](std::shared_ptr<OpenBuffer> context_buffer) {
         ColorizePromptOptions output;
         output.context = context_buffer;

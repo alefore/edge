@@ -642,7 +642,7 @@ const gc::Root<Environment>& Trampoline::environment() const {
   return environment_;
 }
 
-gc::Pool& Trampoline::pool() const { return *pool_; }
+gc::Pool& Trampoline::pool() const { return pool_.value(); }
 
 bool Expression::SupportsType(const VMType& type) {
   auto types = Types();

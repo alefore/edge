@@ -22,8 +22,9 @@ namespace afc::editor {
 namespace {
 std::list<ColumnRange> ComputeBreaks(const BufferContentsWindow::Input& input,
                                      LineNumber line) {
-  return BreakLineForOutput(*input.contents.at(line), input.columns_shown,
-                            input.line_wrap_style, input.symbol_characters);
+  return BreakLineForOutput(input.contents.at(line).value(),
+                            input.columns_shown, input.line_wrap_style,
+                            input.symbol_characters);
 }
 
 // If the position is before the ranges, returns 0. If the position is after

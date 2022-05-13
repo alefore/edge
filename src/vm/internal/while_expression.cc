@@ -50,7 +50,7 @@ class WhileExpression : public Expression {
       Trampoline& trampoline, NonNull<std::shared_ptr<Expression>> condition,
       NonNull<std::shared_ptr<Expression>> body,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer) {
-    trampoline.Bounce(*condition, VMType::Bool())
+    trampoline.Bounce(condition.value(), VMType::Bool())
         .SetConsumer([condition, body, consumer, &trampoline](
                          ValueOrError<EvaluationOutput> condition_output) {
           if (condition_output.IsError())
@@ -69,7 +69,7 @@ class WhileExpression : public Expression {
               }
 
               DVLOG(5) << "Iterating...";
-              trampoline.Bounce(*body, body->Types()[0])
+              trampoline.Bounce(body.value(), body->Types()[0])
                   .SetConsumer([condition, body, consumer, &trampoline](
                                    ValueOrError<EvaluationOutput> body_output) {
                     if (body_output.IsError()) consumer(std::move(body_output));

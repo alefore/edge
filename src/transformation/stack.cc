@@ -52,7 +52,7 @@ futures::Value<PossibleError> PreviewCppExpression(
   buffer.status().Reset();
   switch (expression->purity()) {
     case vm::Expression::PurityType::kPure: {
-      return buffer.EvaluateExpression(*expression, environment)
+      return buffer.EvaluateExpression(expression.value(), environment)
           .Transform([&buffer](gc::Root<Value> value) {
             ShowValue(buffer, nullptr, value.ptr().value());
             return Success();
@@ -80,7 +80,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
         std::make_shared<Delete>(std::move(original_delete_transformation));
     delete_transformation->preview_modifiers = {LineModifier::GREEN,
                                                 LineModifier::UNDERLINE};
-    return PreviewCppExpression(input.buffer, *contents)
+    return PreviewCppExpression(input.buffer, contents.value())
         .ConsumeErrors(
             [&buffer = input.buffer, delete_transformation](Error error) {
               delete_transformation->preview_modifiers = {
@@ -300,7 +300,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             contents->FilterToRange(range);
             input.buffer.status().Reset();
             DVLOG(5) << "Analyze contents for range: " << range;
-            return PreviewCppExpression(input.buffer, *contents)
+            return PreviewCppExpression(input.buffer, contents.value())
                 .ConsumeErrors(
                     [](Error) { return futures::Past(EmptyValue()); })
                 .Transform([input, output, contents](EmptyValue) {
@@ -310,7 +310,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                           LineNumber(input.buffer.Read(
                               buffer_variables::analyze_content_lines_limit))) {
                     input.buffer.status().SetInformationText(
-                        L"Selection: " + ToString(AnalyzeContent(*contents)));
+                        L"Selection: " +
+                        ToString(AnalyzeContent(contents.value())));
                   }
                   return futures::Past(std::move(*output));
                 });

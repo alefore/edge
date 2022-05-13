@@ -288,17 +288,17 @@ class HelpCommand : public Command {
   const wstring mode_description_;
 };
 
-const bool buffer_registration =
-    tests::Register(L"HelpCommand::GenerateContents",
-                    {
-                        {.name = L"GenerateContents",
-                         .callback =
-                             [] {
-                               auto buffer = NewBufferForTests();
-                               MapModeCommands commands(buffer->editor());
-                               HelpCommand::GenerateContents(commands, *buffer);
-                             }},
-                    });
+const bool buffer_registration = tests::Register(
+    L"HelpCommand::GenerateContents",
+    {
+        {.name = L"GenerateContents",
+         .callback =
+             [] {
+               auto buffer = NewBufferForTests();
+               MapModeCommands commands(buffer->editor());
+               HelpCommand::GenerateContents(commands, buffer.value());
+             }},
+    });
 }  // namespace
 
 NonNull<std::unique_ptr<Command>> NewHelpCommand(

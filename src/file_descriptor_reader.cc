@@ -176,7 +176,7 @@ void InsertLines(
   auto disk_state_freezer = options.buffer.FreezeDiskState();
 
   auto follower = options.buffer.GetEndPositionFollower();
-  options.buffer.AppendToLastLine(**lines_to_insert.begin());
+  options.buffer.AppendToLastLine((*lines_to_insert.begin()).value());
   // TODO: Avoid the linear complexity operation in the next line. However,
   // according to `tracker_erase`, it doesn't seem to matter much.
   static Tracker tracker_erase(L"FileDescriptorReader::InsertLines::Erase");

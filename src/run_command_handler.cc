@@ -421,7 +421,7 @@ class ForkEditorCommand : public Command {
                           const NonNull<std::shared_ptr<LazyString>>& line,
                           std::unique_ptr<ProgressChannel>,
                           NonNull<std::shared_ptr<Notification>>) {
-                       return PromptChange(*prompt_state, line);
+                       return PromptChange(prompt_state.value(), line);
                      })
                    : PromptOptions::ColorizeFunction(nullptr),
            .handler = ([&editor_state = editor_state_,
@@ -470,7 +470,7 @@ class ForkEditorCommand : public Command {
       return futures::Past(ColorizePromptOptions{.context = nullptr});
     }
     return prompt_state.original_buffer
-        ->EvaluateExpression(*expression,
+        ->EvaluateExpression(expression.value(),
                              prompt_state.original_buffer->environment())
         .Transform([&prompt_state, &editor](gc::Root<Value> value)
                        -> ValueOrError<ColorizePromptOptions> {

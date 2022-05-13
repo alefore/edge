@@ -35,7 +35,7 @@ class AssignExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(
       Trampoline& trampoline, const VMType& type) override {
-    return trampoline.Bounce(*value_, type)
+    return trampoline.Bounce(value_.value(), type)
         .Transform(
             [&trampoline, symbol = symbol_,
              assignment_type = assignment_type_](EvaluationOutput value_output)

@@ -310,7 +310,8 @@ int main(int argc, const char** argv) {
           : audio::NewPlayer();
 
   LOG(INFO) << "Creating editor.";
-  global_editor_state = std::make_unique<EditorState>(args, *audio_player);
+  global_editor_state =
+      std::make_unique<EditorState>(args, audio_player.value());
 
   switch (args.tests_behavior) {
     case CommandLineValues::TestsBehavior::kRunAndExit:
@@ -403,7 +404,7 @@ int main(int argc, const char** argv) {
   // changes to the server).
   std::optional<LineColumnDelta> last_screen_size;
 
-  audio::BeepFrequencies(*audio_player, 0.1,
+  audio::BeepFrequencies(audio_player.value(), 0.1,
                          {audio::Frequency(783.99), audio::Frequency(723.25),
                           audio::Frequency(783.99)});
   editor_state().status().SetInformationText(GetGreetingMessage());

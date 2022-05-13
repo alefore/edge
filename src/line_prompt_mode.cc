@@ -232,7 +232,7 @@ ValueOrError<
 ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
   std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
       output;
-  for (const auto& token : TokenizeBySpaces(*line)) {
+  for (const auto& token : TokenizeBySpaces(line.value())) {
     auto colon = token.value.find(':');
     if (colon == string::npos) {
       return Error(L"Unable to parse prompt line (no colon found in token): " +
@@ -360,7 +360,7 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> FilterHistory(
           std::unordered_map<naive_bayes::Event, std::vector<Token>>
               history_prompt_tokens;
           std::vector<Token> filter_tokens =
-              TokenizeBySpaces(*NewLazyString(filter));
+              TokenizeBySpaces(NewLazyString(filter).value());
           history_contents->EveryLine([&](LineNumber, const Line& line) {
             auto warn_if = [&](bool condition, wstring description) {
               if (condition) {
@@ -983,7 +983,7 @@ void Prompt(PromptOptions options) {
                                                     LineNumber(0))](
                                                ColorizePromptOptions options) {
                                   ColorizePrompt(
-                                      *buffer, prompt_state,
+                                      buffer.value(), prompt_state,
                                       NonNull<std::shared_ptr<Notification>>(),
                                       original_line, options);
                                   return Success();
@@ -1021,7 +1021,7 @@ void Prompt(PromptOptions options) {
         // We do this after `EnterInsertMode` because `EnterInsertMode` resets
         // the status.
         prompt_state->status().set_prompt(options.prompt, buffer.get_shared());
-        insert_mode_options.modify_handler(*buffer);
+        insert_mode_options.modify_handler(buffer.value());
       });
 }
 

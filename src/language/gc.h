@@ -129,7 +129,7 @@ class Ptr {
     return Ptr(shared_value.get_shared(),
                language::MakeNonNullShared<ControlFrame>(
                    ControlFrame::ConstructorAccessKey(), pool,
-                   [shared_value] { return Expand(*shared_value); }));
+                   [shared_value] { return Expand(shared_value.value()); }));
   }
 
   friend class Root<T>;

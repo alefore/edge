@@ -64,7 +64,8 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
       LineNumber(0), predictions_buffer.EndLine(),
       [](const NonNull<std::shared_ptr<const Line>>& a,
          const NonNull<std::shared_ptr<const Line>>& b) {
-        return *LowerCase(a->contents()) < *LowerCase(b->contents());
+        return LowerCase(a->contents()).value() <
+               LowerCase(b->contents()).value();
       });
 
   LOG(INFO) << "Removing duplicates.";
@@ -447,7 +448,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     path.substr(descend_results.valid_prefix_length,
                                 path.size()),
                     path.substr(0, descend_results.valid_prefix_length),
-                    &matches, progress_channel, *abort_notification,
+                    &matches, progress_channel, abort_notification.value(),
                     get_buffer);
                 if (abort_notification->HasBeenNotified())
                   return PredictorOutput();
@@ -540,7 +541,7 @@ const bool buffer_tests_registration =
         NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
         test_predictor(PredictorInput{.editor = buffer->editor(),
                                       .input = input,
-                                      .predictions = *buffer,
+                                      .predictions = buffer.value(),
                                       .source_buffers = {},
                                       .progress_channel = channel});
         buffer->SortContents(LineNumber(), buffer->EndLine(),
@@ -629,7 +630,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   if (input.source_buffers.empty()) return futures::Past(PredictorOutput());
   std::set<std::wstring> words;
   for (auto& buffer : input.source_buffers) {
-    RegisterLeaves(*buffer, *buffer->parse_tree(), &words);
+    RegisterLeaves(buffer.value(), buffer->parse_tree().value(), &words);
     std::wistringstream keywords(
         buffer->Read(buffer_variables::language_keywords));
     words.insert(std::istream_iterator<wstring, wchar_t>(keywords),

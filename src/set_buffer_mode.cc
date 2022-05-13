@@ -297,9 +297,10 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
       } break;
 
       case Operation::Type::kFilter:
-        state = state.Transform(
-            [filter = TokenizeBySpaces(*NewLazyString(operation.text_input)),
-             &buffers_list](State state) {
+        state =
+            state.Transform([filter = TokenizeBySpaces(
+                                 NewLazyString(operation.text_input).value()),
+                             &buffers_list](State state) {
               Indices new_indices;
               for (auto& index : state.indices) {
                 NonNull<std::shared_ptr<OpenBuffer>> buffer =
@@ -335,7 +336,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
           using Control = futures::IterationControlCommand;
           std::vector<futures::Value<Control>> search_futures;
           for (auto& index : state.indices) {
-            OpenBuffer& buffer = *buffers_list.GetBuffer(index);
+            OpenBuffer& buffer = buffers_list.GetBuffer(index).value();
             // TODO: Pass SearchOptions::abort_notification to allow
             // aborting as the user continues to type?
             search_futures.push_back(

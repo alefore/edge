@@ -182,7 +182,7 @@ class PlayerImpl : public Player {
       data->generators.swap(next_generators);
       if (data->generators.empty()) data->time = 0.0;
     }
-    auto& frame = new_frame == nullptr ? *empty_frame_ : *new_frame;
+    auto& frame = new_frame == nullptr ? empty_frame_.value() : *new_frame;
     ao_play(device_, const_cast<char*>(frame.buffer()), frame.size());
     return true;
   }

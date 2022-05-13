@@ -80,7 +80,7 @@ void BufferTerminal::ProcessCommandInput(
               << " (modifiers: " << modifiers.size() << ", position "
               << data_->position << ")";
       if (data_->position.column >=
-          ColumnNumber(0) + LastViewSize(*data_).column) {
+          ColumnNumber(0) + LastViewSize(data_.value()).column) {
         MoveToNextLine();
       }
       data_->contents.SetCharacter(data_->position, c, modifiers);
@@ -370,7 +370,7 @@ void BufferTerminal::MoveToNextLine() {
   }
 }
 
-void BufferTerminal::UpdateSize() { InternalUpdateSize(*data_); }
+void BufferTerminal::UpdateSize() { InternalUpdateSize(data_.value()); }
 
 /* static */
 void BufferTerminal::InternalUpdateSize(Data& data) {

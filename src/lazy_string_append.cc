@@ -34,7 +34,7 @@ ConstTree<wchar_t>::Ptr TreeFrom(NonNull<std::shared_ptr<LazyString>> a) {
     return a_cast->tree();
   }
   ConstTree<wchar_t>::Ptr output;
-  ForEachColumn(*a, [&output](ColumnNumber, wchar_t c) {
+  ForEachColumn(a.value(), [&output](ColumnNumber, wchar_t c) {
     output = ConstTree<wchar_t>::PushBack(output, c);
   });
   return output;

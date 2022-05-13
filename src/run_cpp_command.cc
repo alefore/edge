@@ -38,7 +38,7 @@ struct SearchNamespaces {
           std::vector<Environment::Namespace> output(1);
           auto var = NewLazyString(
               buffer.Read(buffer_variables::cpp_prompt_namespaces));
-          for (auto& token : TokenizeBySpaces(*var)) {
+          for (auto& token : TokenizeBySpaces(var.value())) {
             output.push_back({token.value});
           }
           return output;
@@ -78,7 +78,7 @@ ValueOrError<ParsedCommand> Parse(
     NonNull<std::shared_ptr<LazyString>> function_name_prefix,
     std::unordered_set<VMType> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
-  std::vector<Token> output_tokens = TokenizeBySpaces(*command);
+  std::vector<Token> output_tokens = TokenizeBySpaces(command.value());
   if (output_tokens.empty()) {
     // Deliberately empty so as to not trigger a status update.
     return Error(L"");
@@ -230,7 +230,7 @@ futures::ValueOrError<gc::Root<Value>> Execute(
     // TODO: Show the error.
     return futures::Past(Error(L"Unable to compile (type mismatch)."));
   }
-  return buffer->EvaluateExpression(*expression, buffer->environment());
+  return buffer->EvaluateExpression(expression.value(), buffer->environment());
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(

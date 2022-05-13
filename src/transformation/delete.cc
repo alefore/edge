@@ -112,7 +112,7 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
           line_buffer->buffer,
           [&buffer](NonNull<std::shared_ptr<OpenBuffer>> target_buffer) {
             if (target_buffer.get().get() != &buffer) {
-              target_buffer->editor().CloseBuffer(*target_buffer);
+              target_buffer->editor().CloseBuffer(target_buffer.value());
             }
           },
           [] {});

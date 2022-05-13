@@ -291,8 +291,10 @@ class InsertMode : public EditorMode {
                 return futures::Past(EmptyValue());
               }
               return CallModifyHandler(
-                  options, *buffer,
-                  buffer->EvaluateExpression(*expression, buffer->environment())
+                  options, buffer.value(),
+                  buffer
+                      ->EvaluateExpression(expression.value(),
+                                           buffer->environment())
                       .ConsumeErrors(
                           [&pool = buffer->editor().gc_pool()](Error) {
                             return futures::Past(vm::Value::NewVoid(pool));
@@ -319,7 +321,7 @@ class InsertMode : public EditorMode {
             [options =
                  options_](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
               return CallModifyHandler(
-                  options, *buffer,
+                  options, buffer.value(),
                   buffer->ApplyToCursors(transformation::Delete{
                       .modifiers =
                           {.structure = StructureLine(),
@@ -342,7 +344,7 @@ class InsertMode : public EditorMode {
           return buffer->TransformKeyboardText(std::wstring(1, c))
               .Transform([options, buffer](std::wstring value) {
                 return CallModifyHandler(
-                    options, *buffer,
+                    options, buffer.value(),
                     buffer->ApplyToCursors(transformation::Insert{
                         .contents_to_insert = MakeNonNullShared<BufferContents>(
                             MakeNonNullShared<Line>(value)),
@@ -401,7 +403,7 @@ class InsertMode : public EditorMode {
             const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
           buffer->MaybeAdjustPositionCol();
           return CallModifyHandler(
-                     options, *buffer,
+                     options, buffer.value(),
                      buffer->ApplyToCursors(transformation::Delete{
                          .modifiers =
                              {.direction = direction,
@@ -424,8 +426,8 @@ class InsertMode : public EditorMode {
               })
               // TODO:Why call modify_handler here? Isn't it redundant with
               // CallModifyHandler above?
-              .Transform([handler = options.modify_handler,
-                          buffer](EmptyValue) { return handler(*buffer); });
+              .Transform([handler = options.modify_handler, buffer](
+                             EmptyValue) { return handler(buffer.value()); });
         });
   }
 
@@ -441,7 +443,7 @@ class InsertMode : public EditorMode {
               [scroll_behavior,
                method](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
                 if (buffer->fd() == nullptr) {
-                  ((*scroll_behavior).*method)(*buffer);
+                  (scroll_behavior.value().*method)(buffer.value());
                 }
                 return futures::Past(EmptyValue());
               });

@@ -174,7 +174,7 @@ Seek::Result Seek::UntilLine(
     }
     advance = true;
 
-    if (predicate(*contents_.at(position_->line))) {
+    if (predicate(contents_.at(position_->line).value())) {
       if (direction_ == Direction::kBackwards) {
         position_->column = contents_.at(position_->line)->EndColumn();
       }
@@ -191,10 +191,12 @@ std::function<bool(const Line& line)> Negate(
 std::function<bool(const Line& line)> IsLineSubsetOf(
     const wstring& allowed_chars) {
   return [allowed_chars](const Line& line) {
-    return !FindFirstColumnWithPredicate(*line.contents(), [&](ColumnNumber,
-                                                               wchar_t c) {
-              return allowed_chars.find(c) == allowed_chars.npos;
-            }).has_value();
+    return !FindFirstColumnWithPredicate(line.contents().value(),
+                                         [&](ColumnNumber, wchar_t c) {
+                                           return allowed_chars.find(c) ==
+                                                  allowed_chars.npos;
+                                         })
+                .has_value();
   };
 }
 

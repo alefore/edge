@@ -138,7 +138,7 @@ LineWithCursor::Generator NewGenerator(std::wstring prefix, MetadataLine line) {
         options.Append(suffix);
         return LineWithCursor{.line = MakeNonNullShared<Line>(options)};
       },
-      line.info_char, line.modifier, std::move(*line.suffix),
+      line.info_char, line.modifier, std::move(line.suffix.value()),
       std::move(prefix)));
 }
 }  // namespace
@@ -325,7 +325,8 @@ NonNull<std::shared_ptr<Line>> GetDefaultInformation(
 
   auto parse_tree = options.buffer.simplified_parse_tree();
   line_options.AppendString(
-      DrawTree(line, options.buffer.lines_size(), *parse_tree), std::nullopt);
+      DrawTree(line, options.buffer.lines_size(), parse_tree.value()),
+      std::nullopt);
 
   if (options.buffer.lines_size() >
       LineNumberDelta(options.screen_lines.size())) {
@@ -368,7 +369,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   auto call = tracker.Call();
 
   std::list<MetadataLine> output;
-  const Line& contents = *options.buffer.contents().at(range.begin.line);
+  const Line& contents = options.buffer.contents().at(range.begin.line).value();
   std::shared_ptr<OpenBuffer> target_buffer_dummy;
   const OpenBuffer* target_buffer = &options.buffer;
   if (auto line_buffer = contents.buffer_line_column();
@@ -402,7 +403,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         auto call = tracker.Call();
 
         if (metadata->size().IsZero()) return;
-        ForEachColumn(*metadata, [](ColumnNumber, wchar_t c) {
+        ForEachColumn(metadata.value(), [](ColumnNumber, wchar_t c) {
           CHECK(c != L'\n') << "Metadata has invalid newline character.";
         });
         output.push_back(

@@ -122,7 +122,7 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
           const NonNull<std::shared_ptr<BufferContents>>& buffer_contents)
           -> ValueOrError<SearchResultsSummary> {
         auto search_results = PerformSearch(
-            search_options, traits, *buffer_contents, &progress_channel);
+            search_options, traits, buffer_contents.value(), &progress_channel);
         VLOG(5) << "Background search completed for \""
                 << search_options.search_query
                 << "\", found results: " << search_results.positions.size();
@@ -142,7 +142,7 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
 std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
   std::wstring results;
   static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
-  ForEachColumn(*str, [&](ColumnNumber, wchar_t c) {
+  ForEachColumn(str.value(), [&](ColumnNumber, wchar_t c) {
     if (!iswalnum(c) && literal_characters.find(c) == wstring::npos) {
       results.push_back('\\');
     }
@@ -238,8 +238,8 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     SearchOptions options;
     options.search_query = input.input;
     options.starting_position = search_buffer->position();
-    auto positions =
-        PerformSearchWithDirection(input.editor, options, *search_buffer);
+    auto positions = PerformSearchWithDirection(input.editor, options,
+                                                search_buffer.value());
     if (positions.IsError()) {
       search_buffer->status().SetWarningText(positions.error().description);
       continue;

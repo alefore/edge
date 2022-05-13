@@ -96,7 +96,7 @@ class LambdaExpression : public Expression {
           }
           auto original_trampoline = trampoline;
           trampoline.SetEnvironment(environment);
-          return trampoline.Bounce(*body, body->Types()[0])
+          return trampoline.Bounce(body.value(), body->Types()[0])
               .Transform([original_trampoline, &trampoline, body,
                           promotion_function](EvaluationOutput body_output) {
                 trampoline = original_trampoline;

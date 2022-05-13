@@ -109,7 +109,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
     Line::Options options = input.line->CopyOptions();
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
-    GetSyntaxModifiersForLine(range, *root, {}, syntax_modifiers);
+    GetSyntaxModifiersForLine(range, root.value(), {}, syntax_modifiers);
     LOG(INFO) << "Syntax tokens for " << range << ": "
               << syntax_modifiers.size();
 
@@ -167,7 +167,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
   CHECK_GE(output_producer_options.size.line, LineNumberDelta());
 
   const NonNull<std::shared_ptr<const ParseTree>> root = buffer.parse_tree();
-  const ParseTree& current_tree = buffer.current_tree(*root);
+  const ParseTree& current_tree = buffer.current_tree(root.value());
 
   LineWithCursor::Generator::Vector output{
       .lines = {}, .width = output_producer_options.size.column};
@@ -299,7 +299,7 @@ const bool tests_registration = tests::Register(L"BufferOutputProducer", [] {
               .has_active_cursor = false,
               .current_cursors = {}});
          auto lines = ProduceBufferView(
-             *buffer, screen_lines,
+             buffer.value(), screen_lines,
              Widget::OutputProducerOptions{
                  .size = LineColumnDelta(LineNumberDelta(50),
                                          ColumnNumberDelta(80)),

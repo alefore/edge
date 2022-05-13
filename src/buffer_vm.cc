@@ -64,20 +64,20 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
   auto buffer = MakeNonNullUnique<ObjectType>(L"Buffer");
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(
-      pool, buffer_variables::BoolStruct(), *buffer, &OpenBuffer::Read,
+      pool, buffer_variables::BoolStruct(), buffer.value(), &OpenBuffer::Read,
       &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<wstring>, wstring>(
-      pool, buffer_variables::StringStruct(), *buffer, &OpenBuffer::Read,
+      pool, buffer_variables::StringStruct(), buffer.value(), &OpenBuffer::Read,
       &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<int>, int>(
-      pool, buffer_variables::IntStruct(), *buffer, &OpenBuffer::Read,
+      pool, buffer_variables::IntStruct(), buffer.value(), &OpenBuffer::Read,
       &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<double>, double>(
-      pool, buffer_variables::DoubleStruct(), *buffer, &OpenBuffer::Read,
+      pool, buffer_variables::DoubleStruct(), buffer.value(), &OpenBuffer::Read,
       &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<LineColumn>, LineColumn>(
-      pool, buffer_variables::LineColumnStruct(), *buffer, &OpenBuffer::Read,
-      &OpenBuffer::Set);
+      pool, buffer_variables::LineColumnStruct(), buffer.value(),
+      &OpenBuffer::Read, &OpenBuffer::Set);
 
   buffer->AddField(
       L"SetStatus",

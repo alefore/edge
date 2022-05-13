@@ -90,7 +90,7 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   return {
       .initial_value = NewLazyString(L"…"),
       .value =
-          target.EvaluateExpression(*expression, target.environment())
+          target.EvaluateExpression(expression.value(), target.environment())
               .Transform([](gc::Root<Value> value)
                              -> futures::ValueOrError<
                                  NonNull<std::shared_ptr<LazyString>>> {

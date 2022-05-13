@@ -129,16 +129,16 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
 
   // Methods for Editor.
   RegisterVariableFields<EdgeStruct<bool>, bool>(
-      pool, editor_variables::BoolStruct(), *editor_type, &EditorState::Read,
-      &EditorState::Set);
+      pool, editor_variables::BoolStruct(), editor_type.value(),
+      &EditorState::Read, &EditorState::Set);
 
   RegisterVariableFields<EdgeStruct<wstring>, wstring>(
-      pool, editor_variables::StringStruct(), *editor_type, &EditorState::Read,
-      &EditorState::Set);
+      pool, editor_variables::StringStruct(), editor_type.value(),
+      &EditorState::Read, &EditorState::Set);
 
   RegisterVariableFields<EdgeStruct<int>, int>(
-      pool, editor_variables::IntStruct(), *editor_type, &EditorState::Read,
-      &EditorState::Set);
+      pool, editor_variables::IntStruct(), editor_type.value(),
+      &EditorState::Read, &EditorState::Set);
 
   editor_type->AddField(
       L"EnterSetBufferMode", vm::NewCallback(pool, [](EditorState& editor) {
@@ -200,7 +200,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                   return callback(std::move(args), trampoline)
                       .Transform([](EvaluationOutput) { return Success(); })
                       .ConsumeErrors([output](Error error) {
-                        *output = error;
+                        output.value() = error;
                         return futures::Past(EmptyValue());
                       });
                 })
@@ -403,21 +403,21 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
             return Value::NewVoid(pool);
           }));
 
-  RegisterBufferMethod(pool, *editor_type, L"ToggleActiveCursors",
+  RegisterBufferMethod(pool, editor_type.value(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
-  RegisterBufferMethod(pool, *editor_type, L"PushActiveCursors",
+  RegisterBufferMethod(pool, editor_type.value(), L"PushActiveCursors",
                        &OpenBuffer::PushActiveCursors);
-  RegisterBufferMethod(pool, *editor_type, L"PopActiveCursors",
+  RegisterBufferMethod(pool, editor_type.value(), L"PopActiveCursors",
                        &OpenBuffer::PopActiveCursors);
-  RegisterBufferMethod(pool, *editor_type, L"SetActiveCursorsToMarks",
+  RegisterBufferMethod(pool, editor_type.value(), L"SetActiveCursorsToMarks",
                        &OpenBuffer::SetActiveCursorsToMarks);
-  RegisterBufferMethod(pool, *editor_type, L"CreateCursor",
+  RegisterBufferMethod(pool, editor_type.value(), L"CreateCursor",
                        &OpenBuffer::CreateCursor);
-  RegisterBufferMethod(pool, *editor_type, L"DestroyCursor",
+  RegisterBufferMethod(pool, editor_type.value(), L"DestroyCursor",
                        &OpenBuffer::DestroyCursor);
-  RegisterBufferMethod(pool, *editor_type, L"DestroyOtherCursors",
+  RegisterBufferMethod(pool, editor_type.value(), L"DestroyOtherCursors",
                        &OpenBuffer::DestroyOtherCursors);
-  RegisterBufferMethod(pool, *editor_type, L"RepeatLastTransformation",
+  RegisterBufferMethod(pool, editor_type.value(), L"RepeatLastTransformation",
                        &OpenBuffer::RepeatLastTransformation);
   value.DefineType(L"Editor", std::move(editor_type));
 

@@ -41,7 +41,7 @@ class IfExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(
       Trampoline& trampoline, const VMType& type) override {
-    return trampoline.Bounce(*cond_, VMType::Bool())
+    return trampoline.Bounce(cond_.value(), VMType::Bool())
         .Transform([type, true_case = true_case_, false_case = false_case_,
                     &trampoline](EvaluationOutput cond_output)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -50,8 +50,8 @@ class IfExpression : public Expression {
               return futures::Past(Success(std::move(cond_output)));
             case EvaluationOutput::OutputType::kContinue:
               return trampoline.Bounce(cond_output.value.ptr()->get_bool()
-                                           ? *true_case
-                                           : *false_case,
+                                           ? true_case.value()
+                                           : false_case.value(),
                                        type);
           }
           language::Error error(L"Unhandled OutputType case.");
