@@ -89,7 +89,7 @@ bool cpp_unescape_string_tests_registration =
 }
 
 /* static */ gc::Root<Value> Value::NewVoid(gc::Pool& pool) {
-  return pool.NewRoot(MakeNonNullUnique<Value>(VMType::VM_VOID));
+  return pool.NewRoot(MakeNonNullUnique<Value>(VMType::Void()));
 }
 
 /* static */ gc::Root<Value> Value::NewBool(gc::Pool& pool, bool value) {
@@ -116,6 +116,12 @@ bool cpp_unescape_string_tests_registration =
   return output;
 }
 
+/* static */ gc::Root<Value> Value::NewSymbol(gc::Pool& pool, wstring value) {
+  auto output = pool.NewRoot(MakeNonNullUnique<Value>(VMType::Symbol()));
+  output.value()->str = std::move(value);
+  return output;
+}
+
 /* static */ gc::Root<Value> Value::NewObject(gc::Pool& pool, std::wstring name,
                                               std::shared_ptr<void> value) {
   auto output = pool.NewRoot(
@@ -127,8 +133,9 @@ bool cpp_unescape_string_tests_registration =
 /* static */ gc::Root<Value> Value::NewFunction(gc::Pool& pool,
                                                 std::vector<VMType> arguments,
                                                 Value::Callback callback) {
-  auto output = pool.NewRoot(MakeNonNullUnique<Value>(VMType::FUNCTION));
-  output.value()->type.type_arguments = std::move(arguments);
+  // TODO(easy, 2022-05-13): Receive the purity type explicitly.
+  auto output = pool.NewRoot(MakeNonNullUnique<Value>(
+      VMType::Function(std::move(arguments), VMType::PurityType::kUnknown)));
   output.value()->callback = std::move(callback);
   return output;
 }

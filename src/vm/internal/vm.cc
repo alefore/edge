@@ -510,9 +510,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           }
         } else {
           token = SYMBOL;
-          input = compilation.pool.NewRoot(
-              MakeNonNullUnique<Value>(VMType::VM_SYMBOL));
-          input.value().value()->str = symbol;
+          input = Value::NewSymbol(compilation.pool, symbol);
         }
       } break;
 

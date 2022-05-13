@@ -28,7 +28,6 @@ std::optional<std::wstring> CppUnescapeString(std::wstring input);
 struct Value {
   using Ptr = std::unique_ptr<Value>;
 
-  explicit Value(const VMType::Type& t) : type(t) {}
   explicit Value(const VMType& t) : type(t) {}
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
@@ -45,6 +44,8 @@ struct Value {
   static language::gc::Root<Value> NewDouble(language::gc::Pool& pool,
                                              double value);
   static language::gc::Root<Value> NewString(language::gc::Pool& pool,
+                                             wstring value);
+  static language::gc::Root<Value> NewSymbol(language::gc::Pool& pool,
                                              wstring value);
   static language::gc::Root<Value> NewObject(language::gc::Pool& pool,
                                              std::wstring name,
