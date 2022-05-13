@@ -75,7 +75,6 @@ void AddMethod(const wstring& name, gc::Pool& pool,
   string_type->AddField(name, NewCallback(pool, callback));
 }
 
-// TODO(2022-05-11, easy): Pass environment by ref.
 void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   auto time_type = MakeNonNullUnique<ObjectType>(L"Time");
   time_type->AddField(
