@@ -79,7 +79,8 @@ class LambdaExpression : public Expression {
   }
 
   gc::Root<Value> BuildValue(gc::Pool& pool,
-                             gc::Root<Environment> parent_environment) {
+                             gc::Root<Environment> parent_environment_root) {
+    gc::Ptr<Environment> parent_environment = parent_environment_root.ptr();
     return Value::NewFunction(
         pool, type_.type_arguments,
         [body = body_, parent_environment, argument_names = argument_names_,
@@ -88,7 +89,7 @@ class LambdaExpression : public Expression {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
           gc::Root<Environment> environment = trampoline.pool().NewRoot(
-              MakeNonNullUnique<Environment>(parent_environment.ptr()));
+              MakeNonNullUnique<Environment>(parent_environment));
           for (size_t i = 0; i < args.size(); i++) {
             environment.ptr()->Define(argument_names->at(i),
                                       std::move(args.at(i)));
@@ -102,6 +103,10 @@ class LambdaExpression : public Expression {
                 return Success(EvaluationOutput::New(promotion_function(
                     trampoline.pool(), std::move(body_output.value))));
               });
+        },
+        [parent_environment](
+            std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>>& output) {
+          output.push_back(parent_environment.control_frame());
         });
   }
 

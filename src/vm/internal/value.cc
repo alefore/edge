@@ -136,14 +136,15 @@ bool cpp_unescape_string_tests_registration =
   return output;
 }
 
-/* static */ gc::Root<Value> Value::NewFunction(gc::Pool& pool,
-                                                std::vector<VMType> arguments,
-                                                Value::Callback callback) {
+/* static */ gc::Root<Value> Value::NewFunction(
+    gc::Pool& pool, std::vector<VMType> arguments, Value::Callback callback,
+    DependenciesCallback dependencies_callback) {
   // TODO(easy, 2022-05-13): Receive the purity type explicitly.
   gc::Root<Value> output =
       New(pool,
           VMType::Function(std::move(arguments), VMType::PurityType::kUnknown));
   output.ptr()->callback = std::move(callback);
+  output.ptr()->dependencies_callback = std::move(dependencies_callback);
   return output;
 }
 
@@ -182,6 +183,8 @@ double Value::get_double() const {
 
 Value::Callback Value::LockCallback() {
   CHECK(IsFunction());
+  // TODO(gc, 2022-05-13): Run dependencies callback and somehow capture the
+  // output?
   return callback;
 }
 

@@ -59,9 +59,13 @@ struct Value {
   static language::gc::Root<Value> NewObject(language::gc::Pool& pool,
                                              std::wstring name,
                                              std::shared_ptr<void> value);
-  static language::gc::Root<Value> NewFunction(language::gc::Pool& pool,
-                                               std::vector<VMType> arguments,
-                                               Callback callback);
+  static language::gc::Root<Value> NewFunction(
+      language::gc::Pool& pool, std::vector<VMType> arguments,
+      Callback callback,
+      DependenciesCallback dependencies_callback =
+          [](std::vector<language::NonNull<
+                 std::shared_ptr<language::gc::ControlFrame>>>&) {});
+
   // Convenience wrapper.
   static language::gc::Root<Value> NewFunction(
       language::gc::Pool& pool, std::vector<VMType> arguments,
