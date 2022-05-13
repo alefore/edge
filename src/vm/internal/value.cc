@@ -5,9 +5,11 @@
 #include "wstring.h"
 
 namespace afc::vm {
+using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
+using language::ValueOrError;
 
 namespace gc = language::gc;
 
@@ -174,6 +176,17 @@ double Value::get_double() const {
 Value::Callback Value::LockCallback() {
   CHECK(IsFunction());
   return callback;
+}
+
+ValueOrError<double> Value::ToDouble() const {
+  switch (type.type) {
+    case VMType::VM_INTEGER:
+      return get_int();
+    case VMType::VM_DOUBLE:
+      return get_double();
+    default:
+      return Error(L"Unexpected value of type: " + type.ToString());
+  }
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {

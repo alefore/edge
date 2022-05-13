@@ -70,6 +70,7 @@ struct Value {
           callback);
 
   bool IsVoid() const { return type.type == VMType::VM_VOID; };
+  bool IsInteger() const { return type.type == VMType::VM_INTEGER; };
   bool IsString() const { return type.type == VMType::VM_STRING; };
   bool IsSymbol() const { return type.type == VMType::VM_SYMBOL; };
   bool IsFunction() const { return type.type == VMType::FUNCTION; };
@@ -86,6 +87,10 @@ struct Value {
   std::shared_ptr<void> user_value;
 
   Callback LockCallback();
+
+  // This is similar to `get_double`, but can deal with type conversion from
+  // integer.
+  language::ValueOrError<double> ToDouble() const;
 
  private:
   std::variant<bool, int, double> value_;
