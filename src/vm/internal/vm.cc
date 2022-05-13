@@ -584,9 +584,7 @@ ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
-    const string& path, gc::Root<Environment> environment) {
-  // TODO(2022-05-10, easy): Receive pool explicitly.
-  gc::Pool& pool = environment.pool();
+    const string& path, gc::Pool& pool, gc::Root<Environment> environment) {
   Compilation compilation{.pool = pool,
                           .directory = CppDirname(path),
                           .environment = std::move(environment)};
@@ -595,9 +593,8 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileString(
-    const std::wstring& str, gc::Root<Environment> environment) {
-  // TODO(2022-05-10, easy): Receive pool explicitly.
-  gc::Pool& pool = environment.pool();
+    const std::wstring& str, gc::Pool& pool,
+    gc::Root<Environment> environment) {
   std::wstringstream instr(str, std::ios_base::in);
   Compilation compilation{
       .pool = pool, .directory = ".", .environment = std::move(environment)};

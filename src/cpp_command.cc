@@ -81,7 +81,8 @@ class CppCommand : public Command {
 ValueOrError<NonNull<std::unique_ptr<Command>>> NewCppCommand(
     EditorState& editor_state, gc::Root<afc::vm::Environment> environment,
     wstring code) {
-  auto result = vm::CompileString(code, std::move(environment));
+  auto result =
+      vm::CompileString(code, editor_state.gc_pool(), std::move(environment));
   if (result.IsError()) {
     LOG(ERROR) << "Failed compilation of command: " << code << ": "
                << result.error();

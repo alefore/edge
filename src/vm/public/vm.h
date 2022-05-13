@@ -134,10 +134,11 @@ language::ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
     std::unordered_set<VMType> a, std::unordered_set<VMType> b);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-CompileFile(const string& path, language::gc::Root<Environment> environment);
+CompileFile(const string& path, language::gc::Pool& pool,
+            language::gc::Root<Environment> environment);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-CompileString(const std::wstring& str,
+CompileString(const std::wstring& str, language::gc::Pool& pool,
               language::gc::Root<Environment> environment);
 
 // `yield_callback` is an optional function that must ensure that the callback

@@ -561,7 +561,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
     ValueOrError<NonNull<std::unique_ptr<Expression>>> expression =
-        CompileFile(ToByteString(path.read()), environment_);
+        CompileFile(ToByteString(path.read()), gc_pool_, environment_);
     if (expression.IsError()) {
       Error error =
           Error::Augment(path.read() + L": error: ", expression.error());
