@@ -3,6 +3,7 @@
 %extra_argument { Compilation* compilation }
 
 %token_type { std::optional<gc::Root<Value>>* }
+%token_destructor { delete $$; }
 
 %left COMMA.
 %left QUESTION_MARK.
@@ -19,6 +20,7 @@
 
 main ::= program(P) . {
   compilation->expr.reset(P);
+  P = nullptr;
 }
 
 main ::= error. {
@@ -98,6 +100,7 @@ statement(OUT) ::= class_declaration
 }
 
 class_declaration ::= CLASS SYMBOL(NAME) . {
+  CHECK(NAME->value().ptr()->IsString());
   StartClassDeclaration(*compilation, NAME->value().ptr()->str);
 }
 
@@ -882,49 +885,45 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 ////////////////////////////////////////////////////////////////////////////////
 
 expr(OUT) ::= BOOL(B). {
-  OUT = NewConstantExpression(B->value()).get_unique().release();
-  B = nullptr;
+  // TODO(easy, 2022-05-13): Add a Value::IsBool check.
+  CHECK_EQ(B->value().ptr()->type, VMType::Bool());
+  OUT = NewConstantExpression(std::move(B->value())).get_unique().release();
+  delete B;
 }
 
 expr(OUT) ::= INTEGER(I). {
-  language::NonNull<std::unique_ptr<Value>> value =
-      MakeNonNullUnique<Value>(I->value().ptr().value());
-  OUT = NewConstantExpression(compilation->pool.NewRoot(std::move(value)))
-      .get_unique().release();
-  I = nullptr;
+  CHECK(I->value().ptr()->IsInteger());
+  OUT = NewConstantExpression(std::move(I->value())).get_unique().release();
+  delete I;
 }
 
 expr(OUT) ::= DOUBLE(I). {
-  language::NonNull<std::unique_ptr<Value>> value =
-      MakeNonNullUnique<Value>(I->value().ptr().value());
-  OUT = NewConstantExpression(compilation->pool.NewRoot(std::move(value)))
-            .get_unique().release();
-  I = nullptr;
+  // TODO(easy, 2022-05-13): Add a Value::IsDouble check.
+  CHECK_EQ(I->value().ptr()->type, VMType::Double());
+  OUT = NewConstantExpression(std::move(I->value())).get_unique().release();
+  delete I;
 }
 
 %type string { gc::Root<Value>* }
 %destructor string { delete $$; }
 
 expr(OUT) ::= string(S). {
-  language::NonNull<std::unique_ptr<Value>> value =
-      MakeNonNullUnique<Value>(S->ptr().value());
-  OUT = NewConstantExpression(compilation->pool.NewRoot(std::move(value)))
-            .get_unique().release();
-  S = nullptr;
+  CHECK(S->ptr()->IsString());
+  OUT = NewConstantExpression(std::move(*S)).get_unique().release();
+  delete S;
 }
 
 string(OUT) ::= STRING(S). {
-  assert(S->value().ptr()->type == VMType::String());
-  OUT = std::make_unique<gc::Root<Value>>(S->value()).release();
-  S = nullptr;
+  CHECK(S->value().ptr()->IsString());
+  OUT = std::make_unique<gc::Root<Value>>(std::move(S->value())).release();
 }
 
 string(OUT) ::= string(A) STRING(B). {
   assert(A->ptr()->type == VMType::String());
   assert(B->value().ptr()->type == VMType::String());
   OUT = std::make_unique<gc::Root<Value>>(Value::NewString(compilation->pool,
-      A->ptr()->str + B->value().ptr()->str)).release();
-  A = nullptr;
+      A->ptr()->str + std::move(B->value().ptr()->str))).release();
+  delete B;
 }
 
 expr(OUT) ::= non_empty_symbols_list(N) . {
