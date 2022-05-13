@@ -68,9 +68,8 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
 
 struct ParsedCommand {
   std::vector<Token> tokens;
-  // TODO(easy, 2022-05-12): Remove the optional here?
-  std::optional<gc::Root<vm::Value>> function;
-  std::vector<NonNull<std::unique_ptr<Expression>>> inputs;
+  gc::Root<vm::Value> function;
+  std::vector<NonNull<std::unique_ptr<Expression>>> function_inputs;
 };
 
 ValueOrError<ParsedCommand> Parse(
@@ -79,9 +78,8 @@ ValueOrError<ParsedCommand> Parse(
     NonNull<std::shared_ptr<LazyString>> function_name_prefix,
     std::unordered_set<VMType> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
-  ParsedCommand output;
-  output.tokens = TokenizeBySpaces(*command);
-  if (output.tokens.empty()) {
+  std::vector<Token> output_tokens = TokenizeBySpaces(*command);
+  if (output_tokens.empty()) {
     // Deliberately empty so as to not trigger a status update.
     return Error(L"");
   }
@@ -92,14 +90,14 @@ ValueOrError<ParsedCommand> Parse(
     environment.CaseInsensitiveLookup(
         n,
         StringAppend(function_name_prefix,
-                     NewLazyString(output.tokens[0].value))
+                     NewLazyString(output_tokens[0].value))
             ->ToString(),
         &functions);
     if (!functions.empty()) break;
   }
 
   if (functions.empty()) {
-    return Error(L"Unknown symbol: " + output.tokens[0].value);
+    return Error(L"Unknown symbol: " + output_tokens[0].value);
   }
 
   // Filter functions that match our type expectations.
@@ -129,42 +127,46 @@ ValueOrError<ParsedCommand> Parse(
     }
   }
 
+  std::optional<gc::Root<vm::Value>> output_function;
+  std::vector<NonNull<std::unique_ptr<Expression>>> output_function_inputs;
+
   if (function_vector.has_value()) {
-    output.function = function_vector.value();
+    output_function = function_vector.value();
     auto argument_values = std::make_unique<std::vector<std::wstring>>();
-    for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
+    for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it) {
       argument_values->push_back(it->value);
     }
-    output.inputs.push_back(vm::NewConstantExpression(
+    output_function_inputs.push_back(vm::NewConstantExpression(
         VMTypeMapper<std::unique_ptr<std::vector<std::wstring>>>::New(
             pool, std::move(argument_values))));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
-    output.function = type_match_functions[0];
-    CHECK_GE(output.function.value().ptr()->type.type_arguments.size(),
+    output_function = type_match_functions[0];
+    CHECK_GE(output_function.value().ptr()->type.type_arguments.size(),
              1ul /* return type */);
     size_t expected_arguments =
-        output.function.value().ptr()->type.type_arguments.size() - 1;
-    if (output.tokens.size() - 1 > expected_arguments) {
-      return Error(L"Too many arguments given for `" + output.tokens[0].value +
+        output_function.value().ptr()->type.type_arguments.size() - 1;
+    if (output_tokens.size() - 1 > expected_arguments) {
+      return Error(L"Too many arguments given for `" + output_tokens[0].value +
                    L"` (expected: " + std::to_wstring(expected_arguments) +
                    L")");
     }
 
-    for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
-      output.inputs.push_back(
+    for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it) {
+      output_function_inputs.push_back(
           vm::NewConstantExpression(vm::Value::NewString(pool, it->value)));
     }
 
-    while (output.inputs.size() < expected_arguments) {
-      output.inputs.push_back(
+    while (output_function_inputs.size() < expected_arguments) {
+      output_function_inputs.push_back(
           vm::NewConstantExpression(vm::Value::NewString(pool, L"")));
     }
   } else {
-    return Error(L"No suitable definition found: " + output.tokens[0].value);
+    return Error(L"No suitable definition found: " + output_tokens[0].value);
   }
-
-  return output;
+  return ParsedCommand{.tokens = std::move(output_tokens),
+                       .function = output_function.value(),
+                       .function_inputs = std::move(output_function_inputs)};
 }
 
 ValueOrError<ParsedCommand> Parse(gc::Pool& pool,
@@ -221,10 +223,9 @@ bool tests_parse_registration = tests::Register(
 
 futures::ValueOrError<gc::Root<Value>> Execute(
     std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
-  CHECK(parsed_command.function.has_value());
   NonNull<std::unique_ptr<Expression>> expression =
-      vm::NewFunctionCall(vm::NewConstantExpression(*parsed_command.function),
-                          std::move(parsed_command.inputs));
+      vm::NewFunctionCall(vm::NewConstantExpression(parsed_command.function),
+                          std::move(parsed_command.function_inputs));
   if (expression->Types().empty()) {
     // TODO: Show the error.
     return futures::Past(Error(L"Unable to compile (type mismatch)."));
