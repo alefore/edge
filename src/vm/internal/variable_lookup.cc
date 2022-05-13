@@ -37,10 +37,10 @@ class VariableLookup : public Expression {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
     return futures::Past(VisitPointer(
-        trampoline.environment().value()->Lookup(
+        trampoline.environment().ptr()->Lookup(
             trampoline.pool(), symbol_namespace_, symbol_, type),
         [](gc::Root<Value> value) {
-          DVLOG(5) << "Variable lookup: " << value.value().value();
+          DVLOG(5) << "Variable lookup: " << value.ptr().value();
           return Success(EvaluationOutput::New(std::move(value)));
         },
         [this]() {
@@ -74,8 +74,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   // We don't need to switch namespaces (i.e., we can use
   // `compilation->environment` directly) because during compilation, we know
   // that we'll be in the right environment.
-  compilation->environment.value()->PolyLookup(symbol_namespace, symbol,
-                                               &result);
+  compilation->environment.ptr()->PolyLookup(symbol_namespace, symbol, &result);
   if (result.empty()) {
     compilation->AddError(L"Variable not found: `" + symbol + L"`");
     return nullptr;
@@ -84,8 +83,8 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   std::unordered_set<VMType> types_already_seen;
 
   for (gc::Root<Value>& v : result) {
-    if (types_already_seen.insert(v.value()->type).second) {
-      types.push_back(v.value()->type);
+    if (types_already_seen.insert(v.ptr()->type).second) {
+      types.push_back(v.ptr()->type);
     }
   }
   return std::make_unique<VariableLookup>(std::move(symbol_namespace),

@@ -403,7 +403,7 @@ class ForkEditorCommand : public Command {
               .original_buffer = original_buffer,
               .base_command = std::nullopt,
               .context_command_callback =
-                  original_buffer->environment().value()->Lookup(
+                  original_buffer->environment().ptr()->Lookup(
                       pool, Environment::Namespace(),
                       L"GetShellPromptContextProgram",
                       VMType::Function({VMType::String(), VMType::String()}))});
@@ -474,8 +474,8 @@ class ForkEditorCommand : public Command {
                              prompt_state.original_buffer->environment())
         .Transform([&prompt_state, &editor](gc::Root<Value> value)
                        -> ValueOrError<ColorizePromptOptions> {
-          CHECK(value.value()->IsString());
-          auto base_command = value.value()->str;
+          CHECK(value.ptr()->IsString());
+          auto base_command = value.ptr()->str;
           if (prompt_state.base_command == base_command) {
             return ColorizePromptOptions{};
           }

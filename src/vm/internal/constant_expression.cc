@@ -20,15 +20,15 @@ class ConstantExpression : public Expression {
  public:
   ConstantExpression(gc::Root<Value> value) : value_(std::move(value)) {}
 
-  std::vector<VMType> Types() { return {value_.value()->type}; }
+  std::vector<VMType> Types() { return {value_.ptr()->type}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
   PurityType purity() override { return PurityType::kPure; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline&,
                                                    const VMType& type) {
-    CHECK_EQ(type, value_.value()->type);
-    DVLOG(5) << "Evaluating constant value: " << value_.value().value();
+    CHECK_EQ(type, value_.ptr()->type);
+    DVLOG(5) << "Evaluating constant value: " << value_.ptr().value();
     return futures::Past(EvaluationOutput::New(value_));
   }
 

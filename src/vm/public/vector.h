@@ -70,8 +70,8 @@ struct VMTypeMapper<std::vector<T>*> {
                Trampoline& trampoline)
                 -> futures::ValueOrError<EvaluationOutput> {
               CHECK_EQ(args.size(), 2ul);
-              auto* v = get(args[0].value().value());
-              int index = args[1].value()->get_int();
+              auto* v = get(args[0].ptr().value());
+              int index = args[1].ptr()->get_int();
               if (index < 0 || static_cast<size_t>(index) >= v->size()) {
                 return futures::Past(language::Error(
                     vmtype.ToString() + L": Index out of range " +

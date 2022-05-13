@@ -99,38 +99,38 @@ bool cpp_unescape_string_tests_registration =
 
 /* static */ gc::Root<Value> Value::NewBool(gc::Pool& pool, bool value) {
   gc::Root<Value> output = New(pool, VMType::Bool());
-  output.value()->value_ = value;
+  output.ptr()->value_ = value;
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewInteger(gc::Pool& pool, int value) {
   gc::Root<Value> output = New(pool, VMType::Integer());
-  output.value()->value_ = value;
+  output.ptr()->value_ = value;
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewDouble(gc::Pool& pool, double value) {
   gc::Root<Value> output = New(pool, VMType::Double());
-  output.value()->value_ = value;
+  output.ptr()->value_ = value;
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewString(gc::Pool& pool, wstring value) {
   gc::Root<Value> output = New(pool, VMType::String());
-  output.value()->str = std::move(value);
+  output.ptr()->str = std::move(value);
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewSymbol(gc::Pool& pool, wstring value) {
   gc::Root<Value> output = New(pool, VMType::Symbol());
-  output.value()->str = std::move(value);
+  output.ptr()->str = std::move(value);
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewObject(gc::Pool& pool, std::wstring name,
                                               std::shared_ptr<void> value) {
   gc::Root<Value> output = New(pool, VMType::ObjectType(std::move(name)));
-  output.value()->user_value = std::move(value);
+  output.ptr()->user_value = std::move(value);
   return output;
 }
 
@@ -141,7 +141,7 @@ bool cpp_unescape_string_tests_registration =
   gc::Root<Value> output =
       New(pool,
           VMType::Function(std::move(arguments), VMType::PurityType::kUnknown));
-  output.value()->callback = std::move(callback);
+  output.ptr()->callback = std::move(callback);
   return output;
 }
 

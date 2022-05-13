@@ -122,7 +122,7 @@ language::gc::Root<Value> RunCallback(
     callback(
         VMTypeMapper<typename std::remove_const<typename std::remove_reference<
             typename std::tuple_element<I, typename ft::ArgTuple>::
-                type>::type>::type>::get(args.at(I).value().value())...);
+                type>::type>::type>::get(args.at(I).ptr().value())...);
     return Value::NewVoid(pool);
   } else {
     return VMTypeMapper<typename ft::ReturnType>::New(
@@ -130,7 +130,7 @@ language::gc::Root<Value> RunCallback(
         callback(VMTypeMapper<typename std::remove_const<
                      typename std::remove_reference<typename std::tuple_element<
                          I, typename ft::ArgTuple>::type>::type>::type>::
-                     get(args.at(I).value().value())...));
+                     get(args.at(I).ptr().value())...));
   }
 }
 
@@ -154,7 +154,7 @@ language::gc::Root<Value> NewCallback(
         return futures::Past(
             language::Success(EvaluationOutput::New(std::move(result))));
       });
-  callback_wrapper.value()->type.function_purity = purity;
+  callback_wrapper.ptr()->type.function_purity = purity;
   return callback_wrapper;
 }
 

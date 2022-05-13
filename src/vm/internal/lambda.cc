@@ -88,10 +88,10 @@ class LambdaExpression : public Expression {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
           gc::Root<Environment> environment = trampoline.pool().NewRoot(
-              MakeNonNullUnique<Environment>(parent_environment.value()));
+              MakeNonNullUnique<Environment>(parent_environment.ptr()));
           for (size_t i = 0; i < args.size(); i++) {
-            environment.value()->Define(argument_names->at(i),
-                                        std::move(args.at(i)));
+            environment.ptr()->Define(argument_names->at(i),
+                                      std::move(args.at(i)));
           }
           auto original_trampoline = trampoline;
           trampoline.SetEnvironment(environment);
@@ -127,7 +127,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
     return nullptr;
   }
   const VMType* return_type_def =
-      compilation.environment.value()->LookupType(return_type);
+      compilation.environment.ptr()->LookupType(return_type);
   if (return_type_def == nullptr) {
     compilation.errors.push_back(L"Unknown return type: \"" + return_type +
                                  L"\"");
@@ -143,13 +143,13 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
   if (name.has_value()) {
     output->name = name.value();
-    compilation.environment.value()->Define(
+    compilation.environment.ptr()->Define(
         name.value(), Value::New(compilation.pool, output->type));
   }
   compilation.environment = compilation.pool.NewRoot(
-      MakeNonNullUnique<Environment>(compilation.environment.value()));
+      MakeNonNullUnique<Environment>(compilation.environment.ptr()));
   for (const pair<VMType, wstring>& arg : *args) {
-    compilation.environment.value()->Define(
+    compilation.environment.ptr()->Define(
         arg.second, Value::New(compilation.pool, arg.first));
   }
   return output;
@@ -157,7 +157,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
 
 gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
   if (std::optional<gc::Ptr<Environment>> parent_environment =
-          compilation.environment.value()->parent_environment();
+          compilation.environment.ptr()->parent_environment();
       parent_environment.has_value())
     return parent_environment->ToRoot();
   return compilation.pool.NewRoot(MakeNonNullUnique<Environment>());
@@ -188,7 +188,7 @@ std::unique_ptr<Expression> UserFunction::BuildExpression(
 void UserFunction::Abort(Compilation& compilation) {
   Done(compilation);
   if (name.has_value()) {
-    compilation.environment.value()->Remove(name.value(), type);
+    compilation.environment.ptr()->Remove(name.value(), type);
   }
 }
 

@@ -262,7 +262,7 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
         std::optional<gc::Root<Value>> callback =
-            options_.editor_state.environment().value()->Lookup(
+            options_.editor_state.environment().ptr()->Lookup(
                 options_.editor_state.gc_pool(), Environment::Namespace(),
                 L"HandleKeyboardControlU",
                 VMType::Function(

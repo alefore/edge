@@ -176,8 +176,8 @@ class Root {
 
   Pool& pool() const { return ptr_.pool(); }
 
-  Ptr<T>& value() { return ptr_; }
-  const Ptr<T>& value() const { return ptr_; }
+  Ptr<T>& ptr() { return ptr_; }
+  const Ptr<T>& ptr() const { return ptr_; }
 
  private:
   friend class Pool;

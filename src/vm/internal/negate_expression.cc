@@ -32,7 +32,7 @@ class NegateExpression : public Expression {
         .Transform([&pool = trampoline.pool(),
                     negate = negate_](EvaluationOutput expr_output) {
           return Success(EvaluationOutput::New(
-              negate(pool, expr_output.value.value().value())));
+              negate(pool, expr_output.value.ptr().value())));
         });
   }
 

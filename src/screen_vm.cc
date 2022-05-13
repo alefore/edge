@@ -121,8 +121,8 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
           [&pool](std::vector<gc::Root<Value>> args,
                   Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
-            CHECK(args[0].value()->IsString());
-            auto path = Path::FromString(args[0].value()->str);
+            CHECK(args[0].ptr()->IsString());
+            auto path = Path::FromString(args[0].ptr()->str);
             if (path.IsError()) {
               LOG(ERROR) << "RemoteScreen: " << path.error();
               return futures::Past(path.error());

@@ -45,13 +45,13 @@ class AssignExpression : public Expression {
                   return Success(std::move(value_output));
                 case EvaluationOutput::OutputType::kContinue:
                   DVLOG(3) << "Setting value for: " << symbol;
-                  DVLOG(4) << "Value: " << value_output.value.value().value();
+                  DVLOG(4) << "Value: " << value_output.value.ptr().value();
                   if (assignment_type == AssignmentType::kDefine) {
-                    trampoline.environment().value()->Define(
-                        symbol, value_output.value);
+                    trampoline.environment().ptr()->Define(symbol,
+                                                           value_output.value);
                   } else {
-                    trampoline.environment().value()->Assign(
-                        symbol, value_output.value);
+                    trampoline.environment().ptr()->Assign(symbol,
+                                                           value_output.value);
                   }
                   return Success(
                       EvaluationOutput::New(std::move(value_output.value)));
@@ -85,7 +85,7 @@ std::optional<VMType> NewDefineTypeExpression(
     }
     type_def = default_type.value();
   } else {
-    auto type_ptr = compilation->environment.value()->LookupType(type);
+    auto type_ptr = compilation->environment.ptr()->LookupType(type);
     if (type_ptr == nullptr) {
       compilation->errors.push_back(L"Unknown type: `" + type +
                                     L"` for symbol `" + symbol + L"`.");
@@ -93,7 +93,7 @@ std::optional<VMType> NewDefineTypeExpression(
     }
     type_def = *type_ptr;
   }
-  compilation->environment.value()->Define(
+  compilation->environment.ptr()->Define(
       symbol, Value::New(compilation->pool, type_def));
   return type_def;
 }
@@ -136,9 +136,9 @@ std::unique_ptr<Expression> NewAssignExpression(
     return nullptr;
   }
   std::vector<gc::Root<Value>> variables;
-  compilation->environment.value()->PolyLookup(symbol, &variables);
+  compilation->environment.ptr()->PolyLookup(symbol, &variables);
   for (gc::Root<Value>& v : variables) {
-    if (value->SupportsType(v.value()->type)) {
+    if (value->SupportsType(v.ptr()->type)) {
       return std::make_unique<AssignExpression>(
           AssignExpression::AssignmentType::kAssign, symbol,
           NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
@@ -151,8 +151,8 @@ std::unique_ptr<Expression> NewAssignExpression(
   }
 
   std::vector<VMType> variable_types;
-  for (gc::Root<Value>& v : variables) {
-    variable_types.push_back(v.value()->type);
+  for (const gc::Root<Value>& v : variables) {
+    variable_types.push_back(v.ptr()->type);
   }
 
   compilation->errors.push_back(

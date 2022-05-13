@@ -17,7 +17,7 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
       switch (desired.type) {
         case VMType::VM_DOUBLE:
           return [](gc::Pool& pool, gc::Root<Value> value) {
-            return Value::NewDouble(pool, value.value()->get_int());
+            return Value::NewDouble(pool, value.ptr()->get_int());
           };
         default:
           return nullptr;
@@ -48,7 +48,7 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
           return [argument_callbacks, purity = desired.function_purity](
                      gc::Pool& pool, gc::Root<Value> value) {
             std::vector<VMType> type_arguments =
-                value.value()->type.type_arguments;
+                value.ptr()->type.type_arguments;
             gc::Root<Value> output = Value::NewFunction(
                 pool, type_arguments,
                 std::bind_front(
@@ -60,7 +60,7 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
                         arguments[i] = argument_callbacks[i + 1](
                             trampoline.pool(), std::move(arguments[i]));
                       }
-                      return original_callback.value()
+                      return original_callback.ptr()
                           ->LockCallback()(std::move(arguments), trampoline)
                           .Transform([return_callback = argument_callbacks[0],
                                       &pool = trampoline.pool()](
@@ -71,7 +71,7 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
                           });
                     },
                     std::move(value)));
-            output.value()->type.function_purity = purity;
+            output.ptr()->type.function_purity = purity;
             return output;
           };
         }

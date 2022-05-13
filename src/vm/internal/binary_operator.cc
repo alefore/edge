@@ -49,8 +49,8 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
                         op](EvaluationOutput b_value)
                            -> ValueOrError<EvaluationOutput> {
               ValueOrError<gc::Root<Value>> result =
-                  op(trampoline.pool(), a_value.value().value(),
-                     b_value.value.value().value());
+                  op(trampoline.pool(), a_value.ptr().value(),
+                     b_value.value.ptr().value());
               if (result.IsError()) return result.error();
               return Success(EvaluationOutput::New(std::move(result.value())));
             });

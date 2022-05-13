@@ -26,7 +26,7 @@ struct Instance {
 void StartClassDeclaration(Compilation* compilation, const std::wstring& name) {
   compilation->current_class.push_back(VMType::ObjectType(name));
   compilation->environment = compilation->pool.NewRoot<Environment>(
-      MakeNonNullUnique<Environment>(compilation->environment.value()));
+      MakeNonNullUnique<Environment>(compilation->environment.ptr()));
 }
 
 namespace {
@@ -36,18 +36,17 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
       pool, {class_type, class_type, field_type},
       [field_name, field_type](std::vector<gc::Root<Value>> args, Trampoline&) {
         CHECK_EQ(args.size(), 2u);
-        auto instance =
-            static_cast<Instance*>(args[0].value()->user_value.get());
+        auto instance = static_cast<Instance*>(args[0].ptr()->user_value.get());
         CHECK(instance != nullptr);
 
-        CHECK_EQ(args[1].value()->type, field_type);
-        instance->environment.value()->Assign(field_name, std::move(args[1]));
+        CHECK_EQ(args[1].ptr()->type, field_type);
+        instance->environment.ptr()->Assign(field_name, std::move(args[1]));
 
         return futures::Past(
             Success(EvaluationOutput::New(std::move(args[0]))));
       });
 
-  output.value()->type.function_purity = Expression::PurityType::kUnknown;
+  output.ptr()->type.function_purity = Expression::PurityType::kUnknown;
   return output;
 }
 
@@ -58,13 +57,12 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
       [&pool, field_name, field_type](std::vector<gc::Root<Value>> args,
                                       Trampoline&) {
         CHECK_EQ(args.size(), 1u);
-        auto instance =
-            static_cast<Instance*>(args[0].value()->user_value.get());
+        auto instance = static_cast<Instance*>(args[0].ptr()->user_value.get());
         CHECK(instance != nullptr);
         static Environment::Namespace empty_namespace;
         return futures::Past(VisitPointer(
-            instance->environment.value()->Lookup(pool, empty_namespace,
-                                                  field_name, field_type),
+            instance->environment.ptr()->Lookup(pool, empty_namespace,
+                                                field_name, field_type),
             [](gc::Root<Value> value) {
               return Success(EvaluationOutput::New(std::move(value)));
             },
@@ -73,7 +71,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
                            field_name);
             }));
       });
-  output.value()->type.function_purity = Expression::PurityType::kPure;
+  output.ptr()->type.function_purity = Expression::PurityType::kPure;
   return output;
 }
 }  // namespace
@@ -96,14 +94,14 @@ void FinishClassDeclaration(
 
   gc::Root<Environment> class_environment = compilation->environment;
   // This is safe because StartClassDeclaration creates a sub-environment.
-  CHECK(class_environment.value()->parent_environment().has_value());
+  CHECK(class_environment.ptr()->parent_environment().has_value());
   compilation->environment =
-      class_environment.value()->parent_environment()->ToRoot();
+      class_environment.ptr()->parent_environment()->ToRoot();
 
   gc::Pool& pool = compilation->pool;
 
   std::map<std::wstring, Value> values;
-  class_environment.value()->ForEachNonRecursive(
+  class_environment.ptr()->ForEachNonRecursive(
       [&values, &class_object_type, class_type, &pool](
           std::wstring name, const gc::Ptr<Value>& value) {
         class_object_type->AddField(
@@ -111,8 +109,8 @@ void FinishClassDeclaration(
         class_object_type->AddField(
             L"set_" + name, BuildSetter(pool, class_type, value->type, name));
       });
-  compilation->environment.value()->DefineType(class_type.object_type,
-                                               std::move(class_object_type));
+  compilation->environment.ptr()->DefineType(class_type.object_type,
+                                             std::move(class_object_type));
   auto purity = constructor_expression.value()->purity();
   gc::Root<Value> constructor = Value::NewFunction(
       pool, {class_type},
@@ -122,7 +120,7 @@ void FinishClassDeclaration(
        values](std::vector<gc::Root<Value>>, Trampoline& trampoline) {
         gc::Root<Environment> instance_environment =
             trampoline.pool().NewRoot(MakeNonNullUnique<Environment>(
-                class_environment.value()->parent_environment()));
+                class_environment.ptr()->parent_environment()));
         auto original_environment = trampoline.environment();
         trampoline.SetEnvironment(instance_environment);
         return trampoline.Bounce(*constructor_expression_shared, VMType::Void())
@@ -146,10 +144,10 @@ void FinishClassDeclaration(
               return error;
             });
       });
-  constructor.value()->type.function_purity = purity;
+  constructor.ptr()->type.function_purity = purity;
 
-  compilation->environment.value()->Define(class_type.object_type,
-                                           std::move(constructor));
+  compilation->environment.ptr()->Define(class_type.object_type,
+                                         std::move(constructor));
 }
 
 }  // namespace afc::vm

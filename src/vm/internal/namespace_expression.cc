@@ -71,9 +71,9 @@ std::unique_ptr<Expression> NewNamespaceExpression(
     Compilation& compilation, std::unique_ptr<Expression> body) {
   auto current_namespace = compilation.current_namespace;
   compilation.current_namespace.pop_back();
-  CHECK(compilation.environment.value()->parent_environment().has_value());
+  CHECK(compilation.environment.ptr()->parent_environment().has_value());
   compilation.environment =
-      compilation.environment.value()->parent_environment()->ToRoot();
+      compilation.environment.ptr()->parent_environment()->ToRoot();
   return VisitPointer(
       std::move(body),
       [&](NonNull<std::unique_ptr<Expression>> body)

@@ -34,16 +34,17 @@ language::gc::Root<Environment> Environment::NewDefault(
     language::gc::Pool& pool) {
   gc::Root<Environment> environment =
       pool.NewRoot(MakeNonNullUnique<Environment>());
-  RegisterStringType(pool, &environment.value().value());
-  RegisterNumberFunctions(pool, &environment.value().value());
-  RegisterTimeType(pool, &environment.value().value());
+  Environment& value = environment.ptr().value();
+  RegisterStringType(pool, &value);
+  RegisterNumberFunctions(pool, &value);
+  RegisterTimeType(pool, &value);
   auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool());
   bool_type->AddField(
       L"tostring", NewCallback(pool, std::function<wstring(bool)>([](bool v) {
                                  return v ? L"true" : L"false";
                                }),
                                VMType::PurityType::kPure));
-  environment.value()->DefineType(L"bool", std::move(bool_type));
+  value.DefineType(L"bool", std::move(bool_type));
 
   auto int_type = MakeNonNullUnique<ObjectType>(VMType::Integer());
   int_type->AddField(
@@ -52,7 +53,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                     return std::to_wstring(value);
                   }),
                   VMType::PurityType::kPure));
-  environment.value()->DefineType(L"int", std::move(int_type));
+  value.DefineType(L"int", std::move(int_type));
 
   auto double_type = MakeNonNullUnique<ObjectType>(VMType::Double());
   double_type->AddField(
@@ -66,11 +67,11 @@ language::gc::Root<Environment> Environment::NewDefault(
                               return static_cast<int>(value);
                             }),
                             VMType::PurityType::kPure));
-  environment.value()->DefineType(L"double", std::move(double_type));
+  value.DefineType(L"double", std::move(double_type));
 
   // TODO(easy, 2022-05-11): Pass by reference.
-  VMTypeMapper<std::vector<int>*>::Export(pool, &environment.value().value());
-  VMTypeMapper<std::set<int>*>::Export(pool, &environment.value().value());
+  VMTypeMapper<std::vector<int>*>::Export(pool, &value);
+  VMTypeMapper<std::set<int>*>::Export(pool, &value);
   return environment;
 }
 
@@ -121,22 +122,22 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
       previous.has_value()) {
     return *previous;
   }
-  if (auto result = parent.value()->namespaces_.find(name);
-      result != parent.value()->namespaces_.end()) {
+  if (auto result = parent.ptr()->namespaces_.find(name);
+      result != parent.ptr()->namespaces_.end()) {
     return result->second.ToRoot();
   }
 
   gc::Root<Environment> namespace_env =
-      pool.NewRoot(MakeNonNullUnique<Environment>(parent.value()));
+      pool.NewRoot(MakeNonNullUnique<Environment>(parent.ptr()));
   auto [_, inserted] =
-      parent.value()->namespaces_.insert({name, namespace_env.value()});
+      parent.ptr()->namespaces_.insert({name, namespace_env.ptr()});
   CHECK(inserted);
   return namespace_env;
 }
 
 /* static */ std::optional<gc::Root<Environment>> Environment::LookupNamespace(
     gc::Root<Environment> source, const Namespace& name) {
-  std::optional<gc::Ptr<Environment>> output = {source.value()};
+  std::optional<gc::Ptr<Environment>> output = {source.ptr()};
   for (auto& n : name) {
     if (auto it = output.value()->namespaces_.find(n);
         it != output.value()->namespaces_.end()) {
@@ -149,7 +150,8 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
   if (output.has_value()) {
     return output->ToRoot();
   }
-  if (auto parent_environment = source.value()->parent_environment();
+  if (std::optional<gc::Ptr<Environment>> parent_environment =
+          source.ptr()->parent_environment();
       parent_environment.has_value()) {
     return LookupNamespace(parent_environment->ToRoot(), name);
   }
@@ -167,11 +169,10 @@ std::optional<gc::Root<Value>> Environment::Lookup(
   std::vector<gc::Root<Value>> values;
   PolyLookup(symbol_namespace, symbol, &values);
   for (gc::Root<Value>& value : values) {
-    if (auto callback =
-            GetImplicitPromotion(value.value()->type, expected_type);
+    if (auto callback = GetImplicitPromotion(value.ptr()->type, expected_type);
         callback != nullptr) {
       return std::move(callback(
-          pool, pool.NewRoot(MakeNonNullUnique<Value>(value.value().value()))));
+          pool, pool.NewRoot(MakeNonNullUnique<Value>(value.ptr().value()))));
     }
   }
   return std::nullopt;
@@ -238,8 +239,8 @@ void Environment::CaseInsensitiveLookup(
 }
 
 void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
-  VMType type = value.value()->type;
-  table_[symbol].insert_or_assign(type, std::move(value.value()));
+  VMType type = value.ptr()->type;
+  table_[symbol].insert_or_assign(type, std::move(value.ptr()));
 }
 
 void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
@@ -254,7 +255,7 @@ void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
     (*parent_environment_)->Assign(symbol, std::move(value));
     return;
   }
-  it->second.insert_or_assign(value.value()->type, value.value());
+  it->second.insert_or_assign(value.ptr()->type, value.ptr());
 }
 
 void Environment::Remove(const wstring& symbol, VMType type) {

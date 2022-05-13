@@ -264,16 +264,16 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
   VLOG(5) << "Updating remote screens.";
   for (auto& buffer : *editor_state().buffers()) {
     std::optional<gc::Root<Value>> value =
-        buffer.second->environment().value()->Lookup(
+        buffer.second->environment().ptr()->Lookup(
             editor_state().gc_pool(), Environment::Namespace(), L"screen",
             GetScreenVmType());
     if (!value.has_value() ||
-        value.value().value()->type.type != VMType::OBJECT_TYPE ||
-        value.value().value()->type.object_type != L"Screen") {
+        value.value().ptr()->type.type != VMType::OBJECT_TYPE ||
+        value.value().ptr()->type.object_type != L"Screen") {
       continue;
     }
     auto buffer_screen =
-        static_cast<Screen*>(value.value().value()->user_value.get());
+        static_cast<Screen*>(value.value().ptr()->user_value.get());
     if (buffer_screen == nullptr) {
       continue;
     }
@@ -353,8 +353,8 @@ int main(int argc, const char** argv) {
     screen_curses = std::move(NewScreenCurses().get_unique());
   }
   RegisterScreenType(editor_state().gc_pool(),
-                     editor_state().environment().value().value());
-  editor_state().environment().value()->Define(
+                     editor_state().environment().ptr().value());
+  editor_state().environment().ptr()->Define(
       L"screen", afc::vm::Value::NewObject(editor_state().gc_pool(), L"Screen",
                                            screen_curses));
 

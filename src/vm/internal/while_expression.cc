@@ -61,7 +61,7 @@ class WhileExpression : public Expression {
               return;
 
             case EvaluationOutput::OutputType::kContinue:
-              if (!condition_output.value().value.value()->get_bool()) {
+              if (!condition_output.value().value.ptr()->get_bool()) {
                 DVLOG(3) << "Iteration is done.";
                 consumer(Success(
                     EvaluationOutput::New(Value::NewVoid(trampoline.pool()))));

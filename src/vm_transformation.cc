@@ -65,14 +65,14 @@ class FunctionTransformation : public CompositeTransformation {
     args.emplace_back(
         VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::
             New(pool_, std::make_shared<Input>(input)));
-    return vm::Call(pool_, function_.value().value(), std::move(args),
+    return vm::Call(pool_, function_.ptr().value(), std::move(args),
                     [work_queue = input.buffer.work_queue()](
                         std::function<void()> callback) {
                       work_queue->Schedule(std::move(callback));
                     })
         .Transform([](gc::Root<Value> value) {
           return Success(std::move(*VMTypeMapper<std::shared_ptr<Output>>::get(
-              value.value().value())));
+              value.ptr().value())));
         })
         .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }

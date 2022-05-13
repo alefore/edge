@@ -115,12 +115,12 @@ class FunctionCall : public Expression {
             [&trampoline, args_types = args_](EvaluationOutput callback) {
               if (callback.type == EvaluationOutput::OutputType::kReturn)
                 return futures::Past(Success(std::move(callback)));
-              DVLOG(6) << "Got function: " << callback.value.value().value();
-              CHECK_EQ(callback.value.value()->type.type, VMType::FUNCTION);
+              DVLOG(6) << "Got function: " << callback.value.ptr().value();
+              CHECK_EQ(callback.value.ptr()->type.type, VMType::FUNCTION);
               futures::Future<ValueOrError<EvaluationOutput>> output;
               CaptureArgs(trampoline, std::move(output.consumer), args_types,
                           std::make_shared<std::vector<gc::Root<Value>>>(),
-                          callback.value.value()->LockCallback());
+                          callback.value.ptr()->LockCallback());
               return std::move(output.value);
             });
   }
@@ -153,7 +153,7 @@ class FunctionCall : public Expression {
             }
             gc::Root<Value> result = std::move(return_value.value().value);
             DVLOG(5) << "Function call consumer gets value: "
-                     << result.value().value();
+                     << result.ptr().value();
             consumer(Success(EvaluationOutput::New(std::move(result))));
           });
       return;
@@ -170,7 +170,7 @@ class FunctionCall : public Expression {
             case EvaluationOutput::OutputType::kContinue:
               DVLOG(5) << "Received results of parameter " << values->size() + 1
                        << " (of " << args_types->size()
-                       << "): " << value.value().value.value().value();  // Lol!
+                       << "): " << value.value().value.ptr().value();
               values->push_back(std::move(value.value().value));
               DVLOG(6) << "Recursive call.";
               CaptureArgs(trampoline, consumer, args_types, values, callback);
@@ -250,7 +250,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
     }
 
     const ObjectType* object_type =
-        compilation->environment.value()->LookupObjectType(object_type_name);
+        compilation->environment.ptr()->LookupObjectType(object_type_name);
 
     if (object_type == nullptr) {
       errors.push_back(L"Unknown type: \"" + type.ToString() + L"\"");

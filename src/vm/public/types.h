@@ -84,7 +84,7 @@ class ObjectType {
 
   Value* LookupField(const wstring& name) const {
     auto it = fields_.find(name);
-    return it == fields_.end() ? nullptr : &it->second.value().value();
+    return it == fields_.end() ? nullptr : &it->second.ptr().value();
   }
 
   void ForEachField(std::function<void(const wstring&, Value&)> callback);

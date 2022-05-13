@@ -54,7 +54,7 @@ futures::Value<PossibleError> PreviewCppExpression(
     case vm::Expression::PurityType::kPure: {
       return buffer.EvaluateExpression(*expression, environment)
           .Transform([&buffer](gc::Root<Value> value) {
-            ShowValue(buffer, nullptr, value.value().value());
+            ShowValue(buffer, nullptr, value.ptr().value());
             return Success();
           })
           .ConsumeErrors([&buffer](Error error) {
@@ -95,7 +95,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
   }
   return input.buffer.EvaluateString(contents->ToString())
       .Transform([input](gc::Root<Value> value) {
-        ShowValue(input.buffer, input.delete_buffer, value.value().value());
+        ShowValue(input.buffer, input.delete_buffer, value.ptr().value());
         Result output(input.position);
         output.added_to_paste_buffer = true;
         return Success(std::move(output));

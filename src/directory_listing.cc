@@ -72,11 +72,9 @@ void StartDeleteFile(EditorState& editor_state, std::wstring path) {
 
 Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   VLOG(6) << "Get metadata for: " << path;
-  std::optional<gc::Root<Value>> callback =
-      target.environment().value()->Lookup(
-          target.editor().gc_pool(), Environment::Namespace(),
-          L"GetPathMetadata",
-          VMType::Function({VMType::String(), VMType::String()}));
+  std::optional<gc::Root<Value>> callback = target.environment().ptr()->Lookup(
+      target.editor().gc_pool(), Environment::Namespace(), L"GetPathMetadata",
+      VMType::Function({VMType::String(), VMType::String()}));
   if (!callback.has_value()) {
     VLOG(5) << "Unable to find suitable GetPathMetadata definition";
     return {
@@ -95,10 +93,10 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
                    .Transform([](gc::Root<Value> value)
                                   -> futures::ValueOrError<
                                       NonNull<std::shared_ptr<LazyString>>> {
-                     CHECK(value.value()->IsString());
-                     VLOG(7) << "Evaluated result: " << value.value()->str;
+                     CHECK(value.ptr()->IsString());
+                     VLOG(7) << "Evaluated result: " << value.ptr()->str;
                      return futures::Past(
-                         NewLazyString(std::move(value.value()->str)));
+                         NewLazyString(std::move(value.ptr()->str)));
                    })
                    .ConsumeErrors([](Error error) {
                      VLOG(7) << "Evaluation error: " << error.description;

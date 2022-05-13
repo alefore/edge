@@ -181,7 +181,7 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
           buffer->EvaluateExpression(*expr, sub_environment)
               .Transform([](gc::Root<Value> value) {
                 std::ostringstream oss;
-                oss << value.value().value();
+                oss << value.ptr().value();
                 // TODO(2022-04-26): Improve futures to be able to remove
                 // Success.
                 return Success(NewLazyString(FromByteString(oss.str())));
@@ -321,9 +321,9 @@ using std::to_wstring;
             CHECK_EQ(args.size(), 2ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].value().value());
+                    args[0].ptr().value());
             auto transformation = static_cast<editor::transformation::Variant*>(
-                args[1].value()->user_value.get());
+                args[1].ptr()->user_value.get());
             return buffer->ApplyToCursors(Pointer(transformation).Reference())
                 .Transform([&pool](EmptyValue) {
                   return EvaluationOutput::Return(Value::NewVoid(pool));
@@ -396,10 +396,10 @@ using std::to_wstring;
            VMType::Function({VMType::String(), VMType::String()})},
           [&pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
-            CHECK_EQ(args[0].value()->type, VMType::ObjectType(L"Buffer"));
+            CHECK_EQ(args[0].ptr()->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].value().value());
+                    args[0].ptr().value());
             CHECK(buffer != nullptr);  // TODO(easy, 2022-05-11): Use NonNull?
             return Value::NewBool(
                 pool, buffer->AddKeyboardTextTransformer(std::move(args[1])));
@@ -413,10 +413,10 @@ using std::to_wstring;
            VMType::Function({VMType::Bool(), VMType::String()})},
           [&pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
-            CHECK_EQ(args[0].value()->type, VMType::ObjectType(L"Buffer"));
+            CHECK_EQ(args[0].ptr()->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].value().value());
+                    args[0].ptr().value());
             CHECK(buffer != nullptr);
             buffer->set_filter(std::move(args[1]));
             return Value::NewVoid(pool);
@@ -459,7 +459,7 @@ using std::to_wstring;
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].value().value());
+                    args[0].ptr().value());
             if (buffer->editor().structure() == StructureLine()) {
               auto target_buffer = buffer->current_line()->buffer_line_column();
               if (target_buffer.has_value()) {
@@ -506,15 +506,15 @@ using std::to_wstring;
            VMType::Function({VMType::Void()})},
           [&pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), 4u);
-            CHECK_EQ(args[0].value()->type, VMType::ObjectType(L"Buffer"));
-            CHECK(args[1].value()->IsString());
-            CHECK(args[2].value()->IsString());
+            CHECK_EQ(args[0].ptr()->type, VMType::ObjectType(L"Buffer"));
+            CHECK(args[1].ptr()->IsString());
+            CHECK(args[2].ptr()->IsString());
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].value().value());
+                    args[0].ptr().value());
             CHECK(buffer != nullptr);
             buffer->default_commands_->Add(
-                args[1].value()->str, args[2].value()->str, std::move(args[3]),
+                args[1].ptr()->str, args[2].ptr()->str, std::move(args[3]),
                 buffer->environment_);
             return Value::NewVoid(pool);
           }));
@@ -579,7 +579,7 @@ using std::to_wstring;
             CHECK_EQ(args.size(), 1ul);
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
-                    args[0].value().value());
+                    args[0].ptr().value());
             return buffer->WaitForEndOfFile().Transform(
                 [&pool = trampoline.pool()](EmptyValue) {
                   return EvaluationOutput::Return(Value::NewVoid(pool));
@@ -606,8 +606,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
       line_column_variables_(
           buffer_variables::LineColumnStruct()->NewInstance()),
-      environment_(editor().gc_pool().NewRoot(MakeNonNullUnique<Environment>(
-          options_.editor.environment().value()))),
+      environment_(editor().gc_pool().NewRoot(
+          MakeNonNullUnique<Environment>(options_.editor.environment().ptr()))),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor.default_commands()->NewChild()),
@@ -631,7 +631,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
 
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Start destructor: " << name();
-  environment_.value()->Clear();
+  environment_.ptr()->Clear();
 }
 
 EditorState& OpenBuffer::editor() const { return options_.editor; }
@@ -967,20 +967,20 @@ void OpenBuffer::Initialize() {
 
   // We use the aliasing constructor or else ... we'll never actually be
   // reclaimed.
-  environment_.value()->Define(
+  environment_.ptr()->Define(
       L"buffer",
       VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
           editor().gc_pool(),
           std::shared_ptr<OpenBuffer>(std::shared_ptr<OpenBuffer>(), this)));
 
-  environment_.value()->Define(
+  environment_.ptr()->Define(
       L"sleep",
       Value::NewFunction(
           editor().gc_pool(), {VMType::Void(), VMType::Double()},
           [weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
               std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);
-            double delay_seconds = args[0].value()->get_double();
+            double delay_seconds = args[0].ptr()->get_double();
             auto shared_this = weak_this.lock();
             if (shared_this == nullptr)
               return futures::Past(Success(EvaluationOutput::Return(
@@ -1362,7 +1362,7 @@ ValueOrError<
     std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
 OpenBuffer::CompileString(const std::wstring& code) {
   gc::Root<Environment> sub_environment = editor().gc_pool().NewRoot(
-      MakeNonNullUnique<Environment>(environment_.value()));
+      MakeNonNullUnique<Environment>(environment_.ptr()));
   auto compilation_result = afc::vm::CompileString(code, sub_environment);
   if (compilation_result.IsError()) return compilation_result.error();
   return std::make_pair(std::move(compilation_result.value()), sub_environment);
@@ -1871,14 +1871,14 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
                std::vector<gc::Root<Value>> args;
                gc::Pool& pool = editor().gc_pool();
                args.push_back(Value::NewString(pool, std::move(*input_shared)));
-               return Call(pool, t.value().value(), std::move(args),
+               return Call(pool, t.ptr().value(), std::move(args),
                            [work_queue =
                                 work_queue()](std::function<void()> callback) {
                              work_queue->Schedule(std::move(callback));
                            })
                    .Transform([input_shared](const gc::Root<Value>& value) {
-                     CHECK(value.value()->IsString());
-                     *input_shared = std::move(value.value()->str);
+                     CHECK(value.ptr()->IsString());
+                     *input_shared = std::move(value.ptr()->str);
                      return Success(IterationControlCommand::kContinue);
                    })
                    .ConsumeErrors([](Error) {
@@ -1892,13 +1892,13 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
 }
 
 bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
-  if (transformer.value()->type.type != VMType::FUNCTION ||
-      transformer.value()->type.type_arguments.size() != 2 ||
-      transformer.value()->type.type_arguments[0].type != VMType::VM_STRING ||
-      transformer.value()->type.type_arguments[1].type != VMType::VM_STRING) {
+  if (transformer.ptr()->type.type != VMType::FUNCTION ||
+      transformer.ptr()->type.type_arguments.size() != 2 ||
+      transformer.ptr()->type.type_arguments[0].type != VMType::VM_STRING ||
+      transformer.ptr()->type.type_arguments[1].type != VMType::VM_STRING) {
     status_.SetWarningText(
         L": Unexpected type for keyboard text transformer: " +
-        transformer.value()->type.ToString());
+        transformer.ptr()->type.ToString());
     return false;
   }
   keyboard_text_transformers_.push_back(std::move(transformer));

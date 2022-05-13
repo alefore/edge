@@ -98,7 +98,7 @@ const bool buffer_tests_registration = tests::Register(
                     .Get()
                     .value()
                     .value();
-            CHECK(result.value()->get_bool());
+            CHECK(result.ptr()->get_bool());
           }},
      {.name = L"NoLeaks", .callback = [] {
         auto buffer = NewBufferForTests();
@@ -115,7 +115,7 @@ const bool buffer_tests_registration = tests::Register(
                 .Get()
                 .value()
                 .value();
-        CHECK(result.value()->IsVoid());
+        CHECK(result.ptr()->IsVoid());
 
         auto stats_1 = buffer->editor().gc_pool().Reclaim();
         LOG(INFO) << "Start: " << stats_1;

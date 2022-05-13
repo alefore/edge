@@ -382,7 +382,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
             break;
           }
           if (str.at(pos) != '\\') {
-            input.value().value()->str.push_back(str.at(pos));
+            input.value().ptr()->str.push_back(str.at(pos));
             ;
             continue;
           }
@@ -392,16 +392,16 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           }
           switch (str.at(pos)) {
             case 'n':
-              input.value().value()->str.push_back('\n');
+              input.value().ptr()->str.push_back('\n');
               break;
             case 't':
-              input.value().value()->str.push_back('\t');
+              input.value().ptr()->str.push_back('\t');
               break;
             case '"':
-              input.value().value()->str.push_back('"');
+              input.value().ptr()->str.push_back('"');
               break;
             default:
-              input.value().value()->str.push_back(str.at(pos));
+              input.value().ptr()->str.push_back(str.at(pos));
           }
         }
         if (pos == str.size()) {
@@ -541,9 +541,8 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
     }
     if (token == SYMBOL || token == STRING) {
       CHECK(input.has_value()) << "No input with token: " << token;
-      CHECK(input.value().value()->IsSymbol() ||
-            input.value().value()->IsString());
-      compilation.last_token = input.value().value()->str;
+      CHECK(input.value().ptr()->IsSymbol() || input.value().ptr()->IsString());
+      compilation.last_token = input.value().ptr()->str;
     }
     Cpp(parser, token,
         std::make_unique<std::optional<gc::Root<Value>>>(input).release(),
@@ -670,8 +669,8 @@ futures::ValueOrError<gc::Root<Value>> Evaluate(
   return OnError(trampoline->Bounce(expr, expr.Types()[0])
                      .Transform([trampoline](EvaluationOutput value)
                                     -> language::ValueOrError<gc::Root<Value>> {
-                       DVLOG(5) << "Evaluation done: "
-                                << value.value.value().value();
+                       DVLOG(5)
+                           << "Evaluation done: " << value.value.ptr().value();
                        return Success(std::move(value.value));
                      }),
                  [](Error error) {

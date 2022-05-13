@@ -245,10 +245,10 @@ class Execute : public CompositeTransformation {
         .Transform([command_size = command_.size(),
                     &editor = input.editor](gc::Root<Value> value) {
           Output output;
-          if (value.value()->IsString()) {
+          if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
                 .contents_to_insert = MakeNonNullShared<BufferContents>(
-                    MakeNonNullShared<Line>(value.value()->str))});
+                    MakeNonNullShared<Line>(value.ptr()->str))});
           }
           return futures::Past(Success(std::move(output)));
         })

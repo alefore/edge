@@ -56,9 +56,9 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
   buffer->ResetMode();
   return buffer->EvaluateString(name)
       .Transform([buffer](gc::Root<Value> value) {
-        if (value.value()->IsVoid()) return Success();
+        if (value.ptr()->IsVoid()) return Success();
         std::ostringstream oss;
-        oss << "Evaluation result: " << value.value().value();
+        oss << "Evaluation result: " << value.ptr().value();
         buffer->status().SetInformationText(FromByteString(oss.str()));
         return Success();
       })
@@ -105,10 +105,10 @@ ValueOrError<ParsedCommand> Parse(
   std::vector<gc::Root<Value>> type_match_functions;
   std::optional<gc::Root<Value>> function_vector;
   for (gc::Root<Value>& candidate : functions) {
-    if (!candidate.value()->IsFunction()) {
+    if (!candidate.ptr()->IsFunction()) {
       continue;
     }
-    const auto& arguments = candidate.value()->type.type_arguments;
+    const auto& arguments = candidate.ptr()->type.type_arguments;
     if (accepted_return_types.find(arguments[0]) ==
         accepted_return_types.end()) {
       continue;
@@ -140,10 +140,10 @@ ValueOrError<ParsedCommand> Parse(
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output.function = type_match_functions[0];
-    CHECK_GE(output.function.value().value()->type.type_arguments.size(),
+    CHECK_GE(output.function.value().ptr()->type.type_arguments.size(),
              1ul /* return type */);
     size_t expected_arguments =
-        output.function.value().value()->type.type_arguments.size() - 1;
+        output.function.value().ptr()->type.type_arguments.size() - 1;
     if (output.tokens.size() - 1 > expected_arguments) {
       return Error(L"Too many arguments given for `" + output.tokens[0].value +
                    L"` (expected: " + std::to_wstring(expected_arguments) +
@@ -245,9 +245,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   auto buffer = editor.current_buffer();
   gc::Root<Environment> environment =
       (buffer == nullptr ? editor.environment() : buffer->environment());
-  if (auto parsed_command =
-          Parse(editor.gc_pool(), line, environment.value().value(),
-                search_namespaces);
+  if (auto parsed_command = Parse(editor.gc_pool(), line,
+                                  environment.ptr().value(), search_namespaces);
       !parsed_command.IsError()) {
     output.tokens.push_back({.token = {.value = L"",
                                        .begin = ColumnNumber(0),
@@ -257,7 +256,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 
   using BufferMapper = vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>;
   futures::Future<ColorizePromptOptions> output_future;
-  if (auto command = Parse(editor.gc_pool(), line, environment.value().value(),
+  if (auto command = Parse(editor.gc_pool(), line, environment.ptr().value(),
                            NewLazyString(L"Preview"), {BufferMapper::vmtype},
                            search_namespaces);
       buffer != nullptr && !command.IsError()) {
@@ -265,8 +264,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
         .SetConsumer([consumer = output_future.consumer, buffer,
                       output](ValueOrError<gc::Root<vm::Value>> value) mutable {
           if (!value.IsError() &&
-              value.value().value()->type == BufferMapper::vmtype) {
-            output.context = BufferMapper::get(value.value().value().value());
+              value.value().ptr()->type == BufferMapper::vmtype) {
+            output.context = BufferMapper::get(value.value().ptr().value());
           }
           consumer(output);
         });
@@ -290,7 +289,7 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
   SearchNamespaces search_namespaces(*buffer);
   auto parsed_command =
       Parse(editor_state.gc_pool(), NewLazyString(std::move(command)),
-            buffer->environment().value().value(), search_namespaces);
+            buffer->environment().ptr().value(), search_namespaces);
   if (parsed_command.IsError()) {
     if (!parsed_command.error().description.empty()) {
       buffer->status().SetWarningText(parsed_command.error().description);

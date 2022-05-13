@@ -135,7 +135,7 @@ void ObjectType::AddField(const wstring& name, gc::Root<Value> field) {
 
 void ObjectType::ForEachField(
     std::function<void(const wstring&, Value&)> callback) {
-  for (auto& it : fields_) callback(it.first, it.second.value().value());
+  for (auto& it : fields_) callback(it.first, it.second.ptr().value());
 }
 
 }  // namespace afc::vm

@@ -102,17 +102,16 @@ void RegisterTimeType(gc::Pool& pool, Environment* environment) {
           [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
-            CHECK(args[0].value()->IsObject());
-            Time input =
-                language::Pointer(
-                    static_cast<Time*>(args[0].value()->user_value.get()))
-                    .Reference();
-            CHECK(args[1].value()->IsString());
+            CHECK(args[0].ptr()->IsObject());
+            Time input = language::Pointer(static_cast<Time*>(
+                                               args[0].ptr()->user_value.get()))
+                             .Reference();
+            CHECK(args[1].ptr()->IsString());
             struct tm t;
             localtime_r(&(input.tv_sec), &t);
             char buffer[2048];
             if (strftime(buffer, sizeof(buffer),
-                         ToByteString(std::move(args[1].value()->str)).c_str(),
+                         ToByteString(std::move(args[1].ptr()->str)).c_str(),
                          &t) == 0) {
               return futures::Past(language::Error(L"strftime error"));
             }
