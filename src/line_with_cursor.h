@@ -7,6 +7,7 @@
 
 #include "src/language/hash.h"
 #include "src/language/safe_types.h"
+#include "src/line.h"
 #include "src/line_column.h"
 
 namespace afc::editor {

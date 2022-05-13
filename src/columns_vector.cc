@@ -9,6 +9,7 @@
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
+#include "src/line.h"
 #include "src/substring.h"
 #include "src/tests/tests.h"
 
@@ -83,7 +84,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
 
   LineNumberDelta lines_longest_column;
   for (LineWithCursor::Generator::Vector& input : inputs_by_column)
-    lines_longest_column = max(lines_longest_column, input.size());
+    lines_longest_column = std::max(lines_longest_column, input.size());
 
   // Outer index is the line being produced; inner index is the column.
   std::vector<std::vector<LineWithCursor::Generator>> generator_by_line_column(
