@@ -666,21 +666,11 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
             std::unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](gc::Pool& pool, const Value& a, const Value& b) {
-          if (a.type.type == VMType::VM_INTEGER
-              && b.type.type == VMType::VM_INTEGER) {
-            return Value::NewBool(pool, a.get_int() < b.get_int());
-          }
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.get_int());
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.get_double();
-            } else {
-              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
-              return 0.0;
-            }
-          };
-          return Value::NewBool(pool, to_double(a) < to_double(b));
+          return Value::NewBool(
+              pool,
+              a.IsInteger() && b.IsInteger()
+                  ? a.get_int() < b.get_int()
+                  : a.ToDouble().value() < b.ToDouble().value());
         });
     A = nullptr;
     B = nullptr;
@@ -704,21 +694,11 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
             unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](gc::Pool& pool, const Value& a, const Value& b) {
-          if (a.type.type == VMType::VM_INTEGER
-              && b.type.type == VMType::VM_INTEGER) {
-            return Value::NewBool(pool, a.get_int() <= b.get_int());
-          }
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.get_int());
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.get_double();
-            } else {
-              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
-              return 0.0;
-            }
-          };
-          return Value::NewBool(pool, to_double(a) <= to_double(b));
+          return Value::NewBool(
+              pool,
+              a.IsInteger() && b.IsInteger()
+                  ? a.get_int() <= b.get_int()
+                  : a.ToDouble().value() <= b.ToDouble().value());
         });
     A = nullptr;
     B = nullptr;
@@ -742,21 +722,11 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
             unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](gc::Pool& pool, const Value& a, const Value& b) {
-          if (a.type.type == VMType::VM_INTEGER
-              && b.type.type == VMType::VM_INTEGER) {
-            return Value::NewBool(pool, a.get_int() > b.get_int());
-          }
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.get_int());
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.get_double();
-            } else {
-              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
-              return 0.0;
-            }
-          };
-          return Value::NewBool(pool, to_double(a) > to_double(b));
+          return Value::NewBool(
+              pool,
+              a.IsInteger() && b.IsInteger()
+                  ? a.get_int() > b.get_int()
+                  : a.ToDouble().value() > b.ToDouble().value());
         });
     A = nullptr;
     B = nullptr;
@@ -780,21 +750,11 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
             unique_ptr<Expression>(B)),
         VMType::Bool(),
         [](gc::Pool& pool, const Value& a, const Value& b) {
-          if (a.type.type == VMType::VM_INTEGER
-              && b.type.type == VMType::VM_INTEGER) {
-            return Value::NewBool(pool, a.get_int() >= b.get_int());
-          }
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.get_int());
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.get_double();
-            } else {
-              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
-              return 0.0;
-            }
-          };
-          return Value::NewBool(pool, to_double(a) >= to_double(b));
+          return Value::NewBool(
+              pool,
+              a.IsInteger() && b.IsInteger()
+                  ? a.get_int() >= b.get_int()
+                  : a.ToDouble().value() >= b.ToDouble().value());
         });
     A = nullptr;
     B = nullptr;
