@@ -254,23 +254,23 @@ using std::to_wstring;
     EditorState& editor_state, afc::vm::Environment* environment) {
   auto buffer = MakeNonNullUnique<ObjectType>(L"Buffer");
 
-  RegisterBufferFields<EdgeStruct<bool>, bool>(
-      editor_state.gc_pool(), buffer_variables::BoolStruct(), *buffer,
-      &OpenBuffer::Read, &OpenBuffer::Set);
-  RegisterBufferFields<EdgeStruct<wstring>, wstring>(
-      editor_state.gc_pool(), buffer_variables::StringStruct(), *buffer,
-      &OpenBuffer::Read, &OpenBuffer::Set);
-  RegisterBufferFields<EdgeStruct<int>, int>(
-      editor_state.gc_pool(), buffer_variables::IntStruct(), *buffer,
-      &OpenBuffer::Read, &OpenBuffer::Set);
-  RegisterBufferFields<EdgeStruct<double>, double>(
-      editor_state.gc_pool(), buffer_variables::DoubleStruct(), *buffer,
-      &OpenBuffer::Read, &OpenBuffer::Set);
-  RegisterBufferFields<EdgeStruct<LineColumn>, LineColumn>(
-      editor_state.gc_pool(), buffer_variables::LineColumnStruct(), *buffer,
-      &OpenBuffer::Read, &OpenBuffer::Set);
-
   gc::Pool& pool = editor_state.gc_pool();
+
+  RegisterBufferFields<EdgeStruct<bool>, bool>(
+      pool, buffer_variables::BoolStruct(), *buffer, &OpenBuffer::Read,
+      &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<wstring>, wstring>(
+      pool, buffer_variables::StringStruct(), *buffer, &OpenBuffer::Read,
+      &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<int>, int>(
+      pool, buffer_variables::IntStruct(), *buffer, &OpenBuffer::Read,
+      &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<double>, double>(
+      pool, buffer_variables::DoubleStruct(), *buffer, &OpenBuffer::Read,
+      &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<LineColumn>, LineColumn>(
+      pool, buffer_variables::LineColumnStruct(), *buffer, &OpenBuffer::Read,
+      &OpenBuffer::Set);
 
   buffer->AddField(
       L"SetStatus",
