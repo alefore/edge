@@ -31,9 +31,8 @@ const VMType VMTypeMapper<editor::transformation::Variant*>::vmtype =
 
 editor::transformation::Variant*
 VMTypeMapper<editor::transformation::Variant*>::get(Value& value) {
-  CHECK_EQ(value.type, vmtype);
-  CHECK(value.user_value != nullptr);
-  return static_cast<editor::transformation::Variant*>(value.user_value.get());
+  return static_cast<editor::transformation::Variant*>(
+      value.get_user_value(vmtype).get());
 }
 
 gc::Root<Value> VMTypeMapper<editor::transformation::Variant*>::New(

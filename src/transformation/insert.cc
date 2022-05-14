@@ -19,10 +19,8 @@ namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
   static std::shared_ptr<editor::transformation::Insert> get(Value& value) {
-    CHECK_EQ(value.type, vmtype);
-    CHECK(value.user_value != nullptr);
     return std::static_pointer_cast<editor::transformation::Insert>(
-        value.user_value);
+        value.get_user_value(vmtype));
   }
   static gc::Root<Value> New(
       gc::Pool& pool, std::shared_ptr<editor::transformation::Insert> value) {

@@ -17,12 +17,9 @@ namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
   static std::shared_ptr<editor::transformation::Repetitions> get(
-      Value* value) {
-    CHECK(value != nullptr);
-    CHECK_EQ(value->type, vmtype);
-    CHECK(value->user_value != nullptr);
+      Value& value) {
     return std::static_pointer_cast<editor::transformation::Repetitions>(
-        value->user_value);
+        value.get_user_value(vmtype));
   }
   static gc::Root<Value> New(
       gc::Pool& pool,

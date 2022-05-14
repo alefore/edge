@@ -24,8 +24,8 @@ namespace afc::vm {
 template <>
 struct VMTypeMapper<editor::EditorState> {
   static editor::EditorState& get(Value& value) {
-    CHECK_EQ(value.type, vmtype);
-    return Pointer(static_cast<editor::EditorState*>(value.user_value.get()))
+    return Pointer(static_cast<editor::EditorState*>(
+                       value.get_user_value(vmtype).get()))
         .Reference();
   }
 

@@ -507,9 +507,8 @@ class ForkEditorCommand : public Command {
 namespace vm {
 /* static */ editor::ForkCommandOptions*
 VMTypeMapper<editor::ForkCommandOptions*>::get(Value& value) {
-  CHECK_EQ(value.type, vmtype);
-  CHECK(value.user_value != nullptr);
-  return static_cast<editor::ForkCommandOptions*>(value.user_value.get());
+  return static_cast<editor::ForkCommandOptions*>(
+      value.get_user_value(vmtype).get());
 }
 
 // TODO(easy, 2022-05-12): Receive options by ref.

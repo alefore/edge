@@ -78,9 +78,7 @@ class Value {
   double get_double() const;
   const std::wstring& get_string() const;
   const std::wstring& get_symbol() const;
-  // TODO(easy, 2022-05-13): Make these private; provide accessors that check
-  // type.
-  std::shared_ptr<void> user_value;
+  std::shared_ptr<void> get_user_value(const VMType& type) const;
 
   Callback LockCallback();
 
@@ -92,7 +90,8 @@ class Value {
   struct Symbol {
     std::wstring symbol_value;
   };
-  std::variant<bool, int, double, std::wstring, Symbol> value_;
+  std::variant<bool, int, double, std::wstring, Symbol, std::shared_ptr<void>>
+      value_;
 
   Callback callback;
   DependenciesCallback dependencies_callback;

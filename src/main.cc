@@ -271,7 +271,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
       continue;
     }
     auto buffer_screen =
-        static_cast<Screen*>(value.value().ptr()->user_value.get());
+        VMTypeMapper<Screen*>::get(value.value().ptr().value());
     if (buffer_screen == nullptr) {
       continue;
     }

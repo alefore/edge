@@ -26,9 +26,7 @@ const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
 
 /* static */
 editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
-  CHECK_EQ(value.type, vmtype);
-  CHECK(value.user_value != nullptr);
-  return *static_cast<editor::LineColumn*>(value.user_value.get());
+  return *static_cast<editor::LineColumn*>(value.get_user_value(vmtype).get());
 }
 
 /* static */
@@ -47,9 +45,8 @@ const VMType VMTypeMapper<editor::LineColumn>::vmtype =
 /* static */
 editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
     Value& value) {
-  CHECK_EQ(value.type, vmtype);
-  CHECK(value.user_value != nullptr);
-  return *static_cast<editor::LineColumnDelta*>(value.user_value.get());
+  return *static_cast<editor::LineColumnDelta*>(
+      value.get_user_value(vmtype).get());
 }
 
 /* static */
@@ -67,9 +64,7 @@ const VMType VMTypeMapper<editor::LineColumnDelta>::vmtype =
 
 /* static */
 editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
-  CHECK_EQ(value.type, vmtype);
-  CHECK(value.user_value != nullptr);
-  return *static_cast<editor::Range*>(value.user_value.get());
+  return *static_cast<editor::Range*>(value.get_user_value(vmtype).get());
 }
 
 /* static */

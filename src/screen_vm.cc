@@ -17,15 +17,9 @@ namespace afc {
 namespace gc = language::gc;
 
 namespace vm {
-template <>
-struct VMTypeMapper<editor::Screen*> {
-  static editor::Screen* get(Value& value) {
-    CHECK_EQ(value.type, vmtype);
-    return static_cast<editor::Screen*>(value.user_value.get());
-  }
-
-  static const VMType vmtype;
-};
+/* static */ editor::Screen* VMTypeMapper<editor::Screen*>::get(Value& value) {
+  return static_cast<editor::Screen*>(value.get_user_value(vmtype).get());
+}
 
 const VMType VMTypeMapper<editor::Screen*>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"Screen"));

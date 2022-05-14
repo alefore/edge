@@ -73,8 +73,8 @@ struct BufferWrapper {
 
 std::shared_ptr<editor::OpenBuffer>
 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value& value) {
-  CHECK_EQ(value.type, vmtype);
-  return static_cast<BufferWrapper*>(value.user_value.get())->buffer;
+  return static_cast<BufferWrapper*>(value.get_user_value(vmtype).get())
+      ->buffer;
 }
 
 /* static */ gc::Root<Value>

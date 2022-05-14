@@ -29,8 +29,7 @@ namespace afc::vm {
 template <typename T>
 struct VMTypeMapper<std::set<T>*> {
   static std::set<T>* get(Value& value) {
-    CHECK_EQ(value.type, vmtype);
-    return static_cast<std::set<T>*>(value.user_value.get());
+    return static_cast<std::set<T>*>(value.get_user_value(vmtype).get());
   }
 
   static const VMType vmtype;

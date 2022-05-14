@@ -130,8 +130,9 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].ptr().value());
-            auto transformation = static_cast<editor::transformation::Variant*>(
-                args[1].ptr()->user_value.get());
+            auto transformation =
+                VMTypeMapper<editor::transformation::Variant*>::get(
+                    args[1].ptr().value());
             return buffer->ApplyToCursors(Pointer(transformation).Reference())
                 .Transform([&pool](EmptyValue) {
                   return EvaluationOutput::Return(Value::NewVoid(pool));

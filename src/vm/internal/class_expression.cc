@@ -35,9 +35,11 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
                             VMType field_type, std::wstring field_name) {
   gc::Root<Value> output = Value::NewFunction(
       pool, {class_type, class_type, field_type},
-      [field_name, field_type](std::vector<gc::Root<Value>> args, Trampoline&) {
+      [class_type, field_name, field_type](std::vector<gc::Root<Value>> args,
+                                           Trampoline&) {
         CHECK_EQ(args.size(), 2u);
-        auto instance = static_cast<Instance*>(args[0].ptr()->user_value.get());
+        auto instance = static_cast<Instance*>(
+            args[0].ptr()->get_user_value(class_type).get());
         CHECK(instance != nullptr);
 
         CHECK_EQ(args[1].ptr()->type, field_type);
@@ -55,10 +57,11 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
                             VMType field_type, std::wstring field_name) {
   gc::Root<Value> output = Value::NewFunction(
       pool, {field_type, class_type},
-      [&pool, field_name, field_type](std::vector<gc::Root<Value>> args,
-                                      Trampoline&) {
+      [&pool, class_type, field_name, field_type](
+          std::vector<gc::Root<Value>> args, Trampoline&) {
         CHECK_EQ(args.size(), 1u);
-        auto instance = static_cast<Instance*>(args[0].ptr()->user_value.get());
+        auto instance = static_cast<Instance*>(
+            args[0].ptr()->get_user_value(class_type).get());
         CHECK(instance != nullptr);
         static Environment::Namespace empty_namespace;
         return futures::Past(VisitPointer(

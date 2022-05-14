@@ -22,10 +22,8 @@ const VMType VMTypeMapper<
 std::shared_ptr<editor::CompositeTransformation::Output>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::get(
     Value& value) {
-  CHECK_EQ(value.type, vmtype);
-  CHECK(value.user_value != nullptr);
   return std::static_pointer_cast<editor::CompositeTransformation::Output>(
-      value.user_value);
+      value.get_user_value(vmtype));
 }
 
 gc::Root<Value>
@@ -44,10 +42,8 @@ const VMType VMTypeMapper<
 std::shared_ptr<editor::CompositeTransformation::Input>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::get(
     Value& value) {
-  CHECK_EQ(value.type, vmtype);
-  CHECK(value.user_value != nullptr);
   return std::static_pointer_cast<editor::CompositeTransformation::Input>(
-      value.user_value);
+      value.get_user_value(vmtype));
 }
 
 gc::Root<Value>

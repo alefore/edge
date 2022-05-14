@@ -134,8 +134,10 @@ bool cpp_unescape_string_tests_registration =
 /* static */ gc::Root<Value> Value::NewObject(gc::Pool& pool,
                                               VMTypeObjectTypeName name,
                                               std::shared_ptr<void> value) {
+  // TODO(easy, 2022-05-13): Adopt NonNull.
+  CHECK(value != nullptr);
   gc::Root<Value> output = New(pool, VMType::ObjectType(std::move(name)));
-  output.ptr()->user_value = std::move(value);
+  output.ptr()->value_ = std::move(value);
   return output;
 }
 
@@ -192,6 +194,14 @@ const std::wstring& Value::get_string() const {
 const std::wstring& Value::get_symbol() const {
   CHECK_EQ(type, VMType::Symbol());
   return std::get<Symbol>(value_).symbol_value;
+}
+
+std::shared_ptr<void> Value::get_user_value(const VMType& type) const {
+  CHECK_EQ(type, type);
+  std::shared_ptr<void> output = std::get<std::shared_ptr<void>>(value_);
+  // TODO(easy, 2022-05-14): Use NonNull.
+  CHECK(output != nullptr);
+  return output;
 }
 
 Value::Callback Value::LockCallback() {

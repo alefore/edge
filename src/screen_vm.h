@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "screen.h"
+#include "src/vm/public/callbacks.h"
 
 namespace afc::language::gc {
 class Pool;
@@ -11,6 +12,13 @@ class Pool;
 namespace afc::vm {
 struct VMType;
 class Environment;
+
+template <>
+struct VMTypeMapper<editor::Screen*> {
+  static editor::Screen* get(Value& value);
+  static const VMType vmtype;
+};
+
 }  // namespace afc::vm
 namespace afc::editor {
 void RegisterScreenType(language::gc::Pool& pool, vm::Environment& environment);
