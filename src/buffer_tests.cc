@@ -29,124 +29,151 @@ std::wstring GetMetadata(std::wstring line) {
 
 const bool buffer_tests_registration = tests::Register(
     L"BufferTests",
-    {{.name = L"MetadataSimpleInt",
-      .callback = [] { CHECK(GetMetadata(L"5") == L"5"); }},
-     {.name = L"MetadataSimpleDouble",
-      .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.3"); }},
-     {.name = L"MetadataSimpleString",
-      .callback = [] { CHECK(GetMetadata(L"\"xyz\"") == L"\"xyz\""); }},
-     {.name = L"MetadataSimpleExpression",
-      .callback = [] { CHECK(GetMetadata(L"1 + 2 + 3") == L"6"); }},
-     {.name = L"MetadataFunctionPure",
-      .callback =
-          [] {
-            CHECK(GetMetadata(L"[](int x) -> int { return x * 2; }(4)") ==
-                  L"8");
-          }},
-     {.name = L"MetadataImpureDoesNotExecute",
-      .callback =
-          [] {
-            CHECK(GetMetadata(L"buffer.SetStatus(\"xyz\"); 4") ==
-                  L"C++: \"int\"");
-          }},
-     {.name = L"MetadataPurePow",
-      .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }},
-     {.name = L"MetadataScientificNotation",
-      .callback = [] { CHECK(GetMetadata(L"1e3") == L"1000"); }},
-     {.name = L"MetadataScientificNotationPlus",
-      .callback = [] { CHECK(GetMetadata(L"1e+3") == L"1000"); }},
-     {.name = L"MetadataScientificNotationMinus",
-      .callback = [] { CHECK(GetMetadata(L"1e-3") == L"0.001"); }},
-     {.name = L"MetadataIntToStringNormal",
-      .callback = [] { CHECK(GetMetadata(L"(1).tostring()") == L"\"1\""); }},
-     {.name = L"MetadataIntToStringRuntimeError",
-      .callback =
-          [] {
-            CHECK(GetMetadata(L"(1/0).tostring()").substr(0, 3) == L"E: ");
-          }},
-     {.name = L"MetadataReturnIntToStringRuntimeError",
-      .callback =
-          [] {
-            // TODO(2022-04-24): Figure out why this test fails if we remove
-            // the semicolon.
-            CHECK(GetMetadata(L"return (1/0).tostring();").substr(0, 3) ==
-                  L"E: ");
-          }},
-     {.name = L"HonorsExistingMetadata",
-      .callback =
-          [] {
-            auto buffer = NewBufferForTests();
-            Line::Options options(NewLazyString(L"foo"));
-            options.SetMetadata(Line::MetadataEntry{
-                .initial_value = NewLazyString(L"bar"),
-                .value = futures::Past(NonNull<std::shared_ptr<LazyString>>(
-                    NewLazyString(L"quux")))});
-            buffer->AppendRawLine(MakeNonNullShared<Line>(std::move(options)));
-            // Gives it a chance to execute:
-            buffer->editor().work_queue()->Execute();
-            CHECK(Pointer(buffer->contents().back()->metadata())
-                      .Reference()
-                      .ToString() == L"quux");
-          }},
-     {.name = L"PassingParametersPreservesThem",
-      .callback =
-          [] {
-            auto buffer = NewBufferForTests();
+    {
+        {.name = L"MetadataSimpleInt",
+         .callback = [] { CHECK(GetMetadata(L"5") == L"5"); }},
+        {.name = L"MetadataSimpleDouble",
+         .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.3"); }},
+        {.name = L"MetadataSimpleString",
+         .callback = [] { CHECK(GetMetadata(L"\"xyz\"") == L"\"xyz\""); }},
+        {.name = L"MetadataSimpleExpression",
+         .callback = [] { CHECK(GetMetadata(L"1 + 2 + 3") == L"6"); }},
+        {.name = L"MetadataFunctionPure",
+         .callback =
+             [] {
+               CHECK(GetMetadata(L"[](int x) -> int { return x * 2; }(4)") ==
+                     L"8");
+             }},
+        {.name = L"MetadataImpureDoesNotExecute",
+         .callback =
+             [] {
+               CHECK(GetMetadata(L"buffer.SetStatus(\"xyz\"); 4") ==
+                     L"C++: \"int\"");
+             }},
+        {.name = L"MetadataPurePow",
+         .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }},
+        {.name = L"MetadataScientificNotation",
+         .callback = [] { CHECK(GetMetadata(L"1e3") == L"1000"); }},
+        {.name = L"MetadataScientificNotationPlus",
+         .callback = [] { CHECK(GetMetadata(L"1e+3") == L"1000"); }},
+        {.name = L"MetadataScientificNotationMinus",
+         .callback = [] { CHECK(GetMetadata(L"1e-3") == L"0.001"); }},
+        {.name = L"MetadataIntToStringNormal",
+         .callback = [] { CHECK(GetMetadata(L"(1).tostring()") == L"\"1\""); }},
+        {.name = L"MetadataIntToStringRuntimeError",
+         .callback =
+             [] {
+               CHECK(GetMetadata(L"(1/0).tostring()").substr(0, 3) == L"E: ");
+             }},
+        {.name = L"MetadataReturnIntToStringRuntimeError",
+         .callback =
+             [] {
+               // TODO(2022-04-24): Figure out why this test fails if we remove
+               // the semicolon.
+               CHECK(GetMetadata(L"return (1/0).tostring();").substr(0, 3) ==
+                     L"E: ");
+             }},
+        {.name = L"HonorsExistingMetadata",
+         .callback =
+             [] {
+               auto buffer = NewBufferForTests();
+               Line::Options options(NewLazyString(L"foo"));
+               options.SetMetadata(Line::MetadataEntry{
+                   .initial_value = NewLazyString(L"bar"),
+                   .value = futures::Past(NonNull<std::shared_ptr<LazyString>>(
+                       NewLazyString(L"quux")))});
+               buffer->AppendRawLine(
+                   MakeNonNullShared<Line>(std::move(options)));
+               // Gives it a chance to execute:
+               buffer->editor().work_queue()->Execute();
+               CHECK(Pointer(buffer->contents().back()->metadata())
+                         .Reference()
+                         .ToString() == L"quux");
+             }},
+        {.name = L"PassingParametersPreservesThem",
+         .callback =
+             [] {
+               auto buffer = NewBufferForTests();
 
-            gc::Root<Value> result =
-                buffer
-                    ->EvaluateString(
-                        L"int F() { return \"foo\".find_last_of(\"o\", 3); }"
-                        L" F() == F();")
-                    .Get()
-                    .value()
-                    .value();
-            CHECK(result.ptr()->get_bool());
-          }},
-     {.name = L"NestedStatements",
-      .callback =
-          [] {
-            auto buffer = NewBufferForTests();
-            ValueOrError<gc::Root<Value>> result =
-                buffer->EvaluateString(L"{ int v = 5; } v").Get().value();
-            CHECK(result.IsError());
-          }},
-     {.name = L"NoLeaks", .callback = [] {
-        auto buffer = NewBufferForTests();
-        // We call Reclaim more than once because the first call enables
-        // additional symbols to be removed by the 2nd call (because the first
-        // call only removes some roots after it has traversed them).
-        buffer->editor().gc_pool().Reclaim();
-        auto stats_0 = buffer->editor().gc_pool().Reclaim();
-        LOG(INFO) << "Start: " << stats_0;
+               gc::Root<Value> result =
+                   buffer
+                       ->EvaluateString(
+                           L"int F() { return \"foo\".find_last_of(\"o\", 3); }"
+                           L" F() == F();")
+                       .Get()
+                       .value()
+                       .value();
+               CHECK(result.ptr()->get_bool());
+             }},
+        {.name = L"NestedStatements",
+         .callback =
+             [] {
+               auto buffer = NewBufferForTests();
+               ValueOrError<gc::Root<Value>> result =
+                   buffer->EvaluateString(L"{ int v = 5; } v").Get().value();
+               CHECK(result.IsError());
+             }},
+    });
 
-        CHECK(!buffer->editor().work_queue()->NextExecution().has_value());
+const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
+  auto callback = [](std::wstring code) {
+    return tests::Test{
+        .name = code.empty() ? L"<empty>" : (L"Code: " + code),
+        .callback = [code] {
+          auto buffer = NewBufferForTests();
+          // We call Reclaim more than once because the first call enables
+          // additional symbols to be removed by the 2nd call (because the first
+          // call only removes some roots after it has traversed them).
+          buffer->editor().gc_pool().Reclaim();
+          auto stats_0 = buffer->editor().gc_pool().Reclaim();
+          LOG(INFO) << "Start: " << stats_0;
 
-        buffer
-            ->EvaluateString(
-                L"{"
-                L"auto foo = [](int x) -> int { return x * 5; };"
-                L"foo(3) * 2;"
-                L"\"text\" * 2;"
-                L"foo((\"xyz\").size() + 1) - 5;"
-                L"}")
-            .Get()
-            .value()
-            .value()
-            .ptr();
+          CHECK(!buffer->editor().work_queue()->NextExecution().has_value());
 
-        CHECK(!buffer->editor().work_queue()->NextExecution().has_value());
+          buffer->CompileString(code);
 
-        buffer->editor().gc_pool().Reclaim();
-        buffer->editor().gc_pool().Reclaim();
-        buffer->editor().gc_pool().Reclaim();
-        auto stats_1 = buffer->editor().gc_pool().Reclaim();
-        LOG(INFO) << "Start: " << stats_1;
+          buffer->editor().gc_pool().Reclaim();
+          auto stats_1 = buffer->editor().gc_pool().Reclaim();
+          LOG(INFO) << "After compile: " << stats_1;
+          CHECK_EQ(stats_0.roots, stats_1.roots);
+          CHECK_EQ(stats_0.end_total, stats_1.end_total);
 
-        // The real assertions of this test are these:
-        CHECK_EQ(stats_0.roots, stats_1.roots);
-        CHECK_EQ(stats_0.end_total, stats_1.end_total);
-      }}});
+          {
+            futures::ValueOrError<language::gc::Root<Value>> future_value =
+                buffer->EvaluateString(code);
+            while (buffer->editor().work_queue()->NextExecution().has_value())
+              buffer->editor().work_queue()->Execute();
+            future_value.Get().value().value().ptr();
+          }
+
+          for (int i = 0; i < 10; i++) buffer->editor().gc_pool().Reclaim();
+
+          auto stats_2 = buffer->editor().gc_pool().Reclaim();
+          LOG(INFO) << "Start: " << stats_1;
+
+          // The real assertions of this test are these:
+          CHECK_EQ(stats_0.roots, stats_2.roots);
+          CHECK_EQ(stats_0.end_total, stats_2.end_total);
+        }};
+  };
+  return std::vector<tests::Test>({
+      callback(L""),
+      callback(L"5"),
+      callback(L"\"foo\";"),
+      callback(L"true;"),
+      callback(L"false;"),
+      callback(L"int x = 5;"),
+      callback(L"for (int i = 0; i < 5; i++) i;"),
+      callback(L"{"
+               L"auto foo = [](int x) -> int { return x * 5; };"
+               L"foo(3) * 2;"
+               L"\"text\" * 2;"
+               L"foo((\"xyz\").size() + 1) - 5;"
+               L"int y = 0;"
+               L"for (int i = 0; i < 5; i++) { y += foo(i); }"
+               L"}"),
+  });
+}());
 
 const bool buffer_work_queue_tests_registration = tests::Register(
     L"BufferWorkQueue", {{.name = L"WorkQueueStaysAlive", .callback = [] {
