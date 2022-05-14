@@ -20,7 +20,6 @@
 
 main ::= program(P) . {
   compilation->expr.reset(P);
-  P = nullptr;
 }
 
 main ::= error. {
@@ -33,14 +32,11 @@ main ::= error. {
 
 program(OUT) ::= statement_list(A). {
   OUT = A;
-  A = nullptr;
 }
 
 program(OUT) ::= statement_list(A) assignment_statement(B). {
   OUT = NewAppendExpression(compilation, unique_ptr<Expression>(A),
                             unique_ptr<Expression>(B)).release();
-  A = nullptr;
-  B = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,10 +51,8 @@ statement_list(L) ::= . {
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
-  OUT = NewAppendExpression(compilation, unique_ptr<Expression>(A),
-                            unique_ptr<Expression>(B)).release();
-  A = nullptr;
-  B = nullptr;
+  OUT = NewAppendExpression(compilation, std::unique_ptr<Expression>(A),
+                            std::unique_ptr<Expression>(B)).release();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,14 +64,12 @@ statement_list(OUT) ::= statement_list(A) statement(B). {
 
 statement(A) ::= assignment_statement(B) SEMICOLON . {
   A = B;
-  B = nullptr;
 }
 
 statement(OUT) ::= namespace_declaration
     LBRACKET statement_list(A) RBRACKET. {
   OUT = NewNamespaceExpression(
       *compilation, std::unique_ptr<Expression>(A)).release();
-  A = nullptr;
 }
 
 namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
@@ -96,7 +88,6 @@ statement(OUT) ::= class_declaration
     FinishClassDeclaration(*compilation,
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(A)));
-    A = nullptr;
     OUT = NewVoidExpression(compilation->pool).get_unique().release();
   }
 }
@@ -109,7 +100,8 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
-  OUT = NewReturnExpression(compilation, unique_ptr<Expression>(A)).release();
+  OUT = NewReturnExpression(
+      compilation, std::unique_ptr<Expression>(A)).release();
   A = nullptr;
 }
 
