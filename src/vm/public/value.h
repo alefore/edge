@@ -48,7 +48,7 @@ class Value {
   static language::gc::Root<Value> NewSymbol(language::gc::Pool& pool,
                                              std::wstring value);
   static language::gc::Root<Value> NewObject(language::gc::Pool& pool,
-                                             std::wstring name,
+                                             VMTypeObjectTypeName name,
                                              std::shared_ptr<void> value);
   static language::gc::Root<Value> NewFunction(
       language::gc::Pool& pool, std::vector<VMType> arguments,

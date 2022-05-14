@@ -46,15 +46,15 @@ struct VMTypeMapper<std::vector<T>*> {
   static void Export(language::gc::Pool& pool, Environment& environment) {
     auto vector_type = language::MakeNonNullUnique<ObjectType>(vmtype);
 
-    auto name = vmtype.object_type;
     environment.Define(
-        name, Value::NewFunction(
-                  pool, {vmtype},
-                  [&pool, name](std::vector<language::gc::Root<Value>> args) {
-                    CHECK(args.empty());
-                    return Value::NewObject(pool, name,
-                                            std::make_shared<std::vector<T>>());
-                  }));
+        vector_type->type().object_type.read(),
+        Value::NewFunction(
+            pool, {vmtype},
+            [&pool](std::vector<language::gc::Root<Value>> args) {
+              CHECK(args.empty());
+              return Value::NewObject(pool, vmtype.object_type,
+                                      std::make_shared<std::vector<T>>());
+            }));
 
     vector_type->AddField(
         L"empty",
@@ -90,7 +90,7 @@ struct VMTypeMapper<std::vector<T>*> {
                             v->emplace_back(e);
                           }));
 
-    environment.DefineType(name, std::move(vector_type));
+    environment.DefineType(std::move(vector_type));
   }
 };
 

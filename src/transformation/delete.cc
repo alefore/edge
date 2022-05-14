@@ -41,7 +41,7 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
   static gc::Root<Value> New(
       language::gc::Pool& pool,
       std::shared_ptr<editor::transformation::Delete> value) {
-    return Value::NewObject(pool, L"DeleteTransformationBuilder",
+    return Value::NewObject(pool, vmtype.object_type,
                             std::shared_ptr<void>(value, value.get()));
   }
   static const VMType vmtype;
@@ -49,7 +49,8 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
 
 const VMType
     VMTypeMapper<std::shared_ptr<editor::transformation::Delete>>::vmtype =
-        VMType::ObjectType(L"DeleteTransformationBuilder");
+        VMType::ObjectType(
+            VMTypeObjectTypeName(L"DeleteTransformationBuilder"));
 }  // namespace vm
 namespace editor {
 using language::MakeNonNullShared;
@@ -250,10 +251,11 @@ std::wstring ToStringBase(const Delete&) { return L"Delete(...);"; }
 Delete OptimizeBase(Delete transformation) { return transformation; }
 
 void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
-  auto builder = MakeNonNullUnique<ObjectType>(L"DeleteTransformationBuilder");
+  auto builder = MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<std::shared_ptr<Delete>>::vmtype);
 
   environment.Define(
-      L"DeleteTransformationBuilder",
+      builder->type().object_type.read(),
       vm::NewCallback(pool, std::function<std::shared_ptr<Delete>()>([]() {
                         return std::make_shared<transformation::Delete>();
                       })));
@@ -294,7 +296,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
                       return std::make_unique<Variant>(*options).release();
                     }));
 
-  environment.DefineType(L"DeleteTransformationBuilder", std::move(builder));
+  environment.DefineType(std::move(builder));
 }
 }  // namespace transformation
 }  // namespace editor

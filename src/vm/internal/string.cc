@@ -20,15 +20,15 @@ namespace gc = language::gc;
 
 template <>
 const VMType VMTypeMapper<std::vector<wstring>*>::vmtype =
-    VMType::ObjectType(L"VectorString");
+    VMType::ObjectType(VMTypeObjectTypeName(L"VectorString"));
 
 template <>
 const VMType VMTypeMapper<std::unique_ptr<std::vector<wstring>>>::vmtype =
-    VMType::ObjectType(L"VectorString");
+    VMType::ObjectType(VMTypeObjectTypeName(L"VectorString"));
 
 template <>
 const VMType VMTypeMapper<std::set<wstring>*>::vmtype =
-    VMType::ObjectType(L"SetString");
+    VMType::ObjectType(VMTypeObjectTypeName(L"SetString"));
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name, language::gc::Pool& pool,
@@ -137,7 +137,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
             return pos == wstring::npos ? -1 : pos;
           }),
       string_type.value());
-  environment.DefineType(L"string", std::move(string_type));
+  environment.DefineType(std::move(string_type));
 
   VMTypeMapper<std::vector<wstring>*>::Export(pool, environment);
   VMTypeMapper<std::set<wstring>*>::Export(pool, environment);

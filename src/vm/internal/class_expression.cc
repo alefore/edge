@@ -23,7 +23,8 @@ struct Instance {
   language::gc::Root<Environment> environment;
 };
 
-void StartClassDeclaration(Compilation& compilation, const std::wstring& name) {
+void StartClassDeclaration(Compilation& compilation,
+                           const VMTypeObjectTypeName& name) {
   compilation.current_class.push_back(VMType::ObjectType(name));
   compilation.environment = compilation.pool.NewRoot<Environment>(
       MakeNonNullUnique<Environment>(compilation.environment.ptr()));
@@ -107,8 +108,7 @@ void FinishClassDeclaration(
         class_object_type->AddField(
             L"set_" + name, BuildSetter(pool, class_type, value->type, name));
       });
-  compilation.environment.ptr()->DefineType(class_type.object_type,
-                                            std::move(class_object_type));
+  compilation.environment.ptr()->DefineType(std::move(class_object_type));
   auto purity = constructor_expression.value()->purity();
   gc::Root<Value> constructor = Value::NewFunction(
       pool, {class_type},
@@ -145,7 +145,7 @@ void FinishClassDeclaration(
       });
   constructor.ptr()->type.function_purity = purity;
 
-  compilation.environment.ptr()->Define(class_type.object_type,
+  compilation.environment.ptr()->Define(class_type.object_type.read(),
                                         std::move(constructor));
 }
 

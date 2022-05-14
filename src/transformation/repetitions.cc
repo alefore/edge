@@ -27,7 +27,7 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
   static gc::Root<Value> New(
       gc::Pool& pool,
       std::shared_ptr<editor::transformation::Repetitions> value) {
-    return Value::NewObject(pool, L"RepetitionsTransformationBuilder",
+    return Value::NewObject(pool, vmtype.object_type,
                             std::shared_ptr<void>(value, value.get()));
   }
   static const VMType vmtype;
@@ -35,7 +35,8 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
 
 const VMType
     VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>>::vmtype =
-        VMType::ObjectType(L"RepetitionsTransformationBuilder");
+        VMType::ObjectType(
+            VMTypeObjectTypeName(L"RepetitionsTransformationBuilder"));
 }  // namespace vm
 namespace editor::transformation {
 futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {

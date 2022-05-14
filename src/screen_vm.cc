@@ -28,7 +28,7 @@ struct VMTypeMapper<editor::Screen*> {
 };
 
 const VMType VMTypeMapper<editor::Screen*>::vmtype =
-    VMType::ObjectType(L"Screen");
+    VMType::ObjectType(VMTypeObjectTypeName(L"Screen"));
 }  // namespace vm
 namespace editor {
 
@@ -111,7 +111,8 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
   using vm::EvaluationOutput;
   using vm::Trampoline;
 
-  auto screen_type = MakeNonNullUnique<ObjectType>(L"Screen");
+  auto screen_type =
+      MakeNonNullUnique<ObjectType>(vm::VMTypeMapper<editor::Screen*>::vmtype);
 
   // Constructors.
   environment.Define(
@@ -133,7 +134,8 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
               return futures::Past(output.error());
             }
             return futures::Past(EvaluationOutput::Return(Value::NewObject(
-                pool, L"Screen", std::make_shared<ScreenVm>(output.value()))));
+                pool, vm::VMTypeMapper<editor::Screen*>::vmtype.object_type,
+                std::make_shared<ScreenVm>(output.value()))));
           }));
 
   // Methods for Screen.
@@ -199,7 +201,7 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
                           return screen->size();
                         }));
 
-  environment.DefineType(L"Screen", std::move(screen_type));
+  environment.DefineType(std::move(screen_type));
 }
 
 std::unique_ptr<Screen> NewScreenVm(int fd) {
@@ -207,8 +209,7 @@ std::unique_ptr<Screen> NewScreenVm(int fd) {
 }
 
 const VMType& GetScreenVmType() {
-  static const VMType* const output = new VMType(VMType::ObjectType(L"Screen"));
-  return *output;
+  return vm::VMTypeMapper<editor::Screen*>::vmtype;
 }
 
 }  // namespace editor

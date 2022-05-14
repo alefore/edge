@@ -27,7 +27,7 @@ using language::NonNull;
 namespace gc = language::gc;
 namespace vm {
 const VMType VMTypeMapper<editor::transformation::Variant*>::vmtype =
-    VMType::ObjectType(L"Transformation");
+    VMType::ObjectType(VMTypeObjectTypeName(L"Transformation"));
 
 editor::transformation::Variant*
 VMTypeMapper<editor::transformation::Variant*>::get(Value& value) {
@@ -39,7 +39,7 @@ VMTypeMapper<editor::transformation::Variant*>::get(Value& value) {
 gc::Root<Value> VMTypeMapper<editor::transformation::Variant*>::New(
     gc::Pool& pool, editor::transformation::Variant* value) {
   return Value::NewObject(
-      pool, L"Transformation", shared_ptr<void>(value, [](void* v) {
+      pool, vmtype.object_type, shared_ptr<void>(value, [](void* v) {
         delete static_cast<editor::transformation::Variant*>(v);
       }));
 }
@@ -82,8 +82,9 @@ class FunctionTransformation : public CompositeTransformation {
 };
 }  // namespace
 void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
-  environment.DefineType(L"Transformation",
-                         MakeNonNullUnique<vm::ObjectType>(L"Transformation"));
+  environment.DefineType(MakeNonNullUnique<vm::ObjectType>(
+      VMTypeMapper<editor::transformation::Variant*>::vmtype));
+
   environment.Define(
       L"FunctionTransformation",
       vm::Value::NewFunction(

@@ -516,14 +516,14 @@ VMTypeMapper<editor::ForkCommandOptions*>::get(Value& value) {
 /* static */ gc::Root<Value> VMTypeMapper<editor::ForkCommandOptions*>::New(
     language::gc::Pool& pool, editor::ForkCommandOptions* value) {
   CHECK(value != nullptr);
-  return Value::NewObject(pool, L"ForkCommandOptions",
+  return Value::NewObject(pool, vmtype.object_type,
                           std::shared_ptr<void>(value, [](void* v) {
                             delete static_cast<editor::ForkCommandOptions*>(v);
                           }));
 }
 
 const VMType VMTypeMapper<editor::ForkCommandOptions*>::vmtype =
-    VMType::ObjectType(L"ForkCommandOptions");
+    VMType::ObjectType(VMTypeObjectTypeName(L"ForkCommandOptions"));
 }  // namespace vm
 namespace editor {
 /* static */
@@ -533,7 +533,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   using vm::Value;
   using vm::VMType;
   auto fork_command_options =
-      MakeNonNullUnique<ObjectType>(L"ForkCommandOptions");
+      MakeNonNullUnique<ObjectType>(VMTypeMapper<ForkCommandOptions*>::vmtype);
 
   environment.Define(
       L"ForkCommandOptions",
@@ -585,8 +585,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
                     Path::FromString(std::move(children_path)).AsOptional();
               })));
 
-  environment.DefineType(L"ForkCommandOptions",
-                         std::move(fork_command_options));
+  environment.DefineType(std::move(fork_command_options));
 }
 
 NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(

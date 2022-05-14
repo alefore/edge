@@ -9,7 +9,9 @@
 #include <vector>
 
 #include "src/language/gc.h"
+#include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
+#include "src/language/wstring.h"
 
 namespace afc::vm {
 
@@ -19,6 +21,8 @@ using std::vector;
 using std::wstring;
 
 class ObjectType;
+
+GHOST_TYPE(VMTypeObjectTypeName, std::wstring);
 
 struct VMType {
   enum class Type {
@@ -44,7 +48,7 @@ struct VMType {
   static const VMType& Symbol();
   static const VMType& Double();
 
-  static VMType ObjectType(const wstring& name);
+  static VMType ObjectType(VMTypeObjectTypeName name);
 
   static VMType Function(vector<VMType> arguments,
                          PurityType function_purity = PurityType::kUnknown);
@@ -58,7 +62,7 @@ struct VMType {
   vector<VMType> type_arguments;
   PurityType function_purity = PurityType::kUnknown;
 
-  wstring object_type;
+  VMTypeObjectTypeName object_type = VMTypeObjectTypeName(L"");
 };
 
 wstring TypesToString(const std::vector<VMType>& types);
@@ -72,7 +76,7 @@ struct Value;
 class ObjectType {
  public:
   ObjectType(const VMType& type);
-  ObjectType(const wstring& type_name);
+  ObjectType(VMTypeObjectTypeName type_name);
   ~ObjectType(){};
 
   const VMType& type() const { return type_; }
@@ -100,5 +104,7 @@ struct hash<afc::vm::VMType> {
   size_t operator()(const afc::vm::VMType& x) const;
 };
 }  // namespace std
+
+GHOST_TYPE_TOP_LEVEL(afc::vm::VMTypeObjectTypeName);
 
 #endif  // __AFC_VM_PUBLIC_TYPES_H__

@@ -8,7 +8,9 @@
 
 namespace afc::vm {
 class Compilation;
-void StartClassDeclaration(Compilation& compilation, const std::wstring& name);
+class VMTypeObjectTypeName;
+void StartClassDeclaration(Compilation& compilation,
+                           const VMTypeObjectTypeName& name);
 void FinishClassDeclaration(
     Compilation& compilation,
     language::NonNull<std::unique_ptr<Expression>> body);

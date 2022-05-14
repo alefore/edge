@@ -33,7 +33,7 @@ struct VMTypeMapper<editor::EditorState> {
 };
 
 const VMType VMTypeMapper<editor::EditorState>::vmtype =
-    VMType::ObjectType(L"Editor");
+    VMType::ObjectType(VMTypeObjectTypeName(L"Editor"));
 }  // namespace afc::vm
 
 namespace afc::editor {
@@ -61,7 +61,8 @@ void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
           {VMType::Void(), editor_type.type()},
           [method](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0].ptr()->type, VMType::ObjectType(L"Editor"));
+            CHECK_EQ(args[0].ptr()->type,
+                     VMTypeMapper<editor::EditorState>::vmtype);
 
             EditorState& editor =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
@@ -125,7 +126,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   value.Define(L"terminal_control_u",
                Value::NewString(pool, {Terminal::CTRL_U}));
 
-  auto editor_type = MakeNonNullUnique<ObjectType>(L"Editor");
+  auto editor_type =
+      MakeNonNullUnique<ObjectType>(VMTypeMapper<editor::EditorState>::vmtype);
 
   // Methods for Editor.
   RegisterVariableFields<EdgeStruct<bool>, bool>(
@@ -277,13 +279,14 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       Value::NewFunction(
           pool,
           {VMType::Void(), VMTypeMapper<EditorState>::vmtype,
-           VMType::ObjectType(L"SetString")},
+           VMTypeMapper<std::set<std::wstring>*>::vmtype},
           [&pool = pool](std::vector<gc::Root<Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2u);
             EditorState& editor =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             const auto& buffers_to_wait =
-                *VMTypeMapper<std::set<wstring>*>::get(args[1].ptr().value());
+                *VMTypeMapper<std::set<std::wstring>*>::get(
+                    args[1].ptr().value());
 
             auto values =
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
@@ -365,8 +368,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"OpenFile",
       Value::NewFunction(
           pool,
-          {VMType::ObjectType(L"Buffer"), VMTypeMapper<EditorState>::vmtype,
-           VMType::String(), VMType::Bool()},
+          {VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype,
+           VMTypeMapper<EditorState>::vmtype, VMType::String(), VMType::Bool()},
           [&pool = pool](std::vector<gc::Root<Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
             EditorState& editor_state =
@@ -383,7 +386,10 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                 .Transform(
                     [&pool](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
                       return EvaluationOutput::Return(Value::NewObject(
-                          pool, L"Buffer", buffer.get_shared()));
+                          pool,
+                          VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype
+                              .object_type,
+                          buffer.get_shared()));
                     });
           }));
 
@@ -419,13 +425,14 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                        &OpenBuffer::DestroyOtherCursors);
   RegisterBufferMethod(pool, editor_type.value(), L"RepeatLastTransformation",
                        &OpenBuffer::RepeatLastTransformation);
-  value.DefineType(L"Editor", std::move(editor_type));
 
   value.Define(L"editor",
-               Value::NewObject(pool, L"Editor",
+               Value::NewObject(pool, editor_type->type().object_type,
                                 shared_ptr<void>(&editor, [](void*) {})));
 
-  value.DefineType(L"Buffer", BuildBufferType(pool));
+  value.DefineType(std::move(editor_type));
+
+  value.DefineType(BuildBufferType(pool));
 
   InitShapes(pool, value);
   RegisterTransformations(pool, value);

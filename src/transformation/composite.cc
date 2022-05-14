@@ -17,7 +17,7 @@ namespace gc = language::gc;
 namespace vm {
 const VMType VMTypeMapper<
     std::shared_ptr<editor::CompositeTransformation::Output>>::vmtype =
-    VMType::ObjectType(L"TransformationOutput");
+    VMType::ObjectType(VMTypeObjectTypeName(L"TransformationOutput"));
 
 std::shared_ptr<editor::CompositeTransformation::Output>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::get(
@@ -33,13 +33,13 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::New(
     gc::Pool& pool,
     std::shared_ptr<editor::CompositeTransformation::Output> value) {
   CHECK(value != nullptr);
-  return Value::NewObject(pool, L"TransformationOutput",
+  return Value::NewObject(pool, vmtype.object_type,
                           std::shared_ptr<void>(value, value.get()));
 }
 
 const VMType VMTypeMapper<
     std::shared_ptr<editor::CompositeTransformation::Input>>::vmtype =
-    VMType::ObjectType(L"TransformationInput");
+    VMType::ObjectType(VMTypeObjectTypeName(L"TransformationInput"));
 
 std::shared_ptr<editor::CompositeTransformation::Input>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::get(
@@ -55,7 +55,7 @@ VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::New(
     gc::Pool& pool,
     std::shared_ptr<editor::CompositeTransformation::Input> value) {
   CHECK(value != nullptr);
-  return Value::NewObject(pool, L"TransformationInput",
+  return Value::NewObject(pool, vmtype.object_type,
                           std::shared_ptr<void>(value, value.get()));
 }
 
@@ -148,7 +148,9 @@ void CompositeTransformation::Output::Push(
 
 void RegisterCompositeTransformation(language::gc::Pool& pool,
                                      vm::Environment& environment) {
-  auto input_type = MakeNonNullUnique<ObjectType>(L"TransformationInput");
+  auto input_type = MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<
+          std::shared_ptr<editor::CompositeTransformation::Input>>::vmtype);
 
   input_type->AddField(
       L"position",
@@ -169,11 +171,14 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
           pool, [](std::shared_ptr<CompositeTransformation::Input> input) {
             return input->mode == transformation::Input::Mode::kFinal;
           }));
-  environment.DefineType(L"TransformationInput", std::move(input_type));
+  environment.DefineType(std::move(input_type));
 
-  auto output_type = MakeNonNullUnique<ObjectType>(L"TransformationOutput");
+  auto output_type = MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<
+          std::shared_ptr<editor::CompositeTransformation::Output>>::vmtype);
+
   environment.Define(
-      L"TransformationOutput", vm::NewCallback(pool, [] {
+      output_type->type().object_type.read(), vm::NewCallback(pool, [] {
         return std::make_shared<CompositeTransformation::Output>();
       }));
 
@@ -182,13 +187,12 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
       vm::NewCallback(
           pool, [](std::shared_ptr<CompositeTransformation::Output> output,
                    transformation::Variant* transformation) {
-            // TODO(2022-05-02, easy): Receive transformation as
-            // NonNull.
+            // TODO(2022-05-02, easy): Receive transformation as NonNull.
             output->Push(*transformation);
             return output;
           }));
 
-  environment.DefineType(L"TransformationOutput", std::move(output_type));
+  environment.DefineType(std::move(output_type));
 }
 }  // namespace editor
 }  // namespace afc

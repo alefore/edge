@@ -65,8 +65,10 @@ struct VMTypeMapper<Duration> {
   static const VMType vmtype;
 };
 
-const VMType VMTypeMapper<Time>::vmtype = VMType::ObjectType(L"Time");
-const VMType VMTypeMapper<Duration>::vmtype = VMType::ObjectType(L"Duration");
+const VMType VMTypeMapper<Time>::vmtype =
+    VMType::ObjectType(VMTypeObjectTypeName(L"Time"));
+const VMType VMTypeMapper<Duration>::vmtype =
+    VMType::ObjectType(VMTypeObjectTypeName(L"Duration"));
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name, gc::Pool& pool,
@@ -76,7 +78,7 @@ void AddMethod(const wstring& name, gc::Pool& pool,
 }
 
 void RegisterTimeType(gc::Pool& pool, Environment& environment) {
-  auto time_type = MakeNonNullUnique<ObjectType>(L"Time");
+  auto time_type = MakeNonNullUnique<ObjectType>(VMTypeMapper<Time>::vmtype);
   time_type->AddField(
       L"tostring",
       vm::NewCallback(pool, std::function<wstring(Time)>([](Time t) {
@@ -124,7 +126,8 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                                  localtime_r(&(input.tv_sec), &t);
                                  return t.tm_year;
                                })));
-  environment.DefineType(L"Time", std::move(time_type));
+  auto time_type_name = time_type->type().object_type;
+  environment.DefineType(std::move(time_type));
   environment.Define(L"Now", vm::NewCallback(pool, []() {
                        Time output;
                        CHECK_NE(clock_gettime(0, &output), -1);
@@ -147,8 +150,8 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
         return Time{.tv_sec = output, .tv_nsec = 0};
       }));
 
-  auto duration_type = MakeNonNullUnique<ObjectType>(L"Duration");
-  environment.DefineType(L"Duration", std::move(duration_type));
+  environment.DefineType(MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<Duration>::vmtype.object_type));
   environment.Define(L"Seconds", vm::NewCallback(pool, [](int input) {
                        return Duration{.value{.tv_sec = input, .tv_nsec = 0}};
                      }));

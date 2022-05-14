@@ -7,7 +7,7 @@
 namespace std {
 size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
   size_t output = hash<size_t>()(static_cast<size_t>(x.type)) ^
-                  hash<wstring>()(x.object_type);
+                  hash<afc::vm::VMTypeObjectTypeName>()(x.object_type);
   for (const auto& a : x.type_arguments) {
     output ^= hash()(a);
   }
@@ -37,17 +37,29 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::Bool() {
-  static VMType type(VMType::Type::kBool);
+  static VMType type = [] {
+    VMType output(VMType::Type::kBool);
+    output.object_type = VMTypeObjectTypeName(L"bool");
+    return output;
+  }();
   return type;
 }
 
 /* static */ const VMType& VMType::Int() {
-  static VMType type(VMType::Type::kInt);
+  static VMType type = [] {
+    VMType output(VMType::Type::kInt);
+    output.object_type = VMTypeObjectTypeName(L"int");
+    return output;
+  }();
   return type;
 }
 
 /* static */ const VMType& VMType::String() {
-  static VMType type(VMType::Type::kString);
+  static VMType type = [] {
+    VMType output(VMType::Type::kString);
+    output.object_type = VMTypeObjectTypeName(L"string");
+    return output;
+  }();
   return type;
 }
 
@@ -57,7 +69,11 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::Double() {
-  static VMType type(VMType::Type::kDouble);
+  static VMType type = [] {
+    VMType output(VMType::Type::kDouble);
+    output.object_type = VMTypeObjectTypeName(L"double");
+    return output;
+  }();
   return type;
 }
 
@@ -75,7 +91,7 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
   return TypesToString(std::vector<VMType>(types.cbegin(), types.cend()));
 }
 
-/* static */ VMType VMType::ObjectType(const wstring& name) {
+/* static */ VMType VMType::ObjectType(VMTypeObjectTypeName name) {
   VMType output(VMType::Type::kObject);
   output.object_type = name;
   return output;
@@ -110,7 +126,7 @@ wstring VMType::ToString() const {
       return output;
     }
     case Type::kObject:
-      return object_type;
+      return object_type.read();
   }
   return L"unknown";
 }
@@ -125,7 +141,7 @@ wstring VMType::ToString() const {
 
 ObjectType::ObjectType(const VMType& type) : type_(type) {}
 
-ObjectType::ObjectType(const wstring& type_name)
+ObjectType::ObjectType(VMTypeObjectTypeName type_name)
     : ObjectType(VMType::ObjectType(type_name)) {}
 
 void ObjectType::AddField(const wstring& name, gc::Root<Value> field) {

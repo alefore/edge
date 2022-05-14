@@ -82,12 +82,14 @@ VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
     gc::Pool& pool, std::shared_ptr<editor::OpenBuffer> value) {
   auto wrapper = std::make_shared<BufferWrapper>();
   wrapper->buffer = std::move(value);
-  return Value::NewObject(pool, L"Buffer",
-                          std::shared_ptr<void>(wrapper, wrapper.get()));
+  return Value::NewObject(
+      pool,
+      VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype.object_type,
+      std::shared_ptr<void>(wrapper, wrapper.get()));
 }
 
 const VMType VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype =
-    VMType::ObjectType(L"Buffer");
+    VMType::ObjectType(VMTypeObjectTypeName(L"Buffer"));
 }  // namespace vm
 namespace editor {
 using concurrent::WorkQueue;

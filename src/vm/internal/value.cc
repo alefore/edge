@@ -131,7 +131,8 @@ bool cpp_unescape_string_tests_registration =
   return output;
 }
 
-/* static */ gc::Root<Value> Value::NewObject(gc::Pool& pool, std::wstring name,
+/* static */ gc::Root<Value> Value::NewObject(gc::Pool& pool,
+                                              VMTypeObjectTypeName name,
                                               std::shared_ptr<void> value) {
   gc::Root<Value> output = New(pool, VMType::ObjectType(std::move(name)));
   output.ptr()->user_value = std::move(value);

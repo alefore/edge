@@ -267,9 +267,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
         buffer.second->environment().ptr()->Lookup(
             editor_state().gc_pool(), Environment::Namespace(), L"screen",
             GetScreenVmType());
-    if (!value.has_value() ||
-        value.value().ptr()->type.type != VMType::Type::kObject ||
-        value.value().ptr()->type.object_type != L"Screen") {
+    if (!value.has_value() || value.value().ptr()->type != GetScreenVmType()) {
       continue;
     }
     auto buffer_screen =
@@ -356,8 +354,9 @@ int main(int argc, const char** argv) {
   RegisterScreenType(editor_state().gc_pool(),
                      editor_state().environment().ptr().value());
   editor_state().environment().ptr()->Define(
-      L"screen", afc::vm::Value::NewObject(editor_state().gc_pool(), L"Screen",
-                                           screen_curses));
+      L"screen",
+      afc::vm::Value::NewObject(editor_state().gc_pool(),
+                                GetScreenVmType().object_type, screen_curses));
 
   LOG(INFO) << "Starting server.";
   auto server_path = StartServer(args, connected_to_parent);

@@ -239,7 +239,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         object_type_name = L"int";
         break;
       case VMType::Type::kObject:
-        object_type_name = type.object_type;
+        object_type_name = type.object_type.read();
         break;
       default:
         break;

@@ -23,11 +23,11 @@ namespace gc = language::gc;
 
 template <>
 const VMType VMTypeMapper<std::vector<int>*>::vmtype =
-    VMType::ObjectType(L"VectorInt");
+    VMType::ObjectType(VMTypeObjectTypeName(L"VectorInt"));
 
 template <>
 const VMType VMTypeMapper<std::set<int>*>::vmtype =
-    VMType::ObjectType(L"SetInt");
+    VMType::ObjectType(VMTypeObjectTypeName(L"SetInt"));
 }  // namespace
 
 language::gc::Root<Environment> Environment::NewDefault(
@@ -44,7 +44,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                                  return v ? L"true" : L"false";
                                }),
                                VMType::PurityType::kPure));
-  value.DefineType(L"bool", std::move(bool_type));
+  value.DefineType(std::move(bool_type));
 
   auto int_type = MakeNonNullUnique<ObjectType>(VMType::Int());
   int_type->AddField(
@@ -53,7 +53,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                     return std::to_wstring(value);
                   }),
                   VMType::PurityType::kPure));
-  value.DefineType(L"int", std::move(int_type));
+  value.DefineType(std::move(int_type));
 
   auto double_type = MakeNonNullUnique<ObjectType>(VMType::Double());
   double_type->AddField(
@@ -67,7 +67,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                               return static_cast<int>(value);
                             }),
                             VMType::PurityType::kPure));
-  value.DefineType(L"double", std::move(double_type));
+  value.DefineType(std::move(double_type));
 
   VMTypeMapper<std::vector<int>*>::Export(pool, value);
   VMTypeMapper<std::set<int>*>::Export(pool, value);
@@ -157,9 +157,11 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
   return std::nullopt;
 }
 
-void Environment::DefineType(const wstring& name,
-                             NonNull<std::unique_ptr<ObjectType>> value) {
-  object_types_.insert_or_assign(name, std::move(value));
+void Environment::DefineType(
+    language::NonNull<std::unique_ptr<ObjectType>> value) {
+  VMTypeObjectTypeName name = value->type().object_type;
+  // TODO(easy, 2022-05-14): Index directly by VMTypeObjectTypeName.
+  object_types_.insert_or_assign(std::move(name.read()), std::move(value));
 }
 
 std::optional<gc::Root<Value>> Environment::Lookup(

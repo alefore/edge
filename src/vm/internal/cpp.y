@@ -103,7 +103,8 @@ statement(OUT) ::= class_declaration
 
 class_declaration ::= CLASS SYMBOL(NAME) . {
   StartClassDeclaration(
-      *compilation, std::move(NAME->value().ptr()->get_symbol()));
+      *compilation,
+      VMTypeObjectTypeName(std::move(NAME->value().ptr()->get_symbol())));
   delete NAME;
 }
 

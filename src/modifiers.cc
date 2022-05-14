@@ -61,7 +61,8 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary) {
 
 void Modifiers::Register(language::gc::Pool& pool,
                          vm::Environment& environment) {
-  auto modifiers_type = MakeNonNullUnique<vm::ObjectType>(L"Modifiers");
+  auto modifiers_type = MakeNonNullUnique<vm::ObjectType>(
+      vm::VMTypeMapper<std::shared_ptr<Modifiers>>::vmtype);
 
   environment.Define(L"Modifiers", vm::NewCallback(pool, []() {
                        return std::make_shared<Modifiers>();
@@ -115,7 +116,7 @@ void Modifiers::Register(language::gc::Pool& pool,
         return output;
       }));
 
-  environment.DefineType(L"Modifiers", std::move(modifiers_type));
+  environment.DefineType(std::move(modifiers_type));
 }
 
 std::wstring Modifiers::Serialize() const {
@@ -153,10 +154,12 @@ VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value& value) {
 /* static */
 gc::Root<Value> VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
     language::gc::Pool& pool, std::shared_ptr<editor::Modifiers> value) {
-  return Value::NewObject(pool, L"Modifiers",
-                          std::shared_ptr<void>(value, value.get()));
+  return Value::NewObject(
+      pool,
+      VMTypeMapper<std::shared_ptr<editor::Modifiers>>::vmtype.object_type,
+      std::shared_ptr<void>(value, value.get()));
 }
 
 const VMType VMTypeMapper<std::shared_ptr<editor::Modifiers>>::vmtype =
-    VMType::ObjectType(L"Modifiers");
+    VMType::ObjectType(VMTypeObjectTypeName(L"Modifiers"));
 }  // namespace afc::vm

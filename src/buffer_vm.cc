@@ -61,7 +61,8 @@ void RegisterBufferFields(
 }  // namespace
 
 NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
-  auto buffer = MakeNonNullUnique<ObjectType>(L"Buffer");
+  auto buffer = MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype);
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(
       pool, buffer_variables::BoolStruct(), buffer.value(), &OpenBuffer::Read,
@@ -203,7 +204,6 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
            VMType::Function({VMType::String(), VMType::String()})},
           [&pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
-            CHECK_EQ(args[0].ptr()->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].ptr().value());
@@ -220,7 +220,6 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
            VMType::Function({VMType::Bool(), VMType::String()})},
           [&pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
-            CHECK_EQ(args[0].ptr()->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].ptr().value());
@@ -313,7 +312,6 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
            VMType::Function({VMType::Void()})},
           [&pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), 4u);
-            CHECK_EQ(args[0].ptr()->type, VMType::ObjectType(L"Buffer"));
             auto buffer =
                 VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(
                     args[0].ptr().value());

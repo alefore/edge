@@ -26,7 +26,7 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
   }
   static gc::Root<Value> New(
       gc::Pool& pool, std::shared_ptr<editor::transformation::Insert> value) {
-    return Value::NewObject(pool, L"InsertTransformationBuilder",
+    return Value::NewObject(pool, vmtype.object_type,
                             std::shared_ptr<void>(value, value.get()));
   }
   static const VMType vmtype;
@@ -34,7 +34,8 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
 
 const VMType
     VMTypeMapper<std::shared_ptr<editor::transformation::Insert>>::vmtype =
-        VMType::ObjectType(L"InsertTransformationBuilder");
+        VMType::ObjectType(
+            VMTypeObjectTypeName(L"InsertTransformationBuilder"));
 }  // namespace vm
 namespace editor::transformation {
 using language::MakeNonNullShared;
@@ -117,9 +118,10 @@ std::wstring ToStringBase(const Insert& options) {
 Insert OptimizeBase(Insert transformation) { return transformation; }
 
 void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
-  auto builder = MakeNonNullUnique<ObjectType>(L"InsertTransformationBuilder");
+  auto builder = MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<std::shared_ptr<Insert>>::vmtype);
   environment.Define(
-      L"InsertTransformationBuilder",
+      builder->type().object_type.read(),
       vm::NewCallback(pool, std::function<std::shared_ptr<Insert>()>(
                                 [] { return std::make_shared<Insert>(); })));
 
@@ -171,7 +173,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
                       return std::make_unique<Variant>(*options).release();
                     }));
 
-  environment.DefineType(L"InsertTransformationBuilder", std::move(builder));
+  environment.DefineType(std::move(builder));
 }
 }  // namespace editor::transformation
 }  // namespace afc

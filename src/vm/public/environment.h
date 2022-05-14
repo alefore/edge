@@ -11,6 +11,7 @@
 
 namespace afc::vm {
 
+// TODO(easy, 2022-05-14): Get rid of these.
 using std::map;
 using std::unique_ptr;
 using std::wstring;
@@ -18,6 +19,7 @@ using std::wstring;
 struct Value;
 struct VMType;
 class ObjectType;
+class VMTypeObjectTypeName;
 
 class Environment {
  public:
@@ -44,8 +46,7 @@ class Environment {
 
   const ObjectType* LookupObjectType(const wstring& symbol);
   const VMType* LookupType(const wstring& symbol);
-  void DefineType(const std::wstring& name,
-                  language::NonNull<std::unique_ptr<ObjectType>> value);
+  void DefineType(language::NonNull<std::unique_ptr<ObjectType>> value);
 
   std::optional<language::gc::Root<Value>> Lookup(
       language::gc::Pool& pool, const Namespace& symbol_namespace,
