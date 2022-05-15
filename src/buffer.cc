@@ -116,6 +116,7 @@ using language::ShellEscape;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
+using language::VisitPointer;
 
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
@@ -617,14 +618,17 @@ void OpenBuffer::Initialize() {
               return futures::Past(Success(EvaluationOutput::Return(
                   vm::Value::NewVoid(trampoline.pool()))));
             futures::Future<ValueOrError<EvaluationOutput>> future;
+            EvaluationOutput output = vm::EvaluationOutput::Return(
+                vm::Value::NewVoid(shared_this->editor().gc_pool()));
             shared_this->work_queue()->ScheduleAt(
                 AddSeconds(Now(), delay_seconds),
-                [weak_this, consumer = std::move(future.consumer)] {
-                  // TODO(easy, 2022-05-11): Use VisitPointer?
-                  auto shared_this = weak_this.lock();
-                  if (shared_this != nullptr)
-                    consumer(vm::EvaluationOutput::Return(
-                        vm::Value::NewVoid(shared_this->editor().gc_pool())));
+                [weak_this, consumer = std::move(future.consumer), output] {
+                  VisitPointer(
+                      weak_this,
+                      [&](NonNull<std::shared_ptr<OpenBuffer>>) {
+                        consumer(output);
+                      },
+                      [] {});
                 });
             return std::move(future.value);
           }));
