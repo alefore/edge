@@ -57,7 +57,8 @@ class ValueOrError {
   }
 
   const T& value() const {
-    CHECK(!IsError());
+    CHECK(!IsError()) << "Attempted to get value of ValueOrError with error: "
+                      << error();
     return value_.value();
   }
 
