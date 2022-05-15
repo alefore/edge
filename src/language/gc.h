@@ -17,6 +17,9 @@ template <typename T>
 class Ptr;
 
 template <typename T>
+class WeakPtr;
+
+template <typename T>
 class Root;
 
 class Pool {
@@ -65,6 +68,9 @@ struct ControlFrame {
   template <typename T>
   friend class Ptr;
 
+  template <typename T>
+  friend class WeakPtr;
+
   struct ConstructorAccessKey {};
 
   using ExpandCallback = std::function<
@@ -95,6 +101,8 @@ class Ptr {
  public:
   Root<T> ToRoot() const { return Root<T>(*this); }
 
+  WeakPtr<T> ToWeakPtr() const { return WeakPtr<T>(*this); }
+
   Ptr(const Ptr<T>& other)
       : value_(other.value_), control_frame_(other.control_frame_) {}
 
@@ -122,23 +130,25 @@ class Ptr {
   }
 
  private:
-  static Ptr<T> New(Pool& pool, language::NonNull<std::unique_ptr<T>> value) {
-    language::NonNull<std::shared_ptr<T>> shared_value = std::move(value);
-    std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
-        const T&);
-    return Ptr(shared_value.get_shared(),
-               language::MakeNonNullShared<ControlFrame>(
-                   ControlFrame::ConstructorAccessKey(), pool,
-                   [shared_value] { return Expand(shared_value.value()); }));
+  static Ptr<T> New(Pool& pool, language::NonNull<std::shared_ptr<T>> value) {
+    return Ptr(
+        value.get_shared(),
+        language::MakeNonNullShared<ControlFrame>(
+            ControlFrame::ConstructorAccessKey(), pool, [value] {
+              std::vector<language::NonNull<std::shared_ptr<ControlFrame>>>
+              Expand(const T&);
+              return Expand(value.value());
+            }));
   }
 
   friend class Root<T>;
+  friend class WeakPtr<T>;
 
-  Ptr(std::shared_ptr<T> value,
+  Ptr(std::weak_ptr<T> value,
       language::NonNull<std::shared_ptr<ControlFrame>> control_frame)
       : value_(value), control_frame_(control_frame) {
-    VLOG(5) << "Ptr(pool, value): " << control_frame.get_shared()
-            << " (value: " << value << ")";
+    VLOG(5) << "Ptr(pool, value): " << control_frame_.get_shared()
+            << " (value: " << value_.lock() << ")";
     pool().AddObj(control_frame);
   }
 
@@ -153,6 +163,29 @@ class Ptr {
   // trigger its collection by overriding `ControlFrame::expand_callback_`.
   std::weak_ptr<T> value_;
   language::NonNull<std::shared_ptr<ControlFrame>> control_frame_;
+};
+
+template <typename T>
+class WeakPtr {
+ public:
+  std::optional<Root<T>> Lock() {
+    return VisitPointer(
+        control_frame_,
+        [&](language::NonNull<std::shared_ptr<ControlFrame>> control_frame) {
+          return control_frame->expand_callback_ == nullptr
+                     ? std::optional<Root<T>>()
+                     : Ptr<T>(value_, control_frame).ToRoot();
+        },
+        [] { return std::optional<Root<T>>(); });
+  }
+
+ private:
+  friend class Ptr<T>;
+  WeakPtr(Ptr<T> ptr)
+      : value_(ptr.value_), control_frame_(ptr.control_frame_.get_shared()) {}
+
+  std::weak_ptr<T> value_;
+  std::weak_ptr<ControlFrame> control_frame_;
 };
 
 template <typename T>

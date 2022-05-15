@@ -286,23 +286,52 @@ bool tests_registration = tests::Register(
               CHECK_EQ(stats.end_total, 5ul);
             }
           }},
-     {.name = L"BreakLoopHalfway", .callback = [] {
+     {.name = L"BreakLoopHalfway",
+      .callback =
+          [] {
+            gc::Pool pool;
+            gc::Root<Node> root = MakeLoop(pool, 7);
+            {
+              gc::Ptr<Node> split = root.ptr();
+              for (int i = 0; i < 4; i++) split = split->children[0];
+              auto notification = split->children[0]->delete_notification;
+              CHECK(!notification->HasBeenNotified());
+              split->children.clear();
+              CHECK(notification->HasBeenNotified());
+            }
+            CHECK(!root.ptr()->delete_notification->HasBeenNotified());
+            Pool::ReclaimObjectsStats stats = pool.Reclaim();
+            CHECK_EQ(stats.begin_total, 7ul);
+            CHECK_EQ(stats.begin_dead, 2ul);
+            CHECK_EQ(stats.roots, 1ul);
+            CHECK_EQ(stats.end_total, 5ul);
+          }},
+     {.name = L"WeakPtrNoRefs",
+      .callback =
+          [] {
+            gc::Pool pool;
+            std::optional<gc::Root<Node>> root = MakeLoop(pool, 7);
+            gc::WeakPtr<Node> weak_ptr = root->ptr().ToWeakPtr();
+
+            pool.Reclaim();
+            CHECK(weak_ptr.Lock().has_value());
+
+            root = std::nullopt;
+            pool.Reclaim();
+            CHECK(!weak_ptr.Lock().has_value());
+          }},
+     {.name = L"WeakPtrWithPtrRef", .callback = [] {
         gc::Pool pool;
-        gc::Root root = MakeLoop(pool, 7);
-        {
-          gc::Ptr<Node> split = root.ptr();
-          for (int i = 0; i < 4; i++) split = split->children[0];
-          auto notification = split->children[0]->delete_notification;
-          CHECK(!notification->HasBeenNotified());
-          split->children.clear();
-          CHECK(notification->HasBeenNotified());
-        }
-        CHECK(!root.ptr()->delete_notification->HasBeenNotified());
-        Pool::ReclaimObjectsStats stats = pool.Reclaim();
-        CHECK_EQ(stats.begin_total, 7ul);
-        CHECK_EQ(stats.begin_dead, 2ul);
-        CHECK_EQ(stats.roots, 1ul);
-        CHECK_EQ(stats.end_total, 5ul);
+        std::optional<gc::Root<Node>> root = MakeLoop(pool, 7);
+        gc::Ptr<Node> ptr = root->ptr();
+        gc::WeakPtr<Node> weak_ptr = ptr.ToWeakPtr();
+
+        pool.Reclaim();
+        CHECK(weak_ptr.Lock().has_value());
+
+        root = std::nullopt;
+        pool.Reclaim();
+        CHECK(!weak_ptr.Lock().has_value());
       }}});
 }  // namespace
 }  // namespace afc::language
