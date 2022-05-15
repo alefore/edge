@@ -2068,10 +2068,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
           } else if (auto paste_buffer =
                          editor().buffers()->find(kFuturePasteBuffer);
                      paste_buffer != editor().buffers()->end()) {
-            editor()
-                .buffers()
-                ->insert({BufferName::PasteBuffer(), nullptr})
-                .first->second = paste_buffer->second;
+            editor().buffers()->insert_or_update(
+                {BufferName::PasteBuffer(), paste_buffer->second});
           }
         }
 
