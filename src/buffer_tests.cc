@@ -159,10 +159,14 @@ const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
   return std::vector<tests::Test>({
       callback(L""),
       callback(L"5"),
+      callback(L"5.2e8"),
       callback(L"\"foo\";"),
       callback(L"true;"),
       callback(L"false;"),
+      callback(L"(1 + 2 * 3 - 4) < 12 ? \"f\" : \"t\" * 2"),
       callback(L"int x = 5;"),
+      callback(L"namespace Foo { int x = 12; } Foo::x + 4;"),
+      callback(L"int Foo(int x) { return x * 5 + 1; }; Foo(Foo(10));"),
       callback(L"for (int i = 0; i < 5; i++) i;"),
       callback(L"{"
                L"auto foo = [](int x) -> int { return x * 5; };"
