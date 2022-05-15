@@ -168,6 +168,7 @@ const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"namespace Foo { int x = 12; } Foo::x + 4;"),
       callback(L"int Foo(int x) { return x * 5 + 1; }; Foo(Foo(10));"),
       callback(L"for (int i = 0; i < 5; i++) i;"),
+      callback(L"sleep(0.001);"),
       callback(L"{"
                L"auto foo = [](int x) -> int { return x * 5; };"
                L"foo(3) * 2;"
