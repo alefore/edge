@@ -435,7 +435,7 @@ int main(int argc, const char** argv) {
         auto pollfd = reader == nullptr ? std::nullopt : reader->GetPollFd();
         if (pollfd.has_value()) {
           fds[buffers.size()] = pollfd.value();
-          buffers.push_back(buffer.second);
+          buffers.push_back(buffer.second.get_shared());
         }
       };
       register_reader(buffer.second->fd());

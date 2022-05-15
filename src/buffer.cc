@@ -244,7 +244,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor.default_commands()->NewChild()),
       mode_(MakeNonNullUnique<MapMode>(default_commands_)),
-      status_(options_.editor.GetConsole(), options_.editor.audio_player()),
+      status_(options_.editor.audio_player()),
       file_system_driver_(editor().thread_pool()) {
   work_queue_->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
@@ -2040,14 +2040,17 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   input.mode = mode;
   input.position = position;
   if (Read(buffer_variables::delete_into_paste_buffer)) {
-    auto it = editor().buffers()->insert({kFuturePasteBuffer, nullptr});
-    if (it.first->second == nullptr) {
-      LOG(INFO) << "Creating paste buffer.";
-      it.first->second =
-          OpenBuffer::New({.editor = editor(), .name = kFuturePasteBuffer})
-              .get_shared();
-    }
-    input.delete_buffer = it.first->second.get();
+    input.delete_buffer =
+        editor()
+            .FindOrBuildBuffer(
+                kFuturePasteBuffer,
+                [&] {
+                  LOG(INFO) << "Creating paste buffer.";
+                  return OpenBuffer::New(
+                      {.editor = editor(), .name = kFuturePasteBuffer});
+                })
+            .get()
+            .get();
     CHECK(input.delete_buffer != nullptr);
   } else {
     CHECK_EQ(input.delete_buffer, nullptr);
@@ -2068,8 +2071,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
           } else if (auto paste_buffer =
                          editor().buffers()->find(kFuturePasteBuffer);
                      paste_buffer != editor().buffers()->end()) {
-            editor().buffers()->insert_or_update(
-                {BufferName::PasteBuffer(), paste_buffer->second});
+            editor().buffers()->insert_or_assign(BufferName::PasteBuffer(),
+                                                 paste_buffer->second);
           }
         }
 
@@ -2244,7 +2247,7 @@ NonNull<std::shared_ptr<OpenBuffer>> NewBufferForTests() {
   NonNull<std::shared_ptr<OpenBuffer>> output = OpenBuffer::New(
       {.editor = EditorForTests(),
        .name = EditorForTests().GetUnusedBufferName(L"test buffer")});
-  EditorForTests().buffers()->insert({output->name(), output.get_shared()});
+  EditorForTests().buffers()->insert({output->name(), output});
   return output;
 }
 

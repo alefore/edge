@@ -129,7 +129,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
       }()),
       audio_player_(audio_player),
       buffer_tree_(*this),
-      status_(GetConsole(), audio_player_) {
+      status_(audio_player_) {
   work_queue_->OnSchedule().Add([this] {
     NotifyInternalEvent();
     return Observers::State::kAlive;
@@ -250,6 +250,17 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
         buffers_.erase(buffer->name());
         AdjustWidgets();
       });
+}
+
+NonNull<std::shared_ptr<OpenBuffer>> EditorState::FindOrBuildBuffer(
+    BufferName name,
+    std::function<NonNull<std::shared_ptr<OpenBuffer>>()> callback) {
+  if (auto it = buffers_.find(name); it != buffers_.end()) {
+    return it->second;
+  }
+  NonNull<std::shared_ptr<OpenBuffer>> value = callback();
+  buffers_.insert_or_assign(name, value);
+  return value;
 }
 
 void EditorState::set_current_buffer(
@@ -457,9 +468,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
       });
 
   auto decrement = [this, pending_buffers](
-                       const std::shared_ptr<OpenBuffer>& buffer,
+                       const NonNull<std::shared_ptr<OpenBuffer>>& buffer,
                        PossibleError) {
-    pending_buffers->erase(buffer);
+    pending_buffers->erase(buffer.get_shared());
     std::wstring extra;
     std::wstring separator = L": ";
     int count = 0;
@@ -478,7 +489,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   };
 
   for (const auto& it : buffers_) {
-    pending_buffers->insert(it.second);
+    // TODO(easy, 2022-05-15): Avoid `get_shared`.
+    pending_buffers->insert(it.second.get_shared());
     it.second->PrepareToClose().SetConsumer(
         std::bind_front(decrement, it.second));
   }
@@ -542,9 +554,7 @@ void EditorState::MoveBufferForwards(size_t times) {
       it = buffers_.begin();
     }
   }
-  // TODO(easy, 2022-05-02): Avoid unsafe?
-  set_current_buffer(NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second),
-                     CommandArgumentModeApplyMode::kFinal);
+  set_current_buffer(it->second, CommandArgumentModeApplyMode::kFinal);
   PushCurrentPosition();
 }
 
@@ -569,9 +579,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
     }
     --it;
   }
-  // TODO(easy, 2022-05-02: Avoid Unsafe?
-  set_current_buffer(NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second),
-                     CommandArgumentModeApplyMode::kFinal);
+  set_current_buffer(it->second, CommandArgumentModeApplyMode::kFinal);
   PushCurrentPosition();
 }
 
@@ -618,9 +626,7 @@ void EditorState::PushPosition(LineColumn position) {
   auto buffer_it = buffers_.find(PositionsBufferName());
   futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> positions_buffer =
       buffer_it != buffers_.end()
-          // TODO(easy, 2022-05-01): Get rid of Unsafe.
-          ? futures::Past(
-                NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer_it->second))
+          ? futures::Past(buffer_it->second)
           // Insert a new entry into the list of buffers.
           : OpenOrCreateFile(
                 OpenFileOptions{
@@ -664,18 +670,20 @@ static BufferPosition PositionFromLine(const wstring& line) {
                         .position = std::move(position)};
 }
 
+// TODO(easy, 2022-05-15): Return a NonNull.
 std::shared_ptr<OpenBuffer> EditorState::GetConsole() {
-  auto it = buffers_.insert(make_pair(L"- console", nullptr));
-  if (it.second) {  // Inserted the entry.
-    CHECK(it.first->second == nullptr);
-    it.first->second =
-        OpenBuffer::New({.editor = *this, .name = it.first->first})
-            .get_shared();
-    it.first->second->Set(buffer_variables::allow_dirty_delete, true);
-    it.first->second->Set(buffer_variables::show_in_buffers_list, false);
-    it.first->second->Set(buffer_variables::persist_state, false);
-  }
-  return it.first->second;
+  auto name = BufferName(L"- console");
+  return FindOrBuildBuffer(
+             name,
+             [&] {
+               NonNull<std::shared_ptr<OpenBuffer>> buffer =
+                   OpenBuffer::New({.editor = *this, .name = name});
+               buffer->Set(buffer_variables::allow_dirty_delete, true);
+               buffer->Set(buffer_variables::show_in_buffers_list, false);
+               buffer->Set(buffer_variables::persist_state, false);
+               return buffer;
+             })
+      .get_shared();
 }
 
 bool EditorState::HasPositionsInStack() {

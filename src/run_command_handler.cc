@@ -592,8 +592,7 @@ NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(
   BufferName name = options.name.value_or(BufferName(L"$ " + options.command));
   if (auto it = editor_state.buffers()->find(name);
       it != editor_state.buffers()->end()) {
-    NonNull<std::shared_ptr<OpenBuffer>> buffer =
-        NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second);
+    NonNull<std::shared_ptr<OpenBuffer>> buffer = it->second;
     buffer->ResetMode();
     buffer->Reload();
     buffer->set_current_position_line(LineNumber(0));
@@ -621,7 +620,7 @@ NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(
   buffer->Set(buffer_variables::command, options.command);
   buffer->Reload();
 
-  editor_state.buffers()->insert({name, buffer.get_shared()});
+  editor_state.buffers()->insert_or_assign(name, buffer);
   editor_state.AddBuffer(buffer, options.insertion_type);
   return buffer;
 }

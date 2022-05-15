@@ -121,12 +121,12 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
 
     int running = 0;
     int failed = 0;
-    for (const auto& it : *options.buffer->editor().buffers()) {
-      CHECK(it.second != nullptr);
-      if (it.second->child_pid() != -1) {
+    for (const auto& entry : *options.buffer->editor().buffers()) {
+      NonNull<std::shared_ptr<OpenBuffer>> buffer = entry.second;
+      if (buffer->child_pid() != -1) {
         running++;
-      } else if (it.second->child_exit_status().has_value()) {
-        int status = it.second->child_exit_status().value();
+      } else if (buffer->child_exit_status().has_value()) {
+        int status = buffer->child_exit_status().value();
         if (WIFEXITED(status) && WEXITSTATUS(status)) {
           failed++;
         }

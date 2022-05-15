@@ -294,7 +294,6 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
               if (auto buffer_it =
                       editor.buffers()->find(BufferName(buffer_name_str));
                   buffer_it != editor.buffers()->end()) {
-                CHECK(buffer_it->second != nullptr);
                 values->push_back(buffer_it->second->NewCloseFuture());
               }
             }

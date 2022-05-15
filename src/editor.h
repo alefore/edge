@@ -72,13 +72,21 @@ class EditorState {
 
   void CloseBuffer(OpenBuffer& buffer);
 
-  const std::map<BufferName, std::shared_ptr<OpenBuffer>>* buffers() const {
+  const std::map<BufferName,
+                 afc::language::NonNull<std::shared_ptr<OpenBuffer>>>*
+  buffers() const {
     return &buffers_;
   }
 
-  std::map<BufferName, std::shared_ptr<OpenBuffer>>* buffers() {
+  std::map<BufferName, afc::language::NonNull<std::shared_ptr<OpenBuffer>>>*
+  buffers() {
     return &buffers_;
   }
+
+  language::NonNull<std::shared_ptr<OpenBuffer>> FindOrBuildBuffer(
+      BufferName,
+      std::function<language::NonNull<std::shared_ptr<OpenBuffer>>()> factory);
+
   BuffersList& buffer_tree() { return buffer_tree_; }
   const BuffersList& buffer_tree() const { return buffer_tree_; }
 
@@ -250,7 +258,8 @@ class EditorState {
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
   concurrent::ThreadPool thread_pool_;
 
-  std::map<BufferName, std::shared_ptr<OpenBuffer>> buffers_;
+  std::map<BufferName, afc::language::NonNull<std::shared_ptr<OpenBuffer>>>
+      buffers_;
   std::optional<int> exit_value_;
 
   const infrastructure::Path home_directory_;

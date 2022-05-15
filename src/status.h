@@ -76,7 +76,7 @@ class StatusPromptExtraInformation {
 
 class Status {
  public:
-  Status(std::shared_ptr<OpenBuffer> console, audio::Player& audio_player);
+  Status(audio::Player& audio_player);
   Status(const Status&) = delete;
   void CopyFrom(const Status& status);
 
@@ -127,8 +127,6 @@ class Status {
   friend StatusExpirationControl;
   void ValidatePreconditions() const;
 
-  // TODO(easy, 2022-04-23): Nothing seems to use console_? Hmm.
-  const std::shared_ptr<OpenBuffer> console_;
   audio::Player& audio_player_;
 
   // We nest our mutable fields in `struct Data`. This allows us to implement

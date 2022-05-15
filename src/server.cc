@@ -217,7 +217,7 @@ NonNull<std::shared_ptr<OpenBuffer>> OpenServerBuffer(EditorState& editor_state,
   buffer->Set(buffer_variables::show_in_buffers_list, false);
   buffer->Set(buffer_variables::vm_exec, true);
 
-  editor_state.buffers()->insert({buffer->name(), buffer.get_shared()});
+  editor_state.buffers()->insert({buffer->name(), buffer});
   buffer->Reload();
   return buffer;
 }

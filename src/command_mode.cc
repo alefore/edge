@@ -111,11 +111,11 @@ class Paste : public Command {
       }
       return;
     }
-    std::shared_ptr<OpenBuffer> paste_buffer = it->second;
+    NonNull<std::shared_ptr<OpenBuffer>> paste_buffer = it->second;
     editor_state_
         .ForEachActiveBuffer([&editor_state = editor_state_,
                               paste_buffer](OpenBuffer& buffer) {
-          if (paste_buffer.get() == &buffer) {
+          if (paste_buffer.get() == NonNull<OpenBuffer*>::AddressOf(buffer)) {
             const static wstring errors[] = {
                 L"You shall not paste into the paste buffer.",
                 L"Nope.",
@@ -234,10 +234,8 @@ class GotoPreviousPositionCommand : public Command {
         LOG(INFO) << "Jumping to position: "
                   << it->second->Read(buffer_variables::name) << " "
                   << pos.position;
-        // TODO(easy, 2022-05-02): Get rid of Unsafe.
-        editor_state_.set_current_buffer(
-            NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second),
-            CommandArgumentModeApplyMode::kFinal);
+        editor_state_.set_current_buffer(it->second,
+                                         CommandArgumentModeApplyMode::kFinal);
         it->second->set_position(pos.position);
         editor_state_.set_repetitions(editor_state_.repetitions().value_or(1) -
                                       1);

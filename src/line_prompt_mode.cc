@@ -50,13 +50,11 @@ std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
 GetCurrentFeatures(EditorState& editor) {
   std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
       output;
-  for (auto& [_, buffer] : *editor.buffers()) {
-    // We have to deal with nullptr buffers here because this gets called after
-    // the entry for the new buffer has been inserted to the editor, but before
-    // the buffer has actually been created.
-    if (buffer != nullptr &&
-        buffer->Read(buffer_variables::show_in_buffers_list) &&
-        editor.buffer_tree().GetBufferIndex(*buffer).has_value()) {
+  for (std::pair<BufferName, NonNull<std::shared_ptr<OpenBuffer>>> entry :
+       *editor.buffers()) {
+    const NonNull<std::shared_ptr<OpenBuffer>>& buffer = entry.second;
+    if (buffer->Read(buffer_variables::show_in_buffers_list) &&
+        editor.buffer_tree().GetBufferIndex(buffer.value()).has_value()) {
       output.insert(
           {L"name", NewLazyString(buffer->Read(buffer_variables::name))});
     }
@@ -196,10 +194,9 @@ const bool get_synthetic_features_tests_registration = tests::Register(
 futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetHistoryBuffer(
     EditorState& editor_state, const HistoryFile& name) {
   BufferName buffer_name(L"- history: " + name.read());
-  auto it = editor_state.buffers()->find(buffer_name);
-  if (it != editor_state.buffers()->end()) {
-    return futures::Past(
-        NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second));
+  if (auto it = editor_state.buffers()->find(buffer_name);
+      it != editor_state.buffers()->end()) {
+    return futures::Past(it->second);
   }
   return OpenOrCreateFile(
              {.editor_state = editor_state,
@@ -479,8 +476,7 @@ NonNull<std::shared_ptr<OpenBuffer>> GetPromptBuffer(
   BufferName name(L"- prompt");
   if (auto it = editor_state.buffers()->find(name);
       it != editor_state.buffers()->end()) {
-    NonNull<std::shared_ptr<OpenBuffer>> buffer =
-        NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second);
+    NonNull<std::shared_ptr<OpenBuffer>> buffer = it->second;
     buffer->ClearContents(BufferContents::CursorsBehavior::kAdjust);
     CHECK_EQ(buffer->EndLine(), LineNumber(0));
     CHECK(buffer->contents().back()->empty());
@@ -496,8 +492,8 @@ NonNull<std::shared_ptr<OpenBuffer>> GetPromptBuffer(
   buffer->Set(buffer_variables::save_on_close, false);
   buffer->Set(buffer_variables::persist_state, false);
   buffer->Set(buffer_variables::contents_type, options.prompt_contents_type);
-  auto insert_results = editor_state.buffers()->insert(
-      {BufferName(L"- prompt"), buffer.get_shared()});
+  auto insert_results =
+      editor_state.buffers()->insert_or_assign(BufferName(L"- prompt"), buffer);
   CHECK(insert_results.second);
   return buffer;
 }
@@ -997,11 +993,8 @@ void Prompt(PromptOptions options) {
                         if (auto it = buffers->find(name);
                             it != buffers->end()) {
                           it->second->set_current_position_line(LineNumber(0));
-                          // TODO(easy, 2022-05-02): Get rid of Unsafe.
                           editor_state.set_current_buffer(
-                              NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
-                                  it->second),
-                              CommandArgumentModeApplyMode::kFinal);
+                              it->second, CommandArgumentModeApplyMode::kFinal);
                           if (editor_state.status().prompt_buffer() ==
                               nullptr) {
                             it->second->status().CopyFrom(

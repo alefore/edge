@@ -179,13 +179,14 @@ futures::Value<PossibleError> Save(
               }
               if (buffer->Read(
                       buffer_variables::trigger_reload_on_buffer_write)) {
-                for (auto& it : *buffer->editor().buffers()) {
-                  CHECK(it.second != nullptr);
-                  if (it.second->Read(
-                          buffer_variables::reload_on_buffer_write)) {
+                for (std::pair<BufferName, NonNull<std::shared_ptr<OpenBuffer>>>
+                         entry : *buffer->editor().buffers()) {
+                  const NonNull<std::shared_ptr<OpenBuffer>>& buffer =
+                      entry.second;
+                  if (buffer->Read(buffer_variables::reload_on_buffer_write)) {
                     LOG(INFO) << "Write of " << path << " triggers reload: "
-                              << it.second->Read(buffer_variables::name);
-                    it.second->Reload();
+                              << buffer->Read(buffer_variables::name);
+                    buffer->Reload();
                   }
                 }
               }
@@ -291,9 +292,7 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
   auto it = editor_state.buffers()->find(buffer_name);
   futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> output =
       it != editor_state.buffers()->end()
-          // TODO(easy, 2022-05-01): How do we get rid of Unsafe?
-          ? futures::Past(
-                NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(it->second))
+          ? futures::Past(it->second)
           : OpenOrCreateFile(
                 OpenFileOptions{
                     .editor_state = editor_state,
@@ -564,10 +563,9 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
   resolve_path_options.validator = [&editor_state, output](const Path& path) {
     auto path_components = path.DirectorySplit();
     if (path_components.IsError()) return futures::Past(false);
-    for (auto buffer_pair : *editor_state.buffers()) {
-      // TODO(easy, 2022-05-01): Get rid of Unsafe. Use types.
-      auto buffer =
-          NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer_pair.second);
+    for (std::pair<BufferName, NonNull<std::shared_ptr<OpenBuffer>>>
+             buffer_pair : *editor_state.buffers()) {
+      NonNull<std::shared_ptr<OpenBuffer>> buffer = buffer_pair.second;
       auto buffer_path = Path::FromString(buffer->Read(buffer_variables::path));
       if (buffer_path.IsError()) continue;
       auto buffer_components = buffer_path.value().DirectorySplit();
@@ -672,7 +670,6 @@ NonNull<std::shared_ptr<OpenBuffer>> CreateBuffer(
                            PathComponent::FromString(L".edge_log").value()));
   };
 
-  std::shared_ptr<OpenBuffer> buffer;
   if (options.name.has_value()) {
     buffer_options->name = *options.name;
   } else if (buffer_options->path.has_value()) {
@@ -680,40 +677,33 @@ NonNull<std::shared_ptr<OpenBuffer>> CreateBuffer(
   } else {
     buffer_options->name =
         options.editor_state.GetUnusedBufferName(L"anonymous buffer");
-    buffer = OpenBuffer::New(*buffer_options).get_shared();
-  }
-  auto insert_result =
-      options.editor_state.buffers()->insert({buffer_options->name, buffer});
-  if (insert_result.second) {
-    if (insert_result.first->second.get() == nullptr) {
-      insert_result.first->second =
-          OpenBuffer::New(std::move(*buffer_options)).get_shared();
-      insert_result.first->second->Set(buffer_variables::persist_state, true);
-    }
-    insert_result.first->second->Reload();
-  } else {
-    insert_result.first->second->ResetMode();
-  }
-  if (resolve_path_output.has_value() &&
-      resolve_path_output->position.has_value()) {
-    insert_result.first->second->set_position(*resolve_path_output->position);
   }
 
-  // TODO(easy, 2022-05-01): Get rid of Unsafe?
-  options.editor_state.AddBuffer(
-      NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(insert_result.first->second),
-      options.insertion_type);
+  NonNull<std::shared_ptr<OpenBuffer>> buffer =
+      options.editor_state.FindOrBuildBuffer(buffer_options->name, [&] {
+        NonNull<std::shared_ptr<OpenBuffer>> buffer =
+            OpenBuffer::New(*buffer_options);
+        buffer->Set(buffer_variables::persist_state, true);
+        buffer->Reload();
+        return buffer;
+      });
+  buffer->ResetMode();
+
+  if (resolve_path_output.has_value() &&
+      resolve_path_output->position.has_value()) {
+    buffer->set_position(*resolve_path_output->position);
+  }
+
+  options.editor_state.AddBuffer(buffer, options.insertion_type);
 
   if (resolve_path_output.has_value() &&
       !resolve_path_output->pattern.empty()) {
     SearchOptions search_options;
-    search_options.starting_position = insert_result.first->second->position();
+    search_options.starting_position = buffer->position();
     search_options.search_query = resolve_path_output->pattern;
-    JumpToNextMatch(options.editor_state, search_options,
-                    *insert_result.first->second);
+    JumpToNextMatch(options.editor_state, search_options, buffer.value());
   }
-  return NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
-      insert_result.first->second);
+  return buffer;
 }
 
 futures::ValueOrError<NonNull<std::shared_ptr<OpenBuffer>>> OpenFileIfFound(
