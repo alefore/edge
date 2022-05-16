@@ -13,25 +13,33 @@
 #include "src/vm_transformation.h"
 
 namespace afc::vm {
+using language::NonNull;
 namespace gc = language::gc;
 
 struct BufferWrapper {
-  gc::Root<editor::OpenBuffer> buffer;
+  gc::Ptr<editor::OpenBuffer> buffer;
 };
 
 gc::Root<editor::OpenBuffer> VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(
     Value& value) {
-  return static_cast<BufferWrapper*>(value.get_user_value(vmtype).get())
-      ->buffer;
+  auto wrapper =
+      static_cast<BufferWrapper*>(value.get_user_value(vmtype).get());
+  CHECK(wrapper != nullptr);
+  return wrapper->buffer.ToRoot();
 }
 
+// TODO(easy, 2022-05-16): Receive the value as Ptr?
 /* static */ gc::Root<Value> VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
     gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
-  auto wrapper = std::make_shared<BufferWrapper>(
-      BufferWrapper{.buffer = std::move(value)});
+  auto wrapper =
+      std::make_shared<BufferWrapper>(BufferWrapper{.buffer = value.ptr()});
   return Value::NewObject(
       pool, VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype.object_type,
-      std::shared_ptr<void>(wrapper, wrapper.get()));
+      std::shared_ptr<void>(wrapper, wrapper.get()),
+      [control_frame = wrapper->buffer.control_frame()] {
+        return std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>>(
+            {control_frame});
+      });
 }
 
 const VMType VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype =
