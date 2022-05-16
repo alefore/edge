@@ -64,35 +64,7 @@ extern "C" {
 #include "src/vm/public/vm.h"
 #include "src/vm_transformation.h"
 
-namespace afc {
-using language::NonNull;
-namespace gc = language::gc;
-namespace vm {
-// TODO(easy, 2022-05-15): This wrapping is probably not necessary?
-struct BufferWrapper {
-  gc::Root<editor::OpenBuffer> buffer;
-};
-
-// TODO(easy, 2022-05-15): This should be moved to buffer_vm.cc
-gc::Root<editor::OpenBuffer> VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(
-    Value& value) {
-  return static_cast<BufferWrapper*>(value.get_user_value(vmtype).get())
-      ->buffer;
-}
-
-/* static */ gc::Root<Value> VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
-    gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
-  auto wrapper = std::make_shared<BufferWrapper>(
-      BufferWrapper{.buffer = std::move(value)});
-  return Value::NewObject(
-      pool, VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype.object_type,
-      std::shared_ptr<void>(wrapper, wrapper.get()));
-}
-
-const VMType VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"Buffer"));
-}  // namespace vm
-namespace editor {
+namespace afc::editor {
 using concurrent::WorkQueue;
 using futures::IterationControlCommand;
 using infrastructure::AbsolutePath;
@@ -109,6 +81,7 @@ using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
+using language::NonNull;
 using language::ObservableValue;
 using language::Observers;
 using language::Pointer;
@@ -119,6 +92,8 @@ using language::ToByteString;
 using language::ValueOrError;
 using language::VisitPointer;
 using language::WeakPtrLockingObserver;
+
+namespace gc = language::gc;
 
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
@@ -2272,8 +2247,7 @@ gc::Root<OpenBuffer> NewBufferForTests() {
   return output;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 namespace afc::language::gc {
 std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
     const editor::OpenBuffer& buffer) {

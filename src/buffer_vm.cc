@@ -12,6 +12,32 @@
 #include "src/line_column_vm.h"
 #include "src/vm_transformation.h"
 
+namespace afc::vm {
+namespace gc = language::gc;
+
+struct BufferWrapper {
+  gc::Root<editor::OpenBuffer> buffer;
+};
+
+gc::Root<editor::OpenBuffer> VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(
+    Value& value) {
+  return static_cast<BufferWrapper*>(value.get_user_value(vmtype).get())
+      ->buffer;
+}
+
+/* static */ gc::Root<Value> VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
+    gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
+  auto wrapper = std::make_shared<BufferWrapper>(
+      BufferWrapper{.buffer = std::move(value)});
+  return Value::NewObject(
+      pool, VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype.object_type,
+      std::shared_ptr<void>(wrapper, wrapper.get()));
+}
+
+const VMType VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype =
+    VMType::ObjectType(VMTypeObjectTypeName(L"Buffer"));
+}  // namespace afc::vm
+
 namespace afc::editor {
 using infrastructure::FileSystemDriver;
 using infrastructure::Path;
