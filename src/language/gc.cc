@@ -1,11 +1,13 @@
 #include "src/language/gc.h"
 
 #include "src/concurrent/notification.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
 namespace afc::language {
 namespace gc {
+using infrastructure::Tracker;
 using language::NonNull;
 
 Pool::~Pool() {
@@ -15,6 +17,9 @@ Pool::~Pool() {
 }
 
 Pool::ReclaimObjectsStats Pool::Reclaim() {
+  static Tracker tracker(L"gc::Pool::Reclaim");
+  auto call = tracker.Call();
+
   // We collect expired objects here and explicitly delete them once we have
   // unlocked data_.
   std::vector<ControlFrame::ExpandCallback> expired_objects_callbacks;
@@ -24,76 +29,97 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
   data_.lock([&](Data& data) {
     VLOG(3) << "Marking reachability and counting initial dead.";
     stats.begin_total = data.objects.size();
-    for (auto& obj_weak : data.objects)
-      VisitPointer(
-          obj_weak,
-          [&](NonNull<std::shared_ptr<ControlFrame>> obj) {
-            obj->data_.lock([](ControlFrame::Data& object_data) {
-              object_data.reached = false;
-            });
-          },
-          [&] { stats.begin_dead++; });
+
+    {
+      static Tracker tracker(L"gc::Pool::Reclaim::Initial Dead");
+      auto call = tracker.Call();
+
+      for (auto& obj_weak : data.objects)
+        VisitPointer(
+            obj_weak,
+            [&](NonNull<std::shared_ptr<ControlFrame>> obj) {
+              obj->data_.lock([](ControlFrame::Data& object_data) {
+                object_data.reached = false;
+              });
+            },
+            [&] { stats.begin_dead++; });
+    }
 
     VLOG(3) << "Registering roots.";
-    stats.roots = data.roots.size();
     std::list<language::NonNull<std::shared_ptr<ControlFrame>>> expand;
-    for (const std::weak_ptr<ControlFrame>& root_weak : data.roots) {
-      VisitPointer(
-          root_weak,
-          [&expand](language::NonNull<std::shared_ptr<ControlFrame>> root) {
-            root->data_.lock([&](ControlFrame::Data& object_data) {
-              CHECK(!object_data.reached);
-              CHECK(object_data.expand_callback != nullptr);
-            });
-            expand.push_back(root);
-          },
-          [] { LOG(FATAL) << "Root was dead. Should never happen."; });
+    {
+      static Tracker tracker(L"gc::Pool::Reclaim::Register Roots");
+      auto call = tracker.Call();
+
+      stats.roots = data.roots.size();
+      for (const std::weak_ptr<ControlFrame>& root_weak : data.roots) {
+        VisitPointer(
+            root_weak,
+            [&expand](language::NonNull<std::shared_ptr<ControlFrame>> root) {
+              root->data_.lock([&](ControlFrame::Data& object_data) {
+                CHECK(!object_data.reached);
+                CHECK(object_data.expand_callback != nullptr);
+              });
+              expand.push_back(root);
+            },
+            [] { LOG(FATAL) << "Root was dead. Should never happen."; });
+      }
     }
 
     VLOG(3) << "Starting recursive expansion.";
-    while (!expand.empty()) {
-      language::NonNull<std::shared_ptr<ControlFrame>> front =
-          std::move(expand.front());
-      expand.pop_front();
-      VLOG(5) << "Considering obj: " << front.get_shared();
-      auto expansion = front->data_.lock([&](ControlFrame::Data& object_data) {
-        CHECK(object_data.expand_callback != nullptr);
-        if (object_data.reached)
-          return std::vector<NonNull<std::shared_ptr<ControlFrame>>>();
-        object_data.reached = true;
-        return object_data.expand_callback();
-      });
-      VLOG(6) << "Installing expansion of " << front.get_shared() << ": "
-              << expansion.size();
-      for (language::NonNull<std::shared_ptr<ControlFrame>> obj : expansion) {
-        obj->data_.lock([&](ControlFrame::Data& object_data) {
-          CHECK(object_data.expand_callback != nullptr);
-          if (!object_data.reached) {
-            expand.push_back(std::move(obj));
-          }
-        });
+    {
+      static Tracker tracker(L"gc::Pool::Reclaim::Recursive Expansion");
+      auto call = tracker.Call();
+
+      while (!expand.empty()) {
+        language::NonNull<std::shared_ptr<ControlFrame>> front =
+            std::move(expand.front());
+        expand.pop_front();
+        VLOG(5) << "Considering obj: " << front.get_shared();
+        auto expansion =
+            front->data_.lock([&](ControlFrame::Data& object_data) {
+              CHECK(object_data.expand_callback != nullptr);
+              if (object_data.reached)
+                return std::vector<NonNull<std::shared_ptr<ControlFrame>>>();
+              object_data.reached = true;
+              return object_data.expand_callback();
+            });
+        VLOG(6) << "Installing expansion of " << front.get_shared() << ": "
+                << expansion.size();
+        for (language::NonNull<std::shared_ptr<ControlFrame>> obj : expansion) {
+          obj->data_.lock([&](ControlFrame::Data& object_data) {
+            CHECK(object_data.expand_callback != nullptr);
+            if (!object_data.reached) {
+              expand.push_back(std::move(obj));
+            }
+          });
+        }
       }
     }
 
     VLOG(3) << "Building survivers list, objects: " << data.objects.size();
     std::vector<std::weak_ptr<ControlFrame>> survivers;
-    while (!data.objects.empty()) {
-      VisitPointer(
-          data.objects.front(),
-          [&](NonNull<std::shared_ptr<ControlFrame>> obj) {
-            obj->data_.lock([&](ControlFrame::Data& object_data) {
-              if (object_data.reached) {
-                object_data.reached = false;
-                survivers.push_back(std::move(obj).get_shared());
-              } else {
-                expired_objects_callbacks.push_back(
-                    std::move(object_data.expand_callback));
-                object_data.expand_callback = nullptr;
-              }
-            });
-          },
-          [] {});
-      data.objects.erase(data.objects.begin());
+    {
+      static Tracker tracker(L"gc::Pool::Reclaim::Build Survivers List");
+      auto call = tracker.Call();
+      while (!data.objects.empty()) {
+        VisitPointer(
+            data.objects.front(),
+            [&](NonNull<std::shared_ptr<ControlFrame>> obj) {
+              obj->data_.lock([&](ControlFrame::Data& object_data) {
+                if (object_data.reached) {
+                  object_data.reached = false;
+                  survivers.push_back(std::move(obj).get_shared());
+                } else {
+                  expired_objects_callbacks.push_back(
+                      std::move(object_data.expand_callback));
+                  object_data.expand_callback = nullptr;
+                }
+              });
+            },
+            [] {});
+        data.objects.erase(data.objects.begin());
+      }
     }
     VLOG(3) << "Survivers: " << survivers.size();
     data.objects = std::move(survivers);
@@ -102,7 +128,11 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
 
   VLOG(3) << "Allowing unreachable object to be deleted: "
           << expired_objects_callbacks.size();
-  expired_objects_callbacks.clear();
+  {
+    static Tracker tracker(L"gc::Pool::Reclaim::Delete unreachable");
+    auto call = tracker.Call();
+    expired_objects_callbacks.clear();
+  }
 
   LOG(INFO) << "Garbage collection results: " << stats;
   return stats;
