@@ -54,6 +54,7 @@ using language::PossibleError;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
+using language::VisitPointer;
 
 namespace gc = language::gc;
 
@@ -239,10 +240,10 @@ void EditorState::Set(const EdgeVariable<double>* variable, double value) {
 }
 
 void EditorState::CheckPosition() {
-  // TODO(2022-05-15, easy): Use VisitPointer.
-  if (auto buffer = buffer_tree_.active_buffer(); buffer.has_value()) {
-    buffer->ptr()->CheckPosition();
-  }
+  VisitPointer(
+      buffer_tree_.active_buffer(),
+      [](gc::Root<OpenBuffer> buffer) { buffer.ptr()->CheckPosition(); },
+      [] {});
 }
 
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
