@@ -17,12 +17,12 @@ Pool::~Pool() {
 Pool::ReclaimObjectsStats Pool::Reclaim() {
   // We collect expired objects here and explicitly delete them once we have
   // unlocked data_.
-  std::vector<NonNull<std::shared_ptr<ControlFrame>>> expired_objects;
+  std::vector<ControlFrame::ExpandCallback> expired_objects_callbacks;
 
   ReclaimObjectsStats stats;
 
   data_.lock([&](Data& data) {
-    VLOG(5) << "Marking reachability and counting initial dead.";
+    VLOG(3) << "Marking reachability and counting initial dead.";
     stats.begin_total = data.objects.size();
     for (auto& obj_weak : data.objects)
       VisitPointer(
@@ -34,7 +34,7 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
           },
           [&] { stats.begin_dead++; });
 
-    VLOG(5) << "Registering roots.";
+    VLOG(3) << "Registering roots.";
     stats.roots = data.roots.size();
     std::list<language::NonNull<std::shared_ptr<ControlFrame>>> expand;
     for (const std::weak_ptr<ControlFrame>& root_weak : data.roots) {
@@ -50,7 +50,7 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
           [] { LOG(FATAL) << "Root was dead. Should never happen."; });
     }
 
-    VLOG(5) << "Starting recursive expansion.";
+    VLOG(3) << "Starting recursive expansion.";
     while (!expand.empty()) {
       language::NonNull<std::shared_ptr<ControlFrame>> front =
           std::move(expand.front());
@@ -75,7 +75,7 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
       }
     }
 
-    VLOG(3) << "Building survivers list (allowing objects to be deleted).";
+    VLOG(3) << "Building survivers list, objects: " << data.objects.size();
     std::vector<std::weak_ptr<ControlFrame>> survivers;
     while (!data.objects.empty()) {
       VisitPointer(
@@ -86,25 +86,24 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
                 object_data.reached = false;
                 survivers.push_back(std::move(obj).get_shared());
               } else {
-                expired_objects.push_back(std::move(obj));
+                expired_objects_callbacks.push_back(
+                    std::move(object_data.expand_callback));
+                object_data.expand_callback = nullptr;
               }
             });
           },
           [] {});
       data.objects.erase(data.objects.begin());
     }
-    VLOG(5) << "Survivers: " << survivers.size();
+    VLOG(3) << "Survivers: " << survivers.size();
     data.objects = std::move(survivers);
     stats.end_total = data.objects.size();
   });
 
-  VLOG(5) << "Allowing unreachable object to be deleted.";
-  for (NonNull<std::shared_ptr<ControlFrame>>& obj : expired_objects) {
-    ControlFrame::ExpandCallback expired_expand_callback = nullptr;
-    obj->data_.lock([&](ControlFrame::Data& data) {
-      std::swap(data.expand_callback, expired_expand_callback);
-    });
-  }
+  VLOG(3) << "Allowing unreachable object to be deleted: "
+          << expired_objects_callbacks.size();
+  expired_objects_callbacks.clear();
+
   LOG(INFO) << "Garbage collection results: " << stats;
   return stats;
 }
