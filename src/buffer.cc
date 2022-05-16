@@ -242,10 +242,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     });
 }
 
-OpenBuffer::~OpenBuffer() {
-  LOG(INFO) << "Start destructor: " << name();
-  environment_->Clear();
-}
+OpenBuffer::~OpenBuffer() { LOG(INFO) << "Start destructor: " << name(); }
 
 EditorState& OpenBuffer::editor() const { return options_.editor; }
 
