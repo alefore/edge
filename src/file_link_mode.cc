@@ -58,10 +58,6 @@ using language::ValueOrError;
 
 namespace gc = language::gc;
 
-// TODO(easy, 2022-05-15): Get rid of these declarations.
-using std::shared_ptr;
-using std::unique_ptr;
-
 futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, std::shared_ptr<struct stat> stat_buffer,
     std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer& target) {
