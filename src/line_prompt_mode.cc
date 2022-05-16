@@ -789,10 +789,6 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
       });
 }
 
-// TODO(easy, 2022-05-16): Get rid of these declarations.
-using std::shared_ptr;
-using std::unique_ptr;
-
 void Prompt(PromptOptions options) {
   CHECK(options.handler != nullptr);
   EditorState& editor_state = options.editor_state;
