@@ -120,12 +120,12 @@ class FindCompletionCommand : public Command {
 
   void ProcessInput(wint_t) {
     // TODO(multiple_buffers): Honor.
-    // TODO(easy, 2022-05-15): Use VisitPointer.
-    auto buffer = editor_state_.current_buffer();
-    if (!buffer.has_value()) {
-      return;
-    }
-    buffer->ptr()->ApplyToCursors(NewExpandTransformation());
+    VisitPointer(
+        editor_state_.current_buffer(),
+        [](gc::Root<OpenBuffer> buffer) {
+          buffer.ptr()->ApplyToCursors(NewExpandTransformation());
+        },
+        [] {});
   }
 
  private:
