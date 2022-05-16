@@ -44,14 +44,6 @@ using language::Success;
 
 namespace gc = language::gc;
 
-// TODO(easy, 2022-05-11): Delete these using declarations.
-using std::cout;
-using std::function;
-using std::min;
-using std::shared_ptr;
-using std::sort;
-using std::wstring;
-
 const wchar_t* kLongestPrefixEnvironmentVariable = L"predictor_longest_prefix";
 const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
     L"predictor_longest_directory_match";
@@ -80,7 +72,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
     }
   }
 
-  wstring common_prefix =
+  std::wstring common_prefix =
       predictions_buffer.contents().front()->contents()->ToString();
   if (predictions_buffer.contents().EveryLine(
           [&common_prefix](LineNumber, const Line& line) {
@@ -91,7 +83,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
                     << " (end column: " << line.EndColumn() << ")";
             size_t current_size =
                 min(common_prefix.size(), line.EndColumn().column);
-            wstring current =
+            std::wstring current =
                 line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
                     ->ToString();
 
@@ -105,7 +97,8 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
                 LOG(INFO) << "Aborting completion.";
                 return false;
               }
-              common_prefix = wstring(common_prefix.begin(), prefix_end.first);
+              common_prefix =
+                  std::wstring(common_prefix.begin(), prefix_end.first);
             }
             return true;
           })) {
@@ -269,9 +262,9 @@ void RegisterPredictorExactMatch(OpenBuffer& buffer) {
                                vm::Value::NewBool(pool, true));
 }
 
-// TODO(easy): Receive Paths rather than wstrings.
-DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
-                                                wstring path) {
+// TODO(easy): Receive Paths rather than std::wstrings.
+DescendDirectoryTreeOutput DescendDirectoryTree(std::wstring search_path,
+                                                std::wstring path) {
   DescendDirectoryTreeOutput output;
   VLOG(6) << "Starting search at: " << search_path;
   output.dir = OpenDir(search_path);
@@ -285,7 +278,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
     output.valid_proper_prefix_length = output.valid_prefix_length;
     VLOG(6) << "Iterating at: " << path.substr(0, output.valid_prefix_length);
     auto next_candidate = path.find_first_of(L'/', output.valid_prefix_length);
-    if (next_candidate == wstring::npos) {
+    if (next_candidate == std::wstring::npos) {
       next_candidate = path.size();
     } else if (next_candidate == output.valid_prefix_length) {
       ++output.valid_prefix_length;
@@ -472,19 +465,19 @@ futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {
 }
 
 namespace {
-void RegisterVariations(const wstring& prediction, wchar_t separator,
-                        vector<wstring>* output) {
+void RegisterVariations(const std::wstring& prediction, wchar_t separator,
+                        std::vector<std::wstring>* output) {
   size_t start = 0;
   DVLOG(5) << "Generating predictions for: " << prediction;
   while (true) {
     start = prediction.find_first_not_of(separator, start);
-    if (start == wstring::npos) {
+    if (start == std::wstring::npos) {
       return;
     }
     output->push_back(prediction.substr(start));
     DVLOG(6) << "Prediction: " << output->back();
     start = prediction.find_first_of(separator, start);
-    if (start == wstring::npos) {
+    if (start == std::wstring::npos) {
       return;
     }
   }
@@ -497,10 +490,10 @@ const BufferName& PredictionsBufferName() {
   return *value;
 }
 
-Predictor PrecomputedPredictor(const vector<wstring>& predictions,
+Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
                                wchar_t separator) {
   const auto contents = std::make_shared<
-      std::multimap<wstring, NonNull<std::shared_ptr<LazyString>>>>();
+      std::multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>>();
   for (const std::wstring& prediction_raw : predictions) {
     std::vector<std::wstring> variations;
     RegisterVariations(prediction_raw, separator, &variations);
@@ -637,8 +630,8 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
                    &words);
     std::wistringstream keywords(
         buffer.ptr()->Read(buffer_variables::language_keywords));
-    words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
-                 std::istream_iterator<wstring, wchar_t>());
+    words.insert(std::istream_iterator<std::wstring, wchar_t>(keywords),
+                 std::istream_iterator<std::wstring, wchar_t>());
   }
   gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName(L"Dictionary")});
