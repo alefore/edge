@@ -61,10 +61,6 @@
 
 namespace afc::editor {
 namespace {
-// TODO(easy, 2022-05-15): Get rid of these `using` declarations.
-using std::advance;
-using std::ceil;
-using std::make_pair;
 
 using infrastructure::AddSeconds;
 using infrastructure::Now;
