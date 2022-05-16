@@ -29,6 +29,8 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
+using language::VisitPointer;
+
 namespace gc = language::gc;
 namespace {
 
@@ -50,22 +52,23 @@ struct SearchNamespaces {
 futures::Value<EmptyValue> RunCppCommandLiteralHandler(
     const wstring& name, EditorState& editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
-  auto buffer = editor_state.current_buffer();
-  // TODO(easy, 2022-05-16): Use VisitPointer.
-  if (!buffer.has_value()) {
-    return futures::Past(EmptyValue());
-  }
-  buffer->ptr()->ResetMode();
-  return buffer->ptr()
-      ->EvaluateString(name)
-      .Transform([buffer](gc::Root<Value> value) {
-        if (value.ptr()->IsVoid()) return Success();
-        std::ostringstream oss;
-        oss << "Evaluation result: " << value.ptr().value();
-        buffer->ptr()->status().SetInformationText(FromByteString(oss.str()));
-        return Success();
-      })
-      .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });
+  return VisitPointer(
+      editor_state.current_buffer(),
+      [&](gc::Root<OpenBuffer> buffer) {
+        buffer.ptr()->ResetMode();
+        return buffer.ptr()
+            ->EvaluateString(name)
+            .Transform([buffer](gc::Root<Value> value) {
+              if (value.ptr()->IsVoid()) return Success();
+              std::ostringstream oss;
+              oss << "Evaluation result: " << value.ptr().value();
+              buffer.ptr()->status().SetInformationText(
+                  FromByteString(oss.str()));
+              return Success();
+            })
+            .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });
+      },
+      [] { return futures::Past(EmptyValue()); });
 }
 
 struct ParsedCommand {
