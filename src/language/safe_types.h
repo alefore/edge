@@ -258,4 +258,12 @@ decltype(std::declval<Callable>()(std::declval<T>())) VisitPointer(
   }
 }
 }  // namespace afc::language
+namespace std {
+template <typename T>
+struct hash<afc::language::NonNull<T*>> {
+  std::size_t operator()(const afc::language::NonNull<T*>& ptr) const {
+    return hash<T*>()(ptr.get());
+  }
+};
+}  // namespace std
 #endif  // __AFC_EDITOR_SAFE_TYPES_H__
