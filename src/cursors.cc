@@ -7,7 +7,6 @@
 #include <unordered_set>
 
 #include "src/char_buffer.h"
-#include "src/editor.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
 #include "src/substring.h"
@@ -16,6 +15,7 @@ namespace afc::editor {
 using language::EmptyValue;
 using language::MakeNonNullShared;
 using language::NonNull;
+using ::operator<<;
 
 void CursorsSet::SetCurrentCursor(LineColumn position) {
   active_ = cursors_.find(position);
@@ -167,7 +167,7 @@ CursorsTracker::ExtendedTransformation::ExtendedTransformation(
     : transformation(std::move(transformation)) {
   if (transformation.line_delta > LineNumberDelta(0)) {
     empty.begin = transformation.range.begin;
-    empty.end = min(
+    empty.end = std::min(
         transformation.range.end,
         LineColumn(
             transformation.range.begin.line + transformation.line_delta,
@@ -279,9 +279,9 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "
             << transformation;
 
-    last.transformation.range.end.line = min(last.transformation.range.end.line,
-                                             transformation.line_lower_bound);
-    last.transformation.line_delta = min(
+    last.transformation.range.end.line = std::min(
+        last.transformation.range.end.line, transformation.line_lower_bound);
+    last.transformation.line_delta = std::min(
         last.transformation.line_delta,
         transformation.line_lower_bound - last.transformation.range.begin.line);
     transformation = last.transformation;
