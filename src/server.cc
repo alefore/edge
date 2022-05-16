@@ -45,12 +45,6 @@ namespace gc = language::gc;
 
 using namespace afc::vm;
 
-// TODO(easy, 2022-05-16): Get rid of these declarations.
-using std::cerr;
-using std::pair;
-using std::shared_ptr;
-using std::string;
-
 struct Environment;
 
 namespace {
