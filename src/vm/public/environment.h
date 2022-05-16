@@ -75,6 +75,9 @@ class Environment {
       std::function<void(const wstring&, const language::gc::Ptr<Value>&)>
           callback) const;
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>
+  Expand() const;
+
  private:
   std::map<std::wstring, language::NonNull<std::unique_ptr<ObjectType>>>
       object_types_;

@@ -190,6 +190,7 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
                              std::vector<gc::Root<Value>>* output) {
   Environment* environment = this;
   for (auto& n : symbol_namespace) {
+    CHECK(environment != nullptr);
     auto it = environment->namespaces_.find(n);
     if (it == environment->namespaces_.end()) {
       environment = nullptr;
@@ -296,18 +297,26 @@ void Environment::ForEachNonRecursive(
   }
 }
 
+std::vector<language::NonNull<std::shared_ptr<gc::ControlFrame>>>
+Environment::Expand() const {
+  std::vector<language::NonNull<std::shared_ptr<gc::ControlFrame>>> output;
+  if (parent_environment().has_value()) {
+    output.push_back(parent_environment()->control_frame());
+  }
+  ForEachNonRecursive(
+      [&output](const std::wstring&, const gc::Ptr<Value>& value) {
+        output.push_back(value.control_frame());
+      });
+  for (std::pair<std::wstring, gc::Ptr<Environment>> entry : namespaces_) {
+    output.push_back(entry.second.control_frame());
+  }
+  return output;
+}
+
 }  // namespace afc::vm
 namespace afc::language::gc {
 std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
     const afc::vm::Environment& environment) {
-  std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> output;
-  if (environment.parent_environment().has_value()) {
-    output.push_back(environment.parent_environment()->control_frame());
-  }
-  environment.ForEachNonRecursive(
-      [&output](const std::wstring&, const gc::Ptr<vm::Value>& value) {
-        output.push_back(value.control_frame());
-      });
-  return output;
+  return environment.Expand();
 }
 }  // namespace afc::language::gc
