@@ -5,6 +5,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 #include "src/concurrent/protected.h"
@@ -52,14 +53,34 @@ class Pool {
   void AddObj(language::NonNull<std::shared_ptr<ControlFrame>> control_frame);
   RootRegistration AddRoot(std::weak_ptr<ControlFrame> control_frame);
 
-  struct Data {
+  struct Generation {
+    bool IsEmpty() const;
+
     // All the control frames for all the objects allocated into this pool.
     std::vector<std::weak_ptr<ControlFrame>> objects;
 
     // Weak ownership of the control frames for all the roots.
     std::list<std::weak_ptr<ControlFrame>> roots;
+
+    struct RootDeleted {
+      NonNull<Generation*> generation;
+      std::list<std::weak_ptr<ControlFrame>>::iterator it;
+    };
+    std::vector<RootDeleted> roots_deleted;
   };
-  concurrent::Protected<Data> data_;
+  concurrent::Protected<NonNull<std::unique_ptr<Generation>>>
+      current_generation_;
+
+  // generations_ holds a list of old generations. A new generation is created
+  // on each call to `Reclaim`. We do this so that we don't have to take the
+  // entire lock on `current_generation_` for the duration of the collection; in
+  // the future, that may enable us to even run the collection asynchronously
+  // (in a dedicated thread).
+  //
+  // Invariant: `objects` will be empty in all elements except for the very
+  // first. `roots_deleted` will always be empty.
+  concurrent::Protected<std::list<NonNull<std::unique_ptr<Generation>>>>
+      generations_;
 };
 
 std::ostream& operator<<(std::ostream& os,
