@@ -253,19 +253,19 @@ const bool get_output_components_tests_registration = tests::Register(
 // `std::unordered_set` for faster access. For convenience, also takes care of
 // resolving the `weak_ptr` buffers to their actual addresses (skipping
 // expired buffers).
-std::optional<std::unordered_set<const OpenBuffer*>> OptimizeFilter(
+std::optional<std::unordered_set<NonNull<const OpenBuffer*>>> OptimizeFilter(
     const std::optional<std::vector<gc::WeakPtr<OpenBuffer>>> input) {
   if (!input.has_value()) {
     return std::nullopt;
   }
 
-  // TODO(easy, 2022-05-15) Should be a NonNull?
-  std::unordered_set<const OpenBuffer*> output;
+  std::unordered_set<NonNull<const OpenBuffer*>> output;
   for (auto& weak_buffer : input.value()) {
     VisitPointer(
         weak_buffer.Lock(),
         [&](gc::Root<OpenBuffer> buffer) {
-          output.insert(&buffer.ptr().value());
+          output.insert(
+              NonNull<const OpenBuffer*>::AddressOf(buffer.ptr().value()));
         },
         [] {});
   }
@@ -278,7 +278,7 @@ struct BuffersListOptions {
   std::set<NonNull<const OpenBuffer*>> active_buffers;
   size_t buffers_per_line;
   LineColumnDelta size;
-  std::optional<std::unordered_set<const OpenBuffer*>> filter;
+  std::optional<std::unordered_set<NonNull<const OpenBuffer*>>> filter;
 };
 
 enum class FilterResult { kExcluded, kIncluded };
@@ -564,7 +564,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             FilterResult filter_result =
                 (!options->filter.has_value() ||
-                 options->filter.value().find(&buffer) !=
+                 options->filter.value().find(
+                     NonNull<const OpenBuffer*>::AddressOf(buffer)) !=
                      options->filter.value().end())
                     ? FilterResult::kIncluded
                     : FilterResult::kExcluded;
