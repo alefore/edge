@@ -32,9 +32,8 @@ class Value {
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
       std::vector<language::gc::Root<Value>>, Trampoline&)>;
-  using DependenciesCallback =
-      std::function<void(std::vector<language::NonNull<
-                             std::shared_ptr<language::gc::ControlFrame>>>&)>;
+  using ExpandCallback = std::function<std::vector<
+      language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>()>;
 
   static language::gc::Root<Value> New(language::gc::Pool& pool, const VMType&);
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
@@ -47,15 +46,18 @@ class Value {
                                              std::wstring value);
   static language::gc::Root<Value> NewSymbol(language::gc::Pool& pool,
                                              std::wstring value);
-  static language::gc::Root<Value> NewObject(language::gc::Pool& pool,
-                                             VMTypeObjectTypeName name,
-                                             std::shared_ptr<void> value);
+  static language::gc::Root<Value> NewObject(
+      language::gc::Pool& pool, VMTypeObjectTypeName name,
+      std::shared_ptr<void> value, ExpandCallback expand_callback = [] {
+        return std::vector<
+            language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>();
+      });
   static language::gc::Root<Value> NewFunction(
       language::gc::Pool& pool, std::vector<VMType> arguments,
-      Callback callback,
-      DependenciesCallback dependencies_callback =
-          [](std::vector<language::NonNull<
-                 std::shared_ptr<language::gc::ControlFrame>>>&) {});
+      Callback callback, ExpandCallback expand_callback = []() {
+        return std::vector<
+            language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>();
+      });
 
   // Convenience wrapper.
   static language::gc::Root<Value> NewFunction(
@@ -86,6 +88,9 @@ class Value {
   // integer.
   language::ValueOrError<double> ToDouble() const;
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>
+  expand() const;
+
  private:
   struct Symbol {
     std::wstring symbol_value;
@@ -94,7 +99,7 @@ class Value {
       value_;
 
   Callback callback;
-  DependenciesCallback dependencies_callback;
+  ExpandCallback expand_callback;
 };
 
 std::ostream& operator<<(std::ostream& os, const Value& value);

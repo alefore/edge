@@ -133,23 +133,25 @@ bool cpp_unescape_string_tests_registration =
 
 /* static */ gc::Root<Value> Value::NewObject(gc::Pool& pool,
                                               VMTypeObjectTypeName name,
-                                              std::shared_ptr<void> value) {
+                                              std::shared_ptr<void> value,
+                                              ExpandCallback expand_callback) {
   // TODO(easy, 2022-05-13): Adopt NonNull.
   CHECK(value != nullptr);
   gc::Root<Value> output = New(pool, VMType::ObjectType(std::move(name)));
   output.ptr()->value_ = std::move(value);
+  output.ptr()->expand_callback = std::move(expand_callback);
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
     gc::Pool& pool, std::vector<VMType> arguments, Value::Callback callback,
-    DependenciesCallback dependencies_callback) {
+    ExpandCallback expand_callback) {
   // TODO(easy, 2022-05-13): Receive the purity type explicitly.
   gc::Root<Value> output =
       New(pool,
           VMType::Function(std::move(arguments), VMType::PurityType::kUnknown));
   output.ptr()->callback = std::move(callback);
-  output.ptr()->dependencies_callback = std::move(dependencies_callback);
+  output.ptr()->expand_callback = std::move(expand_callback);
   return output;
 }
 
@@ -222,6 +224,14 @@ ValueOrError<double> Value::ToDouble() const {
   }
 }
 
+std::vector<language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>
+Value::expand() const {
+  return expand_callback == nullptr
+             ? std::vector<language::NonNull<
+                   std::shared_ptr<language::gc::ControlFrame>>>()
+             : expand_callback();
+}
+
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   switch (value.type.type) {
     case VMType::Type::kInt:
@@ -245,7 +255,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
 }  // namespace afc::vm
 namespace afc::language::gc {
 std::vector<NonNull<std::shared_ptr<ControlFrame>>> Expand(
-    const afc::vm::Value&) {
-  return {};
+    const afc::vm::Value& value) {
+  return value.expand();
 }
 }  // namespace afc::language::gc

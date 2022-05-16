@@ -104,9 +104,9 @@ class LambdaExpression : public Expression {
                     trampoline.pool(), std::move(body_output.value))));
               });
         },
-        [parent_environment](
-            std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>>& output) {
-          output.push_back(parent_environment.control_frame());
+        [parent_environment] {
+          return std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>>(
+              {parent_environment.control_frame()});
         });
   }
 
