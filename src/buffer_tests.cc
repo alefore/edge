@@ -131,12 +131,6 @@ const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
           auto stats_0 = buffer.ptr()->editor().gc_pool().Reclaim();
           LOG(INFO) << "Start: " << stats_0;
 
-          CHECK(!buffer.ptr()
-                     ->editor()
-                     .work_queue()
-                     ->NextExecution()
-                     .has_value());
-
           buffer.ptr()->CompileString(code);
 
           buffer.ptr()->editor().gc_pool().Reclaim();
@@ -148,11 +142,7 @@ const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
           {
             futures::ValueOrError<language::gc::Root<Value>> future_value =
                 buffer.ptr()->EvaluateString(code);
-            while (buffer.ptr()
-                       ->editor()
-                       .work_queue()
-                       ->NextExecution()
-                       .has_value())
+            while (!future_value.Get().has_value())
               buffer.ptr()->editor().work_queue()->Execute();
             future_value.Get().value().value().ptr();
           }
