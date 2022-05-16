@@ -134,14 +134,14 @@ class Ptr {
 
  private:
   static Ptr<T> New(Pool& pool, language::NonNull<std::shared_ptr<T>> value) {
-    return Ptr(
-        value.get_shared(),
-        language::MakeNonNullShared<ControlFrame>(
-            ControlFrame::ConstructorAccessKey(), pool, [value] {
-              std::vector<language::NonNull<std::shared_ptr<ControlFrame>>>
-              Expand(const T&);
-              return Expand(value.value());
-            }));
+    auto control_frame = language::MakeNonNullShared<ControlFrame>(
+        ControlFrame::ConstructorAccessKey(), pool, [value] {
+          std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
+              const T&);
+          return Expand(value.value());
+        });
+    pool.AddObj(control_frame);
+    return Ptr(std::weak_ptr<T>(value.get_shared()), control_frame);
   }
 
   template <typename U>
@@ -159,7 +159,6 @@ class Ptr {
       : value_(value), control_frame_(control_frame) {
     VLOG(5) << "Ptr(pool, value): " << control_frame_.get_shared()
             << " (value: " << value_.lock() << ")";
-    pool().AddObj(control_frame);
   }
 
   // We keep only a weak reference to the value here, locking it each time. The

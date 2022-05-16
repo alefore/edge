@@ -33,6 +33,7 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
         root_weak,
         [&expand](language::NonNull<std::shared_ptr<ControlFrame>> root) {
           CHECK(!root->reached_);
+          CHECK(root->expand_callback_ != nullptr);
           expand.push_back(root);
         },
         [] { LOG(FATAL) << "Root was dead. Should never happen."; });
@@ -44,30 +45,35 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
         std::move(expand.front());
     expand.pop_front();
     VLOG(5) << "Considering obj: " << front.get_shared();
+    CHECK(front->expand_callback_ != nullptr);
     if (front->reached_) continue;
     front->reached_ = true;
     for (language::NonNull<std::shared_ptr<ControlFrame>> obj :
          front->expand_callback_()) {
+      CHECK(obj->expand_callback_ != nullptr);
       if (!obj->reached_) {
         expand.push_back(std::move(obj));
       }
     }
   }
+
+  VLOG(3) << "Building survivers list (allowing objects to be deleted).";
   std::vector<std::weak_ptr<ControlFrame>> survivers;
-  for (std::weak_ptr<ControlFrame>& obj_weak : objects_) {
-    auto obj = obj_weak.lock();
+  while (!objects_.empty()) {
+    std::shared_ptr<ControlFrame> obj = objects_.front().lock();
+    objects_.erase(objects_.begin());
     if (obj == nullptr) continue;
     if (obj->reached_) {
       obj->reached_ = false;
-      survivers.push_back(std::move(obj_weak));
+      survivers.push_back(std::move(obj));
     } else {
-      VLOG(5) << "Allowing object to be deleted.";
+      VLOG(5) << "Allowing unreachable object to be deleted.";
       obj->expand_callback_ = nullptr;
     }
   }
   VLOG(5) << "Survivers: " << survivers.size() << " (of " << objects_.size()
           << ")";
-  survivers.swap(objects_);
+  objects_ = std::move(survivers);
   stats.end_total = objects_.size();
 
   LOG(INFO) << "Garbage collection results: " << stats;
