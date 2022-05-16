@@ -373,19 +373,20 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   std::list<MetadataLine> output;
   const Line& contents = options.buffer.contents().at(range.begin.line).value();
   std::optional<gc::Root<OpenBuffer>> target_buffer_dummy;
-  // TODO(easy, 2022-05-15): Should be NonNull?
-  const OpenBuffer* target_buffer = &options.buffer;
+  NonNull<const OpenBuffer*> target_buffer =
+      NonNull<const OpenBuffer*>::AddressOf(options.buffer);
   if (auto line_buffer = contents.buffer_line_column();
       line_buffer.has_value()) {
     target_buffer_dummy = line_buffer->buffer.Lock();
     if (target_buffer_dummy.has_value())
-      target_buffer = &target_buffer_dummy->ptr().value();
+      target_buffer = NonNull<const OpenBuffer*>::AddressOf(
+          target_buffer_dummy->ptr().value());
   }
 
   auto info_char = L'•';
   auto info_char_modifier = LineModifier::DIM;
 
-  if (target_buffer != &options.buffer) {
+  if (target_buffer.get() != &options.buffer) {
     output.push_back(
         MetadataLine{info_char, info_char_modifier,
                      MakeNonNullShared<const Line>(
