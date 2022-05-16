@@ -20,12 +20,9 @@ using language::NonNull;
 
 namespace gc = language::gc;
 
-// TODO(easy, 2022-05-16): Get rid of this declaration.
-using std::wstring;
-
 namespace {
 
-wstring TrimWhitespace(const wstring& in) {
+std::wstring TrimWhitespace(const std::wstring& in) {
   size_t begin = in.find_first_not_of(' ', 0);
   if (begin == string::npos) {
     return L"";
@@ -41,7 +38,7 @@ wstring TrimWhitespace(const wstring& in) {
 }
 
 Predictor VariablesPredictor() {
-  vector<wstring> variables;
+  vector<std::wstring> variables;
   buffer_variables::BoolStruct()->RegisterVariableNames(&variables);
   buffer_variables::StringStruct()->RegisterVariableNames(&variables);
   buffer_variables::IntStruct()->RegisterVariableNames(&variables);
@@ -52,7 +49,7 @@ Predictor VariablesPredictor() {
 
 futures::Value<EmptyValue> SetVariableCommandHandler(
     const std::wstring& input_name, EditorState& editor_state) {
-  wstring name = TrimWhitespace(input_name);
+  std::wstring name = TrimWhitespace(input_name);
   if (name.empty()) {
     return futures::Past(EmptyValue());
   }
@@ -71,7 +68,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
             .history_file = history_file,
             .initial_value = active_buffers[0].ptr()->Read(var),
             .handler =
-                [&editor_state, var](const wstring& input) {
+                [&editor_state, var](const std::wstring& input) {
                   editor_state.ResetRepetitions();
                   return editor_state.ForEachActiveBuffer(
                       [var, input](OpenBuffer& buffer) {
@@ -97,27 +94,27 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   }
   if (auto var = editor_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
-    Prompt(
-        {.editor_state = editor_state,
-         .prompt = name + L" := ",
-         .history_file = history_file,
-         .initial_value = std::to_wstring(editor_state.Read(var)),
-         .handler =
-             [&editor_state, var, &default_error_status](const wstring& input) {
-               std::wstringstream ss(input);
-               double value;
-               ss >> value;
-               if (ss.eof() && !ss.fail()) {
-                 editor_state.Set(var, value);
-               } else {
-                 default_error_status.SetWarningText(
-                     L"Invalid value for double value “" + var->name() +
-                     L"”: " + input);
-               }
-               return futures::Past(EmptyValue());
-             },
-         .cancel_handler = []() { /* Nothing. */ },
-         .status = PromptOptions::Status::kEditor});
+    Prompt({.editor_state = editor_state,
+            .prompt = name + L" := ",
+            .history_file = history_file,
+            .initial_value = std::to_wstring(editor_state.Read(var)),
+            .handler =
+                [&editor_state, var,
+                 &default_error_status](const std::wstring& input) {
+                  std::wstringstream ss(input);
+                  double value;
+                  ss >> value;
+                  if (ss.eof() && !ss.fail()) {
+                    editor_state.Set(var, value);
+                  } else {
+                    default_error_status.SetWarningText(
+                        L"Invalid value for double value “" + var->name() +
+                        L"”: " + input);
+                  }
+                  return futures::Past(EmptyValue());
+                },
+            .cancel_handler = []() { /* Nothing. */ },
+            .status = PromptOptions::Status::kEditor});
     return futures::Past(EmptyValue());
   }
   if (auto var = buffer_variables::BoolStruct()->find_variable(name);
@@ -142,7 +139,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
          .history_file = history_file,
          .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
          .handler =
-             [&editor_state, var, &default_error_status](const wstring& input) {
+             [&editor_state, var,
+              &default_error_status](const std::wstring& input) {
                int value;
                try {
                  value = stoi(input);
@@ -172,7 +170,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
          .history_file = history_file,
          .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
          .handler =
-             [&editor_state, var, &default_error_status](const wstring& input) {
+             [&editor_state, var,
+              &default_error_status](const std::wstring& input) {
                std::wstringstream ss(input);
                double value;
                ss >> value;
