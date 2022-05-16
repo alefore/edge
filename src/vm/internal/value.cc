@@ -92,7 +92,8 @@ bool cpp_unescape_string_tests_registration =
 
 /* static */ language::gc::Root<Value> Value::New(language::gc::Pool& pool,
                                                   const VMType& type) {
-  return pool.NewRoot(MakeNonNullUnique<Value>(ConstructorAccessTag(), type));
+  return pool.NewRoot(
+      MakeNonNullUnique<Value>(ConstructorAccessTag(), pool, type));
 }
 
 /* static */ gc::Root<Value> Value::NewVoid(gc::Pool& pool) {
@@ -206,11 +207,19 @@ std::shared_ptr<void> Value::get_user_value(const VMType& type) const {
   return output;
 }
 
+struct LockedDependencies {
+  std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>> dependencies;
+};
+
 Value::Callback Value::LockCallback() {
   CHECK(IsFunction());
-  // TODO(gc, 2022-05-13): Run dependencies callback and somehow capture the
-  // output?
-  return callback;
+  gc::Root<LockedDependencies> dependencies =
+      pool_.NewRoot(MakeNonNullUnique<LockedDependencies>(
+          LockedDependencies{.dependencies = expand()}));
+  return [callback = callback, dependencies](std::vector<gc::Root<Value>> args,
+                                             Trampoline& trampoline) {
+    return callback(std::move(args), trampoline);
+  };
 }
 
 ValueOrError<double> Value::ToDouble() const {
@@ -252,8 +261,62 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
   return os;
 }
 
+namespace {
+bool value_gc_tests_registration = tests::Register(
+    L"ValueVMMemory",
+    {{.name = L"Dependency", .callback = [] {
+        using vm::Value;
+        gc::Pool pool;
+        // We use `nested_weak` to validate whether all the dependencies are
+        // being preserved correctly.
+        std::shared_ptr<bool> nested = std::make_shared<bool>();
+        std::weak_ptr<bool> nested_weak = nested;
+
+        Value::Callback callback = [&] {
+          gc::Root<Value> parent = [&] {
+            gc::Root<Value> child =
+                Value::NewFunction(pool, {VMType::Void()}, nullptr, [nested] {
+                  return std::vector<
+                      NonNull<std::shared_ptr<gc::ControlFrame>>>();
+                });
+            return Value::NewFunction(
+                pool, {VMType::Void()},
+                [child_ptr = child.ptr()](auto, Trampoline&) {
+                  return futures::Past(Error(L"Some error."));
+                },
+                [child_frame = child.ptr().control_frame()] {
+                  return std::vector<
+                      NonNull<std::shared_ptr<gc::ControlFrame>>>(
+                      {child_frame});
+                });
+          }();
+
+          nested = nullptr;
+          CHECK(nested_weak.lock() != nullptr);
+
+          pool.Reclaim();
+          CHECK(nested_weak.lock() != nullptr);
+
+          return parent.ptr()->LockCallback();
+        }();
+
+        CHECK(nested_weak.lock() != nullptr);
+        pool.Reclaim();
+
+        CHECK(nested_weak.lock() != nullptr);
+
+        callback = nullptr;
+        pool.Reclaim();
+        CHECK(nested_weak.lock() == nullptr);
+      }}});
+}
 }  // namespace afc::vm
 namespace afc::language::gc {
+std::vector<NonNull<std::shared_ptr<ControlFrame>>> Expand(
+    const afc::vm::LockedDependencies& dependencies) {
+  return dependencies.dependencies;
+}
+
 std::vector<NonNull<std::shared_ptr<ControlFrame>>> Expand(
     const afc::vm::Value& value) {
   return value.expand();

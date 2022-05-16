@@ -28,7 +28,9 @@ class Value {
   };
 
  public:
-  explicit Value(ConstructorAccessTag, const VMType& t) : type(t) {}
+  explicit Value(ConstructorAccessTag, language::gc::Pool& pool,
+                 const VMType& t)
+      : type(t), pool_(pool) {}
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
       std::vector<language::gc::Root<Value>>, Trampoline&)>;
@@ -92,6 +94,8 @@ class Value {
   expand() const;
 
  private:
+  language::gc::Pool& pool_;
+
   struct Symbol {
     std::wstring symbol_value;
   };
