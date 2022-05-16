@@ -131,7 +131,11 @@ class Ptr {
 
   Pool& pool() const { return control_frame_->pool(); }
 
-  T* operator->() const { return value_.lock().get(); }
+  T* operator->() const {
+    std::shared_ptr<T> locked_value = value_.lock();
+    CHECK(locked_value != nullptr);
+    return locked_value.get();
+  }
   T& value() const { return language::Pointer(value_.lock()).Reference(); }
 
   // This is only exposed in order to allow implementation of `Expand`
