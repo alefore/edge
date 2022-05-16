@@ -232,7 +232,8 @@ futures::ValueOrError<gc::Root<Value>> Execute(OpenBuffer& buffer,
     // TODO: Show the error.
     return futures::Past(Error(L"Unable to compile (type mismatch)."));
   }
-  return buffer.EvaluateExpression(expression.value(), buffer.environment());
+  return buffer.EvaluateExpression(expression.value(),
+                                   buffer.environment().ToRoot());
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
@@ -247,11 +248,11 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
     const SearchNamespaces& search_namespaces) {
   ColorizePromptOptions output;
   std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
-  gc::Root<Environment> environment =
-      (buffer.has_value() ? buffer->ptr()->environment()
-                          : editor.environment());
-  if (auto parsed_command = Parse(editor.gc_pool(), line,
-                                  environment.ptr().value(), search_namespaces);
+  Environment& environment = (buffer.has_value() ? buffer->ptr()->environment()
+                                                 : editor.environment().ptr())
+                                 .value();
+  if (auto parsed_command =
+          Parse(editor.gc_pool(), line, environment, search_namespaces);
       !parsed_command.IsError()) {
     output.tokens.push_back({.token = {.value = L"",
                                        .begin = ColumnNumber(0),
@@ -261,9 +262,9 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 
   using BufferMapper = vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>;
   futures::Future<ColorizePromptOptions> output_future;
-  if (auto command = Parse(editor.gc_pool(), line, environment.ptr().value(),
-                           NewLazyString(L"Preview"), {BufferMapper::vmtype},
-                           search_namespaces);
+  if (auto command =
+          Parse(editor.gc_pool(), line, environment, NewLazyString(L"Preview"),
+                {BufferMapper::vmtype}, search_namespaces);
       buffer.has_value() && !command.IsError()) {
     Execute(buffer->ptr().value(), std::move(command.value()))
         .SetConsumer([consumer = output_future.consumer, buffer,
@@ -294,7 +295,7 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
   SearchNamespaces search_namespaces(buffer->ptr().value());
   auto parsed_command =
       Parse(editor_state.gc_pool(), NewLazyString(std::move(command)),
-            buffer->ptr()->environment().ptr().value(), search_namespaces);
+            buffer->ptr()->environment().value(), search_namespaces);
   if (parsed_command.IsError()) {
     if (!parsed_command.error().description.empty()) {
       buffer->ptr()->status().SetWarningText(

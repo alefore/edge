@@ -311,11 +311,11 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
            VMType::Function({VMType::Void()})},
           [&pool](std::vector<gc::Root<Value>> args) {
             CHECK_EQ(args.size(), 4u);
-            auto buffer =
+            gc::Root<OpenBuffer> buffer =
                 VMTypeMapper<gc::Root<OpenBuffer>>::get(args[0].ptr().value());
             buffer.ptr()->default_commands()->Add(
                 args[1].ptr()->get_string(), args[2].ptr()->get_string(),
-                std::move(args[3]), buffer.ptr()->environment());
+                std::move(args[3]), buffer.ptr()->environment().ToRoot());
             return Value::NewVoid(pool);
           }));
 

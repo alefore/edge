@@ -72,7 +72,7 @@ void StartDeleteFile(EditorState& editor_state, std::wstring path) {
 
 Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   VLOG(6) << "Get metadata for: " << path;
-  std::optional<gc::Root<Value>> callback = target.environment().ptr()->Lookup(
+  std::optional<gc::Root<Value>> callback = target.environment()->Lookup(
       target.editor().gc_pool(), Environment::Namespace(), L"GetPathMetadata",
       VMType::Function({VMType::String(), VMType::String()}));
   if (!callback.has_value()) {
@@ -90,7 +90,9 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   return {
       .initial_value = NewLazyString(L"…"),
       .value =
-          target.EvaluateExpression(expression.value(), target.environment())
+          target
+              .EvaluateExpression(expression.value(),
+                                  target.environment().ToRoot())
               .Transform([](gc::Root<Value> value)
                              -> futures::ValueOrError<
                                  NonNull<std::shared_ptr<LazyString>>> {

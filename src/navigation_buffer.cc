@@ -116,10 +116,9 @@ futures::Value<PossibleError> GenerateContents(
   auto tree = source->ptr()->simplified_parse_tree();
   target.AppendToLastLine(
       NewLazyString(source->ptr()->Read(buffer_variables::name)));
-  std::optional<gc::Root<Value>> depth_value =
-      target.environment().ptr()->Lookup(editor_state.gc_pool(),
-                                         Environment::Namespace(), kDepthSymbol,
-                                         VMType::Int());
+  std::optional<gc::Root<Value>> depth_value = target.environment()->Lookup(
+      editor_state.gc_pool(), Environment::Namespace(), kDepthSymbol,
+      VMType::Int());
   int depth = depth_value.has_value()
                   ? size_t(max(0, depth_value.value().ptr()->get_int()))
                   : 3;
@@ -161,8 +160,8 @@ class NavigationBufferCommand : public Command {
       buffer.Set(buffer_variables::show_in_buffers_list, false);
       buffer.Set(buffer_variables::push_positions_to_history, false);
       buffer.Set(buffer_variables::allow_dirty_delete, true);
-      buffer.environment().ptr()->Define(
-          kDepthSymbol, Value::NewInt(editor_state_.gc_pool(), 3));
+      buffer.environment()->Define(kDepthSymbol,
+                                   Value::NewInt(editor_state_.gc_pool(), 3));
       buffer.Set(buffer_variables::reload_on_enter, true);
       editor_state_.StartHandlingInterrupts();
       editor_state_.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);

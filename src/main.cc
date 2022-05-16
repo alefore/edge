@@ -264,7 +264,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
   VLOG(5) << "Updating remote screens.";
   for (auto& buffer : *editor_state().buffers()) {
     std::optional<gc::Root<Value>> value =
-        buffer.second.ptr()->environment().ptr()->Lookup(
+        buffer.second.ptr()->environment()->Lookup(
             editor_state().gc_pool(), Environment::Namespace(), L"screen",
             GetScreenVmType());
     if (!value.has_value() || value.value().ptr()->type != GetScreenVmType()) {

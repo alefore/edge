@@ -295,7 +295,7 @@ class InsertMode : public EditorMode {
                   options, buffer,
                   buffer
                       .EvaluateExpression(expression.value(),
-                                          buffer.environment())
+                                          buffer.environment().ToRoot())
                       .ConsumeErrors(
                           [&pool = buffer.editor().gc_pool()](Error) {
                             return futures::Past(vm::Value::NewVoid(pool));

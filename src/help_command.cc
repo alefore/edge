@@ -179,7 +179,7 @@ class HelpCommand : public Command {
                               BufferContents& output) {
     StartSection(L"## Environment", output);
 
-    const gc::Root<Environment> environment = original_buffer.environment();
+    const gc::Ptr<Environment> environment = original_buffer.environment();
 
     StartSection(L"### Types & methods", output);
 
@@ -189,7 +189,7 @@ class HelpCommand : public Command {
         L"available methods is given.");
     output.push_back(L"");
 
-    environment.ptr()->ForEachType([&](const wstring& name, ObjectType& type) {
+    environment->ForEachType([&](const wstring& name, ObjectType& type) {
       StartSection(L"#### " + name, output);
       type.ForEachField([&](const wstring& field_name, Value& value) {
         std::stringstream value_stream;
@@ -215,8 +215,8 @@ class HelpCommand : public Command {
         L"associated with your buffer, and thus available to extensions.");
     output.push_back(L"");
 
-    environment.ptr()->ForEach([&output](const wstring& name,
-                                         const gc::Ptr<Value>& value) {
+    environment->ForEach([&output](const wstring& name,
+                                   const gc::Ptr<Value>& value) {
       const static int kPaddingSize = 40;
       wstring padding(
           name.size() >= kPaddingSize ? 1 : kPaddingSize - name.size(), L' ');

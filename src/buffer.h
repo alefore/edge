@@ -349,7 +349,7 @@ class OpenBuffer {
   /////////////////////////////////////////////////////////////////////////////
   // Extensions
 
-  const language::gc::Root<Environment>& environment() const {
+  const language::gc::Ptr<Environment>& environment() const {
     return environment_;
   }
 
@@ -568,7 +568,7 @@ class OpenBuffer {
       undo_future_;
 
   std::list<language::gc::Root<Value>> keyboard_text_transformers_;
-  const language::gc::Root<Environment> environment_;
+  const language::gc::Ptr<Environment> environment_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be

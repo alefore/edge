@@ -241,8 +241,11 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
       line_column_variables_(
           buffer_variables::LineColumnStruct()->NewInstance()),
-      environment_(editor().gc_pool().NewRoot(
-          MakeNonNullUnique<Environment>(options_.editor.environment().ptr()))),
+      environment_(editor()
+                       .gc_pool()
+                       .NewRoot(MakeNonNullUnique<Environment>(
+                           options_.editor.environment().ptr()))
+                       .ptr()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor.default_commands()->NewChild()),
@@ -266,7 +269,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
 
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Start destructor: " << name();
-  environment_.ptr()->Clear();
+  environment_->Clear();
 }
 
 EditorState& OpenBuffer::editor() const { return options_.editor; }
@@ -602,11 +605,11 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   UpdateTreeParser();
 
-  environment_.ptr()->Define(L"buffer",
-                             VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
-                                 editor().gc_pool(), NewRoot()));
+  environment_->Define(L"buffer",
+                       VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
+                           editor().gc_pool(), NewRoot()));
 
-  environment_.ptr()->Define(
+  environment_->Define(
       L"sleep",
       Value::NewFunction(
           editor().gc_pool(), {VMType::Void(), VMType::Double()},
@@ -1007,8 +1010,8 @@ void OpenBuffer::AppendToLastLine(Line line) {
 ValueOrError<
     std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
 OpenBuffer::CompileString(const std::wstring& code) {
-  gc::Root<Environment> sub_environment = editor().gc_pool().NewRoot(
-      MakeNonNullUnique<Environment>(environment_.ptr()));
+  gc::Root<Environment> sub_environment =
+      editor().gc_pool().NewRoot(MakeNonNullUnique<Environment>(environment_));
   auto compilation_result =
       afc::vm::CompileString(code, editor().gc_pool(), sub_environment);
   if (compilation_result.IsError()) return compilation_result.error();
@@ -1043,8 +1046,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
-  ValueOrError<NonNull<std::unique_ptr<Expression>>> expression =
-      CompileFile(ToByteString(path.read()), editor().gc_pool(), environment_);
+  ValueOrError<NonNull<std::unique_ptr<Expression>>> expression = CompileFile(
+      ToByteString(path.read()), editor().gc_pool(), environment_.ToRoot());
   if (expression.IsError()) {
     Error error =
         Error::Augment(path.read() + L": error: ", expression.error());
@@ -1054,7 +1057,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
   LOG(INFO) << Read(buffer_variables::path) << " ("
             << Read(buffer_variables::name) << "): Evaluating file: " << path;
   return Evaluate(
-      expression.value().value(), editor().gc_pool(), environment_,
+      expression.value().value(), editor().gc_pool(), environment_.ToRoot(),
       [path, work_queue = work_queue()](std::function<void()> resume) {
         LOG(INFO) << "Evaluation of file yields: " << path;
         work_queue->Schedule(std::move(resume));
@@ -2273,7 +2276,8 @@ gc::Root<OpenBuffer> NewBufferForTests() {
 }  // namespace afc
 namespace afc::language::gc {
 std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
-    const editor::OpenBuffer&) {
-  return std::vector<language::NonNull<std::shared_ptr<ControlFrame>>>();
+    const editor::OpenBuffer& buffer) {
+  return std::vector<language::NonNull<std::shared_ptr<ControlFrame>>>(
+      {buffer.environment().control_frame()});
 }
 }  // namespace afc::language::gc

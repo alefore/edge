@@ -406,7 +406,7 @@ class ForkEditorCommand : public Command {
               .original_buffer = *original_buffer,
               .base_command = std::nullopt,
               .context_command_callback =
-                  original_buffer->ptr()->environment().ptr()->Lookup(
+                  original_buffer->ptr()->environment()->Lookup(
                       pool, Environment::Namespace(),
                       L"GetShellPromptContextProgram",
                       VMType::Function({VMType::String(), VMType::String()}))});
@@ -475,8 +475,9 @@ class ForkEditorCommand : public Command {
       return futures::Past(ColorizePromptOptions{.context = std::nullopt});
     }
     return prompt_state.original_buffer.ptr()
-        ->EvaluateExpression(expression.value(),
-                             prompt_state.original_buffer.ptr()->environment())
+        ->EvaluateExpression(
+            expression.value(),
+            prompt_state.original_buffer.ptr()->environment().ToRoot())
         .Transform([&prompt_state, &editor](gc::Root<Value> value)
                        -> ValueOrError<ColorizePromptOptions> {
           const std::wstring& base_command = value.ptr()->get_string();
