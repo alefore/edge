@@ -179,6 +179,7 @@ EditorState::~EditorState() {
   }
 
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
+  buffers_.clear();
 
   gc_pool_.Reclaim();
 }
