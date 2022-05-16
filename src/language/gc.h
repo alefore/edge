@@ -42,11 +42,16 @@ class Pool {
 
   using RootRegistration = std::shared_ptr<bool>;
 
-  RootRegistration AddRoot(std::weak_ptr<ControlFrame> control_frame);
+ private:
+  template <typename T>
+  friend class Ptr;
+
+  template <typename T>
+  friend class Root;
 
   void AddObj(language::NonNull<std::shared_ptr<ControlFrame>> control_frame);
+  RootRegistration AddRoot(std::weak_ptr<ControlFrame> control_frame);
 
- private:
   struct Data {
     // All the control frames for all the objects allocated into this pool.
     std::vector<std::weak_ptr<ControlFrame>> objects;
