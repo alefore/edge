@@ -113,8 +113,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
   PredictResults predict_results{
       .common_prefix = common_prefix,
-      .predictions_buffer = NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
-          predictions_buffer.shared_from_this())};
+      .predictions_buffer = predictions_buffer.NewRoot()};
 
   if (auto value = predictions_buffer.environment().ptr()->Lookup(
           predictions_buffer.editor().gc_pool(), Environment::Namespace(),
@@ -147,13 +146,16 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
 
 std::wstring GetPredictInput(const PredictOptions& options) {
   if (options.text.has_value()) return options.text.value();
-  auto buffer = options.input_buffer;
+  std::optional<gc::Root<OpenBuffer>> buffer = options.input_buffer;
+  // TODO(2022-05-16): Why is this CHECK safe?
+  CHECK(buffer.has_value());
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
   modifiers.structure = options.input_selection_structure;
-  auto range = buffer->FindPartialRange(modifiers, buffer->position());
-  range.end = max(range.end, buffer->position());
-  auto line = buffer->LineAt(range.begin.line);
+  auto range =
+      buffer->ptr()->FindPartialRange(modifiers, buffer->ptr()->position());
+  range.end = max(range.end, buffer->ptr()->position());
+  auto line = buffer->ptr()->LineAt(range.begin.line);
   CHECK_LE(range.begin.column, line->EndColumn());
   if (range.begin.line == range.end.line) {
     CHECK_GE(range.end.column, range.begin.column);
@@ -230,10 +232,10 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
         });
   };
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
-  predictions_buffer->Set(buffer_variables::show_in_buffers_list, false);
-  predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
-  predictions_buffer->Set(buffer_variables::paste_mode, true);
-  predictions_buffer->Reload();
+  predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
+  predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
+  predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
+  predictions_buffer.ptr()->Reload();
   return std::move(output.value);
 }
 
@@ -399,7 +401,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
         std::wregex noise_regex =
             predictor_input.source_buffers.empty()
                 ? std::wregex()
-                : std::wregex(predictor_input.source_buffers[0]->Read(
+                : std::wregex(predictor_input.source_buffers[0].ptr()->Read(
                       buffer_variables::directory_noise));
         return predictor_input.editor.thread_pool().Run(std::bind_front(
             [search_paths, path, get_buffer, resolve_path_options, noise_regex](
@@ -538,19 +540,20 @@ const bool buffer_tests_registration =
         ProgressChannel channel(
             WorkQueue::New(), [](ProgressInformation) {},
             WorkQueueChannelConsumeMode::kAll);
-        NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
-        test_predictor(PredictorInput{.editor = buffer->editor(),
+        gc::Root<OpenBuffer> buffer = NewBufferForTests();
+        test_predictor(PredictorInput{.editor = buffer.ptr()->editor(),
                                       .input = input,
-                                      .predictions = buffer.value(),
+                                      .predictions = buffer.ptr().value(),
                                       .source_buffers = {},
                                       .progress_channel = channel});
-        buffer->SortContents(LineNumber(), buffer->EndLine(),
-                             [](const NonNull<std::shared_ptr<const Line>>& a,
-                                const NonNull<std::shared_ptr<const Line>>& b) {
-                               return a->ToString() < b->ToString();
-                             });
-        VLOG(5) << "Contents: " << buffer->contents().ToString();
-        return buffer->contents().ToString();
+        buffer.ptr()->SortContents(
+            LineNumber(), buffer.ptr()->EndLine(),
+            [](const NonNull<std::shared_ptr<const Line>>& a,
+               const NonNull<std::shared_ptr<const Line>>& b) {
+              return a->ToString() < b->ToString();
+            });
+        VLOG(5) << "Contents: " << buffer.ptr()->contents().ToString();
+        return buffer.ptr()->contents().ToString();
       };
       return std::vector<tests::Test>(
           {{.name = L"CallNoPredictions",
@@ -565,10 +568,10 @@ const bool buffer_tests_registration =
     }());
 }  // namespace
 
-Predictor DictionaryPredictor(
-    NonNull<std::shared_ptr<const OpenBuffer>> dictionary) {
-  return [dictionary](PredictorInput input) {
-    const BufferContents& contents = dictionary->contents();
+Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
+  return [dictionary_root](PredictorInput input) {
+    const OpenBuffer& dictionary = dictionary_root.ptr().value();
+    const BufferContents& contents = dictionary.contents();
     auto input_line = MakeNonNullShared<const Line>(
         Line::Options(NewLazyString(input.input)));
 
@@ -629,19 +632,21 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   if (input.source_buffers.empty()) return futures::Past(PredictorOutput());
   std::set<std::wstring> words;
-  for (auto& buffer : input.source_buffers) {
-    RegisterLeaves(buffer.value(), buffer->parse_tree().value(), &words);
+  for (gc::Root<OpenBuffer>& buffer : input.source_buffers) {
+    RegisterLeaves(buffer.ptr().value(), buffer.ptr()->parse_tree().value(),
+                   &words);
     std::wistringstream keywords(
-        buffer->Read(buffer_variables::language_keywords));
+        buffer.ptr()->Read(buffer_variables::language_keywords));
     words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
                  std::istream_iterator<wstring, wchar_t>());
   }
-  auto dictionary = OpenBuffer::New(
+  gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName(L"Dictionary")});
   for (auto& word : words) {
-    dictionary->AppendLine(NewLazyString(std::move(word)));
+    dictionary.ptr()->AppendLine(NewLazyString(std::move(word)));
   }
-  return DictionaryPredictor(std::move(dictionary))(input);
+  return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
+      input);
 }
 
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {

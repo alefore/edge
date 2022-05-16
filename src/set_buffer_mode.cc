@@ -12,6 +12,8 @@ using language::NonNull;
 using language::Success;
 using language::VisitPointer;
 
+namespace gc = language::gc;
+
 namespace {
 struct Operation {
   enum class Type {
@@ -199,8 +201,8 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
   if (warning_filter_enabled) {
     Indices new_indices;
     for (auto& index : initial_indices) {
-      if (auto buffer = buffers_list.GetBuffer(index).get();
-          buffer->status().GetType() == Status::Type::kWarning) {
+      if (gc::Root<OpenBuffer> buffer = buffers_list.GetBuffer(index);
+          buffer.ptr()->status().GetType() == Status::Type::kWarning) {
         new_indices.push_back(index);
       }
     }
@@ -254,22 +256,25 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
           }
           CHECK_LT(state.index, state.indices.size());
           auto last_visit_current_buffer =
-              buffers_list.GetBuffer(state.indices[state.index])->last_visit();
+              buffers_list.GetBuffer(state.indices[state.index])
+                  .ptr()
+                  ->last_visit();
           std::optional<size_t> new_index;
           for (size_t i = 0; i < state.indices.size(); i++) {
-            auto candidate = buffers_list.GetBuffer(state.indices[i]);
+            OpenBuffer& candidate =
+                buffers_list.GetBuffer(state.indices[i]).ptr().value();
             std::optional<struct timespec> last_visit_new_index;
             if (new_index.has_value()) {
               last_visit_new_index =
-                  buffers_list.GetBuffer(new_index.value())->last_visit();
+                  buffers_list.GetBuffer(new_index.value()).ptr()->last_visit();
             }
             if (op_type == Operation::Type::kPrevious
-                    ? (candidate->last_visit() < last_visit_current_buffer &&
+                    ? (candidate.last_visit() < last_visit_current_buffer &&
                        (last_visit_new_index == std::nullopt ||
-                        candidate->last_visit() > last_visit_new_index))
-                    : (candidate->last_visit() > last_visit_current_buffer &&
+                        candidate.last_visit() > last_visit_new_index))
+                    : (candidate.last_visit() > last_visit_current_buffer &&
                        (last_visit_new_index == std::nullopt ||
-                        candidate->last_visit() <= last_visit_new_index))) {
+                        candidate.last_visit() <= last_visit_new_index))) {
               new_index = i;
             }
           }
@@ -303,10 +308,9 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                              &buffers_list](State state) {
               Indices new_indices;
               for (auto& index : state.indices) {
-                NonNull<std::shared_ptr<OpenBuffer>> buffer =
-                    buffers_list.GetBuffer(index);
-                if (NonNull<std::shared_ptr<LazyString>> str =
-                        NewLazyString(buffer->Read(buffer_variables::name));
+                gc::Root<OpenBuffer> buffer = buffers_list.GetBuffer(index);
+                if (NonNull<std::shared_ptr<LazyString>> str = NewLazyString(
+                        buffer.ptr()->Read(buffer_variables::name));
                     FindFilterPositions(
                         filter, ExtendTokensToEndOfString(
                                     str, TokenizeNameForPrefixSearches(str)))
@@ -336,7 +340,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
           using Control = futures::IterationControlCommand;
           std::vector<futures::Value<Control>> search_futures;
           for (auto& index : state.indices) {
-            OpenBuffer& buffer = buffers_list.GetBuffer(index).value();
+            OpenBuffer& buffer = buffers_list.GetBuffer(index).ptr().value();
             // TODO: Pass SearchOptions::abort_notification to allow
             // aborting as the user continues to type?
             search_futures.push_back(
@@ -382,7 +386,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
       return EmptyValue();
     }
     state.index %= state.indices.size();
-    NonNull<std::shared_ptr<OpenBuffer>> buffer =
+    gc::Root<OpenBuffer> buffer =
         buffers_list.GetBuffer(state.indices[state.index]);
     editor.set_current_buffer(buffer, mode);
     switch (mode) {
@@ -392,10 +396,10 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
 
       case CommandArgumentModeApplyMode::kPreview:
         if (state.indices.size() != buffers_list.BuffersCount()) {
-          std::vector<std::weak_ptr<OpenBuffer>> filter;
+          std::vector<gc::WeakPtr<OpenBuffer>> filter;
           filter.reserve(state.indices.size());
           for (const auto& i : state.indices) {
-            filter.push_back(buffers_list.GetBuffer(i).get_shared());
+            filter.push_back(buffers_list.GetBuffer(i).ptr().ToWeakPtr());
           }
           editor.buffer_tree().set_filter(std::move(filter));
         }
@@ -428,7 +432,7 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
           [&editor, initial_buffer = editor.buffer_tree().active_buffer()]() {
             VisitPointer(
                 initial_buffer,
-                [&editor](NonNull<std::shared_ptr<OpenBuffer>> initial_buffer) {
+                [&editor](gc::Root<OpenBuffer> initial_buffer) {
                   editor.set_current_buffer(
                       initial_buffer, CommandArgumentModeApplyMode::kFinal);
                 },

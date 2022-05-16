@@ -20,6 +20,9 @@ extern "C" {
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::VisitPointer;
+
+namespace gc = language::gc;
 
 class RecordCommand : public Command {
  public:
@@ -31,18 +34,20 @@ class RecordCommand : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t) override {
-    auto buffer = editor_state_.current_buffer();
-    if (buffer == nullptr) {
-      return;
-    }
-    if (buffer->HasTransformationStack()) {
-      buffer->PopTransformationStack();
-      buffer->status().SetInformationText(L"Recording: stop");
-    } else {
-      buffer->PushTransformationStack();
-      buffer->status().SetInformationText(L"Recording: start");
-    }
-    buffer->ResetMode();
+    VisitPointer(
+        editor_state_.current_buffer(),
+        [](gc::Root<OpenBuffer> buffer_root) {
+          OpenBuffer& buffer = buffer_root.ptr().value();
+          if (buffer.HasTransformationStack()) {
+            buffer.PopTransformationStack();
+            buffer.status().SetInformationText(L"Recording: stop");
+          } else {
+            buffer.PushTransformationStack();
+            buffer.status().SetInformationText(L"Recording: start");
+          }
+          buffer.ResetMode();
+        },
+        [] {});
   }
 
  private:

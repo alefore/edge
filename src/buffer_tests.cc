@@ -15,13 +15,13 @@ using language::ValueOrError;
 namespace gc = language::gc;
 namespace {
 std::wstring GetMetadata(std::wstring line) {
-  auto buffer = NewBufferForTests();
-  buffer->AppendToLastLine(NewLazyString(line));
+  gc::Root<OpenBuffer> buffer = NewBufferForTests();
+  buffer.ptr()->AppendToLastLine(NewLazyString(line));
 
   // Gives it a chance to execute:
-  buffer->editor().work_queue()->Execute();
+  buffer.ptr()->editor().work_queue()->Execute();
 
-  auto metadata = buffer->LineAt(LineNumber())->metadata();
+  auto metadata = buffer.ptr()->LineAt(LineNumber())->metadata();
   auto output = metadata == nullptr ? L"" : metadata->ToString();
   VLOG(5) << "GetMetadata output: " << output;
   return output;
@@ -82,11 +82,11 @@ const bool buffer_tests_registration = tests::Register(
                    .initial_value = NewLazyString(L"bar"),
                    .value = futures::Past(NonNull<std::shared_ptr<LazyString>>(
                        NewLazyString(L"quux")))});
-               buffer->AppendRawLine(
+               buffer.ptr()->AppendRawLine(
                    MakeNonNullShared<Line>(std::move(options)));
                // Gives it a chance to execute:
-               buffer->editor().work_queue()->Execute();
-               CHECK(Pointer(buffer->contents().back()->metadata())
+               buffer.ptr()->editor().work_queue()->Execute();
+               CHECK(Pointer(buffer.ptr()->contents().back()->metadata())
                          .Reference()
                          .ToString() == L"quux");
              }},
@@ -96,7 +96,7 @@ const bool buffer_tests_registration = tests::Register(
                auto buffer = NewBufferForTests();
 
                gc::Root<Value> result =
-                   buffer
+                   buffer.ptr()
                        ->EvaluateString(
                            L"int F() { return \"foo\".find_last_of(\"o\", 3); }"
                            L" F() == F();")
@@ -110,7 +110,10 @@ const bool buffer_tests_registration = tests::Register(
              [] {
                auto buffer = NewBufferForTests();
                ValueOrError<gc::Root<Value>> result =
-                   buffer->EvaluateString(L"{ int v = 5; } v").Get().value();
+                   buffer.ptr()
+                       ->EvaluateString(L"{ int v = 5; } v")
+                       .Get()
+                       .value();
                CHECK(result.IsError());
              }},
     });
@@ -124,31 +127,40 @@ const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
           // We call Reclaim more than once because the first call enables
           // additional symbols to be removed by the 2nd call (because the first
           // call only removes some roots after it has traversed them).
-          buffer->editor().gc_pool().Reclaim();
-          auto stats_0 = buffer->editor().gc_pool().Reclaim();
+          buffer.ptr()->editor().gc_pool().Reclaim();
+          auto stats_0 = buffer.ptr()->editor().gc_pool().Reclaim();
           LOG(INFO) << "Start: " << stats_0;
 
-          CHECK(!buffer->editor().work_queue()->NextExecution().has_value());
+          CHECK(!buffer.ptr()
+                     ->editor()
+                     .work_queue()
+                     ->NextExecution()
+                     .has_value());
 
-          buffer->CompileString(code);
+          buffer.ptr()->CompileString(code);
 
-          buffer->editor().gc_pool().Reclaim();
-          auto stats_1 = buffer->editor().gc_pool().Reclaim();
+          buffer.ptr()->editor().gc_pool().Reclaim();
+          auto stats_1 = buffer.ptr()->editor().gc_pool().Reclaim();
           LOG(INFO) << "After compile: " << stats_1;
           CHECK_EQ(stats_0.roots, stats_1.roots);
           CHECK_EQ(stats_0.end_total, stats_1.end_total);
 
           {
             futures::ValueOrError<language::gc::Root<Value>> future_value =
-                buffer->EvaluateString(code);
-            while (buffer->editor().work_queue()->NextExecution().has_value())
-              buffer->editor().work_queue()->Execute();
+                buffer.ptr()->EvaluateString(code);
+            while (buffer.ptr()
+                       ->editor()
+                       .work_queue()
+                       ->NextExecution()
+                       .has_value())
+              buffer.ptr()->editor().work_queue()->Execute();
             future_value.Get().value().value().ptr();
           }
 
-          for (int i = 0; i < 10; i++) buffer->editor().gc_pool().Reclaim();
+          for (int i = 0; i < 10; i++)
+            buffer.ptr()->editor().gc_pool().Reclaim();
 
-          auto stats_2 = buffer->editor().gc_pool().Reclaim();
+          auto stats_2 = buffer.ptr()->editor().gc_pool().Reclaim();
           LOG(INFO) << "Start: " << stats_1;
 
           // The real assertions of this test are these:
@@ -188,7 +200,7 @@ const bool buffer_work_queue_tests_registration = tests::Register(
                             bool keep_going = true;
                             int iterations = 0;
                             NonNull<std::shared_ptr<WorkQueue>> work_queue =
-                                NewBufferForTests()->work_queue();
+                                NewBufferForTests().ptr()->work_queue();
                             std::function<void()> callback =
                                 [work_queue_weak = std::weak_ptr<WorkQueue>(
                                      work_queue.get_shared()),

@@ -18,10 +18,10 @@ language::NonNull<std::unique_ptr<vm::ObjectType>> BuildBufferType(
 }  // namespace afc::editor
 namespace afc::vm {
 template <>
-struct VMTypeMapper<std::shared_ptr<editor::OpenBuffer>> {
-  static std::shared_ptr<editor::OpenBuffer> get(Value& value);
+struct VMTypeMapper<language::gc::Root<editor::OpenBuffer>> {
+  static language::gc::Root<editor::OpenBuffer> get(Value& value);
   static language::gc::Root<Value> New(
-      language::gc::Pool& pool, std::shared_ptr<editor::OpenBuffer> value);
+      language::gc::Pool& pool, language::gc::Root<editor::OpenBuffer> value);
   static const VMType vmtype;
 };
 }  // namespace afc::vm

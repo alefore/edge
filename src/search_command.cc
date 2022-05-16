@@ -19,6 +19,8 @@ using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
+namespace gc = language::gc;
+
 static void MergeInto(SearchResultsSummary current_results,
                       ValueOrError<SearchResultsSummary>* final_results) {
   if (final_results->IsError()) return;
@@ -190,8 +192,7 @@ class SearchCommand : public Command {
          .history_file = HistoryFile(L"search"),
          .colorize_options_provider =
              [&editor_state = editor_state_,
-              buffers = std::make_shared<
-                  std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>(
+              buffers = std::make_shared<std::vector<gc::Root<OpenBuffer>>>(
                   editor_state_.active_buffers())](
                  const NonNull<std::shared_ptr<LazyString>>& line,
                  std::unique_ptr<ProgressChannel> progress_channel,
@@ -207,11 +208,11 @@ class SearchCommand : public Command {
                           buffers,
                           [&editor_state, line, progress_aggregator,
                            abort_notification,
-                           results](const NonNull<std::shared_ptr<OpenBuffer>>&
-                                        buffer) {
+                           results](const gc::Root<OpenBuffer>& buffer_root) {
+                            OpenBuffer& buffer = buffer_root.ptr().value();
                             std::shared_ptr<ProgressChannel> progress_channel =
                                 progress_aggregator->NewChild();
-                            if (buffer->Read(
+                            if (buffer.Read(
                                     buffer_variables::search_case_sensitive)) {
                               progress_channel->Push(
                                   {.values = {{StatusPromptExtraInformationKey(
@@ -222,21 +223,20 @@ class SearchCommand : public Command {
                               return futures::Past(Control::kContinue);
                             }
                             auto search_options = BuildPromptSearchOptions(
-                                line->ToString(), buffer.value(),
-                                abort_notification);
+                                line->ToString(), buffer, abort_notification);
                             if (!search_options.has_value()) {
                               VLOG(6) << "search_options has no value.";
                               return futures::Past(Control::kContinue);
                             }
                             VLOG(5) << "Starting search in buffer: "
-                                    << buffer->Read(buffer_variables::name);
+                                    << buffer.Read(buffer_variables::name);
                             return editor_state.thread_pool()
                                 .Run(BackgroundSearchCallback(
-                                    search_options.value(), buffer.value(),
+                                    search_options.value(), buffer,
                                     *progress_channel))
                                 .Transform(
-                                    [results, abort_notification, line, buffer,
-                                     progress_channel](
+                                    [results, abort_notification, line,
+                                     buffer_root, progress_channel](
                                         SearchResultsSummary current_results) {
                                       MergeInto(current_results, results.get());
                                       return abort_notification

@@ -51,16 +51,18 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
     const wstring& name, EditorState& editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
   auto buffer = editor_state.current_buffer();
-  if (buffer == nullptr) {
+  // TODO(easy, 2022-05-16): Use VisitPointer.
+  if (!buffer.has_value()) {
     return futures::Past(EmptyValue());
   }
-  buffer->ResetMode();
-  return buffer->EvaluateString(name)
+  buffer->ptr()->ResetMode();
+  return buffer->ptr()
+      ->EvaluateString(name)
       .Transform([buffer](gc::Root<Value> value) {
         if (value.ptr()->IsVoid()) return Success();
         std::ostringstream oss;
         oss << "Evaluation result: " << value.ptr().value();
-        buffer->status().SetInformationText(FromByteString(oss.str()));
+        buffer->ptr()->status().SetInformationText(FromByteString(oss.str()));
         return Success();
       })
       .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });
@@ -183,25 +185,25 @@ bool tests_parse_registration = tests::Register(
     {{.name = L"EmptyCommand",
       .callback =
           [] {
-            NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
+            gc::Root<OpenBuffer> buffer = NewBufferForTests();
             gc::Pool pool;
             vm::Environment environment;
             auto output = Parse(pool, EmptyString(), environment, EmptyString(),
                                 std::unordered_set<VMType>({VMType::String()}),
-                                SearchNamespaces(buffer.value()));
+                                SearchNamespaces(buffer.ptr().value()));
             CHECK(output.IsError());
             CHECK(output.error().description.empty());
           }},
      {.name = L"NonEmptyCommandNoMatch",
       .callback =
           [] {
-            NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
+            gc::Root<OpenBuffer> buffer = NewBufferForTests();
             gc::Pool pool;
             vm::Environment environment;
             auto output =
                 Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
                       std::unordered_set<VMType>({VMType::String()}),
-                      SearchNamespaces(buffer.value()));
+                      SearchNamespaces(buffer.ptr().value()));
             CHECK(output.IsError());
             LOG(INFO) << "Error: " << output.error();
             CHECK_GT(output.error().description.size(), sizeof("Unknown "));
@@ -209,20 +211,20 @@ bool tests_parse_registration = tests::Register(
                       0, sizeof("Unknown ") - 1) == L"Unknown ");
           }},
      {.name = L"CommandMatch", .callback = [] {
-        NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
+        gc::Root<OpenBuffer> buffer = NewBufferForTests();
         gc::Pool pool;
         vm::Environment environment;
         environment.Define(L"foo", Value::NewString(pool, L"bar"));
         auto output =
             Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
                   std::unordered_set<VMType>({VMType::String()}),
-                  SearchNamespaces(buffer.value()));
+                  SearchNamespaces(buffer.ptr().value()));
         CHECK(output.IsError());
       }}});
 }
 
-futures::ValueOrError<gc::Root<Value>> Execute(
-    std::shared_ptr<OpenBuffer> buffer, ParsedCommand parsed_command) {
+futures::ValueOrError<gc::Root<Value>> Execute(OpenBuffer& buffer,
+                                               ParsedCommand parsed_command) {
   NonNull<std::unique_ptr<Expression>> expression =
       vm::NewFunctionCall(vm::NewConstantExpression(parsed_command.function),
                           std::move(parsed_command.function_inputs));
@@ -230,7 +232,7 @@ futures::ValueOrError<gc::Root<Value>> Execute(
     // TODO: Show the error.
     return futures::Past(Error(L"Unable to compile (type mismatch)."));
   }
-  return buffer->EvaluateExpression(expression.value(), buffer->environment());
+  return buffer.EvaluateExpression(expression.value(), buffer.environment());
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
@@ -244,9 +246,10 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
     EditorState& editor, NonNull<std::shared_ptr<LazyString>> line,
     const SearchNamespaces& search_namespaces) {
   ColorizePromptOptions output;
-  auto buffer = editor.current_buffer();
+  std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
   gc::Root<Environment> environment =
-      (buffer == nullptr ? editor.environment() : buffer->environment());
+      (buffer.has_value() ? buffer->ptr()->environment()
+                          : editor.environment());
   if (auto parsed_command = Parse(editor.gc_pool(), line,
                                   environment.ptr().value(), search_namespaces);
       !parsed_command.IsError()) {
@@ -256,13 +259,13 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                              .modifiers = {LineModifier::CYAN}});
   }
 
-  using BufferMapper = vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>;
+  using BufferMapper = vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>;
   futures::Future<ColorizePromptOptions> output_future;
   if (auto command = Parse(editor.gc_pool(), line, environment.ptr().value(),
                            NewLazyString(L"Preview"), {BufferMapper::vmtype},
                            search_namespaces);
-      buffer != nullptr && !command.IsError()) {
-    Execute(buffer, std::move(command.value()))
+      buffer.has_value() && !command.IsError()) {
+    Execute(buffer->ptr().value(), std::move(command.value()))
         .SetConsumer([consumer = output_future.consumer, buffer,
                       output](ValueOrError<gc::Root<vm::Value>> value) mutable {
           if (!value.IsError() &&
@@ -283,28 +286,30 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
     const std::wstring& command, EditorState& editor_state) {
   using futures::Past;
   auto buffer = editor_state.current_buffer();
-  if (buffer == nullptr) {
+  if (!buffer.has_value()) {
     return Past(ValueOrError<gc::Root<vm::Value>>(Error(L"No active buffer.")));
   }
-  buffer->ResetMode();
+  buffer->ptr()->ResetMode();
 
-  SearchNamespaces search_namespaces(*buffer);
+  SearchNamespaces search_namespaces(buffer->ptr().value());
   auto parsed_command =
       Parse(editor_state.gc_pool(), NewLazyString(std::move(command)),
-            buffer->environment().ptr().value(), search_namespaces);
+            buffer->ptr()->environment().ptr().value(), search_namespaces);
   if (parsed_command.IsError()) {
     if (!parsed_command.error().description.empty()) {
-      buffer->status().SetWarningText(parsed_command.error().description);
+      buffer->ptr()->status().SetWarningText(
+          parsed_command.error().description);
     }
     return Past(
         ValueOrError<gc::Root<vm::Value>>(Error(L"Unable to parse command")));
   }
 
-  return futures::OnError(Execute(buffer, std::move(parsed_command.value())),
-                          [buffer](Error error) {
-                            buffer->status().SetWarningText(error.description);
-                            return futures::Past(error);
-                          });
+  return futures::OnError(
+      Execute(buffer->ptr().value(), std::move(parsed_command.value())),
+      [buffer](Error error) {
+        buffer->ptr()->status().SetWarningText(error.description);
+        return futures::Past(error);
+      });
 }
 
 NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
@@ -339,9 +344,10 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
             };
             prompt = L":";
             auto buffer = editor_state.current_buffer();
-            CHECK(buffer != nullptr);
+            CHECK(buffer.has_value());
             colorize_options_provider =
-                [&editor_state, search_namespaces = SearchNamespaces(*buffer)](
+                [&editor_state,
+                 search_namespaces = SearchNamespaces(buffer->ptr().value())](
                     const NonNull<std::shared_ptr<LazyString>>& line,
                     std::unique_ptr<ProgressChannel>,
                     NonNull<std::shared_ptr<Notification>>) {

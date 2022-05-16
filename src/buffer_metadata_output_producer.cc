@@ -28,6 +28,8 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::VisitPointer;
 
+namespace gc = language::gc;
+
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
           wchar_t connect_final_char, wstring& output) {
   CHECK_LT(pos, output.size());
@@ -370,13 +372,14 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
 
   std::list<MetadataLine> output;
   const Line& contents = options.buffer.contents().at(range.begin.line).value();
-  std::shared_ptr<OpenBuffer> target_buffer_dummy;
+  std::optional<gc::Root<OpenBuffer>> target_buffer_dummy;
+  // TODO(easy, 2022-05-15): Should be NonNull?
   const OpenBuffer* target_buffer = &options.buffer;
   if (auto line_buffer = contents.buffer_line_column();
       line_buffer.has_value()) {
-    target_buffer_dummy = line_buffer->buffer.lock();
-    if (target_buffer_dummy != nullptr)
-      target_buffer = target_buffer_dummy.get();
+    target_buffer_dummy = line_buffer->buffer.Lock();
+    if (target_buffer_dummy.has_value())
+      target_buffer = &target_buffer_dummy->ptr().value();
   }
 
   auto info_char = L'•';
@@ -431,8 +434,9 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         output.empty() ? L'!' : L' ',
         output.empty() ? LineModifier::RED : LineModifier::DIM,
         (source != options.buffer.editor().buffers()->end() &&
-         mark.source_line < LineNumber(0) + source->second->contents().size())
-            ? source->second->contents().at(mark.source_line)
+         mark.source_line <
+             LineNumber(0) + source->second.ptr()->contents().size())
+            ? source->second.ptr()->contents().at(mark.source_line)
             : MakeNonNullShared<const Line>(L"(dead mark)"),
         MetadataLine::Type::kMark});
   }
@@ -444,9 +448,10 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     if (auto source =
             options.buffer.editor().buffers()->find(mark.source_buffer);
         source != options.buffer.editor().buffers()->end() &&
-        mark.source_line < LineNumber(0) + source->second->contents().size()) {
+        mark.source_line <
+            LineNumber(0) + source->second.ptr()->contents().size()) {
       marks_strings.insert(
-          source->second->contents().at(mark.source_line)->ToString());
+          source->second.ptr()->contents().at(mark.source_line)->ToString());
     }
   }
 

@@ -120,11 +120,12 @@ class FindCompletionCommand : public Command {
 
   void ProcessInput(wint_t) {
     // TODO(multiple_buffers): Honor.
+    // TODO(easy, 2022-05-15): Use VisitPointer.
     auto buffer = editor_state_.current_buffer();
-    if (buffer == nullptr) {
+    if (!buffer.has_value()) {
       return;
     }
-    buffer->ApplyToCursors(NewExpandTransformation());
+    buffer->ptr()->ApplyToCursors(NewExpandTransformation());
   }
 
  private:
@@ -135,8 +136,7 @@ class InsertMode : public EditorMode {
  public:
   InsertMode(InsertModeOptions options)
       : options_(std::move(options)),
-        buffers_(MakeNonNullShared<
-                 std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>(
+        buffers_(MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(
             options_.buffers->begin(), options_.buffers->end())) {
     CHECK(options_.escape_handler);
     CHECK(options_.buffers.has_value());
@@ -155,15 +155,15 @@ class InsertMode : public EditorMode {
     switch (static_cast<int>(c)) {
       case '\t':
         ResetScrollBehavior();
-        ForEachActiveBuffer(
-            buffers_, {'\t'},
-            [options =
-                 options_](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-              // TODO: Don't ignore the return value. If it's false for all
-              // buffers, insert the \t.
-              options.start_completion(buffer);
-              return futures::Past(EmptyValue());
-            });
+        ForEachActiveBuffer(buffers_, {'\t'},
+                            [options = options_](OpenBuffer& buffer) {
+                              // TODO: Don't ignore the return value. If it's
+                              // false for all buffers, insert the \t.
+                              // TODO(easy, 2022-05-16): Change start_
+                              // completion to not require a root?
+                              options.start_completion(buffer.NewRoot());
+                              return futures::Past(EmptyValue());
+                            });
         return;
 
       case Terminal::ESCAPE:
@@ -171,33 +171,33 @@ class InsertMode : public EditorMode {
 
         ForEachActiveBuffer(
             buffers_, old_literal ? std::string{27} : "",
-            [options = options_,
-             old_literal](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-              if (buffer->fd() != nullptr) {
+            [options = options_, old_literal](OpenBuffer& buffer) {
+              if (buffer.fd() != nullptr) {
                 if (old_literal) {
-                  buffer->status().SetInformationText(L"ESC");
+                  buffer.status().SetInformationText(L"ESC");
                 } else {
-                  buffer->status().Reset();
+                  buffer.status().Reset();
                 }
                 return futures::Past(EmptyValue());
               }
-              buffer->MaybeAdjustPositionCol();
+              buffer.MaybeAdjustPositionCol();
+              gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
               // TODO(easy): Honor `old_literal`.
               return buffer
-                  ->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
-                  .Transform([options, buffer](EmptyValue) {
-                    buffer->PopTransformationStack();
+                  .ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
+                  .Transform([options, buffer_root](EmptyValue) {
+                    buffer_root.ptr()->PopTransformationStack();
                     auto repetitions =
                         options.editor_state.repetitions().value_or(1);
                     if (repetitions > 0) {
                       options.editor_state.set_repetitions(repetitions - 1);
                     }
-                    return buffer->RepeatLastTransformation();
+                    return buffer_root.ptr()->RepeatLastTransformation();
                   })
-                  .Transform([options, buffer](EmptyValue) {
-                    buffer->PopTransformationStack();
+                  .Transform([options, buffer_root](EmptyValue) {
+                    buffer_root.ptr()->PopTransformationStack();
                     options.editor_state.PushCurrentPosition();
-                    buffer->status().Reset();
+                    buffer_root.ptr()->status().Reset();
                     return EmptyValue();
                   });
             })
@@ -256,7 +256,11 @@ class InsertMode : public EditorMode {
 
       case '\n':
         ResetScrollBehavior();
-        ForEachActiveBuffer(buffers_, {'\n'}, options_.new_line_handler);
+        // TODO(easy, 2022-05-16): Change new_line_handler to just receive the
+        // buffer.
+        ForEachActiveBuffer(buffers_, {'\n'}, [&](OpenBuffer& buffer) {
+          return options_.new_line_handler(buffer.NewRoot());
+        });
         return;
 
       case Terminal::CTRL_U: {
@@ -266,37 +270,34 @@ class InsertMode : public EditorMode {
             options_.editor_state.environment().ptr()->Lookup(
                 options_.editor_state.gc_pool(), Environment::Namespace(),
                 L"HandleKeyboardControlU",
-                VMType::Function(
-                    {VMType::Void(),
-                     VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype}));
+                VMType::Function({VMType::Void(),
+                                  VMTypeMapper<gc::Root<OpenBuffer>>::vmtype}));
         if (!callback.has_value()) {
           LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
           return;
         }
         ForEachActiveBuffer(
-            buffers_, {21},
-            [options = options_,
-             callback](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
+            buffers_, {21}, [options = options_, callback](OpenBuffer& buffer) {
               std::vector<NonNull<std::unique_ptr<vm::Expression>>> args;
               args.push_back(vm::NewConstantExpression(
-                  {VMTypeMapper<std::shared_ptr<OpenBuffer>>::New(
-                      buffer->editor().gc_pool(), buffer.get_shared())}));
+                  {VMTypeMapper<gc::Root<OpenBuffer>>::New(
+                      buffer.editor().gc_pool(), buffer.NewRoot())}));
               NonNull<std::unique_ptr<Expression>> expression =
                   vm::NewFunctionCall(
                       vm::NewConstantExpression(callback.value()),
                       std::move(args));
               if (expression->Types().empty()) {
-                buffer->status().SetWarningText(
+                buffer.status().SetWarningText(
                     L"Unable to compile (type mismatch).");
                 return futures::Past(EmptyValue());
               }
               return CallModifyHandler(
-                  options, buffer.value(),
+                  options, buffer,
                   buffer
-                      ->EvaluateExpression(expression.value(),
-                                           buffer->environment())
+                      .EvaluateExpression(expression.value(),
+                                          buffer.environment())
                       .ConsumeErrors(
-                          [&pool = buffer->editor().gc_pool()](Error) {
+                          [&pool = buffer.editor().gc_pool()](Error) {
                             return futures::Past(vm::Value::NewVoid(pool));
                           }));
             });
@@ -317,12 +318,10 @@ class InsertMode : public EditorMode {
       case Terminal::CTRL_K: {
         ResetScrollBehavior();
         ForEachActiveBuffer(
-            buffers_, {0x0b},
-            [options =
-                 options_](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
+            buffers_, {0x0b}, [options = options_](OpenBuffer& buffer) {
               return CallModifyHandler(
-                  options, buffer.value(),
-                  buffer->ApplyToCursors(transformation::Delete{
+                  options, buffer,
+                  buffer.ApplyToCursors(transformation::Delete{
                       .modifiers =
                           {.structure = StructureLine(),
                            .paste_buffer_behavior =
@@ -339,13 +338,13 @@ class InsertMode : public EditorMode {
     // TODO: Apply TransformKeyboardText for buffers with fd?
     ForEachActiveBuffer(
         buffers_, {static_cast<char>(c)},
-        [c, options =
-                options_](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-          return buffer->TransformKeyboardText(std::wstring(1, c))
-              .Transform([options, buffer](std::wstring value) {
+        [c, options = options_](OpenBuffer& buffer) {
+          return buffer.TransformKeyboardText(std::wstring(1, c))
+              .Transform([options,
+                          buffer_root = buffer.NewRoot()](std::wstring value) {
                 return CallModifyHandler(
-                    options, buffer.value(),
-                    buffer->ApplyToCursors(transformation::Insert{
+                    options, buffer_root.ptr().value(),
+                    buffer_root.ptr()->ApplyToCursors(transformation::Insert{
                         .contents_to_insert = MakeNonNullShared<BufferContents>(
                             MakeNonNullShared<Line>(value)),
                         .modifiers = {
@@ -370,23 +369,20 @@ class InsertMode : public EditorMode {
   // Writes `line_buffer` to every buffer with a fd, and runs `callable` in
   // every buffer without an fd.
   static futures::Value<EmptyValue> ForEachActiveBuffer(
-      NonNull<
-          std::shared_ptr<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>>
-          buffers,
+      NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers,
       std::string line_buffer,
-      std::function<futures::Value<EmptyValue>(
-          const NonNull<std::shared_ptr<OpenBuffer>>&)>
-          callable) {
+      std::function<futures::Value<EmptyValue>(OpenBuffer&)> callable) {
     return WriteLineBuffer(buffers, line_buffer)
         .Transform([buffers, callable](EmptyValue) {
           return futures::ForEach(
               buffers.get_shared(),
-              [callable](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-                return buffer->fd() == nullptr
-                           ? callable(buffer).Transform([](EmptyValue) {
-                               return futures::IterationControlCommand::
-                                   kContinue;
-                             })
+              [callable](gc::Root<OpenBuffer>& buffer_root) {
+                return buffer_root.ptr()->fd() == nullptr
+                           ? callable(buffer_root.ptr().value())
+                                 .Transform([](EmptyValue) {
+                                   return futures::IterationControlCommand::
+                                       kContinue;
+                                 })
                            : futures::Past(
                                  futures::IterationControlCommand::kContinue);
               });
@@ -399,24 +395,24 @@ class InsertMode : public EditorMode {
     ResetScrollBehavior();
     ForEachActiveBuffer(
         buffers_, line_buffer,
-        [direction, options = options_](
-            const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-          buffer->MaybeAdjustPositionCol();
+        [direction, options = options_](OpenBuffer& buffer) {
+          buffer.MaybeAdjustPositionCol();
+          gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
           return CallModifyHandler(
-                     options, buffer.value(),
-                     buffer->ApplyToCursors(transformation::Delete{
+                     options, buffer,
+                     buffer.ApplyToCursors(transformation::Delete{
                          .modifiers =
                              {.direction = direction,
                               .paste_buffer_behavior =
                                   Modifiers::PasteBufferBehavior::kDoNothing},
                          .initiator =
                              transformation::Delete::Initiator::kUser}))
-              .Transform([options, direction, buffer](EmptyValue) {
+              .Transform([options, direction, buffer_root](EmptyValue) {
                 if (options.editor_state.modifiers().insertion !=
                     Modifiers::ModifyMode::kOverwrite)
                   return futures::Past(EmptyValue());
 
-                return buffer->ApplyToCursors(transformation::Insert{
+                return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
                     .contents_to_insert = MakeNonNullShared<BufferContents>(
                         MakeNonNullShared<const Line>(L" ")),
                     .final_position =
@@ -426,8 +422,10 @@ class InsertMode : public EditorMode {
               })
               // TODO:Why call modify_handler here? Isn't it redundant with
               // CallModifyHandler above?
-              .Transform([handler = options.modify_handler, buffer](
-                             EmptyValue) { return handler(buffer.value()); });
+              .Transform(
+                  [handler = options.modify_handler, buffer_root](EmptyValue) {
+                    return handler(buffer_root.ptr().value());
+                  });
         });
   }
 
@@ -438,15 +436,13 @@ class InsertMode : public EditorMode {
          notification = scroll_behavior_abort_notification_,
          method](NonNull<std::shared_ptr<ScrollBehavior>> scroll_behavior) {
           if (notification->HasBeenNotified()) return;
-          ForEachActiveBuffer(
-              buffers, line_buffer,
-              [scroll_behavior,
-               method](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-                if (buffer->fd() == nullptr) {
-                  (scroll_behavior.value().*method)(buffer.value());
-                }
-                return futures::Past(EmptyValue());
-              });
+          ForEachActiveBuffer(buffers, line_buffer,
+                              [scroll_behavior, method](OpenBuffer& buffer) {
+                                if (buffer.fd() == nullptr) {
+                                  (scroll_behavior.value().*method)(buffer);
+                                }
+                                return futures::Past(EmptyValue());
+                              });
         });
   }
 
@@ -454,10 +450,9 @@ class InsertMode : public EditorMode {
   static futures::Value<EmptyValue> CallModifyHandler(InsertModeOptions options,
                                                       OpenBuffer& buffer,
                                                       futures::Value<T> value) {
-    return value.Transform(
-        [options, buffer = buffer.shared_from_this()](const T&) {
-          return options.modify_handler(*buffer);
-        });
+    return value.Transform([options, buffer_root = buffer.NewRoot()](const T&) {
+      return options.modify_handler(buffer_root.ptr().value());
+    });
   }
 
   futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>
@@ -483,22 +478,21 @@ class InsertMode : public EditorMode {
   }
 
   static futures::Value<EmptyValue> WriteLineBuffer(
-      NonNull<
-          std::shared_ptr<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>>
-          buffers,
+      NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers,
       std::string line_buffer) {
     if (line_buffer.empty()) return futures::Past(EmptyValue());
     return futures::ForEach(
                buffers.get_shared(),
-               [line_buffer = std::move(line_buffer)](
-                   const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-                 if (auto fd = buffer->fd(); fd != nullptr) {
+               [line_buffer =
+                    std::move(line_buffer)](gc::Root<OpenBuffer>& buffer_root) {
+                 OpenBuffer& buffer = buffer_root.ptr().value();
+                 if (auto fd = buffer.fd(); fd != nullptr) {
                    if (write(fd->fd().read(), line_buffer.c_str(),
                              line_buffer.size()) == -1) {
-                     buffer->status().SetWarningText(
+                     buffer.status().SetWarningText(
                          L"Write failed: " + FromByteString(strerror(errno)));
                    } else {
-                     buffer->editor().StartHandlingInterrupts();
+                     buffer.editor().StartHandlingInterrupts();
                    }
                  }
                  return futures::Past(
@@ -511,9 +505,7 @@ class InsertMode : public EditorMode {
   const InsertModeOptions options_;
   // Copy of the contents of options_.buffers. shared_ptr to make it easy for it
   // to be captured efficiently.
-  const NonNull<
-      std::shared_ptr<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>>
-      buffers_;
+  const NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers_;
 
   std::optional<
       futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>>
@@ -530,26 +522,28 @@ class InsertMode : public EditorMode {
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
-  for (auto& buffer : options.buffers.value()) {
-    if (buffer->fd() == nullptr) continue;
-    if (buffer->Read(buffer_variables::extend_lines)) {
-      buffer->MaybeExtendLine(buffer->position());
+  for (gc::Root<OpenBuffer>& buffer_root : options.buffers.value()) {
+    OpenBuffer& buffer = buffer_root.ptr().value();
+    if (buffer.fd() == nullptr) continue;
+    if (buffer.Read(buffer_variables::extend_lines)) {
+      buffer.MaybeExtendLine(buffer.position());
     } else {
-      buffer->MaybeAdjustPositionCol();
+      buffer.MaybeAdjustPositionCol();
     }
   }
-  for (auto& buffer : options.buffers.value()) {
-    buffer->status().SetInformationText(buffer->fd() == nullptr ? L"🔡"
-                                                                : L"🔡 (raw)");
+  for (gc::Root<OpenBuffer>& buffer_root : options.buffers.value()) {
+    buffer_root.ptr()->status().SetInformationText(
+        buffer_root.ptr()->fd() == nullptr ? L"🔡" : L"🔡 (raw)");
   }
 
   options.editor_state.set_keyboard_redirect(
       std::make_unique<InsertMode>(options));
 
   bool beep = false;
-  for (auto& buffer : options.buffers.value()) {
-    beep = buffer->active_cursors().size() > 1 &&
-           buffer->Read(buffer_variables::multiple_cursors);
+  for (gc::Root<OpenBuffer>& buffer_root : options.buffers.value()) {
+    OpenBuffer& buffer = buffer_root.ptr().value();
+    beep = buffer.active_cursors().size() > 1 &&
+           buffer.Read(buffer_variables::multiple_cursors);
   }
   if (beep) {
     audio::BeepFrequencies(
@@ -617,22 +611,21 @@ void EnterInsertMode(InsertModeOptions options) {
   if (shared_options->buffers.value().empty()) {
     anonymous_buffer_future =
         OpenAnonymousBuffer(shared_options->editor_state)
-            .Transform(
-                [shared_options](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-                  shared_options->buffers.value().push_back(buffer);
-                  return EmptyValue();
-                });
+            .Transform([shared_options](gc::Root<OpenBuffer> buffer) {
+              shared_options->buffers.value().push_back(buffer);
+              return EmptyValue();
+            });
   }
 
   anonymous_buffer_future.Transform([shared_options](EmptyValue) {
-    for (auto& buffer : shared_options->buffers.value()) {
+    for (gc::Root<OpenBuffer>& buffer_root : shared_options->buffers.value()) {
       if (std::optional<Line::BufferLineColumn> line_buffer =
-              buffer->current_line()->buffer_line_column();
+              buffer_root.ptr()->current_line()->buffer_line_column();
           line_buffer.has_value())
         VisitPointer(
-            line_buffer->buffer,
-            [&](NonNull<std::shared_ptr<OpenBuffer>> target_buffer) {
-              buffer = target_buffer;
+            line_buffer->buffer.Lock(),
+            [&](gc::Root<OpenBuffer> target_buffer) {
+              buffer_root = target_buffer;
             },
             [] {});
     }
@@ -648,37 +641,38 @@ void EnterInsertMode(InsertModeOptions options) {
     }
 
     if (!shared_options->new_line_handler) {
-      shared_options->new_line_handler =
-          [](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-            return buffer->ApplyToCursors(
-                MakeNonNullUnique<NewLineTransformation>());
-          };
+      shared_options->new_line_handler = [](gc::Root<OpenBuffer> buffer) {
+        return buffer.ptr()->ApplyToCursors(
+            MakeNonNullUnique<NewLineTransformation>());
+      };
     }
 
     if (!shared_options->start_completion) {
       shared_options->start_completion =
-          [](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
+          [](const gc::Root<OpenBuffer>& buffer) {
             LOG(INFO) << "Start default completion.";
-            buffer->ApplyToCursors(NewExpandTransformation());
+            buffer.ptr()->ApplyToCursors(NewExpandTransformation());
             return true;
           };
     }
 
     shared_options->editor_state.status().Reset();
-    for (auto& buffer : shared_options->buffers.value()) {
-      buffer->status().Reset();
+    for (gc::Root<OpenBuffer>& buffer : shared_options->buffers.value()) {
+      buffer.ptr()->status().Reset();
     }
 
     if (shared_options->editor_state.structure() == StructureChar() ||
         shared_options->editor_state.structure() == StructureLine()) {
-      for (auto& buffer : shared_options->buffers.value()) {
-        buffer->CheckPosition();
-        buffer->PushTransformationStack();
-        buffer->PushTransformationStack();
+      for (gc::Root<OpenBuffer>& buffer_root :
+           shared_options->buffers.value()) {
+        OpenBuffer& buffer = buffer_root.ptr().value();
+        buffer.CheckPosition();
+        buffer.PushTransformationStack();
+        buffer.PushTransformationStack();
       }
       if (shared_options->editor_state.structure() == StructureLine()) {
-        for (auto& buffer : shared_options->buffers.value()) {
-          buffer->ApplyToCursors(
+        for (gc::Root<OpenBuffer>& buffer : shared_options->buffers.value()) {
+          buffer.ptr()->ApplyToCursors(
               MakeNonNullUnique<InsertEmptyLineTransformation>(
                   shared_options->editor_state.direction()));
         }

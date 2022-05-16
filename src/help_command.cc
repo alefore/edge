@@ -103,18 +103,22 @@ class HelpCommand : public Command {
     auto original_buffer = editor_state_.current_buffer();
     const BufferName name(L"- help: " + mode_description_);
 
-    auto buffer = OpenBuffer::New({.editor = editor_state_, .name = name});
-    buffer->Set(buffer_variables::tree_parser, L"md");
-    buffer->Set(buffer_variables::wrap_from_content, true);
-    buffer->Set(buffer_variables::allow_dirty_delete, true);
+    auto buffer_root = OpenBuffer::New({.editor = editor_state_, .name = name});
+    OpenBuffer& buffer = buffer_root.ptr().value();
+    buffer.Set(buffer_variables::tree_parser, L"md");
+    buffer.Set(buffer_variables::wrap_from_content, true);
+    buffer.Set(buffer_variables::allow_dirty_delete, true);
 
-    buffer->InsertInPosition(GenerateContents(commands_, *original_buffer),
-                             LineColumn(), {});
-    buffer->set_current_position_line(LineNumber(0));
-    buffer->ResetMode();
+    // TODO(easy, 2022-05-15): Why is the following check safe?
+    CHECK(original_buffer.has_value());
+    buffer.InsertInPosition(
+        GenerateContents(commands_, original_buffer->ptr().value()),
+        LineColumn(), {});
+    buffer.set_current_position_line(LineNumber(0));
+    buffer.ResetMode();
 
-    editor_state_.buffers()->insert_or_assign(name, buffer);
-    editor_state_.AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
+    editor_state_.buffers()->insert_or_assign(name, buffer_root);
+    editor_state_.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);
     editor_state_.ResetRepetitions();
   }
 
@@ -295,8 +299,8 @@ const bool buffer_registration = tests::Register(
          .callback =
              [] {
                auto buffer = NewBufferForTests();
-               MapModeCommands commands(buffer->editor());
-               HelpCommand::GenerateContents(commands, buffer.value());
+               MapModeCommands commands(buffer.ptr()->editor());
+               HelpCommand::GenerateContents(commands, buffer.ptr().value());
              }},
     });
 }  // namespace

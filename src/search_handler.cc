@@ -27,6 +27,8 @@ using language::NonNull;
 using language::Success;
 using language::ValueOrError;
 
+namespace gc = language::gc;
+
 static constexpr int kMatchesLimit = 100;
 
 typedef std::wregex RegexPattern;
@@ -233,15 +235,15 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   std::set<wstring> matches;
-  for (NonNull<std::shared_ptr<OpenBuffer>>& search_buffer :
-       input.source_buffers) {
+  for (gc::Root<OpenBuffer>& search_buffer : input.source_buffers) {
     SearchOptions options;
     options.search_query = input.input;
-    options.starting_position = search_buffer->position();
+    options.starting_position = search_buffer.ptr()->position();
     auto positions = PerformSearchWithDirection(input.editor, options,
-                                                search_buffer.value());
+                                                search_buffer.ptr().value());
     if (positions.IsError()) {
-      search_buffer->status().SetWarningText(positions.error().description);
+      search_buffer.ptr()->status().SetWarningText(
+          positions.error().description);
       continue;
     }
 
@@ -250,10 +252,10 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
          i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
       auto position = positions.value()[i];
       if (i == 0) {
-        search_buffer->set_position(position);
+        search_buffer.ptr()->set_position(position);
       }
-      CHECK_LT(position.line, search_buffer->EndLine());
-      auto line = search_buffer->LineAt(position.line);
+      CHECK_LT(position.line, search_buffer.ptr()->EndLine());
+      auto line = search_buffer.ptr()->LineAt(position.line);
       CHECK_LT(position.column, line->EndColumn());
       matches.insert(RegexEscape(line->Substring(position.column)));
     }

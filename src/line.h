@@ -42,7 +42,7 @@ class Line {
   };
 
   struct BufferLineColumn {
-    std::weak_ptr<OpenBuffer> buffer;
+    language::gc::WeakPtr<OpenBuffer> buffer;
     std::optional<LineColumn> position;
   };
 

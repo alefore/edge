@@ -67,7 +67,7 @@ struct PredictorInput {
   //
   // TODO: Mark the buffers as const. Unfortunately, the search handler wants to
   // modify them.
-  std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> source_buffers;
+  std::vector<language::gc::Root<OpenBuffer>> source_buffers;
 
   ProgressChannel& progress_channel;
 
@@ -88,7 +88,7 @@ struct PredictResults {
   std::optional<wstring> common_prefix;
 
   // The buffer holding all the predictions.
-  language::NonNull<std::shared_ptr<OpenBuffer>> predictions_buffer;
+  language::gc::Root<OpenBuffer> predictions_buffer;
 
   int matches = 0;
 
@@ -117,7 +117,7 @@ struct PredictOptions {
 
   // The buffer that contains the input to use for the prediction. Only read if
   // `text` is absent.
-  std::shared_ptr<OpenBuffer> input_buffer = nullptr;
+  std::optional<language::gc::Root<OpenBuffer>> input_buffer = std::nullopt;
   Structure* input_selection_structure = StructureLine();
 
   // Given to the predictor (see `PredictorInput::source_buffers`). The caller
@@ -125,7 +125,7 @@ struct PredictOptions {
   // predictor is done running.
   //
   // TODO: Mark the buffers as const. See comments in `PredictorInput`.
-  std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> source_buffers;
+  std::vector<language::gc::Root<OpenBuffer>> source_buffers;
 
   // Can be null, in which case Predict will use a dummy no-op channel.
   std::unique_ptr<ProgressChannel> progress_channel = nullptr;

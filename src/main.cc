@@ -264,7 +264,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
   VLOG(5) << "Updating remote screens.";
   for (auto& buffer : *editor_state().buffers()) {
     std::optional<gc::Root<Value>> value =
-        buffer.second->environment().ptr()->Lookup(
+        buffer.second.ptr()->environment().ptr()->Lookup(
             editor_state().gc_pool(), Environment::Namespace(), L"screen",
             GetScreenVmType());
     if (!value.has_value() || value.value().ptr()->type != GetScreenVmType()) {
@@ -423,35 +423,37 @@ int main(int argc, const char** argv) {
     RedrawScreens(args, remote_server_fd, &last_screen_size, &terminal,
                   screen_curses.get());
 
-    std::vector<std::shared_ptr<OpenBuffer>> buffers;
+    std::vector<std::optional<gc::Root<OpenBuffer>>> buffers;
 
     // The file descriptor at position i will be either fd or fd_error of
     // buffers[i]. The exception to this is fd 0 (at the end).
     struct pollfd fds[editor_state().buffers()->size() * 2 + 3];
     buffers.reserve(sizeof(fds) / sizeof(fds[0]));
 
-    for (auto& buffer : *editor_state().buffers()) {
+    for (std::pair<BufferName, gc::Root<OpenBuffer>> entry :
+         *editor_state().buffers()) {
+      gc::Root<OpenBuffer>& buffer = entry.second;
       auto register_reader = [&](const FileDescriptorReader* reader) {
         auto pollfd = reader == nullptr ? std::nullopt : reader->GetPollFd();
         if (pollfd.has_value()) {
           fds[buffers.size()] = pollfd.value();
-          buffers.push_back(buffer.second.get_shared());
+          buffers.push_back(buffer);
         }
       };
-      register_reader(buffer.second->fd());
-      register_reader(buffer.second->fd_error());
+      register_reader(buffer.ptr()->fd());
+      register_reader(buffer.ptr()->fd_error());
     }
 
     if (screen_curses != nullptr) {
       fds[buffers.size()].fd = 0;
       fds[buffers.size()].events = POLLIN | POLLPRI | POLLERR;
-      buffers.push_back(nullptr);
+      buffers.push_back(std::nullopt);
     }
 
     fds[buffers.size()].fd =
         editor_state().fd_to_detect_internal_events().read();
     fds[buffers.size()].events = POLLIN | POLLPRI;
-    buffers.push_back(nullptr);
+    buffers.push_back(std::nullopt);
 
     auto now = Now();
     auto next_execution = editor_state().WorkQueueNextExecution();
@@ -519,21 +521,21 @@ int main(int argc, const char** argv) {
       }
 
       CHECK_LE(i, buffers.size());
-      CHECK(buffers[i] != nullptr);
-      if (buffers[i] && buffers[i]->fd() != nullptr &&
-          FileDescriptor(fds[i].fd) == buffers[i]->fd()->fd()) {
+      CHECK(buffers[i]);
+      OpenBuffer& buffer = buffers[i]->ptr().value();
+      if (buffer.fd() != nullptr &&
+          FileDescriptor(fds[i].fd) == buffer.fd()->fd()) {
         LOG(INFO) << "Reading (normal): "
-                  << buffers[i]->Read(buffer_variables::name);
+                  << buffer.Read(buffer_variables::name);
         static Tracker tracker(L"Main::ReadData");
         auto call = tracker.Call();
-        buffers[i]->ReadData();
-      } else if (buffers[i] && buffers[i]->fd_error() != nullptr &&
-                 FileDescriptor(fds[i].fd) == buffers[i]->fd_error()->fd()) {
-        LOG(INFO) << "Reading (error): "
-                  << buffers[i]->Read(buffer_variables::name);
+        buffer.ReadData();
+      } else if (buffer.fd_error() != nullptr &&
+                 FileDescriptor(fds[i].fd) == buffer.fd_error()->fd()) {
+        LOG(INFO) << "Reading (error): " << buffer.Read(buffer_variables::name);
         static Tracker tracker(L"Main::ReadErrorData");
         auto call = tracker.Call();
-        buffers[i]->ReadErrorData();
+        buffer.ReadErrorData();
       } else {
         LOG(FATAL) << "Invalid file descriptor.";
       }

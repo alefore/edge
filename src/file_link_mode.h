@@ -85,14 +85,14 @@ struct ResolvePathOutput {
 futures::ValueOrError<ResolvePathOutput> ResolvePath(
     ResolvePathOptions options);
 
-futures::ValueOrError<language::NonNull<std::shared_ptr<OpenBuffer>>>
-OpenFileIfFound(const OpenFileOptions& options);
-
-futures::Value<language::NonNull<std::shared_ptr<OpenBuffer>>> OpenOrCreateFile(
+futures::ValueOrError<language::gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options);
 
-futures::Value<language::NonNull<std::shared_ptr<OpenBuffer>>>
-OpenAnonymousBuffer(EditorState& editor_state);
+futures::Value<language::gc::Root<OpenBuffer>> OpenOrCreateFile(
+    const OpenFileOptions& options);
+
+futures::Value<language::gc::Root<OpenBuffer>> OpenAnonymousBuffer(
+    EditorState& editor_state);
 
 }  // namespace editor
 }  // namespace afc

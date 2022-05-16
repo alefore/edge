@@ -186,7 +186,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           {VMType::Void(), VMTypeMapper<EditorState>::vmtype,
            VMType::Function(
                {VMType::Void(),
-                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
+                VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype})},
           [&pool = pool](std::vector<gc::Root<Value>> input,
                          Trampoline& trampoline) {
             EditorState& editor =
@@ -197,8 +197,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                                       &trampoline, output](OpenBuffer& buffer) {
                   std::vector<gc::Root<Value>> args;
                   args.push_back(
-                      VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
-                          trampoline.pool(), buffer.shared_from_this()));
+                      VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
+                          trampoline.pool(), buffer.NewRoot()));
                   return callback(std::move(args), trampoline)
                       .Transform([](EvaluationOutput) { return Success(); })
                       .ConsumeErrors([output](Error error) {
@@ -220,29 +220,27 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           {VMType::Void(), VMTypeMapper<EditorState>::vmtype,
            VMType::Function(
                {VMType::Void(),
-                VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype})},
+                VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype})},
           [&pool = pool](std::vector<gc::Root<Value>> input,
                          Trampoline& trampoline) {
             EditorState& editor =
                 VMTypeMapper<EditorState>::get(input[0].ptr().value());
             return editor
-                .ForEachActiveBufferWithRepetitions([callback =
-                                                         input[1]
-                                                             .ptr()
-                                                             ->LockCallback(),
-                                                     &trampoline](
-                                                        OpenBuffer& buffer) {
-                  std::vector<gc::Root<Value>> args;
-                  args.push_back(
-                      VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
-                          trampoline.pool(), buffer.shared_from_this()));
-                  return callback(std::move(args), trampoline)
-                      .Transform([](EvaluationOutput) { return Success(); })
-                      // TODO(easy): Don't ConsumeErrors; change
-                      // ForEachActiveBuffer.
-                      .ConsumeErrors(
-                          [](Error) { return futures::Past(EmptyValue()); });
-                })
+                .ForEachActiveBufferWithRepetitions(
+                    [callback = input[1].ptr()->LockCallback(),
+                     &trampoline](OpenBuffer& buffer) {
+                      std::vector<gc::Root<Value>> args;
+                      args.push_back(
+                          VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
+                              trampoline.pool(), buffer.NewRoot()));
+                      return callback(std::move(args), trampoline)
+                          .Transform([](EvaluationOutput) { return Success(); })
+                          // TODO(easy): Don't ConsumeErrors; change
+                          // ForEachActiveBuffer.
+                          .ConsumeErrors([](Error) {
+                            return futures::Past(EmptyValue());
+                          });
+                    })
                 .Transform([&pool](EmptyValue) {
                   return EvaluationOutput::Return(Value::NewVoid(pool));
                 });
@@ -294,7 +292,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
               if (auto buffer_it =
                       editor.buffers()->find(BufferName(buffer_name_str));
                   buffer_it != editor.buffers()->end()) {
-                values->push_back(buffer_it->second->NewCloseFuture());
+                values->push_back(buffer_it->second.ptr()->NewCloseFuture());
               }
             }
             return futures::ForEach(
@@ -345,11 +343,11 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
         editor.set_exit_value(exit_value);
       }));
 
-  editor_type->AddField(
-      L"ForkCommand", vm::NewCallback(pool, [](EditorState& editor,
-                                               ForkCommandOptions* options) {
-        return std::move(ForkCommand(editor, *options).get_shared());
-      }));
+  editor_type->AddField(L"ForkCommand",
+                        vm::NewCallback(pool, [](EditorState& editor,
+                                                 ForkCommandOptions* options) {
+                          return std::move(ForkCommand(editor, *options));
+                        }));
 
   editor_type->AddField(
       L"repetitions", vm::NewCallback(pool, [](EditorState& editor) {
@@ -367,7 +365,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"OpenFile",
       Value::NewFunction(
           pool,
-          {VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype,
+          {VMTypeMapper<gc::Root<OpenBuffer>>::vmtype,
            VMTypeMapper<EditorState>::vmtype, VMType::String(), VMType::Bool()},
           [&pool = pool](std::vector<gc::Root<Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
@@ -382,14 +380,10 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                                args[2].ptr()->get_bool()
                                    ? BuffersList::AddBufferType::kVisit
                                    : BuffersList::AddBufferType::kIgnore})
-                .Transform(
-                    [&pool](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-                      return EvaluationOutput::Return(Value::NewObject(
-                          pool,
-                          VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype
-                              .object_type,
-                          buffer.get_shared()));
-                    });
+                .Transform([&pool](gc::Root<OpenBuffer> buffer) {
+                  return EvaluationOutput::Return(
+                      VMTypeMapper<gc::Root<OpenBuffer>>::New(pool, buffer));
+                });
           }));
 
   editor_type->AddField(

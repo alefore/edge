@@ -50,7 +50,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 class BufferWidget : public Widget {
  public:
   struct Options {
-    std::weak_ptr<OpenBuffer> buffer = std::shared_ptr<OpenBuffer>();
+    language::gc::WeakPtr<OpenBuffer> buffer;
     bool is_active = false;
     // Presence of this field indicates that a frame should be drawn around the
     // buffer.
@@ -69,8 +69,8 @@ class BufferWidget : public Widget {
   LineColumn view_start() const;
 
   // Custom methods.
-  std::shared_ptr<OpenBuffer> Lock() const;
-  void SetBuffer(std::weak_ptr<OpenBuffer> buffer);
+  std::optional<language::gc::Root<OpenBuffer>> Lock() const;
+  void SetBuffer(language::gc::WeakPtr<OpenBuffer> buffer);
 
  private:
   // Non-const: SetBuffer modifies it.

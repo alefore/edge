@@ -109,7 +109,7 @@ class CommandArgumentMode : public EditorMode {
   }
 
   const Options options_;
-  const std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> buffers_;
+  const std::vector<language::gc::Root<OpenBuffer>> buffers_;
   wstring argument_string_;
 };
 
@@ -121,14 +121,13 @@ void SetOptionsForBufferTransformation(
     std::function<std::optional<Modifiers::CursorsAffected>(const Argument&)>
         cursors_affected_factory,
     typename CommandArgumentMode<Argument>::Options& options) {
-  using language::NonNull;
-  auto buffers =
-      std::make_shared<std::vector<NonNull<std::shared_ptr<OpenBuffer>>>>(
-          options.editor_state.active_buffers());
+  namespace gc = afc::language::gc;
+  auto buffers = std::make_shared<std::vector<gc::Root<OpenBuffer>>>(
+      options.editor_state.active_buffers());
   auto for_each_buffer =
       [buffers](
           const std::function<futures::Value<futures::IterationControlCommand>(
-              const NonNull<std::shared_ptr<OpenBuffer>>&)>& callback) {
+              const gc::Root<OpenBuffer>&)>& callback) {
         return futures::ForEach(buffers->begin(), buffers->end(), callback)
             .Transform([buffers](futures::IterationControlCommand) {
               return language::EmptyValue();
@@ -136,26 +135,25 @@ void SetOptionsForBufferTransformation(
       };
 
   options.undo = [for_each_buffer] {
-    return for_each_buffer(
-        [](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-          return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
-              .Transform([](language::EmptyValue) {
-                return futures::IterationControlCommand::kContinue;
-              });
-        });
+    return for_each_buffer([](const gc::Root<OpenBuffer>& buffer) {
+      return buffer.ptr()
+          ->Undo(OpenBuffer::UndoMode::kOnlyOne)
+          .Transform([](language::EmptyValue) {
+            return futures::IterationControlCommand::kContinue;
+          });
+    });
   };
   options.apply = [transformation_factory, cursors_affected_factory,
                    for_each_buffer](CommandArgumentModeApplyMode mode,
                                     Argument argument) {
     return for_each_buffer(
         [transformation_factory, cursors_affected_factory, mode,
-         argument = std::move(argument)](
-            const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
+         argument = std::move(argument)](const gc::Root<OpenBuffer>& buffer) {
           auto cursors_affected = cursors_affected_factory(argument).value_or(
-              buffer->Read(buffer_variables::multiple_cursors)
+              buffer.ptr()->Read(buffer_variables::multiple_cursors)
                   ? Modifiers::CursorsAffected::kAll
                   : Modifiers::CursorsAffected::kOnlyCurrent);
-          return buffer
+          return buffer.ptr()
               ->ApplyToCursors(transformation_factory(std::move(argument)),
                                cursors_affected,
                                mode == CommandArgumentModeApplyMode::kPreview

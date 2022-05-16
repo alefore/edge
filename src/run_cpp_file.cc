@@ -34,24 +34,24 @@ class RunCppFileCommand : public Command {
       return;
     }
     auto buffer = editor_state_.current_buffer();
-    CHECK(buffer != nullptr);
-    Prompt(
-        {.editor_state = editor_state_,
-         .prompt = L"cmd ",
-         .history_file = HistoryFile(L"editor_commands"),
-         .initial_value = buffer->Read(buffer_variables::editor_commands_path),
-         .handler =
-             [&editor = editor_state_](const wstring& input) {
-               futures::Future<EmptyValue> output;
-               RunCppFileHandler(input, editor)
-                   .SetConsumer([consumer = std::move(output.consumer)](
-                                    ValueOrError<EmptyValue>) {
-                     consumer(EmptyValue());
-                   });
-               return std::move(output.value);
-             },
-         .cancel_handler = []() { /* Nothing. */ },
-         .predictor = FilePredictor});
+    CHECK(buffer.has_value());
+    Prompt({.editor_state = editor_state_,
+            .prompt = L"cmd ",
+            .history_file = HistoryFile(L"editor_commands"),
+            .initial_value =
+                buffer->ptr()->Read(buffer_variables::editor_commands_path),
+            .handler =
+                [&editor = editor_state_](const wstring& input) {
+                  futures::Future<EmptyValue> output;
+                  RunCppFileHandler(input, editor)
+                      .SetConsumer([consumer = std::move(output.consumer)](
+                                       ValueOrError<EmptyValue>) {
+                        consumer(EmptyValue());
+                      });
+                  return std::move(output.value);
+                },
+            .cancel_handler = []() { /* Nothing. */ },
+            .predictor = FilePredictor});
   }
 
  private:
@@ -62,30 +62,30 @@ class RunCppFileCommand : public Command {
 futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                                                 EditorState& editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
-  auto buffer = editor_state.current_buffer();
-  if (buffer == nullptr) {
+  std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
+  if (!buffer.has_value()) {
     return futures::Past(ValueOrError<EmptyValue>(Error(L"No current buffer")));
   }
   if (editor_state.structure() == StructureLine()) {
     std::optional<Line::BufferLineColumn> line_buffer =
-        buffer->current_line()->buffer_line_column();
+        buffer->ptr()->current_line()->buffer_line_column();
     if (line_buffer.has_value()) {
-      if (auto target = line_buffer->buffer.lock(); target != nullptr) {
+      if (auto target = line_buffer->buffer.Lock(); target.has_value()) {
         buffer = target;
       }
     }
     editor_state.ResetModifiers();
   }
 
-  buffer->ResetMode();
+  buffer->ptr()->ResetMode();
   auto options = ResolvePathOptions::New(
       editor_state,
       std::make_shared<FileSystemDriver>(editor_state.thread_pool()));
   options.path = input;
   return OnError(ResolvePath(std::move(options)),
                  [buffer, input](Error error) {
-                   buffer->status().SetWarningText(L"🗱  File not found: " +
-                                                   input);
+                   buffer->ptr()->status().SetWarningText(
+                       L"🗱  File not found: " + input);
                    return futures::Past(error);
                  })
       .Transform([buffer, &editor_state, input](ResolvePathOutput resolved_path)
@@ -97,7 +97,8 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                  if (*index >= total)
                    return futures::Past(IterationControlCommand::kStop);
                  ++*index;
-                 return buffer->EvaluateFile(adjusted_input)
+                 return buffer->ptr()
+                     ->EvaluateFile(adjusted_input)
                      .Transform([](gc::Root<Value>) {
                        return Success(IterationControlCommand::kContinue);
                      })

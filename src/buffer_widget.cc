@@ -32,6 +32,8 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::VisitPointer;
 
+namespace gc = language::gc;
+
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
@@ -404,12 +406,13 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
   auto call = tracker.Call();
 
   return VisitPointer(
-      options_.buffer,
-      [&](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-        if (buffer->Read(buffer_variables::reload_on_display)) buffer->Reload();
+      options_.buffer.Lock(),
+      [&](gc::Root<OpenBuffer> buffer) {
+        if (buffer.ptr()->Read(buffer_variables::reload_on_display))
+          buffer.ptr()->Reload();
 
         BufferOutputProducerInput input{.output_producer_options = options,
-                                        .buffer = buffer.value(),
+                                        .buffer = buffer.ptr().value(),
                                         .view_start = view_start()};
         if (options_.position_in_parent.has_value()) {
           input.output_producer_options.size.line =
@@ -420,15 +423,17 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
             CreateBufferOutputProducer(std::move(input));
         // We avoid updating the desired view_start while the buffer is still
         // being read.
-        if (buffer->lines_size() >= buffer->position().line.ToDelta() &&
-            (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
-          buffer->Set(buffer_variables::view_start, output.view_start);
+        if (buffer.ptr()->lines_size() >=
+                buffer.ptr()->position().line.ToDelta() &&
+            (buffer.ptr()->child_pid() != -1 ||
+             buffer.ptr()->fd() == nullptr)) {
+          buffer.ptr()->Set(buffer_variables::view_start, output.view_start);
         }
-        buffer->view_size().Set(output.view_size);
+        buffer.ptr()->view_size().Set(output.view_size);
 
         if (options_.position_in_parent.has_value()) {
           FrameOutputProducerOptions frame_options;
-          frame_options.title = buffer->Read(buffer_variables::name);
+          frame_options.title = buffer.ptr()->Read(buffer_variables::name);
 
           frame_options.position_in_parent =
               options_.position_in_parent.value();
@@ -440,10 +445,11 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
           }
 
           frame_options.extra_information =
-              OpenBuffer::FlagsToString(buffer->Flags());
-          frame_options.width =
-              ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
-          bool add_left_frame = !buffer->Read(buffer_variables::paste_mode);
+              OpenBuffer::FlagsToString(buffer.ptr()->Flags());
+          frame_options.width = ColumnNumberDelta(
+              buffer.ptr()->Read(buffer_variables::line_width));
+          bool add_left_frame =
+              !buffer.ptr()->Read(buffer_variables::paste_mode);
 
           frame_options.prefix =
               (options.size.line > kTopFrameLines && add_left_frame) ? L"╭"
@@ -471,38 +477,45 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
 }
 
 LineNumberDelta BufferWidget::MinimumLines() const {
-  std::shared_ptr<OpenBuffer> buffer = Lock();
-  return buffer == nullptr
-             ? LineNumberDelta(0)
-             : (options_.position_in_parent.has_value() ? kTopFrameLines
+  return VisitPointer(
+      Lock(),
+      [&](gc::Root<OpenBuffer> buffer) {
+        return (options_.position_in_parent.has_value() ? kTopFrameLines
                                                         : LineNumberDelta(0)) +
-                   max(LineNumberDelta(0),
-                       min(buffer->lines_size(),
-                           LineNumberDelta(buffer->Read(
-                               buffer_variables::buffer_list_context_lines)))) +
-                   kStatusFrameLines;
+               max(LineNumberDelta(0),
+                   min(buffer.ptr()->lines_size(),
+                       LineNumberDelta(buffer.ptr()->Read(
+                           buffer_variables::buffer_list_context_lines)))) +
+               kStatusFrameLines;
+      },
+      [] { return LineNumberDelta(0); });
 }
 
 LineNumberDelta BufferWidget::DesiredLines() const {
-  std::shared_ptr<OpenBuffer> buffer = Lock();
-  return buffer == nullptr
-             ? LineNumberDelta(0)
-             : (options_.position_in_parent.has_value() ? kTopFrameLines
+  return VisitPointer(
+      Lock(),
+      [&](gc::Root<OpenBuffer> buffer) {
+        return (options_.position_in_parent.has_value() ? kTopFrameLines
                                                         : LineNumberDelta(0)) +
-                   buffer->lines_size() + kStatusFrameLines;
+               buffer.ptr()->lines_size() + kStatusFrameLines;
+      },
+      [] { return LineNumberDelta(0); });
 }
 
 LineColumn BufferWidget::view_start() const {
-  std::shared_ptr<OpenBuffer> buffer = Lock();
-  return buffer == nullptr ? LineColumn()
-                           : buffer->Read(buffer_variables::view_start);
+  return VisitPointer(
+      Lock(),
+      [](gc::Root<OpenBuffer> buffer) {
+        return buffer.ptr()->Read(buffer_variables::view_start);
+      },
+      [] { return LineColumn(); });
 }
 
-std::shared_ptr<OpenBuffer> BufferWidget::Lock() const {
-  return options_.buffer.lock();
+std::optional<gc::Root<OpenBuffer>> BufferWidget::Lock() const {
+  return options_.buffer.Lock();
 }
 
-void BufferWidget::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
+void BufferWidget::SetBuffer(gc::WeakPtr<OpenBuffer> buffer) {
   options_.buffer = std::move(buffer);
 }
 

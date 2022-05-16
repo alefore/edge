@@ -63,7 +63,7 @@ void EditorState::ExecutePendingWork() { work_queue_->Execute(); }
 std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
   std::optional<struct timespec> output;
   for (auto& buffer : buffers_) {
-    if (auto buffer_output = buffer.second->work_queue()->NextExecution();
+    if (auto buffer_output = buffer.second.ptr()->work_queue()->NextExecution();
         buffer_output.has_value() &&
         (!output.has_value() || buffer_output.value() < output.value())) {
       output = buffer_output;
@@ -175,7 +175,7 @@ EditorState::~EditorState() {
   // CloseBuffer accordingly.
   LOG(INFO) << "Closing buffers.";
   for (auto& buffer : buffers_) {
-    buffer.second->Close();
+    buffer.second.ptr()->Close();
   }
 
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
@@ -229,49 +229,48 @@ void EditorState::Set(const EdgeVariable<double>* variable, double value) {
 }
 
 void EditorState::CheckPosition() {
-  if (auto buffer = buffer_tree_.active_buffer(); buffer != nullptr) {
-    buffer->CheckPosition();
+  // TODO(2022-05-15, easy): Use VisitPointer.
+  if (auto buffer = buffer_tree_.active_buffer(); buffer.has_value()) {
+    buffer->ptr()->CheckPosition();
   }
 }
 
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
   buffer.PrepareToClose().SetConsumer(
-      [this, buffer = buffer.shared_from_this()](PossibleError error) {
+      [this, buffer = buffer.NewRoot()](PossibleError error) {
         if (error.IsError()) {
-          buffer->status().SetWarningText(
+          buffer.ptr()->status().SetWarningText(
               L"🖝  Unable to close (“*ad” to ignore): " +
               error.error().description + L": " +
-              buffer->Read(buffer_variables::name));
+              buffer.ptr()->Read(buffer_variables::name));
           return;
         }
 
-        buffer->Close();
-        buffer_tree_.RemoveBuffer(*buffer);
-        buffers_.erase(buffer->name());
+        buffer.ptr()->Close();
+        buffer_tree_.RemoveBuffer(buffer.ptr().value());
+        buffers_.erase(buffer.ptr()->name());
         AdjustWidgets();
       });
 }
 
-NonNull<std::shared_ptr<OpenBuffer>> EditorState::FindOrBuildBuffer(
-    BufferName name,
-    std::function<NonNull<std::shared_ptr<OpenBuffer>>()> callback) {
+gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
+    BufferName name, std::function<gc::Root<OpenBuffer>()> callback) {
   if (auto it = buffers_.find(name); it != buffers_.end()) {
     return it->second;
   }
-  NonNull<std::shared_ptr<OpenBuffer>> value = callback();
+  gc::Root<OpenBuffer> value = callback();
   buffers_.insert_or_assign(name, value);
   return value;
 }
 
-void EditorState::set_current_buffer(
-    NonNull<std::shared_ptr<OpenBuffer>> buffer,
-    CommandArgumentModeApplyMode apply_mode) {
+void EditorState::set_current_buffer(gc::Root<OpenBuffer> buffer,
+                                     CommandArgumentModeApplyMode apply_mode) {
   if (apply_mode == CommandArgumentModeApplyMode::kFinal) {
-    buffer->Visit();
+    buffer.ptr()->Visit();
   } else {
-    buffer->Enter();
+    buffer.ptr()->Enter();
   }
-  buffer_tree_.GetActiveLeaf().SetBuffer(buffer.get_shared());
+  buffer_tree_.GetActiveLeaf().SetBuffer(buffer.ptr().ToWeakPtr());
   AdjustWidgets();
 }
 
@@ -310,36 +309,31 @@ void EditorState::AdjustWidgets() {
 }
 
 bool EditorState::has_current_buffer() const {
-  return current_buffer() != nullptr;
+  return current_buffer().has_value();
 }
-shared_ptr<OpenBuffer> EditorState::current_buffer() {
-  return buffer_tree_.active_buffer();
-}
-const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
+std::optional<gc::Root<OpenBuffer>> EditorState::current_buffer() const {
   return buffer_tree_.active_buffer();
 }
 
-std::vector<NonNull<std::shared_ptr<OpenBuffer>>> EditorState::active_buffers()
-    const {
-  std::vector<NonNull<std::shared_ptr<OpenBuffer>>> output;
+std::vector<gc::Root<OpenBuffer>> EditorState::active_buffers() const {
+  std::vector<gc::Root<OpenBuffer>> output;
   if (status().GetType() == Status::Type::kPrompt) {
-    output.push_back(
-        NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(status().prompt_buffer()));
+    output.push_back(status().prompt_buffer().value());
   } else if (Read(editor_variables::multiple_buffers)) {
     output = buffer_tree_.GetAllBuffers();
-  } else if (auto buffer = current_buffer(); buffer != nullptr) {
-    if (buffer->status().GetType() == Status::Type::kPrompt) {
-      buffer = buffer->status().prompt_buffer();
+  } else if (std::optional<gc::Root<OpenBuffer>> buffer = current_buffer();
+             buffer.has_value()) {
+    if (buffer->ptr()->status().GetType() == Status::Type::kPrompt) {
+      buffer = buffer->ptr()->status().prompt_buffer();
     }
-    // TODO(easy, 2022-05-01): Remove Unsafe.
-    output.push_back(NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(buffer));
+    output.push_back(buffer.value());
   }
   return output;
 }
 
-void EditorState::AddBuffer(NonNull<std::shared_ptr<OpenBuffer>> buffer,
+void EditorState::AddBuffer(gc::Root<OpenBuffer> buffer,
                             BuffersList::AddBufferType insertion_type) {
-  auto initial_active_buffers = active_buffers();
+  std::vector<gc::Root<OpenBuffer>> initial_active_buffers = active_buffers();
   buffer_tree().AddBuffer(buffer, insertion_type);
   AdjustWidgets();
   if (initial_active_buffers != active_buffers()) {
@@ -356,8 +350,8 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
   auto buffers = active_buffers();
   return futures::ForEachWithCopy(
              buffers.begin(), buffers.end(),
-             [callback](const NonNull<std::shared_ptr<OpenBuffer>>& buffer) {
-               return callback(buffer.value()).Transform([](EmptyValue) {
+             [callback](const gc::Root<OpenBuffer>& buffer) {
+               return callback(buffer.ptr().value()).Transform([](EmptyValue) {
                  return futures::IterationControlCommand::kContinue;
                });
              })
@@ -370,10 +364,10 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
   if (!modifiers().repetitions.has_value()) {
     value = ForEachActiveBuffer(callback);
   } else {
-    NonNull<std::shared_ptr<OpenBuffer>> buffer = buffer_tree().GetBuffer(
+    gc::Root<OpenBuffer> buffer = buffer_tree().GetBuffer(
         (max(modifiers().repetitions.value(), 1ul) - 1) %
         buffer_tree().BuffersCount());
-    value = callback(buffer.value());
+    value = callback(buffer.ptr().value());
   }
   return value.Transform([this](EmptyValue) {
     ResetModifiers();
@@ -410,11 +404,11 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<wstring> buffers_with_problems;
     for (auto& it : buffers_) {
-      if (auto result = it.second->IsUnableToPrepareToClose();
+      if (auto result = it.second.ptr()->IsUnableToPrepareToClose();
           result.IsError()) {
         buffers_with_problems.push_back(
-            it.second->Read(buffer_variables::name));
-        it.second->status().SetWarningText(
+            it.second.ptr()->Read(buffer_variables::name));
+        it.second.ptr()->status().SetWarningText(
             Error::Augment(L"Unable to close", result.error()).description);
       }
     }
@@ -428,10 +422,10 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     }
   }
 
-  std::shared_ptr<std::set<std::shared_ptr<OpenBuffer>>> pending_buffers(
-      new std::set<std::shared_ptr<OpenBuffer>>(),
+  std::shared_ptr<std::set<gc::Root<OpenBuffer>>> pending_buffers(
+      new std::set<gc::Root<OpenBuffer>>(),
       [this, exit_value,
-       termination_type](std::set<std::shared_ptr<OpenBuffer>>* value) {
+       termination_type](std::set<gc::Root<OpenBuffer>>* value) {
         if (!value->empty()) {
           LOG(INFO) << "Termination attempt didn't complete successfully. It "
                        "must mean that a new one has started.";
@@ -448,10 +442,10 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
         LOG(INFO) << "Checking buffers state for termination.";
         std::vector<wstring> buffers_with_problems;
         for (auto& it : buffers_) {
-          if (it.second->dirty() &&
-              !it.second->Read(buffer_variables::allow_dirty_delete)) {
+          if (it.second.ptr()->dirty() &&
+              !it.second.ptr()->Read(buffer_variables::allow_dirty_delete)) {
             buffers_with_problems.push_back(
-                it.second->Read(buffer_variables::name));
+                it.second.ptr()->Read(buffer_variables::name));
           }
         }
         if (!buffers_with_problems.empty()) {
@@ -467,16 +461,15 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
         exit_value_ = exit_value;
       });
 
-  auto decrement = [this, pending_buffers](
-                       const NonNull<std::shared_ptr<OpenBuffer>>& buffer,
-                       PossibleError) {
-    pending_buffers->erase(buffer.get_shared());
+  auto decrement = [this, pending_buffers](const gc::Root<OpenBuffer>& buffer,
+                                           PossibleError) {
+    pending_buffers->erase(buffer);
     std::wstring extra;
     std::wstring separator = L": ";
     int count = 0;
     for (auto& buffer : *pending_buffers) {
       if (count < 5) {
-        extra += separator + buffer->name().read();
+        extra += separator + buffer.ptr()->name().read();
         separator = L", ";
       } else if (count == 5) {
         extra += L"…";
@@ -489,9 +482,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   };
 
   for (const auto& it : buffers_) {
-    // TODO(easy, 2022-05-15): Avoid `get_shared`.
-    pending_buffers->insert(it.second.get_shared());
-    it.second->PrepareToClose().SetConsumer(
+    pending_buffers->insert(it.second);
+    it.second.ptr()->PrepareToClose().SetConsumer(
         std::bind_front(decrement, it.second));
   }
 }
@@ -515,29 +507,29 @@ futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
   }
 
   if (has_current_buffer()) {
-    current_buffer()->mode().ProcessInput(c);
+    current_buffer()->ptr()->mode().ProcessInput(c);
     return futures::Past(EmptyValue());
   }
 
-  return OpenAnonymousBuffer(*this).Transform(
-      [this, c](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-        if (!has_current_buffer()) {
-          buffer_tree_.AddBuffer(buffer, BuffersList::AddBufferType::kOnlyList);
-          set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
-          CHECK(has_current_buffer());
-          CHECK(current_buffer() == buffer.get_shared());
-        }
-        buffer->mode().ProcessInput(c);
-        return EmptyValue();
-      });
+  return OpenAnonymousBuffer(*this).Transform([this,
+                                               c](gc::Root<OpenBuffer> buffer) {
+    if (!has_current_buffer()) {
+      buffer_tree_.AddBuffer(buffer, BuffersList::AddBufferType::kOnlyList);
+      set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
+      CHECK(has_current_buffer());
+      CHECK(&current_buffer().value().ptr().value() == &buffer.ptr().value());
+    }
+    buffer.ptr()->mode().ProcessInput(c);
+    return EmptyValue();
+  });
 }
 
 void EditorState::MoveBufferForwards(size_t times) {
   auto it = buffers_.end();
 
   auto buffer = current_buffer();
-  if (buffer != nullptr) {
-    it = buffers_.find(buffer->name());
+  if (buffer.has_value()) {
+    it = buffers_.find(buffer->ptr()->name());
   }
 
   if (it == buffers_.end()) {
@@ -562,8 +554,8 @@ void EditorState::MoveBufferBackwards(size_t times) {
   auto it = buffers_.end();
 
   auto buffer = current_buffer();
-  if (buffer != nullptr) {
-    it = buffers_.find(buffer->name());
+  if (buffer.has_value()) {
+    it = buffers_.find(buffer->ptr()->name());
   }
 
   if (it == buffers_.end()) {
@@ -612,19 +604,19 @@ static const BufferName& PositionsBufferName() {
 
 void EditorState::PushCurrentPosition() {
   auto buffer = current_buffer();
-  if (buffer != nullptr) {
-    PushPosition(buffer->position());
+  if (buffer.has_value()) {
+    PushPosition(buffer->ptr()->position());
   }
 }
 
 void EditorState::PushPosition(LineColumn position) {
   auto buffer = current_buffer();
-  if (buffer == nullptr ||
-      !buffer->Read(buffer_variables::push_positions_to_history)) {
+  if (!buffer.has_value() ||
+      !buffer->ptr()->Read(buffer_variables::push_positions_to_history)) {
     return;
   }
   auto buffer_it = buffers_.find(PositionsBufferName());
-  futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> positions_buffer =
+  futures::Value<gc::Root<OpenBuffer>> positions_buffer =
       buffer_it != buffers_.end()
           ? futures::Past(buffer_it->second)
           // Insert a new entry into the list of buffers.
@@ -638,24 +630,27 @@ void EditorState::PushPosition(LineColumn position) {
                                       edge_path().front(),
                                       Path::FromString(L"positions").value()),
                     .insertion_type = BuffersList::AddBufferType::kIgnore})
-                .Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-                  buffer->Set(buffer_variables::save_on_close, true);
-                  buffer->Set(buffer_variables::trigger_reload_on_buffer_write,
-                              false);
-                  buffer->Set(buffer_variables::show_in_buffers_list, false);
-                  return buffer;
+                .Transform([](gc::Root<OpenBuffer> buffer_root) {
+                  OpenBuffer& buffer = buffer_root.ptr().value();
+                  buffer.Set(buffer_variables::save_on_close, true);
+                  buffer.Set(buffer_variables::trigger_reload_on_buffer_write,
+                             false);
+                  buffer.Set(buffer_variables::show_in_buffers_list, false);
+                  return buffer_root;
                 });
 
   positions_buffer.SetConsumer(
       [line_to_insert = MakeNonNullShared<Line>(
-           position.ToString() + L" " + buffer->Read(buffer_variables::name))](
-          NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-        buffer->CheckPosition();
-        CHECK_LE(buffer->position().line,
-                 LineNumber(0) + buffer->contents().size());
-        buffer->InsertLine(buffer->current_position_line(), line_to_insert);
-        CHECK_LE(buffer->position().line,
-                 LineNumber(0) + buffer->contents().size());
+           position.ToString() + L" " +
+           buffer->ptr()->Read(buffer_variables::name))](
+          gc::Root<OpenBuffer> buffer) {
+        buffer.ptr()->CheckPosition();
+        CHECK_LE(buffer.ptr()->position().line,
+                 LineNumber(0) + buffer.ptr()->contents().size());
+        buffer.ptr()->InsertLine(buffer.ptr()->current_position_line(),
+                                 line_to_insert);
+        CHECK_LE(buffer.ptr()->position().line,
+                 LineNumber(0) + buffer.ptr()->contents().size());
       });
 }
 
@@ -670,31 +665,29 @@ static BufferPosition PositionFromLine(const wstring& line) {
                         .position = std::move(position)};
 }
 
-// TODO(easy, 2022-05-15): Return a NonNull.
-std::shared_ptr<OpenBuffer> EditorState::GetConsole() {
+gc::Root<OpenBuffer> EditorState::GetConsole() {
   auto name = BufferName(L"- console");
-  return FindOrBuildBuffer(
-             name,
-             [&] {
-               NonNull<std::shared_ptr<OpenBuffer>> buffer =
-                   OpenBuffer::New({.editor = *this, .name = name});
-               buffer->Set(buffer_variables::allow_dirty_delete, true);
-               buffer->Set(buffer_variables::show_in_buffers_list, false);
-               buffer->Set(buffer_variables::persist_state, false);
-               return buffer;
-             })
-      .get_shared();
+  return FindOrBuildBuffer(name, [&] {
+    gc::Root<OpenBuffer> buffer_root =
+        OpenBuffer::New({.editor = *this, .name = name});
+    OpenBuffer& buffer = buffer_root.ptr().value();
+    buffer.Set(buffer_variables::allow_dirty_delete, true);
+    buffer.Set(buffer_variables::show_in_buffers_list, false);
+    buffer.Set(buffer_variables::persist_state, false);
+    return buffer_root;
+  });
 }
 
 bool EditorState::HasPositionsInStack() {
   auto it = buffers_.find(PositionsBufferName());
   return it != buffers_.end() &&
-         it->second->contents().size() > LineNumberDelta(1);
+         it->second.ptr()->contents().size() > LineNumberDelta(1);
 }
 
 BufferPosition EditorState::ReadPositionsStack() {
   CHECK(HasPositionsInStack());
-  auto buffer = buffers_.find(PositionsBufferName())->second;
+  gc::Ptr<OpenBuffer> buffer =
+      buffers_.find(PositionsBufferName())->second.ptr();
   return PositionFromLine(buffer->current_line()->ToString());
 }
 
@@ -703,7 +696,8 @@ bool EditorState::MovePositionsStack(Direction direction) {
   // means the user is actually going "back" in the history, which means we have
   // to decrement the line counter.
   CHECK(HasPositionsInStack());
-  auto buffer = buffers_.find(PositionsBufferName())->second;
+  gc::Ptr<OpenBuffer> buffer =
+      buffers_.find(PositionsBufferName())->second.ptr();
   if (direction == Direction::kBackwards) {
     if (buffer->current_position_line() >= buffer->EndLine()) {
       return false;
@@ -752,7 +746,7 @@ void EditorState::ProcessSignals() {
 
 bool EditorState::handling_stop_signals() const {
   for (auto& buffer : active_buffers())
-    if (buffer->Read(buffer_variables::pts)) return true;
+    if (buffer.ptr()->Read(buffer_variables::pts)) return true;
   return false;
 }
 

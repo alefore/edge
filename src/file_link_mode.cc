@@ -56,6 +56,9 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 
+namespace gc = language::gc;
+
+// TODO(easy, 2022-05-15): Get rid of these declarations.
 using std::shared_ptr;
 using std::unique_ptr;
 
@@ -157,36 +160,36 @@ futures::Value<PossibleError> Save(
   }
 
   return path.Transform([stat_buffer, options,
-                         buffer = buffer.shared_from_this()](Path path) {
-    return SaveContentsToFile(path, buffer->contents().copy(),
-                              buffer->editor().thread_pool(),
-                              buffer->file_system_driver())
-        .Transform([buffer](EmptyValue) { return buffer->PersistState(); })
+                         buffer = buffer.NewRoot()](Path path) {
+    return SaveContentsToFile(path, buffer.ptr()->contents().copy(),
+                              buffer.ptr()->editor().thread_pool(),
+                              buffer.ptr()->file_system_driver())
+        .Transform(
+            [buffer](EmptyValue) { return buffer.ptr()->PersistState(); })
         .Transform([stat_buffer, options, buffer, path](EmptyValue) {
-          CHECK(buffer != nullptr);
           switch (options.save_type) {
             case OpenBuffer::Options::SaveType::kMainFile:
-              buffer->status().SetInformationText(L"🖫 Saved: " +
-                                                  path.read());
+              buffer.ptr()->status().SetInformationText(L"🖫 Saved: " +
+                                                        path.read());
               // TODO(easy): Move this to the caller, for symmetry with
               // kBackup case.
               // TODO: Since the save is async, what if the contents have
               // changed in the meantime?
-              buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
-              for (const auto& dir : buffer->editor().edge_path()) {
-                buffer->EvaluateFile(Path::Join(
+              buffer.ptr()->SetDiskState(OpenBuffer::DiskState::kCurrent);
+              for (const auto& dir : buffer.ptr()->editor().edge_path()) {
+                buffer.ptr()->EvaluateFile(Path::Join(
                     dir, Path::FromString(L"/hooks/buffer-save.cc").value()));
               }
-              if (buffer->Read(
+              if (buffer.ptr()->Read(
                       buffer_variables::trigger_reload_on_buffer_write)) {
-                for (std::pair<BufferName, NonNull<std::shared_ptr<OpenBuffer>>>
-                         entry : *buffer->editor().buffers()) {
-                  const NonNull<std::shared_ptr<OpenBuffer>>& buffer =
-                      entry.second;
-                  if (buffer->Read(buffer_variables::reload_on_buffer_write)) {
+                for (std::pair<BufferName, gc::Root<OpenBuffer>> entry :
+                     *buffer.ptr()->editor().buffers()) {
+                  const gc::Root<OpenBuffer>& buffer = entry.second;
+                  if (buffer.ptr()->Read(
+                          buffer_variables::reload_on_buffer_write)) {
                     LOG(INFO) << "Write of " << path << " triggers reload: "
-                              << buffer->Read(buffer_variables::name);
-                    buffer->Reload();
+                              << buffer.ptr()->Read(buffer_variables::name);
+                    buffer.ptr()->Reload();
                   }
                 }
               }
@@ -286,11 +289,11 @@ futures::Value<PossibleError> SaveContentsToFile(
 }
 
 namespace {
-futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
+futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
     EditorState& editor_state, const Path& edge_path) {
   BufferName buffer_name(L"- search paths");
   auto it = editor_state.buffers()->find(buffer_name);
-  futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> output =
+  futures::Value<gc::Root<OpenBuffer>> output =
       it != editor_state.buffers()->end()
           ? futures::Past(it->second)
           : OpenOrCreateFile(
@@ -301,12 +304,12 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
                         edge_path, Path::FromString(L"/search_paths").value()),
                     .insertion_type = BuffersList::AddBufferType::kIgnore,
                     .use_search_paths = false})
-                .Transform([&editor_state](
-                               NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-                  buffer->Set(buffer_variables::save_on_close, true);
-                  buffer->Set(buffer_variables::trigger_reload_on_buffer_write,
-                              false);
-                  buffer->Set(buffer_variables::show_in_buffers_list, false);
+                .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
+                  buffer.ptr()->Set(buffer_variables::save_on_close, true);
+                  buffer.ptr()->Set(
+                      buffer_variables::trigger_reload_on_buffer_write, false);
+                  buffer.ptr()->Set(buffer_variables::show_in_buffers_list,
+                                    false);
                   if (!editor_state.has_current_buffer()) {
                     editor_state.set_current_buffer(
                         buffer, CommandArgumentModeApplyMode::kFinal);
@@ -314,8 +317,8 @@ futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> GetSearchPathsBuffer(
                   return buffer;
                 });
 
-  return output.Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-    return buffer->WaitForEndOfFile().Transform(
+  return output.Transform([](gc::Root<OpenBuffer> buffer) {
+    return buffer.ptr()->WaitForEndOfFile().Transform(
         [buffer](EmptyValue) { return buffer; });
   });
 }
@@ -330,10 +333,10 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
              paths.begin(), paths.end(),
              [&editor_state, output](Path edge_path) {
                return GetSearchPathsBuffer(editor_state, edge_path)
-                   .Transform([&editor_state, output, edge_path](
-                                  NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-                     buffer->contents().ForEach([&editor_state,
-                                                 output](wstring line) {
+                   .Transform([&editor_state, output,
+                               edge_path](gc::Root<OpenBuffer> buffer) {
+                     buffer.ptr()->contents().ForEach([&editor_state,
+                                                       output](wstring line) {
                        auto path = Path::FromString(line);
                        if (path.IsError()) return;
                        output->push_back(
@@ -499,7 +502,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
 
 struct OpenFileResolvePathOutput {
   // If set, this is the buffer to open.
-  std::shared_ptr<OpenBuffer> buffer = nullptr;
+  std::optional<gc::Root<OpenBuffer>> buffer = std::nullopt;
   std::optional<Path> path = std::nullopt;
   std::optional<LineColumn> position = std::nullopt;
   wstring pattern = L"";
@@ -563,15 +566,16 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
   resolve_path_options.validator = [&editor_state, output](const Path& path) {
     auto path_components = path.DirectorySplit();
     if (path_components.IsError()) return futures::Past(false);
-    for (std::pair<BufferName, NonNull<std::shared_ptr<OpenBuffer>>>
-             buffer_pair : *editor_state.buffers()) {
-      NonNull<std::shared_ptr<OpenBuffer>> buffer = buffer_pair.second;
-      auto buffer_path = Path::FromString(buffer->Read(buffer_variables::path));
+    for (std::pair<BufferName, gc::Root<OpenBuffer>> buffer_pair :
+         *editor_state.buffers()) {
+      gc::Root<OpenBuffer> buffer = buffer_pair.second;
+      auto buffer_path =
+          Path::FromString(buffer.ptr()->Read(buffer_variables::path));
       if (buffer_path.IsError()) continue;
       auto buffer_components = buffer_path.value().DirectorySplit();
       if (buffer_components.IsError()) continue;
       if (EndsIn(path_components.value(), buffer_components.value())) {
-        output->buffer = buffer.get_shared();
+        output->buffer = buffer;
         return futures::Past(true);
       }
     }
@@ -592,10 +596,10 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
             //
             // TODO(2022-05-01): The above is ugly. Try to use types to ensure
             // correctness.
-            CHECK(output->buffer != nullptr);
+            CHECK(output->buffer.has_value());
 
             if (input.position.has_value()) {
-              output->buffer->set_position(input.position.value());
+              output->buffer->ptr()->set_position(input.position.value());
             }
             // TODO: Apply pattern.
             return futures::Past(Success(std::move(output.value())));
@@ -603,7 +607,7 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
       [&editor_state, path, output, resolve_path_options, search_paths,
        file_system_driver](
           Error) -> futures::ValueOrError<OpenFileResolvePathOutput> {
-        CHECK(output->buffer == nullptr);
+        CHECK(!output->buffer.has_value());
         auto resolve_path_options_copy = resolve_path_options;
         resolve_path_options_copy.search_paths = *search_paths;
         resolve_path_options_copy.validator =
@@ -621,7 +625,7 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
       });
 }
 
-NonNull<std::shared_ptr<OpenBuffer>> CreateBuffer(
+gc::Root<OpenBuffer> CreateBuffer(
     const OpenFileOptions& options,
     std::optional<OpenFileResolvePathOutput> resolve_path_output) {
   EditorState& editor_state = options.editor_state;
@@ -644,15 +648,18 @@ NonNull<std::shared_ptr<OpenBuffer>> CreateBuffer(
   buffer_options->handle_save =
       [&editor_state = options.editor_state,
        stat_buffer](OpenBuffer::Options::HandleSaveOptions options) {
-        auto& buffer = options.buffer;
+        gc::WeakPtr<OpenBuffer> buffer_weak =
+            options.buffer.NewRoot().ptr().ToWeakPtr();
         return futures::OnError(
             Save(&editor_state, stat_buffer.get(), std::move(options)),
-            [buffer_weak = std::weak_ptr<OpenBuffer>(
-                 buffer.shared_from_this())](Error error) {
-              IfObj(buffer_weak, [&error](OpenBuffer& buffer) {
-                buffer.status().SetWarningText(L"🖫 Save failed: " +
-                                               error.description);
-              });
+            [buffer_weak](Error error) {
+              VisitPointer(
+                  buffer_weak.Lock(),
+                  [&error](gc::Root<OpenBuffer> buffer) {
+                    buffer.ptr()->status().SetWarningText(
+                        L"🖫 Save failed: " + error.description);
+                  },
+                  [] {});
               return futures::Past(error);
             });
       };
@@ -679,19 +686,18 @@ NonNull<std::shared_ptr<OpenBuffer>> CreateBuffer(
         options.editor_state.GetUnusedBufferName(L"anonymous buffer");
   }
 
-  NonNull<std::shared_ptr<OpenBuffer>> buffer =
+  gc::Root<OpenBuffer> buffer =
       options.editor_state.FindOrBuildBuffer(buffer_options->name, [&] {
-        NonNull<std::shared_ptr<OpenBuffer>> buffer =
-            OpenBuffer::New(*buffer_options);
-        buffer->Set(buffer_variables::persist_state, true);
-        buffer->Reload();
+        gc::Root<OpenBuffer> buffer = OpenBuffer::New(*buffer_options);
+        buffer.ptr()->Set(buffer_variables::persist_state, true);
+        buffer.ptr()->Reload();
         return buffer;
       });
-  buffer->ResetMode();
+  buffer.ptr()->ResetMode();
 
   if (resolve_path_output.has_value() &&
       resolve_path_output->position.has_value()) {
-    buffer->set_position(*resolve_path_output->position);
+    buffer.ptr()->set_position(*resolve_path_output->position);
   }
 
   options.editor_state.AddBuffer(buffer, options.insertion_type);
@@ -699,14 +705,14 @@ NonNull<std::shared_ptr<OpenBuffer>> CreateBuffer(
   if (resolve_path_output.has_value() &&
       !resolve_path_output->pattern.empty()) {
     SearchOptions search_options;
-    search_options.starting_position = buffer->position();
+    search_options.starting_position = buffer.ptr()->position();
     search_options.search_query = resolve_path_output->pattern;
-    JumpToNextMatch(options.editor_state, search_options, buffer.value());
+    JumpToNextMatch(options.editor_state, search_options, buffer.ptr().value());
   }
   return buffer;
 }
 
-futures::ValueOrError<NonNull<std::shared_ptr<OpenBuffer>>> OpenFileIfFound(
+futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options) {
   EditorState& editor_state = options.editor_state;
 
@@ -730,7 +736,7 @@ futures::ValueOrError<NonNull<std::shared_ptr<OpenBuffer>>> OpenFileIfFound(
                   file_system_driver](OpenFileResolvePathOutput input) {
         return Success(VisitPointer(
             input.buffer,
-            [&options](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
+            [&options](gc::Root<OpenBuffer> buffer) {
               options.editor_state.AddBuffer(buffer, options.insertion_type);
               return buffer;
             },
@@ -738,13 +744,13 @@ futures::ValueOrError<NonNull<std::shared_ptr<OpenBuffer>>> OpenFileIfFound(
       });
 }
 
-futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> OpenOrCreateFile(
+futures::Value<gc::Root<OpenBuffer>> OpenOrCreateFile(
     const OpenFileOptions& options) {
   return OpenFileIfFound(options).ConsumeErrors(
       [options](Error) { return futures::Past(CreateBuffer(options, {})); });
 }
 
-futures::Value<NonNull<std::shared_ptr<OpenBuffer>>> OpenAnonymousBuffer(
+futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(
     EditorState& editor_state) {
   return OpenOrCreateFile(
       OpenFileOptions{.editor_state = editor_state,

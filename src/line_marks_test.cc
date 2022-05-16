@@ -8,6 +8,8 @@
 
 namespace afc::editor {
 using language::NonNull;
+
+namespace gc = language::gc;
 namespace {
 class LineMarksTest {
  public:
@@ -17,26 +19,26 @@ class LineMarksTest {
   }
   LineMarks::Mark TestMark(LineNumber source_line,
                            LineColumn target_line_column) {
-    return LineMarks::Mark{.source_buffer = source_->name(),
+    return LineMarks::Mark{.source_buffer = source_.ptr()->name(),
                            .source_line = source_line,
-                           .target_buffer = target_->name(),
+                           .target_buffer = target_.ptr()->name(),
                            .target_line_column = target_line_column};
   }
 
   void ValidateEmpty() {
     auto marks = EditorForTests().line_marks();
-    CHECK(marks.GetMarksForTargetBuffer(source_->name()).empty());
-    CHECK(marks.GetExpiredMarksForTargetBuffer(source_->name()).empty());
-    CHECK(marks.GetMarksForTargetBuffer(target_->name()).empty());
-    CHECK(marks.GetExpiredMarksForTargetBuffer(target_->name()).empty());
+    CHECK(marks.GetMarksForTargetBuffer(source_.ptr()->name()).empty());
+    CHECK(marks.GetExpiredMarksForTargetBuffer(source_.ptr()->name()).empty());
+    CHECK(marks.GetMarksForTargetBuffer(target_.ptr()->name()).empty());
+    CHECK(marks.GetExpiredMarksForTargetBuffer(target_.ptr()->name()).empty());
   };
 
-  BufferName source_name() const { return source_->name(); }
-  BufferName target_name() const { return target_->name(); }
+  BufferName source_name() const { return source_.ptr()->name(); }
+  BufferName target_name() const { return target_.ptr()->name(); }
 
  private:
-  NonNull<std::shared_ptr<OpenBuffer>> source_ = NewBufferForTests();
-  NonNull<std::shared_ptr<OpenBuffer>> target_ = NewBufferForTests();
+  gc::Root<OpenBuffer> source_ = NewBufferForTests();
+  gc::Root<OpenBuffer> target_ = NewBufferForTests();
 };
 
 bool line_marks_test_registration = tests::Register(

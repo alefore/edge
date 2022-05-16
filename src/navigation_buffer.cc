@@ -46,18 +46,18 @@ void AddContents(const OpenBuffer& source, const Line& input,
   }
 }
 
-void AppendLine(const std::shared_ptr<OpenBuffer>& source,
+void AppendLine(OpenBuffer& source,
                 NonNull<std::shared_ptr<LazyString>> padding,
                 LineColumn position, OpenBuffer& target) {
   Line::Options options;
   options.contents = padding;
-  options.SetBufferLineColumn(Line::BufferLineColumn{source, position});
-  AddContents(*source, *source->LineAt(position.line), &options);
+  options.SetBufferLineColumn(
+      Line::BufferLineColumn{source.NewRoot().ptr().ToWeakPtr(), position});
+  AddContents(source, *source.LineAt(position.line), &options);
   target.AppendRawLine(MakeNonNullShared<Line>(options));
 }
 
-void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
-                 const ParseTree& tree,
+void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
                  NonNull<std::shared_ptr<LazyString>> padding,
                  OpenBuffer& target) {
   for (size_t i = 0; i < tree.children().size(); i++) {
@@ -67,7 +67,7 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
         depth_left == 0 || child.children().empty()) {
       Line::Options options;
       options.contents = padding;
-      AddContents(*source, *source->LineAt(child.range().begin.line), &options);
+      AddContents(source, *source.LineAt(child.range().begin.line), &options);
       if (child.range().begin.line + LineNumberDelta(1) <
           child.range().end.line) {
         options.contents =
@@ -78,10 +78,10 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
       }
       if (i + 1 >= tree.children().size() ||
           child.range().end.line != tree.children()[i + 1].range().begin.line) {
-        AddContents(*source, *source->LineAt(child.range().end.line), &options);
+        AddContents(source, *source.LineAt(child.range().end.line), &options);
       }
-      options.SetBufferLineColumn(
-          Line::BufferLineColumn{source, child.range().begin});
+      options.SetBufferLineColumn(Line::BufferLineColumn{
+          source.NewRoot().ptr().ToWeakPtr(), child.range().begin});
 
       target.AppendRawLine(MakeNonNullShared<Line>(options));
       continue;
@@ -100,21 +100,22 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
 }
 
 futures::Value<PossibleError> GenerateContents(
-    EditorState& editor_state, std::weak_ptr<OpenBuffer> source_weak,
+    EditorState& editor_state, gc::WeakPtr<OpenBuffer> source_weak,
     OpenBuffer& target) {
   target.ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   for (const auto& dir : editor_state.edge_path()) {
     target.EvaluateFile(Path::Join(
         dir, Path::FromString(L"hooks/navigation-buffer-reload.cc").value()));
   }
-  auto source = source_weak.lock();
-  if (source == nullptr) {
+  std::optional<gc::Root<OpenBuffer>> source = source_weak.Lock();
+  if (!source.has_value()) {
     target.AppendToLastLine(NewLazyString(L"Source buffer no longer loaded."));
     return futures::Past(Success());
   }
 
-  auto tree = source->simplified_parse_tree();
-  target.AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
+  auto tree = source->ptr()->simplified_parse_tree();
+  target.AppendToLastLine(
+      NewLazyString(source->ptr()->Read(buffer_variables::name)));
   std::optional<gc::Root<Value>> depth_value =
       target.environment().ptr()->Lookup(editor_state.gc_pool(),
                                          Environment::Namespace(), kDepthSymbol,
@@ -122,7 +123,8 @@ futures::Value<PossibleError> GenerateContents(
   int depth = depth_value.has_value()
                   ? size_t(max(0, depth_value.value().ptr()->get_int()))
                   : 3;
-  DisplayTree(source, depth, tree.value(), EmptyString(), target);
+  DisplayTree(source->ptr().value(), depth, tree.value(), EmptyString(),
+              target);
   return futures::Past(Success());
 }
 
@@ -137,36 +139,36 @@ class NavigationBufferCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) override {
-    auto source = editor_state_.current_buffer();
-    if (source == nullptr) {
+    std::optional<gc::Root<OpenBuffer>> source = editor_state_.current_buffer();
+    if (!source.has_value()) {
       editor_state_.status().SetWarningText(
           L"NavigationBuffer needs an existing buffer.");
       return;
     }
 
-    BufferName name(L"Navigation: " + source->name().read());
-    NonNull<std::shared_ptr<OpenBuffer>> buffer =
-        editor_state_.FindOrBuildBuffer(name, [&] {
-          std::weak_ptr<OpenBuffer> source_weak = source;
-          NonNull<std::shared_ptr<OpenBuffer>> buffer = OpenBuffer::New(
-              {.editor = editor_state_,
-               .name = name,
-               .generate_contents = [&editor_state = editor_state_,
-                                     source_weak](OpenBuffer& target) {
-                 return GenerateContents(editor_state, source_weak, target);
-               }});
+    BufferName name(L"Navigation: " + source->ptr()->name().read());
+    gc::Root<OpenBuffer> buffer = editor_state_.FindOrBuildBuffer(name, [&] {
+      gc::WeakPtr<OpenBuffer> source_weak = source->ptr().ToWeakPtr();
+      gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
+          {.editor = editor_state_,
+           .name = name,
+           .generate_contents = [&editor_state = editor_state_,
+                                 source_weak](OpenBuffer& target) {
+             return GenerateContents(editor_state, source_weak, target);
+           }});
+      OpenBuffer& buffer = buffer_root.ptr().value();
 
-          buffer->Set(buffer_variables::show_in_buffers_list, false);
-          buffer->Set(buffer_variables::push_positions_to_history, false);
-          buffer->Set(buffer_variables::allow_dirty_delete, true);
-          buffer->environment().ptr()->Define(
-              kDepthSymbol, Value::NewInt(editor_state_.gc_pool(), 3));
-          buffer->Set(buffer_variables::reload_on_enter, true);
-          editor_state_.StartHandlingInterrupts();
-          editor_state_.AddBuffer(buffer, BuffersList::AddBufferType::kVisit);
-          buffer->ResetMode();
-          return buffer;
-        });
+      buffer.Set(buffer_variables::show_in_buffers_list, false);
+      buffer.Set(buffer_variables::push_positions_to_history, false);
+      buffer.Set(buffer_variables::allow_dirty_delete, true);
+      buffer.environment().ptr()->Define(
+          kDepthSymbol, Value::NewInt(editor_state_.gc_pool(), 3));
+      buffer.Set(buffer_variables::reload_on_enter, true);
+      editor_state_.StartHandlingInterrupts();
+      editor_state_.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);
+      buffer.ResetMode();
+      return buffer_root;
+    });
     editor_state_.set_current_buffer(buffer,
                                      CommandArgumentModeApplyMode::kFinal);
     editor_state_.status().Reset();

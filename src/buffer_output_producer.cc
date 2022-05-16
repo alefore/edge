@@ -299,7 +299,7 @@ const bool tests_registration = tests::Register(L"BufferOutputProducer", [] {
               .has_active_cursor = false,
               .current_cursors = {}});
          auto lines = ProduceBufferView(
-             buffer.value(), screen_lines,
+             buffer.ptr().value(), screen_lines,
              Widget::OutputProducerOptions{
                  .size = LineColumnDelta(LineNumberDelta(50),
                                          ColumnNumberDelta(80)),

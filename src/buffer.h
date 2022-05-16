@@ -57,7 +57,7 @@ class ParseTree;
 class TreeParser;
 class UnixSignal;
 
-class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
+class OpenBuffer {
   struct ConstructorAccessTag {};
 
  public:
@@ -111,7 +111,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
         };
   };
 
-  static language::NonNull<std::shared_ptr<OpenBuffer>> New(Options options);
+  static language::gc::Root<OpenBuffer> New(Options options);
   OpenBuffer(ConstructorAccessTag, Options options);
   ~OpenBuffer();
 
@@ -331,6 +331,14 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   void set_filter(language::gc::Root<Value> filter);
 
+  //////////////////////////////////////////////////////////////////////////////
+  // Life cycle
+  language::gc::Root<OpenBuffer> NewRoot();
+  language::gc::Root<const OpenBuffer> NewRoot() const;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Line marks.
+
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
   const std::multimap<LineColumn, LineMarks::Mark>& GetLineMarks() const;
@@ -429,7 +437,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
 
   // Can return nullptr.
   enum class RemoteURLBehavior { kIgnore, kLaunchBrowser };
-  futures::ValueOrError<std::shared_ptr<OpenBuffer>>
+  futures::ValueOrError<std::optional<language::gc::Root<OpenBuffer>>>
   OpenBufferForCurrentPosition(RemoteURLBehavior remote_url_behavior);
 
   // Returns the position of just after the last character of the current file.
@@ -480,7 +488,7 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   // Code that would normally be in the constructor, but which may require the
   // use of `shared_from_this`. This function will be called by `New` after the
   // instance has been successfully installed into a shared_ptr.
-  void Initialize();
+  void Initialize(language::gc::Ptr<OpenBuffer> ptr_this);
   void MaybeStartUpdatingSyntaxTrees();
 
   futures::Value<transformation::Result> Apply(
@@ -603,10 +611,18 @@ class OpenBuffer : public std::enable_shared_from_this<OpenBuffer> {
   BufferSyntaxParser buffer_syntax_parser_;
 
   mutable infrastructure::FileSystemDriver file_system_driver_;
+
+  // Set by `Initialize`. Useful to retain references to this buffer (by turning
+  // it into either a Root or WeakPtr).
+  //
+  // This isn't a Root because otherwise buffers would never be deallocated; it
+  // also isn't a WeakPtr because ... if it is being accessed, we know the
+  // containing object /must/ be alive.
+  std::optional<language::gc::Ptr<OpenBuffer>> ptr_this_;
 };
 
 EditorState& EditorForTests();
-language::NonNull<std::shared_ptr<OpenBuffer>> NewBufferForTests();
+language::gc::Root<OpenBuffer> NewBufferForTests();
 }  // namespace editor
 }  // namespace afc
 

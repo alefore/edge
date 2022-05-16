@@ -31,6 +31,7 @@ extern "C" {
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/observers_gc.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
@@ -67,28 +68,28 @@ namespace afc {
 using language::NonNull;
 namespace gc = language::gc;
 namespace vm {
+// TODO(easy, 2022-05-15): This wrapping is probably not necessary?
 struct BufferWrapper {
-  std::shared_ptr<editor::OpenBuffer> buffer;
+  gc::Root<editor::OpenBuffer> buffer;
 };
 
-std::shared_ptr<editor::OpenBuffer>
-VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value& value) {
+// TODO(easy, 2022-05-15): This should be moved to buffer_vm.cc
+gc::Root<editor::OpenBuffer> VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(
+    Value& value) {
   return static_cast<BufferWrapper*>(value.get_user_value(vmtype).get())
       ->buffer;
 }
 
-/* static */ gc::Root<Value>
-VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
-    gc::Pool& pool, std::shared_ptr<editor::OpenBuffer> value) {
-  auto wrapper = std::make_shared<BufferWrapper>();
-  wrapper->buffer = std::move(value);
+/* static */ gc::Root<Value> VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
+    gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
+  auto wrapper = std::make_shared<BufferWrapper>(
+      BufferWrapper{.buffer = std::move(value)});
   return Value::NewObject(
-      pool,
-      VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype.object_type,
+      pool, VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype.object_type,
       std::shared_ptr<void>(wrapper, wrapper.get()));
 }
 
-const VMType VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype =
+const VMType VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"Buffer"));
 }  // namespace vm
 namespace editor {
@@ -117,6 +118,7 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using language::VisitPointer;
+using language::WeakPtrLockingObserver;
 
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
@@ -146,10 +148,11 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
     }
     futures::Future<NonNull<std::shared_ptr<LazyString>>> metadata_future;
     buffer.work_queue()->Schedule(
-        [buffer = buffer.shared_from_this(),
+        [buffer = buffer.NewRoot(),
          expr = NonNull<std::shared_ptr<Expression>>(std::move(expr)),
          sub_environment, consumer = metadata_future.consumer] {
-          buffer->EvaluateExpression(expr.value(), sub_environment)
+          buffer.ptr()
+              ->EvaluateExpression(expr.value(), sub_environment)
               .Transform([](gc::Root<Value> value) {
                 std::ostringstream oss;
                 oss << value.ptr().value();
@@ -221,11 +224,11 @@ using std::to_wstring;
 /* static */ const BufferName kFuturePasteBuffer =
     BufferName(L"- future paste buffer");
 
-/* static */ NonNull<std::shared_ptr<OpenBuffer>> OpenBuffer::New(
-    Options options) {
-  auto output =
-      MakeNonNullShared<OpenBuffer>(ConstructorAccessTag(), std::move(options));
-  output->Initialize();
+/* static */ gc::Root<OpenBuffer> OpenBuffer::New(Options options) {
+  gc::Root<OpenBuffer> output =
+      options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
+          ConstructorAccessTag(), std::move(options)));
+  output.ptr()->Initialize(output.ptr());
   return output;
 }
 
@@ -382,7 +385,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                return futures::Past(error);
              })
       .Transform([this,
-                  shared_this = shared_from_this()](Path edge_state_directory) {
+                  root_this = ptr_this_->ToRoot()](Path edge_state_directory) {
         auto path =
             Path::Join(edge_state_directory,
                        PathComponent::FromString(L".edge_state").value());
@@ -434,8 +437,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         return futures::OnError(
             SaveContentsToFile(path, std::move(contents),
                                editor().thread_pool(), file_system_driver()),
-            [shared_this](Error error) {
-              shared_this->status().SetWarningText(
+            [root_this](Error error) {
+              root_this.ptr()->status().SetWarningText(
                   L"Unable to persist state: " + error.description);
               return futures::Past(error);
             });
@@ -499,9 +502,10 @@ void OpenBuffer::EndOfFile() {
     editor().CloseBuffer(*this);
   }
 
-  auto current_buffer = editor().current_buffer();
-  if (current_buffer != nullptr && name() == BufferName::BuffersList()) {
-    current_buffer->Reload();
+  std::optional<gc::Root<OpenBuffer>> current_buffer =
+      editor().current_buffer();
+  if (current_buffer.has_value() && name() == BufferName::BuffersList()) {
+    current_buffer->ptr()->Reload();
   }
 }
 
@@ -587,50 +591,50 @@ NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::simplified_parse_tree()
   return buffer_syntax_parser_.simplified_tree();
 }
 
-void OpenBuffer::Initialize() {
-  std::weak_ptr<OpenBuffer> weak_this = shared_from_this();
+void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
+  ptr_this_ = std::move(ptr_this);
+  gc::WeakPtr<OpenBuffer> weak_this = ptr_this_->ToWeakPtr();
   buffer_syntax_parser_.ObserveTrees().Add(
-      Observers::LockingObserver(weak_this, [](OpenBuffer& buffer) {
+      WeakPtrLockingObserver(weak_this, [](OpenBuffer& buffer) {
         // Trigger a wake up alarm.
         buffer.work_queue()->Schedule([] {});
       }));
 
   UpdateTreeParser();
 
-  // We use the aliasing constructor or else ... we'll never actually be
-  // reclaimed.
-  environment_.ptr()->Define(
-      L"buffer",
-      VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
-          editor().gc_pool(),
-          std::shared_ptr<OpenBuffer>(std::shared_ptr<OpenBuffer>(), this)));
+  environment_.ptr()->Define(L"buffer",
+                             VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
+                                 editor().gc_pool(), NewRoot()));
 
   environment_.ptr()->Define(
       L"sleep",
       Value::NewFunction(
           editor().gc_pool(), {VMType::Void(), VMType::Double()},
-          [weak_this = std::weak_ptr<OpenBuffer>(shared_from_this())](
-              std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
+          [weak_this](std::vector<gc::Root<Value>> args,
+                      Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);
             double delay_seconds = args[0].ptr()->get_double();
-            auto shared_this = weak_this.lock();
-            if (shared_this == nullptr)
-              return futures::Past(Success(EvaluationOutput::Return(
-                  vm::Value::NewVoid(trampoline.pool()))));
-            futures::Future<ValueOrError<EvaluationOutput>> future;
-            EvaluationOutput output = vm::EvaluationOutput::Return(
-                vm::Value::NewVoid(shared_this->editor().gc_pool()));
-            shared_this->work_queue()->ScheduleAt(
-                AddSeconds(Now(), delay_seconds),
-                [weak_this, consumer = std::move(future.consumer), output] {
-                  VisitPointer(
-                      weak_this,
-                      [&](NonNull<std::shared_ptr<OpenBuffer>>) {
-                        consumer(output);
-                      },
-                      [] {});
+            return VisitPointer(
+                weak_this.Lock(),
+                [&](gc::Root<OpenBuffer> root_this) {
+                  futures::Future<ValueOrError<EvaluationOutput>> future;
+                  EvaluationOutput output = vm::EvaluationOutput::Return(
+                      vm::Value::NewVoid(root_this.ptr()->editor().gc_pool()));
+                  root_this.ptr()->work_queue()->ScheduleAt(
+                      AddSeconds(Now(), delay_seconds),
+                      [weak_this, consumer = std::move(future.consumer),
+                       output] {
+                        VisitPointer(
+                            weak_this.Lock(),
+                            [&](gc::Root<OpenBuffer>) { consumer(output); },
+                            [] {});
+                      });
+                  return std::move(future.value);
+                },
+                [&] {
+                  return futures::Past(Success(EvaluationOutput::Return(
+                      vm::Value::NewVoid(trampoline.pool()))));
                 });
-            return std::move(future.value);
           }));
 
   Set(buffer_variables::name, options_.name.read());
@@ -656,42 +660,42 @@ void OpenBuffer::Initialize() {
                      PathComponent::FromString(L".edge_state").value()));
       file_system_driver_.Stat(state_path)
           .Transform([state_path, weak_this](struct stat) {
-            auto shared_this = weak_this.lock();
-            if (shared_this == nullptr)
-              return futures::Past(ValueOrError<gc::Root<Value>>(
-                  Error(L"Buffer has been deleted.")));
-            return shared_this->EvaluateFile(state_path);
+            // TODO(easy, 2022-05-15): Use VisitPointer.
+            if (auto root_this = weak_this.Lock(); root_this.has_value())
+              return root_this->ptr()->EvaluateFile(state_path);
+            return futures::Past(ValueOrError<gc::Root<Value>>(
+                Error(L"Buffer has been deleted.")));
           });
     }
   }
 
   contents_.SetUpdateListener(
       [weak_this](const CursorsTracker::Transformation& transformation) {
-        auto shared_this = weak_this.lock();
-        if (shared_this == nullptr) return;
-        shared_this->work_queue_->Schedule([weak_this] {
-          auto shared_this = weak_this.lock();
-          if (shared_this != nullptr)
-            shared_this->MaybeStartUpdatingSyntaxTrees();
+        std::optional<gc::Root<OpenBuffer>> root_this = weak_this.Lock();
+        if (!root_this.has_value()) return;
+        root_this->ptr()->work_queue_->Schedule([weak_this] {
+          std::optional<gc::Root<OpenBuffer>> root_this = weak_this.Lock();
+          if (root_this.has_value())
+            root_this->ptr()->MaybeStartUpdatingSyntaxTrees();
         });
-        shared_this->SetDiskState(DiskState::kStale);
-        if (shared_this->Read(buffer_variables::persist_state)) {
-          switch (shared_this->backup_state_) {
+        root_this->ptr()->SetDiskState(DiskState::kStale);
+        if (root_this->ptr()->Read(buffer_variables::persist_state)) {
+          switch (root_this->ptr()->backup_state_) {
             case DiskState::kCurrent: {
-              shared_this->backup_state_ = DiskState::kStale;
+              root_this->ptr()->backup_state_ = DiskState::kStale;
               auto flush_backup_time = Now();
               flush_backup_time.tv_sec += 30;
-              shared_this->work_queue_->ScheduleAt(
+              root_this->ptr()->work_queue_->ScheduleAt(
                   flush_backup_time,
-                  [shared_this] { shared_this->UpdateBackup(); });
+                  [root_this] { root_this->ptr()->UpdateBackup(); });
             } break;
 
             case DiskState::kStale:
               break;  // Nothing.
           }
         }
-        shared_this->UpdateLastAction();
-        shared_this->cursors_tracker_.AdjustCursors(transformation);
+        root_this->ptr()->UpdateLastAction();
+        root_this->ptr()->cursors_tracker_.AdjustCursors(transformation);
       });
 }
 
@@ -793,7 +797,7 @@ void OpenBuffer::Reload() {
               return futures::Past(NewNullLog());
             });
       })
-      .Transform([this, shared_this = shared_from_this()](
+      .Transform([this, root_this = ptr_this_->ToRoot()](
                      NonNull<std::unique_ptr<Log>> log) {
         log_ = std::move(log);
         switch (reload_state_) {
@@ -1014,7 +1018,7 @@ OpenBuffer::CompileString(const std::wstring& code) {
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
     Expression& expr, gc::Root<Environment> environment) {
   return Evaluate(expr, editor().gc_pool(), environment,
-                  [work_queue = work_queue(), shared_this = shared_from_this()](
+                  [work_queue = work_queue(), root_this = ptr_this_->ToRoot()](
                       std::function<void()> callback) {
                     work_queue->Schedule(std::move(callback));
                   });
@@ -1062,11 +1066,11 @@ const NonNull<std::shared_ptr<WorkQueue>>& OpenBuffer::work_queue() const {
 }
 
 OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
-  return [shared_this =
-              shared_from_this()](std::function<void(OpenBuffer&)> callback) {
-    shared_this->work_queue()->Schedule(
-        [shared_this, callback = std::move(callback)]() {
-          callback(Pointer(shared_this).Reference());
+  return [root_this =
+              ptr_this_->ToRoot()](std::function<void(OpenBuffer&)> callback) {
+    root_this.ptr()->work_queue()->Schedule(
+        [root_this, callback = std::move(callback)]() {
+          callback(root_this.ptr().value());
         });
   };
 }
@@ -1714,7 +1718,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
 
 }  // namespace
 
-futures::ValueOrError<std::shared_ptr<OpenBuffer>>
+futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>>
 OpenBuffer::OpenBufferForCurrentPosition(
     RemoteURLBehavior remote_url_behavior) {
   // When the cursor moves quickly, there's a race between multiple executions
@@ -1723,18 +1727,17 @@ OpenBuffer::OpenBufferForCurrentPosition(
   // meantime.
   auto adjusted_position = AdjustLineColumn(position());
   struct Data {
-    const NonNull<std::shared_ptr<OpenBuffer>> source;
-    ValueOrError<std::shared_ptr<OpenBuffer>> output = nullptr;
+    const gc::Root<OpenBuffer> source;
+    ValueOrError<std::optional<gc::Root<OpenBuffer>>> output = std::nullopt;
   };
-  NonNull<std::shared_ptr<Data>> data = MakeNonNullShared<Data>(Data{
-      .source =
-          NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(shared_from_this())});
+  NonNull<std::shared_ptr<Data>> data =
+      MakeNonNullShared<Data>(Data{.source = ptr_this_->ToRoot()});
 
   return futures::ForEach(
              std::make_shared<std::vector<URL>>(
                  GetURLsForCurrentPosition(*this)),
              [adjusted_position, data, remote_url_behavior](const URL& url) {
-               auto& editor = data->source->editor();
+               auto& editor = data->source.ptr()->editor();
                VLOG(5) << "Checking URL: " << url.ToString();
                if (url.schema().value_or(URL::Schema::kFile) !=
                    URL::Schema::kFile) {
@@ -1770,15 +1773,15 @@ OpenBuffer::OpenBufferForCurrentPosition(
                               .insertion_type =
                                   BuffersList::AddBufferType::kIgnore,
                               .use_search_paths = false})
-                   .Transform([data](NonNull<std::shared_ptr<OpenBuffer>>
-                                         buffer_context) {
-                     data->output = buffer_context.get_shared();
+                   .Transform([data](gc::Root<OpenBuffer> buffer_context) {
+                     data->output = buffer_context;
                      return futures::Past(
                          Success(futures::IterationControlCommand::kStop));
                    })
                    .ConsumeErrors([adjusted_position, data](Error) {
-                     if (adjusted_position != data->source->AdjustLineColumn(
-                                                  data->source->position())) {
+                     if (adjusted_position !=
+                         data->source.ptr()->AdjustLineColumn(
+                             data->source.ptr()->position())) {
                        data->output = Error(L"Computation was cancelled.");
                        return futures::Past(
                            futures::IterationControlCommand::kStop);
@@ -1790,7 +1793,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
       .Transform([data](IterationControlCommand iteration_control_command) {
         return iteration_control_command ==
                        futures::IterationControlCommand::kContinue
-                   ? nullptr
+                   ? Success(std::optional<gc::Root<OpenBuffer>>())
                    : std::move(data->output);
       });
 }
@@ -1961,10 +1964,11 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
                         transformation::Input::Mode::kFinal);
 }
 
-void StartAdjustingStatusContext(std::shared_ptr<OpenBuffer> buffer) {
-  buffer->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::kIgnore)
-      .Transform([buffer](std::shared_ptr<OpenBuffer> result) {
-        buffer->status().set_context(result);
+void StartAdjustingStatusContext(gc::Root<OpenBuffer> buffer) {
+  buffer.ptr()
+      ->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::kIgnore)
+      .Transform([buffer](std::optional<gc::Root<OpenBuffer>> result) {
+        buffer.ptr()->status().set_context(result);
         return Success();
       });
 }
@@ -1999,12 +2003,13 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     CursorsSet single_cursor;
     CursorsSet& cursors = active_cursors();
     transformation_result = cursors_tracker_.ApplyTransformationToCursors(
-        cursors, [shared_this = shared_from_this(),
+        cursors, [root_this = ptr_this_->ToRoot(),
                   transformation = std::move(transformation),
                   mode](LineColumn position) {
-          return shared_this->Apply(transformation, position, mode)
-              .Transform([shared_this](transformation::Result result) {
-                shared_this->UpdateLastAction();
+          return root_this.ptr()
+              ->Apply(transformation, position, mode)
+              .Transform([root_this](transformation::Result result) {
+                root_this.ptr()->UpdateLastAction();
                 return result.position;
               });
         });
@@ -2012,19 +2017,20 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     transformation_result =
         Apply(std::move(transformation), position(), mode)
-            .Transform([shared_this = shared_from_this()](
+            .Transform([root_this = ptr_this_->ToRoot()](
                            const transformation::Result& result) {
-              shared_this->active_cursors().MoveCurrentCursor(result.position);
-              shared_this->UpdateLastAction();
+              root_this.ptr()->active_cursors().MoveCurrentCursor(
+                  result.position);
+              root_this.ptr()->UpdateLastAction();
               return EmptyValue();
             });
   }
   return transformation_result.value().Transform(
-      [shared_this = shared_from_this()](EmptyValue) {
+      [root_this = ptr_this_->ToRoot()](EmptyValue) {
         // This proceeds in the background but we can only start it once the
         // transformation is evaluated (since we don't know the cursor position
         // otherwise).
-        StartAdjustingStatusContext(shared_this);
+        StartAdjustingStatusContext(root_this);
         return EmptyValue();
       });
 }
@@ -2041,16 +2047,16 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   input.position = position;
   if (Read(buffer_variables::delete_into_paste_buffer)) {
     input.delete_buffer =
-        editor()
-            .FindOrBuildBuffer(
-                kFuturePasteBuffer,
-                [&] {
-                  LOG(INFO) << "Creating paste buffer.";
-                  return OpenBuffer::New(
-                      {.editor = editor(), .name = kFuturePasteBuffer});
-                })
-            .get()
-            .get();
+        &editor()
+             .FindOrBuildBuffer(
+                 kFuturePasteBuffer,
+                 [&] {
+                   LOG(INFO) << "Creating paste buffer.";
+                   return OpenBuffer::New(
+                       {.editor = editor(), .name = kFuturePasteBuffer});
+                 })
+             .ptr()
+             .value();
     CHECK(input.delete_buffer != nullptr);
   } else {
     CHECK_EQ(input.delete_buffer, nullptr);
@@ -2158,8 +2164,8 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
                      return IterationControlCommand::kContinue;
                    });
          })
-      .Transform([shared_this = shared_from_this()](IterationControlCommand) {
-        StartAdjustingStatusContext(shared_this);
+      .Transform([root_this = ptr_this_->ToRoot()](IterationControlCommand) {
+        StartAdjustingStatusContext(root_this);
         return EmptyValue();
       });
 }
@@ -2167,6 +2173,17 @@ futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
 void OpenBuffer::set_filter(gc::Root<Value> filter) {
   filter_ = std::move(filter);
   filter_version_++;
+}
+
+language::gc::Root<OpenBuffer> OpenBuffer::NewRoot() {
+  CHECK(ptr_this_.has_value());
+  return ptr_this_->ToRoot();
+}
+
+language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
+  CHECK(ptr_this_.has_value());
+  language::gc::Root<const OpenBuffer> output = ptr_this_->ToRoot();
+  return output;
 }
 
 const multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks() const {
@@ -2219,14 +2236,15 @@ void OpenBuffer::UpdateLastAction() {
       idle_seconds >= 0.0) {
     work_queue_->ScheduleAt(
         AddSeconds(Now(), idle_seconds),
-        [weak_this = std::weak_ptr(shared_from_this()),
-         last_action = last_action_] {
-          Pointer(weak_this).IfNotNull([last_action](OpenBuffer& buffer) {
-            if (buffer.last_action_ != last_action) return;
-            buffer.last_action_ = Now();
-            LOG(INFO) << "close_after_idle_seconds: Closing.";
-            buffer.editor().CloseBuffer(buffer);
-          });
+        [weak_this = ptr_this_->ToWeakPtr(), last_action = last_action_] {
+          // TODO(easy, 2022-05-15): Use VisitPointer?
+          auto root_this = weak_this.Lock();
+          if (!root_this.has_value()) return;
+          OpenBuffer& buffer = root_this->ptr().value();
+          if (buffer.last_action_ != last_action) return;
+          buffer.last_action_ = Now();
+          LOG(INFO) << "close_after_idle_seconds: Closing.";
+          buffer.editor().CloseBuffer(buffer);
         });
   }
 }
@@ -2243,13 +2261,19 @@ EditorState& EditorForTests() {
   return editor_for_tests;
 }
 
-NonNull<std::shared_ptr<OpenBuffer>> NewBufferForTests() {
-  NonNull<std::shared_ptr<OpenBuffer>> output = OpenBuffer::New(
+gc::Root<OpenBuffer> NewBufferForTests() {
+  gc::Root<OpenBuffer> output = OpenBuffer::New(
       {.editor = EditorForTests(),
        .name = EditorForTests().GetUnusedBufferName(L"test buffer")});
-  EditorForTests().buffers()->insert({output->name(), output});
+  EditorForTests().buffers()->insert_or_assign(output.ptr()->name(), output);
   return output;
 }
 
 }  // namespace editor
 }  // namespace afc
+namespace afc::language::gc {
+std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
+    const editor::OpenBuffer&) {
+  return std::vector<language::NonNull<std::shared_ptr<ControlFrame>>>();
+}
+}  // namespace afc::language::gc

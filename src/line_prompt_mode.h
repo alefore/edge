@@ -31,7 +31,8 @@ struct ColorizePromptOptions {
 
   // If present, sets the context buffer for the prompt. Can be `nullptr` (which
   // will clear any previously set context).
-  std::optional<std::shared_ptr<OpenBuffer>> context = std::nullopt;
+  std::optional<std::optional<language::gc::Root<OpenBuffer>>> context =
+      std::nullopt;
 };
 
 struct PromptOptions {
@@ -73,8 +74,7 @@ struct PromptOptions {
 
   // Source buffers to give to the predictor. See
   // `PredictorInput::source_buffers`.
-  std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> source_buffers =
-      {};
+  std::vector<language::gc::Root<OpenBuffer>> source_buffers = {};
 
   enum class Status { kEditor, kBuffer };
   Status status = Status::kEditor;

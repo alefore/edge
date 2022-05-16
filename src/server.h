@@ -6,6 +6,7 @@
 
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 
@@ -26,7 +27,7 @@ class OpenBuffer;
 language::ValueOrError<infrastructure::Path> StartServer(
     EditorState& editor_state, std::optional<infrastructure::Path> address);
 
-language::NonNull<std::shared_ptr<OpenBuffer>> OpenServerBuffer(
+language::gc::Root<OpenBuffer> OpenServerBuffer(
     EditorState& editor_state, const infrastructure::Path& address);
 
 }  // namespace afc::editor

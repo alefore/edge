@@ -17,6 +17,8 @@ using language::NonNull;
 namespace {
 using infrastructure::Path;
 
+namespace gc = language::gc;
+
 class OpenDirectoryCommand : public Command {
  public:
   OpenDirectoryCommand(EditorState& editor_state)
@@ -29,13 +31,15 @@ class OpenDirectoryCommand : public Command {
 
   void ProcessInput(wint_t) override {
     OpenOrCreateFile({.editor_state = editor_state_,
-                      .path = GetPath(editor_state_.current_buffer().get())});
+                      .path = GetPath(editor_state_.current_buffer())});
   }
 
  private:
-  static std::optional<Path> GetPath(const OpenBuffer* buffer) {
-    if (buffer == nullptr) return Path::LocalDirectory();
-    auto path = Path::FromString(buffer->Read(buffer_variables::name));
+  static std::optional<Path> GetPath(
+      std::optional<gc::Root<OpenBuffer>> buffer) {
+    // TODO(easy, 2022-05-16): Switch to VisitPointer.
+    if (!buffer.has_value()) return Path::LocalDirectory();
+    auto path = Path::FromString(buffer->ptr()->Read(buffer_variables::name));
     if (path.IsError()) return std::nullopt;
     auto dir = path.value().Dirname();
     if (dir.IsError()) return std::nullopt;

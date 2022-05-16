@@ -61,6 +61,7 @@
 
 namespace afc::editor {
 namespace {
+// TODO(easy, 2022-05-15): Get rid of these `using` declarations.
 using std::advance;
 using std::ceil;
 using std::make_pair;
@@ -75,6 +76,8 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using language::VisitPointer;
+
+namespace gc = language::gc;
 
 // TODO: Replace with insert.  Insert should be called 'type'.
 class Paste : public Command {
@@ -111,11 +114,11 @@ class Paste : public Command {
       }
       return;
     }
-    NonNull<std::shared_ptr<OpenBuffer>> paste_buffer = it->second;
+    gc::Root<OpenBuffer> paste_buffer = it->second;
     editor_state_
         .ForEachActiveBuffer([&editor_state = editor_state_,
                               paste_buffer](OpenBuffer& buffer) {
-          if (paste_buffer.get() == NonNull<OpenBuffer*>::AddressOf(buffer)) {
+          if (&paste_buffer.ptr().value() == &buffer) {
             const static wstring errors[] = {
                 L"You shall not paste into the paste buffer.",
                 L"Nope.",
@@ -137,7 +140,7 @@ class Paste : public Command {
             return futures::Past(EmptyValue());
           }
           if (buffer.fd() != nullptr) {
-            string text = ToByteString(paste_buffer->ToString());
+            string text = ToByteString(paste_buffer.ptr()->ToString());
             for (size_t i = 0; i < editor_state.repetitions(); i++) {
               if (write(buffer.fd()->fd().read(), text.c_str(), text.size()) ==
                   -1) {
@@ -150,7 +153,7 @@ class Paste : public Command {
           buffer.CheckPosition();
           buffer.MaybeAdjustPositionCol();
           return buffer.ApplyToCursors(transformation::Insert{
-              .contents_to_insert = paste_buffer->contents().copy(),
+              .contents_to_insert = paste_buffer.ptr()->contents().copy(),
               .modifiers = {.insertion = editor_state.modifiers().insertion,
                             .repetitions = editor_state.repetitions()}});
         })
@@ -220,10 +223,13 @@ class GotoPreviousPositionCommand : public Command {
       }
       const BufferPosition pos = editor_state_.ReadPositionsStack();
       auto it = editor_state_.buffers()->find(pos.buffer_name);
+      auto current_buffer = editor_state_.current_buffer();
+      // TODO(easy, 2022-05-15): Why is this safe?
+      CHECK(current_buffer.has_value());
       const LineColumn current_position =
-          editor_state_.current_buffer()->position();
+          editor_state_.current_buffer()->ptr()->position();
       if (it != editor_state_.buffers()->end() &&
-          (pos.buffer_name != editor_state_.current_buffer()->name() ||
+          (pos.buffer_name != current_buffer->ptr()->name() ||
            ((editor_state_.structure() == StructureLine() ||
              editor_state_.structure() == StructureWord() ||
              editor_state_.structure() == StructureSymbol() ||
@@ -232,11 +238,11 @@ class GotoPreviousPositionCommand : public Command {
            (editor_state_.structure() == StructureChar() &&
             pos.position.column != current_position.column))) {
         LOG(INFO) << "Jumping to position: "
-                  << it->second->Read(buffer_variables::name) << " "
+                  << it->second.ptr()->Read(buffer_variables::name) << " "
                   << pos.position;
         editor_state_.set_current_buffer(it->second,
                                          CommandArgumentModeApplyMode::kFinal);
-        it->second->set_position(pos.position);
+        it->second.ptr()->set_position(pos.position);
         editor_state_.set_repetitions(editor_state_.repetitions().value_or(1) -
                                       1);
       }
@@ -304,26 +310,28 @@ class LineDown : public Command {
       editor_state.set_structure(StructurePage());
       MoveForwards::Move(c, editor_state, Direction::kForwards);
     } else if (structure == StructureTree()) {
-      auto buffer = editor_state.current_buffer();
-      if (buffer == nullptr) {
+      std::optional<gc::Root<OpenBuffer>> buffer =
+          editor_state.current_buffer();
+      if (!buffer.has_value()) {
         return;
       }
       switch (editor_state.direction()) {
         case Direction::kBackwards:
-          if (buffer->tree_depth() > 0) {
-            buffer->set_tree_depth(buffer->tree_depth() - 1);
+          if (buffer->ptr()->tree_depth() > 0) {
+            buffer->ptr()->set_tree_depth(buffer->ptr()->tree_depth() - 1);
           }
           break;
         case Direction::kForwards: {
-          NonNull<std::shared_ptr<const ParseTree>> root = buffer->parse_tree();
-          const ParseTree& tree = buffer->current_tree(root.value());
+          NonNull<std::shared_ptr<const ParseTree>> root =
+              buffer->ptr()->parse_tree();
+          const ParseTree& tree = buffer->ptr()->current_tree(root.value());
           if (!tree.children().empty()) {
-            buffer->set_tree_depth(buffer->tree_depth() + 1);
+            buffer->ptr()->set_tree_depth(buffer->ptr()->tree_depth() + 1);
           }
           break;
         }
       }
-      buffer->ResetMode();
+      buffer->ptr()->ResetMode();
     } else {
       switch (editor_state.direction()) {
         case Direction::kForwards:
@@ -512,48 +520,50 @@ class ActivateLink : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) {
+    // TODO(easy, 2022-05-16): Use VisitPointer?
     auto buffer = editor_state_.current_buffer();
-    if (buffer == nullptr) {
+    if (!buffer.has_value()) {
       return;
     }
-    if (buffer->current_line() == nullptr) {
+    if (buffer->ptr()->current_line() == nullptr) {
       return;
     }
 
     std::optional<Line::BufferLineColumn> line_buffer =
-        buffer->current_line()->buffer_line_column();
+        buffer->ptr()->current_line()->buffer_line_column();
     if (line_buffer.has_value()) {
-      if (auto target = line_buffer->buffer.lock();
-          target != nullptr && target != buffer) {
+      if (std::optional<gc::Root<OpenBuffer>> target =
+              line_buffer->buffer.Lock();
+          target.has_value() &&
+          &target->ptr().value() != &buffer->ptr().value()) {
         LOG(INFO) << "Visiting buffer: "
-                  << target->Read(buffer_variables::name);
+                  << target->ptr()->Read(buffer_variables::name);
         editor_state_.status().Reset();
-        buffer->status().Reset();
-        editor_state_.set_current_buffer(
-            // TODO(2022-05-02): Get rid of Unsafe?
-            NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(target),
-            CommandArgumentModeApplyMode::kFinal);
+        buffer->ptr()->status().Reset();
+        editor_state_.set_current_buffer(target.value(),
+                                         CommandArgumentModeApplyMode::kFinal);
         std::optional<LineColumn> target_position = line_buffer->position;
         if (target_position.has_value()) {
-          target->set_position(*target_position);
+          target->ptr()->set_position(*target_position);
         }
         editor_state_.PushCurrentPosition();
-        buffer->ResetMode();
-        target->ResetMode();
+        buffer->ptr()->ResetMode();
+        target->ptr()->ResetMode();
         return;
       }
     }
 
-    buffer->MaybeAdjustPositionCol();
-    buffer
+    buffer->ptr()->MaybeAdjustPositionCol();
+    buffer->ptr()
         ->OpenBufferForCurrentPosition(
             OpenBuffer::RemoteURLBehavior::kLaunchBrowser)
-        .Transform([&editor_state =
-                        editor_state_](std::shared_ptr<OpenBuffer> target) {
+        .Transform([&editor_state = editor_state_](
+                       std::optional<gc::Root<OpenBuffer>> target) {
           return VisitPointer(
               target,
-              [&](NonNull<std::shared_ptr<OpenBuffer>> target) {
-                if (std::wstring path = target->Read(buffer_variables::path);
+              [&](gc::Root<OpenBuffer> target) {
+                if (std::wstring path =
+                        target.ptr()->Read(buffer_variables::path);
                     !path.empty())
                   AddLineToHistory(editor_state, HistoryFileFiles(),
                                    NewLazyString(path));

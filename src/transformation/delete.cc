@@ -64,10 +64,10 @@ namespace {
 using language::NonNull;
 
 // Copy to a new buffer the contents of `range`.
-NonNull<std::shared_ptr<OpenBuffer>> GetDeletedTextBuffer(
-    const OpenBuffer& buffer, Range range) {
+gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
+                                          Range range) {
   LOG(INFO) << "Preparing deleted text buffer: " << range;
-  auto delete_buffer = OpenBuffer::New(
+  gc::Root<OpenBuffer> delete_buffer = OpenBuffer::New(
       {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});
   for (LineNumber i = range.begin.line; i <= range.end.line; ++i) {
     Line::Options line_options = buffer.contents().at(i)->CopyOptions();
@@ -77,9 +77,9 @@ NonNull<std::shared_ptr<OpenBuffer>> GetDeletedTextBuffer(
     if (i == range.begin.line) {
       line_options.DeleteCharacters(ColumnNumber(0),
                                     range.begin.column.ToDelta());
-      delete_buffer->AppendToLastLine(Line(std::move(line_options)));
+      delete_buffer.ptr()->AppendToLastLine(Line(std::move(line_options)));
     } else {
-      delete_buffer->AppendRawLine(
+      delete_buffer.ptr()->AppendRawLine(
           MakeNonNullShared<Line>(std::move(line_options)));
     }
   }
@@ -108,10 +108,11 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
     auto line_buffer = buffer.current_line()->buffer_line_column();
     if (line_buffer.has_value()) {
       VisitPointer(
-          line_buffer->buffer,
-          [&buffer](NonNull<std::shared_ptr<OpenBuffer>> target_buffer) {
-            if (target_buffer.get().get() != &buffer) {
-              target_buffer->editor().CloseBuffer(target_buffer.value());
+          line_buffer->buffer.Lock(),
+          [&buffer](gc::Root<OpenBuffer> target_buffer) {
+            if (&target_buffer.ptr().value() != &buffer) {
+              target_buffer.ptr()->editor().CloseBuffer(
+                  target_buffer.ptr().value());
             }
           },
           [] {});
@@ -126,23 +127,22 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
   std::wstring details = observers.size() == 1
                              ? first_line_contents->ToString()
                              : L" files: " + std::to_wstring(observers.size());
-  Prompt(
-      PromptOptions{.editor_state = buffer.editor(),
-                    .prompt = L"unlink " + details + L"? [yes/no] ",
-                    .history_file = HistoryFile(L"confirmation"),
-                    .handler =
-                        [buffer = buffer.shared_from_this(),
-                         observers](const wstring& input) {
-                          if (input == L"yes") {
-                            for (auto& o : observers) o();
-                          } else {
-                            // TODO: insert it again?  Actually, only let it
-                            // be erased in the other case?
-                            buffer->status().SetInformationText(L"Ignored.");
-                          }
-                          return futures::Past(EmptyValue());
-                        },
-                    .predictor = PrecomputedPredictor({L"no", L"yes"}, '/')});
+  Prompt(PromptOptions{
+      .editor_state = buffer.editor(),
+      .prompt = L"unlink " + details + L"? [yes/no] ",
+      .history_file = HistoryFile(L"confirmation"),
+      .handler =
+          [buffer = buffer.NewRoot(), observers](const wstring& input) {
+            if (input == L"yes") {
+              for (auto& o : observers) o();
+            } else {
+              // TODO: insert it again?  Actually, only let it
+              // be erased in the other case?
+              buffer.ptr()->status().SetInformationText(L"Ignored.");
+            }
+            return futures::Past(EmptyValue());
+          },
+      .predictor = PrecomputedPredictor({L"no", L"yes"}, '/')});
 }
 }  // namespace
 namespace transformation {
@@ -191,14 +191,15 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   output->success = true;
   output->made_progress = true;
 
-  auto delete_buffer = GetDeletedTextBuffer(input.buffer, range);
+  gc::Root<OpenBuffer> delete_buffer =
+      GetDeletedTextBuffer(input.buffer, range);
   if (options.modifiers.paste_buffer_behavior ==
           Modifiers::PasteBufferBehavior::kDeleteInto &&
       input.mode == Input::Mode::kFinal && input.delete_buffer != nullptr) {
     VLOG(5) << "Preparing delete buffer.";
     output->added_to_paste_buffer = true;
     input.delete_buffer->ApplyToCursors(transformation::Insert{
-        .contents_to_insert = delete_buffer->contents().copy()});
+        .contents_to_insert = delete_buffer.ptr()->contents().copy()});
   }
 
   if (options.modifiers.text_delete_behavior ==
@@ -218,7 +219,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
                   delete_buffer](transformation::Result result) mutable {
         output->MergeFrom(std::move(result));
         transformation::Insert insert_options{
-            .contents_to_insert = delete_buffer->contents().copy(),
+            .contents_to_insert = delete_buffer.ptr()->contents().copy(),
             .final_position =
                 options.modifiers.direction == Direction::kForwards
                     ? Insert::FinalPosition::kEnd

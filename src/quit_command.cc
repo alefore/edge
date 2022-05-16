@@ -9,6 +9,10 @@
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::VisitPointer;
+
+namespace gc = language::gc;
+
 namespace {
 class QuitCommand : public Command {
  public:
@@ -28,10 +32,9 @@ class QuitCommand : public Command {
             ? EditorState::TerminationType::kWhenClean
             : EditorState::TerminationType::kIgnoringErrors,
         exit_value_);
-    auto buffer = editor_state_.current_buffer();
-    if (buffer != nullptr) {
-      buffer->ResetMode();
-    }
+    VisitPointer(
+        editor_state_.current_buffer(),
+        [](gc::Root<OpenBuffer> buffer) { buffer.ptr()->ResetMode(); }, [] {});
   }
 
  private:

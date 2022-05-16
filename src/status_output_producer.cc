@@ -23,6 +23,8 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::Pointer;
 
+namespace gc = language::gc;
+
 wstring GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
   if (auto current_line_marks =
@@ -32,8 +34,9 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
     auto mark = current_line_marks->second;
     auto source = buffer.editor().buffers()->find(mark.source_buffer);
     if (source != buffer.editor().buffers()->end() &&
-        LineNumber(0) + source->second->contents().size() > mark.source_line) {
-      return source->second->contents().at(mark.source_line)->ToString();
+        LineNumber(0) + source->second.ptr()->contents().size() >
+            mark.source_line) {
+      return source->second.ptr()->contents().at(mark.source_line)->ToString();
     }
   }
   std::wstring name = buffer.Read(buffer_variables::name);
@@ -122,11 +125,11 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     int running = 0;
     int failed = 0;
     for (const auto& entry : *options.buffer->editor().buffers()) {
-      NonNull<std::shared_ptr<OpenBuffer>> buffer = entry.second;
-      if (buffer->child_pid() != -1) {
+      OpenBuffer& buffer = entry.second.ptr().value();
+      if (buffer.child_pid() != -1) {
         running++;
-      } else if (buffer->child_exit_status().has_value()) {
-        int status = buffer->child_exit_status().value();
+      } else if (buffer.child_exit_status().has_value()) {
+        int status = buffer.child_exit_status().value();
         if (WIFEXITED(status) && WEXITSTATUS(status)) {
           failed++;
         }
@@ -155,10 +158,11 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
   line_options.AppendString(output, modifiers);
 
   auto text = options.status.text();
-  if (options.status.prompt_buffer() != nullptr) {
-    auto contents = options.status.prompt_buffer()->current_line();
-    auto column = min(contents->EndColumn(),
-                      options.status.prompt_buffer()->current_position_col());
+  if (options.status.prompt_buffer().has_value()) {
+    auto contents = options.status.prompt_buffer()->ptr()->current_line();
+    auto column =
+        min(contents->EndColumn(),
+            options.status.prompt_buffer()->ptr()->current_position_col());
     VLOG(5) << "Setting status cursor: " << column;
 
     line_options.AppendString(options.status.text(), LineModifierSet());
@@ -181,22 +185,23 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
 
 LineNumberDelta context_lines(const StatusOutputOptions& options) {
   static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
-  auto context = options.status.context();
-  return context == nullptr
-             ? LineNumberDelta()
-             : std::min(context->lines_size() + kLinesForStatusContextStatus,
-                        LineNumberDelta(10));
+  std::optional<gc::Root<OpenBuffer>> context = options.status.context();
+  // TODO(easy, 2022-05-16): Use VisitPointer.
+  return context.has_value() ? std::min(context->ptr()->lines_size() +
+                                            kLinesForStatusContextStatus,
+                                        LineNumberDelta(10))
+                             : LineNumberDelta();
 }
 
 auto status_basic_info_tests_registration = tests::Register(
     L"StatusBasicInfo",
     {{.name = L"BufferNameHasEnter", .callback = [] {
-        NonNull<std::shared_ptr<OpenBuffer>> buffer = NewBufferForTests();
-        buffer->Set(buffer_variables::name, L"foo\nbar\nhey");
-        buffer->Set(buffer_variables::path, L"");
+        gc::Root<OpenBuffer> buffer = NewBufferForTests();
+        buffer.ptr()->Set(buffer_variables::name, L"foo\nbar\nhey");
+        buffer.ptr()->Set(buffer_variables::path, L"");
         StatusBasicInfo(StatusOutputOptions{
-            .status = buffer->status(),
-            .buffer = buffer.get().get(),
+            .status = buffer.ptr()->status(),
+            .buffer = &buffer.ptr().value(),
             .modifiers = {},
             .size =
                 LineColumnDelta(LineNumberDelta(1), ColumnNumberDelta(80))});
@@ -236,7 +241,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
                                           context_lines, options.size.column)},
           // TODO(easy, 2022-04-30): Find a way to not crash here if context is
           // null?
-          .buffer = Pointer(options.status.context()).Reference(),
+          .buffer = options.status.context()->ptr().value(),
           .view_start = {},
           .status_behavior =
               BufferOutputProducerInput::StatusBehavior::kIgnore});

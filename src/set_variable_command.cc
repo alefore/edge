@@ -18,6 +18,9 @@ using language::EmptyValue;
 using language::FromByteString;
 using language::NonNull;
 
+namespace gc = language::gc;
+
+// TODO(easy, 2022-05-16): Get rid of this declaration.
 using std::wstring;
 
 namespace {
@@ -54,10 +57,11 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
     return futures::Past(EmptyValue());
   }
 
-  auto active_buffers = editor_state.active_buffers();
+  std::vector<gc::Root<OpenBuffer>> active_buffers =
+      editor_state.active_buffers();
   CHECK_GE(active_buffers.size(), 1ul);
   Status& default_error_status = active_buffers.size() == 1
-                                     ? active_buffers[0]->status()
+                                     ? active_buffers[0].ptr()->status()
                                      : editor_state.status();
   const HistoryFile history_file(L"values");
   if (auto var = buffer_variables::StringStruct()->find_variable(name);
@@ -65,7 +69,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
     Prompt({.editor_state = editor_state,
             .prompt = name + L" := ",
             .history_file = history_file,
-            .initial_value = active_buffers[0]->Read(var),
+            .initial_value = active_buffers[0].ptr()->Read(var),
             .handler =
                 [&editor_state, var](const wstring& input) {
                   editor_state.ResetRepetitions();
@@ -136,7 +140,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
         {.editor_state = editor_state,
          .prompt = name + L" := ",
          .history_file = history_file,
-         .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
+         .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
          .handler =
              [&editor_state, var, &default_error_status](const wstring& input) {
                int value;
@@ -166,7 +170,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
         {.editor_state = editor_state,
          .prompt = name + L" := ",
          .history_file = history_file,
-         .initial_value = std::to_wstring(active_buffers[0]->Read(var)),
+         .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
          .handler =
              [&editor_state, var, &default_error_status](const wstring& input) {
                std::wstringstream ss(input);
@@ -218,10 +222,9 @@ NonNull<unique_ptr<Command>> NewSetVariableCommand(EditorState& editor_state) {
                           .abort_notification = std::move(abort_notification)})
                   .Transform([line](std::optional<PredictResults> results) {
                     return ColorizePromptOptions{
-                        .context =
-                            results.has_value()
-                                ? results->predictions_buffer.get_shared()
-                                : nullptr};
+                        .context = results.has_value()
+                                       ? results->predictions_buffer
+                                       : std::optional<gc::Root<OpenBuffer>>()};
                   });
             },
             .handler =

@@ -25,6 +25,8 @@ using language::NonNull;
 using language::Success;
 using language::ToByteString;
 
+namespace gc = language::gc;
+
 futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
                                            EditorState& editor_state) {
   OpenOrCreateFile(
@@ -35,35 +37,41 @@ futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
 }
 
 // Returns the buffer to show for context, or nullptr.
-futures::Value<std::shared_ptr<OpenBuffer>> StatusContext(
+futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
     EditorState& editor, const PredictResults& results,
     const LazyString& line) {
-  futures::Value<std::shared_ptr<OpenBuffer>> output = futures::Past(nullptr);
+  futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
+      futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.found_exact_match) {
     auto path = Path::FromString(line.ToString());
     if (path.IsError()) {
-      return futures::Past(nullptr);
+      return futures::Past(std::optional<gc::Root<OpenBuffer>>());
     }
     output = OpenFileIfFound(
                  OpenFileOptions{
                      .editor_state = editor,
                      .path = path.value(),
                      .insertion_type = BuffersList::AddBufferType::kIgnore})
-                 .Transform([](NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-                   return Success(buffer.get_shared());
+                 .Transform([](gc::Root<OpenBuffer> buffer) {
+                   return Success(std::optional<gc::Root<OpenBuffer>>(buffer));
                  })
-                 .ConsumeErrors([](Error) { return futures::Past(nullptr); });
+                 .ConsumeErrors([](Error) {
+                   return futures::Past(std::optional<gc::Root<OpenBuffer>>());
+                 });
   }
-  return output.Transform([results](std::shared_ptr<OpenBuffer> buffer)
-                              -> std::shared_ptr<OpenBuffer> {
-    if (buffer != nullptr) return buffer;
-    if (results.predictions_buffer->lines_size() == LineNumberDelta(1) &&
-        results.predictions_buffer->contents().at(LineNumber())->empty()) {
-      return nullptr;
+  return output.Transform([results](std::optional<gc::Root<OpenBuffer>> buffer)
+                              -> std::optional<gc::Root<OpenBuffer>> {
+    if (buffer.has_value()) return buffer;
+    if (results.predictions_buffer.ptr()->lines_size() == LineNumberDelta(1) &&
+        results.predictions_buffer.ptr()
+            ->contents()
+            .at(LineNumber())
+            ->empty()) {
+      return std::nullopt;
     }
     LOG(INFO) << "Setting context: "
-              << results.predictions_buffer->Read(buffer_variables::name);
-    return results.predictions_buffer.get_shared();
+              << results.predictions_buffer.ptr()->Read(buffer_variables::name);
+    return results.predictions_buffer;
   });
 }
 
@@ -71,7 +79,8 @@ futures::Value<ColorizePromptOptions> DrawPath(
     EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
     PredictResults results) {
   return StatusContext(editor, results, line.value())
-      .Transform([line, results](std::shared_ptr<OpenBuffer> context_buffer) {
+      .Transform([line,
+                  results](std::optional<gc::Root<OpenBuffer>> context_buffer) {
         ColorizePromptOptions output;
         output.context = context_buffer;
 
@@ -241,7 +250,7 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
                 ? L""
                 : GetInitialPromptValue(
                       editor.modifiers().repetitions,
-                      source_buffers[0]->Read(buffer_variables::path)),
+                      source_buffers[0].ptr()->Read(buffer_variables::path)),
         .colorize_options_provider =
             [&editor](
                 const NonNull<std::shared_ptr<LazyString>>& line,
@@ -256,8 +265,9 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
             },
         .cancel_handler =
             [&editor]() {
-              if (auto buffer = editor.current_buffer(); buffer != nullptr) {
-                buffer->ResetMode();
+              // TODO(easy, 2022-05-16): Use VisitPointer.
+              if (auto buffer = editor.current_buffer(); buffer.has_value()) {
+                buffer->ptr()->ResetMode();
               }
             },
         .predictor = FilePredictor,

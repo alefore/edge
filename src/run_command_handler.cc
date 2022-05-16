@@ -325,9 +325,9 @@ void RunCommand(const BufferName& name, const wstring& input,
                 std::optional<Path> children_path) {
   auto buffer = editor_state.current_buffer();
   if (input.empty()) {
-    if (buffer != nullptr) {
-      buffer->ResetMode();
-      buffer->status().Reset();
+    if (buffer.has_value()) {
+      buffer->ptr()->ResetMode();
+      buffer->ptr()->status().Reset();
     }
     editor_state.status().Reset();
     return;
@@ -337,10 +337,10 @@ void RunCommand(const BufferName& name, const wstring& input,
   options.command = input;
   options.name = name;
   options.insertion_type =
-      buffer == nullptr ||
-              !buffer->Read(buffer_variables::commands_background_mode)
-          ? BuffersList::AddBufferType::kVisit
-          : BuffersList::AddBufferType::kIgnore;
+      buffer.has_value() &&
+              buffer->ptr()->Read(buffer_variables::commands_background_mode)
+          ? BuffersList::AddBufferType::kIgnore
+          : BuffersList::AddBufferType::kVisit;
   options.children_path = children_path;
   options.environment = std::move(environment);
   ForkCommand(editor_state, options);
@@ -359,9 +359,9 @@ futures::Value<EmptyValue> RunCommandHandler(
     }
   }
   auto buffer = editor_state.current_buffer();
-  if (buffer != nullptr) {
+  if (buffer.has_value()) {
     environment[L"EDGE_SOURCE_BUFFER_PATH"] =
-        buffer->Read(buffer_variables::path);
+        buffer->ptr()->Read(buffer_variables::path);
   }
   name += L" " + input;
   RunCommand(BufferName(name), input, environment, editor_state, children_path);
@@ -369,10 +369,10 @@ futures::Value<EmptyValue> RunCommandHandler(
 }
 
 ValueOrError<Path> GetChildrenPath(EditorState& editor_state) {
-  if (auto buffer = editor_state.current_buffer(); buffer != nullptr) {
+  if (auto buffer = editor_state.current_buffer(); buffer.has_value()) {
     return AugmentErrors(
         L"Getting children path of buffer",
-        Path::FromString(buffer->Read(buffer_variables::children_path)));
+        Path::FromString(buffer->ptr()->Read(buffer_variables::children_path)));
   }
   return Error(L"Editor doesn't have a current buffer.");
 }
@@ -381,7 +381,7 @@ class ForkEditorCommand : public Command {
  private:
   // Holds information about the current state of the prompt.
   struct PromptState {
-    const std::shared_ptr<OpenBuffer> original_buffer;
+    const gc::Root<OpenBuffer> original_buffer;
     std::optional<std::wstring> base_command;
     std::optional<gc::Root<afc::vm::Value>> context_command_callback;
   };
@@ -397,13 +397,16 @@ class ForkEditorCommand : public Command {
   void ProcessInput(wint_t) {
     gc::Pool& pool = editor_state_.gc_pool();
     if (editor_state_.structure() == StructureChar()) {
-      auto original_buffer = editor_state_.current_buffer();
+      std::optional<gc::Root<OpenBuffer>> original_buffer =
+          editor_state_.current_buffer();
+      // TODO(easy, 2022-05-16): Why is this safe?
+      CHECK(original_buffer.has_value());
       NonNull<std::shared_ptr<PromptState>> prompt_state =
           MakeNonNullShared<PromptState>(PromptState{
-              .original_buffer = original_buffer,
+              .original_buffer = *original_buffer,
               .base_command = std::nullopt,
               .context_command_callback =
-                  original_buffer->environment().ptr()->Lookup(
+                  original_buffer->ptr()->environment().ptr()->Lookup(
                       pool, Environment::Namespace(),
                       L"GetShellPromptContextProgram",
                       VMType::Function({VMType::String(), VMType::String()}))});
@@ -430,20 +433,22 @@ class ForkEditorCommand : public Command {
                                       children_path.AsOptional());
            })});
     } else if (editor_state_.structure() == StructureLine()) {
-      auto buffer = editor_state_.current_buffer();
-      if (buffer == nullptr || buffer->current_line() == nullptr) {
+      std::optional<gc::Root<OpenBuffer>> buffer =
+          editor_state_.current_buffer();
+      if (!buffer.has_value() || buffer->ptr()->current_line() == nullptr) {
         return;
       }
       auto children_path = GetChildrenPath(editor_state_);
-      auto line = buffer->current_line()->ToString();
+      auto line = buffer->ptr()->current_line()->ToString();
       for (size_t i = 0; i < editor_state_.repetitions().value_or(1); ++i) {
         RunCommandHandler(line, editor_state_, i,
                           editor_state_.repetitions().value_or(1),
                           children_path.AsOptional());
       }
     } else {
-      auto buffer = editor_state_.current_buffer();
-      (buffer == nullptr ? editor_state_.status() : buffer->status())
+      std::optional<gc::Root<OpenBuffer>> buffer =
+          editor_state_.current_buffer();
+      (buffer.has_value() ? buffer->ptr()->status() : editor_state_.status())
           .SetWarningText(L"Oops, that structure is not handled.");
     }
     editor_state_.ResetStructure();
@@ -454,7 +459,7 @@ class ForkEditorCommand : public Command {
       PromptState& prompt_state,
       const NonNull<std::shared_ptr<LazyString>>& line) {
     CHECK(prompt_state.context_command_callback.has_value());
-    EditorState& editor = prompt_state.original_buffer->editor();
+    EditorState& editor = prompt_state.original_buffer.ptr()->editor();
     language::gc::Pool& pool = editor.gc_pool();
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
     std::vector<NonNull<std::unique_ptr<Expression>>> arguments;
@@ -465,13 +470,13 @@ class ForkEditorCommand : public Command {
         std::move(arguments));
     if (expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
-      prompt_state.original_buffer->status().SetWarningText(
+      prompt_state.original_buffer.ptr()->status().SetWarningText(
           L"Unable to compile (type mismatch).");
-      return futures::Past(ColorizePromptOptions{.context = nullptr});
+      return futures::Past(ColorizePromptOptions{.context = std::nullopt});
     }
-    return prompt_state.original_buffer
+    return prompt_state.original_buffer.ptr()
         ->EvaluateExpression(expression.value(),
-                             prompt_state.original_buffer->environment())
+                             prompt_state.original_buffer.ptr()->environment())
         .Transform([&prompt_state, &editor](gc::Root<Value> value)
                        -> ValueOrError<ColorizePromptOptions> {
           const std::wstring& base_command = value.ptr()->get_string();
@@ -481,7 +486,7 @@ class ForkEditorCommand : public Command {
 
           if (base_command.empty()) {
             prompt_state.base_command = std::nullopt;
-            return ColorizePromptOptions{.context = nullptr};
+            return ColorizePromptOptions{.context = std::nullopt};
           }
 
           prompt_state.base_command = base_command;
@@ -489,11 +494,12 @@ class ForkEditorCommand : public Command {
           options.command = base_command;
           options.name = BufferName(L"- help: " + base_command);
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
-          auto help_buffer = ForkCommand(editor, options);
-          help_buffer->Set(buffer_variables::follow_end_of_file, false);
-          help_buffer->Set(buffer_variables::show_in_buffers_list, false);
-          help_buffer->set_position({});
-          return ColorizePromptOptions{.context = help_buffer.get_shared()};
+          auto help_buffer_root = ForkCommand(editor, options);
+          OpenBuffer& help_buffer = help_buffer_root.ptr().value();
+          help_buffer.Set(buffer_variables::follow_end_of_file, false);
+          help_buffer.Set(buffer_variables::show_in_buffers_list, false);
+          help_buffer.set_position({});
+          return ColorizePromptOptions{.context = help_buffer_root};
         })
         .ConsumeErrors(
             [](Error) { return futures::Past(ColorizePromptOptions{}); });
@@ -587,21 +593,21 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   environment.DefineType(std::move(fork_command_options));
 }
 
-NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(
-    EditorState& editor_state, const ForkCommandOptions& options) {
+gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
+                                 const ForkCommandOptions& options) {
   BufferName name = options.name.value_or(BufferName(L"$ " + options.command));
   if (auto it = editor_state.buffers()->find(name);
       it != editor_state.buffers()->end()) {
-    NonNull<std::shared_ptr<OpenBuffer>> buffer = it->second;
-    buffer->ResetMode();
-    buffer->Reload();
-    buffer->set_current_position_line(LineNumber(0));
+    gc::Root<OpenBuffer> buffer = it->second;
+    buffer.ptr()->ResetMode();
+    buffer.ptr()->Reload();
+    buffer.ptr()->set_current_position_line(LineNumber(0));
     editor_state.AddBuffer(buffer, options.insertion_type);
     return buffer;
   }
 
   auto command_data = std::make_shared<CommandData>();
-  NonNull<std::shared_ptr<OpenBuffer>> buffer = OpenBuffer::New(
+  gc::Root<OpenBuffer> buffer = OpenBuffer::New(
       {.editor = editor_state,
        .name = name,
        .generate_contents =
@@ -614,11 +620,11 @@ NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(
            [command_data](const OpenBuffer& buffer) {
              return Flags(*command_data, buffer);
            }});
-  buffer->Set(
+  buffer.ptr()->Set(
       buffer_variables::children_path,
       options.children_path.has_value() ? options.children_path->read() : L"");
-  buffer->Set(buffer_variables::command, options.command);
-  buffer->Reload();
+  buffer.ptr()->Set(buffer_variables::command, options.command);
+  buffer.ptr()->Reload();
 
   editor_state.buffers()->insert_or_assign(name, buffer);
   editor_state.AddBuffer(buffer, options.insertion_type);

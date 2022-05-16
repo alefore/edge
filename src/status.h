@@ -6,6 +6,7 @@
 
 #include "src/audio.h"
 #include "src/infrastructure/time.h"
+#include "src/language/gc.h"
 #include "src/language/ghost_type.h"
 
 namespace afc::editor {
@@ -83,15 +84,14 @@ class Status {
   enum class Type { kWarning, kInformation, kPrompt };
   Type GetType() const;
 
-  void set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer);
+  void set_prompt(std::wstring text, language::gc::Root<OpenBuffer> buffer);
   // Sets the context buffer.
   //
-  // Can be called with `nullptr` to remove the context.
-  void set_context(std::shared_ptr<OpenBuffer> context);
-  const std::shared_ptr<OpenBuffer>& context() const;
+  // Can be called with `std::nullopt` to remove the context.
+  void set_context(std::optional<language::gc::Root<OpenBuffer>> context);
+  const std::optional<language::gc::Root<OpenBuffer>>& context() const;
 
-  // May be nullptr.
-  const std::shared_ptr<OpenBuffer>& prompt_buffer() const;
+  const std::optional<language::gc::Root<OpenBuffer>>& prompt_buffer() const;
 
   // Returns nullptr if the status type isn't kPrompt.
   StatusPromptExtraInformation* prompt_extra_information();
@@ -138,12 +138,13 @@ class Status {
 
     const Type type = Type::kInformation;
     std::wstring text;
-    const std::shared_ptr<OpenBuffer> prompt_buffer = nullptr;
+    const std::optional<language::gc::Root<OpenBuffer>> prompt_buffer =
+        std::nullopt;
 
     // When `prompt_buffer` isn't nullptr, `context` may be set to a
     // buffer that contains either a preview of the results of executing the
     // prompt or possible completions.
-    std::shared_ptr<OpenBuffer> context = nullptr;
+    std::optional<language::gc::Root<OpenBuffer>> context = std::nullopt;
 
     // Should only be used when type is Type::kPrompt.
     std::unique_ptr<StatusPromptExtraInformation> extra_information = nullptr;

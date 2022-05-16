@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "src/futures/futures.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 
 namespace afc {
@@ -53,8 +54,8 @@ struct InsertModeOptions {
   EditorState& editor_state;
 
   // The buffers to insert into. If absent, defaults to the active buffers.
-  std::optional<std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>>>
-      buffers = std::nullopt;
+  std::optional<std::vector<language::gc::Root<OpenBuffer>>> buffers =
+      std::nullopt;
 
   // Optional function to run whenever the contents of the buffer are modified.
   std::function<futures::Value<language::EmptyValue>(OpenBuffer&)>
@@ -70,14 +71,14 @@ struct InsertModeOptions {
   // Optional function to run when a new line is received. Defaults to inserting
   // a new line and moving to it.
   std::function<futures::Value<language::EmptyValue>(
-      const language::NonNull<std::shared_ptr<OpenBuffer>>&)>
+      const language::gc::Root<OpenBuffer>&)>
       new_line_handler = nullptr;
 
   // Optional function to run when the user presses Tab for completions. Returns
   // true if completions are being attempted; false if autocompletion is not
   // enabled.
-  std::function<bool(const language::NonNull<std::shared_ptr<OpenBuffer>>&)>
-      start_completion = nullptr;
+  std::function<bool(const language::gc::Root<OpenBuffer>&)> start_completion =
+      nullptr;
 };
 
 void EnterInsertMode(InsertModeOptions options);

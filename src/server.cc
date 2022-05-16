@@ -41,8 +41,11 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 
+namespace gc = language::gc;
+
 using namespace afc::vm;
 
+// TODO(easy, 2022-05-16): Get rid of these declarations.
 using std::cerr;
 using std::pair;
 using std::shared_ptr;
@@ -171,9 +174,9 @@ futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
                        << error.description;
                    return futures::Past(error);
                  })
-      .Transform([target = target.shared_from_this()](FileDescriptor fd) {
+      .Transform([target = target.NewRoot()](FileDescriptor fd) {
         LOG(INFO) << "Server received connection: " << fd;
-        target->SetInputFiles(fd, FileDescriptor(-1), false, -1);
+        target.ptr()->SetInputFiles(fd, FileDescriptor(-1), false, -1);
         return Success();
       });
 }
@@ -191,35 +194,35 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
   return output;
 }
 
-NonNull<std::shared_ptr<OpenBuffer>> OpenServerBuffer(EditorState& editor_state,
-                                                      const Path& address) {
-  NonNull<std::shared_ptr<OpenBuffer>> buffer = OpenBuffer::New(
+gc::Root<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
+                                      const Path& address) {
+  gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
       OpenBuffer::Options{.editor = editor_state,
                           .name = editor_state.GetUnusedBufferName(L"- server"),
                           .path = address,
                           .generate_contents = GenerateContents});
-
-  buffer->NewCloseFuture().Transform([buffer, address](EmptyValue) {
-    return buffer->file_system_driver().Unlink(address);
+  OpenBuffer& buffer = buffer_root.ptr().value();
+  buffer.NewCloseFuture().Transform([buffer_root, address](EmptyValue) {
+    return buffer_root.ptr()->file_system_driver().Unlink(address);
   });
 
   // We need to trigger the call to `handle_save` in order to unlink the file
   // in `address`.
-  buffer->SetDiskState(OpenBuffer::DiskState::kStale);
+  buffer.SetDiskState(OpenBuffer::DiskState::kStale);
 
-  buffer->Set(buffer_variables::allow_dirty_delete, true);
-  buffer->Set(buffer_variables::clear_on_reload, false);
-  buffer->Set(buffer_variables::default_reload_after_exit, true);
-  buffer->Set(buffer_variables::display_progress, false);
-  buffer->Set(buffer_variables::persist_state, false);
-  buffer->Set(buffer_variables::reload_after_exit, true);
-  buffer->Set(buffer_variables::save_on_close, true);
-  buffer->Set(buffer_variables::show_in_buffers_list, false);
-  buffer->Set(buffer_variables::vm_exec, true);
+  buffer.Set(buffer_variables::allow_dirty_delete, true);
+  buffer.Set(buffer_variables::clear_on_reload, false);
+  buffer.Set(buffer_variables::default_reload_after_exit, true);
+  buffer.Set(buffer_variables::display_progress, false);
+  buffer.Set(buffer_variables::persist_state, false);
+  buffer.Set(buffer_variables::reload_after_exit, true);
+  buffer.Set(buffer_variables::save_on_close, true);
+  buffer.Set(buffer_variables::show_in_buffers_list, false);
+  buffer.Set(buffer_variables::vm_exec, true);
 
-  editor_state.buffers()->insert({buffer->name(), buffer});
-  buffer->Reload();
-  return buffer;
+  editor_state.buffers()->insert_or_assign(buffer.name(), buffer_root);
+  buffer.Reload();
+  return buffer_root;
 }
 
 }  // namespace editor

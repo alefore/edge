@@ -68,20 +68,18 @@ class PredictorTransformation : public CompositeTransformation {
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    return Predict(
-               {.editor_state = input.buffer.editor(),
-                .predictor = predictor_,
-                .text = text_,
-                // TODO: Ugh, the const_cast below is fucking ugly. I have a
-                // lake in my model: should PredictionOptions::source_buffer
-                // be `const` so that it can be applied here? But then...
-                // search handler can't really be mapped to a predictor,
-                // since it wants to modify the buffer. Perhaps the answer
-                // is to make search handler not modify the buffer, but
-                // rather do that on the caller, based on its outputs.
-                .source_buffers = {NonNull<std::shared_ptr<OpenBuffer>>::Unsafe(
-                    std::const_pointer_cast<OpenBuffer>(
-                        input.buffer.shared_from_this()))}})
+    return Predict({.editor_state = input.buffer.editor(),
+                    .predictor = predictor_,
+                    .text = text_,
+                    // TODO: Ugh, the const_cast below is fucking ugly. I have a
+                    // lake in my model: should PredictionOptions::source_buffer
+                    // be `const` so that it can be applied here? But then...
+                    // search handler can't really be mapped to a predictor,
+                    // since it wants to modify the buffer. Perhaps the answer
+                    // is to make search handler not modify the buffer, but
+                    // rather do that on the caller, based on its outputs.
+                    .source_buffers = {(
+                        const_cast<OpenBuffer*>(&input.buffer)->NewRoot())}})
         .Transform([text = text_, &buffer = input.buffer](
                        std::optional<PredictResults> results) {
           if (!results.has_value()) {
@@ -121,7 +119,7 @@ bool predictor_transformation_tests_register = tests::Register(
     {{.name = L"DeleteBufferDuringPrediction", .callback = [] {
         futures::Future<PredictorOutput> inner_future;
         OpenBuffer* predictions_buffer = nullptr;
-        auto final_value = NewBufferForTests()->ApplyToCursors(
+        auto final_value = NewBufferForTests().ptr()->ApplyToCursors(
             MakeNonNullShared<PredictorTransformation>(
                 [&](PredictorInput input) -> futures::Value<PredictorOutput> {
                   predictions_buffer = &input.predictions;
@@ -147,7 +145,7 @@ bool predictor_transformation_tests_register = tests::Register(
 }
 
 using OpenFileCallback =
-    std::function<futures::ValueOrError<NonNull<std::shared_ptr<OpenBuffer>>>(
+    std::function<futures::ValueOrError<gc::Root<OpenBuffer>>(
         const OpenFileOptions& options)>;
 
 class ReadAndInsert : public CompositeTransformation {
@@ -177,23 +175,24 @@ class ReadAndInsert : public CompositeTransformation {
                    .path = full_path,
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
-        .Transform([full_path, input = std::move(input)](
-                       NonNull<std::shared_ptr<OpenBuffer>> buffer) {
-          return buffer->WaitForEndOfFile().Transform(
-              [buffer_to_insert = buffer,
-               input = std::move(input)](EmptyValue) {
-                Output output;
-                output.Push(transformation::Insert{
-                    .contents_to_insert = buffer_to_insert->contents().copy()});
-                LineColumn position = buffer_to_insert->position();
-                if (position.line.IsZero()) {
-                  position.column += input.position.column.ToDelta();
-                }
-                position.line += input.position.line.ToDelta();
-                output.Push(transformation::SetPosition(position));
-                return Success(std::move(output));
-              });
-        })
+        .Transform(
+            [full_path, input = std::move(input)](gc::Root<OpenBuffer> buffer) {
+              return buffer.ptr()->WaitForEndOfFile().Transform(
+                  [buffer_to_insert = buffer,
+                   input = std::move(input)](EmptyValue) {
+                    Output output;
+                    output.Push(transformation::Insert{
+                        .contents_to_insert =
+                            buffer_to_insert.ptr()->contents().copy()});
+                    LineColumn position = buffer_to_insert.ptr()->position();
+                    if (position.line.IsZero()) {
+                      position.column += input.position.column.ToDelta();
+                    }
+                    position.line += input.position.line.ToDelta();
+                    output.Push(transformation::SetPosition(position));
+                    return Success(std::move(output));
+                  });
+            })
         .ConsumeErrors([full_path](Error) {
           LOG(INFO) << "Unable to open file: " << full_path;
           return futures::Past(Output());
@@ -211,7 +210,7 @@ const bool read_and_insert_tests_registration = tests::Register(
         {.name = L"BadPathCorrectlyHandled",
          .callback =
              [] {
-               auto buffer = NewBufferForTests();
+               gc::Root<OpenBuffer> buffer = NewBufferForTests();
                std::optional<Path> path_opened;
                bool transformation_done = false;
                ReadAndInsert(
@@ -221,7 +220,8 @@ const bool read_and_insert_tests_registration = tests::Register(
                      return futures::Past(Error(L"File does not exist."));
                    })
                    .Apply(CompositeTransformation::Input{
-                       .editor = buffer->editor(), .buffer = buffer.value()})
+                       .editor = buffer.ptr()->editor(),
+                       .buffer = buffer.ptr().value()})
                    .SetConsumer([&](CompositeTransformation::Output) {
                      transformation_done = true;
                    });

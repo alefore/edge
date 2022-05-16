@@ -72,25 +72,22 @@ class EditorState {
 
   void CloseBuffer(OpenBuffer& buffer);
 
-  const std::map<BufferName,
-                 afc::language::NonNull<std::shared_ptr<OpenBuffer>>>*
-  buffers() const {
+  const std::map<BufferName, afc::language::gc::Root<OpenBuffer>>* buffers()
+      const {
     return &buffers_;
   }
 
-  std::map<BufferName, afc::language::NonNull<std::shared_ptr<OpenBuffer>>>*
-  buffers() {
+  std::map<BufferName, afc::language::gc::Root<OpenBuffer>>* buffers() {
     return &buffers_;
   }
 
-  language::NonNull<std::shared_ptr<OpenBuffer>> FindOrBuildBuffer(
-      BufferName,
-      std::function<language::NonNull<std::shared_ptr<OpenBuffer>>()> factory);
+  language::gc::Root<OpenBuffer> FindOrBuildBuffer(
+      BufferName, std::function<language::gc::Root<OpenBuffer>()> factory);
 
   BuffersList& buffer_tree() { return buffer_tree_; }
   const BuffersList& buffer_tree() const { return buffer_tree_; }
 
-  void set_current_buffer(language::NonNull<std::shared_ptr<OpenBuffer>> buffer,
+  void set_current_buffer(language::gc::Root<OpenBuffer> buffer,
                           CommandArgumentModeApplyMode apply_mode);
   void AddHorizontalSplit();
   void AddVerticalSplit();
@@ -99,12 +96,10 @@ class EditorState {
   void AdjustWidgets();
 
   bool has_current_buffer() const;
-  shared_ptr<OpenBuffer> current_buffer();
-  const shared_ptr<OpenBuffer> current_buffer() const;
+  std::optional<language::gc::Root<OpenBuffer>> current_buffer() const;
   // Returns the set of buffers that should be modified by commands.
-  std::vector<language::NonNull<std::shared_ptr<OpenBuffer>>> active_buffers()
-      const;
-  void AddBuffer(language::NonNull<std::shared_ptr<OpenBuffer>> buffer,
+  std::vector<language::gc::Root<OpenBuffer>> active_buffers() const;
+  void AddBuffer(language::gc::Root<OpenBuffer> buffer,
                  BuffersList::AddBufferType insertion_type);
   futures::Value<language::EmptyValue> ForEachActiveBuffer(
       std::function<futures::Value<language::EmptyValue>(OpenBuffer&)>
@@ -128,9 +123,10 @@ class EditorState {
   void Terminate(TerminationType termination_type, int exit_value);
 
   void ResetModifiers() {
+    // TODO(easy, 2022-05-15): Move implementation to CC file.
     auto buffer = current_buffer();
-    if (buffer != nullptr) {
-      buffer->ResetMode();
+    if (buffer.has_value()) {
+      buffer->ptr()->ResetMode();
     }
     modifiers_.ResetSoft();
   }
@@ -196,7 +192,7 @@ class EditorState {
 
   void PushCurrentPosition();
   void PushPosition(LineColumn position);
-  std::shared_ptr<OpenBuffer> GetConsole();
+  language::gc::Root<OpenBuffer> GetConsole();
   bool HasPositionsInStack();
   BufferPosition ReadPositionsStack();
   bool MovePositionsStack(Direction direction);
@@ -258,8 +254,7 @@ class EditorState {
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
   concurrent::ThreadPool thread_pool_;
 
-  std::map<BufferName, afc::language::NonNull<std::shared_ptr<OpenBuffer>>>
-      buffers_;
+  std::map<BufferName, afc::language::gc::Root<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
 
   const infrastructure::Path home_directory_;

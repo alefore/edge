@@ -83,7 +83,9 @@ class GotoCommand : public Command {
       CHECK_LT(position, editor_state_.buffers()->size());
       auto it = editor_state_.buffers()->begin();
       advance(it, position);
-      if (it->second.get().get() != editor_state_.current_buffer().get()) {
+      if (auto current = editor_state_.current_buffer();
+          !current.has_value() ||
+          &it->second.ptr().value() != &current->ptr().value()) {
         editor_state_.set_current_buffer(it->second,
                                          CommandArgumentModeApplyMode::kFinal);
       }

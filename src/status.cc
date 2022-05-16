@@ -14,6 +14,8 @@ namespace afc::editor {
 using language::MakeNonNullShared;
 using language::NonNull;
 
+namespace gc = language::gc;
+
 wchar_t Braille(size_t counter) {
   wchar_t c = L'⠀';
   c += (counter & 0x80 ? 0x01 : 0) + (counter & 0x40 ? 0x08 : 0) +
@@ -162,8 +164,7 @@ Status::Type Status::GetType() const {
   return data_->type;
 }
 
-void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
-  CHECK(buffer != nullptr);
+void Status::set_prompt(std::wstring text, gc::Root<OpenBuffer> buffer) {
   ValidatePreconditions();
   data_ = MakeNonNullShared<Data>(Data{
       .type = Status::Type::kPrompt,
@@ -173,18 +174,18 @@ void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   ValidatePreconditions();
 }
 
-void Status::set_context(std::shared_ptr<OpenBuffer> context) {
+void Status::set_context(std::optional<gc::Root<OpenBuffer>> context) {
   ValidatePreconditions();
   data_->context = std::move(context);
   ValidatePreconditions();
 }
 
-const std::shared_ptr<OpenBuffer>& Status::prompt_buffer() const {
+const std::optional<gc::Root<OpenBuffer>>& Status::prompt_buffer() const {
   ValidatePreconditions();
   return data_->prompt_buffer;
 }
 
-const std::shared_ptr<OpenBuffer>& Status::context() const {
+const std::optional<gc::Root<OpenBuffer>>& Status::context() const {
   ValidatePreconditions();
   return data_->context;
 }
@@ -200,7 +201,7 @@ const StatusPromptExtraInformation* Status::prompt_extra_information() const {
 void Status::SetInformationText(std::wstring text) {
   ValidatePreconditions();
   LOG(INFO) << "SetInformationText: " << text;
-  if (data_->prompt_buffer != nullptr) {
+  if (data_->prompt_buffer.has_value()) {
     return;
   }
   data_ = MakeNonNullShared<Data>(
@@ -218,7 +219,7 @@ Status::SetExpiringInformationText(std::wstring text) {
   ValidatePreconditions();
   SetInformationText(text);
   ValidatePreconditions();
-  if (data_->prompt_buffer != nullptr) {
+  if (data_->prompt_buffer.has_value()) {
     return nullptr;
   }
 
@@ -239,7 +240,7 @@ void Status::SetWarningText(std::wstring text) {
 
   LOG(INFO) << "Warning: " << text;
   GenerateAlert(audio_player_);
-  if (data_->prompt_buffer != nullptr) {
+  if (data_->prompt_buffer.has_value()) {
     return;
   }
   data_ = MakeNonNullShared<Data>(
@@ -276,7 +277,7 @@ const std::wstring& Status::text() const {
 }
 
 void Status::ValidatePreconditions() const {
-  CHECK((data_->prompt_buffer != nullptr) == (data_->type == Type::kPrompt));
+  CHECK((data_->prompt_buffer.has_value()) == (data_->type == Type::kPrompt));
 }
 
 namespace {
@@ -288,21 +289,23 @@ const bool prompt_tests_registration = tests::Register(
             NonNull<std::unique_ptr<audio::Player>> audio_player =
                 audio::NewNullPlayer();
             Status status(audio_player.value());
-            NonNull<std::shared_ptr<OpenBuffer>> prompt = NewBufferForTests();
-            status.set_prompt(L">", prompt.get_shared());
+            gc::Root<OpenBuffer> prompt = NewBufferForTests();
+            status.set_prompt(L">", prompt);
             status.SetWarningText(L"Foobar");
             CHECK(status.text() == L">");
-            CHECK(status.prompt_buffer() == prompt.get_shared());
+            CHECK(&status.prompt_buffer().value().ptr().value() ==
+                  &prompt.ptr().value());
           }},
      {.name = L"SetExpiringInformationText", .callback = [] {
         NonNull<std::unique_ptr<audio::Player>> audio_player =
             audio::NewNullPlayer();
         Status status(audio_player.value());
-        NonNull<std::shared_ptr<OpenBuffer>> prompt = NewBufferForTests();
-        status.set_prompt(L">", prompt.get_shared());
+        gc::Root<OpenBuffer> prompt = NewBufferForTests();
+        status.set_prompt(L">", prompt);
         status.SetExpiringInformationText(L"Foobar");
         CHECK(status.text() == L">");
-        CHECK(status.prompt_buffer() == prompt.get_shared());
+        CHECK(&status.prompt_buffer().value().ptr().value() ==
+              &prompt.ptr().value());
       }}});
 
 }

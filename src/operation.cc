@@ -24,6 +24,8 @@ using language::EmptyValue;
 using language::MakeNonNullUnique;
 using language::NonNull;
 
+namespace gc = language::gc;
+
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
@@ -91,14 +93,14 @@ futures::Value<UndoCallback> ExecuteTransformation(
   auto call = tracker.Call();
 
   auto buffers_transformed =
-      std::make_shared<std::vector<std::shared_ptr<OpenBuffer>>>();
+      std::make_shared<std::vector<gc::Root<OpenBuffer>>>();
   return editor
       .ForEachActiveBuffer([transformation = std::move(transformation),
                             buffers_transformed,
                             application_type](OpenBuffer& buffer) {
         static Tracker tracker(L"ExecuteTransformation::ApplyTransformation");
         auto call = tracker.Call();
-        buffers_transformed->push_back(buffer.shared_from_this());
+        buffers_transformed->push_back(buffer.NewRoot());
         return buffer.ApplyToCursors(
             transformation,
             buffer.Read(buffer_variables::multiple_cursors)
@@ -114,11 +116,12 @@ futures::Value<UndoCallback> ExecuteTransformation(
           auto call = tracker.Call();
           return futures::ForEach(
                      buffers_transformed->begin(), buffers_transformed->end(),
-                     [buffers_transformed](std::shared_ptr<OpenBuffer> buffer) {
+                     [buffers_transformed](gc::Root<OpenBuffer> buffer) {
                        static Tracker tracker(
                            L"ExecuteTransformation::Undo::Buffer");
                        auto call = tracker.Call();
-                       return buffer->Undo(OpenBuffer::UndoMode::kOnlyOne)
+                       return buffer.ptr()
+                           ->Undo(OpenBuffer::UndoMode::kOnlyOne)
                            .Transform([](auto) {
                              return futures::IterationControlCommand::kContinue;
                            });

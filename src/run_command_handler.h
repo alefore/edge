@@ -47,8 +47,8 @@ language::NonNull<std::unique_ptr<Command>> NewForkCommand(
 
 class OpenBuffer;
 
-language::NonNull<std::shared_ptr<OpenBuffer>> ForkCommand(
-    EditorState& editor_state, const ForkCommandOptions& options);
+language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
+                                           const ForkCommandOptions& options);
 
 futures::Value<language::EmptyValue> RunCommandHandler(
     const wstring& input, EditorState& editor_state,

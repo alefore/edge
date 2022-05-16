@@ -18,13 +18,15 @@
 
 namespace afc {
 namespace editor {
-
+// TODO(easy, 2022-05-16): Get rid of these `using` declarations.
 using std::cerr;
 using std::set;
 using std::to_wstring;
 
 using infrastructure::Path;
 using infrastructure::Tracker;
+
+namespace gc = language::gc;
 
 constexpr int Terminal::DOWN_ARROW;
 constexpr int Terminal::UP_ARROW;
@@ -53,15 +55,15 @@ LineWithCursor::Generator::Vector GetLines(const EditorState& editor_state,
                     .modifiers = editor_state.modifiers(),
                     .size = screen_size});
 
-  auto buffer = editor_state.current_buffer();
+  std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
   LineWithCursor::Generator::Vector output =
       editor_state.buffer_tree().GetLines(
           {.size = LineColumnDelta(screen_size.line - status_lines.size(),
                                    screen_size.column),
            .main_cursor_behavior =
                (editor_state.status().GetType() == Status::Type::kPrompt ||
-                (buffer != nullptr &&
-                 buffer->status().GetType() == Status::Type::kPrompt))
+                (buffer.has_value() &&
+                 buffer->ptr()->status().GetType() == Status::Type::kPrompt))
                    ? Widget::OutputProducerOptions::MainCursorBehavior::
                          kHighlight
                    : Widget::OutputProducerOptions::MainCursorBehavior::
@@ -89,16 +91,17 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
   screen.Move(LineColumn());
 
   LineColumnDelta screen_size = screen.size();
-  auto buffer = editor_state.current_buffer();
+  std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
   LineWithCursor::Generator::Vector lines = GetLines(editor_state, screen);
   CHECK_EQ(lines.size(), screen_size.line);
   for (LineNumber line; line.ToDelta() < screen_size.line; ++line)
     WriteLine(screen, line, lines.lines[line.line]);
 
   if (editor_state.status().GetType() == Status::Type::kPrompt ||
-      (buffer != nullptr &&
-       buffer->status().GetType() == Status::Type::kPrompt) ||
-      (buffer != nullptr && !buffer->Read(buffer_variables::atomic_lines) &&
+      (buffer.has_value() &&
+       buffer->ptr()->status().GetType() == Status::Type::kPrompt) ||
+      (buffer.has_value() &&
+       !buffer->ptr()->Read(buffer_variables::atomic_lines) &&
        cursor_position_.has_value())) {
     screen.SetCursorVisibility(Screen::NORMAL);
     AdjustPosition(screen);
