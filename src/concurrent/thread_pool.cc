@@ -14,6 +14,7 @@ ThreadPool::ThreadPool(size_t size,
 }
 
 ThreadPool::~ThreadPool() {
+  LOG(INFO) << "Starting destruction of ThreadPool.";
   std::vector<std::thread> threads;
   data_.lock([&threads](Data& data, std::condition_variable& condition) {
     CHECK(!data.shutting_down);
