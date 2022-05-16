@@ -103,16 +103,19 @@ class Ptr {
 
   WeakPtr<T> ToWeakPtr() const { return WeakPtr<T>(*this); }
 
-  Ptr(const Ptr<T>& other)
+  template <typename U>
+  Ptr(const Ptr<U>& other)
       : value_(other.value_), control_frame_(other.control_frame_) {}
 
-  Ptr<T>& operator=(const Ptr<T>& other) {
+  template <typename U>
+  Ptr<T>& operator=(const Ptr<U>& other) {
     value_ = other.value_;
     control_frame_ = other.control_frame_;
     return *this;
   }
 
-  Ptr<T>& operator=(Ptr<T>&& other) {
+  template <typename U>
+  Ptr<T>& operator=(Ptr<U>&& other) {
     value_ = std::move(other.value_);
     control_frame_ = std::move(other.control_frame_);
     return *this;
@@ -141,10 +144,17 @@ class Ptr {
             }));
   }
 
-  friend class Root<T>;
-  friend class WeakPtr<T>;
+  template <typename U>
+  friend class Root;
 
-  Ptr(std::weak_ptr<T> value,
+  template <typename U>
+  friend class WeakPtr;
+
+  template <typename U>
+  friend class Ptr;
+
+  template <typename U>
+  Ptr(std::weak_ptr<U> value,
       language::NonNull<std::shared_ptr<ControlFrame>> control_frame)
       : value_(value), control_frame_(control_frame) {
     VLOG(5) << "Ptr(pool, value): " << control_frame_.get_shared()
@@ -168,7 +178,9 @@ class Ptr {
 template <typename T>
 class WeakPtr {
  public:
-  std::optional<Root<T>> Lock() {
+  WeakPtr() = default;
+
+  std::optional<Root<T>> Lock() const {
     return VisitPointer(
         control_frame_,
         [&](language::NonNull<std::shared_ptr<ControlFrame>> control_frame) {
@@ -191,13 +203,16 @@ class WeakPtr {
 template <typename T>
 class Root {
  public:
-  Root(const Root<T>& other) : Root(other.ptr_) {}
+  template <typename U>
+  Root(const Root<U>& other) : Root(other.ptr_) {}
 
-  Root(Root<T>&& other)
+  template <typename U>
+  Root(Root<U>&& other)
       : ptr_(std::move(other.ptr_)),
         registration_(pool().AddRoot(ptr_.control_frame_.get_shared())) {}
 
-  Root<T>& operator=(Root<T>&& other) {
+  template <typename U>
+  Root<T>& operator=(Root<U>&& other) {
     CHECK(this != &other);
     std::swap(ptr_.value_, other.ptr_.value_);
     std::swap(ptr_.control_frame_, other.ptr_.control_frame_);
@@ -216,6 +231,9 @@ class Root {
   friend class Pool;
   friend class Ptr<T>;
 
+  template <typename U>
+  friend class Root;
+
   Root(Pool& pool, language::NonNull<std::unique_ptr<T>> value)
       : Root(Ptr<T>::New(pool, std::move(value))) {}
 
@@ -227,5 +245,14 @@ class Root {
   Pool::RootRegistration registration_;
 };
 
+template <typename T>
+bool operator==(const Root<T>& a, const Root<T>& b) {
+  return &a.ptr().value() == &b.ptr().value();
+}
+
+template <typename T>
+bool operator<(const Root<T>& a, const Root<T>& b) {
+  return &a.ptr().value() < &b.ptr().value();
+}
 };  // namespace afc::language::gc
 #endif
