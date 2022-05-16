@@ -100,6 +100,13 @@ void EditorState::NotifyInternalEvent() {
   }
 }
 
+void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
+  // pool.Reclaim();
+  work_queue.ScheduleAt(AddSeconds(Now(), 10), [&pool, &work_queue] {
+    ReclaimAndSchedule(pool, work_queue);
+  });
+}
+
 EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
     : string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
@@ -168,6 +175,8 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
         audio::Volume(max(0.0, min(1.0, Read(editor_variables::volume)))));
     return Observers::State::kAlive;
   });
+
+  ReclaimAndSchedule(gc_pool_, work_queue_.value());
 }
 
 EditorState::~EditorState() {
