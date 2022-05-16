@@ -498,6 +498,83 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   }
 }
 
+void EditorState::ResetModifiers() {
+  auto buffer = current_buffer();
+  if (buffer.has_value()) {
+    buffer->ptr()->ResetMode();
+  }
+  modifiers_.ResetSoft();
+}
+
+Direction EditorState::direction() const { return modifiers_.direction; }
+
+void EditorState::set_direction(Direction direction) {
+  modifiers_.direction = direction;
+}
+
+void EditorState::ResetDirection() { modifiers_.ResetDirection(); }
+
+Direction EditorState::default_direction() const {
+  return modifiers_.default_direction;
+}
+
+void EditorState::set_default_direction(Direction direction) {
+  modifiers_.default_direction = direction;
+  ResetDirection();
+}
+
+std::optional<size_t> EditorState::repetitions() const {
+  return modifiers_.repetitions;
+}
+
+void EditorState::ResetRepetitions() { modifiers_.ResetRepetitions(); }
+
+void EditorState::set_repetitions(size_t value) {
+  modifiers_.repetitions = value;
+}
+
+Modifiers EditorState::modifiers() const { return modifiers_; }
+
+void EditorState::set_modifiers(const Modifiers& modifiers) {
+  modifiers_ = modifiers;
+}
+
+Structure* EditorState::structure() const { return modifiers_.structure; }
+
+void EditorState::set_structure(Structure* structure) {
+  modifiers_.structure = structure;
+}
+
+void EditorState::ResetStructure() { modifiers_.ResetStructure(); }
+
+bool EditorState::sticky_structure() const {
+  return modifiers_.sticky_structure;
+}
+
+void EditorState::set_sticky_structure(bool sticky_structure) {
+  modifiers_.sticky_structure = sticky_structure;
+}
+
+Modifiers::ModifyMode EditorState::insertion_modifier() const {
+  return modifiers_.insertion;
+}
+
+void EditorState::set_insertion_modifier(
+    Modifiers::ModifyMode insertion_modifier) {
+  modifiers_.insertion = insertion_modifier;
+}
+
+void EditorState::ResetInsertionModifier() { modifiers_.ResetInsertion(); }
+
+Modifiers::ModifyMode EditorState::default_insertion_modifier() const {
+  return modifiers_.default_insertion;
+}
+
+void EditorState::set_default_insertion_modifier(
+    Modifiers::ModifyMode default_insertion_modifier) {
+  modifiers_.default_insertion = default_insertion_modifier;
+}
+
 futures::Value<EmptyValue> EditorState::ProcessInputString(
     const string& input) {
   return futures::ForEachWithCopy(

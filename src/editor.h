@@ -122,54 +122,37 @@ class EditorState {
   enum class TerminationType { kWhenClean, kIgnoringErrors };
   void Terminate(TerminationType termination_type, int exit_value);
 
-  void ResetModifiers() {
-    // TODO(easy, 2022-05-15): Move implementation to CC file.
-    auto buffer = current_buffer();
-    if (buffer.has_value()) {
-      buffer->ptr()->ResetMode();
-    }
-    modifiers_.ResetSoft();
-  }
+  void ResetModifiers();
 
-  Direction direction() const { return modifiers_.direction; }
-  void set_direction(Direction direction) { modifiers_.direction = direction; }
-  void ResetDirection() { modifiers_.ResetDirection(); }
-  Direction default_direction() const { return modifiers_.default_direction; }
-  void set_default_direction(Direction direction) {
-    modifiers_.default_direction = direction;
-    ResetDirection();
-  }
+  Direction direction() const;
+  void set_direction(Direction direction);
+  void ResetDirection();
+  Direction default_direction() const;
+  void set_default_direction(Direction direction);
 
-  std::optional<size_t> repetitions() const { return modifiers_.repetitions; }
-  void ResetRepetitions() { modifiers_.ResetRepetitions(); }
-  void set_repetitions(size_t value) { modifiers_.repetitions = value; }
+  std::optional<size_t> repetitions() const;
+  void ResetRepetitions();
+  void set_repetitions(size_t value);
 
-  Modifiers modifiers() const { return modifiers_; }
-  void set_modifiers(const Modifiers& modifiers) { modifiers_ = modifiers; }
+  Modifiers modifiers() const;
+  void set_modifiers(const Modifiers& modifiers);
 
-  Structure* structure() const { return modifiers_.structure; }
-  void set_structure(Structure* structure) { modifiers_.structure = structure; }
-  void ResetStructure() { modifiers_.ResetStructure(); }
+  Structure* structure() const;
+  void set_structure(Structure* structure);
+  void ResetStructure();
 
-  bool sticky_structure() const { return modifiers_.sticky_structure; }
-  void set_sticky_structure(bool sticky_structure) {
-    modifiers_.sticky_structure = sticky_structure;
-  }
+  bool sticky_structure() const;
+  void set_sticky_structure(bool sticky_structure);
 
-  Modifiers::ModifyMode insertion_modifier() const {
-    return modifiers_.insertion;
-  }
-  void set_insertion_modifier(Modifiers::ModifyMode insertion_modifier) {
-    modifiers_.insertion = insertion_modifier;
-  }
-  void ResetInsertionModifier() { modifiers_.ResetInsertion(); }
-  Modifiers::ModifyMode default_insertion_modifier() const {
-    return modifiers_.default_insertion;
-  }
+  Modifiers::ModifyMode insertion_modifier() const;
+
+  void set_insertion_modifier(Modifiers::ModifyMode insertion_modifier);
+
+  void ResetInsertionModifier();
+  Modifiers::ModifyMode default_insertion_modifier() const;
+
   void set_default_insertion_modifier(
-      Modifiers::ModifyMode default_insertion_modifier) {
-    modifiers_.default_insertion = default_insertion_modifier;
-  }
+      Modifiers::ModifyMode default_insertion_modifier);
 
   futures::Value<language::EmptyValue> ProcessInputString(const string& input);
   futures::Value<language::EmptyValue> ProcessInput(int c);
