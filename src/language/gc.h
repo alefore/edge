@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/concurrent/protected.h"
 #include "src/language/safe_types.h"
 
 namespace afc::language::gc {
@@ -46,11 +47,14 @@ class Pool {
   void AddObj(language::NonNull<std::shared_ptr<ControlFrame>> control_frame);
 
  private:
-  // All the control frames for all the objects allocated into this pool.
-  std::vector<std::weak_ptr<ControlFrame>> objects_;
+  struct Data {
+    // All the control frames for all the objects allocated into this pool.
+    std::vector<std::weak_ptr<ControlFrame>> objects;
 
-  // Weak ownership of the control frames for all the roots.
-  std::list<std::weak_ptr<ControlFrame>> roots_;
+    // Weak ownership of the control frames for all the roots.
+    std::list<std::weak_ptr<ControlFrame>> roots;
+  };
+  concurrent::Protected<Data> data_;
 };
 
 std::ostream& operator<<(std::ostream& os,
@@ -78,14 +82,18 @@ struct ControlFrame {
 
  public:
   ControlFrame(ConstructorAccessKey, Pool& pool, ExpandCallback expand_callback)
-      : pool_(pool), expand_callback_(std::move(expand_callback)) {}
+      : pool_(pool),
+        data_(Data{.expand_callback = std::move(expand_callback)}) {}
 
  private:
   Pool& pool() const { return pool_; }
 
   Pool& pool_;
-  ExpandCallback expand_callback_;
-  bool reached_ = false;
+  struct Data {
+    ExpandCallback expand_callback;
+    bool reached = false;
+  };
+  concurrent::Protected<Data> data_;
 };
 
 // A mutable pointer with shared ownership of a managed object. Behaves very
@@ -183,7 +191,7 @@ class WeakPtr {
     return VisitPointer(
         control_frame_,
         [&](language::NonNull<std::shared_ptr<ControlFrame>> control_frame) {
-          return control_frame->expand_callback_ == nullptr
+          return control_frame->data_.lock()->expand_callback == nullptr
                      ? std::optional<Root<T>>()
                      : Ptr<T>(value_, control_frame).ToRoot();
         },

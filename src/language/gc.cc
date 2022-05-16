@@ -15,67 +15,96 @@ Pool::~Pool() {
 }
 
 Pool::ReclaimObjectsStats Pool::Reclaim() {
+  // We collect expired objects here and explicitly delete them once we have
+  // unlocked data_.
+  std::vector<NonNull<std::shared_ptr<ControlFrame>>> expired_objects;
+
   ReclaimObjectsStats stats;
 
-  VLOG(5) << "Marking reachability and counting initial dead.";
-  stats.begin_total = objects_.size();
-  for (auto& obj_weak : objects_)
-    if (auto obj = obj_weak.lock(); obj != nullptr)
-      obj->reached_ = false;
-    else
-      stats.begin_dead++;
+  data_.lock([&](Data& data) {
+    VLOG(5) << "Marking reachability and counting initial dead.";
+    stats.begin_total = data.objects.size();
+    for (auto& obj_weak : data.objects)
+      VisitPointer(
+          obj_weak,
+          [&](NonNull<std::shared_ptr<ControlFrame>> obj) {
+            obj->data_.lock([](ControlFrame::Data& object_data) {
+              object_data.reached = false;
+            });
+          },
+          [&] { stats.begin_dead++; });
 
-  VLOG(5) << "Registering roots.";
-  stats.roots = roots_.size();
-  std::list<language::NonNull<std::shared_ptr<ControlFrame>>> expand;
-  for (const std::weak_ptr<ControlFrame>& root_weak : roots_) {
-    VisitPointer(
-        root_weak,
-        [&expand](language::NonNull<std::shared_ptr<ControlFrame>> root) {
-          CHECK(!root->reached_);
-          CHECK(root->expand_callback_ != nullptr);
-          expand.push_back(root);
-        },
-        [] { LOG(FATAL) << "Root was dead. Should never happen."; });
-  }
+    VLOG(5) << "Registering roots.";
+    stats.roots = data.roots.size();
+    std::list<language::NonNull<std::shared_ptr<ControlFrame>>> expand;
+    for (const std::weak_ptr<ControlFrame>& root_weak : data.roots) {
+      VisitPointer(
+          root_weak,
+          [&expand](language::NonNull<std::shared_ptr<ControlFrame>> root) {
+            root->data_.lock([&](ControlFrame::Data& object_data) {
+              CHECK(!object_data.reached);
+              CHECK(object_data.expand_callback != nullptr);
+            });
+            expand.push_back(root);
+          },
+          [] { LOG(FATAL) << "Root was dead. Should never happen."; });
+    }
 
-  VLOG(5) << "Starting recursive expansion.";
-  while (!expand.empty()) {
-    language::NonNull<std::shared_ptr<ControlFrame>> front =
-        std::move(expand.front());
-    expand.pop_front();
-    VLOG(5) << "Considering obj: " << front.get_shared();
-    CHECK(front->expand_callback_ != nullptr);
-    if (front->reached_) continue;
-    front->reached_ = true;
-    for (language::NonNull<std::shared_ptr<ControlFrame>> obj :
-         front->expand_callback_()) {
-      CHECK(obj->expand_callback_ != nullptr);
-      if (!obj->reached_) {
-        expand.push_back(std::move(obj));
+    VLOG(5) << "Starting recursive expansion.";
+    while (!expand.empty()) {
+      language::NonNull<std::shared_ptr<ControlFrame>> front =
+          std::move(expand.front());
+      expand.pop_front();
+      VLOG(5) << "Considering obj: " << front.get_shared();
+      auto expansion = front->data_.lock([&](ControlFrame::Data& object_data) {
+        CHECK(object_data.expand_callback != nullptr);
+        if (object_data.reached)
+          return std::vector<NonNull<std::shared_ptr<ControlFrame>>>();
+        object_data.reached = true;
+        return object_data.expand_callback();
+      });
+      VLOG(6) << "Installing expansion of " << front.get_shared() << ": "
+              << expansion.size();
+      for (language::NonNull<std::shared_ptr<ControlFrame>> obj : expansion) {
+        obj->data_.lock([&](ControlFrame::Data& object_data) {
+          CHECK(object_data.expand_callback != nullptr);
+          if (!object_data.reached) {
+            expand.push_back(std::move(obj));
+          }
+        });
       }
     }
-  }
 
-  VLOG(3) << "Building survivers list (allowing objects to be deleted).";
-  std::vector<std::weak_ptr<ControlFrame>> survivers;
-  while (!objects_.empty()) {
-    std::shared_ptr<ControlFrame> obj = objects_.front().lock();
-    objects_.erase(objects_.begin());
-    if (obj == nullptr) continue;
-    if (obj->reached_) {
-      obj->reached_ = false;
-      survivers.push_back(std::move(obj));
-    } else {
-      VLOG(5) << "Allowing unreachable object to be deleted.";
-      obj->expand_callback_ = nullptr;
+    VLOG(3) << "Building survivers list (allowing objects to be deleted).";
+    std::vector<std::weak_ptr<ControlFrame>> survivers;
+    while (!data.objects.empty()) {
+      VisitPointer(
+          data.objects.front(),
+          [&](NonNull<std::shared_ptr<ControlFrame>> obj) {
+            obj->data_.lock([&](ControlFrame::Data& object_data) {
+              if (object_data.reached) {
+                object_data.reached = false;
+                survivers.push_back(std::move(obj).get_shared());
+              } else {
+                expired_objects.push_back(std::move(obj));
+              }
+            });
+          },
+          [] {});
+      data.objects.erase(data.objects.begin());
     }
-  }
-  VLOG(5) << "Survivers: " << survivers.size() << " (of " << objects_.size()
-          << ")";
-  objects_ = std::move(survivers);
-  stats.end_total = objects_.size();
+    VLOG(5) << "Survivers: " << survivers.size();
+    data.objects = std::move(survivers);
+    stats.end_total = data.objects.size();
+  });
 
+  VLOG(5) << "Allowing unreachable object to be deleted.";
+  for (NonNull<std::shared_ptr<ControlFrame>>& obj : expired_objects) {
+    ControlFrame::ExpandCallback expired_expand_callback = nullptr;
+    obj->data_.lock([&](ControlFrame::Data& data) {
+      std::swap(data.expand_callback, expired_expand_callback);
+    });
+  }
   LOG(INFO) << "Garbage collection results: " << stats;
   return stats;
 }
@@ -83,21 +112,27 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
 Pool::RootRegistration Pool::AddRoot(
     std::weak_ptr<ControlFrame> control_frame) {
   VLOG(5) << "Adding root: " << control_frame.lock();
-  roots_.push_back(control_frame);
-  std::list<std::weak_ptr<ControlFrame>>::iterator it = --roots_.end();
-  return RootRegistration(new bool(false), [this, it](bool* value) {
-    delete value;
-    VLOG(5) << "Erasing root: " << it->lock();
-    VLOG(5) << "Roots size: " << roots_.size();
-    roots_.erase(it);
+  return data_.lock([&](Data& data) {
+    data.roots.push_back(control_frame);
+    std::list<std::weak_ptr<ControlFrame>>::iterator it = --data.roots.end();
+    return RootRegistration(new bool(false), [this, it](bool* value) {
+      delete value;
+      data_.lock([&](Data& data) {
+        VLOG(5) << "Erasing root: " << it->lock();
+        VLOG(5) << "Roots size: " << data.roots.size();
+        data.roots.erase(it);
+      });
+    });
   });
 }
 
 void Pool::AddObj(
     language::NonNull<std::shared_ptr<ControlFrame>> control_frame) {
-  objects_.push_back(control_frame.get_shared());
-  VLOG(5) << "Added object: " << control_frame.get_shared()
-          << " (total: " << objects_.size() << ")";
+  data_.lock([&](Data& data) {
+    data.objects.push_back(control_frame.get_shared());
+    VLOG(5) << "Added object: " << control_frame.get_shared()
+            << " (total: " << data.objects.size() << ")";
+  });
 }
 
 std::ostream& operator<<(std::ostream& os,
