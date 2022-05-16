@@ -117,7 +117,7 @@ LineMarks::GetMarksForTargetBuffer(const BufferName& target_buffer) const {
   static Tracker tracker(L"LineMarks::GetMarksForTargetBuffer");
   auto call = tracker.Call();
 
-  DLOG(INFO) << "Producing marks for buffer: " << target_buffer;
+  VLOG(5) << "Producing marks for buffer: " << target_buffer;
   if (auto it = marks_by_target.find(target_buffer);
       it != marks_by_target.end())
     return it->second.marks;
