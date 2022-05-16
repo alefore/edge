@@ -635,11 +635,15 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                      PathComponent::FromString(L".edge_state").value()));
       file_system_driver_.Stat(state_path)
           .Transform([state_path, weak_this](struct stat) {
-            // TODO(easy, 2022-05-15): Use VisitPointer.
-            if (auto root_this = weak_this.Lock(); root_this.has_value())
-              return root_this->ptr()->EvaluateFile(state_path);
-            return futures::Past(ValueOrError<gc::Root<Value>>(
-                Error(L"Buffer has been deleted.")));
+            return VisitPointer(
+                weak_this.Lock(),
+                [&](gc::Root<OpenBuffer> root_this) {
+                  return root_this.ptr()->EvaluateFile(state_path);
+                },
+                [] {
+                  return futures::Past(ValueOrError<gc::Root<Value>>(
+                      Error(L"Buffer has been deleted.")));
+                });
           });
     }
   }
