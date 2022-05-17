@@ -30,7 +30,6 @@
 #include "src/transformation/type.h"
 #include "src/widget.h"
 #include "src/widget_list.h"
-#include "vm/public/vm.h"
 
 namespace afc::vm {
 class Environment;
@@ -38,8 +37,6 @@ class Environment;
 namespace afc::editor {
 
 GHOST_TYPE(UnixSignal, int);
-
-using namespace afc::vm;
 
 // TODO(easy, 2022-05-17): Get rid of these `using` declarations.
 using std::list;
