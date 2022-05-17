@@ -2216,14 +2216,16 @@ void OpenBuffer::UpdateLastAction() {
     work_queue_->ScheduleAt(
         AddSeconds(Now(), idle_seconds),
         [weak_this = ptr_this_->ToWeakPtr(), last_action = last_action_] {
-          // TODO(easy, 2022-05-15): Use VisitPointer?
-          auto root_this = weak_this.Lock();
-          if (!root_this.has_value()) return;
-          OpenBuffer& buffer = root_this->ptr().value();
-          if (buffer.last_action_ != last_action) return;
-          buffer.last_action_ = Now();
-          LOG(INFO) << "close_after_idle_seconds: Closing.";
-          buffer.editor().CloseBuffer(buffer);
+          VisitPointer(
+              weak_this.Lock(),
+              [last_action](gc::Root<OpenBuffer> buffer_root) {
+                OpenBuffer& buffer = buffer_root.ptr().value();
+                if (buffer.last_action_ != last_action) return;
+                buffer.last_action_ = Now();
+                LOG(INFO) << "close_after_idle_seconds: Closing.";
+                buffer.editor().CloseBuffer(buffer);
+              },
+              [] {});
         });
   }
 }
