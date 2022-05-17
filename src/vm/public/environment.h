@@ -11,11 +11,6 @@
 
 namespace afc::vm {
 
-// TODO(easy, 2022-05-14): Get rid of these.
-using std::map;
-using std::unique_ptr;
-using std::wstring;
-
 struct Value;
 struct VMType;
 class ObjectType;
@@ -44,42 +39,43 @@ class Environment {
 
   static language::gc::Root<Environment> NewDefault(language::gc::Pool& pool);
 
-  const ObjectType* LookupObjectType(const wstring& symbol);
-  const VMType* LookupType(const wstring& symbol);
+  const ObjectType* LookupObjectType(const std::wstring& symbol);
+  const VMType* LookupType(const std::wstring& symbol);
   void DefineType(language::NonNull<std::unique_ptr<ObjectType>> value);
 
   std::optional<language::gc::Root<Value>> Lookup(
       language::gc::Pool& pool, const Namespace& symbol_namespace,
-      const wstring& symbol, VMType expected_type);
+      const std::wstring& symbol, VMType expected_type);
 
   // TODO(easy): Remove; switch all callers to the version that takes the
   // namespace.
-  void PolyLookup(const wstring& symbol,
+  void PolyLookup(const std::wstring& symbol,
                   std::vector<language::gc::Root<Value>>* output);
-  void PolyLookup(const Namespace& symbol_namespace, const wstring& symbol,
+  void PolyLookup(const Namespace& symbol_namespace, const std::wstring& symbol,
                   std::vector<language::gc::Root<Value>>* output);
   // Same as `PolyLookup` but ignores case and thus is much slower (runtime
   // complexity is linear to the total number of symbols defined);
   void CaseInsensitiveLookup(const Namespace& symbol_namespace,
-                             const wstring& symbol,
+                             const std::wstring& symbol,
                              std::vector<language::gc::Root<Value>>* output);
-  void Define(const wstring& symbol, language::gc::Root<Value> value);
-  void Assign(const wstring& symbol, language::gc::Root<Value> value);
-  void Remove(const wstring& symbol, VMType type);
+  void Define(const std::wstring& symbol, language::gc::Root<Value> value);
+  void Assign(const std::wstring& symbol, language::gc::Root<Value> value);
+  void Remove(const std::wstring& symbol, VMType type);
 
-  void ForEachType(std::function<void(const wstring&, ObjectType&)> callback);
+  void ForEachType(
+      std::function<void(const std::wstring&, ObjectType&)> callback);
   void ForEach(
-      std::function<void(const wstring&, const language::gc::Ptr<Value>&)>
+      std::function<void(const std::wstring&, const language::gc::Ptr<Value>&)>
           callback) const;
   void ForEachNonRecursive(
-      std::function<void(const wstring&, const language::gc::Ptr<Value>&)>
+      std::function<void(const std::wstring&, const language::gc::Ptr<Value>&)>
           callback) const;
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>
   Expand() const;
 
  private:
-  std::map<std::wstring, language::NonNull<std::unique_ptr<ObjectType>>>
+  std::map<VMTypeObjectTypeName, language::NonNull<std::unique_ptr<ObjectType>>>
       object_types_;
 
   std::map<std::wstring, std::unordered_map<VMType, language::gc::Ptr<Value>>>

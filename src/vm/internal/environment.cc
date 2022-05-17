@@ -85,7 +85,9 @@ std::optional<language::gc::Ptr<Environment>> Environment::parent_environment()
 }
 
 const ObjectType* Environment::LookupObjectType(const wstring& symbol) {
-  if (auto it = object_types_.find(symbol); it != object_types_.end()) {
+  // TODO(easy, 2022-05-17): Receive the symbol directly.
+  const VMTypeObjectTypeName name(symbol);
+  if (auto it = object_types_.find(name); it != object_types_.end()) {
     return it->second.get().get();
   }
   if (parent_environment_.has_value()) {
@@ -160,8 +162,7 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
 void Environment::DefineType(
     language::NonNull<std::unique_ptr<ObjectType>> value) {
   VMTypeObjectTypeName name = value->type().object_type;
-  // TODO(easy, 2022-05-14): Index directly by VMTypeObjectTypeName.
-  object_types_.insert_or_assign(std::move(name.read()), std::move(value));
+  object_types_.insert_or_assign(name, std::move(value));
 }
 
 std::optional<gc::Root<Value>> Environment::Lookup(
@@ -271,10 +272,11 @@ void Environment::ForEachType(
   if (parent_environment_.has_value()) {
     (*parent_environment_)->ForEachType(callback);
   }
-  for (const std::pair<const std::wstring,
+  for (const std::pair<const VMTypeObjectTypeName,
                        NonNull<std::unique_ptr<ObjectType>>>& entry :
        object_types_) {
-    callback(entry.first, entry.second.value());
+    // TODO(easy, 2022-05-17): Get rid of the `read`:
+    callback(entry.first.read(), entry.second.value());
   }
 }
 
