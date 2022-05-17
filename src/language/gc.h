@@ -38,6 +38,7 @@ class Pool {
     size_t begin_total = 0;
     size_t begin_dead = 0;
     size_t end_total = 0;
+    size_t generations = 0;
   };
   ReclaimObjectsStats Reclaim();
 
@@ -68,6 +69,17 @@ class Pool {
     };
     std::vector<RootDeleted> roots_deleted;
   };
+
+  std::list<language::NonNull<std::shared_ptr<ControlFrame>>> RegisterAllRoots(
+      const std::list<NonNull<std::unique_ptr<Generation>>>& generations);
+
+  void RegisterRoots(
+      const Generation& generation,
+      std::list<language::NonNull<std::shared_ptr<ControlFrame>>>& output);
+
+  void MarkReachable(
+      std::list<language::NonNull<std::shared_ptr<ControlFrame>>> expand);
+
   concurrent::Protected<NonNull<std::unique_ptr<Generation>>>
       current_generation_;
 
