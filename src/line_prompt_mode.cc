@@ -78,6 +78,7 @@ GetSyntheticFeatures(
       output;
   std::unordered_set<Path> directories;
   std::unordered_set<std::wstring> extensions;
+  VLOG(5) << "Generating features from input: " << input.size();
   for (const auto& [name, value] : input) {
     if (name == L"name") {
       auto value_str = value->ToString();
@@ -94,12 +95,17 @@ GetSyntheticFeatures(
       }
     }
   }
+
+  VLOG(5) << "Generating features from directories.";
   for (auto& dir : directories) {
     output.insert({L"directory", NewLazyString(dir.read())});
   }
+
+  VLOG(5) << "Generating features from extensions.";
   for (auto& extension : extensions) {
     output.insert({L"extension", NewLazyString(std::move(extension))});
   }
+  VLOG(5) << "Done generating synthetic features.";
   return output;
 }
 
@@ -240,7 +246,8 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
     ColumnNumber value_start = token.begin + ColumnNumberDelta(colon);
     ++value_start;  // Skip the colon.
     ColumnNumber value_end = token.end;
-    if (value_end == value_start || line->get(value_start) != '\"' ||
+    if (value_end <= value_start + ColumnNumberDelta(1) ||
+        line->get(value_start) != '\"' ||
         line->get(value_end.previous()) != '\"') {
       return Error(L"Unable to parse prompt line (expected quote): " +
                    line->ToString());
@@ -251,11 +258,24 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
     output.insert({token.value.substr(0, colon),
                    Substring(line, value_start, value_end - value_start)});
   }
-  for (auto& additional_features : GetSyntheticFeatures(output)) {
+  for (std::pair<std::wstring, NonNull<std::shared_ptr<LazyString>>>
+           additional_features : GetSyntheticFeatures(output)) {
     output.insert(additional_features);
   }
   return output;
 }
+
+auto parse_history_line_tests_registration = tests::Register(
+    L"ParseHistoryLine",
+    {{.name = L"BadQuote",
+      .callback =
+          [] {
+            CHECK(ParseHistoryLine(NewLazyString(L"prompt:\"")).IsError());
+          }},
+     {.name = L"Empty", .callback = [] {
+        auto result = ParseHistoryLine(NewLazyString(L"prompt:\"\"")).value();
+        CHECK(result.find(L"prompt")->second->ToString() == L"");
+      }}});
 
 NonNull<std::shared_ptr<LazyString>> QuoteString(
     NonNull<std::shared_ptr<LazyString>> src) {
