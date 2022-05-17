@@ -41,6 +41,7 @@ NonNull<std::shared_ptr<LazyString>> Substring(
   if (column.IsZero() && delta == ColumnNumberDelta(input->size())) {
     return input;  // Optimization.
   }
+  CHECK_GE(delta, ColumnNumberDelta(0));
   CHECK_LE(column, ColumnNumber(0) + input->size());
   CHECK_LE(column + delta, ColumnNumber(0) + input->size());
   return MakeNonNullShared<SubstringImpl>(std::move(input), column, delta);
