@@ -22,6 +22,7 @@ using infrastructure::Tracker;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::Pointer;
+using language::VisitPointer;
 
 namespace gc = language::gc;
 
@@ -184,13 +185,15 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
 }
 
 LineNumberDelta context_lines(const StatusOutputOptions& options) {
-  static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
-  std::optional<gc::Root<OpenBuffer>> context = options.status.context();
-  // TODO(easy, 2022-05-16): Use VisitPointer.
-  return context.has_value() ? std::min(context->ptr()->lines_size() +
-                                            kLinesForStatusContextStatus,
-                                        LineNumberDelta(10))
-                             : LineNumberDelta();
+  return VisitPointer(
+      options.status.context(),
+      [](gc::Root<OpenBuffer> context) {
+        static const auto kLinesForStatusContextStatus = LineNumberDelta(1);
+        return std::min(
+            context.ptr()->lines_size() + kLinesForStatusContextStatus,
+            LineNumberDelta(10));
+      },
+      [] { return LineNumberDelta(); });
 }
 
 auto status_basic_info_tests_registration = tests::Register(
@@ -222,9 +225,12 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
       min(options.size.line, info_lines + context_lines(options));
   if (options.size.line.IsZero()) return LineWithCursor::Generator::Vector{};
 
-  if (options.size.line <= info_lines) {
+  std::optional<gc::Root<OpenBuffer>> status_context_optional =
+      options.status.context();
+  if (options.size.line <= info_lines || !status_context_optional.has_value()) {
     return RepeatLine(StatusBasicInfo(options), options.size.line);
   }
+  OpenBuffer& context_buffer = status_context_optional->ptr().value();
 
   const auto context_lines = options.size.line - info_lines;
   CHECK_GT(context_lines, LineNumberDelta(0));
@@ -239,9 +245,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
       CreateBufferOutputProducer(BufferOutputProducerInput{
           .output_producer_options = {.size = LineColumnDelta(
                                           context_lines, options.size.column)},
-          // TODO(easy, 2022-04-30): Find a way to not crash here if context is
-          // null?
-          .buffer = options.status.context()->ptr().value(),
+          .buffer = context_buffer,
           .view_start = {},
           .status_behavior =
               BufferOutputProducerInput::StatusBehavior::kIgnore});
