@@ -224,34 +224,31 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
   // TODO: Support polymorphism.
   std::vector<wstring> errors;
   for (const auto& type : object->Types()) {
-    wstring object_type_name;
+    std::optional<VMTypeObjectTypeName> object_type_name;
     switch (type.type) {
       case VMType::Type::kString:
-        object_type_name = L"string";
+        object_type_name = VMTypeObjectTypeName(L"string");
         break;
       case VMType::Type::kBool:
-        object_type_name = L"bool";
+        object_type_name = VMTypeObjectTypeName(L"bool");
         break;
       case VMType::Type::kDouble:
-        object_type_name = L"double";
+        object_type_name = VMTypeObjectTypeName(L"double");
         break;
       case VMType::Type::kInt:
-        object_type_name = L"int";
+        object_type_name = VMTypeObjectTypeName(L"int");
         break;
       case VMType::Type::kObject:
-        object_type_name = type.object_type.read();
+        object_type_name = type.object_type;
         break;
       default:
-        break;
-    }
-    if (object_type_name.empty()) {
-      errors.push_back(L"Unable to find methods on primitive type: \"" +
-                       type.ToString() + L"\"");
-      continue;
+        errors.push_back(L"Unable to find methods on primitive type: \"" +
+                         type.ToString() + L"\"");
+        continue;
     }
 
     const ObjectType* object_type =
-        compilation->environment.ptr()->LookupObjectType(object_type_name);
+        compilation->environment.ptr()->LookupObjectType(*object_type_name);
 
     if (object_type == nullptr) {
       errors.push_back(L"Unknown type: \"" + type.ToString() + L"\"");

@@ -39,7 +39,7 @@ class Environment {
 
   static language::gc::Root<Environment> NewDefault(language::gc::Pool& pool);
 
-  const ObjectType* LookupObjectType(const std::wstring& symbol);
+  const ObjectType* LookupObjectType(const VMTypeObjectTypeName& symbol);
   const VMType* LookupType(const std::wstring& symbol);
   void DefineType(language::NonNull<std::unique_ptr<ObjectType>> value);
 

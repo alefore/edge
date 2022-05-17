@@ -84,14 +84,13 @@ std::optional<language::gc::Ptr<Environment>> Environment::parent_environment()
   return parent_environment_;
 }
 
-const ObjectType* Environment::LookupObjectType(const wstring& symbol) {
-  // TODO(easy, 2022-05-17): Receive the symbol directly.
-  const VMTypeObjectTypeName name(symbol);
+const ObjectType* Environment::LookupObjectType(
+    const VMTypeObjectTypeName& name) {
   if (auto it = object_types_.find(name); it != object_types_.end()) {
     return it->second.get().get();
   }
   if (parent_environment_.has_value()) {
-    return (*parent_environment_)->LookupObjectType(symbol);
+    return (*parent_environment_)->LookupObjectType(name);
   }
   return nullptr;
 }
@@ -107,7 +106,7 @@ const VMType* Environment::LookupType(const wstring& symbol) {
     return &VMType::String();
   }
 
-  auto object_type = LookupObjectType(symbol);
+  auto object_type = LookupObjectType(VMTypeObjectTypeName(symbol));
   return object_type == nullptr ? nullptr : &object_type->type();
 }
 
