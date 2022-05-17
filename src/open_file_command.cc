@@ -24,6 +24,7 @@ using language::Error;
 using language::NonNull;
 using language::Success;
 using language::ToByteString;
+using language::VisitPointer;
 
 namespace gc = language::gc;
 
@@ -265,10 +266,12 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
             },
         .cancel_handler =
             [&editor]() {
-              // TODO(easy, 2022-05-16): Use VisitPointer.
-              if (auto buffer = editor.current_buffer(); buffer.has_value()) {
-                buffer->ptr()->ResetMode();
-              }
+              VisitPointer(
+                  editor.current_buffer(),
+                  [](gc::Root<OpenBuffer> buffer) {
+                    buffer.ptr()->ResetMode();
+                  },
+                  [] {});
             },
         .predictor = FilePredictor,
         .source_buffers = source_buffers};
