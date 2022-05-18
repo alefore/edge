@@ -290,14 +290,12 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   LineWithCursor::Generator::Vector status_lines;
   switch (input.status_behavior) {
     case BufferOutputProducerInput::StatusBehavior::kShow:
-      status_lines = CenterOutput(
-          StatusOutput({.status = buffer.status(),
-                        .buffer = &buffer,
-                        .modifiers = buffer.editor().modifiers(),
-                        .size = LineColumnDelta(
-                            input.output_producer_options.size.line / 4,
-                            input.output_producer_options.size.column)}),
-          input.output_producer_options.size.column);
+      status_lines = StatusOutput(
+          {.status = buffer.status(),
+           .buffer = &buffer,
+           .modifiers = buffer.editor().modifiers(),
+           .size = LineColumnDelta(input.output_producer_options.size.line / 4,
+                                   input.output_producer_options.size.column)});
       break;
     case BufferOutputProducerInput::StatusBehavior::kIgnore:
       break;
@@ -355,7 +353,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     return BufferOutputProducerOutput{
         .lines = RepeatLine({}, input.output_producer_options.size.line),
         .view_start = {},
-        .view_size = output_view_size};
+        .view_size = output_view_size,
+        .max_display_width = {}};
 
   LineColumnDelta total_size = input.output_producer_options.size;
   input.output_producer_options.size = LineColumnDelta(
@@ -364,21 +363,22 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       buffer_contents_window_input.columns_shown);
   input.view_start = window.view_start;
 
-  BufferOutputProducerOutput output{
-      .lines = CenterVertically(
-          buffer.Read(buffer_variables::multiple_cursors)
-              ? ViewMultipleCursors(buffer, input.output_producer_options,
-                                    buffer_contents_window_input)
-              : LinesSpanView(buffer, window.lines,
-                              input.output_producer_options, 1),
-          status_lines.size(), total_size.line, window.status_position),
-      .view_start = window.view_start,
-      .view_size = output_view_size};
+  LineWithCursor::Generator::Vector lines = CenterVertically(
+      buffer.Read(buffer_variables::multiple_cursors)
+          ? ViewMultipleCursors(buffer, input.output_producer_options,
+                                buffer_contents_window_input)
+          : LinesSpanView(buffer, window.lines, input.output_producer_options,
+                          1),
+      status_lines.size(), total_size.line, window.status_position);
+  BufferOutputProducerOutput output{.lines = std::move(lines),
+                                    .view_start = window.view_start,
+                                    .view_size = output_view_size,
+                                    .max_display_width = output.lines.width};
   CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
   if (!status_lines.size().IsZero()) {
+    output.lines.width = buffer.max_display_width();
     output.lines = CenterOutput(std::move(output.lines), total_size.column);
-    status_lines = CenterOutput(std::move(status_lines), total_size.column);
     (buffer.status().GetType() == Status::Type::kPrompt ? output.lines
                                                         : status_lines)
         .RemoveCursor();
@@ -429,6 +429,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
              buffer.ptr()->fd() == nullptr)) {
           buffer.ptr()->Set(buffer_variables::view_start, output.view_start);
         }
+        buffer.ptr()->AddDisplayWidth(output.max_display_width);
         buffer.ptr()->view_size().Set(output.view_size);
 
         if (options_.position_in_parent.has_value()) {

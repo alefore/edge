@@ -1484,6 +1484,14 @@ const ObservableValue<LineColumnDelta>& OpenBuffer::view_size() const {
   return view_size_;
 }
 
+void OpenBuffer::AddDisplayWidth(ColumnNumberDelta display_width) {
+  max_display_width_ = std::max(max_display_width_, display_width);
+}
+
+ColumnNumberDelta OpenBuffer::max_display_width() const {
+  return max_display_width_;
+}
+
 FileSystemDriver& OpenBuffer::file_system_driver() const {
   return file_system_driver_;
 }

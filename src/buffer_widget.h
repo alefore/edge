@@ -23,6 +23,12 @@ struct BufferOutputProducerOutput {
   //
   // It is the responsibility of the caller to propagate it to the buffer.
   LineColumnDelta view_size;
+
+  // The width of the longest line shown, including all metadata but excluding
+  // the "centering" padding.
+  //
+  // It is the responsibility of the caller to propagate it to the buffer.
+  ColumnNumberDelta max_display_width;
 };
 
 struct BufferOutputProducerInput {

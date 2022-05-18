@@ -419,6 +419,11 @@ class OpenBuffer {
   language::ObservableValue<LineColumnDelta>& view_size();
   const language::ObservableValue<LineColumnDelta>& view_size() const;
 
+  // This is marked as const because we don't consider the side-effects of
+  // displaying a buffer to be modifications on the buffer itself.
+  void AddDisplayWidth(ColumnNumberDelta display_width);
+  ColumnNumberDelta max_display_width() const;
+
   infrastructure::FileSystemDriver& file_system_driver() const;
 
   // Returns the path to the directory that should be used to keep state for the
@@ -516,6 +521,14 @@ class OpenBuffer {
   std::unique_ptr<FileDescriptorReader> fd_error_;
 
   language::ObservableValue<LineColumnDelta> view_size_;
+
+  // The maximum width that has been found for a screen line corresponding to
+  // this buffer, since the OpenBuffer instance was created. Includes all the
+  // metadata for the line (numbers, syntax tree, scroll bar, marks metadata,
+  // etc.).
+  //
+  // This is used when centering the output of a buffer, to prevent jittering.
+  ColumnNumberDelta max_display_width_;
 
   std::unique_ptr<BufferTerminal> terminal_;
 
