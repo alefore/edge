@@ -27,11 +27,6 @@ struct BufferOutputProducerOutput {
 
 struct BufferOutputProducerInput {
   Widget::OutputProducerOptions output_producer_options;
-  // The buffer is mutable because the view is expected to have some side
-  // effects, such as:
-  //
-  // * Reloading it (variable reload_on_view).
-  // * Setting the view size.
   const OpenBuffer& buffer;
   LineColumn view_start;
   enum class StatusBehavior { kShow, kIgnore };
