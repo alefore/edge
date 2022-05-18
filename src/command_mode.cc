@@ -516,59 +516,62 @@ class ActivateLink : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) {
-    // TODO(easy, 2022-05-16): Use VisitPointer?
-    auto buffer = editor_state_.current_buffer();
-    if (!buffer.has_value()) {
-      return;
-    }
-    if (buffer->ptr()->current_line() == nullptr) {
-      return;
-    }
+    VisitPointer(
+        editor_state_.current_buffer(),
+        [&](gc::Root<OpenBuffer> buffer) {
+          // TODO(easy, 2022-05-18): Use VisitPointer as well.
+          if (buffer.ptr()->current_line() == nullptr) {
+            return;
+          }
 
-    std::optional<Line::BufferLineColumn> line_buffer =
-        buffer->ptr()->current_line()->buffer_line_column();
-    if (line_buffer.has_value()) {
-      if (std::optional<gc::Root<OpenBuffer>> target =
-              line_buffer->buffer.Lock();
-          target.has_value() &&
-          &target->ptr().value() != &buffer->ptr().value()) {
-        LOG(INFO) << "Visiting buffer: "
-                  << target->ptr()->Read(buffer_variables::name);
-        editor_state_.status().Reset();
-        buffer->ptr()->status().Reset();
-        editor_state_.set_current_buffer(target.value(),
-                                         CommandArgumentModeApplyMode::kFinal);
-        std::optional<LineColumn> target_position = line_buffer->position;
-        if (target_position.has_value()) {
-          target->ptr()->set_position(*target_position);
-        }
-        editor_state_.PushCurrentPosition();
-        buffer->ptr()->ResetMode();
-        target->ptr()->ResetMode();
-        return;
-      }
-    }
-
-    buffer->ptr()->MaybeAdjustPositionCol();
-    buffer->ptr()
-        ->OpenBufferForCurrentPosition(
-            OpenBuffer::RemoteURLBehavior::kLaunchBrowser)
-        .Transform([&editor_state = editor_state_](
-                       std::optional<gc::Root<OpenBuffer>> target) {
-          return VisitPointer(
-              target,
-              [&](gc::Root<OpenBuffer> target) {
-                if (std::wstring path =
-                        target.ptr()->Read(buffer_variables::path);
-                    !path.empty())
-                  AddLineToHistory(editor_state, HistoryFileFiles(),
-                                   NewLazyString(path));
-                editor_state.AddBuffer(target,
-                                       BuffersList::AddBufferType::kVisit);
-                return Success();
+          VisitPointer(
+              buffer.ptr()->current_line()->buffer_line_column(),
+              [&](Line::BufferLineColumn line_buffer) {
+                if (std::optional<gc::Root<OpenBuffer>> target =
+                        line_buffer.buffer.Lock();
+                    target.has_value() &&
+                    &target->ptr().value() != &buffer.ptr().value()) {
+                  LOG(INFO) << "Visiting buffer: "
+                            << target->ptr()->Read(buffer_variables::name);
+                  editor_state_.status().Reset();
+                  buffer.ptr()->status().Reset();
+                  editor_state_.set_current_buffer(
+                      target.value(), CommandArgumentModeApplyMode::kFinal);
+                  std::optional<LineColumn> target_position =
+                      line_buffer.position;
+                  if (target_position.has_value()) {
+                    target->ptr()->set_position(*target_position);
+                  }
+                  editor_state_.PushCurrentPosition();
+                  buffer.ptr()->ResetMode();
+                  target->ptr()->ResetMode();
+                  return;
+                }
               },
-              [] { return Success(); });
-        });
+              [] {});
+
+          buffer.ptr()->MaybeAdjustPositionCol();
+          buffer.ptr()
+              ->OpenBufferForCurrentPosition(
+                  OpenBuffer::RemoteURLBehavior::kLaunchBrowser)
+              .Transform([&editor_state = editor_state_](
+                             std::optional<gc::Root<OpenBuffer>> target) {
+                return VisitPointer(
+                    target,
+                    [&](gc::Root<OpenBuffer> target) {
+                      if (std::wstring path =
+                              target.ptr()->Read(buffer_variables::path);
+                          !path.empty())
+                        AddLineToHistory(editor_state, HistoryFileFiles(),
+                                         NewLazyString(path));
+                      editor_state.AddBuffer(
+                          target, BuffersList::AddBufferType::kVisit);
+                      return Success();
+                    },
+                    [] { return Success(); });
+              });
+        },
+        [] {});
   }
 
  private:
