@@ -24,9 +24,6 @@ LineWithCursor::Generator::Vector CenterOutput(
 
   columns_vector.push_back(GetPadding(lines.size(), (width - lines.width) / 2));
   columns_vector.push_back({.lines = lines, .width = lines.width});
-  columns_vector.push_back(GetPadding(
-      lines.size(), width - lines.width - *columns_vector.columns[0].width));
-
   return OutputFromColumnsVector(std::move(columns_vector));
 }
 
