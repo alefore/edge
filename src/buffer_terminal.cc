@@ -26,7 +26,7 @@ using language::Observers;
 BufferTerminal::BufferTerminal(OpenBuffer& buffer, BufferContents& contents)
     : data_(MakeNonNullShared<Data>(
           Data{.buffer = buffer, .contents = contents})) {
-  data_->buffer.view_size().Add(Observers::LockingObserver(
+  data_->buffer.display_data().view_size().Add(Observers::LockingObserver(
       std::weak_ptr<Data>(data_.get_shared()), InternalUpdateSize));
 
   LOG(INFO) << "New BufferTerminal for "
@@ -403,7 +403,7 @@ void BufferTerminal::InternalUpdateSize(Data& data) {
 
 /* static */
 LineColumnDelta BufferTerminal::LastViewSize(Data& data) {
-  return data.buffer.view_size().Get().value_or(
+  return data.buffer.display_data().view_size().Get().value_or(
       LineColumnDelta(LineNumberDelta(24), ColumnNumberDelta(80)));
 }
 

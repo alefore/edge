@@ -3,6 +3,16 @@
 #include "src/line_column.h"
 
 namespace afc::editor {
+using language::ObservableValue;
+
+ObservableValue<LineColumnDelta>& BufferDisplayData::view_size() {
+  return view_size_;
+}
+
+const ObservableValue<LineColumnDelta>& BufferDisplayData::view_size() const {
+  return view_size_;
+}
+
 void BufferDisplayData::AddDisplayWidth(ColumnNumberDelta display_width) {
   max_display_width_ = std::max(max_display_width_, display_width);
 }

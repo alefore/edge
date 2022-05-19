@@ -889,6 +889,9 @@ void OpenBuffer::UpdateBackup() {
 }
 
 BufferDisplayData& OpenBuffer::display_data() { return display_data_.value(); }
+const BufferDisplayData& OpenBuffer::display_data() const {
+  return display_data_.value();
+}
 
 void OpenBuffer::AppendLazyString(NonNull<std::shared_ptr<LazyString>> input) {
   ColumnNumber start;
@@ -1211,7 +1214,7 @@ void OpenBuffer::PopActiveCursors() {
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
-  const multimap<LineColumn, LineMarks::Mark>& marks = GetLineMarks();
+  const std::multimap<LineColumn, LineMarks::Mark>& marks = GetLineMarks();
   if (marks.empty()) {
     status_.SetWarningText(L"Buffer has no marks!");
     return;
@@ -1481,11 +1484,6 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
       status_.SetWarningText(L"Unexpected signal received: " +
                              to_wstring(signal.read()));
   }
-}
-
-ObservableValue<LineColumnDelta>& OpenBuffer::view_size() { return view_size_; }
-const ObservableValue<LineColumnDelta>& OpenBuffer::view_size() const {
-  return view_size_;
 }
 
 FileSystemDriver& OpenBuffer::file_system_driver() const {
@@ -2169,11 +2167,12 @@ language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
   return output;
 }
 
-const multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks() const {
+const std::multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks()
+    const {
   return editor().line_marks().GetMarksForTargetBuffer(name());
 }
 
-const multimap<LineColumn, LineMarks::ExpiredMark>&
+const std::multimap<LineColumn, LineMarks::ExpiredMark>&
 OpenBuffer::GetExpiredLineMarks() const {
   return editor().line_marks().GetExpiredMarksForTargetBuffer(name());
 }

@@ -39,19 +39,6 @@
 
 namespace afc {
 namespace editor {
-
-// TODO(easy, 2022-05-19): Get rid of these annotations.
-using std::iterator;
-using std::list;
-using std::map;
-using std::max;
-using std::min;
-using std::multimap;
-using std::ostream;
-using std::shared_ptr;
-using std::unique_ptr;
-using std::vector;
-
 using namespace afc::vm;
 
 class ParseTree;
@@ -432,10 +419,8 @@ class OpenBuffer {
 
   /////////////////////////////////////////////////////////////////////////////
   // Display
-  language::ObservableValue<LineColumnDelta>& view_size();
-  const language::ObservableValue<LineColumnDelta>& view_size() const;
-
   BufferDisplayData& display_data();
+  const BufferDisplayData& display_data() const;
 
   /////////////////////////////////////////////////////////////////////////////
   // Cursors
@@ -520,8 +505,6 @@ class OpenBuffer {
 
   std::unique_ptr<FileDescriptorReader> fd_;
   std::unique_ptr<FileDescriptorReader> fd_error_;
-
-  language::ObservableValue<LineColumnDelta> view_size_;
 
   // Non-const because Reload will reset it to a newly constructed instance.
   language::NonNull<std::unique_ptr<BufferDisplayData>> display_data_;

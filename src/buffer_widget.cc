@@ -307,9 +307,9 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       break;
   }
 
-  const LineColumnDelta output_view_size(
+  input.buffer_display_data.view_size().Set(LineColumnDelta(
       input.output_producer_options.size.line - status_lines.size(),
-      input.output_producer_options.size.column);
+      input.output_producer_options.size.column));
 
   bool paste_mode = buffer.Read(buffer_variables::paste_mode);
 
@@ -358,8 +358,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (window.lines.empty())
     return BufferOutputProducerOutput{
         .lines = RepeatLine({}, input.output_producer_options.size.line),
-        .view_start = {},
-        .view_size = output_view_size};
+        .view_start = {}};
 
   LineColumnDelta total_size = input.output_producer_options.size;
   input.output_producer_options.size = LineColumnDelta(
@@ -377,8 +376,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                               input.output_producer_options, 1),
           status_lines.size(), total_size.line, window.status_position,
           input.buffer_display_data),
-      .view_start = window.view_start,
-      .view_size = output_view_size};
+      .view_start = window.view_start};
   CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
   input.buffer_display_data.AddDisplayWidth(output.lines.width);
@@ -438,7 +436,6 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
              buffer.ptr()->fd() == nullptr)) {
           buffer.ptr()->Set(buffer_variables::view_start, output.view_start);
         }
-        buffer.ptr()->view_size().Set(output.view_size);
 
         if (options_.position_in_parent.has_value()) {
           FrameOutputProducerOptions frame_options;

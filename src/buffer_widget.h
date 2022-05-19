@@ -18,11 +18,6 @@ struct BufferOutputProducerOutput {
   //
   // It is the responsibility of the caller to propagate it to the buffer.
   LineColumn view_start;
-
-  // The effective size of the view.
-  //
-  // It is the responsibility of the caller to propagate it to the buffer.
-  LineColumnDelta view_size;
 };
 
 struct BufferOutputProducerInput {

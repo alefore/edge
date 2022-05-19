@@ -409,7 +409,7 @@ Structure* StructureMark() {
     std::optional<LineColumn> Move(const OpenBuffer& buffer,
                                    LineColumn position, Range,
                                    const Modifiers& modifiers) override {
-      const multimap<LineColumn, LineMarks::Mark>& marks =
+      const std::multimap<LineColumn, LineMarks::Mark>& marks =
           buffer.GetLineMarks();
       switch (modifiers.direction) {
         case Direction::kForwards:
@@ -457,7 +457,8 @@ Structure* StructurePage() {
                                                   LineColumn position,
                                                   int calls) override {
       CHECK_GT(buffer.contents().size(), LineNumberDelta(0));
-      std::optional<LineColumnDelta> view_size = buffer.view_size().Get();
+      std::optional<LineColumnDelta> view_size =
+          buffer.display_data().view_size().Get();
       auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
       size_t pages =
           ceil(static_cast<double>(buffer.contents().size().line_delta) /
@@ -474,7 +475,8 @@ Structure* StructurePage() {
                                    LineColumn position, Range range,
                                    const Modifiers& modifiers) override {
       static const auto kDefaultScreenLines = LineNumberDelta(24);
-      std::optional<LineColumnDelta> view_size = buffer.view_size().Get();
+      std::optional<LineColumnDelta> view_size =
+          buffer.display_data().view_size().Get();
       auto screen_lines =
           max(0.2,
               1.0 - 2.0 * buffer.Read(buffer_variables::margin_lines_ratio)) *
