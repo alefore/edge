@@ -353,10 +353,11 @@ int main(int argc, const char** argv) {
   }
   RegisterScreenType(editor_state().gc_pool(),
                      editor_state().environment().ptr().value());
-  editor_state().environment().ptr()->Define(
-      L"screen",
-      afc::vm::Value::NewObject(editor_state().gc_pool(),
-                                GetScreenVmType().object_type, screen_curses));
+  if (screen_curses != nullptr)
+    editor_state().environment().ptr()->Define(
+        L"screen", afc::vm::Value::NewObject(editor_state().gc_pool(),
+                                             GetScreenVmType().object_type,
+                                             screen_curses));
 
   LOG(INFO) << "Starting server.";
   auto server_path = StartServer(args, connected_to_parent);
