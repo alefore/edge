@@ -248,10 +248,10 @@ BufferContentsWindow BufferContentsWindow::Get(
   CHECK_LE(options.status_lines, options.lines_shown);
   if (options.active_position.has_value()) {
     options.active_position->line =
-        min(options.active_position->line, options.contents.EndLine());
-    options.active_position->column =
-        min(options.active_position->column,
-            options.contents.at(options.active_position->line)->EndColumn());
+        std::min(options.active_position->line, options.contents.EndLine());
+    options.active_position->column = std::min(
+        options.active_position->column,
+        options.contents.at(options.active_position->line)->EndColumn());
     options.begin =
         std::max(std::min(options.begin, *options.active_position),
                  LineColumn(options.active_position->line.MinusHandlingOverflow(
@@ -305,9 +305,9 @@ BufferContentsWindow BufferContentsWindow::Get(
   output.lines = AdjustToHonorMargin(options, cursors, std::move(output.lines));
 
   // Initialize output.status_position:
-  LineNumberDelta lines_to_drop =
-      max(LineNumberDelta(), LineNumberDelta(output.lines.size()) +
-                                 options.status_lines - options.lines_shown);
+  LineNumberDelta lines_to_drop = std::max(
+      LineNumberDelta(), LineNumberDelta(output.lines.size()) +
+                             options.status_lines - options.lines_shown);
 
   if (LineNumberDelta(cursor_index(output).value_or(0)) >
       (size_t(3) * options.lines_shown) / 5) {
