@@ -1,16 +1,16 @@
-#ifndef __AFC_EDITOR_BUFFER_LEAF_H__
-#define __AFC_EDITOR_BUFFER_LEAF_H__
+#ifndef __AFC_EDITOR_BUFFER_WIDGET_H__
+#define __AFC_EDITOR_BUFFER_WIDGET_H__
 
 #include <list>
 #include <memory>
 
+#include "src/buffer_display_data.h"
 #include "src/language/safe_types.h"
 #include "src/line_scroll_control.h"
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
 
 namespace afc::editor {
-
 struct BufferOutputProducerOutput {
   LineWithCursor::Generator::Vector lines;
   // Typically a copy of `BufferOutputProducerInput::view_start`, but may have
@@ -23,27 +23,18 @@ struct BufferOutputProducerOutput {
   //
   // It is the responsibility of the caller to propagate it to the buffer.
   LineColumnDelta view_size;
-
-  // The width of the longest line shown, including all metadata but excluding
-  // the "centering" padding.
-  //
-  // It is the responsibility of the caller to propagate it to the buffer.
-  ColumnNumberDelta max_display_width;
-
-  // The number of empty "space" lines added (to center the buffer vertically in
-  // the screen).
-  //
-  // It is the responsibility of the caller to propagate it to the buffer.
-  std::optional<LineNumberDelta> vertical_prefix_size;
 };
 
 struct BufferOutputProducerInput {
   Widget::OutputProducerOptions output_producer_options;
   const OpenBuffer& buffer;
+
+  // This is an input/output parameter: the viewer should update the state here.
+  BufferDisplayData& buffer_display_data;
+
   LineColumn view_start;
   enum class StatusBehavior { kShow, kIgnore };
   StatusBehavior status_behavior = StatusBehavior::kShow;
-  std::optional<LineNumberDelta> min_vertical_prefix_size;
 };
 
 // Handles things like `multiple_cursors`, `paste_mode`, `scrollbar`, displaying
@@ -87,4 +78,4 @@ class BufferWidget : public Widget {
 
 }  // namespace afc::editor
 
-#endif  // __AFC_EDITOR_BUFFER_LEAF_H__
+#endif  // __AFC_EDITOR_BUFFER_WIDGET_H__

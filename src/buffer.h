@@ -40,6 +40,7 @@
 namespace afc {
 namespace editor {
 
+// TODO(easy, 2022-05-19): Get rid of these annotations.
 using std::iterator;
 using std::list;
 using std::map;
@@ -56,6 +57,7 @@ using namespace afc::vm;
 class ParseTree;
 class TreeParser;
 class UnixSignal;
+class BufferDisplayData;
 
 class OpenBuffer {
   struct ConstructorAccessTag {};
@@ -416,18 +418,9 @@ class OpenBuffer {
 
   void PushSignal(UnixSignal signal);
 
-  language::ObservableValue<LineColumnDelta>& view_size();
-  const language::ObservableValue<LineColumnDelta>& view_size() const;
-
-  // See max_display_width_.
-  void AddDisplayWidth(ColumnNumberDelta display_width);
-  ColumnNumberDelta max_display_width() const;
-
-  // See min_vertical_prefix_size_.
-  void AddVerticalPrefixSize(LineNumberDelta vertical_prefix_size);
-  std::optional<LineNumberDelta> min_vertical_prefix_size() const;
-
   infrastructure::FileSystemDriver& file_system_driver() const;
+
+  std::unique_ptr<BufferTerminal> NewTerminal();  // Public for testing.
 
   // Returns the path to the directory that should be used to keep state for the
   // current buffer. If the directory doesn't exist, creates it.
@@ -436,6 +429,13 @@ class OpenBuffer {
   Log& log() const;
 
   void UpdateBackup();
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Display
+  language::ObservableValue<LineColumnDelta>& view_size();
+  const language::ObservableValue<LineColumnDelta>& view_size() const;
+
+  BufferDisplayData& display_data();
 
   /////////////////////////////////////////////////////////////////////////////
   // Cursors
@@ -490,8 +490,6 @@ class OpenBuffer {
   language::NonNull<std::shared_ptr<const ParseTree>>
   current_zoomed_out_parse_tree(LineNumberDelta lines) const;
 
-  std::unique_ptr<BufferTerminal> NewTerminal();  // Public for testing.
-
  private:
   // Code that would normally be in the constructor, but which may require the
   // use of `shared_from_this`. This function will be called by `New` after the
@@ -525,25 +523,8 @@ class OpenBuffer {
 
   language::ObservableValue<LineColumnDelta> view_size_;
 
-  // The maximum width that has been found for a screen line corresponding to
-  // this buffer, since the OpenBuffer instance was created. Includes all the
-  // metadata for the line (numbers, syntax tree, scroll bar, marks metadata,
-  // etc.).
-  //
-  // This is used when centering the output of a buffer horizontally, to prevent
-  // jittering.
-  //
-  // Cleared when the buffer is reloaded.
-  ColumnNumberDelta max_display_width_;
-
-  // The smallest vertical prefix we've used while showing this buffer. A
-  // vertical prefix is a block of empty lines.
-  //
-  // This is used when centering the output of a buffer vertically, to prevent
-  // jittering.
-  //
-  // Cleared when the buffer is reloaded.
-  std::optional<LineNumberDelta> min_vertical_prefix_size_;
+  // Non-const because Reload will reset it to a newly constructed instance.
+  language::NonNull<std::unique_ptr<BufferDisplayData>> display_data_;
 
   std::unique_ptr<BufferTerminal> terminal_;
 

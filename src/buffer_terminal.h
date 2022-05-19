@@ -19,6 +19,8 @@ namespace editor {
 class OpenBuffer;
 class BufferContents;
 
+// If the buffer holds an underlying process with a terminal (PTS),
+// BufferTerminal holds its state.
 class BufferTerminal : public fuzz::FuzzTestable {
  public:
   BufferTerminal(OpenBuffer& buffer, BufferContents& contents);
