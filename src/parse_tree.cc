@@ -72,7 +72,7 @@ ParseTree::MutableChildren(size_t i) {
   XorChildHash(i);  // Remove its old hash.
   return std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>(
       &children_[i], [this, i](ParseTree* child) {
-        depth_ = max(depth(), child->depth() + 1);
+        depth_ = std::max(depth(), child->depth() + 1);
         XorChildHash(i);  // Add its new hash.
       });
 }
@@ -89,7 +89,7 @@ void ParseTree::Reset() {
 }
 
 void ParseTree::PushChild(ParseTree child) {
-  depth_ = max(depth(), child.depth() + 1);
+  depth_ = std::max(depth(), child.depth() + 1);
   children_.push_back(std::move(child));
   XorChildHash(children_.size() - 1);
 }
@@ -220,7 +220,7 @@ class WordsTreeParser : public TreeParser {
 
       ColumnNumber line_end = contents.EndColumn();
       if (line == range.end.line) {
-        line_end = min(line_end, range.end.column);
+        line_end = std::min(line_end, range.end.column);
       }
 
       ColumnNumber column =
@@ -283,7 +283,7 @@ class LineTreeParser : public TreeParser {
       output.PushChild(delegate_->FindChildren(
           buffer,
           Range(LineColumn(line),
-                min(LineColumn(line, contents->EndColumn()), range.end))));
+                std::min(LineColumn(line, contents->EndColumn()), range.end))));
     });
     return output;
   }
