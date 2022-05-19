@@ -63,8 +63,8 @@ class CppTreeParser : public TreeParser {
         static Tracker tracker(L"CppTreeParser::FindChildren::Parse");
         auto call = tracker.Call();
         ParseData data(buffer, std::move(states_stack),
-                       min(LineColumn(i + LineNumberDelta(1)), range.end));
-        data.set_position(max(LineColumn(i), range.begin));
+                       std::min(LineColumn(i + LineNumberDelta(1)), range.end));
+        data.set_position(std::max(LineColumn(i), range.begin));
         ParseLine(&data);
         return *data.parse_results();
       });
