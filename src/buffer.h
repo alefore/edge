@@ -419,10 +419,13 @@ class OpenBuffer {
   language::ObservableValue<LineColumnDelta>& view_size();
   const language::ObservableValue<LineColumnDelta>& view_size() const;
 
-  // This is marked as const because we don't consider the side-effects of
-  // displaying a buffer to be modifications on the buffer itself.
+  // See max_display_width_.
   void AddDisplayWidth(ColumnNumberDelta display_width);
   ColumnNumberDelta max_display_width() const;
+
+  // See min_vertical_prefix_size_.
+  void AddVerticalPrefixSize(LineNumberDelta vertical_prefix_size);
+  std::optional<LineNumberDelta> min_vertical_prefix_size() const;
 
   infrastructure::FileSystemDriver& file_system_driver() const;
 
@@ -527,8 +530,20 @@ class OpenBuffer {
   // metadata for the line (numbers, syntax tree, scroll bar, marks metadata,
   // etc.).
   //
-  // This is used when centering the output of a buffer, to prevent jittering.
+  // This is used when centering the output of a buffer horizontally, to prevent
+  // jittering.
+  //
+  // Cleared when the buffer is reloaded.
   ColumnNumberDelta max_display_width_;
+
+  // The smallest vertical prefix we've used while showing this buffer. A
+  // vertical prefix is a block of empty lines.
+  //
+  // This is used when centering the output of a buffer vertically, to prevent
+  // jittering.
+  //
+  // Cleared when the buffer is reloaded.
+  std::optional<LineNumberDelta> min_vertical_prefix_size_;
 
   std::unique_ptr<BufferTerminal> terminal_;
 

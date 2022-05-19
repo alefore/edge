@@ -247,8 +247,8 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
                                           context_lines, options.size.column)},
           .buffer = context_buffer,
           .view_start = {},
-          .status_behavior =
-              BufferOutputProducerInput::StatusBehavior::kIgnore});
+          .status_behavior = BufferOutputProducerInput::StatusBehavior::kIgnore,
+          .min_vertical_prefix_size = std::nullopt});
 
   context_columns_vector.push_back({.lines = buffer_output.lines});
   CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);

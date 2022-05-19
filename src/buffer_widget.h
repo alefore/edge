@@ -29,6 +29,12 @@ struct BufferOutputProducerOutput {
   //
   // It is the responsibility of the caller to propagate it to the buffer.
   ColumnNumberDelta max_display_width;
+
+  // The number of empty "space" lines added (to center the buffer vertically in
+  // the screen).
+  //
+  // It is the responsibility of the caller to propagate it to the buffer.
+  std::optional<LineNumberDelta> vertical_prefix_size;
 };
 
 struct BufferOutputProducerInput {
@@ -37,6 +43,7 @@ struct BufferOutputProducerInput {
   LineColumn view_start;
   enum class StatusBehavior { kShow, kIgnore };
   StatusBehavior status_behavior = StatusBehavior::kShow;
+  std::optional<LineNumberDelta> min_vertical_prefix_size;
 };
 
 // Handles things like `multiple_cursors`, `paste_mode`, `scrollbar`, displaying

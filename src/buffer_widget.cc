@@ -65,26 +65,38 @@ LineWithCursor::Generator::Vector AddLeftFrame(
   return OutputFromColumnsVector(std::move(columns_vector));
 }
 
-LineWithCursor::Generator::Vector CenterVertically(
+struct CenterVerticallyOutput {
+  LineWithCursor::Generator::Vector lines;
+  LineNumberDelta prefix_size = LineNumberDelta();
+};
+
+CenterVerticallyOutput CenterVertically(
     LineWithCursor::Generator::Vector input, LineNumberDelta status_lines,
     LineNumberDelta total_lines,
-    BufferContentsWindow::StatusPosition status_position) {
-  if (input.size() + status_lines < total_lines) {
-    LineNumberDelta prefix_size;
+    BufferContentsWindow::StatusPosition status_position,
+    std::optional<LineNumberDelta> min_previous_prefix) {
+  CenterVerticallyOutput output{.lines = std::move(input)};
+  if (output.lines.size() + status_lines < total_lines) {
     switch (status_position) {
       case BufferContentsWindow::StatusPosition::kTop:
-        prefix_size = max(LineNumberDelta(),
-                          (total_lines - input.size()) / 2 - status_lines);
+        output.prefix_size =
+            max(LineNumberDelta(),
+                (total_lines - output.lines.size()) / 2 - status_lines);
         break;
       case BufferContentsWindow::StatusPosition::kBottom:
-        prefix_size = min((total_lines - input.size()) / 2,
-                          total_lines - status_lines - input.size());
+        output.prefix_size =
+            min((total_lines - output.lines.size()) / 2,
+                total_lines - status_lines - output.lines.size());
         break;
     }
-    input.PrependEmptyLines(prefix_size);
+    if (min_previous_prefix.has_value()) {
+      output.prefix_size =
+          std::min(min_previous_prefix.value(), output.prefix_size);
+    }
+    output.lines.PrependEmptyLines(output.prefix_size);
   }
-  input.resize(total_lines - status_lines);
-  return input;
+  output.lines.resize(total_lines - status_lines);
+  return output;
 }
 
 LineWithCursor::Generator::Vector LinesSpanView(
@@ -354,7 +366,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
         .lines = RepeatLine({}, input.output_producer_options.size.line),
         .view_start = {},
         .view_size = output_view_size,
-        .max_display_width = {}};
+        .max_display_width = {},
+        .vertical_prefix_size = std::nullopt};
 
   LineColumnDelta total_size = input.output_producer_options.size;
   input.output_producer_options.size = LineColumnDelta(
@@ -363,17 +376,21 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       buffer_contents_window_input.columns_shown);
   input.view_start = window.view_start;
 
-  LineWithCursor::Generator::Vector lines = CenterVertically(
+  CenterVerticallyOutput centered_lines = CenterVertically(
       buffer.Read(buffer_variables::multiple_cursors)
           ? ViewMultipleCursors(buffer, input.output_producer_options,
                                 buffer_contents_window_input)
           : LinesSpanView(buffer, window.lines, input.output_producer_options,
                           1),
-      status_lines.size(), total_size.line, window.status_position);
-  BufferOutputProducerOutput output{.lines = std::move(lines),
-                                    .view_start = window.view_start,
-                                    .view_size = output_view_size,
-                                    .max_display_width = output.lines.width};
+      status_lines.size(), total_size.line, window.status_position,
+      input.min_vertical_prefix_size);
+
+  BufferOutputProducerOutput output{
+      .lines = std::move(centered_lines.lines),
+      .view_start = window.view_start,
+      .view_size = output_view_size,
+      .max_display_width = output.lines.width,
+      .vertical_prefix_size = centered_lines.prefix_size};
   CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
   if (!status_lines.size().IsZero()) {
@@ -411,9 +428,12 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
         if (buffer.ptr()->Read(buffer_variables::reload_on_display))
           buffer.ptr()->Reload();
 
-        BufferOutputProducerInput input{.output_producer_options = options,
-                                        .buffer = buffer.ptr().value(),
-                                        .view_start = view_start()};
+        BufferOutputProducerInput input{
+            .output_producer_options = options,
+            .buffer = buffer.ptr().value(),
+            .view_start = view_start(),
+            .min_vertical_prefix_size =
+                buffer.ptr()->min_vertical_prefix_size()};
         if (options_.position_in_parent.has_value()) {
           input.output_producer_options.size.line =
               max(LineNumberDelta(),
@@ -430,6 +450,12 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
           buffer.ptr()->Set(buffer_variables::view_start, output.view_start);
         }
         buffer.ptr()->AddDisplayWidth(output.max_display_width);
+        VisitPointer(
+            output.vertical_prefix_size,
+            [&buffer](LineNumberDelta prefix_size) {
+              buffer.ptr()->AddVerticalPrefixSize(prefix_size);
+            },
+            [] {});
         buffer.ptr()->view_size().Set(output.view_size);
 
         if (options_.position_in_parent.has_value()) {

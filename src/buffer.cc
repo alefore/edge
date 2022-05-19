@@ -726,6 +726,9 @@ void OpenBuffer::AppendLines(
 }
 
 void OpenBuffer::Reload() {
+  max_display_width_ = ColumnNumberDelta();
+  min_vertical_prefix_size_ = std::nullopt;
+
   if (child_pid_ != -1) {
     LOG(INFO) << "Sending SIGTERM.";
     kill(-child_pid_, SIGTERM);
@@ -1490,6 +1493,16 @@ void OpenBuffer::AddDisplayWidth(ColumnNumberDelta display_width) {
 
 ColumnNumberDelta OpenBuffer::max_display_width() const {
   return max_display_width_;
+}
+
+void OpenBuffer::AddVerticalPrefixSize(LineNumberDelta vertical_prefix_size) {
+  min_vertical_prefix_size_ =
+      std::min(vertical_prefix_size,
+               min_vertical_prefix_size_.value_or(vertical_prefix_size));
+}
+
+std::optional<LineNumberDelta> OpenBuffer::min_vertical_prefix_size() const {
+  return min_vertical_prefix_size_;
 }
 
 FileSystemDriver& OpenBuffer::file_system_driver() const {
