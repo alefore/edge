@@ -18,11 +18,6 @@
 
 namespace afc {
 namespace editor {
-// TODO(easy, 2022-05-16): Get rid of these `using` declarations.
-using std::cerr;
-using std::set;
-using std::to_wstring;
-
 using infrastructure::Path;
 using infrastructure::Tracker;
 
