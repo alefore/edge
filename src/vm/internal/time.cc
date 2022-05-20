@@ -164,8 +164,13 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                     trampoline.pool(), Time{.tv_sec = output, .tv_nsec = 0}))));
           }));
 
-  environment.DefineType(MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<Duration>::vmtype.object_type));
+  auto duration_type =
+      MakeNonNullUnique<ObjectType>(VMTypeMapper<Duration>::vmtype);
+  duration_type->AddField(
+      L"days", vm::NewCallback(pool, PurityType::kPure,
+                               std::function<int(Duration)>([](Duration input) {
+                                 return input.value.tv_sec / (24 * 60 * 60);
+                               })));
   environment.Define(L"Seconds",
                      vm::NewCallback(pool, PurityType::kPure, [](int input) {
                        return Duration{.value{.tv_sec = input, .tv_nsec = 0}};
@@ -181,10 +186,11 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
         } else {
           b.tv_nsec -= a.tv_nsec;
         }
-        return b;
+        return Duration{.value = b};
       }));
 
   environment.DefineType(std::move(time_type));
+  environment.DefineType(std::move(duration_type));
 }
 
 }  // namespace afc::vm
