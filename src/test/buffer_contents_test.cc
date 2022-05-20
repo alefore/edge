@@ -14,10 +14,14 @@ namespace afc {
 namespace editor {
 namespace testing {
 namespace {
+using language::MakeNonNullShared;
+using language::ToByteString;
+
 void TestBufferContentsSnapshot() {
   BufferContents contents;
   for (auto& s : {L"alejandro", L"forero", L"cuervo"}) {
-    contents.push_back(std::make_shared<Line>(Line::Options(NewLazyString(s))));
+    contents.push_back(
+        MakeNonNullShared<Line>(Line::Options(NewLazyString(s))));
   }
   auto copy = contents.copy();
   CHECK_EQ("\nalejandro\nforero\ncuervo", ToByteString(contents.ToString()));
@@ -34,11 +38,11 @@ void TestBufferInsertModifiers() {
   options.contents = NewLazyString(L"alejo");
   options.modifiers[ColumnNumber(0)] = {LineModifier::CYAN};
 
-  contents.push_back(std::make_shared<Line>(options));  // LineNumber(1).
-  contents.push_back(std::make_shared<Line>(options));  // LineNumber(2).
+  contents.push_back(MakeNonNullShared<Line>(options));  // LineNumber(1).
+  contents.push_back(MakeNonNullShared<Line>(options));  // LineNumber(2).
   options.modifiers[ColumnNumber(2)] = {LineModifier::BOLD};
-  contents.push_back(std::make_shared<Line>(options));  // LineNumber(3).
-  auto line = std::make_shared<Line>(*contents.at(LineNumber(1)));
+  contents.push_back(MakeNonNullShared<Line>(options));  // LineNumber(3).
+  auto line = MakeNonNullShared<Line>(contents.at(LineNumber(1)).value());
   line->SetAllModifiers(LineModifierSet({LineModifier::DIM}));
   contents.push_back(line);  // LineNumber(4).
 
@@ -147,7 +151,7 @@ void TestCursorsMove() {
     transformations.push_back(t);
   });
   contents.set_line(LineNumber(0),
-                    std::make_shared<Line>(L"aleandro forero cuervo"));
+                    MakeNonNullShared<Line>(L"aleandro forero cuervo"));
   CHECK_EQ(transformations.size(), 0ul);
   contents.InsertCharacter(LineColumn(LineNumber(0), ColumnNumber(3)));
   CHECK_EQ(transformations.size(), 1ul);

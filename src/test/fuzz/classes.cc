@@ -21,6 +21,7 @@ extern "C" {
 #include "src/lazy_string.h"
 
 using namespace afc::editor;
+namespace gc = afc::language::gc;
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -29,14 +30,14 @@ int main(int argc, char** argv) {
 
   std::unique_ptr<fuzz::FuzzTestable> fuzz_testable;
   std::string class_name(argv[1]);
-  auto audio_player = NewNullAudioPlayer();
-  EditorState editor(CommandLineValues(), *audio_player);
+  auto audio_player = audio::NewNullPlayer();
+  EditorState editor(CommandLineValues(), audio_player.value());
   OpenBuffer::Options options{.editor = editor};
-  auto buffer = OpenBuffer::New(options);
+  gc::Root<OpenBuffer> buffer = OpenBuffer::New(options);
   if (class_name == "BufferContents") {
     fuzz_testable = std::make_unique<BufferContents>();
   } else if (class_name == "BufferTerminal") {
-    fuzz_testable = buffer->NewTerminal();
+    fuzz_testable = buffer.ptr()->NewTerminal();
   }
   CHECK(fuzz_testable != nullptr)
       << "Invalid parameter for class name: " << class_name;

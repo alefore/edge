@@ -60,7 +60,7 @@ int main(int, char** argv) {
   std::cout << "Seed: " << seed << std::endl;
   srand(seed);
   auto audio_player = audio::NewNullPlayer();
-  EditorState editor_state(CommandLineValues(), *audio_player);
+  EditorState editor_state(CommandLineValues(), audio_player.value());
   SendInput(&editor_state, "i");
   editor_state.ProcessInput(Terminal::ESCAPE);
   for (int i = 0; i < 1000 || getenv("EDGE_TEST_STDIN") != nullptr; i++) {
@@ -216,16 +216,16 @@ int main(int, char** argv) {
       default:
         CHECK(false) << "Ugh: " << value % 24;
     }
-    auto cursors = editor_state.current_buffer()->active_cursors();
-    if (cursors->size() > 50) {
+    auto cursors = editor_state.current_buffer()->ptr()->active_cursors();
+    if (cursors.size() > 50) {
       vector<LineColumn> positions;
-      auto it = cursors->begin();
+      auto it = cursors.begin();
       for (int cursor = 0; cursor < 50; cursor++) {
         positions.push_back(*it);
         ++it;
       }
-      editor_state.current_buffer()->set_active_cursors({});
-      editor_state.current_buffer()->set_active_cursors(positions);
+      editor_state.current_buffer()->ptr()->set_active_cursors({});
+      editor_state.current_buffer()->ptr()->set_active_cursors(positions);
     }
   }
 

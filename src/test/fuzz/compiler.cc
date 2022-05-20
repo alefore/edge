@@ -15,6 +15,7 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/cpp_parse_tree.h"
 #include "src/lazy_string.h"
+#include "src/vm/public/environment.h"
 #include "src/vm/public/vm.h"
 
 using namespace afc::editor;
@@ -22,7 +23,7 @@ using namespace afc::editor;
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
   std::wifstream input(argv[1]);
-  wstring error;
-  afc::vm::CompileFile(argv[1], afc::vm::Environment::GetDefault(), &error);
+  afc::language::gc::Pool pool;
+  afc::vm::CompileFile(argv[1], pool, afc::vm::Environment::NewDefault(pool));
   return 0;
 }

@@ -14,11 +14,12 @@ extern "C" {
 #include "src/buffer_contents.h"
 #include "src/char_buffer.h"
 #include "src/cpp_parse_tree.h"
+#include "src/language/safe_types.h"
 #include "src/lazy_string.h"
 
 using namespace afc::editor;
 
-int main(int argc, char** argv) {
+int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
   auto parser = NewCppTreeParser(
       {L"auto", L"int", L"char", L"if", L"while", L"const", L"for"},
@@ -31,7 +32,7 @@ int main(int argc, char** argv) {
     Line::Options options;
     options.contents = NewLazyString(line);
     contents.AppendToLine(contents.EndLine(), Line(std::move(options)));
-    contents.push_back(std::make_shared<Line>());
+    contents.push_back(afc::language::MakeNonNullShared<Line>());
   }
 
   std::cout << "Parsing input: " << contents.ToString();

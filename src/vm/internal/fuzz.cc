@@ -22,13 +22,13 @@ int main(int, char** argv) {
   auto expr = afc::vm::CompileFile(
       "/dev/"
       "stdin",
-      environment);
+      pool, environment);
   if (expr.IsError()) {
     return 0;
   }
 
   std::function<void()> resume;
-  auto value = afc::vm::Evaluate(*expr.value(), pool, environment,
+  auto value = afc::vm::Evaluate(expr.value().value(), pool, environment,
                                  [&resume](std::function<void()> callback) {
                                    resume = std::move(callback);
                                  });
