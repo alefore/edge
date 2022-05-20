@@ -162,6 +162,19 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                      vm::NewCallback(pool, PurityType::kPure, [](int input) {
                        return Duration{.value{.tv_sec = input, .tv_nsec = 0}};
                      }));
+
+  environment.Define(
+      L"DurationBetween",
+      vm::NewCallback(pool, PurityType::kPure, [](Time a, Time b) {
+        b.tv_sec -= a.tv_sec;
+        if (b.tv_nsec < a.tv_nsec) {
+          b.tv_nsec = 1e9 - a.tv_nsec + b.tv_nsec;
+          b.tv_sec--;
+        } else {
+          b.tv_nsec -= a.tv_nsec;
+        }
+        return b;
+      }));
 }
 
 }  // namespace afc::vm
