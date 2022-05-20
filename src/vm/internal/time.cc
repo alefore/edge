@@ -75,11 +75,14 @@ void AddMethod(const wstring& name, gc::Pool& pool,
 void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   auto time_type = MakeNonNullUnique<ObjectType>(VMTypeMapper<Time>::vmtype);
   time_type->AddField(
-      L"tostring", vm::NewCallback(pool, PurityType::kPure,
-                                   std::function<wstring(Time)>([](Time t) {
-                                     return std::to_wstring(t.tv_sec) + L"." +
-                                            std::to_wstring(t.tv_nsec);
-                                   })));
+      L"tostring",
+      vm::NewCallback(pool, PurityType::kPure,
+                      std::function<wstring(Time)>([](Time t) {
+                        std::wstring decimal = std::to_wstring(t.tv_nsec);
+                        if (decimal.length() < 9)
+                          decimal.insert(0, 9 - decimal.length(), L'0');
+                        return std::to_wstring(t.tv_sec) + L"." + decimal;
+                      })));
   // TODO: Correctly handle errors (abort evaluation).
   time_type->AddField(
       L"AddDays",
