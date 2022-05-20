@@ -215,6 +215,7 @@ Value::Callback Value::LockCallback() {
   gc::Root<LockedDependencies> dependencies =
       pool_.NewRoot(MakeNonNullUnique<LockedDependencies>(
           LockedDependencies{.dependencies = expand()}));
+  CHECK(callback != nullptr);
   return [callback = callback, dependencies](std::vector<gc::Root<Value>> args,
                                              Trampoline& trampoline) {
     return callback(std::move(args), trampoline);
