@@ -114,6 +114,7 @@ src/language/hash.cc \
 src/language/hash.h \
 src/language/observers.h \
 src/language/observers.cc \
+src/language/observers_gc.h \
 src/language/safe_types.h \
 src/language/value_or_error.cc \
 src/language/value_or_error.h \
