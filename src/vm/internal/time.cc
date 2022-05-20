@@ -13,6 +13,7 @@
 #include "wstring.h"
 
 namespace afc::vm {
+using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -118,7 +119,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                          ToByteString(std::move(args[1].ptr()->get_string()))
                              .c_str(),
                          &t) == 0) {
-              return futures::Past(language::Error(L"strftime error"));
+              return futures::Past(Error(L"strftime error"));
             }
             return futures::Past(Success(EvaluationOutput::Return(
                 Value::NewString(trampoline.pool(), FromByteString(buffer)))));
@@ -132,7 +133,6 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                                         return t.tm_year;
                                       })));
   auto time_type_name = time_type->type().object_type;
-  environment.DefineType(std::move(time_type));
   environment.Define(L"Now", vm::NewCallback(pool, PurityType::kUnknown, []() {
                        Time output;
                        CHECK_NE(clock_gettime(0, &output), -1);
@@ -140,20 +140,28 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                      }));
   environment.Define(
       L"ParseTime",
-      vm::NewCallback(
-          pool, PurityType::kPure, [](std::wstring value, std::wstring format) {
+      vm::Value::NewFunction(
+          pool, PurityType::kPure,
+          {time_type->type(), VMType::String(), VMType::String()},
+          [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
+              -> futures::ValueOrError<EvaluationOutput> {
+            CHECK_EQ(args.size(), 2ul);
+            std::wstring value = args[0].ptr()->get_string();
+            std::wstring format = args[1].ptr()->get_string();
             struct tm t = {};
             if (strptime(ToByteString(value).c_str(),
                          ToByteString(format).c_str(), &t) == nullptr) {
-              LOG(ERROR) << "Parsing error: " << value << ": " << format;
-              // TODO: Don't ignore return value.
+              return futures::Past(Error(L"strptime error: value: " + value +
+                                         L", format: " + format));
             }
-            auto output = mktime(&t);
+            time_t output = mktime(&t);
             if (output == -1) {
-              LOG(ERROR) << "mktime error: " << value << ": " << format;
-              // TODO: Don't ignore return value.
+              return futures::Past(Error(L"mktime error: value: " + value +
+                                         L", format: " + format));
             }
-            return Time{.tv_sec = output, .tv_nsec = 0};
+            return futures::Past(
+                Success(EvaluationOutput::Return(VMTypeMapper<Time>::New(
+                    trampoline.pool(), Time{.tv_sec = output, .tv_nsec = 0}))));
           }));
 
   environment.DefineType(MakeNonNullUnique<ObjectType>(
@@ -175,6 +183,8 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
         }
         return b;
       }));
+
+  environment.DefineType(std::move(time_type));
 }
 
 }  // namespace afc::vm
