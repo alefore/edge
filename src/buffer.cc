@@ -98,8 +98,6 @@ namespace gc = language::gc;
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
 
-using std::unordered_set;
-
 NonNull<std::shared_ptr<const Line>> AddLineMetadata(
     OpenBuffer& buffer, NonNull<std::shared_ptr<const Line>> line) {
   if (line->metadata() != nullptr) return line;
