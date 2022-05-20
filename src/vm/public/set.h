@@ -40,7 +40,7 @@ struct VMTypeMapper<std::set<T>*> {
     environment.Define(
         vmtype.object_type.read(),
         Value::NewFunction(
-            pool, {set_type->type()},
+            pool, PurityType::kPure, {set_type->type()},
             [&pool](std::vector<language::gc::Root<Value>> args) {
               CHECK(args.empty());
               return Value::NewObject(pool, vmtype.object_type,
@@ -49,33 +49,39 @@ struct VMTypeMapper<std::set<T>*> {
 
     set_type->AddField(
         L"size",
-        vm::NewCallback(pool, std::function<int(std::set<T>*)>(
-                                  [](std::set<T>* v) { return v->size(); })));
+        vm::NewCallback(pool, PurityType::kPure,
+                        std::function<int(std::set<T>*)>(
+                            [](std::set<T>* v) { return v->size(); })));
     set_type->AddField(
         L"empty",
-        vm::NewCallback(pool, std::function<bool(std::set<T>*)>(
-                                  [](std::set<T>* v) { return v->empty(); })));
-    set_type->AddField(
-        L"contains", vm::NewCallback(pool, std::function<bool(std::set<T>*, T)>(
-                                               [](std::set<T>* v, T e) {
-                                                 return v->count(e) > 0;
-                                               })));
-    set_type->AddField(
-        L"get", vm::NewCallback(pool, std::function<T(std::set<T>*, int)>(
-                                          [](std::set<T>* v, int i) {
-                                            auto it = v->begin();
-                                            std::advance(it, i);
-                                            return *it;
-                                          })));
+        vm::NewCallback(pool, PurityType::kPure,
+                        std::function<bool(std::set<T>*)>(
+                            [](std::set<T>* v) { return v->empty(); })));
+    set_type->AddField(L"contains",
+                       vm::NewCallback(pool, PurityType::kPure,
+                                       std::function<bool(std::set<T>*, T)>(
+                                           [](std::set<T>* v, T e) {
+                                             return v->count(e) > 0;
+                                           })));
+    set_type->AddField(L"get",
+                       vm::NewCallback(pool, PurityType::kPure,
+                                       std::function<T(std::set<T>*, int)>(
+                                           [](std::set<T>* v, int i) {
+                                             auto it = v->begin();
+                                             std::advance(it, i);
+                                             return *it;
+                                           })));
 
     set_type->AddField(
         L"erase",
-        vm::NewCallback(pool, std::function<void(std::set<T>*, T)>(
-                                  [](std::set<T>* v, T t) { v->erase(t); })));
+        vm::NewCallback(pool, PurityType::kUnknown,
+                        std::function<void(std::set<T>*, T)>(
+                            [](std::set<T>* v, T t) { v->erase(t); })));
     set_type->AddField(
         L"insert",
-        vm::NewCallback(pool, std::function<void(std::set<T>*, T)>(
-                                  [](std::set<T>* v, T e) { v->insert(e); })));
+        vm::NewCallback(pool, PurityType::kUnknown,
+                        std::function<void(std::set<T>*, T)>(
+                            [](std::set<T>* v, T e) { v->insert(e); })));
 
     environment.DefineType(std::move(set_type));
   }

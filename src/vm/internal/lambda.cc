@@ -82,7 +82,7 @@ class LambdaExpression : public Expression {
                              gc::Root<Environment> parent_environment_root) {
     gc::Ptr<Environment> parent_environment = parent_environment_root.ptr();
     return Value::NewFunction(
-        pool, type_.type_arguments,
+        pool, body_->purity(), type_.type_arguments,
         [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
             std::vector<gc::Root<Value>> args, Trampoline& trampoline) {

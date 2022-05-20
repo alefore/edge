@@ -17,7 +17,7 @@ class Noop : public CompositeTransformation {
     environment.Define(
         L"NoopTransformation",
         vm::Value::NewFunction(
-            pool, {vm::VMType::Void()},
+            pool, vm::PurityType::kPure, {vm::VMType::Void()},
             [&pool](std::vector<gc::Root<vm::Value>> args) {
               CHECK(args.empty());
               return vm::VMTypeMapper<editor::transformation::Variant*>::New(

@@ -48,23 +48,27 @@ struct VMTypeMapper<std::vector<T>*> {
     environment.Define(
         vector_type->type().object_type.read(),
         Value::NewFunction(
-            pool, {vmtype},
+            pool, PurityType::kPure, {vmtype},
             [&pool](std::vector<language::gc::Root<Value>> args) {
               CHECK(args.empty());
               return Value::NewObject(pool, vmtype.object_type,
                                       std::make_shared<std::vector<T>>());
             }));
 
+    vector_type->AddField(L"empty", vm::NewCallback(pool, PurityType::kPure,
+                                                    [](std::vector<T>* v) {
+                                                      return v->empty();
+                                                    }));
     vector_type->AddField(
-        L"empty",
-        vm::NewCallback(pool, [](std::vector<T>* v) { return v->empty(); }));
-    vector_type->AddField(L"size", vm::NewCallback(pool, [](std::vector<T>* v) {
-                            return static_cast<int>(v->size());
-                          }));
+        L"size",
+        vm::NewCallback(pool, PurityType::kPure, [](std::vector<T>* v) {
+          return static_cast<int>(v->size());
+        }));
     vector_type->AddField(
         L"get",
         Value::NewFunction(
-            pool, {VMTypeMapper<T>::vmtype, vmtype, VMType::Int()},
+            pool, PurityType::kPure,
+            {VMTypeMapper<T>::vmtype, vmtype, VMType::Int()},
             [](std::vector<language::gc::Root<Value>> args,
                Trampoline& trampoline)
                 -> futures::ValueOrError<EvaluationOutput> {
@@ -81,13 +85,14 @@ struct VMTypeMapper<std::vector<T>*> {
                   VMTypeMapper<T>::New(trampoline.pool(), v->at(index)))));
             }));
     vector_type->AddField(L"erase",
-                          vm::NewCallback(pool, [](std::vector<T>* v, int i) {
-                            v->erase(v->begin() + i);
-                          }));
-    vector_type->AddField(L"push_back",
-                          vm::NewCallback(pool, [](std::vector<T>* v, T e) {
-                            v->emplace_back(e);
-                          }));
+                          vm::NewCallback(pool, PurityType::kUnknown,
+                                          [](std::vector<T>* v, int i) {
+                                            v->erase(v->begin() + i);
+                                          }));
+    vector_type->AddField(
+        L"push_back",
+        vm::NewCallback(pool, PurityType::kUnknown,
+                        [](std::vector<T>* v, T e) { v->emplace_back(e); }));
 
     environment.DefineType(std::move(vector_type));
   }

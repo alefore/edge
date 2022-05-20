@@ -83,6 +83,7 @@ namespace afc::editor {
 using vm::Environment;
 using vm::NewCallback;
 using vm::ObjectType;
+using vm::PurityType;
 using vm::VMTypeMapper;
 using vm::VMTypeObjectTypeName;
 
@@ -91,22 +92,28 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
       MakeNonNullUnique<ObjectType>(VMTypeMapper<LineColumn>::vmtype);
 
   // Methods for LineColumn.
-  environment.Define(
-      L"LineColumn", NewCallback(pool, [](int line_number, int column_number) {
-        return LineColumn(LineNumber(line_number), ColumnNumber(column_number));
-      }));
-
-  line_column->AddField(L"line", NewCallback(pool, [](LineColumn line_column) {
-                          return static_cast<int>(line_column.line.line);
-                        }));
-
-  line_column->AddField(L"column",
-                        NewCallback(pool, [](LineColumn line_column) {
-                          return static_cast<int>(line_column.column.column);
-                        }));
+  environment.Define(L"LineColumn",
+                     NewCallback(pool, PurityType::kPure,
+                                 [](int line_number, int column_number) {
+                                   return LineColumn(
+                                       LineNumber(line_number),
+                                       ColumnNumber(column_number));
+                                 }));
 
   line_column->AddField(
-      L"tostring", NewCallback(pool, [](LineColumn line_column) {
+      L"line", NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
+        return static_cast<int>(line_column.line.line);
+      }));
+
+  line_column->AddField(
+      L"column",
+      NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
+        return static_cast<int>(line_column.column.column);
+      }));
+
+  line_column->AddField(
+      L"tostring",
+      NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
         return std::to_wstring(line_column.line.line) + L", " +
                std::to_wstring(line_column.column.column);
       }));
@@ -119,15 +126,17 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
 
   // Methods for Range.
   environment.Define(L"Range",
-                     NewCallback(pool, [](LineColumn begin, LineColumn end) {
-                       return Range(begin, end);
-                     }));
+                     NewCallback(pool, PurityType::kPure,
+                                 [](LineColumn begin, LineColumn end) {
+                                   return Range(begin, end);
+                                 }));
 
   range->AddField(L"begin",
-                  NewCallback(pool, [](Range range) { return range.begin; }));
+                  NewCallback(pool, PurityType::kPure,
+                              [](Range range) { return range.begin; }));
 
-  range->AddField(L"end",
-                  NewCallback(pool, [](Range range) { return range.end; }));
+  range->AddField(L"end", NewCallback(pool, PurityType::kPure,
+                                      [](Range range) { return range.end; }));
 
   environment.DefineType(std::move(range));
 

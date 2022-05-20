@@ -39,34 +39,32 @@ language::gc::Root<Environment> Environment::NewDefault(
   RegisterNumberFunctions(pool, value);
   RegisterTimeType(pool, value);
   auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool());
-  bool_type->AddField(
-      L"tostring", NewCallback(pool, std::function<wstring(bool)>([](bool v) {
-                                 return v ? L"true" : L"false";
-                               }),
-                               VMType::PurityType::kPure));
+  bool_type->AddField(L"tostring",
+                      NewCallback(pool, PurityType::kPure,
+                                  std::function<wstring(bool)>([](bool v) {
+                                    return v ? L"true" : L"false";
+                                  })));
   value.DefineType(std::move(bool_type));
 
   auto int_type = MakeNonNullUnique<ObjectType>(VMType::Int());
   int_type->AddField(
-      L"tostring",
-      NewCallback(pool, std::function<std::wstring(int)>([](int value) {
-                    return std::to_wstring(value);
-                  }),
-                  VMType::PurityType::kPure));
+      L"tostring", NewCallback(pool, PurityType::kPure,
+                               std::function<std::wstring(int)>([](int value) {
+                                 return std::to_wstring(value);
+                               })));
   value.DefineType(std::move(int_type));
 
   auto double_type = MakeNonNullUnique<ObjectType>(VMType::Double());
   double_type->AddField(
       L"tostring",
-      NewCallback(pool, std::function<std::wstring(double)>([](double value) {
-                    return std::to_wstring(value);
-                  }),
-                  VMType::PurityType::kPure));
+      NewCallback(pool, PurityType::kPure,
+                  std::function<std::wstring(double)>(
+                      [](double value) { return std::to_wstring(value); })));
   double_type->AddField(
-      L"round", NewCallback(pool, std::function<int(double)>([](double value) {
+      L"round", NewCallback(pool, PurityType::kPure,
+                            std::function<int(double)>([](double value) {
                               return static_cast<int>(value);
-                            }),
-                            VMType::PurityType::kPure));
+                            })));
   value.DefineType(std::move(double_type));
 
   VMTypeMapper<std::vector<int>*>::Export(pool, value);

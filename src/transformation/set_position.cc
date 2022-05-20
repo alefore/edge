@@ -12,19 +12,21 @@ using language::MakeNonNullUnique;
 
 void RegisterSetPosition(language::gc::Pool& pool,
                          vm::Environment& environment) {
+  using vm::PurityType;
   environment.Define(
       L"SetColumnTransformation",
-      vm::NewCallback(pool, std::function<Variant*(int)>([](int column) {
-                        return MakeNonNullUnique<Variant>(
-                                   SetPosition(ColumnNumber(column)))
-                            .get_unique()
-                            .release();
-                      })));
+      vm::NewCallback(
+          pool, PurityType::kPure, std::function<Variant*(int)>([](int column) {
+            return MakeNonNullUnique<Variant>(SetPosition(ColumnNumber(column)))
+                .get_unique()
+                .release();
+          })));
 
   environment.Define(
       L"SetPositionTransformation",
       vm::NewCallback(
-          pool, std::function<Variant*(LineColumn)>([](LineColumn position) {
+          pool, PurityType::kPure,
+          std::function<Variant*(LineColumn)>([](LineColumn position) {
             return MakeNonNullUnique<Variant>(SetPosition(position))
                 .get_unique()
                 .release();

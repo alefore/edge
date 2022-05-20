@@ -87,7 +87,7 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
   environment.Define(
       L"FunctionTransformation",
       vm::Value::NewFunction(
-          pool,
+          pool, PurityType::kPure,
           {VMTypeMapper<editor::transformation::Variant*>::vmtype,
            VMType::Function(
                {VMTypeMapper<

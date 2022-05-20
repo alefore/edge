@@ -34,7 +34,7 @@ template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name, language::gc::Pool& pool,
                std::function<ReturnType(const wstring&, Args...)> callback,
                ObjectType& string_type) {
-  string_type.AddField(name, NewCallback(pool, callback));
+  string_type.AddField(name, NewCallback(pool, PurityType::kPure, callback));
 }
 
 void RegisterStringType(gc::Pool& pool, Environment& environment) {

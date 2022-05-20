@@ -24,6 +24,12 @@ class ObjectType;
 
 GHOST_TYPE(VMTypeObjectTypeName, std::wstring);
 
+enum class PurityType { kPure, kUnknown };
+
+// Add definition to PurityType and remove this one.
+constexpr PurityType PurityTypeReader = PurityType::kUnknown;
+constexpr PurityType PurityTypeWriter = PurityType::kUnknown;
+
 struct VMType {
   enum class Type {
     kVoid,
@@ -36,7 +42,8 @@ struct VMType {
     kObject
   };
 
-  enum class PurityType { kPure, kUnknown };
+  // TODO(easy, 2022-05-20): Get rid of this alias.
+  using PurityType = vm::PurityType;
 
   VMType() = default;
   explicit VMType(const Type& t) : type(t) {}

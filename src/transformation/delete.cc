@@ -255,13 +255,14 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
 
   environment.Define(
       builder->type().object_type.read(),
-      vm::NewCallback(pool, std::function<std::shared_ptr<Delete>()>([]() {
+      vm::NewCallback(pool, PurityType::kPure,
+                      std::function<std::shared_ptr<Delete>()>([]() {
                         return std::make_shared<transformation::Delete>();
                       })));
 
   builder->AddField(
       L"set_modifiers",
-      NewCallback(pool,
+      NewCallback(pool, PurityTypeWriter,
                   std::function<std::shared_ptr<Delete>(
                       std::shared_ptr<Delete>, std::shared_ptr<Modifiers>)>(
                       [](std::shared_ptr<Delete> options,
@@ -275,25 +276,26 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
   builder->AddField(
       L"set_line_end_behavior",
       vm::NewCallback(
-          pool, std::function<std::shared_ptr<Delete>(std::shared_ptr<Delete>,
-                                                      std::wstring)>(
-                    [](std::shared_ptr<Delete> options, std::wstring value) {
-                      CHECK(options != nullptr);
-                      if (value == L"stop") {
-                        options->line_end_behavior =
-                            Delete::LineEndBehavior::kStop;
-                      } else if (value == L"delete") {
-                        options->line_end_behavior =
-                            Delete::LineEndBehavior::kDelete;
-                      }
-                      return options;
-                    })));
+          pool, PurityTypeWriter,
+          std::function<std::shared_ptr<Delete>(std::shared_ptr<Delete>,
+                                                std::wstring)>(
+              [](std::shared_ptr<Delete> options, std::wstring value) {
+                CHECK(options != nullptr);
+                if (value == L"stop") {
+                  options->line_end_behavior = Delete::LineEndBehavior::kStop;
+                } else if (value == L"delete") {
+                  options->line_end_behavior = Delete::LineEndBehavior::kDelete;
+                }
+                return options;
+              })));
 
-  builder->AddField(L"build",
-                    vm::NewCallback(pool, [](std::shared_ptr<Delete> options) {
-                      CHECK(options != nullptr);
-                      return std::make_unique<Variant>(*options).release();
-                    }));
+  builder->AddField(
+      L"build",
+      vm::NewCallback(pool, PurityType::kPure,
+                      [](std::shared_ptr<Delete> options) {
+                        CHECK(options != nullptr);
+                        return std::make_unique<Variant>(*options).release();
+                      }));
 
   environment.DefineType(std::move(builder));
 }

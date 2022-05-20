@@ -55,15 +55,17 @@ class Value {
             language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>();
       });
   static language::gc::Root<Value> NewFunction(
-      language::gc::Pool& pool, std::vector<VMType> arguments,
-      Callback callback, ExpandCallback expand_callback = []() {
+      language::gc::Pool& pool, PurityType purity_type,
+      std::vector<VMType> arguments, Callback callback,
+      ExpandCallback expand_callback = []() {
         return std::vector<
             language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>();
       });
 
   // Convenience wrapper.
   static language::gc::Root<Value> NewFunction(
-      language::gc::Pool& pool, std::vector<VMType> arguments,
+      language::gc::Pool& pool, PurityType purity_type,
+      std::vector<VMType> arguments,
       std::function<
           language::gc::Root<Value>(std::vector<language::gc::Root<Value>>)>
           callback);

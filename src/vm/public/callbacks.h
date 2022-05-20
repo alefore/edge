@@ -132,16 +132,16 @@ language::gc::Root<Value> RunCallback(
 }
 
 template <typename Callable>
-language::gc::Root<Value> NewCallback(
-    language::gc::Pool& pool, Callable callback,
-    VMType::PurityType purity = VMType::PurityType::kUnknown) {
+language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
+                                      VMType::PurityType purity_type,
+                                      Callable callback) {
   using ft = function_traits<Callable>;
   std::vector<VMType> type_arguments;
   type_arguments.push_back(VMTypeMapper<typename ft::ReturnType>().vmtype);
   AddArgs<typename ft::ArgTuple, 0>(&type_arguments);
 
   language::gc::Root<Value> callback_wrapper = Value::NewFunction(
-      pool, std::move(type_arguments),
+      pool, purity_type, std::move(type_arguments),
       [callback = std::move(callback), &pool](
           vector<language::gc::Root<Value>> args, Trampoline&) {
         language::gc::Root<Value> result =
@@ -151,7 +151,6 @@ language::gc::Root<Value> NewCallback(
         return futures::Past(
             language::Success(EvaluationOutput::New(std::move(result))));
       });
-  callback_wrapper.ptr()->type.function_purity = purity;
   return callback_wrapper;
 }
 

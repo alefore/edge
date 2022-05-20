@@ -49,8 +49,8 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
                      gc::Pool& pool, gc::Root<Value> value) {
             std::vector<VMType> type_arguments =
                 value.ptr()->type.type_arguments;
-            gc::Root<Value> output = Value::NewFunction(
-                pool, type_arguments,
+            return Value::NewFunction(
+                pool, purity, type_arguments,
                 std::bind_front(
                     [argument_callbacks](gc::Root<Value> original_callback,
                                          std::vector<gc::Root<Value>> arguments,
@@ -71,8 +71,6 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
                           });
                     },
                     std::move(value)));
-            output.ptr()->type.function_purity = purity;
-            return output;
           };
         }
 

@@ -34,7 +34,7 @@ namespace {
 gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
                             VMType field_type, std::wstring field_name) {
   gc::Root<Value> output = Value::NewFunction(
-      pool, {class_type, class_type, field_type},
+      pool, PurityType::kUnknown, {class_type, class_type, field_type},
       [class_type, field_name, field_type](std::vector<gc::Root<Value>> args,
                                            Trampoline&) {
         CHECK_EQ(args.size(), 2u);
@@ -56,7 +56,7 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
 gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
                             VMType field_type, std::wstring field_name) {
   gc::Root<Value> output = Value::NewFunction(
-      pool, {field_type, class_type},
+      pool, PurityType::kPure, {field_type, class_type},
       [&pool, class_type, field_name, field_type](
           std::vector<gc::Root<Value>> args, Trampoline&) {
         CHECK_EQ(args.size(), 1u);
@@ -114,7 +114,7 @@ void FinishClassDeclaration(
   compilation.environment.ptr()->DefineType(std::move(class_object_type));
   auto purity = constructor_expression.value()->purity();
   gc::Root<Value> constructor = Value::NewFunction(
-      pool, {class_type},
+      pool, PurityType::kPure, {class_type},
       [constructor_expression_shared = NonNull<std::shared_ptr<Expression>>(
            std::move(constructor_expression.value())),
        class_environment, class_type,

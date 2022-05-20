@@ -151,20 +151,22 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
   input_type->AddField(
       L"position",
       vm::NewCallback(
-          pool, [](std::shared_ptr<CompositeTransformation::Input> input) {
+          pool, PurityType::kPure,
+          [](std::shared_ptr<CompositeTransformation::Input> input) {
             return input->position;
           }));
   input_type->AddField(
-      L"range",
-      vm::NewCallback(
-          pool, [](std::shared_ptr<CompositeTransformation::Input> input) {
-            return input->range;
-          }));
+      L"range", vm::NewCallback(
+                    pool, PurityType::kPure,
+                    [](std::shared_ptr<CompositeTransformation::Input> input) {
+                      return input->range;
+                    }));
 
   input_type->AddField(
       L"final_mode",
       vm::NewCallback(
-          pool, [](std::shared_ptr<CompositeTransformation::Input> input) {
+          pool, PurityType::kPure,
+          [](std::shared_ptr<CompositeTransformation::Input> input) {
             return input->mode == transformation::Input::Mode::kFinal;
           }));
   environment.DefineType(std::move(input_type));
@@ -174,19 +176,21 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
           std::shared_ptr<editor::CompositeTransformation::Output>>::vmtype);
 
   environment.Define(
-      output_type->type().object_type.read(), vm::NewCallback(pool, [] {
+      output_type->type().object_type.read(),
+      vm::NewCallback(pool, PurityType::kPure, [] {
         return std::make_shared<CompositeTransformation::Output>();
       }));
 
   output_type->AddField(
-      L"push",
-      vm::NewCallback(
-          pool, [](std::shared_ptr<CompositeTransformation::Output> output,
-                   transformation::Variant* transformation) {
-            // TODO(2022-05-02, easy): Receive transformation as NonNull.
-            output->Push(*transformation);
-            return output;
-          }));
+      L"push", vm::NewCallback(
+                   pool, PurityType::kUnknown,
+                   [](std::shared_ptr<CompositeTransformation::Output> output,
+                      transformation::Variant* transformation) {
+                     // TODO(2022-05-02, easy): Receive transformation as
+                     // NonNull.
+                     output->Push(*transformation);
+                     return output;
+                   }));
 
   environment.DefineType(std::move(output_type));
 }

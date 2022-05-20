@@ -295,6 +295,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         return trampoline.Bounce(obj_expr_.value(), obj_expr_->Types()[0])
             .Transform([type, shared_type = type_,
                         callback = delegate_->LockCallback(),
+                        purity_type = delegate_->type.function_purity,
                         &pool = trampoline.pool()](EvaluationOutput output)
                            -> ValueOrError<EvaluationOutput> {
               switch (output.type) {
@@ -302,7 +303,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                   return Success(std::move(output));
                 case EvaluationOutput::OutputType::kContinue:
                   return Success(EvaluationOutput::New(Value::NewFunction(
-                      pool, shared_type->type_arguments,
+                      pool, purity_type, shared_type->type_arguments,
                       [obj = std::move(output.value), callback](
                           std::vector<gc::Root<Value>> args,
                           Trampoline& trampoline) {

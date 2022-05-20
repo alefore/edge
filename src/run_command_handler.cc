@@ -541,30 +541,33 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   auto fork_command_options =
       MakeNonNullUnique<ObjectType>(VMTypeMapper<ForkCommandOptions*>::vmtype);
 
-  environment.Define(
-      L"ForkCommandOptions",
-      NewCallback(pool, std::function<ForkCommandOptions*()>(
-                            []() { return new ForkCommandOptions(); })));
+  environment.Define(L"ForkCommandOptions",
+                     NewCallback(pool, PurityType::kPure,
+                                 std::function<ForkCommandOptions*()>([]() {
+                                   return new ForkCommandOptions();
+                                 })));
 
   fork_command_options->AddField(
       L"set_command",
-      NewCallback(pool, std::function<void(ForkCommandOptions*, wstring)>(
-                            [](ForkCommandOptions* options, wstring command) {
-                              CHECK(options != nullptr);
-                              options->command = std::move(command);
-                            })));
+      NewCallback(pool, PurityType::kUnknown,
+                  std::function<void(ForkCommandOptions*, wstring)>(
+                      [](ForkCommandOptions* options, wstring command) {
+                        CHECK(options != nullptr);
+                        options->command = std::move(command);
+                      })));
 
   fork_command_options->AddField(
       L"set_name",
-      NewCallback(pool, std::function<void(ForkCommandOptions*, wstring)>(
-                            [](ForkCommandOptions* options, wstring name) {
-                              CHECK(options != nullptr);
-                              options->name = BufferName(std::move(name));
-                            })));
+      NewCallback(pool, PurityType::kUnknown,
+                  std::function<void(ForkCommandOptions*, wstring)>(
+                      [](ForkCommandOptions* options, wstring name) {
+                        CHECK(options != nullptr);
+                        options->name = BufferName(std::move(name));
+                      })));
 
   fork_command_options->AddField(
       L"set_insertion_type",
-      NewCallback(pool,
+      NewCallback(pool, PurityType::kUnknown,
                   std::function<void(ForkCommandOptions*, wstring)>(
                       [](ForkCommandOptions* options, wstring insertion_type) {
                         CHECK(options != nullptr);
@@ -583,7 +586,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   fork_command_options->AddField(
       L"set_children_path",
       NewCallback(
-          pool,
+          pool, PurityType::kUnknown,
           std::function<void(ForkCommandOptions*, wstring)>(
               [](ForkCommandOptions* options, wstring children_path) {
                 CHECK(options != nullptr);

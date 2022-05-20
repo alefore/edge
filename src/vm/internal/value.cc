@@ -145,22 +145,21 @@ bool cpp_unescape_string_tests_registration =
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
-    gc::Pool& pool, std::vector<VMType> arguments, Value::Callback callback,
-    ExpandCallback expand_callback) {
+    gc::Pool& pool, PurityType purity_type, std::vector<VMType> arguments,
+    Value::Callback callback, ExpandCallback expand_callback) {
   // TODO(easy, 2022-05-13): Receive the purity type explicitly.
   gc::Root<Value> output =
-      New(pool,
-          VMType::Function(std::move(arguments), VMType::PurityType::kUnknown));
+      New(pool, VMType::Function(std::move(arguments), purity_type));
   output.ptr()->callback = std::move(callback);
   output.ptr()->expand_callback = std::move(expand_callback);
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
-    gc::Pool& pool, std::vector<VMType> arguments,
+    gc::Pool& pool, PurityType purity_type, std::vector<VMType> arguments,
     std::function<gc::Root<Value>(std::vector<gc::Root<Value>>)> callback) {
   return NewFunction(
-      pool, arguments,
+      pool, purity_type, arguments,
       [callback](std::vector<gc::Root<Value>> args, Trampoline&) {
         return futures::Past(
             Success(EvaluationOutput::New(callback(std::move(args)))));
@@ -274,13 +273,13 @@ bool value_gc_tests_registration = tests::Register(
 
         Value::Callback callback = [&] {
           gc::Root<Value> parent = [&] {
-            gc::Root<Value> child =
-                Value::NewFunction(pool, {VMType::Void()}, nullptr, [nested] {
+            gc::Root<Value> child = Value::NewFunction(
+                pool, PurityType::kPure, {VMType::Void()}, nullptr, [nested] {
                   return std::vector<
                       NonNull<std::shared_ptr<gc::ControlFrame>>>();
                 });
             return Value::NewFunction(
-                pool, {VMType::Void()},
+                pool, PurityType::kPure, {VMType::Void()},
                 [child_ptr = child.ptr()](auto, Trampoline&) {
                   return futures::Past(Error(L"Some error."));
                 },

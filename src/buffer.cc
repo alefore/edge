@@ -582,7 +582,8 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   environment_->Define(
       L"sleep",
       Value::NewFunction(
-          editor().gc_pool(), {VMType::Void(), VMType::Double()},
+          editor().gc_pool(), PurityType::kUnknown,
+          {VMType::Void(), VMType::Double()},
           [weak_this](std::vector<gc::Root<Value>> args,
                       Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);

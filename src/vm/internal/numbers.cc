@@ -9,20 +9,15 @@ namespace afc::vm {
 namespace gc = language::gc;
 
 void RegisterNumberFunctions(gc::Pool& pool, Environment& environment) {
-  environment.Define(L"log",
-                     NewCallback(pool, std::function<double(double)>(log),
-                                 VMType::PurityType::kPure));
-  environment.Define(L"log2",
-                     NewCallback(pool, std::function<double(double)>(log2),
-                                 VMType::PurityType::kPure));
-  environment.Define(L"log10",
-                     NewCallback(pool, std::function<double(double)>(log10),
-                                 VMType::PurityType::kPure));
-  environment.Define(L"exp",
-                     NewCallback(pool, std::function<double(double)>(exp),
-                                 VMType::PurityType::kPure));
-  environment.Define(
-      L"pow", NewCallback(pool, std::function<double(double, double)>(pow),
-                          VMType::PurityType::kPure));
+  auto add = [&](std::wstring name, std::function<double(double)> func) {
+    environment.Define(name, NewCallback(pool, PurityType::kPure, func));
+  };
+  add(L"log", log);
+  add(L"log2", log2);
+  add(L"log10", log10);
+  add(L"exp", exp);
+  environment.Define(L"pow",
+                     NewCallback(pool, PurityType::kPure,
+                                 std::function<double(double, double)>(pow)));
 }
 }  // namespace afc::vm

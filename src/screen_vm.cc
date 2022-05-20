@@ -103,6 +103,7 @@ class ScreenVm : public Screen {
 
 void RegisterScreenType(gc::Pool& pool, Environment& environment) {
   using vm::EvaluationOutput;
+  using vm::PurityType;
   using vm::Trampoline;
 
   auto screen_type =
@@ -112,7 +113,7 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
   environment.Define(
       L"RemoteScreen",
       Value::NewFunction(
-          pool, {screen_type->type(), VMType::String()},
+          pool, PurityType::kUnknown, {screen_type->type(), VMType::String()},
           [&pool](std::vector<gc::Root<Value>> args,
                   Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
@@ -133,67 +134,81 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
           }));
 
   // Methods for Screen.
-  screen_type->AddField(L"Flush", vm::NewCallback(pool, [](Screen* screen) {
-                          CHECK(screen != nullptr);
-                          screen->Flush();
-                        }));
+  screen_type->AddField(
+      L"Flush", vm::NewCallback(pool, PurityType::kUnknown, [](Screen* screen) {
+        CHECK(screen != nullptr);
+        screen->Flush();
+      }));
 
-  screen_type->AddField(L"HardRefresh",
-                        vm::NewCallback(pool, [](Screen* screen) {
-                          CHECK(screen != nullptr);
-                          screen->HardRefresh();
-                        }));
+  screen_type->AddField(
+      L"HardRefresh",
+      vm::NewCallback(pool, PurityType::kUnknown, [](Screen* screen) {
+        CHECK(screen != nullptr);
+        screen->HardRefresh();
+      }));
 
-  screen_type->AddField(L"Refresh", vm::NewCallback(pool, [](Screen* screen) {
-                          CHECK(screen != nullptr);
-                          screen->Refresh();
-                        }));
+  screen_type->AddField(L"Refresh", vm::NewCallback(pool, PurityType::kUnknown,
+                                                    [](Screen* screen) {
+                                                      CHECK(screen != nullptr);
+                                                      screen->Refresh();
+                                                    }));
 
-  screen_type->AddField(L"Clear", vm::NewCallback(pool, [](Screen* screen) {
-                          CHECK(screen != nullptr);
-                          screen->Clear();
-                        }));
+  screen_type->AddField(
+      L"Clear", vm::NewCallback(pool, PurityType::kUnknown, [](Screen* screen) {
+        CHECK(screen != nullptr);
+        screen->Clear();
+      }));
 
   screen_type->AddField(
       L"SetCursorVisibility",
-      vm::NewCallback(pool, [](Screen* screen, wstring cursor_visibility) {
-        CHECK(screen != nullptr);
-        screen->SetCursorVisibility(Screen::CursorVisibilityFromString(
-            ToByteString(cursor_visibility)));
-      }));
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](Screen* screen, wstring cursor_visibility) {
+                        CHECK(screen != nullptr);
+                        screen->SetCursorVisibility(
+                            Screen::CursorVisibilityFromString(
+                                ToByteString(cursor_visibility)));
+                      }));
 
   screen_type->AddField(
-      L"Move", vm::NewCallback(pool, [](Screen* screen, LineColumn position) {
-        CHECK(screen != nullptr);
-        screen->Move(position);
-      }));
-
-  screen_type->AddField(L"WriteString",
-                        vm::NewCallback(pool, [](Screen* screen, wstring str) {
-                          using ::operator<<;
-                          CHECK(screen != nullptr);
-                          DVLOG(5) << "Writing string: " << str;
-                          screen->WriteString(NewLazyString(std::move(str)));
-                        }));
+      L"Move", vm::NewCallback(pool, PurityType::kUnknown,
+                               [](Screen* screen, LineColumn position) {
+                                 CHECK(screen != nullptr);
+                                 screen->Move(position);
+                               }));
 
   screen_type->AddField(
-      L"SetModifier", vm::NewCallback(pool, [](Screen* screen, wstring str) {
-        CHECK(screen != nullptr);
-        screen->SetModifier(ModifierFromString(ToByteString(str)));
-      }));
+      L"WriteString",
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](Screen* screen, wstring str) {
+                        using ::operator<<;
+                        CHECK(screen != nullptr);
+                        DVLOG(5) << "Writing string: " << str;
+                        screen->WriteString(NewLazyString(std::move(str)));
+                      }));
 
   screen_type->AddField(
-      L"set_size",
-      vm::NewCallback(pool, [](Screen* screen, LineColumnDelta size) {
-        ScreenVm* screen_vm = dynamic_cast<ScreenVm*>(screen);
-        CHECK(screen != nullptr);
-        screen_vm->set_size(size);
-      }));
+      L"SetModifier",
+      vm::NewCallback(
+          pool, PurityType::kUnknown, [](Screen* screen, wstring str) {
+            CHECK(screen != nullptr);
+            screen->SetModifier(ModifierFromString(ToByteString(str)));
+          }));
 
-  screen_type->AddField(L"size", vm::NewCallback(pool, [](Screen* screen) {
-                          CHECK(screen != nullptr);
-                          return screen->size();
-                        }));
+  screen_type->AddField(
+      L"set_size", vm::NewCallback(pool, PurityType::kUnknown,
+                                   [](Screen* screen, LineColumnDelta size) {
+                                     ScreenVm* screen_vm =
+                                         dynamic_cast<ScreenVm*>(screen);
+                                     CHECK(screen != nullptr);
+                                     screen_vm->set_size(size);
+                                   }));
+
+  // TODO(PurityType, 2022-05-20): This could be PurityType::kReader.
+  screen_type->AddField(
+      L"size", vm::NewCallback(pool, PurityType::kUnknown, [](Screen* screen) {
+        CHECK(screen != nullptr);
+        return screen->size();
+      }));
 
   environment.DefineType(std::move(screen_type));
 }
