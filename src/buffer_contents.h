@@ -32,8 +32,6 @@ class BufferContents : public fuzz::FuzzTestable {
   explicit BufferContents(language::NonNull<std::shared_ptr<const Line>> line);
   explicit BufferContents(UpdateListener update_listener);
 
-  void CopyContentsFrom(const BufferContents& source);
-
   wint_t character_at(const LineColumn& position) const;
 
   LineColumn PositionBefore(LineColumn position) const;
