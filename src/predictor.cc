@@ -82,7 +82,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
             VLOG(5) << "Considering prediction: " << line.ToString()
                     << " (end column: " << line.EndColumn() << ")";
             size_t current_size =
-                min(common_prefix.size(), line.EndColumn().column);
+                std::min(common_prefix.size(), line.EndColumn().column);
             std::wstring current =
                 line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
                     ->ToString();
@@ -147,12 +147,12 @@ std::wstring GetPredictInput(const PredictOptions& options) {
   modifiers.structure = options.input_selection_structure;
   auto range =
       buffer->ptr()->FindPartialRange(modifiers, buffer->ptr()->position());
-  range.end = max(range.end, buffer->ptr()->position());
+  range.end = std::max(range.end, buffer->ptr()->position());
   auto line = buffer->ptr()->LineAt(range.begin.line);
   CHECK_LE(range.begin.column, line->EndColumn());
   if (range.begin.line == range.end.line) {
     CHECK_GE(range.end.column, range.begin.column);
-    range.end.column = min(range.end.column, line->EndColumn());
+    range.end.column = std::min(range.end.column, line->EndColumn());
   } else {
     CHECK_GE(line->EndColumn(), range.begin.column);
   }
@@ -609,7 +609,7 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
     auto line = buffer.LineAt(tree.range().begin.line);
     auto word =
         line->Substring(tree.range().begin.column,
-                        min(tree.range().end.column, line->EndColumn()) -
+                        std::min(tree.range().end.column, line->EndColumn()) -
                             tree.range().begin.column)
             ->ToString();
     if (!word.empty()) {

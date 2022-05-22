@@ -458,12 +458,12 @@ int main(int argc, const char** argv) {
 
     auto now = Now();
     auto next_execution = editor_state().WorkQueueNextExecution();
-    int timeout_ms =
-        next_execution.has_value()
-            ? static_cast<int>(ceil(min(
-                  max(0.0, MillisecondsBetween(now, next_execution.value())),
-                  1000.0)))
-            : 1000;
+    int timeout_ms = next_execution.has_value()
+                         ? static_cast<int>(ceil(std::min(
+                               std::max(0.0, MillisecondsBetween(
+                                                 now, next_execution.value())),
+                               1000.0)))
+                         : 1000;
     VLOG(5) << "Timeout: " << timeout_ms << " has value "
             << (next_execution.has_value() ? "yes" : "no");
     if (poll(fds, buffers.size(), timeout_ms) == -1) {

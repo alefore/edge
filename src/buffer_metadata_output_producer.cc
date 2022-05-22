@@ -123,7 +123,7 @@ struct MetadataLine {
 };
 
 ColumnNumberDelta width(const std::wstring prefix, MetadataLine& line) {
-  return max(ColumnNumberDelta(1), ColumnNumberDelta(prefix.size())) +
+  return std::max(ColumnNumberDelta(1), ColumnNumberDelta(prefix.size())) +
          line.suffix->contents()->size();
 }
 
@@ -548,9 +548,9 @@ std::list<BoxWithPosition> FindLayout(std::list<Box> boxes,
   std::list<BoxWithPosition> output;
   for (auto box_it = boxes.rbegin(); box_it != boxes.rend(); ++box_it) {
     sum_sizes -= box_it->size;
-    LineNumber position =
-        max(LineNumber() + sum_sizes,
-            min(box_it->reference, LineNumber() + screen_size - box_it->size));
+    LineNumber position = std::max(
+        LineNumber() + sum_sizes,
+        std::min(box_it->reference, LineNumber() + screen_size - box_it->size));
     output.push_front({.box = *box_it, .position = position});
     screen_size = position.ToDelta();
   }
@@ -702,7 +702,7 @@ std::vector<std::wstring> ComputePrefixLines(
     size_t indents = 0;
     // Figure out the maximum indent.
     for (LineNumberDelta l; l < b.box.size; ++l) {
-      indents = max(indents, get(b.position + l).size());
+      indents = std::max(indents, get(b.position + l).size());
     }
     // Add indents for all lines overlapping with the current box.
     for (LineNumberDelta l; l < b.box.size; ++l) {

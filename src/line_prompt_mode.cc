@@ -641,8 +641,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
     if (history.contents().size() > LineNumberDelta(1) ||
         !history.LineAt(LineNumber())->empty()) {
       LineColumn position = history.position();
-      position.line = min(position.line.PlusHandlingOverflow(delta),
-                          LineNumber() + history.contents().size());
+      position.line = std::min(position.line.PlusHandlingOverflow(delta),
+                               LineNumber() + history.contents().size());
       history.set_position(position);
       if (position.line < LineNumber(0) + history.contents().size()) {
         prompt_state_->status().set_context(history_);

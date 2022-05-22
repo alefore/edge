@@ -37,9 +37,10 @@ using language::MakeNonNullShared;
 LineWithCursor::Generator::Vector LineNumberOutput(
     const OpenBuffer& buffer,
     const std::vector<BufferContentsWindow::Line>& screen_lines) {
-  ColumnNumberDelta width = max(LineNumberOutputWidth(buffer.lines_size()),
-                                ColumnNumberDelta(buffer.editor().Read(
-                                    editor_variables::numbers_column_padding)));
+  ColumnNumberDelta width = std::max(
+      LineNumberOutputWidth(buffer.lines_size()),
+      ColumnNumberDelta(
+          buffer.editor().Read(editor_variables::numbers_column_padding)));
   LineWithCursor::Generator::Vector output{.lines = {}, .width = width};
   for (const BufferContentsWindow::Line& screen_line : screen_lines) {
     if (screen_line.range.begin.line > buffer.EndLine()) {

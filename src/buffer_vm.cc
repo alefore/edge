@@ -152,10 +152,10 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
       L"line",
       vm::NewCallback(pool, PurityTypeReader,
                       [](gc::Root<OpenBuffer> buffer, int line_input) {
-                        LineNumber line =
-                            min(LineNumber(max(line_input, 0)),
-                                LineNumber(0) + buffer.ptr()->lines_size() -
-                                    LineNumberDelta(1));
+                        LineNumber line = std::min(
+                            LineNumber(std::max(line_input, 0)),
+                            LineNumber(0) + buffer.ptr()->lines_size() -
+                                LineNumberDelta(1));
                         return buffer.ptr()->contents().at(line)->ToString();
                       }));
 

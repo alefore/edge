@@ -158,8 +158,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     range = *options.range;
   } else {
     range = input.buffer.FindPartialRange(options.modifiers, output->position);
-    range.begin = min(range.begin, output->position);
-    range.end = max(range.end, output->position);
+    range.begin = std::min(range.begin, output->position);
+    range.end = std::max(range.end, output->position);
     if (range.IsEmpty()) {
       switch (options.modifiers.direction) {
         case Direction::kForwards:

@@ -39,15 +39,6 @@ namespace afc::editor {
 
 GHOST_TYPE(UnixSignal, int);
 
-// TODO(easy, 2022-05-17): Get rid of these `using` declarations.
-using std::list;
-using std::map;
-using std::max;
-using std::min;
-using std::shared_ptr;
-using std::unique_ptr;
-using std::vector;
-
 class Buffercontents;
 enum class CommandArgumentModeApplyMode;
 

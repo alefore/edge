@@ -1109,9 +1109,10 @@ LineColumn OpenBuffer::InsertInPosition(
 
 LineColumn OpenBuffer::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(contents_.size(), LineNumberDelta(0));
-  position.line = min(position.line, contents_.EndLine());
+  position.line = std::min(position.line, contents_.EndLine());
   CHECK(LineAt(position.line) != nullptr);
-  position.column = min(LineAt(position.line)->EndColumn(), position.column);
+  position.column =
+      std::min(LineAt(position.line)->EndColumn(), position.column);
   return position;
 }
 
@@ -1302,8 +1303,8 @@ void OpenBuffer::DestroyCursor() {
   if (cursors.size() <= 1) {
     return;
   }
-  size_t repetitions = min(options_.editor.modifiers().repetitions.value_or(1),
-                           cursors.size() - 1);
+  size_t repetitions = std::min(
+      options_.editor.modifiers().repetitions.value_or(1), cursors.size() - 1);
   for (size_t i = 0; i < repetitions; i++) {
     cursors.DeleteCurrentCursor();
   }
@@ -1326,7 +1327,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   const auto forward = modifiers.direction;
   const auto backward = ReverseDirection(forward);
 
-  position.line = min(contents_.EndLine(), position.line);
+  position.line = std::min(contents_.EndLine(), position.line);
   if (position.column > LineAt(position.line)->EndColumn()) {
     if (Read(buffer_variables::extend_lines)) {
       // TODO: Somehow move this to a more suitable location. Here it clashes
@@ -1353,8 +1354,8 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   switch (modifiers.boundary_begin) {
     case Modifiers::CURRENT_POSITION:
       output.begin = modifiers.direction == Direction::kForwards
-                         ? max(position, output.begin)
-                         : min(position, output.begin);
+                         ? std::max(position, output.begin)
+                         : std::min(position, output.begin);
       break;
 
     case Modifiers::LIMIT_CURRENT: {
@@ -1374,8 +1375,8 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   }
   LOG(INFO) << "After seek, initial position: " << output.begin;
   output.end = modifiers.direction == Direction::kForwards
-                   ? max(position, output.begin)
-                   : min(position, output.begin);
+                   ? std::max(position, output.begin)
+                   : std::min(position, output.begin);
   bool move_start = true;
   for (size_t i = 1; i < modifiers.repetitions.value_or(1); i++) {
     LineColumn position = output.end;
@@ -1580,7 +1581,8 @@ const FileDescriptorReader* OpenBuffer::fd_error() const {
 LineNumber OpenBuffer::current_position_line() const { return position().line; }
 
 void OpenBuffer::set_current_position_line(LineNumber line) {
-  set_current_cursor(LineColumn(min(line, LineNumber(0) + contents_.size())));
+  set_current_cursor(
+      LineColumn(std::min(line, LineNumber(0) + contents_.size())));
 }
 
 ColumnNumber OpenBuffer::current_position_col() const {

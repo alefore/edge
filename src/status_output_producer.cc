@@ -162,8 +162,8 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
   if (options.status.prompt_buffer().has_value()) {
     auto contents = options.status.prompt_buffer()->ptr()->current_line();
     auto column =
-        min(contents->EndColumn(),
-            options.status.prompt_buffer()->ptr()->current_position_col());
+        std::min(contents->EndColumn(),
+                 options.status.prompt_buffer()->ptr()->current_position_col());
     VLOG(5) << "Setting status cursor: " << column;
 
     line_options.AppendString(options.status.text(), LineModifierSet());
@@ -222,7 +222,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
                               : LineNumberDelta();
 
   options.size.line =
-      min(options.size.line, info_lines + context_lines(options));
+      std::min(options.size.line, info_lines + context_lines(options));
   if (options.size.line.IsZero()) return LineWithCursor::Generator::Vector{};
 
   std::optional<gc::Root<OpenBuffer>> status_context_optional =

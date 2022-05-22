@@ -120,7 +120,7 @@ futures::Value<PossibleError> GenerateContents(
       editor_state.gc_pool(), Environment::Namespace(), kDepthSymbol,
       VMType::Int());
   int depth = depth_value.has_value()
-                  ? size_t(max(0, depth_value.value().ptr()->get_int()))
+                  ? size_t(std::max(0, depth_value.value().ptr()->get_int()))
                   : 3;
   DisplayTree(source->ptr().value(), depth, tree.value(), EmptyString(),
               target);

@@ -172,8 +172,8 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
-    audio_player_.SetVolume(
-        audio::Volume(max(0.0, min(1.0, Read(editor_variables::volume)))));
+    audio_player_.SetVolume(audio::Volume(
+        std::max(0.0, std::min(1.0, Read(editor_variables::volume)))));
     return Observers::State::kAlive;
   });
 
@@ -376,7 +376,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
     value = ForEachActiveBuffer(callback);
   } else {
     gc::Root<OpenBuffer> buffer = buffer_tree().GetBuffer(
-        (max(modifiers().repetitions.value(), 1ul) - 1) %
+        (std::max(modifiers().repetitions.value(), 1ul) - 1) %
         buffer_tree().BuffersCount());
     value = callback(buffer.ptr().value());
   }

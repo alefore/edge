@@ -44,9 +44,9 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
 
   switch (direction) {
     case Direction::kForwards:
-      return min(prefix_len + repetitions - 1, elements);
+      return std::min(prefix_len + repetitions - 1, elements);
     case Direction::kBackwards:
-      return suffix_start - min(suffix_start, repetitions - 1);
+      return suffix_start - std::min(suffix_start, repetitions - 1);
   }
   LOG(FATAL) << "Invalid direction.";
   return 0;

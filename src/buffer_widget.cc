@@ -74,12 +74,12 @@ LineWithCursor::Generator::Vector CenterVertically(
     LineNumberDelta prefix_size;
     switch (status_position) {
       case BufferContentsWindow::StatusPosition::kTop:
-        prefix_size = max(LineNumberDelta(),
-                          (total_lines - input.size()) / 2 - status_lines);
+        prefix_size = std::max(LineNumberDelta(),
+                               (total_lines - input.size()) / 2 - status_lines);
         break;
       case BufferContentsWindow::StatusPosition::kBottom:
-        prefix_size = min((total_lines - input.size()) / 2,
-                          total_lines - status_lines - input.size());
+        prefix_size = std::min((total_lines - input.size()) / 2,
+                               total_lines - status_lines - input.size());
         break;
     }
     prefix_size =
@@ -145,8 +145,8 @@ LineWithCursor::Generator::Vector LinesSpanView(
 
   NonNull<std::shared_ptr<const ParseTree>> zoomed_out_tree =
       buffer.current_zoomed_out_parse_tree(
-          min(output_producer_options.size.line,
-              LineNumberDelta(screen_lines.size())));
+          std::min(output_producer_options.size.line,
+                   LineNumberDelta(screen_lines.size())));
   columns_vector.push_back(BufferMetadataOutput(
       BufferMetadataOutputOptions{.buffer = buffer,
                                   .screen_lines = screen_lines,
@@ -235,8 +235,8 @@ std::set<Range> ExpandSections(LineNumber end_line,
   for (const auto& section : sections) {
     output.insert(
         Range(LineColumn(section.begin.line.MinusHandlingOverflow(kMargin)),
-              LineColumn(min(end_line + LineNumberDelta(1),
-                             section.end.line + kMargin))));
+              LineColumn(std::min(end_line + LineNumberDelta(1),
+                                  section.end.line + kMargin))));
   }
   return output;
 }
@@ -247,14 +247,15 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
     const BufferContentsWindow::Input& buffer_contents_window_input) {
   std::set<Range> sections;
   for (auto& cursor : buffer.active_cursors()) {
-    sections.insert(Range(
-        LineColumn(cursor.line),
-        LineColumn(min(buffer.EndLine(), cursor.line + LineNumberDelta(1)))));
+    sections.insert(
+        Range(LineColumn(cursor.line),
+              LineColumn(std::min(buffer.EndLine(),
+                                  cursor.line + LineNumberDelta(1)))));
   }
   bool first_run = true;
-  while (first_run ||
-         SumSectionsLines(sections) <
-             min(output_producer_options.size.line, buffer.contents().size())) {
+  while (first_run || SumSectionsLines(sections) <
+                          std::min(output_producer_options.size.line,
+                                   buffer.contents().size())) {
     VLOG(4) << "Expanding " << sections.size()
             << " with size: " << SumSectionsLines(sections);
     sections =
@@ -334,21 +335,23 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
           ((buffer.child_pid() == -1 && buffer.fd() != nullptr) ||
                    buffer.Read(buffer_variables::pts)
                ? LineNumberDelta()
-               : min(max(input.output_producer_options.size.line / 2 -
-                             LineNumberDelta(1),
-                         LineNumberDelta(0)),
-                     max(LineNumberDelta(ceil(
+               : std::min(
+                     std::max(input.output_producer_options.size.line / 2 -
+                                  LineNumberDelta(1),
+                              LineNumberDelta(0)),
+                     std::max(
+                         LineNumberDelta(ceil(
                              buffer.Read(buffer_variables::margin_lines_ratio) *
                              input.output_producer_options.size.line
                                  .line_delta)),
-                         max(LineNumberDelta(
-                                 buffer.Read(buffer_variables::margin_lines)),
-                             LineNumberDelta(0)))))};
+                         std::max(LineNumberDelta(buffer.Read(
+                                      buffer_variables::margin_lines)),
+                                  LineNumberDelta(0)))))};
 
   if (auto w = ColumnNumberDelta(buffer.Read(buffer_variables::line_width));
       !buffer.Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
     buffer_contents_window_input.columns_shown =
-        min(buffer_contents_window_input.columns_shown, w);
+        std::min(buffer_contents_window_input.columns_shown, w);
   }
 
   CHECK_GE(buffer_contents_window_input.margin_lines, LineNumberDelta(0));
@@ -362,8 +365,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   LineColumnDelta total_size = input.output_producer_options.size;
   input.output_producer_options.size = LineColumnDelta(
-      max(LineNumberDelta(),
-          input.output_producer_options.size.line - status_lines.size()),
+      std::max(LineNumberDelta(),
+               input.output_producer_options.size.line - status_lines.size()),
       buffer_contents_window_input.columns_shown);
   input.view_start = window.view_start;
 
@@ -422,9 +425,9 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
             .buffer_display_data = buffer.ptr()->display_data(),
             .view_start = view_start()};
         if (options_.position_in_parent.has_value()) {
-          input.output_producer_options.size.line =
-              max(LineNumberDelta(),
-                  input.output_producer_options.size.line - kTopFrameLines);
+          input.output_producer_options.size.line = std::max(
+              LineNumberDelta(),
+              input.output_producer_options.size.line - kTopFrameLines);
         }
         BufferOutputProducerOutput output =
             CreateBufferOutputProducer(std::move(input));
@@ -488,8 +491,10 @@ LineNumberDelta BufferWidget::MinimumLines() const {
       [&](gc::Root<OpenBuffer> buffer) {
         return (options_.position_in_parent.has_value() ? kTopFrameLines
                                                         : LineNumberDelta(0)) +
-               max(LineNumberDelta(0),
-                   min(buffer.ptr()->lines_size(),
+               std::max(
+                   LineNumberDelta(0),
+                   std::min(
+                       buffer.ptr()->lines_size(),
                        LineNumberDelta(buffer.ptr()->Read(
                            buffer_variables::buffer_list_context_lines)))) +
                kStatusFrameLines;

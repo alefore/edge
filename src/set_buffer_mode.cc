@@ -417,7 +417,7 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
   if (editor.modifiers().repetitions.has_value()) {
     editor.set_current_buffer(
         buffers_list.GetBuffer(
-            (max(editor.modifiers().repetitions.value(), 1ul) - 1) %
+            (std::max(editor.modifiers().repetitions.value(), 1ul) - 1) %
             buffers_list.BuffersCount()),
         CommandArgumentModeApplyMode::kFinal);
     editor.ResetRepetitions();

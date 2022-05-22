@@ -42,7 +42,8 @@ void BufferTerminal::SetPosition(LineColumn position) {
 void BufferTerminal::ProcessCommandInput(
     NonNull<std::shared_ptr<LazyString>> str,
     const std::function<void()>& new_line_callback) {
-  data_->position.line = min(data_->position.line, data_->buffer.EndLine());
+  data_->position.line =
+      std::min(data_->position.line, data_->buffer.EndLine());
   std::unordered_set<LineModifier, std::hash<int>> modifiers;
 
   ColumnNumber read_index;
@@ -348,7 +349,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
         if (data_->position.column < end_column) {
           data_->contents.DeleteCharactersFromLine(
               data_->position,
-              min(chars_to_erase, end_column - data_->position.column));
+              std::min(chars_to_erase, end_column - data_->position.column));
         }
         current_line = data_->buffer.LineAt(data_->position.line);
         return read_index;

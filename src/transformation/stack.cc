@@ -283,10 +283,10 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   return ApplyStackDirectly(copy->stack.begin(), copy->stack.end(), input,
                             trace, output)
       .Transform([output, input, copy, trace](EmptyValue) {
-        Range range{min(min(input.position, output->position),
-                        input.buffer.end_position()),
-                    min(max(input.position, output->position),
-                        input.buffer.end_position())};
+        Range range{std::min(std::min(input.position, output->position),
+                             input.buffer.end_position()),
+                    std::min(std::max(input.position, output->position),
+                             input.buffer.end_position())};
         Delete delete_transformation{
             .modifiers = {.direction = input.position < output->position
                                            ? Direction::kForwards

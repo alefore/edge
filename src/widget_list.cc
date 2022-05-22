@@ -232,7 +232,7 @@ LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
 LineNumberDelta WidgetListVertical::MinimumLines() const {
   LineNumberDelta output = children_[0]->MinimumLines();
   for (auto& child : children_) {
-    output = max(child->MinimumLines(), output);
+    output = std::max(child->MinimumLines(), output);
   }
   static const LineNumberDelta kFrameLines = LineNumberDelta(1);
   return output + kFrameLines;
@@ -241,7 +241,7 @@ LineNumberDelta WidgetListVertical::MinimumLines() const {
 LineNumberDelta WidgetListVertical::DesiredLines() const {
   LineNumberDelta output = children_[0]->DesiredLines();
   for (auto& child : children_) {
-    output = max(child->DesiredLines(), output);
+    output = std::max(child->DesiredLines(), output);
   }
   static const LineNumberDelta kFrameLines = LineNumberDelta(1);
   return output + kFrameLines;

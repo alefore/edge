@@ -42,9 +42,9 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
   }
 
   if (direction == Direction::kForwards) {
-    return min(prefix_len + repetitions - 1, elements);
+    return std::min(prefix_len + repetitions - 1, elements);
   } else {
-    return suffix_start - min(suffix_start, repetitions - 1);
+    return suffix_start - std::min(suffix_start, repetitions - 1);
   }
 }
 
@@ -478,8 +478,8 @@ Structure* StructurePage() {
       std::optional<LineColumnDelta> view_size =
           buffer.display_data().view_size().Get();
       auto screen_lines =
-          max(0.2,
-              1.0 - 2.0 * buffer.Read(buffer_variables::margin_lines_ratio)) *
+          std::max(0.2, 1.0 - 2.0 * buffer.Read(
+                                        buffer_variables::margin_lines_ratio)) *
           (view_size.has_value() ? view_size->line : kDefaultScreenLines);
       auto lines =
           modifiers.repetitions.value_or(1) * screen_lines - LineNumberDelta(1);

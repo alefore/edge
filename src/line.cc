@@ -378,7 +378,7 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
 
     const ColumnNumber input_end =
         options.input_width != std::numeric_limits<ColumnNumberDelta>::max()
-            ? min(EndColumn(data), input_column + options.input_width)
+            ? std::min(EndColumn(data), input_column + options.input_width)
             : EndColumn(data);
     // output_column contains the column in the screen. May not match
     // options.contents.size() if there are wide characters.

@@ -177,8 +177,8 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
 
   if (options.limit_position.has_value()) {
     Range range = {
-        min(options.starting_position, options.limit_position.value()),
-        max(options.starting_position, options.limit_position.value())};
+        std::min(options.starting_position, options.limit_position.value()),
+        std::max(options.starting_position, options.limit_position.value())};
     LOG(INFO) << "Removing elements outside of the range: " << range;
     vector<LineColumn> valid_candidates;
     for (auto& candidate : results.positions) {
@@ -225,7 +225,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
         audio::Frequency(440.0), audio::Frequency(440.0),
         audio::Frequency(493.88), audio::Frequency(523.25),
         audio::Frequency(587.33)};
-    frequencies.resize(min(frequencies.size(), head.size() + 1),
+    frequencies.resize(std::min(frequencies.size(), head.size() + 1),
                        audio::Frequency(0.0));
     audio::BeepFrequencies(editor_state.audio_player(), 0.1, frequencies);
     buffer.Set(buffer_variables::multiple_cursors, false);

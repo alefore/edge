@@ -491,7 +491,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
   auto call = tracker.Call();
 
   const ColumnNumberDelta prefix_width = ColumnNumberDelta(
-      max(2ul, std::to_wstring(options->buffers.size()).size()) + 2);
+      std::max(2ul, std::to_wstring(options->buffers.size()).size()) + 2);
 
   const ColumnNumberDelta columns_per_buffer =
       (options->size.column -
@@ -745,9 +745,9 @@ Layout BuffersPerLine(LineNumberDelta maximum_lines, ColumnNumberDelta width,
   double count = buffers_count;
   static const auto kDesiredColumnsPerBuffer = ColumnNumberDelta(20);
   size_t max_buffers_per_line =
-      width /
-      min(kDesiredColumnsPerBuffer,
-          width / static_cast<size_t>(ceil(count / maximum_lines.line_delta)));
+      width / std::min(kDesiredColumnsPerBuffer,
+                       width / static_cast<size_t>(
+                                   ceil(count / maximum_lines.line_delta)));
   auto lines = LineNumberDelta(ceil(count / max_buffers_per_line));
   return Layout{
       .buffers_per_line = static_cast<size_t>(ceil(count / lines.line_delta)),
