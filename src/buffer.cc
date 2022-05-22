@@ -1220,11 +1220,13 @@ void OpenBuffer::SetActiveCursorsToMarks() {
     return;
   }
 
-  std::vector<LineColumn> cursors;
+  // To avoid repetitions, insert them first into a set.
+  std::set<LineColumn> cursors;
   for (auto& [line_column, mark] : marks) {
-    cursors.push_back(line_column);
+    cursors.insert(line_column);
   }
-  set_active_cursors(cursors);
+
+  set_active_cursors(std::vector<LineColumn>(cursors.begin(), cursors.end()));
 }
 
 void OpenBuffer::set_current_cursor(LineColumn new_value) {
