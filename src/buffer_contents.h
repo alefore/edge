@@ -27,6 +27,8 @@ class BufferContents : public fuzz::FuzzTestable {
       std::function<void(const CursorsTracker::Transformation&)>;
 
   BufferContents();
+  virtual ~BufferContents() = default;
+
   explicit BufferContents(language::NonNull<std::shared_ptr<const Line>> line);
   explicit BufferContents(UpdateListener update_listener);
 
