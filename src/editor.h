@@ -21,6 +21,7 @@
 #include "src/direction.h"
 #include "src/editor_mode.h"
 #include "src/editor_variables.h"
+#include "src/insert_history.h"
 #include "src/language/ghost_type.h"
 #include "src/lazy_string.h"
 #include "src/line_marks.h"
@@ -47,6 +48,7 @@ using std::shared_ptr;
 using std::unique_ptr;
 using std::vector;
 
+class Buffercontents;
 enum class CommandArgumentModeApplyMode;
 
 class EditorState {
@@ -280,6 +282,8 @@ class EditorState {
       concurrent::Protected<bool>(false);
 
   audio::Player& audio_player_;
+
+  InsertHistory insert_history_;
 
   BuffersList buffer_tree_;
   Status status_;
