@@ -232,7 +232,7 @@ class SearchCommand : public Command {
                                     << buffer.Read(buffer_variables::name);
                             return editor_state.thread_pool()
                                 .Run(BackgroundSearchCallback(
-                                    search_options.value(), buffer,
+                                    search_options.value(), buffer.contents(),
                                     *progress_channel))
                                 .Transform(
                                     [results, abort_notification, line,
@@ -304,6 +304,8 @@ class SearchCommand : public Command {
                 << " to " << search_options.limit_position.value();
     }
     search_options.abort_notification = abort_notification;
+    search_options.case_sensitive =
+        buffer.Read(buffer_variables::search_case_sensitive);
     return search_options;
   }
 

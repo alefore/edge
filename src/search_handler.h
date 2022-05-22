@@ -45,6 +45,8 @@ struct SearchOptions {
   // When notified, interrupts the search.
   language::NonNull<std::shared_ptr<concurrent::Notification>>
       abort_notification = {};
+
+  bool case_sensitive;
 };
 
 std::vector<LineColumn> SearchHandler(EditorState& editor_state,
@@ -69,11 +71,11 @@ struct SearchResultsSummary {
 // number of matches, feeding information to a `ProgressChannel`.
 //
 // Customer must ensure that `progress_channel` survives until the callback has
-// returned. It's OK for `buffer` to be deleted as soon as
+// returned. It's OK for `contents` to be deleted as soon as
 // `BackgroundSearchCallback` has returned).
 std::function<language::ValueOrError<SearchResultsSummary>()>
-BackgroundSearchCallback(SearchOptions search_options, const OpenBuffer& buffer,
-                         ProgressChannel&);
+BackgroundSearchCallback(SearchOptions search_options,
+                         const BufferContents& contents, ProgressChannel&);
 
 }  // namespace editor
 }  // namespace afc

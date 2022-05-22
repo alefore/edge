@@ -346,8 +346,11 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
             search_futures.push_back(
                 editor.thread_pool()
                     .Run(BackgroundSearchCallback(
-                        {.search_query = text_input, .required_positions = 1},
-                        buffer, *progress_channel))
+                        {.search_query = text_input,
+                         .required_positions = 1,
+                         .case_sensitive = buffer.Read(
+                             buffer_variables::search_case_sensitive)},
+                        buffer.contents(), *progress_channel))
                     .Transform([new_state, progress_channel,
                                 index](SearchResultsSummary search_output) {
                       if (search_output.matches > 0) {

@@ -65,13 +65,14 @@ auto GetRegexTraits(bool case_sensitive) {
 }
 
 ValueOrError<std::vector<LineColumn>> PerformSearch(
-    const SearchOptions& options, bool case_sensitive,
-    const BufferContents& contents, ProgressChannel* progress_channel) {
+    const SearchOptions& options, const BufferContents& contents,
+    ProgressChannel* progress_channel) {
   std::vector<LineColumn> positions;
 
   std::wregex pattern;
   try {
-    pattern = std::wregex(options.search_query, GetRegexTraits(case_sensitive));
+    pattern = std::wregex(options.search_query,
+                          GetRegexTraits(options.case_sensitive));
   } catch (std::regex_error& e) {
     Error error = L"Regex failure: " + FromByteString(e.what());
     progress_channel->Push({.values = {{StatusPromptExtraInformationKey(L"!"),
@@ -103,21 +104,18 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
 }  // namespace
 
 std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
-    SearchOptions search_options, const OpenBuffer& buffer,
+    SearchOptions search_options, const BufferContents& contents,
     ProgressChannel& progress_channel) {
   // TODO(easy, 2022-04-14): Why is this here?
   search_options.required_positions = 100;
   // Must take special care to only capture instances of thread-safe classes:
   return std::bind_front(
-      [search_options,
-       case_sensitive = buffer.Read(buffer_variables::search_case_sensitive),
-       &progress_channel](
+      [search_options, &progress_channel](
           const NonNull<std::shared_ptr<BufferContents>>& buffer_contents)
           -> ValueOrError<SearchResultsSummary> {
-        ASSIGN_OR_RETURN(
-            auto search_results,
-            PerformSearch(search_options, case_sensitive,
-                          buffer_contents.value(), &progress_channel));
+        ASSIGN_OR_RETURN(auto search_results,
+                         PerformSearch(search_options, buffer_contents.value(),
+                                       &progress_channel));
         return SearchResultsSummary{
             .matches = search_results.size(),
             .search_completion =
@@ -125,7 +123,7 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
                     ? SearchResultsSummary::SearchCompletion::kInterrupted
                     : SearchResultsSummary::SearchCompletion::kFull};
       },
-      NonNull<std::shared_ptr<BufferContents>>(buffer.contents().copy()));
+      NonNull<std::shared_ptr<BufferContents>>(contents.copy()));
 }
 
 std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
@@ -151,9 +149,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
       WorkQueueChannelConsumeMode::kLastAvailable);
   ASSIGN_OR_RETURN(
       std::vector<LineColumn> results,
-      PerformSearch(options,
-                    buffer.Read(buffer_variables::search_case_sensitive),
-                    buffer.contents(), dummy_progress_channel.get()));
+      PerformSearch(options, buffer.contents(), dummy_progress_channel.get()));
   if (direction == Direction::kBackwards) {
     std::reverse(results.begin(), results.end());
   }
