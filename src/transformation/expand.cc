@@ -113,6 +113,29 @@ class PredictorTransformation : public CompositeTransformation {
   const std::wstring text_;
 };
 
+class InsertHistoryTransformation : public CompositeTransformation {
+ public:
+  InsertHistoryTransformation(std::wstring query)
+      : search_options_({.query = std::move(query)}) {}
+
+  std::wstring Serialize() const override {
+    return L"InsertHistoryTransformation";
+  }
+
+  futures::Value<Output> Apply(Input input) const override {
+    return VisitPointer(
+        input.editor.insert_history().Search(search_options_),
+        [](NonNull<const BufferContents*> text) {
+          return futures::Past(Output(
+              transformation::Insert{.contents_to_insert = text->copy()}));
+        },
+        [] { return futures::Past(Output()); });
+  }
+
+ private:
+  const InsertHistory::SearchOptions search_options_;
+};
+
 namespace {
 bool predictor_transformation_tests_register = tests::Register(
     L"PredictorTransformation",
@@ -296,6 +319,11 @@ class ExpandTransformation : public CompositeTransformation {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output.Push(DeleteLastCharacters(1 + symbol.size() + 1));
         transformation = std::make_unique<Execute>(symbol);
+      } break;
+      case '.': {
+        auto query = GetToken(input, buffer_variables::path_characters);
+        output.Push(DeleteLastCharacters(query.size() + 1));
+        transformation = std::make_unique<InsertHistoryTransformation>(query);
       }
     }
     VisitPointer(

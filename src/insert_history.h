@@ -15,8 +15,10 @@ class InsertHistory {
 
   void Append(const BufferContents& insertion);
 
-  // TODO: Add more options.
-  struct SearchOptions {};
+  struct SearchOptions {
+    std::wstring query;
+  };
+
   // Return the entry from the history that best fits `search_options`. For now,
   // that's just the most recent entry.
   std::optional<language::NonNull<const BufferContents*>> Search(
