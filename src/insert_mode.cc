@@ -132,12 +132,23 @@ class FindCompletionCommand : public Command {
   EditorState& editor_state_;
 };
 
+std::unique_ptr<BufferContents, std::function<void(BufferContents*)>>
+NewInsertion(EditorState& editor) {
+  return std::unique_ptr<BufferContents, std::function<void(BufferContents*)>>(
+      new BufferContents(), [&editor](BufferContents* value) {
+        CHECK(value != nullptr);
+        editor.insert_history().Append(*value);
+        delete value;
+      });
+}
+
 class InsertMode : public EditorMode {
  public:
   InsertMode(InsertModeOptions options)
       : options_(std::move(options)),
         buffers_(MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(
-            options_.buffers->begin(), options_.buffers->end())) {
+            options_.buffers->begin(), options_.buffers->end())),
+        current_insertion_(NewInsertion(options_.editor_state)) {
     CHECK(options_.escape_handler);
     CHECK(options_.buffers.has_value());
     CHECK(!options_.buffers.value().empty());
@@ -147,6 +158,7 @@ class InsertMode : public EditorMode {
     bool old_literal = literal_;
     literal_ = false;
     if (old_literal) {
+      // TODO(easy, 2022-05-22): Use SetExpiringInformationText instead?
       options_.editor_state.status().Reset();
     }
 
@@ -155,6 +167,8 @@ class InsertMode : public EditorMode {
     switch (static_cast<int>(c)) {
       case '\t':
         ResetScrollBehavior();
+        StartNewInsertion();
+
         ForEachActiveBuffer(buffers_, {'\t'},
                             [options = options_](OpenBuffer& buffer) {
                               // TODO: Don't ignore the return value. If it's
@@ -168,6 +182,7 @@ class InsertMode : public EditorMode {
 
       case Terminal::ESCAPE:
         ResetScrollBehavior();
+        StartNewInsertion();
 
         ForEachActiveBuffer(
             buffers_, old_literal ? std::string{27} : "",
@@ -256,6 +271,11 @@ class InsertMode : public EditorMode {
 
       case '\n':
         ResetScrollBehavior();
+
+        // TODO(2022-05-22): Not sure StartNewInsertion is the best to do here;
+        // would be better to leave a \n in the insertion?
+        StartNewInsertion();
+
         // TODO(easy, 2022-05-16): Change new_line_handler to just receive the
         // buffer.
         ForEachActiveBuffer(buffers_, {'\n'}, [&](OpenBuffer& buffer) {
@@ -265,6 +285,7 @@ class InsertMode : public EditorMode {
 
       case Terminal::CTRL_U: {
         ResetScrollBehavior();
+        StartNewInsertion();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
         std::optional<gc::Root<Value>> callback =
             options_.editor_state.environment().ptr()->Lookup(
@@ -317,6 +338,8 @@ class InsertMode : public EditorMode {
 
       case Terminal::CTRL_K: {
         ResetScrollBehavior();
+        StartNewInsertion();
+
         ForEachActiveBuffer(
             buffers_, {0x0b}, [options = options_](OpenBuffer& buffer) {
               return CallModifyHandler(
@@ -352,6 +375,8 @@ class InsertMode : public EditorMode {
                                 options.editor_state.modifiers().insertion}}));
               });
         });
+    current_insertion_->AppendToLine(current_insertion_->EndLine(),
+                                     Line(std::wstring(1, c)));
   }
 
   CursorMode cursor_mode() const override {
@@ -391,6 +416,10 @@ class InsertMode : public EditorMode {
             [](futures::IterationControlCommand) { return EmptyValue(); });
   }
 
+  void StartNewInsertion() {
+    current_insertion_ = NewInsertion(options_.editor_state);
+  }
+
   void HandleDelete(std::string line_buffer, Direction direction) {
     ResetScrollBehavior();
     ForEachActiveBuffer(
@@ -427,10 +456,24 @@ class InsertMode : public EditorMode {
                     return handler(buffer_root.ptr().value());
                   });
         });
+    switch (direction) {
+      case Direction::kBackwards:
+        if (current_insertion_->back()->empty()) {
+          StartNewInsertion();
+        } else {
+          current_insertion_->DeleteToLineEnd(
+              current_insertion_->PositionBefore(
+                  current_insertion_->range().end));
+        }
+        break;
+      case Direction::kForwards:
+        StartNewInsertion();
+    }
   }
 
   void ApplyScrollBehavior(std::string line_buffer,
                            void (ScrollBehavior::*method)(OpenBuffer&)) {
+    current_insertion_ = NewInsertion(options_.editor_state);
     GetScrollBehavior().AddListener(
         [buffers = buffers_, line_buffer,
          notification = scroll_behavior_abort_notification_,
@@ -503,6 +546,7 @@ class InsertMode : public EditorMode {
   }
 
   const InsertModeOptions options_;
+
   // Copy of the contents of options_.buffers. shared_ptr to make it easy for it
   // to be captured efficiently.
   const NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers_;
@@ -519,6 +563,9 @@ class InsertMode : public EditorMode {
   // Given to ScrollBehaviorFactory::Build, and used to signal when we want to
   // abort the build of the history.
   NonNull<std::shared_ptr<Notification>> scroll_behavior_abort_notification_;
+
+  std::unique_ptr<BufferContents, std::function<void(BufferContents*)>>
+      current_insertion_;
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
