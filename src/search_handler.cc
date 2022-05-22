@@ -62,9 +62,9 @@ struct SearchResults {
   std::vector<LineColumn> positions;
 };
 
-auto GetRegexTraits(const OpenBuffer& buffer) {
+auto GetRegexTraits(bool case_sensitive) {
   auto traits = std::regex_constants::extended;
-  if (!buffer.Read(buffer_variables::search_case_sensitive)) {
+  if (!case_sensitive) {
     traits |= std::regex_constants::icase;
   }
   return traits;
@@ -117,7 +117,8 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
     ProgressChannel& progress_channel) {
   // TODO(easy, 2022-04-14): Why is this here?
   search_options.required_positions = 100;
-  auto traits = GetRegexTraits(buffer);
+  auto traits =
+      GetRegexTraits(buffer.Read(buffer_variables::search_case_sensitive));
   // Must take special care to only capture instances of thread-safe classes:
   return std::bind_front(
       [search_options, traits, &progress_channel](
@@ -162,9 +163,10 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
   auto dummy_progress_channel = std::make_unique<ProgressChannel>(
       editor_state.work_queue(), [](ProgressInformation) {},
       WorkQueueChannelConsumeMode::kLastAvailable);
-  SearchResults results =
-      PerformSearch(options, GetRegexTraits(buffer), buffer.contents(),
-                    dummy_progress_channel.get());
+  SearchResults results = PerformSearch(
+      options,
+      GetRegexTraits(buffer.Read(buffer_variables::search_case_sensitive)),
+      buffer.contents(), dummy_progress_channel.get());
   if (results.error.has_value()) {
     return Error(results.error.value());
   }
