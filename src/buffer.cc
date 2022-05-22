@@ -1215,15 +1215,22 @@ void OpenBuffer::PopActiveCursors() {
 
 void OpenBuffer::SetActiveCursorsToMarks() {
   const std::multimap<LineColumn, LineMarks::Mark>& marks = GetLineMarks();
-  if (marks.empty()) {
-    status_.SetWarningText(L"Buffer has no marks!");
-    return;
-  }
-
   // To avoid repetitions, insert them first into a set.
   std::set<LineColumn> cursors;
   for (auto& [line_column, mark] : marks) {
     cursors.insert(line_column);
+  }
+
+  if (cursors.empty()) {
+    const std::multimap<LineColumn, LineMarks::ExpiredMark>& expired_marks =
+        GetExpiredLineMarks();
+    for (auto& [line_column, expired_mark] : expired_marks) {
+      cursors.insert(line_column);
+    }
+    if (cursors.empty()) {
+      status_.SetWarningText(L"Buffer has no marks!");
+      return;
+    }
   }
 
   set_active_cursors(std::vector<LineColumn>(cursors.begin(), cursors.end()));
