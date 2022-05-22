@@ -167,7 +167,6 @@ class InsertMode : public EditorMode {
     switch (static_cast<int>(c)) {
       case '\t':
         ResetScrollBehavior();
-        StartNewInsertion();
 
         ForEachActiveBuffer(buffers_, {'\t'},
                             [options = options_](OpenBuffer& buffer) {
@@ -178,6 +177,11 @@ class InsertMode : public EditorMode {
                               options.start_completion(buffer.NewRoot());
                               return futures::Past(EmptyValue());
                             });
+
+        // Whatever was being typed, was probably just for completion purposes;
+        // we might as well not let it be added to the history (so as to not
+        // pollute it).
+        current_insertion_->FilterToRange(Range());
         return;
 
       case Terminal::ESCAPE:
