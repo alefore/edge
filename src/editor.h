@@ -195,6 +195,8 @@ class EditorState {
     return pipe_to_communicate_internal_events_.first;
   }
 
+  InsertHistory& insert_history() { return insert_history_; }
+
   audio::Player& audio_player() const { return audio_player_; }
 
   // Can return null.
