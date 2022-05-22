@@ -56,12 +56,6 @@ vector<ColumnNumber> GetMatches(const wstring& line,
   return output;
 }
 
-struct SearchResults {
-  std::optional<std::wstring> error;
-  // A vector with all positions matching input sorted in ascending order.
-  std::vector<LineColumn> positions;
-};
-
 auto GetRegexTraits(bool case_sensitive) {
   auto traits = std::regex_constants::extended;
   if (!case_sensitive) {
@@ -70,44 +64,40 @@ auto GetRegexTraits(bool case_sensitive) {
   return traits;
 }
 
-template <typename RegexTraits>
-SearchResults PerformSearch(const SearchOptions& options, RegexTraits traits,
-                            const BufferContents& contents,
-                            ProgressChannel* progress_channel) {
-  vector<LineColumn> positions;
+ValueOrError<std::vector<LineColumn>> PerformSearch(
+    const SearchOptions& options, bool case_sensitive,
+    const BufferContents& contents, ProgressChannel* progress_channel) {
+  std::vector<LineColumn> positions;
 
   std::wregex pattern;
   try {
-    pattern = std::wregex(options.search_query, traits);
+    pattern = std::wregex(options.search_query, GetRegexTraits(case_sensitive));
   } catch (std::regex_error& e) {
-    SearchResults output;
-    output.error = L"Regex failure: " + FromByteString(e.what());
+    Error error = L"Regex failure: " + FromByteString(e.what());
     progress_channel->Push({.values = {{StatusPromptExtraInformationKey(L"!"),
-                                        output.error.value()}}});
-    return output;
+                                        error.description}}});
+    return error;
   }
-
-  SearchResults output;
 
   bool searched_every_line =
       contents.EveryLine([&](LineNumber position, const Line& line) {
         auto matches = GetMatches(line.ToString(), pattern);
         for (const auto& column : matches) {
-          output.positions.push_back(LineColumn(position, column));
+          positions.push_back(LineColumn(position, column));
         }
         if (!matches.empty())
           progress_channel->Push(ProgressInformation{
               .counters = {{StatusPromptExtraInformationKey(L"matches"),
-                            output.positions.size()}}});
+                            positions.size()}}});
         return !options.abort_notification->HasBeenNotified() &&
                (!options.required_positions.has_value() ||
-                options.required_positions.value() > output.positions.size());
+                options.required_positions.value() > positions.size());
       });
   if (!searched_every_line)
     progress_channel->Push(ProgressInformation{
         .values = {{StatusPromptExtraInformationKey(L"partial"), L""}}});
-  VLOG(5) << "Perform search found matches: " << output.positions.size();
-  return output;
+  VLOG(5) << "Perform search found matches: " << positions.size();
+  return positions;
 }
 
 }  // namespace
@@ -117,25 +107,21 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
     ProgressChannel& progress_channel) {
   // TODO(easy, 2022-04-14): Why is this here?
   search_options.required_positions = 100;
-  auto traits =
-      GetRegexTraits(buffer.Read(buffer_variables::search_case_sensitive));
   // Must take special care to only capture instances of thread-safe classes:
   return std::bind_front(
-      [search_options, traits, &progress_channel](
+      [search_options,
+       case_sensitive = buffer.Read(buffer_variables::search_case_sensitive),
+       &progress_channel](
           const NonNull<std::shared_ptr<BufferContents>>& buffer_contents)
           -> ValueOrError<SearchResultsSummary> {
-        auto search_results = PerformSearch(
-            search_options, traits, buffer_contents.value(), &progress_channel);
-        VLOG(5) << "Background search completed for \""
-                << search_options.search_query
-                << "\", found results: " << search_results.positions.size();
-        if (search_results.error.has_value()) {
-          return Error(search_results.error.value());
-        }
+        ASSIGN_OR_RETURN(
+            auto search_results,
+            PerformSearch(search_options, case_sensitive,
+                          buffer_contents.value(), &progress_channel));
         return SearchResultsSummary{
-            .matches = search_results.positions.size(),
+            .matches = search_results.size(),
             .search_completion =
-                search_results.positions.size() >= kMatchesLimit
+                search_results.size() >= kMatchesLimit
                     ? SearchResultsSummary::SearchCompletion::kInterrupted
                     : SearchResultsSummary::SearchCompletion::kFull};
       },
@@ -163,15 +149,13 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
   auto dummy_progress_channel = std::make_unique<ProgressChannel>(
       editor_state.work_queue(), [](ProgressInformation) {},
       WorkQueueChannelConsumeMode::kLastAvailable);
-  SearchResults results = PerformSearch(
-      options,
-      GetRegexTraits(buffer.Read(buffer_variables::search_case_sensitive)),
-      buffer.contents(), dummy_progress_channel.get());
-  if (results.error.has_value()) {
-    return Error(results.error.value());
-  }
+  ASSIGN_OR_RETURN(
+      std::vector<LineColumn> results,
+      PerformSearch(options,
+                    buffer.Read(buffer_variables::search_case_sensitive),
+                    buffer.contents(), dummy_progress_channel.get()));
   if (direction == Direction::kBackwards) {
-    std::reverse(results.positions.begin(), results.positions.end());
+    std::reverse(results.begin(), results.end());
   }
 
   vector<LineColumn> head;
@@ -182,17 +166,17 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
         std::min(options.starting_position, options.limit_position.value()),
         std::max(options.starting_position, options.limit_position.value())};
     LOG(INFO) << "Removing elements outside of the range: " << range;
-    vector<LineColumn> valid_candidates;
-    for (auto& candidate : results.positions) {
+    std::vector<LineColumn> valid_candidates;
+    for (auto& candidate : results) {
       if (range.Contains(candidate)) {
         valid_candidates.push_back(candidate);
       }
     }
-    results.positions = std::move(valid_candidates);
+    results = std::move(valid_candidates);
   }
 
   // Split them into head and tail depending on the current direction.
-  for (auto& candidate : results.positions) {
+  for (auto& candidate : results) {
     bool use_head = true;
     switch (direction) {
       case Direction::kForwards:
