@@ -1,12 +1,15 @@
 #include "src/paste.h"
 
 #include "src/buffer_name.h"
+#include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/language/gc.h"
+#include "src/tests/tests.h"
 
 namespace afc::editor {
 namespace {
+using infrastructure::FileDescriptor;
 using language::EmptyValue;
 using language::MakeNonNullUnique;
 using language::ToByteString;
@@ -26,6 +29,7 @@ class Paste : public Command {
   void ProcessInput(wint_t) {
     auto it = editor_state_.buffers()->find(BufferName::PasteBuffer());
     if (it == editor_state_.buffers()->end()) {
+      LOG(INFO) << "Attempted to paste without a paste buffer.";
       const static std::wstring errors[] = {
           L"No text to paste.",
           L"Try deleting something first.",
@@ -53,6 +57,7 @@ class Paste : public Command {
         .ForEachActiveBuffer([&editor_state = editor_state_,
                               paste_buffer](OpenBuffer& buffer) {
           if (&paste_buffer.ptr().value() == &buffer) {
+            LOG(INFO) << "Attempted to paste into paste buffer.";
             const static std::wstring errors[] = {
                 L"You shall not paste into the paste buffer.",
                 L"Nope.",
@@ -75,7 +80,9 @@ class Paste : public Command {
           }
           if (buffer.fd() != nullptr) {
             string text = ToByteString(paste_buffer.ptr()->ToString());
-            for (size_t i = 0; i < editor_state.repetitions(); i++) {
+            VLOG(4) << "Writing to fd: " << text;
+            for (size_t i = 0; i < editor_state.repetitions().value_or(1);
+                 i++) {
               if (write(buffer.fd()->fd().read(), text.c_str(), text.size()) ==
                   -1) {
                 buffer.status().SetWarningText(L"Unable to paste.");
@@ -86,6 +93,7 @@ class Paste : public Command {
           }
           buffer.CheckPosition();
           buffer.MaybeAdjustPositionCol();
+          LOG(INFO) << "Found paste buffer, pasting...";
           return buffer.ApplyToCursors(transformation::Insert{
               .contents_to_insert = paste_buffer.ptr()->contents().copy(),
               .modifiers = {.insertion = editor_state.modifiers().insertion,
@@ -101,6 +109,60 @@ class Paste : public Command {
  private:
   EditorState& editor_state_;
 };
+
+bool tests_registration = tests::Register(
+    L"Paste",
+    {{.name = L"NormalPaste",
+      .callback =
+          [] {
+            gc::Root<OpenBuffer> paste_buffer_root =
+                OpenBuffer::New({.editor = EditorForTests(),
+                                 .name = BufferName::PasteBuffer()});
+            EditorForTests().buffers()->insert_or_assign(
+                paste_buffer_root.ptr()->name(), paste_buffer_root);
+
+            paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Foo"));
+            paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Bar"));
+
+            gc::Root<OpenBuffer> buffer_root = NewBufferForTests();
+            EditorForTests().AddBuffer(buffer_root,
+                                       BuffersList::AddBufferType ::kVisit);
+
+            OpenBuffer& buffer = buffer_root.ptr().value();
+            buffer.AppendLine(NewLazyString(L"Quux"));
+            buffer.set_position(LineColumn(LineNumber(1), ColumnNumber(2)));
+
+            Paste(buffer.editor()).ProcessInput('x');
+
+            LOG(INFO) << "Contents: " << buffer.contents().ToString();
+            CHECK(buffer.contents().ToString() == L"\nQu\nFoo\nBarux");
+          }},
+     {.name = L"PasteWithFileDescriptor", .callback = [] {
+        gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(
+            {.editor = EditorForTests(), .name = BufferName::PasteBuffer()});
+        EditorForTests().buffers()->insert_or_assign(
+            paste_buffer_root.ptr()->name(), paste_buffer_root);
+
+        paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Foo"));
+        paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Bar"));
+
+        int pipefd_out[2];
+        CHECK(pipe2(pipefd_out, O_NONBLOCK) != -1);
+
+        gc::Root<OpenBuffer> buffer_root = NewBufferForTests();
+        EditorForTests().AddBuffer(buffer_root,
+                                   BuffersList::AddBufferType ::kVisit);
+
+        OpenBuffer& buffer = buffer_root.ptr().value();
+        buffer.SetInputFiles(FileDescriptor(pipefd_out[1]), FileDescriptor(-1),
+                             false, 0);
+        Paste(buffer.editor()).ProcessInput('x');
+
+        char data[1024];
+        int len = read(pipefd_out[0], data, sizeof(data));
+        CHECK(len != -1) << "Read failed: " << strerror(errno);
+        CHECK_EQ(std::string(data, len), "\nFoo\nBar");
+      }}});
 }  // namespace
 
 language::NonNull<std::unique_ptr<Command>> NewPasteCommand(
