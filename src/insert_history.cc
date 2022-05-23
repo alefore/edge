@@ -14,6 +14,11 @@ void InsertHistory::Append(const BufferContents& insertion) {
   history_.push_back(insertion.copy());
 }
 
+const std::vector<language::NonNull<std::unique_ptr<const BufferContents>>>&
+InsertHistory::get() const {
+  return history_;
+}
+
 namespace {
 bool IsMatch(EditorState& editor,
              const InsertHistory::SearchOptions& search_options,

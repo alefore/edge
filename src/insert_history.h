@@ -17,6 +17,9 @@ class InsertHistory {
 
   void Append(const BufferContents& insertion);
 
+  const std::vector<language::NonNull<std::unique_ptr<const BufferContents>>>&
+  get() const;
+
   struct SearchOptions {
     std::wstring query;
   };
