@@ -191,6 +191,7 @@ EditorState::~EditorState() {
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
   buffers_.clear();
 
+  LOG(INFO) << "Reclaim GC pool.";
   gc_pool_.Reclaim();
 }
 
