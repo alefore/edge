@@ -9,6 +9,8 @@
 #include "src/language/safe_types.h"
 
 namespace afc::editor {
+class EditorState;
+
 class InsertHistory {
  public:
   InsertHistory() = default;
@@ -22,7 +24,7 @@ class InsertHistory {
   // Return the entry from the history that best fits `search_options`. For now,
   // that's just the most recent entry.
   std::optional<language::NonNull<const BufferContents*>> Search(
-      SearchOptions search_options);
+      EditorState& editor, SearchOptions search_options);
 
  private:
   std::vector<language::NonNull<std::unique_ptr<const BufferContents>>>

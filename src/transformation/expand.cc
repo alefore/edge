@@ -124,7 +124,7 @@ class InsertHistoryTransformation : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     return VisitPointer(
-        input.editor.insert_history().Search(search_options_),
+        input.editor.insert_history().Search(input.editor, search_options_),
         [](NonNull<const BufferContents*> text) {
           return futures::Past(Output(
               transformation::Insert{.contents_to_insert = text->copy()}));
