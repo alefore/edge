@@ -174,6 +174,8 @@ src/parsers/diff.cc \
 src/parsers/diff.h \
 src/parsers/markdown.cc \
 src/parsers/markdown.h \
+src/paste.cc \
+src/paste.h \
 src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \
