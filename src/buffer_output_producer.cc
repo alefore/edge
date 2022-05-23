@@ -110,8 +110,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
     GetSyntaxModifiersForLine(range, root.value(), {}, syntax_modifiers);
-    LOG(INFO) << "Syntax tokens for " << range << ": "
-              << syntax_modifiers.size();
+    VLOG(8) << "Syntax tokens for " << range << ": " << syntax_modifiers.size();
 
     // Merge them.
     std::map<ColumnNumber, LineModifierSet> merged_modifiers;
