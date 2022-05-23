@@ -90,10 +90,12 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
         {
           static Tracker tracker(L"gc::Pool::Reclaim::Build Survivers List");
           auto call = tracker.Call();
-          for (const NonNull<std::unique_ptr<Generation>>& g : generations)
-            while (!g->objects.empty()) {
+          for (const NonNull<std::unique_ptr<Generation>>& g : generations) {
+            VLOG(5) << "Starting in generation with objects: "
+                    << g->objects.size();
+            for (std::weak_ptr<ControlFrame>& obj_weak : g->objects) {
               VisitPointer(
-                  g->objects.front(),
+                  obj_weak,
                   [&](NonNull<std::shared_ptr<ControlFrame>> obj) {
                     obj->data_.lock([&](ControlFrame::Data& object_data) {
                       if (object_data.reached) {
@@ -107,8 +109,9 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
                     });
                   },
                   [] {});
-              g->objects.erase(g->objects.begin());
             }
+            g->objects.clear();
+          }
         }
         VLOG(3) << "Survivers: " << survivers.size();
         generations.front()->objects = std::move(survivers);
