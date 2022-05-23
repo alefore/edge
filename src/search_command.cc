@@ -36,8 +36,9 @@ static void MergeInto(SearchResultsSummary current_results,
 }
 
 static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
-  buffer.set_active_cursors(SearchHandler(buffer.editor(), options, buffer));
-  buffer.ResetMode();
+  ValueOrError<std::vector<LineColumn>> output =
+      SearchHandler(buffer.editor(), options, buffer.contents());
+  HandleSearchResults(output, buffer);
 }
 
 ColorizePromptOptions SearchResultsModifiers(

@@ -49,9 +49,13 @@ struct SearchOptions {
   bool case_sensitive;
 };
 
-std::vector<LineColumn> SearchHandler(EditorState& editor_state,
-                                      const SearchOptions& options,
-                                      OpenBuffer& buffer);
+language::ValueOrError<std::vector<LineColumn>> SearchHandler(
+    EditorState& editor_state, const SearchOptions& options,
+    const BufferContents& buffer);
+
+void HandleSearchResults(
+    const language::ValueOrError<std::vector<LineColumn>>& results,
+    OpenBuffer& buffer);
 
 void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
                      OpenBuffer& buffer);

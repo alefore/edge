@@ -142,14 +142,14 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
 // in the region enclosed by start and *end will be returned.
 ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     EditorState& editor_state, const SearchOptions& options,
-    OpenBuffer& buffer) {
+    const BufferContents& contents) {
   auto direction = editor_state.modifiers().direction;
   auto dummy_progress_channel = std::make_unique<ProgressChannel>(
       editor_state.work_queue(), [](ProgressInformation) {},
       WorkQueueChannelConsumeMode::kLastAvailable);
   ASSIGN_OR_RETURN(
       std::vector<LineColumn> results,
-      PerformSearch(options, buffer.contents(), dummy_progress_channel.get()));
+      PerformSearch(options, contents, dummy_progress_channel.get()));
   if (direction == Direction::kBackwards) {
     std::reverse(results.begin(), results.end());
   }
@@ -190,28 +190,6 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     head.push_back(candidate);
   }
 
-  if (head.empty()) {
-    buffer.status().SetInformationText(L"🔍 No results.");
-    audio::BeepFrequencies(editor_state.audio_player(), 0.1,
-                           {audio::Frequency(659.25), audio::Frequency(440.0),
-                            audio::Frequency(440.0)});
-  } else {
-    if (head.size() == 1) {
-      buffer.status().SetInformationText(L"🔍 1 result.");
-    } else {
-      wstring results_prefix(1 + static_cast<size_t>(log2(head.size())), L'🔍');
-      buffer.status().SetInformationText(results_prefix + L" Results: " +
-                                         std::to_wstring(head.size()));
-    }
-    vector<audio::Frequency> frequencies = {
-        audio::Frequency(440.0), audio::Frequency(440.0),
-        audio::Frequency(493.88), audio::Frequency(523.25),
-        audio::Frequency(587.33)};
-    frequencies.resize(std::min(frequencies.size(), head.size() + 1),
-                       audio::Frequency(0.0));
-    audio::BeepFrequencies(editor_state.audio_player(), 0.1, frequencies);
-    buffer.Set(buffer_variables::multiple_cursors, false);
-  }
   return head;
 }
 
@@ -221,8 +199,8 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     SearchOptions options;
     options.search_query = input.input;
     options.starting_position = search_buffer.ptr()->position();
-    auto positions = PerformSearchWithDirection(input.editor, options,
-                                                search_buffer.ptr().value());
+    auto positions = PerformSearchWithDirection(
+        input.editor, options, search_buffer.ptr()->contents());
     if (positions.IsError()) {
       search_buffer.ptr()->status().SetWarningText(
           positions.error().description);
@@ -254,32 +232,65 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
       [](EmptyValue) { return PredictorOutput(); });
 }
 
-vector<LineColumn> SearchHandler(EditorState& editor_state,
-                                 const SearchOptions& options,
-                                 OpenBuffer& buffer) {
+ValueOrError<std::vector<LineColumn>> SearchHandler(
+    EditorState& editor_state, const SearchOptions& options,
+    const BufferContents& buffer) {
   if (!editor_state.has_current_buffer() || options.search_query.empty()) {
     return {};
   }
 
-  auto output = PerformSearchWithDirection(editor_state, options, buffer);
-  if (!output.IsError() && output.value().empty() &&
-      buffer.Read(buffer_variables::search_filter_buffer)) {
-    buffer.editor().CloseBuffer(buffer);
-    return {};
-  } else {
-    return buffer.status().ConsumeErrors(output, {});
-  }
+  return PerformSearchWithDirection(editor_state, options, buffer);
 }
 
 void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
                      OpenBuffer& buffer) {
-  auto results = SearchHandler(editor_state, options, buffer);
-  if (results.empty()) {
+  ValueOrError<std::vector<LineColumn>> results =
+      SearchHandler(editor_state, options, buffer.contents());
+  if (results.IsError() || results.value().empty()) {
     buffer.status().SetInformationText(L"No matches: " + options.search_query);
   } else {
-    buffer.set_position(results[0]);
+    buffer.set_position(results.value()[0]);
     editor_state.PushCurrentPosition();
   }
+}
+
+void HandleSearchResults(const ValueOrError<std::vector<LineColumn>>& results,
+                         OpenBuffer& buffer) {
+  if (results.IsError()) {
+    buffer.status().ConsumeErrors(results, {});
+    return;
+  }
+  if (results.value().empty()) {
+    buffer.status().SetInformationText(L"🔍 No results.");
+    audio::BeepFrequencies(buffer.editor().audio_player(), 0.1,
+                           {audio::Frequency(659.25), audio::Frequency(440.0),
+                            audio::Frequency(440.0)});
+
+    if (buffer.Read(buffer_variables::search_filter_buffer)) {
+      buffer.editor().CloseBuffer(buffer);
+    }
+    return;
+  }
+
+  buffer.set_active_cursors(results.value());
+  buffer.ResetMode();
+
+  size_t size = results.value().size();
+  if (size == 1) {
+    buffer.status().SetInformationText(L"🔍 1 result.");
+  } else {
+    wstring results_prefix(1 + static_cast<size_t>(log2(size)), L'🔍');
+    buffer.status().SetInformationText(results_prefix + L" Results: " +
+                                       std::to_wstring(size));
+  }
+  vector<audio::Frequency> frequencies = {
+      audio::Frequency(440.0), audio::Frequency(440.0),
+      audio::Frequency(493.88), audio::Frequency(523.25),
+      audio::Frequency(587.33)};
+  frequencies.resize(std::min(frequencies.size(), size + 1),
+                     audio::Frequency(0.0));
+  audio::BeepFrequencies(buffer.editor().audio_player(), 0.1, frequencies);
+  buffer.Set(buffer_variables::multiple_cursors, false);
 }
 
 }  // namespace afc::editor
