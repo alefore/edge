@@ -1,5 +1,6 @@
 #include "src/args.h"
 #include "src/buffer.h"
+#include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/language/safe_types.h"
@@ -16,6 +17,7 @@ namespace gc = language::gc;
 namespace {
 std::wstring GetMetadata(std::wstring line) {
   gc::Root<OpenBuffer> buffer = NewBufferForTests();
+  buffer.ptr()->Set(buffer_variables::name, L"tests");
   buffer.ptr()->AppendToLastLine(NewLazyString(line));
 
   // Gives it a chance to execute:
@@ -44,6 +46,9 @@ const bool buffer_tests_registration = tests::Register(
                CHECK(GetMetadata(L"[](int x) -> int { return x * 2; }(4)") ==
                      L"8");
              }},
+        {.name = L"MetadataReader",
+         .callback =
+             [] { CHECK(GetMetadata(L"buffer.name()") == L"\"tests\""); }},
         {.name = L"MetadataImpureDoesNotExecute",
          .callback =
              [] {
