@@ -41,7 +41,7 @@ void Clear(EditorState* editor_state) {
   CHECK(IsEmpty(editor_state));
 }
 
-void ShowList(list<int> l) {
+void ShowList(std::list<int> l) {
   std::cout << "List:";
   for (auto i : l) {
     std::cout << " " << i;
@@ -49,9 +49,9 @@ void ShowList(list<int> l) {
   std::cout << "\n";
 }
 
-list<int> ToList(ConstTree<int>::Ptr tree) {
+std::list<int> ToList(ConstTree<int>::Ptr tree) {
   using T = ConstTree<int>;
-  list<int> output;
+  std::list<int> output;
   CHECK(T::Every(tree, [&](int v) {
     output.push_back(v);
     return true;
@@ -62,7 +62,7 @@ list<int> ToList(ConstTree<int>::Ptr tree) {
 
 void TreeTestsLong() {
   srand(0);
-  list<int> l;
+  std::list<int> l;
   using T = ConstTree<int>;
   T::Ptr t;
   size_t elements = 500;
