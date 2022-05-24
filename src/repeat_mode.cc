@@ -7,7 +7,6 @@
 
 namespace afc::editor {
 namespace {
-
 class RepeatMode : public EditorMode {
  public:
   RepeatMode(EditorState& editor_state, std::function<void(int)> consumer)
@@ -29,7 +28,7 @@ class RepeatMode : public EditorMode {
 
  private:
   EditorState& editor_state_;
-  std::function<void(int)> consumer_;
+  const std::function<void(int)> consumer_;
   int result_;
 };
 }  // namespace

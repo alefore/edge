@@ -4,18 +4,11 @@
 #include <functional>
 #include <memory>
 
-#include "editor.h"
-
-namespace afc {
-namespace editor {
-
-using std::function;
-using std::unique_ptr;
-
-unique_ptr<EditorMode> NewRepeatMode(EditorState& editor_state,
-                                     function<void(int)> consumer);
-
-}  // namespace editor
-}  // namespace afc
+namespace afc::editor {
+class EditorMode;
+class EditorState;
+std::unique_ptr<EditorMode> NewRepeatMode(EditorState& editor_state,
+                                          std::function<void(int)> consumer);
+}  // namespace afc::editor
 
 #endif
