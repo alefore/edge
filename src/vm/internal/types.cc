@@ -165,10 +165,12 @@ wstring VMType::ToString() const {
       return L"double";
     case Type::kFunction: {
       CHECK(!type_arguments.empty());
-      wstring output =
-          wstring(function_purity == PurityType::kPure ? L"function"
-                                                       : L"Function") +
-          L"<" + type_arguments[0].ToString() + L"(";
+      const std::unordered_map<PurityType, std::wstring> function_purity_types =
+          {{PurityType::kPure, L"function"},
+           {PurityType::kReader, L"Function"},
+           {PurityType::kUnknown, L"FUNCTION"}};
+      wstring output = function_purity_types.find(function_purity)->second +
+                       L"<" + type_arguments[0].ToString() + L"(";
       wstring separator = L"";
       for (size_t i = 1; i < type_arguments.size(); i++) {
         output += separator + type_arguments[i].ToString();
