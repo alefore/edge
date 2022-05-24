@@ -24,10 +24,17 @@ class ObjectType;
 
 GHOST_TYPE(VMTypeObjectTypeName, std::wstring);
 
-enum class PurityType { kPure, kUnknown };
+enum class PurityType {
+  // Expression is completely pure: will always evaluate to the same value.
+  kPure,
+
+  // Expression doesn't have any side-effects, but depends on external
+  // "environment" values; evaluating it repeatedly may yield different values.
+  kReader,
+  kUnknown
+};
 
 // Add definition to PurityType and remove this one.
-constexpr PurityType PurityTypeReader = PurityType::kUnknown;
 constexpr PurityType PurityTypeWriter = PurityType::kUnknown;
 
 struct VMType {

@@ -51,7 +51,8 @@ futures::Value<PossibleError> PreviewCppExpression(
   auto [expression, environment] = std::move(compilation_result.value());
   buffer.status().Reset();
   switch (expression->purity()) {
-    case vm::PurityType::kPure: {
+    case vm::PurityType::kReader:
+    case vm::PurityType::kPure:
       return buffer.EvaluateExpression(expression.value(), environment)
           .Transform([&buffer](gc::Root<Value> value) {
             ShowValue(buffer, nullptr, value.ptr().value());
@@ -62,8 +63,6 @@ futures::Value<PossibleError> PreviewCppExpression(
             return futures::Past(EmptyValue());
           })
           .Transform([](EmptyValue) { return futures::Past(Success()); });
-      ;
-    }
     case vm::PurityType::kUnknown:
       break;
   }

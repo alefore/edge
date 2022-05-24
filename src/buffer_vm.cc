@@ -77,7 +77,7 @@ void RegisterBufferFields(
     // Getter.
     object_type.AddField(
         variable->name(),
-        vm::NewCallback(pool, PurityTypeReader,
+        vm::NewCallback(pool, PurityType::kReader,
                         [reader, variable](gc::Root<OpenBuffer> buffer) {
                           DVLOG(4) << "Buffer field reader is returning.";
                           return (buffer.ptr().value().*reader)(variable);
@@ -131,9 +131,10 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
 
   buffer->AddField(
       L"line_count",
-      vm::NewCallback(pool, PurityTypeReader, [](gc::Root<OpenBuffer> buffer) {
-        return static_cast<int>(buffer.ptr()->contents().size().line_delta);
-      }));
+      vm::NewCallback(
+          pool, PurityType::kReader, [](gc::Root<OpenBuffer> buffer) {
+            return static_cast<int>(buffer.ptr()->contents().size().line_delta);
+          }));
 
   buffer->AddField(
       L"set_position",
@@ -144,13 +145,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
 
   buffer->AddField(
       L"position",
-      vm::NewCallback(pool, PurityTypeReader, [](gc::Root<OpenBuffer> buffer) {
-        return LineColumn(buffer.ptr()->position());
-      }));
+      vm::NewCallback(pool, PurityType::kReader,
+                      [](gc::Root<OpenBuffer> buffer) {
+                        return LineColumn(buffer.ptr()->position());
+                      }));
 
   buffer->AddField(
       L"line",
-      vm::NewCallback(pool, PurityTypeReader,
+      vm::NewCallback(pool, PurityType::kReader,
                       [](gc::Root<OpenBuffer> buffer, int line_input) {
                         LineNumber line = std::min(
                             LineNumber(std::max(line_input, 0)),
@@ -405,15 +407,16 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
 
   buffer->AddField(
       L"ShowTrackers",
-      vm::NewCallback(pool, PurityTypeReader, [](gc::Root<OpenBuffer> buffer) {
-        for (auto& data : Tracker::GetData()) {
-          buffer.ptr()->AppendLine(StringAppend(
-              StringAppend(NewLazyString(data.name), NewLazyString(L": ")),
-              NewLazyString(std::to_wstring(data.executions)),
-              NewLazyString(L" "),
-              NewLazyString(std::to_wstring(data.seconds))));
-        }
-      }));
+      vm::NewCallback(
+          pool, PurityType::kReader, [](gc::Root<OpenBuffer> buffer) {
+            for (auto& data : Tracker::GetData()) {
+              buffer.ptr()->AppendLine(StringAppend(
+                  StringAppend(NewLazyString(data.name), NewLazyString(L": ")),
+                  NewLazyString(std::to_wstring(data.executions)),
+                  NewLazyString(L" "),
+                  NewLazyString(std::to_wstring(data.seconds))));
+            }
+          }));
 
   buffer->AddField(
       L"EvaluateFile",

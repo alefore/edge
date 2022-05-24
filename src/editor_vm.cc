@@ -92,7 +92,7 @@ void RegisterVariableFields(
     // Getter.
     editor_type.AddField(
         variable->name(),
-        vm::NewCallback(pool, PurityTypeReader,
+        vm::NewCallback(pool, PurityType::kReader,
                         [reader, variable](EditorState& editor) {
                           return (editor.*reader)(variable);
                         }));
