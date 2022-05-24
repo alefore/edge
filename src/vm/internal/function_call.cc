@@ -284,10 +284,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       }
 
       PurityType purity() override {
-        return (obj_expr_->purity() == PurityType::kPure &&
-                delegate_->type.function_purity == PurityType::kPure)
-                   ? PurityType::kPure
-                   : PurityType::kUnknown;
+        return CombinePurityType(obj_expr_->purity(),
+                                 delegate_->type.function_purity);
       }
 
       futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
@@ -327,6 +325,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
     CHECK_GE(field->type.type_arguments.size(), 2ul);
     CHECK_EQ(field->type.type_arguments[1], type);
 
+    // TODO(easy, 2022-05-24): Avoid the call to Clone.
     return std::make_unique<BindObjectExpression>(object->Clone(), field);
   }
 
