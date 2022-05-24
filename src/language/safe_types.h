@@ -70,6 +70,10 @@ class NonNull<std::unique_ptr<T>>;
 template <typename T>
 class NonNull<std::shared_ptr<T>>;
 
+// Generally, prefer using references (`T&`) over `NonNull<T*>`.
+//
+// One valid use case for `NonNull<T*>` is fields or variables that need to be
+// mutable.
 template <typename T>
 class NonNull<T*> {
  public:
