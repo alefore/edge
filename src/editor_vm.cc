@@ -161,11 +161,6 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                                           editor.AdvanceActiveBuffer(delta);
                                         }));
 
-  // TODO(easy, 2022-05-20): Get rid of this declaration.
-  editor_type->AddField(
-      L"ZoomToLeaf",
-      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState&) {}));
-
   editor_type->AddField(
       L"SetVariablePrompt",
       vm::NewCallback(pool, PurityType::kUnknown,
