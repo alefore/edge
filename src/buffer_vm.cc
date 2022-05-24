@@ -28,7 +28,6 @@ gc::Root<editor::OpenBuffer> VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(
   return wrapper->buffer.ToRoot();
 }
 
-// TODO(easy, 2022-05-16): Receive the value as Ptr?
 /* static */ gc::Root<Value> VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
     gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
   auto wrapper =
