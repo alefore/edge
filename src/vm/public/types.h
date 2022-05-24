@@ -37,6 +37,12 @@ enum class PurityType {
 // Add definition to PurityType and remove this one.
 constexpr PurityType PurityTypeWriter = PurityType::kUnknown;
 
+std::ostream& operator<<(std::ostream& os, const PurityType& value);
+
+// Given two purity type values, return the purity type of an expression that
+// depends on both.
+PurityType CombinePurityType(PurityType a, PurityType b);
+
 struct VMType {
   enum class Type {
     kVoid,

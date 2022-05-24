@@ -3,6 +3,8 @@
 #include <glog/logging.h>
 
 #include "../public/value.h"
+#include "src/language/wstring.h"
+#include "src/tests/tests.h"
 
 namespace std {
 size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
@@ -15,9 +17,59 @@ size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
 }
 }  // namespace std
 namespace afc::vm {
+using language::FromByteString;
 using language::NonNull;
 
 namespace gc = language::gc;
+
+PurityType CombinePurityType(PurityType a, PurityType b) {
+  if (a == PurityType::kUnknown || b == PurityType::kUnknown)
+    return PurityType::kUnknown;
+  if (a == PurityType::kReader || b == PurityType::kReader)
+    return PurityType::kReader;
+  CHECK(a == PurityType::kPure);
+  CHECK(b == PurityType::kPure);
+  return PurityType::kPure;
+}
+
+namespace {
+bool combine_purity_type_tests_registration =
+    tests::Register(L"CombinePurityType", [] {
+      auto t = [](PurityType a, PurityType b, PurityType expect) {
+        std::stringstream value_stream;
+        value_stream << a << " + " << b << " = " << expect;
+        return tests::Test(
+            {.name = FromByteString(value_stream.str()),
+             .callback = [=] { CHECK(CombinePurityType(a, b) == expect); }});
+      };
+      return std::vector<tests::Test>(
+          {t(PurityType::kPure, PurityType::kPure, PurityType::kPure),
+           t(PurityType::kPure, PurityType::kReader, PurityType::kReader),
+           t(PurityType::kPure, PurityType::kUnknown, PurityType::kUnknown),
+           t(PurityType::kReader, PurityType::kPure, PurityType::kReader),
+           t(PurityType::kReader, PurityType::kReader, PurityType::kReader),
+           t(PurityType::kReader, PurityType::kUnknown, PurityType::kUnknown),
+           t(PurityType::kUnknown, PurityType::kPure, PurityType::kUnknown),
+           t(PurityType::kUnknown, PurityType::kReader, PurityType::kUnknown),
+           t(PurityType::kUnknown, PurityType::kUnknown,
+             PurityType::kUnknown)});
+    }());
+}
+
+std::ostream& operator<<(std::ostream& os, const PurityType& value) {
+  switch (value) {
+    case PurityType::kPure:
+      os << "pure";
+      break;
+    case PurityType::kReader:
+      os << "reader";
+      break;
+    case PurityType::kUnknown:
+      os << "unknown";
+      break;
+  }
+  return os;
+}
 
 bool operator==(const VMType& lhs, const VMType& rhs) {
   return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments &&
