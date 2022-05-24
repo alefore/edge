@@ -930,6 +930,12 @@ LineNumber OpenBuffer::EndLine() const { return contents_.EndLine(); }
 
 EditorMode& OpenBuffer::mode() const { return mode_.value(); }
 
+NonNull<std::shared_ptr<EditorMode>> OpenBuffer::ResetMode() {
+  NonNull<std::shared_ptr<EditorMode>> copy = std::move(mode_);
+  mode_ = MakeNonNullShared<MapMode>(default_commands_);
+  return copy;
+}
+
 language::NonNull<std::shared_ptr<MapModeCommands>>
 OpenBuffer::default_commands() {
   return default_commands_;

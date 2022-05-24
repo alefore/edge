@@ -26,7 +26,6 @@
 #include "src/line_column.h"
 #include "src/line_marks.h"
 #include "src/log.h"
-#include "src/map_mode.h"
 #include "src/parse_tree.h"
 #include "src/status.h"
 #include "src/substring.h"
@@ -45,6 +44,8 @@ class ParseTree;
 class TreeParser;
 class UnixSignal;
 class BufferDisplayData;
+class MapMode;
+class MapModeCommands;
 
 class OpenBuffer {
   struct ConstructorAccessTag {};
@@ -181,11 +182,7 @@ class OpenBuffer {
   LineNumber EndLine() const;
 
   EditorMode& mode() const;
-  language::NonNull<std::shared_ptr<EditorMode>> ResetMode() {
-    language::NonNull<std::shared_ptr<EditorMode>> copy = std::move(mode_);
-    mode_ = language::MakeNonNullShared<MapMode>(default_commands_);
-    return copy;
-  }
+  language::NonNull<std::shared_ptr<EditorMode>> ResetMode();
 
   language::NonNull<std::shared_ptr<MapModeCommands>> default_commands();
 
