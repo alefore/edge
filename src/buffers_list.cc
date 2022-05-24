@@ -684,6 +684,7 @@ void BuffersList::RemoveBuffer(const OpenBuffer& buffer) {
                                return &candidate.ptr().value() == &buffer;
                              });
       it != buffers_.end()) {
+    LOG(INFO) << "BuffersList: Removing buffer: " << buffer.name();
     buffers_.erase(it);
   }
   Update();
