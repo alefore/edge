@@ -20,6 +20,7 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
+using language::VisitPointer;
 
 namespace gc = language::gc;
 
@@ -217,117 +218,130 @@ std::unique_ptr<Expression> NewFunctionCall(
 std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                                             std::unique_ptr<Expression> object,
                                             wstring method_name) {
-  // TODO: Support polymorphism.
-  std::vector<wstring> errors;
-  for (const auto& type : object->Types()) {
-    std::optional<VMTypeObjectTypeName> object_type_name;
-    switch (type.type) {
-      case VMType::Type::kString:
-        object_type_name = VMTypeObjectTypeName(L"string");
-        break;
-      case VMType::Type::kBool:
-        object_type_name = VMTypeObjectTypeName(L"bool");
-        break;
-      case VMType::Type::kDouble:
-        object_type_name = VMTypeObjectTypeName(L"double");
-        break;
-      case VMType::Type::kInt:
-        object_type_name = VMTypeObjectTypeName(L"int");
-        break;
-      case VMType::Type::kObject:
-        object_type_name = type.object_type;
-        break;
-      default:
-        errors.push_back(L"Unable to find methods on primitive type: \"" +
-                         type.ToString() + L"\"");
-        continue;
-    }
+  return VisitPointer(
+      std::move(object),
+      [&compilation, &method_name](NonNull<std::unique_ptr<Expression>> object)
+          -> std::unique_ptr<Expression> {
+        // TODO: Support polymorphism.
+        std::vector<wstring> errors;
+        for (const auto& type : object->Types()) {
+          std::optional<VMTypeObjectTypeName> object_type_name;
+          switch (type.type) {
+            case VMType::Type::kString:
+              object_type_name = VMTypeObjectTypeName(L"string");
+              break;
+            case VMType::Type::kBool:
+              object_type_name = VMTypeObjectTypeName(L"bool");
+              break;
+            case VMType::Type::kDouble:
+              object_type_name = VMTypeObjectTypeName(L"double");
+              break;
+            case VMType::Type::kInt:
+              object_type_name = VMTypeObjectTypeName(L"int");
+              break;
+            case VMType::Type::kObject:
+              object_type_name = type.object_type;
+              break;
+            default:
+              errors.push_back(L"Unable to find methods on primitive type: \"" +
+                               type.ToString() + L"\"");
+              continue;
+          }
 
-    const ObjectType* object_type =
-        compilation->environment.ptr()->LookupObjectType(*object_type_name);
+          const ObjectType* object_type =
+              compilation->environment.ptr()->LookupObjectType(
+                  *object_type_name);
 
-    if (object_type == nullptr) {
-      errors.push_back(L"Unknown type: \"" + type.ToString() + L"\"");
-      continue;
-    }
+          if (object_type == nullptr) {
+            errors.push_back(L"Unknown type: \"" + type.ToString() + L"\"");
+            continue;
+          }
 
-    auto field = object_type->LookupField(method_name);
-    if (field == nullptr) {
-      errors.push_back(L"Unknown method: \"" + object_type->ToString() + L"::" +
-                       method_name + L"\"");
-      continue;
-    }
+          auto field = object_type->LookupField(method_name);
+          if (field == nullptr) {
+            errors.push_back(L"Unknown method: \"" + object_type->ToString() +
+                             L"::" + method_name + L"\"");
+            continue;
+          }
 
-    // When evaluated, evaluates first `obj_expr` and then returns a callback
-    // that wraps `delegate`, inserting the value that `obj_expr` evaluated to.
-    class BindObjectExpression : public Expression {
-     public:
-      BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
-                           Value* delegate)
-          : type_([=]() {
-              auto output = std::make_shared<VMType>(delegate->type);
-              output->type_arguments.erase(output->type_arguments.begin() + 1);
-              return output;
-            }()),
-            obj_expr_(std::move(obj_expr)),
-            delegate_(delegate) {}
+          // When evaluated, evaluates first `obj_expr` and then returns a
+          // callback that wraps `delegate`, inserting the value that `obj_expr`
+          // evaluated to.
+          class BindObjectExpression : public Expression {
+           public:
+            BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
+                                 Value* delegate)
+                : type_([=]() {
+                    auto output = std::make_shared<VMType>(delegate->type);
+                    output->type_arguments.erase(
+                        output->type_arguments.begin() + 1);
+                    return output;
+                  }()),
+                  obj_expr_(std::move(obj_expr)),
+                  delegate_(delegate) {}
 
-      std::vector<VMType> Types() override { return {*type_}; }
-      std::unordered_set<VMType> ReturnTypes() const override { return {}; }
+            std::vector<VMType> Types() override { return {*type_}; }
+            std::unordered_set<VMType> ReturnTypes() const override {
+              return {};
+            }
 
-      NonNull<std::unique_ptr<Expression>> Clone() override {
-        return MakeNonNullUnique<BindObjectExpression>(obj_expr_, delegate_);
-      }
+            NonNull<std::unique_ptr<Expression>> Clone() override {
+              return MakeNonNullUnique<BindObjectExpression>(obj_expr_,
+                                                             delegate_);
+            }
 
-      PurityType purity() override {
-        return CombinePurityType(obj_expr_->purity(),
-                                 delegate_->type.function_purity);
-      }
+            PurityType purity() override {
+              return CombinePurityType(obj_expr_->purity(),
+                                       delegate_->type.function_purity);
+            }
 
-      futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
-          Trampoline& trampoline, const VMType& type) override {
-        return trampoline.Bounce(obj_expr_.value(), obj_expr_->Types()[0])
-            .Transform([type, shared_type = type_,
-                        callback = delegate_->LockCallback(),
-                        purity_type = delegate_->type.function_purity,
-                        &pool = trampoline.pool()](EvaluationOutput output)
-                           -> ValueOrError<EvaluationOutput> {
-              switch (output.type) {
-                case EvaluationOutput::OutputType::kReturn:
-                  return Success(std::move(output));
-                case EvaluationOutput::OutputType::kContinue:
-                  return Success(EvaluationOutput::New(Value::NewFunction(
-                      pool, purity_type, shared_type->type_arguments,
-                      [obj = std::move(output.value), callback](
-                          std::vector<gc::Root<Value>> args,
-                          Trampoline& trampoline) {
-                        args.emplace(args.begin(), obj);
-                        return callback(std::move(args), trampoline);
-                      })));
-              }
-              language::Error error(L"Unhandled OutputType case.");
-              LOG(FATAL) << error;
-              return error;
-            });
-      }
+            futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
+                Trampoline& trampoline, const VMType& type) override {
+              return trampoline.Bounce(obj_expr_.value(), obj_expr_->Types()[0])
+                  .Transform([type, shared_type = type_,
+                              callback = delegate_->LockCallback(),
+                              purity_type = delegate_->type.function_purity,
+                              &pool =
+                                  trampoline.pool()](EvaluationOutput output)
+                                 -> ValueOrError<EvaluationOutput> {
+                    switch (output.type) {
+                      case EvaluationOutput::OutputType::kReturn:
+                        return Success(std::move(output));
+                      case EvaluationOutput::OutputType::kContinue:
+                        return Success(EvaluationOutput::New(Value::NewFunction(
+                            pool, purity_type, shared_type->type_arguments,
+                            [obj = std::move(output.value), callback](
+                                std::vector<gc::Root<Value>> args,
+                                Trampoline& trampoline) {
+                              args.emplace(args.begin(), obj);
+                              return callback(std::move(args), trampoline);
+                            })));
+                    }
+                    language::Error error(L"Unhandled OutputType case.");
+                    LOG(FATAL) << error;
+                    return error;
+                  });
+            }
 
-     private:
-      const std::shared_ptr<VMType> type_;
-      const NonNull<std::shared_ptr<Expression>> obj_expr_;
-      Value* const delegate_;
-    };
+           private:
+            const std::shared_ptr<VMType> type_;
+            const NonNull<std::shared_ptr<Expression>> obj_expr_;
+            Value* const delegate_;
+          };
 
-    CHECK(field->type.type == VMType::Type::kFunction);
-    CHECK_GE(field->type.type_arguments.size(), 2ul);
-    CHECK_EQ(field->type.type_arguments[1], type);
+          CHECK(field->type.type == VMType::Type::kFunction);
+          CHECK_GE(field->type.type_arguments.size(), 2ul);
+          CHECK_EQ(field->type.type_arguments[1], type);
 
-    // TODO(easy, 2022-05-24): Avoid the call to Clone.
-    return std::make_unique<BindObjectExpression>(object->Clone(), field);
-  }
+          return std::make_unique<BindObjectExpression>(std::move(object),
+                                                        field);
+        }
 
-  CHECK(!errors.empty());
-  compilation->errors.push_back(errors[0]);
-  return nullptr;
+        CHECK(!errors.empty());
+        compilation->errors.push_back(errors[0]);
+        return nullptr;
+      },
+      [] { return nullptr; });
 }
 
 futures::ValueOrError<gc::Root<Value>> Call(

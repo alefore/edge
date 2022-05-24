@@ -966,12 +966,7 @@ non_empty_symbols_list(OUT) ::=
 }
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
-  if (OBJ == nullptr) {
-    OUT = nullptr;
-  } else {
-    OUT = NewMethodLookup(compilation, std::unique_ptr<Expression>(OBJ),
-                          FIELD->value().ptr()->get_symbol()).release();
-    OBJ = nullptr;
-  }
+  OUT = NewMethodLookup(compilation, std::unique_ptr<Expression>(OBJ),
+                        FIELD->value().ptr()->get_symbol()).release();
   delete FIELD;
 }
