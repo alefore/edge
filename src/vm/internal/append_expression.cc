@@ -77,7 +77,7 @@ std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
 ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
     NonNull<std::unique_ptr<Expression>> a,
     NonNull<std::unique_ptr<Expression>> b) {
-  if (a->purity() == Expression::PurityType::kPure && a->ReturnTypes().empty())
+  if (a->purity() == PurityType::kPure && a->ReturnTypes().empty())
     return Success(std::move(b));
   auto return_types = CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes());
   if (return_types.IsError()) {

@@ -49,7 +49,7 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
             Success(EvaluationOutput::New(std::move(args[0]))));
       });
 
-  output.ptr()->type.function_purity = Expression::PurityType::kUnknown;
+  output.ptr()->type.function_purity = PurityType::kUnknown;
   return output;
 }
 
@@ -75,7 +75,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
                            field_name);
             }));
       });
-  output.ptr()->type.function_purity = Expression::PurityType::kPure;
+  output.ptr()->type.function_purity = PurityType::kPure;
   return output;
 }
 }  // namespace

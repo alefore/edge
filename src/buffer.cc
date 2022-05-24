@@ -111,14 +111,14 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
   if (compilation_result.IsError()) return line;
   auto [expr, sub_environment] = std::move(compilation_result.value());
   std::wstring description = L"C++: " + TypesToString(expr->Types());
-  if (expr->purity() == Expression::PurityType::kPure) {
+  if (expr->purity() == PurityType::kPure) {
     description += L" ...";
   }
 
   futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>> metadata_value(
       futures::Future<NonNull<std::shared_ptr<LazyString>>>().value);
 
-  if (expr->purity() == Expression::PurityType::kPure) {
+  if (expr->purity() == PurityType::kPure) {
     if (expr->Types() == std::vector<VMType>({VMType::Void()})) {
       return MakeNonNullShared<const Line>(
           line->CopyOptions().SetMetadata(std::nullopt));

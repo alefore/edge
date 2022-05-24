@@ -133,7 +133,7 @@ language::gc::Root<Value> RunCallback(
 
 template <typename Callable>
 language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
-                                      VMType::PurityType purity_type,
+                                      PurityType purity_type,
                                       Callable callback) {
   using ft = function_traits<Callable>;
   std::vector<VMType> type_arguments;

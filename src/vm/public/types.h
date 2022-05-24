@@ -42,9 +42,6 @@ struct VMType {
     kObject
   };
 
-  // TODO(easy, 2022-05-20): Get rid of this alias.
-  using PurityType = vm::PurityType;
-
   VMType() = default;
   explicit VMType(const Type& t) : type(t) {}
 
