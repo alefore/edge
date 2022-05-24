@@ -406,26 +406,6 @@ Buffer ExpandIntoPath(string path, string start, string blacklist) {
   return buffer;
 }
 
-// TODO(easy): This is garbage. Delete.
-string ReplaceText(string pattern, string replacement, string input) {
-  string output = "";
-  int position = 0;
-  while (position < input.size()) {
-    int next = input.find(pattern, position);
-    bool at_match = next != -1;
-    if (next == -1) {
-      next = input.size();
-    }
-    output += input.substr(position, next - position);
-    if (at_match) {
-      output += "<b>" + replacement + "</b>";
-    }
-    position = next + pattern.size();
-  }
-
-  return output;
-}
-
 void AppendLink(Buffer buffer, string title, string path) {
   buffer.ApplyTransformation(FunctionTransformation(
       [](TransformationInput input) -> TransformationOutput {
