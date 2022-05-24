@@ -335,6 +335,18 @@ EdgeVariable<bool>* const pin =
             L"affect which buffers are displayed).")
         .Build();
 
+EdgeVariable<bool>* const vm_lines_evaluation =
+    BoolStruct()
+        ->Add()
+        .Name(L"vm_lines_evaluation")
+        .Key(L"v")
+        .Description(
+            L"If true, all lines in this buffer will be compiled; if they "
+            L"compile successfully, their type will be shown as metadata. If "
+            L"they are pure expressions, they will be evaluated and the "
+            L"results of the evaluation will be shown.")
+        .Build();
+
 EdgeStruct<wstring>* StringStruct() {
   static EdgeStruct<wstring>* output = new EdgeStruct<wstring>();
   return output;

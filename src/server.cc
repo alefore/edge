@@ -213,6 +213,7 @@ gc::Root<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
   buffer.Set(buffer_variables::save_on_close, true);
   buffer.Set(buffer_variables::show_in_buffers_list, false);
   buffer.Set(buffer_variables::vm_exec, true);
+  buffer.Set(buffer_variables::vm_lines_evaluation, false);
 
   editor_state.buffers()->insert_or_assign(buffer.name(), buffer_root);
   buffer.Reload();

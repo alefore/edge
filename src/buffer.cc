@@ -100,8 +100,12 @@ static const wchar_t* kOldCursors = L"old-cursors";
 
 NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
     OpenBuffer& buffer, NonNull<std::shared_ptr<const Line>> line) {
-  if (line->metadata() != nullptr) return line;
-  if (line->empty()) return line;
+  static Tracker tracker(L"OpenBuffer::UpdateLineMetadata");
+  auto tracker_call = tracker.Call();
+
+  if (line->metadata() != nullptr || line->empty() ||
+      buffer.Read(buffer_variables::vm_lines_evaluation))
+    return line;
 
   auto compilation_result = buffer.CompileString(line->contents()->ToString());
   if (compilation_result.IsError()) return line;

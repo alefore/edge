@@ -725,6 +725,7 @@ void EditorState::PushPosition(LineColumn position) {
                   buffer.Set(buffer_variables::trigger_reload_on_buffer_write,
                              false);
                   buffer.Set(buffer_variables::show_in_buffers_list, false);
+                  buffer.Set(buffer_variables::vm_lines_evaluation, false);
                   return buffer_root;
                 });
 

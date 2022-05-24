@@ -223,6 +223,7 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
         buffer.Set(buffer_variables::show_in_buffers_list, false);
         buffer.Set(buffer_variables::atomic_lines, true);
         buffer.Set(buffer_variables::close_after_idle_seconds, 20.0);
+        buffer.Set(buffer_variables::vm_lines_evaluation, false);
         if (!editor_state.has_current_buffer()) {
           // Seems lame, but what can we do?
           editor_state.set_current_buffer(buffer_root,
