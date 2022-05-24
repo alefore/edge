@@ -98,7 +98,7 @@ namespace gc = language::gc;
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
 
-NonNull<std::shared_ptr<const Line>> AddLineMetadata(
+NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
     OpenBuffer& buffer, NonNull<std::shared_ptr<const Line>> line) {
   if (line->metadata() != nullptr) return line;
   if (line->empty()) return line;
@@ -152,10 +152,10 @@ NonNull<std::shared_ptr<const Line>> AddLineMetadata(
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
-void AddLineMetadata(OpenBuffer& buffer, BufferContents& contents,
-                     LineNumber position) {
+void SetBufferContentsLineMetadata(OpenBuffer& buffer, BufferContents& contents,
+                                   LineNumber position) {
   contents.set_line(position,
-                    AddLineMetadata(buffer, buffer.contents().at(position)));
+                    UpdateLineMetadata(buffer, buffer.contents().at(position)));
 }
 
 // next_scheduled_execution holds the smallest time at which we know we have
@@ -697,7 +697,7 @@ void OpenBuffer::AppendLines(
 
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
   for (NonNull<std::shared_ptr<const Line>>& line : lines) {
-    line = AddLineMetadata(*this, std::move(line));
+    line = UpdateLineMetadata(*this, std::move(line));
   }
   contents_.append_back(std::move(lines));
   if (Read(buffer_variables::contains_line_marks)) {
@@ -937,7 +937,8 @@ void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
 
 void OpenBuffer::InsertLine(LineNumber line_position,
                             NonNull<std::shared_ptr<Line>> line) {
-  contents_.insert_line(line_position, AddLineMetadata(*this, std::move(line)));
+  contents_.insert_line(line_position,
+                        UpdateLineMetadata(*this, std::move(line)));
 }
 
 void OpenBuffer::AppendLine(NonNull<std::shared_ptr<LazyString>> str) {
@@ -970,7 +971,7 @@ void OpenBuffer::AppendRawLine(NonNull<std::shared_ptr<LazyString>> str) {
 
 void OpenBuffer::AppendRawLine(NonNull<std::shared_ptr<Line>> line) {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(AddLineMetadata(*this, std::move(line)));
+  contents_.push_back(UpdateLineMetadata(*this, std::move(line)));
 }
 
 void OpenBuffer::AppendToLastLine(NonNull<std::shared_ptr<LazyString>> str) {
@@ -1064,7 +1065,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
   if (range.begin.line == range.end.line) {
     contents_.DeleteCharactersFromLine(range.begin,
                                        range.end.column - range.begin.column);
-    AddLineMetadata(*this, contents_, range.begin.line);
+    SetBufferContentsLineMetadata(*this, contents_, range.begin.line);
   } else {
     contents_.DeleteToLineEnd(range.begin);
     contents_.DeleteCharactersFromLine(LineColumn(range.end.line),
@@ -1072,7 +1073,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
     // Lines in the middle.
     EraseLines(range.begin.line + LineNumberDelta(1), range.end.line);
     contents_.FoldNextLine(range.begin.line);
-    AddLineMetadata(*this, contents_, range.begin.line);
+    SetBufferContentsLineMetadata(*this, contents_, range.begin.line);
   }
 }
 
@@ -1093,7 +1094,7 @@ LineColumn OpenBuffer::InsertInPosition(
   contents_.SplitLine(position);
   contents_.insert(position.line.next(), contents_to_insert, modifiers);
   contents_.FoldNextLine(position.line);
-  AddLineMetadata(*this, contents_, position.line);
+  SetBufferContentsLineMetadata(*this, contents_, position.line);
 
   LineNumber last_line =
       position.line + contents_to_insert.size() - LineNumberDelta(1);
@@ -1103,7 +1104,7 @@ LineColumn OpenBuffer::InsertInPosition(
   ColumnNumber column = line->EndColumn();
 
   contents_.FoldNextLine(last_line);
-  AddLineMetadata(*this, contents_, last_line);
+  SetBufferContentsLineMetadata(*this, contents_, last_line);
   return LineColumn(last_line, column);
 }
 
