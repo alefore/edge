@@ -265,15 +265,14 @@ void Environment::Remove(const wstring& symbol, VMType type) {
 }
 
 void Environment::ForEachType(
-    std::function<void(const std::wstring&, ObjectType&)> callback) {
+    std::function<void(const VMTypeObjectTypeName&, ObjectType&)> callback) {
   if (parent_environment_.has_value()) {
     (*parent_environment_)->ForEachType(callback);
   }
   for (const std::pair<const VMTypeObjectTypeName,
                        NonNull<std::unique_ptr<ObjectType>>>& entry :
        object_types_) {
-    // TODO(easy, 2022-05-17): Get rid of the `read`:
-    callback(entry.first.read(), entry.second.value());
+    callback(entry.first, entry.second.value());
   }
 }
 

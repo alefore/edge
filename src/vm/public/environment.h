@@ -63,7 +63,7 @@ class Environment {
   void Remove(const std::wstring& symbol, VMType type);
 
   void ForEachType(
-      std::function<void(const std::wstring&, ObjectType&)> callback);
+      std::function<void(const VMTypeObjectTypeName&, ObjectType&)> callback);
   void ForEach(
       std::function<void(const std::wstring&, const language::gc::Ptr<Value>&)>
           callback) const;
