@@ -309,8 +309,13 @@ BufferContentsWindow BufferContentsWindow::Get(
       LineNumberDelta(), LineNumberDelta(output.lines.size()) +
                              options.status_lines - options.lines_shown);
 
-  if (LineNumberDelta(cursor_index(output).value_or(0)) >
-      (size_t(3) * options.lines_shown) / 5) {
+  VLOG(5) << "Wrapping up: lines_shown: " << options.lines_shown
+          << ", status_lines: " << options.status_lines
+          << ", output.lines.size: " << output.lines.size();
+  if (options.lines_shown <
+          LineNumberDelta(output.lines.size()) + options.status_lines &&
+      LineNumberDelta(cursor_index(output).value_or(0)) >
+          (size_t(3) * options.lines_shown) / 5) {
     output.view_start =
         output.lines.empty() ? options.begin : output.lines.front().range.begin;
     output.status_position = BufferContentsWindow::StatusPosition::kTop;
@@ -596,13 +601,28 @@ const bool line_scroll_control_tests_registration =
                                    LineNumber(16), ColumnNumber(0),
                                    ColumnNumberDelta(sizeof("16lynx") - 1)));
                     }),
-           new_test(L"CursorWhenPositionAtEnd",
+           new_test(L"CursorWhenPositionAtEndFits",
                     [&](auto options) {
                       options.status_lines = LineNumberDelta();
                       options.lines_shown = LineNumberDelta(10);
                       options.active_position = options.contents.range().end;
                       auto output = BufferContentsWindow::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
+                      CHECK(output.status_position ==
+                            BufferContentsWindow::StatusPosition::kBottom);
+                      CHECK_EQ(output.lines.back().range,
+                               Range::InLine(
+                                   LineNumber(16), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                      CHECK(output.lines.back().has_active_cursor);
+                    }),
+           new_test(L"CursorWhenPositionAtEndDrops",
+                    [&](auto options) {
+                      options.status_lines = LineNumberDelta(1);
+                      options.lines_shown = LineNumberDelta(10);
+                      options.active_position = options.contents.range().end;
+                      auto output = BufferContentsWindow::Get(options);
+                      CHECK_EQ(output.lines.size(), 9ul);
                       CHECK(output.status_position ==
                             BufferContentsWindow::StatusPosition::kTop);
                       CHECK_EQ(output.lines.back().range,
@@ -611,13 +631,28 @@ const bool line_scroll_control_tests_registration =
                                    ColumnNumberDelta(sizeof("16lynx") - 1)));
                       CHECK(output.lines.back().has_active_cursor);
                     }),
-           new_test(L"CursorWhenPositionPastEnd",
+           new_test(L"CursorWhenPositionPastEndFits",
                     [&](auto options) {
                       options.status_lines = LineNumberDelta();
                       options.lines_shown = LineNumberDelta(10);
                       options.active_position = LineColumn(LineNumber(9999));
                       auto output = BufferContentsWindow::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
+                      CHECK(output.status_position ==
+                            BufferContentsWindow::StatusPosition::kBottom);
+                      CHECK_EQ(output.lines.back().range,
+                               Range::InLine(
+                                   LineNumber(16), ColumnNumber(0),
+                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                      CHECK(output.lines.back().has_active_cursor);
+                    }),
+           new_test(L"CursorWhenPositionPastEndDrops",
+                    [&](auto options) {
+                      options.status_lines = LineNumberDelta(2);
+                      options.lines_shown = LineNumberDelta(10);
+                      options.active_position = LineColumn(LineNumber(9999));
+                      auto output = BufferContentsWindow::Get(options);
+                      CHECK_EQ(output.lines.size(), 8ul);
                       CHECK(output.status_position ==
                             BufferContentsWindow::StatusPosition::kTop);
                       CHECK_EQ(output.lines.back().range,
@@ -642,6 +677,16 @@ const bool line_scroll_control_tests_registration =
                                    LineNumber(15), ColumnNumber(),
                                    ColumnNumberDelta(sizeof("15dog") - 1)));
                       CHECK_EQ(output.view_start, LineColumn(LineNumber(14)));
+                    }),
+           new_test(L"StatusDownWhenFits",
+                    [&](auto options) {
+                      options.active_position = LineColumn(LineNumber(16));
+                      options.status_lines = LineNumberDelta(10);
+                      options.lines_shown = LineNumberDelta(27);
+                      auto output = BufferContentsWindow::Get(options);
+                      CHECK_EQ(output.lines.size(), 17ul);
+                      CHECK(output.status_position ==
+                            BufferContentsWindow::StatusPosition::kBottom);
                     }),
            new_test(L"ViewStartWithPositionAtEndShortColumns",
                     [&](auto options) {
