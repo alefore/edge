@@ -84,21 +84,17 @@ class FunctionCall : public Expression {
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
   PurityType purity() override {
-    if (func_->purity() != PurityType::kPure) {
-      return PurityType::kUnknown;
-    }
-    for (const auto& a : args_.value()) {
-      if (a->purity() != PurityType::kPure) {
-        return PurityType::kUnknown;
-      }
+    PurityType output = func_->purity();
+    for (const NonNull<std::unique_ptr<Expression>>& a : args_.value()) {
+      output = CombinePurityType(a->purity(), output);
+      if (output == PurityType::kUnknown) return output;  // Optimization.
     }
     for (const auto& callback_type : func_->Types()) {
       CHECK(callback_type.type == VMType::Type::kFunction);
-      if (callback_type.function_purity == PurityType::kPure) {
-        return PurityType::kPure;
-      }
+      output = CombinePurityType(callback_type.function_purity, output);
+      if (output == PurityType::kUnknown) return output;  // Optimization.
     }
-    return PurityType::kUnknown;
+    return output;
   }
 
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
