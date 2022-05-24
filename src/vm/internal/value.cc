@@ -147,10 +147,10 @@ bool cpp_unescape_string_tests_registration =
 /* static */ gc::Root<Value> Value::NewFunction(
     gc::Pool& pool, PurityType purity_type, std::vector<VMType> arguments,
     Value::Callback callback, ExpandCallback expand_callback) {
-  // TODO(easy, 2022-05-13): Receive the purity type explicitly.
+  CHECK(callback != nullptr);
   gc::Root<Value> output =
       New(pool, VMType::Function(std::move(arguments), purity_type));
-  output.ptr()->callback = std::move(callback);
+  output.ptr()->value_ = std::move(callback);
   output.ptr()->expand_callback = std::move(expand_callback);
   return output;
 }
@@ -215,9 +215,10 @@ Value::Callback Value::LockCallback() {
   gc::Root<LockedDependencies> dependencies =
       pool_.NewRoot(MakeNonNullUnique<LockedDependencies>(
           LockedDependencies{.dependencies = expand()}));
+  Callback callback = std::get<Callback>(value_);
   CHECK(callback != nullptr);
-  return [callback = callback, dependencies](std::vector<gc::Root<Value>> args,
-                                             Trampoline& trampoline) {
+  return [callback, dependencies](std::vector<gc::Root<Value>> args,
+                                  Trampoline& trampoline) {
     return callback(std::move(args), trampoline);
   };
 }
@@ -275,7 +276,12 @@ bool value_gc_tests_registration = tests::Register(
         Value::Callback callback = [&] {
           gc::Root<Value> parent = [&] {
             gc::Root<Value> child = Value::NewFunction(
-                pool, PurityType::kPure, {VMType::Void()}, nullptr, [nested] {
+                pool, PurityType::kPure, {VMType::Void()},
+                [](std::vector<gc::Root<Value>>, Trampoline& t) {
+                  return futures::Past(
+                      EvaluationOutput::Return(Value::NewVoid(t.pool())));
+                },
+                [nested] {
                   return std::vector<
                       NonNull<std::shared_ptr<gc::ControlFrame>>>();
                 });
