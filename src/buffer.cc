@@ -992,7 +992,7 @@ void OpenBuffer::AppendToLastLine(Line line) {
 
 ValueOrError<
     std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
-OpenBuffer::CompileString(const std::wstring& code) {
+OpenBuffer::CompileString(const std::wstring& code) const {
   gc::Root<Environment> sub_environment =
       editor().gc_pool().NewRoot(MakeNonNullUnique<Environment>(environment_));
   auto compilation_result =

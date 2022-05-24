@@ -345,7 +345,7 @@ class OpenBuffer {
   language::ValueOrError<
       std::pair<language::NonNull<std::unique_ptr<Expression>>,
                 language::gc::Root<Environment>>>
-  CompileString(const wstring& str);
+  CompileString(const wstring& str) const;
 
   // `expr` can be deleted as soon as we return.
   futures::ValueOrError<language::gc::Root<Value>> EvaluateExpression(
