@@ -110,44 +110,46 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
   auto compilation_result = buffer.CompileString(line->contents()->ToString());
   if (compilation_result.IsError()) return line;
   auto [expr, sub_environment] = std::move(compilation_result.value());
-  std::wstring description = L"C++: " + TypesToString(expr->Types());
-  if (expr->purity() == PurityType::kPure) {
-    description += L" ...";
-  }
-
   futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>> metadata_value(
       futures::Future<NonNull<std::shared_ptr<LazyString>>>().value);
 
-  if (expr->purity() == PurityType::kPure) {
-    if (expr->Types() == std::vector<VMType>({VMType::Void()})) {
-      return MakeNonNullShared<const Line>(
-          line->CopyOptions().SetMetadata(std::nullopt));
-    }
-    futures::Future<NonNull<std::shared_ptr<LazyString>>> metadata_future;
-    buffer.work_queue()->Schedule(
-        [buffer = buffer.NewRoot(),
-         expr = NonNull<std::shared_ptr<Expression>>(std::move(expr)),
-         sub_environment, consumer = metadata_future.consumer] {
-          buffer.ptr()
-              ->EvaluateExpression(expr.value(), sub_environment)
-              .Transform([](gc::Root<Value> value) {
-                std::ostringstream oss;
-                oss << value.ptr().value();
-                // TODO(2022-04-26): Improve futures to be able to remove
-                // Success.
-                return Success(NewLazyString(FromByteString(oss.str())));
-              })
-              .ConsumeErrors([](Error error) {
-                return futures::Past(
-                    NewLazyString(L"E: " + std::move(error.description)));
-              })
-              .Transform(
-                  [consumer](NonNull<std::shared_ptr<LazyString>> output) {
-                    consumer(output);
-                    return Success();
-                  });
-        });
-    metadata_value = std::move(metadata_future.value);
+  std::wstring description = L"C++: " + TypesToString(expr->Types());
+  switch (expr->purity()) {
+    case PurityType::kPure:
+    case PurityType::kReader: {
+      description += L" ...";
+      if (expr->Types() == std::vector<VMType>({VMType::Void()})) {
+        return MakeNonNullShared<const Line>(
+            line->CopyOptions().SetMetadata(std::nullopt));
+      }
+      futures::Future<NonNull<std::shared_ptr<LazyString>>> metadata_future;
+      buffer.work_queue()->Schedule(
+          [buffer = buffer.NewRoot(),
+           expr = NonNull<std::shared_ptr<Expression>>(std::move(expr)),
+           sub_environment, consumer = metadata_future.consumer] {
+            buffer.ptr()
+                ->EvaluateExpression(expr.value(), sub_environment)
+                .Transform([](gc::Root<Value> value) {
+                  std::ostringstream oss;
+                  oss << value.ptr().value();
+                  // TODO(2022-04-26): Improve futures to be able to remove
+                  // Success.
+                  return Success(NewLazyString(FromByteString(oss.str())));
+                })
+                .ConsumeErrors([](Error error) {
+                  return futures::Past(
+                      NewLazyString(L"E: " + std::move(error.description)));
+                })
+                .Transform(
+                    [consumer](NonNull<std::shared_ptr<LazyString>> output) {
+                      consumer(output);
+                      return Success();
+                    });
+          });
+      metadata_value = std::move(metadata_future.value);
+    } break;
+    case PurityType::kUnknown:
+      break;
   }
 
   return MakeNonNullShared<const Line>(line->CopyOptions().SetMetadata(
