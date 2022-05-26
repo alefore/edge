@@ -85,7 +85,6 @@ class Pool {
   struct ReclaimObjectsStats {
     size_t roots = 0;
     size_t begin_total = 0;
-    size_t begin_dead = 0;
     size_t end_total = 0;
     size_t generations = 0;
   };
@@ -117,6 +116,13 @@ class Pool {
     std::vector<RootDeleted> roots_deleted;
   };
 
+  struct Survivors {
+    ObjectMetadataList object_metadata;
+    std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>> roots;
+  };
+
+  static void InstallFrozenEden(Survivors& survivors, Eden& eden);
+
   static std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
   RegisterAllRoots(
       const std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>>&
@@ -135,10 +141,6 @@ class Pool {
 
   concurrent::Protected<Eden> eden_;
 
-  struct Survivors {
-    ObjectMetadataList object_metadata;
-    std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>> roots;
-  };
   concurrent::Protected<Survivors> survivors_;
 };
 

@@ -42,47 +42,10 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
 
   survivors_.lock([&](Survivors& survivors) {
     VLOG(3) << "Starting with generations: " << survivors.roots.size();
-    VLOG(3) << "Removing deleted roots: " << frozen_eden.roots_deleted.size();
-    for (const Eden::RootDeleted& d : frozen_eden.roots_deleted)
-      d.roots_list->erase(d.it);
-    frozen_eden.roots_deleted.clear();
-
-    VLOG(4) << "Installing objects from frozen eden.";
-    survivors.roots.push_back(std::move(frozen_eden.roots));
-    survivors.object_metadata.insert(survivors.object_metadata.end(),
-                                     frozen_eden.object_metadata.begin(),
-                                     frozen_eden.object_metadata.end());
-
-    VLOG(3) << "Removing empty lists of roots.";
-    survivors.roots.remove_if(
-        [](const NonNull<std::unique_ptr<ObjectMetadataList>>& l) {
-          return l->empty();
-        });
-
-#if 0
-    if (survivors.roots.empty() || !new_generation->IsEmpty()) {
-      VLOG(3) << "Pushing new generation: " << new_generation->IsEmpty();
-      generations.push_back(std::move(new_generation));
-    }
-#endif
+    InstallFrozenEden(survivors, frozen_eden);
 
     stats.generations = survivors.roots.size();
     stats.begin_total = survivors.object_metadata.size();
-
-    {
-      static Tracker tracker(L"gc::Pool::Reclaim::Initial Dead");
-      auto call = tracker.Call();
-
-      for (std::weak_ptr<ObjectMetadata>& obj_weak : survivors.object_metadata)
-        VisitPointer(
-            obj_weak,
-            [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
-              obj->data_.lock([](ObjectMetadata::Data& object_data) {
-                object_data.reached = false;
-              });
-            },
-            [&] { stats.begin_dead++; });
-    }
 
     for (const NonNull<std::unique_ptr<ObjectMetadataList>>& l :
          survivors.roots)
@@ -107,6 +70,24 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
 
   LOG(INFO) << "Garbage collection results: " << stats;
   return stats;
+}
+
+void Pool::InstallFrozenEden(Survivors& survivors, Eden& eden) {
+  VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
+  for (const Eden::RootDeleted& d : eden.roots_deleted)
+    d.roots_list->erase(d.it);
+
+  VLOG(4) << "Installing objects from frozen eden.";
+  survivors.object_metadata.insert(survivors.object_metadata.end(),
+                                   eden.object_metadata.begin(),
+                                   eden.object_metadata.end());
+
+  VLOG(3) << "Removing empty lists of roots.";
+  survivors.roots.push_back(std::move(eden.roots));
+  survivors.roots.remove_if(
+      [](const NonNull<std::unique_ptr<ObjectMetadataList>>& l) {
+        return l->empty();
+      });
 }
 
 std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
@@ -236,7 +217,6 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
 std::ostream& operator<<(std::ostream& os,
                          const Pool::ReclaimObjectsStats& stats) {
   os << "[roots: " << stats.roots << ", begin_total: " << stats.begin_total
-     << ", begin_dead: " << stats.begin_dead
      << ", end_total: " << stats.end_total
      << ", generations: " << stats.generations << "]";
   return os;
@@ -292,7 +272,6 @@ bool tests_registration = tests::Register(
             Pool::ReclaimObjectsStats stats = gc::Pool().Reclaim();
             CHECK_EQ(stats.begin_total, 0ul);
             CHECK_EQ(stats.end_total, 0ul);
-            CHECK_EQ(stats.begin_dead, 0ul);
             CHECK_EQ(stats.roots, 0ul);
           }},
      {.name = L"PreservesRoots",
@@ -332,7 +311,6 @@ bool tests_registration = tests::Register(
                   VLOG(5) << "Start reclaim.";
                   auto stats = pool.Reclaim();
                   CHECK_EQ(stats.begin_total, 2ul);
-                  CHECK_EQ(stats.begin_dead, 1ul);
                   CHECK_EQ(stats.roots, 1ul);
                   CHECK_EQ(stats.end_total, 1ul);
 
@@ -345,7 +323,6 @@ bool tests_registration = tests::Register(
 
             Pool::ReclaimObjectsStats stats = pool.Reclaim();
             CHECK_EQ(stats.begin_total, 1ul);
-            CHECK_EQ(stats.begin_dead, 1ul);
             CHECK_EQ(stats.roots, 0ul);
             CHECK_EQ(stats.end_total, 0ul);
           }},
@@ -443,7 +420,6 @@ bool tests_registration = tests::Register(
             CHECK(!root.ptr()->delete_notification->HasBeenNotified());
             Pool::ReclaimObjectsStats stats = pool.Reclaim();
             CHECK_EQ(stats.begin_total, 7ul);
-            CHECK_EQ(stats.begin_dead, 2ul);
             CHECK_EQ(stats.roots, 1ul);
             CHECK_EQ(stats.end_total, 5ul);
           }},
