@@ -35,9 +35,9 @@ gc::Root<editor::OpenBuffer> VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(
   return Value::NewObject(
       pool, VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype.object_type,
       std::shared_ptr<void>(wrapper, wrapper.get()),
-      [control_frame = wrapper->buffer.control_frame()] {
-        return std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>>(
-            {control_frame});
+      [object_metadata = wrapper->buffer.object_metadata()] {
+        return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
+            {object_metadata});
       });
 }
 

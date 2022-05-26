@@ -207,7 +207,7 @@ std::shared_ptr<void> Value::get_user_value(const VMType& type) const {
 }
 
 struct LockedDependencies {
-  std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>> dependencies;
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies;
 };
 
 Value::Callback Value::LockCallback() {
@@ -234,11 +234,11 @@ ValueOrError<double> Value::ToDouble() const {
   }
 }
 
-std::vector<language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>
+std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 Value::expand() const {
   return expand_callback == nullptr
              ? std::vector<language::NonNull<
-                   std::shared_ptr<language::gc::ControlFrame>>>()
+                   std::shared_ptr<language::gc::ObjectMetadata>>>()
              : expand_callback();
 }
 
@@ -283,16 +283,16 @@ bool value_gc_tests_registration = tests::Register(
                 },
                 [nested] {
                   return std::vector<
-                      NonNull<std::shared_ptr<gc::ControlFrame>>>();
+                      NonNull<std::shared_ptr<gc::ObjectMetadata>>>();
                 });
             return Value::NewFunction(
                 pool, PurityType::kPure, {VMType::Void()},
                 [child_ptr = child.ptr()](auto, Trampoline&) {
                   return futures::Past(Error(L"Some error."));
                 },
-                [child_frame = child.ptr().control_frame()] {
+                [child_frame = child.ptr().object_metadata()] {
                   return std::vector<
-                      NonNull<std::shared_ptr<gc::ControlFrame>>>(
+                      NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
                       {child_frame});
                 });
           }();
@@ -318,12 +318,12 @@ bool value_gc_tests_registration = tests::Register(
 }
 }  // namespace afc::vm
 namespace afc::language::gc {
-std::vector<NonNull<std::shared_ptr<ControlFrame>>> Expand(
+std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
     const afc::vm::LockedDependencies& dependencies) {
   return dependencies.dependencies;
 }
 
-std::vector<NonNull<std::shared_ptr<ControlFrame>>> Expand(
+std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
     const afc::vm::Value& value) {
   return value.expand();
 }

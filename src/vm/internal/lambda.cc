@@ -105,8 +105,8 @@ class LambdaExpression : public Expression {
               });
         },
         [parent_environment] {
-          return std::vector<NonNull<std::shared_ptr<gc::ControlFrame>>>(
-              {parent_environment.control_frame()});
+          return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
+              {parent_environment.object_metadata()});
         });
   }
 

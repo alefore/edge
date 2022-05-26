@@ -13,8 +13,6 @@
 
 namespace afc::language::gc {
 
-class ControlFrame;
-
 template <typename T>
 class Ptr;
 
@@ -24,11 +22,62 @@ class WeakPtr;
 template <typename T>
 class Root;
 
+class Pool;
+
+// The object metadata, allocated once per object managed. This is an internal
+// class; the reason we expose it here is to allow implementation of the
+// `Expand` functions.
+//
+// This is agnostic to the type of the contained value. In fact, it can't even
+// retrieve the original value.
+//
+// The only `std::shared_ptr<>` reference (in the entire hierarchy of classes in
+// afc::language::gc) to the objects managed is kept inside
+// `ObjectMetadata::expand_callback`. Everything else just keeps
+// `std::weak_ptr<>` references. By clearing up the `expand_callback`, we
+// effectively allow objects to be deleted.
+class ObjectMetadata {
+ private:
+  friend Pool;
+
+  using ExpandCallback = std::function<
+      std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>()>;
+
+  struct ConstructorAccessKey {
+   private:
+    ConstructorAccessKey() = default;
+    friend Pool;
+  };
+
+ public:
+  ObjectMetadata(ConstructorAccessKey, Pool& pool,
+                 ExpandCallback expand_callback);
+
+  Pool& pool() const;
+
+  bool IsAlive() const;
+
+ private:
+  Pool& pool_;
+  struct Data {
+    ExpandCallback expand_callback;
+    bool reached = false;
+  };
+  concurrent::Protected<Data> data_;
+};
+
 class Pool {
  public:
   template <typename T>
-  Root<T> NewRoot(language::NonNull<std::unique_ptr<T>> value) {
-    return Root<T>(*this, std::move(value));
+  Root<T> NewRoot(language::NonNull<std::unique_ptr<T>> value_unique) {
+    language::NonNull<std::shared_ptr<T>> value = std::move(value_unique);
+    return Ptr<T>(
+               std::weak_ptr<T>(value.get_shared()), NewObjectMetadata([value] {
+                 std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>
+                 Expand(const T&);
+                 return Expand(value.value());
+               }))
+        .ToRoot();
   }
 
   ~Pool();
@@ -46,39 +95,40 @@ class Pool {
 
  private:
   template <typename T>
-  friend class Ptr;
-
-  template <typename T>
   friend class Root;
 
-  void AddObj(language::NonNull<std::shared_ptr<ControlFrame>> control_frame);
-  RootRegistration AddRoot(std::weak_ptr<ControlFrame> control_frame);
+  language::NonNull<std::shared_ptr<ObjectMetadata>> NewObjectMetadata(
+      ObjectMetadata::ExpandCallback expand_callback);
 
+  RootRegistration AddRoot(std::weak_ptr<ObjectMetadata> object_metadata);
+
+  using ObjectsMetadataVector = std::vector<std::weak_ptr<ObjectMetadata>>;
   struct Generation {
     bool IsEmpty() const;
 
-    // All the control frames for all the objects allocated into this pool.
-    std::vector<std::weak_ptr<ControlFrame>> objects;
+    // All the object metadata for all the objects allocated into this pool.
+    ObjectsMetadataVector object_metadata;
 
-    // Weak ownership of the control frames for all the roots.
-    std::list<std::weak_ptr<ControlFrame>> roots;
+    // Weak ownership of the object metadata for all the roots.
+    std::list<std::weak_ptr<ObjectMetadata>> roots;
 
     struct RootDeleted {
       NonNull<Generation*> generation;
-      std::list<std::weak_ptr<ControlFrame>>::iterator it;
+      std::list<std::weak_ptr<ObjectMetadata>>::iterator it;
     };
     std::vector<RootDeleted> roots_deleted;
   };
 
-  std::list<language::NonNull<std::shared_ptr<ControlFrame>>> RegisterAllRoots(
+  std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
+  RegisterAllRoots(
       const std::list<NonNull<std::unique_ptr<Generation>>>& generations);
 
   void RegisterRoots(
       const Generation& generation,
-      std::list<language::NonNull<std::shared_ptr<ControlFrame>>>& output);
+      std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>& output);
 
   void MarkReachable(
-      std::list<language::NonNull<std::shared_ptr<ControlFrame>>> expand);
+      std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>> expand);
 
   concurrent::Protected<NonNull<std::unique_ptr<Generation>>>
       current_generation_;
@@ -88,51 +138,12 @@ class Pool {
   // entire lock on `current_generation_` for the duration of the collection; in
   // the future, that may enable us to even run the collection asynchronously
   // (in a dedicated thread).
-  //
-  // Invariant: `objects` will be empty in all elements except for the very
-  // first. `roots_deleted` will always be empty.
   concurrent::Protected<std::list<NonNull<std::unique_ptr<Generation>>>>
       generations_;
 };
 
 std::ostream& operator<<(std::ostream& os,
                          const Pool::ReclaimObjectsStats& stats);
-
-// The control frame, allocated once per object managed. This is an internal
-// class; the reason we expose it here is to allow implementation of the
-// `Expand` functions.
-//
-// This is agnostic to the type of the contained value.
-struct ControlFrame {
- private:
-  friend Pool;
-
-  template <typename T>
-  friend class Ptr;
-
-  template <typename T>
-  friend class WeakPtr;
-
-  struct ConstructorAccessKey {};
-
-  using ExpandCallback = std::function<
-      std::vector<language::NonNull<std::shared_ptr<ControlFrame>>>()>;
-
- public:
-  ControlFrame(ConstructorAccessKey, Pool& pool, ExpandCallback expand_callback)
-      : pool_(pool),
-        data_(Data{.expand_callback = std::move(expand_callback)}) {}
-
- private:
-  Pool& pool() const { return pool_; }
-
-  Pool& pool_;
-  struct Data {
-    ExpandCallback expand_callback;
-    bool reached = false;
-  };
-  concurrent::Protected<Data> data_;
-};
 
 // A mutable pointer with shared ownership of a managed object. Behaves very
 // much like `std::shared_ptr<T>`: when the number of references drops to 0, the
@@ -151,23 +162,23 @@ class Ptr {
 
   template <typename U>
   Ptr(const Ptr<U>& other)
-      : value_(other.value_), control_frame_(other.control_frame_) {}
+      : value_(other.value_), object_metadata_(other.object_metadata_) {}
 
   template <typename U>
   Ptr<T>& operator=(const Ptr<U>& other) {
     value_ = other.value_;
-    control_frame_ = other.control_frame_;
+    object_metadata_ = other.object_metadata_;
     return *this;
   }
 
   template <typename U>
   Ptr<T>& operator=(Ptr<U>&& other) {
     value_ = std::move(other.value_);
-    control_frame_ = std::move(other.control_frame_);
+    object_metadata_ = std::move(other.object_metadata_);
     return *this;
   }
 
-  Pool& pool() const { return control_frame_->pool(); }
+  Pool& pool() const { return object_metadata_->pool(); }
 
   T* operator->() const {
     std::shared_ptr<T> locked_value = value_.lock();
@@ -178,21 +189,12 @@ class Ptr {
 
   // This is only exposed in order to allow implementation of `Expand`
   // functions.
-  language::NonNull<std::shared_ptr<ControlFrame>> control_frame() const {
-    return control_frame_;
+  language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata() const {
+    return object_metadata_;
   }
 
  private:
-  static Ptr<T> New(Pool& pool, language::NonNull<std::shared_ptr<T>> value) {
-    auto control_frame = language::MakeNonNullShared<ControlFrame>(
-        ControlFrame::ConstructorAccessKey(), pool, [value] {
-          std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
-              const T&);
-          return Expand(value.value());
-        });
-    pool.AddObj(control_frame);
-    return Ptr(std::weak_ptr<T>(value.get_shared()), control_frame);
-  }
+  friend Pool;
 
   template <typename U>
   friend class Root;
@@ -205,23 +207,24 @@ class Ptr {
 
   template <typename U>
   Ptr(std::weak_ptr<U> value,
-      language::NonNull<std::shared_ptr<ControlFrame>> control_frame)
-      : value_(value), control_frame_(control_frame) {
-    VLOG(5) << "Ptr(pool, value): " << control_frame_.get_shared()
+      language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata)
+      : value_(value), object_metadata_(object_metadata) {
+    VLOG(5) << "Ptr(pool, value): " << object_metadata_.get_shared()
             << " (value: " << value_.lock() << ")";
   }
 
   // We keep only a weak reference to the value here, locking it each time. The
-  // real reference is kept inside ControlFrame::expand_callback_. The ownership
-  // is shared through the shared ownership of the control frame.
+  // real reference is kept inside ObjectMetadata::expand_callback_. The
+  // ownership is shared through the shared ownership of the object metadata.
   //
-  // When the last Ptr instance to a given value and frame are dropped, the
-  // ControlFrame is destroyed, allowing the object to be collected.
+  // When the last Ptr instance to a given value and object metadata are
+  // dropped, the ObjectMetadata is destroyed, allowing the object to be
+  // collected.
   //
   // If the MemoryPool detects that an object is no longer reachable, it will
-  // trigger its collection by overriding `ControlFrame::expand_callback_`.
+  // trigger its collection by overriding `ObjectMetadata::expand_callback_`.
   std::weak_ptr<T> value_;
-  language::NonNull<std::shared_ptr<ControlFrame>> control_frame_;
+  language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata_;
 };
 
 template <typename T>
@@ -231,11 +234,12 @@ class WeakPtr {
 
   std::optional<Root<T>> Lock() const {
     return VisitPointer(
-        control_frame_,
-        [&](language::NonNull<std::shared_ptr<ControlFrame>> control_frame) {
-          return control_frame->data_.lock()->expand_callback == nullptr
-                     ? std::optional<Root<T>>()
-                     : Ptr<T>(value_, control_frame).ToRoot();
+        object_metadata_,
+        [&](language::NonNull<std::shared_ptr<ObjectMetadata>>
+                object_metadata) {
+          return object_metadata->IsAlive()
+                     ? Ptr<T>(value_, object_metadata).ToRoot()
+                     : std::optional<Root<T>>();
         },
         [] { return std::optional<Root<T>>(); });
   }
@@ -243,10 +247,11 @@ class WeakPtr {
  private:
   friend class Ptr<T>;
   WeakPtr(Ptr<T> ptr)
-      : value_(ptr.value_), control_frame_(ptr.control_frame_.get_shared()) {}
+      : value_(ptr.value_),
+        object_metadata_(ptr.object_metadata_.get_shared()) {}
 
   std::weak_ptr<T> value_;
-  std::weak_ptr<ControlFrame> control_frame_;
+  std::weak_ptr<ObjectMetadata> object_metadata_;
 };
 
 template <typename T>
@@ -258,13 +263,13 @@ class Root {
   template <typename U>
   Root(Root<U>&& other)
       : ptr_(std::move(other.ptr_)),
-        registration_(pool().AddRoot(ptr_.control_frame_.get_shared())) {}
+        registration_(pool().AddRoot(ptr_.object_metadata_.get_shared())) {}
 
   template <typename U>
   Root<T>& operator=(Root<U>&& other) {
     CHECK(this != &other);
     std::swap(ptr_.value_, other.ptr_.value_);
-    std::swap(ptr_.control_frame_, other.ptr_.control_frame_);
+    std::swap(ptr_.object_metadata_, other.ptr_.object_metadata_);
     std::swap(registration_, other.registration_);
     return *this;
   }
@@ -283,12 +288,10 @@ class Root {
   template <typename U>
   friend class Root;
 
-  Root(Pool& pool, language::NonNull<std::unique_ptr<T>> value)
-      : Root(Ptr<T>::New(pool, std::move(value))) {}
-
   Root(const Ptr<T>& ptr)
       : ptr_(ptr),
-        registration_(ptr_.pool().AddRoot(ptr_.control_frame_.get_shared())) {}
+        registration_(ptr_.pool().AddRoot(ptr_.object_metadata_.get_shared())) {
+  }
 
   Ptr<T> ptr_;
   Pool::RootRegistration registration_;

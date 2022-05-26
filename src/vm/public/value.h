@@ -35,7 +35,7 @@ class Value {
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
       std::vector<language::gc::Root<Value>>, Trampoline&)>;
   using ExpandCallback = std::function<std::vector<
-      language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>()>;
+      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>()>;
 
   static language::gc::Root<Value> New(language::gc::Pool& pool, const VMType&);
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
@@ -52,14 +52,14 @@ class Value {
       language::gc::Pool& pool, VMTypeObjectTypeName name,
       std::shared_ptr<void> value, ExpandCallback expand_callback = [] {
         return std::vector<
-            language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>();
+            language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>();
       });
   static language::gc::Root<Value> NewFunction(
       language::gc::Pool& pool, PurityType purity_type,
       std::vector<VMType> arguments, Callback callback,
       ExpandCallback expand_callback = []() {
         return std::vector<
-            language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>();
+            language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>();
       });
 
   // Convenience wrapper.
@@ -92,7 +92,7 @@ class Value {
   // integer.
   language::ValueOrError<double> ToDouble() const;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   expand() const;
 
  private:

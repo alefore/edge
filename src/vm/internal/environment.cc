@@ -295,25 +295,25 @@ void Environment::ForEachNonRecursive(
   }
 }
 
-std::vector<language::NonNull<std::shared_ptr<gc::ControlFrame>>>
+std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 Environment::Expand() const {
-  std::vector<language::NonNull<std::shared_ptr<gc::ControlFrame>>> output;
+  std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
   if (parent_environment().has_value()) {
-    output.push_back(parent_environment()->control_frame());
+    output.push_back(parent_environment()->object_metadata());
   }
   ForEachNonRecursive(
       [&output](const std::wstring&, const gc::Ptr<Value>& value) {
-        output.push_back(value.control_frame());
+        output.push_back(value.object_metadata());
       });
   for (std::pair<std::wstring, gc::Ptr<Environment>> entry : namespaces_) {
-    output.push_back(entry.second.control_frame());
+    output.push_back(entry.second.object_metadata());
   }
   return output;
 }
 
 }  // namespace afc::vm
 namespace afc::language::gc {
-std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
+std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
     const afc::vm::Environment& environment) {
   return environment.Expand();
 }

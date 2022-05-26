@@ -71,7 +71,7 @@ class Environment {
       std::function<void(const std::wstring&, const language::gc::Ptr<Value>&)>
           callback) const;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ControlFrame>>>
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
 
  private:
@@ -90,7 +90,7 @@ class Environment {
 
 }  // namespace afc::vm
 namespace afc::language::gc {
-std::vector<language::NonNull<std::shared_ptr<ControlFrame>>> Expand(
+std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
     const afc::vm::Environment&);
 }  // namespace afc::language::gc
 

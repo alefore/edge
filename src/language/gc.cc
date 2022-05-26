@@ -10,6 +10,17 @@ namespace gc {
 using infrastructure::Tracker;
 using language::NonNull;
 
+ObjectMetadata::ObjectMetadata(ConstructorAccessKey, Pool& pool,
+                               ExpandCallback expand_callback)
+    : pool_(pool), data_(Data{.expand_callback = std::move(expand_callback)}) {}
+
+Pool& ObjectMetadata::pool() const { return pool_; }
+
+bool ObjectMetadata::IsAlive() const {
+  return data_.lock(
+      [](const Data& data) { return data.expand_callback != nullptr; });
+}
+
 Pool::~Pool() {
   // TODO(gc, 2022-05-11): Enable this validation:
   // CHECK(roots_.empty());
@@ -17,7 +28,7 @@ Pool::~Pool() {
 }
 
 bool Pool::Generation::IsEmpty() const {
-  return objects.empty() && roots.empty() && roots_deleted.empty();
+  return object_metadata.empty() && roots.empty() && roots_deleted.empty();
 }
 
 Pool::ReclaimObjectsStats Pool::Reclaim() {
@@ -26,7 +37,7 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
 
   // We collect expired objects here and explicitly delete them once we have
   // unlocked data_.
-  std::vector<ControlFrame::ExpandCallback> expired_objects_callbacks;
+  std::vector<ObjectMetadata::ExpandCallback> expired_objects_callbacks;
 
   ReclaimObjectsStats stats;
 
@@ -62,18 +73,18 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
         stats.generations = generations.size();
 
         for (const NonNull<std::unique_ptr<Generation>>& g : generations)
-          stats.begin_total += g->objects.size();
+          stats.begin_total += g->object_metadata.size();
 
         {
           static Tracker tracker(L"gc::Pool::Reclaim::Initial Dead");
           auto call = tracker.Call();
 
           for (const NonNull<std::unique_ptr<Generation>>& g : generations)
-            for (auto& obj_weak : g->objects)
+            for (auto& obj_weak : g->object_metadata)
               VisitPointer(
                   obj_weak,
-                  [&](NonNull<std::shared_ptr<ControlFrame>> obj) {
-                    obj->data_.lock([](ControlFrame::Data& object_data) {
+                  [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
+                    obj->data_.lock([](ObjectMetadata::Data& object_data) {
                       object_data.reached = false;
                     });
                   },
@@ -86,18 +97,18 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
         MarkReachable(RegisterAllRoots(generations));
 
         VLOG(3) << "Building survivers list.";
-        std::vector<std::weak_ptr<ControlFrame>> survivers;
+        std::vector<std::weak_ptr<ObjectMetadata>> survivers;
         {
           static Tracker tracker(L"gc::Pool::Reclaim::Build Survivers List");
           auto call = tracker.Call();
           for (const NonNull<std::unique_ptr<Generation>>& g : generations) {
             VLOG(5) << "Starting in generation with objects: "
-                    << g->objects.size();
-            for (std::weak_ptr<ControlFrame>& obj_weak : g->objects) {
+                    << g->object_metadata.size();
+            for (std::weak_ptr<ObjectMetadata>& obj_weak : g->object_metadata) {
               VisitPointer(
                   obj_weak,
-                  [&](NonNull<std::shared_ptr<ControlFrame>> obj) {
-                    obj->data_.lock([&](ControlFrame::Data& object_data) {
+                  [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
+                    obj->data_.lock([&](ObjectMetadata::Data& object_data) {
                       if (object_data.reached) {
                         object_data.reached = false;
                         survivers.push_back(std::move(obj).get_shared());
@@ -110,12 +121,12 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
                   },
                   [] {});
             }
-            g->objects.clear();
+            g->object_metadata.clear();
           }
         }
         VLOG(3) << "Survivers: " << survivers.size();
-        generations.front()->objects = std::move(survivers);
-        stats.end_total = generations.front()->objects.size();
+        generations.front()->object_metadata = std::move(survivers);
+        stats.end_total = generations.front()->object_metadata.size();
       });
 
   VLOG(3) << "Allowing unreachable object to be deleted: "
@@ -130,14 +141,14 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
   return stats;
 }
 
-std::list<language::NonNull<std::shared_ptr<ControlFrame>>>
+std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
 Pool::RegisterAllRoots(
     const std::list<NonNull<std::unique_ptr<Generation>>>& generations) {
   VLOG(3) << "Registering roots.";
   static Tracker tracker(L"gc::Pool::Reclaim::RegisterAllRoots");
   auto call = tracker.Call();
 
-  std::list<language::NonNull<std::shared_ptr<ControlFrame>>> output;
+  std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>> output;
   for (const NonNull<std::unique_ptr<Generation>>& generation : generations)
     RegisterRoots(generation.value(), output);
 
@@ -147,12 +158,12 @@ Pool::RegisterAllRoots(
 
 void Pool::RegisterRoots(
     const Generation& generation,
-    std::list<language::NonNull<std::shared_ptr<ControlFrame>>>& output) {
-  for (const std::weak_ptr<ControlFrame>& root_weak : generation.roots) {
+    std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>& output) {
+  for (const std::weak_ptr<ObjectMetadata>& root_weak : generation.roots) {
     VisitPointer(
         root_weak,
-        [&output](language::NonNull<std::shared_ptr<ControlFrame>> root) {
-          root->data_.lock([&](ControlFrame::Data& object_data) {
+        [&output](language::NonNull<std::shared_ptr<ObjectMetadata>> root) {
+          root->data_.lock([&](ObjectMetadata::Data& object_data) {
             CHECK(!object_data.reached);
             CHECK(object_data.expand_callback != nullptr);
           });
@@ -163,28 +174,28 @@ void Pool::RegisterRoots(
 }
 
 void Pool::MarkReachable(
-    std::list<language::NonNull<std::shared_ptr<ControlFrame>>> expand) {
+    std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>> expand) {
   VLOG(3) << "Starting recursive expansion (roots: " << expand.size() << ")";
 
   static Tracker tracker(L"gc::Pool::Reclaim::Recursive Expansion");
   auto call = tracker.Call();
 
   while (!expand.empty()) {
-    language::NonNull<std::shared_ptr<ControlFrame>> front =
+    language::NonNull<std::shared_ptr<ObjectMetadata>> front =
         std::move(expand.front());
     expand.pop_front();
     VLOG(5) << "Considering obj: " << front.get_shared();
-    auto expansion = front->data_.lock([&](ControlFrame::Data& object_data) {
+    auto expansion = front->data_.lock([&](ObjectMetadata::Data& object_data) {
       CHECK(object_data.expand_callback != nullptr);
       if (object_data.reached)
-        return std::vector<NonNull<std::shared_ptr<ControlFrame>>>();
+        return std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>();
       object_data.reached = true;
       return object_data.expand_callback();
     });
     VLOG(6) << "Installing expansion of " << front.get_shared() << ": "
             << expansion.size();
-    for (language::NonNull<std::shared_ptr<ControlFrame>> obj : expansion) {
-      obj->data_.lock([&](ControlFrame::Data& object_data) {
+    for (language::NonNull<std::shared_ptr<ObjectMetadata>> obj : expansion) {
+      obj->data_.lock([&](ObjectMetadata::Data& object_data) {
         CHECK(object_data.expand_callback != nullptr);
         if (!object_data.reached) {
           expand.push_back(std::move(obj));
@@ -195,11 +206,11 @@ void Pool::MarkReachable(
 }
 
 Pool::RootRegistration Pool::AddRoot(
-    std::weak_ptr<ControlFrame> control_frame) {
-  VLOG(5) << "Adding root: " << control_frame.lock();
+    std::weak_ptr<ObjectMetadata> object_metadata) {
+  VLOG(5) << "Adding root: " << object_metadata.lock();
   return current_generation_.lock(
       [&](NonNull<std::unique_ptr<Generation>>& generation) {
-        generation->roots.push_back(control_frame);
+        generation->roots.push_back(object_metadata);
         return RootRegistration(
             new bool(false),
             [this, root_deleted = Generation::RootDeleted{
@@ -216,13 +227,17 @@ Pool::RootRegistration Pool::AddRoot(
       });
 }
 
-void Pool::AddObj(
-    language::NonNull<std::shared_ptr<ControlFrame>> control_frame) {
+language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
+    ObjectMetadata::ExpandCallback expand_callback) {
+  language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata =
+      MakeNonNullShared<ObjectMetadata>(ObjectMetadata::ConstructorAccessKey(),
+                                        *this, std::move(expand_callback));
   current_generation_.lock([&](NonNull<std::unique_ptr<Generation>>& data) {
-    data->objects.push_back(control_frame.get_shared());
-    VLOG(5) << "Added object: " << control_frame.get_shared()
-            << " (total: " << data->objects.size() << ")";
+    data->object_metadata.push_back(object_metadata.get_shared());
+    VLOG(5) << "Added object: " << object_metadata.get_shared()
+            << " (total: " << data->object_metadata.size() << ")";
   });
+  return object_metadata;
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -253,10 +268,10 @@ struct Node {
 }  // namespace
 
 namespace gc {
-std::vector<NonNull<std::shared_ptr<ControlFrame>>> Expand(const Node& node) {
-  std::vector<NonNull<std::shared_ptr<ControlFrame>>> output;
+std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(const Node& node) {
+  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output;
   for (auto& child : node.children) {
-    output.push_back(child.control_frame());
+    output.push_back(child.object_metadata());
   }
   VLOG(5) << "Generated expansion of node " << &node << ": " << output.size();
   return output;
