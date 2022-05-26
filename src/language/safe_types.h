@@ -141,7 +141,7 @@ class NonNull<std::unique_ptr<T>> {
   T& value() const { return *value_; }
   T* operator->() const { return value_.get(); }
   NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
-
+  NonNull<T*> release() { return NonNull<T*>(value_.release()); }
   std::unique_ptr<T>& get_unique() { return value_; }
 
  private:
