@@ -19,10 +19,10 @@
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
+#include "src/transformation/vm.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/function_call.h"
-#include "src/vm_transformation.h"
 
 namespace afc {
 using language::EmptyValue;

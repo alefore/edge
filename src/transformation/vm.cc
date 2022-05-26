@@ -1,4 +1,4 @@
-#include "src/vm_transformation.h"
+#include "src/transformation/vm.h"
 
 #include <list>
 #include <memory>

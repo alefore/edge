@@ -15,9 +15,9 @@
 #include "src/set_variable_command.h"
 #include "src/shapes.h"
 #include "src/terminal.h"
+#include "src/transformation/vm.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/set.h"
-#include "src/vm_transformation.h"
 
 using afc::language::Pointer;
 

@@ -245,13 +245,13 @@ src/transformation/tree_navigate.cc \
 src/transformation/tree_navigate.h \
 src/transformation/type.cc \
 src/transformation/type.h \
+src/transformation/vm.cc \
+src/transformation/vm.h \
 src/transformation.cc \
 src/transformation.h \
 src/url.cc \
 src/url.h \
 src/variables.h \
-src/vm_transformation.cc \
-src/vm_transformation.h \
 src/vm/public/optional.h \
 src/vm/public/set.h \
 src/vm/public/vector.h \

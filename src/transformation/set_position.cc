@@ -5,7 +5,7 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
-#include "src/vm_transformation.h"
+#include "src/transformation/vm.h"
 
 namespace afc::editor::transformation {
 using language::MakeNonNullUnique;

@@ -7,7 +7,7 @@
 #include "src/seek.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
-#include "src/vm_transformation.h"
+#include "src/transformation/vm.h"
 
 namespace afc::editor {
 using language::MakeNonNullUnique;

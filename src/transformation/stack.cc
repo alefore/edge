@@ -11,7 +11,7 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/input.h"
 #include "src/transformation/switch_case.h"
-#include "src/vm_transformation.h"
+#include "src/transformation/vm.h"
 
 namespace afc::editor {
 namespace transformation {

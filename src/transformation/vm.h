@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_VM_TRANSFORMATION_H__
-#define __AFC_EDITOR_VM_TRANSFORMATION_H__
+#ifndef __AFC_EDITOR_TRANSFORMATION_VM_H__
+#define __AFC_EDITOR_TRANSFORMATION_VM_H__
 
 #include <glog/logging.h>
 
@@ -37,4 +37,4 @@ void RegisterTransformations(language::gc::Pool& pool,
                              vm::Environment& environment);
 }  // namespace afc::editor
 
-#endif  // __AFC_EDITOR_VM_TRANSFORMATION_H__
+#endif  // __AFC_EDITOR_TRANSFORMATION_VM_H__

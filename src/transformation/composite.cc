@@ -6,7 +6,7 @@
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
-#include "src/vm_transformation.h"
+#include "src/transformation/vm.h"
 
 namespace afc {
 using language::MakeNonNullUnique;

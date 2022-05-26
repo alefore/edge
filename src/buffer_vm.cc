@@ -10,7 +10,7 @@
 #include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
 #include "src/line_column_vm.h"
-#include "src/vm_transformation.h"
+#include "src/transformation/vm.h"
 
 namespace afc::vm {
 using language::NonNull;

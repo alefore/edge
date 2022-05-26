@@ -62,7 +62,6 @@ extern "C" {
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
-#include "src/vm_transformation.h"
 
 namespace afc::editor {
 using concurrent::WorkQueue;
