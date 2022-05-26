@@ -10,6 +10,7 @@
 #include "src/language/value_or_error.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
+#include "src/line_column_vm.h"
 #include "src/line_prompt_mode.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
@@ -288,6 +289,15 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
                 }
                 return options;
               })));
+  builder->AddField(
+      L"set_range",
+      vm::NewCallback(pool, PurityTypeWriter,
+                      std::function<std::shared_ptr<Delete>(
+                          std::shared_ptr<Delete>, Range)>(
+                          [](std::shared_ptr<Delete> options, Range range) {
+                            options->range = range;
+                            return options;
+                          })));
 
   builder->AddField(
       L"build",
