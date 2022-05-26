@@ -27,10 +27,6 @@ Pool::~Pool() {
   Reclaim();
 }
 
-bool Pool::Generation::IsEmpty() const {
-  return object_metadata.empty() && roots.empty() && roots_deleted.empty();
-}
-
 Pool::ReclaimObjectsStats Pool::Reclaim() {
   static Tracker tracker(L"gc::Pool::Reclaim");
   auto call = tracker.Call();
@@ -41,93 +37,65 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
 
   ReclaimObjectsStats stats;
 
-  NonNull<std::unique_ptr<Generation>> new_generation;
-  current_generation_.lock(
-      [&](NonNull<std::unique_ptr<Generation>>& generation) {
-        std::swap(new_generation, generation);
-      });
+  Eden frozen_eden;
+  eden_.lock([&](Eden& eden) { std::swap(eden, frozen_eden); });
 
-  generations_.lock(
-      [&](std::list<NonNull<std::unique_ptr<Generation>>>& generations) {
-        VLOG(3) << "Starting with generations: " << generations.size();
-        VLOG(3) << "Removing deleted roots: "
-                << new_generation->roots_deleted.size();
-        for (const Generation::RootDeleted& d : new_generation->roots_deleted)
-          d.generation->roots.erase(d.it);
-        new_generation->roots_deleted.clear();
+  survivors_.lock([&](Survivors& survivors) {
+    VLOG(3) << "Starting with generations: " << survivors.roots.size();
+    VLOG(3) << "Removing deleted roots: " << frozen_eden.roots_deleted.size();
+    for (const Eden::RootDeleted& d : frozen_eden.roots_deleted)
+      d.roots_list->erase(d.it);
+    frozen_eden.roots_deleted.clear();
 
-        VLOG(3) << "Marking reachability and counting initial dead.";
-        for (auto it = generations.begin(); it != generations.end();) {
-          if ((*it)->IsEmpty()) {
-            VLOG(4) << "Erasing empty generation: " << &it->value();
-            generations.erase(it++);
-          } else
-            ++it;
-        }
+    VLOG(4) << "Installing objects from frozen eden.";
+    survivors.roots.push_back(std::move(frozen_eden.roots));
+    survivors.object_metadata.insert(survivors.object_metadata.end(),
+                                     frozen_eden.object_metadata.begin(),
+                                     frozen_eden.object_metadata.end());
 
-        if (generations.empty() || !new_generation->IsEmpty()) {
-          VLOG(3) << "Pushing new generation: " << new_generation->IsEmpty();
-          generations.push_back(std::move(new_generation));
-        }
+    VLOG(3) << "Removing empty lists of roots.";
+    survivors.roots.remove_if(
+        [](const NonNull<std::unique_ptr<ObjectMetadataList>>& l) {
+          return l->empty();
+        });
 
-        stats.generations = generations.size();
+#if 0
+    if (survivors.roots.empty() || !new_generation->IsEmpty()) {
+      VLOG(3) << "Pushing new generation: " << new_generation->IsEmpty();
+      generations.push_back(std::move(new_generation));
+    }
+#endif
 
-        for (const NonNull<std::unique_ptr<Generation>>& g : generations)
-          stats.begin_total += g->object_metadata.size();
+    stats.generations = survivors.roots.size();
+    stats.begin_total = survivors.object_metadata.size();
 
-        {
-          static Tracker tracker(L"gc::Pool::Reclaim::Initial Dead");
-          auto call = tracker.Call();
+    {
+      static Tracker tracker(L"gc::Pool::Reclaim::Initial Dead");
+      auto call = tracker.Call();
 
-          for (const NonNull<std::unique_ptr<Generation>>& g : generations)
-            for (auto& obj_weak : g->object_metadata)
-              VisitPointer(
-                  obj_weak,
-                  [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
-                    obj->data_.lock([](ObjectMetadata::Data& object_data) {
-                      object_data.reached = false;
-                    });
-                  },
-                  [&] { stats.begin_dead++; });
-        }
+      for (std::weak_ptr<ObjectMetadata>& obj_weak : survivors.object_metadata)
+        VisitPointer(
+            obj_weak,
+            [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
+              obj->data_.lock([](ObjectMetadata::Data& object_data) {
+                object_data.reached = false;
+              });
+            },
+            [&] { stats.begin_dead++; });
+    }
 
-        for (const NonNull<std::unique_ptr<Generation>>& g : generations)
-          stats.roots += g->roots.size();
+    for (const NonNull<std::unique_ptr<ObjectMetadataList>>& l :
+         survivors.roots)
+      stats.roots += l->size();
 
-        MarkReachable(RegisterAllRoots(generations));
+    MarkReachable(RegisterAllRoots(survivors.roots));
 
-        VLOG(3) << "Building survivers list.";
-        std::vector<std::weak_ptr<ObjectMetadata>> survivers;
-        {
-          static Tracker tracker(L"gc::Pool::Reclaim::Build Survivers List");
-          auto call = tracker.Call();
-          for (const NonNull<std::unique_ptr<Generation>>& g : generations) {
-            VLOG(5) << "Starting in generation with objects: "
-                    << g->object_metadata.size();
-            for (std::weak_ptr<ObjectMetadata>& obj_weak : g->object_metadata) {
-              VisitPointer(
-                  obj_weak,
-                  [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
-                    obj->data_.lock([&](ObjectMetadata::Data& object_data) {
-                      if (object_data.reached) {
-                        object_data.reached = false;
-                        survivers.push_back(std::move(obj).get_shared());
-                      } else {
-                        expired_objects_callbacks.push_back(
-                            std::move(object_data.expand_callback));
-                        object_data.expand_callback = nullptr;
-                      }
-                    });
-                  },
-                  [] {});
-            }
-            g->object_metadata.clear();
-          }
-        }
-        VLOG(3) << "Survivers: " << survivers.size();
-        generations.front()->object_metadata = std::move(survivers);
-        stats.end_total = generations.front()->object_metadata.size();
-      });
+    VLOG(3) << "Building survivor list.";
+    survivors.object_metadata = BuildSurvivorList(
+        std::move(survivors.object_metadata), expired_objects_callbacks);
+    stats.end_total = survivors.object_metadata.size();
+    VLOG(3) << "Survivers: " << stats.end_total;
+  });
 
   VLOG(3) << "Allowing unreachable object to be deleted: "
           << expired_objects_callbacks.size();
@@ -143,23 +111,24 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
 
 std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
 Pool::RegisterAllRoots(
-    const std::list<NonNull<std::unique_ptr<Generation>>>& generations) {
+    const std::list<NonNull<std::unique_ptr<ObjectMetadataList>>>&
+        object_metadata) {
   VLOG(3) << "Registering roots.";
   static Tracker tracker(L"gc::Pool::Reclaim::RegisterAllRoots");
   auto call = tracker.Call();
 
   std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>> output;
-  for (const NonNull<std::unique_ptr<Generation>>& generation : generations)
-    RegisterRoots(generation.value(), output);
+  for (const NonNull<std::unique_ptr<ObjectMetadataList>>& l : object_metadata)
+    RegisterRoots(l.value(), output);
 
   VLOG(5) << "Roots registered: " << output.size();
   return output;
 }
 
 void Pool::RegisterRoots(
-    const Generation& generation,
+    const ObjectMetadataList& roots,
     std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>& output) {
-  for (const std::weak_ptr<ObjectMetadata>& root_weak : generation.roots) {
+  for (const std::weak_ptr<ObjectMetadata>& root_weak : roots) {
     VisitPointer(
         root_weak,
         [&output](language::NonNull<std::shared_ptr<ObjectMetadata>> root) {
@@ -205,26 +174,50 @@ void Pool::MarkReachable(
   }
 }
 
+Pool::ObjectMetadataList Pool::BuildSurvivorList(
+    Pool::ObjectMetadataList input,
+    std::vector<ObjectMetadata::ExpandCallback>& expired_objects_callbacks) {
+  static Tracker tracker(L"gc::Pool::Reclaim::Build Survivor List");
+  auto call = tracker.Call();
+
+  ObjectMetadataList output;
+  for (std::weak_ptr<ObjectMetadata>& obj_weak : input) {
+    VisitPointer(
+        obj_weak,
+        [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
+          obj->data_.lock([&](ObjectMetadata::Data& object_data) {
+            if (object_data.reached) {
+              object_data.reached = false;
+              output.push_back(obj.get_shared());
+            } else {
+              expired_objects_callbacks.push_back(
+                  std::move(object_data.expand_callback));
+            }
+          });
+        },
+        [] {});
+  }
+  return output;
+}
+
 Pool::RootRegistration Pool::AddRoot(
     std::weak_ptr<ObjectMetadata> object_metadata) {
   VLOG(5) << "Adding root: " << object_metadata.lock();
-  return current_generation_.lock(
-      [&](NonNull<std::unique_ptr<Generation>>& generation) {
-        generation->roots.push_back(object_metadata);
-        return RootRegistration(
-            new bool(false),
-            [this, root_deleted = Generation::RootDeleted{
-                       .generation = generation.get(),
-                       .it = std::prev(generation->roots.end())}](bool* value) {
-              delete value;
-              current_generation_.lock(
-                  [&](NonNull<std::unique_ptr<Generation>>& generation) {
-                    VLOG(5) << "Erasing roots, generation: "
-                            << root_deleted.generation.get();
-                    generation->roots_deleted.push_back(root_deleted);
-                  });
-            });
-      });
+  return eden_.lock([&](Eden& eden) {
+    eden.roots->push_back(object_metadata);
+    return RootRegistration(
+        new bool(false),
+        [this, root_deleted = Eden::RootDeleted{
+                   .roots_list = NonNull<ObjectMetadataList*>::AddressOf(
+                       eden.roots.value()),
+                   .it = std::prev(eden.roots->end())}](bool* value) {
+          delete value;
+          eden_.lock([&](Eden& eden) {
+            VLOG(5) << "Erasing root.";
+            eden.roots_deleted.push_back(root_deleted);
+          });
+        });
+  });
 }
 
 language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
@@ -232,10 +225,10 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
   language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata =
       MakeNonNullShared<ObjectMetadata>(ObjectMetadata::ConstructorAccessKey(),
                                         *this, std::move(expand_callback));
-  current_generation_.lock([&](NonNull<std::unique_ptr<Generation>>& data) {
-    data->object_metadata.push_back(object_metadata.get_shared());
+  eden_.lock([&](Eden& eden) {
+    eden.object_metadata.push_back(object_metadata.get_shared());
     VLOG(5) << "Added object: " << object_metadata.get_shared()
-            << " (total: " << data->object_metadata.size() << ")";
+            << " (eden total: " << eden.object_metadata.size() << ")";
   });
   return object_metadata;
 }

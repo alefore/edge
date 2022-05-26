@@ -102,44 +102,44 @@ class Pool {
 
   RootRegistration AddRoot(std::weak_ptr<ObjectMetadata> object_metadata);
 
-  using ObjectsMetadataVector = std::vector<std::weak_ptr<ObjectMetadata>>;
-  struct Generation {
-    bool IsEmpty() const;
+  using ObjectMetadataList = std::list<std::weak_ptr<ObjectMetadata>>;
+  struct Eden {
+    ObjectMetadataList object_metadata;
 
-    // All the object metadata for all the objects allocated into this pool.
-    ObjectsMetadataVector object_metadata;
-
-    // Weak ownership of the object metadata for all the roots.
-    std::list<std::weak_ptr<ObjectMetadata>> roots;
+    // This is a unique_ptr to allow us to move it into Ancestors preserving all
+    // iterators.
+    language::NonNull<std::unique_ptr<ObjectMetadataList>> roots;
 
     struct RootDeleted {
-      NonNull<Generation*> generation;
-      std::list<std::weak_ptr<ObjectMetadata>>::iterator it;
+      language::NonNull<ObjectMetadataList*> roots_list;
+      ObjectMetadataList::iterator it;
     };
     std::vector<RootDeleted> roots_deleted;
   };
 
-  std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
+  static std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
   RegisterAllRoots(
-      const std::list<NonNull<std::unique_ptr<Generation>>>& generations);
+      const std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>>&
+          object_metadata);
 
-  void RegisterRoots(
-      const Generation& generation,
+  static void RegisterRoots(
+      const ObjectMetadataList& roots,
       std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>& output);
 
-  void MarkReachable(
+  static void MarkReachable(
       std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>> expand);
 
-  concurrent::Protected<NonNull<std::unique_ptr<Generation>>>
-      current_generation_;
+  static ObjectMetadataList BuildSurvivorList(
+      ObjectMetadataList input,
+      std::vector<ObjectMetadata::ExpandCallback>& expired_object_callbacks);
 
-  // generations_ holds a list of old generations. A new generation is created
-  // on each call to `Reclaim`. We do this so that we don't have to take the
-  // entire lock on `current_generation_` for the duration of the collection; in
-  // the future, that may enable us to even run the collection asynchronously
-  // (in a dedicated thread).
-  concurrent::Protected<std::list<NonNull<std::unique_ptr<Generation>>>>
-      generations_;
+  concurrent::Protected<Eden> eden_;
+
+  struct Survivors {
+    ObjectMetadataList object_metadata;
+    std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>> roots;
+  };
+  concurrent::Protected<Survivors> survivors_;
 };
 
 std::ostream& operator<<(std::ostream& os,
