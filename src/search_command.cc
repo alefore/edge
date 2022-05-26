@@ -196,14 +196,15 @@ class SearchCommand : public Command {
               buffers = std::make_shared<std::vector<gc::Root<OpenBuffer>>>(
                   editor_state_.active_buffers())](
                  const NonNull<std::shared_ptr<LazyString>>& line,
-                 std::unique_ptr<ProgressChannel> progress_channel,
+                 NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
                  NonNull<std::shared_ptr<Notification>> abort_notification) {
                VLOG(5) << "Triggering async search.";
                auto results =
                    std::make_shared<ValueOrError<SearchResultsSummary>>(
                        SearchResultsSummary());
+               // TODO(easy, 2022-05-26): Drop `get_unique`.
                auto progress_aggregator = std::make_shared<ProgressAggregator>(
-                   std::move(progress_channel));
+                   std::move(progress_channel.get_unique()));
                using Control = futures::IterationControlCommand;
                return futures::ForEach(
                           buffers,

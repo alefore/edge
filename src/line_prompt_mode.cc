@@ -850,7 +850,7 @@ void Prompt(PromptOptions options) {
                   }
                   auto prompt_render_state =
                       std::make_shared<PromptRenderState>(prompt_state);
-                  auto progress_channel = std::make_unique<ProgressChannel>(
+                  NonNull<std::unique_ptr<ProgressChannel>> progress_channel(
                       buffer.work_queue(),
                       [prompt_render_state](
                           ProgressInformation extra_information) {
@@ -987,7 +987,7 @@ void Prompt(PromptOptions options) {
                             options
                                 .colorize_options_provider(
                                     line,
-                                    std::make_unique<ProgressChannel>(
+                                    MakeNonNullUnique<ProgressChannel>(
                                         buffer.ptr()->work_queue(),
                                         [](ProgressInformation) {
                                           /* Nothing for now. */

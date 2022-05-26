@@ -422,7 +422,7 @@ class ForkEditorCommand : public Command {
                prompt_state->context_command_callback.has_value()
                    ? ([prompt_state](
                           const NonNull<std::shared_ptr<LazyString>>& line,
-                          std::unique_ptr<ProgressChannel>,
+                          NonNull<std::unique_ptr<ProgressChannel>>,
                           NonNull<std::shared_ptr<Notification>>) {
                        return PromptChange(prompt_state.value(), line);
                      })

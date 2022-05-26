@@ -53,7 +53,7 @@ struct PromptOptions {
 
   using ColorizeFunction = std::function<futures::Value<ColorizePromptOptions>(
       const language::NonNull<std::shared_ptr<LazyString>>& line,
-      std::unique_ptr<ProgressChannel> progress_channel,
+      language::NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
       language::NonNull<std::shared_ptr<concurrent::Notification>>
           abort_notification)>;
 

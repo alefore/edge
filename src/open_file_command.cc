@@ -120,17 +120,17 @@ futures::Value<ColorizePromptOptions> DrawPath(
 
 futures::Value<ColorizePromptOptions> AdjustPath(
     EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
-    std::unique_ptr<ProgressChannel> progress_channel,
+    NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
     NonNull<std::shared_ptr<Notification>> abort_notification) {
-  CHECK(progress_channel != nullptr);
-  return Predict(PredictOptions{
-                     .editor_state = editor,
-                     .predictor = FilePredictor,
-                     .text = line->ToString(),
-                     .input_selection_structure = StructureLine(),
-                     .source_buffers = editor.active_buffers(),
-                     .progress_channel = std::move(progress_channel),
-                     .abort_notification = std::move(abort_notification)})
+  return Predict(
+             PredictOptions{
+                 .editor_state = editor,
+                 .predictor = FilePredictor,
+                 .text = line->ToString(),
+                 .input_selection_structure = StructureLine(),
+                 .source_buffers = editor.active_buffers(),
+                 .progress_channel = std::move(progress_channel.get_unique()),
+                 .abort_notification = std::move(abort_notification)})
       .Transform([&editor, line](std::optional<PredictResults> results) {
         if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
         return DrawPath(editor, line, std::move(results.value()));
@@ -255,7 +255,7 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
         .colorize_options_provider =
             [&editor](
                 const NonNull<std::shared_ptr<LazyString>>& line,
-                std::unique_ptr<ProgressChannel> progress_channel,
+                NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
                 NonNull<std::shared_ptr<Notification>> abort_notification) {
               return AdjustPath(editor, line, std::move(progress_channel),
                                 std::move(abort_notification));

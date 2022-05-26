@@ -208,17 +208,18 @@ NonNull<unique_ptr<Command>> NewSetVariableCommand(EditorState& editor_state) {
             .colorize_options_provider =
                 [&editor_state, variables_predictor = variables_predictor](
                     const NonNull<std::shared_ptr<LazyString>>& line,
-                    std::unique_ptr<ProgressChannel> progress_channel,
+                    NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
                     NonNull<std::shared_ptr<Notification>> abort_notification)
                 -> futures::Value<ColorizePromptOptions> {
-              CHECK(progress_channel != nullptr);
-              return Predict(
-                         {.editor_state = editor_state,
-                          .predictor = variables_predictor,
-                          .text = line->ToString(),
-                          .source_buffers = editor_state.active_buffers(),
-                          .progress_channel = std::move(progress_channel),
-                          .abort_notification = std::move(abort_notification)})
+              return Predict(PredictOptions{.editor_state = editor_state,
+                                            .predictor = variables_predictor,
+                                            .text = line->ToString(),
+                                            .source_buffers =
+                                                editor_state.active_buffers(),
+                                            .progress_channel = std::move(
+                                                progress_channel.get_unique()),
+                                            .abort_notification =
+                                                std::move(abort_notification)})
                   .Transform([line](std::optional<PredictResults> results) {
                     return ColorizePromptOptions{
                         .context = results.has_value()

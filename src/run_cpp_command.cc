@@ -353,7 +353,7 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
                 [&editor_state,
                  search_namespaces = SearchNamespaces(buffer->ptr().value())](
                     const NonNull<std::shared_ptr<LazyString>>& line,
-                    std::unique_ptr<ProgressChannel>,
+                    NonNull<std::unique_ptr<ProgressChannel>>,
                     NonNull<std::shared_ptr<Notification>>) {
                   return ColorizeOptionsProvider(editor_state, line,
                                                  search_namespaces);
