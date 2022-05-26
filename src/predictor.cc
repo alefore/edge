@@ -262,12 +262,12 @@ void RegisterPredictorExactMatch(OpenBuffer& buffer) {
                                vm::Value::NewBool(pool, true));
 }
 
-// TODO(easy): Receive Paths rather than std::wstrings.
-DescendDirectoryTreeOutput DescendDirectoryTree(std::wstring search_path,
+// TODO(easy): Receive Path rather than std::wstrings.
+DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
                                                 std::wstring path) {
   DescendDirectoryTreeOutput output;
   VLOG(6) << "Starting search at: " << search_path;
-  output.dir = OpenDir(search_path);
+  output.dir = OpenDir(search_path.read());
   if (output.dir == nullptr) {
     VLOG(5) << "Unable to open search_path: " << search_path;
     return output;
@@ -286,7 +286,8 @@ DescendDirectoryTreeOutput DescendDirectoryTree(std::wstring search_path,
     } else {
       ++next_candidate;
     }
-    auto test_path = PathJoin(search_path, path.substr(0, next_candidate));
+    auto test_path =
+        PathJoin(search_path.read(), path.substr(0, next_candidate));
     VLOG(8) << "Considering: " << test_path;
     auto subdir = OpenDir(test_path);
     if (subdir == nullptr) {
@@ -426,8 +427,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               int matches = 0;
               for (const auto& search_path : *search_paths) {
                 VLOG(4) << "Considering search path: " << search_path;
-                auto descend_results =
-                    DescendDirectoryTree(search_path.read(), path);
+                auto descend_results = DescendDirectoryTree(search_path, path);
                 if (descend_results.dir == nullptr) {
                   LOG(WARNING) << "Unable to descend: " << search_path;
                   continue;
