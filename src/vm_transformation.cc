@@ -26,19 +26,27 @@ using language::NonNull;
 
 namespace gc = language::gc;
 namespace vm {
-const VMType VMTypeMapper<editor::transformation::Variant*>::vmtype =
+const VMType VMTypeMapper<NonNull<editor::transformation::Variant*>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"Transformation"));
 
-editor::transformation::Variant*
-VMTypeMapper<editor::transformation::Variant*>::get(Value& value) {
-  return static_cast<editor::transformation::Variant*>(
-      value.get_user_value(vmtype).get());
+const VMType VMTypeMapper<
+    NonNull<std::unique_ptr<editor::transformation::Variant>>>::vmtype =
+    VMType::ObjectType(VMTypeObjectTypeName(L"Transformation"));
+
+NonNull<editor::transformation::Variant*>
+VMTypeMapper<NonNull<editor::transformation::Variant*>>::get(Value& value) {
+  return NonNull<editor::transformation::Variant*>::Unsafe(
+      static_cast<editor::transformation::Variant*>(
+          value.get_user_value(vmtype).get()));
 }
 
-gc::Root<Value> VMTypeMapper<editor::transformation::Variant*>::New(
-    gc::Pool& pool, editor::transformation::Variant* value) {
+gc::Root<Value>
+VMTypeMapper<NonNull<std::unique_ptr<editor::transformation::Variant>>>::New(
+    gc::Pool& pool,
+    NonNull<std::unique_ptr<editor::transformation::Variant>> value) {
   return Value::NewObject(
-      pool, vmtype.object_type, shared_ptr<void>(value, [](void* v) {
+      pool, vmtype.object_type,
+      shared_ptr<void>(value.get_unique().release(), [](void* v) {
         delete static_cast<editor::transformation::Variant*>(v);
       }));
 }
@@ -82,13 +90,14 @@ class FunctionTransformation : public CompositeTransformation {
 }  // namespace
 void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
   environment.DefineType(MakeNonNullUnique<vm::ObjectType>(
-      VMTypeMapper<editor::transformation::Variant*>::vmtype));
+      VMTypeMapper<NonNull<editor::transformation::Variant*>>::vmtype));
 
   environment.Define(
       L"FunctionTransformation",
       vm::Value::NewFunction(
           pool, PurityType::kPure,
-          {VMTypeMapper<editor::transformation::Variant*>::vmtype,
+          {VMTypeMapper<NonNull<
+               std::unique_ptr<editor::transformation::Variant>>>::vmtype,
            VMType::Function(
                {VMTypeMapper<
                     std::shared_ptr<CompositeTransformation::Output>>::vmtype,
@@ -96,12 +105,13 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
                     std::shared_ptr<CompositeTransformation::Input>>::vmtype})},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
-            return VMTypeMapper<editor::transformation::Variant*>::New(
-                pool, std::make_unique<transformation::Variant>(
-                          MakeNonNullUnique<FunctionTransformation>(
-                              pool, std::move(args[0])))
-                          .release());
+            return VMTypeMapper<
+                NonNull<std::unique_ptr<editor::transformation::Variant>>>::
+                New(pool, MakeNonNullUnique<transformation::Variant>(
+                              MakeNonNullUnique<FunctionTransformation>(
+                                  pool, std::move(args[0]))));
           }));
+
   transformation::RegisterInsert(pool, environment);
   transformation::RegisterDelete(pool, environment);
   transformation::RegisterSetPosition(pool, environment);

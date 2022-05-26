@@ -185,10 +185,8 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
       L"push", vm::NewCallback(
                    pool, PurityType::kUnknown,
                    [](std::shared_ptr<CompositeTransformation::Output> output,
-                      transformation::Variant* transformation) {
-                     // TODO(2022-05-02, easy): Receive transformation as
-                     // NonNull.
-                     output->Push(*transformation);
+                      NonNull<transformation::Variant*> transformation) {
+                     output->Push(transformation.value());
                      return output;
                    }));
 

@@ -300,12 +300,11 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
                           })));
 
   builder->AddField(
-      L"build",
-      vm::NewCallback(pool, PurityType::kPure,
-                      [](std::shared_ptr<Delete> options) {
-                        CHECK(options != nullptr);
-                        return std::make_unique<Variant>(*options).release();
-                      }));
+      L"build", vm::NewCallback(pool, PurityType::kPure,
+                                [](std::shared_ptr<Delete> options) {
+                                  CHECK(options != nullptr);
+                                  return MakeNonNullUnique<Variant>(*options);
+                                }));
 
   environment.DefineType(std::move(builder));
 }

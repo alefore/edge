@@ -17,10 +17,18 @@ namespace afc::vm {
 class Environment;
 
 template <>
-struct VMTypeMapper<editor::transformation::Variant*> {
-  static editor::transformation::Variant* get(Value& value);
-  static language::gc::Root<Value> New(language::gc::Pool& pool,
-                                       editor::transformation::Variant* value);
+struct VMTypeMapper<language::NonNull<editor::transformation::Variant*>> {
+  static language::NonNull<editor::transformation::Variant*> get(Value& value);
+  static const VMType vmtype;
+};
+
+template <>
+struct VMTypeMapper<
+    language::NonNull<std::unique_ptr<editor::transformation::Variant>>> {
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool,
+      language::NonNull<std::unique_ptr<editor::transformation::Variant>>
+          value);
   static const VMType vmtype;
 };
 }  // namespace afc::vm

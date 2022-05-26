@@ -9,28 +9,22 @@
 
 namespace afc::editor::transformation {
 using language::MakeNonNullUnique;
+using language::NonNull;
 
 void RegisterSetPosition(language::gc::Pool& pool,
                          vm::Environment& environment) {
   using vm::PurityType;
   environment.Define(
       L"SetColumnTransformation",
-      vm::NewCallback(
-          pool, PurityType::kPure, std::function<Variant*(int)>([](int column) {
-            return MakeNonNullUnique<Variant>(SetPosition(ColumnNumber(column)))
-                .get_unique()
-                .release();
-          })));
+      vm::NewCallback(pool, PurityType::kPure, [](int column) {
+        return MakeNonNullUnique<Variant>(SetPosition(ColumnNumber(column)));
+      }));
 
   environment.Define(
       L"SetPositionTransformation",
-      vm::NewCallback(
-          pool, PurityType::kPure,
-          std::function<Variant*(LineColumn)>([](LineColumn position) {
-            return MakeNonNullUnique<Variant>(SetPosition(position))
-                .get_unique()
-                .release();
-          })));
+      vm::NewCallback(pool, PurityType::kPure, [](LineColumn position) {
+        return MakeNonNullUnique<Variant>(SetPosition(position));
+      }));
 }
 
 futures::Value<Result> ApplyBase(const SetPosition& parameters, Input input) {

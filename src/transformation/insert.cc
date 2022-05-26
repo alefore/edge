@@ -173,7 +173,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   builder->AddField(
       L"build",
       NewCallback(pool, PurityType::kPure, [](std::shared_ptr<Insert> options) {
-        return std::make_unique<Variant>(*options).release();
+        return MakeNonNullUnique<Variant>(*options);
       }));
 
   environment.DefineType(std::move(builder));
