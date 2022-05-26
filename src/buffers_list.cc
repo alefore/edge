@@ -581,7 +581,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                     NewLazyString(number_prefix)),
                 number_modifiers);
 
-            wstring progress;
+            std::wstring progress;
             LineModifierSet progress_modifier;
             if (!buffer.GetLineMarks().empty()) {
               progress = L"!";

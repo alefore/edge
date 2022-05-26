@@ -23,8 +23,8 @@ using language::NonNull;
 namespace gc = language::gc;
 
 namespace {
-wstring DescribeSequence(wstring input) {
-  wstring output = L"`";
+std::wstring DescribeSequence(std::wstring input) {
+  std::wstring output = L"`";
   for (auto& c : input) {
     switch (c) {
       case '\t':
@@ -91,13 +91,13 @@ wstring DescribeSequence(wstring input) {
 class HelpCommand : public Command {
  public:
   HelpCommand(EditorState& editor_state, const MapModeCommands& commands,
-              const wstring& mode_description)
+              const std::wstring& mode_description)
       : editor_state_(editor_state),
         commands_(commands),
         mode_description_(mode_description) {}
 
-  wstring Description() const override { return L"Shows documentation."; }
-  wstring Category() const override { return L"Editor"; }
+  std::wstring Description() const override { return L"Shows documentation."; }
+  std::wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(wint_t) {
     auto original_buffer = editor_state_.current_buffer();
@@ -150,7 +150,7 @@ class HelpCommand : public Command {
   }
 
  private:
-  static void StartSection(wstring section, BufferContents& buffer) {
+  static void StartSection(std::wstring section, BufferContents& buffer) {
     buffer.push_back(std::move(section));
     buffer.push_back(L"");
   }
@@ -179,7 +179,7 @@ class HelpCommand : public Command {
                               BufferContents& output) {
     StartSection(L"## Environment", output);
 
-    const gc::Ptr<Environment> environment = original_buffer.environment();
+    const gc::Ptr<vm::Environment> environment = original_buffer.environment();
 
     StartSection(L"### Types & methods", output);
 
@@ -189,24 +189,24 @@ class HelpCommand : public Command {
         L"available methods is given.");
     output.push_back(L"");
 
-    environment->ForEachType(
-        [&](const VMTypeObjectTypeName& name, ObjectType& type) {
-          StartSection(L"#### " + name.read(), output);
-          type.ForEachField([&](const wstring& field_name, Value& value) {
-            std::stringstream value_stream;
-            value_stream << value;
-            const static int kPaddingSize = 40;
-            wstring padding(field_name.size() > kPaddingSize
-                                ? 0
-                                : kPaddingSize - field_name.size(),
-                            L' ');
-            output.push_back(MakeNonNullShared<Line>(StringAppend(
-                NewLazyString(L"* `"), NewLazyString(field_name),
-                NewLazyString(L"`" + std::move(padding) + L"`"),
-                NewLazyString(FromByteString(value_stream.str()) + L"`"))));
-          });
-          output.push_back(L"");
-        });
+    environment->ForEachType([&](const vm::VMTypeObjectTypeName& name,
+                                 vm::ObjectType& type) {
+      StartSection(L"#### " + name.read(), output);
+      type.ForEachField([&](const std::wstring& field_name, vm::Value& value) {
+        std::stringstream value_stream;
+        value_stream << value;
+        const static int kPaddingSize = 40;
+        std::wstring padding(field_name.size() > kPaddingSize
+                                 ? 0
+                                 : kPaddingSize - field_name.size(),
+                             L' ');
+        output.push_back(MakeNonNullShared<Line>(StringAppend(
+            NewLazyString(L"* `"), NewLazyString(field_name),
+            NewLazyString(L"`" + std::move(padding) + L"`"),
+            NewLazyString(FromByteString(value_stream.str()) + L"`"))));
+      });
+      output.push_back(L"");
+    });
     output.push_back(L"");
 
     StartSection(L"### Variables", output);
@@ -216,10 +216,10 @@ class HelpCommand : public Command {
         L"associated with your buffer, and thus available to extensions.");
     output.push_back(L"");
 
-    environment->ForEach([&output](const wstring& name,
-                                   const gc::Ptr<Value>& value) {
+    environment->ForEach([&output](const std::wstring& name,
+                                   const gc::Ptr<vm::Value>& value) {
       const static int kPaddingSize = 40;
-      wstring padding(
+      std::wstring padding(
           name.size() >= kPaddingSize ? 1 : kPaddingSize - name.size(), L' ');
 
       std::stringstream value_stream;
@@ -234,10 +234,10 @@ class HelpCommand : public Command {
   }
 
   template <typename T, typename C>
-  static void DescribeVariables(
-      wstring type_name, const OpenBuffer& source, BufferContents& output,
-      EdgeStruct<T>* variables,
-      /*std::function<std::wstring(const T&)>*/ C print) {
+  static void DescribeVariables(std::wstring type_name,
+                                const OpenBuffer& source,
+                                BufferContents& output,
+                                EdgeStruct<T>* variables, C print) {
     StartSection(L"### " + type_name, output);
     for (const auto& variable : variables->variables()) {
       output.push_back(MakeNonNullShared<Line>(StringAppend(
@@ -290,7 +290,7 @@ class HelpCommand : public Command {
 
   EditorState& editor_state_;
   const MapModeCommands& commands_;
-  const wstring mode_description_;
+  const std::wstring mode_description_;
 };
 
 const bool buffer_registration = tests::Register(
@@ -308,7 +308,7 @@ const bool buffer_registration = tests::Register(
 
 NonNull<std::unique_ptr<Command>> NewHelpCommand(
     EditorState& editor_state, const MapModeCommands& commands,
-    const wstring& mode_description) {
+    const std::wstring& mode_description) {
   return MakeNonNullUnique<HelpCommand>(editor_state, commands,
                                         mode_description);
 }

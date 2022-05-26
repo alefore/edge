@@ -110,7 +110,7 @@ Seek::Result Seek::UntilCurrentCharNotIsAlpha() const {
   return DONE;
 }
 
-Seek::Result Seek::UntilCurrentCharIn(const wstring& word_char) const {
+Seek::Result Seek::UntilCurrentCharIn(const std::wstring& word_char) const {
   CHECK_LE(position_->line, contents_.EndLine());
   while (word_char.find(read()) == word_char.npos) {
     if (!Advance(position_)) {
@@ -120,7 +120,7 @@ Seek::Result Seek::UntilCurrentCharIn(const wstring& word_char) const {
   return DONE;
 }
 
-Seek::Result Seek::UntilCurrentCharNotIn(const wstring& word_char) const {
+Seek::Result Seek::UntilCurrentCharNotIn(const std::wstring& word_char) const {
   while (word_char.find(read()) != word_char.npos) {
     if (!Advance(position_)) {
       return UNABLE_TO_ADVANCE;
@@ -129,7 +129,7 @@ Seek::Result Seek::UntilCurrentCharNotIn(const wstring& word_char) const {
   return DONE;
 }
 
-Seek::Result Seek::UntilNextCharIn(const wstring& word_char) const {
+Seek::Result Seek::UntilNextCharIn(const std::wstring& word_char) const {
   auto next_char = *position_;
   if (!Advance(&next_char)) {
     return UNABLE_TO_ADVANCE;
@@ -143,7 +143,7 @@ Seek::Result Seek::UntilNextCharIn(const wstring& word_char) const {
   return DONE;
 }
 
-Seek::Result Seek::UntilNextCharNotIn(const wstring& word_char) const {
+Seek::Result Seek::UntilNextCharNotIn(const std::wstring& word_char) const {
   auto next_char = *position_;
   if (!Advance(&next_char)) {
     return UNABLE_TO_ADVANCE;
@@ -189,7 +189,7 @@ std::function<bool(const Line& line)> Negate(
 }
 
 std::function<bool(const Line& line)> IsLineSubsetOf(
-    const wstring& allowed_chars) {
+    const std::wstring& allowed_chars) {
   return [allowed_chars](const Line& line) {
     return !FindFirstColumnWithPredicate(line.contents().value(),
                                          [&](ColumnNumber, wchar_t c) {
@@ -200,12 +200,13 @@ std::function<bool(const Line& line)> IsLineSubsetOf(
   };
 }
 
-Seek::Result Seek::UntilNextLineIsSubsetOf(const wstring& allowed_chars) const {
+Seek::Result Seek::UntilNextLineIsSubsetOf(
+    const std::wstring& allowed_chars) const {
   return UntilLine(IsLineSubsetOf(allowed_chars));
 }
 
 Seek::Result Seek::UntilNextLineIsNotSubsetOf(
-    const wstring& allowed_chars) const {
+    const std::wstring& allowed_chars) const {
   return UntilLine(Negate(IsLineSubsetOf(allowed_chars)));
 }
 

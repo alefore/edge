@@ -29,7 +29,8 @@ class Screen {
     NORMAL,
   };
 
-  static string CursorVisibilityToString(CursorVisibility cursor_visibility) {
+  static std::string CursorVisibilityToString(
+      CursorVisibility cursor_visibility) {
     switch (cursor_visibility) {
       case INVISIBLE:
         return "INVISIBLE";
@@ -40,7 +41,8 @@ class Screen {
     return "UNKNOWN";
   }
 
-  static CursorVisibility CursorVisibilityFromString(string cursor_visibility) {
+  static CursorVisibility CursorVisibilityFromString(
+      std::string cursor_visibility) {
     if (cursor_visibility == "NORMAL") return NORMAL;
     if (cursor_visibility == "INVISIBLE") return INVISIBLE;
 

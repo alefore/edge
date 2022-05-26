@@ -31,16 +31,16 @@ enum State {
   PARENS_AFTER_SLASH,
 };
 
-static const wstring identifier_chars =
+static const std::wstring identifier_chars =
     L"_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-static const wstring digit_chars = L"1234567890";
+static const std::wstring digit_chars = L"1234567890";
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::BG_RED, LineModifier::BOLD});
 
 class CppTreeParser : public TreeParser {
  public:
-  CppTreeParser(std::unordered_set<wstring> keywords,
-                std::unordered_set<wstring> typos,
+  CppTreeParser(std::unordered_set<std::wstring> keywords,
+                std::unordered_set<std::wstring> typos,
                 IdentifierBehavior identifier_behavior)
       : words_parser_(NewWordsTreeParser(
             L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", typos,
@@ -263,7 +263,7 @@ class CppTreeParser : public TreeParser {
     CHECK_GE(original_position.column, ColumnNumber(1));
     original_position.column--;
 
-    static const wstring cont = identifier_chars + digit_chars;
+    static const std::wstring cont = identifier_chars + digit_chars;
     result->seek().UntilCurrentCharNotIn(cont);
 
     CHECK_EQ(original_position.line, result->position().line);
@@ -279,7 +279,7 @@ class CppTreeParser : public TreeParser {
     } else if (typos_.find(str->ToString()) != typos_.end()) {
       modifiers.insert(LineModifier::RED);
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
-      modifiers = HashToModifiers(std::hash<wstring>{}(str->ToString()),
+      modifiers = HashToModifiers(std::hash<std::wstring>{}(str->ToString()),
                                   HashToModifiersBold::kNever);
     }
     result->PushAndPop(length, std::move(modifiers));
@@ -386,8 +386,8 @@ class CppTreeParser : public TreeParser {
   }
 
   const NonNull<std::unique_ptr<TreeParser>> words_parser_;
-  const std::unordered_set<wstring> keywords_;
-  const std::unordered_set<wstring> typos_;
+  const std::unordered_set<std::wstring> keywords_;
+  const std::unordered_set<std::wstring> typos_;
   const IdentifierBehavior identifier_behavior_;
 
   // Allows us to avoid reparsing previously parsed lines. The key is the hash
@@ -403,7 +403,8 @@ class CppTreeParser : public TreeParser {
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewCppTreeParser(
-    std::unordered_set<wstring> keywords, std::unordered_set<wstring> typos,
+    std::unordered_set<std::wstring> keywords,
+    std::unordered_set<std::wstring> typos,
     IdentifierBehavior identifier_behavior) {
   return MakeNonNullUnique<CppTreeParser>(std::move(keywords), std::move(typos),
                                           identifier_behavior);

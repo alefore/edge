@@ -56,6 +56,9 @@ using language::MakeNonNullUnique;
 namespace {
 using language::Error;
 using language::Success;
+using vm::PurityType;
+using vm::VMType;
+using vm::VMTypeMapper;
 
 class FunctionTransformation : public CompositeTransformation {
  public:
@@ -76,7 +79,7 @@ class FunctionTransformation : public CompositeTransformation {
                         std::function<void()> callback) {
                       work_queue->Schedule(std::move(callback));
                     })
-        .Transform([](gc::Root<Value> value) {
+        .Transform([](gc::Root<vm::Value> value) {
           return Success(std::move(*VMTypeMapper<std::shared_ptr<Output>>::get(
               value.ptr().value())));
         })

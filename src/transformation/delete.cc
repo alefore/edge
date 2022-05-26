@@ -133,7 +133,7 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
       .prompt = L"unlink " + details + L"? [yes/no] ",
       .history_file = HistoryFile(L"confirmation"),
       .handler =
-          [buffer = buffer.NewRoot(), observers](const wstring& input) {
+          [buffer = buffer.NewRoot(), observers](const std::wstring& input) {
             if (input == L"yes") {
               for (auto& o : observers) o();
             } else {
@@ -251,6 +251,10 @@ std::wstring ToStringBase(const Delete&) { return L"Delete(...);"; }
 Delete OptimizeBase(Delete transformation) { return transformation; }
 
 void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
+  using vm::ObjectType;
+  using vm::PurityType;
+  using vm::VMTypeMapper;
+
   auto builder = MakeNonNullUnique<ObjectType>(
       VMTypeMapper<std::shared_ptr<Delete>>::vmtype);
 
@@ -263,21 +267,21 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
 
   builder->AddField(
       L"set_modifiers",
-      NewCallback(pool, PurityTypeWriter,
-                  std::function<std::shared_ptr<Delete>(
-                      std::shared_ptr<Delete>, std::shared_ptr<Modifiers>)>(
-                      [](std::shared_ptr<Delete> options,
-                         std::shared_ptr<Modifiers> modifiers) {
-                        CHECK(options != nullptr);
-                        CHECK(modifiers != nullptr);
-                        options->modifiers = *modifiers;
-                        return options;
-                      })));
+      vm::NewCallback(pool, vm::PurityTypeWriter,
+                      std::function<std::shared_ptr<Delete>(
+                          std::shared_ptr<Delete>, std::shared_ptr<Modifiers>)>(
+                          [](std::shared_ptr<Delete> options,
+                             std::shared_ptr<Modifiers> modifiers) {
+                            CHECK(options != nullptr);
+                            CHECK(modifiers != nullptr);
+                            options->modifiers = *modifiers;
+                            return options;
+                          })));
 
   builder->AddField(
       L"set_line_end_behavior",
       vm::NewCallback(
-          pool, PurityTypeWriter,
+          pool, vm::PurityTypeWriter,
           std::function<std::shared_ptr<Delete>(std::shared_ptr<Delete>,
                                                 std::wstring)>(
               [](std::shared_ptr<Delete> options, std::wstring value) {
@@ -291,7 +295,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
               })));
   builder->AddField(
       L"set_range",
-      vm::NewCallback(pool, PurityTypeWriter,
+      vm::NewCallback(pool, vm::PurityTypeWriter,
                       std::function<std::shared_ptr<Delete>(
                           std::shared_ptr<Delete>, Range)>(
                           [](std::shared_ptr<Delete> options, Range range) {

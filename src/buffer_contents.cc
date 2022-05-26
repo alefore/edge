@@ -410,8 +410,8 @@ const bool position_after_tests_registration = tests::Register(
       }}});
 }
 
-wstring BufferContents::ToString() const {
-  wstring output;
+std::wstring BufferContents::ToString() const {
+  std::wstring output;
   output.reserve(CountCharacters());
   EveryLine([&output](LineNumber position, const Line& line) {
     output.append((position == LineNumber(0) ? L"" : L"\n") + line.ToString());
@@ -461,7 +461,7 @@ void BufferContents::ForEach(
 }
 
 void BufferContents::ForEach(
-    const std::function<void(wstring)>& callback) const {
+    const std::function<void(std::wstring)>& callback) const {
   ForEach([callback](const Line& line) { callback(line.ToString()); });
 }
 
@@ -611,7 +611,7 @@ void BufferContents::FoldNextLine(LineNumber position) {
              CursorsBehavior::kAdjust);
 }
 
-void BufferContents::push_back(wstring str) {
+void BufferContents::push_back(std::wstring str) {
   ColumnNumber start;
   for (ColumnNumber i; i < ColumnNumber(str.size()); ++i) {
     wchar_t c = str[i.column];
@@ -627,7 +627,7 @@ void BufferContents::push_back(wstring str) {
 
 namespace {
 const bool push_back_wstring_tests_registration = tests::Register(
-    L"BufferContents::push_back(wstring)",
+    L"BufferContents::push_back(std::wstring)",
     {
         {.name = L"EmptyInput",
          .callback =

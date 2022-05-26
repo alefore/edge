@@ -26,7 +26,7 @@ using language::Success;
 
 namespace gc = language::gc;
 
-const wstring kDepthSymbol = L"navigation_buffer_depth";
+const std::wstring kDepthSymbol = L"navigation_buffer_depth";
 
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
@@ -116,9 +116,9 @@ futures::Value<PossibleError> GenerateContents(
   auto tree = source->ptr()->simplified_parse_tree();
   target.AppendToLastLine(
       NewLazyString(source->ptr()->Read(buffer_variables::name)));
-  std::optional<gc::Root<Value>> depth_value = target.environment()->Lookup(
-      editor_state.gc_pool(), Environment::Namespace(), kDepthSymbol,
-      VMType::Int());
+  std::optional<gc::Root<vm::Value>> depth_value = target.environment()->Lookup(
+      editor_state.gc_pool(), vm::Environment::Namespace(), kDepthSymbol,
+      vm::VMType::Int());
   int depth = depth_value.has_value()
                   ? size_t(std::max(0, depth_value.value().ptr()->get_int()))
                   : 3;
@@ -132,10 +132,10 @@ class NavigationBufferCommand : public Command {
   NavigationBufferCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"displays a navigation view of the current buffer";
   }
-  wstring Category() const override { return L"Navigate"; }
+  std::wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) override {
     std::optional<gc::Root<OpenBuffer>> source = editor_state_.current_buffer();
@@ -160,8 +160,8 @@ class NavigationBufferCommand : public Command {
       buffer.Set(buffer_variables::show_in_buffers_list, false);
       buffer.Set(buffer_variables::push_positions_to_history, false);
       buffer.Set(buffer_variables::allow_dirty_delete, true);
-      buffer.environment()->Define(kDepthSymbol,
-                                   Value::NewInt(editor_state_.gc_pool(), 3));
+      buffer.environment()->Define(
+          kDepthSymbol, vm::Value::NewInt(editor_state_.gc_pool(), 3));
       buffer.Set(buffer_variables::reload_on_enter, true);
       editor_state_.StartHandlingInterrupts();
       editor_state_.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);

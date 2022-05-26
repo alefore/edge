@@ -38,8 +38,6 @@
 
 namespace afc {
 namespace editor {
-using namespace afc::vm;
-
 class ParseTree;
 class TreeParser;
 class UnixSignal;
@@ -76,8 +74,8 @@ class OpenBuffer {
     // Optional function to generate additional information for the status of
     // this buffer (see OpenBuffer::FlagsString). The generated string must
     // begin with a space.
-    std::function<map<wstring, wstring>(const OpenBuffer&)> describe_status =
-        nullptr;
+    std::function<std::map<std::wstring, std::wstring>(const OpenBuffer&)>
+        describe_status = nullptr;
 
     // Optional function that listens on visits to the buffer (i.e., the user
     // entering the buffer from other buffers).
@@ -174,8 +172,8 @@ class OpenBuffer {
   // Sort all lines in range [first, last) according to a compare function.
   void SortContents(
       LineNumber first, LineNumber last,
-      std::function<bool(const language::NonNull<shared_ptr<const Line>>&,
-                         const language::NonNull<shared_ptr<const Line>>&)>
+      std::function<bool(const language::NonNull<std::shared_ptr<const Line>>&,
+                         const language::NonNull<std::shared_ptr<const Line>>&)>
           compare);
 
   LineNumberDelta lines_size() const;
@@ -238,16 +236,16 @@ class OpenBuffer {
   // contents() is empty).
   void CheckPosition();
 
-  CursorsSet& FindOrCreateCursors(const wstring& name);
+  CursorsSet& FindOrCreateCursors(const std::wstring& name);
   // May return nullptr.
-  const CursorsSet* FindCursors(const wstring& name) const;
+  const CursorsSet* FindCursors(const std::wstring& name) const;
 
   CursorsSet& active_cursors();
   const CursorsSet& active_cursors() const;
 
   // Removes all active cursors and replaces them with the ones given. The old
   // cursors are saved and can be restored with ToggleActiveCursors.
-  void set_active_cursors(const vector<LineColumn>& positions);
+  void set_active_cursors(const std::vector<LineColumn>& positions);
 
   // Restores the last cursors available.
   void ToggleActiveCursors();
@@ -267,7 +265,7 @@ class OpenBuffer {
 
   // Serializes the buffer into a string.  This is not particularly fast (it's
   // meant more for debugging/testing rather than for real use).
-  wstring ToString() const;
+  std::wstring ToString() const;
 
   enum class DiskState {
     // The file (in disk) reflects our last changes.
@@ -285,11 +283,11 @@ class OpenBuffer {
   std::unique_ptr<DiskState, std::function<void(DiskState*)>> FreezeDiskState();
 
   bool dirty() const;
-  std::map<wstring, wstring> Flags() const;
-  static wstring FlagsToString(std::map<wstring, wstring> flags);
+  std::map<std::wstring, std::wstring> Flags() const;
+  static std::wstring FlagsToString(std::map<std::wstring, std::wstring> flags);
 
   futures::Value<std::wstring> TransformKeyboardText(std::wstring input);
-  bool AddKeyboardTextTransformer(language::gc::Root<Value> transformer);
+  bool AddKeyboardTextTransformer(language::gc::Root<vm::Value> transformer);
 
   futures::Value<language::EmptyValue> ApplyToCursors(
       transformation::Variant transformation);
@@ -315,7 +313,7 @@ class OpenBuffer {
   };
   futures::Value<language::EmptyValue> Undo(UndoMode undo_mode);
 
-  void set_filter(language::gc::Root<Value> filter);
+  void set_filter(language::gc::Root<vm::Value> filter);
 
   //////////////////////////////////////////////////////////////////////////////
   // Life cycle
@@ -330,27 +328,27 @@ class OpenBuffer {
   const std::multimap<LineColumn, LineMarks::Mark>& GetLineMarks() const;
   const std::multimap<LineColumn, LineMarks::ExpiredMark>& GetExpiredLineMarks()
       const;
-  wstring GetLineMarksText() const;
+  std::wstring GetLineMarksText() const;
 
   /////////////////////////////////////////////////////////////////////////////
   // Extensions
 
-  const language::gc::Ptr<Environment>& environment() const {
+  const language::gc::Ptr<vm::Environment>& environment() const {
     return environment_;
   }
 
   language::ValueOrError<
-      std::pair<language::NonNull<std::unique_ptr<Expression>>,
-                language::gc::Root<Environment>>>
-  CompileString(const wstring& str) const;
+      std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
+                language::gc::Root<vm::Environment>>>
+  CompileString(const std::wstring& str) const;
 
   // `expr` can be deleted as soon as we return.
-  futures::ValueOrError<language::gc::Root<Value>> EvaluateExpression(
-      Expression& expr, language::gc::Root<Environment> environment);
+  futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateExpression(
+      vm::Expression& expr, language::gc::Root<vm::Environment> environment);
 
-  futures::ValueOrError<language::gc::Root<Value>> EvaluateString(
-      const wstring& str);
-  futures::ValueOrError<language::gc::Root<Value>> EvaluateFile(
+  futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
+      const std::wstring& str);
+  futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
       const infrastructure::Path& path);
 
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>>& work_queue()
@@ -373,9 +371,9 @@ class OpenBuffer {
   // Inspecting contents of buffer.
 
   // May return nullptr if the current_cursor is at the end of file.
-  const shared_ptr<const Line> current_line() const;
+  const std::shared_ptr<const Line> current_line() const;
 
-  shared_ptr<const Line> LineAt(LineNumber line_number) const;
+  std::shared_ptr<const Line> LineAt(LineNumber line_number) const;
 
   // We deliberately provide only a read view into our contents. All
   // modifications should be done through methods defined in this class.
@@ -445,8 +443,8 @@ class OpenBuffer {
   void Set(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
 
-  const wstring& Read(const EdgeVariable<wstring>* variable) const;
-  void Set(const EdgeVariable<wstring>* variable, wstring value);
+  const std::wstring& Read(const EdgeVariable<std::wstring>* variable) const;
+  void Set(const EdgeVariable<std::wstring>* variable, std::wstring value);
 
   const int& Read(const EdgeVariable<int>* variable) const;
   void Set(const EdgeVariable<int>* variable, int value);
@@ -475,7 +473,7 @@ class OpenBuffer {
  private:
   // Code that would normally be in the constructor, but which may require the
   // use of `shared_from_this`. This function will be called by `New` after the
-  // instance has been successfully installed into a shared_ptr.
+  // instance has been successfully installed into a std::shared_ptr.
   void Initialize(language::gc::Ptr<OpenBuffer> ptr_this);
   void MaybeStartUpdatingSyntaxTrees();
 
@@ -484,7 +482,7 @@ class OpenBuffer {
       transformation::Input::Mode mode);
   void UpdateTreeParser();
 
-  void ProcessCommandInput(shared_ptr<LazyString> str);
+  void ProcessCommandInput(std::shared_ptr<LazyString> str);
 
   // Returns true if the position given is set to a value other than
   // LineColumn::Max and the buffer has read past that position.
@@ -544,7 +542,7 @@ class OpenBuffer {
   bool reading_from_parser_ = false;
 
   EdgeStructInstance<bool> bool_variables_;
-  EdgeStructInstance<wstring> string_variables_;
+  EdgeStructInstance<std::wstring> string_variables_;
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<double> double_variables_;
   EdgeStructInstance<LineColumn> line_column_variables_;
@@ -556,14 +554,14 @@ class OpenBuffer {
   std::list<language::NonNull<std::shared_ptr<transformation::Stack>>>
       undo_future_;
 
-  std::list<language::gc::Root<Value>> keyboard_text_transformers_;
-  const language::gc::Ptr<Environment> environment_;
+  std::list<language::gc::Root<vm::Value>> keyboard_text_transformers_;
+  const language::gc::Ptr<vm::Environment> environment_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be
   // shown.  This does not remove any lines: it merely hides them (by setting
   // the Line::filtered field).
-  std::optional<language::gc::Root<Value>> filter_;
+  std::optional<language::gc::Root<vm::Value>> filter_;
   size_t filter_version_;
 
   transformation::Variant last_transformation_;

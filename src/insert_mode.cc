@@ -50,6 +50,9 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::VisitPointer;
 
+using vm::VMType;
+using vm::VMTypeMapper;
+
 namespace gc = language::gc;
 
 namespace {
@@ -62,7 +65,7 @@ class NewLineTransformation : public CompositeTransformation {
     if (input.buffer.Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn())
       return futures::Past(Output());
-    const wstring& line_prefix_characters(
+    const std::wstring& line_prefix_characters(
         input.buffer.Read(buffer_variables::line_prefix_characters));
     ColumnNumber prefix_end;
     if (!input.buffer.Read(buffer_variables::paste_mode)) {
@@ -113,10 +116,10 @@ class FindCompletionCommand : public Command {
  public:
   FindCompletionCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"Autocompletes the current word.";
   }
-  wstring Category() const override { return L"Edit"; }
+  std::wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t) {
     // TODO(multiple_buffers): Honor.
@@ -291,9 +294,9 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
         StartNewInsertion();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
-        std::optional<gc::Root<Value>> callback =
+        std::optional<gc::Root<vm::Value>> callback =
             options_.editor_state.environment().ptr()->Lookup(
-                options_.editor_state.gc_pool(), Environment::Namespace(),
+                options_.editor_state.gc_pool(), vm::Environment::Namespace(),
                 L"HandleKeyboardControlU",
                 VMType::Function({VMType::Void(),
                                   VMTypeMapper<gc::Root<OpenBuffer>>::vmtype}));
@@ -307,7 +310,7 @@ class InsertMode : public EditorMode {
               args.push_back(vm::NewConstantExpression(
                   {VMTypeMapper<gc::Root<OpenBuffer>>::New(
                       buffer.editor().gc_pool(), buffer.NewRoot())}));
-              NonNull<std::unique_ptr<Expression>> expression =
+              NonNull<std::unique_ptr<vm::Expression>> expression =
                   vm::NewFunctionCall(
                       vm::NewConstantExpression(callback.value()),
                       std::move(args));
@@ -561,7 +564,8 @@ class InsertMode : public EditorMode {
 
   // For input to buffers that have a file descriptor, buffer the characters
   // here. This gets flushed upon certain presses, such as ESCAPE or new line.
-  string line_buffer_;
+  // TODO(easy, 2022-05-26): Looks like nothing is using this?
+  std::string line_buffer_;
   bool literal_ = false;
 
   // Given to ScrollBehaviorFactory::Build, and used to signal when we want to

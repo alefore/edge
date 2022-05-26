@@ -100,7 +100,7 @@ const bool buffer_tests_registration = tests::Register(
              [] {
                auto buffer = NewBufferForTests();
 
-               gc::Root<Value> result =
+               gc::Root<vm::Value> result =
                    buffer.ptr()
                        ->EvaluateString(
                            L"int F() { return \"foo\".find_last_of(\"o\", 3); }"
@@ -114,7 +114,7 @@ const bool buffer_tests_registration = tests::Register(
          .callback =
              [] {
                auto buffer = NewBufferForTests();
-               ValueOrError<gc::Root<Value>> result =
+               ValueOrError<gc::Root<vm::Value>> result =
                    buffer.ptr()
                        ->EvaluateString(L"{ int v = 5; } v")
                        .Get()
@@ -145,7 +145,7 @@ const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
           CHECK_EQ(stats_0.end_total, stats_1.end_total);
 
           {
-            futures::ValueOrError<language::gc::Root<Value>> future_value =
+            futures::ValueOrError<language::gc::Root<vm::Value>> future_value =
                 buffer.ptr()->EvaluateString(code);
             while (!future_value.Get().has_value())
               buffer.ptr()->editor().work_queue()->Execute();

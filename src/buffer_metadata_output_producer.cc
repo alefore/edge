@@ -31,7 +31,7 @@ using language::VisitPointer;
 namespace gc = language::gc;
 
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
-          wchar_t connect_final_char, wstring& output) {
+          wchar_t connect_final_char, std::wstring& output) {
   CHECK_LT(pos, output.size());
   for (size_t i = 0; i < pos; i++) {
     output[i] = padding_char;
@@ -42,13 +42,13 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
                     : connect_final_char;
 }
 
-wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
-                 const ParseTree& root) {
+std::wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
+                      const ParseTree& root) {
   static Tracker tracker(L"BufferMetadataOutput::DrawTree");
   auto call = tracker.Call();
 
   // Route along the tree where each child ends after previous line.
-  vector<const ParseTree*> route_begin;
+  std::vector<const ParseTree*> route_begin;
   if (line > LineNumber(0)) {
     route_begin = MapRoute(
         root, FindRouteToPosition(
@@ -59,7 +59,7 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
   }
 
   // Route along the tree where each child ends after current line.
-  vector<const ParseTree*> route_end;
+  std::vector<const ParseTree*> route_end;
   if (line < LineNumber(0) + lines_size - LineNumberDelta(1)) {
     route_end = MapRoute(
         root,
@@ -68,7 +68,7 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
     CHECK(!route_end.empty() && *route_end.begin() == &root);
     route_end.erase(route_end.begin());
   }
-  wstring output(root.depth(), L' ');
+  std::wstring output(root.depth(), L' ');
   size_t index_begin = 0;
   size_t index_end = 0;
   while (index_begin < route_begin.size() || index_end < route_end.size()) {

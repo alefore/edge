@@ -238,9 +238,9 @@ ValueOrError<
 ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
   std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
       output;
-  for (const auto& token : TokenizeBySpaces(line.value())) {
+  for (const Token& token : TokenizeBySpaces(line.value())) {
     auto colon = token.value.find(':');
-    if (colon == string::npos) {
+    if (colon == std::wstring::npos) {
       return Error(L"Unable to parse prompt line (no colon found in token): " +
                    line->ToString());
     }
@@ -281,7 +281,7 @@ auto parse_history_line_tests_registration = tests::Register(
 NonNull<std::shared_ptr<LazyString>> QuoteString(
     NonNull<std::shared_ptr<LazyString>> src) {
   return StringAppend(NewLazyString(L"\""),
-                      NewLazyString(CppEscapeString(src->ToString())),
+                      NewLazyString(vm::CppEscapeString(src->ToString())),
                       NewLazyString(L"\""));
 }
 
@@ -378,7 +378,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
           std::vector<Token> filter_tokens =
               TokenizeBySpaces(NewLazyString(filter).value());
           history_contents->EveryLine([&](LineNumber, const Line& line) {
-            auto warn_if = [&](bool condition, wstring description) {
+            auto warn_if = [&](bool condition, std::wstring description) {
               if (condition) {
                 output.errors.push_back(description + L": " +
                                         line.contents()->ToString());
@@ -401,7 +401,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
             }
 
             auto prompt_value_optional =
-                CppUnescapeString(range.first->second->ToString());
+                vm::CppUnescapeString(range.first->second->ToString());
             if (!prompt_value_optional.has_value()) {
               LOG(INFO) << "Unable to unescape string: "
                         << range.first->second->ToString();
@@ -678,7 +678,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
  public:
   HistoryScrollBehaviorFactory(
-      EditorState& editor_state, wstring prompt, gc::Root<OpenBuffer> history,
+      EditorState& editor_state, std::wstring prompt,
+      gc::Root<OpenBuffer> history,
       NonNull<std::shared_ptr<PromptState>> prompt_state,
       gc::Root<OpenBuffer> buffer)
       : editor_state_(editor_state),
@@ -706,7 +707,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
  private:
   EditorState& editor_state_;
-  const wstring prompt_;
+  const std::wstring prompt_;
   const gc::Root<OpenBuffer> history_;
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
   const gc::Root<OpenBuffer> buffer_;
@@ -714,14 +715,14 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
 class LinePromptCommand : public Command {
  public:
-  LinePromptCommand(EditorState& editor_state, wstring description,
+  LinePromptCommand(EditorState& editor_state, std::wstring description,
                     std::function<PromptOptions()> options_supplier)
       : editor_state_(editor_state),
         description_(std::move(description)),
         options_supplier_(std::move(options_supplier)) {}
 
-  wstring Description() const override { return description_; }
-  wstring Category() const override { return L"Prompt"; }
+  std::wstring Description() const override { return description_; }
+  std::wstring Category() const override { return L"Prompt"; }
 
   void ProcessInput(wint_t) override {
     auto buffer = editor_state_.current_buffer();
@@ -739,7 +740,7 @@ class LinePromptCommand : public Command {
 
  private:
   EditorState& editor_state_;
-  const wstring description_;
+  const std::wstring description_;
   const std::function<PromptOptions()> options_supplier_;
 };
 
@@ -1045,7 +1046,7 @@ void Prompt(PromptOptions options) {
 }
 
 NonNull<std::unique_ptr<Command>> NewLinePromptCommand(
-    EditorState& editor_state, wstring description,
+    EditorState& editor_state, std::wstring description,
     std::function<PromptOptions()> options_supplier) {
   return MakeNonNullUnique<LinePromptCommand>(
       editor_state, std::move(description), std::move(options_supplier));

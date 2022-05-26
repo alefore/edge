@@ -90,12 +90,14 @@ static const wchar_t* kDefaultCommandsToRun =
     L"options.set_name(\"💻shell\");\n"
     L"editor.ForkCommand(options);";
 
-wstring CommandsToRun(CommandLineValues args) {
-  wstring commands_to_run = args.commands_to_run;
-  std::vector<wstring> buffers_to_watch;
+std::wstring CommandsToRun(CommandLineValues args) {
+  using afc::vm::CppEscapeString;
+  std::wstring commands_to_run = args.commands_to_run;
+  std::vector<std::wstring> buffers_to_watch;
   for (auto& path : args.naked_arguments) {
-    wstring full_path;
-    if (!path.empty() && wstring(L"/~").find(path[0]) != wstring::npos) {
+    std::wstring full_path;
+    if (!path.empty() &&
+        std::wstring(L"/~").find(path[0]) != std::wstring::npos) {
       LOG(INFO) << L"Will open an absolute path: " << path;
       full_path = path;
     } else {
@@ -156,7 +158,7 @@ wstring CommandsToRun(CommandLineValues args) {
   return commands_to_run;
 }
 
-void SendCommandsToParent(int fd, const string commands_to_run) {
+void SendCommandsToParent(int fd, const std::string commands_to_run) {
   // We write the command to a temporary file and then instruct the server to
   // load the file. Otherwise, if the command is too long, it may not fit in the
   // size limit that the reader uses.
@@ -176,7 +178,7 @@ void SendCommandsToParent(int fd, const string commands_to_run) {
     pos += bytes_written;
   }
   close(tmp_fd);
-  string command = "#include \"" + string(path) + "\"\n";
+  std::string command = "#include \"" + std::string(path) + "\"\n";
   free(path);
   if (write(fd, command.c_str(), command.size()) !=
       static_cast<int>(command.size())) {
@@ -214,7 +216,7 @@ Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
 }
 
 std::wstring GetGreetingMessage() {
-  static std::vector<wstring> errors({
+  static std::vector<std::wstring> errors({
       L"Welcome to Edge!",
       L"Edge, your favorite text editor.",
       L"It looks like you're writing a letter. Would you like help?",
@@ -263,15 +265,15 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
   }
   VLOG(5) << "Updating remote screens.";
   for (auto& buffer : *editor_state().buffers()) {
-    std::optional<gc::Root<Value>> value =
+    std::optional<gc::Root<afc::vm::Value>> value =
         buffer.second.ptr()->environment()->Lookup(
-            editor_state().gc_pool(), Environment::Namespace(), L"screen",
-            GetScreenVmType());
+            editor_state().gc_pool(), afc::vm::Environment::Namespace(),
+            L"screen", GetScreenVmType());
     if (!value.has_value() || value.value().ptr()->type != GetScreenVmType()) {
       continue;
     }
     auto buffer_screen =
-        VMTypeMapper<Screen*>::get(value.value().ptr().value());
+        afc::vm::VMTypeMapper<Screen*>::get(value.value().ptr().value());
     if (buffer_screen == nullptr) {
       continue;
     }
@@ -294,7 +296,7 @@ int main(int argc, const char** argv) {
 
   srand(time(NULL));
 
-  string locale = std::setlocale(LC_ALL, "");
+  std::string locale = std::setlocale(LC_ALL, "");
   LOG(INFO) << "Using locale: " << locale;
 
   LOG(INFO) << "Initializing command line arguments.";
@@ -370,7 +372,7 @@ int main(int argc, const char** argv) {
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
       commands_to_run += L"editor.SendExitTo(\"" +
-                         CppEscapeString(server_path.read()) + L"\");";
+                         afc::vm::CppEscapeString(server_path.read()) + L"\");";
     }
 
     LOG(INFO) << "Sending commands.";

@@ -54,8 +54,8 @@ class EditorState {
   const bool& Read(const EdgeVariable<bool>* variable) const;
   void Set(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
-  const wstring& Read(const EdgeVariable<wstring>* variable) const;
-  void Set(const EdgeVariable<wstring>* variable, wstring value);
+  const std::wstring& Read(const EdgeVariable<std::wstring>* variable) const;
+  void Set(const EdgeVariable<std::wstring>* variable, std::wstring value);
   const int& Read(const EdgeVariable<int>* variable) const;
   void Set(const EdgeVariable<int>* variable, int value);
   const double& Read(const EdgeVariable<double>* variable) const;
@@ -108,7 +108,7 @@ class EditorState {
   futures::Value<language::EmptyValue> ApplyToActiveBuffers(
       transformation::Variant transformation);
 
-  BufferName GetUnusedBufferName(const wstring& prefix);
+  BufferName GetUnusedBufferName(const std::wstring& prefix);
   void set_exit_value(int exit_value);
   std::optional<int> exit_value() const { return exit_value_; }
 
@@ -147,7 +147,8 @@ class EditorState {
   void set_default_insertion_modifier(
       Modifiers::ModifyMode default_insertion_modifier);
 
-  futures::Value<language::EmptyValue> ProcessInputString(const string& input);
+  futures::Value<language::EmptyValue> ProcessInputString(
+      const std::string& input);
   futures::Value<language::EmptyValue> ProcessInput(int c);
 
   const LineMarks& line_marks() const { return line_marks_; }
@@ -177,11 +178,13 @@ class EditorState {
   const Status& status() const;
 
   const infrastructure::Path& home_directory() const { return home_directory_; }
-  const vector<infrastructure::Path>& edge_path() const { return edge_path_; }
+  const std::vector<infrastructure::Path>& edge_path() const {
+    return edge_path_;
+  }
 
   language::gc::Pool& gc_pool() { return gc_pool_; }
 
-  language::gc::Root<Environment> environment() { return environment_; }
+  language::gc::Root<vm::Environment> environment() { return environment_; }
 
   infrastructure::Path expand_path(infrastructure::Path path) const;
 
@@ -224,7 +227,7 @@ class EditorState {
 
   language::gc::Pool gc_pool_;
 
-  EdgeStructInstance<wstring> string_variables_;
+  EdgeStructInstance<std::wstring> string_variables_;
   EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<double> double_variables_;
@@ -240,7 +243,7 @@ class EditorState {
 
   double frames_per_second_;
 
-  const language::gc::Root<Environment> environment_;
+  const language::gc::Root<vm::Environment> environment_;
 
   // Should only be directly used when the editor has no buffer.
   std::shared_ptr<MapModeCommands> default_commands_;
@@ -256,7 +259,7 @@ class EditorState {
   // actually using Edge (e.g. modifies a buffer), we start consuming it.
   bool handling_interrupts_ = false;
 
-  vector<UnixSignal> pending_signals_;
+  std::vector<UnixSignal> pending_signals_;
 
   Modifiers modifiers_;
   LineMarks line_marks_;

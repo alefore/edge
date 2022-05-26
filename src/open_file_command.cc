@@ -28,7 +28,7 @@ using language::VisitPointer;
 
 namespace gc = language::gc;
 
-futures::Value<EmptyValue> OpenFileHandler(const wstring& name,
+futures::Value<EmptyValue> OpenFileHandler(const std::wstring& name,
                                            EditorState& editor_state) {
   OpenOrCreateFile(
       OpenFileOptions{.editor_state = editor_state,

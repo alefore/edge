@@ -31,7 +31,7 @@ using language::VisitPointer;
 namespace gc = language::gc;
 
 std::wstring GetToken(const CompositeTransformation::Input& input,
-                      EdgeVariable<wstring>* characters_variable) {
+                      EdgeVariable<std::wstring>* characters_variable) {
   if (input.position.column < ColumnNumber(2)) return L"";
   ColumnNumber end = input.position.column.previous().previous();
   auto line = input.buffer.LineAt(input.position.line);
@@ -40,7 +40,7 @@ std::wstring GetToken(const CompositeTransformation::Input& input,
   size_t index_before_symbol = line_str.find_last_not_of(
       input.buffer.Read(characters_variable), end.column);
   ColumnNumber symbol_start;
-  if (index_before_symbol == wstring::npos) {
+  if (index_before_symbol == std::wstring::npos) {
     symbol_start = ColumnNumber(0);
   } else {
     symbol_start = ColumnNumber(index_before_symbol + 1);
@@ -266,7 +266,7 @@ class Execute : public CompositeTransformation {
   futures::Value<Output> Apply(Input input) const override {
     return RunCppCommandShell(command_, input.editor)
         .Transform([command_size = command_.size(),
-                    &editor = input.editor](gc::Root<Value> value) {
+                    &editor = input.editor](gc::Root<vm::Value> value) {
           Output output;
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{

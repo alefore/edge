@@ -15,10 +15,6 @@
 namespace afc {
 namespace editor {
 
-using std::string;
-using std::unique_ptr;
-using std::vector;
-
 class BufferContents : public fuzz::FuzzTestable {
   using Lines = ConstTree<language::NonNull<std::shared_ptr<const Line>>>;
 
@@ -50,7 +46,7 @@ class BufferContents : public fuzz::FuzzTestable {
   // Drops all contents outside of a specific range.
   void FilterToRange(Range range);
 
-  language::NonNull<shared_ptr<const Line>> at(LineNumber position) const {
+  language::NonNull<std::shared_ptr<const Line>> at(LineNumber position) const {
     CHECK_LT(position, LineNumber(0) + size());
     return lines_->Get(position.line);
   }
@@ -74,9 +70,9 @@ class BufferContents : public fuzz::FuzzTestable {
 
   // Convenience wrappers of the above.
   void ForEach(const std::function<void(const Line&)>& callback) const;
-  void ForEach(const std::function<void(wstring)>& callback) const;
+  void ForEach(const std::function<void(std::wstring)>& callback) const;
 
-  wstring ToString() const;
+  std::wstring ToString() const;
 
   template <class C>
   LineNumber upper_bound(language::NonNull<std::shared_ptr<const Line>>& key,
@@ -87,13 +83,13 @@ class BufferContents : public fuzz::FuzzTestable {
   size_t CountCharacters() const;
 
   void insert_line(LineNumber line_position,
-                   language::NonNull<shared_ptr<const Line>> line);
+                   language::NonNull<std::shared_ptr<const Line>> line);
 
   // Does not call update_listener_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
   // semantic information about what you're doing).
   void set_line(LineNumber position,
-                language::NonNull<shared_ptr<const Line>> line);
+                language::NonNull<std::shared_ptr<const Line>> line);
 
   template <class C>
   void sort(LineNumber first, LineNumber last, C compare) {
@@ -151,7 +147,7 @@ class BufferContents : public fuzz::FuzzTestable {
   // If the line is out of range, doesn't do anything.
   void FoldNextLine(LineNumber line);
 
-  void push_back(wstring str);
+  void push_back(std::wstring str);
   void push_back(language::NonNull<std::shared_ptr<const Line>> line);
   void append_back(
       std::vector<language::NonNull<std::shared_ptr<const Line>>> lines);

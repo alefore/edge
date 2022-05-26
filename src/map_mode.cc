@@ -28,7 +28,7 @@ namespace {
 template <typename Callback>
 class CommandFromFunction : public Command {
  public:
-  CommandFromFunction(Callback callback, wstring description)
+  CommandFromFunction(Callback callback, std::wstring description)
       : callback_(std::move(callback)), description_(std::move(description)) {}
 
   std::wstring Description() const override { return description_; }
@@ -40,12 +40,12 @@ class CommandFromFunction : public Command {
 
  private:
   Callback callback_;
-  const wstring description_;
+  const std::wstring description_;
 };
 
 template <typename Callback>
-NonNull<std::unique_ptr<Command>> MakeCommandFromFunction(Callback callback,
-                                                          wstring description) {
+NonNull<std::unique_ptr<Command>> MakeCommandFromFunction(
+    Callback callback, std::wstring description) {
   return MakeNonNullUnique<CommandFromFunction<Callback>>(
       std::move(callback), std::move(description));
 }
@@ -68,10 +68,10 @@ NonNull<std::unique_ptr<MapModeCommands>> MapModeCommands::NewChild() {
   return output;
 }
 
-std::map<wstring, std::map<wstring, NonNull<Command*>>>
+std::map<std::wstring, std::map<std::wstring, NonNull<Command*>>>
 MapModeCommands::Coallesce() const {
-  std::map<wstring, std::map<wstring, NonNull<Command*>>> output;
-  std::set<wstring> already_seen;  // Avoid showing unreachable commands.
+  std::map<std::wstring, std::map<std::wstring, NonNull<Command*>>> output;
+  std::set<std::wstring> already_seen;  // Avoid showing unreachable commands.
   for (const auto& frame : frames_) {
     for (const auto& it : frame->commands) {
       if (already_seen.insert(it.first).second) {
@@ -82,13 +82,13 @@ MapModeCommands::Coallesce() const {
   return output;
 }
 
-void MapModeCommands::Add(wstring name,
+void MapModeCommands::Add(std::wstring name,
                           NonNull<std::unique_ptr<Command>> value) {
   CHECK(!frames_.empty());
   frames_.front()->commands.insert({name, std::move(value)});
 }
 
-void MapModeCommands::Add(wstring name, wstring description,
+void MapModeCommands::Add(std::wstring name, std::wstring description,
                           gc::Root<Value> value,
                           gc::Root<vm::Environment> environment) {
   CHECK(value.ptr()->type.type == VMType::Type::kFunction);
@@ -110,8 +110,8 @@ void MapModeCommands::Add(wstring name, wstring description,
           description));
 }
 
-void MapModeCommands::Add(wstring name, std::function<void()> callback,
-                          wstring description) {
+void MapModeCommands::Add(std::wstring name, std::function<void()> callback,
+                          std::wstring description) {
   Add(name,
       MakeCommandFromFunction(std::move(callback), std::move(description)));
 }

@@ -26,8 +26,10 @@ namespace {
 class RunCppFileCommand : public Command {
  public:
   RunCppFileCommand(EditorState& editor_state) : editor_state_(editor_state) {}
-  wstring Description() const override { return L"runs a command from a file"; }
-  wstring Category() const override { return L"Extensions"; }
+  std::wstring Description() const override {
+    return L"runs a command from a file";
+  }
+  std::wstring Category() const override { return L"Extensions"; }
 
   void ProcessInput(wint_t) override {
     if (!editor_state_.has_current_buffer()) {
@@ -41,7 +43,7 @@ class RunCppFileCommand : public Command {
             .initial_value =
                 buffer->ptr()->Read(buffer_variables::editor_commands_path),
             .handler =
-                [&editor = editor_state_](const wstring& input) {
+                [&editor = editor_state_](const std::wstring& input) {
                   futures::Future<EmptyValue> output;
                   RunCppFileHandler(input, editor)
                       .SetConsumer([consumer = std::move(output.consumer)](
@@ -59,7 +61,7 @@ class RunCppFileCommand : public Command {
 };
 }  // namespace
 
-futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
+futures::Value<PossibleError> RunCppFileHandler(const std::wstring& input,
                                                 EditorState& editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
   std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
@@ -99,7 +101,7 @@ futures::Value<PossibleError> RunCppFileHandler(const wstring& input,
                  ++*index;
                  return buffer->ptr()
                      ->EvaluateFile(adjusted_input)
-                     .Transform([](gc::Root<Value>) {
+                     .Transform([](gc::Root<vm::Value>) {
                        return Success(IterationControlCommand::kContinue);
                      })
                      .ConsumeErrors([](Error) {

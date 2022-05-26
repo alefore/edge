@@ -62,10 +62,10 @@ struct CommandData {
   time_t time_end = 0;
 };
 
-std::map<wstring, wstring> LoadEnvironmentVariables(
-    const vector<Path>& path, const wstring& full_command,
-    map<wstring, wstring> environment) {
-  static const wstring whitespace = L"\t ";
+std::map<std::wstring, std::wstring> LoadEnvironmentVariables(
+    const std::vector<Path>& path, const std::wstring& full_command,
+    std::map<std::wstring, std::wstring> environment) {
+  static const std::wstring whitespace = L"\t ";
   size_t start = full_command.find_first_not_of(whitespace);
   if (start == full_command.npos) {
     return environment;
@@ -74,7 +74,7 @@ std::map<wstring, wstring> LoadEnvironmentVariables(
   if (end == full_command.npos || end <= start) {
     return environment;
   }
-  wstring command = full_command.substr(start, end - start);
+  std::wstring command = full_command.substr(start, end - start);
   auto command_component = PathComponent::FromString(command);
   if (command_component.IsError()) return environment;
   auto environment_local_path =
@@ -104,7 +104,7 @@ std::map<wstring, wstring> LoadEnvironmentVariables(
 }
 
 futures::Value<PossibleError> GenerateContents(
-    EditorState& editor_state, std::map<wstring, wstring> environment,
+    EditorState& editor_state, std::map<std::wstring, std::wstring> environment,
     CommandData* data, OpenBuffer& target) {
   int pipefd_out[2];
   int pipefd_err[2];
@@ -114,15 +114,15 @@ futures::Value<PossibleError> GenerateContents(
   if (target.Read(buffer_variables::pts)) {
     int master_fd = posix_openpt(O_RDWR);
     if (master_fd == -1) {
-      cerr << "posix_openpt failed: " << string(strerror(errno));
+      cerr << "posix_openpt failed: " << std::string(strerror(errno));
       exit(EX_OSERR);
     }
     if (grantpt(master_fd) == -1) {
-      cerr << "grantpt failed: " << string(strerror(errno));
+      cerr << "grantpt failed: " << std::string(strerror(errno));
       exit(EX_OSERR);
     }
     if (unlockpt(master_fd) == -1) {
-      cerr << "unlockpt failed: " << string(strerror(errno));
+      cerr << "unlockpt failed: " << std::string(strerror(errno));
       exit(EX_OSERR);
     }
     pipefd_out[parent_fd] = master_fd;
@@ -130,7 +130,8 @@ futures::Value<PossibleError> GenerateContents(
     target.Set(buffer_variables::pts_path, FromByteString(pts_path));
     pipefd_out[child_fd] = open(pts_path, O_RDWR);
     if (pipefd_out[child_fd] == -1) {
-      cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
+      cerr << "open failed: " << pts_path << ": "
+           << std::string(strerror(errno));
       exit(EX_OSERR);
     }
     pipefd_err[parent_fd] = -1;
@@ -155,7 +156,7 @@ futures::Value<PossibleError> GenerateContents(
     if (pipefd_err[parent_fd] != -1) close(pipefd_err[parent_fd]);
 
     if (setsid() == -1) {
-      cerr << "setsid failed: " << string(strerror(errno));
+      cerr << "setsid failed: " << std::string(strerror(errno));
       exit(1);
     }
 
@@ -179,14 +180,14 @@ futures::Value<PossibleError> GenerateContents(
     if (!children_path.empty() &&
         chdir(ToByteString(children_path).c_str()) == -1) {
       LOG(FATAL) << children_path
-                 << ": chdir failed: " << string(strerror(errno));
+                 << ": chdir failed: " << std::string(strerror(errno));
     }
 
     // Copy variables from the current environment (environ(7)).
     for (size_t index = 0; environ[index] != nullptr; index++) {
-      wstring entry = FromByteString(environ[index]);
+      std::wstring entry = FromByteString(environ[index]);
       size_t eq = entry.find_first_of(L"=");
-      if (eq == wstring::npos) {
+      if (eq == std::wstring::npos) {
         environment.insert({entry, L""});
       } else {
         environment.insert({entry.substr(0, eq), entry.substr(eq + 1)});
@@ -201,7 +202,7 @@ futures::Value<PossibleError> GenerateContents(
         static_cast<char**>(calloc(environment.size() + 1, sizeof(char*)));
     size_t position = 0;
     for (const auto& it : environment) {
-      string str = ToByteString(it.first) + "=" + ToByteString(it.second);
+      std::string str = ToByteString(it.first) + "=" + ToByteString(it.second);
       CHECK_LT(position, environment.size());
       envp[position++] = strdup(str.c_str());
     }
@@ -246,7 +247,7 @@ futures::Value<PossibleError> GenerateContents(
 }
 
 wstring DurationToString(size_t duration) {
-  static const std::vector<std::pair<size_t, wstring>> time_units = {
+  static const std::vector<std::pair<size_t, std::wstring>> time_units = {
       {60, L"s"}, {60, L"m"}, {24, L"h"}, {99999999, L"d"}};
   size_t factor = 1;
   for (auto& entry : time_units) {
@@ -258,12 +259,12 @@ wstring DurationToString(size_t duration) {
   return L"very-long";
 }
 
-std::map<wstring, wstring> Flags(const CommandData& data,
-                                 const OpenBuffer& buffer) {
+std::map<std::wstring, std::wstring> Flags(const CommandData& data,
+                                           const OpenBuffer& buffer) {
   time_t now;
   time(&now);
 
-  std::map<wstring, wstring> output;
+  std::map<std::wstring, std::wstring> output;
   if (buffer.child_pid() != -1) {
     output.insert({L" …", L""});
   } else if (buffer.child_exit_status().has_value()) {
@@ -320,9 +321,9 @@ std::map<wstring, wstring> Flags(const CommandData& data,
   return output;
 }
 
-void RunCommand(const BufferName& name, const wstring& input,
-                map<wstring, wstring> environment, EditorState& editor_state,
-                std::optional<Path> children_path) {
+void RunCommand(const BufferName& name, const std::wstring& input,
+                std::map<std::wstring, std::wstring> environment,
+                EditorState& editor_state, std::optional<Path> children_path) {
   auto buffer = editor_state.current_buffer();
   if (input.empty()) {
     if (buffer.has_value()) {
@@ -347,11 +348,11 @@ void RunCommand(const BufferName& name, const wstring& input,
 }
 
 futures::Value<EmptyValue> RunCommandHandler(
-    const wstring& input, EditorState& editor_state, size_t i, size_t n,
+    const std::wstring& input, EditorState& editor_state, size_t i, size_t n,
     std::optional<Path> children_path) {
-  map<wstring, wstring> environment = {{L"EDGE_RUN", std::to_wstring(i)},
-                                       {L"EDGE_RUNS", std::to_wstring(n)}};
-  wstring name =
+  std::map<std::wstring, std::wstring> environment = {
+      {L"EDGE_RUN", std::to_wstring(i)}, {L"EDGE_RUNS", std::to_wstring(n)}};
+  std::wstring name =
       (children_path.has_value() ? children_path->read() : L"") + L"$";
   if (n > 1) {
     for (auto& it : environment) {
@@ -389,10 +390,10 @@ class ForkEditorCommand : public Command {
  public:
   ForkEditorCommand(EditorState& editor_state) : editor_state_(editor_state) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"Prompts for a command and creates a new buffer running it.";
   }
-  wstring Category() const override { return L"Buffers"; }
+  std::wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t) {
     gc::Pool& pool = editor_state_.gc_pool();
@@ -407,9 +408,10 @@ class ForkEditorCommand : public Command {
               .base_command = std::nullopt,
               .context_command_callback =
                   original_buffer->ptr()->environment()->Lookup(
-                      pool, Environment::Namespace(),
+                      pool, vm::Environment::Namespace(),
                       L"GetShellPromptContextProgram",
-                      VMType::Function({VMType::String(), VMType::String()}))});
+                      vm::VMType::Function(
+                          {vm::VMType::String(), vm::VMType::String()}))});
 
       auto children_path = GetChildrenPath(editor_state_);
       Prompt(
@@ -428,7 +430,7 @@ class ForkEditorCommand : public Command {
                      })
                    : PromptOptions::ColorizeFunction(nullptr),
            .handler = ([&editor_state = editor_state_,
-                        children_path](const wstring& name) {
+                        children_path](const std::wstring& name) {
              return RunCommandHandler(name, editor_state, 0, 1,
                                       children_path.AsOptional());
            })});
@@ -462,10 +464,10 @@ class ForkEditorCommand : public Command {
     EditorState& editor = prompt_state.original_buffer.ptr()->editor();
     language::gc::Pool& pool = editor.gc_pool();
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
-    std::vector<NonNull<std::unique_ptr<Expression>>> arguments;
+    std::vector<NonNull<std::unique_ptr<vm::Expression>>> arguments;
     arguments.push_back(vm::NewConstantExpression(
         vm::Value::NewString(pool, line->ToString())));
-    NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
+    NonNull<std::unique_ptr<vm::Expression>> expression = vm::NewFunctionCall(
         vm::NewConstantExpression(*prompt_state.context_command_callback),
         std::move(arguments));
     if (expression->Types().empty()) {
@@ -478,7 +480,7 @@ class ForkEditorCommand : public Command {
         ->EvaluateExpression(
             expression.value(),
             prompt_state.original_buffer.ptr()->environment().ToRoot())
-        .Transform([&prompt_state, &editor](gc::Root<Value> value)
+        .Transform([&prompt_state, &editor](gc::Root<vm::Value> value)
                        -> ValueOrError<ColorizePromptOptions> {
           const std::wstring& base_command = value.ptr()->get_string();
           if (prompt_state.base_command == base_command) {
@@ -519,7 +521,7 @@ VMTypeMapper<editor::ForkCommandOptions*>::get(Value& value) {
 }
 
 // TODO(easy, 2022-05-12): Receive options by ref.
-/* static */ gc::Root<Value> VMTypeMapper<editor::ForkCommandOptions*>::New(
+/* static */ gc::Root<vm::Value> VMTypeMapper<editor::ForkCommandOptions*>::New(
     language::gc::Pool& pool, editor::ForkCommandOptions* value) {
   CHECK(value != nullptr);
   return Value::NewObject(pool, vmtype.object_type,
@@ -538,57 +540,57 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   using vm::ObjectType;
   using vm::Value;
   using vm::VMType;
+  using vm::VMTypeMapper;
   auto fork_command_options =
       MakeNonNullUnique<ObjectType>(VMTypeMapper<ForkCommandOptions*>::vmtype);
 
   environment.Define(L"ForkCommandOptions",
-                     NewCallback(pool, PurityType::kPure,
+                     NewCallback(pool, vm::PurityType::kPure,
                                  std::function<ForkCommandOptions*()>([]() {
                                    return new ForkCommandOptions();
                                  })));
 
   fork_command_options->AddField(
       L"set_command",
-      NewCallback(pool, PurityType::kUnknown,
-                  std::function<void(ForkCommandOptions*, wstring)>(
-                      [](ForkCommandOptions* options, wstring command) {
+      NewCallback(pool, vm::PurityType::kUnknown,
+                  std::function<void(ForkCommandOptions*, std::wstring)>(
+                      [](ForkCommandOptions* options, std::wstring command) {
                         CHECK(options != nullptr);
                         options->command = std::move(command);
                       })));
 
   fork_command_options->AddField(
       L"set_name",
-      NewCallback(pool, PurityType::kUnknown,
-                  std::function<void(ForkCommandOptions*, wstring)>(
-                      [](ForkCommandOptions* options, wstring name) {
+      NewCallback(pool, vm::PurityType::kUnknown,
+                  std::function<void(ForkCommandOptions*, std::wstring)>(
+                      [](ForkCommandOptions* options, std::wstring name) {
                         CHECK(options != nullptr);
                         options->name = BufferName(std::move(name));
                       })));
 
   fork_command_options->AddField(
       L"set_insertion_type",
-      NewCallback(pool, PurityType::kUnknown,
-                  std::function<void(ForkCommandOptions*, wstring)>(
-                      [](ForkCommandOptions* options, wstring insertion_type) {
-                        CHECK(options != nullptr);
-                        if (insertion_type == L"visit") {
-                          options->insertion_type =
-                              BuffersList::AddBufferType::kVisit;
-                        } else if (insertion_type == L"only_list") {
-                          options->insertion_type =
-                              BuffersList::AddBufferType::kOnlyList;
-                        } else if (insertion_type == L"ignore") {
-                          options->insertion_type =
-                              BuffersList::AddBufferType::kIgnore;
-                        }
-                      })));
+      NewCallback(
+          pool, vm::PurityType::kUnknown,
+          std::function<void(ForkCommandOptions*, std::wstring)>(
+              [](ForkCommandOptions* options, std::wstring insertion_type) {
+                CHECK(options != nullptr);
+                if (insertion_type == L"visit") {
+                  options->insertion_type = BuffersList::AddBufferType::kVisit;
+                } else if (insertion_type == L"only_list") {
+                  options->insertion_type =
+                      BuffersList::AddBufferType::kOnlyList;
+                } else if (insertion_type == L"ignore") {
+                  options->insertion_type = BuffersList::AddBufferType::kIgnore;
+                }
+              })));
 
   fork_command_options->AddField(
       L"set_children_path",
       NewCallback(
-          pool, PurityType::kUnknown,
-          std::function<void(ForkCommandOptions*, wstring)>(
-              [](ForkCommandOptions* options, wstring children_path) {
+          pool, vm::PurityType::kUnknown,
+          std::function<void(ForkCommandOptions*, std::wstring)>(
+              [](ForkCommandOptions* options, std::wstring children_path) {
                 CHECK(options != nullptr);
                 options->children_path =
                     Path::FromString(std::move(children_path)).AsOptional();
@@ -640,19 +642,19 @@ NonNull<std::unique_ptr<Command>> NewForkCommand(EditorState& editor_state) {
 }
 
 futures::Value<EmptyValue> RunCommandHandler(
-    const wstring& input, EditorState& editor_state,
-    map<wstring, wstring> environment) {
+    const std::wstring& input, EditorState& editor_state,
+    std::map<std::wstring, std::wstring> environment) {
   RunCommand(BufferName(L"$ " + input), input, environment, editor_state,
              GetChildrenPath(editor_state).AsOptional());
   return futures::Past(EmptyValue());
 }
 
 futures::Value<EmptyValue> RunMultipleCommandsHandler(
-    const wstring& input, EditorState& editor_state) {
+    const std::wstring& input, EditorState& editor_state) {
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
         buffer.contents().ForEach([&editor_state, input](wstring arg) {
-          map<wstring, wstring> environment = {{L"ARG", arg}};
+          std::map<std::wstring, std::wstring> environment = {{L"ARG", arg}};
           RunCommand(BufferName(L"$ " + input + L" " + arg), input, environment,
                      editor_state, GetChildrenPath(editor_state).AsOptional());
         });

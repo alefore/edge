@@ -39,7 +39,7 @@ struct PromptOptions {
   EditorState& editor_state;
 
   // Text to show in the prompt.
-  wstring prompt;
+  std::wstring prompt;
 
   // Used to set buffer_variables::contents_type on the buffer for the prompt.
   // The extensions code inspects this and can adjust behaviors.
@@ -49,7 +49,7 @@ struct PromptOptions {
   HistoryFile history_file;
 
   // Optional. Initial value for the prompt. Defaults to empty.
-  wstring initial_value = L"";
+  std::wstring initial_value = L"";
 
   using ColorizeFunction = std::function<futures::Value<ColorizePromptOptions>(
       const language::NonNull<std::shared_ptr<LazyString>>& line,
@@ -62,7 +62,7 @@ struct PromptOptions {
   ColorizeFunction colorize_options_provider = nullptr;
 
   // Function to run when the prompt receives the final input.
-  std::function<futures::Value<language::EmptyValue>(const wstring& input)>
+  std::function<futures::Value<language::EmptyValue>(const std::wstring& input)>
       handler;
 
   // Optional. Function to run when the prompt is cancelled (because ESCAPE was
@@ -87,7 +87,7 @@ void Prompt(PromptOptions options);
 
 // options_supplier will only be called if the editor has an active buffer.
 language::NonNull<std::unique_ptr<Command>> NewLinePromptCommand(
-    EditorState& editor_state, wstring description,
+    EditorState& editor_state, std::wstring description,
     std::function<PromptOptions()> options_supplier);
 
 }  // namespace afc::editor

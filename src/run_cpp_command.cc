@@ -31,13 +31,16 @@ using language::Success;
 using language::ValueOrError;
 using language::VisitPointer;
 
+using vm::VMType;
+using vm::VMTypeMapper;
+
 namespace gc = language::gc;
 namespace {
 
 struct SearchNamespaces {
   SearchNamespaces(const OpenBuffer& buffer)
       : namespaces([&] {
-          std::vector<Environment::Namespace> output(1);
+          std::vector<vm::Environment::Namespace> output(1);
           auto var = NewLazyString(
               buffer.Read(buffer_variables::cpp_prompt_namespaces));
           for (auto& token : TokenizeBySpaces(var.value())) {
@@ -46,11 +49,11 @@ struct SearchNamespaces {
           return output;
         }()) {}
 
-  const std::vector<Environment::Namespace> namespaces;
+  const std::vector<vm::Environment::Namespace> namespaces;
 };
 
 futures::Value<EmptyValue> RunCppCommandLiteralHandler(
-    const wstring& name, EditorState& editor_state) {
+    const std::wstring& name, EditorState& editor_state) {
   // TODO(easy): Honor `multiple_buffers`.
   return VisitPointer(
       editor_state.current_buffer(),
@@ -58,7 +61,7 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
         buffer.ptr()->ResetMode();
         return buffer.ptr()
             ->EvaluateString(name)
-            .Transform([buffer](gc::Root<Value> value) {
+            .Transform([buffer](gc::Root<vm::Value> value) {
               if (value.ptr()->IsVoid()) return Success();
               std::ostringstream oss;
               oss << "Evaluation result: " << value.ptr().value();
@@ -74,12 +77,12 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
 struct ParsedCommand {
   std::vector<Token> tokens;
   gc::Root<vm::Value> function;
-  std::vector<NonNull<std::unique_ptr<Expression>>> function_inputs;
+  std::vector<NonNull<std::unique_ptr<vm::Expression>>> function_inputs;
 };
 
 ValueOrError<ParsedCommand> Parse(
     gc::Pool& pool, NonNull<std::shared_ptr<LazyString>> command,
-    Environment& environment,
+    vm::Environment& environment,
     NonNull<std::shared_ptr<LazyString>> function_name_prefix,
     std::unordered_set<VMType> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
@@ -90,7 +93,7 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   CHECK(!search_namespaces.namespaces.empty());
-  std::vector<gc::Root<Value>> functions;
+  std::vector<gc::Root<vm::Value>> functions;
   for (const auto& n : search_namespaces.namespaces) {
     environment.CaseInsensitiveLookup(
         n,
@@ -106,9 +109,9 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   // Filter functions that match our type expectations.
-  std::vector<gc::Root<Value>> type_match_functions;
-  std::optional<gc::Root<Value>> function_vector;
-  for (gc::Root<Value>& candidate : functions) {
+  std::vector<gc::Root<vm::Value>> type_match_functions;
+  std::optional<gc::Root<vm::Value>> function_vector;
+  for (gc::Root<vm::Value>& candidate : functions) {
     if (!candidate.ptr()->IsFunction()) {
       continue;
     }
@@ -133,7 +136,7 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   std::optional<gc::Root<vm::Value>> output_function;
-  std::vector<NonNull<std::unique_ptr<Expression>>> output_function_inputs;
+  std::vector<NonNull<std::unique_ptr<vm::Expression>>> output_function_inputs;
 
   if (function_vector.has_value()) {
     output_function = function_vector.value();
@@ -176,7 +179,7 @@ ValueOrError<ParsedCommand> Parse(
 
 ValueOrError<ParsedCommand> Parse(gc::Pool& pool,
                                   NonNull<std::shared_ptr<LazyString>> command,
-                                  Environment& environment,
+                                  vm::Environment& environment,
                                   const SearchNamespaces& search_namespaces) {
   return Parse(pool, std::move(command), environment, EmptyString(),
                {VMType::Void(), VMType::String()}, search_namespaces);
@@ -217,7 +220,7 @@ bool tests_parse_registration = tests::Register(
         gc::Root<OpenBuffer> buffer = NewBufferForTests();
         gc::Pool pool;
         vm::Environment environment;
-        environment.Define(L"foo", Value::NewString(pool, L"bar"));
+        environment.Define(L"foo", vm::Value::NewString(pool, L"bar"));
         auto output =
             Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
                   std::unordered_set<VMType>({VMType::String()}),
@@ -226,9 +229,9 @@ bool tests_parse_registration = tests::Register(
       }}});
 }
 
-futures::ValueOrError<gc::Root<Value>> Execute(OpenBuffer& buffer,
-                                               ParsedCommand parsed_command) {
-  NonNull<std::unique_ptr<Expression>> expression =
+futures::ValueOrError<gc::Root<vm::Value>> Execute(
+    OpenBuffer& buffer, ParsedCommand parsed_command) {
+  NonNull<std::unique_ptr<vm::Expression>> expression =
       vm::NewFunctionCall(vm::NewConstantExpression(parsed_command.function),
                           std::move(parsed_command.function_inputs));
   if (expression->Types().empty()) {
@@ -251,9 +254,10 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
     const SearchNamespaces& search_namespaces) {
   ColorizePromptOptions output;
   std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
-  Environment& environment = (buffer.has_value() ? buffer->ptr()->environment()
-                                                 : editor.environment().ptr())
-                                 .value();
+  vm::Environment& environment =
+      (buffer.has_value() ? buffer->ptr()->environment()
+                          : editor.environment().ptr())
+          .value();
   if (auto parsed_command =
           Parse(editor.gc_pool(), line, environment, search_namespaces);
       !parsed_command.IsError()) {
@@ -332,7 +336,8 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
   return NewLinePromptCommand(
       editor_state, description, [&editor_state, mode]() {
         std::wstring prompt;
-        std::function<futures::Value<EmptyValue>(const wstring& input)> handler;
+        std::function<futures::Value<EmptyValue>(const std::wstring& input)>
+            handler;
         PromptOptions::ColorizeFunction colorize_options_provider;
         switch (mode) {
           case CppCommandMode::kLiteral:

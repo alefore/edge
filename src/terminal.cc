@@ -116,8 +116,8 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
 //
 // The thinking is to return at most a single-character, and pick the most
 // meaningful.
-wstring TransformCommandNameForStatus(wstring name) {
-  static const wstring kDefaultName = L"…";
+std::wstring TransformCommandNameForStatus(std::wstring name) {
+  static const std::wstring kDefaultName = L"…";
   static const size_t kMaxLength = 5;
 
   size_t index = 0;
@@ -126,12 +126,12 @@ wstring TransformCommandNameForStatus(wstring name) {
   }
 
   index = name.find_first_not_of(L' ', index);  // Skip spaces.
-  if (index == string::npos) {
+  if (index == std::wstring::npos) {
     return kDefaultName;
   }
   size_t end = name.find_first_of(L' ', index);
-  std::wstring output =
-      name.substr(index, end == string::npos ? string::npos : end - index);
+  std::wstring output = name.substr(
+      index, end == std::wstring::npos ? std::wstring::npos : end - index);
   auto first_path = Path::FromString(output);
   if (!first_path.IsError()) {
     if (auto basename = first_path.value().Basename(); !basename.IsError()) {

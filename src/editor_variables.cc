@@ -2,12 +2,12 @@
 
 namespace afc::editor::editor_variables {
 
-EdgeStruct<wstring>* StringStruct() {
-  static EdgeStruct<wstring>* output = new EdgeStruct<wstring>();
+EdgeStruct<std::wstring>* StringStruct() {
+  static EdgeStruct<std::wstring>* output = new EdgeStruct<std::wstring>();
   return output;
 }
 
-EdgeVariable<wstring>* const buffer_sort_order =
+EdgeVariable<std::wstring>* const buffer_sort_order =
     StringStruct()
         ->Add()
         .Name(L"buffer_sort_order")

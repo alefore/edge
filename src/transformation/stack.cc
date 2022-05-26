@@ -28,7 +28,7 @@ using language::Success;
 namespace gc = language::gc;
 namespace {
 void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
-               const Value& value) {
+               const vm::Value& value) {
   if (value.IsVoid()) return;
   std::ostringstream oss;
   oss << value;
@@ -54,7 +54,7 @@ futures::Value<PossibleError> PreviewCppExpression(
     case vm::PurityType::kReader:
     case vm::PurityType::kPure:
       return buffer.EvaluateExpression(expression.value(), environment)
-          .Transform([&buffer](gc::Root<Value> value) {
+          .Transform([&buffer](gc::Root<vm::Value> value) {
             ShowValue(buffer, nullptr, value.ptr().value());
             return Success();
           })
@@ -93,7 +93,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
         });
   }
   return input.buffer.EvaluateString(contents->ToString())
-      .Transform([input](gc::Root<Value> value) {
+      .Transform([input](gc::Root<vm::Value> value) {
         ShowValue(input.buffer, input.delete_buffer, value.ptr().value());
         Result output(input.position);
         output.added_to_paste_buffer = true;

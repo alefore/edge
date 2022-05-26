@@ -25,13 +25,6 @@ class LazyString;
 class OpenBuffer;
 class LineWithCursor;
 
-using std::shared_ptr;
-using std::string;
-using std::unique_ptr;
-using std::unordered_set;
-using std::vector;
-using std::wstring;
-
 // This class is thread-safe.
 class Line {
  public:
@@ -120,7 +113,7 @@ class Line {
   static language::NonNull<std::shared_ptr<Line>> New(Options options);
   Line() : Line(Options()) {}
   explicit Line(Options options);
-  explicit Line(wstring text);
+  explicit Line(std::wstring text);
   Line(const Line& line);
 
   Options CopyOptions() const;
@@ -137,7 +130,7 @@ class Line {
   language::NonNull<std::shared_ptr<LazyString>> Substring(
       ColumnNumber column) const;
 
-  wstring ToString() const { return contents()->ToString(); }
+  std::wstring ToString() const { return contents()->ToString(); }
 
   std::shared_ptr<LazyString> metadata() const;
 

@@ -109,8 +109,8 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
       .predictions_buffer = predictions_buffer.NewRoot()};
 
   if (auto value = predictions_buffer.environment()->Lookup(
-          predictions_buffer.editor().gc_pool(), Environment::Namespace(),
-          kLongestPrefixEnvironmentVariable, VMType::Int());
+          predictions_buffer.editor().gc_pool(), vm::Environment::Namespace(),
+          kLongestPrefixEnvironmentVariable, vm::VMType::Int());
       value.has_value()) {
     LOG(INFO) << "Setting " << kLongestPrefixEnvironmentVariable << ": "
               << value.value().ptr()->get_int();
@@ -119,16 +119,16 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
   }
 
   if (auto value = predictions_buffer.environment()->Lookup(
-          predictions_buffer.editor().gc_pool(), Environment::Namespace(),
-          kLongestDirectoryMatchEnvironmentVariable, VMType::Int());
+          predictions_buffer.editor().gc_pool(), vm::Environment::Namespace(),
+          kLongestDirectoryMatchEnvironmentVariable, vm::VMType::Int());
       value.has_value()) {
     predict_results.longest_directory_match =
         ColumnNumberDelta(value.value().ptr()->get_int());
   }
 
   if (auto value = predictions_buffer.environment()->Lookup(
-          predictions_buffer.editor().gc_pool(), Environment::Namespace(),
-          kExactMatchEnvironmentVariable, VMType::Bool());
+          predictions_buffer.editor().gc_pool(), vm::Environment::Namespace(),
+          kExactMatchEnvironmentVariable, vm::VMType::Bool());
       value.has_value()) {
     predict_results.found_exact_match = value.value().ptr()->get_bool();
   }
@@ -242,9 +242,9 @@ struct DescendDirectoryTreeOutput {
 
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
-  std::optional<gc::Root<Value>> value = buffer.environment()->Lookup(
-      pool, Environment::Namespace(), kLongestDirectoryMatchEnvironmentVariable,
-      VMType::Int());
+  std::optional<gc::Root<vm::Value>> value = buffer.environment()->Lookup(
+      pool, vm::Environment::Namespace(),
+      kLongestDirectoryMatchEnvironmentVariable, vm::VMType::Int());
   if (!value.has_value()) return;
   buffer.environment()->Assign(
       kLongestDirectoryMatchEnvironmentVariable,
@@ -254,9 +254,9 @@ void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
 
 void RegisterPredictorExactMatch(OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
-  std::optional<gc::Root<Value>> value = buffer.environment()->Lookup(
-      pool, Environment::Namespace(), kExactMatchEnvironmentVariable,
-      VMType::Bool());
+  std::optional<gc::Root<vm::Value>> value = buffer.environment()->Lookup(
+      pool, vm::Environment::Namespace(), kExactMatchEnvironmentVariable,
+      vm::VMType::Bool());
   if (!value.has_value()) return;
   buffer.environment()->Assign(kExactMatchEnvironmentVariable,
                                vm::Value::NewBool(pool, true));
@@ -330,7 +330,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 
   while ((entry = readdir(dir)) != nullptr) {
     if (abort_notification.HasBeenNotified()) return;
-    string entry_path = entry->d_name;
+    std::string entry_path = entry->d_name;
     auto mismatch_results = std::mismatch(pattern.begin(), pattern.end(),
                                           entry_path.begin(), entry_path.end());
     if (mismatch_results.first != pattern.end()) {
@@ -644,9 +644,9 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
 
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
-  std::optional<gc::Root<Value>> value = buffer.environment()->Lookup(
-      pool, Environment::Namespace(), kLongestPrefixEnvironmentVariable,
-      VMType::Int());
+  std::optional<gc::Root<vm::Value>> value = buffer.environment()->Lookup(
+      pool, vm::Environment::Namespace(), kLongestPrefixEnvironmentVariable,
+      vm::VMType::Int());
   if (!value.has_value()) return;
   buffer.environment()->Assign(
       kLongestPrefixEnvironmentVariable,

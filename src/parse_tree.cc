@@ -207,7 +207,7 @@ class NullTreeParser : public TreeParser {
 class WordsTreeParser : public TreeParser {
  public:
   WordsTreeParser(std::wstring symbol_characters,
-                  std::unordered_set<wstring> typos,
+                  std::unordered_set<std::wstring> typos,
                   NonNull<std::unique_ptr<TreeParser>> delegate)
       : symbol_characters_(symbol_characters),
         typos_(typos),
@@ -263,7 +263,7 @@ class WordsTreeParser : public TreeParser {
   }
 
   const std::wstring symbol_characters_;
-  const std::unordered_set<wstring> typos_;
+  const std::unordered_set<std::wstring> typos_;
   const NonNull<std::unique_ptr<TreeParser>> delegate_;
 };
 
@@ -303,7 +303,7 @@ NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser() {
 }
 
 NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
-    wstring symbol_characters, std::unordered_set<wstring> typos,
+    std::wstring symbol_characters, std::unordered_set<std::wstring> typos,
     NonNull<std::unique_ptr<TreeParser>> delegate) {
   return MakeNonNullUnique<WordsTreeParser>(
       std::move(symbol_characters), std::move(typos), std::move(delegate));

@@ -23,14 +23,14 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    const wstring& superfluous_characters =
+    const std::wstring& superfluous_characters =
         input.buffer.Read(buffer_variables::line_suffix_superfluous_characters);
     const auto line = input.buffer.LineAt(input.position.line);
     if (line == nullptr) return futures::Past(Output());
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&
-           superfluous_characters.find(
-               line->get(column - ColumnNumberDelta(1))) != string::npos) {
+           superfluous_characters.find(line->get(
+               column - ColumnNumberDelta(1))) != std::wstring::npos) {
       --column;
     }
     if (column == line->EndColumn()) return futures::Past(Output());

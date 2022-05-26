@@ -42,7 +42,7 @@ std::optional<ShortRandomString> Reader<ShortRandomString>::Read(
   }
   return input_stream.eof()
              ? std::optional<ShortRandomString>()
-             : ShortRandomString{FromByteString(string(buffer, len))};
+             : ShortRandomString{FromByteString(std::string(buffer, len))};
 }
 
 Handler Call(std::function<void()> callback) {

@@ -17,9 +17,6 @@ namespace concurrent {
 class Notification;
 }
 namespace editor {
-
-using std::wstring;
-
 class EditorState;
 class OpenBuffer;
 struct LineColumn;
@@ -33,7 +30,7 @@ struct SearchOptions {
   LineColumn starting_position = {};
 
   // The regular expression to search.
-  wstring search_query;
+  std::wstring search_query;
 
   // An optional position where the search should stop.
   std::optional<LineColumn> limit_position = std::nullopt;

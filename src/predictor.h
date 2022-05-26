@@ -17,11 +17,6 @@
 namespace afc {
 namespace editor {
 
-using std::function;
-using std::shared_ptr;
-using std::vector;
-using std::wstring;
-
 class EditorState;
 class OpenBuffer;
 
@@ -85,7 +80,7 @@ const BufferName& PredictionsBufferName();
 struct PredictResults {
   // If the input matched at least one item, this will be the longest common
   // prefix of all the items that the input matched.
-  std::optional<wstring> common_prefix;
+  std::optional<std::wstring> common_prefix;
 
   // The buffer holding all the predictions.
   language::gc::Root<OpenBuffer> predictions_buffer;
@@ -148,7 +143,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput input);
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input);
 
-Predictor PrecomputedPredictor(const vector<wstring>& predictions,
+Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
                                wchar_t separator);
 
 Predictor DictionaryPredictor(

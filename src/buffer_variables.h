@@ -41,28 +41,28 @@ extern EdgeVariable<bool>* const persist_state;
 extern EdgeVariable<bool>* const pin;
 extern EdgeVariable<bool>* const vm_lines_evaluation;
 
-EdgeStruct<wstring>* StringStruct();
-extern EdgeVariable<wstring>* const name;
-extern EdgeVariable<wstring>* const symbol_characters;
-extern EdgeVariable<wstring>* const path_characters;
-extern EdgeVariable<wstring>* const path;
-extern EdgeVariable<wstring>* const pts_path;
-extern EdgeVariable<wstring>* const children_path;
-extern EdgeVariable<wstring>* const command;
-extern EdgeVariable<wstring>* const editor_commands_path;
-extern EdgeVariable<wstring>* const line_prefix_characters;
-extern EdgeVariable<wstring>* const paragraph_line_prefix_characters;
-extern EdgeVariable<wstring>* const line_suffix_superfluous_characters;
-extern EdgeVariable<wstring>* const dictionary;
-extern EdgeVariable<wstring>* const tree_parser;
-extern EdgeVariable<wstring>* const language_keywords;
-extern EdgeVariable<wstring>* const typos;
-extern EdgeVariable<wstring>* const directory_noise;
-extern EdgeVariable<wstring>* const contents_type;
-extern EdgeVariable<wstring>* const shell_command_help_filter;
-extern EdgeVariable<wstring>* const cpp_prompt_namespaces;
-extern EdgeVariable<wstring>* const file_context_extensions;
-extern EdgeVariable<wstring>* const identifier_behavior;
+EdgeStruct<std::wstring>* StringStruct();
+extern EdgeVariable<std::wstring>* const name;
+extern EdgeVariable<std::wstring>* const symbol_characters;
+extern EdgeVariable<std::wstring>* const path_characters;
+extern EdgeVariable<std::wstring>* const path;
+extern EdgeVariable<std::wstring>* const pts_path;
+extern EdgeVariable<std::wstring>* const children_path;
+extern EdgeVariable<std::wstring>* const command;
+extern EdgeVariable<std::wstring>* const editor_commands_path;
+extern EdgeVariable<std::wstring>* const line_prefix_characters;
+extern EdgeVariable<std::wstring>* const paragraph_line_prefix_characters;
+extern EdgeVariable<std::wstring>* const line_suffix_superfluous_characters;
+extern EdgeVariable<std::wstring>* const dictionary;
+extern EdgeVariable<std::wstring>* const tree_parser;
+extern EdgeVariable<std::wstring>* const language_keywords;
+extern EdgeVariable<std::wstring>* const typos;
+extern EdgeVariable<std::wstring>* const directory_noise;
+extern EdgeVariable<std::wstring>* const contents_type;
+extern EdgeVariable<std::wstring>* const shell_command_help_filter;
+extern EdgeVariable<std::wstring>* const cpp_prompt_namespaces;
+extern EdgeVariable<std::wstring>* const file_context_extensions;
+extern EdgeVariable<std::wstring>* const identifier_behavior;
 
 EdgeStruct<int>* IntStruct();
 extern EdgeVariable<int>* const line_width;
@@ -82,7 +82,7 @@ EdgeStruct<LineColumn>* LineColumnStruct();
 extern EdgeVariable<LineColumn>* const view_start;
 
 // No variables currently, but we'll likely add some later.
-EdgeStruct<unique_ptr<vm::Value>>* ValueStruct();
+EdgeStruct<std::unique_ptr<vm::Value>>* ValueStruct();
 
 }  // namespace buffer_variables
 }  // namespace editor

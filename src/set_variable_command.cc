@@ -24,11 +24,11 @@ namespace {
 
 std::wstring TrimWhitespace(const std::wstring& in) {
   size_t begin = in.find_first_not_of(' ', 0);
-  if (begin == string::npos) {
+  if (begin == std::wstring::npos) {
     return L"";
   }
   size_t end = in.find_last_not_of(' ', in.size());
-  if (end == string::npos) {
+  if (end == std::wstring::npos) {
     return L"";
   }
   if (begin == 0 && end == in.size()) {
@@ -38,7 +38,7 @@ std::wstring TrimWhitespace(const std::wstring& in) {
 }
 
 Predictor VariablesPredictor() {
-  vector<std::wstring> variables;
+  std::vector<std::wstring> variables;
   buffer_variables::BoolStruct()->RegisterVariableNames(&variables);
   buffer_variables::StringStruct()->RegisterVariableNames(&variables);
   buffer_variables::IntStruct()->RegisterVariableNames(&variables);
@@ -197,7 +197,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   return futures::Past(EmptyValue());
 }
 
-NonNull<unique_ptr<Command>> NewSetVariableCommand(EditorState& editor_state) {
+NonNull<std::unique_ptr<Command>> NewSetVariableCommand(
+    EditorState& editor_state) {
   static Predictor variables_predictor = VariablesPredictor();
   return NewLinePromptCommand(
       editor_state, L"assigns to a variable", [&editor_state] {

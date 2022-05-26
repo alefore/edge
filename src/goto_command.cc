@@ -57,10 +57,10 @@ class GotoCommand : public Command {
   GotoCommand(EditorState& editor_state, size_t calls)
       : editor_state_(editor_state), calls_(calls % 4) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"goes to Rth structure from the beginning";
   }
-  wstring Category() const override { return L"Navigate"; }
+  std::wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t c) {
     if (c != 'g') {

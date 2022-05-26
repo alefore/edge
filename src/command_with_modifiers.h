@@ -16,7 +16,7 @@ using CommandWithModifiersHandler =
 
 language::NonNull<std::unique_ptr<Command>> NewCommandWithModifiers(
     std::function<std::wstring(const Modifiers&)> name_function,
-    wstring description, Modifiers initial_modifiers,
+    std::wstring description, Modifiers initial_modifiers,
     CommandWithModifiersHandler handler, EditorState& editor_state);
 
 }  // namespace afc::editor

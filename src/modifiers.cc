@@ -11,7 +11,7 @@ std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
   return os;
 }
 
-ostream& operator<<(ostream& os, const Modifiers& m) {
+std::ostream& operator<<(std::ostream& os, const Modifiers& m) {
   os << "[structure: " << m.structure->ToString() << "][direction: ";
   switch (m.direction) {
     case Direction::kForwards:

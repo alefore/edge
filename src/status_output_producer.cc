@@ -26,7 +26,7 @@ using language::VisitPointer;
 
 namespace gc = language::gc;
 
-wstring GetBufferContext(const OpenBuffer& buffer) {
+std::wstring GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
   if (auto current_line_marks =
           marks.lower_bound(LineColumn(buffer.position().line));
@@ -48,7 +48,7 @@ wstring GetBufferContext(const OpenBuffer& buffer) {
 // This produces the main view of the status, ignoring the context. It handles
 // all valid types of statuses (i.e., all values returned by status->GetType()).
 LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
-  wstring output;
+  std::wstring output;
   if (options.buffer != nullptr &&
       options.status.GetType() != Status::Type::kWarning) {
     output.push_back('[');
@@ -100,7 +100,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       flags.insert({L"💪", L""});
     }
 
-    wstring structure;
+    std::wstring structure;
     if (options.modifiers.structure == StructureTree()) {
       structure =
           L"tree<" + std::to_wstring(options.buffer->tree_depth()) + L">";

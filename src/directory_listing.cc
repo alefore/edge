@@ -23,6 +23,10 @@ using language::NonNull;
 using language::Observers;
 using language::ToByteString;
 
+using vm::Environment;
+using vm::Expression;
+using vm::VMType;
+
 namespace gc = language::gc;
 
 namespace {
@@ -72,7 +76,7 @@ void StartDeleteFile(EditorState& editor_state, std::wstring path) {
 
 Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   VLOG(6) << "Get metadata for: " << path;
-  std::optional<gc::Root<Value>> callback = target.environment()->Lookup(
+  std::optional<gc::Root<vm::Value>> callback = target.environment()->Lookup(
       target.editor().gc_pool(), Environment::Namespace(), L"GetPathMetadata",
       VMType::Function({VMType::String(), VMType::String()}));
   if (!callback.has_value()) {
@@ -82,7 +86,7 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
         .value = futures::Future<NonNull<std::shared_ptr<LazyString>>>().value};
   }
 
-  std::vector<NonNull<std::unique_ptr<vm::Expression>>> args;
+  std::vector<NonNull<std::unique_ptr<Expression>>> args;
   args.push_back(vm::NewConstantExpression(
       {vm::Value::NewString(target.editor().gc_pool(), path)}));
   NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
@@ -93,7 +97,7 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
           target
               .EvaluateExpression(expression.value(),
                                   target.environment().ToRoot())
-              .Transform([](gc::Root<Value> value)
+              .Transform([](gc::Root<vm::Value> value)
                              -> futures::ValueOrError<
                                  NonNull<std::shared_ptr<LazyString>>> {
                 VLOG(7) << "Evaluated result: " << value.ptr()->get_string();
@@ -110,7 +114,7 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
   enum class SizeBehavior { kShow, kSkip };
 
   struct FileType {
-    wstring description;
+    std::wstring description;
     LineModifierSet modifiers;
   };
   static const std::unordered_map<int, FileType> types = {
@@ -145,7 +149,8 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
   target.AppendRawLine(line);
 }
 
-void ShowFiles(wstring name, std::vector<dirent> entries, OpenBuffer& target) {
+void ShowFiles(std::wstring name, std::vector<dirent> entries,
+               OpenBuffer& target) {
   if (entries.empty()) {
     return;
   }

@@ -65,7 +65,7 @@ Seek StartSeekToLimit(const OpenBuffer& buffer, LineColumn* position) {
 Structure* StructureChar() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"char"; }
+    std::wstring ToString() override { return L"char"; }
 
     Structure* Lower() override { return StructureChar(); }
 
@@ -89,7 +89,7 @@ Structure* StructureChar() {
                                                   const Modifiers& modifiers,
                                                   LineColumn position,
                                                   int calls) override {
-      const wstring& line_prefix_characters =
+      const std::wstring& line_prefix_characters =
           buffer.Read(buffer_variables::line_prefix_characters);
       const auto& line = buffer.LineAt(position.line);
       if (line == nullptr) return std::nullopt;
@@ -97,13 +97,13 @@ Structure* StructureChar() {
           FindFirstColumnWithPredicate(
               line->contents().value(),
               [&](ColumnNumber, wchar_t c) {
-                return line_prefix_characters.find(c) == string::npos;
+                return line_prefix_characters.find(c) == std::wstring::npos;
               })
               .value_or(line->EndColumn());
       ColumnNumber end = line->EndColumn();
       while (start + ColumnNumberDelta(1) < end &&
-             (line_prefix_characters.find(
-                  line->get(end - ColumnNumberDelta(1))) != string::npos)) {
+             (line_prefix_characters.find(line->get(
+                  end - ColumnNumberDelta(1))) != std::wstring::npos)) {
         end--;
       }
       position.column = ColumnNumber(ComputePosition(
@@ -125,7 +125,7 @@ Structure* StructureChar() {
 Structure* StructureWord() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"word"; }
+    std::wstring ToString() override { return L"word"; }
 
     Structure* Lower() override { return StructureChar(); }
 
@@ -181,7 +181,7 @@ Structure* StructureWord() {
 Structure* StructureSymbol() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"symbol"; }
+    std::wstring ToString() override { return L"symbol"; }
 
     Structure* Lower() override { return StructureWord(); }
 
@@ -252,7 +252,7 @@ Structure* StructureSymbol() {
 Structure* StructureLine() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"line"; }
+    std::wstring ToString() override { return L"line"; }
 
     Structure* Lower() override { return StructureSymbol(); }
 
@@ -366,7 +366,7 @@ static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
 Structure* StructureMark() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"mark"; }
+    std::wstring ToString() override { return L"mark"; }
 
     Structure* Lower() override { return StructureLine(); }
 
@@ -433,7 +433,7 @@ Structure* StructureMark() {
 Structure* StructurePage() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"page"; }
+    std::wstring ToString() override { return L"page"; }
 
     Structure* Lower() override { return StructureMark(); }
 
@@ -496,7 +496,7 @@ Structure* StructurePage() {
 Structure* StructureSearch() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"search"; }
+    std::wstring ToString() override { return L"search"; }
 
     Structure* Lower() override { return StructurePage(); }
 
@@ -533,7 +533,7 @@ Structure* StructureSearch() {
 Structure* StructureTree() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"tree"; }
+    std::wstring ToString() override { return L"tree"; }
 
     Structure* Lower() override { return StructureTree(); }
 
@@ -626,7 +626,7 @@ Structure* StructureTree() {
 Structure* StructureCursor() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"cursor"; }
+    std::wstring ToString() override { return L"cursor"; }
 
     Structure* Lower() override { return StructureSearch(); }
 
@@ -699,7 +699,7 @@ Structure* StructureSentence() {
   // The exclamation signs at the end are considered part of the sentence.
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"sentence"; }
+    std::wstring ToString() override { return L"sentence"; }
 
     Structure* Lower() override { return StructureSymbol(); }
 
@@ -775,7 +775,7 @@ Structure* StructureSentence() {
 Structure* StructureParagraph() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"paragraph"; }
+    std::wstring ToString() override { return L"paragraph"; }
 
     Structure* Lower() override { return StructureLine(); }
 
@@ -820,7 +820,7 @@ Structure* StructureParagraph() {
 Structure* StructureBuffer() {
   class Impl : public Structure {
    public:
-    wstring ToString() override { return L"buffer"; }
+    std::wstring ToString() override { return L"buffer"; }
 
     Structure* Lower() override { return StructureCursor(); }
 

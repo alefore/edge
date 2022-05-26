@@ -28,10 +28,10 @@ class RecordCommand : public Command {
  public:
   RecordCommand(EditorState& editor_state) : editor_state_(editor_state) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"starts/stops recording a transformation";
   }
-  wstring Category() const override { return L"Edit"; }
+  std::wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t) override {
     VisitPointer(

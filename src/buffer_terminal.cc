@@ -133,7 +133,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
   ++read_index;
   CHECK_LE(data_->position.line, data_->buffer.EndLine());
   auto current_line = data_->buffer.LineAt(data_->position.line);
-  string sequence;
+  std::string sequence;
   while (read_index.ToDelta() < str->size()) {
     int c = str->get(read_index);
     ++read_index;
@@ -259,7 +259,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
           LineColumnDelta delta;
           size_t pos = sequence.find(';');
           try {
-            if (pos != wstring::npos) {
+            if (pos != std::wstring::npos) {
               delta.line = LineNumberDelta(
                   pos == 0 ? 0 : stoul(sequence.substr(0, pos)) - 1);
               delta.column =

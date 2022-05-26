@@ -347,19 +347,19 @@ EdgeVariable<bool>* const vm_lines_evaluation =
             L"results of the evaluation will be shown.")
         .Build();
 
-EdgeStruct<wstring>* StringStruct() {
-  static EdgeStruct<wstring>* output = new EdgeStruct<wstring>();
+EdgeStruct<std::wstring>* StringStruct() {
+  static EdgeStruct<std::wstring>* output = new EdgeStruct<std::wstring>();
   return output;
 }
 
-EdgeVariable<wstring>* const name =
+EdgeVariable<std::wstring>* const name =
     StringStruct()
         ->Add()
         .Name(L"name")
         .Description(L"Name of the current buffer.")
         .Build();
 
-EdgeVariable<wstring>* const symbol_characters =
+EdgeVariable<std::wstring>* const symbol_characters =
     StringStruct()
         ->Add()
         .Name(L"symbol_characters")
@@ -370,7 +370,7 @@ EdgeVariable<wstring>* const symbol_characters =
             L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
         .Build();
 
-EdgeVariable<wstring>* const path_characters =
+EdgeVariable<std::wstring>* const path_characters =
     StringStruct()
         ->Add()
         .Name(L"path_characters")
@@ -382,7 +382,7 @@ EdgeVariable<wstring>* const path_characters =
             L"*:/")
         .Build();
 
-EdgeVariable<wstring>* const path =
+EdgeVariable<std::wstring>* const path =
     StringStruct()
         ->Add()
         .Name(L"path")
@@ -390,7 +390,7 @@ EdgeVariable<wstring>* const path =
         .Predictor(FilePredictor)
         .Build();
 
-EdgeVariable<wstring>* const pts_path =
+EdgeVariable<std::wstring>* const pts_path =
     StringStruct()
         ->Add()
         .Name(L"pts_path")
@@ -400,7 +400,7 @@ EdgeVariable<wstring>* const pts_path =
         .Predictor(FilePredictor)
         .Build();
 
-EdgeVariable<wstring>* const children_path =
+EdgeVariable<std::wstring>* const children_path =
     StringStruct()
         ->Add()
         .Name(L"children_path")
@@ -412,7 +412,7 @@ EdgeVariable<wstring>* const children_path =
         .Predictor(FilePredictor)
         .Build();
 
-EdgeVariable<wstring>* const command =
+EdgeVariable<std::wstring>* const command =
     StringStruct()
         ->Add()
         .Name(L"command")
@@ -422,7 +422,7 @@ EdgeVariable<wstring>* const command =
         .Predictor(FilePredictor)
         .Build();
 
-EdgeVariable<wstring>* const editor_commands_path =
+EdgeVariable<std::wstring>* const editor_commands_path =
     StringStruct()
         ->Add()
         .Name(L"editor_commands_path")
@@ -434,7 +434,7 @@ EdgeVariable<wstring>* const editor_commands_path =
         .Predictor(FilePredictor)
         .Build();
 
-EdgeVariable<wstring>* const line_prefix_characters =
+EdgeVariable<std::wstring>* const line_prefix_characters =
     StringStruct()
         ->Add()
         .Name(L"line_prefix_characters")
@@ -448,7 +448,7 @@ EdgeVariable<wstring>* const line_prefix_characters =
         .DefaultValue(L" ")
         .Build();
 
-EdgeVariable<wstring>* const paragraph_line_prefix_characters =
+EdgeVariable<std::wstring>* const paragraph_line_prefix_characters =
     StringStruct()
         ->Add()
         .Name(L"paragraph_line_prefix_characters")
@@ -459,7 +459,7 @@ EdgeVariable<wstring>* const paragraph_line_prefix_characters =
         .DefaultValue(L" ")
         .Build();
 
-EdgeVariable<wstring>* const line_suffix_superfluous_characters =
+EdgeVariable<std::wstring>* const line_suffix_superfluous_characters =
     StringStruct()
         ->Add()
         .Name(L"line_suffix_superfluous_characters")
@@ -470,7 +470,7 @@ EdgeVariable<wstring>* const line_suffix_superfluous_characters =
         .DefaultValue(L" ")
         .Build();
 
-EdgeVariable<wstring>* const dictionary =
+EdgeVariable<std::wstring>* const dictionary =
     StringStruct()
         ->Add()
         .Name(L"dictionary")
@@ -485,7 +485,7 @@ EdgeVariable<wstring>* const dictionary =
         .Predictor(FilePredictor)
         .Build();
 
-EdgeVariable<wstring>* const tree_parser =
+EdgeVariable<std::wstring>* const tree_parser =
     StringStruct()
         ->Add()
         .Name(L"tree_parser")
@@ -495,7 +495,7 @@ EdgeVariable<wstring>* const tree_parser =
             L"\"cpp\". Any other value disables the tree logic.")
         .Build();
 
-EdgeVariable<wstring>* const language_keywords =
+EdgeVariable<std::wstring>* const language_keywords =
     StringStruct()
         ->Add()
         .Name(L"language_keywords")
@@ -504,7 +504,7 @@ EdgeVariable<wstring>* const language_keywords =
             L"the \"cpp\" tree parser (see variable tree_parser).")
         .Build();
 
-EdgeVariable<wstring>* const typos =
+EdgeVariable<std::wstring>* const typos =
     StringStruct()
         ->Add()
         .Name(L"typos")
@@ -514,7 +514,7 @@ EdgeVariable<wstring>* const typos =
             L"parser types (see variable tree_parser).")
         .Build();
 
-EdgeVariable<wstring>* const directory_noise =
+EdgeVariable<std::wstring>* const directory_noise =
     StringStruct()
         ->Add()
         .Name(L"directory_noise")
@@ -525,7 +525,7 @@ EdgeVariable<wstring>* const directory_noise =
         .DefaultValue(L".*(\\.o|~)|\\.(?!\\.$).*")
         .Build();
 
-EdgeVariable<wstring>* const contents_type =
+EdgeVariable<std::wstring>* const contents_type =
     StringStruct()
         ->Add()
         .Name(L"contents_type")
@@ -535,7 +535,7 @@ EdgeVariable<wstring>* const contents_type =
             L"string. This can be used to customize certain behaviors.")
         .Build();
 
-EdgeVariable<wstring>* const shell_command_help_filter =
+EdgeVariable<std::wstring>* const shell_command_help_filter =
     StringStruct()
         ->Add()
         .Name(L"shell_command_help_filter")
@@ -549,7 +549,7 @@ EdgeVariable<wstring>* const shell_command_help_filter =
             L"[^|;]*$")
         .Build();
 
-EdgeVariable<wstring>* const cpp_prompt_namespaces =
+EdgeVariable<std::wstring>* const cpp_prompt_namespaces =
     StringStruct()
         ->Add()
         .Name(L"cpp_prompt_namespaces")
@@ -559,7 +559,7 @@ EdgeVariable<wstring>* const cpp_prompt_namespaces =
             L"commands (functions) given to the CPP prompt (`:`).")
         .Build();
 
-EdgeVariable<wstring>* const file_context_extensions =
+EdgeVariable<std::wstring>* const file_context_extensions =
     StringStruct()
         ->Add()
         .Name(L"file_context_extensions")
@@ -569,7 +569,7 @@ EdgeVariable<wstring>* const file_context_extensions =
             L"the identifier under the cursor.")
         .Build();
 
-EdgeVariable<wstring>* const identifier_behavior =
+EdgeVariable<std::wstring>* const identifier_behavior =
     StringStruct()
         ->Add()
         .Name(L"identifier_behavior")

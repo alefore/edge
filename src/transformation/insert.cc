@@ -103,7 +103,7 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
 std::wstring ToStringBase(const Insert& options) {
   std::wstring output = L"InsertTransformationBuilder()";
   output += L".set_text(" +
-            CppEscapeString(
+            vm::CppEscapeString(
                 options.contents_to_insert->at(LineNumber(0))->ToString()) +
             L")";
   output += L".set_modifiers(" + options.modifiers.Serialize() + L")";
@@ -116,6 +116,9 @@ std::wstring ToStringBase(const Insert& options) {
 Insert OptimizeBase(Insert transformation) { return transformation; }
 
 void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
+  using vm::ObjectType;
+  using vm::PurityType;
+  using vm::VMTypeMapper;
   auto builder = MakeNonNullUnique<ObjectType>(
       VMTypeMapper<std::shared_ptr<Insert>>::vmtype);
   environment.Define(
@@ -127,8 +130,8 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   builder->AddField(
       L"set_text",
       vm::NewCallback(
-          pool, PurityTypeWriter,
-          [](std::shared_ptr<Insert> options, wstring text) {
+          pool, vm::PurityTypeWriter,
+          [](std::shared_ptr<Insert> options, std::wstring text) {
             CHECK(options != nullptr);
             NonNull<std::shared_ptr<BufferContents>> buffer;
             ColumnNumber line_start;
@@ -151,7 +154,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
           }));
 
   builder->AddField(L"set_modifiers",
-                    vm::NewCallback(pool, PurityTypeWriter,
+                    vm::NewCallback(pool, vm::PurityTypeWriter,
                                     [](std::shared_ptr<Insert> options,
                                        std::shared_ptr<Modifiers> modifiers) {
                                       CHECK(options != nullptr);
@@ -163,7 +166,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
 
   builder->AddField(
       L"set_position",
-      NewCallback(pool, PurityTypeWriter,
+      NewCallback(pool, vm::PurityTypeWriter,
                   [](std::shared_ptr<Insert> options, LineColumn position) {
                     CHECK(options != nullptr);
                     options->position = position;

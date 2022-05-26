@@ -81,14 +81,14 @@ class UndoCommand : public Command {
   UndoCommand(EditorState& editor_state, std::optional<Direction> direction)
       : editor_state_(editor_state), direction_(direction) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     if (direction_.value_or(Direction::kForwards) == Direction::kBackwards) {
       return L"re-does the last change to the current buffer";
     }
     return L"un-does the last change to the current buffer";
   }
 
-  wstring Category() const override { return L"Edit"; }
+  std::wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t) override {
     if (direction_.has_value()) {
@@ -114,10 +114,10 @@ class GotoPreviousPositionCommand : public Command {
   GotoPreviousPositionCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"go back to previous position";
   }
-  wstring Category() const override { return L"Navigate"; }
+  std::wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) {
     if (!editor_state_.HasPositionsInStack()) {
@@ -180,7 +180,7 @@ class MoveForwards : public Command {
     return L"";
   }
 
-  wstring Category() const override { return L"Navigate"; }
+  std::wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t c) override { Move(c, editor_state_, direction_); }
 
@@ -205,7 +205,7 @@ class LineDown : public Command {
  public:
   LineDown(EditorState& editor_state) : editor_state_(editor_state) {}
   std::wstring Description() const override { return L"moves down one line"; }
-  wstring Category() const override { return L"Navigate"; }
+  std::wstring Category() const override { return L"Navigate"; }
   void ProcessInput(wint_t c) override {
     Move(c, editor_state_, editor_state_.structure());
   }
@@ -284,8 +284,8 @@ class EnterInsertModeCommand : public Command {
                          std::optional<Modifiers> modifiers)
       : editor_state_(editor_state), modifiers_(std::move(modifiers)) {}
 
-  wstring Description() const override { return L"enters insert mode"; }
-  wstring Category() const override { return L"Edit"; }
+  std::wstring Description() const override { return L"enters insert mode"; }
+  std::wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t) {
     if (modifiers_.has_value()) {
@@ -304,10 +304,10 @@ class InsertionModifierCommand : public Command {
   InsertionModifierCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"activates replace modifier (overwrites text on insertions)";
   }
-  wstring Category() const override { return L"Modifiers"; }
+  std::wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t) {
     if (editor_state_.insertion_modifier() == Modifiers::ModifyMode::kShift) {
@@ -332,10 +332,10 @@ class ReverseDirectionCommand : public Command {
   ReverseDirectionCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"reverses the direction of the next command";
   }
-  wstring Category() const override { return L"Modifiers"; }
+  std::wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t) {
     editor_state_.set_direction(ReverseDirection(editor_state_.direction()));
@@ -350,10 +350,10 @@ class SetStructureCommand : public Command {
   SetStructureCommand(EditorState& editor_state, Structure* structure)
       : editor_state_(editor_state), structure_(structure) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"sets the structure: " + structure_->ToString();
   }
-  wstring Category() const override { return L"Modifiers"; }
+  std::wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t) {
     if (editor_state_.structure() != structure_) {
@@ -370,15 +370,15 @@ class SetStructureCommand : public Command {
  private:
   EditorState& editor_state_;
   Structure* structure_;
-  const wstring description_;
+  const std::wstring description_;
 };
 
 class SetStrengthCommand : public Command {
  public:
   SetStrengthCommand(EditorState& editor_state) : editor_state_(editor_state) {}
 
-  wstring Description() const override { return L"Toggles the strength."; }
-  wstring Category() const override { return L"Modifiers"; }
+  std::wstring Description() const override { return L"Toggles the strength."; }
+  std::wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t) {
     Modifiers modifiers(editor_state_.modifiers());
@@ -400,11 +400,11 @@ class SetStrengthCommand : public Command {
 class NumberMode : public Command {
  public:
   NumberMode(EditorState& editor_state) : NumberMode(editor_state, L"") {}
-  NumberMode(EditorState& editor_state, const wstring& description)
+  NumberMode(EditorState& editor_state, const std::wstring& description)
       : editor_state_(editor_state), description_(description) {}
 
-  wstring Description() const override { return description_; }
-  wstring Category() const override { return L"Modifiers"; }
+  std::wstring Description() const override { return description_; }
+  std::wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t c) {
     editor_state_.set_keyboard_redirect(NewRepeatMode(
@@ -416,16 +416,16 @@ class NumberMode : public Command {
 
  private:
   EditorState& editor_state_;
-  const wstring description_;
+  const std::wstring description_;
 };
 
 class ActivateLink : public Command {
  public:
   ActivateLink(EditorState& editor_state) : editor_state_(editor_state) {}
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"activates the current link (if any)";
   }
-  wstring Category() const override { return L"Navigate"; }
+  std::wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) {
     VisitPointer(
@@ -493,10 +493,10 @@ class ActivateLink : public Command {
 class ResetStateCommand : public Command {
  public:
   ResetStateCommand(EditorState& editor_state) : editor_state_(editor_state) {}
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"Resets the state of the editor.";
   }
-  wstring Category() const override { return L"Editor"; }
+  std::wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(wint_t) {
     editor_state_.status().Reset();
@@ -517,8 +517,8 @@ class ResetStateCommand : public Command {
 class HardRedrawCommand : public Command {
  public:
   HardRedrawCommand(EditorState& editor_state) : editor_state_(editor_state) {}
-  wstring Description() const override { return L"Redraws the screen"; }
-  wstring Category() const override { return L"View"; }
+  std::wstring Description() const override { return L"Redraws the screen"; }
+  std::wstring Category() const override { return L"View"; }
 
   void ProcessInput(wint_t) {
     editor_state_.set_screen_needs_hard_redraw(true);
@@ -532,11 +532,11 @@ class TreeNavigateCommand : public Command {
  public:
   TreeNavigateCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"Navigates to the start/end of the current children of the "
            L"syntax tree";
   }
-  wstring Category() const override { return L"Navigate"; }
+  std::wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) {
     static const NonNull<std::shared_ptr<CompositeTransformation>>*
@@ -587,7 +587,7 @@ void ToggleVariable(EditorState& editor_state,
 
 void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
-                    const EdgeVariable<wstring>* variable,
+                    const EdgeVariable<std::wstring>* variable,
                     MapModeCommands* map_mode) {
   auto name = variable->name();
   std::wstring command;
@@ -649,7 +649,7 @@ void RegisterVariableKeys(EditorState& editor_state, EdgeStruct<T>* edge_struct,
                           MapModeCommands* map_mode) {
   std::vector<std::wstring> variable_names;
   edge_struct->RegisterVariableNames(&variable_names);
-  for (const wstring& name : variable_names) {
+  for (const std::wstring& name : variable_names) {
     auto variable = edge_struct->find_variable(name);
     if (!variable->key().empty()) {
       ToggleVariable(editor_state, variable_location, variable, map_mode);

@@ -261,9 +261,9 @@ NavigateState InitialState(EditorState& editor_state) {
           buffer.Read(buffer_variables::symbol_characters),
           buffer.position().column.column);
       return SearchRange(
-          previous_space == wstring::npos ? 0 : previous_space + 1,
-          next_space == wstring::npos ? contents->EndColumn().column
-                                      : next_space);
+          previous_space == std::wstring::npos ? 0 : previous_space + 1,
+          next_space == std::wstring::npos ? contents->EndColumn().column
+                                           : next_space);
     };
 
     initial_state.navigate_options.write_index = [](LineColumn position,

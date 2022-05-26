@@ -93,14 +93,14 @@ futures::Value<PossibleError> GenerateContents(
 }
 
 void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
-  const wstring path = buffer.Read(buffer_variables::path);
+  const std::wstring path = buffer.Read(buffer_variables::path);
   if (stat_buffer.st_mtime == 0) {
     LOG(INFO) << "Skipping file change check.";
     return;
   }
 
   LOG(INFO) << "Checking if file has changed: " << path;
-  const string path_raw = ToByteString(path);
+  const std::string path_raw = ToByteString(path);
   struct stat current_stat_buffer;
   if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
     return;
@@ -225,8 +225,8 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
     // writes.
     std::optional<PossibleError> error;
     contents->EveryLine([&](LineNumber position, const Line& line) {
-      string str = (position == LineNumber(0) ? "" : "\n") +
-                   ToByteString(line.ToString());
+      std::string str = (position == LineNumber(0) ? "" : "\n") +
+                        ToByteString(line.ToString());
       if (write(fd.read(), str.c_str(), str.size()) == -1) {
         error = Error(path.read() + L": write failed: " +
                       std::to_wstring(fd.read()) + L": " +
@@ -321,7 +321,7 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
 }  // namespace
 
 futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
-                                          vector<Path>* output) {
+                                          std::vector<Path>* output) {
   output->push_back(Path::LocalDirectory());
 
   auto paths = editor_state.edge_path();
@@ -331,8 +331,8 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
                return GetSearchPathsBuffer(editor_state, edge_path)
                    .Transform([&editor_state, output,
                                edge_path](gc::Root<OpenBuffer> buffer) {
-                     buffer.ptr()->contents().ForEach([&editor_state,
-                                                       output](wstring line) {
+                     buffer.ptr()->contents().ForEach([&editor_state, output](
+                                                          std::wstring line) {
                        auto path = Path::FromString(line);
                        if (path.IsError()) return;
                        output->push_back(
@@ -432,7 +432,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                                 }
                                 size_t next_str_end =
                                     input.path.find(':', state->str_end);
-                                const wstring arg = input.path.substr(
+                                const std::wstring arg = input.path.substr(
                                     state->str_end, next_str_end);
                                 if (i == 0 && arg.size() > 0 && arg[0] == '/') {
                                   output_pattern = arg.substr(1);
@@ -501,7 +501,7 @@ struct OpenFileResolvePathOutput {
   std::optional<gc::Root<OpenBuffer>> buffer = std::nullopt;
   std::optional<Path> path = std::nullopt;
   std::optional<LineColumn> position = std::nullopt;
-  wstring pattern = L"";
+  std::wstring pattern = L"";
 };
 
 template <typename T>

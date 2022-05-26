@@ -14,9 +14,6 @@
 
 namespace afc {
 namespace editor {
-
-using std::string;
-
 // Saves the contents of the buffer to the path given.
 futures::Value<language::PossibleError> SaveContentsToFile(
     const infrastructure::Path& path,
@@ -42,7 +39,7 @@ struct OpenFileOptions {
 };
 
 futures::Value<language::EmptyValue> GetSearchPaths(
-    EditorState& editor_state, vector<infrastructure::Path>* output);
+    EditorState& editor_state, std::vector<infrastructure::Path>* output);
 
 // Takes a specification of a path (which can be absolute or relative) and, if
 // relative, looks it up in the search paths. If a file is found, returns an
@@ -79,7 +76,7 @@ struct ResolvePathOutput {
   std::optional<LineColumn> position;
 
   // The pattern to jump to (after jumping to `position`).
-  std::optional<wstring> pattern;
+  std::optional<std::wstring> pattern;
 };
 
 futures::ValueOrError<ResolvePathOutput> ResolvePath(

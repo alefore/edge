@@ -115,21 +115,21 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
 
   std::wstring description = L"C++: " + TypesToString(expr->Types());
   switch (expr->purity()) {
-    case PurityType::kPure:
-    case PurityType::kReader: {
+    case vm::PurityType::kPure:
+    case vm::PurityType::kReader: {
       description += L" ...";
-      if (expr->Types() == std::vector<VMType>({VMType::Void()})) {
+      if (expr->Types() == std::vector<vm::VMType>({vm::VMType::Void()})) {
         return MakeNonNullShared<const Line>(
             line->CopyOptions().SetMetadata(std::nullopt));
       }
       futures::Future<NonNull<std::shared_ptr<LazyString>>> metadata_future;
       buffer.work_queue()->Schedule(
           [buffer = buffer.NewRoot(),
-           expr = NonNull<std::shared_ptr<Expression>>(std::move(expr)),
+           expr = NonNull<std::shared_ptr<vm::Expression>>(std::move(expr)),
            sub_environment, consumer = metadata_future.consumer] {
             buffer.ptr()
                 ->EvaluateExpression(expr.value(), sub_environment)
-                .Transform([](gc::Root<Value> value) {
+                .Transform([](gc::Root<vm::Value> value) {
                   std::ostringstream oss;
                   oss << value.ptr().value();
                   // TODO(2022-04-26): Improve futures to be able to remove
@@ -148,7 +148,7 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
           });
       metadata_value = std::move(metadata_future.value);
     } break;
-    case PurityType::kUnknown:
+    case vm::PurityType::kUnknown:
       break;
   }
 

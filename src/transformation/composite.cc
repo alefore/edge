@@ -144,7 +144,11 @@ void CompositeTransformation::Output::Push(
 
 void RegisterCompositeTransformation(language::gc::Pool& pool,
                                      vm::Environment& environment) {
-  auto input_type = MakeNonNullUnique<ObjectType>(
+  using vm::ObjectType;
+  using vm::PurityType;
+  using vm::VMTypeMapper;
+
+  auto input_type = MakeNonNullUnique<vm::ObjectType>(
       VMTypeMapper<
           std::shared_ptr<editor::CompositeTransformation::Input>>::vmtype);
 

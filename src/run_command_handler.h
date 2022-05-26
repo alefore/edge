@@ -16,24 +16,18 @@ class Pool;
 }
 namespace afc {
 namespace editor {
-
-using std::map;
-using std::string;
-using std::unique_ptr;
-using std::wstring;
-
 class EditorState;
 
 struct ForkCommandOptions {
   static void Register(language::gc::Pool& pool, vm::Environment& environment);
 
   // The command to run.
-  wstring command;
+  std::wstring command;
 
   std::optional<BufferName> name = std::nullopt;
 
   // Additional environment variables (e.g. getenv) to give to the command.
-  map<wstring, wstring> environment = {};
+  std::map<std::wstring, std::wstring> environment = {};
 
   BuffersList::AddBufferType insertion_type =
       BuffersList::AddBufferType::kVisit;
@@ -51,10 +45,10 @@ language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                            const ForkCommandOptions& options);
 
 futures::Value<language::EmptyValue> RunCommandHandler(
-    const wstring& input, EditorState& editor_state,
-    std::map<wstring, wstring> environment);
+    const std::wstring& input, EditorState& editor_state,
+    std::map<std::wstring, std::wstring> environment);
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
-    const wstring& input, EditorState& editor_state);
+    const std::wstring& input, EditorState& editor_state);
 }  // namespace editor
 namespace vm {
 template <>

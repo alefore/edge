@@ -94,7 +94,7 @@ class ScreenVm : public Screen {
     buffer_.clear();
   }
 
-  string buffer_;
+  std::string buffer_;
   const int fd_;
   LineColumnDelta size_ =
       LineColumnDelta(LineNumberDelta(25), ColumnNumberDelta(80));
@@ -162,7 +162,7 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
   screen_type->AddField(
       L"SetCursorVisibility",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](Screen* screen, wstring cursor_visibility) {
+                      [](Screen* screen, std::wstring cursor_visibility) {
                         CHECK(screen != nullptr);
                         screen->SetCursorVisibility(
                             Screen::CursorVisibilityFromString(
@@ -179,7 +179,7 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
   screen_type->AddField(
       L"WriteString",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](Screen* screen, wstring str) {
+                      [](Screen* screen, std::wstring str) {
                         using ::operator<<;
                         CHECK(screen != nullptr);
                         DVLOG(5) << "Writing string: " << str;
@@ -189,7 +189,7 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
   screen_type->AddField(
       L"SetModifier",
       vm::NewCallback(
-          pool, PurityType::kUnknown, [](Screen* screen, wstring str) {
+          pool, PurityType::kUnknown, [](Screen* screen, std::wstring str) {
             CHECK(screen != nullptr);
             screen->SetModifier(ModifierFromString(ToByteString(str)));
           }));

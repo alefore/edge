@@ -192,7 +192,7 @@ std::wstring BuildStatus(
 
 NonNull<std::unique_ptr<Command>> NewCommandWithModifiers(
     std::function<std::wstring(const Modifiers&)> name_function,
-    wstring description, Modifiers modifiers,
+    std::wstring description, Modifiers modifiers,
     CommandWithModifiersHandler handler, EditorState& editor_state) {
   return NewSetModeCommand(
       {.editor_state = editor_state,

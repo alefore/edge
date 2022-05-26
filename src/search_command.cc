@@ -134,8 +134,10 @@ class ProgressAggregator {
 class SearchCommand : public Command {
  public:
   SearchCommand(EditorState& editor_state) : editor_state_(editor_state) {}
-  wstring Description() const override { return L"Searches for a string."; }
-  wstring Category() const override { return L"Navigate"; }
+  std::wstring Description() const override {
+    return L"Searches for a string.";
+  }
+  std::wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) {
     if (editor_state_.structure()->search_query() ==
@@ -257,7 +259,7 @@ class SearchCommand : public Command {
                    });
              },
          .handler =
-             [&editor_state = editor_state_](const wstring& input) {
+             [&editor_state = editor_state_](const std::wstring& input) {
                return editor_state
                    .ForEachActiveBuffer([input](OpenBuffer& buffer) {
                      if (auto search_options = BuildPromptSearchOptions(

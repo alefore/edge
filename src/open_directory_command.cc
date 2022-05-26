@@ -24,10 +24,10 @@ class OpenDirectoryCommand : public Command {
   OpenDirectoryCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
 
-  wstring Description() const override {
+  std::wstring Description() const override {
     return L"opens a view of the current directory";
   }
-  wstring Category() const override { return L"Buffers"; }
+  std::wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t) override {
     OpenOrCreateFile({.editor_state = editor_state_,

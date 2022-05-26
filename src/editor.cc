@@ -145,7 +145,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
-    ValueOrError<NonNull<std::unique_ptr<Expression>>> expression =
+    ValueOrError<NonNull<std::unique_ptr<vm::Expression>>> expression =
         CompileFile(ToByteString(path.read()), gc_pool_, environment_);
     if (expression.IsError()) {
       Error error =
@@ -161,7 +161,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
                  LOG(INFO) << "Evaluation of file yields: " << path;
                  work_queue->Schedule(std::move(resume));
                })
-        .Transform([](gc::Root<Value>) {
+        .Transform([](gc::Root<vm::Value>) {
           // TODO(2022-04-26): Figure out a way to get rid of `Success`.
           return futures::Past(
               Success(futures::IterationControlCommand::kContinue));
@@ -209,11 +209,13 @@ void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
                     : !Read(variable));
 }
 
-const wstring& EditorState::Read(const EdgeVariable<wstring>* variable) const {
+const std::wstring& EditorState::Read(
+    const EdgeVariable<std::wstring>* variable) const {
   return string_variables_.Get(variable);
 }
 
-void EditorState::Set(const EdgeVariable<wstring>* variable, wstring value) {
+void EditorState::Set(const EdgeVariable<std::wstring>* variable,
+                      std::wstring value) {
   string_variables_.Set(variable, value);
   if (variable == editor_variables::buffer_sort_order) {
     AdjustWidgets();
@@ -395,11 +397,11 @@ futures::Value<EmptyValue> EditorState::ApplyToActiveBuffers(
       });
 }
 
-BufferName GetBufferName(const wstring& prefix, size_t count) {
+BufferName GetBufferName(const std::wstring& prefix, size_t count) {
   return BufferName(prefix + L" " + std::to_wstring(count));
 }
 
-BufferName EditorState::GetUnusedBufferName(const wstring& prefix) {
+BufferName EditorState::GetUnusedBufferName(const std::wstring& prefix) {
   size_t count = 0;
   while (buffers()->find(GetBufferName(prefix, count)) != buffers()->end()) {
     count++;
@@ -414,7 +416,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                               std::to_wstring(buffers_.size()) + L")");
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
-    std::vector<wstring> buffers_with_problems;
+    std::vector<std::wstring> buffers_with_problems;
     for (auto& it : buffers_) {
       if (auto result = it.second.ptr()->IsUnableToPrepareToClose();
           result.IsError()) {
@@ -425,7 +427,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
       }
     }
     if (!buffers_with_problems.empty()) {
-      wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
+      std::wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
       for (auto name : buffers_with_problems) {
         error += L" " + name;
       }
@@ -452,7 +454,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           return;
         }
         LOG(INFO) << "Checking buffers state for termination.";
-        std::vector<wstring> buffers_with_problems;
+        std::vector<std::wstring> buffers_with_problems;
         for (auto& it : buffers_) {
           if (it.second.ptr()->dirty() &&
               !it.second.ptr()->Read(buffer_variables::allow_dirty_delete)) {
@@ -461,7 +463,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           }
         }
         if (!buffers_with_problems.empty()) {
-          wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
+          std::wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
           for (auto name : buffers_with_problems) {
             error += L" " + name;
           }
@@ -578,7 +580,7 @@ void EditorState::set_default_insertion_modifier(
 }
 
 futures::Value<EmptyValue> EditorState::ProcessInputString(
-    const string& input) {
+    const std::string& input) {
   return futures::ForEachWithCopy(
              input.begin(), input.end(),
              [this](int c) {
@@ -744,7 +746,7 @@ void EditorState::PushPosition(LineColumn position) {
       });
 }
 
-static BufferPosition PositionFromLine(const wstring& line) {
+static BufferPosition PositionFromLine(const std::wstring& line) {
   std::wstringstream line_stream(line);
   LineColumn position;
   line_stream >> position.line.line >> position.column.column;
@@ -820,7 +822,7 @@ void EditorState::ProcessSignals() {
   if (pending_signals_.empty()) {
     return;
   }
-  vector<UnixSignal> signals;
+  std::vector<UnixSignal> signals;
   signals.swap(pending_signals_);
   for (UnixSignal signal : signals) {
     switch (signal.read()) {

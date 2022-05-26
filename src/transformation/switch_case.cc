@@ -35,7 +35,7 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
       wchar_t c = line->get(i.column);
       contents_to_insert->AppendToLine(
           contents_to_insert->EndLine(),
-          Line(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
+          Line(std::wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       i.column++;
     }
   }

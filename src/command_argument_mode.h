@@ -110,7 +110,7 @@ class CommandArgumentMode : public EditorMode {
 
   const Options options_;
   const std::vector<language::gc::Root<OpenBuffer>> buffers_;
-  wstring argument_string_;
+  std::wstring argument_string_;
 };
 
 // Sets parameter `undo` and `apply`. All other parameters must already have

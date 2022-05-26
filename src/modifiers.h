@@ -19,9 +19,6 @@ namespace language::gc {
 class Pool;
 }
 namespace editor {
-
-using std::ostream;
-
 struct BufferPosition {
   // The name of the buffer.
   BufferName buffer_name;
@@ -134,7 +131,7 @@ struct Modifiers {
 
 Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary);
 
-ostream& operator<<(ostream& os, const Modifiers& m);
+std::ostream& operator<<(std::ostream& os, const Modifiers& m);
 
 }  // namespace editor
 namespace vm {
