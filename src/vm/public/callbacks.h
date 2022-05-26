@@ -6,6 +6,7 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/language/function_traits.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
@@ -75,42 +76,11 @@ void AddArgs(std::vector<VMType>* output) {
   }
 };
 
-template <typename T>
-struct function_traits : public function_traits<decltype(&T::operator())> {};
-
-template <typename ClassType, typename R, typename... Args>
-struct function_traits<R (ClassType::*)(Args...) const> {
-  using ReturnType = R;
-  using ArgTuple = std::tuple<Args...>;
-  static constexpr auto arity = sizeof...(Args);
-};
-
-template <typename R, typename... Args>
-struct function_traits<R (&)(Args...)> {
-  using ReturnType = R;
-  using ArgTuple = std::tuple<Args...>;
-  static constexpr auto arity = sizeof...(Args);
-};
-
-template <typename R, typename... Args>
-struct function_traits<R (*)(Args...)> {
-  using ReturnType = R;
-  using ArgTuple = std::tuple<Args...>;
-  static constexpr auto arity = sizeof...(Args);
-};
-
-template <typename R, typename... Args>
-struct function_traits<R (*const)(Args...)> {
-  using ReturnType = R;
-  using ArgTuple = std::tuple<Args...>;
-  static constexpr auto arity = sizeof...(Args);
-};
-
 template <typename Callable, size_t... I>
 language::gc::Root<Value> RunCallback(
     language::gc::Pool& pool, Callable& callback,
     std::vector<language::gc::Root<Value>> args, std::index_sequence<I...>) {
-  using ft = function_traits<Callable>;
+  using ft = language::function_traits<Callable>;
   CHECK_EQ(args.size(), std::tuple_size<typename ft::ArgTuple>::value);
   // TODO(easy, 2022-05-13): Take a const ref to args.at(I).value().value() and
   // pass that to the VMTypeMapper<>::get functions, to ensure that they won't
@@ -135,7 +105,7 @@ template <typename Callable>
 language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
                                       PurityType purity_type,
                                       Callable callback) {
-  using ft = function_traits<Callable>;
+  using ft = language::function_traits<Callable>;
   std::vector<VMType> type_arguments;
   type_arguments.push_back(VMTypeMapper<typename ft::ReturnType>().vmtype);
   AddArgs<typename ft::ArgTuple, 0>(&type_arguments);
