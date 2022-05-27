@@ -134,15 +134,6 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary);
 std::ostream& operator<<(std::ostream& os, const Modifiers& m);
 
 }  // namespace editor
-namespace vm {
-template <>
-struct VMTypeMapper<std::shared_ptr<editor::Modifiers>> {
-  static std::shared_ptr<editor::Modifiers> get(Value& value);
-  static language::gc::Root<Value> New(
-      language::gc::Pool& pool, std::shared_ptr<editor::Modifiers> value);
-  static const VMType vmtype;
-};
-}  // namespace vm
 }  // namespace afc
 
 #endif  // __AFC_EDITOR_MODIFIERS_H__

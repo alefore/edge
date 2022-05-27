@@ -249,14 +249,14 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
       vm::NewCallback(pool, PurityType::kPure,
                       MakeNonNullShared<transformation::Delete>));
 
-  builder->AddField(L"set_modifiers",
-                    vm::NewCallback(pool, vm::PurityTypeWriter,
-                                    [](NonNull<std::shared_ptr<Delete>> options,
-                                       std::shared_ptr<Modifiers> modifiers) {
-                                      CHECK(modifiers != nullptr);
-                                      options->modifiers = *modifiers;
-                                      return options;
-                                    }));
+  builder->AddField(
+      L"set_modifiers",
+      vm::NewCallback(pool, vm::PurityTypeWriter,
+                      [](NonNull<std::shared_ptr<Delete>> options,
+                         NonNull<std::shared_ptr<Modifiers>> modifiers) {
+                        options->modifiers = modifiers.value();
+                        return options;
+                      }));
 
   builder->AddField(
       L"set_line_end_behavior",

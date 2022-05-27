@@ -3,7 +3,9 @@
 #include "src/language/wstring.h"
 
 namespace afc::editor {
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
+using language::NonNull;
 namespace gc = language::gc;
 
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
@@ -64,33 +66,33 @@ void Modifiers::Register(language::gc::Pool& pool,
   using vm::PurityType;
 
   auto modifiers_type = MakeNonNullUnique<vm::ObjectType>(
-      vm::VMTypeMapper<std::shared_ptr<Modifiers>>::vmtype);
+      vm::VMTypeMapper<NonNull<std::shared_ptr<Modifiers>>>::vmtype);
 
-  environment.Define(L"Modifiers",
-                     vm::NewCallback(pool, PurityType::kUnknown, []() {
-                       return std::make_shared<Modifiers>();
-                     }));
-
-  modifiers_type->AddField(
-      L"set_backwards", vm::NewCallback(pool, PurityType::kUnknown,
-                                        [](std::shared_ptr<Modifiers> output) {
-                                          output->direction =
-                                              Direction::kBackwards;
-                                          return output;
-                                        }));
+  environment.Define(
+      L"Modifiers",
+      vm::NewCallback(pool, PurityType::kPure, MakeNonNullShared<Modifiers>));
 
   modifiers_type->AddField(
-      L"set_line", vm::NewCallback(pool, PurityType::kUnknown,
-                                   [](std::shared_ptr<Modifiers> output) {
-                                     output->structure = StructureLine();
-                                     return output;
-                                   }));
+      L"set_backwards",
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](NonNull<std::shared_ptr<Modifiers>> output) {
+                        output->direction = Direction::kBackwards;
+                        return output;
+                      }));
+
+  modifiers_type->AddField(
+      L"set_line",
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](NonNull<std::shared_ptr<Modifiers>> output) {
+                        output->structure = StructureLine();
+                        return output;
+                      }));
 
   modifiers_type->AddField(
       L"set_delete_behavior",
       vm::NewCallback(
           pool, PurityType::kUnknown,
-          [](std::shared_ptr<Modifiers> output, bool delete_behavior) {
+          [](NonNull<std::shared_ptr<Modifiers>> output, bool delete_behavior) {
             output->text_delete_behavior =
                 delete_behavior ? Modifiers::TextDeleteBehavior::kDelete
                                 : Modifiers::TextDeleteBehavior::kKeep;
@@ -99,28 +101,29 @@ void Modifiers::Register(language::gc::Pool& pool,
 
   modifiers_type->AddField(
       L"set_paste_buffer_behavior",
-      vm::NewCallback(
-          pool, PurityType::kUnknown,
-          [](std::shared_ptr<Modifiers> output, bool paste_buffer_behavior) {
-            output->paste_buffer_behavior =
-                paste_buffer_behavior
-                    ? Modifiers::PasteBufferBehavior::kDeleteInto
-                    : Modifiers::PasteBufferBehavior::kDoNothing;
-            return output;
-          }));
-
-  modifiers_type->AddField(
-      L"set_repetitions",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](std::shared_ptr<Modifiers> output, int repetitions) {
-                        output->repetitions = repetitions;
+                      [](NonNull<std::shared_ptr<Modifiers>> output,
+                         bool paste_buffer_behavior) {
+                        output->paste_buffer_behavior =
+                            paste_buffer_behavior
+                                ? Modifiers::PasteBufferBehavior::kDeleteInto
+                                : Modifiers::PasteBufferBehavior::kDoNothing;
                         return output;
                       }));
 
   modifiers_type->AddField(
+      L"set_repetitions",
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](NonNull<std::shared_ptr<Modifiers>> output, int repetitions) {
+            output->repetitions = repetitions;
+            return output;
+          }));
+
+  modifiers_type->AddField(
       L"set_boundary_end_neighbor",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](std::shared_ptr<Modifiers> output) {
+                      [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->boundary_end = LIMIT_NEIGHBOR;
                         return output;
                       }));
@@ -152,25 +155,7 @@ namespace afc::vm {
 using language::NonNull;
 namespace gc = language::gc;
 
-/* static */
-std::shared_ptr<editor::Modifiers>
-VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value& value) {
-  // TODO(easy, 2022-05-27): Return the NonNull?
-  return value.get_user_value<editor::Modifiers>(vmtype).get_shared();
-}
-
-/* static */
-gc::Root<Value> VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
-    language::gc::Pool& pool, std::shared_ptr<editor::Modifiers> value) {
-  // TODO(easy, 2022-05-27): Receive the parameter as NonNull.
-  NonNull<std::shared_ptr<editor::Modifiers>> value_void =
-      NonNull<std::shared_ptr<editor::Modifiers>>::Unsafe(value);
-  return Value::NewObject(
-      pool,
-      VMTypeMapper<std::shared_ptr<editor::Modifiers>>::vmtype.object_type,
-      value_void);
-}
-
-const VMType VMTypeMapper<std::shared_ptr<editor::Modifiers>>::vmtype =
+template <>
+const VMType VMTypeMapper<NonNull<std::shared_ptr<editor::Modifiers>>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"Modifiers"));
 }  // namespace afc::vm

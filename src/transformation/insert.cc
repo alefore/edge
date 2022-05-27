@@ -159,16 +159,15 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
             return options;
           }));
 
-  builder->AddField(L"set_modifiers",
-                    vm::NewCallback(pool, vm::PurityTypeWriter,
-                                    [](std::shared_ptr<Insert> options,
-                                       std::shared_ptr<Modifiers> modifiers) {
-                                      CHECK(options != nullptr);
-                                      CHECK(modifiers != nullptr);
-
-                                      options->modifiers = *modifiers;
-                                      return options;
-                                    }));
+  builder->AddField(
+      L"set_modifiers",
+      vm::NewCallback(pool, vm::PurityTypeWriter,
+                      [](std::shared_ptr<Insert> options,
+                         NonNull<std::shared_ptr<Modifiers>> modifiers) {
+                        CHECK(options != nullptr);
+                        options->modifiers = modifiers.value();
+                        return options;
+                      }));
 
   builder->AddField(
       L"set_position",
