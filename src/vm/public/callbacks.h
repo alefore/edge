@@ -66,6 +66,18 @@ struct VMTypeMapper<wstring> {
   static const VMType vmtype;
 };
 
+template <typename T>
+struct VMTypeMapper<language::NonNull<std::shared_ptr<T>>> {
+  static language::NonNull<std::shared_ptr<T>> get(const Value& value) {
+    return value.get_user_value<T>(vmtype);
+  }
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool, language::NonNull<std::shared_ptr<T>> value) {
+    return Value::NewObject(pool, vmtype.object_type, value);
+  }
+  static const VMType vmtype;
+};
+
 template <typename Tuple, size_t N>
 void AddArgs(std::vector<VMType>* output) {
   if constexpr (N < std::tuple_size<Tuple>::value) {

@@ -32,28 +32,10 @@ using language::VisitPointer;
 namespace gc = language::gc;
 namespace vm {
 template <>
-struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
-  static std::shared_ptr<editor::transformation::Delete> get(Value& value) {
-    // TODO(easy, 2022-05-27): Drop get_shared below.
-    return value.get_user_value<editor::transformation::Delete>(vmtype)
-        .get_shared();
-  }
-  static gc::Root<Value> New(
-      language::gc::Pool& pool,
-      std::shared_ptr<editor::transformation::Delete> value) {
-    // TODO(2022-05-27, easy): Receive `value` as NonNull.
-    return Value::NewObject(
-        pool, vmtype.object_type,
-        NonNull<std::shared_ptr<editor::transformation::Delete>>::Unsafe(
-            value));
-  }
-  static const VMType vmtype;
-};
+const VMType VMTypeMapper<
+    NonNull<std::shared_ptr<editor::transformation::Delete>>>::vmtype =
+    VMType::ObjectType(VMTypeObjectTypeName(L"DeleteTransformationBuilder"));
 
-const VMType
-    VMTypeMapper<std::shared_ptr<editor::transformation::Delete>>::vmtype =
-        VMType::ObjectType(
-            VMTypeObjectTypeName(L"DeleteTransformationBuilder"));
 }  // namespace vm
 namespace editor {
 using language::MakeNonNullShared;
@@ -260,59 +242,48 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
   using vm::VMTypeMapper;
 
   auto builder = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<std::shared_ptr<Delete>>::vmtype);
+      VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::vmtype);
 
   environment.Define(
       builder->type().object_type.read(),
       vm::NewCallback(pool, PurityType::kPure,
-                      std::function<std::shared_ptr<Delete>()>([]() {
-                        return std::make_shared<transformation::Delete>();
-                      })));
+                      MakeNonNullShared<transformation::Delete>));
 
-  builder->AddField(
-      L"set_modifiers",
-      vm::NewCallback(pool, vm::PurityTypeWriter,
-                      std::function<std::shared_ptr<Delete>(
-                          std::shared_ptr<Delete>, std::shared_ptr<Modifiers>)>(
-                          [](std::shared_ptr<Delete> options,
-                             std::shared_ptr<Modifiers> modifiers) {
-                            CHECK(options != nullptr);
-                            CHECK(modifiers != nullptr);
-                            options->modifiers = *modifiers;
-                            return options;
-                          })));
+  builder->AddField(L"set_modifiers",
+                    vm::NewCallback(pool, vm::PurityTypeWriter,
+                                    [](NonNull<std::shared_ptr<Delete>> options,
+                                       std::shared_ptr<Modifiers> modifiers) {
+                                      CHECK(modifiers != nullptr);
+                                      options->modifiers = *modifiers;
+                                      return options;
+                                    }));
 
   builder->AddField(
       L"set_line_end_behavior",
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
-          std::function<std::shared_ptr<Delete>(std::shared_ptr<Delete>,
-                                                std::wstring)>(
-              [](std::shared_ptr<Delete> options, std::wstring value) {
-                CHECK(options != nullptr);
-                if (value == L"stop") {
-                  options->line_end_behavior = Delete::LineEndBehavior::kStop;
-                } else if (value == L"delete") {
-                  options->line_end_behavior = Delete::LineEndBehavior::kDelete;
-                }
-                return options;
-              })));
-  builder->AddField(
-      L"set_range",
-      vm::NewCallback(pool, vm::PurityTypeWriter,
-                      std::function<std::shared_ptr<Delete>(
-                          std::shared_ptr<Delete>, Range)>(
-                          [](std::shared_ptr<Delete> options, Range range) {
-                            options->range = range;
-                            return options;
-                          })));
+          [](NonNull<std::shared_ptr<Delete>> options, std::wstring value) {
+            if (value == L"stop") {
+              options->line_end_behavior = Delete::LineEndBehavior::kStop;
+            } else if (value == L"delete") {
+              options->line_end_behavior = Delete::LineEndBehavior::kDelete;
+            }
+            return options;
+          }));
+  builder->AddField(L"set_range",
+                    vm::NewCallback(pool, vm::PurityTypeWriter,
+                                    [](NonNull<std::shared_ptr<Delete>> options,
+                                       Range range) {
+                                      options->range = range;
+                                      return options;
+                                    }));
 
   builder->AddField(
-      L"build", vm::NewCallback(pool, PurityType::kPure,
-                                [](std::shared_ptr<Delete> options) {
-                                  CHECK(options != nullptr);
-                                  return MakeNonNullUnique<Variant>(*options);
-                                }));
+      L"build",
+      vm::NewCallback(pool, PurityType::kPure,
+                      [](NonNull<std::shared_ptr<Delete>> options) {
+                        return MakeNonNullUnique<Variant>(options.value());
+                      }));
 
   environment.DefineType(std::move(builder));
 }

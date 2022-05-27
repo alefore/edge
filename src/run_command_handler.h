@@ -50,6 +50,7 @@ futures::Value<language::EmptyValue> RunCommandHandler(
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
     const std::wstring& input, EditorState& editor_state);
 }  // namespace editor
+#if 0
 namespace vm {
 template <>
 struct VMTypeMapper<
@@ -62,6 +63,7 @@ struct VMTypeMapper<
   static const VMType vmtype;
 };
 }  // namespace vm
+#endif
 }  // namespace afc
 
 #endif

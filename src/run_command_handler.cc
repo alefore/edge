@@ -514,19 +514,7 @@ class ForkEditorCommand : public Command {
 }  // namespace
 }  // namespace editor
 namespace vm {
-/* static */ NonNull<std::shared_ptr<editor::ForkCommandOptions>> VMTypeMapper<
-    NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::get(Value& value) {
-  return value.get_user_value<editor::ForkCommandOptions>(vmtype);
-}
-
-// TODO(easy, 2022-05-12): Receive options by ref.
-/* static */ gc::Root<vm::Value>
-VMTypeMapper<NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::New(
-    language::gc::Pool& pool,
-    NonNull<std::shared_ptr<editor::ForkCommandOptions>> value) {
-  return Value::NewObject(pool, vmtype.object_type, value);
-}
-
+template <>
 const VMType
     VMTypeMapper<NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::vmtype =
         VMType::ObjectType(VMTypeObjectTypeName(L"ForkCommandOptions"));
