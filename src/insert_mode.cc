@@ -158,12 +158,8 @@ class InsertMode : public EditorMode {
   }
 
   void ProcessInput(wint_t c) {
-    bool old_literal = literal_;
-    literal_ = false;
-    if (old_literal) {
-      // TODO(easy, 2022-05-22): Use SetExpiringInformationText instead?
-      options_.editor_state.status().Reset();
-    }
+    bool old_literal = status_expiration_for_literal_ != nullptr;
+    status_expiration_for_literal_ = nullptr;
 
     CHECK(options_.buffers.has_value());
     auto future = futures::Past(futures::IterationControlCommand::kContinue);
@@ -338,8 +334,9 @@ class InsertMode : public EditorMode {
           WriteLineBuffer(buffers_, {22});
         } else {
           DLOG(INFO) << "Set literal.";
-          options_.editor_state.status().SetInformationText(L"<literal>");
-          literal_ = true;
+          status_expiration_for_literal_ =
+              options_.editor_state.status().SetExpiringInformationText(
+                  L"<literal>");
         }
         break;
 
@@ -566,7 +563,12 @@ class InsertMode : public EditorMode {
   // here. This gets flushed upon certain presses, such as ESCAPE or new line.
   // TODO(easy, 2022-05-26): Looks like nothing is using this?
   std::string line_buffer_;
-  bool literal_ = false;
+
+  // If nullptr, next key should be interpreted directly. If non-null, next key
+  // should be inserted literally.
+  std::unique_ptr<StatusExpirationControl,
+                  std::function<void(StatusExpirationControl*)>>
+      status_expiration_for_literal_ = nullptr;
 
   // Given to ScrollBehaviorFactory::Build, and used to signal when we want to
   // abort the build of the history.
