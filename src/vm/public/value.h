@@ -102,7 +102,10 @@ class Value {
   struct Symbol {
     std::wstring symbol_value;
   };
-  std::variant<bool, int, double, std::wstring, Symbol, std::shared_ptr<void>,
+  struct ObjectInstance {
+    language::NonNull<std::shared_ptr<void>> value;
+  };
+  std::variant<bool, int, double, std::wstring, Symbol, ObjectInstance,
                Callback>
       value_;
 

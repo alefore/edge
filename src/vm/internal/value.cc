@@ -136,7 +136,7 @@ bool cpp_unescape_string_tests_registration =
     gc::Pool& pool, VMTypeObjectTypeName name,
     NonNull<std::shared_ptr<void>> value, ExpandCallback expand_callback) {
   gc::Root<Value> output = New(pool, VMType::ObjectType(std::move(name)));
-  output.ptr()->value_ = std::move(value.get_shared());
+  output.ptr()->value_ = ObjectInstance{.value = std::move(value)};
   output.ptr()->expand_callback = std::move(expand_callback);
   return output;
 }
@@ -197,10 +197,8 @@ const std::wstring& Value::get_symbol() const {
 
 std::shared_ptr<void> Value::get_user_value(const VMType& type) const {
   CHECK_EQ(type, type);
-  std::shared_ptr<void> output = std::get<std::shared_ptr<void>>(value_);
-  // TODO(easy, 2022-05-14): Use NonNull.
-  CHECK(output != nullptr);
-  return output;
+  // TODO(easy): Drop the get shared?
+  return std::get<ObjectInstance>(value_).value.get_shared();
 }
 
 struct LockedDependencies {
