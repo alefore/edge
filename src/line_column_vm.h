@@ -1,10 +1,8 @@
 #ifndef __AFC_EDITOR_LINE_COLUMN_VM_H__
 #define __AFC_EDITOR_LINE_COLUMN_VM_H__
 
-#include <iostream>
 #include <limits>
 #include <string>
-#include <vector>
 
 #include "src/language/safe_types.h"
 #include "src/line_column.h"
