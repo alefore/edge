@@ -20,11 +20,8 @@ using language::NonNull;
 namespace gc = language::gc;
 
 namespace vm {
-/* static */ editor::Screen* VMTypeMapper<editor::Screen*>::get(Value& value) {
-  return value.get_user_value<editor::Screen>(vmtype).get_shared().get();
-}
-
-const VMType VMTypeMapper<editor::Screen*>::vmtype =
+template <>
+const VMType VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"Screen"));
 }  // namespace vm
 namespace editor {
@@ -108,8 +105,8 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
   using vm::PurityType;
   using vm::Trampoline;
 
-  auto screen_type =
-      MakeNonNullUnique<ObjectType>(vm::VMTypeMapper<editor::Screen*>::vmtype);
+  auto screen_type = MakeNonNullUnique<ObjectType>(
+      vm::VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::vmtype);
 
   // Constructors.
   environment.Define(
@@ -131,86 +128,89 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
               return futures::Past(output.error());
             }
             return futures::Past(EvaluationOutput::Return(Value::NewObject(
-                pool, vm::VMTypeMapper<editor::Screen*>::vmtype.object_type,
+                pool,
+                vm::VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::
+                    vmtype.object_type,
                 MakeNonNullShared<ScreenVm>(output.value()))));
           }));
 
   // Methods for Screen.
   screen_type->AddField(
-      L"Flush", vm::NewCallback(pool, PurityType::kUnknown, [](Screen* screen) {
-        CHECK(screen != nullptr);
-        screen->Flush();
-      }));
+      L"Flush", vm::NewCallback(pool, PurityType::kUnknown,
+                                [](NonNull<std::shared_ptr<Screen>> screen) {
+                                  screen->Flush();
+                                }));
 
   screen_type->AddField(
       L"HardRefresh",
-      vm::NewCallback(pool, PurityType::kUnknown, [](Screen* screen) {
-        CHECK(screen != nullptr);
-        screen->HardRefresh();
-      }));
-
-  screen_type->AddField(L"Refresh", vm::NewCallback(pool, PurityType::kUnknown,
-                                                    [](Screen* screen) {
-                                                      CHECK(screen != nullptr);
-                                                      screen->Refresh();
-                                                    }));
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](NonNull<std::shared_ptr<Screen>> screen) {
+                        screen->HardRefresh();
+                      }));
 
   screen_type->AddField(
-      L"Clear", vm::NewCallback(pool, PurityType::kUnknown, [](Screen* screen) {
-        CHECK(screen != nullptr);
-        screen->Clear();
-      }));
+      L"Refresh", vm::NewCallback(pool, PurityType::kUnknown,
+                                  [](NonNull<std::shared_ptr<Screen>> screen) {
+                                    screen->Refresh();
+                                  }));
+
+  screen_type->AddField(
+      L"Clear", vm::NewCallback(pool, PurityType::kUnknown,
+                                [](NonNull<std::shared_ptr<Screen>> screen) {
+                                  screen->Clear();
+                                }));
 
   screen_type->AddField(
       L"SetCursorVisibility",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](Screen* screen, std::wstring cursor_visibility) {
-                        CHECK(screen != nullptr);
+                      [](NonNull<std::shared_ptr<Screen>> screen,
+                         std::wstring cursor_visibility) {
                         screen->SetCursorVisibility(
                             Screen::CursorVisibilityFromString(
                                 ToByteString(cursor_visibility)));
                       }));
 
   screen_type->AddField(
-      L"Move", vm::NewCallback(pool, PurityType::kUnknown,
-                               [](Screen* screen, LineColumn position) {
-                                 CHECK(screen != nullptr);
-                                 screen->Move(position);
-                               }));
+      L"Move",
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](NonNull<std::shared_ptr<Screen>> screen,
+                         LineColumn position) { screen->Move(position); }));
 
   screen_type->AddField(
       L"WriteString",
-      vm::NewCallback(pool, PurityType::kUnknown,
-                      [](Screen* screen, std::wstring str) {
-                        using ::operator<<;
-                        CHECK(screen != nullptr);
-                        DVLOG(5) << "Writing string: " << str;
-                        screen->WriteString(NewLazyString(std::move(str)));
-                      }));
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](NonNull<std::shared_ptr<Screen>> screen, std::wstring str) {
+            using ::operator<<;
+            DVLOG(5) << "Writing string: " << str;
+            screen->WriteString(NewLazyString(std::move(str)));
+          }));
 
   screen_type->AddField(
       L"SetModifier",
       vm::NewCallback(
-          pool, PurityType::kUnknown, [](Screen* screen, std::wstring str) {
-            CHECK(screen != nullptr);
+          pool, PurityType::kUnknown,
+          [](NonNull<std::shared_ptr<Screen>> screen, std::wstring str) {
             screen->SetModifier(ModifierFromString(ToByteString(str)));
           }));
 
   screen_type->AddField(
-      L"set_size", vm::NewCallback(pool, PurityType::kUnknown,
-                                   [](Screen* screen, LineColumnDelta size) {
-                                     ScreenVm* screen_vm =
-                                         dynamic_cast<ScreenVm*>(screen);
-                                     CHECK(screen != nullptr);
-                                     screen_vm->set_size(size);
-                                   }));
+      L"set_size",
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](NonNull<std::shared_ptr<Screen>> screen, LineColumnDelta size) {
+            ScreenVm* screen_vm = dynamic_cast<ScreenVm*>(&screen.value());
+            // TODO(easy, 2022-05-27): Turn this into a runtime error.
+            CHECK(screen_vm != nullptr);
+            screen_vm->set_size(size);
+          }));
 
   // TODO(PurityType, 2022-05-20): This could be PurityType::kReader.
   screen_type->AddField(
-      L"size", vm::NewCallback(pool, PurityType::kUnknown, [](Screen* screen) {
-        CHECK(screen != nullptr);
-        return screen->size();
-      }));
+      L"size", vm::NewCallback(pool, PurityType::kUnknown,
+                               [](NonNull<std::shared_ptr<Screen>> screen) {
+                                 return screen->size();
+                               }));
 
   environment.DefineType(std::move(screen_type));
 }
@@ -220,7 +220,7 @@ std::unique_ptr<Screen> NewScreenVm(int fd) {
 }
 
 const VMType& GetScreenVmType() {
-  return vm::VMTypeMapper<editor::Screen*>::vmtype;
+  return vm::VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::vmtype;
 }
 
 }  // namespace editor

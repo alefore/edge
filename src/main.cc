@@ -274,15 +274,14 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
       continue;
     }
     auto buffer_screen =
-        afc::vm::VMTypeMapper<Screen*>::get(value.value().ptr().value());
-    if (buffer_screen == nullptr) {
-      continue;
-    }
-    if (buffer_screen == screen_curses) {
+        afc::vm::VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::get(
+            value.value().ptr().value());
+    if (&buffer_screen.value() == screen_curses) {
       continue;
     }
     LOG(INFO) << "Remote screen for buffer: " << buffer.first;
-    terminal->Display(editor_state(), *buffer_screen, screen_state.value());
+    terminal->Display(editor_state(), buffer_screen.value(),
+                      screen_state.value());
   }
 }
 }  // namespace
