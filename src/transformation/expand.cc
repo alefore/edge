@@ -133,7 +133,10 @@ class InsertHistoryTransformation : public CompositeTransformation {
           output.Push(
               transformation::Insert{.contents_to_insert = text->copy()});
         },
-        [] {});
+        [&] {
+          input.editor.status().SetWarningText(L"No matches: " +
+                                               search_options_.query);
+        });
     return futures::Past(std::move(output));
   }
 
