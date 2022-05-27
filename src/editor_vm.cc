@@ -58,13 +58,12 @@ namespace gc = language::gc;
 namespace {
 template <typename MethodReturnType>
 void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
-                          const std::wstring& name,
+                          const std::wstring& name, PurityType purity_type,
                           MethodReturnType (OpenBuffer::*method)(void)) {
-  // TODO(easy, 2022-05-20): Receive the purity and pass it.
   editor_type.AddField(
       name,
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown, {VMType::Void(), editor_type.type()},
+          pool, purity_type, {VMType::Void(), editor_type.type()},
           [method](std::vector<gc::Root<vm::Value>> args,
                    Trampoline& trampoline) {
             CHECK_EQ(args.size(), size_t(1));
@@ -431,20 +430,22 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           }));
 
   RegisterBufferMethod(pool, editor_type.value(), L"ToggleActiveCursors",
-                       &OpenBuffer::ToggleActiveCursors);
+                       vm::PurityTypeWriter, &OpenBuffer::ToggleActiveCursors);
   RegisterBufferMethod(pool, editor_type.value(), L"PushActiveCursors",
-                       &OpenBuffer::PushActiveCursors);
+                       vm::PurityTypeWriter, &OpenBuffer::PushActiveCursors);
   RegisterBufferMethod(pool, editor_type.value(), L"PopActiveCursors",
-                       &OpenBuffer::PopActiveCursors);
+                       vm::PurityTypeWriter, &OpenBuffer::PopActiveCursors);
   RegisterBufferMethod(pool, editor_type.value(), L"SetActiveCursorsToMarks",
+                       vm::PurityTypeWriter,
                        &OpenBuffer::SetActiveCursorsToMarks);
   RegisterBufferMethod(pool, editor_type.value(), L"CreateCursor",
-                       &OpenBuffer::CreateCursor);
+                       vm::PurityTypeWriter, &OpenBuffer::CreateCursor);
   RegisterBufferMethod(pool, editor_type.value(), L"DestroyCursor",
-                       &OpenBuffer::DestroyCursor);
+                       vm::PurityTypeWriter, &OpenBuffer::DestroyCursor);
   RegisterBufferMethod(pool, editor_type.value(), L"DestroyOtherCursors",
-                       &OpenBuffer::DestroyOtherCursors);
+                       vm::PurityTypeWriter, &OpenBuffer::DestroyOtherCursors);
   RegisterBufferMethod(pool, editor_type.value(), L"RepeatLastTransformation",
+                       vm::PurityTypeWriter,
                        &OpenBuffer::RepeatLastTransformation);
 
   value.Define(L"editor",
