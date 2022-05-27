@@ -24,9 +24,7 @@ struct BufferWrapper {
 
 gc::Root<editor::OpenBuffer>
 vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(Value& value) {
-  BufferWrapper wrapper = NonNull<std::shared_ptr<BufferWrapper>>::StaticCast(
-                              value.get_user_value(vmtype))
-                              .value();
+  BufferWrapper wrapper = value.get_user_value<BufferWrapper>(vmtype).value();
   return wrapper.buffer.ToRoot();
 }
 

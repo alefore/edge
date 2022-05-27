@@ -20,8 +20,7 @@ template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
   static std::shared_ptr<editor::transformation::Insert> get(Value& value) {
     // TODO(easy, 2022-05-27): Drop get_shared below.
-    return NonNull<std::shared_ptr<editor::transformation::Insert>>::StaticCast(
-               value.get_user_value(vmtype))
+    return value.get_user_value<editor::transformation::Insert>(vmtype)
         .get_shared();
   }
 

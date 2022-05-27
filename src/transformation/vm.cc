@@ -36,9 +36,7 @@ const VMType VMTypeMapper<
 NonNull<editor::transformation::Variant*>
 VMTypeMapper<NonNull<editor::transformation::Variant*>>::get(Value& value) {
   // TODO(easy, 2022-05-27): Return NonNull<std_shared_ptr<>> directly.
-  return NonNull<std::shared_ptr<editor::transformation::Variant>>::StaticCast(
-             value.get_user_value(vmtype))
-      .get();
+  return value.get_user_value<editor::transformation::Variant>(vmtype).get();
 }
 
 gc::Root<Value>

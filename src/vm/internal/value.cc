@@ -195,11 +195,6 @@ const std::wstring& Value::get_symbol() const {
   return std::get<Symbol>(value_).symbol_value;
 }
 
-NonNull<std::shared_ptr<void>> Value::get_user_value(const VMType& type) const {
-  CHECK_EQ(type, type);
-  return std::get<ObjectInstance>(value_).value;
-}
-
 struct LockedDependencies {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies;
 };

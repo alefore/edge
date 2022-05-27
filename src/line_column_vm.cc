@@ -28,9 +28,7 @@ const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
 
 /* static */
 editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
-  return NonNull<std::shared_ptr<editor::LineColumn>>::StaticCast(
-             value.get_user_value(vmtype))
-      .value();
+  return value.get_user_value<editor::LineColumn>(vmtype).value();
 }
 
 /* static */
@@ -46,9 +44,7 @@ const VMType VMTypeMapper<editor::LineColumn>::vmtype =
 /* static */
 editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
     Value& value) {
-  return NonNull<std::shared_ptr<editor::LineColumnDelta>>::StaticCast(
-             value.get_user_value(vmtype))
-      .value();
+  return value.get_user_value<editor::LineColumnDelta>(vmtype).value();
 }
 
 /* static */
@@ -63,9 +59,7 @@ const VMType VMTypeMapper<editor::LineColumnDelta>::vmtype =
 
 /* static */
 editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
-  return NonNull<std::shared_ptr<editor::Range>>::StaticCast(
-             value.get_user_value(vmtype))
-      .value();
+  return value.get_user_value<editor::Range>(vmtype).value();
 }
 
 /* static */

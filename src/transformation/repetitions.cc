@@ -19,9 +19,8 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
   static std::shared_ptr<editor::transformation::Repetitions> get(
       Value& value) {
     // TODO(easy, 2022-05-27): Just return the NonNull.
-    return NonNull<std::shared_ptr<editor::transformation::Repetitions>>::
-        StaticCast(value.get_user_value(vmtype))
-            .get_shared();
+    return value.get_user_value<editor::transformation::Repetitions>(vmtype)
+        .get_shared();
   }
   static gc::Root<Value> New(
       gc::Pool& pool,

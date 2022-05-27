@@ -21,10 +21,7 @@ namespace gc = language::gc;
 
 namespace vm {
 /* static */ editor::Screen* VMTypeMapper<editor::Screen*>::get(Value& value) {
-  return NonNull<std::shared_ptr<editor::Screen>>::StaticCast(
-             value.get_user_value(vmtype))
-      .get_shared()
-      .get();
+  return value.get_user_value<editor::Screen>(vmtype).get_shared().get();
 }
 
 const VMType VMTypeMapper<editor::Screen*>::vmtype =

@@ -23,9 +23,7 @@ namespace gc = language::gc;
 struct Instance {
   static gc::Root<Environment> Read(const VMType& class_type,
                                     const gc::Root<Value>& obj) {
-    return NonNull<std::shared_ptr<Instance>>::StaticCast(
-               obj.ptr()->get_user_value(class_type))
-        ->environment;
+    return obj.ptr()->get_user_value<Instance>(class_type)->environment;
   }
 
   gc::Root<Environment> environment;

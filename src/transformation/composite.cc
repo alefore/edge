@@ -23,9 +23,8 @@ std::shared_ptr<editor::CompositeTransformation::Output>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>>::get(
     Value& value) {
   // TODO(easy, 2022-05-27): Drop `get_shared` below.
-  return NonNull<std::shared_ptr<editor::CompositeTransformation::Output>>::
-      StaticCast(value.get_user_value(vmtype))
-          .get_shared();
+  return value.get_user_value<editor::CompositeTransformation::Output>(vmtype)
+      .get_shared();
 }
 
 gc::Root<Value>
@@ -47,9 +46,8 @@ std::shared_ptr<editor::CompositeTransformation::Input>
 VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::get(
     Value& value) {
   // TODO(easy, 2022-05-27): Drop `get_shared` below.
-  return NonNull<std::shared_ptr<editor::CompositeTransformation::Input>>::
-      StaticCast(value.get_user_value(vmtype))
-          .get_shared();
+  return value.get_user_value<editor::CompositeTransformation::Input>(vmtype)
+      .get_shared();
 }
 
 gc::Root<Value>

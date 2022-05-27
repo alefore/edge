@@ -33,9 +33,7 @@ struct Duration {
 template <>
 struct VMTypeMapper<Time> {
   static Time get(Value& value) {
-    return NonNull<std::shared_ptr<Time>>::StaticCast(
-               value.get_user_value(vmtype))
-        .value();
+    return value.get_user_value<Time>(vmtype).value();
   }
 
   static gc::Root<Value> New(language::gc::Pool& pool, Time value) {
@@ -49,9 +47,7 @@ struct VMTypeMapper<Time> {
 template <>
 struct VMTypeMapper<Duration> {
   static Duration get(Value& value) {
-    return NonNull<std::shared_ptr<Duration>>::StaticCast(
-               value.get_user_value(vmtype))
-        .value();
+    return value.get_user_value<Duration>(vmtype).value();
   }
 
   static gc::Root<Value> New(language::gc::Pool& pool, Duration value) {

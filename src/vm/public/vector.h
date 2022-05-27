@@ -38,10 +38,7 @@ template <typename T>
 struct VMTypeMapper<std::vector<T>*> {
   static std::vector<T>* get(Value& value) {
     // TODO(easy, 2022-05-27): Just return the NonNull shared ptr?
-    return language::NonNull<std::shared_ptr<std::vector<T>>>::StaticCast(
-               value.get_user_value(vmtype))
-        .get_shared()
-        .get();
+    return value.get_user_value<std::vector<T>>(vmtype).get_shared().get();
   }
 
   static const VMType vmtype;

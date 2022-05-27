@@ -26,9 +26,7 @@ namespace afc::vm {
 template <>
 struct VMTypeMapper<editor::EditorState> {
   static editor::EditorState& get(Value& value) {
-    return NonNull<std::shared_ptr<editor::EditorState>>::StaticCast(
-               value.get_user_value(vmtype))
-        .value();
+    return value.get_user_value<editor::EditorState>(vmtype).value();
   }
 
   static const VMType vmtype;

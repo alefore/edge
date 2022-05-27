@@ -85,8 +85,14 @@ class Value {
   double get_double() const;
   const std::wstring& get_string() const;
   const std::wstring& get_symbol() const;
-  language::NonNull<std::shared_ptr<void>> get_user_value(
-      const VMType& type) const;
+
+  template <typename T>
+  language::NonNull<std::shared_ptr<T>> get_user_value(
+      const VMType& type) const {
+    CHECK_EQ(type, type);
+    return language::NonNull<std::shared_ptr<T>>::StaticCast(
+        std::get<ObjectInstance>(value_).value);
+  }
 
   Callback LockCallback();
 
