@@ -514,23 +514,24 @@ class ForkEditorCommand : public Command {
 }  // namespace
 }  // namespace editor
 namespace vm {
-/* static */ editor::ForkCommandOptions*
-VMTypeMapper<editor::ForkCommandOptions*>::get(Value& value) {
-  return static_cast<editor::ForkCommandOptions*>(
-      value.get_user_value(vmtype).get());
+/* static */ NonNull<std::shared_ptr<editor::ForkCommandOptions>> VMTypeMapper<
+    NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::get(Value& value) {
+  return NonNull<std::shared_ptr<editor::ForkCommandOptions>>::Unsafe(
+      static_pointer_cast<editor::ForkCommandOptions>(
+          value.get_user_value(vmtype)));
 }
 
 // TODO(easy, 2022-05-12): Receive options by ref.
-/* static */ gc::Root<vm::Value> VMTypeMapper<editor::ForkCommandOptions*>::New(
-    language::gc::Pool& pool, editor::ForkCommandOptions* value) {
-  return Value::NewObject(
-      pool, vmtype.object_type,
-      NonNull<std::shared_ptr<editor::ForkCommandOptions>>::Unsafe(
-          std::shared_ptr<editor::ForkCommandOptions>(value)));
+/* static */ gc::Root<vm::Value>
+VMTypeMapper<NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::New(
+    language::gc::Pool& pool,
+    NonNull<std::shared_ptr<editor::ForkCommandOptions>> value) {
+  return Value::NewObject(pool, vmtype.object_type, value);
 }
 
-const VMType VMTypeMapper<editor::ForkCommandOptions*>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"ForkCommandOptions"));
+const VMType
+    VMTypeMapper<NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::vmtype =
+        VMType::ObjectType(VMTypeObjectTypeName(L"ForkCommandOptions"));
 }  // namespace vm
 namespace editor {
 /* static */
@@ -540,40 +541,43 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   using vm::Value;
   using vm::VMType;
   using vm::VMTypeMapper;
-  auto fork_command_options =
-      MakeNonNullUnique<ObjectType>(VMTypeMapper<ForkCommandOptions*>::vmtype);
+  auto fork_command_options = MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<NonNull<std::shared_ptr<ForkCommandOptions>>>::vmtype);
 
   environment.Define(L"ForkCommandOptions",
                      NewCallback(pool, vm::PurityType::kPure,
-                                 std::function<ForkCommandOptions*()>([]() {
-                                   return new ForkCommandOptions();
-                                 })));
+                                 MakeNonNullShared<ForkCommandOptions>));
 
   fork_command_options->AddField(
       L"set_command",
-      NewCallback(pool, vm::PurityType::kUnknown,
-                  std::function<void(ForkCommandOptions*, std::wstring)>(
-                      [](ForkCommandOptions* options, std::wstring command) {
-                        CHECK(options != nullptr);
-                        options->command = std::move(command);
-                      })));
+      NewCallback(
+          pool, vm::PurityType::kUnknown,
+          std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
+                             std::wstring)>(
+              [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                 std::wstring command) {
+                options->command = std::move(command);
+              })));
 
   fork_command_options->AddField(
       L"set_name",
-      NewCallback(pool, vm::PurityType::kUnknown,
-                  std::function<void(ForkCommandOptions*, std::wstring)>(
-                      [](ForkCommandOptions* options, std::wstring name) {
-                        CHECK(options != nullptr);
-                        options->name = BufferName(std::move(name));
-                      })));
+      NewCallback(
+          pool, vm::PurityType::kUnknown,
+          std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
+                             std::wstring)>(
+              [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                 std::wstring name) {
+                options->name = BufferName(std::move(name));
+              })));
 
   fork_command_options->AddField(
       L"set_insertion_type",
       NewCallback(
           pool, vm::PurityType::kUnknown,
-          std::function<void(ForkCommandOptions*, std::wstring)>(
-              [](ForkCommandOptions* options, std::wstring insertion_type) {
-                CHECK(options != nullptr);
+          std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
+                             std::wstring)>(
+              [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                 std::wstring insertion_type) {
                 if (insertion_type == L"visit") {
                   options->insertion_type = BuffersList::AddBufferType::kVisit;
                 } else if (insertion_type == L"only_list") {
@@ -588,9 +592,10 @@ void ForkCommandOptions::Register(gc::Pool& pool,
       L"set_children_path",
       NewCallback(
           pool, vm::PurityType::kUnknown,
-          std::function<void(ForkCommandOptions*, std::wstring)>(
-              [](ForkCommandOptions* options, std::wstring children_path) {
-                CHECK(options != nullptr);
+          std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
+                             std::wstring)>(
+              [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                 std::wstring children_path) {
                 options->children_path =
                     Path::FromString(std::move(children_path)).AsOptional();
               })));

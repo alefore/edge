@@ -368,8 +368,9 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   editor_type->AddField(
       L"ForkCommand",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](EditorState& editor, ForkCommandOptions* options) {
-                        return std::move(ForkCommand(editor, *options));
+                      [](EditorState& editor,
+                         NonNull<std::shared_ptr<ForkCommandOptions>> options) {
+                        return std::move(ForkCommand(editor, options.value()));
                       }));
 
   editor_type->AddField(

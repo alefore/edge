@@ -52,10 +52,13 @@ futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
 }  // namespace editor
 namespace vm {
 template <>
-struct VMTypeMapper<editor::ForkCommandOptions*> {
-  static editor::ForkCommandOptions* get(Value& value);
-  static language::gc::Root<Value> New(language::gc::Pool& pool,
-                                       editor::ForkCommandOptions* value);
+struct VMTypeMapper<
+    language::NonNull<std::shared_ptr<editor::ForkCommandOptions>>> {
+  static language::NonNull<std::shared_ptr<editor::ForkCommandOptions>> get(
+      Value& value);
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool,
+      language::NonNull<std::shared_ptr<editor::ForkCommandOptions>> value);
   static const VMType vmtype;
 };
 }  // namespace vm
