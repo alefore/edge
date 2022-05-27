@@ -25,7 +25,7 @@ unsigned int NextRandom() {
          static_cast<unsigned int>(buffer[1]);
 }
 
-void SendInput(EditorState* editor_state, string input) {
+void SendInput(EditorState* editor_state, std::string input) {
   VLOG(5) << "Input: " << input;
   editor_state->ProcessInputString(input);
 }
@@ -89,9 +89,9 @@ int main(int, char** argv) {
         break;
 
       case 4: {
-        vector<string> strings = {" ",   "{",   "}",         "(", ")",
-                                  "\n+", "\n-", "\n@",       "*", "blah",
-                                  "\n",  "a",   "1234567890"};
+        std::vector<std::string> strings = {
+            " ",   "{", "}",    "(",  ")", "\n+",       "\n-",
+            "\n@", "*", "blah", "\n", "a", "1234567890"};
         auto s = strings[NextRandom() % strings.size()];
         SendInput(&editor_state, "i" + s);
         VLOG(5) << "String was: [" << s << "]";
@@ -208,7 +208,7 @@ int main(int, char** argv) {
         break;
 
       case 28: {
-        vector<string> parsers = {"cpp", "markdown", "diff"};
+        std::vector<std::string> parsers = {"cpp", "markdown", "diff"};
         auto parser = parsers[NextRandom() % parsers.size()];
         SendInput(&editor_state, "avtree_parser\n" + parser + "\n");
       } break;
@@ -218,7 +218,7 @@ int main(int, char** argv) {
     }
     auto cursors = editor_state.current_buffer()->ptr()->active_cursors();
     if (cursors.size() > 50) {
-      vector<LineColumn> positions;
+      std::vector<LineColumn> positions;
       auto it = cursors.begin();
       for (int cursor = 0; cursor < 50; cursor++) {
         positions.push_back(*it);
