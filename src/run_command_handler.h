@@ -14,8 +14,7 @@
 namespace afc::language::gc {
 class Pool;
 }
-namespace afc {
-namespace editor {
+namespace afc::editor {
 class EditorState;
 
 struct ForkCommandOptions {
@@ -49,21 +48,6 @@ futures::Value<language::EmptyValue> RunCommandHandler(
     std::map<std::wstring, std::wstring> environment);
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
     const std::wstring& input, EditorState& editor_state);
-}  // namespace editor
-#if 0
-namespace vm {
-template <>
-struct VMTypeMapper<
-    language::NonNull<std::shared_ptr<editor::ForkCommandOptions>>> {
-  static language::NonNull<std::shared_ptr<editor::ForkCommandOptions>> get(
-      Value& value);
-  static language::gc::Root<Value> New(
-      language::gc::Pool& pool,
-      language::NonNull<std::shared_ptr<editor::ForkCommandOptions>> value);
-  static const VMType vmtype;
-};
-}  // namespace vm
-#endif
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif
