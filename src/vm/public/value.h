@@ -50,7 +50,8 @@ class Value {
                                              std::wstring value);
   static language::gc::Root<Value> NewObject(
       language::gc::Pool& pool, VMTypeObjectTypeName name,
-      std::shared_ptr<void> value, ExpandCallback expand_callback = [] {
+      language::NonNull<std::shared_ptr<void>> value,
+      ExpandCallback expand_callback = [] {
         return std::vector<
             language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>();
       });

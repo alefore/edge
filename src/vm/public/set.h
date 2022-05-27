@@ -43,8 +43,9 @@ struct VMTypeMapper<std::set<T>*> {
             pool, PurityType::kPure, {set_type->type()},
             [&pool](std::vector<language::gc::Root<Value>> args) {
               CHECK(args.empty());
-              return Value::NewObject(pool, vmtype.object_type,
-                                      std::make_shared<std::set<T>>());
+              return Value::NewObject(
+                  pool, vmtype.object_type,
+                  language::MakeNonNullShared<std::set<T>>());
             }));
 
     set_type->AddField(

@@ -523,11 +523,10 @@ VMTypeMapper<editor::ForkCommandOptions*>::get(Value& value) {
 // TODO(easy, 2022-05-12): Receive options by ref.
 /* static */ gc::Root<vm::Value> VMTypeMapper<editor::ForkCommandOptions*>::New(
     language::gc::Pool& pool, editor::ForkCommandOptions* value) {
-  CHECK(value != nullptr);
-  return Value::NewObject(pool, vmtype.object_type,
-                          std::shared_ptr<void>(value, [](void* v) {
-                            delete static_cast<editor::ForkCommandOptions*>(v);
-                          }));
+  return Value::NewObject(
+      pool, vmtype.object_type,
+      NonNull<std::shared_ptr<editor::ForkCommandOptions>>::Unsafe(
+          std::shared_ptr<editor::ForkCommandOptions>(value)));
 }
 
 const VMType VMTypeMapper<editor::ForkCommandOptions*>::vmtype =

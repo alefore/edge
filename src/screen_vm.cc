@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "src/char_buffer.h"
+#include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/line_column_vm.h"
 #include "src/screen.h"
@@ -27,6 +28,7 @@ const VMType VMTypeMapper<editor::Screen*>::vmtype =
 namespace editor {
 
 using infrastructure::Path;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::ToByteString;
@@ -130,7 +132,7 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
             }
             return futures::Past(EvaluationOutput::Return(Value::NewObject(
                 pool, vm::VMTypeMapper<editor::Screen*>::vmtype.object_type,
-                std::make_shared<ScreenVm>(output.value()))));
+                MakeNonNullShared<ScreenVm>(output.value()))));
           }));
 
   // Methods for Screen.

@@ -13,7 +13,9 @@
 #include "src/transformation/vm.h"
 
 namespace afc::vm {
+using language::MakeNonNullShared;
 using language::NonNull;
+
 namespace gc = language::gc;
 
 struct BufferWrapper {
@@ -31,12 +33,10 @@ vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(Value& value) {
 /* static */ gc::Root<vm::Value>
 VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
     gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
-  auto wrapper =
-      std::make_shared<BufferWrapper>(BufferWrapper{.buffer = value.ptr()});
   return vm::Value::NewObject(
       pool, vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype.object_type,
-      std::shared_ptr<void>(wrapper, wrapper.get()),
-      [object_metadata = wrapper->buffer.object_metadata()] {
+      MakeNonNullShared<BufferWrapper>(BufferWrapper{.buffer = value.ptr()}),
+      [object_metadata = value.ptr().object_metadata()] {
         return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
             {object_metadata});
       });

@@ -40,8 +40,11 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
   static gc::Root<Value> New(
       language::gc::Pool& pool,
       std::shared_ptr<editor::transformation::Delete> value) {
-    return Value::NewObject(pool, vmtype.object_type,
-                            std::shared_ptr<void>(value, value.get()));
+    // TODO(2022-05-27, easy): Receive `value` as NonNull.
+    return Value::NewObject(
+        pool, vmtype.object_type,
+        NonNull<std::shared_ptr<editor::transformation::Delete>>::Unsafe(
+            value));
   }
   static const VMType vmtype;
 };

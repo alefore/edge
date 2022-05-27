@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <optional>
+#include <type_traits>
 
 namespace afc::language {
 // Wrapper that contains a pointer and information for how to de-reference it,
@@ -196,7 +197,11 @@ class NonNull<std::shared_ptr<T>> {
     return *this;
   }
 
-  T& value() const { return *value_; }
+  template <typename Q = T>
+  typename std::enable_if<!std::is_same<Q, void>::value, Q&>::type value()
+      const {
+    return *value_;
+  }
   T* operator->() const { return value_.get(); }
   NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
 

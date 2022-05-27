@@ -44,11 +44,7 @@ gc::Root<Value>
 VMTypeMapper<NonNull<std::unique_ptr<editor::transformation::Variant>>>::New(
     gc::Pool& pool,
     NonNull<std::unique_ptr<editor::transformation::Variant>> value) {
-  return Value::NewObject(
-      pool, vmtype.object_type,
-      shared_ptr<void>(value.get_unique().release(), [](void* v) {
-        delete static_cast<editor::transformation::Variant*>(v);
-      }));
+  return Value::NewObject(pool, vmtype.object_type, std::move(value));
 }
 }  // namespace vm
 namespace editor {

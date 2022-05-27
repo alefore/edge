@@ -447,9 +447,11 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   RegisterBufferMethod(pool, editor_type.value(), L"RepeatLastTransformation",
                        &OpenBuffer::RepeatLastTransformation);
 
-  value.Define(L"editor", vm::Value::NewObject(
-                              pool, editor_type->type().object_type,
-                              std::shared_ptr<void>(&editor, [](void*) {})));
+  value.Define(L"editor",
+               vm::Value::NewObject(
+                   pool, editor_type->type().object_type,
+                   NonNull<std::shared_ptr<EditorState>>::Unsafe(
+                       std::shared_ptr<EditorState>(&editor, [](void*) {}))));
 
   value.DefineType(std::move(editor_type));
 

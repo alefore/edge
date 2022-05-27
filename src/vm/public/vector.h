@@ -51,8 +51,9 @@ struct VMTypeMapper<std::vector<T>*> {
             pool, PurityType::kPure, {vmtype},
             [&pool](std::vector<language::gc::Root<Value>> args) {
               CHECK(args.empty());
-              return Value::NewObject(pool, vmtype.object_type,
-                                      std::make_shared<std::vector<T>>());
+              return Value::NewObject(
+                  pool, vmtype.object_type,
+                  language::MakeNonNullShared<std::vector<T>>());
             }));
 
     vector_type->AddField(L"empty", vm::NewCallback(pool, PurityType::kPure,
@@ -103,10 +104,11 @@ template <typename T>
 struct VMTypeMapper<std::unique_ptr<std::vector<T>>> {
   static language::gc::Root<Value> New(language::gc::Pool& pool,
                                        std::unique_ptr<std::vector<T>> value) {
-    std::shared_ptr<void> void_ptr(value.release(), [](void* value) {
-      delete static_cast<std::vector<T>*>(value);
-    });
-    return Value::NewObject(pool, vmtype.object_type, void_ptr);
+    // TODO(easy, 2022-05-27): Receive the value as a NonNull.
+    return Value::NewObject(
+        pool, vmtype.object_type,
+        language::NonNull<std::shared_ptr<std::vector<T>>>::Unsafe(
+            std::move(value)));
   }
 
   static const VMType vmtype;

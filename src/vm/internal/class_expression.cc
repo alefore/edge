@@ -12,6 +12,7 @@
 
 namespace afc::vm {
 using language::Error;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -138,7 +139,7 @@ void FinishClassDeclaration(
                 case EvaluationOutput::OutputType::kContinue:
                   return Success(EvaluationOutput::New(Value::NewObject(
                       trampoline.pool(), class_type.object_type,
-                      std::make_shared<Instance>(
+                      MakeNonNullShared<Instance>(
                           Instance{.environment = instance_environment}))));
               }
               language::Error error(L"Unhandled OutputType case.");

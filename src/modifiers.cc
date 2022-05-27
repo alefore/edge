@@ -162,10 +162,13 @@ VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value& value) {
 /* static */
 gc::Root<Value> VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
     language::gc::Pool& pool, std::shared_ptr<editor::Modifiers> value) {
+  // TODO(easy, 2022-05-27): Receive the parameter as NonNull.
+  NonNull<std::shared_ptr<editor::Modifiers>> value_void =
+      NonNull<std::shared_ptr<editor::Modifiers>>::Unsafe(value);
   return Value::NewObject(
       pool,
       VMTypeMapper<std::shared_ptr<editor::Modifiers>>::vmtype.object_type,
-      std::shared_ptr<void>(value, value.get()));
+      value_void);
 }
 
 const VMType VMTypeMapper<std::shared_ptr<editor::Modifiers>>::vmtype =

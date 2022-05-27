@@ -11,6 +11,7 @@
 #include "src/vm/public/value.h"
 #include "src/vm/public/vector.h"
 
+using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 
 namespace gc = afc::language::gc;
@@ -32,11 +33,8 @@ editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
 /* static */
 gc::Root<Value> VMTypeMapper<editor::LineColumn>::New(
     gc::Pool& pool, editor::LineColumn value) {
-  return Value::NewObject(
-      pool, vmtype.object_type,
-      shared_ptr<void>(new editor::LineColumn(value), [](void* v) {
-        delete static_cast<editor::LineColumn*>(v);
-      }));
+  return Value::NewObject(pool, vmtype.object_type,
+                          MakeNonNullShared<editor::LineColumn>(value));
 }
 
 const VMType VMTypeMapper<editor::LineColumn>::vmtype =
@@ -52,11 +50,8 @@ editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
 /* static */
 gc::Root<Value> VMTypeMapper<editor::LineColumnDelta>::New(
     gc::Pool& pool, editor::LineColumnDelta value) {
-  return Value::NewObject(
-      pool, vmtype.object_type,
-      shared_ptr<void>(new editor::LineColumnDelta(value), [](void* v) {
-        delete static_cast<editor::LineColumnDelta*>(v);
-      }));
+  return Value::NewObject(pool, vmtype.object_type,
+                          MakeNonNullShared<editor::LineColumnDelta>(value));
 }
 
 const VMType VMTypeMapper<editor::LineColumnDelta>::vmtype =
@@ -70,10 +65,8 @@ editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
 /* static */
 gc::Root<Value> VMTypeMapper<editor::Range>::New(gc::Pool& pool,
                                                  editor::Range range) {
-  return Value::NewObject(
-      pool, vmtype.object_type,
-      shared_ptr<void>(new editor::Range(range),
-                       [](void* v) { delete static_cast<editor::Range*>(v); }));
+  return Value::NewObject(pool, vmtype.object_type,
+                          MakeNonNullShared<editor::Range>(range));
 }
 
 const VMType VMTypeMapper<editor::Range>::vmtype =

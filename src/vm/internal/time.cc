@@ -14,6 +14,7 @@
 
 namespace afc::vm {
 using language::Error;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -37,9 +38,7 @@ struct VMTypeMapper<Time> {
 
   static gc::Root<Value> New(language::gc::Pool& pool, Time value) {
     return Value::NewObject(pool, vmtype.object_type,
-                            shared_ptr<void>(new Time(value), [](void* v) {
-                              delete static_cast<Time*>(v);
-                            }));
+                            MakeNonNullShared<Time>(value));
   }
 
   static const VMType vmtype;
@@ -53,9 +52,7 @@ struct VMTypeMapper<Duration> {
 
   static gc::Root<Value> New(language::gc::Pool& pool, Duration value) {
     return Value::NewObject(pool, vmtype.object_type,
-                            shared_ptr<void>(new Duration(value), [](void* v) {
-                              delete static_cast<Time*>(v);
-                            }));
+                            MakeNonNullShared<Duration>(value));
   }
 
   static const VMType vmtype;
