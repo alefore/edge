@@ -17,29 +17,9 @@ using language::NonNull;
 namespace gc = language::gc;
 namespace vm {
 template <>
-struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
-  static std::shared_ptr<editor::transformation::Insert> get(Value& value) {
-    // TODO(easy, 2022-05-27): Drop get_shared below.
-    return value.get_user_value<editor::transformation::Insert>(vmtype)
-        .get_shared();
-  }
-
-  static gc::Root<Value> New(
-      gc::Pool& pool, std::shared_ptr<editor::transformation::Insert> value) {
-    // TODO(2022-05-27, easy): Receive `value` as NonNull.
-    return Value::NewObject(
-        pool, vmtype.object_type,
-        NonNull<std::shared_ptr<editor::transformation::Insert>>::Unsafe(
-            value));
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType
-    VMTypeMapper<std::shared_ptr<editor::transformation::Insert>>::vmtype =
-        VMType::ObjectType(
-            VMTypeObjectTypeName(L"InsertTransformationBuilder"));
+const VMType VMTypeMapper<
+    NonNull<std::shared_ptr<editor::transformation::Insert>>>::vmtype =
+    VMType::ObjectType(VMTypeObjectTypeName(L"InsertTransformationBuilder"));
 }  // namespace vm
 namespace editor::transformation {
 using language::MakeNonNullShared;
@@ -126,19 +106,16 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   using vm::PurityType;
   using vm::VMTypeMapper;
   auto builder = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<std::shared_ptr<Insert>>::vmtype);
+      VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::vmtype);
   environment.Define(
       builder->type().object_type.read(),
-      vm::NewCallback(pool, PurityType::kPure,
-                      std::function<std::shared_ptr<Insert>()>(
-                          [] { return std::make_shared<Insert>(); })));
+      vm::NewCallback(pool, PurityType::kPure, MakeNonNullShared<Insert>));
 
   builder->AddField(
       L"set_text",
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
-          [](std::shared_ptr<Insert> options, std::wstring text) {
-            CHECK(options != nullptr);
+          [](NonNull<std::shared_ptr<Insert>> options, std::wstring text) {
             NonNull<std::shared_ptr<BufferContents>> buffer;
             ColumnNumber line_start;
             for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(text.size());
@@ -162,27 +139,26 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   builder->AddField(
       L"set_modifiers",
       vm::NewCallback(pool, vm::PurityTypeWriter,
-                      [](std::shared_ptr<Insert> options,
+                      [](NonNull<std::shared_ptr<Insert>> options,
                          NonNull<std::shared_ptr<Modifiers>> modifiers) {
-                        CHECK(options != nullptr);
                         options->modifiers = modifiers.value();
                         return options;
                       }));
 
-  builder->AddField(
-      L"set_position",
-      NewCallback(pool, vm::PurityTypeWriter,
-                  [](std::shared_ptr<Insert> options, LineColumn position) {
-                    CHECK(options != nullptr);
-                    options->position = position;
-                    return options;
-                  }));
+  builder->AddField(L"set_position",
+                    NewCallback(pool, vm::PurityTypeWriter,
+                                [](NonNull<std::shared_ptr<Insert>> options,
+                                   LineColumn position) {
+                                  options->position = position;
+                                  return options;
+                                }));
 
   builder->AddField(
       L"build",
-      NewCallback(pool, PurityType::kPure, [](std::shared_ptr<Insert> options) {
-        return MakeNonNullUnique<Variant>(*options);
-      }));
+      NewCallback(pool, PurityType::kPure,
+                  [](NonNull<std::shared_ptr<Insert>> options) {
+                    return MakeNonNullUnique<Variant>(options.value());
+                  }));
 
   environment.DefineType(std::move(builder));
 }
