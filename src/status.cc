@@ -13,6 +13,7 @@
 namespace afc::editor {
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::VisitPointer;
 
 namespace gc = language::gc;
 
@@ -227,10 +228,12 @@ Status::SetExpiringInformationText(std::wstring text) {
                          std::function<void(StatusExpirationControl*)>>(
       new StatusExpirationControl{data_.get_shared()},
       [](StatusExpirationControl* status_expiration_control) {
-        auto data = status_expiration_control->data.lock();
-        if (data != nullptr) {
-          data->text = L"";
-        }
+        VisitPointer(
+            status_expiration_control->data,
+            [](NonNull<std::shared_ptr<Status::Data>> data) {
+              data->text = L"";
+            },
+            [] {});
         delete status_expiration_control;
       });
 }
