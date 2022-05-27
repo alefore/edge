@@ -22,11 +22,11 @@ using language::NonNull;
 namespace gc = language::gc;
 
 template <>
-const VMType VMTypeMapper<std::vector<int>*>::vmtype =
+const VMType VMTypeMapper<NonNull<std::shared_ptr<std::vector<int>>>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"VectorInt"));
 
 template <>
-const VMType VMTypeMapper<std::set<int>*>::vmtype =
+const VMType VMTypeMapper<NonNull<std::shared_ptr<std::set<int>>>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"SetInt"));
 }  // namespace
 
@@ -67,8 +67,8 @@ language::gc::Root<Environment> Environment::NewDefault(
                             })));
   value.DefineType(std::move(double_type));
 
-  VMTypeMapper<std::vector<int>*>::Export(pool, value);
-  VMTypeMapper<std::set<int>*>::Export(pool, value);
+  ExportVectorType<int>(pool, value);
+  ExportSetType<int>(pool, value);
   return environment;
 }
 

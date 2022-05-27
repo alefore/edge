@@ -19,11 +19,13 @@ namespace gc = afc::language::gc;
 
 namespace afc::vm {
 template <>
-const VMType VMTypeMapper<std::vector<editor::LineColumn>*>::vmtype =
+const VMType VMTypeMapper<
+    NonNull<std::shared_ptr<std::vector<editor::LineColumn>>>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"VectorLineColumn"));
 
 template <>
-const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
+const VMType VMTypeMapper<
+    NonNull<std::shared_ptr<std::set<editor::LineColumn>>>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"SetLineColumn"));
 
 /* static */
@@ -133,7 +135,7 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
 
   environment.DefineType(std::move(range));
 
-  vm::VMTypeMapper<std::vector<LineColumn>*>::Export(pool, environment);
-  vm::VMTypeMapper<std::set<LineColumn>*>::Export(pool, environment);
+  ExportVectorType<LineColumn>(pool, environment);
+  ExportSetType<LineColumn>(pool, environment);
 }
 }  // namespace afc::editor

@@ -290,18 +290,19 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
           {VMType::Void(), VMTypeMapper<EditorState>::vmtype,
-           VMTypeMapper<std::set<std::wstring>*>::vmtype},
+           VMTypeMapper<
+               NonNull<std::shared_ptr<std::set<std::wstring>>>>::vmtype},
           [&pool = pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2u);
             EditorState& editor =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             const auto& buffers_to_wait =
-                *VMTypeMapper<std::set<std::wstring>*>::get(
-                    args[1].ptr().value());
+                VMTypeMapper<NonNull<std::shared_ptr<std::set<std::wstring>>>>::
+                    get(args[1].ptr().value());
 
             auto values =
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
-            for (const auto& buffer_name_str : buffers_to_wait) {
+            for (const auto& buffer_name_str : buffers_to_wait.value()) {
               if (auto buffer_it =
                       editor.buffers()->find(BufferName(buffer_name_str));
                   buffer_it != editor.buffers()->end()) {

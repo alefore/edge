@@ -15,19 +15,17 @@ class Pool;
 }
 namespace afc::vm {
 using language::MakeNonNullUnique;
+using language::NonNull;
 
 namespace gc = language::gc;
 
 template <>
-const VMType VMTypeMapper<std::vector<wstring>*>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"VectorString"));
+const VMType
+    VMTypeMapper<NonNull<std::shared_ptr<std::vector<wstring>>>>::vmtype =
+        VMType::ObjectType(VMTypeObjectTypeName(L"VectorString"));
 
 template <>
-const VMType VMTypeMapper<std::unique_ptr<std::vector<wstring>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"VectorString"));
-
-template <>
-const VMType VMTypeMapper<std::set<wstring>*>::vmtype =
+const VMType VMTypeMapper<NonNull<std::shared_ptr<std::set<wstring>>>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"SetString"));
 
 template <typename ReturnType, typename... Args>
@@ -139,7 +137,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       string_type.value());
   environment.DefineType(std::move(string_type));
 
-  VMTypeMapper<std::vector<wstring>*>::Export(pool, environment);
-  VMTypeMapper<std::set<wstring>*>::Export(pool, environment);
+  ExportVectorType<std::wstring>(pool, environment);
+  ExportSetType<std::wstring>(pool, environment);
 }
 }  // namespace afc::vm

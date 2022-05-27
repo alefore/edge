@@ -130,7 +130,8 @@ ValueOrError<ParsedCommand> Parse(
       type_match_functions.push_back(candidate);
     } else if (arguments.size() == 2 &&
                arguments[1] ==
-                   VMTypeMapper<std::vector<std::wstring>*>::vmtype) {
+                   VMTypeMapper<NonNull<
+                       std::shared_ptr<std::vector<std::wstring>>>>::vmtype) {
       function_vector = candidate;
     }
   }
@@ -140,12 +141,12 @@ ValueOrError<ParsedCommand> Parse(
 
   if (function_vector.has_value()) {
     output_function = function_vector.value();
-    auto argument_values = std::make_unique<std::vector<std::wstring>>();
+    NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_values;
     for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it) {
       argument_values->push_back(it->value);
     }
     output_function_inputs.push_back(vm::NewConstantExpression(
-        VMTypeMapper<std::unique_ptr<std::vector<std::wstring>>>::New(
+        VMTypeMapper<NonNull<std::shared_ptr<std::vector<std::wstring>>>>::New(
             pool, std::move(argument_values))));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.

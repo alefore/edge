@@ -17,78 +17,71 @@ class Pool;
 namespace afc::vm {
 // Defines a set type.
 //
-// To use it, define the vmtype of the std::set<MyType> type in your module:
+// To use it, define the vmtype of the std::set<MyType> type and of MyType in
+// your module:
 //
 //     template <>
-//     const VMType VMTypeMapper<std::set<MyType>*>::vmtype =
+//     const VMType
+//     VMTypeMapper<NonNull<std::shared_ptr<std::set<MyType>>>>::vmtype =
 //         VMType::ObjectType(L"SetMyType");
 //
 // Then initialize it in an environment:
 //
-//     VMTypeMapper<std::set<MyType>*>::Export(&environment);
+//     ExportSetType(&environment);
 template <typename T>
-struct VMTypeMapper<std::set<T>*> {
-  static std::set<T>* get(Value& value) {
-    // TODO(easy, 2022-05-27): Just return the NonNull shared ptr?
-    return value.get_user_value<std::set<T>>(vmtype).get_shared().get();
-  }
+void ExportSetType(language::gc::Pool& pool, Environment& environment) {
+  const VMType& vmtype =
+      VMTypeMapper<language::NonNull<std::shared_ptr<std::set<T>>>>::vmtype;
+  auto set_type = language::MakeNonNullUnique<ObjectType>(vmtype);
 
-  static const VMType vmtype;
+  environment.Define(
+      vmtype.object_type.read(),
+      Value::NewFunction(pool, PurityType::kPure, {set_type->type()},
+                         [&pool](std::vector<language::gc::Root<Value>> args) {
+                           CHECK(args.empty());
+                           return Value::NewObject(
+                               pool, vmtype.object_type,
+                               language::MakeNonNullShared<std::set<T>>());
+                         }));
 
-  static void Export(language::gc::Pool& pool, Environment& environment) {
-    auto set_type = language::MakeNonNullUnique<ObjectType>(vmtype);
+  set_type->AddField(
+      L"size",
+      vm::NewCallback(pool, PurityType::kPure,
+                      [](language::NonNull<std::shared_ptr<std::set<T>>> v)
+                          -> int { return v->size(); }));
+  set_type->AddField(
+      L"empty",
+      vm::NewCallback(pool, PurityType::kPure,
+                      [](language::NonNull<std::shared_ptr<std::set<T>>> v) {
+                        return v->empty();
+                      }));
+  set_type->AddField(
+      L"contains",
+      vm::NewCallback(pool, PurityType::kPure,
+                      [](language::NonNull<std::shared_ptr<std::set<T>>> v,
+                         T e) { return v->count(e) > 0; }));
+  set_type->AddField(
+      L"get", vm::NewCallback(
+                  pool, PurityType::kPure,
+                  [](language::NonNull<std::shared_ptr<std::set<T>>> v, int i) {
+                    auto it = v->begin();
+                    std::advance(it, i);
+                    return *it;
+                  }));
 
-    environment.Define(
-        vmtype.object_type.read(),
-        Value::NewFunction(
-            pool, PurityType::kPure, {set_type->type()},
-            [&pool](std::vector<language::gc::Root<Value>> args) {
-              CHECK(args.empty());
-              return Value::NewObject(
-                  pool, vmtype.object_type,
-                  language::MakeNonNullShared<std::set<T>>());
-            }));
+  set_type->AddField(
+      L"erase",
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](language::NonNull<std::shared_ptr<std::set<T>>> v,
+                         T t) { v->erase(t); }));
+  set_type->AddField(
+      L"insert",
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](language::NonNull<std::shared_ptr<std::set<T>>> v,
+                         T e) { v->insert(e); }));
 
-    set_type->AddField(
-        L"size",
-        vm::NewCallback(pool, PurityType::kPure,
-                        std::function<int(std::set<T>*)>(
-                            [](std::set<T>* v) { return v->size(); })));
-    set_type->AddField(
-        L"empty",
-        vm::NewCallback(pool, PurityType::kPure,
-                        std::function<bool(std::set<T>*)>(
-                            [](std::set<T>* v) { return v->empty(); })));
-    set_type->AddField(L"contains",
-                       vm::NewCallback(pool, PurityType::kPure,
-                                       std::function<bool(std::set<T>*, T)>(
-                                           [](std::set<T>* v, T e) {
-                                             return v->count(e) > 0;
-                                           })));
-    set_type->AddField(L"get",
-                       vm::NewCallback(pool, PurityType::kPure,
-                                       std::function<T(std::set<T>*, int)>(
-                                           [](std::set<T>* v, int i) {
-                                             auto it = v->begin();
-                                             std::advance(it, i);
-                                             return *it;
-                                           })));
-
-    set_type->AddField(
-        L"erase",
-        vm::NewCallback(pool, PurityType::kUnknown,
-                        std::function<void(std::set<T>*, T)>(
-                            [](std::set<T>* v, T t) { v->erase(t); })));
-    set_type->AddField(
-        L"insert",
-        vm::NewCallback(pool, PurityType::kUnknown,
-                        std::function<void(std::set<T>*, T)>(
-                            [](std::set<T>* v, T e) { v->insert(e); })));
-
-    environment.DefineType(std::move(set_type));
-  }
-};
-
+  environment.DefineType(std::move(set_type));
+}
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_PUBLIC_SET_H__

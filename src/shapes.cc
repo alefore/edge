@@ -12,30 +12,28 @@
 #include "src/vm/public/value.h"
 #include "src/vm/public/vector.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc ::editor {
 using namespace afc::vm;
+using language::NonNull;
 
-std::unique_ptr<std::vector<wstring>> Justify(std::vector<wstring>* input_raw,
-                                              int width) {
-  auto input = *input_raw;
-  LOG(INFO) << "Evaluating breaks with inputs: " << input.size();
+NonNull<std::shared_ptr<std::vector<wstring>>> Justify(
+    NonNull<std::shared_ptr<std::vector<wstring>>> input, int width) {
+  LOG(INFO) << "Evaluating breaks with inputs: " << input->size();
 
   // Push back a dummy string for the end. This is the goal of our graph search.
-  input.push_back(L"*");
+  input->push_back(L"*");
 
   // At position i, contains the best solution to reach word i. The values are
   // the cost of the solution, and the solution itself.
-  std::vector<std::tuple<int, std::vector<int>>> options(input.size());
+  std::vector<std::tuple<int, std::vector<int>>> options(input->size());
 
-  for (size_t i = 0; i < input.size(); i++) {
+  for (size_t i = 0; i < input->size(); i++) {
     if (i > 0 && std::get<1>(options[i]).empty()) {
       continue;
     }
     // Consider doing the next break (after word i) at word next.
-    int length = input[i].size();
-    for (size_t next = i + 1; next < input.size(); next++) {
+    int length = input.value()[i].size();
+    for (size_t next = i + 1; next < input->size(); next++) {
       if (length > width) {
         continue;  // Line was too long, this won't work.
       }
@@ -48,16 +46,16 @@ std::unique_ptr<std::vector<wstring>> Justify(std::vector<wstring>* input_raw,
         std::get<1>(options[next]) = std::get<1>(options[i]);
         std::get<1>(options[next]).push_back(next);
       }
-      length += 1 + input[next].size();
+      length += 1 + input.value()[next].size();
     }
   }
-  auto output = std::make_unique<std::vector<wstring>>();
+  NonNull<std::shared_ptr<std::vector<std::wstring>>> output;
   auto route = std::get<1>(options.back());
   for (size_t line = 0; line < route.size(); line++) {
     size_t previous_word = line == 0 ? 0 : route[line - 1];
     wstring output_line;
     for (int word = previous_word; word < route[line]; word++) {
-      output_line += (output_line.empty() ? L"" : L" ") + input[word];
+      output_line += (output_line.empty() ? L"" : L" ") + input.value()[word];
     }
     output->push_back(output_line);
   }
@@ -69,9 +67,10 @@ std::unique_ptr<std::vector<wstring>> Justify(std::vector<wstring>* input_raw,
 // output_right contains LineColumn(i, j) if there's a line cross into
 // LineColumn(i, j + 1). output_down if there's a line crossing into
 // LineColumn(i + 1, j).
-void FindBoundariesLine(LineColumn start, LineColumn end,
-                        std::set<LineColumn>* output_right,
-                        std::set<LineColumn>* output_down) {
+void FindBoundariesLine(
+    LineColumn start, LineColumn end,
+    NonNull<std::shared_ptr<std::set<LineColumn>>> output_right,
+    NonNull<std::shared_ptr<std::set<LineColumn>>> output_down) {
   if (start.column > end.column) {
     LineColumn tmp = start;
     start = end;
@@ -171,17 +170,16 @@ void InternalFindBoundariesBezier(const std::vector<Point> points, double start,
                                output);
 }
 
-void FindBoundariesBezier(std::vector<LineColumn>* positions,
-                          std::set<LineColumn>* output_right,
-                          std::set<LineColumn>* output_down) {
-  CHECK(output_right != nullptr);
-  CHECK(output_down != nullptr);
+void FindBoundariesBezier(
+    NonNull<std::shared_ptr<std::vector<LineColumn>>> positions,
+    NonNull<std::shared_ptr<std::set<LineColumn>>> output_right,
+    NonNull<std::shared_ptr<std::set<LineColumn>>> output_down) {
   if (positions->size() < 2) {
     return;
   }
 
   std::vector<Point> points;
-  for (const auto& position : *positions) {
+  for (const auto& position : positions.value()) {
     points.push_back(Point::New(position));
   }
   std::vector<LineColumn> journey;
@@ -216,5 +214,4 @@ void InitShapes(language::gc::Pool& pool, vm::Environment& environment) {
       vm::NewCallback(pool, PurityType::kUnknown, FindBoundariesBezier));
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
