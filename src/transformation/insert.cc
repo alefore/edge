@@ -19,9 +19,12 @@ namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
   static std::shared_ptr<editor::transformation::Insert> get(Value& value) {
-    return std::static_pointer_cast<editor::transformation::Insert>(
-        value.get_user_value(vmtype));
+    // TODO(easy, 2022-05-27): Drop get_shared below.
+    return NonNull<std::shared_ptr<editor::transformation::Insert>>::StaticCast(
+               value.get_user_value(vmtype))
+        .get_shared();
   }
+
   static gc::Root<Value> New(
       gc::Pool& pool, std::shared_ptr<editor::transformation::Insert> value) {
     // TODO(2022-05-27, easy): Receive `value` as NonNull.
@@ -30,6 +33,7 @@ struct VMTypeMapper<std::shared_ptr<editor::transformation::Insert>> {
         NonNull<std::shared_ptr<editor::transformation::Insert>>::Unsafe(
             value));
   }
+
   static const VMType vmtype;
 };
 

@@ -85,7 +85,8 @@ class Value {
   double get_double() const;
   const std::wstring& get_string() const;
   const std::wstring& get_symbol() const;
-  std::shared_ptr<void> get_user_value(const VMType& type) const;
+  language::NonNull<std::shared_ptr<void>> get_user_value(
+      const VMType& type) const;
 
   Callback LockCallback();
 

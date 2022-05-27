@@ -24,10 +24,10 @@ struct BufferWrapper {
 
 gc::Root<editor::OpenBuffer>
 vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(Value& value) {
-  auto wrapper =
-      static_cast<BufferWrapper*>(value.get_user_value(vmtype).get());
-  CHECK(wrapper != nullptr);
-  return wrapper->buffer.ToRoot();
+  BufferWrapper wrapper = NonNull<std::shared_ptr<BufferWrapper>>::StaticCast(
+                              value.get_user_value(vmtype))
+                              .value();
+  return wrapper.buffer.ToRoot();
 }
 
 /* static */ gc::Root<vm::Value>

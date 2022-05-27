@@ -19,15 +19,16 @@
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/set.h"
 
+using afc::language::NonNull;
 using afc::language::Pointer;
 
 namespace afc::vm {
 template <>
 struct VMTypeMapper<editor::EditorState> {
   static editor::EditorState& get(Value& value) {
-    return Pointer(static_cast<editor::EditorState*>(
-                       value.get_user_value(vmtype).get()))
-        .Reference();
+    return NonNull<std::shared_ptr<editor::EditorState>>::StaticCast(
+               value.get_user_value(vmtype))
+        .value();
   }
 
   static const VMType vmtype;
@@ -42,7 +43,6 @@ using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
 using language::MakeNonNullUnique;
-using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;

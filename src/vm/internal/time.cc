@@ -33,7 +33,9 @@ struct Duration {
 template <>
 struct VMTypeMapper<Time> {
   static Time get(Value& value) {
-    return *static_cast<Time*>(value.get_user_value(vmtype).get());
+    return NonNull<std::shared_ptr<Time>>::StaticCast(
+               value.get_user_value(vmtype))
+        .value();
   }
 
   static gc::Root<Value> New(language::gc::Pool& pool, Time value) {
@@ -47,7 +49,9 @@ struct VMTypeMapper<Time> {
 template <>
 struct VMTypeMapper<Duration> {
   static Duration get(Value& value) {
-    return *static_cast<Duration*>(value.get_user_value(vmtype).get());
+    return NonNull<std::shared_ptr<Duration>>::StaticCast(
+               value.get_user_value(vmtype))
+        .value();
   }
 
   static gc::Root<Value> New(language::gc::Pool& pool, Duration value) {
@@ -101,14 +105,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
           [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
-            Time input =
-                language::Pointer(
-                    static_cast<Time*>(
-                        args[0]
-                            .ptr()
-                            ->get_user_value(VMTypeMapper<Time>::vmtype)
-                            .get()))
-                    .Reference();
+            Time input = VMTypeMapper<Time>::get(args[0].ptr().value());
             struct tm t;
             localtime_r(&(input.tv_sec), &t);
             char buffer[2048];

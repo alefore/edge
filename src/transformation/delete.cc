@@ -34,8 +34,10 @@ namespace vm {
 template <>
 struct VMTypeMapper<std::shared_ptr<editor::transformation::Delete>> {
   static std::shared_ptr<editor::transformation::Delete> get(Value& value) {
-    return std::static_pointer_cast<editor::transformation::Delete>(
-        value.get_user_value(vmtype));
+    // TODO(easy, 2022-05-27): Drop get_shared below.
+    return NonNull<std::shared_ptr<editor::transformation::Delete>>::StaticCast(
+               value.get_user_value(vmtype))
+        .get_shared();
   }
   static gc::Root<Value> New(
       language::gc::Pool& pool,

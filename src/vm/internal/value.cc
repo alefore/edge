@@ -195,10 +195,9 @@ const std::wstring& Value::get_symbol() const {
   return std::get<Symbol>(value_).symbol_value;
 }
 
-std::shared_ptr<void> Value::get_user_value(const VMType& type) const {
+NonNull<std::shared_ptr<void>> Value::get_user_value(const VMType& type) const {
   CHECK_EQ(type, type);
-  // TODO(easy): Drop the get shared?
-  return std::get<ObjectInstance>(value_).value.get_shared();
+  return std::get<ObjectInstance>(value_).value;
 }
 
 struct LockedDependencies {

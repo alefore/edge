@@ -29,7 +29,11 @@ namespace afc::vm {
 template <typename T>
 struct VMTypeMapper<std::set<T>*> {
   static std::set<T>* get(Value& value) {
-    return static_cast<std::set<T>*>(value.get_user_value(vmtype).get());
+    // TODO(easy, 2022-05-27): Just return the NonNull shared ptr?
+    return language::NonNull<std::shared_ptr<std::set<T>>>::StaticCast(
+               value.get_user_value(vmtype))
+        .get_shared()
+        .get();
   }
 
   static const VMType vmtype;

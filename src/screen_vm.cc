@@ -15,22 +15,25 @@
 #include "src/vm/public/value.h"
 
 namespace afc {
+using language::NonNull;
+
 namespace gc = language::gc;
 
 namespace vm {
 /* static */ editor::Screen* VMTypeMapper<editor::Screen*>::get(Value& value) {
-  return static_cast<editor::Screen*>(value.get_user_value(vmtype).get());
+  return NonNull<std::shared_ptr<editor::Screen>>::StaticCast(
+             value.get_user_value(vmtype))
+      .get_shared()
+      .get();
 }
 
 const VMType VMTypeMapper<editor::Screen*>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"Screen"));
 }  // namespace vm
 namespace editor {
-
 using infrastructure::Path;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
-using language::NonNull;
 using language::ToByteString;
 using vm::Environment;
 using vm::ObjectType;

@@ -516,9 +516,8 @@ class ForkEditorCommand : public Command {
 namespace vm {
 /* static */ NonNull<std::shared_ptr<editor::ForkCommandOptions>> VMTypeMapper<
     NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::get(Value& value) {
-  return NonNull<std::shared_ptr<editor::ForkCommandOptions>>::Unsafe(
-      static_pointer_cast<editor::ForkCommandOptions>(
-          value.get_user_value(vmtype)));
+  return NonNull<std::shared_ptr<editor::ForkCommandOptions>>::StaticCast(
+      value.get_user_value(vmtype));
 }
 
 // TODO(easy, 2022-05-12): Receive options by ref.

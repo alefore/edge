@@ -165,6 +165,13 @@ class NonNull<std::shared_ptr<T>> {
     return NonNull(std::move(value));
   }
 
+  template <typename Other>
+  static NonNull<std::shared_ptr<T>> StaticCast(
+      NonNull<std::shared_ptr<Other>> value) {
+    return NonNull<std::shared_ptr<T>>::Unsafe(
+        static_pointer_cast<T>(std::move(value.get_shared())));
+  }
+
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
   // converted to `std::shared_ptr<T>`.
   template <typename Other>

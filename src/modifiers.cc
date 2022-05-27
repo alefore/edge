@@ -155,8 +155,10 @@ namespace gc = language::gc;
 /* static */
 std::shared_ptr<editor::Modifiers>
 VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value& value) {
-  return std::static_pointer_cast<editor::Modifiers>(
-      value.get_user_value(vmtype));
+  // TODO(easy, 2022-05-27): Return the NonNull?
+  return NonNull<std::shared_ptr<editor::Modifiers>>::StaticCast(
+             value.get_user_value(vmtype))
+      .get_shared();
 }
 
 /* static */

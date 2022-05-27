@@ -13,6 +13,7 @@
 
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
 
 namespace gc = afc::language::gc;
 
@@ -27,7 +28,9 @@ const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
 
 /* static */
 editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
-  return *static_cast<editor::LineColumn*>(value.get_user_value(vmtype).get());
+  return NonNull<std::shared_ptr<editor::LineColumn>>::StaticCast(
+             value.get_user_value(vmtype))
+      .value();
 }
 
 /* static */
@@ -43,8 +46,9 @@ const VMType VMTypeMapper<editor::LineColumn>::vmtype =
 /* static */
 editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
     Value& value) {
-  return *static_cast<editor::LineColumnDelta*>(
-      value.get_user_value(vmtype).get());
+  return NonNull<std::shared_ptr<editor::LineColumnDelta>>::StaticCast(
+             value.get_user_value(vmtype))
+      .value();
 }
 
 /* static */
@@ -59,7 +63,9 @@ const VMType VMTypeMapper<editor::LineColumnDelta>::vmtype =
 
 /* static */
 editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
-  return *static_cast<editor::Range*>(value.get_user_value(vmtype).get());
+  return NonNull<std::shared_ptr<editor::Range>>::StaticCast(
+             value.get_user_value(vmtype))
+      .value();
 }
 
 /* static */

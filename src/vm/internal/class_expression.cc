@@ -21,7 +21,14 @@ using language::VisitPointer;
 namespace gc = language::gc;
 
 struct Instance {
-  language::gc::Root<Environment> environment;
+  static gc::Root<Environment> Read(const VMType& class_type,
+                                    const gc::Root<Value>& obj) {
+    return NonNull<std::shared_ptr<Instance>>::StaticCast(
+               obj.ptr()->get_user_value(class_type))
+        ->environment;
+  }
+
+  gc::Root<Environment> environment;
 };
 
 void StartClassDeclaration(Compilation& compilation,
@@ -39,12 +46,10 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
       [class_type, field_name, field_type](std::vector<gc::Root<Value>> args,
                                            Trampoline&) {
         CHECK_EQ(args.size(), 2u);
-        auto instance = static_cast<Instance*>(
-            args[0].ptr()->get_user_value(class_type).get());
-        CHECK(instance != nullptr);
-
         CHECK_EQ(args[1].ptr()->type, field_type);
-        instance->environment.ptr()->Assign(field_name, std::move(args[1]));
+        Instance::Read(class_type, args[0])
+            .ptr()
+            ->Assign(field_name, std::move(args[1]));
 
         return futures::Past(
             Success(EvaluationOutput::New(std::move(args[0]))));
@@ -61,13 +66,12 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
       [&pool, class_type, field_name, field_type](
           std::vector<gc::Root<Value>> args, Trampoline&) {
         CHECK_EQ(args.size(), 1u);
-        auto instance = static_cast<Instance*>(
-            args[0].ptr()->get_user_value(class_type).get());
-        CHECK(instance != nullptr);
-        static Environment::Namespace empty_namespace;
+        gc::Root<vm::Environment> environment =
+            Instance::Read(class_type, args[0]);
+        static const Environment::Namespace empty_namespace;
         return futures::Past(VisitPointer(
-            instance->environment.ptr()->Lookup(pool, empty_namespace,
-                                                field_name, field_type),
+            environment.ptr()->Lookup(pool, empty_namespace, field_name,
+                                      field_type),
             [](gc::Root<Value> value) {
               return Success(EvaluationOutput::New(std::move(value)));
             },
