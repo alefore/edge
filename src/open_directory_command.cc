@@ -14,6 +14,8 @@ extern "C" {
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::ValueOrError;
+using language::VisitPointer;
 namespace {
 using infrastructure::Path;
 
@@ -30,22 +32,21 @@ class OpenDirectoryCommand : public Command {
   std::wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t) override {
-    OpenOrCreateFile({.editor_state = editor_state_,
-                      .path = GetPath(editor_state_.current_buffer())});
+    OpenOrCreateFile(OpenFileOptions{
+        .editor_state = editor_state_,
+        .path = VisitPointer(
+                    editor_state_.current_buffer(),
+                    [](gc::Root<OpenBuffer> buffer) -> ValueOrError<Path> {
+                      ASSIGN_OR_RETURN(Path path,
+                                       Path::FromString(buffer.ptr()->Read(
+                                           buffer_variables::name)));
+                      return path.Dirname();
+                    },
+                    [] { return Path::LocalDirectory(); })
+                    .AsOptional()});
   }
 
  private:
-  static std::optional<Path> GetPath(
-      std::optional<gc::Root<OpenBuffer>> buffer) {
-    // TODO(easy, 2022-05-16): Switch to VisitPointer.
-    if (!buffer.has_value()) return Path::LocalDirectory();
-    auto path = Path::FromString(buffer->ptr()->Read(buffer_variables::name));
-    if (path.IsError()) return std::nullopt;
-    auto dir = path.value().Dirname();
-    if (dir.IsError()) return std::nullopt;
-    return dir.value();
-  }
-
   EditorState& editor_state_;
 };
 
