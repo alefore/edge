@@ -8,7 +8,7 @@
 #include "src/transformation/vm.h"
 
 namespace afc::editor::transformation {
-using language::MakeNonNullUnique;
+using language::MakeNonNullShared;
 using language::NonNull;
 
 void RegisterSetPosition(language::gc::Pool& pool,
@@ -17,13 +17,13 @@ void RegisterSetPosition(language::gc::Pool& pool,
   environment.Define(
       L"SetColumnTransformation",
       vm::NewCallback(pool, PurityType::kPure, [](int column) {
-        return MakeNonNullUnique<Variant>(SetPosition(ColumnNumber(column)));
+        return MakeNonNullShared<Variant>(SetPosition(ColumnNumber(column)));
       }));
 
   environment.Define(
       L"SetPositionTransformation",
       vm::NewCallback(pool, PurityType::kPure, [](LineColumn position) {
-        return MakeNonNullUnique<Variant>(SetPosition(position));
+        return MakeNonNullShared<Variant>(SetPosition(position));
       }));
 }
 

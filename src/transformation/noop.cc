@@ -18,7 +18,7 @@ class Noop : public CompositeTransformation {
     environment.Define(
         L"NoopTransformation",
         vm::NewCallback(pool, vm::PurityType::kPure, []() {
-          return MakeNonNullUnique<Variant>(NewNoopTransformation());
+          return MakeNonNullShared<Variant>(NewNoopTransformation());
         }));
   }
 

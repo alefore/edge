@@ -282,7 +282,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
       L"build",
       vm::NewCallback(pool, PurityType::kPure,
                       [](NonNull<std::shared_ptr<Delete>> options) {
-                        return MakeNonNullUnique<Variant>(options.value());
+                        return MakeNonNullShared<Variant>(options.value());
                       }));
 
   environment.DefineType(std::move(builder));
