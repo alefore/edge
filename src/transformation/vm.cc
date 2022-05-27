@@ -22,6 +22,7 @@
 #include "src/vm/public/types.h"
 
 namespace afc {
+using language::MakeNonNullShared;
 using language::NonNull;
 
 namespace gc = language::gc;
@@ -67,16 +68,19 @@ class FunctionTransformation : public CompositeTransformation {
   futures::Value<Output> Apply(Input input) const override {
     std::vector<gc::Root<vm::Value>> args;
     args.emplace_back(
-        VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>>::
-            New(pool_, std::make_shared<Input>(input)));
+        VMTypeMapper<
+            NonNull<std::shared_ptr<editor::CompositeTransformation::Input>>>::
+            New(pool_, MakeNonNullShared<Input>(input)));
     return vm::Call(pool_, function_.ptr().value(), std::move(args),
                     [work_queue = input.buffer.work_queue()](
                         std::function<void()> callback) {
                       work_queue->Schedule(std::move(callback));
                     })
         .Transform([](gc::Root<vm::Value> value) {
-          return Success(std::move(*VMTypeMapper<std::shared_ptr<Output>>::get(
-              value.ptr().value())));
+          return Success(
+              std::move(VMTypeMapper<NonNull<std::shared_ptr<Output>>>::get(
+                            value.ptr().value())
+                            .value()));
         })
         .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }
@@ -97,10 +101,10 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
           {VMTypeMapper<NonNull<
                std::unique_ptr<editor::transformation::Variant>>>::vmtype,
            VMType::Function(
-               {VMTypeMapper<
-                    std::shared_ptr<CompositeTransformation::Output>>::vmtype,
-                VMTypeMapper<
-                    std::shared_ptr<CompositeTransformation::Input>>::vmtype})},
+               {VMTypeMapper<NonNull<
+                    std::shared_ptr<CompositeTransformation::Output>>>::vmtype,
+                VMTypeMapper<NonNull<std::shared_ptr<
+                    CompositeTransformation::Input>>>::vmtype})},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
             return VMTypeMapper<
