@@ -115,24 +115,30 @@ class PredictorTransformation : public CompositeTransformation {
 
 class InsertHistoryTransformation : public CompositeTransformation {
  public:
-  InsertHistoryTransformation(std::wstring query)
-      : search_options_({.query = std::move(query)}) {}
+  InsertHistoryTransformation(transformation::Variant delete_transformation,
+                              std::wstring query)
+      : delete_transformation_(std::move(delete_transformation)),
+        search_options_({.query = std::move(query)}) {}
 
   std::wstring Serialize() const override {
     return L"InsertHistoryTransformation";
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    return VisitPointer(
+    Output output;
+    VisitPointer(
         input.editor.insert_history().Search(input.editor, search_options_),
-        [](NonNull<const BufferContents*> text) {
-          return futures::Past(Output(
-              transformation::Insert{.contents_to_insert = text->copy()}));
+        [&](NonNull<const BufferContents*> text) {
+          output.Push(delete_transformation_);
+          output.Push(
+              transformation::Insert{.contents_to_insert = text->copy()});
         },
-        [] { return futures::Past(Output()); });
+        [] {});
+    return futures::Past(std::move(output));
   }
 
  private:
+  const transformation::Variant delete_transformation_;
   const InsertHistory::SearchOptions search_options_;
 };
 
@@ -322,8 +328,8 @@ class ExpandTransformation : public CompositeTransformation {
       } break;
       case '.': {
         auto query = GetToken(input, buffer_variables::path_characters);
-        output.Push(DeleteLastCharacters(query.size() + 1));
-        transformation = std::make_unique<InsertHistoryTransformation>(query);
+        transformation = std::make_unique<InsertHistoryTransformation>(
+            DeleteLastCharacters(query.size() + 1), query);
       }
     }
     VisitPointer(
