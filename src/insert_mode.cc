@@ -166,8 +166,11 @@ class InsertMode : public EditorMode {
     switch (static_cast<int>(c)) {
       case '\t':
         ResetScrollBehavior();
-
-        ForEachActiveBuffer(buffers_, {'\t'},
+        if (old_literal) {
+          LOG(INFO) << "Inserting escaped TAB.";
+          break;
+        }
+        ForEachActiveBuffer(buffers_, "",
                             [options = options_](OpenBuffer& buffer) {
                               // TODO: Don't ignore the return value. If it's
                               // false for all buffers, insert the \t.
@@ -337,6 +340,7 @@ class InsertMode : public EditorMode {
           status_expiration_for_literal_ =
               options_.editor_state.status().SetExpiringInformationText(
                   L"<literal>");
+          return;
         }
         break;
 
@@ -369,6 +373,7 @@ class InsertMode : public EditorMode {
           return buffer.TransformKeyboardText(std::wstring(1, c))
               .Transform([options,
                           buffer_root = buffer.NewRoot()](std::wstring value) {
+                VLOG(6) << "Inserting text: [" << value << "]";
                 return CallModifyHandler(
                     options, buffer_root.ptr().value(),
                     buffer_root.ptr()->ApplyToCursors(transformation::Insert{
