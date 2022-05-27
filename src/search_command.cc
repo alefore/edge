@@ -14,6 +14,7 @@ using concurrent::Notification;
 using futures::IterationControlCommand;
 using language::EmptyValue;
 using language::Error;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -76,16 +77,17 @@ ColorizePromptOptions SearchResultsModifiers(
 // This class isn't thread-safe.
 class ProgressAggregator {
  public:
-  ProgressAggregator(std::unique_ptr<ProgressChannel> parent_channel)
-      : data_(std::make_shared<Data>(std::move(parent_channel))) {}
+  ProgressAggregator(NonNull<std::unique_ptr<ProgressChannel>> parent_channel)
+      : data_(MakeNonNullShared<Data>(std::move(parent_channel))) {}
 
-  std::unique_ptr<ProgressChannel> NewChild() {
-    auto child_information = std::make_shared<ProgressInformation>();
+  NonNull<std::unique_ptr<ProgressChannel>> NewChild() {
+    NonNull<std::shared_ptr<ProgressInformation>> child_information;
     data_->children_created++;
-    return std::make_unique<ProgressChannel>(
+    return MakeNonNullUnique<ProgressChannel>(
         data_->parent_channel->work_queue(),
         [data = data_, child_information](ProgressInformation information) {
-          if (HasMatches(information) && !HasMatches(*child_information)) {
+          if (HasMatches(information) &&
+              !HasMatches(child_information.value())) {
             data->buffers_with_matches++;
           }
 
@@ -119,16 +121,16 @@ class ProgressAggregator {
   }
 
   struct Data {
-    Data(std::unique_ptr<ProgressChannel> parent_channel)
+    Data(NonNull<std::unique_ptr<ProgressChannel>> parent_channel)
         : parent_channel(std::move(parent_channel)) {}
 
-    const std::unique_ptr<ProgressChannel> parent_channel;
+    const NonNull<std::unique_ptr<ProgressChannel>> parent_channel;
 
     ProgressInformation aggregates;
     size_t buffers_with_matches = 0;
     size_t children_created = 0;
   };
-  const std::shared_ptr<Data> data_;
+  const NonNull<std::shared_ptr<Data>> data_;
 };
 
 class SearchCommand : public Command {
@@ -204,9 +206,8 @@ class SearchCommand : public Command {
                auto results =
                    std::make_shared<ValueOrError<SearchResultsSummary>>(
                        SearchResultsSummary());
-               // TODO(easy, 2022-05-26): Drop `get_unique`.
-               auto progress_aggregator = std::make_shared<ProgressAggregator>(
-                   std::move(progress_channel.get_unique()));
+               auto progress_aggregator = MakeNonNullShared<ProgressAggregator>(
+                   std::move(progress_channel));
                using Control = futures::IterationControlCommand;
                return futures::ForEach(
                           buffers,
@@ -214,8 +215,9 @@ class SearchCommand : public Command {
                            abort_notification,
                            results](const gc::Root<OpenBuffer>& buffer_root) {
                             OpenBuffer& buffer = buffer_root.ptr().value();
-                            std::shared_ptr<ProgressChannel> progress_channel =
-                                progress_aggregator->NewChild();
+                            NonNull<std::shared_ptr<ProgressChannel>>
+                                progress_channel =
+                                    progress_aggregator->NewChild();
                             if (buffer.Read(
                                     buffer_variables::search_case_sensitive)) {
                               progress_channel->Push(
@@ -237,7 +239,7 @@ class SearchCommand : public Command {
                             return editor_state.thread_pool()
                                 .Run(BackgroundSearchCallback(
                                     search_options.value(), buffer.contents(),
-                                    *progress_channel))
+                                    progress_channel.value()))
                                 .Transform(
                                     [results, abort_notification, line,
                                      buffer_root, progress_channel](
