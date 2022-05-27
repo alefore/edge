@@ -15,29 +15,10 @@ using language::NonNull;
 namespace gc = language::gc;
 namespace vm {
 template <>
-struct VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>> {
-  static std::shared_ptr<editor::transformation::Repetitions> get(
-      Value& value) {
-    // TODO(easy, 2022-05-27): Just return the NonNull.
-    return value.get_user_value<editor::transformation::Repetitions>(vmtype)
-        .get_shared();
-  }
-  static gc::Root<Value> New(
-      gc::Pool& pool,
-      std::shared_ptr<editor::transformation::Repetitions> value) {
-    // TODO(2022-05-27, easy): Receive `value` as NonNull.
-    return Value::NewObject(
-        pool, vmtype.object_type,
-        NonNull<std::shared_ptr<editor::transformation::Repetitions>>::Unsafe(
-            value));
-  }
-  static const VMType vmtype;
-};
-
-const VMType
-    VMTypeMapper<std::shared_ptr<editor::transformation::Repetitions>>::vmtype =
-        VMType::ObjectType(
-            VMTypeObjectTypeName(L"RepetitionsTransformationBuilder"));
+const VMType VMTypeMapper<
+    NonNull<std::shared_ptr<editor::transformation::Repetitions>>>::vmtype =
+    VMType::ObjectType(
+        VMTypeObjectTypeName(L"RepetitionsTransformationBuilder"));
 }  // namespace vm
 namespace editor::transformation {
 futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
