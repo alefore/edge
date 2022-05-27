@@ -99,6 +99,10 @@ class Status {
   const StatusPromptExtraInformation* prompt_extra_information() const;
 
   void SetInformationText(std::wstring text);
+
+  // Sets the status to a given text and returns an opaque token. The caller
+  // uses the opaque token to control when the text given is retired (by letting
+  // the token expire).
   std::unique_ptr<StatusExpirationControl,
                   std::function<void(StatusExpirationControl*)>>
   SetExpiringInformationText(std::wstring text);
