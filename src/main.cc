@@ -163,12 +163,12 @@ std::wstring CommandsToRun(CommandLineValues args) {
   return commands_to_run;
 }
 
-// TODO(easy, 2022-05-28): Pass fd as a FileDescriptor.
-void SendCommandsToParent(int fd, const std::string commands_to_run) {
+void SendCommandsToParent(FileDescriptor fd,
+                          const std::string commands_to_run) {
   // We write the command to a temporary file and then instruct the server to
   // load the file. Otherwise, if the command is too long, it may not fit in the
   // size limit that the reader uses.
-  CHECK_NE(fd, -1);
+  CHECK_NE(fd, FileDescriptor(-1));
   using std::cerr;
   size_t pos = 0;
   char* path = strdup("/tmp/edge-initial-commands-XXXXXX");
@@ -186,7 +186,7 @@ void SendCommandsToParent(int fd, const std::string commands_to_run) {
   close(tmp_fd);
   std::string command = "#include \"" + std::string(path) + "\"\n";
   free(path);
-  if (write(fd, command.c_str(), command.size()) !=
+  if (write(fd.read(), command.c_str(), command.size()) !=
       static_cast<int>(command.size())) {
     cerr << "write: " << strerror(errno);
     exit(1);
@@ -257,7 +257,7 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
           screen_size != last_screen_size->value()) {
         LOG(INFO) << "Sending screen size update to server.";
         SendCommandsToParent(
-            remote_server_fd,
+            FileDescriptor(remote_server_fd),
             "screen.set_size(" +
                 std::to_string(screen_size.column.column_delta) + "," +
                 std::to_string(screen_size.line.line_delta) + ");" +
@@ -379,6 +379,7 @@ int main(int argc, const char** argv) {
     }
 
     LOG(INFO) << "Sending commands.";
+    // TODO(easy, 2022-05-29): Turn into FileDescriptor?
     ValueOrError<int> self_fd = remote_server_fd;
     if (remote_server_fd != -1) {
       // Pass.
@@ -387,16 +388,17 @@ int main(int argc, const char** argv) {
     } else {
       self_fd = MaybeConnectToParentServer();
     }
-    std::visit(
-        overload{[&args](Error error) {
-                   std::cerr << args.binary_name << ": " << error << std::endl;
-                   exit(1);
-                 },
-                 [&](int self_fd) {
-                   CHECK_NE(self_fd, -1);
-                   SendCommandsToParent(self_fd, ToByteString(commands_to_run));
-                 }},
-        self_fd.variant());
+    std::visit(overload{[&args](Error error) {
+                          std::cerr << args.binary_name << ": " << error
+                                    << std::endl;
+                          exit(1);
+                        },
+                        [&](int self_fd) {
+                          CHECK_NE(self_fd, -1);
+                          SendCommandsToParent(FileDescriptor(self_fd),
+                                               ToByteString(commands_to_run));
+                        }},
+               self_fd.variant());
   }
 
   LOG(INFO) << "Creating terminal.";
@@ -515,7 +517,7 @@ int main(int argc, const char** argv) {
               editor_state().ProcessInput(c);
             } else {
               SendCommandsToParent(
-                  remote_server_fd,
+                  FileDescriptor(remote_server_fd),
                   "ProcessInput(" + std::to_string(c) + ");\n");
             }
           }
