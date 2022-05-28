@@ -5,6 +5,7 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 
 #include "src/language/wstring.h"
 
@@ -33,46 +34,45 @@ class ValueOrError {
 
   ValueOrError() : value_(T()) {}
 
-  ValueOrError(Error error) : error_(std::move(error)) {}
+  ValueOrError(Error error) : value_(std::move(error)) {}
   ValueOrError(language::ValueType<T> value) : value_(std::move(value.value)) {}
 
   template <typename Other>
-  ValueOrError(Other other) : value_(std::move(other)) {}
+  ValueOrError(Other other)
+      : value_(std::variant<T, Error>(std::move(other))) {}
 
   template <typename Other>
   ValueOrError(ValueOrError<Other> other)
-      : value_(other.IsError() ? std::optional<T>() : std::move(other.value())),
-        error_(other.IsError() ? std::move(other.error())
-                               : std::optional<Error>()) {}
+      : value_(other.IsError()
+                   ? std::variant<T, Error>(std::move(other.error()))
+                   : std::variant<T, Error>(std::move(other.value()))) {}
 
   std::optional<T> AsOptional() const {
     return IsError() ? std::optional<T>() : value();
   }
 
-  bool IsError() const { return error_.has_value(); }
+  bool IsError() const { return std::holds_alternative<Error>(value_); }
 
   Error error() const {
     CHECK(IsError());
-    return Error(error_.value());
+    return Error(std::get<Error>(value_));
   }
 
   const T& value() const {
     CHECK(!IsError()) << "Attempted to get value of ValueOrError with error: "
                       << error();
-    return value_.value();
+    return std::get<T>(value_);
   }
 
   T& value() {
     CHECK(!IsError());
-    return value_.value();
+    return std::get<T>(value_);
   }
 
   T& value_or(T other) { return IsError() ? other : value(); }
 
  private:
-  // Exactly one of these should have a value.
-  std::optional<T> value_;
-  std::optional<Error> error_;
+  std::variant<T, Error> value_;
 };
 
 template <typename T>

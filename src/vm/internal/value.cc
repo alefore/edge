@@ -215,9 +215,9 @@ Value::Callback Value::LockCallback() {
 ValueOrError<double> Value::ToDouble() const {
   switch (type.type) {
     case VMType::Type::kInt:
-      return get_int();
+      return Success(static_cast<double>(get_int()));
     case VMType::Type::kDouble:
-      return get_double();
+      return Success(get_double());
     default:
       return Error(L"Unexpected value of type: " + type.ToString());
   }
