@@ -1006,10 +1006,10 @@ ValueOrError<
 OpenBuffer::CompileString(const std::wstring& code) const {
   gc::Root<Environment> sub_environment =
       editor().gc_pool().NewRoot(MakeNonNullUnique<Environment>(environment_));
-  auto compilation_result =
-      afc::vm::CompileString(code, editor().gc_pool(), sub_environment);
-  if (compilation_result.IsError()) return compilation_result.error();
-  return std::make_pair(std::move(compilation_result.value()), sub_environment);
+  ASSIGN_OR_RETURN(
+      NonNull<std::unique_ptr<Expression>> expression,
+      afc::vm::CompileString(code, editor().gc_pool(), sub_environment));
+  return std::make_pair(std::move(expression), sub_environment);
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
