@@ -27,6 +27,7 @@ extern "C" {
 #include "src/editor.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
@@ -51,6 +52,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::IfObj;
+using language::overload;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
@@ -333,11 +335,13 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
                                edge_path](gc::Root<OpenBuffer> buffer) {
                      buffer.ptr()->contents().ForEach([&editor_state, output](
                                                           std::wstring line) {
-                       auto path = Path::FromString(line);
-                       if (path.IsError()) return;
-                       output->push_back(
-                           editor_state.expand_path(path.value()));
-                       LOG(INFO) << "Pushed search path: " << output->back();
+                       Path::FromString(line).Visit(overload{
+                           [](Error) {},
+                           [&](Path path) {
+                             output->push_back(editor_state.expand_path(path));
+                             LOG(INFO)
+                                 << "Pushed search path: " << output->back();
+                           }});
                      });
                      return futures::IterationControlCommand::kContinue;
                    });
