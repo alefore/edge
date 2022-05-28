@@ -24,10 +24,12 @@ class Expression;
 class Environment;
 
 struct Compilation {
-  void AddError(wstring error) {
+  // TODO(easy, 2022-05-28): Move to compilation.cc?
+  void AddError(std::wstring error) {
     // TODO: Enable this logging statement.
     // LOG(INFO) << "Compilation error: " << error;
-    errors.push_back(std::move(error));
+    errors.push_back(L":" + std::to_wstring(source_line) + L": " +
+                     std::move(error));
   }
 
   language::gc::Pool& pool;
@@ -44,6 +46,7 @@ struct Compilation {
   std::vector<VMType> current_class = {};
   language::gc::Root<Environment> environment;
   std::wstring last_token = L"";
+  size_t source_line = 0;
 };
 
 }  // namespace vm

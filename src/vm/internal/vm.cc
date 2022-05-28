@@ -70,6 +70,7 @@ void CompileStream(std::wistream& stream, Compilation& compilation,
   while (compilation.errors.empty() && std::getline(stream, line)) {
     VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
     CompileLine(compilation, parser, line);
+    compilation.source_line++;
   }
 }
 
@@ -126,12 +127,16 @@ void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
   const string old_directory = compilation.directory;
   compilation.directory = CppDirname(low_level_path);
 
+  const size_t old_source_line = compilation.source_line;
+  compilation.source_line = 0;
+
   CompileFile(low_level_path, compilation, parser);
   for (auto& error : compilation.errors) {
     error = L"During processing of included file \"" + path + L"\": " + error;
   }
 
   compilation.directory = old_directory;
+  compilation.source_line = old_source_line;
 
   *pos_output = pos + 1;
 
