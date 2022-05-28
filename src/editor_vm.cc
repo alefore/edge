@@ -41,11 +41,11 @@ using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
 using language::MakeNonNullUnique;
+using language::overload;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
-
 using vm::Environment;
 using vm::EvaluationOutput;
 using vm::ObjectType;
@@ -217,10 +217,16 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                         return futures::Past(EmptyValue());
                       });
                 })
-                .Transform([output, &pool](
-                               EmptyValue) -> ValueOrError<EvaluationOutput> {
-                  if (output->IsError()) return output->error();
-                  return EvaluationOutput::Return(vm::Value::NewVoid(pool));
+                .Transform([output, &pool](EmptyValue) {
+                  return std::visit(
+                      overload{[](Error error) {
+                                 return ValueOrError<EvaluationOutput>(error);
+                               },
+                               [&pool](EmptyValue) {
+                                 return Success(EvaluationOutput::Return(
+                                     vm::Value::NewVoid(pool)));
+                               }},
+                      output->variant());
                 });
           }));
 

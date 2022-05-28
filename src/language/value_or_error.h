@@ -49,26 +49,13 @@ class ValueOrError {
                                                  : std::optional<T>(value());
   }
 
-  bool IsError() const { return std::holds_alternative<Error>(value_); }
+  Error error() const { return std::get<Error>(value_); }
 
-  Error error() const {
-    CHECK(IsError());
-    return Error(std::get<Error>(value_));
-  }
+  const T& value() const { return std::get<T>(value_); }
 
-  const T& value() const {
-    CHECK(!IsError()) << "Attempted to get value of ValueOrError with error: "
-                      << error();
-    return std::get<T>(value_);
-  }
+  T& value() { return std::get<T>(value_); }
 
-  T& value() {
-    CHECK(!IsError()) << "Attempted to get value of ValueOrError with error: "
-                      << error();
-    return std::get<T>(value_);
-  }
-
-  T& value_or(T other) { return IsError() ? other : value(); }
+  T& value_or(T other) { return IsError(*this) ? other : value(); }
 
   template <typename Other>
   ValueOrError<T> operator=(ValueOrError<Other>&& value) {
