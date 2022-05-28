@@ -89,8 +89,8 @@ ValueOrError<NonNull<std::unique_ptr<Command>>> NewCppCommand(
                << result.error();
     return result.error();
   }
-  return MakeNonNullUnique<CppCommand>(editor_state, std::move(result.value()),
-                                       std::move(code));
+  return NonNull<std::unique_ptr<Command>>(MakeNonNullUnique<CppCommand>(
+      editor_state, std::move(result.value()), std::move(code)));
 }
 
 }  // namespace afc::editor

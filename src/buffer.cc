@@ -1731,7 +1731,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
   auto adjusted_position = AdjustLineColumn(position());
   struct Data {
     const gc::Root<OpenBuffer> source;
-    ValueOrError<std::optional<gc::Root<OpenBuffer>>> output = std::nullopt;
+    ValueOrError<std::optional<gc::Root<OpenBuffer>>> output =
+        std::optional<gc::Root<OpenBuffer>>();
   };
   NonNull<std::shared_ptr<Data>> data =
       MakeNonNullShared<Data>(Data{.source = ptr_this_->ToRoot()});
@@ -1777,7 +1778,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                   BuffersList::AddBufferType::kIgnore,
                               .use_search_paths = false})
                    .Transform([data](gc::Root<OpenBuffer> buffer_context) {
-                     data->output = buffer_context;
+                     // TODO(easy, 2022-05-28): Get rid of `Success` here.
+                     data->output = Success(buffer_context);
                      return futures::Past(
                          Success(futures::IterationControlCommand::kStop));
                    })

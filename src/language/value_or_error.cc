@@ -11,7 +11,9 @@ std::ostream& operator<<(std::ostream& os, const Error& p) {
   return os;
 }
 
-ValueOrError<EmptyValue> Success() { return ValueType(EmptyValue()); }
+ValueOrError<EmptyValue> Success() {
+  return ValueOrError<EmptyValue>(EmptyValue());
+}
 
 namespace {
 bool tests_register = tests::Register(

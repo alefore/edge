@@ -22,12 +22,6 @@ struct Error {
 std::ostream& operator<<(std::ostream& os, const Error& p);
 
 template <typename T>
-struct ValueType {
-  ValueType(T value) : value(std::move(value)) {}
-  T value;
-};
-
-template <typename T>
 class ValueOrError {
  public:
   using ValueType = T;
@@ -35,10 +29,10 @@ class ValueOrError {
   ValueOrError() : value_(T()) {}
 
   ValueOrError(Error error) : value_(std::move(error)) {}
-  ValueOrError(language::ValueType<T> value) : value_(std::move(value.value)) {}
+  ValueOrError(T value) : value_(std::move(value)) {}
 
   template <typename Other>
-  ValueOrError(Other other)
+  explicit ValueOrError(Other other)
       : value_(std::variant<T, Error>(std::move(other))) {}
 
   template <typename Other>
@@ -102,7 +96,7 @@ ValueOrError<EmptyValue> Success();
 
 template <typename T>
 ValueOrError<T> Success(T t) {
-  return ValueType(std::move(t));
+  return ValueOrError<T>(std::move(t));
 }
 
 template <typename T>
