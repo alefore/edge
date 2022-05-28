@@ -1040,8 +1040,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
-  ValueOrError<NonNull<std::unique_ptr<Expression>>> expression = CompileFile(
-      ToByteString(path.read()), editor().gc_pool(), environment_.ToRoot());
+  ValueOrError<NonNull<std::unique_ptr<Expression>>> expression =
+      CompileFile(path, editor().gc_pool(), environment_.ToRoot());
   if (expression.IsError()) {
     Error error =
         Error::Augment(path.read() + L": error: ", expression.error());

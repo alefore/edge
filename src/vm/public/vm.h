@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/futures/futures.h"
+#include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
@@ -133,7 +134,7 @@ language::ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
     std::unordered_set<VMType> a, std::unordered_set<VMType> b);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-CompileFile(const string& path, language::gc::Pool& pool,
+CompileFile(infrastructure::Path path, language::gc::Pool& pool,
             language::gc::Root<Environment> environment);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>

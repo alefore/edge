@@ -42,4 +42,9 @@ void Compilation::SetSourceColumnInLine(size_t column) {
   source_.back().column = column;
 }
 
+std::optional<infrastructure::Path> Compilation::current_source_path() const {
+  CHECK(!source_.empty());
+  return source_.back().path;
+}
+
 }  // namespace afc::vm

@@ -34,13 +34,6 @@ struct Compilation {
 
   language::gc::Pool& pool;
 
-  // The directory containing the file currently being compiled. Used for
-  // resolving relative paths (that are relative to this directory, rather than
-  // to cwd).
-  //
-  // TODO(easy, 2022-05-28): Remove this and use source_ instead.
-  std::string directory;
-
   std::unique_ptr<Expression> expr;
 
   std::vector<std::wstring> current_namespace = {};
@@ -58,6 +51,7 @@ struct Compilation {
   void PopSource();
   void IncrementLine();
   void SetSourceColumnInLine(size_t column);
+  std::optional<infrastructure::Path> current_source_path() const;
 
  private:
   // Stack of files from which we're reading, used for error reports.

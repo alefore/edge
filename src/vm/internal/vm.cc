@@ -59,13 +59,6 @@ extern "C" {
 
 void CompileLine(Compilation& compilation, void* parser, const wstring& str);
 
-string CppDirname(string path) {
-  char* directory_c_str = strdup(path.c_str());
-  string output = dirname(directory_c_str);
-  free(directory_c_str);
-  return output;
-}
-
 void CompileStream(std::wistream& stream, Compilation& compilation,
                    void* parser) {
   std::wstring line;
@@ -76,16 +69,15 @@ void CompileStream(std::wistream& stream, Compilation& compilation,
   }
 }
 
-// TODO(easy, 2022-05-28): Receive file as Path.
-void CompileFile(const string& path, Compilation& compilation, void* parser) {
+void CompileFile(Path path, Compilation& compilation, void* parser) {
   VLOG(3) << "Compiling file: [" << path << "]";
 
-  compilation.PushSource(Path::FromString(FromByteString(path)).AsOptional());
+  compilation.PushSource(path);
 
-  std::wifstream infile(path);
+  std::wifstream infile(ToByteString(path.read()));
   infile.imbue(std::locale(""));
   if (infile.fail()) {
-    compilation.AddError(FromByteString(path) + L": open failed");
+    compilation.AddError(path.read() + L": open failed");
   } else {
     CompileStream(infile, compilation, parser);
   }
@@ -122,27 +114,35 @@ void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
         str);
     return;
   }
-  wstring path = str.substr(start, pos - start);
-  string low_level_path = ToByteString(path);
 
-  if (delimiter == '\"' && !low_level_path.empty() &&
-      low_level_path[0] != L'/') {
-    low_level_path = compilation.directory + "/" + low_level_path;
-  }
+  Visit(
+      Path::FromString(str.substr(start, pos - start)),
+      [&](Path path) {
+        if (delimiter == '\"' &&
+            path.GetRootType() == Path::RootType::kRelative &&
+            compilation.current_source_path().has_value()) {
+          Visit(
+              compilation.current_source_path()->Dirname(),
+              [&](Path source_directory) {
+                path = Path::Join(source_directory, path);
+              },
+              [](Error) {});
+        }
 
-  const string old_directory = compilation.directory;
-  compilation.directory = CppDirname(low_level_path);
+        CompileFile(path, compilation, parser);
+        // TODO(easy, 2022-05-28): Move this to compilation.AddError?
+        for (auto& error : compilation.errors()) {
+          error = L"During processing of included file \"" + path.read() +
+                  L"\": " + error;
+        }
 
-  CompileFile(low_level_path, compilation, parser);
-  for (auto& error : compilation.errors()) {
-    error = L"During processing of included file \"" + path + L"\": " + error;
-  }
-
-  compilation.directory = old_directory;
-
-  *pos_output = pos + 1;
-
-  VLOG(5) << path << ": Done compiling.";
+        *pos_output = pos + 1;
+        VLOG(5) << path << ": Done compiling.";
+      },
+      [&](Error error) {
+        compilation.AddError(L"#include was unable to extract path; in line: " +
+                             str + L"; error: " + error.description);
+      });
 }
 
 int ConsumeDecimal(const wstring& str, size_t* pos) {
@@ -597,9 +597,8 @@ ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
-    const string& path, gc::Pool& pool, gc::Root<Environment> environment) {
+    Path path, gc::Pool& pool, gc::Root<Environment> environment) {
   Compilation compilation(pool, std::move(environment));
-  compilation.directory = CppDirname(path);
   CompileFile(path, compilation, GetParser(compilation).get());
   return ResultsFromCompilation(std::move(compilation));
 }
@@ -609,7 +608,6 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileString(
     gc::Root<Environment> environment) {
   std::wstringstream instr(str, std::ios_base::in);
   Compilation compilation(pool, std::move(environment));
-  compilation.directory = ".";
   compilation.PushSource(std::nullopt);
   CompileStream(instr, compilation, GetParser(compilation).get());
   compilation.PopSource();
