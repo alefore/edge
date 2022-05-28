@@ -23,6 +23,7 @@
 #include "negate_expression.h"
 #include "return_expression.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 #include "src/vm/public/constant_expression.h"
@@ -44,9 +45,9 @@ using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::Success;
 using language::ValueOrError;
-
 namespace gc = language::gc;
 
 extern "C" {
@@ -115,28 +116,27 @@ void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
     return;
   }
 
-  Visit(
-      Path::FromString(str.substr(start, pos - start)),
-      [&](Path path) {
-        if (delimiter == '\"' &&
-            path.GetRootType() == Path::RootType::kRelative &&
-            compilation.current_source_path().has_value()) {
-          Visit(
-              compilation.current_source_path()->Dirname(),
-              [&](Path source_directory) {
-                path = Path::Join(source_directory, path);
-              },
-              [](Error) {});
-        }
+  Visit(overload{[&](Path path) {
+                   if (delimiter == '\"' &&
+                       path.GetRootType() == Path::RootType::kRelative &&
+                       compilation.current_source_path().has_value()) {
+                     Visit(overload{[&](Path source_directory) {
+                                      path = Path::Join(source_directory, path);
+                                    },
+                                    [](Error) {}},
+                           compilation.current_source_path()->Dirname());
+                   }
 
-        CompileFile(path, compilation, parser);
-        *pos_output = pos + 1;
-        VLOG(5) << path << ": Done compiling.";
-      },
-      [&](Error error) {
-        compilation.AddError(L"#include was unable to extract path; in line: " +
-                             str + L"; error: " + error.description);
-      });
+                   CompileFile(path, compilation, parser);
+                   *pos_output = pos + 1;
+                   VLOG(5) << path << ": Done compiling.";
+                 },
+                 [&](Error error) {
+                   compilation.AddError(
+                       L"#include was unable to extract path; in line: " + str +
+                       L"; error: " + error.description);
+                 }},
+        Path::FromString(str.substr(start, pos - start)));
 }
 
 int ConsumeDecimal(const wstring& str, size_t* pos) {
