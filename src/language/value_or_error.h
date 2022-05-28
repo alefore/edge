@@ -66,6 +66,17 @@ class ValueOrError {
 
   T& value_or(T other) { return IsError() ? other : value(); }
 
+  template <typename Other>
+  ValueOrError<T> operator=(ValueOrError<Other>&& value) {
+    value_ = std::forward<Other>(value.value_);
+    return *this;
+  }
+
+  ValueOrError<T> operator=(T&& value) {
+    value_ = std::forward<T>(value);
+    return *this;
+  }
+
   template <typename Overload>
   decltype(std::declval<Overload>()(std::declval<T>())) Visit(
       Overload overload) {
@@ -73,6 +84,9 @@ class ValueOrError {
   }
 
  private:
+  template <typename Other>
+  friend class ValueOrError;
+
   std::variant<T, Error> value_;
 };
 

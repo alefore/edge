@@ -1778,8 +1778,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                   BuffersList::AddBufferType::kIgnore,
                               .use_search_paths = false})
                    .Transform([data](gc::Root<OpenBuffer> buffer_context) {
-                     // TODO(easy, 2022-05-28): Get rid of `Success` here.
-                     data->output = Success(buffer_context);
+                     data->output = buffer_context;
                      return futures::Past(
                          Success(futures::IterationControlCommand::kStop));
                    })
