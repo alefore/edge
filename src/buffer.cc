@@ -32,6 +32,7 @@ extern "C" {
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/observers_gc.h"
+#include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
@@ -78,11 +79,13 @@ using infrastructure::UpdateIfMillisecondsHavePassed;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::IgnoreErrors;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::ObservableValue;
 using language::Observers;
+using language::overload;
 using language::Pointer;
 using language::PossibleError;
 using language::ShellEscape;
@@ -107,7 +110,7 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
     return line;
 
   auto compilation_result = buffer.CompileString(line->contents()->ToString());
-  if (compilation_result.IsError()) return line;
+  if (IsError(compilation_result)) return line;
   auto [expr, sub_environment] = std::move(compilation_result.value());
   futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>> metadata_value(
       futures::Future<NonNull<std::shared_ptr<LazyString>>>().value);
@@ -272,7 +275,7 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
 futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
   log_->Append(L"PrepareToClose");
   LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
-  if (auto is_unable = IsUnableToPrepareToClose(); is_unable.IsError()) {
+  if (auto is_unable = IsUnableToPrepareToClose(); IsError(is_unable)) {
     LOG(INFO) << name() << ": Unable to close: " << is_unable.error();
     return futures::Past(is_unable);
   }
@@ -630,27 +633,31 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   }
   ClearContents(BufferContents::CursorsBehavior::kUnmodified);
 
-  if (auto buffer_path = Path::FromString(Read(buffer_variables::path));
-      !buffer_path.IsError()) {
-    for (const auto& dir : options_.editor.edge_path()) {
-      auto state_path = Path::Join(
-          Path::Join(dir, PathComponent::FromString(L"state").value()),
-          Path::Join(buffer_path.value(),
-                     PathComponent::FromString(L".edge_state").value()));
-      file_system_driver_.Stat(state_path)
-          .Transform([state_path, weak_this](struct stat) {
-            return VisitPointer(
-                weak_this.Lock(),
-                [&](gc::Root<OpenBuffer> root_this) {
-                  return root_this.ptr()->EvaluateFile(state_path);
-                },
-                [] {
-                  return futures::Past(ValueOrError<gc::Root<Value>>(
-                      Error(L"Buffer has been deleted.")));
-                });
-          });
-    }
-  }
+  std::visit(
+      overload{
+          IgnoreErrors{},
+          [&](Path buffer_path) {
+            for (const auto& dir : options_.editor.edge_path()) {
+              Path state_path = Path::Join(
+                  Path::Join(dir, PathComponent::FromString(L"state").value()),
+                  Path::Join(
+                      buffer_path,
+                      PathComponent::FromString(L".edge_state").value()));
+              file_system_driver_.Stat(state_path)
+                  .Transform([state_path, weak_this](struct stat) {
+                    return VisitPointer(
+                        weak_this.Lock(),
+                        [&](gc::Root<OpenBuffer> root_this) {
+                          return root_this.ptr()->EvaluateFile(state_path);
+                        },
+                        [] {
+                          return futures::Past(ValueOrError<gc::Root<Value>>(
+                              Error(L"Buffer has been deleted.")));
+                        });
+                  });
+            }
+          }},
+      std::move(Path::FromString(Read(buffer_variables::path)).variant()));
 
   contents_.SetUpdateListener(
       [weak_this](const CursorsTracker::Transformation& transformation) {
@@ -771,7 +778,7 @@ void OpenBuffer::Reload() {
         SetDiskState(DiskState::kCurrent);
         LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
         return options_.generate_contents != nullptr
-                   ? IgnoreErrors(options_.generate_contents(*this))
+                   ? futures::IgnoreErrors(options_.generate_contents(*this))
                    : futures::Past(Success());
       })
       .Transform([this](EmptyValue) {
@@ -822,36 +829,32 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   if (path_vector.empty()) {
     return futures::Past(ValueOrError<Path>(Error(L"Empty edge path.")));
   }
-  auto file_path = AugmentErrors(
-      std::wstring{L"Unable to persist buffer with invalid path "} +
-          (dirty() ? L" (dirty)" : L" (clean)") + L" " +
-          (disk_state_ == DiskState::kStale ? L"modified" : L"not modified"),
-      AbsolutePath::FromString(Read(buffer_variables::path)));
-  if (file_path.IsError()) {
-    return futures::Past(ValueOrError<Path>(file_path.error()));
-  }
+  FUTURES_ASSIGN_OR_RETURN(
+      Path file_path,
+      AugmentErrors(
+          std::wstring{L"Unable to persist buffer with invalid path "} +
+              (dirty() ? L" (dirty)" : L" (clean)") + L" " +
+              (disk_state_ == DiskState::kStale ? L"modified"
+                                                : L"not modified"),
+          AbsolutePath::FromString(Read(buffer_variables::path))));
 
-  if (file_path.value().GetRootType() != Path::RootType::kAbsolute) {
+  if (file_path.GetRootType() != Path::RootType::kAbsolute) {
     return futures::Past(ValueOrError<Path>(
         Error(L"Unable to persist buffer without absolute path: " +
-              file_path.value().read())));
+              file_path.read())));
   }
 
-  auto file_path_components = AugmentErrors(L"Unable to split path",
-                                            file_path.value().DirectorySplit());
-  if (file_path_components.IsError()) {
-    return futures::Past(ValueOrError<Path>(file_path_components.error()));
-  }
+  FUTURES_ASSIGN_OR_RETURN(
+      std::list<PathComponent> file_path_components,
+      AugmentErrors(L"Unable to split path", file_path.DirectorySplit()));
 
-  file_path_components.value().push_front(
-      PathComponent::FromString(L"state").value());
+  file_path_components.push_front(PathComponent::FromString(L"state").value());
 
   auto path = std::make_shared<Path>(path_vector[0]);
   auto error = std::make_shared<std::optional<Error>>();
   LOG(INFO) << "GetEdgeStateDirectory: Preparing state directory: " << *path;
   return futures::ForEachWithCopy(
-             file_path_components.value().begin(),
-             file_path_components.value().end(),
+             file_path_components.begin(), file_path_components.end(),
              [this, path, error](auto component) {
                *path = Path::Join(*path, component);
                return file_system_driver_.Stat(*path)
@@ -1024,38 +1027,46 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
     const wstring& code) {
   LOG(INFO) << "Compiling code.";
-  ValueOrError<
-      std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
-      compilation_result = CompileString(code);
-  if (compilation_result.IsError()) {
-    Error error =
-        Error::Augment(L"🐜Compilation error", compilation_result.error());
-    status_.SetWarningText(error.description);
-    return futures::Past(ValueOrError<gc::Root<Value>>(std::move(error)));
-  }
-  auto [expression, environment] = std::move(compilation_result.value());
-  LOG(INFO) << "Code compiled, evaluating.";
-  return EvaluateExpression(expression.value(), environment);
+  return std::visit(
+      overload{[&](Error error) {
+                 error = Error::Augment(L"🐜Compilation error", error);
+                 status_.SetWarningText(error.description);
+                 return futures::Past(
+                     ValueOrError<gc::Root<Value>>(std::move(error)));
+               },
+               [&](std::pair<NonNull<std::unique_ptr<Expression>>,
+                             gc::Root<Environment>>
+                       compilation_result) {
+                 auto [expression, environment] = std::move(compilation_result);
+                 LOG(INFO) << "Code compiled, evaluating.";
+                 return EvaluateExpression(expression.value(), environment);
+               }},
+      std::move(CompileString(code).variant()));
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
-  ValueOrError<NonNull<std::unique_ptr<Expression>>> expression =
-      CompileFile(path, editor().gc_pool(), environment_.ToRoot());
-  if (expression.IsError()) {
-    Error error =
-        Error::Augment(path.read() + L": error: ", expression.error());
-    status_.SetWarningText(error.description);
-    return futures::Past(error);
-  }
-  LOG(INFO) << Read(buffer_variables::path) << " ("
-            << Read(buffer_variables::name) << "): Evaluating file: " << path;
-  return Evaluate(
-      expression.value().value(), editor().gc_pool(), environment_.ToRoot(),
-      [path, work_queue = work_queue()](std::function<void()> resume) {
-        LOG(INFO) << "Evaluation of file yields: " << path;
-        work_queue->Schedule(std::move(resume));
-      });
+  return std::visit(
+      overload{[&](Error error) {
+                 error = Error::Augment(path.read() + L": error: ", error);
+                 status_.SetWarningText(error.description);
+                 return futures::Past(ValueOrError<gc::Root<Value>>(error));
+               },
+               [&](NonNull<std::unique_ptr<Expression>> expression) {
+                 LOG(INFO) << Read(buffer_variables::path) << " ("
+                           << Read(buffer_variables::name)
+                           << "): Evaluating file: " << path;
+                 return Evaluate(expression.value(), editor().gc_pool(),
+                                 environment_.ToRoot(),
+                                 [path, work_queue = work_queue()](
+                                     std::function<void()> resume) {
+                                   LOG(INFO)
+                                       << "Evaluation of file yields: " << path;
+                                   work_queue->Schedule(std::move(resume));
+                                 });
+               }},
+      std::move(CompileFile(path, editor().gc_pool(), environment_.ToRoot())
+                    .variant()));
 }
 
 const NonNull<std::shared_ptr<WorkQueue>>& OpenBuffer::work_queue() const {
@@ -1182,8 +1193,8 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
   cursors.clear();
   cursors.insert(positions.begin(), positions.end());
 
-  // We find the first position (rather than just take cursors->begin()) so that
-  // we start at the first requested position.
+  // We find the first position (rather than just take cursors->begin()) so
+  // that we start at the first requested position.
   cursors.SetCurrentCursor(positions.front());
 }
 
@@ -1329,6 +1340,7 @@ void OpenBuffer::DestroyCursor() {
   for (size_t i = 0; i < repetitions; i++) {
     cursors.DeleteCurrentCursor();
   }
+  // TODO(medium, 2022-05-28): This crashed today.
   CHECK_LE(position().line, LineNumber(0) + contents_.size());
 }
 
@@ -1626,17 +1638,21 @@ namespace {
 std::vector<URL> GetURLsWithExtensionsForContext(const OpenBuffer& buffer,
                                                  const URL& original_url) {
   std::vector<URL> output = {original_url};
-  ValueOrError<Path> path = original_url.GetLocalFilePath();
-  if (path.IsError()) return output;
-  auto extensions = TokenizeBySpaces(
-      NewLazyString(buffer.Read(buffer_variables::file_context_extensions))
-          .value());
-  for (auto& extension_token : extensions) {
-    CHECK(!extension_token.value.empty());
-    output.push_back(URL::FromPath(
-        Path::WithExtension(path.value(), extension_token.value)));
-  }
-  return output;
+  return std::visit(
+      overload{[&](Error) { return output; },
+               [&](Path path) {
+                 auto extensions = TokenizeBySpaces(
+                     NewLazyString(
+                         buffer.Read(buffer_variables::file_context_extensions))
+                         .value());
+                 for (auto& extension_token : extensions) {
+                   CHECK(!extension_token.value.empty());
+                   output.push_back(URL::FromPath(
+                       Path::WithExtension(path, extension_token.value)));
+                 }
+                 return output;
+               }},
+      std::move(original_url.GetLocalFilePath().variant()));
 }
 
 ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
@@ -1648,7 +1664,8 @@ ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
     return URL(contents->ToString());
   }
   for (const auto& child : tree.children()) {
-    if (auto output = FindLinkTarget(buffer, child); !output.IsError())
+    if (ValueOrError<URL> output = FindLinkTarget(buffer, child);
+        std::holds_alternative<URL>(output.variant()))
       return output;
   }
   return Error(L"Unable to find link.");
@@ -1663,8 +1680,9 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   for (const ParseTree* subtree : MapRoute(tree.value(), route)) {
     if (subtree->properties().find(ParseTreeProperty::Link()) !=
         subtree->properties().end()) {
-      if (auto target = FindLinkTarget(buffer, *subtree); !target.IsError()) {
-        initial_url = target.value();
+      if (ValueOrError<URL> target = FindLinkTarget(buffer, *subtree);
+          std::holds_alternative<URL>(target.variant())) {
+        initial_url = std::get<URL>(target.variant());
         break;
       }
     }
@@ -1683,7 +1701,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
     }
 
     auto path = Path::FromString(line);
-    if (path.IsError()) {
+    if (IsError(path)) {
       return {};
     }
     initial_url = URL::FromPath(std::move(path.value()));
@@ -1694,11 +1712,11 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
 
   std::vector<Path> search_paths = {};
   if (auto path = Path::FromString(buffer.Read(buffer_variables::path));
-      !path.IsError()) {
+      !IsError(path)) {
     // Works if the current buffer is a directory listing:
     search_paths.push_back(path.value());
     // And a fall-back for the current buffer being a file:
-    if (auto dir = path.value().Dirname(); !dir.IsError()) {
+    if (auto dir = path.value().Dirname(); !IsError(dir)) {
       search_paths.push_back(dir.value());
     }
   }
@@ -1710,7 +1728,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   for (const Path& search_path : search_paths) {
     for (const URL& url : urls_with_extensions) {
       ValueOrError<Path> path = url.GetLocalFilePath();
-      if (path.IsError() ||
+      if (IsError(path) ||
           path.value().GetRootType() == Path::RootType::kAbsolute)
         continue;
       urls.push_back(URL::FromPath(Path::Join(search_path, path.value())));
@@ -1725,9 +1743,9 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>>
 OpenBuffer::OpenBufferForCurrentPosition(
     RemoteURLBehavior remote_url_behavior) {
   // When the cursor moves quickly, there's a race between multiple executions
-  // of this logic. To avoid this, each call captures the original position and
-  // uses that to avoid taking any effects when the position changes in the
-  // meantime.
+  // of this logic. To avoid this, each call captures the original position
+  // and uses that to avoid taking any effects when the position changes in
+  // the meantime.
   auto adjusted_position = AdjustLineColumn(position());
   struct Data {
     const gc::Root<OpenBuffer> source;
@@ -1766,7 +1784,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                  return futures::Past(futures::IterationControlCommand::kStop);
                }
                ValueOrError<Path> path = url.GetLocalFilePath();
-               if (path.IsError())
+               if (std::holds_alternative<Error>(path.variant()))
                  return futures::Past(
                      futures::IterationControlCommand::kContinue);
                VLOG(4) << "Calling open file: " << path.value().read();
@@ -2032,8 +2050,8 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   return transformation_result.value().Transform(
       [root_this = ptr_this_->ToRoot()](EmptyValue) {
         // This proceeds in the background but we can only start it once the
-        // transformation is evaluated (since we don't know the cursor position
-        // otherwise).
+        // transformation is evaluated (since we don't know the cursor
+        // position otherwise).
         StartAdjustingStatusContext(root_this);
         return EmptyValue();
       });
@@ -2120,8 +2138,8 @@ void OpenBuffer::PushTransformationStack() {
 void OpenBuffer::PopTransformationStack() {
   if (last_transformation_stack_.empty()) {
     // This can happen if the transformation stack was reset during the
-    // evaluation of a transformation. For example, during an insertion, if the
-    // buffer is reloaded ... that will discard the transformation stack.
+    // evaluation of a transformation. For example, during an insertion, if
+    // the buffer is reloaded ... that will discard the transformation stack.
     return;
   }
   last_transformation_ = std::move(last_transformation_stack_.back().value());

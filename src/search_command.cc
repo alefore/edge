@@ -4,6 +4,7 @@
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/language/overload.h"
 #include "src/line_prompt_mode.h"
 #include "src/search_handler.h"
 #include "src/transformation.h"
@@ -14,26 +15,33 @@ using concurrent::Notification;
 using futures::IterationControlCommand;
 using language::EmptyValue;
 using language::Error;
+using language::IgnoreErrors;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::Success;
 using language::ValueOrError;
 
 namespace gc = language::gc;
 
+// TODO(easy, 2022-05-28): Receive final_results as variant.
 static void MergeInto(SearchResultsSummary current_results,
                       ValueOrError<SearchResultsSummary>* final_results) {
-  if (final_results->IsError()) return;
-  final_results->value().matches += current_results.matches;
-  switch (current_results.search_completion) {
-    case SearchResultsSummary::SearchCompletion::kInterrupted:
-      final_results->value().search_completion =
-          SearchResultsSummary::SearchCompletion::kInterrupted;
-      break;
-    case SearchResultsSummary::SearchCompletion::kFull:
-      break;
-  }
+  std::visit(
+      overload{IgnoreErrors{},
+               [&](SearchResultsSummary output) {
+                 output.matches += current_results.matches;
+                 switch (current_results.search_completion) {
+                   case SearchResultsSummary::SearchCompletion::kInterrupted:
+                     output.search_completion =
+                         SearchResultsSummary::SearchCompletion::kInterrupted;
+                     break;
+                   case SearchResultsSummary::SearchCompletion::kFull:
+                     break;
+                 }
+               }},
+      final_results->variant());
 }
 
 static void DoSearch(OpenBuffer& buffer, SearchOptions options) {

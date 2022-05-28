@@ -11,6 +11,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/overload.h"
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_trim.h"
 #include "src/tests/tests.h"
@@ -25,6 +26,7 @@ using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::ValueOrError;
 using language::VisitPointer;
 
@@ -355,9 +357,10 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
   std::vector<std::list<PathComponent>> transformed;
   for (auto& c : input) {
     auto path = Path::FromString(c);
-    transformed.push_back(path.IsError()
-                              ? std::list<PathComponent>()
-                              : path.value().DirectorySplit().value());
+    transformed.push_back(std::visit(
+        overload{[](Error) { return std::list<PathComponent>(); },
+                 [](Path path) { return path.DirectorySplit().value(); }},
+        Path::FromString(c).variant()));
   }
   std::vector<std::wstring> output;
   for (auto& components : RemoveCommonPrefixes(transformed)) {
@@ -485,6 +488,17 @@ void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
   }
 }
 
+ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
+    const OpenBuffer& buffer) {
+  auto path_str = buffer.Read(buffer_variables::path);
+  if (path_str != buffer.Read(buffer_variables::name)) {
+    return Error(L"name doesn't match path.");
+  }
+  ASSIGN_OR_RETURN(Path path, Path::FromString(path_str));
+  ASSIGN_OR_RETURN(std::list<PathComponent> components, path.DirectorySplit());
+  return components;
+}
+
 LineWithCursor::Generator::Vector ProduceBuffersList(
     std::shared_ptr<BuffersListOptions> options) {
   static Tracker tracker(L"BuffersList::ProduceBuffersList");
@@ -502,24 +516,10 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
   // Contains one element for each entry in options.buffers.
   const std::vector<std::list<ProcessedPathComponent>> path_components = [&] {
     std::vector<std::list<PathComponent>> paths;
-    for (const auto& buffer : options->buffers) {
-      auto path_str = buffer.ptr()->Read(buffer_variables::path);
-      if (path_str != buffer.ptr()->Read(buffer_variables::name)) {
-        paths.push_back({});
-        continue;
-      }
-      auto path = Path::FromString(path_str);
-      if (path.IsError()) {
-        paths.push_back({});
-        continue;
-      }
-      auto components = path.value().DirectorySplit();
-      if (components.IsError()) {
-        paths.push_back({});
-        continue;
-      }
-      paths.push_back(components.value());
-    }
+    for (const gc::Root<OpenBuffer>& buffer : options->buffers)
+      paths.push_back(GetPathComponentsForBuffer(buffer.ptr().value())
+                          .AsOptional()
+                          .value_or(std::list<PathComponent>()));
     std::vector<std::list<ProcessedPathComponent>> output;
     for (const auto& path : RemoveCommonPrefixes(paths)) {
       output.push_back(

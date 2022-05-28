@@ -47,6 +47,7 @@ using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::IgnoreErrors;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::Observers;
@@ -120,10 +121,10 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
       home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
         std::vector<Path> output;
-        for (auto& candidate : paths) {
-          if (auto path = Path::FromString(candidate); !path.IsError()) {
-            output.push_back(std::move(path.value()));
-          }
+        for (std::wstring& candidate : paths) {
+          std::visit(overload{IgnoreErrors{},
+                              [&](Path path) { output.push_back(path); }},
+                     std::move(Path::FromString(candidate).variant()));
         }
         return output;
       }(args.config_paths)),
@@ -256,21 +257,22 @@ void EditorState::CheckPosition() {
 }
 
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
-  buffer.PrepareToClose().SetConsumer(
-      [this, buffer = buffer.NewRoot()](PossibleError error) {
-        if (error.IsError()) {
-          buffer.ptr()->status().SetWarningText(
-              L"🖝  Unable to close (“*ad” to ignore): " +
-              error.error().description + L": " +
-              buffer.ptr()->Read(buffer_variables::name));
-          return;
-        }
-
-        buffer.ptr()->Close();
-        buffer_tree_.RemoveBuffer(buffer.ptr().value());
-        buffers_.erase(buffer.ptr()->name());
-        AdjustWidgets();
-      });
+  buffer.PrepareToClose().SetConsumer([this, buffer = buffer.NewRoot()](
+                                          PossibleError error) {
+    std::visit(overload{[&](Error error) {
+                          buffer.ptr()->status().SetWarningText(
+                              L"🖝  Unable to close (“*ad” to ignore): " +
+                              error.description + L": " +
+                              buffer.ptr()->Read(buffer_variables::name));
+                        },
+                        [&](EmptyValue) {
+                          buffer.ptr()->Close();
+                          buffer_tree_.RemoveBuffer(buffer.ptr().value());
+                          buffers_.erase(buffer.ptr()->name());
+                          AdjustWidgets();
+                        }},
+               error.variant());
+  });
 }
 
 gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(

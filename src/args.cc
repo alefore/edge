@@ -33,22 +33,26 @@ namespace {
 static Path GetHomeDirectory() {
   char* env = getenv("HOME");
   if (env != nullptr) {
-    auto path = Path::FromString(FromByteString(env));
-    if (path.IsError()) {
-      LOG(FATAL)
-          << "Invalid home directory (from `HOME` environment variable): "
-          << path.error() << ": " << env;
-    }
-    return path.value();
+    return std::visit(overload{[&](Error error) {
+                                 LOG(FATAL) << "Invalid home directory (from "
+                                               "`HOME` environment variable): "
+                                            << error << ": " << env;
+                                 return Path::Root();
+                               },
+                               [](Path path) { return path; }},
+                      Path::FromString(FromByteString(env)).variant());
   }
   struct passwd* entry = getpwuid(getuid());
   if (entry != nullptr) {
-    auto path = Path::FromString(FromByteString(entry->pw_dir));
-    if (path.IsError()) {
-      LOG(FATAL) << "Invalid home directory (from `getpwuid`): " << path.error()
-                 << ": " << env;
-    }
-    return path.value();
+    return std::visit(
+        overload{[&](Error error) {
+                   LOG(FATAL)
+                       << "Invalid home directory (from `getpwuid`): " << error
+                       << ": " << env;
+                   return Path::Root();
+                 },
+                 [](Path path) { return path; }},
+        Path::FromString(FromByteString(entry->pw_dir)).variant());
   }
   return Path::Root();  // What else?
 }
@@ -145,17 +149,21 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Set(&CommandLineValues::server_path,
                std::function<std::optional<std::optional<Path>>(std::wstring,
                                                                 std::wstring*)>(
-                   [](std::wstring input, std::wstring* error)
+                   [](std::wstring input, std::wstring* error_str)
                        -> std::optional<std::optional<Path>> {
                      if (input.empty()) {
                        return {std::optional<Path>()};
                      }
-                     auto output = Path::FromString(input);
-                     if (output.IsError()) {
-                       *error = output.error().description;
-                       return std::nullopt;
-                     }
-                     return std::optional<std::optional<Path>>(output.value());
+                     return std::visit(
+                         overload{[&](Error error) {
+                                    *error_str = error.description;
+                                    return std::optional<std::optional<Path>>();
+                                  },
+                                  [](Path path) {
+                                    return std::optional<std::optional<Path>>(
+                                        path);
+                                  }},
+                         std::move(Path::FromString(input).variant()));
                    }))
           .Set(&CommandLineValues::server, true),
 
@@ -169,8 +177,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                    [](std::wstring input, std::wstring* error)
                        -> std::optional<std::optional<Path>> {
                      auto output = Path::FromString(input);
-                     if (output.IsError()) {
-                       *error = output.error().description;
+                     if (std::holds_alternative<Error>(output.variant())) {
+                       *error = std::get<Error>(output.variant()).description;
                        return std::nullopt;
                      }
                      return std::optional<std::optional<Path>>(output.value());

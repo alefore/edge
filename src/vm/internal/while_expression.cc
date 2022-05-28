@@ -53,7 +53,7 @@ class WhileExpression : public Expression {
     trampoline.Bounce(condition.value(), VMType::Bool())
         .SetConsumer([condition, body, consumer, &trampoline](
                          ValueOrError<EvaluationOutput> condition_output) {
-          if (condition_output.IsError())
+          if (IsError(condition_output))
             return consumer(std::move(condition_output));
           switch (condition_output.value().type) {
             case EvaluationOutput::OutputType::kReturn:
@@ -72,7 +72,7 @@ class WhileExpression : public Expression {
               trampoline.Bounce(body.value(), body->Types()[0])
                   .SetConsumer([condition, body, consumer, &trampoline](
                                    ValueOrError<EvaluationOutput> body_output) {
-                    if (body_output.IsError()) consumer(std::move(body_output));
+                    if (IsError(body_output)) consumer(std::move(body_output));
                     switch (body_output.value().type) {
                       case EvaluationOutput::OutputType::kReturn:
                         consumer(std::move(body_output));

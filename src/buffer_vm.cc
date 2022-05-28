@@ -7,6 +7,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/overload.h"
 #include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
 #include "src/line_column_vm.h"
@@ -52,6 +53,7 @@ using language::EmptyValue;
 using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
@@ -335,14 +337,19 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
             }
 
             futures::Future<ValueOrError<EvaluationOutput>> future;
-            buffer.ptr()->Save().SetConsumer([&pool, consumer = std::move(
-                                                         future.consumer)](
-                                                 PossibleError result) {
-              if (result.IsError())
-                consumer(result.error());
-              else
-                consumer(EvaluationOutput::Return(vm::Value::NewVoid(pool)));
-            });
+            buffer.ptr()->Save().SetConsumer(
+                [&pool,
+                 consumer = std::move(future.consumer)](PossibleError result) {
+                  consumer(std::visit(
+                      overload{[](Error error) {
+                                 return ValueOrError<EvaluationOutput>(error);
+                               },
+                               [&pool](EmptyValue) {
+                                 return Success(EvaluationOutput::Return(
+                                     vm::Value::NewVoid(pool)));
+                               }},
+                      result.variant()));
+                });
             buffer.ptr()->editor().ResetModifiers();
             return std::move(future.value);
           }));
@@ -431,15 +438,15 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
 
   buffer->AddField(
       L"EvaluateFile",
-      vm::NewCallback(pool, vm::PurityTypeWriter,
-                      [](gc::Root<OpenBuffer> buffer, std::wstring path_str) {
-                        auto path = Path::FromString(path_str);
-                        if (path.IsError()) {
-                          LOG(ERROR) << path.error().description;
-                          return;
-                        }
-                        buffer.ptr()->EvaluateFile(std::move(path.value()));
-                      }));
+      vm::NewCallback(
+          pool, vm::PurityTypeWriter,
+          [](gc::Root<OpenBuffer> buffer, std::wstring path_str) {
+            std::visit(overload{[](Error error) { LOG(ERROR) << error; },
+                                [&](Path path) {
+                                  buffer.ptr()->EvaluateFile(std::move(path));
+                                }},
+                       std::move(Path::FromString(path_str).variant()));
+          }));
 
   buffer->AddField(
       L"WaitForEndOfFile",

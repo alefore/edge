@@ -369,6 +369,13 @@ Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
       .Transform([copy](IterationControlCommand output) { return output; });
 }
 
+#define FUTURES_ASSIGN_OR_RETURN(variable, expression)    \
+  variable = ({                                           \
+    auto tmp = expression;                                \
+    if (tmp.IsError()) return futures::Past(tmp.error()); \
+    std::move(tmp.value());                               \
+  })
+
 }  // namespace afc::futures
 
 #endif  // __AFC_EDITOR_FUTURES_FUTURES_H__

@@ -10,6 +10,7 @@
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/language/overload.h"
 #include "src/lazy_string_append.h"
 #include "src/line_prompt_mode.h"
 #include "src/substring.h"
@@ -27,6 +28,7 @@ using language::Error;
 using language::FromByteString;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::Success;
 using language::ValueOrError;
 using language::VisitPointer;
@@ -195,11 +197,11 @@ bool tests_parse_registration = tests::Register(
             gc::Root<OpenBuffer> buffer = NewBufferForTests();
             gc::Pool pool;
             vm::Environment environment;
-            auto output = Parse(pool, EmptyString(), environment, EmptyString(),
-                                std::unordered_set<VMType>({VMType::String()}),
-                                SearchNamespaces(buffer.ptr().value()));
-            CHECK(output.IsError());
-            CHECK(output.error().description.empty());
+            ValueOrError<ParsedCommand> output =
+                Parse(pool, EmptyString(), environment, EmptyString(),
+                      std::unordered_set<VMType>({VMType::String()}),
+                      SearchNamespaces(buffer.ptr().value()));
+            CHECK(std::get<Error>(output.variant()).description.empty());
           }},
      {.name = L"NonEmptyCommandNoMatch",
       .callback =
@@ -207,26 +209,26 @@ bool tests_parse_registration = tests::Register(
             gc::Root<OpenBuffer> buffer = NewBufferForTests();
             gc::Pool pool;
             vm::Environment environment;
-            auto output =
+            ValueOrError<ParsedCommand> output =
                 Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
                       std::unordered_set<VMType>({VMType::String()}),
                       SearchNamespaces(buffer.ptr().value()));
-            CHECK(output.IsError());
-            LOG(INFO) << "Error: " << output.error();
-            CHECK_GT(output.error().description.size(), sizeof("Unknown "));
-            CHECK(output.error().description.substr(
-                      0, sizeof("Unknown ") - 1) == L"Unknown ");
+            Error error = std::get<Error>(output.variant());
+            LOG(INFO) << "Error: " << error;
+            CHECK_GT(error.description.size(), sizeof("Unknown "));
+            CHECK(error.description.substr(0, sizeof("Unknown ") - 1) ==
+                  L"Unknown ");
           }},
      {.name = L"CommandMatch", .callback = [] {
         gc::Root<OpenBuffer> buffer = NewBufferForTests();
         gc::Pool pool;
         vm::Environment environment;
         environment.Define(L"foo", vm::Value::NewString(pool, L"bar"));
-        auto output =
+        ValueOrError<ParsedCommand> output =
             Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
                   std::unordered_set<VMType>({VMType::String()}),
                   SearchNamespaces(buffer.ptr().value()));
-        CHECK(output.IsError());
+        CHECK(std::holds_alternative<Error>(output.variant()));
       }}});
 }
 
@@ -301,24 +303,26 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
   buffer->ptr()->ResetMode();
 
   SearchNamespaces search_namespaces(buffer->ptr().value());
-  auto parsed_command =
-      Parse(editor_state.gc_pool(), NewLazyString(std::move(command)),
-            buffer->ptr()->environment().value(), search_namespaces);
-  if (parsed_command.IsError()) {
-    if (!parsed_command.error().description.empty()) {
-      buffer->ptr()->status().SetWarningText(
-          parsed_command.error().description);
-    }
-    return Past(
-        ValueOrError<gc::Root<vm::Value>>(Error(L"Unable to parse command")));
-  }
-
-  return futures::OnError(
-      Execute(buffer->ptr().value(), std::move(parsed_command.value())),
-      [buffer](Error error) {
-        buffer->ptr()->status().SetWarningText(error.description);
-        return futures::Past(error);
-      });
+  return std::visit(
+      overload{[&](Error error) {
+                 if (!error.description.empty()) {
+                   buffer->ptr()->status().SetWarningText(error.description);
+                 }
+                 return Past(ValueOrError<gc::Root<vm::Value>>(
+                     Error(L"Unable to parse command")));
+               },
+               [&](ParsedCommand parsed_command) {
+                 return futures::OnError(
+                     Execute(buffer->ptr().value(), std::move(parsed_command)),
+                     [buffer](Error error) {
+                       buffer->ptr()->status().SetWarningText(
+                           error.description);
+                       return futures::Past(error);
+                     });
+               }},
+      std::move(Parse(editor_state.gc_pool(), NewLazyString(std::move(command)),
+                      buffer->ptr()->environment().value(), search_namespaces)
+                    .variant()));
 }
 
 NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,

@@ -7,6 +7,7 @@
 #include <string>
 #include <variant>
 
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 
 namespace afc::language {
@@ -83,12 +84,20 @@ class ValueOrError {
     return std::visit(overload, value_);
   }
 
+  std::variant<T, Error>& variant() { return value_; }
+  const std::variant<T, Error>& variant() const { return value_; }
+
  private:
   template <typename Other>
   friend class ValueOrError;
 
   std::variant<T, Error> value_;
 };
+
+template <typename T>
+bool IsError(const ValueOrError<T>& value) {
+  return std::holds_alternative<Error>(value.variant());
+}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& p) {
@@ -132,6 +141,22 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
     if (tmp.IsError()) return tmp.error();     \
     std::move(tmp.value());                    \
   })
+
+struct IgnoreErrors {
+  void operator()(Error);
+};
+
+template <typename T>
+T ValueOrDie(ValueOrError<T> value, std::wstring error_location) {
+  return std::visit(language::overload{
+                        [&](Error error) {
+                          LOG(FATAL) << error_location << ": " << error;
+                          return std::optional<T>();
+                        },
+                        [](T t) { return std::optional<T>(std::move(t)); }},
+                    std::move(value.variant()))
+      .value();
+}
 
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__

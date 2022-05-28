@@ -25,6 +25,7 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/infrastructure/time.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 #include "src/vm/public/constant_expression.h"
@@ -46,8 +47,10 @@ using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
+using language::IgnoreErrors;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
+using language::overload;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
@@ -75,31 +78,36 @@ std::map<std::wstring, std::wstring> LoadEnvironmentVariables(
     return environment;
   }
   std::wstring command = full_command.substr(start, end - start);
-  auto command_component = PathComponent::FromString(command);
-  if (command_component.IsError()) return environment;
-  auto environment_local_path =
-      Path::Join(PathComponent::FromString(L"commands").value(),
-                 Path::Join(command_component.value(),
-                            PathComponent::FromString(L"environment").value()));
-  for (auto dir : path) {
-    Path full_path = Path::Join(dir, environment_local_path);
-    std::ifstream infile(ToByteString(full_path.read()));
-    if (!infile.is_open()) {
-      continue;
-    }
-    std::string line;
-    while (std::getline(infile, line)) {
-      if (line == "") {
-        continue;
-      }
-      size_t equals = line.find('=');
-      if (equals == line.npos) {
-        continue;
-      }
-      environment.insert(make_pair(FromByteString(line.substr(0, equals)),
+  std::visit(
+      overload{IgnoreErrors{},
+               [&](PathComponent command_component) {
+                 auto environment_local_path = Path::Join(
+                     PathComponent::FromString(L"commands").value(),
+                     Path::Join(
+                         command_component,
+                         PathComponent::FromString(L"environment").value()));
+                 for (auto dir : path) {
+                   Path full_path = Path::Join(dir, environment_local_path);
+                   std::ifstream infile(ToByteString(full_path.read()));
+                   if (!infile.is_open()) {
+                     continue;
+                   }
+                   std::string line;
+                   while (std::getline(infile, line)) {
+                     if (line == "") {
+                       continue;
+                     }
+                     size_t equals = line.find('=');
+                     if (equals == line.npos) {
+                       continue;
+                     }
+                     environment.insert(
+                         make_pair(FromByteString(line.substr(0, equals)),
                                    FromByteString(line.substr(equals + 1))));
-    }
-  }
+                   }
+                 }
+               }},
+      std::move(PathComponent::FromString(command).variant()));
   return environment;
 }
 
@@ -413,27 +421,28 @@ class ForkEditorCommand : public Command {
                       vm::VMType::Function(
                           {vm::VMType::String(), vm::VMType::String()}))});
 
-      auto children_path = GetChildrenPath(editor_state_);
-      Prompt(
-          {.editor_state = editor_state_,
-           .prompt =
-               (children_path.IsError() ? L"" : children_path.value().read()) +
-               L"$ ",
-           .history_file = HistoryFileCommands(),
-           .colorize_options_provider =
-               prompt_state->context_command_callback.has_value()
-                   ? ([prompt_state](
-                          const NonNull<std::shared_ptr<LazyString>>& line,
-                          NonNull<std::unique_ptr<ProgressChannel>>,
-                          NonNull<std::shared_ptr<Notification>>) {
-                       return PromptChange(prompt_state.value(), line);
-                     })
-                   : PromptOptions::ColorizeFunction(nullptr),
-           .handler = ([&editor_state = editor_state_,
-                        children_path](const std::wstring& name) {
-             return RunCommandHandler(name, editor_state, 0, 1,
-                                      children_path.AsOptional());
-           })});
+      ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
+      Prompt({.editor_state = editor_state_,
+              .prompt =
+                  std::visit(overload{[](Error) -> std::wstring { return L""; },
+                                      [](Path path) { return path.read(); }},
+                             children_path.variant()) +
+                  L"$ ",
+              .history_file = HistoryFileCommands(),
+              .colorize_options_provider =
+                  prompt_state->context_command_callback.has_value()
+                      ? ([prompt_state](
+                             const NonNull<std::shared_ptr<LazyString>>& line,
+                             NonNull<std::unique_ptr<ProgressChannel>>,
+                             NonNull<std::shared_ptr<Notification>>) {
+                          return PromptChange(prompt_state.value(), line);
+                        })
+                      : PromptOptions::ColorizeFunction(nullptr),
+              .handler = ([&editor_state = editor_state_,
+                           children_path](const std::wstring& name) {
+                return RunCommandHandler(name, editor_state, 0, 1,
+                                         children_path.AsOptional());
+              })});
     } else if (editor_state_.structure() == StructureLine()) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();

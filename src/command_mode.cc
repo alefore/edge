@@ -25,6 +25,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
 #include "src/insert_mode.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
 #include "src/line_column.h"
@@ -66,9 +67,11 @@ namespace {
 using infrastructure::AddSeconds;
 using infrastructure::Now;
 using language::EmptyValue;
+using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
@@ -577,12 +580,16 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   LOG(INFO) << "Command: " << command;
-  ValueOrError<NonNull<std::unique_ptr<Command>>> value =
-      NewCppCommand(editor_state, editor_state.environment(), command);
-  if (value.IsError()) {
-    LOG(FATAL) << "Internal error in ToggleVariable code.";
-  }
-  map_mode->Add(L"v" + variable->key(), std::move(value.value()));
+  std::visit(
+      overload{[](Error error) {
+                 LOG(FATAL)
+                     << "Internal error in ToggleVariable code: " << error;
+               },
+               [&](NonNull<std::unique_ptr<Command>> value) {
+                 map_mode->Add(L"v" + variable->key(), std::move(value));
+               }},
+      std::move(NewCppCommand(editor_state, editor_state.environment(), command)
+                    .variant()));
 }
 
 void ToggleVariable(EditorState& editor_state,
@@ -602,12 +609,10 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   LOG(INFO) << "Command: " << command;
-  ValueOrError<NonNull<std::unique_ptr<Command>>> value =
-      NewCppCommand(editor_state, editor_state.environment(), command);
-  if (value.IsError()) {
-    LOG(FATAL) << "Internal error in ToggleVariable code.";
-  }
-  map_mode->Add(L"v" + variable->key(), std::move(value.value()));
+  map_mode->Add(L"v" + variable->key(),
+                ValueOrDie(NewCppCommand(editor_state,
+                                         editor_state.environment(), command),
+                           L"ToggleVariable<std::wstring> Definition"));
 }
 
 void ToggleVariable(EditorState& editor_state,
@@ -635,12 +640,10 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   LOG(INFO) << "Command: " << command;
-  ValueOrError<NonNull<std::unique_ptr<Command>>> value =
-      NewCppCommand(editor_state, editor_state.environment(), command);
-  if (value.IsError()) {
-    LOG(FATAL) << "Internal error in ToggleVariable code.";
-  }
-  map_mode->Add(L"v" + variable->key(), std::move(value.value()));
+  map_mode->Add(L"v" + variable->key(),
+                ValueOrDie(NewCppCommand(editor_state,
+                                         editor_state.environment(), command),
+                           L"ToggleVariable<int> definition"));
 }
 
 template <typename T>

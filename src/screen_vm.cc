@@ -116,22 +116,14 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
           [&pool](std::vector<gc::Root<Value>> args,
                   Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
-            auto path = Path::FromString(args[0].ptr()->get_string());
-            if (path.IsError()) {
-              LOG(ERROR) << "RemoteScreen: " << path.error();
-              return futures::Past(path.error());
-            }
-            auto output = MaybeConnectToServer(path.value());
-            if (output.IsError()) {
-              LOG(ERROR) << "RemoteScreen: MaybeConnectToServer: "
-                         << output.error();
-              return futures::Past(output.error());
-            }
+            FUTURES_ASSIGN_OR_RETURN(
+                Path path, Path::FromString(args[0].ptr()->get_string()));
+            FUTURES_ASSIGN_OR_RETURN(auto output, MaybeConnectToServer(path));
             return futures::Past(EvaluationOutput::Return(Value::NewObject(
                 pool,
                 vm::VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::
                     vmtype.object_type,
-                MakeNonNullShared<ScreenVm>(output.value()))));
+                MakeNonNullShared<ScreenVm>(output))));
           }));
 
   // Methods for Screen.

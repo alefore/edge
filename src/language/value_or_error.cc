@@ -15,6 +15,8 @@ ValueOrError<EmptyValue> Success() {
   return ValueOrError<EmptyValue>(EmptyValue());
 }
 
+void IgnoreErrors::operator()(Error) {}
+
 namespace {
 bool tests_register = tests::Register(
     L"ValueOrError", {{.name = L"EmptyConstructor", .callback = [] {
