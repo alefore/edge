@@ -13,12 +13,6 @@
 #include "src/vm/public/types.h"
 
 namespace afc::vm {
-// TODO(easy, 2022-05-28): Get rid of these declarations.
-using std::string;
-using std::unique_ptr;
-using std::vector;
-using std::wstring;
-
 class VMType;
 class Expression;
 class Environment;
