@@ -99,7 +99,7 @@ std::unique_ptr<Expression> NewWhileExpression(
     return nullptr;
   }
   if (!condition->IsBool()) {
-    compilation->errors.push_back(
+    compilation->AddError(
         L"Expected bool value for condition of \"while\" loop but found: " +
         TypesToString(condition->Types()) + L".");
     return nullptr;

@@ -9,10 +9,10 @@
 #include <vector>
 
 #include "src/language/gc.h"
+#include "src/vm/public/types.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
+// TODO(easy, 2022-05-28): Get rid of these declarations.
 using std::list;
 using std::string;
 using std::unique_ptr;
@@ -24,13 +24,19 @@ class Expression;
 class Environment;
 
 struct Compilation {
+  Compilation(language::gc::Pool& pool,
+              language::gc::Root<Environment> environment);
+
   // TODO(easy, 2022-05-28): Move to compilation.cc?
   void AddError(std::wstring error) {
     // TODO: Enable this logging statement.
     // LOG(INFO) << "Compilation error: " << error;
-    errors.push_back(L":" + std::to_wstring(source_line) + L": " +
-                     std::move(error));
+    errors_.push_back(L":" + std::to_wstring(source_line) + L": " +
+                      std::move(error));
   }
+
+  const std::vector<std::wstring>& errors() const;
+  std::vector<std::wstring>& errors();
 
   language::gc::Pool& pool;
 
@@ -39,17 +45,18 @@ struct Compilation {
   // to cwd).
   std::string directory;
 
-  std::unique_ptr<Expression> expr = nullptr;
-  std::vector<std::wstring> errors = {};
+  std::unique_ptr<Expression> expr;
 
   std::vector<std::wstring> current_namespace = {};
   std::vector<VMType> current_class = {};
   language::gc::Root<Environment> environment;
   std::wstring last_token = L"";
   size_t source_line = 0;
+
+ private:
+  std::vector<std::wstring> errors_ = {};
 };
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm
 
 #endif  // __AFC_VM_COMPILATION_H__

@@ -83,14 +83,14 @@ std::unique_ptr<Expression> NewIfExpression(
   }
 
   if (!condition->IsBool()) {
-    compilation->errors.push_back(
+    compilation->AddError(
         L"Expected bool value for condition of \"if\" expression but found " +
         TypesToString(condition->Types()) + L".");
     return nullptr;
   }
 
   if (!(true_case->Types() == false_case->Types())) {
-    compilation->errors.push_back(
+    compilation->AddError(
         L"Type mismatch between branches of conditional expression: " +
         TypesToString(true_case->Types()) + L" and " +
         TypesToString(false_case->Types()) + L".");
@@ -100,7 +100,7 @@ std::unique_ptr<Expression> NewIfExpression(
   auto return_types =
       CombineReturnTypes(true_case->ReturnTypes(), false_case->ReturnTypes());
   if (return_types.IsError()) {
-    compilation->errors.push_back(return_types.error().description);
+    compilation->AddError(return_types.error().description);
     return nullptr;
   }
 

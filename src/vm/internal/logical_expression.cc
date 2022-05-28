@@ -70,13 +70,13 @@ std::unique_ptr<Expression> NewLogicalExpression(
     return nullptr;
   }
   if (!a->IsBool()) {
-    compilation->errors.push_back(L"Expected `bool` value but found: " +
-                                  TypesToString(a->Types()));
+    compilation->AddError(L"Expected `bool` value but found: " +
+                          TypesToString(a->Types()));
     return nullptr;
   }
   if (!b->IsBool()) {
-    compilation->errors.push_back(L"Expected `bool` value but found: " +
-                                  TypesToString(b->Types()));
+    compilation->AddError(L"Expected `bool` value but found: " +
+                          TypesToString(b->Types()));
     return nullptr;
   }
   return std::make_unique<LogicalExpression>(

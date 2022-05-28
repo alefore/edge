@@ -134,8 +134,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
   const VMType* return_type_def =
       compilation.environment.ptr()->LookupType(return_type);
   if (return_type_def == nullptr) {
-    compilation.errors.push_back(L"Unknown return type: \"" + return_type +
-                                 L"\"");
+    compilation.AddError(L"Unknown return type: \"" + return_type + L"\"");
     return nullptr;
   }
 

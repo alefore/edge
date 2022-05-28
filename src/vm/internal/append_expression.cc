@@ -68,7 +68,7 @@ std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)));
   if (result.IsError()) {
-    compilation->errors.push_back(result.error().description);
+    compilation->AddError(result.error().description);
     return nullptr;
   }
   return std::move(result.value().get_unique());

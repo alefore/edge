@@ -67,7 +67,7 @@ string CppDirname(string path) {
 void CompileStream(std::wistream& stream, Compilation& compilation,
                    void* parser) {
   std::wstring line;
-  while (compilation.errors.empty() && std::getline(stream, line)) {
+  while (compilation.errors().empty() && std::getline(stream, line)) {
     VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
     CompileLine(compilation, parser, line);
     compilation.source_line++;
@@ -89,7 +89,7 @@ void CompileFile(const string& path, Compilation& compilation, void* parser) {
 
 void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
                    size_t* pos_output) {
-  CHECK(compilation.errors.empty());
+  CHECK(compilation.errors().empty());
 
   VLOG(6) << "Processing #include directive.";
   size_t pos = *pos_output;
@@ -131,7 +131,7 @@ void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
   compilation.source_line = 0;
 
   CompileFile(low_level_path, compilation, parser);
-  for (auto& error : compilation.errors) {
+  for (auto& error : compilation.errors()) {
     error = L"During processing of included file \"" + path + L"\": " + error;
   }
 
@@ -153,10 +153,10 @@ int ConsumeDecimal(const wstring& str, size_t* pos) {
 }
 
 void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
-  CHECK(compilation.errors.empty());
+  CHECK(compilation.errors().empty());
   size_t pos = 0;
   int token;
-  while (compilation.errors.empty() && pos < str.size()) {
+  while (compilation.errors().empty() && pos < str.size()) {
     VLOG(5) << L"Compiling from character: " << std::wstring(1, str.at(pos));
     std::optional<gc::Root<Value>> input;
     switch (str.at(pos)) {
@@ -566,10 +566,10 @@ std::unique_ptr<void, std::function<void(void*)>> GetParser(
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
     Compilation compilation) {
-  if (!compilation.errors.empty()) {
+  if (!compilation.errors().empty()) {
     std::wstring error_description;
     wstring separator = L"";
-    for (auto& error : compilation.errors) {
+    for (auto& error : compilation.errors()) {
       error_description += separator + error;
       separator = L"\n  ";
     }
@@ -595,9 +595,8 @@ ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
     const string& path, gc::Pool& pool, gc::Root<Environment> environment) {
-  Compilation compilation{.pool = pool,
-                          .directory = CppDirname(path),
-                          .environment = std::move(environment)};
+  Compilation compilation(pool, std::move(environment));
+  compilation.directory = CppDirname(path);
   CompileFile(path, compilation, GetParser(compilation).get());
   return ResultsFromCompilation(std::move(compilation));
 }
@@ -606,8 +605,8 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileString(
     const std::wstring& str, gc::Pool& pool,
     gc::Root<Environment> environment) {
   std::wstringstream instr(str, std::ios_base::in);
-  Compilation compilation{
-      .pool = pool, .directory = ".", .environment = std::move(environment)};
+  Compilation compilation(pool, std::move(environment));
+  compilation.directory = ".";
   CompileStream(instr, compilation, GetParser(compilation).get());
   return ResultsFromCompilation(std::move(compilation));
 }

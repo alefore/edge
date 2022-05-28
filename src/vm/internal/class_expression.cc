@@ -90,7 +90,7 @@ void FinishClassDeclaration(
       NewAppendExpression(std::move(constructor_expression_input),
                           NewVoidExpression(compilation.pool));
   if (constructor_expression.IsError()) {
-    compilation.errors.push_back(constructor_expression.error().description);
+    compilation.AddError(constructor_expression.error().description);
     return;
   }
   auto class_type = std::move(compilation.current_class.back());

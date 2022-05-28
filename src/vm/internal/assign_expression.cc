@@ -80,15 +80,15 @@ std::optional<VMType> NewDefineTypeExpression(
   VMType type_def;
   if (type == L"auto") {
     if (default_type == std::nullopt) {
-      compilation->errors.push_back(L"Unable to deduce type.");
+      compilation->AddError(L"Unable to deduce type.");
       return std::nullopt;
     }
     type_def = default_type.value();
   } else {
     auto type_ptr = compilation->environment.ptr()->LookupType(type);
     if (type_ptr == nullptr) {
-      compilation->errors.push_back(L"Unknown type: `" + type +
-                                    L"` for symbol `" + symbol + L"`.");
+      compilation->AddError(L"Unknown type: `" + type + L"` for symbol `" +
+                            symbol + L"`.");
       return std::nullopt;
     }
     type_def = *type_ptr;
@@ -108,8 +108,8 @@ std::unique_ptr<Expression> NewDefineExpression(
   if (type == L"auto") {
     auto types = value->Types();
     if (types.size() != 1) {
-      compilation->errors.push_back(L"Unable to deduce type for symbol: `" +
-                                    symbol + L"`.");
+      compilation->AddError(L"Unable to deduce type for symbol: `" + symbol +
+                            L"`.");
       return nullptr;
     }
     default_type = *types.cbegin();
@@ -118,10 +118,9 @@ std::unique_ptr<Expression> NewDefineExpression(
       NewDefineTypeExpression(compilation, type, symbol, default_type);
   if (vmtype == std::nullopt) return nullptr;
   if (!value->SupportsType(*vmtype)) {
-    compilation->errors.push_back(
-        L"Unable to assign a value to a variable of type \"" +
-        vmtype->ToString() + L"\". Value types: " +
-        TypesToString(value->Types()));
+    compilation->AddError(L"Unable to assign a value to a variable of type \"" +
+                          vmtype->ToString() + L"\". Value types: " +
+                          TypesToString(value->Types()));
     return nullptr;
   }
   return std::make_unique<AssignExpression>(
@@ -148,7 +147,7 @@ std::unique_ptr<Expression> NewAssignExpression(
   }
 
   if (variables.empty()) {
-    compilation->errors.push_back(L"Variable not found: \"" + symbol + L"\"");
+    compilation->AddError(L"Variable not found: \"" + symbol + L"\"");
     return nullptr;
   }
 
@@ -157,7 +156,7 @@ std::unique_ptr<Expression> NewAssignExpression(
     variable_types.push_back(v.ptr()->type);
   }
 
-  compilation->errors.push_back(
+  compilation->AddError(
       L"Unable to assign a value to a variable supporting types: \"" +
       TypesToString(value->Types()) + L"\". Value types: " +
       TypesToString(variable_types));

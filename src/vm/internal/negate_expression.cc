@@ -53,8 +53,8 @@ std::unique_ptr<Expression> NewNegateExpression(
     return nullptr;
   }
   if (!expr->SupportsType(expected_type)) {
-    compilation.errors.push_back(L"Can't negate an expression of type: \"" +
-                                 TypesToString(expr->Types()) + L"\"");
+    compilation.AddError(L"Can't negate an expression of type: \"" +
+                         TypesToString(expr->Types()) + L"\"");
     return nullptr;
   }
   return std::make_unique<NegateExpression>(

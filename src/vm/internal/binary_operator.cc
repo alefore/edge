@@ -135,7 +135,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
   }
 
   // TODO: Find a way to support this.
-  compilation->errors.push_back(L"Unable to add types" /*: \"" +
+  compilation->AddError(L"Unable to add types" /*: \"" +
                                 a->type().ToString() + L"\" + \"" +
                                 b->type().ToString() + L"\""*/);
   return nullptr;

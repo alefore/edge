@@ -211,7 +211,7 @@ std::unique_ptr<Expression> NewFunctionCall(
   }
 
   CHECK(!errors.empty());
-  compilation->errors.push_back(errors[0]);
+  compilation->AddError(errors[0]);
   return nullptr;
 }
 
@@ -338,7 +338,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         }
 
         CHECK(!errors.empty());
-        compilation->errors.push_back(errors[0]);
+        compilation->AddError(errors[0]);
         return nullptr;
       },
       [] { return nullptr; });
