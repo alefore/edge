@@ -136,7 +136,9 @@ std::unique_ptr<Expression> NewAssignExpression(
     return nullptr;
   }
   std::vector<gc::Root<Value>> variables;
-  compilation->environment.ptr()->PolyLookup(symbol, &variables);
+  static const Environment::Namespace kEmptyNamespace;
+  compilation->environment.ptr()->PolyLookup(kEmptyNamespace, symbol,
+                                             &variables);
   for (gc::Root<Value>& v : variables) {
     if (value->SupportsType(v.ptr()->type)) {
       return std::make_unique<AssignExpression>(

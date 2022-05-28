@@ -177,12 +177,6 @@ std::optional<gc::Root<Value>> Environment::Lookup(
   return std::nullopt;
 }
 
-void Environment::PolyLookup(const wstring& symbol,
-                             std::vector<gc::Root<Value>>* output) {
-  static const auto* empty_namespace = new Environment::Namespace();
-  PolyLookup(*empty_namespace, symbol, output);
-}
-
 void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
                              const wstring& symbol,
                              std::vector<gc::Root<Value>>* output) {

@@ -18,6 +18,7 @@ class VMTypeObjectTypeName;
 
 class Environment {
  public:
+  // TODO(easy, 2022-05-28): Use a ghost type.
   using Namespace = std::vector<std::wstring>;
 
   Environment();
@@ -47,10 +48,6 @@ class Environment {
       language::gc::Pool& pool, const Namespace& symbol_namespace,
       const std::wstring& symbol, VMType expected_type);
 
-  // TODO(easy): Remove; switch all callers to the version that takes the
-  // namespace.
-  void PolyLookup(const std::wstring& symbol,
-                  std::vector<language::gc::Root<Value>>* output);
   void PolyLookup(const Namespace& symbol_namespace, const std::wstring& symbol,
                   std::vector<language::gc::Root<Value>>* output);
   // Same as `PolyLookup` but ignores case and thus is much slower (runtime
