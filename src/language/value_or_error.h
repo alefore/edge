@@ -130,7 +130,7 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
   variable = ({                                \
     auto tmp = expression;                     \
     if (tmp.IsError()) return tmp.error();     \
-    tmp.value();                               \
+    std::move(tmp.value());                    \
   })
 
 }  // namespace afc::language
