@@ -18,6 +18,6 @@ LineColumn FindSymbolEnd(Buffer buffer, LineColumn position) {
     column++;
   }
   editor.SetStatus("Moved from " + position.column().tostring() + " to " +
-            column.tostring());
+                   column.tostring());
   return LineColumn(position.line(), column + 1);
 }
