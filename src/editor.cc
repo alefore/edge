@@ -145,13 +145,12 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
+    // TODO(easy, 2022-05-28): Use Visit?
     ValueOrError<NonNull<std::unique_ptr<vm::Expression>>> expression =
         CompileFile(path, gc_pool_, environment_);
     if (expression.IsError()) {
-      Error error =
-          Error::Augment(path.read() + L": error: ", expression.error());
-      LOG(INFO) << "Compilation error: " << error;
-      status_.SetWarningText(error.description);
+      LOG(INFO) << "Compilation error: " << expression.error();
+      status_.SetWarningText(expression.error().description);
       return futures::Past(futures::IterationControlCommand::kContinue);
     }
     LOG(INFO) << "Evaluating file: " << path;
