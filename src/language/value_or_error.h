@@ -118,5 +118,15 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
     tmp.value();                               \
   })
 
+template <typename T, typename Callable, typename CallableError>
+decltype(std::declval<Callable>()(std::declval<T>())) Visit(
+    ValueOrError<T> t, Callable callable, CallableError callable_error) {
+  if (t.IsError()) {
+    return callable_error(t.error());
+  } else {
+    return callable(t.value());
+  }
+}
+
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__
