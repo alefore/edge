@@ -25,9 +25,8 @@ using language::ValueOrError;
 
 namespace gc = language::gc;
 
-// TODO(easy, 2022-05-28): Receive final_results as variant.
 static void MergeInto(SearchResultsSummary current_results,
-                      ValueOrError<SearchResultsSummary>* final_results) {
+                      ValueOrError<SearchResultsSummary>& final_results) {
   std::visit(
       overload{IgnoreErrors{},
                [&](SearchResultsSummary output) {
@@ -41,7 +40,7 @@ static void MergeInto(SearchResultsSummary current_results,
                      break;
                  }
                }},
-      final_results->variant());
+      final_results.variant());
 }
 
 static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
@@ -212,8 +211,8 @@ class SearchCommand : public Command {
                  NonNull<std::shared_ptr<Notification>> abort_notification) {
                VLOG(5) << "Triggering async search.";
                auto results =
-                   std::make_shared<ValueOrError<SearchResultsSummary>>(
-                       SearchResultsSummary());
+                   MakeNonNullShared<ValueOrError<SearchResultsSummary>>(
+                       Success(SearchResultsSummary()));
                auto progress_aggregator = MakeNonNullShared<ProgressAggregator>(
                    std::move(progress_channel));
                using Control = futures::IterationControlCommand;
@@ -248,24 +247,24 @@ class SearchCommand : public Command {
                                 .Run(BackgroundSearchCallback(
                                     search_options.value(), buffer.contents(),
                                     progress_channel.value()))
-                                .Transform(
-                                    [results, abort_notification, line,
-                                     buffer_root, progress_channel](
-                                        SearchResultsSummary current_results) {
-                                      MergeInto(current_results, results.get());
-                                      return abort_notification
-                                                     ->HasBeenNotified()
-                                                 ? Success(Control::kStop)
-                                                 : Success(Control::kContinue);
-                                    })
+                                .Transform([results, abort_notification, line,
+                                            buffer_root, progress_channel](
+                                               SearchResultsSummary
+                                                   current_results) {
+                                  MergeInto(current_results, results.value());
+                                  return abort_notification->HasBeenNotified()
+                                             ? Success(Control::kStop)
+                                             : Success(Control::kContinue);
+                                })
                                 .ConsumeErrors([results](Error error) {
-                                  *results = error;
+                                  results.value() = error;
                                   return futures::Past(Control::kStop);
                                 });
                           })
                    .Transform([results, line](Control) {
                      VLOG(5) << "Drawing of search results.";
-                     return SearchResultsModifiers(line, std::move(*results));
+                     return SearchResultsModifiers(line,
+                                                   std::move(results.value()));
                    });
              },
          .handler =
