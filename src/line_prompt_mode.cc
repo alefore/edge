@@ -391,8 +391,9 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
             };
             if (line.empty()) return true;
             auto line_keys = ParseHistoryLine(line.contents());
-            if (IsError(line_keys)) {
-              output.errors.push_back(line_keys.error().description);
+            if (Error* error = std::get_if<Error>(&line_keys.variant());
+                error != nullptr) {
+              output.errors.push_back(error->description);
               return !abort_notification->HasBeenNotified();
             }
             auto range = line_keys.value().equal_range(L"prompt");

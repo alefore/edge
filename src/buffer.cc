@@ -275,40 +275,46 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
 futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
   log_->Append(L"PrepareToClose");
   LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
-  if (auto is_unable = IsUnableToPrepareToClose(); IsError(is_unable)) {
-    LOG(INFO) << name() << ": Unable to close: " << is_unable.error();
-    return futures::Past(is_unable);
-  }
-
-  return (options_.editor.modifiers().strength == Modifiers::Strength::kNormal
-              ? PersistState()
-              : futures::IgnoreErrors(PersistState()))
-      .Transform([this](EmptyValue) {
-        LOG(INFO) << name() << ": State persisted.";
-        if (child_pid_ != -1) {
-          if (Read(buffer_variables::term_on_close)) {
-            LOG(INFO) << "Sending termination and preparing handler: "
-                      << Read(buffer_variables::name);
-            kill(child_pid_, SIGTERM);
-            auto future = futures::Future<PossibleError>();
-            on_exit_handler_ =
-                [this, consumer = std::move(future.consumer)]() mutable {
-                  CHECK_EQ(child_pid_, -1);
-                  LOG(INFO) << "Subprocess terminated: "
-                            << Read(buffer_variables::name);
-                  PrepareToClose().SetConsumer(std::move(consumer));
-                };
-            return std::move(future.value);
-          }
-          CHECK(options_.editor.modifiers().strength >
-                Modifiers::Strength::kNormal);
-        }
-        if (!dirty() || !Read(buffer_variables::save_on_close)) {
-          return futures::Past(ValueOrError(Success()));
-        }
-        LOG(INFO) << name() << ": attempting to save buffer.";
-        return Save();
-      });
+  return std::visit(
+      overload{[&](Error error) {
+                 LOG(INFO) << name() << ": Unable to close: " << error;
+                 return futures::Past(PossibleError(error));
+               },
+               [&](EmptyValue) {
+                 return (options_.editor.modifiers().strength ==
+                                 Modifiers::Strength::kNormal
+                             ? PersistState()
+                             : futures::IgnoreErrors(PersistState()))
+                     .Transform([this](EmptyValue) {
+                       LOG(INFO) << name() << ": State persisted.";
+                       if (child_pid_ != -1) {
+                         if (Read(buffer_variables::term_on_close)) {
+                           LOG(INFO)
+                               << "Sending termination and preparing handler: "
+                               << Read(buffer_variables::name);
+                           kill(child_pid_, SIGTERM);
+                           auto future = futures::Future<PossibleError>();
+                           on_exit_handler_ = [this,
+                                               consumer = std::move(
+                                                   future.consumer)]() mutable {
+                             CHECK_EQ(child_pid_, -1);
+                             LOG(INFO) << "Subprocess terminated: "
+                                       << Read(buffer_variables::name);
+                             PrepareToClose().SetConsumer(std::move(consumer));
+                           };
+                           return std::move(future.value);
+                         }
+                         CHECK(options_.editor.modifiers().strength >
+                               Modifiers::Strength::kNormal);
+                       }
+                       if (!dirty() || !Read(buffer_variables::save_on_close)) {
+                         return futures::Past(ValueOrError(Success()));
+                       }
+                       LOG(INFO) << name() << ": attempting to save buffer.";
+                       return Save();
+                     });
+               }},
+      IsUnableToPrepareToClose().variant());
 }
 
 void OpenBuffer::Close() {

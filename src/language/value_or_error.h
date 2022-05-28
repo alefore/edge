@@ -44,8 +44,6 @@ class ValueOrError {
                          std::get<Error>(std::move(other.variant())))
                    : std::variant<T, Error>(std::move(other.value()))) {}
 
-  Error error() const { return std::get<Error>(value_); }
-
   const T& value() const { return std::get<T>(value_); }
 
   T& value() { return std::get<T>(value_); }
@@ -108,12 +106,10 @@ ValueOrError<T> Success(T t) {
 
 template <typename T>
 ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
-  std::visit(overload{[&](Error& error) {
-                        error =
-                            Error::Augment(prefix, std::move(input.error()));
-                      },
-                      [](T&) {}},
-             input.variant());
+  std::visit(
+      overload{[&](Error& error) { error = Error::Augment(prefix, error); },
+               [](T&) {}},
+      input.variant());
   return input;
 }
 
