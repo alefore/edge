@@ -3,17 +3,17 @@
 
 #include <glog/logging.h>
 
-#include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
 #include "src/vm/public/types.h"
 
 namespace afc::vm {
 // TODO(easy, 2022-05-28): Get rid of these declarations.
-using std::list;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -31,8 +31,13 @@ struct Compilation {
   void AddError(std::wstring error) {
     // TODO: Enable this logging statement.
     // LOG(INFO) << "Compilation error: " << error;
-    errors_.push_back(L":" + std::to_wstring(source_line) + L": " +
-                      std::move(error));
+    if (!source_.empty()) {
+      Source last_source = source_.back();
+      error = (last_source.path.has_value() ? (last_source.path->read() + L":")
+                                            : L"") +
+              std::to_wstring(last_source.line) + L": " + error;
+    }
+    errors_.push_back(std::move(error));
   }
 
   const std::vector<std::wstring>& errors() const;
@@ -43,6 +48,8 @@ struct Compilation {
   // The directory containing the file currently being compiled. Used for
   // resolving relative paths (that are relative to this directory, rather than
   // to cwd).
+  //
+  // TODO(easy, 2022-05-28): Remove this and use source_ instead.
   std::string directory;
 
   std::unique_ptr<Expression> expr;
@@ -51,9 +58,20 @@ struct Compilation {
   std::vector<VMType> current_class = {};
   language::gc::Root<Environment> environment;
   std::wstring last_token = L"";
-  size_t source_line = 0;
+
+  struct Source {
+    std::optional<infrastructure::Path> path;
+    size_t line = 0;
+  };
+
+  void PushSource(std::optional<infrastructure::Path> path);
+  void PopSource();
+  void IncrementLine();
 
  private:
+  // Stack of files from which we're reading, used for error reports.
+  std::vector<Source> source_;
+
   std::vector<std::wstring> errors_ = {};
 };
 

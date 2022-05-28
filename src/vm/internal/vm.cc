@@ -22,6 +22,7 @@
 #include "namespace_expression.h"
 #include "negate_expression.h"
 #include "return_expression.h"
+#include "src/infrastructure/dirname.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 #include "src/vm/public/constant_expression.h"
@@ -38,6 +39,7 @@ namespace afc {
 namespace vm {
 
 namespace {
+using infrastructure::Path;
 using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
@@ -70,21 +72,25 @@ void CompileStream(std::wistream& stream, Compilation& compilation,
   while (compilation.errors().empty() && std::getline(stream, line)) {
     VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
     CompileLine(compilation, parser, line);
-    compilation.source_line++;
+    compilation.IncrementLine();
   }
 }
 
+// TODO(easy, 2022-05-28): Receive file as Path.
 void CompileFile(const string& path, Compilation& compilation, void* parser) {
   VLOG(3) << "Compiling file: [" << path << "]";
+
+  compilation.PushSource(Path::FromString(FromByteString(path)).AsOptional());
 
   std::wifstream infile(path);
   infile.imbue(std::locale(""));
   if (infile.fail()) {
     compilation.AddError(FromByteString(path) + L": open failed");
-    return;
+  } else {
+    CompileStream(infile, compilation, parser);
   }
 
-  CompileStream(infile, compilation, parser);
+  compilation.PopSource();
 }
 
 void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
@@ -127,16 +133,12 @@ void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
   const string old_directory = compilation.directory;
   compilation.directory = CppDirname(low_level_path);
 
-  const size_t old_source_line = compilation.source_line;
-  compilation.source_line = 0;
-
   CompileFile(low_level_path, compilation, parser);
   for (auto& error : compilation.errors()) {
     error = L"During processing of included file \"" + path + L"\": " + error;
   }
 
   compilation.directory = old_directory;
-  compilation.source_line = old_source_line;
 
   *pos_output = pos + 1;
 
@@ -607,7 +609,9 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileString(
   std::wstringstream instr(str, std::ios_base::in);
   Compilation compilation(pool, std::move(environment));
   compilation.directory = ".";
+  compilation.PushSource(std::nullopt);
   CompileStream(instr, compilation, GetParser(compilation).get());
+  compilation.PopSource();
   return ResultsFromCompilation(std::move(compilation));
 }
 
