@@ -118,13 +118,13 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
     tmp.value();                               \
   })
 
-template <typename T, typename Callable, typename CallableError>
-decltype(std::declval<Callable>()(std::declval<T>())) Visit(
-    ValueOrError<T> t, Callable callable, CallableError callable_error) {
+template <typename T, typename Overload>
+decltype(std::declval<Overload>()(std::declval<T>())) Visit(Overload overload,
+                                                            ValueOrError<T> t) {
   if (t.IsError()) {
-    return callable_error(t.error());
+    return overload(std::move(t.error()));
   } else {
-    return callable(t.value());
+    return overload(std::move(t.value()));
   }
 }
 

@@ -26,6 +26,7 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/server.h"
 #include "src/substring.h"
@@ -49,6 +50,7 @@ using language::FromByteString;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::Observers;
+using language::overload;
 using language::Pointer;
 using language::PossibleError;
 using language::Success;
@@ -145,29 +147,34 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
-    // TODO(easy, 2022-05-28): Use Visit?
-    ValueOrError<NonNull<std::unique_ptr<vm::Expression>>> expression =
-        CompileFile(path, gc_pool_, environment_);
-    if (expression.IsError()) {
-      LOG(INFO) << "Compilation error: " << expression.error();
-      status_.SetWarningText(expression.error().description);
-      return futures::Past(futures::IterationControlCommand::kContinue);
-    }
-    LOG(INFO) << "Evaluating file: " << path;
-    return Evaluate(
-               expression.value().value(), gc_pool_, environment_,
-               [path, work_queue = work_queue()](std::function<void()> resume) {
-                 LOG(INFO) << "Evaluation of file yields: " << path;
-                 work_queue->Schedule(std::move(resume));
-               })
-        .Transform([](gc::Root<vm::Value>) {
-          // TODO(2022-04-26): Figure out a way to get rid of `Success`.
-          return futures::Past(
-              Success(futures::IterationControlCommand::kContinue));
-        })
-        .ConsumeErrors([](Error) {
-          return futures::Past(futures::IterationControlCommand::kContinue);
-        });
+    return Visit(
+        overload{
+            [&](NonNull<std::unique_ptr<vm::Expression>> expression) {
+              LOG(INFO) << "Evaluating file: " << path;
+              return Evaluate(expression.value(), gc_pool_, environment_,
+                              [path, work_queue = work_queue()](
+                                  std::function<void()> resume) {
+                                LOG(INFO)
+                                    << "Evaluation of file yields: " << path;
+                                work_queue->Schedule(std::move(resume));
+                              })
+                  .Transform([](gc::Root<vm::Value>) {
+                    // TODO(2022-04-26): Figure out a way to get rid of
+                    // `Success`.
+                    return futures::Past(
+                        Success(futures::IterationControlCommand::kContinue));
+                  })
+                  .ConsumeErrors([](Error) {
+                    return futures::Past(
+                        futures::IterationControlCommand::kContinue);
+                  });
+            },
+            [&](Error error) {
+              LOG(INFO) << "Compilation error: " << error;
+              status_.SetWarningText(error.description);
+              return futures::Past(futures::IterationControlCommand::kContinue);
+            }},
+        CompileFile(path, gc_pool_, environment_));
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
