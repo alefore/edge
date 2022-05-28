@@ -27,18 +27,7 @@ struct Compilation {
   Compilation(language::gc::Pool& pool,
               language::gc::Root<Environment> environment);
 
-  // TODO(easy, 2022-05-28): Move to compilation.cc?
-  void AddError(std::wstring error) {
-    // TODO: Enable this logging statement.
-    // LOG(INFO) << "Compilation error: " << error;
-    if (!source_.empty()) {
-      Source last_source = source_.back();
-      error = (last_source.path.has_value() ? (last_source.path->read() + L":")
-                                            : L"") +
-              std::to_wstring(last_source.line) + L": " + error;
-    }
-    errors_.push_back(std::move(error));
-  }
+  void AddError(std::wstring error);
 
   const std::vector<std::wstring>& errors() const;
   std::vector<std::wstring>& errors();
