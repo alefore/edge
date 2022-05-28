@@ -441,7 +441,7 @@ class ForkEditorCommand : public Command {
               .handler = ([&editor_state = editor_state_,
                            children_path](const std::wstring& name) {
                 return RunCommandHandler(name, editor_state, 0, 1,
-                                         children_path.AsOptional());
+                                         OptionalFrom(children_path));
               })});
     } else if (editor_state_.structure() == StructureLine()) {
       std::optional<gc::Root<OpenBuffer>> buffer =
@@ -449,12 +449,13 @@ class ForkEditorCommand : public Command {
       if (!buffer.has_value() || buffer->ptr()->current_line() == nullptr) {
         return;
       }
-      auto children_path = GetChildrenPath(editor_state_);
+      std::optional<Path> children_path =
+          OptionalFrom(GetChildrenPath(editor_state_));
       auto line = buffer->ptr()->current_line()->ToString();
       for (size_t i = 0; i < editor_state_.repetitions().value_or(1); ++i) {
         RunCommandHandler(line, editor_state_, i,
                           editor_state_.repetitions().value_or(1),
-                          children_path.AsOptional());
+                          children_path);
       }
     } else {
       std::optional<gc::Root<OpenBuffer>> buffer =
@@ -592,7 +593,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
               [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                  std::wstring children_path) {
                 options->children_path =
-                    Path::FromString(std::move(children_path)).AsOptional();
+                    OptionalFrom(Path::FromString(std::move(children_path)));
               })));
 
   environment.DefineType(std::move(fork_command_options));
@@ -644,7 +645,7 @@ futures::Value<EmptyValue> RunCommandHandler(
     const std::wstring& input, EditorState& editor_state,
     std::map<std::wstring, std::wstring> environment) {
   RunCommand(BufferName(L"$ " + input), input, environment, editor_state,
-             GetChildrenPath(editor_state).AsOptional());
+             OptionalFrom(GetChildrenPath(editor_state)));
   return futures::Past(EmptyValue());
 }
 
@@ -655,7 +656,7 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(
         buffer.contents().ForEach([&editor_state, input](wstring arg) {
           std::map<std::wstring, std::wstring> environment = {{L"ARG", arg}};
           RunCommand(BufferName(L"$ " + input + L" " + arg), input, environment,
-                     editor_state, GetChildrenPath(editor_state).AsOptional());
+                     editor_state, OptionalFrom(GetChildrenPath(editor_state)));
         });
         return futures::Past(EmptyValue());
       })

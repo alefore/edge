@@ -473,7 +473,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                               ValueOrError<Path> resolved =
                                   path_with_prefix.Resolve();
                               output.value() = ResolvePathOutput{
-                                  .path = resolved.AsOptional().value_or(
+                                  .path = OptionalFrom(resolved).value_or(
                                       path_with_prefix),
                                   .position = output_position,
                                   .pattern = output_pattern};

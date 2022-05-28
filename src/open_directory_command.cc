@@ -34,16 +34,15 @@ class OpenDirectoryCommand : public Command {
   void ProcessInput(wint_t) override {
     OpenOrCreateFile(OpenFileOptions{
         .editor_state = editor_state_,
-        .path = VisitPointer(
-                    editor_state_.current_buffer(),
-                    [](gc::Root<OpenBuffer> buffer) -> ValueOrError<Path> {
-                      ASSIGN_OR_RETURN(Path path,
-                                       Path::FromString(buffer.ptr()->Read(
-                                           buffer_variables::name)));
-                      return path.Dirname();
-                    },
-                    [] { return Path::LocalDirectory(); })
-                    .AsOptional()});
+        .path = OptionalFrom(VisitPointer(
+            editor_state_.current_buffer(),
+            [](gc::Root<OpenBuffer> buffer) -> ValueOrError<Path> {
+              ASSIGN_OR_RETURN(
+                  Path path,
+                  Path::FromString(buffer.ptr()->Read(buffer_variables::name)));
+              return path.Dirname();
+            },
+            [] { return Path::LocalDirectory(); }))});
   }
 
  private:

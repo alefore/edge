@@ -517,9 +517,9 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
   const std::vector<std::list<ProcessedPathComponent>> path_components = [&] {
     std::vector<std::list<PathComponent>> paths;
     for (const gc::Root<OpenBuffer>& buffer : options->buffers)
-      paths.push_back(GetPathComponentsForBuffer(buffer.ptr().value())
-                          .AsOptional()
-                          .value_or(std::list<PathComponent>()));
+      paths.push_back(
+          OptionalFrom(GetPathComponentsForBuffer(buffer.ptr().value()))
+              .value_or(std::list<PathComponent>()));
     std::vector<std::list<ProcessedPathComponent>> output;
     for (const auto& path : RemoveCommonPrefixes(paths)) {
       output.push_back(

@@ -402,8 +402,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
             return OpenOrCreateFile(
                        OpenFileOptions{
                            .editor_state = editor_state,
-                           .path = Path::FromString(args[1].ptr()->get_string())
-                                       .AsOptional(),
+                           .path = OptionalFrom(
+                               Path::FromString(args[1].ptr()->get_string())),
                            .insertion_type =
                                args[2].ptr()->get_bool()
                                    ? BuffersList::AddBufferType::kVisit

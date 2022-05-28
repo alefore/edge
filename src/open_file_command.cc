@@ -36,7 +36,7 @@ futures::Value<EmptyValue> OpenFileHandler(const std::wstring& name,
                                            EditorState& editor_state) {
   OpenOrCreateFile(
       OpenFileOptions{.editor_state = editor_state,
-                      .path = Path::FromString(name).AsOptional(),
+                      .path = OptionalFrom(Path::FromString(name)),
                       .insertion_type = BuffersList::AddBufferType::kVisit});
   return futures::Past(EmptyValue());
 }

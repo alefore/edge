@@ -44,11 +44,6 @@ class ValueOrError {
                          std::get<Error>(std::move(other.variant())))
                    : std::variant<T, Error>(std::move(other.value()))) {}
 
-  std::optional<T> AsOptional() const {
-    return std::holds_alternative<Error>(value_) ? std::optional<T>()
-                                                 : std::optional<T>(value());
-  }
-
   Error error() const { return std::get<Error>(value_); }
 
   const T& value() const { return std::get<T>(value_); }
@@ -81,13 +76,6 @@ class ValueOrError {
 template <typename T>
 bool IsError(const ValueOrError<T>& value) {
   return std::holds_alternative<Error>(value.variant());
-}
-
-template <typename T>
-std::optional<T> AsOptional(ValueOrError<T> value) {
-  return std::visit(overload{[](Error) { return std::optional<T>(); },
-                             [](T value) { return std::optional<T>(value); }},
-                    std::move(value.variant()));
 }
 
 template <typename T>
@@ -170,6 +158,14 @@ std::unique_ptr<T> ToUniquePtr(
                                return std::move(value.get_unique());
                              }},
                     std::move(value.variant()));
+}
+
+template <typename T>
+std::optional<T> OptionalFrom(ValueOrError<T> value) {
+  return std::visit(
+      overload{[](Error) { return std::optional<T>(); },
+               [](T t) { return std::optional<T>(std::move(t)); }},
+      std::move(value.variant()));
 }
 
 }  // namespace afc::language
