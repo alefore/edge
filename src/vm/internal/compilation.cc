@@ -14,7 +14,8 @@ void Compilation::AddError(std::wstring error) {
     Source last_source = source_.back();
     error = (last_source.path.has_value() ? (last_source.path->read() + L":")
                                           : L"") +
-            std::to_wstring(last_source.line + 1) + L": " + error;
+            std::to_wstring(last_source.line + 1) + L":" +
+            std::to_wstring(last_source.column + 1) + L": " + error;
   }
   errors_.push_back(std::move(error));
 }
@@ -35,4 +36,10 @@ void Compilation::IncrementLine() {
   CHECK(!source_.empty());
   source_.back().line++;
 }
+
+void Compilation::SetSourceColumnInLine(size_t column) {
+  CHECK(!source_.empty());
+  source_.back().column = column;
+}
+
 }  // namespace afc::vm

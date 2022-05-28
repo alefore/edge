@@ -159,6 +159,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
   size_t pos = 0;
   int token;
   while (compilation.errors().empty() && pos < str.size()) {
+    compilation.SetSourceColumnInLine(pos);
     VLOG(5) << L"Compiling from character: " << std::wstring(1, str.at(pos));
     std::optional<gc::Root<Value>> input;
     switch (str.at(pos)) {

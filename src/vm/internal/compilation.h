@@ -51,11 +51,13 @@ struct Compilation {
   struct Source {
     std::optional<infrastructure::Path> path;
     size_t line = 0;
+    size_t column = 0;
   };
 
   void PushSource(std::optional<infrastructure::Path> path);
   void PopSource();
   void IncrementLine();
+  void SetSourceColumnInLine(size_t column);
 
  private:
   // Stack of files from which we're reading, used for error reports.
