@@ -4,6 +4,7 @@
 
 #include <unordered_set>
 
+#include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/vm/internal/compilation.h"
@@ -18,6 +19,7 @@ using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::Success;
 using language::ValueOrError;
 using language::VisitPointer;
@@ -128,6 +130,7 @@ class FunctionCall : public Expression {
   }
 
  private:
+  // TODO(easy, 2022-05-28): Use NonNull for `values`.
   static void CaptureArgs(
       Trampoline& trampoline,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer,
@@ -145,35 +148,42 @@ class FunctionCall : public Expression {
       callback(std::move(*values), trampoline)
           .SetConsumer([consumer,
                         callback](ValueOrError<EvaluationOutput> return_value) {
-            if (return_value.IsError()) {
-              DVLOG(3) << "Function call aborted: " << return_value.error();
-              return consumer(std::move(return_value.error()));
-            }
-            gc::Root<Value> result = std::move(return_value.value().value);
-            DVLOG(5) << "Function call consumer gets value: "
-                     << result.ptr().value();
-            consumer(Success(EvaluationOutput::New(std::move(result))));
+            std::visit(
+                overload{[&](Error error) {
+                           DVLOG(3) << "Function call aborted: " << error;
+                           consumer(std::move(error));
+                         },
+                         [&](EvaluationOutput return_value) {
+                           DVLOG(5) << "Function call consumer gets value: "
+                                    << return_value.value.ptr().value();
+                           consumer(Success(EvaluationOutput::New(
+                               std::move(return_value.value))));
+                         }},
+                std::move(return_value.variant()));
           });
       return;
     }
     NonNull<std::unique_ptr<Expression>>& arg = args_types->at(values->size());
     trampoline.Bounce(arg.value(), arg->Types()[0])
-        .SetConsumer([&trampoline, consumer, args_types, values,
-                      callback](ValueOrError<EvaluationOutput> value) {
-          CHECK(values != nullptr);
-          if (value.IsError()) return consumer(std::move(value.error()));
-          switch (value.value().type) {
-            case EvaluationOutput::OutputType::kReturn:
-              return consumer(std::move(value));
-            case EvaluationOutput::OutputType::kContinue:
-              DVLOG(5) << "Received results of parameter " << values->size() + 1
-                       << " (of " << args_types->size()
-                       << "): " << value.value().value.ptr().value();
-              values->push_back(std::move(value.value().value));
-              DVLOG(6) << "Recursive call.";
-              CaptureArgs(trampoline, consumer, args_types, values, callback);
-          }
-        });
+        .SetConsumer(VisitCallback(
+            overload{[consumer](Error error) { consumer(std::move(error)); },
+                     [&trampoline, consumer, args_types, values,
+                      callback](EvaluationOutput value) {
+                       CHECK(values != nullptr);
+                       switch (value.type) {
+                         case EvaluationOutput::OutputType::kReturn:
+                           return consumer(std::move(value));
+                         case EvaluationOutput::OutputType::kContinue:
+                           DVLOG(5) << "Received results of parameter "
+                                    << values->size() + 1 << " (of "
+                                    << args_types->size()
+                                    << "): " << value.value.ptr().value();
+                           values->push_back(std::move(value.value));
+                           DVLOG(6) << "Recursive call.";
+                           CaptureArgs(trampoline, consumer, args_types, values,
+                                       callback);
+                       }
+                     }}));
   }
 
   // Expression that evaluates to get the function to call.

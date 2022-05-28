@@ -150,15 +150,11 @@ void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
 
 futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
   wstring address_str = target.Read(buffer_variables::path);
-  ValueOrError<Path> path = Path::FromString(address_str);
-  if (path.IsError()) {
-    return futures::Past(PossibleError(path.error()));
-  }
+  FUTURES_ASSIGN_OR_RETURN(Path path, Path::FromString(address_str));
 
-  LOG(INFO) << L"Server starts: " << path.value();
-  return OnError(target.file_system_driver().Open(path.value(),
-                                                  O_RDONLY | O_NDELAY, 0),
-                 [path = path.value()](Error error) {
+  LOG(INFO) << L"Server starts: " << path;
+  return OnError(target.file_system_driver().Open(path, O_RDONLY | O_NDELAY, 0),
+                 [path](Error error) {
                    LOG(ERROR)
                        << path << ": Server: GenerateContents: Open failed: "
                        << error.description;
@@ -173,14 +169,11 @@ futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
 
 ValueOrError<Path> StartServer(EditorState& editor_state,
                                std::optional<Path> address) {
-  auto output = CreateFifo(address);
-  if (output.IsError()) {
-    return Error(L"Error creating fifo: " + output.error().description);
-  }
-
-  LOG(INFO) << "Starting server: " << output.value().read();
-  setenv("EDGE_PARENT_ADDRESS", ToByteString(output.value().read()).c_str(), 1);
-  auto buffer = OpenServerBuffer(editor_state, output.value());
+  ASSIGN_OR_RETURN(Path output,
+                   AugmentErrors(L"Creating Fifo", CreateFifo(address)));
+  LOG(INFO) << "Starting server: " << output.read();
+  setenv("EDGE_PARENT_ADDRESS", ToByteString(output.read()).c_str(), 1);
+  OpenServerBuffer(editor_state, output);
   return output;
 }
 

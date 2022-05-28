@@ -10,6 +10,8 @@
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
+#include "src/language/overload.h"
+#include "src/language/value_or_error.h"
 #include "src/vm/public/types.h"
 
 namespace afc::vm {
@@ -22,6 +24,15 @@ struct Compilation {
               language::gc::Root<Environment> environment);
 
   void AddError(std::wstring error);
+
+  template <typename T>
+  language::ValueOrError<T> RegisterErrors(language::ValueOrError<T> value) {
+    std::visit(language::overload{
+                   [&](language::Error error) { AddError(error.description); },
+                   [](const T&) {}},
+               value.variant());
+    return value;
+  }
 
   const std::vector<std::wstring>& errors() const;
   std::vector<std::wstring>& errors();

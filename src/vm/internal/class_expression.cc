@@ -15,9 +15,11 @@ using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
 using language::VisitPointer;
+
 namespace gc = language::gc;
 
 struct Instance {
@@ -83,16 +85,13 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
 }
 }  // namespace
 
-void FinishClassDeclaration(
+PossibleError FinishClassDeclaration(
     Compilation& compilation,
     NonNull<std::unique_ptr<Expression>> constructor_expression_input) {
-  ValueOrError<NonNull<std::unique_ptr<Expression>>> constructor_expression =
-      NewAppendExpression(std::move(constructor_expression_input),
-                          NewVoidExpression(compilation.pool));
-  if (constructor_expression.IsError()) {
-    compilation.AddError(constructor_expression.error().description);
-    return;
-  }
+  ASSIGN_OR_RETURN(NonNull<std::shared_ptr<Expression>> constructor_expression,
+                   compilation.RegisterErrors(NewAppendExpression(
+                       std::move(constructor_expression_input),
+                       NewVoidExpression(compilation.pool))));
   auto class_type = std::move(compilation.current_class.back());
   compilation.current_class.pop_back();
   auto class_object_type = MakeNonNullUnique<ObjectType>(class_type);
@@ -115,21 +114,18 @@ void FinishClassDeclaration(
             L"set_" + name, BuildSetter(pool, class_type, value->type, name));
       });
   compilation.environment.ptr()->DefineType(std::move(class_object_type));
-  auto purity = constructor_expression.value()->purity();
+  auto purity = constructor_expression->purity();
   gc::Root<Value> constructor = Value::NewFunction(
       pool, PurityType::kPure, {class_type},
-      [constructor_expression_shared = NonNull<std::shared_ptr<Expression>>(
-           std::move(constructor_expression.value())),
-       class_environment, class_type,
-       values](std::vector<gc::Root<Value>>, Trampoline& trampoline) {
+      [constructor_expression, class_environment, class_type, values](
+          std::vector<gc::Root<Value>>, Trampoline& trampoline) {
         gc::Root<Environment> instance_environment =
             trampoline.pool().NewRoot(MakeNonNullUnique<Environment>(
                 class_environment.ptr()->parent_environment()));
         auto original_environment = trampoline.environment();
         trampoline.SetEnvironment(instance_environment);
-        return trampoline
-            .Bounce(constructor_expression_shared.value(), VMType::Void())
-            .Transform([constructor_expression_shared, original_environment,
+        return trampoline.Bounce(constructor_expression.value(), VMType::Void())
+            .Transform([constructor_expression, original_environment,
                         class_type, instance_environment,
                         &trampoline](EvaluationOutput constructor_evaluation)
                            -> language::ValueOrError<EvaluationOutput> {
@@ -153,6 +149,7 @@ void FinishClassDeclaration(
 
   compilation.environment.ptr()->Define(class_type.object_type.read(),
                                         std::move(constructor));
+  return Success();
 }
 
 }  // namespace afc::vm

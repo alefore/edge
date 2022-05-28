@@ -21,7 +21,7 @@ namespace {
 bool tests_register = tests::Register(
     L"ValueOrError", {{.name = L"EmptyConstructor", .callback = [] {
                          ValueOrError<int> foo;
-                         CHECK(!foo.IsError());
+                         CHECK(!IsError(foo));
                          CHECK_EQ(foo.value(), int());
                        }}});
 }

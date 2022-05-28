@@ -5,6 +5,7 @@
 #include "src/char_buffer.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/overload.h"
 #include "src/predictor.h"
 #include "src/run_cpp_command.h"
 #include "src/tests/tests.h"
@@ -23,8 +24,10 @@ using futures::OnError;
 using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
+using language::IgnoreErrors;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
+using language::overload;
 using language::Success;
 using language::VisitPointer;
 
@@ -307,10 +310,12 @@ class ExpandTransformation : public CompositeTransformation {
       case 'r': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output.Push(DeleteLastCharacters(1 + symbol.size()));
-        if (auto path = Path::FromString(symbol); !path.IsError()) {
-          transformation =
-              std::make_unique<ReadAndInsert>(path.value(), OpenFileIfFound);
-        }
+        std::visit(overload{IgnoreErrors{},
+                            [&](Path path) {
+                              transformation = std::make_unique<ReadAndInsert>(
+                                  path, OpenFileIfFound);
+                            }},
+                   Path::FromString(symbol).variant());
       } break;
       case '/': {
         auto path = GetToken(input, buffer_variables::path_characters);

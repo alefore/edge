@@ -8,15 +8,18 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
-
 namespace afc::infrastructure {
 using language::Error;
 using language::FromByteString;
+using language::overload;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
+
+// TODO(easy, 2022-05-28): Get rid of these declarations.
 using std::list;
 using std::wstring;
 
@@ -92,10 +95,11 @@ const bool path_component_remove_extension_tests_registration = tests::Register(
      {.name = L"hidden",
       .callback =
           [] {
-            CHECK(PathComponent::FromString(L".blah")
-                      .value()
-                      .remove_extension()
-                      .IsError());
+            CHECK(std::holds_alternative<Error>(
+                PathComponent::FromString(L".blah")
+                    .value()
+                    .remove_extension()
+                    .variant()));
           }},
      {.name = L"Empty",
       .callback =
@@ -183,17 +187,20 @@ ValueOrError<Path> Path::FromString(std::wstring path) {
 
 Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
   // TODO: Also support ~user/foo.
-  if (ValueOrError<std::list<PathComponent>> components = path.DirectorySplit();
-      !components.IsError() && !components.value().empty() &&
-      components.value().front() == PathComponent::FromString(L"~").value()) {
-    components.value().pop_front();
-    auto output = home_directory;
-    for (auto& c : components.value()) {
-      output = Path::Join(output, c);
-    }
-    return output;
-  }
-  return path;
+  return std::visit(overload{[&](Error) { return path; },
+                             [&](std::list<PathComponent> components) {
+                               if (components.empty() ||
+                                   components.front() !=
+                                       PathComponent::FromString(L"~").value())
+                                 return path;
+                               components.pop_front();
+                               auto output = home_directory;
+                               for (auto& c : components) {
+                                 output = Path::Join(output, c);
+                               }
+                               return output;
+                             }},
+                    path.DirectorySplit().variant());
 }
 
 const bool expand_home_directory_tests_registration = tests::Register(
@@ -245,8 +252,8 @@ const bool expand_home_directory_tests_registration = tests::Register(
                                       const std::wstring& extension) {
   auto dir = path.Dirname();
   auto base = path.Basename();
-  CHECK(!dir.IsError());
-  CHECK(!base.IsError());
+  CHECK(!IsError(dir));
+  CHECK(!IsError(base));
   return Path::Join(dir.value(),
                     PathComponent::WithExtension(base.value(), extension));
 }
@@ -268,9 +275,12 @@ ValueOrError<PathComponent> Path::Basename() const {
 }
 
 std::optional<std::wstring> Path::extension() const {
-  auto name = Basename();
-  if (name.IsError()) return std::nullopt;
-  return name.value().extension();
+  return std::visit(
+      overload{[](Error) { return std::optional<std::wstring>(); },
+               [](PathComponent component) {
+                 return std::optional<std::wstring>(component.extension());
+               }},
+      Basename().variant());
 }
 
 const std::wstring& Path::read() const { return path_; }

@@ -45,10 +45,9 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 
 futures::Value<PossibleError> PreviewCppExpression(
     OpenBuffer& buffer, const BufferContents& expression_str) {
-  auto compilation_result = buffer.CompileString(expression_str.ToString());
-  if (compilation_result.IsError())
-    return futures::Past(compilation_result.error());
-  auto [expression, environment] = std::move(compilation_result.value());
+  FUTURES_ASSIGN_OR_RETURN(auto compilation_result,
+                           buffer.CompileString(expression_str.ToString()));
+  auto [expression, environment] = std::move(compilation_result);
   buffer.status().Reset();
   switch (expression->purity()) {
     case vm::PurityType::kReader:

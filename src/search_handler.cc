@@ -250,7 +250,7 @@ void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
                      OpenBuffer& buffer) {
   ValueOrError<std::vector<LineColumn>> results =
       SearchHandler(editor_state, options, buffer.contents());
-  if (results.IsError() || results.value().empty()) {
+  if (IsError(results) || results.value().empty()) {
     buffer.status().SetInformationText(L"No matches: " + options.search_query);
   } else {
     buffer.set_position(results.value()[0]);

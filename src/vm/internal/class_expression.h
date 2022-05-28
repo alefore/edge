@@ -5,13 +5,14 @@
 
 #include "../public/vm.h"
 #include "src/language/safe_types.h"
+#include "src/language/value_or_error.h"
 
 namespace afc::vm {
 class Compilation;
 class VMTypeObjectTypeName;
 void StartClassDeclaration(Compilation& compilation,
                            const VMTypeObjectTypeName& name);
-void FinishClassDeclaration(
+language::PossibleError FinishClassDeclaration(
     Compilation& compilation,
     language::NonNull<std::unique_ptr<Expression>> body);
 }  // namespace afc::vm

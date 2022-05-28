@@ -79,14 +79,11 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
     NonNull<std::unique_ptr<Expression>> b) {
   if (a->purity() == PurityType::kPure && a->ReturnTypes().empty())
     return Success(std::move(b));
-  auto return_types = CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes());
-  if (return_types.IsError()) {
-    return return_types.error();
-  }
-
+  ASSIGN_OR_RETURN(std::unordered_set<VMType> return_types,
+                   CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
   return Success<NonNull<std::unique_ptr<Expression>>>(
       MakeNonNullUnique<AppendExpression>(std::move(a), std::move(b),
-                                          std::move(return_types.value())));
+                                          std::move(return_types)));
 }
 
 }  // namespace afc::vm

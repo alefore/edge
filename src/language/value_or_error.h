@@ -158,5 +158,12 @@ T ValueOrDie(ValueOrError<T> value, std::wstring error_location) {
       .value();
 }
 
+template <typename Overload>
+auto VisitCallback(Overload overload) {
+  return [overload](auto value) {
+    return std::visit(overload, std::move(value.variant()));
+  };
+}
+
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__
