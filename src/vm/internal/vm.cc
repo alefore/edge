@@ -42,10 +42,12 @@ namespace vm {
 namespace {
 using infrastructure::Path;
 using language::Error;
+using language::IgnoreErrors;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::overload;
+using language::PossibleError;
 using language::Success;
 using language::ToUniquePtr;
 using language::ValueOrError;
@@ -87,8 +89,9 @@ void CompileFile(Path path, Compilation& compilation, void* parser) {
   compilation.PopSource();
 }
 
-void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
-                   size_t* pos_output) {
+// It is the responsibility of the caller to register errors to compilation.
+PossibleError HandleInclude(Compilation& compilation, void* parser,
+                            const wstring& str, size_t* pos_output) {
   CHECK(compilation.errors().empty());
 
   VLOG(6) << "Processing #include directive.";
@@ -98,9 +101,8 @@ void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
   }
   if (pos >= str.size() || (str[pos] != '\"' && str[pos] != '<')) {
     VLOG(5) << "Processing #include failed: Expected opening delimiter";
-    compilation.AddError(
-        L"#include expects \"FILENAME\" or <FILENAME>; in line: " + str);
-    return;
+    return Error(L"#include expects \"FILENAME\" or <FILENAME>; in line: " +
+                 str);
   }
   wchar_t delimiter = str[pos] == L'<' ? L'>' : L'\"';
   pos++;
@@ -110,35 +112,34 @@ void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
   }
   if (pos >= str.size()) {
     VLOG(5) << "Processing #include failed: Expected closing delimiter";
-    compilation.AddError(
+    return Error(
         L"#include expects \"FILENAME\" or <FILENAME>, failed to find closing "
         L"character; in line: " +
         str);
-    return;
   }
 
-  Path::FromString(str.substr(start, pos - start))
-      .Visit(overload{[&](Path path) {
-                        if (delimiter == '\"' &&
-                            path.GetRootType() == Path::RootType::kRelative &&
-                            compilation.current_source_path().has_value()) {
-                          compilation.current_source_path()->Dirname().Visit(
-                              overload{[&](Path source_directory) {
-                                         path =
-                                             Path::Join(source_directory, path);
-                                       },
-                                       [](Error) {}});
-                        }
+  ASSIGN_OR_RETURN(
+      Path path,
+      AugmentErrors(L"#include was unable to extract path; in line: " + str +
+                        L"; error: ",
+                    Path::FromString(str.substr(start, pos - start))));
 
-                        CompileFile(path, compilation, parser);
-                        *pos_output = pos + 1;
-                        VLOG(5) << path << ": Done compiling.";
-                      },
-                      [&](Error error) {
-                        compilation.AddError(
-                            L"#include was unable to extract path; in line: " +
-                            str + L"; error: " + error.description);
-                      }});
+  if (delimiter == '\"' && path.GetRootType() == Path::RootType::kRelative &&
+      compilation.current_source_path().has_value()) {
+    std::visit(
+        overload{
+            IgnoreErrors{},
+            [&](Path source_directory) {
+              path = Path::Join(source_directory, path);
+            },
+        },
+        compilation.current_source_path()->Dirname().variant());
+  }
+
+  CompileFile(path, compilation, parser);
+  *pos_output = pos + 1;
+  VLOG(5) << path << ": Done compiling.";
+  return Success();
 }
 
 int ConsumeDecimal(const wstring& str, size_t* pos) {

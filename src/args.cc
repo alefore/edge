@@ -27,6 +27,7 @@ using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::Error;
 using language::FromByteString;
+using language::IgnoreErrors;
 using language::overload;
 
 namespace {
@@ -72,7 +73,8 @@ static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
     std::string dir;
     // TODO: stat it and don't add it if it doesn't exist.
     while (std::getline(text_stream, dir, ';')) {
-      Path::FromString(FromByteString(dir)).Visit(overload{push, [](Error) {}});
+      std::visit(overload{IgnoreErrors{}, push},
+                 Path::FromString(FromByteString(dir)).variant());
     }
   }
   return output;

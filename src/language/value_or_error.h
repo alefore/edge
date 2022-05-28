@@ -68,12 +68,6 @@ class ValueOrError {
     return *this;
   }
 
-  template <typename Overload>
-  decltype(std::declval<Overload>()(std::declval<T>())) Visit(
-      Overload overload) {
-    return std::visit(overload, value_);
-  }
-
   std::variant<T, Error>& variant() { return value_; }
   const std::variant<T, Error>& variant() const { return value_; }
 

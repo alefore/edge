@@ -148,8 +148,8 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
-    return CompileFile(path, gc_pool_, environment_)
-        .Visit(overload{
+    return std::visit(
+        overload{
             [&](const NonNull<std::unique_ptr<vm::Expression>>& expression)
                 -> futures::Value<futures::IterationControlCommand> {
               LOG(INFO) << "Evaluating file: " << path;
@@ -175,7 +175,8 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
               LOG(INFO) << "Compilation error: " << error;
               status_.SetWarningText(error.description);
               return futures::Past(futures::IterationControlCommand::kContinue);
-            }});
+            }},
+        CompileFile(path, gc_pool_, environment_).variant());
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
@@ -426,14 +427,15 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<std::wstring> buffers_with_problems;
     for (auto& it : buffers_)
-      it.second.ptr()->IsUnableToPrepareToClose().Visit(
+      std::visit(
           overload{[](EmptyValue) {},
                    [&](Error error) {
                      buffers_with_problems.push_back(
                          it.second.ptr()->Read(buffer_variables::name));
                      it.second.ptr()->status().SetWarningText(
                          Error::Augment(L"Unable to close", error).description);
-                   }});
+                   }},
+          it.second.ptr()->IsUnableToPrepareToClose().variant());
 
     if (!buffers_with_problems.empty()) {
       std::wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";

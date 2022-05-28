@@ -324,16 +324,18 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
                return GetSearchPathsBuffer(editor_state, edge_path)
                    .Transform([&editor_state, output,
                                edge_path](gc::Root<OpenBuffer> buffer) {
-                     buffer.ptr()->contents().ForEach([&editor_state, output](
-                                                          std::wstring line) {
-                       Path::FromString(line).Visit(overload{
-                           [](Error) {},
-                           [&](Path path) {
-                             output->push_back(editor_state.expand_path(path));
-                             LOG(INFO)
-                                 << "Pushed search path: " << output->back();
-                           }});
-                     });
+                     buffer.ptr()->contents().ForEach(
+                         [&editor_state, output](std::wstring line) {
+                           std::visit(
+                               overload{[](Error) {},
+                                        [&](Path path) {
+                                          output->push_back(
+                                              editor_state.expand_path(path));
+                                          LOG(INFO) << "Pushed search path: "
+                                                    << output->back();
+                                        }},
+                               Path::FromString(line).variant());
+                         });
                      return futures::IterationControlCommand::kContinue;
                    });
              })
