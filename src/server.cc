@@ -77,12 +77,11 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 ValueOrError<int> MaybeConnectToParentServer() {
   const char* variable = "EDGE_PARENT_ADDRESS";
   if (char* server_address = getenv(variable); server_address != nullptr) {
-    auto path = Path::FromString(FromByteString(server_address));
-    if (path.IsError()) {
-      return Error::Augment(
-          L"Value from environment variable EDGE_PARENT_ADDRESS", path.error());
-    }
-    return MaybeConnectToServer(path.value());
+    ASSIGN_OR_RETURN(
+        Path path,
+        AugmentErrors(L"Value from environment variable EDGE_PARENT_ADDRESS",
+                      Path::FromString(FromByteString(server_address))));
+    return MaybeConnectToServer(path);
   }
   return Error(
       L"Unable to find remote address (through environment variable "
@@ -96,15 +95,13 @@ ValueOrError<int> MaybeConnectToServer(const Path& path) {
     return Error(path.read() + L": Connecting to server: open failed: " +
                  FromByteString(strerror(errno)));
   }
-  ValueOrError<Path> private_fifo = CreateFifo({});
-  if (private_fifo.IsError()) {
-    return Error::Augment(
-        L"Unable to create fifo for communication with server",
-        private_fifo.error());
-  }
-  LOG(INFO) << "Fifo created: " << private_fifo.value().read();
+  ASSIGN_OR_RETURN(
+      Path private_fifo,
+      AugmentErrors(L"Unable to create fifo for communication with server",
+                    CreateFifo({})));
+  LOG(INFO) << "Fifo created: " << private_fifo.read();
   string command = "editor.ConnectTo(\"" +
-                   ToByteString(CppEscapeString(private_fifo.value().read())) +
+                   ToByteString(CppEscapeString(private_fifo.read())) +
                    "\");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {
@@ -113,12 +110,11 @@ ValueOrError<int> MaybeConnectToServer(const Path& path) {
   }
   close(fd);
 
-  LOG(INFO) << "Opening private fifo: " << private_fifo.value().read();
-  int private_fd =
-      open(ToByteString(private_fifo.value().read()).c_str(), O_RDWR);
+  LOG(INFO) << "Opening private fifo: " << private_fifo.read();
+  int private_fd = open(ToByteString(private_fifo.read()).c_str(), O_RDWR);
   LOG(INFO) << "Connection fd: " << private_fd;
   if (private_fd == -1) {
-    return Error(private_fifo.value().read() + L": open failed: " +
+    return Error(private_fifo.read() + L": open failed: " +
                  FromByteString(strerror(errno)));
   }
   CHECK_GT(private_fd, -1);

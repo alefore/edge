@@ -53,23 +53,23 @@ ColorizePromptOptions SearchResultsModifiers(
     NonNull<std::shared_ptr<LazyString>> line,
     ValueOrError<SearchResultsSummary> result) {
   LineModifierSet modifiers;
-  if (result.IsError()) {
-    modifiers.insert(LineModifier::RED);
-  } else {
-    switch (result.value().matches) {
-      case 0:
-        break;
-      case 1:
-        modifiers.insert(LineModifier::CYAN);
-        break;
-      case 2:
-        modifiers.insert(LineModifier::YELLOW);
-        break;
-      default:
-        modifiers.insert(LineModifier::GREEN);
-        break;
-    }
-  }
+  std::visit(overload{[&](Error) { modifiers.insert(LineModifier::RED); },
+                      [&](const SearchResultsSummary& result) {
+                        switch (result.matches) {
+                          case 0:
+                            break;
+                          case 1:
+                            modifiers.insert(LineModifier::CYAN);
+                            break;
+                          case 2:
+                            modifiers.insert(LineModifier::YELLOW);
+                            break;
+                          default:
+                            modifiers.insert(LineModifier::GREEN);
+                            break;
+                        }
+                      }},
+             result.variant());
 
   return {.tokens = {{.token = {.value = L"",
                                 .begin = ColumnNumber(0),

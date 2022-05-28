@@ -8,6 +8,7 @@
 #include "src/infrastructure/time.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
+#include "src/language/overload.h"
 
 namespace afc::editor {
 
@@ -119,6 +120,16 @@ class Status {
       return replacement_value;
     }
     return value.value();
+  }
+
+  template <typename T>
+  language::ValueOrError<T> LogErrors(language::ValueOrError<T> value) {
+    std::visit(language::overload{[&](language::Error error) {
+                                    SetWarningText(error.description);
+                                  },
+                                  [](const T&) {}},
+               value.variant());
+    return value;
   }
 
   void Reset();

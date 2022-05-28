@@ -24,6 +24,7 @@ using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
 
@@ -193,32 +194,35 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
   return head;
 }
 
-futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
-  std::set<wstring> matches;
-  for (gc::Root<OpenBuffer>& search_buffer : input.source_buffers) {
-    SearchOptions options;
-    options.search_query = input.input;
-    options.starting_position = search_buffer.ptr()->position();
-    auto positions = PerformSearchWithDirection(
-        input.editor, options, search_buffer.ptr()->contents());
-    if (positions.IsError()) {
-      search_buffer.ptr()->status().SetWarningText(
-          positions.error().description);
-      continue;
-    }
+PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
+                             std::set<std::wstring>& matches) {
+  SearchOptions options;
+  options.search_query = input.input;
+  options.starting_position = buffer.position();
 
-    // Get the first kMatchesLimit matches:
-    for (size_t i = 0;
-         i < positions.value().size() && matches.size() < kMatchesLimit; i++) {
-      auto position = positions.value()[i];
-      if (i == 0) {
-        search_buffer.ptr()->set_position(position);
-      }
-      CHECK_LT(position.line, search_buffer.ptr()->EndLine());
-      auto line = search_buffer.ptr()->LineAt(position.line);
-      CHECK_LT(position.column, line->EndColumn());
-      matches.insert(RegexEscape(line->Substring(position.column)));
+  ASSIGN_OR_RETURN(std::vector<LineColumn> positions,
+                   buffer.status().LogErrors(PerformSearchWithDirection(
+                       input.editor, options, buffer.contents())));
+
+  // Get the first kMatchesLimit matches:
+  for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit;
+       i++) {
+    auto position = positions[i];
+    if (i == 0) {
+      buffer.set_position(position);
     }
+    CHECK_LT(position.line, buffer.EndLine());
+    auto line = buffer.LineAt(position.line);
+    CHECK_LT(position.column, line->EndColumn());
+    matches.insert(RegexEscape(line->Substring(position.column)));
+  }
+  return Success();
+}
+
+futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
+  std::set<std::wstring> matches;
+  for (gc::Root<OpenBuffer>& search_buffer : input.source_buffers) {
+    SearchInBuffer(input, search_buffer.ptr().value(), matches);
   }
   if (!matches.empty()) {
     // Add the matches to the predictions buffer.
@@ -256,7 +260,7 @@ void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
 
 void HandleSearchResults(const ValueOrError<std::vector<LineColumn>>& results,
                          OpenBuffer& buffer) {
-  if (results.IsError()) {
+  if (IsError(results)) {
     buffer.status().ConsumeErrors(results, {});
     return;
   }
