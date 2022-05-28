@@ -130,12 +130,6 @@ void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
         }
 
         CompileFile(path, compilation, parser);
-        // TODO(easy, 2022-05-28): Move this to compilation.AddError?
-        for (auto& error : compilation.errors()) {
-          error = L"During processing of included file \"" + path.read() +
-                  L"\": " + error;
-        }
-
         *pos_output = pos + 1;
         VLOG(5) << path << ": Done compiling.";
       },

@@ -10,14 +10,20 @@ Compilation::Compilation(gc::Pool& pool, gc::Root<Environment> environment)
 void Compilation::AddError(std::wstring error) {
   // TODO: Enable this logging statement.
   // LOG(INFO) << "Compilation error: " << error;
-  if (!source_.empty()) {
-    Source last_source = source_.back();
-    error = (last_source.path.has_value() ? (last_source.path->read() + L":")
-                                          : L"") +
-            std::to_wstring(last_source.line + 1) + L":" +
-            std::to_wstring(last_source.column + 1) + L": " + error;
+  std::wstring prefix;
+  for (auto it = source_.begin(); it != source_.end(); ++it) {
+    Source& source = *it;
+    std::wstring location =
+        (source.path.has_value() ? (source.path->read() + L":") : L"") +
+        std::to_wstring(source.line + 1) + L":" +
+        std::to_wstring(source.column + 1);
+    if (std::next(it) == source_.end())
+      prefix += location + L": ";
+    else
+      prefix += L"Include from " + location + L": ";
   }
-  errors_.push_back(std::move(error));
+
+  errors_.push_back(prefix + std::move(error));
 }
 
 const std::vector<std::wstring>& Compilation::errors() const { return errors_; }
