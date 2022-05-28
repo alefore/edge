@@ -21,6 +21,7 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/lowercase.h"
 #include "src/predictor.h"
@@ -37,9 +38,12 @@ using infrastructure::Path;
 using infrastructure::PathJoin;
 using infrastructure::Tracker;
 using language::EmptyValue;
+using language::Error;
 using language::FromByteString;
+using language::IgnoreErrors;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::overload;
 using language::Success;
 
 namespace gc = language::gc;
@@ -380,11 +384,13 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   auto search_paths = std::make_shared<std::vector<Path>>();
   return GetSearchPaths(predictor_input.editor, search_paths.get())
       .Transform([predictor_input, search_paths](EmptyValue) {
-        auto input_path = Path::FromString(predictor_input.input);
-        auto path =
-            input_path.IsError()
-                ? predictor_input.input
-                : predictor_input.editor.expand_path(input_path.value()).read();
+        std::wstring path = std::visit(
+            overload{[&](Error) { return predictor_input.input; },
+                     [&](Path path) {
+                       return predictor_input.editor.expand_path(path).read();
+                     }},
+            std::move(Path::FromString(predictor_input.input).variant()));
+
         OpenBuffer::LockFunction get_buffer =
             predictor_input.predictions.GetLockFunction();
         ResolvePathOptions resolve_path_options = ResolvePathOptions::New(
@@ -406,10 +412,12 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                 *search_paths = {Path::Root()};
               } else {
                 std::vector<Path> resolved_paths;
-                for (auto& search_path : *search_paths) {
-                  if (auto output = search_path.Resolve(); !output.IsError()) {
-                    resolved_paths.push_back(output.value());
-                  }
+                for (Path& search_path : *search_paths) {
+                  std::visit(overload{IgnoreErrors{},
+                                      [&](Path path) {
+                                        resolved_paths.push_back(path);
+                                      }},
+                             std::move(search_path.Resolve().variant()));
                 }
                 *search_paths = std::move(resolved_paths);
 

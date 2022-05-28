@@ -18,6 +18,7 @@
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
 #include "src/naive_bayes.h"
@@ -39,9 +40,11 @@ using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
+using language::IgnoreErrors;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::Success;
 using language::ValueOrError;
 
@@ -81,13 +84,14 @@ GetSyntheticFeatures(
   VLOG(5) << "Generating features from input: " << input.size();
   for (const auto& [name, value] : input) {
     if (name == L"name") {
-      auto value_str = value->ToString();
-      auto value_path = Path::FromString(value_str);
-      if (value_path.IsError()) continue;
-      if (auto directory = value_path.value().Dirname();
-          !directory.IsError() && directory.value() != Path::LocalDirectory()) {
-        directories.insert(directory.value());
-      }
+      auto value_path = Path::FromString(value->ToString());
+      if (IsError(value_path)) continue;
+      std::visit(overload{IgnoreErrors{},
+                          [&](Path directory) {
+                            if (directory != Path::LocalDirectory())
+                              directories.insert(directory);
+                          }},
+                 std::move(value_path.value().Dirname().variant()));
       if (std::optional<std::wstring> extension =
               value_path.value().extension();
           extension.has_value()) {
@@ -271,7 +275,7 @@ auto parse_history_line_tests_registration = tests::Register(
     {{.name = L"BadQuote",
       .callback =
           [] {
-            CHECK(ParseHistoryLine(NewLazyString(L"prompt:\"")).IsError());
+            CHECK(IsError(ParseHistoryLine(NewLazyString(L"prompt:\""))));
           }},
      {.name = L"Empty", .callback = [] {
         auto result = ParseHistoryLine(NewLazyString(L"prompt:\"\"")).value();
@@ -387,7 +391,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
             };
             if (line.empty()) return true;
             auto line_keys = ParseHistoryLine(line.contents());
-            if (line_keys.IsError()) {
+            if (IsError(line_keys)) {
               output.errors.push_back(line_keys.error().description);
               return !abort_notification->HasBeenNotified();
             }

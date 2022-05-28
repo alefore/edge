@@ -283,11 +283,16 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                      .SetConsumer(
                          [consumer = output_future.consumer, buffer, output](
                              ValueOrError<gc::Root<vm::Value>> value) mutable {
-                           if (!value.IsError() && value.value().ptr()->type ==
-                                                       BufferMapper::vmtype) {
-                             output.context =
-                                 BufferMapper::get(value.value().ptr().value());
-                           }
+                           std::visit(overload{IgnoreErrors{},
+                                               [&](gc::Root<vm::Value> value) {
+                                                 if (value.ptr()->type ==
+                                                     BufferMapper::vmtype) {
+                                                   output.context =
+                                                       BufferMapper::get(
+                                                           value.ptr().value());
+                                                 }
+                                               }},
+                                      std::move(value.variant()));
                            consumer(output);
                          });
                }},

@@ -45,6 +45,7 @@ using afc::infrastructure::MillisecondsBetween;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::Tracker;
+using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::NonNull;
@@ -162,6 +163,7 @@ std::wstring CommandsToRun(CommandLineValues args) {
   return commands_to_run;
 }
 
+// TODO(easy, 2022-05-28): Pass fd as a FileDescriptor.
 void SendCommandsToParent(int fd, const std::string commands_to_run) {
   // We write the command to a temporary file and then instruct the server to
   // load the file. Otherwise, if the command is too long, it may not fit in the
@@ -385,13 +387,16 @@ int main(int argc, const char** argv) {
     } else {
       self_fd = MaybeConnectToParentServer();
     }
-    if (self_fd.IsError()) {
-      std::cerr << args.binary_name << ": " << self_fd.error().description
-                << std::endl;
-      exit(1);
-    }
-    CHECK_NE(self_fd.value(), -1);
-    SendCommandsToParent(self_fd.value(), ToByteString(commands_to_run));
+    std::visit(
+        overload{[&args](Error error) {
+                   std::cerr << args.binary_name << ": " << error << std::endl;
+                   exit(1);
+                 },
+                 [&](int self_fd) {
+                   CHECK_NE(self_fd, -1);
+                   SendCommandsToParent(self_fd, ToByteString(commands_to_run));
+                 }},
+        self_fd.variant());
   }
 
   LOG(INFO) << "Creating terminal.";

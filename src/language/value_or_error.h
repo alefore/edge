@@ -39,8 +39,9 @@ class ValueOrError {
 
   template <typename Other>
   ValueOrError(ValueOrError<Other> other)
-      : value_(other.IsError()
-                   ? std::variant<T, Error>(std::move(other.error()))
+      : value_(std::holds_alternative<Error>(other.variant())
+                   ? std::variant<T, Error>(
+                         std::get<Error>(std::move(other.variant())))
                    : std::variant<T, Error>(std::move(other.value()))) {}
 
   std::optional<T> AsOptional() const {
@@ -102,12 +103,17 @@ bool IsError(const ValueOrError<T>& value) {
 }
 
 template <typename T>
+std::optional<T> AsOptional(ValueOrError<T> value) {
+  return std::visit(overload{[](Error) { return std::optional<T>(); },
+                             [](T value) { return std::optional<T>(value); }},
+                    std::move(value.variant()));
+}
+
+template <typename T>
 std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& p) {
-  if (p.IsError()) {
-    os << p.error.value();
-  } else {
-    os << "[Value: " << p.value.value() << "]";
-  }
+  std::visit(overload{[&](Error error) { os << error; },
+                      [&](T value) { os << "[Value: " << value << "]"; }},
+             p.variant());
   return os;
 }
 
@@ -133,15 +139,23 @@ ValueOrError<T> Success(T t) {
 
 template <typename T>
 ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
-  return input.IsError() ? Error::Augment(prefix, std::move(input.error()))
-                         : input;
+  std::visit(overload{[&](Error& error) {
+                        error =
+                            Error::Augment(prefix, std::move(input.error()));
+                      },
+                      [](T&) {}},
+             input.variant());
+  return input;
 }
 
-#define ASSIGN_OR_RETURN(variable, expression) \
-  variable = ({                                \
-    auto tmp = expression;                     \
-    if (tmp.IsError()) return tmp.error();     \
-    std::move(tmp.value());                    \
+#define ASSIGN_OR_RETURN(variable, expression)                 \
+  variable = ({                                                \
+    auto tmp = expression;                                     \
+    if (afc::language::Error* error =                          \
+            std::get_if<afc::language::Error>(&tmp.variant()); \
+        error != nullptr)                                      \
+      return std::move(*error);                                \
+    std::move(tmp.value());                                    \
   })
 
 struct IgnoreErrors {

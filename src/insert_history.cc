@@ -29,7 +29,9 @@ bool IsMatch(EditorState& editor,
                                  .required_positions = 1,
                                  .case_sensitive = false},
       candidate);
-  return !matches.IsError() && !matches.value().empty();
+  std::vector<LineColumn>* matches_vector =
+      std::get_if<std::vector<LineColumn>>(&matches.variant());
+  return matches_vector != nullptr && !matches_vector->empty();
 }
 }  // namespace
 

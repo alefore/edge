@@ -151,10 +151,8 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
   if (stat(ToByteString(path.read()).c_str(), &stat_buffer) == -1 ||
       !S_ISDIR(stat_buffer.st_mode)) {
     LOG(INFO) << "Taking dirname for prompt: " << path;
-    auto dir_or_error = path.Dirname();
-    if (!dir_or_error.IsError()) {
-      path = dir_or_error.value();
-    }
+    std::visit(overload{IgnoreErrors{}, [&](Path dir) { path = dir; }},
+               path.Dirname().variant());
   }
   if (path == Path::LocalDirectory()) {
     return L"";

@@ -273,13 +273,12 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
             CHECK_EQ(args.size(), 2u);
             EditorState& editor =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            auto target_path = Path::FromString(args[1].ptr()->get_string());
-            if (target_path.IsError()) {
-              editor.status().SetWarningText(L"ConnectTo error: " +
-                                             target_path.error().description);
-              return futures::Past(target_path.error());
-            }
-            OpenServerBuffer(editor, target_path.value());
+            FUTURES_ASSIGN_OR_RETURN(
+                Path target_path,
+                editor.status().LogErrors(AugmentErrors(
+                    L"ConnectTo error",
+                    Path::FromString(args[1].ptr()->get_string()))));
+            OpenServerBuffer(editor, target_path);
             return futures::Past(
                 EvaluationOutput::Return(vm::Value::NewVoid(pool)));
           }));

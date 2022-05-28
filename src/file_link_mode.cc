@@ -560,22 +560,27 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
                                                   file_system_driver);
   const NonNull<std::shared_ptr<OpenFileResolvePathOutput>> output;
   resolve_path_options.validator = [&editor_state, output](const Path& path) {
-    auto path_components = path.DirectorySplit();
-    if (path_components.IsError()) return futures::Past(false);
-    for (std::pair<BufferName, gc::Root<OpenBuffer>> buffer_pair :
-         *editor_state.buffers()) {
-      gc::Root<OpenBuffer> buffer = buffer_pair.second;
-      auto buffer_path =
-          Path::FromString(buffer.ptr()->Read(buffer_variables::path));
-      if (buffer_path.IsError()) continue;
-      auto buffer_components = buffer_path.value().DirectorySplit();
-      if (buffer_components.IsError()) continue;
-      if (EndsIn(path_components.value(), buffer_components.value())) {
-        output->buffer = buffer;
-        return futures::Past(true);
-      }
-    }
-    return futures::Past(false);
+    return std::visit(
+        overload{
+            [](Error) { return futures::Past(false); },
+            [&](std::list<PathComponent> path_components) {
+              for (std::pair<BufferName, gc::Root<OpenBuffer>> buffer_pair :
+                   *editor_state.buffers()) {
+                gc::Root<OpenBuffer> buffer = buffer_pair.second;
+                auto buffer_path = Path::FromString(
+                    buffer.ptr()->Read(buffer_variables::path));
+                if (IsError(buffer_path)) continue;
+                ValueOrError<std::list<PathComponent>> buffer_components =
+                    buffer_path.value().DirectorySplit();
+                if (IsError(buffer_components)) continue;
+                if (EndsIn(path_components, buffer_components.value())) {
+                  output->buffer = buffer;
+                  return futures::Past(true);
+                }
+              }
+              return futures::Past(false);
+            }},
+        std::move(path.DirectorySplit().variant()));
   };
   if (path.has_value()) {
     resolve_path_options.path = path.value().read();

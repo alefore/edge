@@ -91,12 +91,13 @@ struct TransformTraits<language::ValueOrError<InitialType>, Callable> {
   static void FeedValue(language::ValueOrError<InitialType> initial_value,
                         Callable& callable,
                         typename ReturnType::Consumer consumer) {
-    if (initial_value.IsError()) {
-      consumer(initial_value.error());
-    } else {
-      ReturnTraits::Feed(callable(std::move(initial_value.value())),
-                         std::move(consumer));
-    }
+    std::visit(
+        language::overload{[&](language::Error error) { consumer(error); },
+                           [&](InitialType value) {
+                             ReturnTraits::Feed(callable(std::move(value)),
+                                                std::move(consumer));
+                           }},
+        std::move(initial_value.variant()));
   }
 };
 
@@ -247,15 +248,18 @@ template <typename Type>
 template <typename Callable>
 auto Value<Type>::ConsumeErrors(Callable error_callback) {
   Future<typename Type::ValueType> output;
-  SetConsumer([consumer = std::move(output.consumer),
-               error_callback =
-                   std::move(error_callback)](Type value_or_error) {
-    if (value_or_error.IsError()) {
-      error_callback(std::move(value_or_error.error())).SetConsumer(consumer);
-    } else {
-      consumer(std::move(value_or_error.value()));
-    }
-  });
+  SetConsumer(
+      [consumer = std::move(output.consumer),
+       error_callback = std::move(error_callback)](Type value_or_error) {
+        if (std::holds_alternative<language::Error>(value_or_error.variant())) {
+          error_callback(
+              std::get<language::Error>(std::move(value_or_error.variant())))
+              .SetConsumer(consumer);
+        } else {
+          consumer(std::get<typename Type::ValueType>(
+              std::move(value_or_error.variant())));
+        }
+      });
   return std::move(output.value);
 }
 
@@ -345,9 +349,9 @@ ValueOrError<T> OnError(ValueOrError<T>&& value, Callable error_callback) {
   value.SetConsumer([consumer = std::move(future.consumer),
                      error_callback = std::move(error_callback)](
                         language::ValueOrError<T> value_or_error) {
-    if (value_or_error.IsError()) {
-      futures::ValueOrError<T> error_callback_result =
-          error_callback(std::move(value_or_error.error()));
+    if (std::holds_alternative<language::Error>(value_or_error.variant())) {
+      futures::ValueOrError<T> error_callback_result = error_callback(
+          std::get<language::Error>(std::move(value_or_error.variant())));
       error_callback_result.SetConsumer(std::move(consumer));
     } else {
       consumer(std::move(value_or_error));
@@ -369,11 +373,14 @@ Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
       .Transform([copy](IterationControlCommand output) { return output; });
 }
 
-#define FUTURES_ASSIGN_OR_RETURN(variable, expression)    \
-  variable = ({                                           \
-    auto tmp = expression;                                \
-    if (tmp.IsError()) return futures::Past(tmp.error()); \
-    std::move(tmp.value());                               \
+#define FUTURES_ASSIGN_OR_RETURN(variable, expression)         \
+  variable = ({                                                \
+    auto tmp = expression;                                     \
+    if (afc::language::Error* error =                          \
+            std::get_if<afc::language::Error>(&tmp.variant()); \
+        error != nullptr)                                      \
+      return futures::Past(std::move(*error));                 \
+    std::move(tmp.value());                                    \
   })
 
 }  // namespace afc::futures
