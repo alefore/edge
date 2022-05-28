@@ -59,11 +59,18 @@ class ValueOrError {
   }
 
   T& value() {
-    CHECK(!IsError());
+    CHECK(!IsError()) << "Attempted to get value of ValueOrError with error: "
+                      << error();
     return std::get<T>(value_);
   }
 
   T& value_or(T other) { return IsError() ? other : value(); }
+
+  template <typename Overload>
+  decltype(std::declval<Overload>()(std::declval<T>())) Visit(
+      Overload overload) {
+    return std::visit(overload, value_);
+  }
 
  private:
   std::variant<T, Error> value_;
@@ -111,16 +118,6 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
     if (tmp.IsError()) return tmp.error();     \
     tmp.value();                               \
   })
-
-template <typename T, typename Overload>
-decltype(std::declval<Overload>()(std::declval<T>())) Visit(Overload overload,
-                                                            ValueOrError<T> t) {
-  if (t.IsError()) {
-    return overload(std::move(t.error()));
-  } else {
-    return overload(std::move(t.value()));
-  }
-}
 
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__

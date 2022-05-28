@@ -147,9 +147,10 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
-    return Visit(
-        overload{
-            [&](NonNull<std::unique_ptr<vm::Expression>> expression) {
+    return CompileFile(path, gc_pool_, environment_)
+        .Visit(overload{
+            [&](const NonNull<std::unique_ptr<vm::Expression>>& expression)
+                -> futures::Value<futures::IterationControlCommand> {
               LOG(INFO) << "Evaluating file: " << path;
               return Evaluate(expression.value(), gc_pool_, environment_,
                               [path, work_queue = work_queue()](
@@ -173,8 +174,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
               LOG(INFO) << "Compilation error: " << error;
               status_.SetWarningText(error.description);
               return futures::Past(futures::IterationControlCommand::kContinue);
-            }},
-        CompileFile(path, gc_pool_, environment_));
+            }});
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {

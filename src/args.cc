@@ -16,6 +16,7 @@ extern "C" {
 
 #include "src/infrastructure/command_line.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/server.h"
 #include "src/tests/benchmarks.h"
@@ -24,7 +25,10 @@ extern "C" {
 namespace afc::editor {
 using infrastructure::Path;
 using infrastructure::PathComponent;
+using language::Error;
 using language::FromByteString;
+using language::overload;
+
 namespace {
 static Path GetHomeDirectory() {
   char* env = getenv("HOME");
@@ -64,9 +68,7 @@ static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
     std::string dir;
     // TODO: stat it and don't add it if it doesn't exist.
     while (std::getline(text_stream, dir, ';')) {
-      if (auto path = Path::FromString(FromByteString(dir)); !path.IsError()) {
-        push(path.value());
-      }
+      Path::FromString(FromByteString(dir)).Visit(overload{push, [](Error) {}});
     }
   }
   return output;

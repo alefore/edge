@@ -116,27 +116,28 @@ void HandleInclude(Compilation& compilation, void* parser, const wstring& str,
     return;
   }
 
-  Visit(overload{[&](Path path) {
-                   if (delimiter == '\"' &&
-                       path.GetRootType() == Path::RootType::kRelative &&
-                       compilation.current_source_path().has_value()) {
-                     Visit(overload{[&](Path source_directory) {
-                                      path = Path::Join(source_directory, path);
-                                    },
-                                    [](Error) {}},
-                           compilation.current_source_path()->Dirname());
-                   }
+  Path::FromString(str.substr(start, pos - start))
+      .Visit(overload{[&](Path path) {
+                        if (delimiter == '\"' &&
+                            path.GetRootType() == Path::RootType::kRelative &&
+                            compilation.current_source_path().has_value()) {
+                          compilation.current_source_path()->Dirname().Visit(
+                              overload{[&](Path source_directory) {
+                                         path =
+                                             Path::Join(source_directory, path);
+                                       },
+                                       [](Error) {}});
+                        }
 
-                   CompileFile(path, compilation, parser);
-                   *pos_output = pos + 1;
-                   VLOG(5) << path << ": Done compiling.";
-                 },
-                 [&](Error error) {
-                   compilation.AddError(
-                       L"#include was unable to extract path; in line: " + str +
-                       L"; error: " + error.description);
-                 }},
-        Path::FromString(str.substr(start, pos - start)));
+                        CompileFile(path, compilation, parser);
+                        *pos_output = pos + 1;
+                        VLOG(5) << path << ": Done compiling.";
+                      },
+                      [&](Error error) {
+                        compilation.AddError(
+                            L"#include was unable to extract path; in line: " +
+                            str + L"; error: " + error.description);
+                      }});
 }
 
 int ConsumeDecimal(const wstring& str, size_t* pos) {
