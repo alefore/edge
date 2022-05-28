@@ -35,8 +35,9 @@ program(OUT) ::= statement_list(A). {
 }
 
 program(OUT) ::= statement_list(A) assignment_statement(B). {
-  OUT = NewAppendExpression(compilation, unique_ptr<Expression>(A),
-                            unique_ptr<Expression>(B)).release();
+  OUT = ToUniquePtr(NewAppendExpression(compilation, unique_ptr<Expression>(A),
+                                        unique_ptr<Expression>(B)))
+            .release();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,8 +52,10 @@ statement_list(L) ::= . {
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
-  OUT = NewAppendExpression(compilation, std::unique_ptr<Expression>(A),
-                            std::unique_ptr<Expression>(B)).release();
+  OUT = ToUniquePtr(NewAppendExpression(compilation,
+                                        std::unique_ptr<Expression>(A),
+                                        std::unique_ptr<Expression>(B)))
+            .release();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -162,10 +165,10 @@ nesting_rbracket ::= RBRACKET. {
 }
 
 statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
-  OUT = NewWhileExpression(compilation, unique_ptr<Expression>(CONDITION),
-                           unique_ptr<Expression>(BODY)).release();
-  CONDITION = nullptr;
-  BODY = nullptr;
+  OUT = ToUniquePtr(NewWhileExpression(compilation,
+                                       std::unique_ptr<Expression>(CONDITION),
+                                       std::unique_ptr<Expression>(BODY)))
+            .release();
 }
 
 statement(OUT) ::=
@@ -173,10 +176,12 @@ statement(OUT) ::=
         expr(CONDITION) SEMICOLON
         expr(UPDATE)
     RPAREN statement(BODY). {
-  OUT = NewForExpression(compilation, std::unique_ptr<Expression>(INIT),
-                         std::unique_ptr<Expression>(CONDITION),
-                         std::unique_ptr<Expression>(UPDATE),
-                         std::unique_ptr<Expression>(BODY)).release();
+  OUT = ToUniquePtr(NewForExpression(compilation,
+                                     std::unique_ptr<Expression>(INIT),
+                                     std::unique_ptr<Expression>(CONDITION),
+                                     std::unique_ptr<Expression>(UPDATE),
+                                     std::unique_ptr<Expression>(BODY)))
+            .release();
   INIT = nullptr;
   CONDITION = nullptr;
   UPDATE = nullptr;
@@ -185,30 +190,33 @@ statement(OUT) ::=
 
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
     ELSE statement(FALSE_CASE). {
-  A = NewIfExpression(
-      compilation,
-      unique_ptr<Expression>(CONDITION),
-      NewAppendExpression(compilation, unique_ptr<Expression>(TRUE_CASE),
-                          std::move(NewVoidExpression(compilation->pool)
-                                        .get_unique())),
-      NewAppendExpression(compilation, unique_ptr<Expression>(FALSE_CASE),
-                          std::move(NewVoidExpression(compilation->pool)
-                                        .get_unique())))
-      .release();
+  A = ToUniquePtr(
+          NewIfExpression(
+              compilation, unique_ptr<Expression>(CONDITION),
+              ToUniquePtr(NewAppendExpression(
+                  compilation, unique_ptr<Expression>(TRUE_CASE),
+                  std::move(
+                      NewVoidExpression(compilation->pool).get_unique()))),
+              ToUniquePtr(NewAppendExpression(
+                  compilation, unique_ptr<Expression>(FALSE_CASE),
+                  std::move(
+                      NewVoidExpression(compilation->pool).get_unique())))))
+          .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;
   FALSE_CASE = nullptr;
 }
 
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
-  A = NewIfExpression(
-      compilation,
-      unique_ptr<Expression>(CONDITION),
-      NewAppendExpression(compilation, unique_ptr<Expression>(TRUE_CASE),
-                          std::move(NewVoidExpression(compilation->pool)
-                                        .get_unique())),
-      std::move(NewVoidExpression(compilation->pool).get_unique()))
-      .release();
+  A = ToUniquePtr(
+          NewIfExpression(
+              compilation, std::unique_ptr<Expression>(CONDITION),
+              ToUniquePtr(NewAppendExpression(
+                  compilation, unique_ptr<Expression>(TRUE_CASE),
+                  std::move(
+                      NewVoidExpression(compilation->pool).get_unique()))),
+              std::move(NewVoidExpression(compilation->pool).get_unique())))
+          .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;
 }
@@ -362,9 +370,10 @@ lambda_declaration_params(OUT) ::= LBRACE RBRACE
 
 expr(A) ::= expr(CONDITION) QUESTION_MARK
     expr(TRUE_CASE) COLON expr(FALSE_CASE). {
-  A = NewIfExpression(
-      compilation, unique_ptr<Expression>(CONDITION),
-      unique_ptr<Expression>(TRUE_CASE), unique_ptr<Expression>(FALSE_CASE))
+  A = ToUniquePtr(NewIfExpression(compilation,
+                                  std::unique_ptr<Expression>(CONDITION),
+                                  std::unique_ptr<Expression>(TRUE_CASE),
+                                  std::unique_ptr<Expression>(FALSE_CASE)))
           .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;

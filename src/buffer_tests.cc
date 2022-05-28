@@ -119,7 +119,7 @@ const bool buffer_tests_registration = tests::Register(
                        ->EvaluateString(L"{ int v = 5; } v")
                        .Get()
                        .value();
-               CHECK(result.IsError());
+               CHECK(IsError(result));
              }},
     });
 

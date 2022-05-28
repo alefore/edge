@@ -10,6 +10,7 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/overload.h"
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
 
@@ -19,9 +20,12 @@ namespace editor {
 namespace {
 using concurrent::Notification;
 using infrastructure::Path;
+using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
+using language::IgnoreErrors;
 using language::NonNull;
+using language::overload;
 using language::Success;
 using language::ToByteString;
 using language::VisitPointer;
@@ -45,7 +49,7 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.found_exact_match) {
     auto path = Path::FromString(line.ToString());
-    if (path.IsError()) {
+    if (IsError(path)) {
       return futures::Past(std::optional<gc::Root<OpenBuffer>>());
     }
     output = OpenFileIfFound(
@@ -140,8 +144,8 @@ futures::Value<ColorizePromptOptions> AdjustPath(
 std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
                                    std::wstring buffer_path) {
   auto path_or_error = Path::FromString(buffer_path);
-  if (path_or_error.IsError()) return L"";
-  auto path = path_or_error.value();
+  if (IsError(path_or_error)) return L"";
+  Path path = path_or_error.value();
   struct stat stat_buffer;
   // TODO(blocking): Use FileSystemDriver here!
   if (stat(ToByteString(path.read()).c_str(), &stat_buffer) == -1 ||
@@ -159,27 +163,30 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
     if (repetitions.value() == 0) {
       return L"";
     }
-    auto split = path.DirectorySplit();
-    if (!split.IsError() && split.value().size() > repetitions.value()) {
-      std::optional<Path> output_path;
-      switch (path.GetRootType()) {
-        case Path::RootType::kAbsolute:
-          output_path = Path::Root();
-          break;
-        case Path::RootType::kRelative:
-          break;
-      }
-      for (size_t i = 0; i < repetitions.value(); i++) {
-        auto part = Path(split.value().front());
-        split.value().pop_front();
-        if (output_path.has_value()) {
-          output_path = Path::Join(output_path.value(), part);
-        } else {
-          output_path = part;
-        }
-      }
-      path = output_path.value();
-    }
+    std::visit(overload{IgnoreErrors{},
+                        [&](std::list<PathComponent> split) {
+                          if (split.size() <= repetitions.value()) return;
+                          std::optional<Path> output_path;
+                          switch (path.GetRootType()) {
+                            case Path::RootType::kAbsolute:
+                              output_path = Path::Root();
+                              break;
+                            case Path::RootType::kRelative:
+                              break;
+                          }
+                          for (size_t i = 0; i < repetitions.value(); i++) {
+                            auto part = Path(split.front());
+                            split.pop_front();
+                            if (output_path.has_value()) {
+                              output_path =
+                                  Path::Join(output_path.value(), part);
+                            } else {
+                              output_path = part;
+                            }
+                          }
+                          path = output_path.value();
+                        }},
+               std::move(path.DirectorySplit().variant()));
   }
   return path.read() + L"/";
 }

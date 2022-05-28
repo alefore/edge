@@ -115,11 +115,12 @@ class Status {
 
   template <typename T>
   T ConsumeErrors(language::ValueOrError<T> value, T replacement_value) {
-    if (value.IsError()) {
-      SetWarningText(value.error().description);
-      return replacement_value;
-    }
-    return value.value();
+    return std::visit(language::overload{[&](language::Error error) {
+                                           SetWarningText(error.description);
+                                           return replacement_value;
+                                         },
+                                         [](T value) { return value; }},
+                      std::move(value.variant()));
   }
 
   template <typename T>

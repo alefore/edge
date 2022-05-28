@@ -2,21 +2,17 @@
 #define __AFC_VM_INTERNAL_IF_EXPRESSION_H__
 
 #include <memory>
+
 #include "../public/vm.h"
+#include "src/language/safe_types.h"
+#include "src/language/value_or_error.h"
 
-namespace afc {
-namespace vm {
-
+namespace afc::vm {
 class Compilation;
-
-using std::unique_ptr;
-
-unique_ptr<Expression> NewIfExpression(Compilation* compilation,
-                                       unique_ptr<Expression> condition,
-                                       unique_ptr<Expression> true_case,
-                                       unique_ptr<Expression> false_case);
-
-}  // namespace vm
-}  // namespace afc
+language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
+NewIfExpression(Compilation* compilation, std::unique_ptr<Expression> condition,
+                std::unique_ptr<Expression> true_case,
+                std::unique_ptr<Expression> false_case);
+}  // namespace afc::vm
 
 #endif  // __AFC_VM_INTERNAL_IF_EXPRESSION_H__

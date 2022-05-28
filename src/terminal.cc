@@ -132,9 +132,8 @@ std::wstring TransformCommandNameForStatus(std::wstring name) {
   size_t end = name.find_first_of(L' ', index);
   std::wstring output = name.substr(
       index, end == std::wstring::npos ? std::wstring::npos : end - index);
-  auto first_path = Path::FromString(output);
-  if (!first_path.IsError()) {
-    if (auto basename = first_path.value().Basename(); !basename.IsError()) {
+  if (auto first_path = Path::FromString(output); !IsError(first_path)) {
+    if (auto basename = first_path.value().Basename(); !IsError(basename)) {
       output = basename.value().ToString();
     }
   }

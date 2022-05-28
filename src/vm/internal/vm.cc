@@ -47,6 +47,7 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::overload;
 using language::Success;
+using language::ToUniquePtr;
 using language::ValueOrError;
 namespace gc = language::gc;
 

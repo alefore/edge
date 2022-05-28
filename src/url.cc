@@ -54,7 +54,11 @@ namespace {
 const bool get_local_file_path_tests_registration = tests::Register(
     L"URL::GetLocalFilePath",
     {{.name = L"EmptyURL",
-      .callback = [] { CHECK(URL(L"").GetLocalFilePath().IsError()); }},
+      .callback =
+          [] {
+            CHECK(std::holds_alternative<Error>(
+                URL(L"").GetLocalFilePath().variant()));
+          }},
      {.name = L"URLFromPath",
       .callback =
           [] {

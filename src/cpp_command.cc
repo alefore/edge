@@ -82,15 +82,10 @@ class CppCommand : public Command {
 ValueOrError<NonNull<std::unique_ptr<Command>>> NewCppCommand(
     EditorState& editor_state, gc::Root<afc::vm::Environment> environment,
     wstring code) {
-  auto result =
-      vm::CompileString(code, editor_state.gc_pool(), std::move(environment));
-  if (result.IsError()) {
-    LOG(ERROR) << "Failed compilation of command: " << code << ": "
-               << result.error();
-    return result.error();
-  }
+  ASSIGN_OR_RETURN(auto result, vm::CompileString(code, editor_state.gc_pool(),
+                                                  std::move(environment)));
   return NonNull<std::unique_ptr<Command>>(MakeNonNullUnique<CppCommand>(
-      editor_state, std::move(result.value()), std::move(code)));
+      editor_state, std::move(result), std::move(code)));
 }
 
 }  // namespace afc::editor

@@ -1,4 +1,4 @@
-#include "append_expression.h"
+#include "src/vm/internal/append_expression.h"
 
 #include "../public/value.h"
 #include "../public/vm.h"
@@ -6,6 +6,7 @@
 
 namespace afc::vm {
 namespace {
+using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -58,20 +59,15 @@ class AppendExpression : public Expression {
 
 }  // namespace
 
-std::unique_ptr<Expression> NewAppendExpression(Compilation* compilation,
-                                                std::unique_ptr<Expression> a,
-                                                std::unique_ptr<Expression> b) {
+ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
+    Compilation* compilation, std::unique_ptr<Expression> a,
+    std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr) {
-    return nullptr;
+    return Error(L"Missing input.");
   }
-  auto result = NewAppendExpression(
+  return compilation->RegisterErrors(NewAppendExpression(
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)));
-  if (result.IsError()) {
-    compilation->AddError(result.error().description);
-    return nullptr;
-  }
-  return std::move(result.value().get_unique());
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b))));
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(

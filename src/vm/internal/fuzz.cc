@@ -23,7 +23,7 @@ int main(int, char** argv) {
       "/dev/"
       "stdin",
       pool, environment);
-  if (expr.IsError()) {
+  if (IsError(expr)) {
     return 0;
   }
 

@@ -48,12 +48,11 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
             .Transform([&trampoline, a_value = std::move(a_value.value), type,
                         op](EvaluationOutput b_value)
                            -> ValueOrError<EvaluationOutput> {
-              ValueOrError<gc::Root<Value>> result =
-                  op(trampoline.pool(), a_value.ptr().value(),
-                     b_value.value.ptr().value());
-              if (result.IsError()) return result.error();
-              CHECK_EQ(result.value().ptr()->type, type);
-              return Success(EvaluationOutput::New(std::move(result.value())));
+              ASSIGN_OR_RETURN(gc::Root<Value> result,
+                               op(trampoline.pool(), a_value.ptr().value(),
+                                  b_value.value.ptr().value()));
+              CHECK_EQ(result.ptr()->type, type);
+              return Success(EvaluationOutput::New(std::move(result)));
             });
       });
 }

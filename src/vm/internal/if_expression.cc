@@ -7,6 +7,7 @@
 
 namespace afc::vm {
 namespace {
+using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -74,41 +75,39 @@ class IfExpression : public Expression {
 
 }  // namespace
 
-std::unique_ptr<Expression> NewIfExpression(
+ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
     Compilation* compilation, std::unique_ptr<Expression> condition,
     std::unique_ptr<Expression> true_case,
     std::unique_ptr<Expression> false_case) {
   if (condition == nullptr || true_case == nullptr || false_case == nullptr) {
-    return nullptr;
+    return Error(L"Missing input parameter");
   }
 
   if (!condition->IsBool()) {
-    compilation->AddError(
+    Error error(
         L"Expected bool value for condition of \"if\" expression but found " +
         TypesToString(condition->Types()) + L".");
-    return nullptr;
+    compilation->AddError(error.description);
+    return error;
   }
 
   if (!(true_case->Types() == false_case->Types())) {
-    compilation->AddError(
-        L"Type mismatch between branches of conditional expression: " +
-        TypesToString(true_case->Types()) + L" and " +
-        TypesToString(false_case->Types()) + L".");
-    return nullptr;
+    Error error(L"Type mismatch between branches of conditional expression: " +
+                TypesToString(true_case->Types()) + L" and " +
+                TypesToString(false_case->Types()) + L".");
+    compilation->AddError(error.description);
+    return error;
   }
 
-  auto return_types =
-      CombineReturnTypes(true_case->ReturnTypes(), false_case->ReturnTypes());
-  if (return_types.IsError()) {
-    compilation->AddError(return_types.error().description);
-    return nullptr;
-  }
+  ASSIGN_OR_RETURN(std::unordered_set<VMType> return_types,
+                   compilation->RegisterErrors(CombineReturnTypes(
+                       true_case->ReturnTypes(), false_case->ReturnTypes())));
 
-  return std::make_unique<IfExpression>(
+  return Success(MakeNonNullUnique<IfExpression>(
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(condition)),
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(true_case)),
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(false_case)),
-      std::move(return_types.value()));
+      std::move(return_types)));
 }
 
 }  // namespace afc::vm

@@ -52,6 +52,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::IfObj;
+using language::IgnoreErrors;
 using language::overload;
 using language::PossibleError;
 using language::Success;
@@ -64,12 +65,12 @@ futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, std::shared_ptr<struct stat> stat_buffer,
     std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer& target) {
   CHECK(target.disk_state() == OpenBuffer::DiskState::kCurrent);
-  auto path = Path::FromString(target.Read(buffer_variables::path));
-  if (path.IsError()) return futures::Past(PossibleError(path.error()));
-  LOG(INFO) << "GenerateContents: " << path.value();
-  return file_system_driver->Stat(path.value())
-      .Transform([&editor_state, stat_buffer, file_system_driver, &target,
-                  path](std::optional<struct stat> stat_results) {
+  FUTURES_ASSIGN_OR_RETURN(
+      Path path, Path::FromString(target.Read(buffer_variables::path)));
+  LOG(INFO) << "GenerateContents: " << path;
+  return file_system_driver->Stat(path).Transform(
+      [&editor_state, stat_buffer, file_system_driver, &target,
+       path](std::optional<struct stat> stat_results) {
         if (stat_results.has_value() &&
             target.Read(buffer_variables::clear_on_reload)) {
           target.ClearContents(BufferContents::CursorsBehavior::kUnmodified);
@@ -81,16 +82,16 @@ futures::Value<PossibleError> GenerateContents(
         *stat_buffer = stat_results.value();
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
-          return file_system_driver
-              ->Open(path.value(), O_RDONLY | O_NONBLOCK, 0)
+          return file_system_driver->Open(path, O_RDONLY | O_NONBLOCK, 0)
               .Transform([&target](FileDescriptor fd) {
                 target.SetInputFiles(fd, FileDescriptor(-1), false, -1);
                 return Success();
               });
         }
 
-        return GenerateDirectoryListing(path.value(), target)
-            .Transform([](EmptyValue) { return futures::Past(Success()); });
+        return GenerateDirectoryListing(path, target).Transform([](EmptyValue) {
+          return futures::Past(Success());
+        });
       });
 }
 
@@ -118,31 +119,23 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
   }
 }
 
-template <typename T, typename Callable, typename ErrorCallable>
-auto HandleError(ValueOrError<T> expr, ErrorCallable error_callable,
-                 Callable callable) {
-  return expr.IsError() ? error_callable(expr.error.value())
-                        : callable(expr.value.value());
-}
-
 futures::Value<PossibleError> Save(
     EditorState*, struct stat* stat_buffer,
     OpenBuffer::Options::HandleSaveOptions options) {
   auto& buffer = options.buffer;
-  auto path_or_error = Path::FromString(buffer.Read(buffer_variables::path));
-  if (path_or_error.IsError()) {
-    return futures::Past(PossibleError(
-        Error(L"Buffer can't be saved: Invalid “path” variable: " +
-              path_or_error.error().description)));
-  }
+  FUTURES_ASSIGN_OR_RETURN(
+      Path immediate_path,
+      AugmentErrors(L"Buffer can't be saved: Invalid “path” variable",
+                    Path::FromString(buffer.Read(buffer_variables::path))));
+
+  futures::ValueOrError<Path> path = futures::Past(immediate_path);
+
   if (S_ISDIR(stat_buffer->st_mode)) {
     return options.save_type == OpenBuffer::Options::SaveType::kBackup
                ? futures::Past(Success())
                : futures::Past(PossibleError(
                      Error(L"Buffer can't be saved: Buffer is a directory.")));
   }
-
-  futures::ValueOrError<Path> path = futures::Past(path_or_error);
 
   switch (options.save_type) {
     case OpenBuffer::Options::SaveType::kMainFile:
@@ -206,16 +199,14 @@ static futures::Value<bool> CanStatPath(
   VLOG(5) << "Considering path: " << path;
   futures::Future<bool> output;
   file_system_driver->Stat(path).SetConsumer(
-      [path, consumer =
-                 std::move(output.consumer)](ValueOrError<struct stat> result) {
-        if (result.IsError()) {
-          VLOG(6) << path << ": stat failed: " << result.error();
-          consumer(false);
-        } else {
-          VLOG(4) << "Stat succeeded: " << path;
-          consumer(true);
-        }
-      });
+      VisitCallback(overload{[path, consumer = output.consumer](Error error) {
+                               VLOG(6) << path << ": stat failed: " << error;
+                               consumer(false);
+                             },
+                             [path, consumer = output.consumer](struct stat) {
+                               VLOG(4) << "Stat succeeded: " << path;
+                               consumer(true);
+                             }}));
   return std::move(output.value);
 }
 
@@ -378,10 +369,14 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
     input.search_paths.push_back(Path::LocalDirectory());
   }
 
-  if (auto path = Path::FromString(input.path); !path.IsError()) {
-    input.path =
-        Path::ExpandHomeDirectory(input.home_directory, path.value()).read();
-  }
+  std::visit(
+      overload{
+          IgnoreErrors{},
+          [&](Path path) {
+            input.path =
+                Path::ExpandHomeDirectory(input.home_directory, path).read();
+          }},
+      Path::FromString(input.path).variant());
   if (!input.path.empty() && input.path[0] == L'/') {
     input.search_paths = {Path::Root()};
   }
@@ -408,7 +403,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
 
                         auto input_path = Path::FromString(
                             input.path.substr(0, state->str_end));
-                        if (input_path.IsError()) {
+                        if (IsError(input_path)) {
                           state->str_end =
                               input.path.find_last_of(':', state->str_end - 1);
                           return Past(IterationControlCommand::kContinue);
@@ -473,10 +468,11 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                                   break;
                                 }
                               }
-                              auto resolved = path_with_prefix.Resolve();
+                              ValueOrError<Path> resolved =
+                                  path_with_prefix.Resolve();
                               output.value() = ResolvePathOutput{
-                                  .path = resolved.IsError() ? path_with_prefix
-                                                             : resolved.value(),
+                                  .path = resolved.AsOptional().value_or(
+                                      path_with_prefix),
                                   .position = output_position,
                                   .pattern = output_pattern};
                               VLOG(4) << "Resolved path: "

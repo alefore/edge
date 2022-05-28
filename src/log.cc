@@ -2,6 +2,7 @@
 
 #include "src/concurrent/thread_pool.h"
 #include "src/infrastructure/time.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 
 namespace afc::editor {
@@ -12,10 +13,13 @@ using infrastructure::FileSystemDriver;
 using infrastructure::HumanReadableTime;
 using infrastructure::Now;
 using infrastructure::Path;
+using language::Error;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::overload;
 using language::Success;
 using language::ToByteString;
+using language::ValueOrError;
 
 ThreadPool& LoggingThreadPool() {
   static ThreadPool* output = new ThreadPool(1, nullptr);
@@ -61,12 +65,15 @@ class FileLog : public Log {
  private:
   static void Write(NonNull<std::shared_ptr<FileLogData>> data, int id,
                     std::wstring statement) {
-    auto time = HumanReadableTime(Now());
+    ValueOrError<std::wstring> time = HumanReadableTime(Now());
     LoggingThreadPool().RunIgnoringResult(
         [data = std::move(data),
          statement = ToByteString(
-             (time.IsError() ? L"[error:" + time.error().description + L"]"
-                             : time.value()) +
+             std::visit(overload{[](Error error) {
+                                   return L"[error:" + error.description + L"]";
+                                 },
+                                 [](std::wstring value) { return value; }},
+                        time.variant()) +
              L" " + std::to_wstring(id) + L": " + statement + L"\n")] {
           return write(data->fd.read(), statement.c_str(), statement.size());
         });

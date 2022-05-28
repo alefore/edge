@@ -3,11 +3,13 @@
 #include "src/language/wstring.h"
 
 namespace afc::infrastructure {
+using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
+using language::ValueOrError;
 
 namespace {
 PossibleError SyscallReturnValue(std::wstring description, int return_value) {
@@ -23,12 +25,15 @@ FileSystemDriver::FileSystemDriver(concurrent::ThreadPool& thread_pool)
 
 futures::ValueOrError<FileDescriptor> FileSystemDriver::Open(
     Path path, int flags, mode_t mode) const {
-  return thread_pool_.Run([path = std::move(path), flags, mode]() {
-    LOG(INFO) << "Opening file:" << path;
-    int fd = open(ToByteString(path.read()).c_str(), flags, mode);
-    PossibleError output = SyscallReturnValue(L"Open: " + path.read(), fd);
-    return output.IsError() ? output.error() : Success(FileDescriptor(fd));
-  });
+  return thread_pool_.Run(
+      [path = std::move(path), flags, mode]() -> ValueOrError<FileDescriptor> {
+        LOG(INFO) << "Opening file:" << path;
+        int fd = open(ToByteString(path.read()).c_str(), flags, mode);
+        ASSIGN_OR_RETURN(EmptyValue value,
+                         SyscallReturnValue(L"Open: " + path.read(), fd));
+        (void)value;
+        return Success(FileDescriptor(fd));
+      });
 }
 
 futures::Value<PossibleError> FileSystemDriver::Close(FileDescriptor fd) const {

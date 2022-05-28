@@ -24,6 +24,7 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/infrastructure/command_line.h"
 #include "src/infrastructure/time.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
 #include "src/run_command_handler.h"
@@ -45,7 +46,9 @@ using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::Tracker;
 using afc::language::FromByteString;
+using afc::language::IgnoreErrors;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
@@ -198,22 +201,19 @@ Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
     // will run.
     Daemonize(surviving_fds);
   }
-  auto server_address = StartServer(editor_state(), args.server_path);
-  if (server_address.IsError()) {
-    LOG(FATAL) << args.binary_name
-               << ": Unable to start server: " << server_address.error();
-  }
+  Path server_address =
+      ValueOrDie(StartServer(editor_state(), args.server_path),
+                 args.binary_name + L"Unable to start server");
   if (args.server) {
     if (!connected_to_parent) {
       std::cout << args.binary_name
-                << ": Server starting at: " << server_address.value()
-                << std::endl;
+                << ": Server starting at: " << server_address << std::endl;
     }
     for (FileDescriptor fd : surviving_fds) {
       close(fd.read());
     }
   }
-  return server_address.value();
+  return server_address;
 }
 
 std::wstring GetGreetingMessage() {
@@ -332,20 +332,17 @@ int main(int argc, const char** argv) {
   int remote_server_fd = -1;
   bool connected_to_parent = false;
   if (args.client.has_value()) {
-    auto output = MaybeConnectToServer(args.client.value());
-    if (output.IsError()) {
-      cerr << args.binary_name << ": Unable to connect to remote server: "
-           << output.error().description << std::endl;
-      exit(1);
-    }
-    remote_server_fd = output.value();
+    remote_server_fd =
+        ValueOrDie(MaybeConnectToServer(args.client.value()),
+                   args.binary_name + L": Unable to connect to remote server");
   } else {
-    auto output = MaybeConnectToParentServer();
-    if (!output.IsError()) {
-      remote_server_fd = output.value();
-      args.server = true;
-      connected_to_parent = true;
-    }
+    std::visit(overload{IgnoreErrors{},
+                        [&](int fd) {
+                          remote_server_fd = fd;
+                          args.server = true;
+                          connected_to_parent = true;
+                        }},
+               MaybeConnectToParentServer().variant());
   }
 
   std::shared_ptr<Screen> screen_curses;

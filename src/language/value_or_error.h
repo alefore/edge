@@ -8,6 +8,7 @@
 #include <variant>
 
 #include "src/language/overload.h"
+#include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 
 namespace afc::language {
@@ -43,7 +44,8 @@ class ValueOrError {
                    : std::variant<T, Error>(std::move(other.value()))) {}
 
   std::optional<T> AsOptional() const {
-    return IsError() ? std::optional<T>() : value();
+    return std::holds_alternative<Error>(value_) ? std::optional<T>()
+                                                 : std::optional<T>(value());
   }
 
   bool IsError() const { return std::holds_alternative<Error>(value_); }
@@ -163,6 +165,16 @@ auto VisitCallback(Overload overload) {
   return [overload](auto value) {
     return std::visit(overload, std::move(value.variant()));
   };
+}
+
+template <typename T>
+std::unique_ptr<T> ToUniquePtr(
+    ValueOrError<NonNull<std::unique_ptr<T>>> value) {
+  return std::visit(overload{[](Error) { return std::unique_ptr<T>(); },
+                             [](NonNull<std::unique_ptr<T>> value) {
+                               return std::move(value.get_unique());
+                             }},
+                    std::move(value.variant()));
 }
 
 }  // namespace afc::language
