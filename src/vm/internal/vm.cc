@@ -568,13 +568,7 @@ std::unique_ptr<void, std::function<void(void*)>> GetParser(
 ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
     Compilation compilation) {
   if (!compilation.errors().empty()) {
-    std::wstring error_description;
-    wstring separator = L"";
-    for (auto& error : compilation.errors()) {
-      error_description += separator + error;
-      separator = L"\n  ";
-    }
-    return Error(error_description);
+    return MergeErrors(compilation.errors(), L", ");
   }
   return VisitPointer(std::move(compilation.expr),
                       &language::Success<NonNull<std::unique_ptr<Expression>>>,

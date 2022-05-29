@@ -34,8 +34,8 @@ struct Compilation {
     return value;
   }
 
-  const std::vector<std::wstring>& errors() const;
-  std::vector<std::wstring>& errors();
+  const std::vector<language::Error>& errors() const;
+  std::vector<language::Error>& errors();
 
   language::gc::Pool& pool;
 
@@ -60,10 +60,9 @@ struct Compilation {
 
  private:
   // Stack of files from which we're reading, used for error reports.
-  // TODO(easy, 2022-05-29): Turn this into Error
   std::vector<Source> source_;
 
-  std::vector<std::wstring> errors_ = {};
+  std::vector<language::Error> errors_ = {};
 };
 
 }  // namespace afc::vm

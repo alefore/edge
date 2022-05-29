@@ -24,11 +24,11 @@ void Compilation::AddError(Error error) {
       prefix += L"Include from " + location + L": ";
   }
 
-  errors_.push_back(AugmentError(prefix, std::move(error)).read());
+  errors_.push_back(AugmentError(prefix, std::move(error)));
 }
 
-const std::vector<std::wstring>& Compilation::errors() const { return errors_; }
-std::vector<std::wstring>& Compilation::errors() { return errors_; }
+const std::vector<Error>& Compilation::errors() const { return errors_; }
+std::vector<Error>& Compilation::errors() { return errors_; }
 
 void Compilation::PushSource(std::optional<infrastructure::Path> path) {
   source_.push_back(Source{.path = path});
