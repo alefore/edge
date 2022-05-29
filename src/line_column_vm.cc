@@ -116,6 +116,44 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
   environment.DefineType(std::move(line_column));
 }
 
+void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
+  auto line_column_delta =
+      MakeNonNullUnique<ObjectType>(VMTypeMapper<LineColumnDelta>::vmtype);
+
+  // Methods for LineColumn.
+  environment.Define(L"LineColumnDelta",
+                     NewCallback(pool, PurityType::kPure,
+                                 [](int line_number, int column_number) {
+                                   return LineColumnDelta(
+                                       LineNumberDelta(line_number),
+                                       ColumnNumberDelta(column_number));
+                                 }));
+
+  line_column_delta->AddField(
+      L"line",
+      NewCallback(pool, PurityType::kPure,
+                  [](LineColumnDelta line_column_delta) {
+                    return static_cast<int>(line_column_delta.line.line_delta);
+                  }));
+
+  line_column_delta->AddField(
+      L"column",
+      NewCallback(
+          pool, PurityType::kPure, [](LineColumnDelta line_column_delta) {
+            return static_cast<int>(line_column_delta.column.column_delta);
+          }));
+
+  line_column_delta->AddField(
+      L"tostring",
+      NewCallback(
+          pool, PurityType::kPure, [](LineColumnDelta line_column_delta) {
+            return std::to_wstring(line_column_delta.line.line_delta) + L", " +
+                   std::to_wstring(line_column_delta.column.column_delta);
+          }));
+
+  environment.DefineType(std::move(line_column_delta));
+}
+
 void RangeRegister(gc::Pool& pool, Environment& environment) {
   auto range = MakeNonNullUnique<ObjectType>(VMTypeMapper<Range>::vmtype);
 

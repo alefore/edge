@@ -468,6 +468,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   Modifiers::Register(pool, value);
   ForkCommandOptions::Register(pool, value);
   LineColumnRegister(pool, value);
+  LineColumnDeltaRegister(pool, value);
   RangeRegister(pool, value);
   return environment;
 }
