@@ -72,7 +72,7 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 }
 }  // namespace
 
-ValueOrError<FileDescriptor> ConnectToParentServer() {
+ValueOrError<FileDescriptor> SyncConnectToParentServer() {
   static const std::string variable = "EDGE_PARENT_ADDRESS";
   if (char* server_address = getenv(variable.c_str());
       server_address != nullptr) {
@@ -81,14 +81,14 @@ ValueOrError<FileDescriptor> ConnectToParentServer() {
         AugmentErrors(
             L"Value from environment variable " + FromByteString(variable),
             Path::FromString(FromByteString(server_address))));
-    return ConnectToServer(path);
+    return SyncConnectToServer(path);
   }
   return Error(
       L"Unable to find remote address (through environment variable "
       L"EDGE_PARENT_ADDRESS).");
 }
 
-ValueOrError<FileDescriptor> ConnectToServer(const Path& path) {
+ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   LOG(INFO) << "Connecting to server: " << path.read();
   int fd = open(ToByteString(path.read()).c_str(), O_WRONLY);
   if (fd == -1) {
@@ -111,7 +111,6 @@ ValueOrError<FileDescriptor> ConnectToServer(const Path& path) {
   close(fd);
 
   LOG(INFO) << "Opening private fifo: " << private_fifo.read();
-  // TODO(async, 2022-05-29): Use FileSystemDriver and do this asynchronously?
   int private_fd = open(ToByteString(private_fifo.read()).c_str(), O_RDWR);
   LOG(INFO) << "Connection fd: " << private_fd;
   if (private_fd == -1) {

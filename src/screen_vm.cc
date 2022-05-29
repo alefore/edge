@@ -121,7 +121,10 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
             CHECK_EQ(args.size(), 1u);
             FUTURES_ASSIGN_OR_RETURN(
                 Path path, Path::FromString(args[0].ptr()->get_string()));
-            FUTURES_ASSIGN_OR_RETURN(FileDescriptor fd, ConnectToServer(path));
+            // TODO(2022-05-29, medium): Consider doing this in a background
+            // thread?
+            FUTURES_ASSIGN_OR_RETURN(FileDescriptor fd,
+                                     SyncConnectToServer(path));
             return futures::Past(EvaluationOutput::Return(Value::NewObject(
                 pool,
                 vm::VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::

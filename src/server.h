@@ -15,9 +15,11 @@ namespace afc::editor {
 void Daemonize(
     const std::unordered_set<infrastructure::FileDescriptor>& surviving_fd);
 
-language::ValueOrError<infrastructure::FileDescriptor> ConnectToServer(
+// These methods block. You may want to call them in a background thread.
+language::ValueOrError<infrastructure::FileDescriptor> SyncConnectToServer(
     const infrastructure::Path& address);
-language::ValueOrError<infrastructure::FileDescriptor> ConnectToParentServer();
+language::ValueOrError<infrastructure::FileDescriptor>
+SyncConnectToParentServer();
 
 class EditorState;
 class OpenBuffer;

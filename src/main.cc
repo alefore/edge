@@ -340,7 +340,7 @@ int main(int argc, const char** argv) {
   const std::optional<FileDescriptor> remote_server_fd =
       args.client.has_value()
           ? ValueOrDie(
-                ConnectToServer(args.client.value()),
+                SyncConnectToServer(args.client.value()),
                 args.binary_name + L": Unable to connect to remote server")
           : std::visit(
                 overload{[](Error) { return std::optional<FileDescriptor>(); },
@@ -349,7 +349,7 @@ int main(int argc, const char** argv) {
                            connected_to_parent = true;
                            return std::optional<FileDescriptor>(fd);
                          }},
-                ConnectToParentServer());
+                SyncConnectToParentServer());
 
   std::shared_ptr<Screen> screen_curses;
   if (!args.server) {
@@ -387,8 +387,8 @@ int main(int argc, const char** argv) {
         remote_server_fd.has_value()
             ? remote_server_fd.value()
             : ValueOrDie(args.server && args.server_path.has_value()
-                             ? ConnectToServer(args.server_path.value())
-                             : ConnectToParentServer());
+                             ? SyncConnectToServer(args.server_path.value())
+                             : SyncConnectToParentServer());
     CHECK_NE(self_fd, FileDescriptor(-1));
     SendCommandsToParent(self_fd, ToByteString(commands_to_run));
   }
