@@ -255,7 +255,6 @@ class InsertMode : public EditorMode {
         return;
 
       case Terminal::CTRL_E:
-        line_buffer_.push_back(5);
         ApplyScrollBehavior({5}, &ScrollBehavior::End);
         return;
 
@@ -563,11 +562,6 @@ class InsertMode : public EditorMode {
   std::optional<
       futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>>
       scroll_behavior_;
-
-  // For input to buffers that have a file descriptor, buffer the characters
-  // here. This gets flushed upon certain presses, such as ESCAPE or new line.
-  // TODO(easy, 2022-05-26): Looks like nothing is using this?
-  std::string line_buffer_;
 
   // If nullptr, next key should be interpreted directly. If non-null, next key
   // should be inserted literally.
