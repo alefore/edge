@@ -220,8 +220,7 @@ std::unique_ptr<Expression> NewFunctionCall(
   }
 
   CHECK(!errors.empty());
-  // TODO(easy, 2022-05-29): Rather than just returning the first, return all?
-  compilation->AddError(errors[0]);
+  compilation->AddError(MergeErrors(errors, L", "));
   return nullptr;
 }
 
