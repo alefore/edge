@@ -114,7 +114,7 @@ class FunctionCall : public Expression {
               CHECK(callback.value.ptr()->type.type == VMType::Type::kFunction);
               futures::Future<ValueOrError<EvaluationOutput>> output;
               CaptureArgs(trampoline, std::move(output.consumer), args_types,
-                          std::make_shared<std::vector<gc::Root<Value>>>(),
+                          MakeNonNullShared<std::vector<gc::Root<Value>>>(),
                           callback.value.ptr()->LockCallback());
               return std::move(output.value);
             });
@@ -125,22 +125,19 @@ class FunctionCall : public Expression {
   }
 
  private:
-  // TODO(easy, 2022-05-28): Use NonNull for `values`.
   static void CaptureArgs(
       Trampoline& trampoline,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer,
       NonNull<
           std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
           args_types,
-      std::shared_ptr<std::vector<gc::Root<Value>>> values,
+      NonNull<std::shared_ptr<std::vector<gc::Root<Value>>>> values,
       Value::Callback callback) {
-    CHECK(values != nullptr);
-
     DVLOG(5) << "Evaluating function parameters, args: " << values->size()
              << " of " << args_types->size();
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
-      callback(std::move(*values), trampoline)
+      callback(std::move(values.value()), trampoline)
           .SetConsumer([consumer,
                         callback](ValueOrError<EvaluationOutput> return_value) {
             std::visit(
@@ -164,7 +161,6 @@ class FunctionCall : public Expression {
             overload{[consumer](Error error) { consumer(std::move(error)); },
                      [&trampoline, consumer, args_types, values,
                       callback](EvaluationOutput value) {
-                       CHECK(values != nullptr);
                        switch (value.type) {
                          case EvaluationOutput::OutputType::kReturn:
                            return consumer(std::move(value));
