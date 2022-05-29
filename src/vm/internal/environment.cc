@@ -177,7 +177,7 @@ std::optional<gc::Root<Value>> Environment::Lookup(
   return std::nullopt;
 }
 
-void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
+void Environment::PolyLookup(const Namespace& symbol_namespace,
                              const wstring& symbol,
                              std::vector<gc::Root<Value>>* output) {
   Environment* environment = this;
@@ -204,9 +204,9 @@ void Environment::PolyLookup(const Environment::Namespace& symbol_namespace,
   }
 }
 
-void Environment::CaseInsensitiveLookup(
-    const Environment::Namespace& symbol_namespace, const wstring& symbol,
-    std::vector<gc::Root<Value>>* output) {
+void Environment::CaseInsensitiveLookup(const Namespace& symbol_namespace,
+                                        const wstring& symbol,
+                                        std::vector<gc::Root<Value>>* output) {
   Environment* environment = this;
   for (auto& n : symbol_namespace) {
     auto it = environment->namespaces_.find(n);

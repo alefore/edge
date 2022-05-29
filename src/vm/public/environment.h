@@ -21,9 +21,6 @@ GHOST_TYPE_CONTAINER(Namespace, std::vector<std::wstring>)
 
 class Environment {
  public:
-  // TODO(easy, 2022-05-28): Remove this alias.
-  using Namespace = vm::Namespace;
-
   Environment();
   explicit Environment(
       std::optional<language::gc::Ptr<Environment>> parent_environment);

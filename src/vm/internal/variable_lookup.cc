@@ -21,7 +21,7 @@ namespace gc = language::gc;
 
 class VariableLookup : public Expression {
  public:
-  VariableLookup(Environment::Namespace symbol_namespace, std::wstring symbol,
+  VariableLookup(Namespace symbol_namespace, std::wstring symbol,
                  std::vector<VMType> types)
       : symbol_namespace_(std::move(symbol_namespace)),
         symbol_(std::move(symbol)),
@@ -54,7 +54,7 @@ class VariableLookup : public Expression {
   }
 
  private:
-  const Environment::Namespace symbol_namespace_;
+  const Namespace symbol_namespace_;
   const std::wstring symbol_;
   const std::vector<VMType> types_;
 };
@@ -69,7 +69,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
 
   auto symbol = std::move(symbols.back());
   symbols.pop_back();
-  Environment::Namespace symbol_namespace(
+  Namespace symbol_namespace(
       std::vector<std::wstring>(symbols.begin(), symbols.end()));
 
   // We don't need to switch namespaces (i.e., we can use

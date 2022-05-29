@@ -54,7 +54,7 @@ class NamespaceExpression : public Expression {
   }
 
  private:
-  const Environment::Namespace namespace_;
+  const Namespace namespace_;
   const NonNull<std::shared_ptr<Expression>> body_;
 };
 
