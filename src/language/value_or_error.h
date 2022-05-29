@@ -18,6 +18,10 @@ GHOST_TYPE(Error, std::wstring);
 // Example: AugmentError(L"🖫 Save failed", error)
 Error AugmentError(std::wstring prefix, Error error);
 
+// Precondition: `errors` must be non-empty.
+Error MergeErrors(const std::vector<Error>& errors,
+                  const std::wstring& separator);
+
 template <typename T>
 using ValueOrError = std::variant<T, Error>;
 

@@ -9,6 +9,19 @@ Error AugmentError(std::wstring prefix, Error error) {
   return Error(prefix + L": " + error.read());
 }
 
+// Precondition: `errors` must be non-empty.
+Error MergeErrors(const std::vector<Error>& errors,
+                  const std::wstring& separator) {
+  CHECK(!errors.empty());
+  std::wstring error_description;
+  std::wstring current_separator = L"";
+  for (const Error& error : errors) {
+    error_description += current_separator + error.read();
+    current_separator = separator;
+  }
+  return Error(std::move(error_description));
+}
+
 ValueOrError<EmptyValue> Success() {
   return ValueOrError<EmptyValue>(EmptyValue());
 }
