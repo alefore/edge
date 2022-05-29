@@ -15,48 +15,42 @@
 
 namespace afc::vm {
 namespace {
+using language::EmptyValue;
 using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::overload;
+using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
 using language::VisitPointer;
 
 namespace gc = language::gc;
 
-bool TypeMatchesArguments(
+PossibleError CheckFunctionArguments(
     const VMType& type,
-    const std::vector<NonNull<std::unique_ptr<Expression>>>& args,
-    wstring* error) {
-  wstring dummy_error;
-  if (error == nullptr) {
-    error = &dummy_error;
-  }
-
+    const std::vector<NonNull<std::unique_ptr<Expression>>>& args) {
   if (type.type != VMType::Type::kFunction) {
-    *error = L"Expected function but found: `" + type.ToString() + L"`.";
-    return false;
+    return Error(L"Expected function but found: `" + type.ToString() + L"`.");
   }
 
   if (type.type_arguments.size() != args.size() + 1) {
-    *error = L"Invalid number of arguments: Expected " +
-             std::to_wstring(type.type_arguments.size() - 1) + L" but found " +
-             std::to_wstring(args.size());
-    return false;
+    return Error(L"Invalid number of arguments: Expected " +
+                 std::to_wstring(type.type_arguments.size() - 1) +
+                 L" but found " + std::to_wstring(args.size()));
   }
 
   for (size_t argument = 0; argument < args.size(); argument++) {
     if (!args[argument]->SupportsType(type.type_arguments[1 + argument])) {
-      *error = L"Type mismatch in argument " + std::to_wstring(argument) +
-               L": Expected `" + type.type_arguments[1 + argument].ToString() +
-               L"` but found " + TypesToString(args[argument]->Types());
-      return false;
+      return Error(L"Type mismatch in argument " + std::to_wstring(argument) +
+                   L": Expected `" +
+                   type.type_arguments[1 + argument].ToString() +
+                   L"` but found " + TypesToString(args[argument]->Types()));
     }
   }
 
-  return true;
+  return Success();
 }
 
 std::vector<VMType> DeduceTypes(
@@ -64,7 +58,8 @@ std::vector<VMType> DeduceTypes(
     const std::vector<NonNull<std::unique_ptr<Expression>>>& args) {
   std::unordered_set<VMType> output;
   for (auto& type : func.Types()) {
-    if (TypeMatchesArguments(type, args, nullptr)) {
+    if (std::holds_alternative<EmptyValue>(
+            CheckFunctionArguments(type, args))) {
       output.insert(type.type_arguments[0]);
     }
   }
@@ -210,13 +205,12 @@ std::unique_ptr<Expression> NewFunctionCall(
     std::vector<NonNull<std::unique_ptr<Expression>>> args) {
   std::vector<Error> errors;
   for (auto& type : func->Types()) {
-    std::wstring error;
-    // TODO(easy, 2022-05-29): Use ValueOrError?
-    if (TypeMatchesArguments(type, args, &error)) {
+    PossibleError check_results = CheckFunctionArguments(type, args);
+    if (Error* error = std::get_if<Error>(&check_results); error != nullptr)
+      errors.push_back(*error);
+    else
       return std::move(
           NewFunctionCall(std::move(func), std::move(args)).get_unique());
-    }
-    errors.push_back(Error(error));
   }
 
   CHECK(!errors.empty());
