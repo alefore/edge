@@ -134,11 +134,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
         });
   }
 
-  // TODO(2022-05-29, easy): Find a way to support this.
-  // TypesToString(a->Types())?
-  compilation->AddError(Error(L"Unable to add types" /*: \"" +
-                                a->type().ToString() + L"\" + \"" +
-                                b->type().ToString() + L"\""*/));
+  compilation->AddError(Error(L"Unable to add types: " +
+                              TypesToString(a->Types()) + L" + " +
+                              TypesToString(b->Types())));
   return nullptr;
 }
 
