@@ -358,9 +358,8 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
   filter_buffer.Set(buffer_variables::line_width, 1);
 
   struct Output {
-    // TODO(easy, 2022-05-29): Why is this deque? Turn into vector?
     // TODO(easy, 2022-05-29): Change std::wstring to Error.
-    std::deque<std::wstring> errors;
+    std::vector<std::wstring> errors;
     std::deque<NonNull<std::shared_ptr<Line>>> lines;
   };
 
