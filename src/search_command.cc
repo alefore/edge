@@ -7,6 +7,7 @@
 #include "src/language/overload.h"
 #include "src/line_prompt_mode.h"
 #include "src/search_handler.h"
+#include "src/tests/tests.h"
 #include "src/transformation.h"
 
 namespace afc::editor {
@@ -23,9 +24,10 @@ using language::overload;
 using language::Success;
 using language::ValueOrError;
 
+using ::operator<<;
+
 namespace gc = language::gc;
 
-// TODO(easy, 2022-05-29): Add a few tests for this function.
 static void MergeInto(SearchResultsSummary current_results,
                       ValueOrError<SearchResultsSummary>& final_results) {
   std::visit(
@@ -43,6 +45,45 @@ static void MergeInto(SearchResultsSummary current_results,
                }},
       final_results);
 }
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& a) {
+  std::visit(overload{[&](const Error& error) { os << error; },
+                      [&](const T& t) { os << t; }},
+             a);
+  return os;
+}
+
+const bool merge_into_tests_registration =
+    tests::Register(L"SearchResultsSummary::MergeInto", [] {
+      using S = SearchResultsSummary;
+      auto test = [](std::wstring name, S current_results,
+                     ValueOrError<S> input, ValueOrError<S> expected_output) {
+        return tests::Test({.name = name, .callback = [=] {
+                              ValueOrError<S> input_copy = input;
+                              MergeInto(current_results, input_copy);
+                              CHECK_EQ(input_copy, expected_output);
+                            }});
+      };
+      const auto kInterrupted = S::SearchCompletion::kInterrupted;
+      return std::vector(
+          {test(L"BothEmpty", S{}, S{}, S{}),
+           test(L"AddMatches", S{.matches = 5}, S{.matches = 7},
+                S{.matches = 12}),
+           test(L"CanHandleErrors", S{.matches = 12}, Error(L"Foo"),
+                Error(L"Foo")),
+           test(L"CurrentInterrupted",
+                S{.matches = 5, .search_completion = kInterrupted},
+                S{.matches = 7},
+                S{.matches = 12, .search_completion = kInterrupted}),
+           test(L"FinalInterrupted", S{.matches = 3},
+                S{.matches = 5, .search_completion = kInterrupted},
+                S{.matches = 8, .search_completion = kInterrupted}),
+           test(L"BothInterrupted",
+                S{.matches = 389, .search_completion = kInterrupted},
+                S{.matches = 500, .search_completion = kInterrupted},
+                S{.matches = 889, .search_completion = kInterrupted})});
+    }());
 
 static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
   ValueOrError<std::vector<LineColumn>> output =
