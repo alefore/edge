@@ -20,10 +20,6 @@ using language::ToByteString;
 using language::ValueOrDie;
 using language::ValueOrError;
 
-// TODO(easy, 2022-05-28): Get rid of these declarations.
-using std::list;
-using std::wstring;
-
 ValueOrError<PathComponent> PathComponent::FromString(std::wstring component) {
   if (component.empty()) {
     return Error(L"Component can't be empty.");
@@ -441,7 +437,7 @@ std::ostream& operator<<(std::ostream& os, const Path& p) {
   return os;
 }
 
-wstring PathJoin(const wstring& a, const wstring& b) {
+std::wstring PathJoin(const std::wstring& a, const std::wstring& b) {
   if (a.empty()) {
     return b;
   }
