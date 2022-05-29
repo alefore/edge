@@ -68,6 +68,9 @@ struct SearchResultsSummary {
   SearchCompletion search_completion = SearchCompletion::kFull;
 };
 
+std::ostream& operator<<(std::ostream& os, const SearchResultsSummary& a);
+bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b);
+
 // Return a callback that is safe to run in a background thread to count the
 // number of matches, feeding information to a `ProgressChannel`.
 //

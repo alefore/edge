@@ -104,6 +104,24 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
 
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os, const SearchResultsSummary& a) {
+  os << "[search results summary: matches:" << a.matches << ", completion:";
+  switch (a.search_completion) {
+    case SearchResultsSummary::SearchCompletion::kInterrupted:
+      os << "interrupted";
+      break;
+    case SearchResultsSummary::SearchCompletion::kFull:
+      os << "full";
+      break;
+  }
+  os << "]";
+  return os;
+}
+
+bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
+  return a.matches == b.matches && a.search_completion == b.search_completion;
+}
+
 std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
     SearchOptions search_options, const BufferContents& contents,
     ProgressChannel& progress_channel) {
