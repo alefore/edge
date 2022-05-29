@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "src/char_buffer.h"
+#include "src/infrastructure/file_system_driver.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/line_column_vm.h"
@@ -15,6 +16,7 @@
 #include "src/vm/public/value.h"
 
 namespace afc {
+using infrastructure::FileDescriptor;
 using language::NonNull;
 
 namespace gc = language::gc;
@@ -38,8 +40,7 @@ using vm::VMType;
 namespace {
 class ScreenVm : public Screen {
  public:
-  // TODO(easy, 2022-05-29): Receive a FileDescriptor type.
-  ScreenVm(int fd) : fd_(fd) {}
+  ScreenVm(FileDescriptor fd) : fd_(fd) {}
 
   ~ScreenVm() override {
     LOG(INFO) << "Sending terminate command to remote screen: fd: " << fd_;
@@ -88,7 +89,7 @@ class ScreenVm : public Screen {
   void Write() {
     buffer_ += "\n";
     LOG(INFO) << "Sending command: " << buffer_;
-    int result = write(fd_, buffer_.c_str(), buffer_.size());
+    int result = write(fd_.read(), buffer_.c_str(), buffer_.size());
     if (result != static_cast<int>(buffer_.size())) {
       LOG(INFO) << "Remote screen update failed!";
     }
@@ -96,7 +97,7 @@ class ScreenVm : public Screen {
   }
 
   std::string buffer_;
-  const int fd_;
+  const FileDescriptor fd_;
   LineColumnDelta size_ =
       LineColumnDelta(LineNumberDelta(25), ColumnNumberDelta(80));
 };
@@ -125,7 +126,7 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
                 pool,
                 vm::VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::
                     vmtype.object_type,
-                MakeNonNullShared<ScreenVm>(fd.read()))));
+                MakeNonNullShared<ScreenVm>(fd))));
           }));
 
   // Methods for Screen.
@@ -209,7 +210,7 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
   environment.DefineType(std::move(screen_type));
 }
 
-std::unique_ptr<Screen> NewScreenVm(int fd) {
+std::unique_ptr<Screen> NewScreenVm(FileDescriptor fd) {
   return std::make_unique<ScreenVm>(fd);
 }
 
