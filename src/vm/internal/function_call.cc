@@ -351,8 +351,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         }
 
         CHECK(!errors.empty());
-        // TODO(easy, 2022-05-29): Don't return just the first? Return all?
-        compilation->AddError(errors[0]);
+        compilation->AddError(MergeErrors(errors, L", "));
         return nullptr;
       },
       [] { return nullptr; });
