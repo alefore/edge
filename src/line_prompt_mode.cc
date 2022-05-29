@@ -358,8 +358,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
   filter_buffer.Set(buffer_variables::line_width, 1);
 
   struct Output {
-    // TODO(easy, 2022-05-29): Change std::wstring to Error.
-    std::vector<std::wstring> errors;
+    std::vector<Error> errors;
     std::deque<NonNull<std::shared_ptr<Line>>> lines;
   };
 
@@ -383,10 +382,12 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
           std::vector<Token> filter_tokens =
               TokenizeBySpaces(NewLazyString(filter).value());
           history_contents->EveryLine([&](LineNumber, const Line& line) {
-            auto warn_if = [&](bool condition, std::wstring description) {
+            auto warn_if = [&](bool condition, Error error) {
               if (condition) {
-                output.errors.push_back(description + L": " +
-                                        line.contents()->ToString());
+                // We don't use AugmentError because we'd rather append to the
+                // end of the description, not the beginning.
+                output.errors.push_back(
+                    Error(error.read() + L": " + line.contents()->ToString()));
               }
               return condition;
             };
@@ -396,16 +397,15 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
                 line_keys_or_error = ParseHistoryLine(line.contents());
             auto* line_keys = std::get_if<0>(&line_keys_or_error);
             if (line_keys == nullptr) {
-              output.errors.push_back(
-                  std::get<Error>(line_keys_or_error).read());
+              output.errors.push_back(std::get<Error>(line_keys_or_error));
               return !abort_notification->HasBeenNotified();
             }
             auto range = line_keys->equal_range(L"prompt");
             int prompt_count = std::distance(range.first, range.second);
             if (warn_if(prompt_count == 0,
-                        L"Line is missing `prompt` section") ||
+                        Error(L"Line is missing `prompt` section")) ||
                 warn_if(prompt_count != 1,
-                        L"Line has multiple `prompt` sections")) {
+                        Error(L"Line has multiple `prompt` sections"))) {
               return !abort_notification->HasBeenNotified();
             }
 
@@ -483,7 +483,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
         OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
         if (!output.errors.empty()) {
           editor_state.status().SetExpiringInformationText(
-              output.errors.front());
+              output.errors.front().read());
         }
         if (!abort_notification->HasBeenNotified()) {
           for (auto& line : output.lines) {
