@@ -176,6 +176,8 @@ const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"int Foo(int x) { return x * 5 + 1; }; Foo(Foo(10));"),
       callback(L"for (int i = 0; i < 5; i++) i;"),
       callback(L"sleep(0.001);"),
+      // TODO(medium, 2022-05-29): Figure out why the following test fails.
+      // callback(L"int foo = 5; double foo = 6; foo + 0.0;"),
       callback(L"{"
                L"auto foo = [](int x) -> int { return x * 5; };"
                L"foo(3) * 2;"
