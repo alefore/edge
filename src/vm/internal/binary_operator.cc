@@ -8,6 +8,7 @@
 
 namespace afc {
 namespace vm {
+using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::PossibleError;
@@ -133,10 +134,11 @@ std::unique_ptr<Expression> NewBinaryExpression(
         });
   }
 
-  // TODO: Find a way to support this.
-  compilation->AddError(L"Unable to add types" /*: \"" +
+  // TODO(2022-05-29, easy): Find a way to support this.
+  // TypesToString(a->Types())?
+  compilation->AddError(Error(L"Unable to add types" /*: \"" +
                                 a->type().ToString() + L"\" + \"" +
-                                b->type().ToString() + L"\""*/);
+                                b->type().ToString() + L"\""*/));
   return nullptr;
 }
 

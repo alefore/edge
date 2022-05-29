@@ -8,8 +8,6 @@ namespace gc = language::gc;
 Compilation::Compilation(gc::Pool& pool, gc::Root<Environment> environment)
     : pool(pool), environment(std::move(environment)) {}
 
-void Compilation::AddError(std::wstring error) { AddError(Error(error)); }
-
 void Compilation::AddError(Error error) {
   // TODO: Enable this logging statement.
   // LOG(INFO) << "Compilation error: " << error;

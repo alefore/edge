@@ -76,7 +76,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   // that we'll be in the right environment.
   compilation->environment.ptr()->PolyLookup(symbol_namespace, symbol, &result);
   if (result.empty()) {
-    compilation->AddError(L"Variable not found: `" + symbol + L"`");
+    compilation->AddError(Error(L"Unknown variable: `" + symbol + L"`"));
     return nullptr;
   }
   std::vector<VMType> types;

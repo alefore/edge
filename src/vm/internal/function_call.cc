@@ -208,19 +208,19 @@ NonNull<std::unique_ptr<Expression>> NewFunctionCall(
 std::unique_ptr<Expression> NewFunctionCall(
     Compilation* compilation, NonNull<std::unique_ptr<Expression>> func,
     std::vector<NonNull<std::unique_ptr<Expression>>> args) {
-  std::vector<wstring> errors;
-  wstring errors_separator;
+  std::vector<Error> errors;
   for (auto& type : func->Types()) {
-    wstring error;
+    std::wstring error;
+    // TODO(easy, 2022-05-29): Use ValueOrError?
     if (TypeMatchesArguments(type, args, &error)) {
       return std::move(
           NewFunctionCall(std::move(func), std::move(args)).get_unique());
     }
-    errors.push_back(errors_separator + error);
-    errors_separator = L", ";
+    errors.push_back(Error(error));
   }
 
   CHECK(!errors.empty());
+  // TODO(easy, 2022-05-29): Rather than just returning the first, return all?
   compilation->AddError(errors[0]);
   return nullptr;
 }
@@ -233,7 +233,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       [&compilation, &method_name](NonNull<std::unique_ptr<Expression>> object)
           -> std::unique_ptr<Expression> {
         // TODO: Support polymorphism.
-        std::vector<wstring> errors;
+        std::vector<Error> errors;
         for (const auto& type : object->Types()) {
           std::optional<VMTypeObjectTypeName> object_type_name;
           switch (type.type) {
@@ -253,8 +253,9 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
               object_type_name = type.object_type;
               break;
             default:
-              errors.push_back(L"Unable to find methods on primitive type: \"" +
-                               type.ToString() + L"\"");
+              errors.push_back(
+                  Error(L"Unable to find methods on primitive type: \"" +
+                        type.ToString() + L"\""));
               continue;
           }
 
@@ -263,14 +264,16 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                   *object_type_name);
 
           if (object_type == nullptr) {
-            errors.push_back(L"Unknown type: \"" + type.ToString() + L"\"");
+            errors.push_back(
+                Error(L"Unknown type: \"" + type.ToString() + L"\""));
             continue;
           }
 
           auto field = object_type->LookupField(method_name);
           if (field == nullptr) {
-            errors.push_back(L"Unknown method: \"" + object_type->ToString() +
-                             L"::" + method_name + L"\"");
+            errors.push_back(Error(L"Unknown method: \"" +
+                                   object_type->ToString() + L"::" +
+                                   method_name + L"\""));
             continue;
           }
 
@@ -348,6 +351,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         }
 
         CHECK(!errors.empty());
+        // TODO(easy, 2022-05-29): Don't return just the first? Return all?
         compilation->AddError(errors[0]);
         return nullptr;
       },

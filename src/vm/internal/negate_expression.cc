@@ -1,11 +1,13 @@
-#include "negate_expression.h"
+#include "src/vm/internal/negate_expression.h"
 
-#include "../public/value.h"
-#include "../public/vm.h"
-#include "compilation.h"
+#include "src/language/value_or_error.h"
+#include "src/vm/internal/compilation.h"
+#include "src/vm/public/value.h"
+#include "src/vm/public/vm.h"
 
 namespace afc::vm {
 namespace {
+using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -53,8 +55,8 @@ std::unique_ptr<Expression> NewNegateExpression(
     return nullptr;
   }
   if (!expr->SupportsType(expected_type)) {
-    compilation.AddError(L"Can't negate an expression of type: \"" +
-                         TypesToString(expr->Types()) + L"\"");
+    compilation.AddError(Error(L"Can't negate an expression of type: \"" +
+                               TypesToString(expr->Types()) + L"\""));
     return nullptr;
   }
   return std::make_unique<NegateExpression>(

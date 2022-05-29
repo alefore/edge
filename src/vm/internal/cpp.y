@@ -24,7 +24,7 @@ main ::= program(P) . {
 
 main ::= error. {
   compilation->AddError(
-      L"Compilation error near: \"" + compilation->last_token + L"\"");
+      Error(L"Compilation error near: \"" + compilation->last_token + L"\""));
 }
 
 %type program { Expression* }
@@ -122,6 +122,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
     FUNC->Abort(*compilation);
     OUT = nullptr;
   } else {
+    // TODO(easy, 2022-05-29): Turn into Error.
     std::wstring error;
     std::optional<gc::Root<Value>> value = FUNC->BuildValue(
         *compilation,
@@ -130,7 +131,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
         &error);
     BODY = nullptr;
     if (!value.has_value()) {
-      compilation->AddError(error);
+      compilation->AddError(Error(error));
       OUT = nullptr;
     } else {
       CHECK(FUNC->name.has_value());
@@ -311,7 +312,7 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
       TYPE->value().ptr()->get_symbol());
   if (type_def == nullptr) {
     compilation->AddError(
-        L"Unknown type: \"" + TYPE->value().ptr()->get_symbol() + L"\"");
+        Error(L"Unknown type: \"" + TYPE->value().ptr()->get_symbol() + L"\""));
     OUT = nullptr;
   } else {
     OUT = new std::vector<std::pair<VMType, std::wstring>>();
@@ -332,8 +333,8 @@ non_empty_function_declaration_arguments(OUT) ::=
         compilation->environment.ptr()->LookupType(
             TYPE->value().ptr()->get_symbol());
     if (type_def == nullptr) {
-      compilation->AddError(
-          L"Unknown type: \"" + TYPE->value().ptr()->get_symbol() + L"\"");
+      compilation->AddError(Error(
+          L"Unknown type: \"" + TYPE->value().ptr()->get_symbol() + L"\""));
       OUT = nullptr;
     } else {
       OUT = LIST;
@@ -393,6 +394,7 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
     FUNC->Abort(*compilation);
     OUT = nullptr;
   } else {
+    // TODO(easy, 2022-05-29): Use ValueOrError.
     std::wstring error;
     auto value = FUNC->BuildExpression(
         *compilation,
@@ -402,7 +404,7 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
     BODY = nullptr;
 
     if (value == nullptr) {
-      compilation->AddError(error);
+      compilation->AddError(Error(error));
       OUT = nullptr;
     } else {
       OUT = value.release();
@@ -523,7 +525,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
                         })).release();
   } else {
     compilation->AddError(
-        L"++: Type not supported: " + TypesToString(var->Types()));
+        Error(L"++: Type not supported: " + TypesToString(var->Types())));
     OUT = nullptr;
   }
   delete NAME;
@@ -551,7 +553,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
                         })).release();
   } else {
     compilation->AddError(
-        L"--: Type not supported: " + TypesToString(var->Types()));
+        Error(L"--: Type not supported: " + TypesToString(var->Types())));
     OUT = nullptr;
   }
   delete NAME;
@@ -651,9 +653,9 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     A = nullptr;
     B = nullptr;
   } else {
-    compilation->AddError(
+    compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L".");
+        + L" and " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -686,9 +688,9 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
     A = nullptr;
     B = nullptr;
   } else {
-    compilation->AddError(
+    compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L".");
+        + L" and " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -714,9 +716,9 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
     A = nullptr;
     B = nullptr;
   } else {
-    compilation->AddError(
+    compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L".");
+        + L" and " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -742,9 +744,9 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
     A = nullptr;
     B = nullptr;
   } else {
-    compilation->AddError(
+    compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L".");
+        + L" and " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -770,9 +772,9 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
     A = nullptr;
     B = nullptr;
   } else {
-    compilation->AddError(
+    compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L".");
+        + L" and " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -798,9 +800,9 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
     A = nullptr;
     B = nullptr;
   } else {
-    compilation->AddError(
+    compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L".");
+        + L" and " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -856,8 +858,8 @@ expr(OUT) ::= MINUS expr(A). {
               .release();
     A = nullptr;
   } else {
-    compilation->AddError(
-        L"Invalid expression: -: " + TypesToString(A->Types()));
+    compilation->AddError(Error(
+        L"Invalid expression: -: " + TypesToString(A->Types())));
     OUT = nullptr;
   }
 }

@@ -81,7 +81,7 @@ void CompileFile(Path path, Compilation& compilation, void* parser) {
   std::wifstream infile(ToByteString(path.read()));
   infile.imbue(std::locale(""));
   if (infile.fail()) {
-    compilation.AddError(path.read() + L": open failed");
+    compilation.AddError(Error(path.read() + L": open failed"));
   } else {
     CompileStream(infile, compilation, parser);
   }
@@ -202,7 +202,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           token = AND;
           break;
         }
-        compilation.AddError(L"Unhandled character: &");
+        compilation.AddError(Error(L"Unhandled character: &"));
         return;
 
       case '[':
@@ -222,7 +222,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           token = OR;
           break;
         }
-        compilation.AddError(L"Unhandled character: |");
+        compilation.AddError(Error(L"Unhandled character: |"));
         return;
 
       case '<':
@@ -274,7 +274,8 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           if (symbol == L"include") {
             HandleInclude(compilation, parser, str, &pos);
           } else {
-            compilation.AddError(L"Invalid preprocessing directive #" + symbol);
+            compilation.AddError(
+                Error(L"Invalid preprocessing directive #" + symbol));
           }
           continue;
         }
@@ -405,7 +406,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           }
         }
         if (pos == str.size()) {
-          compilation.AddError(L"Missing terminating \" character.");
+          compilation.AddError(Error(L"Missing terminating \" character."));
           return;
         }
         input = Value::NewString(compilation.pool, std::move(output_string));
@@ -536,8 +537,8 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
         break;
 
       default:
-        compilation.AddError(L"Unhandled character at position: " +
-                             std::to_wstring(pos) + L" in line: " + str);
+        compilation.AddError(Error(L"Unhandled character at position: " +
+                                   std::to_wstring(pos) + L" in line: " + str));
         return;
     }
     if (token == SYMBOL || token == STRING) {

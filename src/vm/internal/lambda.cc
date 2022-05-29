@@ -2,17 +2,20 @@
 
 #include <glog/logging.h>
 
-#include "../public/constant_expression.h"
-#include "../public/environment.h"
-#include "../public/value.h"
+#include "src/language/value_or_error.h"
 #include "src/vm/internal/compilation.h"
 #include "src/vm/internal/types_promotion.h"
+#include "src/vm/public/constant_expression.h"
+#include "src/vm/public/environment.h"
+#include "src/vm/public/value.h"
 
 namespace afc::vm {
 namespace {
+using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
+
 namespace gc = language::gc;
 
 class LambdaExpression : public Expression {
@@ -134,7 +137,8 @@ std::unique_ptr<UserFunction> UserFunction::New(
   const VMType* return_type_def =
       compilation.environment.ptr()->LookupType(return_type);
   if (return_type_def == nullptr) {
-    compilation.AddError(L"Unknown return type: \"" + return_type + L"\"");
+    compilation.AddError(
+        Error(L"Unknown return type: \"" + return_type + L"\""));
     return nullptr;
   }
 

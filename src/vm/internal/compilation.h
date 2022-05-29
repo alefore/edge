@@ -23,9 +23,6 @@ struct Compilation {
   Compilation(language::gc::Pool& pool,
               language::gc::Root<Environment> environment);
 
-  // TODO(easy, 2022-05-29): Delete this one.
-  void AddError(std::wstring error);
-
   void AddError(language::Error error);
 
   template <typename T>

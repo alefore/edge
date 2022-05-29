@@ -2,13 +2,15 @@
 
 #include <glog/logging.h>
 
-#include "../public/types.h"
-#include "../public/value.h"
-#include "../public/vm.h"
+#include "src/language/value_or_error.h"
 #include "src/vm/internal/compilation.h"
+#include "src/vm/public/types.h"
+#include "src/vm/public/value.h"
+#include "src/vm/public/vm.h"
 
 namespace afc::vm {
 namespace {
+using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -63,6 +65,7 @@ class LogicalExpression : public Expression {
 
 }  // namespace
 
+// TODO(easy, 2022-05-29): Turn into ValueOrError<NonNull<...>>.
 std::unique_ptr<Expression> NewLogicalExpression(
     Compilation* compilation, bool identity, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b) {
@@ -70,13 +73,13 @@ std::unique_ptr<Expression> NewLogicalExpression(
     return nullptr;
   }
   if (!a->IsBool()) {
-    compilation->AddError(L"Expected `bool` value but found: " +
-                          TypesToString(a->Types()));
+    compilation->AddError(Error(L"Expected `bool` value but found: " +
+                                TypesToString(a->Types())));
     return nullptr;
   }
   if (!b->IsBool()) {
-    compilation->AddError(L"Expected `bool` value but found: " +
-                          TypesToString(b->Types()));
+    compilation->AddError(Error(L"Expected `bool` value but found: " +
+                                TypesToString(b->Types())));
     return nullptr;
   }
   return std::make_unique<LogicalExpression>(

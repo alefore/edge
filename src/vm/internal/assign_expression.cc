@@ -1,15 +1,16 @@
-#include "assign_expression.h"
+#include "src/vm/internal/assign_expression.h"
 
 #include <glog/logging.h>
 
-#include "../public/environment.h"
-#include "../public/value.h"
-#include "../public/vm.h"
-#include "compilation.h"
-#include "wstring.h"
+#include "src/vm/internal/compilation.h"
+#include "src/vm/internal/wstring.h"
+#include "src/vm/public/environment.h"
+#include "src/vm/public/value.h"
+#include "src/vm/public/vm.h"
 
 namespace afc::vm {
 namespace {
+using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -80,15 +81,15 @@ std::optional<VMType> NewDefineTypeExpression(
   VMType type_def;
   if (type == L"auto") {
     if (default_type == std::nullopt) {
-      compilation->AddError(L"Unable to deduce type.");
+      compilation->AddError(Error(L"Unable to deduce type."));
       return std::nullopt;
     }
     type_def = default_type.value();
   } else {
     auto type_ptr = compilation->environment.ptr()->LookupType(type);
     if (type_ptr == nullptr) {
-      compilation->AddError(L"Unknown type: `" + type + L"` for symbol `" +
-                            symbol + L"`.");
+      compilation->AddError(Error(L"Unknown type: `" + type +
+                                  L"` for symbol `" + symbol + L"`."));
       return std::nullopt;
     }
     type_def = *type_ptr;
@@ -108,8 +109,8 @@ std::unique_ptr<Expression> NewDefineExpression(
   if (type == L"auto") {
     auto types = value->Types();
     if (types.size() != 1) {
-      compilation->AddError(L"Unable to deduce type for symbol: `" + symbol +
-                            L"`.");
+      compilation->AddError(
+          Error(L"Unable to deduce type for symbol: `" + symbol + L"`."));
       return nullptr;
     }
     default_type = *types.cbegin();
@@ -118,9 +119,10 @@ std::unique_ptr<Expression> NewDefineExpression(
       NewDefineTypeExpression(compilation, type, symbol, default_type);
   if (vmtype == std::nullopt) return nullptr;
   if (!value->SupportsType(*vmtype)) {
-    compilation->AddError(L"Unable to assign a value to a variable of type \"" +
-                          vmtype->ToString() + L"\". Value types: " +
-                          TypesToString(value->Types()));
+    compilation->AddError(
+        Error(L"Unable to assign a value to a variable of type \"" +
+              vmtype->ToString() + L"\". Value types: " +
+              TypesToString(value->Types())));
     return nullptr;
   }
   return std::make_unique<AssignExpression>(
@@ -147,7 +149,7 @@ std::unique_ptr<Expression> NewAssignExpression(
   }
 
   if (variables.empty()) {
-    compilation->AddError(L"Variable not found: \"" + symbol + L"\"");
+    compilation->AddError(Error(L"Variable not found: \"" + symbol + L"\""));
     return nullptr;
   }
 
@@ -157,9 +159,9 @@ std::unique_ptr<Expression> NewAssignExpression(
   }
 
   compilation->AddError(
-      L"Unable to assign a value to a variable supporting types: \"" +
-      TypesToString(value->Types()) + L"\". Value types: " +
-      TypesToString(variable_types));
+      Error(L"Unable to assign a value to a variable supporting types: \"" +
+            TypesToString(value->Types()) + L"\". Value types: " +
+            TypesToString(variable_types)));
 
   return nullptr;
 }
