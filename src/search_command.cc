@@ -25,6 +25,7 @@ using language::ValueOrError;
 
 namespace gc = language::gc;
 
+// TODO(easy, 2022-05-29): Add a few tests for this function.
 static void MergeInto(SearchResultsSummary current_results,
                       ValueOrError<SearchResultsSummary>& final_results) {
   std::visit(
