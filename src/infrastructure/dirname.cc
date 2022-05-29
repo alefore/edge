@@ -108,8 +108,7 @@ const bool path_component_remove_extension_tests_registration = tests::Register(
           [] {
             CHECK(std::holds_alternative<Error>(
                 ValueOrDie(PathComponent::FromString(L".blah"), L"tests")
-                    .remove_extension()
-                    .variant()));
+                    .remove_extension()));
           }},
      {.name = L"Empty",
       .callback =
@@ -216,7 +215,7 @@ Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
                  }
                  return output;
                }},
-      path.DirectorySplit().variant());
+      path.DirectorySplit());
 }
 
 const bool expand_home_directory_tests_registration = tests::Register(
@@ -304,7 +303,7 @@ std::optional<std::wstring> Path::extension() const {
                [](PathComponent component) {
                  return std::optional<std::wstring>(component.extension());
                }},
-      Basename().variant());
+      Basename());
 }
 
 const std::wstring& Path::read() const { return path_; }

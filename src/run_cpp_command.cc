@@ -202,7 +202,7 @@ bool tests_parse_registration = tests::Register(
                 Parse(pool, EmptyString(), environment, EmptyString(),
                       std::unordered_set<VMType>({VMType::String()}),
                       SearchNamespaces(buffer.ptr().value()));
-            CHECK(std::get<Error>(output.variant()).description.empty());
+            CHECK(std::get<Error>(output).description.empty());
           }},
      {.name = L"NonEmptyCommandNoMatch",
       .callback =
@@ -214,7 +214,7 @@ bool tests_parse_registration = tests::Register(
                 Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
                       std::unordered_set<VMType>({VMType::String()}),
                       SearchNamespaces(buffer.ptr().value()));
-            Error error = std::get<Error>(output.variant());
+            Error error = std::get<Error>(output);
             LOG(INFO) << "Error: " << error;
             CHECK_GT(error.description.size(), sizeof("Unknown "));
             CHECK(error.description.substr(0, sizeof("Unknown ") - 1) ==
@@ -229,7 +229,7 @@ bool tests_parse_registration = tests::Register(
             Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
                   std::unordered_set<VMType>({VMType::String()}),
                   SearchNamespaces(buffer.ptr().value()));
-        CHECK(std::holds_alternative<Error>(output.variant()));
+        CHECK(std::holds_alternative<Error>(output));
       }}});
 }
 
@@ -263,16 +263,15 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                           : editor.environment().ptr())
           .value();
 
-  std::visit(
-      overload{IgnoreErrors{},
-               [&](ParsedCommand&) {
-                 output.tokens.push_back(
-                     {.token = {.value = L"",
-                                .begin = ColumnNumber(0),
-                                .end = ColumnNumber() + line->size()},
-                      .modifiers = {LineModifier::CYAN}});
-               }},
-      Parse(editor.gc_pool(), line, environment, search_namespaces).variant());
+  std::visit(overload{IgnoreErrors{},
+                      [&](ParsedCommand) {
+                        output.tokens.push_back(
+                            {.token = {.value = L"",
+                                       .begin = ColumnNumber(0),
+                                       .end = ColumnNumber() + line->size()},
+                             .modifiers = {LineModifier::CYAN}});
+                      }},
+             Parse(editor.gc_pool(), line, environment, search_namespaces));
 
   using BufferMapper = vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>;
   futures::Future<ColorizePromptOptions> output_future;
@@ -292,17 +291,15 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                                                            value.ptr().value());
                                                  }
                                                }},
-                                      std::move(value.variant()));
+                                      std::move(value));
                            consumer(output);
                          });
                }},
-      std::move(
-          (buffer.has_value()
-               ? ValueOrError<ParsedCommand>(Error(L"Buffer has no value"))
-               : Parse(editor.gc_pool(), line, environment,
-                       NewLazyString(L"Preview"), {BufferMapper::vmtype},
-                       search_namespaces))
-              .variant()));
+      buffer.has_value()
+          ? ValueOrError<ParsedCommand>(Error(L"Buffer has no value"))
+          : Parse(editor.gc_pool(), line, environment,
+                  NewLazyString(L"Preview"), {BufferMapper::vmtype},
+                  search_namespaces));
   return std::move(output_future.value);
 }
 
@@ -335,9 +332,8 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
                        return futures::Past(error);
                      });
                }},
-      std::move(Parse(editor_state.gc_pool(), NewLazyString(std::move(command)),
-                      buffer->ptr()->environment().value(), search_namespaces)
-                    .variant()));
+      Parse(editor_state.gc_pool(), NewLazyString(std::move(command)),
+            buffer->ptr()->environment().value(), search_namespaces));
 }
 
 NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,

@@ -226,7 +226,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                                  return Success(EvaluationOutput::Return(
                                      vm::Value::NewVoid(pool)));
                                }},
-                      output->variant());
+                      output.value());
                 });
           }));
 

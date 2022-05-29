@@ -103,11 +103,11 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
                    compilation->RegisterErrors(CombineReturnTypes(
                        true_case->ReturnTypes(), false_case->ReturnTypes())));
 
-  return Success(MakeNonNullUnique<IfExpression>(
+  return MakeNonNullUnique<IfExpression>(
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(condition)),
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(true_case)),
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(false_case)),
-      std::move(return_types)));
+      std::move(return_types));
 }
 
 }  // namespace afc::vm

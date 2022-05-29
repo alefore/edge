@@ -22,7 +22,7 @@ bool tests_register = tests::Register(
     L"ValueOrError", {{.name = L"EmptyConstructor", .callback = [] {
                          ValueOrError<int> foo;
                          CHECK(!IsError(foo));
-                         CHECK_EQ(std::get<int>(foo.variant()), int());
+                         CHECK_EQ(std::get<int>(foo), int());
                        }}});
 }
 }  // namespace afc::language

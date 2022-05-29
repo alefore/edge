@@ -389,7 +389,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                      [&](Path path) {
                        return predictor_input.editor.expand_path(path).read();
                      }},
-            std::move(Path::FromString(predictor_input.input).variant()));
+            Path::FromString(predictor_input.input));
 
         OpenBuffer::LockFunction get_buffer =
             predictor_input.predictions.GetLockFunction();
@@ -417,7 +417,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                                       [&](Path path) {
                                         resolved_paths.push_back(path);
                                       }},
-                             std::move(search_path.Resolve().variant()));
+                             search_path.Resolve());
                 }
                 *search_paths = std::move(resolved_paths);
 

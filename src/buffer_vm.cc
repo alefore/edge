@@ -348,7 +348,7 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                                  return Success(EvaluationOutput::Return(
                                      vm::Value::NewVoid(pool)));
                                }},
-                      result.variant()));
+                      result));
                 });
             buffer.ptr()->editor().ResetModifiers();
             return std::move(future.value);
@@ -445,7 +445,7 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                                 [&](Path path) {
                                   buffer.ptr()->EvaluateFile(std::move(path));
                                 }},
-                       std::move(Path::FromString(path_str).variant()));
+                       Path::FromString(path_str));
           }));
 
   buffer->AddField(

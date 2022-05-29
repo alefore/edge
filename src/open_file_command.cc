@@ -50,7 +50,7 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.found_exact_match) {
     ValueOrError<Path> path_or_error = Path::FromString(line.ToString());
-    Path* path = std::get_if<Path>(&path_or_error.variant());
+    Path* path = std::get_if<Path>(&path_or_error);
     if (path == nullptr) {
       return futures::Past(std::optional<gc::Root<OpenBuffer>>());
     }
@@ -153,7 +153,7 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
       !S_ISDIR(stat_buffer.st_mode)) {
     LOG(INFO) << "Taking dirname for prompt: " << *path;
     std::visit(overload{IgnoreErrors{}, [&](Path dir) { path = dir; }},
-               path->Dirname().variant());
+               path->Dirname());
   }
   if (*path == Path::LocalDirectory()) {
     return L"";
@@ -185,7 +185,7 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
                           }
                           path = output_path.value();
                         }},
-               std::move(path->DirectorySplit().variant()));
+               path->DirectorySplit());
   }
   return path->read() + L"/";
 }

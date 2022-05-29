@@ -56,8 +56,7 @@ const bool get_local_file_path_tests_registration = tests::Register(
     {{.name = L"EmptyURL",
       .callback =
           [] {
-            CHECK(std::holds_alternative<Error>(
-                URL(L"").GetLocalFilePath().variant()));
+            CHECK(std::holds_alternative<Error>(URL(L"").GetLocalFilePath()));
           }},
      {.name = L"URLFromPath",
       .callback =

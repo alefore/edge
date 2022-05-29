@@ -10,7 +10,10 @@
 
 namespace gc = afc::language::gc;
 
+using afc::infrastructure::Path;
+using afc::language::FromByteString;
 using afc::language::MakeNonNullUnique;
+using afc::language::ValueOrDie;
 
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -20,15 +23,15 @@ int main(int, char** argv) {
   gc::Root<afc::vm::Environment> environment =
       pool.NewRoot(MakeNonNullUnique<afc::vm::Environment>());
   auto expr = afc::vm::CompileFile(
-      "/dev/"
-      "stdin",
+      ValueOrDie(Path::FromString(FromByteString("/dev/"
+                                                 "stdin"))),
       pool, environment);
   if (IsError(expr)) {
     return 0;
   }
 
   std::function<void()> resume;
-  auto value = afc::vm::Evaluate(expr.value().value(), pool, environment,
+  auto value = afc::vm::Evaluate(std::get<0>(expr).value(), pool, environment,
                                  [&resume](std::function<void()> callback) {
                                    resume = std::move(callback);
                                  });

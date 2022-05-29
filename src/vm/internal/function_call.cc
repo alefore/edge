@@ -159,7 +159,7 @@ class FunctionCall : public Expression {
                            consumer(Success(EvaluationOutput::New(
                                std::move(return_value.value))));
                          }},
-                std::move(return_value.variant()));
+                std::move(return_value));
           });
       return;
     }

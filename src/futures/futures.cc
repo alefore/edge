@@ -51,8 +51,8 @@ const bool futures_transform_tests_registration = tests::Register(
                });
                inner_value.consumer(Error(L"xyz"));
                CHECK(final_result.has_value());
-               CHECK(std::get<Error>(final_result.value().variant())
-                         .description == L"xyz");
+               CHECK(std::get<Error>(final_result.value()).description ==
+                     L"xyz");
              }},
         {.name = L"CanConvertToParentWithPreviousValue",
          .callback =
@@ -105,14 +105,13 @@ const bool futures_on_error_tests_registration = tests::Register(
                 .SetConsumer([&](language::ValueOrError<int> result) {
                   value = result;
                 });
-            CHECK_EQ(std::get<int>(value->variant()), 27);
+            CHECK_EQ(std::get<int>(value.value()), 27);
           }},
      {.name = L"SkippedOnSuccess", .callback = [] {
-        OnError(futures::Past(language::ValueOrError(Success(12))),
-                [&](Error value) {
-                  CHECK(false);
-                  return futures::Past(value);
-                });
+        OnError(futures::Past(Success(12)), [&](Error value) {
+          CHECK(false);
+          return futures::Past(value);
+        });
       }}});
 }  // namespace
 

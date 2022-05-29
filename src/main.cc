@@ -344,7 +344,7 @@ int main(int argc, const char** argv) {
                           args.server = true;
                           connected_to_parent = true;
                         }},
-               MaybeConnectToParentServer().variant());
+               MaybeConnectToParentServer());
   }
 
   std::shared_ptr<Screen> screen_curses;
@@ -398,7 +398,7 @@ int main(int argc, const char** argv) {
                           SendCommandsToParent(FileDescriptor(self_fd),
                                                ToByteString(commands_to_run));
                         }},
-               self_fd.variant());
+               self_fd);
   }
 
   LOG(INFO) << "Creating terminal.";

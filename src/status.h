@@ -120,7 +120,7 @@ class Status {
                                            return replacement_value;
                                          },
                                          [](T value) { return value; }},
-                      std::move(value.variant()));
+                      std::move(value));
   }
 
   template <typename T>
@@ -129,7 +129,7 @@ class Status {
                                     SetWarningText(error.description);
                                   },
                                   [](const T&) {}},
-               value.variant());
+               value);
     return value;
   }
 

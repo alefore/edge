@@ -85,14 +85,14 @@ GetSyntheticFeatures(
   for (const auto& [name, value] : input) {
     if (name == L"name") {
       ValueOrError<Path> value_path = Path::FromString(value->ToString());
-      Path* path = std::get_if<Path>(&value_path.variant());
+      Path* path = std::get_if<Path>(&value_path);
       if (path == nullptr) continue;
       std::visit(overload{IgnoreErrors{},
                           [&](Path directory) {
                             if (directory != Path::LocalDirectory())
                               directories.insert(directory);
                           }},
-                 std::move(path->Dirname().variant()));
+                 path->Dirname());
       if (std::optional<std::wstring> extension = path->extension();
           extension.has_value()) {
         extensions.insert(extension.value());
@@ -393,10 +393,10 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
             ValueOrError<std::unordered_multimap<
                 std::wstring, NonNull<std::shared_ptr<LazyString>>>>
                 line_keys_or_error = ParseHistoryLine(line.contents());
-            auto* line_keys = std::get_if<0>(&line_keys_or_error.variant());
+            auto* line_keys = std::get_if<0>(&line_keys_or_error);
             if (line_keys == nullptr) {
               output.errors.push_back(
-                  std::get<Error>(line_keys_or_error.variant()).description);
+                  std::get<Error>(line_keys_or_error).description);
               return !abort_notification->HasBeenNotified();
             }
             auto range = line_keys->equal_range(L"prompt");

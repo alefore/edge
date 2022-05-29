@@ -133,7 +133,7 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
               path = Path::Join(source_directory, path);
             },
         },
-        compilation.current_source_path()->Dirname().variant());
+        compilation.current_source_path()->Dirname());
   }
 
   CompileFile(path, compilation, parser);

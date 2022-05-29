@@ -107,7 +107,7 @@ std::map<std::wstring, std::wstring> LoadEnvironmentVariables(
                           }
                         }
                       }},
-             std::move(PathComponent::FromString(command).variant()));
+             PathComponent::FromString(command));
   return environment;
 }
 
@@ -425,7 +425,7 @@ class ForkEditorCommand : public Command {
               .prompt =
                   std::visit(overload{[](Error) -> std::wstring { return L""; },
                                       [](Path path) { return path.read(); }},
-                             children_path.variant()) +
+                             children_path) +
                   L"$ ",
               .history_file = HistoryFileCommands(),
               .colorize_options_provider =

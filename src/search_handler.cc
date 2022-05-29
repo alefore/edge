@@ -261,8 +261,7 @@ void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
 void HandleSearchResults(
     const ValueOrError<std::vector<LineColumn>>& results_or_error,
     OpenBuffer& buffer) {
-  const std::vector<LineColumn>* results =
-      std::get_if<0>(&results_or_error.variant());
+  const std::vector<LineColumn>* results = std::get_if<0>(&results_or_error);
   if (results == nullptr) {
     buffer.status().ConsumeErrors(results_or_error, {});
     return;

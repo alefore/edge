@@ -159,9 +159,9 @@ std::set<Range> MergeSections(std::set<Range> input) {
   for (auto& section : input) {
     if (!output.empty()) {
       if (auto result = output.rbegin()->Union(section);
-          std::holds_alternative<Range>(result.variant())) {
+          std::holds_alternative<Range>(result)) {
         output.erase(--output.end());
-        output.insert(std::get<Range>(result.variant()));
+        output.insert(std::get<Range>(result));
         continue;
       }
     }

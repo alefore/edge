@@ -124,7 +124,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
         for (std::wstring& candidate : paths) {
           std::visit(overload{IgnoreErrors{},
                               [&](Path path) { output.push_back(path); }},
-                     std::move(Path::FromString(candidate).variant()));
+                     Path::FromString(candidate));
         }
         return output;
       }(args.config_paths)),
@@ -177,7 +177,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
               status_.SetWarningText(error.description);
               return futures::Past(futures::IterationControlCommand::kContinue);
             }},
-        CompileFile(path, gc_pool_, environment_).variant());
+        CompileFile(path, gc_pool_, environment_));
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
@@ -259,22 +259,19 @@ void EditorState::CheckPosition() {
 }
 
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
-  buffer.PrepareToClose().SetConsumer([this, buffer = buffer.NewRoot()](
-                                          PossibleError error) {
-    std::visit(overload{[&](Error error) {
-                          buffer.ptr()->status().SetWarningText(
-                              L"🖝  Unable to close (“*ad” to ignore): " +
-                              error.description + L": " +
-                              buffer.ptr()->Read(buffer_variables::name));
-                        },
-                        [&](EmptyValue) {
-                          buffer.ptr()->Close();
-                          buffer_tree_.RemoveBuffer(buffer.ptr().value());
-                          buffers_.erase(buffer.ptr()->name());
-                          AdjustWidgets();
-                        }},
-               error.variant());
-  });
+  buffer.PrepareToClose().SetConsumer(VisitCallback(
+      overload{[this, buffer = buffer.NewRoot()](Error error) {
+                 buffer.ptr()->status().SetWarningText(
+                     L"🖝  Unable to close (“*ad” to ignore): " +
+                     error.description + L": " +
+                     buffer.ptr()->Read(buffer_variables::name));
+               },
+               [this, buffer = buffer.NewRoot()](EmptyValue) {
+                 buffer.ptr()->Close();
+                 buffer_tree_.RemoveBuffer(buffer.ptr().value());
+                 buffers_.erase(buffer.ptr()->name());
+                 AdjustWidgets();
+               }}));
 }
 
 gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
@@ -436,7 +433,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                      it.second.ptr()->status().SetWarningText(
                          Error::Augment(L"Unable to close", error).description);
                    }},
-          it.second.ptr()->IsUnableToPrepareToClose().variant());
+          it.second.ptr()->IsUnableToPrepareToClose());
 
     if (!buffers_with_problems.empty()) {
       std::wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";

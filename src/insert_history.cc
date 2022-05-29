@@ -30,7 +30,7 @@ bool IsMatch(EditorState& editor,
                                  .case_sensitive = false},
       candidate);
   std::vector<LineColumn>* matches_vector =
-      std::get_if<std::vector<LineColumn>>(&matches.variant());
+      std::get_if<std::vector<LineColumn>>(&matches);
   return matches_vector != nullptr && !matches_vector->empty();
 }
 }  // namespace

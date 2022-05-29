@@ -42,7 +42,7 @@ static Path GetHomeDirectory() {
                                  return Path::Root();
                                },
                                [](Path path) { return path; }},
-                      Path::FromString(FromByteString(env)).variant());
+                      Path::FromString(FromByteString(env)));
   }
   struct passwd* entry = getpwuid(getuid());
   if (entry != nullptr) {
@@ -54,7 +54,7 @@ static Path GetHomeDirectory() {
                    return Path::Root();
                  },
                  [](Path path) { return path; }},
-        Path::FromString(FromByteString(entry->pw_dir)).variant());
+        Path::FromString(FromByteString(entry->pw_dir)));
   }
   return Path::Root();  // What else?
 }
@@ -76,7 +76,7 @@ static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
     // TODO: stat it and don't add it if it doesn't exist.
     while (std::getline(text_stream, dir, ';')) {
       std::visit(overload{IgnoreErrors{}, push},
-                 Path::FromString(FromByteString(dir)).variant());
+                 Path::FromString(FromByteString(dir)));
     }
   }
   return output;
@@ -167,7 +167,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                                     return std::optional<std::optional<Path>>(
                                         path);
                                   }},
-                         std::move(Path::FromString(input).variant()));
+                         std::move(Path::FromString(input)));
                    }))
           .Set(&CommandLineValues::server, true),
 
@@ -181,8 +181,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                    [](std::wstring input, std::wstring* error)
                        -> std::optional<std::optional<Path>> {
                      auto output = Path::FromString(input);
-                     if (std::holds_alternative<Error>(output.variant())) {
-                       *error = std::get<Error>(output.variant()).description;
+                     if (std::holds_alternative<Error>(output)) {
+                       *error = std::get<Error>(output).description;
                        return std::nullopt;
                      }
                      return std::optional<std::optional<Path>>(

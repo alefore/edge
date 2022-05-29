@@ -113,9 +113,9 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewWhileExpression(
     return error;
   }
 
-  return Success(MakeNonNullUnique<WhileExpression>(
+  return MakeNonNullUnique<WhileExpression>(
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(condition)),
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(body))));
+      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(body)));
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> NewForExpression(

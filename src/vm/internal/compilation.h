@@ -30,7 +30,7 @@ struct Compilation {
     std::visit(language::overload{
                    [&](language::Error error) { AddError(error.description); },
                    [](const T&) {}},
-               value.variant());
+               value);
     return value;
   }
 

@@ -309,13 +309,13 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
                                Modifiers::Strength::kNormal);
                        }
                        if (!dirty() || !Read(buffer_variables::save_on_close)) {
-                         return futures::Past(ValueOrError(Success()));
+                         return futures::Past(Success());
                        }
                        LOG(INFO) << name() << ": attempting to save buffer.";
                        return Save();
                      });
                }},
-      IsUnableToPrepareToClose().variant());
+      IsUnableToPrepareToClose());
 }
 
 void OpenBuffer::Close() {
@@ -362,7 +362,7 @@ struct timespec OpenBuffer::last_action() const { return last_action_; }
 futures::Value<PossibleError> OpenBuffer::PersistState() const {
   auto trace = log_->NewChild(L"Persist State");
   if (!Read(buffer_variables::persist_state)) {
-    return futures::Past(ValueOrError(Success()));
+    return futures::Past(Success());
   }
 
   return OnError(
@@ -664,7 +664,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                   });
             }
           }},
-      std::move(Path::FromString(Read(buffer_variables::path)).variant()));
+      Path::FromString(Read(buffer_variables::path)));
 
   contents_.SetUpdateListener(
       [weak_this](const CursorsTracker::Transformation& transformation) {
@@ -1047,7 +1047,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
                  LOG(INFO) << "Code compiled, evaluating.";
                  return EvaluateExpression(expression.value(), environment);
                }},
-      std::move(CompileString(code).variant()));
+      CompileString(code));
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
@@ -1071,8 +1071,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
                                    work_queue->Schedule(std::move(resume));
                                  });
                }},
-      std::move(CompileFile(path, editor().gc_pool(), environment_.ToRoot())
-                    .variant()));
+      CompileFile(path, editor().gc_pool(), environment_.ToRoot()));
 }
 
 const NonNull<std::shared_ptr<WorkQueue>>& OpenBuffer::work_queue() const {
@@ -1658,7 +1657,7 @@ std::vector<URL> GetURLsWithExtensionsForContext(const OpenBuffer& buffer,
                  }
                  return output;
                }},
-      std::move(original_url.GetLocalFilePath().variant()));
+      original_url.GetLocalFilePath());
 }
 
 ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
@@ -1671,7 +1670,7 @@ ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
   }
   for (const auto& child : tree.children()) {
     if (ValueOrError<URL> output = FindLinkTarget(buffer, child);
-        std::holds_alternative<URL>(output.variant()))
+        std::holds_alternative<URL>(output))
       return output;
   }
   return Error(L"Unable to find link.");
@@ -1687,8 +1686,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
     if (subtree->properties().find(ParseTreeProperty::Link()) !=
         subtree->properties().end()) {
       if (ValueOrError<URL> target = FindLinkTarget(buffer, *subtree);
-          std::holds_alternative<URL>(target.variant())) {
-        initial_url = std::get<URL>(target.variant());
+          std::holds_alternative<URL>(target)) {
+        initial_url = std::get<URL>(target);
         break;
       }
     }
@@ -1726,9 +1725,9 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
                                             [&](Path dir) {
                                               search_paths.push_back(dir);
                                             }},
-                                   path.Dirname().variant());
+                                   path.Dirname());
                       }},
-             Path::FromString(buffer.Read(buffer_variables::path)).variant());
+             Path::FromString(buffer.Read(buffer_variables::path)));
 
   std::vector<URL> urls = urls_with_extensions;
 
@@ -1742,7 +1741,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
                               urls.push_back(
                                   URL::FromPath(Path::Join(search_path, path)));
                           }},
-                 url.GetLocalFilePath().variant());
+                 url.GetLocalFilePath());
     }
   }
   return urls;
@@ -1795,15 +1794,14 @@ OpenBuffer::OpenBufferForCurrentPosition(
                  return futures::Past(futures::IterationControlCommand::kStop);
                }
                ValueOrError<Path> path = url.GetLocalFilePath();
-               if (std::holds_alternative<Error>(path.variant()))
+               if (std::holds_alternative<Error>(path))
                  return futures::Past(
                      futures::IterationControlCommand::kContinue);
-               VLOG(4) << "Calling open file: "
-                       << std::get<Path>(path.variant());
+               VLOG(4) << "Calling open file: " << std::get<Path>(path);
                return OpenFileIfFound(
                           OpenFileOptions{
                               .editor_state = editor,
-                              .path = std::get<Path>(path.variant()),
+                              .path = std::get<Path>(path),
                               .insertion_type =
                                   BuffersList::AddBufferType::kIgnore,
                               .use_search_paths = false})

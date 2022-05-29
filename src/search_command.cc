@@ -29,7 +29,7 @@ static void MergeInto(SearchResultsSummary current_results,
                       ValueOrError<SearchResultsSummary>& final_results) {
   std::visit(
       overload{IgnoreErrors{},
-               [&](SearchResultsSummary output) {
+               [&](SearchResultsSummary& output) {
                  output.matches += current_results.matches;
                  switch (current_results.search_completion) {
                    case SearchResultsSummary::SearchCompletion::kInterrupted:
@@ -40,7 +40,7 @@ static void MergeInto(SearchResultsSummary current_results,
                      break;
                  }
                }},
-      final_results.variant());
+      final_results);
 }
 
 static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
@@ -69,7 +69,7 @@ ColorizePromptOptions SearchResultsModifiers(
                             break;
                         }
                       }},
-             result.variant());
+             result);
 
   return {.tokens = {{.token = {.value = L"",
                                 .begin = ColumnNumber(0),

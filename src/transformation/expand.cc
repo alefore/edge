@@ -314,7 +314,7 @@ class ExpandTransformation : public CompositeTransformation {
                               transformation = std::make_unique<ReadAndInsert>(
                                   path, OpenFileIfFound);
                             }},
-                   Path::FromString(symbol).variant());
+                   Path::FromString(symbol));
       } break;
       case '/': {
         auto path = GetToken(input, buffer_variables::path_characters);

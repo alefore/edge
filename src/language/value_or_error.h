@@ -24,58 +24,18 @@ struct Error {
 std::ostream& operator<<(std::ostream& os, const Error& p);
 
 template <typename T>
-class ValueOrError {
- public:
-  using ValueType = T;
-
-  ValueOrError() : value_(T()) {}
-
-  ValueOrError(Error error) : value_(std::move(error)) {}
-  ValueOrError(T value) : value_(std::move(value)) {}
-
-  template <typename Other>
-  explicit ValueOrError(Other other)
-      : value_(std::variant<T, Error>(std::move(other))) {}
-
-  template <typename Other>
-  ValueOrError(ValueOrError<Other> other)
-      : value_(std::holds_alternative<Error>(other.variant())
-                   ? std::variant<T, Error>(
-                         std::get<Error>(std::move(other.variant())))
-                   : std::variant<T, Error>(
-                         std::move(std::get<0>(other.variant())))) {}
-
-  template <typename Other>
-  ValueOrError<T> operator=(ValueOrError<Other>&& value) {
-    value_ = std::forward<Other>(value.value_);
-    return *this;
-  }
-
-  ValueOrError<T> operator=(T&& value) {
-    value_ = std::forward<T>(value);
-    return *this;
-  }
-
-  std::variant<T, Error>& variant() { return value_; }
-  const std::variant<T, Error>& variant() const { return value_; }
-
- private:
-  template <typename Other>
-  friend class ValueOrError;
-
-  std::variant<T, Error> value_;
-};
+using ValueOrError = std::variant<T, Error>;
 
 template <typename T>
 bool IsError(const ValueOrError<T>& value) {
-  return std::holds_alternative<Error>(value.variant());
+  return std::holds_alternative<Error>(value);
 }
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& p) {
   std::visit(overload{[&](Error error) { os << error; },
-                      [&](T value) { os << "[Value: " << value << "]"; }},
-             p.variant());
+                      [&](T& value) { os << "[Value: " << value << "]"; }},
+             p);
   return os;
 }
 
@@ -104,18 +64,17 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
   std::visit(
       overload{[&](Error& error) { error = Error::Augment(prefix, error); },
                [](T&) {}},
-      input.variant());
+      input);
   return input;
 }
 
-#define ASSIGN_OR_RETURN(variable, expression)                 \
-  variable = ({                                                \
-    auto tmp = expression;                                     \
-    if (afc::language::Error* error =                          \
-            std::get_if<afc::language::Error>(&tmp.variant()); \
-        error != nullptr)                                      \
-      return std::move(*error);                                \
-    std::move(std::get<0>(tmp.variant()));                     \
+#define ASSIGN_OR_RETURN(variable, expression)                                 \
+  variable = ({                                                                \
+    auto tmp = expression;                                                     \
+    if (afc::language::Error* error = std::get_if<afc::language::Error>(&tmp); \
+        error != nullptr)                                                      \
+      return std::move(*error);                                                \
+    std::move(std::get<0>(tmp));                                               \
   })
 
 struct IgnoreErrors {
@@ -130,15 +89,14 @@ T ValueOrDie(ValueOrError<T> value, std::wstring error_location = L"") {
                           return std::optional<T>();
                         },
                         [](T t) { return std::optional<T>(std::move(t)); }},
-                    std::move(value.variant()))
+                    std::move(value))
       .value();
 }
 
 template <typename Overload>
 auto VisitCallback(Overload overload) {
-  return [overload](auto value) {
-    return std::visit(overload, std::move(value.variant()));
-  };
+  return
+      [overload](auto value) { return std::visit(overload, std::move(value)); };
 }
 
 template <typename T>
@@ -148,7 +106,7 @@ std::unique_ptr<T> ToUniquePtr(
                              [](NonNull<std::unique_ptr<T>> value) {
                                return std::move(value.get_unique());
                              }},
-                    std::move(value.variant()));
+                    std::move(value));
 }
 
 template <typename T>
@@ -156,7 +114,7 @@ std::optional<T> OptionalFrom(ValueOrError<T> value) {
   return std::visit(
       overload{[](Error) { return std::optional<T>(); },
                [](T t) { return std::optional<T>(std::move(t)); }},
-      std::move(value.variant()));
+      std::move(value));
 }
 
 }  // namespace afc::language

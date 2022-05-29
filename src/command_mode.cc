@@ -580,16 +580,14 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   LOG(INFO) << "Command: " << command;
-  std::visit(
-      overload{[](Error error) {
-                 LOG(FATAL)
-                     << "Internal error in ToggleVariable code: " << error;
-               },
-               [&](NonNull<std::unique_ptr<Command>> value) {
-                 map_mode->Add(L"v" + variable->key(), std::move(value));
-               }},
-      std::move(NewCppCommand(editor_state, editor_state.environment(), command)
-                    .variant()));
+  std::visit(overload{[](Error error) {
+                        LOG(FATAL) << "Internal error in ToggleVariable code: "
+                                   << error;
+                      },
+                      [&](NonNull<std::unique_ptr<Command>> value) {
+                        map_mode->Add(L"v" + variable->key(), std::move(value));
+                      }},
+             NewCppCommand(editor_state, editor_state.environment(), command));
 }
 
 void ToggleVariable(EditorState& editor_state,

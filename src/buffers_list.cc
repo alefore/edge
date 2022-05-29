@@ -93,8 +93,8 @@ std::list<ProcessedPathComponent> GetOutputComponentsForTesting(
     std::wstring path, ColumnNumberDelta columns_per_buffer) {
   ValueOrError<std::list<PathComponent>> components =
       ValueOrDie(Path::FromString(path)).DirectorySplit();
-  return ValueOrDie(GetOutputComponents(std::get<0>(components.variant()),
-                                        columns_per_buffer));
+  return ValueOrDie(
+      GetOutputComponents(std::get<0>(components), columns_per_buffer));
 }
 
 const bool get_output_components_tests_registration = tests::Register(
@@ -355,7 +355,7 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
                    return ValueOrDie(path.DirectorySplit(),
                                      L"RemoveCommonPrefixesForTesting");
                  }},
-        Path::FromString(c).variant()));
+        Path::FromString(c)));
   }
   std::vector<std::wstring> output;
   for (auto& components : RemoveCommonPrefixes(transformed)) {

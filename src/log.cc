@@ -73,7 +73,7 @@ class FileLog : public Log {
                                    return L"[error:" + error.description + L"]";
                                  },
                                  [](std::wstring value) { return value; }},
-                        time.variant()) +
+                        time) +
              L" " + std::to_wstring(id) + L": " + statement + L"\n")] {
           return write(data->fd.read(), statement.c_str(), statement.size());
         });
@@ -89,11 +89,11 @@ futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>> NewFileLog(
   return file_system
       .Open(path, O_WRONLY | O_CREAT | O_APPEND,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
-      .Transform([](FileDescriptor fd) {
-        // TODO(2022-04-26): Get rid of Success?
-        return Success(NonNull<std::unique_ptr<FileLog>>(
-            MakeNonNullShared<FileLogData>(FileLogData{.fd = fd})));
-      });
+      .Transform(
+          [](FileDescriptor fd) -> ValueOrError<NonNull<std::unique_ptr<Log>>> {
+            return NonNull<std::unique_ptr<FileLog>>(
+                MakeNonNullShared<FileLogData>(FileLogData{.fd = fd}));
+          });
 }
 
 NonNull<std::unique_ptr<Log>> NewNullLog() { return NullLog::New(); }

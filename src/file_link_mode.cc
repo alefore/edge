@@ -335,7 +335,7 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
                                           LOG(INFO) << "Pushed search path: "
                                                     << output->back();
                                         }},
-                               Path::FromString(line).variant());
+                               Path::FromString(line));
                          });
                      return futures::IterationControlCommand::kContinue;
                    });
@@ -379,7 +379,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
             input.path =
                 Path::ExpandHomeDirectory(input.home_directory, path).read();
           }},
-      Path::FromString(input.path).variant());
+      Path::FromString(input.path));
   if (!input.path.empty() && input.path[0] == L'/') {
     input.search_paths = {Path::Root()};
   }
@@ -575,17 +575,16 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
                     buffer.ptr()->Read(buffer_variables::path));
                 if (IsError(buffer_path)) continue;
                 ValueOrError<std::list<PathComponent>> buffer_components =
-                    std::get<Path>(buffer_path.variant()).DirectorySplit();
+                    std::get<Path>(buffer_path).DirectorySplit();
                 if (IsError(buffer_components)) continue;
-                if (EndsIn(path_components,
-                           std::get<0>(buffer_components.variant()))) {
+                if (EndsIn(path_components, std::get<0>(buffer_components))) {
                   output->buffer = buffer;
                   return futures::Past(true);
                 }
               }
               return futures::Past(false);
             }},
-        std::move(path.DirectorySplit().variant()));
+        path.DirectorySplit());
   };
   if (path.has_value()) {
     resolve_path_options.path = path.value().read();
