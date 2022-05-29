@@ -244,8 +244,11 @@ struct Future {
         value(std::move(data)) {}
 };
 
-// TODO(easy, 2022-05-29): This should be defined on Value<ValueOrError<Type>>,
-// adjusting all expressions to match.
+// ConsumeErrors only makes sense if Type is a ValueOrError<>.
+//
+// It would be ideal to define that just for those future::Value<> instances,
+// but that seems to be difficult. One alternative would be to define it as a
+// top level symbol, but then we won't be able to chain calls.
 template <typename Type>
 template <typename Callable>
 auto Value<Type>::ConsumeErrors(Callable error_callback) {
