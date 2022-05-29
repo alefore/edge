@@ -12,6 +12,7 @@
 #include "src/language/gc.h"
 #include "src/language/overload.h"
 #include "src/language/value_or_error.h"
+#include "src/vm/public/environment.h"
 #include "src/vm/public/types.h"
 
 namespace afc::vm {
@@ -41,7 +42,7 @@ struct Compilation {
 
   std::unique_ptr<Expression> expr;
 
-  std::vector<std::wstring> current_namespace = {};
+  Namespace current_namespace = Namespace({});
   std::vector<VMType> current_class = {};
   language::gc::Root<Environment> environment;
   std::wstring last_token = L"";

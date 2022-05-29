@@ -7,6 +7,7 @@
 #include <string>
 
 #include "src/language/gc.h"
+#include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
 
 namespace afc::vm {
@@ -16,10 +17,12 @@ struct VMType;
 class ObjectType;
 class VMTypeObjectTypeName;
 
+GHOST_TYPE_CONTAINER(Namespace, std::vector<std::wstring>)
+
 class Environment {
  public:
-  // TODO(easy, 2022-05-28): Use a ghost type.
-  using Namespace = std::vector<std::wstring>;
+  // TODO(easy, 2022-05-28): Remove this alias.
+  using Namespace = vm::Namespace;
 
   Environment();
   explicit Environment(

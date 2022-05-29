@@ -43,16 +43,16 @@ namespace {
 struct SearchNamespaces {
   SearchNamespaces(const OpenBuffer& buffer)
       : namespaces([&] {
-          std::vector<vm::Environment::Namespace> output(1);
+          std::vector<vm::Namespace> output;
           auto var = NewLazyString(
               buffer.Read(buffer_variables::cpp_prompt_namespaces));
           for (auto& token : TokenizeBySpaces(var.value())) {
-            output.push_back({token.value});
+            output.push_back(vm::Namespace({token.value}));
           }
           return output;
         }()) {}
 
-  const std::vector<vm::Environment::Namespace> namespaces;
+  const std::vector<vm::Namespace> namespaces;
 };
 
 futures::Value<EmptyValue> RunCppCommandLiteralHandler(

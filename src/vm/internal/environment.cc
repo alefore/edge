@@ -116,7 +116,7 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
 /* static */ gc::Root<Environment> Environment::NewNamespace(
     gc::Pool& pool, gc::Root<Environment> parent, std::wstring name) {
   if (std::optional<gc::Root<Environment>> previous =
-          LookupNamespace(parent, {name});
+          LookupNamespace(parent, Namespace({name}));
       previous.has_value()) {
     return *previous;
   }

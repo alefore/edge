@@ -69,7 +69,8 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
 
   auto symbol = std::move(symbols.back());
   symbols.pop_back();
-  Environment::Namespace symbol_namespace(symbols.begin(), symbols.end());
+  Environment::Namespace symbol_namespace(
+      std::vector<std::wstring>(symbols.begin(), symbols.end()));
 
   // We don't need to switch namespaces (i.e., we can use
   // `compilation->environment` directly) because during compilation, we know

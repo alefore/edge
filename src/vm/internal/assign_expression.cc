@@ -137,7 +137,7 @@ std::unique_ptr<Expression> NewAssignExpression(
     return nullptr;
   }
   std::vector<gc::Root<Value>> variables;
-  static const Environment::Namespace kEmptyNamespace;
+  static const vm::Namespace kEmptyNamespace({});
   compilation->environment.ptr()->PolyLookup(kEmptyNamespace, symbol,
                                              &variables);
   for (gc::Root<Value>& v : variables) {
