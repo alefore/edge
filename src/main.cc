@@ -239,11 +239,15 @@ std::wstring GetGreetingMessage() {
   return errors[rand() % errors.size()];
 }
 
-void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
+void RedrawScreens(const CommandLineValues& args,
+                   std::optional<FileDescriptor> remote_server_fd,
                    std::optional<LineColumnDelta>* last_screen_size,
                    Terminal* terminal, Screen* screen_curses) {
   static Tracker tracker(L"Main::RedrawScreens");
   auto call = tracker.Call();
+
+  // Precondition.
+  CHECK(!args.client.has_value() || remote_server_fd.has_value());
 
   auto screen_state = editor_state().FlushScreenState();
   if (!screen_state.has_value()) return;
@@ -251,13 +255,14 @@ void RedrawScreens(const CommandLineValues& args, int remote_server_fd,
     if (!args.client.has_value()) {
       terminal->Display(editor_state(), *screen_curses, screen_state.value());
     } else {
+      CHECK(remote_server_fd.has_value());
       screen_curses->Refresh();  // Don't want this to be buffered!
       LineColumnDelta screen_size = screen_curses->size();
       if (last_screen_size->has_value() &&
           screen_size != last_screen_size->value()) {
         LOG(INFO) << "Sending screen size update to server.";
         SendCommandsToParent(
-            FileDescriptor(remote_server_fd),
+            remote_server_fd.value(),
             "screen.set_size(" +
                 std::to_string(screen_size.column.column_delta) + "," +
                 std::to_string(screen_size.line.line_delta) + ");" +
@@ -331,21 +336,20 @@ int main(int argc, const char** argv) {
     exit(0);
   }
 
-  int remote_server_fd = -1;
   bool connected_to_parent = false;
-  if (args.client.has_value()) {
-    remote_server_fd =
-        ValueOrDie(MaybeConnectToServer(args.client.value()),
-                   args.binary_name + L": Unable to connect to remote server");
-  } else {
-    std::visit(overload{IgnoreErrors{},
-                        [&](int fd) {
-                          remote_server_fd = fd;
-                          args.server = true;
-                          connected_to_parent = true;
-                        }},
-               MaybeConnectToParentServer());
-  }
+  const std::optional<FileDescriptor> remote_server_fd =
+      args.client.has_value()
+          ? ValueOrDie(
+                ConnectToServer(args.client.value()),
+                args.binary_name + L": Unable to connect to remote server")
+          : std::visit(
+                overload{[](Error) { return std::optional<FileDescriptor>(); },
+                         [&](FileDescriptor fd) {
+                           args.server = true;
+                           connected_to_parent = true;
+                           return std::optional<FileDescriptor>(fd);
+                         }},
+                ConnectToParentServer());
 
   std::shared_ptr<Screen> screen_curses;
   if (!args.server) {
@@ -379,26 +383,14 @@ int main(int argc, const char** argv) {
     }
 
     LOG(INFO) << "Sending commands.";
-    // TODO(easy, 2022-05-29): Turn into FileDescriptor?
-    ValueOrError<int> self_fd = remote_server_fd;
-    if (remote_server_fd != -1) {
-      // Pass.
-    } else if (args.server && args.server_path.has_value()) {
-      self_fd = MaybeConnectToServer(args.server_path.value());
-    } else {
-      self_fd = MaybeConnectToParentServer();
-    }
-    std::visit(overload{[&args](Error error) {
-                          std::cerr << args.binary_name << ": " << error
-                                    << std::endl;
-                          exit(1);
-                        },
-                        [&](int self_fd) {
-                          CHECK_NE(self_fd, -1);
-                          SendCommandsToParent(FileDescriptor(self_fd),
-                                               ToByteString(commands_to_run));
-                        }},
-               self_fd);
+    FileDescriptor self_fd =
+        remote_server_fd.has_value()
+            ? remote_server_fd.value()
+            : ValueOrDie(args.server && args.server_path.has_value()
+                             ? ConnectToServer(args.server_path.value())
+                             : ConnectToParentServer());
+    CHECK_NE(self_fd, FileDescriptor(-1));
+    SendCommandsToParent(self_fd, ToByteString(commands_to_run));
   }
 
   LOG(INFO) << "Creating terminal.";
@@ -513,12 +505,12 @@ int main(int argc, const char** argv) {
           for (auto& c : input) {
             static Tracker tracker(L"Main::ProcessInput");
             auto call = tracker.Call();
-            if (remote_server_fd == -1) {
-              editor_state().ProcessInput(c);
-            } else {
+            if (remote_server_fd.has_value()) {
               SendCommandsToParent(
-                  FileDescriptor(remote_server_fd),
+                  remote_server_fd.value(),
                   "ProcessInput(" + std::to_string(c) + ");\n");
+            } else {
+              editor_state().ProcessInput(c);
             }
           }
         }

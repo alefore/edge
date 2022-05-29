@@ -72,21 +72,23 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 }
 }  // namespace
 
-ValueOrError<int> MaybeConnectToParentServer() {
-  const char* variable = "EDGE_PARENT_ADDRESS";
-  if (char* server_address = getenv(variable); server_address != nullptr) {
+ValueOrError<FileDescriptor> ConnectToParentServer() {
+  static const std::string variable = "EDGE_PARENT_ADDRESS";
+  if (char* server_address = getenv(variable.c_str());
+      server_address != nullptr) {
     ASSIGN_OR_RETURN(
         Path path,
-        AugmentErrors(L"Value from environment variable EDGE_PARENT_ADDRESS",
-                      Path::FromString(FromByteString(server_address))));
-    return MaybeConnectToServer(path);
+        AugmentErrors(
+            L"Value from environment variable " + FromByteString(variable),
+            Path::FromString(FromByteString(server_address))));
+    return ConnectToServer(path);
   }
   return Error(
       L"Unable to find remote address (through environment variable "
       L"EDGE_PARENT_ADDRESS).");
 }
 
-ValueOrError<int> MaybeConnectToServer(const Path& path) {
+ValueOrError<FileDescriptor> ConnectToServer(const Path& path) {
   LOG(INFO) << "Connecting to server: " << path.read();
   int fd = open(ToByteString(path.read()).c_str(), O_WRONLY);
   if (fd == -1) {
@@ -109,6 +111,7 @@ ValueOrError<int> MaybeConnectToServer(const Path& path) {
   close(fd);
 
   LOG(INFO) << "Opening private fifo: " << private_fifo.read();
+  // TODO(async, 2022-05-29): Use FileSystemDriver and do this asynchronously?
   int private_fd = open(ToByteString(private_fifo.read()).c_str(), O_RDWR);
   LOG(INFO) << "Connection fd: " << private_fd;
   if (private_fd == -1) {
@@ -116,7 +119,7 @@ ValueOrError<int> MaybeConnectToServer(const Path& path) {
                  FromByteString(strerror(errno)));
   }
   CHECK_GT(private_fd, -1);
-  return private_fd;
+  return FileDescriptor(private_fd);
 }
 
 void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {

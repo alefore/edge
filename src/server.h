@@ -15,9 +15,9 @@ namespace afc::editor {
 void Daemonize(
     const std::unordered_set<infrastructure::FileDescriptor>& surviving_fd);
 
-language::ValueOrError<int> MaybeConnectToServer(
+language::ValueOrError<infrastructure::FileDescriptor> ConnectToServer(
     const infrastructure::Path& address);
-language::ValueOrError<int> MaybeConnectToParentServer();
+language::ValueOrError<infrastructure::FileDescriptor> ConnectToParentServer();
 
 class EditorState;
 class OpenBuffer;

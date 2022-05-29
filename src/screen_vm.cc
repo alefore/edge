@@ -25,6 +25,7 @@ const VMType VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::vmtype =
     VMType::ObjectType(VMTypeObjectTypeName(L"Screen"));
 }  // namespace vm
 namespace editor {
+using infrastructure::FileDescriptor;
 using infrastructure::Path;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
@@ -37,6 +38,7 @@ using vm::VMType;
 namespace {
 class ScreenVm : public Screen {
  public:
+  // TODO(easy, 2022-05-29): Receive a FileDescriptor type.
   ScreenVm(int fd) : fd_(fd) {}
 
   ~ScreenVm() override {
@@ -118,12 +120,12 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
             CHECK_EQ(args.size(), 1u);
             FUTURES_ASSIGN_OR_RETURN(
                 Path path, Path::FromString(args[0].ptr()->get_string()));
-            FUTURES_ASSIGN_OR_RETURN(auto output, MaybeConnectToServer(path));
+            FUTURES_ASSIGN_OR_RETURN(FileDescriptor fd, ConnectToServer(path));
             return futures::Past(EvaluationOutput::Return(Value::NewObject(
                 pool,
                 vm::VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::
                     vmtype.object_type,
-                MakeNonNullShared<ScreenVm>(output))));
+                MakeNonNullShared<ScreenVm>(fd.read()))));
           }));
 
   // Methods for Screen.
