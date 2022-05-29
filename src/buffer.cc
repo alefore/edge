@@ -42,8 +42,6 @@ extern "C" {
 #include "src/line_marks.h"
 #include "src/map_mode.h"
 #include "src/run_command_handler.h"
-#include "src/screen.h"
-#include "src/screen_vm.h"
 #include "src/seek.h"
 #include "src/server.h"
 #include "src/status.h"
