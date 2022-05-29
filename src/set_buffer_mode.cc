@@ -213,8 +213,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
   struct State {
     size_t index;  // This is an index into `indices`.
     Indices indices = {};
-    // TODO(easy, 2022-05-29): Turn this into an Error type.
-    std::optional<std::wstring> pattern_error = std::nullopt;
+    std::optional<Error> pattern_error = std::nullopt;
   };
   futures::Value<State> state = futures::Past(State{
       .index = data.initial_number.value_or(buffers_list.GetCurrentIndex()) %
@@ -360,7 +359,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                       return Success(Control::kContinue);
                     })
                     .ConsumeErrors([new_state](Error error) {
-                      new_state->pattern_error = std::move(error.read());
+                      new_state->pattern_error = std::move(error);
                       return futures::Past(Control::kStop);
                     }));
           }
@@ -382,8 +381,8 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
   return state.Transform([&editor, mode, &buffers_list](State state) {
     if (state.pattern_error.has_value()) {
       // TODO: Find a better way to show it without hiding the input, ugh.
-      editor.status().SetWarningText(L"Pattern error: " +
-                                     state.pattern_error.value());
+      editor.status().Set(
+          AugmentError(L"Pattern error", state.pattern_error.value()));
       return EmptyValue();
     }
     if (state.indices.empty()) {
