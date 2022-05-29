@@ -11,6 +11,10 @@ std::ostream& operator<<(std::ostream& os, const Error& p) {
   return os;
 }
 
+bool operator==(const Error& a, const Error& b) {
+  return a.description == b.description;
+}
+
 ValueOrError<EmptyValue> Success() {
   return ValueOrError<EmptyValue>(EmptyValue());
 }

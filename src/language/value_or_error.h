@@ -12,6 +12,7 @@
 #include "src/language/wstring.h"
 
 namespace afc::language {
+// TODO(easy, 2022-05-29): Use a ghost type.
 struct Error {
   Error(std::wstring description) : description(std::move(description)) {}
   static Error Augment(std::wstring prefix, Error error) {
@@ -22,6 +23,7 @@ struct Error {
 };
 
 std::ostream& operator<<(std::ostream& os, const Error& p);
+bool operator==(const Error& a, const Error& b);
 
 template <typename T>
 using ValueOrError = std::variant<T, Error>;
@@ -33,9 +35,10 @@ bool IsError(const ValueOrError<T>& value) {
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& p) {
-  std::visit(overload{[&](Error error) { os << error; },
-                      [&](T& value) { os << "[Value: " << value << "]"; }},
-             p);
+  std::visit(
+      overload{[&](const Error& error) { os << error; },
+               [&](const T& value) { os << "[Value: " << value << "]"; }},
+      p);
   return os;
 }
 
