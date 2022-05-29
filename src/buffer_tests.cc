@@ -178,6 +178,10 @@ const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"sleep(0.001);"),
       // TODO(medium, 2022-05-29): Figure out why the following test fails.
       // callback(L"int foo = 5; double foo = 6; foo + 0.0;"),
+      // TODO(medium, 2022-05-29): Figure out why the following test fails. Find
+      // a way to make it pass even when `screen` is correctly defined (just not
+      // to a VmScreen type).
+      // callback(L"screen.set_size(LineColumnDelta(1, 2));"),
       callback(L"{"
                L"auto foo = [](int x) -> int { return x * 5; };"
                L"foo(3) * 2;"
