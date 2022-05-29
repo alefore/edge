@@ -70,7 +70,7 @@ class FileLog : public Log {
         [data = std::move(data),
          statement = ToByteString(
              std::visit(overload{[](Error error) {
-                                   return L"[error:" + error.description + L"]";
+                                   return L"[error:" + error.read() + L"]";
                                  },
                                  [](std::wstring value) { return value; }},
                         time) +

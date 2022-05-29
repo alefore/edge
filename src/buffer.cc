@@ -139,7 +139,7 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
                 })
                 .ConsumeErrors([](Error error) {
                   return futures::Past(
-                      NewLazyString(L"E: " + std::move(error.description)));
+                      NewLazyString(L"E: " + std::move(error.read())));
                 })
                 .Transform(
                     [consumer](NonNull<std::shared_ptr<LazyString>> output) {
@@ -363,13 +363,13 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
     return futures::Past(Success());
   }
 
-  return OnError(
-             GetEdgeStateDirectory(),
-             [this](Error error) {
-               status().SetWarningText(L"Unable to get Edge state directory: " +
-                                       error.description);
-               return futures::Past(error);
-             })
+  return OnError(GetEdgeStateDirectory(),
+                 [this](Error error) {
+                   error = AugmentError(L"Unable to get Edge state directory",
+                                        std::move(error));
+                   status().Set(error);
+                   return futures::Past(error);
+                 })
       .Transform([this,
                   root_this = ptr_this_->ToRoot()](Path edge_state_directory) {
         Path path =
@@ -424,8 +424,9 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
             SaveContentsToFile(path, std::move(contents),
                                editor().thread_pool(), file_system_driver()),
             [root_this](Error error) {
-              root_this.ptr()->status().SetWarningText(
-                  L"Unable to persist state: " + error.description);
+              error =
+                  AugmentError(L"Unable to persist state", std::move(error));
+              root_this.ptr()->status().Set(error);
               return futures::Past(error);
             });
       });
@@ -788,7 +789,7 @@ void OpenBuffer::Reload() {
         return futures::OnError(
             GetEdgeStateDirectory().Transform(options_.log_supplier),
             [](Error error) {
-              LOG(INFO) << "Error opening log: " << error.description;
+              LOG(INFO) << "Error opening log: " << error;
               return futures::Past(NewNullLog());
             });
       })
@@ -1033,8 +1034,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
   LOG(INFO) << "Compiling code.";
   return std::visit(
       overload{[&](Error error) {
-                 error = Error::Augment(L"🐜Compilation error", error);
-                 status_.SetWarningText(error.description);
+                 error = AugmentError(L"🐜Compilation error", std::move(error));
+                 status_.Set(error);
                  return futures::Past(
                      ValueOrError<gc::Root<Value>>(std::move(error)));
                },
@@ -1052,8 +1053,9 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
   return std::visit(
       overload{[&](Error error) {
-                 error = Error::Augment(path.read() + L": error: ", error);
-                 status_.SetWarningText(error.description);
+                 error =
+                     AugmentError(path.read() + L": error: ", std::move(error));
+                 status_.Set(error);
                  return futures::Past(ValueOrError<gc::Root<Value>>(error));
                },
                [&](NonNull<std::unique_ptr<Expression>> expression) {

@@ -358,6 +358,8 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
   filter_buffer.Set(buffer_variables::line_width, 1);
 
   struct Output {
+    // TODO(easy, 2022-05-29): Why is this deque? Turn into vector?
+    // TODO(easy, 2022-05-29): Change std::wstring to Error.
     std::deque<std::wstring> errors;
     std::deque<NonNull<std::shared_ptr<Line>>> lines;
   };
@@ -396,7 +398,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
             auto* line_keys = std::get_if<0>(&line_keys_or_error);
             if (line_keys == nullptr) {
               output.errors.push_back(
-                  std::get<Error>(line_keys_or_error).description);
+                  std::get<Error>(line_keys_or_error).read());
               return !abort_notification->HasBeenNotified();
             }
             auto range = line_keys->equal_range(L"prompt");

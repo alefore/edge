@@ -11,6 +11,7 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+using language::Error;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::VisitPointer;
@@ -238,16 +239,18 @@ Status::SetExpiringInformationText(std::wstring text) {
       });
 }
 
-void Status::SetWarningText(std::wstring text) {
+void Status::SetWarningText(std::wstring text) { Set(Error(text)); }
+
+void Status::Set(Error error) {
   ValidatePreconditions();
 
-  LOG(INFO) << "Warning: " << text;
+  LOG(INFO) << "Warning: " << error;
   GenerateAlert(audio_player_);
   if (data_->prompt_buffer.has_value()) {
     return;
   }
   data_ = MakeNonNullShared<Data>(
-      Data{.type = Type::kWarning, .text = std::move(text)});
+      Data{.type = Type::kWarning, .text = std::move(error.read())});
   ValidatePreconditions();
 }
 

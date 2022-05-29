@@ -143,7 +143,7 @@ futures::Value<PossibleError> Save(
     case OpenBuffer::Options::SaveType::kBackup:
       path = OnError(buffer.GetEdgeStateDirectory(), [](Error error) {
                return futures::Past(
-                   Error::Augment(L"Unable to backup buffer: ", error));
+                   AugmentError(L"Unable to backup buffer", error));
              }).Transform([](Path state_directory) {
         return Success(Path::Join(
             state_directory, ValueOrDie(PathComponent::FromString(L"backup"))));
@@ -248,7 +248,7 @@ futures::Value<PossibleError> SaveContentsToFile(
              [](Error error) {
                LOG(INFO)
                    << "Ignoring stat error; maybe a new file is being created: "
-                   << error.description;
+                   << error;
                struct stat value;
                value.st_mode =
                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
@@ -661,8 +661,8 @@ gc::Root<OpenBuffer> CreateBuffer(
               VisitPointer(
                   buffer_weak.Lock(),
                   [&error](gc::Root<OpenBuffer> buffer) {
-                    buffer.ptr()->status().SetWarningText(
-                        L"🖫 Save failed: " + error.description);
+                    buffer.ptr()->status().Set(
+                        AugmentError(L"🖫 Save failed", error));
                   },
                   [] {});
               return futures::Past(error);

@@ -5,14 +5,8 @@
 #include "src/tests/tests.h"
 
 namespace afc::language {
-
-std::ostream& operator<<(std::ostream& os, const Error& p) {
-  os << "[Error: " << p.description << "]";
-  return os;
-}
-
-bool operator==(const Error& a, const Error& b) {
-  return a.description == b.description;
+Error AugmentError(std::wstring prefix, Error error) {
+  return Error(prefix + L": " + error.read());
 }
 
 ValueOrError<EmptyValue> Success() {

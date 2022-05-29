@@ -75,9 +75,9 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
     pattern = std::wregex(options.search_query,
                           GetRegexTraits(options.case_sensitive));
   } catch (std::regex_error& e) {
-    Error error = L"Regex failure: " + FromByteString(e.what());
-    progress_channel->Push({.values = {{StatusPromptExtraInformationKey(L"!"),
-                                        error.description}}});
+    Error error(L"Regex failure: " + FromByteString(e.what()));
+    progress_channel->Push(
+        {.values = {{StatusPromptExtraInformationKey(L"!"), error.read()}}});
     return error;
   }
 

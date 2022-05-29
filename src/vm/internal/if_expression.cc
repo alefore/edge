@@ -87,7 +87,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
     Error error(
         L"Expected bool value for condition of \"if\" expression but found " +
         TypesToString(condition->Types()) + L".");
-    compilation->AddError(error.description);
+    compilation->AddError(error);
     return error;
   }
 
@@ -95,7 +95,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
     Error error(L"Type mismatch between branches of conditional expression: " +
                 TypesToString(true_case->Types()) + L" and " +
                 TypesToString(false_case->Types()) + L".");
-    compilation->AddError(error.description);
+    compilation->AddError(error);
     return error;
   }
 

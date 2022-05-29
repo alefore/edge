@@ -58,7 +58,7 @@ futures::Value<PossibleError> PreviewCppExpression(
             return Success();
           })
           .ConsumeErrors([&buffer](Error error) {
-            buffer.status().SetInformationText(L"E: " + error.description);
+            buffer.status().SetInformationText(L"E: " + error.read());
             return futures::Past(EmptyValue());
           })
           .Transform([](EmptyValue) { return futures::Past(Success()); });
@@ -83,7 +83,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
             [&buffer = input.buffer, delete_transformation](Error error) {
               delete_transformation->preview_modifiers = {
                   LineModifier::RED, LineModifier::UNDERLINE};
-              buffer.status().SetInformationText(error.description);
+              buffer.status().SetInformationText(error.read());
               return futures::Past(EmptyValue());
             })
         .Transform([delete_transformation, input](EmptyValue) {
@@ -100,10 +100,11 @@ futures::Value<Result> HandleCommandCpp(Input input,
       })
       .ConsumeErrors([input](Error error) {
         Result output(input.position);
-        input.buffer.status().SetWarningText(L"Error: " + error.description);
+        error = AugmentError(L"💣 Runtime error", std::move(error));
+        input.buffer.status().Set(error);
         if (input.delete_buffer != nullptr) {
-          input.delete_buffer->AppendToLastLine(Line(
-              Line::Options(NewLazyString(L"Error: " + error.description))));
+          input.delete_buffer->AppendToLastLine(
+              Line(Line::Options(NewLazyString(error.read()))));
           input.delete_buffer->AppendRawLine(
               MakeNonNullShared<Line>(Line::Options{}));
           output.added_to_paste_buffer = true;

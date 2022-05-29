@@ -104,9 +104,9 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
                 return futures::Past(NewLazyString(value.ptr()->get_string()));
               })
               .ConsumeErrors([](Error error) {
-                VLOG(7) << "Evaluation error: " << error.description;
+                VLOG(7) << "Evaluation error: " << error;
                 return futures::Past(
-                    NewLazyString(L"E: " + std::move(error.description)));
+                    NewLazyString(L"E: " + std::move(error.read())));
               })};
 }
 

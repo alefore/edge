@@ -7,23 +7,16 @@
 #include <string>
 #include <variant>
 
+#include "src/language/ghost_type.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 
 namespace afc::language {
-// TODO(easy, 2022-05-29): Use a ghost type.
-struct Error {
-  Error(std::wstring description) : description(std::move(description)) {}
-  static Error Augment(std::wstring prefix, Error error) {
-    return Error(prefix + L": " + error.description);
-  }
+GHOST_TYPE(Error, std::wstring);
 
-  std::wstring description;
-};
-
-std::ostream& operator<<(std::ostream& os, const Error& p);
-bool operator==(const Error& a, const Error& b);
+// Example: AugmentError(L"🖫 Save failed", error)
+Error AugmentError(std::wstring prefix, Error error);
 
 template <typename T>
 using ValueOrError = std::variant<T, Error>;
@@ -65,7 +58,7 @@ ValueOrError<T> Success(T t) {
 template <typename T>
 ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
   std::visit(
-      overload{[&](Error& error) { error = Error::Augment(prefix, error); },
+      overload{[&](Error& error) { error = AugmentError(prefix, error); },
                [](T&) {}},
       input);
   return input;

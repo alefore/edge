@@ -23,14 +23,17 @@ struct Compilation {
   Compilation(language::gc::Pool& pool,
               language::gc::Root<Environment> environment);
 
+  // TODO(easy, 2022-05-29): Delete this one.
   void AddError(std::wstring error);
+
+  void AddError(language::Error error);
 
   template <typename T>
   language::ValueOrError<T> RegisterErrors(language::ValueOrError<T> value) {
-    std::visit(language::overload{
-                   [&](language::Error error) { AddError(error.description); },
-                   [](const T&) {}},
-               value);
+    std::visit(
+        language::overload{[&](language::Error error) { AddError(error); },
+                           [](const T&) {}},
+        value);
     return value;
   }
 
@@ -60,6 +63,7 @@ struct Compilation {
 
  private:
   // Stack of files from which we're reading, used for error reports.
+  // TODO(easy, 2022-05-29): Turn this into Error
   std::vector<Source> source_;
 
   std::vector<std::wstring> errors_ = {};

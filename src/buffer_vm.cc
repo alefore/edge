@@ -414,9 +414,8 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                             return Success();
                           }),
                       [buffer, path](Error error) {
-                        buffer.ptr()->status().SetWarningText(
-                            L"Unable to resolve: " + path + L": " +
-                            error.description);
+                        buffer.ptr()->status().Set(AugmentError(
+                            L"Unable to resolve: " + path, std::move(error)));
                         return futures::Past(Success());
                       });
                 },

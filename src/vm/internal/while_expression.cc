@@ -109,7 +109,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewWhileExpression(
     Error error(
         L"Expected bool value for condition of \"while\" loop but found: " +
         TypesToString(condition->Types()) + L".");
-    compilation->AddError(error.description);
+    compilation->AddError(error);
     return error;
   }
 

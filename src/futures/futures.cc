@@ -51,8 +51,7 @@ const bool futures_transform_tests_registration = tests::Register(
                });
                inner_value.consumer(Error(L"xyz"));
                CHECK(final_result.has_value());
-               CHECK(std::get<Error>(final_result.value()).description ==
-                     L"xyz");
+               CHECK_EQ(std::get<Error>(final_result.value()), Error(L"xyz"));
              }},
         {.name = L"CanConvertToParentWithPreviousValue",
          .callback =
@@ -89,7 +88,7 @@ const bool futures_on_error_tests_registration = tests::Register(
             auto external =
                 OnError(std::move(internal.value), [&](Error error) {
                   executed = true;
-                  CHECK(error.description == L"Foo");
+                  CHECK_EQ(error, Error(L"Foo"));
                   return futures::Past(error);
                 });
             CHECK(!executed);

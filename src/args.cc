@@ -160,7 +160,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                      }
                      return std::visit(
                          overload{[&](Error error) {
-                                    *error_str = error.description;
+                                    *error_str = error.read();
                                     return std::optional<std::optional<Path>>();
                                   },
                                   [](Path path) {
@@ -182,7 +182,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                        -> std::optional<std::optional<Path>> {
                      auto output = Path::FromString(input);
                      if (std::holds_alternative<Error>(output)) {
-                       *error = std::get<Error>(output).description;
+                       *error = std::get<Error>(output).read();
                        return std::nullopt;
                      }
                      return std::optional<std::optional<Path>>(

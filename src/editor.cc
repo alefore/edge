@@ -174,7 +174,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
             },
             [&](Error error) {
               LOG(INFO) << "Compilation error: " << error;
-              status_.SetWarningText(error.description);
+              status_.Set(error);
               return futures::Past(futures::IterationControlCommand::kContinue);
             }},
         CompileFile(path, gc_pool_, environment_));
@@ -261,10 +261,10 @@ void EditorState::CheckPosition() {
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
   buffer.PrepareToClose().SetConsumer(VisitCallback(
       overload{[this, buffer = buffer.NewRoot()](Error error) {
-                 buffer.ptr()->status().SetWarningText(
+                 buffer.ptr()->status().Set(AugmentError(
                      L"🖝  Unable to close (“*ad” to ignore): " +
-                     error.description + L": " +
-                     buffer.ptr()->Read(buffer_variables::name));
+                         buffer.ptr()->Read(buffer_variables::name),
+                     error));
                },
                [this, buffer = buffer.NewRoot()](EmptyValue) {
                  buffer.ptr()->Close();
@@ -425,15 +425,14 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<std::wstring> buffers_with_problems;
     for (auto& it : buffers_)
-      std::visit(
-          overload{[](EmptyValue) {},
-                   [&](Error error) {
-                     buffers_with_problems.push_back(
-                         it.second.ptr()->Read(buffer_variables::name));
-                     it.second.ptr()->status().SetWarningText(
-                         Error::Augment(L"Unable to close", error).description);
-                   }},
-          it.second.ptr()->IsUnableToPrepareToClose());
+      std::visit(overload{[](EmptyValue) {},
+                          [&](Error error) {
+                            buffers_with_problems.push_back(
+                                it.second.ptr()->Read(buffer_variables::name));
+                            it.second.ptr()->status().Set(
+                                AugmentError(L"Unable to close", error));
+                          }},
+                 it.second.ptr()->IsUnableToPrepareToClose());
 
     if (!buffers_with_problems.empty()) {
       std::wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";

@@ -108,6 +108,7 @@ class Status {
                   std::function<void(StatusExpirationControl*)>>
   SetExpiringInformationText(std::wstring text);
   void SetWarningText(std::wstring text);
+  void Set(language::Error text);
 
   // Returns the time of the last call to a method in this class that changed
   // the state of this instance.
@@ -116,7 +117,7 @@ class Status {
   template <typename T>
   T ConsumeErrors(language::ValueOrError<T> value, T replacement_value) {
     return std::visit(language::overload{[&](language::Error error) {
-                                           SetWarningText(error.description);
+                                           Set(error);
                                            return replacement_value;
                                          },
                                          [](T value) { return value; }},
@@ -125,9 +126,7 @@ class Status {
 
   template <typename T>
   language::ValueOrError<T> LogErrors(language::ValueOrError<T> value) {
-    std::visit(language::overload{[&](language::Error error) {
-                                    SetWarningText(error.description);
-                                  },
+    std::visit(language::overload{[&](language::Error error) { Set(error); },
                                   [](const T&) {}},
                value);
     return value;

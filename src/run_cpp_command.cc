@@ -202,7 +202,7 @@ bool tests_parse_registration = tests::Register(
                 Parse(pool, EmptyString(), environment, EmptyString(),
                       std::unordered_set<VMType>({VMType::String()}),
                       SearchNamespaces(buffer.ptr().value()));
-            CHECK(std::get<Error>(output).description.empty());
+            CHECK_EQ(std::get<Error>(output), Error(L""));
           }},
      {.name = L"NonEmptyCommandNoMatch",
       .callback =
@@ -216,8 +216,8 @@ bool tests_parse_registration = tests::Register(
                       SearchNamespaces(buffer.ptr().value()));
             Error error = std::get<Error>(output);
             LOG(INFO) << "Error: " << error;
-            CHECK_GT(error.description.size(), sizeof("Unknown "));
-            CHECK(error.description.substr(0, sizeof("Unknown ") - 1) ==
+            CHECK_GT(error.read().size(), sizeof("Unknown "));
+            CHECK(error.read().substr(0, sizeof("Unknown ") - 1) ==
                   L"Unknown ");
           }},
      {.name = L"CommandMatch", .callback = [] {
@@ -317,8 +317,8 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
   SearchNamespaces search_namespaces(buffer->ptr().value());
   return std::visit(
       overload{[&](Error error) {
-                 if (!error.description.empty()) {
-                   buffer->ptr()->status().SetWarningText(error.description);
+                 if (!error.read().empty()) {
+                   buffer->ptr()->status().Set(error);
                  }
                  return Past(ValueOrError<gc::Root<vm::Value>>(
                      Error(L"Unable to parse command")));
@@ -327,8 +327,7 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
                  return futures::OnError(
                      Execute(buffer->ptr().value(), std::move(parsed_command)),
                      [buffer](Error error) {
-                       buffer->ptr()->status().SetWarningText(
-                           error.description);
+                       buffer->ptr()->status().Set(error);
                        return futures::Past(error);
                      });
                }},

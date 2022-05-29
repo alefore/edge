@@ -157,8 +157,8 @@ futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
   return OnError(target.file_system_driver().Open(path, O_RDONLY | O_NDELAY, 0),
                  [path](Error error) {
                    LOG(ERROR)
-                       << path << ": Server: GenerateContents: Open failed: "
-                       << error.description;
+                       << path
+                       << ": Server: GenerateContents: Open failed: " << error;
                    return futures::Past(error);
                  })
       .Transform([target = target.NewRoot()](FileDescriptor fd) {
