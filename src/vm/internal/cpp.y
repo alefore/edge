@@ -808,19 +808,17 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
 }
 
 expr(OUT) ::= expr(A) OR expr(B). {
-  OUT = NewLogicalExpression(compilation, false, unique_ptr<Expression>(A),
-                             unique_ptr<Expression>(B))
+  OUT = ToUniquePtr(NewLogicalExpression(compilation, false,
+                                         std::unique_ptr<Expression>(A),
+                                         std::unique_ptr<Expression>(B)))
             .release();
-  A = nullptr;
-  B = nullptr;
 }
 
 expr(OUT) ::= expr(A) AND expr(B). {
-  OUT = NewLogicalExpression(compilation, true, unique_ptr<Expression>(A),
-                             unique_ptr<Expression>(B))
+  OUT = ToUniquePtr(NewLogicalExpression(compilation, true,
+                                         std::unique_ptr<Expression>(A),
+                                         std::unique_ptr<Expression>(B)))
             .release();
-  A = nullptr;
-  B = nullptr;
 }
 
 expr(OUT) ::= expr(A) PLUS expr(B). {

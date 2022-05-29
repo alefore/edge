@@ -3,20 +3,19 @@
 
 #include <memory>
 
-namespace afc {
-namespace vm {
+#include "src/language/safe_types.h"
+#include "src/language/value_or_error.h"
 
-using std::unique_ptr;
+namespace afc::vm {
 
 class Expression;
 class Compilation;
 
-unique_ptr<Expression> NewLogicalExpression(Compilation* compilation,
-                                            bool identity,
-                                            unique_ptr<Expression> a,
-                                            unique_ptr<Expression> b);
+language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
+NewLogicalExpression(Compilation* compilation, bool identity,
+                     std::unique_ptr<Expression> a,
+                     std::unique_ptr<Expression> b);
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm
 
 #endif  // __AFC_VM_LOGICAL_EXPRESSION_H__
