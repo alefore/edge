@@ -203,9 +203,8 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
             screen_vm->set_size(size);
           }));
 
-  // TODO(PurityType, 2022-05-20): This could be PurityType::kReader.
   screen_type->AddField(
-      L"size", vm::NewCallback(pool, PurityType::kUnknown,
+      L"size", vm::NewCallback(pool, PurityType::kReader,
                                [](NonNull<std::shared_ptr<Screen>> screen) {
                                  return screen->size();
                                }));
