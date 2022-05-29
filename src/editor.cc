@@ -147,7 +147,8 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   });
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
-    auto path = Path::Join(dir, Path::FromString(L"hooks/start.cc").value());
+    auto path =
+        Path::Join(dir, ValueOrDie(Path::FromString(L"hooks/start.cc")));
     return std::visit(
         overload{
             [&](const NonNull<std::unique_ptr<vm::Expression>>& expression)
@@ -728,9 +729,9 @@ void EditorState::PushPosition(LineColumn position) {
                     .name = PositionsBufferName(),
                     .path = edge_path().empty()
                                 ? std::optional<Path>()
-                                : Path::Join(
-                                      edge_path().front(),
-                                      Path::FromString(L"positions").value()),
+                                : Path::Join(edge_path().front(),
+                                             ValueOrDie(Path::FromString(
+                                                 L"positions"))),
                     .insertion_type = BuffersList::AddBufferType::kIgnore})
                 .Transform([](gc::Root<OpenBuffer> buffer_root) {
                   OpenBuffer& buffer = buffer_root.ptr().value();

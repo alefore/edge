@@ -133,8 +133,8 @@ std::wstring TransformCommandNameForStatus(std::wstring name) {
   std::wstring output = name.substr(
       index, end == std::wstring::npos ? std::wstring::npos : end - index);
   if (auto first_path = Path::FromString(output); !IsError(first_path)) {
-    if (auto basename = first_path.value().Basename(); !IsError(basename)) {
-      output = basename.value().ToString();
+    if (auto basename = ValueOrDie(first_path).Basename(); !IsError(basename)) {
+      output = ValueOrDie(basename).ToString();
     }
   }
 

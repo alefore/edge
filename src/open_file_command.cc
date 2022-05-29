@@ -28,6 +28,7 @@ using language::NonNull;
 using language::overload;
 using language::Success;
 using language::ToByteString;
+using language::ValueOrError;
 using language::VisitPointer;
 
 namespace gc = language::gc;
@@ -48,14 +49,15 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
   futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.found_exact_match) {
-    auto path = Path::FromString(line.ToString());
-    if (IsError(path)) {
+    ValueOrError<Path> path_or_error = Path::FromString(line.ToString());
+    Path* path = std::get_if<Path>(&path_or_error.variant());
+    if (path == nullptr) {
       return futures::Past(std::optional<gc::Root<OpenBuffer>>());
     }
     output = OpenFileIfFound(
                  OpenFileOptions{
                      .editor_state = editor,
-                     .path = path.value(),
+                     .path = *path,
                      .insertion_type = BuffersList::AddBufferType::kIgnore})
                  .Transform([](gc::Root<OpenBuffer> buffer) {
                    return Success(std::optional<gc::Root<OpenBuffer>>(buffer));
@@ -143,18 +145,17 @@ futures::Value<ColorizePromptOptions> AdjustPath(
 
 std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
                                    std::wstring buffer_path) {
-  auto path_or_error = Path::FromString(buffer_path);
-  if (IsError(path_or_error)) return L"";
-  Path path = path_or_error.value();
+  std::optional<Path> path = OptionalFrom(Path::FromString(buffer_path));
+  if (path == std::nullopt) return L"";
   struct stat stat_buffer;
   // TODO(blocking): Use FileSystemDriver here!
-  if (stat(ToByteString(path.read()).c_str(), &stat_buffer) == -1 ||
+  if (stat(ToByteString(path->read()).c_str(), &stat_buffer) == -1 ||
       !S_ISDIR(stat_buffer.st_mode)) {
-    LOG(INFO) << "Taking dirname for prompt: " << path;
+    LOG(INFO) << "Taking dirname for prompt: " << *path;
     std::visit(overload{IgnoreErrors{}, [&](Path dir) { path = dir; }},
-               path.Dirname().variant());
+               path->Dirname().variant());
   }
-  if (path == Path::LocalDirectory()) {
+  if (*path == Path::LocalDirectory()) {
     return L"";
   }
   if (repetitions.has_value()) {
@@ -165,7 +166,7 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
                         [&](std::list<PathComponent> split) {
                           if (split.size() <= repetitions.value()) return;
                           std::optional<Path> output_path;
-                          switch (path.GetRootType()) {
+                          switch (path->GetRootType()) {
                             case Path::RootType::kAbsolute:
                               output_path = Path::Root();
                               break;
@@ -184,9 +185,9 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
                           }
                           path = output_path.value();
                         }},
-               std::move(path.DirectorySplit().variant()));
+               std::move(path->DirectorySplit().variant()));
   }
-  return path.read() + L"/";
+  return path->read() + L"/";
 }
 
 const bool get_initial_prompt_value_tests_registration = tests::Register(

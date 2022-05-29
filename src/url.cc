@@ -33,7 +33,7 @@ const bool schema_tests_registration = tests::Register(
      {.name = L"URLFromPath",
       .callback =
           [] {
-            CHECK(URL::FromPath(Path::FromString(L"foo/bar/hey").value())
+            CHECK(URL::FromPath(ValueOrDie(Path::FromString(L"foo/bar/hey")))
                       .schema() == URL::Schema::kFile);
           }},
      {.name = L"URLRelative",
@@ -62,19 +62,19 @@ const bool get_local_file_path_tests_registration = tests::Register(
      {.name = L"URLFromPath",
       .callback =
           [] {
-            Path input = Path::FromString(L"foo/bar/hey").value();
-            CHECK(URL::FromPath(input).GetLocalFilePath().value() == input);
+            Path input = ValueOrDie(Path::FromString(L"foo/bar/hey"));
+            CHECK(ValueOrDie(URL::FromPath(input).GetLocalFilePath()) == input);
           }},
      {.name = L"URLRelative",
       .callback =
           [] {
-            Path input = Path::FromString(L"foo/bar/hey").value();
-            CHECK(URL(input.read()).GetLocalFilePath().value() == input);
+            Path input = ValueOrDie(Path::FromString(L"foo/bar/hey"));
+            CHECK(ValueOrDie(URL(input.read()).GetLocalFilePath()) == input);
           }},
      {.name = L"URLStringFile", .callback = [] {
         std::wstring input = L"foo/bar/hey";
-        CHECK(URL(L"file:" + input).GetLocalFilePath().value() ==
-              Path::FromString(input).value());
+        CHECK(ValueOrDie(URL(L"file:" + input).GetLocalFilePath()) ==
+              ValueOrDie(Path::FromString(input)));
       }}});
 }
 

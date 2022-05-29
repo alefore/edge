@@ -202,7 +202,7 @@ class ReadAndInsert : public CompositeTransformation {
     auto edge_path_front = input.buffer.editor().edge_path().front();
     auto full_path =
         Path::Join(edge_path_front,
-                   Path::Join(Path::FromString(L"expand").value(), path_));
+                   Path::Join(ValueOrDie(Path::FromString(L"expand")), path_));
 
     return open_file_callback_(
                OpenFileOptions{
@@ -249,7 +249,7 @@ const bool read_and_insert_tests_registration = tests::Register(
                std::optional<Path> path_opened;
                bool transformation_done = false;
                ReadAndInsert(
-                   Path::FromString(L"unexistent").value(),
+                   ValueOrDie(Path::FromString(L"unexistent")),
                    [&](OpenFileOptions options) {
                      path_opened = options.path;
                      return futures::Past(Error(L"File does not exist."));
@@ -263,9 +263,8 @@ const bool read_and_insert_tests_registration = tests::Register(
                CHECK(transformation_done);
                CHECK(path_opened.has_value());
                CHECK(path_opened.value() ==
-                     Path::FromString(
-                         L"/home/edge-test-user/.edge/expand/unexistent")
-                         .value());
+                     ValueOrDie(Path::FromString(
+                         L"/home/edge-test-user/.edge/expand/unexistent")));
              }},
     });
 

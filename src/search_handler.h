@@ -51,7 +51,7 @@ language::ValueOrError<std::vector<LineColumn>> SearchHandler(
     const BufferContents& buffer);
 
 void HandleSearchResults(
-    const language::ValueOrError<std::vector<LineColumn>>& results,
+    const language::ValueOrError<std::vector<LineColumn>>& results_or_error,
     OpenBuffer& buffer);
 
 void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,

@@ -55,40 +55,42 @@ class WhileExpression : public Expression {
       NonNull<std::shared_ptr<Expression>> body,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer) {
     trampoline.Bounce(condition.value(), VMType::Bool())
-        .SetConsumer([condition, body, consumer, &trampoline](
-                         ValueOrError<EvaluationOutput> condition_output) {
-          if (IsError(condition_output))
-            return consumer(std::move(condition_output));
-          switch (condition_output.value().type) {
-            case EvaluationOutput::OutputType::kReturn:
-              consumer(std::move(condition_output));
-              return;
+        .SetConsumer(VisitCallback(overload{
+            [consumer](Error error) { return consumer(std::move(error)); },
+            [condition, body, consumer,
+             &trampoline](EvaluationOutput condition_output) {
+              switch (condition_output.type) {
+                case EvaluationOutput::OutputType::kReturn:
+                  consumer(std::move(condition_output));
+                  return;
 
-            case EvaluationOutput::OutputType::kContinue:
-              if (!condition_output.value().value.ptr()->get_bool()) {
-                DVLOG(3) << "Iteration is done.";
-                consumer(Success(
-                    EvaluationOutput::New(Value::NewVoid(trampoline.pool()))));
-                return;
+                case EvaluationOutput::OutputType::kContinue:
+                  if (!condition_output.value.ptr()->get_bool()) {
+                    DVLOG(3) << "Iteration is done.";
+                    consumer(Success(EvaluationOutput::New(
+                        Value::NewVoid(trampoline.pool()))));
+                    return;
+                  }
+
+                  DVLOG(5) << "Iterating...";
+                  trampoline.Bounce(body.value(), body->Types()[0])
+                      .SetConsumer(VisitCallback(overload{
+                          [consumer](Error error) {
+                            consumer(std::move(error));
+                          },
+                          [condition, body, consumer,
+                           &trampoline](EvaluationOutput body_output) {
+                            switch (body_output.type) {
+                              case EvaluationOutput::OutputType::kReturn:
+                                consumer(std::move(body_output));
+                                break;
+                              case EvaluationOutput::OutputType::kContinue:
+                                Iterate(trampoline, std::move(condition),
+                                        std::move(body), std::move(consumer));
+                            }
+                          }}));
               }
-
-              DVLOG(5) << "Iterating...";
-              trampoline.Bounce(body.value(), body->Types()[0])
-                  .SetConsumer(VisitCallback(overload{
-                      [consumer](Error error) { consumer(std::move(error)); },
-                      [condition, body, consumer,
-                       &trampoline](EvaluationOutput body_output) {
-                        switch (body_output.type) {
-                          case EvaluationOutput::OutputType::kReturn:
-                            consumer(std::move(body_output));
-                            break;
-                          case EvaluationOutput::OutputType::kContinue:
-                            Iterate(trampoline, std::move(condition),
-                                    std::move(body), std::move(consumer));
-                        }
-                      }}));
-          }
-        });
+            }}));
   }
 
   const NonNull<std::shared_ptr<Expression>> condition_;

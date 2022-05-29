@@ -380,7 +380,7 @@ Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
             std::get_if<afc::language::Error>(&tmp.variant()); \
         error != nullptr)                                      \
       return futures::Past(std::move(*error));                 \
-    std::move(tmp.value());                                    \
+    std::move(std::get<0>(tmp.variant()));                     \
   })
 
 }  // namespace afc::futures

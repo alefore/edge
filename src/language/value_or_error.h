@@ -42,13 +42,8 @@ class ValueOrError {
       : value_(std::holds_alternative<Error>(other.variant())
                    ? std::variant<T, Error>(
                          std::get<Error>(std::move(other.variant())))
-                   : std::variant<T, Error>(std::move(other.value()))) {}
-
-  const T& value() const { return std::get<T>(value_); }
-
-  T& value() { return std::get<T>(value_); }
-
-  T& value_or(T other) { return IsError(*this) ? other : value(); }
+                   : std::variant<T, Error>(
+                         std::move(std::get<0>(other.variant())))) {}
 
   template <typename Other>
   ValueOrError<T> operator=(ValueOrError<Other>&& value) {
@@ -120,7 +115,7 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
             std::get_if<afc::language::Error>(&tmp.variant()); \
         error != nullptr)                                      \
       return std::move(*error);                                \
-    std::move(tmp.value());                                    \
+    std::move(std::get<0>(tmp.variant()));                     \
   })
 
 struct IgnoreErrors {
@@ -128,7 +123,7 @@ struct IgnoreErrors {
 };
 
 template <typename T>
-T ValueOrDie(ValueOrError<T> value, std::wstring error_location) {
+T ValueOrDie(ValueOrError<T> value, std::wstring error_location = L"") {
   return std::visit(language::overload{
                         [&](Error error) {
                           LOG(FATAL) << error_location << ": " << error;

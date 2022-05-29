@@ -146,7 +146,7 @@ futures::Value<PossibleError> Save(
                    Error::Augment(L"Unable to backup buffer: ", error));
              }).Transform([](Path state_directory) {
         return Success(Path::Join(
-            state_directory, PathComponent::FromString(L"backup").value()));
+            state_directory, ValueOrDie(PathComponent::FromString(L"backup"))));
       });
   }
 
@@ -169,7 +169,8 @@ futures::Value<PossibleError> Save(
               buffer.ptr()->SetDiskState(OpenBuffer::DiskState::kCurrent);
               for (const auto& dir : buffer.ptr()->editor().edge_path()) {
                 buffer.ptr()->EvaluateFile(Path::Join(
-                    dir, Path::FromString(L"/hooks/buffer-save.cc").value()));
+                    dir,
+                    ValueOrDie(Path::FromString(L"/hooks/buffer-save.cc"))));
               }
               if (buffer.ptr()->Read(
                       buffer_variables::trigger_reload_on_buffer_write)) {
@@ -238,10 +239,10 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 futures::Value<PossibleError> SaveContentsToFile(
     const Path& path, NonNull<std::unique_ptr<const BufferContents>> contents,
     ThreadPool& thread_pool, FileSystemDriver& file_system_driver) {
-  Path tmp_path = Path::Join(
-      path.Dirname().value(),
-      PathComponent::FromString(path.Basename().value().ToString() + L".tmp")
-          .value());
+  Path tmp_path =
+      Path::Join(ValueOrDie(path.Dirname()),
+                 ValueOrDie(PathComponent::FromString(
+                     ValueOrDie(path.Basename()).ToString() + L".tmp")));
   return futures::OnError(
              file_system_driver.Stat(path),
              [](Error error) {
@@ -289,8 +290,8 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
                 OpenFileOptions{
                     .editor_state = editor_state,
                     .name = buffer_name,
-                    .path = Path::Join(
-                        edge_path, Path::FromString(L"/search_paths").value()),
+                    .path = Path::Join(edge_path, ValueOrDie(Path::FromString(
+                                                      L"/search_paths"))),
                     .insertion_type = BuffersList::AddBufferType::kIgnore,
                     .use_search_paths = false})
                 .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
@@ -410,8 +411,8 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                               input.path.find_last_of(':', state->str_end - 1);
                           return Past(IterationControlCommand::kContinue);
                         }
-                        auto path_with_prefix =
-                            Path::Join(state->search_path, input_path.value());
+                        auto path_with_prefix = Path::Join(
+                            state->search_path, ValueOrDie(input_path));
                         return input.validator(path_with_prefix)
                             .Transform([input, output, state,
                                         path_with_prefix](bool validator_output)
@@ -470,15 +471,16 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                                   break;
                                 }
                               }
-                              ValueOrError<Path> resolved =
-                                  path_with_prefix.Resolve();
-                              output.value() = ResolvePathOutput{
-                                  .path = OptionalFrom(resolved).value_or(
-                                      path_with_prefix),
-                                  .position = output_position,
-                                  .pattern = output_pattern};
-                              VLOG(4) << "Resolved path: "
-                                      << output->value().value().path;
+                              std::optional<Path> resolved_path =
+                                  OptionalFrom(path_with_prefix.Resolve());
+                              Path final_resolved_path =
+                                  resolved_path.value_or(path_with_prefix);
+                              output.value() =
+                                  ResolvePathOutput{.path = final_resolved_path,
+                                                    .position = output_position,
+                                                    .pattern = output_pattern};
+                              VLOG(4)
+                                  << "Resolved path: " << final_resolved_path;
                               return IterationControlCommand::kStop;
                             });
                       })
@@ -573,9 +575,10 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
                     buffer.ptr()->Read(buffer_variables::path));
                 if (IsError(buffer_path)) continue;
                 ValueOrError<std::list<PathComponent>> buffer_components =
-                    buffer_path.value().DirectorySplit();
+                    std::get<Path>(buffer_path.variant()).DirectorySplit();
                 if (IsError(buffer_components)) continue;
-                if (EndsIn(path_components, buffer_components.value())) {
+                if (EndsIn(path_components,
+                           std::get<0>(buffer_components.variant()))) {
                   output->buffer = buffer;
                   return futures::Past(true);
                 }
@@ -672,13 +675,14 @@ gc::Root<OpenBuffer> CreateBuffer(
   } else if (options.path.has_value()) {
     buffer_options->path = options.path.value();
   }
-  buffer_options->log_supplier = [&editor_state = options.editor_state](
-                                     Path edge_state_directory) {
-    FileSystemDriver driver(editor_state.thread_pool());
-    return NewFileLog(
-        driver, Path::Join(edge_state_directory,
-                           PathComponent::FromString(L".edge_log").value()));
-  };
+  buffer_options->log_supplier =
+      [&editor_state = options.editor_state](Path edge_state_directory) {
+        FileSystemDriver driver(editor_state.thread_pool());
+        return NewFileLog(
+            driver,
+            Path::Join(edge_state_directory,
+                       ValueOrDie(PathComponent::FromString(L".edge_log"))));
+      };
 
   if (options.name.has_value()) {
     buffer_options->name = *options.name;

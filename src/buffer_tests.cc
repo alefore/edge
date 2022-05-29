@@ -100,14 +100,14 @@ const bool buffer_tests_registration = tests::Register(
              [] {
                auto buffer = NewBufferForTests();
 
-               gc::Root<vm::Value> result =
+               gc::Root<vm::Value> result = ValueOrDie(
                    buffer.ptr()
                        ->EvaluateString(
                            L"int F() { return \"foo\".find_last_of(\"o\", 3); }"
                            L" F() == F();")
                        .Get()
-                       .value()
-                       .value();
+                       .value(),
+                   L"tests");
                CHECK(result.ptr()->get_bool());
              }},
         {.name = L"NestedStatements",
@@ -149,7 +149,7 @@ const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
                 buffer.ptr()->EvaluateString(code);
             while (!future_value.Get().has_value())
               buffer.ptr()->editor().work_queue()->Execute();
-            future_value.Get().value().value().ptr();
+            ValueOrDie(future_value.Get().value(), L"tests").ptr();
           }
 
           for (int i = 0; i < 10; i++)

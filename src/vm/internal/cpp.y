@@ -709,7 +709,7 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
               pool,
               a.IsInt() && b.IsInt()
                   ? a.get_int() < b.get_int()
-                  : a.ToDouble().value() < b.ToDouble().value());
+                  : ValueOrDie(a.ToDouble()) < ValueOrDie(b.ToDouble()));
         });
     A = nullptr;
     B = nullptr;
@@ -737,7 +737,7 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
               pool,
               a.IsInt() && b.IsInt()
                   ? a.get_int() <= b.get_int()
-                  : a.ToDouble().value() <= b.ToDouble().value());
+                  : ValueOrDie(a.ToDouble()) <= ValueOrDie(b.ToDouble()));
         });
     A = nullptr;
     B = nullptr;
@@ -765,7 +765,7 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
               pool,
               a.IsInt() && b.IsInt()
                   ? a.get_int() > b.get_int()
-                  : a.ToDouble().value() > b.ToDouble().value());
+                  : ValueOrDie(a.ToDouble()) > ValueOrDie(b.ToDouble()));
         });
     A = nullptr;
     B = nullptr;
@@ -793,7 +793,7 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
               pool,
               a.IsInt() && b.IsInt()
                   ? a.get_int() >= b.get_int()
-                  : a.ToDouble().value() >= b.ToDouble().value());
+                  : ValueOrDie(a.ToDouble()) >= ValueOrDie(b.ToDouble()));
         });
     A = nullptr;
     B = nullptr;

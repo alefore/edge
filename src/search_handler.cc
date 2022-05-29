@@ -248,9 +248,9 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
 
 void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
                      OpenBuffer& buffer) {
-  ValueOrError<std::vector<LineColumn>> results =
-      SearchHandler(editor_state, options, buffer.contents());
-  if (IsError(results) || results.value().empty()) {
+  std::optional<std::vector<LineColumn>> results =
+      OptionalFrom(SearchHandler(editor_state, options, buffer.contents()));
+  if (!results.has_value() || results->empty()) {
     buffer.status().SetInformationText(L"No matches: " + options.search_query);
   } else {
     buffer.set_position(results.value()[0]);
@@ -258,13 +258,17 @@ void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
   }
 }
 
-void HandleSearchResults(const ValueOrError<std::vector<LineColumn>>& results,
-                         OpenBuffer& buffer) {
-  if (IsError(results)) {
-    buffer.status().ConsumeErrors(results, {});
+void HandleSearchResults(
+    const ValueOrError<std::vector<LineColumn>>& results_or_error,
+    OpenBuffer& buffer) {
+  const std::vector<LineColumn>* results =
+      std::get_if<0>(&results_or_error.variant());
+  if (results == nullptr) {
+    buffer.status().ConsumeErrors(results_or_error, {});
     return;
   }
-  if (results.value().empty()) {
+
+  if (results->empty()) {
     buffer.status().SetInformationText(L"🔍 No results.");
     audio::BeepFrequencies(buffer.editor().audio_player(), 0.1,
                            {audio::Frequency(659.25), audio::Frequency(440.0),
@@ -276,10 +280,10 @@ void HandleSearchResults(const ValueOrError<std::vector<LineColumn>>& results,
     return;
   }
 
-  buffer.set_active_cursors(results.value());
+  buffer.set_active_cursors(*results);
   buffer.ResetMode();
 
-  size_t size = results.value().size();
+  size_t size = results->size();
   if (size == 1) {
     buffer.status().SetInformationText(L"🔍 1 result.");
   } else {

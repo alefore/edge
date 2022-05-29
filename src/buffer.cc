@@ -111,7 +111,8 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
 
   auto compilation_result = buffer.CompileString(line->contents()->ToString());
   if (IsError(compilation_result)) return line;
-  auto [expr, sub_environment] = std::move(compilation_result.value());
+  auto [expr, sub_environment] =
+      ValueOrDie(std::move(compilation_result), L"UpdateLineMetadata");
   futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>> metadata_value(
       futures::Future<NonNull<std::shared_ptr<LazyString>>>().value);
 
@@ -373,9 +374,9 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
              })
       .Transform([this,
                   root_this = ptr_this_->ToRoot()](Path edge_state_directory) {
-        auto path =
+        Path path =
             Path::Join(edge_state_directory,
-                       PathComponent::FromString(L".edge_state").value());
+                       ValueOrDie(PathComponent::FromString(L".edge_state")));
         LOG(INFO) << "PersistState: Preparing state file: " << path;
         NonNull<std::unique_ptr<BufferContents>> contents;
         contents->push_back(L"// State of file: " + path.read());
@@ -645,10 +646,10 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
           [&](Path buffer_path) {
             for (const auto& dir : options_.editor.edge_path()) {
               Path state_path = Path::Join(
-                  Path::Join(dir, PathComponent::FromString(L"state").value()),
-                  Path::Join(
-                      buffer_path,
-                      PathComponent::FromString(L".edge_state").value()));
+                  Path::Join(dir,
+                             ValueOrDie(PathComponent::FromString(L"state"))),
+                  Path::Join(buffer_path, ValueOrDie(PathComponent::FromString(
+                                              L".edge_state"))));
               file_system_driver_.Stat(state_path)
                   .Transform([state_path, weak_this](struct stat) {
                     return VisitPointer(
@@ -768,10 +769,8 @@ void OpenBuffer::Reload() {
   futures::ForEach(
       paths.begin(), paths.end(),
       [this](Path dir) {
-        return EvaluateFile(
-                   Path::Join(
-                       dir,
-                       Path::FromString(L"hooks/buffer-reload.cc").value()))
+        return EvaluateFile(Path::Join(dir, ValueOrDie(Path::FromString(
+                                                L"hooks/buffer-reload.cc"))))
             .Transform([](gc::Root<Value>)
                            -> futures::ValueOrError<IterationControlCommand> {
               return futures::Past(IterationControlCommand::kContinue);
@@ -854,7 +853,8 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
       std::list<PathComponent> file_path_components,
       AugmentErrors(L"Unable to split path", file_path.DirectorySplit()));
 
-  file_path_components.push_front(PathComponent::FromString(L"state").value());
+  file_path_components.push_front(
+      ValueOrDie(PathComponent::FromString(L"state")));
 
   auto path = std::make_shared<Path>(path_vector[0]);
   auto error = std::make_shared<std::optional<Error>>();
@@ -1710,22 +1710,25 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
     if (IsError(path)) {
       return {};
     }
-    initial_url = URL::FromPath(std::move(path.value()));
+    initial_url = URL::FromPath(ValueOrDie(std::move(path)));
   }
 
   auto urls_with_extensions =
       GetURLsWithExtensionsForContext(buffer, *initial_url);
 
   std::vector<Path> search_paths = {};
-  if (auto path = Path::FromString(buffer.Read(buffer_variables::path));
-      !IsError(path)) {
-    // Works if the current buffer is a directory listing:
-    search_paths.push_back(path.value());
-    // And a fall-back for the current buffer being a file:
-    if (auto dir = path.value().Dirname(); !IsError(dir)) {
-      search_paths.push_back(dir.value());
-    }
-  }
+  std::visit(overload{IgnoreErrors{},
+                      [&](Path path) {
+                        // Works if the current buffer is a directory listing:
+                        search_paths.push_back(path);
+                        // And a fall-back for the current buffer being a file:
+                        std::visit(overload{IgnoreErrors{},
+                                            [&](Path dir) {
+                                              search_paths.push_back(dir);
+                                            }},
+                                   path.Dirname().variant());
+                      }},
+             Path::FromString(buffer.Read(buffer_variables::path)).variant());
 
   std::vector<URL> urls = urls_with_extensions;
 
@@ -1733,11 +1736,13 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   // number of local_paths tends to be very small.
   for (const Path& search_path : search_paths) {
     for (const URL& url : urls_with_extensions) {
-      ValueOrError<Path> path = url.GetLocalFilePath();
-      if (IsError(path) ||
-          path.value().GetRootType() == Path::RootType::kAbsolute)
-        continue;
-      urls.push_back(URL::FromPath(Path::Join(search_path, path.value())));
+      std::visit(overload{IgnoreErrors{},
+                          [&](Path path) {
+                            if (path.GetRootType() != Path::RootType::kAbsolute)
+                              urls.push_back(
+                                  URL::FromPath(Path::Join(search_path, path)));
+                          }},
+                 url.GetLocalFilePath().variant());
     }
   }
   return urls;
@@ -1793,11 +1798,12 @@ OpenBuffer::OpenBufferForCurrentPosition(
                if (std::holds_alternative<Error>(path.variant()))
                  return futures::Past(
                      futures::IterationControlCommand::kContinue);
-               VLOG(4) << "Calling open file: " << path.value().read();
+               VLOG(4) << "Calling open file: "
+                       << std::get<Path>(path.variant());
                return OpenFileIfFound(
                           OpenFileOptions{
                               .editor_state = editor,
-                              .path = path.value(),
+                              .path = std::get<Path>(path.variant()),
                               .insertion_type =
                                   BuffersList::AddBufferType::kIgnore,
                               .use_search_paths = false})

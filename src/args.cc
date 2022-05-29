@@ -29,6 +29,7 @@ using language::Error;
 using language::FromByteString;
 using language::IgnoreErrors;
 using language::overload;
+using language::ValueOrDie;
 
 namespace {
 static Path GetHomeDirectory() {
@@ -66,7 +67,8 @@ static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
       output.push_back(path.read());
     }
   };
-  push(Path::Join(home, PathComponent::FromString(L".edge").value()));
+  push(Path::Join(home, ValueOrDie(PathComponent::FromString(L".edge"),
+                                   L"GetEdgeConfigPath")));
   LOG(INFO) << "Pushing config path: " << output[0];
   if (char* env = getenv("EDGE_PATH"); env != nullptr) {
     std::istringstream text_stream(std::string(env) + ";");
@@ -183,7 +185,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                        *error = std::get<Error>(output.variant()).description;
                        return std::nullopt;
                      }
-                     return std::optional<std::optional<Path>>(output.value());
+                     return std::optional<std::optional<Path>>(
+                         OptionalFrom(output));
                    })),
 
       Handler<CommandLineValues>({L"mute"}, L"Disable audio output")

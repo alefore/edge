@@ -52,12 +52,10 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
   while (true) {
     // Using mktemp here is secure: if the attacker creates the file, mkfifo
     // will fail.
-    Path output =
-        input_path.has_value()
-            ? input_path.value()
-            : Path::FromString(
-                  FromByteString(mktemp(strdup("/tmp/edge-server-XXXXXX"))))
-                  .value();
+    Path output = input_path.has_value()
+                      ? input_path.value()
+                      : ValueOrDie(Path::FromString(FromByteString(
+                            mktemp(strdup("/tmp/edge-server-XXXXXX")))));
 
     char* path_str = strdup(ToByteString(output.read()).c_str());
     int mkfifo_result = mkfifo(path_str, 0600);

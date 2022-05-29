@@ -78,36 +78,36 @@ std::map<std::wstring, std::wstring> LoadEnvironmentVariables(
     return environment;
   }
   std::wstring command = full_command.substr(start, end - start);
-  std::visit(
-      overload{IgnoreErrors{},
-               [&](PathComponent command_component) {
-                 auto environment_local_path = Path::Join(
-                     PathComponent::FromString(L"commands").value(),
-                     Path::Join(
-                         command_component,
-                         PathComponent::FromString(L"environment").value()));
-                 for (auto dir : path) {
-                   Path full_path = Path::Join(dir, environment_local_path);
-                   std::ifstream infile(ToByteString(full_path.read()));
-                   if (!infile.is_open()) {
-                     continue;
-                   }
-                   std::string line;
-                   while (std::getline(infile, line)) {
-                     if (line == "") {
-                       continue;
-                     }
-                     size_t equals = line.find('=');
-                     if (equals == line.npos) {
-                       continue;
-                     }
-                     environment.insert(
-                         make_pair(FromByteString(line.substr(0, equals)),
-                                   FromByteString(line.substr(equals + 1))));
-                   }
-                 }
-               }},
-      std::move(PathComponent::FromString(command).variant()));
+  std::visit(overload{IgnoreErrors{},
+                      [&](PathComponent command_component) {
+                        auto environment_local_path = Path::Join(
+                            ValueOrDie(PathComponent::FromString(L"commands")),
+                            Path::Join(command_component,
+                                       ValueOrDie(PathComponent::FromString(
+                                           L"environment"))));
+                        for (auto dir : path) {
+                          Path full_path =
+                              Path::Join(dir, environment_local_path);
+                          std::ifstream infile(ToByteString(full_path.read()));
+                          if (!infile.is_open()) {
+                            continue;
+                          }
+                          std::string line;
+                          while (std::getline(infile, line)) {
+                            if (line == "") {
+                              continue;
+                            }
+                            size_t equals = line.find('=');
+                            if (equals == line.npos) {
+                              continue;
+                            }
+                            environment.insert(make_pair(
+                                FromByteString(line.substr(0, equals)),
+                                FromByteString(line.substr(equals + 1))));
+                          }
+                        }
+                      }},
+             std::move(PathComponent::FromString(command).variant()));
   return environment;
 }
 

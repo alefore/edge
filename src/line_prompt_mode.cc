@@ -84,16 +84,16 @@ GetSyntheticFeatures(
   VLOG(5) << "Generating features from input: " << input.size();
   for (const auto& [name, value] : input) {
     if (name == L"name") {
-      auto value_path = Path::FromString(value->ToString());
-      if (IsError(value_path)) continue;
+      ValueOrError<Path> value_path = Path::FromString(value->ToString());
+      Path* path = std::get_if<Path>(&value_path.variant());
+      if (path == nullptr) continue;
       std::visit(overload{IgnoreErrors{},
                           [&](Path directory) {
                             if (directory != Path::LocalDirectory())
                               directories.insert(directory);
                           }},
-                 std::move(value_path.value().Dirname().variant()));
-      if (std::optional<std::wstring> extension =
-              value_path.value().extension();
+                 std::move(path->Dirname().variant()));
+      if (std::optional<std::wstring> extension = path->extension();
           extension.has_value()) {
         extensions.insert(extension.value());
       }
@@ -212,13 +212,12 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
   return OpenOrCreateFile(
              {.editor_state = editor_state,
               .name = buffer_name,
-              .path =
-                  editor_state.edge_path().empty()
-                      ? std::nullopt
-                      : std::make_optional(Path::Join(
-                            editor_state.edge_path().front(),
-                            PathComponent::FromString(name.read() + L"_history")
-                                .value())),
+              .path = editor_state.edge_path().empty()
+                          ? std::nullopt
+                          : std::make_optional(
+                                Path::Join(editor_state.edge_path().front(),
+                                           ValueOrDie(PathComponent::FromString(
+                                               name.read() + L"_history")))),
               .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([&editor_state](gc::Root<OpenBuffer> buffer_root) {
         OpenBuffer& buffer = buffer_root.ptr().value();
@@ -278,7 +277,8 @@ auto parse_history_line_tests_registration = tests::Register(
             CHECK(IsError(ParseHistoryLine(NewLazyString(L"prompt:\""))));
           }},
      {.name = L"Empty", .callback = [] {
-        auto result = ParseHistoryLine(NewLazyString(L"prompt:\"\"")).value();
+        auto result =
+            ValueOrDie(ParseHistoryLine(NewLazyString(L"prompt:\"\"")));
         CHECK(result.find(L"prompt")->second->ToString() == L"");
       }}});
 
@@ -390,13 +390,16 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
               return condition;
             };
             if (line.empty()) return true;
-            auto line_keys = ParseHistoryLine(line.contents());
-            if (Error* error = std::get_if<Error>(&line_keys.variant());
-                error != nullptr) {
-              output.errors.push_back(error->description);
+            ValueOrError<std::unordered_multimap<
+                std::wstring, NonNull<std::shared_ptr<LazyString>>>>
+                line_keys_or_error = ParseHistoryLine(line.contents());
+            auto* line_keys = std::get_if<0>(&line_keys_or_error.variant());
+            if (line_keys == nullptr) {
+              output.errors.push_back(
+                  std::get<Error>(line_keys_or_error.variant()).description);
               return !abort_notification->HasBeenNotified();
             }
-            auto range = line_keys.value().equal_range(L"prompt");
+            auto range = line_keys->equal_range(L"prompt");
             int prompt_count = std::distance(range.first, range.second);
             if (warn_if(prompt_count == 0,
                         L"Line is missing `prompt` section") ||
@@ -436,7 +439,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
               return !abort_notification->HasBeenNotified();
             }
             std::unordered_set<naive_bayes::Feature> features;
-            for (auto& [key, value] : line_keys.value()) {
+            for (auto& [key, value] : *line_keys) {
               if (key != L"prompt") {
                 features.insert(naive_bayes::Feature(
                     key + L":" + QuoteString(value)->ToString()));
