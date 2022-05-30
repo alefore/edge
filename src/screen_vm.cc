@@ -17,7 +17,10 @@
 
 namespace afc {
 using infrastructure::FileDescriptor;
+using language::Error;
 using language::NonNull;
+using language::Success;
+using language::VisitPointer;
 
 namespace gc = language::gc;
 
@@ -107,9 +110,10 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
   using vm::EvaluationOutput;
   using vm::PurityType;
   using vm::Trampoline;
+  using vm::VMTypeMapper;
 
   auto screen_type = MakeNonNullUnique<ObjectType>(
-      vm::VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::vmtype);
+      VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::vmtype);
 
   // Constructors.
   environment.Define(
@@ -127,8 +131,8 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
                                      SyncConnectToServer(path));
             return futures::Past(EvaluationOutput::Return(Value::NewObject(
                 pool,
-                vm::VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::
-                    vmtype.object_type,
+                VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::vmtype
+                    .object_type,
                 MakeNonNullShared<ScreenVm>(fd))));
           }));
 
@@ -194,13 +198,27 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
 
   screen_type->AddField(
       L"set_size",
-      vm::NewCallback(
+      Value::NewFunction(
           pool, PurityType::kUnknown,
-          [](NonNull<std::shared_ptr<Screen>> screen, LineColumnDelta size) {
-            ScreenVm* screen_vm = dynamic_cast<ScreenVm*>(&screen.value());
-            // TODO(easy, 2022-05-27): Turn this into a runtime error.
-            CHECK(screen_vm != nullptr);
-            screen_vm->set_size(size);
+          {VMType::Void(), screen_type->type(),
+           VMTypeMapper<LineColumnDelta>::vmtype},
+          [&pool](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
+            CHECK_EQ(args.size(), 2ul);
+            return futures::Past(VisitPointer(
+                NonNull<std::shared_ptr<ScreenVm>>::DynamicCast(
+                    VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::get(
+                        args[0].ptr().value())),
+                [&args,
+                 &trampoline](NonNull<std::shared_ptr<ScreenVm>> screen) {
+                  screen->set_size(VMTypeMapper<LineColumnDelta>::get(
+                      args[1].ptr().value()));
+                  return Success(EvaluationOutput::Return(
+                      Value::NewVoid(trampoline.pool())));
+                },
+                [] {
+                  return Error(
+                      L"Screen type does not support set_size method.");
+                }));
           }));
 
   screen_type->AddField(
