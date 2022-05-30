@@ -132,10 +132,10 @@
     GHOST_TYPE_EMPTY                                        \
     GHOST_TYPE_SIZE                                         \
     GHOST_TYPE_EQ(ClassName, value);                        \
-    GHOST_TYPE_BEGIN_END(ClassName, value);                 \
-    GHOST_TYPE_INDEX(ClassName, value);                     \
-    GHOST_TYPE_PUSH_BACK(ClassName);                        \
-    GHOST_TYPE_POP_BACK(ClassName);                         \
+    GHOST_TYPE_BEGIN_END                                    \
+    GHOST_TYPE_INDEX                                        \
+    GHOST_TYPE_PUSH_BACK                                    \
+    GHOST_TYPE_POP_BACK                                     \
     const VariableType& read() const { return value; }      \
                                                             \
    private:                                                 \
@@ -226,19 +226,21 @@
 //   class FeaturesSet {
 //    public:
 //     ...
-//     GHOST_TYPE_BEGIN_END(FeaturesSet, features_);
+//     GHOST_TYPE_BEGIN_END
 //
 //    private:
-//     std::unordered_set<Feature> features_;
+//     std::unordered_set<Feature> value;
 //   };
 //
 // This is enough to make this work:
 //
 //   FeaturesSet features_set;
 //   for (const Feature& feature : features_set) ...
-#define GHOST_TYPE_BEGIN_END(ClassName, variable) \
-  auto begin() const { return variable.begin(); } \
-  auto end() const { return variable.end(); }
+//
+// This macro assumes that the ghost variable is called `value`.
+#define GHOST_TYPE_BEGIN_END                   \
+  auto begin() const { return value.begin(); } \
+  auto end() const { return value.end(); }
 
 #define GHOST_TYPE_HASH_FRIEND(ClassName, variable) \
   friend class std::hash<ClassName>;
@@ -254,19 +256,19 @@
     }                                                                   \
   };
 
-#define GHOST_TYPE_INDEX(ClassName, variable)       \
+#define GHOST_TYPE_INDEX                            \
   template <typename KeyType>                       \
   auto& operator[](const KeyType& ghost_type_key) { \
-    return variable[ghost_type_key];                \
+    return value[ghost_type_key];                   \
   }
 
-#define GHOST_TYPE_PUSH_BACK(ClassName)                                \
+#define GHOST_TYPE_PUSH_BACK                                           \
   template <typename T = ContainerType>                                \
   void push_back(const ContainerType::value_type& v) {                 \
     afc::language::container_traits<T>::push_back(value).push_back(v); \
   }
 
-#define GHOST_TYPE_POP_BACK(ClassName)                              \
+#define GHOST_TYPE_POP_BACK                                         \
   template <typename V = ContainerType>                             \
   void pop_back() {                                                 \
     afc::language::container_traits<V>::pop_back(value).pop_back(); \
