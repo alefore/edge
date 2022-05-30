@@ -129,6 +129,8 @@
                                                             \
    public:                                                  \
     GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
+    GHOST_TYPE_EMPTY                                        \
+    GHOST_TYPE_SIZE                                         \
     GHOST_TYPE_EQ(ClassName, value);                        \
     GHOST_TYPE_BEGIN_END(ClassName, value);                 \
     GHOST_TYPE_INDEX(ClassName, value);                     \
@@ -191,6 +193,12 @@
   inline double operator/(double other, const ClassName& a) {          \
     return other / a.read();                                           \
   }
+
+#define GHOST_TYPE_EMPTY \
+  bool empty() const { return value.empty(); }
+
+#define GHOST_TYPE_SIZE \
+  bool size() const { return value.size(); }
 
 #define GHOST_TYPE_EQ(ClassName, variable)        \
   bool operator==(const ClassName& other) const { \
