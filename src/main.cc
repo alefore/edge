@@ -159,7 +159,6 @@ std::wstring CommandsToRun(CommandLineValues args) {
   if (commands_to_run.empty()) {
     commands_to_run = kDefaultCommandsToRun;
   }
-  LOG(INFO) << "XXXX: Commands: " << commands_to_run;
   return commands_to_run;
 }
 
