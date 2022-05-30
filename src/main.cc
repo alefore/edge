@@ -355,7 +355,7 @@ int main(int argc, const char** argv) {
     LOG(INFO) << "Creating curses screen.";
     screen_curses = std::move(NewScreenCurses().get_unique());
   }
-  RegisterScreenType(editor_state().gc_pool(),
+  RegisterScreenType(editor_state(),
                      editor_state().environment().ptr().value());
   VisitPointer(
       screen_curses,

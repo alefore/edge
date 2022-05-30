@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "src/char_buffer.h"
+#include "src/editor.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
@@ -106,11 +107,13 @@ class ScreenVm : public Screen {
 };
 }  // namespace
 
-void RegisterScreenType(gc::Pool& pool, Environment& environment) {
+void RegisterScreenType(EditorState& editor, Environment& environment) {
   using vm::EvaluationOutput;
   using vm::PurityType;
   using vm::Trampoline;
   using vm::VMTypeMapper;
+
+  gc::Pool& pool = editor.gc_pool();
 
   auto screen_type = MakeNonNullUnique<ObjectType>(
       VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::vmtype);
@@ -120,20 +123,22 @@ void RegisterScreenType(gc::Pool& pool, Environment& environment) {
       L"RemoteScreen",
       Value::NewFunction(
           pool, PurityType::kUnknown, {screen_type->type(), VMType::String()},
-          [&pool](std::vector<gc::Root<Value>> args,
-                  Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
+          [&pool, &editor](std::vector<gc::Root<Value>> args, Trampoline&)
+              -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
             FUTURES_ASSIGN_OR_RETURN(
                 Path path, Path::FromString(args[0].ptr()->get_string()));
-            // TODO(2022-05-29, medium): Consider doing this in a background
-            // thread?
-            FUTURES_ASSIGN_OR_RETURN(FileDescriptor fd,
-                                     SyncConnectToServer(path));
-            return futures::Past(EvaluationOutput::Return(Value::NewObject(
-                pool,
-                VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::vmtype
-                    .object_type,
-                MakeNonNullShared<ScreenVm>(fd))));
+            return editor.thread_pool()
+                .Run([path] { return SyncConnectToServer(path); })
+                .Transform([&pool](FileDescriptor fd) {
+                  return futures::Past(
+                      Success(EvaluationOutput::Return(Value::NewObject(
+                          pool,
+                          VMTypeMapper<
+                              NonNull<std::shared_ptr<editor::Screen>>>::vmtype
+                              .object_type,
+                          MakeNonNullShared<ScreenVm>(fd)))));
+                });
           }));
 
   // Methods for Screen.

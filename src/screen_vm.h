@@ -6,9 +6,6 @@
 #include "screen.h"
 #include "src/vm/public/callbacks.h"
 
-namespace afc::language::gc {
-class Pool;
-}
 namespace afc::infrastructure {
 class FileDescriptor;
 }
@@ -17,7 +14,8 @@ struct VMType;
 class Environment;
 }  // namespace afc::vm
 namespace afc::editor {
-void RegisterScreenType(language::gc::Pool& pool, vm::Environment& environment);
+class EditorState;
+void RegisterScreenType(EditorState& editor, vm::Environment& environment);
 std::unique_ptr<Screen> NewScreenVm(infrastructure::FileDescriptor fd);
 const vm::VMType& GetScreenVmType();
 }  // namespace afc::editor
