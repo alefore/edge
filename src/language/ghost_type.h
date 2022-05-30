@@ -77,6 +77,8 @@
 
 #include <functional>
 
+#include "src/language/container_traits.h"
+
 #define GHOST_TYPE(ClassName, VariableType)                 \
   class ClassName {                                         \
    public:                                                  \
@@ -123,11 +125,15 @@
 
 #define GHOST_TYPE_CONTAINER(ClassName, VariableType)       \
   class ClassName {                                         \
+    using ContainerType = VariableType;                     \
+                                                            \
    public:                                                  \
     GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
     GHOST_TYPE_EQ(ClassName, value);                        \
     GHOST_TYPE_BEGIN_END(ClassName, value);                 \
     GHOST_TYPE_INDEX(ClassName, value);                     \
+    GHOST_TYPE_PUSH_BACK(ClassName);                        \
+    GHOST_TYPE_POP_BACK(ClassName);                         \
     const VariableType& read() const { return value; }      \
                                                             \
    private:                                                 \
@@ -244,6 +250,18 @@
   template <typename KeyType>                       \
   auto& operator[](const KeyType& ghost_type_key) { \
     return variable[ghost_type_key];                \
+  }
+
+#define GHOST_TYPE_PUSH_BACK(ClassName)                                \
+  template <typename T = ContainerType>                                \
+  void push_back(const ContainerType::value_type& v) {                 \
+    afc::language::container_traits<T>::push_back(value).push_back(v); \
+  }
+
+#define GHOST_TYPE_POP_BACK(ClassName)                              \
+  template <typename V = ContainerType>                             \
+  void pop_back() {                                                 \
+    afc::language::container_traits<V>::pop_back(value).pop_back(); \
   }
 
 #define GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable) \
