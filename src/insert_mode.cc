@@ -174,9 +174,7 @@ class InsertMode : public EditorMode {
                             [options = options_](OpenBuffer& buffer) {
                               // TODO: Don't ignore the return value. If it's
                               // false for all buffers, insert the \t.
-                              // TODO(easy, 2022-05-16): Change start_
-                              // completion to not require a root?
-                              options.start_completion(buffer.NewRoot());
+                              options.start_completion(buffer);
                               return futures::Past(EmptyValue());
                             });
 
@@ -704,12 +702,11 @@ void EnterInsertMode(InsertModeOptions options) {
     }
 
     if (!shared_options->start_completion) {
-      shared_options->start_completion =
-          [](const gc::Root<OpenBuffer>& buffer) {
-            LOG(INFO) << "Start default completion.";
-            buffer.ptr()->ApplyToCursors(NewExpandTransformation());
-            return true;
-          };
+      shared_options->start_completion = [](OpenBuffer& buffer) {
+        LOG(INFO) << "Start default completion.";
+        buffer.ApplyToCursors(NewExpandTransformation());
+        return true;
+      };
     }
 
     shared_options->editor_state.status().Reset();

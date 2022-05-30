@@ -947,19 +947,18 @@ void Prompt(PromptOptions options) {
                   return options.handler(input->ToString());
                 },
             .start_completion =
-                [&editor_state, options,
-                 prompt_state](const gc::Root<OpenBuffer>& buffer) {
-                  auto input =
-                      buffer.ptr()->current_line()->contents()->ToString();
+                [&editor_state, options, prompt_state](OpenBuffer& buffer) {
+                  auto input = buffer.current_line()->contents()->ToString();
                   LOG(INFO) << "Triggering predictions from: " << input;
                   CHECK(prompt_state->status().prompt_extra_information() !=
                         nullptr);
+                  gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
                   Predict({.editor_state = editor_state,
                            .predictor = options.predictor,
-                           .input_buffer = buffer,
+                           .input_buffer = buffer_root,
                            .input_selection_structure = StructureLine(),
                            .source_buffers = options.source_buffers})
-                      .SetConsumer([&editor_state, options, buffer,
+                      .SetConsumer([&editor_state, options, buffer_root,
                                     prompt_state, input](
                                        std::optional<PredictResults> results) {
                         if (!results.has_value()) return;
@@ -969,25 +968,28 @@ void Prompt(PromptOptions options) {
                           LOG(INFO) << "Prediction advanced from " << input
                                     << " to " << results.value();
 
-                          buffer.ptr()->ApplyToCursors(transformation::Delete{
-                              .modifiers = {.structure = StructureLine(),
-                                            .paste_buffer_behavior = Modifiers::
-                                                PasteBufferBehavior::kDoNothing,
-                                            .boundary_begin =
-                                                Modifiers::LIMIT_CURRENT,
-                                            .boundary_end =
-                                                Modifiers::LIMIT_CURRENT},
-                              .initiator = transformation::Delete::Initiator::
-                                  kInternal});
+                          buffer_root.ptr()->ApplyToCursors(
+                              transformation::Delete{
+                                  .modifiers =
+                                      {.structure = StructureLine(),
+                                       .paste_buffer_behavior = Modifiers::
+                                           PasteBufferBehavior::kDoNothing,
+                                       .boundary_begin =
+                                           Modifiers::LIMIT_CURRENT,
+                                       .boundary_end =
+                                           Modifiers::LIMIT_CURRENT},
+                                  .initiator = transformation::Delete::
+                                      Initiator::kInternal});
 
                           NonNull<std::shared_ptr<LazyString>> line =
                               NewLazyString(
                                   results.value().common_prefix.value());
 
-                          buffer.ptr()->ApplyToCursors(transformation::Insert(
-                              {.contents_to_insert =
-                                   MakeNonNullUnique<BufferContents>(
-                                       MakeNonNullShared<Line>(line))}));
+                          buffer_root.ptr()->ApplyToCursors(
+                              transformation::Insert(
+                                  {.contents_to_insert =
+                                       MakeNonNullUnique<BufferContents>(
+                                           MakeNonNullShared<Line>(line))}));
                           if (options.colorize_options_provider != nullptr) {
                             CHECK(prompt_state->status().GetType() ==
                                   Status::Type::kPrompt);
@@ -998,7 +1000,7 @@ void Prompt(PromptOptions options) {
                                 .colorize_options_provider(
                                     line,
                                     MakeNonNullUnique<ProgressChannel>(
-                                        buffer.ptr()->work_queue(),
+                                        buffer_root.ptr()->work_queue(),
                                         [](ProgressInformation) {
                                           /* Nothing for now. */
                                         },
@@ -1006,14 +1008,15 @@ void Prompt(PromptOptions options) {
                                     NonNull<std::shared_ptr<Notification>>())
                                 // Can't use std::bind_front: need to return
                                 // success.
-                                .Transform([buffer, prompt_state,
+                                .Transform([buffer_root, prompt_state,
                                             prompt_render_state,
                                             original_line =
-                                                buffer.ptr()->contents().at(
-                                                    LineNumber(0))](
+                                                buffer_root.ptr()
+                                                    ->contents()
+                                                    .at(LineNumber(0))](
                                                ColorizePromptOptions options) {
                                   ColorizePrompt(
-                                      buffer.ptr().value(), prompt_state,
+                                      buffer_root.ptr().value(), prompt_state,
                                       NonNull<std::shared_ptr<Notification>>(),
                                       original_line, options);
                                   return Success();

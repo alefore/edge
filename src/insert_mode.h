@@ -77,8 +77,7 @@ struct InsertModeOptions {
   // Optional function to run when the user presses Tab for completions. Returns
   // true if completions are being attempted; false if autocompletion is not
   // enabled.
-  std::function<bool(const language::gc::Root<OpenBuffer>&)> start_completion =
-      nullptr;
+  std::function<bool(OpenBuffer&)> start_completion = nullptr;
 };
 
 void EnterInsertMode(InsertModeOptions options);
