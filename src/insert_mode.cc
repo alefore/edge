@@ -279,10 +279,8 @@ class InsertMode : public EditorMode {
         // would be better to leave a \n in the insertion?
         StartNewInsertion();
 
-        // TODO(easy, 2022-05-16): Change new_line_handler to just receive the
-        // buffer.
         ForEachActiveBuffer(buffers_, {'\n'}, [&](OpenBuffer& buffer) {
-          return options_.new_line_handler(buffer.NewRoot());
+          return options_.new_line_handler(buffer);
         });
         return;
 
@@ -695,8 +693,8 @@ void EnterInsertMode(InsertModeOptions options) {
     }
 
     if (!shared_options->new_line_handler) {
-      shared_options->new_line_handler = [](gc::Root<OpenBuffer> buffer) {
-        return buffer.ptr()->ApplyToCursors(
+      shared_options->new_line_handler = [](OpenBuffer& buffer) {
+        return buffer.ApplyToCursors(
             MakeNonNullUnique<NewLineTransformation>());
       };
     }

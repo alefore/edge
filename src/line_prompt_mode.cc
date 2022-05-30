@@ -936,10 +936,9 @@ void Prompt(PromptOptions options) {
                   editor_state.set_keyboard_redirect(nullptr);
                 },
             .new_line_handler =
-                [&editor_state, options,
-                 prompt_state](const gc::Root<OpenBuffer>& buffer) {
+                [&editor_state, options, prompt_state](OpenBuffer& buffer) {
                   NonNull<std::shared_ptr<LazyString>> input =
-                      buffer.ptr()->current_line()->contents();
+                      buffer.current_line()->contents();
                   AddLineToHistory(editor_state, options.history_file, input);
                   auto ensure_survival_of_current_closure =
                       editor_state.set_keyboard_redirect(nullptr);

@@ -70,8 +70,7 @@ struct InsertModeOptions {
 
   // Optional function to run when a new line is received. Defaults to inserting
   // a new line and moving to it.
-  std::function<futures::Value<language::EmptyValue>(
-      const language::gc::Root<OpenBuffer>&)>
+  std::function<futures::Value<language::EmptyValue>(OpenBuffer&)>
       new_line_handler = nullptr;
 
   // Optional function to run when the user presses Tab for completions. Returns
