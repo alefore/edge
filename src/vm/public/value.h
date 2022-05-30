@@ -90,7 +90,7 @@ class Value {
   language::NonNull<std::shared_ptr<T>> get_user_value(
       const VMType& type) const {
     CHECK_EQ(type, type);
-    return language::NonNull<std::shared_ptr<T>>::StaticCast(
+    return language::NonNull<std::shared_ptr<T>>::UnsafeStaticCast(
         std::get<ObjectInstance>(value_).value);
   }
 

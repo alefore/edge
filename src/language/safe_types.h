@@ -166,7 +166,18 @@ class NonNull<std::shared_ptr<T>> {
   }
 
   template <typename Other>
-  static NonNull<std::shared_ptr<T>> StaticCast(
+  static std::optional<NonNull<std::shared_ptr<T>>> StaticCast(
+      NonNull<std::shared_ptr<Other>> value) {
+    return VisitPointer(
+        static_pointer_cast<T>(std::move(value.get_shared())),
+        [](NonNull<std::shared_ptr<T>> value) {
+          return std::optional<NonNull<std::shared_ptr<T>>>(value);
+        },
+        [] { return std::optional<NonNull<std::shared_ptr<T>>>(); });
+  }
+
+  template <typename Other>
+  static NonNull<std::shared_ptr<T>> UnsafeStaticCast(
       NonNull<std::shared_ptr<Other>> value) {
     return NonNull<std::shared_ptr<T>>::Unsafe(
         static_pointer_cast<T>(std::move(value.get_shared())));
