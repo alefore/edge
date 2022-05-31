@@ -77,8 +77,6 @@
 
 #include <functional>
 
-#include "src/language/container_traits.h"
-
 #define GHOST_TYPE(ClassName, VariableType)                 \
   class ClassName {                                         \
    public:                                                  \
@@ -262,16 +260,24 @@
     return value[ghost_type_key];                   \
   }
 
-#define GHOST_TYPE_PUSH_BACK                                           \
-  template <typename T = ContainerType>                                \
-  void push_back(const ContainerType::value_type& v) {                 \
-    afc::language::container_traits<T>::push_back(value).push_back(v); \
+// We use the template type V to use SFINAE to disable this expression on ghost
+// types of containers that don't include a push_back method (such as
+// std::unordered_set).
+#define GHOST_TYPE_PUSH_BACK                                        \
+  template <typename V = ContainerType>                             \
+  void push_back(const ContainerType::value_type& v) {              \
+    void (V::*f)(const ContainerType::value_type&) = &V::push_back; \
+    (value.*f)(v);                                                  \
   }
 
-#define GHOST_TYPE_POP_BACK                                         \
-  template <typename V = ContainerType>                             \
-  void pop_back() {                                                 \
-    afc::language::container_traits<V>::pop_back(value).pop_back(); \
+// We use the template type V to use SFINAE to disable this expression on ghost
+// types of containers that don't include a pop_back method (such as
+// std::unordered_set).
+#define GHOST_TYPE_POP_BACK             \
+  template <typename V = ContainerType> \
+  void pop_back() {                     \
+    void (V::*f)() = &V::pop_back;      \
+    (value.*f)();                       \
   }
 
 #define GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable) \
