@@ -11,6 +11,7 @@ using concurrent::WorkQueue;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::Pointer;
+using language::ValueOrDie;
 using language::ValueOrError;
 
 namespace gc = language::gc;
@@ -123,40 +124,59 @@ const bool buffer_tests_registration = tests::Register(
              }},
     });
 
-const bool buffer_tests_leaks = tests::Register(L"VMMemoryLeaks", [] {
+const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
   auto callback = [](std::wstring code) {
     return tests::Test{
         .name = code.empty() ? L"<empty>" : (L"Code: " + code),
         .callback = [code] {
-          auto buffer = NewBufferForTests();
-          // We call Reclaim more than once because the first call enables
-          // additional symbols to be removed by the 2nd call (because the first
-          // call only removes some roots after it has traversed them).
-          buffer.ptr()->editor().gc_pool().Reclaim();
-          auto stats_0 = buffer.ptr()->editor().gc_pool().Reclaim();
+          auto Reclaim = [] {
+            // We call Reclaim more than once because the first call enables
+            // additional symbols to be removed by the 2nd call (because the
+            // first call only removes some roots after it has traversed
+            // them).
+            std::optional<size_t> end_total;
+            while (true) {
+              auto stats = EditorForTests().gc_pool().Reclaim();
+              if (end_total == stats.end_total) return stats;
+              end_total = stats.end_total;
+            }
+          };
+          auto stats_0 = Reclaim();
           LOG(INFO) << "Start: " << stats_0;
 
-          buffer.ptr()->CompileString(code);
-
-          buffer.ptr()->editor().gc_pool().Reclaim();
-          auto stats_1 = buffer.ptr()->editor().gc_pool().Reclaim();
-          LOG(INFO) << "After compile: " << stats_1;
-          CHECK_EQ(stats_0.roots, stats_1.roots);
-          CHECK_EQ(stats_0.end_total, stats_1.end_total);
-
+          // We deliberately set things up to let objects be deleted as soon
+          // as they are no longer needed, in order to make the tests
+          // stronger.
           {
-            futures::ValueOrError<language::gc::Root<vm::Value>> future_value =
-                buffer.ptr()->EvaluateString(code);
+            futures::ValueOrError<gc::Root<vm::Value>> future_value = [&code] {
+              std::pair<NonNull<std::unique_ptr<vm::Expression>>,
+                        gc::Root<vm::Environment>>
+                  compilation_result = [&code] {
+                    auto buffer = NewBufferForTests();
+                    auto compilation_result =
+                        ValueOrDie(buffer.ptr()->CompileString(code));
+                    auto erase_result =
+                        EditorForTests().buffers()->erase(buffer.ptr()->name());
+                    CHECK_EQ(erase_result, 1ul);
+                    return compilation_result;
+                  }();
+
+              LOG(INFO) << "Start evaluation.";
+              return Evaluate(
+                  compilation_result.first.value(), EditorForTests().gc_pool(),
+                  compilation_result.second,
+                  [](std::function<void()> callback) {
+                    EditorForTests().work_queue()->Schedule(callback);
+                  });
+            }();
             while (!future_value.Get().has_value())
-              buffer.ptr()->editor().work_queue()->Execute();
+              EditorForTests().work_queue()->Execute();
+
             ValueOrDie(future_value.Get().value(), L"tests").ptr();
           }
 
-          for (int i = 0; i < 10; i++)
-            buffer.ptr()->editor().gc_pool().Reclaim();
-
-          auto stats_2 = buffer.ptr()->editor().gc_pool().Reclaim();
-          LOG(INFO) << "Start: " << stats_1;
+          auto stats_2 = Reclaim();
+          LOG(INFO) << "End: " << stats_2;
 
           // The real assertions of this test are these:
           CHECK_EQ(stats_0.roots, stats_2.roots);
