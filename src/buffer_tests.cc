@@ -74,8 +74,9 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"MetadataReturnIntToStringRuntimeError",
          .callback =
              [] {
-               // TODO(2022-04-24): Figure out why this test fails if we remove
-               // the semicolon.
+               // Needs the semicolon to be a valid statement (unlike the
+               // similar MetadataIntToStringRuntimeError test, which is an
+               // expression, rather than a statement).
                CHECK(GetMetadata(L"return (1/0).tostring();").substr(0, 3) ==
                      L"E: ");
              }},
