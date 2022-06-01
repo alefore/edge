@@ -210,7 +210,7 @@ class ListenableValue {
     });
   }
 
-  void AddListener(Listener listener) {
+  void AddListener(Listener listener) const {
     if (data_->value.has_value()) {
       listener(data_->value.value());
     } else {
