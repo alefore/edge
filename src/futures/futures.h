@@ -101,8 +101,6 @@ struct TransformTraits<language::ValueOrError<InitialType>, Callable> {
   }
 };
 
-// TODO(ms0): If A can be converted to type B, make it possible for Value<A> to
-// be converted to Value<B> implicitly.
 template <typename Type>
 class Value {
  public:
@@ -344,9 +342,6 @@ Value<language::PossibleError> IgnoreErrors(
 // If value evaluates to an error, runs error_callback. error_callback will
 // receive the error and should return a ValueOrError<T> to replace it. If it
 // wants to preserve the error, it can just return it.
-//
-// TODO(easy): error_callback should receive the error directly (not the
-// ValueOrError).
 template <typename T, typename Callable>
 ValueOrError<T> OnError(ValueOrError<T>&& value, Callable error_callback) {
   Future<language::ValueOrError<T>> future;
