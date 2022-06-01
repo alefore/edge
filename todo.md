@@ -82,6 +82,11 @@ Honor the `margin_columns` variable.
 
 In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
 
+Define a variable `header_regex`.
+* When going to the top of the file (e.g., `K`), skip the header (i.e., position the cursor at the first line not matching the header regex).
+* Extend `reload` hook to set it to appropriate values for cc, h, and md files.
+* When opening a file for the first time, position the cursor after the header?
+
 ## Widgets
 
 Improve the bindings used to navigate the widgets.
