@@ -383,9 +383,16 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
     // output_column contains the column in the screen. May not match
     // options.contents.size() if there are wide characters.
     for (ColumnNumber output_column;
-         input_column < input_end && output_column.ToDelta() < options.width;
+         (input_column < input_end ||
+          (input_column == input_end &&
+           !options.inactive_cursor_columns.empty() &&
+           input_column <= *options.inactive_cursor_columns.rbegin()) ||
+          (input_column == input_end &&
+           options.active_cursor_column.has_value() &&
+           input_column <= options.active_cursor_column.value())) &&
+         output_column.ToDelta() < options.width;
          ++input_column) {
-      wint_t c = Get(data, input_column);
+      wint_t c = input_column < input_end ? Get(data, input_column) : L' ';
       CHECK(c != '\n');
 
       ColumnNumber current_position =
@@ -399,7 +406,9 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
       }
 
       if (options.active_cursor_column.has_value() &&
-          options.active_cursor_column.value() == input_column) {
+          (options.active_cursor_column.value() == input_column ||
+           (input_column == input_end &&
+            options.active_cursor_column.value() >= input_column))) {
         // We use current_position rather than output_column because terminals
         // compensate for wide characters (so we don't need to).
         line_with_cursor.cursor = current_position;
@@ -413,7 +422,9 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
               options.modifiers_main_cursor.end());
         }
       } else if (options.inactive_cursor_columns.find(input_column) !=
-                 options.inactive_cursor_columns.end()) {
+                     options.inactive_cursor_columns.end() ||
+                 (input_column == input_end &&
+                  *options.inactive_cursor_columns.rbegin() >= input_column)) {
         line_output.modifiers[current_position + ColumnNumberDelta(1)] =
             line_output.modifiers.empty()
                 ? LineModifierSet()
