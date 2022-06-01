@@ -419,7 +419,6 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
       [&](gc::Root<OpenBuffer> buffer) {
         if (buffer.ptr()->Read(buffer_variables::reload_on_display))
           buffer.ptr()->Reload();
-
         BufferOutputProducerInput input{
             .output_producer_options = options,
             .buffer = buffer.ptr().value(),
@@ -448,8 +447,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
           frame_options.position_in_parent =
               options_.position_in_parent.value();
           if (options_.is_active &&
-              options.main_cursor_behavior ==
-                  OutputProducerOptions::MainCursorBehavior::kIgnore) {
+              options.main_cursor_display ==
+                  OutputProducerOptions::MainCursorDisplay::kActive) {
             frame_options.active_state =
                 FrameOutputProducerOptions::ActiveState::kActive;
           }

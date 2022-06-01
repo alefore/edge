@@ -185,8 +185,8 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     LineWithCursor::Generator generator =
         LineWithCursor::Generator::New(language::CaptureAndHash(
             [](ColumnNumberDelta size_columns,
-               Widget::OutputProducerOptions::MainCursorBehavior
-                   main_cursor_behavior,
+               Widget::OutputProducerOptions::MainCursorDisplay
+                   main_cursor_display,
                WithHash<std::shared_ptr<const Line>> line_contents,
                BufferContentsWindow::Line screen_line, bool atomic_lines,
                bool multiple_cursors, LineColumn position,
@@ -205,53 +205,46 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                     options.inactive_cursor_columns.erase(position.column)) {
                   options.active_cursor_column = position.column;
                 }
-                if (main_cursor_behavior ==
-                    Widget::OutputProducerOptions::MainCursorBehavior::
-                        kHighlight) {
-                  switch (cursor_mode) {
-                    case EditorMode::CursorMode::kDefault:
-                      options.modifiers_main_cursor = {
-                          LineModifier::REVERSE, multiple_cursors
-                                                     ? LineModifier::GREEN
-                                                     : LineModifier::CYAN};
-                      break;
-                    case EditorMode::CursorMode::kInserting:
-                      options.modifiers_main_cursor = {LineModifier::YELLOW};
-                      break;
-                    case EditorMode::CursorMode::kOverwriting:
-                      options.modifiers_main_cursor = {LineModifier::RED,
-                                                       LineModifier::UNDERLINE};
-                      break;
-                  }
-                } else {
-                  switch (cursor_mode) {
-                    case EditorMode::CursorMode::kDefault:
-                      options.modifiers_main_cursor = {LineModifier::WHITE};
-                      break;
-                    case EditorMode::CursorMode::kInserting:
-                      options.modifiers_main_cursor = {LineModifier::YELLOW,
-                                                       LineModifier::UNDERLINE};
-                      break;
-                    case EditorMode::CursorMode::kOverwriting:
-                      options.modifiers_main_cursor = {LineModifier::RED,
-                                                       LineModifier::UNDERLINE};
-                      break;
-                  }
+                switch (main_cursor_display) {
+                  case Widget::OutputProducerOptions::MainCursorDisplay::
+                      kActive:
+                    switch (cursor_mode) {
+                      case EditorMode::CursorMode::kDefault:
+                        options.modifiers_main_cursor = {
+                            multiple_cursors ? LineModifier::GREEN
+                                             : LineModifier::WHITE};
+                        break;
+                      case EditorMode::CursorMode::kInserting:
+                        options.modifiers_main_cursor = {LineModifier::YELLOW};
+                        break;
+                      case EditorMode::CursorMode::kOverwriting:
+                        options.modifiers_main_cursor = {
+                            LineModifier::RED, LineModifier::UNDERLINE};
+                        break;
+                    }
+                    options.modifiers_inactive_cursors =
+                        multiple_cursors
+                            ? options.modifiers_main_cursor
+                            : LineModifierSet({LineModifier::BLUE});
+                    // The inactive cursors need the REVERSE modifier to ensure
+                    // they get highlighted. The active one doesn't need it,
+                    // since the terminal handler actually places the real
+                    // cursor in the corresponding position.
+                    options.modifiers_inactive_cursors.insert(
+                        LineModifier::REVERSE);
+                    break;
+                  case Widget::OutputProducerOptions::MainCursorDisplay::
+                      kInactive:
+                    options.modifiers_main_cursor = {LineModifier::BLUE};
+                    options.modifiers_inactive_cursors = {LineModifier::BLUE};
+                    break;
                 }
-
-                options.modifiers_inactive_cursors =
-                    multiple_cursors ? options.modifiers_main_cursor
-                                     : LineModifierSet({LineModifier::BLUE});
-                if (options.modifiers_inactive_cursors.erase(
-                        LineModifier::REVERSE) == 0)
-                  options.modifiers_inactive_cursors.insert(
-                      LineModifier::REVERSE);
               }
 
               return line_contents.value->Output(std::move(options));
             },
             output_producer_options.size.column,
-            output_producer_options.main_cursor_behavior,
+            output_producer_options.main_cursor_display,
             MakeWithHash(line_contents, compute_hash(*line_contents)),
             screen_line, buffer.Read(buffer_variables::atomic_lines),
             buffer.Read(buffer_variables::multiple_cursors), buffer.position(),
@@ -302,8 +295,8 @@ const bool tests_registration = tests::Register(L"BufferOutputProducer", [] {
              Widget::OutputProducerOptions{
                  .size = LineColumnDelta(LineNumberDelta(50),
                                          ColumnNumberDelta(80)),
-                 .main_cursor_behavior = Widget::OutputProducerOptions::
-                     MainCursorBehavior::kIgnore});
+                 .main_cursor_display = Widget::OutputProducerOptions::
+                     MainCursorDisplay::kInactive});
          CHECK_EQ(lines.size(), LineNumberDelta(1));
        }}};
 }());

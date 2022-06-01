@@ -52,17 +52,15 @@ LineWithCursor::Generator::Vector GetLines(const EditorState& editor_state,
 
   std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
   LineWithCursor::Generator::Vector output =
-      editor_state.buffer_tree().GetLines(
-          {.size = LineColumnDelta(screen_size.line - status_lines.size(),
-                                   screen_size.column),
-           .main_cursor_behavior =
-               (editor_state.status().GetType() == Status::Type::kPrompt ||
-                (buffer.has_value() &&
-                 buffer->ptr()->status().GetType() == Status::Type::kPrompt))
-                   ? Widget::OutputProducerOptions::MainCursorBehavior::
-                         kHighlight
-                   : Widget::OutputProducerOptions::MainCursorBehavior::
-                         kIgnore});
+      editor_state.buffer_tree().GetLines(Widget::OutputProducerOptions{
+          .size = LineColumnDelta(screen_size.line - status_lines.size(),
+                                  screen_size.column),
+          .main_cursor_display =
+              (editor_state.status().GetType() == Status::Type::kPrompt ||
+               (buffer.has_value() &&
+                buffer->ptr()->status().GetType() == Status::Type::kPrompt))
+                  ? Widget::OutputProducerOptions::MainCursorDisplay::kInactive
+                  : Widget::OutputProducerOptions::MainCursorDisplay::kActive});
   CHECK_EQ(output.size(), screen_size.line - status_lines.size());
 
   (editor_state.status().GetType() == Status::Type::kPrompt ? output

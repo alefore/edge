@@ -25,6 +25,14 @@ namespace afc::editor {
 using language::MakeNonNullShared;
 using language::NonNull;
 
+Widget::OutputProducerOptions GetChildOptions(
+    Widget::OutputProducerOptions options, size_t index, size_t index_active) {
+  if (index != index_active)
+    options.main_cursor_display =
+        Widget::OutputProducerOptions::MainCursorDisplay::kInactive;
+  return options;
+}
+
 WidgetList::WidgetList(std::vector<NonNull<std::unique_ptr<Widget>>> children,
                        size_t active)
     : children_(std::move(children)), active_(active) {}
@@ -142,7 +150,8 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
   CHECK_EQ(children_.size(), lines_per_child.size());
   for (size_t index = 0; index < children_.size(); index++) {
     LineWithCursor::Generator::Vector child_lines =
-        GetChildOutput(options, index, lines_per_child[index]);
+        GetChildOutput(GetChildOptions(options, index, active_), index,
+                       lines_per_child[index]);
     CHECK_EQ(child_lines.size(), lines_per_child[index]);
     if (index != active_) child_lines.RemoveCursor();
     output.Append(std::move(child_lines));
@@ -215,13 +224,10 @@ LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
 
   for (size_t index = 0; index < children_.size(); index++) {
     auto& column = columns_vector.columns[index];
-    OutputProducerOptions child_options = options;
+    OutputProducerOptions child_options =
+        GetChildOptions(options, index, active_);
     CHECK(column.width.has_value());
     child_options.size.column = column.width.value();
-    child_options.main_cursor_behavior =
-        index == active_
-            ? options.main_cursor_behavior
-            : Widget::OutputProducerOptions::MainCursorBehavior::kHighlight;
     column.lines = children_[index]->CreateOutput(std::move(child_options));
   }
   return columns_vector.columns.empty()
