@@ -158,7 +158,8 @@ nesting_lbracket ::= LBRACKET. {
 }
 
 nesting_rbracket ::= RBRACKET. {
-  // This is safe: This RBRACKET always follows a corresponding LBRACKET.
+  // This is safe: nesting_rbracket always follows a corresponding
+  // nesting_lbracket.
   CHECK(compilation->environment.ptr()->parent_environment().has_value());
   LOG(INFO) << "Restoring.";
   compilation->environment =
