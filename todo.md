@@ -48,7 +48,12 @@ Make the delete buffer history (used by `p` paste) a stack; make it possible to 
 
   * Somehow integrate reflow (logic from `wrap_from_content`) with `reflow` script?
 
-  * On reflow, leave the cursor where it was?
+  * On reflow, leave the cursor where it was? This is difficult because the
+    transformations API requires that transformations are applied to a specific
+    cursor. I suppose we could create a new cursor; set it as active; apply all
+    transformations; and then set it as inactive. But then how do we make sure
+    that the originally active cursor will be the active cursor? We can't even
+    identify it (since all cursors may have moved).
 
   * In a C++ file, handle multi-line strings better.
       printf("foo bar hey "
@@ -66,6 +71,8 @@ Don't save backups of internal files, perhaps based on a variable.
 
 If autocomplete of files doesn't find any matches, attempt a case-insensitive match? If it matches, expand (correcting invalid characters).
 
+For /-based autocomplete, support globbing?
+
 ## Navigation
 
 Improve "g", the current behavior is kind of annoying:
@@ -80,6 +87,9 @@ In diff mode, add a link to every file. Following it should take you directly to
 Improve the bindings used to navigate the widgets.
 
 * Add a key binding that shows a tree map with every single buffer (from the BuffersList). The user can then quickly select which one to go to. Perhaps the weight is proportional to use or time spent in file.
+  * Probably worth starting with something very simple/naive and then iterate?
+    * Then again, that's what editor variable `buffers_to_show` kinda does?
+      * Maybe just make it smarter? Perhaps it should detect that many buffers could be put side-by-side?
 
 * Make hjkl move the active widget up/down/left/right.
 
