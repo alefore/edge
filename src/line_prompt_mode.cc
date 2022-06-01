@@ -609,10 +609,11 @@ class PromptRenderState {
 
 class HistoryScrollBehavior : public ScrollBehavior {
  public:
-  HistoryScrollBehavior(gc::Root<OpenBuffer> history,
-                        NonNull<std::shared_ptr<LazyString>> original_input,
-                        NonNull<std::shared_ptr<PromptState>> prompt_state)
-      : history_(std::move(history)),
+  HistoryScrollBehavior(
+      futures::ListenableValue<gc::Root<OpenBuffer>> filtered_history,
+      NonNull<std::shared_ptr<LazyString>> original_input,
+      NonNull<std::shared_ptr<PromptState>> prompt_state)
+      : filtered_history_(std::move(filtered_history)),
         original_input_(std::move(original_input)),
         prompt_state_(std::move(prompt_state)),
         previous_context_(prompt_state_->status().context()) {
@@ -645,27 +646,42 @@ class HistoryScrollBehavior : public ScrollBehavior {
  private:
   void ScrollHistory(OpenBuffer& buffer, LineNumberDelta delta) const {
     if (prompt_state_->IsGone()) return;
-    NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
-    OpenBuffer& history = history_.ptr().value();
-
-    if (history.contents().size() > LineNumberDelta(1) ||
-        !history.LineAt(LineNumber())->empty()) {
-      LineColumn position = history.position();
-      position.line = std::min(position.line.PlusHandlingOverflow(delta),
-                               LineNumber() + history.contents().size());
-      history.set_position(position);
-      if (position.line < LineNumber(0) + history.contents().size()) {
-        prompt_state_->status().set_context(history_);
-        if (history.current_line() != nullptr) {
-          contents_to_insert->AppendToLine(LineNumber(),
-                                           *history.current_line());
-        }
-      } else {
-        prompt_state_->status().set_context(previous_context_);
-        contents_to_insert->AppendToLine(LineNumber(), Line(original_input_));
-      }
+    if (delta == LineNumberDelta(+1) && !filtered_history_.get().has_value()) {
+      ReplaceContents(buffer, MakeNonNullShared<BufferContents>());
+      return;
     }
+    filtered_history_.AddListener([delta, buffer_root = buffer.NewRoot(),
+                                   original_input = original_input_,
+                                   prompt_state = prompt_state_,
+                                   previous_context = previous_context_](
+                                      gc::Root<OpenBuffer> history_root) {
+      NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
+      OpenBuffer& buffer = buffer_root.ptr().value();
+      OpenBuffer& history = history_root.ptr().value();
+      if (history.contents().size() > LineNumberDelta(1) ||
+          !history.LineAt(LineNumber())->empty()) {
+        LineColumn position = history.position();
+        position.line = std::min(position.line.PlusHandlingOverflow(delta),
+                                 LineNumber() + history.contents().size());
+        history.set_position(position);
+        if (position.line < LineNumber(0) + history.contents().size()) {
+          prompt_state->status().set_context(history_root);
+          if (history.current_line() != nullptr) {
+            contents_to_insert->AppendToLine(LineNumber(),
+                                             *history.current_line());
+          }
+        } else {
+          prompt_state->status().set_context(previous_context);
+          contents_to_insert->AppendToLine(LineNumber(), Line(original_input));
+        }
+      }
+      ReplaceContents(buffer, contents_to_insert);
+    });
+  }
 
+  static void ReplaceContents(
+      OpenBuffer& buffer,
+      NonNull<std::shared_ptr<BufferContents>> contents_to_insert) {
     buffer.ApplyToCursors(transformation::Delete{
         .modifiers = {.structure = StructureLine(),
                       .paste_buffer_behavior =
@@ -678,7 +694,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
         .contents_to_insert = std::move(contents_to_insert)});
   }
 
-  const gc::Root<OpenBuffer> history_;
+  const futures::ListenableValue<gc::Root<OpenBuffer>> filtered_history_;
   const NonNull<std::shared_ptr<LazyString>> original_input_;
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
   const std::optional<gc::Root<OpenBuffer>> previous_context_;
@@ -702,16 +718,17 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
     CHECK_GT(buffer_.ptr()->lines_size(), LineNumberDelta(0));
     NonNull<std::shared_ptr<LazyString>> input =
         buffer_.ptr()->contents().at(LineNumber(0))->contents();
-    return FilterHistory(editor_state_, history_, abort_notification,
-                         input->ToString())
-        .Transform([input, prompt_state = prompt_state_](
-                       gc::Root<OpenBuffer> history_filtered)
-                       -> NonNull<std::unique_ptr<ScrollBehavior>> {
-          history_filtered.ptr()->set_current_position_line(
-              LineNumber(0) + history_filtered.ptr()->contents().size());
-          return MakeNonNullUnique<HistoryScrollBehavior>(
-              std::move(history_filtered), input, prompt_state);
-        });
+    return futures::Past(MakeNonNullUnique<HistoryScrollBehavior>(
+        futures::ListenableValue(
+            FilterHistory(editor_state_, history_, abort_notification,
+                          input->ToString())
+                .Transform([input](gc::Root<OpenBuffer> history_filtered) {
+                  history_filtered.ptr()->set_current_position_line(
+                      LineNumber(0) +
+                      history_filtered.ptr()->contents().size());
+                  return history_filtered;
+                })),
+        input, prompt_state_));
   }
 
  private:
