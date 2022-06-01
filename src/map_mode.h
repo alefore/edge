@@ -9,8 +9,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "command.h"
-#include "editor_mode.h"
+#include "src/command.h"
+#include "src/editor_mode.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "vm/public/environment.h"
