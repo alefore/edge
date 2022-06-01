@@ -670,7 +670,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
             contents_to_insert->AppendToLine(LineNumber(),
                                              *history.current_line());
           }
-        } else {
+        } else if (prompt_state->status().context() != previous_context) {
           prompt_state->status().set_context(previous_context);
           contents_to_insert->AppendToLine(LineNumber(), Line(original_input));
         }
