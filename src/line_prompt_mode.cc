@@ -417,6 +417,15 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                           << cpp_string.OriginalString();
                 return;
               }
+
+              if (std::holds_alternative<Error>(
+                      vm::CppString::FromEscapedString(
+                          cpp_string.OriginalString()))) {
+                LOG(INFO) << "Ignoring history line that can't be unescaped: "
+                          << cpp_string.OriginalString();
+                return;
+              }
+
               std::vector<Token> line_tokens = ExtendTokensToEndOfString(
                   prompt_value, TokenizeNameForPrefixSearches(prompt_value));
               naive_bayes::Event event_key(cpp_string.OriginalString());
@@ -513,6 +522,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             BufferContents history_contents;
             history_contents.push_back(L"prompt:\"foobar \\\"");
             history_contents.push_back(L"prompt:\"foo\"");
+            history_contents.push_back(L"prompt:\"foo\n bar\"");
             history_contents.push_back(L"prompt:\"foo \\o bar \\\"");
             FilterSortHistorySyncOutput output =
                 FilterSortHistorySync(MakeNonNullShared<Notification>(), L"f",
