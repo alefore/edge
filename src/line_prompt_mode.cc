@@ -363,12 +363,14 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   std::vector<Token> filter_tokens =
       TokenizeBySpaces(NewLazyString(filter).value());
   history_contents->EveryLine([&](LineNumber, const Line& line) {
+    VLOG(8) << "Considering line: " << line.ToString();
     auto warn_if = [&](bool condition, Error error) {
       if (condition) {
         // We don't use AugmentError because we'd rather append to the
         // end of the description, not the beginning.
-        output.errors.push_back(
-            Error(error.read() + L": " + line.contents()->ToString()));
+        error = Error(error.read() + L": " + line.contents()->ToString());
+        VLOG(5) << "Found error: " << error;
+        output.errors.push_back(error);
       }
       return condition;
     };
@@ -451,6 +453,32 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   }
   return output;
 }
+
+auto filter_sort_history_sync_tests_registration = tests::Register(
+    L"FilterSortHistorySync",
+    {{.name = L"EmptyFilter",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
+                features;
+            BufferContents history_contents;
+            FilterSortHistorySyncOutput output =
+                FilterSortHistorySync(MakeNonNullShared<Notification>(), L"",
+                                      history_contents.copy(), features);
+          }},
+     {.name = L"HistoryWithNewLine", .callback = [] {
+        std::unordered_multimap<std::wstring,
+                                NonNull<std::shared_ptr<LazyString>>>
+            features;
+        BufferContents history_contents;
+        history_contents.push_back(L"prompt:\"ls\\n\"");
+        FilterSortHistorySyncOutput output =
+            FilterSortHistorySync(MakeNonNullShared<Notification>(), L"ls",
+                                  history_contents.copy(), features);
+        CHECK_EQ(output.lines.size(), 1ul);
+        CHECK(output.lines[0]->ToString() == L"ls\\n");
+      }}});
 
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
