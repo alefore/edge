@@ -538,7 +538,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                                 NonNull<std::shared_ptr<LazyString>>>
             features;
         BufferContents history_contents;
-        history_contents.push_back(L"prompt:\"ls\\n\"");
+        history_contents.push_back(L"prompt:\"ls\\\\n\"");
         FilterSortHistorySyncOutput output =
             FilterSortHistorySync(MakeNonNullShared<Notification>(), L"ls",
                                   history_contents.copy(), features);
