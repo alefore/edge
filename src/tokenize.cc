@@ -1,12 +1,26 @@
 #include "src/tokenize.h"
 
+#include <glog/logging.h>
+
+#include "src/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/substring.h"
+#include "src/tests/tests.h"
 
 namespace afc::editor {
 using ::operator<<;
 
 using language::NonNull;
+
+bool operator==(const Token& a, const Token& b) {
+  return a.begin == b.begin && a.end == b.end && a.value == b.value;
+}
+
+std::ostream& operator<<(std::ostream& os, const Token& t) {
+  os << "[token: begin:" << t.begin << ", end: " << t.end
+     << ", value: " << t.value << "]";
+  return os;
+}
 
 std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   std::vector<Token> output;
@@ -27,7 +41,7 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
     } else if (c == '\"') {
       ++i;
       while (i.ToDelta() < command.size() && command.get(i) != '\"') {
-        if (command.get(i) == '\\') {
+        if (command.get(i) == L'\\') {
           ++i;
         }
         if (i.ToDelta() < command.size()) {
@@ -61,8 +75,9 @@ void PushIfNonEmpty(const NonNull<std::shared_ptr<LazyString>>& source,
 std::vector<Token> TokenizeGroupsAlnum(
     const NonNull<std::shared_ptr<LazyString>>& name) {
   std::vector<Token> output;
-  for (ColumnNumber i; i.ToDelta() < name->size(); ++i) {
+  for (ColumnNumber i; i.ToDelta() < name->size();) {
     while (i.ToDelta() < name->size() && !isalnum(name->get(i))) {
+      if (name->get(i) == L'\\') ++i;
       ++i;
     }
     Token token;
@@ -71,9 +86,26 @@ std::vector<Token> TokenizeGroupsAlnum(
       ++i;
     }
     token.end = i;
+    VLOG(9) << "Considering token: " << token;
     PushIfNonEmpty(name, std::move(token), output);
   }
   return output;
+}
+
+namespace {
+const bool get_synthetic_features_tests_registration = tests::Register(
+    L"TokenizeGroupsAlnum",
+    {{.name = L"SkipsEscapeCharacters", .callback = [] {
+        std::vector<Token> output =
+            TokenizeGroupsAlnum(NewLazyString(L"a\\n\\n\\n\\nf"));
+        CHECK_EQ(output.size(), 2ul);
+        CHECK_EQ(output[0], (Token{.value = L"a",
+                                   .begin = ColumnNumber(0),
+                                   .end = ColumnNumber(1)}));
+        CHECK_EQ(output[1], (Token{.value = L"f",
+                                   .begin = ColumnNumber(9),
+                                   .end = ColumnNumber(10)}));
+      }}});
 }
 
 std::vector<Token> TokenizeNameForPrefixSearches(
