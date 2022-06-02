@@ -48,6 +48,7 @@ using language::NonNull;
 using language::overload;
 using language::Success;
 using language::ValueOrError;
+using language::VisitPointer;
 
 namespace gc = language::gc;
 namespace {
@@ -721,33 +722,39 @@ class HistoryScrollBehavior : public ScrollBehavior {
       ReplaceContents(buffer, MakeNonNullShared<BufferContents>());
       return;
     }
-    filtered_history_.AddListener([delta, buffer_root = buffer.NewRoot(),
-                                   original_input = original_input_,
-                                   prompt_state = prompt_state_,
-                                   previous_context = previous_context_](
-                                      gc::Root<OpenBuffer> history_root) {
-      NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
-      OpenBuffer& buffer = buffer_root.ptr().value();
-      OpenBuffer& history = history_root.ptr().value();
-      if (history.contents().size() > LineNumberDelta(1) ||
-          !history.LineAt(LineNumber())->empty()) {
-        LineColumn position = history.position();
-        position.line = std::min(position.line.PlusHandlingOverflow(delta),
-                                 LineNumber() + history.contents().size());
-        history.set_position(position);
-        if (position.line < LineNumber(0) + history.contents().size()) {
-          prompt_state->status().set_context(history_root);
-          if (history.current_line() != nullptr) {
-            contents_to_insert->AppendToLine(LineNumber(),
-                                             *history.current_line());
+    filtered_history_.AddListener(
+        [delta, buffer_root = buffer.NewRoot(),
+         original_input = original_input_, prompt_state = prompt_state_,
+         previous_context =
+             previous_context_](gc::Root<OpenBuffer> history_root) {
+          OpenBuffer& buffer = buffer_root.ptr().value();
+          std::shared_ptr<const Line> line_to_insert;
+          OpenBuffer& history = history_root.ptr().value();
+          if (history.contents().size() > LineNumberDelta(1) ||
+              !history.LineAt(LineNumber())->empty()) {
+            LineColumn position = history.position();
+            position.line = std::min(position.line.PlusHandlingOverflow(delta),
+                                     LineNumber() + history.contents().size());
+            history.set_position(position);
+            if (position.line < LineNumber(0) + history.contents().size()) {
+              prompt_state->status().set_context(history_root);
+              if (history.current_line() != nullptr) {
+                line_to_insert = history.current_line();
+              }
+            } else if (prompt_state->status().context() != previous_context) {
+              prompt_state->status().set_context(previous_context);
+              line_to_insert = std::make_shared<Line>(original_input);
+            }
           }
-        } else if (prompt_state->status().context() != previous_context) {
-          prompt_state->status().set_context(previous_context);
-          contents_to_insert->AppendToLine(LineNumber(), Line(original_input));
-        }
-      }
-      ReplaceContents(buffer, contents_to_insert);
-    });
+          NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
+          VisitPointer(
+              line_to_insert,
+              [&](NonNull<std::shared_ptr<const Line>> line) {
+                contents_to_insert->AppendToLine(LineNumber(), line.value());
+              },
+              [] {});
+          ReplaceContents(buffer, contents_to_insert);
+        });
   }
 
   static void ReplaceContents(
