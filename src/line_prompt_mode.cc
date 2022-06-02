@@ -285,9 +285,10 @@ auto parse_history_line_tests_registration = tests::Register(
 
 NonNull<std::shared_ptr<LazyString>> QuoteString(
     NonNull<std::shared_ptr<LazyString>> src) {
-  return StringAppend(NewLazyString(L"\""),
-                      NewLazyString(vm::CppEscapeString(src->ToString())),
-                      NewLazyString(L"\""));
+  return StringAppend(
+      NewLazyString(L"\""),
+      NewLazyString(vm::CppString::FromString(src->ToString()).Escape()),
+      NewLazyString(L"\""));
 }
 
 auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
@@ -393,40 +394,49 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
       return !abort_notification->HasBeenNotified();
     }
 
-    auto prompt_value_optional =
-        vm::CppUnescapeString(range.first->second->ToString());
-    if (!prompt_value_optional.has_value()) {
-      LOG(INFO) << "Unable to unescape string: "
-                << range.first->second->ToString();
-      return !abort_notification->HasBeenNotified();
-    }
-    NonNull<std::shared_ptr<LazyString>> prompt_value =
-        NewLazyString(*prompt_value_optional);
-    VLOG(8) << "Considering history value: " << prompt_value->ToString();
-    std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-        prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-    naive_bayes::Event event_key(range.first->second->ToString());
-    std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
-    if (filter_tokens.empty()) {
-      VLOG(6) << "Accepting value (empty filters): " << line.ToString();
-      features_output = &history_data[event_key];
-    } else if (auto match = FindFilterPositions(filter_tokens, line_tokens);
-               match.has_value()) {
-      VLOG(5) << "Accepting value, produced a match: " << line.ToString();
-      features_output = &history_data[event_key];
-      history_prompt_tokens.insert({event_key, std::move(match.value())});
-    } else {
-      VLOG(6) << "Ignoring value, no match: " << line.ToString();
-      return !abort_notification->HasBeenNotified();
-    }
-    std::unordered_set<naive_bayes::Feature> features;
-    for (auto& [key, value] : *line_keys) {
-      if (key != L"prompt") {
-        features.insert(
-            naive_bayes::Feature(key + L":" + QuoteString(value)->ToString()));
-      }
-    }
-    features_output->push_back(naive_bayes::FeaturesSet(std::move(features)));
+    std::visit(
+        overload{
+            [range](Error error) {
+              LOG(INFO) << AugmentError(
+                  L"Unescaping string: " + range.first->second->ToString(),
+                  error);
+            },
+            [&](vm::CppString cpp_string) {
+              VLOG(8) << "Considering history value: "
+                      << cpp_string.OriginalString();
+              NonNull<std::shared_ptr<LazyString>> prompt_value =
+                  NewLazyString(cpp_string.OriginalString());
+              std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+                  prompt_value, TokenizeNameForPrefixSearches(prompt_value));
+              naive_bayes::Event event_key(cpp_string.Escape());
+              std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
+              if (filter_tokens.empty()) {
+                VLOG(6) << "Accepting value (empty filters): "
+                        << line.ToString();
+                features_output = &history_data[event_key];
+              } else if (auto match =
+                             FindFilterPositions(filter_tokens, line_tokens);
+                         match.has_value()) {
+                VLOG(5) << "Accepting value, produced a match: "
+                        << line.ToString();
+                features_output = &history_data[event_key];
+                history_prompt_tokens.insert(
+                    {event_key, std::move(match.value())});
+              } else {
+                VLOG(6) << "Ignoring value, no match: " << line.ToString();
+                return;
+              }
+              std::unordered_set<naive_bayes::Feature> features;
+              for (auto& [key, value] : *line_keys) {
+                if (key != L"prompt") {
+                  features.insert(naive_bayes::Feature(
+                      key + L":" + QuoteString(value)->ToString()));
+                }
+              }
+              features_output->push_back(
+                  naive_bayes::FeaturesSet(std::move(features)));
+            }},
+        vm::CppString::FromEscapedString(range.first->second->ToString()));
     return !abort_notification->HasBeenNotified();
   });
 

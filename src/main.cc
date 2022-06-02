@@ -97,7 +97,7 @@ static const wchar_t* kDefaultCommandsToRun =
     L"editor.ForkCommand(options);";
 
 std::wstring CommandsToRun(CommandLineValues args) {
-  using afc::vm::CppEscapeString;
+  using afc::vm::CppString;
   std::wstring commands_to_run = args.commands_to_run;
   std::vector<std::wstring> buffers_to_watch;
   for (auto& path : args.naked_arguments) {
@@ -119,15 +119,16 @@ std::wstring CommandsToRun(CommandLineValues args) {
           full_path = path;
       }
     }
-    commands_to_run +=
-        L"editor.OpenFile(\"" + CppEscapeString(full_path) + L"\", true);\n";
+    commands_to_run += L"editor.OpenFile(\"" +
+                       CppString::FromString(full_path).Escape() +
+                       L"\", true);\n";
     buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=
         L"ForkCommandOptions options = ForkCommandOptions();\n"
         L"options.set_command(\"" +
-        CppEscapeString(command_to_fork) +
+        CppString::FromString(command_to_fork).Escape() +
         L"\");\noptions.set_insertion_type(\"" +
         (args.background ? L"skip" : L"search_or_create") +
         L"\");\neditor.ForkCommand(options);";
@@ -143,14 +144,16 @@ std::wstring CommandsToRun(CommandLineValues args) {
   if (args.client.has_value()) {
     commands_to_run +=
         L"Screen screen = RemoteScreen(\"" +
-        CppEscapeString(FromByteString(getenv(kEdgeParentAddress))) + L"\");\n";
+        CppString::FromString(FromByteString(getenv(kEdgeParentAddress)))
+            .Escape() +
+        L"\");\n";
   } else if (!buffers_to_watch.empty() &&
              args.nested_edge_behavior ==
                  CommandLineValues::NestedEdgeBehavior::kWaitForClose) {
     commands_to_run += L"SetString buffers_to_watch = SetString();\n";
     for (auto& block : buffers_to_watch) {
-      commands_to_run +=
-          L"buffers_to_watch.insert(\"" + CppEscapeString(block) + L"\");\n";
+      commands_to_run += L"buffers_to_watch.insert(\"" +
+                         CppString::FromString(block).Escape() + L"\");\n";
     }
     commands_to_run += L"editor.WaitForClose(buffers_to_watch);\n";
   }
@@ -378,8 +381,9 @@ int main(int argc, const char** argv) {
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
-      commands_to_run += L"editor.SendExitTo(\"" +
-                         afc::vm::CppEscapeString(server_path.read()) + L"\");";
+      commands_to_run +=
+          L"editor.SendExitTo(\"" +
+          afc::vm::CppString::FromString(server_path.read()).Escape() + L"\");";
     }
 
     LOG(INFO) << "Sending commands.";

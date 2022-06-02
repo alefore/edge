@@ -161,7 +161,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
       os << value.get_int();
       break;
     case VMType::Type::kString:
-      os << '"' << CppEscapeString(value.get_string()) << '"';
+      os << '"' << CppString::FromString(value.get_string()).Escape() << '"';
       break;
     case VMType::Type::kBool:
       os << (value.get_bool() ? "true" : "false");

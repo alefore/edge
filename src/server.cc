@@ -101,9 +101,10 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
       AugmentErrors(L"Unable to create fifo for communication with server",
                     CreateFifo({})));
   LOG(INFO) << "Fifo created: " << private_fifo.read();
-  string command = "editor.ConnectTo(\"" +
-                   ToByteString(CppEscapeString(private_fifo.read())) +
-                   "\");\n";
+  string command =
+      "editor.ConnectTo(\"" +
+      ToByteString(CppString::FromString(private_fifo.read()).Escape()) +
+      "\");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {
     return Error(path.read() + L": write failed: " +
