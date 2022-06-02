@@ -342,6 +342,116 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
   return MakeNonNullShared<Line>(std::move(options));
 }
 
+struct FilterSortHistorySyncOutput {
+  std::vector<Error> errors;
+  std::deque<NonNull<std::shared_ptr<Line>>> lines;
+};
+
+FilterSortHistorySyncOutput FilterSortHistorySync(
+    NonNull<std::shared_ptr<Notification>> abort_notification,
+    std::wstring filter,
+    NonNull<std::shared_ptr<BufferContents>> history_contents,
+    std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
+        features) {
+  FilterSortHistorySyncOutput output;
+  if (abort_notification->HasBeenNotified()) return output;
+  // Sets of features for each unique `prompt` value in the history.
+  naive_bayes::History history_data({});
+  // Tokens by parsing the `prompt` value in the history.
+  std::unordered_map<naive_bayes::Event, std::vector<Token>>
+      history_prompt_tokens;
+  std::vector<Token> filter_tokens =
+      TokenizeBySpaces(NewLazyString(filter).value());
+  history_contents->EveryLine([&](LineNumber, const Line& line) {
+    auto warn_if = [&](bool condition, Error error) {
+      if (condition) {
+        // We don't use AugmentError because we'd rather append to the
+        // end of the description, not the beginning.
+        output.errors.push_back(
+            Error(error.read() + L": " + line.contents()->ToString()));
+      }
+      return condition;
+    };
+    if (line.empty()) return true;
+    ValueOrError<std::unordered_multimap<std::wstring,
+                                         NonNull<std::shared_ptr<LazyString>>>>
+        line_keys_or_error = ParseHistoryLine(line.contents());
+    auto* line_keys = std::get_if<0>(&line_keys_or_error);
+    if (line_keys == nullptr) {
+      output.errors.push_back(std::get<Error>(line_keys_or_error));
+      return !abort_notification->HasBeenNotified();
+    }
+    auto range = line_keys->equal_range(L"prompt");
+    int prompt_count = std::distance(range.first, range.second);
+    if (warn_if(prompt_count == 0,
+                Error(L"Line is missing `prompt` section")) ||
+        warn_if(prompt_count != 1,
+                Error(L"Line has multiple `prompt` sections"))) {
+      return !abort_notification->HasBeenNotified();
+    }
+
+    auto prompt_value_optional =
+        vm::CppUnescapeString(range.first->second->ToString());
+    if (!prompt_value_optional.has_value()) {
+      LOG(INFO) << "Unable to unescape string: "
+                << range.first->second->ToString();
+      return !abort_notification->HasBeenNotified();
+    }
+    NonNull<std::shared_ptr<LazyString>> prompt_value =
+        NewLazyString(*prompt_value_optional);
+    VLOG(8) << "Considering history value: " << prompt_value->ToString();
+    std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+        prompt_value, TokenizeNameForPrefixSearches(prompt_value));
+    naive_bayes::Event event_key(range.first->second->ToString());
+    std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
+    if (filter_tokens.empty()) {
+      VLOG(6) << "Accepting value (empty filters): " << line.ToString();
+      features_output = &history_data[event_key];
+    } else if (auto match = FindFilterPositions(filter_tokens, line_tokens);
+               match.has_value()) {
+      VLOG(5) << "Accepting value, produced a match: " << line.ToString();
+      features_output = &history_data[event_key];
+      history_prompt_tokens.insert({event_key, std::move(match.value())});
+    } else {
+      VLOG(6) << "Ignoring value, no match: " << line.ToString();
+      return !abort_notification->HasBeenNotified();
+    }
+    std::unordered_set<naive_bayes::Feature> features;
+    for (auto& [key, value] : *line_keys) {
+      if (key != L"prompt") {
+        features.insert(
+            naive_bayes::Feature(key + L":" + QuoteString(value)->ToString()));
+      }
+    }
+    features_output->push_back(naive_bayes::FeaturesSet(std::move(features)));
+    return !abort_notification->HasBeenNotified();
+  });
+
+  VLOG(4) << "Matches found: " << history_data.read().size();
+
+  // For sorting.
+  std::unordered_set<naive_bayes::Feature> current_features;
+  for (const auto& [name, value] : features) {
+    current_features.insert(
+        naive_bayes::Feature(name + L":" + QuoteString(value)->ToString()));
+  }
+  for (const auto& [name, value] : GetSyntheticFeatures(features)) {
+    current_features.insert(
+        naive_bayes::Feature(name + L":" + QuoteString(value)->ToString()));
+  }
+
+  for (naive_bayes::Event& key : naive_bayes::Sort(
+           history_data, afc::naive_bayes::FeaturesSet(current_features))) {
+    std::vector<TokenAndModifiers> tokens;
+    for (auto token : history_prompt_tokens[key]) {
+      tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
+    }
+    output.lines.push_back(
+        ColorizeLine(NewLazyString(key.read()), std::move(tokens)));
+  }
+  return output;
+}
+
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
     NonNull<std::shared_ptr<Notification>> abort_notification,
@@ -357,128 +467,18 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
   filter_buffer.Set(buffer_variables::atomic_lines, true);
   filter_buffer.Set(buffer_variables::line_width, 1);
 
-  struct Output {
-    std::vector<Error> errors;
-    std::deque<NonNull<std::shared_ptr<Line>>> lines;
-  };
-
   return history_buffer.ptr()
       ->WaitForEndOfFile()
       .Transform([&editor_state, filter_buffer_root, history_buffer,
                   abort_notification, filter](EmptyValue) {
         NonNull<std::shared_ptr<BufferContents>> history_contents =
             history_buffer.ptr()->contents().copy();
-        return editor_state.thread_pool().Run([abort_notification, filter,
-                                               history_contents,
-                                               features = GetCurrentFeatures(
-                                                   editor_state)]() -> Output {
-          if (abort_notification->HasBeenNotified()) return Output{};
-          Output output;
-          // Sets of features for each unique `prompt` value in the history.
-          naive_bayes::History history_data({});
-          // Tokens by parsing the `prompt` value in the history.
-          std::unordered_map<naive_bayes::Event, std::vector<Token>>
-              history_prompt_tokens;
-          std::vector<Token> filter_tokens =
-              TokenizeBySpaces(NewLazyString(filter).value());
-          history_contents->EveryLine([&](LineNumber, const Line& line) {
-            auto warn_if = [&](bool condition, Error error) {
-              if (condition) {
-                // We don't use AugmentError because we'd rather append to the
-                // end of the description, not the beginning.
-                output.errors.push_back(
-                    Error(error.read() + L": " + line.contents()->ToString()));
-              }
-              return condition;
-            };
-            if (line.empty()) return true;
-            ValueOrError<std::unordered_multimap<
-                std::wstring, NonNull<std::shared_ptr<LazyString>>>>
-                line_keys_or_error = ParseHistoryLine(line.contents());
-            auto* line_keys = std::get_if<0>(&line_keys_or_error);
-            if (line_keys == nullptr) {
-              output.errors.push_back(std::get<Error>(line_keys_or_error));
-              return !abort_notification->HasBeenNotified();
-            }
-            auto range = line_keys->equal_range(L"prompt");
-            int prompt_count = std::distance(range.first, range.second);
-            if (warn_if(prompt_count == 0,
-                        Error(L"Line is missing `prompt` section")) ||
-                warn_if(prompt_count != 1,
-                        Error(L"Line has multiple `prompt` sections"))) {
-              return !abort_notification->HasBeenNotified();
-            }
-
-            auto prompt_value_optional =
-                vm::CppUnescapeString(range.first->second->ToString());
-            if (!prompt_value_optional.has_value()) {
-              LOG(INFO) << "Unable to unescape string: "
-                        << range.first->second->ToString();
-              return !abort_notification->HasBeenNotified();
-            }
-            NonNull<std::shared_ptr<LazyString>> prompt_value =
-                NewLazyString(*prompt_value_optional);
-            VLOG(8) << "Considering history value: "
-                    << prompt_value->ToString();
-            std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-                prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-            naive_bayes::Event event_key(prompt_value->ToString());
-            std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
-            if (filter_tokens.empty()) {
-              VLOG(6) << "Accepting value (empty filters): " << line.ToString();
-              features_output = &history_data[event_key];
-            } else if (auto match =
-                           FindFilterPositions(filter_tokens, line_tokens);
-                       match.has_value()) {
-              VLOG(5) << "Accepting value, produced a match: "
-                      << line.ToString();
-              features_output = &history_data[event_key];
-              history_prompt_tokens.insert(
-                  {event_key, std::move(match.value())});
-            } else {
-              VLOG(6) << "Ignoring value, no match: " << line.ToString();
-              return !abort_notification->HasBeenNotified();
-            }
-            std::unordered_set<naive_bayes::Feature> features;
-            for (auto& [key, value] : *line_keys) {
-              if (key != L"prompt") {
-                features.insert(naive_bayes::Feature(
-                    key + L":" + QuoteString(value)->ToString()));
-              }
-            }
-            features_output->push_back(
-                naive_bayes::FeaturesSet(std::move(features)));
-            return !abort_notification->HasBeenNotified();
-          });
-
-          VLOG(4) << "Matches found: " << history_data.read().size();
-
-          // For sorting.
-          std::unordered_set<naive_bayes::Feature> current_features;
-          for (const auto& [name, value] : features) {
-            current_features.insert(naive_bayes::Feature(
-                name + L":" + QuoteString(value)->ToString()));
-          }
-          for (const auto& [name, value] : GetSyntheticFeatures(features)) {
-            current_features.insert(naive_bayes::Feature(
-                name + L":" + QuoteString(value)->ToString()));
-          }
-
-          for (naive_bayes::Event& key : naive_bayes::Sort(
-                   history_data,
-                   afc::naive_bayes::FeaturesSet(current_features))) {
-            std::vector<TokenAndModifiers> tokens;
-            for (auto token : history_prompt_tokens[key]) {
-              tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
-            }
-            output.lines.push_back(
-                ColorizeLine(NewLazyString(key.read()), std::move(tokens)));
-          }
-          return output;
-        });
+        return editor_state.thread_pool().Run(std::bind_front(
+            FilterSortHistorySync, abort_notification, filter, history_contents,
+            GetCurrentFeatures(editor_state)));
       })
       .Transform([&editor_state, abort_notification,
-                  filter_buffer_root](Output output) {
+                  filter_buffer_root](FilterSortHistorySyncOutput output) {
         LOG(INFO) << "Receiving output from history evaluator.";
         OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
         if (!output.errors.empty()) {
