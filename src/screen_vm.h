@@ -5,6 +5,7 @@
 
 #include "screen.h"
 #include "src/vm/public/callbacks.h"
+#include "src/vm/public/escape.h"
 
 namespace afc::infrastructure {
 class FileDescriptor;

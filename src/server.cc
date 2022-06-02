@@ -24,6 +24,7 @@ extern "C" {
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string.h"
+#include "src/vm/public/escape.h"
 #include "src/vm/public/vm.h"
 
 namespace afc {

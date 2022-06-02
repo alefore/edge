@@ -31,6 +31,7 @@
 #include "src/transformation/insert.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
+#include "src/vm/public/escape.h"
 #include "src/vm/public/value.h"
 
 namespace afc::editor {

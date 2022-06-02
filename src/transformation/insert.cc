@@ -10,6 +10,7 @@
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 #include "src/transformation/vm.h"
+#include "src/vm/public/escape.h"
 
 namespace afc {
 using language::NonNull;

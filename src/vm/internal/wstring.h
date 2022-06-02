@@ -7,9 +7,11 @@
 #include <string>
 #include <vector>
 
+// TODO(easy, 2022-06-02): Deduplicate with src/language/wstring.h.
 namespace afc {
 namespace vm {
 
+// TODO(easy, 2022-06-02): Get rid of these declarations.
 using std::string;
 using std::wstring;
 

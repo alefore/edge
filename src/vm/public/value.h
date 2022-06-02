@@ -17,9 +17,6 @@ namespace afc::vm {
 class Trampoline;
 struct EvaluationOutput;
 
-std::wstring CppEscapeString(std::wstring input);
-std::optional<std::wstring> CppUnescapeString(std::wstring input);
-
 class Value {
  private:
   class ConstructorAccessTag {

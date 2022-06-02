@@ -57,6 +57,7 @@ extern "C" {
 #include "src/url.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/constant_expression.h"
+#include "src/vm/public/escape.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"

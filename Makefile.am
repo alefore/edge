@@ -252,10 +252,12 @@ src/transformation.h \
 src/url.cc \
 src/url.h \
 src/variables.h \
+src/vm/public/escape.h \
 src/vm/public/optional.h \
 src/vm/public/set.h \
 src/vm/public/vector.h \
 src/vm/internal/callbacks.cc \
+src/vm/internal/escape.cc \
 src/vm/internal/lambda.cc \
 src/vm/internal/lambda.h \
 src/vm/internal/numbers.cc \
