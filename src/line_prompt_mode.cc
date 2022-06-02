@@ -21,6 +21,7 @@
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/lazy_string_append.h"
+#include "src/lazy_string_functional.h"
 #include "src/naive_bayes.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
@@ -408,9 +409,17 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                       << cpp_string.OriginalString();
               NonNull<std::shared_ptr<LazyString>> prompt_value =
                   NewLazyString(cpp_string.OriginalString());
+              if (FindFirstColumnWithPredicate(
+                      prompt_value.value(),
+                      [](ColumnNumber, wchar_t c) { return c == '\n'; })
+                      .has_value()) {
+                LOG(INFO) << "Ignoring history line with newline character: "
+                          << cpp_string.OriginalString();
+                return;
+              }
               std::vector<Token> line_tokens = ExtendTokensToEndOfString(
                   prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-              naive_bayes::Event event_key(cpp_string.Escape());
+              naive_bayes::Event event_key(cpp_string.OriginalString());
               std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
               if (filter_tokens.empty()) {
                 VLOG(6) << "Accepting value (empty filters): "
@@ -511,7 +520,20 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             CHECK_EQ(output.lines.size(), 1ul);
             CHECK(output.lines[0]->ToString() == L"foo");
           }},
-     {.name = L"HistoryWithNewLine", .callback = [] {
+     {.name = L"HistoryWithRawNewLine",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
+                features;
+            BufferContents history_contents;
+            history_contents.push_back(L"prompt:\"ls\n\"");
+            FilterSortHistorySyncOutput output =
+                FilterSortHistorySync(MakeNonNullShared<Notification>(), L"ls",
+                                      history_contents.copy(), features);
+            CHECK(output.lines.empty());
+          }},
+     {.name = L"HistoryWithEscapedNewLine", .callback = [] {
         std::unordered_multimap<std::wstring,
                                 NonNull<std::shared_ptr<LazyString>>>
             features;
@@ -750,6 +772,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
           VisitPointer(
               line_to_insert,
               [&](NonNull<std::shared_ptr<const Line>> line) {
+                VLOG(5) << "Inserting line: " << line->ToString();
                 contents_to_insert->AppendToLine(LineNumber(), line.value());
               },
               [] {});
