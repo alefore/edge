@@ -346,6 +346,7 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
 
 struct FilterSortHistorySyncOutput {
   std::vector<Error> errors;
+  // TODO(easy, 2022-06-02): Why is this a deque? Turn into vector?
   std::deque<NonNull<std::shared_ptr<Line>>> lines;
 };
 
@@ -477,6 +478,37 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             FilterSortHistorySyncOutput output =
                 FilterSortHistorySync(MakeNonNullShared<Notification>(), L"",
                                       history_contents.copy(), features);
+            CHECK(output.lines.empty());
+          }},
+     {.name = L"NoMatch",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
+                features;
+            BufferContents history_contents;
+            history_contents.push_back(L"prompt:\"foobar\"");
+            history_contents.push_back(L"prompt:\"foo\"");
+            FilterSortHistorySyncOutput output = FilterSortHistorySync(
+                MakeNonNullShared<Notification>(), L"quux",
+                history_contents.copy(), features);
+            CHECK(output.lines.empty());
+          }},
+     {.name = L"IgnoresInvalidEntries",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
+                features;
+            BufferContents history_contents;
+            history_contents.push_back(L"prompt:\"foobar \\\"");
+            history_contents.push_back(L"prompt:\"foo\"");
+            history_contents.push_back(L"prompt:\"foo \\o bar \\\"");
+            FilterSortHistorySyncOutput output =
+                FilterSortHistorySync(MakeNonNullShared<Notification>(), L"f",
+                                      history_contents.copy(), features);
+            CHECK_EQ(output.lines.size(), 1ul);
+            CHECK(output.lines[0]->ToString() == L"foo");
           }},
      {.name = L"HistoryWithNewLine", .callback = [] {
         std::unordered_multimap<std::wstring,
