@@ -14,6 +14,9 @@
 namespace afc::language::gc {
 class Pool;
 }
+namespace afc::vm {
+class CppString;
+}
 namespace afc::editor {
 class EditorState;
 
@@ -44,7 +47,7 @@ language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                            const ForkCommandOptions& options);
 
 futures::Value<language::EmptyValue> RunCommandHandler(
-    const std::wstring& input, EditorState& editor_state,
+    vm::CppString input, EditorState& editor_state,
     std::map<std::wstring, std::wstring> environment);
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
     const std::wstring& input, EditorState& editor_state);

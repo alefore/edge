@@ -30,6 +30,7 @@ extern "C" {
 #include "src/line_prompt_mode.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
+#include "src/vm/public/escape.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/value.h"
 
@@ -55,6 +56,7 @@ using language::PossibleError;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
+using vm::CppString;
 
 using std::cerr;
 using std::to_string;
@@ -355,7 +357,7 @@ void RunCommand(const BufferName& name, const std::wstring& input,
 }
 
 futures::Value<EmptyValue> RunCommandHandler(
-    const std::wstring& input, EditorState& editor_state, size_t i, size_t n,
+    const CppString& input, EditorState& editor_state, size_t i, size_t n,
     std::optional<Path> children_path) {
   std::map<std::wstring, std::wstring> environment = {
       {L"EDGE_RUN", std::to_wstring(i)}, {L"EDGE_RUNS", std::to_wstring(n)}};
@@ -371,8 +373,9 @@ futures::Value<EmptyValue> RunCommandHandler(
     environment[L"EDGE_SOURCE_BUFFER_PATH"] =
         buffer->ptr()->Read(buffer_variables::path);
   }
-  name += L" " + input;
-  RunCommand(BufferName(name), input, environment, editor_state, children_path);
+  name += L" " + input.Escape();
+  RunCommand(BufferName(name), input.OriginalString(), environment,
+             editor_state, children_path);
   return futures::Past(EmptyValue());
 }
 
@@ -420,27 +423,36 @@ class ForkEditorCommand : public Command {
                           {vm::VMType::String(), vm::VMType::String()}))});
 
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
-      Prompt({.editor_state = editor_state_,
-              .prompt =
-                  std::visit(overload{[](Error) -> std::wstring { return L""; },
-                                      [](Path path) { return path.read(); }},
-                             children_path) +
-                  L"$ ",
-              .history_file = HistoryFileCommands(),
-              .colorize_options_provider =
-                  prompt_state->context_command_callback.has_value()
-                      ? ([prompt_state](
-                             const NonNull<std::shared_ptr<LazyString>>& line,
-                             NonNull<std::unique_ptr<ProgressChannel>>,
-                             NonNull<std::shared_ptr<Notification>>) {
-                          return PromptChange(prompt_state.value(), line);
-                        })
-                      : PromptOptions::ColorizeFunction(nullptr),
-              .handler = ([&editor_state = editor_state_,
-                           children_path](const std::wstring& name) {
-                return RunCommandHandler(name, editor_state, 0, 1,
-                                         OptionalFrom(children_path));
-              })});
+      Prompt(PromptOptions{
+          .editor_state = editor_state_,
+          .prompt =
+              std::visit(overload{[](Error) -> std::wstring { return L""; },
+                                  [](Path path) { return path.read(); }},
+                         children_path) +
+              L"$ ",
+          .history_file = HistoryFileCommands(),
+          .colorize_options_provider =
+              prompt_state->context_command_callback.has_value()
+                  ? ([prompt_state](
+                         const NonNull<std::shared_ptr<LazyString>>& line,
+                         NonNull<std::unique_ptr<ProgressChannel>>,
+                         NonNull<std::shared_ptr<Notification>>) {
+                      return PromptChange(prompt_state.value(), line);
+                    })
+                  : PromptOptions::ColorizeFunction(nullptr),
+          .handler = [&editor_state = editor_state_,
+                      children_path](const std::wstring& name_str) {
+            return std::visit(overload{[&](CppString name) {
+                                         return RunCommandHandler(
+                                             name, editor_state, 0, 1,
+                                             OptionalFrom(children_path));
+                                       },
+                                       [&](Error error) {
+                                         editor_state.status().Set(error);
+                                         return futures::Past(EmptyValue());
+                                       }},
+                              CppString::FromEscapedString(name_str));
+          }});
     } else if (editor_state_.structure() == StructureLine()) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
@@ -449,12 +461,19 @@ class ForkEditorCommand : public Command {
       }
       std::optional<Path> children_path =
           OptionalFrom(GetChildrenPath(editor_state_));
-      auto line = buffer->ptr()->current_line()->ToString();
-      for (size_t i = 0; i < editor_state_.repetitions().value_or(1); ++i) {
-        RunCommandHandler(line, editor_state_, i,
-                          editor_state_.repetitions().value_or(1),
-                          children_path);
-      }
+      std::visit(
+          overload{[&](CppString line) {
+                     for (size_t i = 0;
+                          i < editor_state_.repetitions().value_or(1); ++i) {
+                       RunCommandHandler(
+                           line, editor_state_, i,
+                           editor_state_.repetitions().value_or(1),
+                           children_path);
+                     }
+                   },
+                   [&](Error error) { editor_state_.status().Set(error); }},
+          CppString::FromEscapedString(
+              buffer->ptr()->current_line()->ToString()));
     } else {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
