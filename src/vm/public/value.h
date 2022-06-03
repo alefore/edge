@@ -85,8 +85,10 @@ class Value {
 
   template <typename T>
   language::NonNull<std::shared_ptr<T>> get_user_value(
-      const VMType& type) const {
-    CHECK_EQ(type, type);
+      const VMType& expected_type) const {
+    CHECK_EQ(type, expected_type);
+    CHECK(std::holds_alternative<ObjectInstance>(value_))
+        << "Invalid call to get_user_value, expected type: " << expected_type;
     return language::NonNull<std::shared_ptr<T>>::UnsafeStaticCast(
         std::get<ObjectInstance>(value_).value);
   }
