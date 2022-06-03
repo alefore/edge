@@ -8,8 +8,8 @@ class OpenBuffer;
 class CompositeTransformation;
 namespace transformation {
 struct Input {
-  explicit Input(editor::OpenBuffer& buffer);
-  Input NewChild(LineColumn position) const;
+  explicit Input(editor::OpenBuffer& input_buffer);
+  Input NewChild(LineColumn new_position) const;
 
   // Input parameter.
   enum class Mode {

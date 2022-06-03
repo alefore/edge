@@ -110,10 +110,10 @@ CursorsSet::iterator CursorsSet::active() {
   return active_;
 }
 
-void CursorsSet::set_active(iterator iterator) {
-  active_ = iterator;
+void CursorsSet::set_active(iterator input_iterator) {
+  active_ = input_iterator;
   CHECK((active_ == cursors_.end()) == cursors_.empty());
-  CHECK(cursors_.find(*iterator) != cursors_.end());
+  CHECK(cursors_.find(*input_iterator) != cursors_.end());
 }
 
 size_t CursorsSet::current_index() const {

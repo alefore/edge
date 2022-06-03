@@ -154,20 +154,19 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
                         gc::Root<vm::Environment>>
                   compilation_result = [&code] {
                     auto buffer = NewBufferForTests();
-                    auto compilation_result =
-                        ValueOrDie(buffer.ptr()->CompileString(code));
+                    auto output = ValueOrDie(buffer.ptr()->CompileString(code));
                     auto erase_result =
                         EditorForTests().buffers()->erase(buffer.ptr()->name());
                     CHECK_EQ(erase_result, 1ul);
-                    return compilation_result;
+                    return output;
                   }();
 
               LOG(INFO) << "Start evaluation.";
               return Evaluate(
                   compilation_result.first.value(), EditorForTests().gc_pool(),
                   compilation_result.second,
-                  [](std::function<void()> callback) {
-                    EditorForTests().work_queue()->Schedule(callback);
+                  [](std::function<void()> resume_callback) {
+                    EditorForTests().work_queue()->Schedule(resume_callback);
                   });
             }();
             while (!future_value.Get().has_value())

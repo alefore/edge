@@ -199,8 +199,8 @@ class ListenableValue {
   using Listener = std::function<void(const Type&)>;
 
   ListenableValue(Value<Type> value) {
-    value.SetConsumer([data = data_](Type value) {
-      data->value = std::move(value);
+    value.SetConsumer([data = data_](Type immediate_value) {
+      data->value = std::move(immediate_value);
       for (auto& l : data->listeners) {
         l(data->value.value());
       }
@@ -238,7 +238,9 @@ struct Future {
   using FutureData = typename Value<Type>::FutureData;
 
   Future(std::shared_ptr<FutureData> data)
-      : consumer([data](Type value) { data->Feed(std::move(value)); }),
+      : consumer([data](Type immediate_value) {
+          data->Feed(std::move(immediate_value));
+        }),
         value(std::move(data)) {}
 };
 
@@ -283,11 +285,11 @@ static Value<Type> Past(Type value) {
 // Customers are encouraged to use the `ForEach(std::shared_ptr<Container>,
 // ...)` version provided below, when feasible.
 template <typename Iterator, typename Callable>
-Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
+Value<IterationControlCommand> ForEach(Iterator input_begin, Iterator end,
                                        Callable callable) {
   Future<IterationControlCommand> output;
-  auto resume = [consumer = output.consumer, end, callable](
-                    Iterator begin, auto resume) mutable {
+  auto resume_external = [consumer = output.consumer, end, callable](
+                             Iterator begin, auto resume) mutable {
     if (begin == end) {
       consumer(IterationControlCommand::kContinue);
       return;
@@ -301,7 +303,7 @@ Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
       }
     });
   };
-  resume(begin, resume);
+  resume_external(input_begin, resume_external);
   return std::move(output.value);
 }
 
@@ -320,8 +322,8 @@ Value<IterationControlCommand> ForEach(std::shared_ptr<Container> container,
 template <typename Callable>
 Value<IterationControlCommand> While(Callable callable) {
   Future<IterationControlCommand> output;
-  auto resume = [consumer = output.consumer,
-                 callable](auto resume) mutable -> void {
+  auto resume_external = [consumer = output.consumer,
+                          callable](auto resume) mutable -> void {
     callable().SetConsumer([consumer = std::move(consumer),
                             callable = std::move(callable),
                             resume](IterationControlCommand result) mutable {
@@ -332,7 +334,7 @@ Value<IterationControlCommand> While(Callable callable) {
       }
     });
   };
-  resume(resume);
+  resume_external(resume_external);
   return std::move(output.value);
 }
 

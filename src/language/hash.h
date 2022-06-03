@@ -98,8 +98,8 @@ auto CaptureAndHash(Callable callable, Args... args) {
 // Wrapping in order to define a hash operator.
 template <typename Container>
 struct HashableContainer {
-  explicit HashableContainer(Container container)
-      : container(std::move(container)) {}
+  explicit HashableContainer(Container input_container)
+      : container(std::move(input_container)) {}
   HashableContainer() = default;
   Container container;
 };
@@ -120,14 +120,14 @@ template <typename Iterator, typename Callable>
 struct hash<afc::language::HashableIteratorRange<Iterator, Callable>> {
   std::size_t operator()(
       const afc::language::HashableIteratorRange<Iterator, Callable>& range) {
-    size_t hash = 0;
+    size_t hash_value = 0;
     for (auto it = range.begin; it != range.end; ++it) {
       using Element = typename std::remove_const<typename std::remove_reference<
           decltype(range.callable(*it))>::type>::type;
-      hash = afc::language::hash_combine(
-          hash, std::hash<Element>{}(range.callable(*it)));
+      hash_value = afc::language::hash_combine(
+          hash_value, std::hash<Element>{}(range.callable(*it)));
     }
-    return hash;
+    return hash_value;
   };
 };
 

@@ -101,12 +101,12 @@ auto VisitCallback(Overload overload) {
 
 template <typename T>
 std::unique_ptr<T> ToUniquePtr(
-    ValueOrError<NonNull<std::unique_ptr<T>>> value) {
+    ValueOrError<NonNull<std::unique_ptr<T>>> value_or_error) {
   return std::visit(overload{[](Error) { return std::unique_ptr<T>(); },
                              [](NonNull<std::unique_ptr<T>> value) {
                                return std::move(value.get_unique());
                              }},
-                    std::move(value));
+                    std::move(value_or_error));
 }
 
 template <typename T>

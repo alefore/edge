@@ -41,12 +41,13 @@ struct Action {
   std::unordered_set<ParseTreeProperty> properties;
 
  private:
-  Action(ActionType action_type, ColumnNumber column, LineModifierSet modifiers,
-         std::unordered_set<ParseTreeProperty> properties)
-      : action_type(action_type),
-        column(column),
-        modifiers(std::move(modifiers)),
-        properties(std::move(properties)) {}
+  Action(ActionType input_action_type, ColumnNumber input_column,
+         LineModifierSet input_modifiers,
+         std::unordered_set<ParseTreeProperty> input_properties)
+      : action_type(input_action_type),
+        column(input_column),
+        modifiers(std::move(input_modifiers)),
+        properties(std::move(input_properties)) {}
 };
 
 struct ParseResults {

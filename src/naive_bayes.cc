@@ -186,8 +186,8 @@ double MinimalFeatureProbability(
     std::unordered_map<Event, FeatureProbabilityMap>
         per_event_feature_probability) {
   double output = 1.0;
-  for (auto& [_, features] : per_event_feature_probability) {
-    for (auto& [_, value] : features) {
+  for (auto& [_0, features] : per_event_feature_probability) {
+    for (auto& [_1, value] : features) {
       output = std::min(output, value);
     }
   }

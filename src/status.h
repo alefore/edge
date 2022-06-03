@@ -115,13 +115,14 @@ class Status {
   struct timespec last_change_time() const;
 
   template <typename T>
-  T ConsumeErrors(language::ValueOrError<T> value, T replacement_value) {
+  T ConsumeErrors(language::ValueOrError<T> value_or_error,
+                  T replacement_value) {
     return std::visit(language::overload{[&](language::Error error) {
                                            Set(error);
                                            return replacement_value;
                                          },
                                          [](T value) { return value; }},
-                      std::move(value));
+                      std::move(value_or_error));
   }
 
   template <typename T>

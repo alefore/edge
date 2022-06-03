@@ -147,29 +147,31 @@ class NavigationBufferCommand : public Command {
     }
 
     BufferName name(L"Navigation: " + source->ptr()->name().read());
-    gc::Root<OpenBuffer> buffer = editor_state_.FindOrBuildBuffer(name, [&] {
-      gc::WeakPtr<OpenBuffer> source_weak = source->ptr().ToWeakPtr();
-      gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
-          {.editor = editor_state_,
-           .name = name,
-           .generate_contents = [&editor_state = editor_state_,
-                                 source_weak](OpenBuffer& target) {
-             return GenerateContents(editor_state, source_weak, target);
-           }});
-      OpenBuffer& buffer = buffer_root.ptr().value();
+    gc::Root<OpenBuffer> buffer_root =
+        editor_state_.FindOrBuildBuffer(name, [&] {
+          gc::WeakPtr<OpenBuffer> source_weak = source->ptr().ToWeakPtr();
+          gc::Root<OpenBuffer> output = OpenBuffer::New(
+              {.editor = editor_state_,
+               .name = name,
+               .generate_contents = [&editor_state = editor_state_,
+                                     source_weak](OpenBuffer& target) {
+                 return GenerateContents(editor_state, source_weak, target);
+               }});
+          OpenBuffer& buffer = output.ptr().value();
 
-      buffer.Set(buffer_variables::show_in_buffers_list, false);
-      buffer.Set(buffer_variables::push_positions_to_history, false);
-      buffer.Set(buffer_variables::allow_dirty_delete, true);
-      buffer.environment()->Define(
-          kDepthSymbol, vm::Value::NewInt(editor_state_.gc_pool(), 3));
-      buffer.Set(buffer_variables::reload_on_enter, true);
-      editor_state_.StartHandlingInterrupts();
-      editor_state_.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);
-      buffer.ResetMode();
-      return buffer_root;
-    });
-    editor_state_.set_current_buffer(buffer,
+          buffer.Set(buffer_variables::show_in_buffers_list, false);
+          buffer.Set(buffer_variables::push_positions_to_history, false);
+          buffer.Set(buffer_variables::allow_dirty_delete, true);
+          buffer.environment()->Define(
+              kDepthSymbol, vm::Value::NewInt(editor_state_.gc_pool(), 3));
+          buffer.Set(buffer_variables::reload_on_enter, true);
+          editor_state_.StartHandlingInterrupts();
+          editor_state_.AddBuffer(buffer_root,
+                                  BuffersList::AddBufferType::kVisit);
+          buffer.ResetMode();
+          return output;
+        });
+    editor_state_.set_current_buffer(buffer_root,
                                      CommandArgumentModeApplyMode::kFinal);
     editor_state_.status().Reset();
     editor_state_.PushCurrentPosition();

@@ -8,7 +8,7 @@ class OpenBuffer;
 namespace transformation {
 class Stack;
 struct Result {
-  Result(LineColumn position);
+  Result(LineColumn input_position);
   Result(Result&&);
   ~Result();
 

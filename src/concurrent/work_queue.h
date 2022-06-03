@@ -137,10 +137,10 @@ class WorkQueueChannel {
         if (already_scheduled) return;
 
         work_queue_->Schedule([data = data_] {
-          std::optional<T> value;
-          data->value.lock()->swap(value);
-          CHECK(value.has_value());
-          data->consume_callback(*value);
+          std::optional<T> optional_value;
+          data->value.lock()->swap(optional_value);
+          CHECK(optional_value.has_value());
+          data->consume_callback(*optional_value);
         });
         break;
     }
@@ -154,8 +154,8 @@ class WorkQueueChannel {
   // work_queue have executed, we move the fields that such callbacks depend on
   // to a structure that we put in a shared_ptr.
   struct Data {
-    Data(std::function<void(T t)> consume_callback)
-        : consume_callback(std::move(consume_callback)) {}
+    Data(std::function<void(T t)> input_consume_callback)
+        : consume_callback(std::move(input_consume_callback)) {}
 
     const std::function<void(T t)> consume_callback;
 

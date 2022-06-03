@@ -623,12 +623,11 @@ futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
   }
 
   futures::Future<language::ValueOrError<EvaluationOutput>> output;
-  yield_callback_([this,
-                   expression_raw = expression.Clone().get_unique().release(),
-                   type, consumer = std::move(output.consumer)]() mutable {
-    std::unique_ptr<Expression> expression(expression_raw);
+  NonNull<std::shared_ptr<Expression>> expression_shared = expression.Clone();
+  yield_callback_([this, type, expression_shared,
+                   consumer = std::move(output.consumer)]() {
     jumps_ = 0;
-    Bounce(*expression, type).SetConsumer(std::move(consumer));
+    Bounce(expression_shared.value(), type).SetConsumer(std::move(consumer));
   });
   return std::move(output.value);
 }

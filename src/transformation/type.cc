@@ -16,7 +16,7 @@ std::wstring ToString(const Variant& transformation) {
       transformation);
 }
 
-Input::Input(OpenBuffer& buffer) : buffer(buffer) {}
+Input::Input(OpenBuffer& input_buffer) : buffer(input_buffer) {}
 
 Input Input::NewChild(LineColumn new_position) const {
   Input child(buffer);
@@ -26,7 +26,7 @@ Input Input::NewChild(LineColumn new_position) const {
   return child;
 }
 
-Result::Result(LineColumn position) : position(position) {}
+Result::Result(LineColumn input_position) : position(input_position) {}
 
 Result::Result(Result&&) = default;
 Result::~Result() = default;

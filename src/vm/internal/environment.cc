@@ -34,17 +34,17 @@ language::gc::Root<Environment> Environment::NewDefault(
     language::gc::Pool& pool) {
   gc::Root<Environment> environment =
       pool.NewRoot(MakeNonNullUnique<Environment>());
-  Environment& value = environment.ptr().value();
-  RegisterStringType(pool, value);
-  RegisterNumberFunctions(pool, value);
-  RegisterTimeType(pool, value);
+  Environment& environment_value = environment.ptr().value();
+  RegisterStringType(pool, environment_value);
+  RegisterNumberFunctions(pool, environment_value);
+  RegisterTimeType(pool, environment_value);
   auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool());
   bool_type->AddField(L"tostring",
                       NewCallback(pool, PurityType::kPure,
                                   std::function<wstring(bool)>([](bool v) {
                                     return v ? L"true" : L"false";
                                   })));
-  value.DefineType(std::move(bool_type));
+  environment_value.DefineType(std::move(bool_type));
 
   auto int_type = MakeNonNullUnique<ObjectType>(VMType::Int());
   int_type->AddField(
@@ -52,7 +52,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                                std::function<std::wstring(int)>([](int value) {
                                  return std::to_wstring(value);
                                })));
-  value.DefineType(std::move(int_type));
+  environment_value.DefineType(std::move(int_type));
 
   auto double_type = MakeNonNullUnique<ObjectType>(VMType::Double());
   double_type->AddField(
@@ -65,10 +65,10 @@ language::gc::Root<Environment> Environment::NewDefault(
                             std::function<int(double)>([](double value) {
                               return static_cast<int>(value);
                             })));
-  value.DefineType(std::move(double_type));
+  environment_value.DefineType(std::move(double_type));
 
-  ExportVectorType<int>(pool, value);
-  ExportSetType<int>(pool, value);
+  ExportVectorType<int>(pool, environment_value);
+  ExportSetType<int>(pool, environment_value);
   return environment;
 }
 

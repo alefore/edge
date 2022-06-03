@@ -128,7 +128,7 @@ futures::Value<PossibleError> Save(
       AugmentErrors(L"Buffer can't be saved: Invalid “path” variable",
                     Path::FromString(buffer.Read(buffer_variables::path))));
 
-  futures::ValueOrError<Path> path = futures::Past(immediate_path);
+  futures::ValueOrError<Path> path_future = futures::Past(immediate_path);
 
   if (S_ISDIR(stat_buffer->st_mode)) {
     return options.save_type == OpenBuffer::Options::SaveType::kBackup
@@ -141,17 +141,17 @@ futures::Value<PossibleError> Save(
     case OpenBuffer::Options::SaveType::kMainFile:
       break;
     case OpenBuffer::Options::SaveType::kBackup:
-      path = OnError(buffer.GetEdgeStateDirectory(), [](Error error) {
-               return futures::Past(
-                   AugmentError(L"Unable to backup buffer", error));
-             }).Transform([](Path state_directory) {
+      path_future = OnError(buffer.GetEdgeStateDirectory(), [](Error error) {
+                      return futures::Past(
+                          AugmentError(L"Unable to backup buffer", error));
+                    }).Transform([](Path state_directory) {
         return Success(Path::Join(
             state_directory, ValueOrDie(PathComponent::FromString(L"backup"))));
       });
   }
 
-  return path.Transform([stat_buffer, options,
-                         buffer = buffer.NewRoot()](Path path) {
+  return path_future.Transform([stat_buffer, options,
+                                buffer = buffer.NewRoot()](Path path) {
     return SaveContentsToFile(path, buffer.ptr()->contents().copy(),
                               buffer.ptr()->editor().thread_pool(),
                               buffer.ptr()->file_system_driver())
@@ -176,12 +176,14 @@ futures::Value<PossibleError> Save(
                       buffer_variables::trigger_reload_on_buffer_write)) {
                 for (std::pair<BufferName, gc::Root<OpenBuffer>> entry :
                      *buffer.ptr()->editor().buffers()) {
-                  const gc::Root<OpenBuffer>& buffer = entry.second;
-                  if (buffer.ptr()->Read(
+                  // TODO(2022-06-03, easy): Keep just the OpenBuffer ref.
+                  const gc::Root<OpenBuffer>& reload_buffer = entry.second;
+                  if (reload_buffer.ptr()->Read(
                           buffer_variables::reload_on_buffer_write)) {
-                    LOG(INFO) << "Write of " << path << " triggers reload: "
-                              << buffer.ptr()->Read(buffer_variables::name);
-                    buffer.ptr()->Reload();
+                    LOG(INFO)
+                        << "Write of " << path << " triggers reload: "
+                        << reload_buffer.ptr()->Read(buffer_variables::name);
+                    reload_buffer.ptr()->Reload();
                   }
                 }
               }
@@ -362,9 +364,10 @@ ResolvePathOptions ResolvePathOptions::New(
                             });
 }
 
-ResolvePathOptions::ResolvePathOptions(Path home_directory, Validator validator)
-    : home_directory(std::move(home_directory)),
-      validator(std::move(validator)) {}
+ResolvePathOptions::ResolvePathOptions(Path input_home_directory,
+                                       Validator input_validator)
+    : home_directory(std::move(input_home_directory)),
+      validator(std::move(input_validator)) {}
 
 futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (find(input.search_paths.begin(), input.search_paths.end(),
@@ -563,7 +566,8 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
       ResolvePathOptions::NewWithEmptySearchPaths(editor_state,
                                                   file_system_driver);
   const NonNull<std::shared_ptr<OpenFileResolvePathOutput>> output;
-  resolve_path_options.validator = [&editor_state, output](const Path& path) {
+  resolve_path_options.validator = [&editor_state,
+                                    output](const Path& path_to_validate) {
     return std::visit(
         overload{
             [](Error) { return futures::Past(false); },
@@ -584,7 +588,7 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
               }
               return futures::Past(false);
             }},
-        path.DirectorySplit());
+        path_to_validate.DirectorySplit());
   };
   if (path.has_value()) {
     resolve_path_options.path = path.value().read();

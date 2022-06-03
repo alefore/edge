@@ -365,11 +365,11 @@ int main(int argc, const char** argv) {
                      editor_state().environment().ptr().value());
   VisitPointer(
       screen_curses,
-      [](NonNull<std::shared_ptr<Screen>> screen_curses) {
+      [](NonNull<std::shared_ptr<Screen>> input_screen_curses) {
         editor_state().environment().ptr()->Define(
             L"screen", afc::vm::Value::NewObject(editor_state().gc_pool(),
                                                  GetScreenVmType().object_type,
-                                                 screen_curses));
+                                                 input_screen_curses));
       },
       [] {});
 
@@ -504,10 +504,12 @@ int main(int argc, const char** argv) {
           CHECK(screen_curses != nullptr);
           std::vector<wint_t> input;
           input.reserve(10);
-          wint_t c;
-          while (input.size() < 1024 &&
-                 (c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
-            input.push_back(c);
+          {
+            wint_t c;
+            while (input.size() < 1024 &&
+                   (c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
+              input.push_back(c);
+            }
           }
           for (auto& c : input) {
             static Tracker tracker(L"Main::ProcessInput");

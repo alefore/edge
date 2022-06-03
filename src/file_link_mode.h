@@ -64,7 +64,8 @@ struct ResolvePathOptions {
   Validator validator = nullptr;
 
  private:
-  ResolvePathOptions(infrastructure::Path home_directory, Validator validator);
+  ResolvePathOptions(infrastructure::Path input_home_directory,
+                     Validator input_validator);
   ResolvePathOptions() = default;
 };
 

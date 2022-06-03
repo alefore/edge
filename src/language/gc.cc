@@ -63,8 +63,8 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
   VLOG(3) << "Allowing unreachable object to be deleted: "
           << expired_objects_callbacks.size();
   {
-    static Tracker tracker(L"gc::Pool::Reclaim::Delete unreachable");
-    auto call = tracker.Call();
+    static Tracker delete_tracker(L"gc::Pool::Reclaim::Delete unreachable");
+    auto delete_call = delete_tracker.Call();
     expired_objects_callbacks.clear();
   }
 
@@ -193,9 +193,9 @@ Pool::RootRegistration Pool::AddRoot(
                        eden.roots.value()),
                    .it = std::prev(eden.roots->end())}](bool* value) {
           delete value;
-          eden_.lock([&](Eden& eden) {
+          eden_.lock([&root_deleted](Eden& input_eden) {
             VLOG(5) << "Erasing root.";
-            eden.roots_deleted.push_back(root_deleted);
+            input_eden.roots_deleted.push_back(root_deleted);
           });
         });
   });
@@ -281,11 +281,10 @@ bool tests_registration = tests::Register(
             NonNull<std::shared_ptr<Notification>> delete_notification =
                 [&pool] {
                   auto root = pool.NewRoot(MakeNonNullUnique<Node>());
-                  auto delete_notification =
-                      root.ptr().value().delete_notification;
+                  auto output = root.ptr().value().delete_notification;
                   pool.Reclaim();
-                  CHECK(!delete_notification->HasBeenNotified());
-                  return delete_notification;
+                  CHECK(!output->HasBeenNotified());
+                  return output;
                 }();
             CHECK(delete_notification->HasBeenNotified());
           }},

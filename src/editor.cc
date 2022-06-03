@@ -483,9 +483,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
         exit_value_ = exit_value;
       });
 
-  auto decrement = [this, pending_buffers](const gc::Root<OpenBuffer>& buffer,
-                                           PossibleError) {
-    pending_buffers->erase(buffer);
+  auto decrement = [this, pending_buffers](
+                       const gc::Root<OpenBuffer>& buffer_done, PossibleError) {
+    pending_buffers->erase(buffer_done);
     std::wstring extra;
     std::wstring separator = L": ";
     int count = 0;

@@ -226,8 +226,9 @@ ColumnNumberDelta operator--(ColumnNumberDelta& a, int) {
   return copy;
 }
 
-LineColumnDelta::LineColumnDelta(LineNumberDelta line, ColumnNumberDelta column)
-    : line(line), column(column) {}
+LineColumnDelta::LineColumnDelta(LineNumberDelta input_line,
+                                 ColumnNumberDelta input_column)
+    : line(input_line), column(input_column) {}
 
 std::ostream& operator<<(std::ostream& os, const LineColumnDelta& lc) {
   os << "[" << lc.line << " " << lc.column << "]";

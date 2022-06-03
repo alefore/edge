@@ -91,7 +91,7 @@ ColumnNumberDelta operator--(ColumnNumberDelta& a, int);
 
 // First adds the line, then adds the column.
 struct LineColumnDelta {
-  LineColumnDelta(LineNumberDelta line, ColumnNumberDelta column);
+  LineColumnDelta(LineNumberDelta input_line, ColumnNumberDelta input_column);
   LineColumnDelta() = default;
 
   LineNumberDelta line;
@@ -284,7 +284,8 @@ struct Reader<LineColumn> {
 // A range that contains every position i such that begin <= i < end.
 struct Range {
   Range() = default;
-  Range(LineColumn begin, LineColumn end) : begin(begin), end(end) {}
+  Range(LineColumn input_begin, LineColumn input_end)
+      : begin(input_begin), end(input_end) {}
 
   static Range InLine(LineNumber line, ColumnNumber column,
                       ColumnNumberDelta size);

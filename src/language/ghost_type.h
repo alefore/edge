@@ -143,7 +143,8 @@
 // Implementation:
 
 #define GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, variable) \
-  explicit ClassName(VariableType variable) : variable(std::move(variable)) {}
+  explicit ClassName(VariableType input_variable)                 \
+      : variable(std::move(input_variable)) {}
 
 #define GHOST_TYPE_CONSTRUCTOR_EMPTY(ClassName) ClassName() = default;
 

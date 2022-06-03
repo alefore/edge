@@ -34,41 +34,35 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
 
 void BufferSyntaxParser::Parse(
     NonNull<std::unique_ptr<BufferContents>> contents) {
-  data_->lock(std::bind_front(
-      [&pool = thread_pool_, data_ptr = data_, observers = observers_](
-          const NonNull<std::shared_ptr<BufferContents>>& contents,
-          Data& data) {
-        if (TreeParser::IsNull(data.tree_parser.get().get())) return;
+  data_->lock([&pool = thread_pool_, data_ptr = data_, observers = observers_,
+               shared_contents = NonNull<std::shared_ptr<BufferContents>>(
+                   std::move(contents))](Data& data) {
+    if (TreeParser::IsNull(data.tree_parser.get().get())) return;
 
-        data.cancel_notification->Notify();
-        data.cancel_notification = NonNull<std::shared_ptr<Notification>>();
+    data.cancel_notification->Notify();
+    data.cancel_notification = NonNull<std::shared_ptr<Notification>>();
 
-        pool.RunIgnoringResult([contents, parser = data.tree_parser,
-                                notification = data.cancel_notification,
-                                data_ptr, observers] {
-          static Tracker tracker(
-              L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
-          auto tracker_call = tracker.Call();
-          VLOG(3) << "Executing parse tree update.";
-          if (notification->HasBeenNotified()) return;
-          NonNull<std::shared_ptr<const ParseTree>> tree =
-              MakeNonNullShared<const ParseTree>(
-                  parser->FindChildren(contents.value(), contents->range()));
-          data_ptr->lock(std::bind_front(
-              [notification](
-                  NonNull<std::shared_ptr<const ParseTree>>& tree,
-                  NonNull<std::shared_ptr<const ParseTree>>& simplified_tree,
-                  Data& data) {
-                if (notification->HasBeenNotified()) return;
-                data.tree = std::move(tree);
-                data.simplified_tree = std::move(simplified_tree);
-              },
-              tree,
-              MakeNonNullShared<const ParseTree>(SimplifyTree(tree.value()))));
-          observers->Notify();
-        });
-      },
-      NonNull<std::shared_ptr<BufferContents>>(std::move(contents))));
+    pool.RunIgnoringResult([shared_contents, parser = data.tree_parser,
+                            notification = data.cancel_notification, data_ptr,
+                            observers] {
+      static Tracker tracker(
+          L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
+      auto tracker_call = tracker.Call();
+      VLOG(3) << "Executing parse tree update.";
+      if (notification->HasBeenNotified()) return;
+      NonNull<std::shared_ptr<const ParseTree>> tree =
+          MakeNonNullShared<const ParseTree>(parser->FindChildren(
+              shared_contents.value(), shared_contents->range()));
+      data_ptr->lock([notification, tree,
+                      simplified_tree = MakeNonNullShared<const ParseTree>(
+                          SimplifyTree(tree.value()))](Data& data_nested) {
+        if (notification->HasBeenNotified()) return;
+        data_nested.tree = std::move(tree);
+        data_nested.simplified_tree = std::move(simplified_tree);
+      });
+      observers->Notify();
+    });
+  });
 }
 
 NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::tree() const {

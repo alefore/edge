@@ -151,41 +151,41 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
 
   editor_type->AddField(
       L"EnterSetBufferMode",
-      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor) {
-        editor.set_keyboard_redirect(NewSetBufferMode(editor));
+      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor_arg) {
+        editor_arg.set_keyboard_redirect(NewSetBufferMode(editor_arg));
       }));
 
   editor_type->AddField(L"SetActiveBuffer",
                         vm::NewCallback(pool, PurityType::kUnknown,
-                                        [](EditorState& editor, int delta) {
-                                          editor.SetActiveBuffer(delta);
+                                        [](EditorState& editor_arg, int delta) {
+                                          editor_arg.SetActiveBuffer(delta);
                                         }));
 
   editor_type->AddField(L"AdvanceActiveBuffer",
                         vm::NewCallback(pool, PurityType::kUnknown,
-                                        [](EditorState& editor, int delta) {
-                                          editor.AdvanceActiveBuffer(delta);
+                                        [](EditorState& editor_arg, int delta) {
+                                          editor_arg.AdvanceActiveBuffer(delta);
                                         }));
 
   editor_type->AddField(
       L"SetVariablePrompt",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](EditorState& editor, std::wstring variable) {
-                        SetVariableCommandHandler(variable, editor);
+                      [](EditorState& editor_arg, std::wstring variable) {
+                        SetVariableCommandHandler(variable, editor_arg);
                       }));
 
   editor_type->AddField(
       L"home",
-      vm::NewCallback(pool, PurityType::kPure, [](EditorState& editor) {
-        return editor.home_directory().read();
+      vm::NewCallback(pool, PurityType::kPure, [](EditorState& editor_arg) {
+        return editor_arg.home_directory().read();
       }));
 
   editor_type->AddField(
       L"pop_repetitions",
-      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor) {
-        auto value = static_cast<int>(editor.repetitions().value_or(1));
-        editor.ResetRepetitions();
-        return value;
+      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor_arg) {
+        auto value_arg = static_cast<int>(editor_arg.repetitions().value_or(1));
+        editor_arg.ResetRepetitions();
+        return value_arg;
       }));
 
   // Define one version for pure functions and one for non-pure, and adjust the
@@ -200,10 +200,10 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                 VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype})},
           [&pool = pool](std::vector<gc::Root<vm::Value>> input,
                          Trampoline& trampoline) {
-            EditorState& editor =
+            EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(input[0].ptr().value());
             NonNull<std::shared_ptr<PossibleError>> output;
-            return editor
+            return editor_arg
                 .ForEachActiveBuffer([callback = input[1].ptr()->LockCallback(),
                                       &trampoline, output](OpenBuffer& buffer) {
                   std::vector<gc::Root<vm::Value>> args;
@@ -240,9 +240,9 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                 VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype})},
           [&pool = pool](std::vector<gc::Root<vm::Value>> input,
                          Trampoline& trampoline) {
-            EditorState& editor =
+            EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(input[0].ptr().value());
-            return editor
+            return editor_arg
                 .ForEachActiveBufferWithRepetitions(
                     [callback = input[1].ptr()->LockCallback(),
                      &trampoline](OpenBuffer& buffer) {
@@ -265,8 +265,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
 
   editor_type->AddField(L"ProcessInput",
                         vm::NewCallback(pool, PurityType::kUnknown,
-                                        [](EditorState& editor, int c) {
-                                          editor.ProcessInput(c);
+                                        [](EditorState& editor_arg, int c) {
+                                          editor_arg.ProcessInput(c);
                                         }));
 
   editor_type->AddField(
@@ -277,14 +277,14 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           [&pool = pool](std::vector<gc::Root<vm::Value>> args, Trampoline&)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
-            EditorState& editor =
+            EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             FUTURES_ASSIGN_OR_RETURN(
                 Path target_path,
-                editor.status().LogErrors(AugmentErrors(
+                editor_arg.status().LogErrors(AugmentErrors(
                     L"ConnectTo error",
                     Path::FromString(args[1].ptr()->get_string()))));
-            OpenServerBuffer(editor, target_path);
+            OpenServerBuffer(editor_arg, target_path);
             return futures::Past(
                 EvaluationOutput::Return(vm::Value::NewVoid(pool)));
           }));
@@ -298,7 +298,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                NonNull<std::shared_ptr<std::set<std::wstring>>>>::vmtype},
           [&pool = pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2u);
-            EditorState& editor =
+            EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             const auto& buffers_to_wait =
                 VMTypeMapper<NonNull<std::shared_ptr<std::set<std::wstring>>>>::
@@ -308,8 +308,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
             for (const auto& buffer_name_str : buffers_to_wait.value()) {
               if (auto buffer_it =
-                      editor.buffers()->find(BufferName(buffer_name_str));
-                  buffer_it != editor.buffers()->end()) {
+                      editor_arg.buffers()->find(BufferName(buffer_name_str));
+                  buffer_it != editor_arg.buffers()->end()) {
                 values->push_back(buffer_it->second.ptr()->NewCloseFuture());
               }
             }
@@ -343,50 +343,52 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                                                  }));
 
   editor_type->AddField(
-      L"SetStatus", vm::NewCallback(pool, PurityType::kUnknown,
-                                    [](EditorState& editor, std::wstring s) {
-                                      editor.status().SetInformationText(s);
-                                    }));
+      L"SetStatus",
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](EditorState& editor_arg, std::wstring s) {
+                        editor_arg.status().SetInformationText(s);
+                      }));
 
   editor_type->AddField(
       L"PromptAndOpenFile",
-      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor) {
-        NewOpenFileCommand(editor)->ProcessInput(0);
+      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor_arg) {
+        NewOpenFileCommand(editor_arg)->ProcessInput(0);
       }));
 
   editor_type->AddField(
       L"set_screen_needs_hard_redraw",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](EditorState& editor, bool value) {
-                        editor.set_screen_needs_hard_redraw(value);
+                      [](EditorState& editor_arg, bool value_arg) {
+                        editor_arg.set_screen_needs_hard_redraw(value_arg);
                       }));
 
   editor_type->AddField(
       L"set_exit_value",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](EditorState& editor, int exit_value) {
-                        editor.set_exit_value(exit_value);
+                      [](EditorState& editor_arg, int exit_value) {
+                        editor_arg.set_exit_value(exit_value);
                       }));
 
   editor_type->AddField(
       L"ForkCommand",
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](EditorState& editor,
+                      [](EditorState& editor_arg,
                          NonNull<std::shared_ptr<ForkCommandOptions>> options) {
-                        return std::move(ForkCommand(editor, options.value()));
+                        return std::move(
+                            ForkCommand(editor_arg, options.value()));
                       }));
 
   editor_type->AddField(
       L"repetitions",
-      vm::NewCallback(pool, PurityType::kPure, [](EditorState& editor) {
+      vm::NewCallback(pool, PurityType::kPure, [](EditorState& editor_arg) {
         // TODO: Somehow expose the optional to the VM.
-        return static_cast<int>(editor.repetitions().value_or(1));
+        return static_cast<int>(editor_arg.repetitions().value_or(1));
       }));
 
   editor_type->AddField(L"set_repetitions",
                         vm::NewCallback(pool, PurityType::kUnknown,
-                                        [](EditorState& editor, int times) {
-                                          editor.set_repetitions(times);
+                                        [](EditorState& editor_arg, int times) {
+                                          editor_arg.set_repetitions(times);
                                         }));
 
   editor_type->AddField(
@@ -397,11 +399,11 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
            VMTypeMapper<EditorState>::vmtype, VMType::String(), VMType::Bool()},
           [&pool = pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
-            EditorState& editor_state =
+            EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             return OpenOrCreateFile(
                        OpenFileOptions{
-                           .editor_state = editor_state,
+                           .editor_state = editor_arg,
                            .path = OptionalFrom(
                                Path::FromString(args[1].ptr()->get_string())),
                            .insertion_type =
@@ -426,11 +428,11 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
            VMType::String(), VMType::Function({VMType::Void()})},
           [&pool = pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 4u);
-            EditorState& editor =
+            EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            editor.default_commands()->Add(
+            editor_arg.default_commands()->Add(
                 args[1].ptr()->get_string(), args[2].ptr()->get_string(),
-                std::move(args[3]), editor.environment());
+                std::move(args[3]), editor_arg.environment());
             return vm::Value::NewVoid(pool);
           }));
 

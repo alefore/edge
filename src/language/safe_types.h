@@ -167,9 +167,9 @@ class NonNull<std::shared_ptr<T>> {
 
   template <typename Other>
   static std::optional<NonNull<std::shared_ptr<T>>> DynamicCast(
-      NonNull<std::shared_ptr<Other>> value) {
+      NonNull<std::shared_ptr<Other>> other_value) {
     return VisitPointer(
-        dynamic_pointer_cast<T>(std::move(value.get_shared())),
+        dynamic_pointer_cast<T>(std::move(other_value.get_shared())),
         [](NonNull<std::shared_ptr<T>> value) {
           return std::optional<NonNull<std::shared_ptr<T>>>(value);
         },
