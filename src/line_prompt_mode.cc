@@ -495,6 +495,33 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                 history_contents.copy(), features);
             CHECK(output.lines.empty());
           }},
+     {.name = L"MatchAfterEscape",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
+                features;
+            BufferContents history_contents;
+            history_contents.push_back(L"prompt:\"foo\\nbar\"");
+            FilterSortHistorySyncOutput output =
+                FilterSortHistorySync(MakeNonNullShared<Notification>(), L"bar",
+                                      history_contents.copy(), features);
+            CHECK_EQ(output.lines.size(), 1ul);
+            CHECK(output.lines[0]->ToString() == L"foo\\nbar");
+          }},
+     {.name = L"MatchIncludingEscapeCorrectlyHandled",
+      .callback =
+          [] {
+            std::unordered_multimap<std::wstring,
+                                    NonNull<std::shared_ptr<LazyString>>>
+                features;
+            BufferContents history_contents;
+            history_contents.push_back(L"prompt:\"foo\\nbar\"");
+            FilterSortHistorySyncOutput output = FilterSortHistorySync(
+                MakeNonNullShared<Notification>(), L"nbar",
+                history_contents.copy(), features);
+            CHECK(output.lines.empty());
+          }},
      {.name = L"IgnoresInvalidEntries",
       .callback =
           [] {
