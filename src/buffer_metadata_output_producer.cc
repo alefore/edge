@@ -127,7 +127,8 @@ ColumnNumberDelta width(const std::wstring prefix, MetadataLine& line) {
          line.suffix->contents()->size();
 }
 
-LineWithCursor::Generator NewGenerator(std::wstring prefix, MetadataLine line) {
+LineWithCursor::Generator NewGenerator(std::wstring input_prefix,
+                                       MetadataLine line) {
   return LineWithCursor::Generator::New(CaptureAndHash(
       [](wchar_t info_char, LineModifier modifier, Line suffix,
          std::wstring prefix) {
@@ -141,7 +142,7 @@ LineWithCursor::Generator NewGenerator(std::wstring prefix, MetadataLine line) {
         return LineWithCursor{.line = MakeNonNullShared<Line>(options)};
       },
       line.info_char, line.modifier, std::move(line.suffix.value()),
-      std::move(prefix)));
+      std::move(input_prefix)));
 }
 }  // namespace
 
@@ -367,8 +368,8 @@ std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
 
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                                 Range range) {
-  static Tracker tracker(L"BufferMetadataOutput::Prepare");
-  auto call = tracker.Call();
+  static Tracker top_tracker(L"BufferMetadataOutput::Prepare");
+  auto call = top_tracker.Call();
 
   std::list<MetadataLine> output;
   const Line& contents = options.buffer.contents().at(range.begin.line).value();
