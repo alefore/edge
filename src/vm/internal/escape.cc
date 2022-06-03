@@ -9,11 +9,11 @@ namespace afc::vm {
 using language::Error;
 using language::ValueOrDie;
 
-/* static */ CppString CppString::FromString(std::wstring input) {
-  return CppString(std::move(input));
+/* static */ EscapedString EscapedString::FromString(std::wstring input) {
+  return EscapedString(std::move(input));
 }
 
-/* static */ language::ValueOrError<CppString> CppString::FromEscapedString(
+/* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
     std::wstring input) {
   std::wstring original_string;
   original_string.reserve(input.size() * 2);
@@ -40,11 +40,11 @@ using language::ValueOrDie;
         original_string += input[i];
     }
   }
-  return CppString(original_string);
+  return EscapedString(original_string);
 }
 
 // Returns an escaped representation.
-std::wstring CppString::Escape() const {
+std::wstring EscapedString::EscapedRepresentation() const {
   std::wstring output;
   output.reserve(input_.size() * 2);
   for (wchar_t c : input_) {
@@ -68,44 +68,50 @@ std::wstring CppString::Escape() const {
   return output;
 }
 
-// Returns the original (unescaped) string.
-std::wstring CppString::OriginalString() const { return input_; }
+std::wstring EscapedString::CppRepresentation() const {
+  return L"\"" + EscapedRepresentation() + L"\"";
+}
 
-CppString::CppString(std::wstring input) : input_(std::move(input)) {}
+// Returns the original (unescaped) string.
+std::wstring EscapedString::OriginalString() const { return input_; }
+
+EscapedString::EscapedString(std::wstring input) : input_(std::move(input)) {}
 
 namespace {
-bool cpp_unescape_string_tests_registration = tests::Register(L"CppString", [] {
-  auto t = [](std::wstring name, std::wstring input) {
-    return tests::Test{
-        .name = name, .callback = [input] {
-          std::wstring output =
-              ValueOrDie(CppString::FromEscapedString(
-                             CppString::FromString(input).Escape()))
-                  .OriginalString();
-          LOG(INFO) << "Comparing: " << input << " to " << output;
-          CHECK(input == output);
-        }};
-  };
-  auto fail = [](std::wstring name, std::wstring input) {
-    return tests::Test{.name = name, .callback = [input] {
-                         LOG(INFO) << "Expecting failure from: " << input;
-                         CHECK(std::holds_alternative<Error>(
-                             CppString::FromEscapedString(input)));
-                       }};
-  };
-  return std::vector<tests::Test>({
-      t(L"EmptyString", L""),
-      t(L"Simple", L"Simple"),
-      t(L"SingleNewline", L"\n"),
-      t(L"EndNewLine", L"foo\n"),
-      t(L"StartNewLine", L"\nfoo"),
-      t(L"NewlinesInText", L"Foo\nbar\nquux."),
-      t(L"SomeQuotes", L"Foo \"with bar\" is 'good'."),
-      t(L"SingleBackslash", L"\\"),
-      t(L"SomeTextWithBackslash", L"Tab (escaped) is: \\t"),
-      fail(L"InvalidEscapeCharacter", L"Foo \\o bar"),
-      fail(L"EndsInEscape", L"foo\\"),
-  });
-}());
+bool cpp_unescape_string_tests_registration =
+    tests::Register(L"EscapedString", [] {
+      auto t = [](std::wstring name, std::wstring input) {
+        return tests::Test{.name = name, .callback = [input] {
+                             std::wstring output =
+                                 ValueOrDie(EscapedString::Parse(
+                                                EscapedString::FromString(input)
+                                                    .EscapedRepresentation()))
+                                     .OriginalString();
+                             LOG(INFO)
+                                 << "Comparing: " << input << " to " << output;
+                             CHECK(input == output);
+                           }};
+      };
+      auto fail = [](std::wstring name, std::wstring input) {
+        return tests::Test{
+            .name = name, .callback = [input] {
+              LOG(INFO) << "Expecting failure from: " << input;
+              CHECK(std::holds_alternative<Error>(EscapedString::Parse(input)));
+            }};
+      };
+      return std::vector<tests::Test>({
+          t(L"EmptyString", L""),
+          t(L"Simple", L"Simple"),
+          t(L"SingleNewline", L"\n"),
+          t(L"EndNewLine", L"foo\n"),
+          t(L"StartNewLine", L"\nfoo"),
+          t(L"NewlinesInText", L"Foo\nbar\nquux."),
+          t(L"SomeQuotes", L"Foo \"with bar\" is 'good'."),
+          t(L"SingleBackslash", L"\\"),
+          t(L"SomeTextWithBackslash", L"Tab (escaped) is: \\t"),
+          fail(L"InvalidEscapeCharacter", L"Foo \\o bar"),
+          fail(L"EndsInEscape", L"foo\\"),
+      });
+    }());
 }
 }  // namespace afc::vm

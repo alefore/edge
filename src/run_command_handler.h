@@ -46,8 +46,9 @@ class OpenBuffer;
 language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                            const ForkCommandOptions& options);
 
+// Input must already be unescaped (e.g., contain `\n` rather than `\\n`).
 futures::Value<language::EmptyValue> RunCommandHandler(
-    vm::CppString input, EditorState& editor_state,
+    std::wstring input, EditorState& editor_state,
     std::map<std::wstring, std::wstring> environment);
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
     const std::wstring& input, EditorState& editor_state);

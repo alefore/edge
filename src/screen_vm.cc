@@ -75,10 +75,10 @@ class ScreenVm : public Screen {
 
   void WriteString(const NonNull<std::shared_ptr<LazyString>>& str) override {
     // TODO(easy, 2022-04-27): Avoid call of ToString.
-    buffer_ +=
-        "screen.WriteString(\"" +
-        ToByteString(vm::CppString::FromString(str->ToString()).Escape()) +
-        "\");";
+    buffer_ += "screen.WriteString(" +
+               ToByteString(vm::EscapedString::FromString(str->ToString())
+                                .CppRepresentation()) +
+               ");";
   }
 
   void SetModifier(LineModifier modifier) override {

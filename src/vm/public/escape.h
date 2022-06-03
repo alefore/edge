@@ -4,23 +4,24 @@
 #include <optional>
 #include <string>
 
+#include "src/language/ghost_type.h"
 #include "src/language/value_or_error.h"
 
 namespace afc::vm {
-class CppString {
+class EscapedString {
  public:
-  static CppString FromString(std::wstring input);
-  static language::ValueOrError<CppString> FromEscapedString(
-      std::wstring input);
+  static EscapedString FromString(std::wstring input);
 
-  // Returns an escaped representation.
-  std::wstring Escape() const;
+  static language::ValueOrError<EscapedString> Parse(std::wstring input);
+
+  std::wstring EscapedRepresentation() const;
+  std::wstring CppRepresentation() const;
 
   // Returns the original (unescaped) string.
   std::wstring OriginalString() const;
 
  private:
-  CppString(std::wstring);
+  EscapedString(std::wstring original_string);
 
   // The original (unescaped) string.
   std::wstring input_;

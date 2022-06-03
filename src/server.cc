@@ -102,9 +102,10 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
                     CreateFifo({})));
   LOG(INFO) << "Fifo created: " << private_fifo.read();
   string command =
-      "editor.ConnectTo(\"" +
-      ToByteString(CppString::FromString(private_fifo.read()).Escape()) +
-      "\");\n";
+      "editor.ConnectTo(" +
+      ToByteString(
+          EscapedString::FromString(private_fifo.read()).CppRepresentation()) +
+      ");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {
     return Error(path.read() + L": write failed: " +

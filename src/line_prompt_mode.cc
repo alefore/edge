@@ -285,12 +285,11 @@ auto parse_history_line_tests_registration = tests::Register(
         CHECK(result.find(L"prompt")->second->ToString() == L"");
       }}});
 
+// TODO(easy, 2022-06-03): Get rid of this? Just call EscapedString directly?
 NonNull<std::shared_ptr<LazyString>> QuoteString(
     NonNull<std::shared_ptr<LazyString>> src) {
-  return StringAppend(
-      NewLazyString(L"\""),
-      NewLazyString(vm::CppString::FromString(src->ToString()).Escape()),
-      NewLazyString(L"\""));
+  return NewLazyString(
+      vm::EscapedString::FromString(src->ToString()).CppRepresentation());
 }
 
 auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
@@ -404,31 +403,14 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                   L"Unescaping string: " + range.first->second->ToString(),
                   error);
             },
-            [&](vm::CppString cpp_string) {
+            [&](vm::EscapedString cpp_string) {
               VLOG(8) << "Considering history value: "
                       << cpp_string.OriginalString();
               NonNull<std::shared_ptr<LazyString>> prompt_value =
                   NewLazyString(cpp_string.OriginalString());
-              if (FindFirstColumnWithPredicate(
-                      prompt_value.value(),
-                      [](ColumnNumber, wchar_t c) { return c == '\n'; })
-                      .has_value()) {
-                LOG(INFO) << "Ignoring history line with newline character: "
-                          << cpp_string.OriginalString();
-                return;
-              }
-
-              if (std::holds_alternative<Error>(
-                      vm::CppString::FromEscapedString(
-                          cpp_string.OriginalString()))) {
-                LOG(INFO) << "Ignoring history line that can't be unescaped: "
-                          << cpp_string.OriginalString();
-                return;
-              }
-
               std::vector<Token> line_tokens = ExtendTokensToEndOfString(
                   prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-              naive_bayes::Event event_key(cpp_string.OriginalString());
+              naive_bayes::Event event_key(cpp_string.EscapedRepresentation());
               std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
               if (filter_tokens.empty()) {
                 VLOG(6) << "Accepting value (empty filters): "
@@ -456,7 +438,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
               features_output->push_back(
                   naive_bayes::FeaturesSet(std::move(features)));
             }},
-        vm::CppString::FromEscapedString(range.first->second->ToString()));
+        vm::EscapedString::Parse(range.first->second->ToString()));
     return !abort_notification->HasBeenNotified();
   });
 
@@ -548,7 +530,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                                 NonNull<std::shared_ptr<LazyString>>>
             features;
         BufferContents history_contents;
-        history_contents.push_back(L"prompt:\"ls\\\\n\"");
+        history_contents.push_back(L"prompt:\"ls\\n\"");
         FilterSortHistorySyncOutput output =
             FilterSortHistorySync(MakeNonNullShared<Notification>(), L"ls",
                                   history_contents.copy(), features);
@@ -937,6 +919,7 @@ futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
 HistoryFile HistoryFileFiles() { return HistoryFile(L"files"); }
 HistoryFile HistoryFileCommands() { return HistoryFile(L"commands"); }
 
+// input must not be escaped.
 void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
                       NonNull<std::shared_ptr<LazyString>> input) {
   if (input->size().IsZero()) return;
@@ -1065,13 +1048,27 @@ void Prompt(PromptOptions options) {
                 },
             .new_line_handler =
                 [&editor_state, options, prompt_state](OpenBuffer& buffer) {
-                  NonNull<std::shared_ptr<LazyString>> input =
+                  NonNull<std::shared_ptr<LazyString>> escaped_input =
                       buffer.current_line()->contents();
-                  AddLineToHistory(editor_state, options.history_file, input);
-                  auto ensure_survival_of_current_closure =
-                      editor_state.set_keyboard_redirect(nullptr);
-                  prompt_state->Reset();
-                  return options.handler(input->ToString());
+                  return std::visit(
+                      overload{
+                          [&](vm::EscapedString input) {
+                            AddLineToHistory(
+                                editor_state, options.history_file,
+                                NewLazyString(input.OriginalString()));
+                            auto ensure_survival_of_current_closure =
+                                editor_state.set_keyboard_redirect(nullptr);
+                            prompt_state->Reset();
+                            return options.handler(input.OriginalString());
+                          },
+                          [&](Error error) {
+                            editor_state.status().Set(error);
+                            auto ensure_survival_of_current_closure =
+                                editor_state.set_keyboard_redirect(nullptr);
+                            prompt_state->Reset();
+                            return futures::Past(EmptyValue());
+                          }},
+                      vm::EscapedString::Parse(escaped_input->ToString()));
                 },
             .start_completion =
                 [&editor_state, options, prompt_state](OpenBuffer& buffer) {

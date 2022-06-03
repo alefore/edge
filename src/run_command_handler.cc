@@ -56,7 +56,7 @@ using language::PossibleError;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
-using vm::CppString;
+using vm::EscapedString;
 
 using std::cerr;
 using std::to_string;
@@ -357,7 +357,7 @@ void RunCommand(const BufferName& name, const std::wstring& input,
 }
 
 futures::Value<EmptyValue> RunCommandHandler(
-    const CppString& input, EditorState& editor_state, size_t i, size_t n,
+    const std::wstring& input, EditorState& editor_state, size_t i, size_t n,
     std::optional<Path> children_path) {
   std::map<std::wstring, std::wstring> environment = {
       {L"EDGE_RUN", std::to_wstring(i)}, {L"EDGE_RUNS", std::to_wstring(n)}};
@@ -373,9 +373,8 @@ futures::Value<EmptyValue> RunCommandHandler(
     environment[L"EDGE_SOURCE_BUFFER_PATH"] =
         buffer->ptr()->Read(buffer_variables::path);
   }
-  name += L" " + input.Escape();
-  RunCommand(BufferName(name), input.OriginalString(), environment,
-             editor_state, children_path);
+  name += L" " + EscapedString::FromString(input).EscapedRepresentation();
+  RunCommand(BufferName(name), input, environment, editor_state, children_path);
   return futures::Past(EmptyValue());
 }
 
@@ -441,17 +440,9 @@ class ForkEditorCommand : public Command {
                     })
                   : PromptOptions::ColorizeFunction(nullptr),
           .handler = [&editor_state = editor_state_,
-                      children_path](const std::wstring& name_str) {
-            return std::visit(overload{[&](CppString name) {
-                                         return RunCommandHandler(
-                                             name, editor_state, 0, 1,
-                                             OptionalFrom(children_path));
-                                       },
-                                       [&](Error error) {
-                                         editor_state.status().Set(error);
-                                         return futures::Past(EmptyValue());
-                                       }},
-                              CppString::FromEscapedString(name_str));
+                      children_path](const std::wstring& name) {
+            return RunCommandHandler(name, editor_state, 0, 1,
+                                     OptionalFrom(children_path));
           }});
     } else if (editor_state_.structure() == StructureLine()) {
       std::optional<gc::Root<OpenBuffer>> buffer =
@@ -462,18 +453,17 @@ class ForkEditorCommand : public Command {
       std::optional<Path> children_path =
           OptionalFrom(GetChildrenPath(editor_state_));
       std::visit(
-          overload{[&](CppString line) {
+          overload{[&](EscapedString line) {
                      for (size_t i = 0;
                           i < editor_state_.repetitions().value_or(1); ++i) {
                        RunCommandHandler(
-                           line, editor_state_, i,
+                           line.OriginalString(), editor_state_, i,
                            editor_state_.repetitions().value_or(1),
                            children_path);
                      }
                    },
                    [&](Error error) { editor_state_.status().Set(error); }},
-          CppString::FromEscapedString(
-              buffer->ptr()->current_line()->ToString()));
+          EscapedString::Parse(buffer->ptr()->current_line()->ToString()));
     } else {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();

@@ -121,8 +121,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                                  L"Load a file with VM commands")
           .Require(L"path", L"Path to file containing VM commands to run")
           .Transform([](std::wstring value) {
-            return L"buffer.EvaluateFile(\"" +
-                   vm::CppString::FromString(value).Escape() + L"\");";
+            return L"buffer.EvaluateFile(" +
+                   vm::EscapedString::FromString(value).CppRepresentation() +
+                   L");";
           })
           .AppendTo(&CommandLineValues::commands_to_run),
 

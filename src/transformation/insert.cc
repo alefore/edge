@@ -90,9 +90,9 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
 std::wstring ToStringBase(const Insert& options) {
   std::wstring output = L"InsertTransformationBuilder()";
   output += L".set_text(" +
-            vm::CppString::FromString(
+            vm::EscapedString::FromString(
                 options.contents_to_insert->at(LineNumber(0))->ToString())
-                .Escape() +
+                .CppRepresentation() +
             L")";
   output += L".set_modifiers(" + options.modifiers.Serialize() + L")";
   if (options.position.has_value()) {
