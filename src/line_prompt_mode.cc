@@ -333,6 +333,8 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
   ColumnNumber position;
   auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
     if (end <= position) return;
+    VLOG(8) << "Adding substring with modifiers: " << position << ", "
+            << modifiers;
     options.AppendString(Substring(line, position, end - position),
                          std::move(modifiers));
     position = end;
@@ -405,9 +407,9 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
             },
             [&](vm::EscapedString cpp_string) {
               VLOG(8) << "Considering history value: "
-                      << cpp_string.OriginalString();
+                      << cpp_string.EscapedRepresentation();
               NonNull<std::shared_ptr<LazyString>> prompt_value =
-                  NewLazyString(cpp_string.OriginalString());
+                  NewLazyString(cpp_string.EscapedRepresentation());
               std::vector<Token> line_tokens = ExtendTokensToEndOfString(
                   prompt_value, TokenizeNameForPrefixSearches(prompt_value));
               naive_bayes::Event event_key(cpp_string.EscapedRepresentation());
@@ -458,7 +460,8 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   for (naive_bayes::Event& key : naive_bayes::Sort(
            history_data, afc::naive_bayes::FeaturesSet(current_features))) {
     std::vector<TokenAndModifiers> tokens;
-    for (auto token : history_prompt_tokens[key]) {
+    for (const Token& token : history_prompt_tokens[key]) {
+      VLOG(6) << "Add token BOLD: " << token;
       tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
     }
     output.lines.push_back(
@@ -502,12 +505,31 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                                     NonNull<std::shared_ptr<LazyString>>>
                 features;
             BufferContents history_contents;
-            history_contents.push_back(L"prompt:\"foo\\nbar\"");
+            history_contents.push_back(L"prompt:\"foo\\nbardo\"");
             FilterSortHistorySyncOutput output =
                 FilterSortHistorySync(MakeNonNullShared<Notification>(), L"bar",
                                       history_contents.copy(), features);
             CHECK_EQ(output.lines.size(), 1ul);
-            CHECK(output.lines[0]->ToString() == L"foo\\nbar");
+            Line& line = output.lines[0].value();
+            CHECK(line.ToString() == L"foo\\nbardo");
+
+            const std::map<ColumnNumber, LineModifierSet> modifiers =
+                line.modifiers();
+            for (const auto& m : modifiers) {
+              LOG(INFO) << "Modifiers: " << m.first << ": " << m.second;
+            }
+
+            {
+              auto s = modifiers.find(ColumnNumber(5));
+              CHECK(s != modifiers.end());
+              LOG(INFO) << "Modifiers found: " << s->second;
+              CHECK_EQ(s->second, LineModifierSet{LineModifier::BOLD});
+            }
+            {
+              auto s = modifiers.find(ColumnNumber(8));
+              CHECK(s != modifiers.end());
+              CHECK_EQ(s->second, LineModifierSet{});
+            }
           }},
      {.name = L"MatchIncludingEscapeCorrectlyHandled",
       .callback =
