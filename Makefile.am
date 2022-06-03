@@ -346,7 +346,7 @@ glog-0.4.0/libglog_la-raw_logging.o \
 glog-0.4.0/libglog_la-utilities.o \
 glog-0.4.0/libglog_la-vlog_is_on.o
 
-AM_CPPFLAGS=-std=c++20 -g -Wall -Wextra -Iglog-0.4.0/src -DDOCDIR='"$(docdir)"' -Werror=return-type -Werror=switch -Werror=unused-function -Werror=missing-field-initializers -Werror=unused-but-set-variable -Werror=range-loop-construct
+AM_CPPFLAGS=-std=c++20 -g -Wall -Wextra -Iglog-0.4.0/src -DDOCDIR='"$(docdir)"' -Werror=return-type -Werror=switch -Werror=unused-function -Werror=missing-field-initializers -Werror=unused-but-set-variable -Werror=range-loop-construct -Wshadow
 AM_LDFLAGS=-std=c++20 -g
 edge_LDADD=glog-0.4.0/libglog.la
 benchmark_LDADD=glog-0.4.0/libglog.la
