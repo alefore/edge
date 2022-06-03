@@ -33,6 +33,8 @@ using LineModifierSet = std::unordered_set<LineModifier, std::hash<int>>;
 std::string ModifierToString(LineModifier modifier);
 LineModifier ModifierFromString(std::string modifier);
 
+std::ostream& operator<<(std::ostream& os, const LineModifierSet& s);
+
 }  // namespace editor
 }  // namespace afc
 

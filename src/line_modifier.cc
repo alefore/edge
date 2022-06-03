@@ -38,5 +38,16 @@ LineModifier ModifierFromString(std::string modifier) {
   return RESET;  // Ugh.
 }
 
+std::ostream& operator<<(std::ostream& os, const LineModifierSet& s) {
+  std::string separator;
+  os << "{";
+  for (const auto& m : s) {
+    os << separator << ModifierToString(m);
+    separator = ", ";
+  }
+  os << "}";
+  return os;
+}
+
 }  // namespace editor
 }  // namespace afc
