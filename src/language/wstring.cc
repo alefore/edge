@@ -49,6 +49,7 @@ std::wstring FromByteString(std::string input) {
   return output_string;
 }
 
+// TODO(easy, 2022-06-05): Deduplicate this against EscapedString.
 std::wstring ShellEscape(std::wstring input) {
   std::wstring output;
   output.push_back(L'\'');

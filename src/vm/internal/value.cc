@@ -1,9 +1,9 @@
 #include "../public/value.h"
 
 #include "../public/vm.h"
+#include "src/language/wstring.h"
 #include "src/tests/tests.h"
 #include "src/vm/public/escape.h"
-#include "wstring.h"
 
 namespace afc::vm {
 using language::Error;
@@ -156,6 +156,7 @@ Value::expand() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
+  using ::operator<<;
   switch (value.type.type) {
     case VMType::Type::kInt:
       os << value.get_int();

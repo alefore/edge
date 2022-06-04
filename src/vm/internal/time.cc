@@ -3,19 +3,21 @@
 #include <glog/logging.h>
 
 #include "src/language/safe_types.h"
+#include "src/language/wstring.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
-#include "wstring.h"
 
 namespace afc::vm {
 using language::Error;
+using language::FromByteString;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
+using language::ToByteString;
 
 namespace gc = language::gc;
 

@@ -2,8 +2,8 @@
 
 #include "../public/value.h"
 #include "../public/vm.h"
+#include "src/language/wstring.h"
 #include "src/tests/tests.h"
-#include "src/vm/internal/wstring.h"
 
 namespace afc::vm {
 using language::Error;
@@ -80,6 +80,7 @@ EscapedString::EscapedString(std::wstring input) : input_(std::move(input)) {}
 namespace {
 bool cpp_unescape_string_tests_registration =
     tests::Register(L"EscapedString", [] {
+      using ::operator<<;
       auto t = [](std::wstring name, std::wstring input) {
         return tests::Test{.name = name, .callback = [input] {
                              std::wstring output =

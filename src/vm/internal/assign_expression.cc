@@ -2,8 +2,8 @@
 
 #include <glog/logging.h>
 
+#include "src/language/wstring.h"
 #include "src/vm/internal/compilation.h"
-#include "src/vm/internal/wstring.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
@@ -14,6 +14,8 @@ using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
+
+using ::operator<<;
 
 namespace gc = language::gc;
 

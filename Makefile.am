@@ -287,7 +287,6 @@ src/vm/internal/namespace_expression.h \
 src/vm/internal/negate_expression.cc \
 src/vm/internal/logical_expression.cc \
 src/vm/internal/variable_lookup.cc \
-src/vm/internal/wstring.cc \
 src/widget.h
 
 BENCHMARK_SOURCES = \
