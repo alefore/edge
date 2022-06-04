@@ -176,14 +176,12 @@ futures::Value<PossibleError> Save(
                       buffer_variables::trigger_reload_on_buffer_write)) {
                 for (std::pair<BufferName, gc::Root<OpenBuffer>> entry :
                      *buffer.ptr()->editor().buffers()) {
-                  // TODO(2022-06-03, easy): Keep just the OpenBuffer ref.
-                  const gc::Root<OpenBuffer>& reload_buffer = entry.second;
-                  if (reload_buffer.ptr()->Read(
+                  OpenBuffer& reload_buffer = entry.second.ptr().value();
+                  if (reload_buffer.Read(
                           buffer_variables::reload_on_buffer_write)) {
-                    LOG(INFO)
-                        << "Write of " << path << " triggers reload: "
-                        << reload_buffer.ptr()->Read(buffer_variables::name);
-                    reload_buffer.ptr()->Reload();
+                    LOG(INFO) << "Write of " << path << " triggers reload: "
+                              << reload_buffer.Read(buffer_variables::name);
+                    reload_buffer.Reload();
                   }
                 }
               }
