@@ -652,11 +652,11 @@ gc::Root<OpenBuffer> CreateBuffer(
   };
   buffer_options->handle_save =
       [&editor_state = options.editor_state,
-       stat_buffer](OpenBuffer::Options::HandleSaveOptions options) {
+       stat_buffer](OpenBuffer::Options::HandleSaveOptions save_options) {
         gc::WeakPtr<OpenBuffer> buffer_weak =
-            options.buffer.NewRoot().ptr().ToWeakPtr();
+            save_options.buffer.NewRoot().ptr().ToWeakPtr();
         return futures::OnError(
-            Save(&editor_state, stat_buffer.get(), std::move(options)),
+            Save(&editor_state, stat_buffer.get(), std::move(save_options)),
             [buffer_weak](Error error) {
               VisitPointer(
                   buffer_weak.Lock(),
@@ -694,10 +694,10 @@ gc::Root<OpenBuffer> CreateBuffer(
 
   gc::Root<OpenBuffer> buffer =
       options.editor_state.FindOrBuildBuffer(buffer_options->name, [&] {
-        gc::Root<OpenBuffer> buffer = OpenBuffer::New(*buffer_options);
-        buffer.ptr()->Set(buffer_variables::persist_state, true);
-        buffer.ptr()->Reload();
-        return buffer;
+        gc::Root<OpenBuffer> output = OpenBuffer::New(*buffer_options);
+        output.ptr()->Set(buffer_variables::persist_state, true);
+        output.ptr()->Reload();
+        return output;
       });
   buffer.ptr()->ResetMode();
 
