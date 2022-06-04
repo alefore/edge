@@ -10,10 +10,9 @@
 #include "src/vm/internal/time.h"
 #include "src/vm/internal/types_promotion.h"
 #include "src/vm/public/callbacks.h"
-#include "src/vm/public/set.h"
+#include "src/vm/public/container.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
-#include "src/vm/public/vector.h"
 
 namespace afc::vm {
 namespace {
@@ -67,8 +66,8 @@ language::gc::Root<Environment> Environment::NewDefault(
                             })));
   environment_value.DefineType(std::move(double_type));
 
-  ExportVectorType<int>(pool, environment_value);
-  ExportSetType<int>(pool, environment_value);
+  container::Export<std::vector<int>>(pool, environment_value);
+  container::Export<std::set<int>>(pool, environment_value);
   return environment;
 }
 

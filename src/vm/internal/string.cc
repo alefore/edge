@@ -2,12 +2,14 @@
 
 #include <glog/logging.h>
 
+#include <set>
+#include <vector>
+
 #include "../public/callbacks.h"
+#include "../public/container.h"
 #include "../public/environment.h"
-#include "../public/set.h"
 #include "../public/types.h"
 #include "../public/value.h"
-#include "../public/vector.h"
 #include "../public/vm.h"
 
 namespace afc::language::gc {
@@ -21,12 +23,13 @@ namespace gc = language::gc;
 
 template <>
 const VMType
-    VMTypeMapper<NonNull<std::shared_ptr<std::vector<wstring>>>>::vmtype =
+    VMTypeMapper<NonNull<std::shared_ptr<std::vector<std::wstring>>>>::vmtype =
         VMType::ObjectType(VMTypeObjectTypeName(L"VectorString"));
 
 template <>
-const VMType VMTypeMapper<NonNull<std::shared_ptr<std::set<wstring>>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"SetString"));
+const VMType
+    VMTypeMapper<NonNull<std::shared_ptr<std::set<std::wstring>>>>::vmtype =
+        VMType::ObjectType(VMTypeObjectTypeName(L"SetString"));
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name, language::gc::Pool& pool,
@@ -137,7 +140,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       string_type.value());
   environment.DefineType(std::move(string_type));
 
-  ExportVectorType<std::wstring>(pool, environment);
-  ExportSetType<std::wstring>(pool, environment);
+  container::Export<std::vector<std::wstring>>(pool, environment);
+  container::Export<std::set<std::wstring>>(pool, environment);
 }
 }  // namespace afc::vm

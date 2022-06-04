@@ -17,7 +17,6 @@
 #include "src/terminal.h"
 #include "src/transformation/vm.h"
 #include "src/vm/public/callbacks.h"
-#include "src/vm/public/set.h"
 
 using afc::language::NonNull;
 using afc::language::Pointer;

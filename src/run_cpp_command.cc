@@ -278,21 +278,21 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
       overload{[&](Error) { output_future.consumer(std::move(output)); },
                [&](ParsedCommand command) {
                  Execute(buffer->ptr().value(), std::move(command))
-                     .SetConsumer(
-                         [consumer = output_future.consumer, buffer, output](
-                             ValueOrError<gc::Root<vm::Value>> value) mutable {
-                           std::visit(overload{IgnoreErrors{},
-                                               [&](gc::Root<vm::Value> value) {
-                                                 if (value.ptr()->type ==
-                                                     BufferMapper::vmtype) {
-                                                   output.context =
-                                                       BufferMapper::get(
-                                                           value.ptr().value());
-                                                 }
-                                               }},
-                                      std::move(value));
-                           consumer(output);
-                         });
+                     .SetConsumer([consumer = output_future.consumer, buffer,
+                                   output](ValueOrError<gc::Root<vm::Value>>
+                                               value_or_error) mutable {
+                       std::visit(overload{IgnoreErrors{},
+                                           [&](gc::Root<vm::Value> value) {
+                                             if (value.ptr()->type ==
+                                                 BufferMapper::vmtype) {
+                                               output.context =
+                                                   BufferMapper::get(
+                                                       value.ptr().value());
+                                             }
+                                           }},
+                                  std::move(value_or_error));
+                       consumer(output);
+                     });
                }},
       buffer.has_value()
           ? ValueOrError<ParsedCommand>(Error(L"Buffer has no value"))

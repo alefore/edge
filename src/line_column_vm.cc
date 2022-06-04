@@ -6,10 +6,9 @@
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/vm/public/callbacks.h"
+#include "src/vm/public/container.h"
 #include "src/vm/public/environment.h"
-#include "src/vm/public/set.h"
 #include "src/vm/public/value.h"
-#include "src/vm/public/vector.h"
 
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
@@ -173,7 +172,7 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
 
   environment.DefineType(std::move(range));
 
-  ExportVectorType<LineColumn>(pool, environment);
-  ExportSetType<LineColumn>(pool, environment);
+  vm::container::Export<typename std::vector<LineColumn>>(pool, environment);
+  vm::container::Export<typename std::set<LineColumn>>(pool, environment);
 }
 }  // namespace afc::editor

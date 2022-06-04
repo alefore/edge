@@ -5,10 +5,8 @@
 #include "src/language/safe_types.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
-#include "src/vm/public/set.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
-#include "src/vm/public/vector.h"
 #include "src/vm/public/vm.h"
 #include "wstring.h"
 
