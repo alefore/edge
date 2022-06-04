@@ -386,7 +386,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       .Transform([predictor_input, search_paths](EmptyValue) {
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
-        std::wstring path = std::visit(
+        std::wstring path_input = std::visit(
             overload{[&](Error) { return predictor_input.input; },
                      [&](Path path) {
                        return predictor_input.editor.expand_path(path).read();
@@ -406,11 +406,11 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                 : std::wregex(predictor_input.source_buffers[0].ptr()->Read(
                       buffer_variables::directory_noise));
         return predictor_input.editor.thread_pool().Run(std::bind_front(
-            [search_paths, path, get_buffer, resolve_path_options, noise_regex](
-                ProgressChannel& progress_channel,
-                const NonNull<std::shared_ptr<Notification>>&
-                    abort_notification) {
-              if (!path.empty() && *path.begin() == L'/') {
+            [search_paths, path_input, get_buffer, resolve_path_options,
+             noise_regex](ProgressChannel& progress_channel,
+                          const NonNull<std::shared_ptr<Notification>>&
+                              abort_notification) {
+              if (!path_input.empty() && *path_input.begin() == L'/') {
                 *search_paths = {Path::Root()};
               } else {
                 std::vector<Path> resolved_paths;
@@ -437,7 +437,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               int matches = 0;
               for (const auto& search_path : *search_paths) {
                 VLOG(4) << "Considering search path: " << search_path;
-                auto descend_results = DescendDirectoryTree(search_path, path);
+                auto descend_results =
+                    DescendDirectoryTree(search_path, path_input);
                 if (descend_results.dir == nullptr) {
                   LOG(WARNING) << "Unable to descend: " << search_path;
                   continue;
@@ -447,12 +448,13 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                         OpenBuffer& buffer) {
                       RegisterPredictorDirectoryMatch(length, buffer);
                     });
-                CHECK_LE(descend_results.valid_prefix_length, path.size());
+                CHECK_LE(descend_results.valid_prefix_length,
+                         path_input.size());
                 ScanDirectory(
                     descend_results.dir.get(), noise_regex,
-                    path.substr(descend_results.valid_prefix_length,
-                                path.size()),
-                    path.substr(0, descend_results.valid_prefix_length),
+                    path_input.substr(descend_results.valid_prefix_length,
+                                      path_input.size()),
+                    path_input.substr(0, descend_results.valid_prefix_length),
                     &matches, progress_channel, abort_notification.value(),
                     get_buffer);
                 if (abort_notification->HasBeenNotified())
