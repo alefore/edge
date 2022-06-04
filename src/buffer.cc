@@ -710,8 +710,8 @@ void OpenBuffer::StartNewLine(NonNull<std::shared_ptr<const Line>> line) {
 
 void OpenBuffer::AppendLines(
     std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
-  static Tracker tracker(L"OpenBuffer::AppendLines");
-  auto tracker_call = tracker.Call();
+  static Tracker top_tracker(L"OpenBuffer::AppendLines");
+  auto top_tracker_call = top_tracker.Call();
 
   auto lines_added = LineNumberDelta(lines.size());
   if (lines_added.IsZero()) return;
