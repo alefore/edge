@@ -299,7 +299,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
             CHECK_EQ(args.size(), 2u);
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            const auto& buffers_to_wait =
+            NonNull<std::shared_ptr<std::set<std::wstring>>> buffers_to_wait =
                 VMTypeMapper<NonNull<std::shared_ptr<std::set<std::wstring>>>>::
                     get(args[1].ptr().value());
 
