@@ -445,7 +445,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   VLOG(4) << "Matches found: " << history_data.read().size();
 
   // For sorting.
-  std::unordered_set<naive_bayes::Feature> current_features;
+  naive_bayes::FeaturesSet current_features({});
   for (const auto& [name, value] : features) {
     current_features.insert(
         naive_bayes::Feature(name + L":" + QuoteString(value)->ToString()));
@@ -455,8 +455,8 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
         naive_bayes::Feature(name + L":" + QuoteString(value)->ToString()));
   }
 
-  for (naive_bayes::Event& key : naive_bayes::Sort(
-           history_data, afc::naive_bayes::FeaturesSet(current_features))) {
+  for (naive_bayes::Event& key :
+       naive_bayes::Sort(history_data, current_features)) {
     std::vector<TokenAndModifiers> tokens;
     for (const Token& token : history_prompt_tokens[key]) {
       VLOG(6) << "Add token BOLD: " << token;
