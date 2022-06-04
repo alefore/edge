@@ -349,8 +349,7 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
 
 struct FilterSortHistorySyncOutput {
   std::vector<Error> errors;
-  // TODO(easy, 2022-06-02): Why is this a deque? Turn into vector?
-  std::deque<NonNull<std::shared_ptr<Line>>> lines;
+  std::vector<NonNull<std::shared_ptr<Line>>> lines;
 };
 
 FilterSortHistorySyncOutput FilterSortHistorySync(
