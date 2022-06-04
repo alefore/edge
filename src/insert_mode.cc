@@ -438,8 +438,6 @@ class InsertMode : public EditorMode {
                                 .paste_buffer_behavior =
                                     Modifiers::PasteBufferBehavior::kDoNothing},
                   .initiator = transformation::Delete::Initiator::kUser})
-              .Transform(
-                  ModifyHandler<EmptyValue>(options.modify_handler, buffer))
               .Transform([options, direction, buffer_root](EmptyValue) {
                 if (options.editor_state.modifiers().insertion !=
                     Modifiers::ModifyMode::kOverwrite)
@@ -453,12 +451,8 @@ class InsertMode : public EditorMode {
                             ? transformation::Insert::FinalPosition::kStart
                             : transformation::Insert::FinalPosition::kEnd});
               })
-              // TODO:Why call modify_handler here? Isn't it redundant with
-              // CallModifyHandler above?
               .Transform(
-                  [handler = options.modify_handler, buffer_root](EmptyValue) {
-                    return handler(buffer_root.ptr().value());
-                  });
+                  ModifyHandler<EmptyValue>(options.modify_handler, buffer));
         });
     switch (direction) {
       case Direction::kBackwards:
