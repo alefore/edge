@@ -311,8 +311,8 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
                    ProgressChannel& progress_channel,
                    Notification& abort_notification,
                    OpenBuffer::LockFunction get_buffer) {
-  static Tracker tracker(L"FilePredictor::ScanDirectory");
-  auto call = tracker.Call();
+  static Tracker top_tracker(L"FilePredictor::ScanDirectory");
+  auto top_call = top_tracker.Call();
 
   CHECK(dir != nullptr);
   VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
@@ -384,6 +384,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   auto search_paths = std::make_shared<std::vector<Path>>();
   return GetSearchPaths(predictor_input.editor, search_paths.get())
       .Transform([predictor_input, search_paths](EmptyValue) {
+        // TODO(easy, 2022-06-05): Preserve the Path type?
         std::wstring path = std::visit(
             overload{[&](Error) { return predictor_input.input; },
                      [&](Path path) {
