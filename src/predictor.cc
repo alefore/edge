@@ -384,7 +384,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   auto search_paths = std::make_shared<std::vector<Path>>();
   return GetSearchPaths(predictor_input.editor, search_paths.get())
       .Transform([predictor_input, search_paths](EmptyValue) {
-        // TODO(easy, 2022-06-05): Preserve the Path type?
+        // We can't use a Path type because this comes from the prompt and ...
+        // may not actually be a valid path.
         std::wstring path = std::visit(
             overload{[&](Error) { return predictor_input.input; },
                      [&](Path path) {
