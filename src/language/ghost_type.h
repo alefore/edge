@@ -134,6 +134,7 @@
     GHOST_TYPE_INDEX                                        \
     GHOST_TYPE_PUSH_BACK                                    \
     GHOST_TYPE_POP_BACK                                     \
+    GHOST_TYPE_INSERT                                       \
     const VariableType& read() const { return value; }      \
                                                             \
    private:                                                 \
@@ -279,6 +280,16 @@
   void pop_back() {                     \
     void (V::*f)() = &V::pop_back;      \
     (value.*f)();                       \
+  }
+
+// We use the template type V to use SFINAE to disable this expression on ghost
+// types of containers that don't include an insert method.
+#define GHOST_TYPE_INSERT                                          \
+  template <typename V = ContainerType>                            \
+  auto insert(ContainerType::value_type&& v) {                     \
+    std::pair<ContainerType::iterator, bool> (V::*f)(              \
+        ContainerType::value_type &&) = &V::insert;                \
+    return (value.*f)(std::forward<ContainerType::value_type>(v)); \
   }
 
 #define GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable) \
