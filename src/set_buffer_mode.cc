@@ -431,8 +431,6 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
       .initial_value = std::move(initial_value),
       .char_consumer = &CharConsumer,
       .status_factory = &BuildStatus,
-      // TODO(easy, 2022-06-03): Why don't we evaluate initial_buffer at the top
-      // level and use that to set .undo to different values?
       .undo =
           [&editor, initial_buffer = editor.buffer_tree().active_buffer()]() {
             VisitPointer(
