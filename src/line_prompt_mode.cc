@@ -429,15 +429,14 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                 VLOG(6) << "Ignoring value, no match: " << line.ToString();
                 return;
               }
-              std::unordered_set<naive_bayes::Feature> features;
+              naive_bayes::FeaturesSet features({});
               for (auto& [key, value] : *line_keys) {
                 if (key != L"prompt") {
                   features.insert(naive_bayes::Feature(
                       key + L":" + QuoteString(value)->ToString()));
                 }
               }
-              features_output->push_back(
-                  naive_bayes::FeaturesSet(std::move(features)));
+              features_output->push_back(std::move(features));
             }},
         vm::EscapedString::Parse(range.first->second->ToString()));
     return !abort_notification->HasBeenNotified();
